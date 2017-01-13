@@ -413,25 +413,25 @@ namespace DnsServerCore
 
                 case 1:
                     DnsDatagram responseReceived = responses[0];
-                    return new DnsDatagram(new DnsHeader(request.Header.Identifier, true, request.Header.OPCODE, false, false, true, true, false, false, responseReceived.Header.RCODE, request.Header.QDCOUNT, responseReceived.Header.ANCOUNT, responseReceived.Header.NSCOUNT, responseReceived.Header.ARCOUNT), request.Question, responseReceived.Answer, responseReceived.Authority, responseReceived.Additional);
+
+                    if (responseReceived.Answer.Length == 0)
+                        return new DnsDatagram(new DnsHeader(request.Header.Identifier, true, request.Header.OPCODE, false, false, true, true, false, false, responseReceived.Header.RCODE, request.Header.QDCOUNT, responseReceived.Header.ANCOUNT, responseReceived.Header.NSCOUNT, 0), request.Question, responseReceived.Answer, responseReceived.Authority, null);
+                    else
+                        return new DnsDatagram(new DnsHeader(request.Header.Identifier, true, request.Header.OPCODE, false, false, true, true, false, false, responseReceived.Header.RCODE, request.Header.QDCOUNT, responseReceived.Header.ANCOUNT, 0, 0), request.Question, responseReceived.Answer, null, null);
 
                 default:
                     List<DnsResourceRecord> responseAnswer = new List<DnsResourceRecord>();
                     List<DnsResourceRecord> responseAuthority = new List<DnsResourceRecord>();
-                    List<DnsResourceRecord> responseAdditional = new List<DnsResourceRecord>();
 
                     foreach (DnsDatagram response in responses)
                     {
                         responseAnswer.AddRange(response.Answer);
 
-                        if (response.Authority != null)
+                        if ((response.Answer.Length == 0) && (response.Authority != null))
                             responseAuthority.AddRange(response.Authority);
-
-                        if (response.Additional != null)
-                            responseAuthority.AddRange(response.Additional);
                     }
 
-                    return new DnsDatagram(new DnsHeader(request.Header.Identifier, true, request.Header.OPCODE, false, false, true, true, false, false, responses[0].Header.RCODE, request.Header.QDCOUNT, Convert.ToUInt16(responseAnswer.Count), Convert.ToUInt16(responseAuthority.Count), Convert.ToUInt16(responseAdditional.Count)), request.Question, responseAnswer.ToArray(), responseAuthority.ToArray(), responseAdditional.ToArray());
+                    return new DnsDatagram(new DnsHeader(request.Header.Identifier, true, request.Header.OPCODE, false, false, true, true, false, false, responses[0].Header.RCODE, request.Header.QDCOUNT, Convert.ToUInt16(responseAnswer.Count), Convert.ToUInt16(responseAuthority.Count), 0), request.Question, responseAnswer.ToArray(), responseAuthority.ToArray(), null);
             }
         }
 
