@@ -19,6 +19,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Threading;
 using TechnitiumLibrary.Net;
 
@@ -253,14 +254,38 @@ namespace DnsServerCore
                 if (authority.Length == 0)
                     authority = soaAuthority;
             }
-            else if (answer[0] == null)
+            else if ((answer[0].RDATA == null) || (answer[0].RDATA is DnsEmptyRecord))
             {
-                //NameError entry found in cache
+                //NameError or Empty entry found in cache
                 authority = closestZone.GetRecord(closestZone.Name, DnsResourceRecordType.SOA);
             }
             else if ((type != DnsResourceRecordType.NS) && (type != DnsResourceRecordType.ANY) && ((type == DnsResourceRecordType.CNAME) || (answer[0].Type != DnsResourceRecordType.CNAME)))
             {
-                authority = closestZone.GetRecord(closestZone.Name, DnsResourceRecordType.NS);
+                if (rootZone._authoritativeZone)
+                {
+                    authority = closestZone.GetRecord(closestZone.Name, DnsResourceRecordType.NS);
+                }
+                else
+                {
+                    //return closest available authority NS records
+                    string closestZoneName = closestZone.Name;
+
+                    while (true)
+                    {
+                        authority = closestZone.GetRecord(closestZoneName, DnsResourceRecordType.NS);
+
+                        if ((authority != null) && (authority[0].Type == DnsResourceRecordType.NS))
+                            break;
+
+                        int i = closestZoneName.IndexOf('.');
+                        if (i < 0)
+                            closestZoneName = "";
+                        else
+                            closestZoneName = closestZoneName.Substring(i + 1);
+
+                        closestZone = GetClosestZone(rootZone, closestZoneName);
+                    }
+                }
             }
 
             //fill in glue records for NS records in authority
@@ -278,13 +303,61 @@ namespace DnsServerCore
 
                     DnsResourceRecord[] nsAnswersA = closestNSZone.GetRecord(nsRecord.NSDomainName, DnsResourceRecordType.A);
                     if (nsAnswersA != null)
-                        additionalList.AddRange(nsAnswersA);
+                    {
+                        if ((answer != null) && (type == DnsResourceRecordType.A))
+                        {
+                            foreach (DnsResourceRecord nsAnswerA in nsAnswersA)
+                            {
+                                bool contains = false;
+
+                                foreach (DnsResourceRecord ans in answer)
+                                {
+                                    if (ans == nsAnswerA)
+                                    {
+                                        contains = true;
+                                        break;
+                                    }
+                                }
+
+                                if (!contains)
+                                    additionalList.Add(nsAnswerA);
+                            }
+                        }
+                        else
+                        {
+                            additionalList.AddRange(nsAnswersA);
+                        }
+                    }
 
                     if (enableIPv6)
                     {
                         DnsResourceRecord[] nsAnswersAAAA = closestNSZone.GetRecord(nsRecord.NSDomainName, DnsResourceRecordType.AAAA);
                         if (nsAnswersAAAA != null)
-                            additionalList.AddRange(nsAnswersAAAA);
+                        {
+                            if ((answer != null) && (type == DnsResourceRecordType.AAAA))
+                            {
+                                foreach (DnsResourceRecord nsAnswerAAAA in nsAnswersAAAA)
+                                {
+                                    bool contains = false;
+
+                                    foreach (DnsResourceRecord ans in answer)
+                                    {
+                                        if (ans == nsAnswerAAAA)
+                                        {
+                                            contains = true;
+                                            break;
+                                        }
+                                    }
+
+                                    if (!contains)
+                                        additionalList.Add(nsAnswerAAAA);
+                                }
+                            }
+                            else
+                            {
+                                additionalList.AddRange(nsAnswersAAAA);
+                            }
+                        }
                     }
                 }
 
@@ -327,10 +400,14 @@ namespace DnsServerCore
 
                         if (response.Answer.Length > 0)
                         {
-                            if (!authoritativeAnswer && (response.Answer[0] == null))
+                            if (!authoritativeAnswer && (response.Answer[0].RDATA == null))
                             {
                                 //name error set in cache
                                 RCODE = DnsResponseCode.NameError;
+                            }
+                            else if (!authoritativeAnswer && (response.Answer[0].RDATA is DnsEmptyRecord))
+                            {
+                                //empty entry set in cache; do nothing
                             }
                             else
                             {
@@ -348,6 +425,9 @@ namespace DnsServerCore
 
                                         if (cnameResponse.Authority != null)
                                             authorityList.AddRange(cnameResponse.Authority);
+
+                                        if (cnameResponse.Additional != null)
+                                            additionalList.AddRange(cnameResponse.Additional);
                                     }
                                 }
                             }
@@ -383,27 +463,48 @@ namespace DnsServerCore
             switch (response.Header.RCODE)
             {
                 case DnsResponseCode.NameError:
-                    string authorityZone = null;
-                    uint ttl = 60;
-
-                    if ((response.Authority.Length > 0) && (response.Authority[0].Type == DnsResourceRecordType.SOA))
                     {
-                        authorityZone = response.Authority[0].Name;
-                        ttl = (response.Authority[0].RDATA as DnsSOARecord).Minimum;
-                    }
+                        string authorityZone = null;
+                        uint ttl = 60;
 
-                    foreach (DnsQuestionRecord question in response.Question)
-                    {
-                        if (authorityZone == null)
-                            authorityZone = question.Name;
+                        if ((response.Authority.Length > 0) && (response.Authority[0].Type == DnsResourceRecordType.SOA))
+                        {
+                            authorityZone = response.Authority[0].Name;
+                            ttl = (response.Authority[0].RDATA as DnsSOARecord).Minimum;
+                        }
 
-                        Zone zone = CreateZone(rootZone, authorityZone);
-                        zone.SetRecord(new DnsResourceRecord[] { new DnsResourceRecord(question.Name, question.Type, DnsClass.Internet, ttl, null) });
+                        foreach (DnsQuestionRecord question in response.Question)
+                        {
+                            if (authorityZone == null)
+                                authorityZone = question.Name;
+
+                            Zone zone = CreateZone(rootZone, authorityZone);
+                            zone.SetRecord(new DnsResourceRecord[] { new DnsResourceRecord(question.Name, question.Type, DnsClass.Internet, ttl, null) });
+                        }
                     }
                     break;
 
                 case DnsResponseCode.NoError:
-                    allRecords.AddRange(response.Answer);
+                    if (response.Answer.Length == 0)
+                    {
+                        if (response.Header.AuthoritativeAnswer)
+                        {
+                            uint ttl = 60;
+
+                            if ((response.Authority.Length > 0) && (response.Authority[0].Type == DnsResourceRecordType.SOA))
+                                ttl = (response.Authority[0].RDATA as DnsSOARecord).Minimum;
+
+                            foreach (DnsQuestionRecord question in response.Question)
+                            {
+                                Zone zone = CreateZone(rootZone, question.Name);
+                                zone.SetRecord(new DnsResourceRecord[] { new DnsResourceRecord(question.Name, question.Type, DnsClass.Internet, ttl, new DnsEmptyRecord()) });
+                            }
+                        }
+                    }
+                    else
+                    {
+                        allRecords.AddRange(response.Answer);
+                    }
                     break;
 
                 default:
@@ -555,8 +656,6 @@ namespace DnsServerCore
                     {
                         if (zoneEntry.IsExpired())
                             return null; //domain does not exists in cache since expired
-                        else if (zoneEntry.IsNameErrorEntry())
-                            return new DnsResourceRecord[] { null }; //name error set in cache
                         else
                             return zoneEntry.ResourceRecords; //records found in cache
                     }
@@ -613,7 +712,7 @@ namespace DnsServerCore
         #endregion
     }
 
-    public class ZoneEntry
+    class ZoneEntry
     {
         #region variables
 
@@ -637,11 +736,6 @@ namespace DnsServerCore
             return (_resourceRecords[0].TTLValue < 1);
         }
 
-        public bool IsNameErrorEntry()
-        {
-            return (_resourceRecords[0].RDATA == null);
-        }
-
         #endregion
 
         #region properties
@@ -651,4 +745,30 @@ namespace DnsServerCore
 
         #endregion
     }
+
+    class DnsEmptyRecord : DnsResourceRecordData
+    {
+        #region constructor
+
+        public DnsEmptyRecord()
+            : base(0)
+        { }
+
+        public DnsEmptyRecord(Stream s)
+            : base(s)
+        { }
+
+        #endregion
+
+        #region protected
+
+        protected override void Parse(Stream s)
+        { }
+
+        protected override void WriteRecordData(Stream s)
+        { }
+
+        #endregion
+    }
+
 }
