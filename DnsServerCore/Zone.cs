@@ -246,7 +246,7 @@ namespace DnsServerCore
                     }
                 }
             }
-            else if (answer.Length == 0)
+            else if (rootZone._authoritativeZone && (answer.Length == 0))
             {
                 //no records available for requested type
                 authority = closestZone.GetRecord(domain, DnsResourceRecordType.NS);
@@ -254,38 +254,31 @@ namespace DnsServerCore
                 if (authority.Length == 0)
                     authority = soaAuthority;
             }
-            else if ((answer[0].RDATA == null) || (answer[0].RDATA is DnsEmptyRecord))
+            else if (!rootZone._authoritativeZone && (answer[0].RDATA == null) || (answer[0].RDATA is DnsEmptyRecord))
             {
                 //NameError or Empty entry found in cache
-                authority = closestZone.GetRecord(closestZone.Name, DnsResourceRecordType.SOA);
+                //return closest available SOA records
+                string closestZoneName = closestZone.Name;
+
+                while (true)
+                {
+                    authority = closestZone.GetRecord(closestZoneName, DnsResourceRecordType.SOA);
+
+                    if (authority != null)
+                        break;
+
+                    int i = closestZoneName.IndexOf('.');
+                    if (i < 0)
+                        closestZoneName = "";
+                    else
+                        closestZoneName = closestZoneName.Substring(i + 1);
+
+                    closestZone = GetClosestZone(rootZone, closestZoneName);
+                }
             }
-            else if ((type != DnsResourceRecordType.NS) && (type != DnsResourceRecordType.ANY) && ((type == DnsResourceRecordType.CNAME) || (answer[0].Type != DnsResourceRecordType.CNAME)))
+            else if (rootZone._authoritativeZone && (type != DnsResourceRecordType.NS) && (type != DnsResourceRecordType.ANY) && ((type == DnsResourceRecordType.CNAME) || (answer[0].Type != DnsResourceRecordType.CNAME)))
             {
-                if (rootZone._authoritativeZone)
-                {
-                    authority = closestZone.GetRecord(closestZone.Name, DnsResourceRecordType.NS);
-                }
-                else
-                {
-                    //return closest available authority NS records
-                    string closestZoneName = closestZone.Name;
-
-                    while (true)
-                    {
-                        authority = closestZone.GetRecord(closestZoneName, DnsResourceRecordType.NS);
-
-                        if ((authority != null) && (authority[0].Type == DnsResourceRecordType.NS))
-                            break;
-
-                        int i = closestZoneName.IndexOf('.');
-                        if (i < 0)
-                            closestZoneName = "";
-                        else
-                            closestZoneName = closestZoneName.Substring(i + 1);
-
-                        closestZone = GetClosestZone(rootZone, closestZoneName);
-                    }
-                }
+                authority = closestZone.GetRecord(closestZone.Name, DnsResourceRecordType.NS);
             }
 
             //fill in glue records for NS records in authority
@@ -421,13 +414,25 @@ namespace DnsServerCore
                                     DnsDatagram cnameResponse = Zone.Query(rootZone, cnameRecord.CNAMEDomainName, question.Type, enableIPv6);
                                     if ((cnameResponse != null) && (cnameResponse.Answer != null))
                                     {
-                                        answerList.AddRange(cnameResponse.Answer);
+                                        if (!authoritativeAnswer && (cnameResponse.Answer[0].RDATA == null))
+                                        {
+                                            //name error set in cache
+                                            RCODE = DnsResponseCode.NameError;
+                                        }
+                                        else if (!authoritativeAnswer && (cnameResponse.Answer[0].RDATA is DnsEmptyRecord))
+                                        {
+                                            //empty entry set in cache; do nothing
+                                        }
+                                        else
+                                        {
+                                            answerList.AddRange(cnameResponse.Answer);
 
-                                        if (cnameResponse.Authority != null)
-                                            authorityList.AddRange(cnameResponse.Authority);
+                                            if (cnameResponse.Authority != null)
+                                                authorityList.AddRange(cnameResponse.Authority);
 
-                                        if (cnameResponse.Additional != null)
-                                            additionalList.AddRange(cnameResponse.Additional);
+                                            if (cnameResponse.Additional != null)
+                                                additionalList.AddRange(cnameResponse.Additional);
+                                        }
                                     }
                                 }
                             }
@@ -496,6 +501,9 @@ namespace DnsServerCore
 
                             foreach (DnsQuestionRecord question in response.Question)
                             {
+                                if (question.Type == DnsResourceRecordType.NS)
+                                    continue;
+
                                 Zone zone = CreateZone(rootZone, question.Name);
                                 zone.SetRecord(new DnsResourceRecord[] { new DnsResourceRecord(question.Name, question.Type, DnsClass.Internet, ttl, new DnsEmptyRecord()) });
                             }
