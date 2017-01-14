@@ -641,12 +641,43 @@ namespace DnsServerCore
             _zoneEntriesLock.EnterReadLock();
             try
             {
-                Dictionary<DnsResourceRecordType, ZoneEntry> zoneTypeEntries;
+                Dictionary<DnsResourceRecordType, ZoneEntry> zoneTypeEntries = null;
 
                 if (_zoneEntries.ContainsKey(domain))
+                {
                     zoneTypeEntries = _zoneEntries[domain];
+                }
+                else if (_authoritativeZone && (_zoneEntries.Count > 0))
+                {
+                    //check for wildcard entry
+                    string subDomainName = domain;
+
+                    while (true)
+                    {
+                        if (subDomainName.Equals(_name, StringComparison.CurrentCultureIgnoreCase))
+                            break;
+
+                        int i = subDomainName.IndexOf('.');
+                        if (i < 0)
+                            break;
+
+                        subDomainName = subDomainName.Substring(i + 1);
+
+                        string wildCardSubDomain = "*." + subDomainName;
+                        if (_zoneEntries.ContainsKey(wildCardSubDomain))
+                        {
+                            zoneTypeEntries = _zoneEntries[wildCardSubDomain];
+                            break;
+                        }
+                    }
+
+                    if (zoneTypeEntries == null)
+                        return null;
+                }
                 else
+                {
                     return null;
+                }
 
                 if (zoneTypeEntries.ContainsKey(DnsResourceRecordType.CNAME))
                 {
