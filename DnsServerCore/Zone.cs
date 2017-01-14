@@ -667,6 +667,25 @@ namespace DnsServerCore
                         if (_zoneEntries.ContainsKey(wildCardSubDomain))
                         {
                             zoneTypeEntries = _zoneEntries[wildCardSubDomain];
+
+                            //create new resource records for wild card entry
+                            Dictionary<DnsResourceRecordType, ZoneEntry> newZoneTypeEntries = new Dictionary<DnsResourceRecordType, ZoneEntry>(zoneTypeEntries.Count);
+
+                            foreach (KeyValuePair<DnsResourceRecordType, ZoneEntry> entry in zoneTypeEntries)
+                            {
+                                DnsResourceRecord[] zoneEntryRecords = entry.Value.ResourceRecords;
+                                DnsResourceRecord[] resourceRecords = new DnsResourceRecord[zoneEntryRecords.Length];
+
+                                for (int j = 0; j < zoneEntryRecords.Length; j++)
+                                {
+                                    DnsResourceRecord zoneEntryRecord = zoneEntryRecords[j];
+                                    resourceRecords[j] = new DnsResourceRecord(domain, zoneEntryRecord.Type, zoneEntryRecord.Class, zoneEntryRecord.TTLValue, zoneEntryRecord.RDATA);
+                                }
+
+                                newZoneTypeEntries.Add(entry.Key, new ZoneEntry(resourceRecords));
+                            }
+
+                            zoneTypeEntries = newZoneTypeEntries;
                             break;
                         }
                     }
@@ -810,7 +829,6 @@ namespace DnsServerCore
         #region constructor
 
         public DnsEmptyRecord()
-            : base(0)
         { }
 
         public DnsEmptyRecord(Stream s)
