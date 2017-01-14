@@ -154,7 +154,21 @@ namespace DnsServerCore
                         {
                             sendBufferStream.Position = 0;
                             response.WriteTo(sendBufferStream);
-                            udpListener.SendTo(sendBufferStream.Buffer, 0, (int)sendBufferStream.Position, SocketFlags.None, remoteEP);
+
+                            int responseSize = (int)sendBufferStream.Position;
+
+                            if (responseSize > 512)
+                            {
+                                DnsHeader header = response.Header;
+                                response = new DnsDatagram(new DnsHeader(header.Identifier, true, header.OPCODE, header.AuthoritativeAnswer, true, header.RecursionDesired, header.RecursionAvailable, header.AuthenticData, header.CheckingDisabled, header.RCODE, header.QDCOUNT, 0, 0, 0), response.Question, null, null, null);
+
+                                sendBufferStream.Position = 0;
+                                response.WriteTo(sendBufferStream);
+
+                                responseSize = (int)sendBufferStream.Position;
+                            }
+
+                            udpListener.SendTo(sendBufferStream.Buffer, 0, responseSize, SocketFlags.None, remoteEP);
                         }
                     }
                     catch
