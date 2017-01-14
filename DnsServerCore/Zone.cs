@@ -511,6 +511,22 @@ namespace DnsServerCore
                     }
                     else
                     {
+                        foreach (DnsQuestionRecord question in response.Question)
+                        {
+                            uint ttl = 60;
+
+                            if (question.Type == DnsResourceRecordType.ANY)
+                            {
+                                Zone zone = CreateZone(rootZone, question.Name);
+
+                                DnsResourceRecord[] soaRecord = zone.GetRecord(question.Name, DnsResourceRecordType.SOA);
+                                if ((soaRecord != null) && (soaRecord.Length > 0))
+                                    ttl = (soaRecord[0].RDATA as DnsSOARecord).Minimum;
+
+                                zone.SetRecord(new DnsResourceRecord[] { new DnsResourceRecord(question.Name, DnsResourceRecordType.ANY, DnsClass.Internet, ttl, new DnsEmptyRecord()) });
+                            }
+                        }
+
                         allRecords.AddRange(response.Answer);
                     }
                     break;
@@ -641,13 +657,17 @@ namespace DnsServerCore
                     else
                         return zoneEntry.ResourceRecords; //return CNAME record
                 }
-                else if (_authoritativeZone && (type == DnsResourceRecordType.ANY))
+                else if (type == DnsResourceRecordType.ANY)
                 {
+                    if ((!_authoritativeZone) && !zoneTypeEntries.ContainsKey(type))
+                        return null; //domain does not exists in cache
+
                     List<DnsResourceRecord> records = new List<DnsResourceRecord>(5);
 
                     foreach (KeyValuePair<DnsResourceRecordType, ZoneEntry> entry in zoneTypeEntries)
                     {
-                        records.AddRange(entry.Value.ResourceRecords);
+                        if (entry.Key != DnsResourceRecordType.ANY)
+                            records.AddRange(entry.Value.ResourceRecords);
                     }
 
                     return records.ToArray(); //all authoritative records
