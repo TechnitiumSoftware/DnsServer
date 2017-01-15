@@ -842,7 +842,7 @@ namespace DnsServerCore
         protected override void Parse(Stream s)
         { }
 
-        protected override void WriteRecordData(Stream s)
+        protected override void WriteRecordData(Stream s, List<DnsDomainOffset> domainEntries)
         { }
 
         #endregion

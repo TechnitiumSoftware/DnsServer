@@ -32,7 +32,6 @@ namespace DnsServerCore
     {
         #region variables
 
-        const int BUFFER_MAX_SIZE = 65535;
         const int TCP_SOCKET_SEND_TIMEOUT = 30000;
         const int TCP_SOCKET_RECV_TIMEOUT = 60000;
 
@@ -125,8 +124,8 @@ namespace DnsServerCore
             Socket udpListener = parameter as Socket;
 
             EndPoint remoteEP;
-            FixMemoryStream recvBufferStream = new FixMemoryStream(BUFFER_MAX_SIZE);
-            FixMemoryStream sendBufferStream = new FixMemoryStream(BUFFER_MAX_SIZE);
+            FixMemoryStream recvBufferStream = new FixMemoryStream(128);
+            FixMemoryStream sendBufferStream = new FixMemoryStream(512);
             int bytesRecv;
 
             if (udpListener.AddressFamily == AddressFamily.InterNetwork)
@@ -152,23 +151,22 @@ namespace DnsServerCore
                         //send response
                         if (response != null)
                         {
-                            sendBufferStream.Position = 0;
-                            response.WriteTo(sendBufferStream);
-
-                            int responseSize = (int)sendBufferStream.Position;
-
-                            if (responseSize > 512)
+                            try
+                            {
+                                sendBufferStream.Position = 0;
+                                response.WriteTo(sendBufferStream);
+                            }
+                            catch (EndOfStreamException)
                             {
                                 DnsHeader header = response.Header;
                                 response = new DnsDatagram(new DnsHeader(header.Identifier, true, header.OPCODE, header.AuthoritativeAnswer, true, header.RecursionDesired, header.RecursionAvailable, header.AuthenticData, header.CheckingDisabled, header.RCODE, header.QDCOUNT, 0, 0, 0), response.Question, null, null, null);
 
                                 sendBufferStream.Position = 0;
                                 response.WriteTo(sendBufferStream);
-
-                                responseSize = (int)sendBufferStream.Position;
                             }
 
-                            udpListener.SendTo(sendBufferStream.Buffer, 0, responseSize, SocketFlags.None, remoteEP);
+                            //send dns datagram
+                            udpListener.SendTo(sendBufferStream.Buffer, 0, (int)sendBufferStream.Position, SocketFlags.None, remoteEP);
                         }
                     }
                     catch
@@ -199,8 +197,8 @@ namespace DnsServerCore
 
             try
             {
-                FixMemoryStream recvBufferStream = new FixMemoryStream(BUFFER_MAX_SIZE);
-                FixMemoryStream sendBufferStream = new FixMemoryStream(BUFFER_MAX_SIZE);
+                FixMemoryStream recvBufferStream = new FixMemoryStream(128);
+                MemoryStream sendBufferStream = new MemoryStream(512);
                 int bytesRecv;
 
                 while (true)
@@ -236,17 +234,24 @@ namespace DnsServerCore
                         //send response
                         if (response != null)
                         {
-                            //write dns datagram from 3rd position
-                            sendBufferStream.Position = 2;
+                            //write dns datagram
+                            sendBufferStream.Position = 0;
                             response.WriteTo(sendBufferStream);
 
-                            //write dns datagram length at beginning
-                            byte[] lengthBytes = BitConverter.GetBytes(Convert.ToInt16(sendBufferStream.Position - 2));
-                            sendBufferStream.Buffer[0] = lengthBytes[1];
-                            sendBufferStream.Buffer[1] = lengthBytes[0];
+                            //prepare final buffer
+                            byte[] lengthBytes = BitConverter.GetBytes(Convert.ToInt16(sendBufferStream.Position));
+                            byte[] buffer = new byte[sendBufferStream.Position + 2];
+
+                            //copy datagram length
+                            buffer[0] = lengthBytes[1];
+                            buffer[1] = lengthBytes[0];
+
+                            //copy datagram
+                            sendBufferStream.Position = 0;
+                            sendBufferStream.Read(buffer, 2, buffer.Length - 2);
 
                             //send dns datagram
-                            tcpSocket.Send(sendBufferStream.Buffer, 0, (int)sendBufferStream.Position, SocketFlags.None);
+                            tcpSocket.Send(buffer, 0, buffer.Length, SocketFlags.None);
                         }
                     }
                 }
