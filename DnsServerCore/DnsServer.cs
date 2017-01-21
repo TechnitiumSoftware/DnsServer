@@ -47,6 +47,7 @@ namespace DnsServerCore
         bool _allowRecursion;
         NameServerAddress[] _forwarders;
         bool _enableIPv6 = false;
+        int _retries = 2;
 
         #endregion
 
@@ -371,24 +372,40 @@ namespace DnsServerCore
 
             foreach (DnsQuestionRecord questionRecord in request.Question)
             {
-                NameServerAddress[] nameServers = NameServerAddress.GetNameServersFromResponse(cacheResponse, _enableIPv6);
+                NameServerAddress[] nameServers;
 
-                if (nameServers.Length == 0)
+                if (_forwarders == null)
                 {
-                    if (_enableIPv6)
-                        nameServers = DnsClient.ROOT_NAME_SERVERS_IPv6;
-                    else
-                        nameServers = DnsClient.ROOT_NAME_SERVERS_IPv4;
+                    nameServers = NameServerAddress.GetNameServersFromResponse(cacheResponse, _enableIPv6);
+
+                    if (nameServers.Length == 0)
+                    {
+                        if (_enableIPv6)
+                            nameServers = DnsClient.ROOT_NAME_SERVERS_IPv6;
+                        else
+                            nameServers = DnsClient.ROOT_NAME_SERVERS_IPv4;
+                    }
+                }
+                else
+                {
+                    nameServers = _forwarders;
                 }
 
                 int hopCount = 0;
                 bool working = true;
+                bool tcp = false;
 
                 while (working && ((hopCount++) < 64))
                 {
-                    DnsClient client = new DnsClient(nameServers, _enableIPv6, false);
+                    DnsClient client = new DnsClient(nameServers, _enableIPv6, tcp, _retries);
 
                     DnsDatagram response = client.Resolve(questionRecord);
+
+                    if (response.Header.Truncation)
+                    {
+                        tcp = true;
+                        continue;
+                    }
 
                     Zone.CacheResponse(_cacheZoneRoot, response);
 
@@ -481,6 +498,13 @@ namespace DnsServerCore
             get { return _enableIPv6; }
             set { _enableIPv6 = value; }
         }
+
+        public int Retries
+        {
+            get { return _retries; }
+            set { _retries = value; }
+        }
+
         #endregion
     }
 
