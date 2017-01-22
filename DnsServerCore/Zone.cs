@@ -35,7 +35,7 @@ namespace DnsServerCore
         Dictionary<string, Zone> _subZone = new Dictionary<string, Zone>();
         ReaderWriterLockSlim _subZoneLock = new ReaderWriterLockSlim();
 
-        Dictionary<string, Dictionary<DnsResourceRecordType, ZoneEntry>> _zoneEntries = new Dictionary<string, Dictionary<DnsResourceRecordType, ZoneEntry>>();
+        Dictionary<string, Dictionary<DnsResourceRecordType, DnsResourceRecord[]>> _zoneEntries = new Dictionary<string, Dictionary<DnsResourceRecordType, DnsResourceRecord[]>>();
         ReaderWriterLockSlim _zoneEntriesLock = new ReaderWriterLockSlim();
 
         #endregion
@@ -613,7 +613,7 @@ namespace DnsServerCore
             _zoneEntriesLock.EnterWriteLock();
             try
             {
-                Dictionary<DnsResourceRecordType, ZoneEntry> zoneTypeEntries;
+                Dictionary<DnsResourceRecordType, DnsResourceRecord[]> zoneTypeEntries;
 
                 if (_zoneEntries.ContainsKey(domain))
                 {
@@ -621,14 +621,14 @@ namespace DnsServerCore
                 }
                 else
                 {
-                    zoneTypeEntries = new Dictionary<DnsResourceRecordType, ZoneEntry>();
+                    zoneTypeEntries = new Dictionary<DnsResourceRecordType, DnsResourceRecord[]>();
                     _zoneEntries.Add(domain, zoneTypeEntries);
                 }
 
                 if (zoneTypeEntries.ContainsKey(type))
-                    zoneTypeEntries[type] = new ZoneEntry(resourceRecords);
+                    zoneTypeEntries[type] = resourceRecords;
                 else
-                    zoneTypeEntries.Add(type, new ZoneEntry(resourceRecords));
+                    zoneTypeEntries.Add(type, resourceRecords);
             }
             finally
             {
@@ -641,7 +641,7 @@ namespace DnsServerCore
             _zoneEntriesLock.EnterReadLock();
             try
             {
-                Dictionary<DnsResourceRecordType, ZoneEntry> zoneTypeEntries = null;
+                Dictionary<DnsResourceRecordType, DnsResourceRecord[]> zoneTypeEntries = null;
 
                 if (_zoneEntries.ContainsKey(domain))
                 {
@@ -669,11 +669,11 @@ namespace DnsServerCore
                             zoneTypeEntries = _zoneEntries[wildCardSubDomain];
 
                             //create new resource records for wild card entry
-                            Dictionary<DnsResourceRecordType, ZoneEntry> newZoneTypeEntries = new Dictionary<DnsResourceRecordType, ZoneEntry>(zoneTypeEntries.Count);
+                            Dictionary<DnsResourceRecordType, DnsResourceRecord[]> newZoneTypeEntries = new Dictionary<DnsResourceRecordType, DnsResourceRecord[]>(zoneTypeEntries.Count);
 
-                            foreach (KeyValuePair<DnsResourceRecordType, ZoneEntry> entry in zoneTypeEntries)
+                            foreach (KeyValuePair<DnsResourceRecordType, DnsResourceRecord[]> entry in zoneTypeEntries)
                             {
-                                DnsResourceRecord[] zoneEntryRecords = entry.Value.ResourceRecords;
+                                DnsResourceRecord[] zoneEntryRecords = entry.Value;
                                 DnsResourceRecord[] resourceRecords = new DnsResourceRecord[zoneEntryRecords.Length];
 
                                 for (int j = 0; j < zoneEntryRecords.Length; j++)
@@ -682,7 +682,7 @@ namespace DnsServerCore
                                     resourceRecords[j] = new DnsResourceRecord(domain, zoneEntryRecord.Type, zoneEntryRecord.Class, zoneEntryRecord.TTLValue, zoneEntryRecord.RDATA);
                                 }
 
-                                newZoneTypeEntries.Add(entry.Key, new ZoneEntry(resourceRecords));
+                                newZoneTypeEntries.Add(entry.Key, resourceRecords);
                             }
 
                             zoneTypeEntries = newZoneTypeEntries;
@@ -700,12 +700,12 @@ namespace DnsServerCore
 
                 if (zoneTypeEntries.ContainsKey(DnsResourceRecordType.CNAME))
                 {
-                    ZoneEntry zoneEntry = zoneTypeEntries[DnsResourceRecordType.CNAME];
+                    DnsResourceRecord[] zoneEntry = zoneTypeEntries[DnsResourceRecordType.CNAME];
 
-                    if (!_authoritativeZone && zoneEntry.IsExpired())
+                    if (!_authoritativeZone && (zoneEntry[0].TTLValue < 1))
                         return null; //domain does not exists in cache since expired
                     else
-                        return zoneEntry.ResourceRecords; //return CNAME record
+                        return zoneEntry; //return CNAME record
                 }
                 else if (type == DnsResourceRecordType.ANY)
                 {
@@ -714,28 +714,28 @@ namespace DnsServerCore
 
                     List<DnsResourceRecord> records = new List<DnsResourceRecord>(5);
 
-                    foreach (KeyValuePair<DnsResourceRecordType, ZoneEntry> entry in zoneTypeEntries)
+                    foreach (KeyValuePair<DnsResourceRecordType, DnsResourceRecord[]> entry in zoneTypeEntries)
                     {
                         if (entry.Key != DnsResourceRecordType.ANY)
-                            records.AddRange(entry.Value.ResourceRecords);
+                            records.AddRange(entry.Value);
                     }
 
                     return records.ToArray(); //all authoritative records
                 }
                 else if (zoneTypeEntries.ContainsKey(type))
                 {
-                    ZoneEntry zoneEntry = zoneTypeEntries[type];
+                    DnsResourceRecord[] zoneEntry = zoneTypeEntries[type];
 
                     if (_authoritativeZone || (_name == ""))
                     {
-                        return zoneEntry.ResourceRecords; //records found in authoritative zone or root hints from cache
+                        return zoneEntry; //records found in authoritative zone or root hints from cache
                     }
                     else
                     {
-                        if (zoneEntry.IsExpired())
+                        if ((zoneEntry[0].TTLValue < 1))
                             return null; //domain does not exists in cache since expired
                         else
-                            return zoneEntry.ResourceRecords; //records found in cache
+                            return zoneEntry; //records found in cache
                     }
                 }
                 else
@@ -757,7 +757,7 @@ namespace DnsServerCore
             _zoneEntriesLock.EnterWriteLock();
             try
             {
-                Dictionary<DnsResourceRecordType, ZoneEntry> zoneTypeEntries;
+                Dictionary<DnsResourceRecordType, DnsResourceRecord[]> zoneTypeEntries;
 
                 if (_zoneEntries.ContainsKey(domain))
                 {
@@ -790,40 +790,6 @@ namespace DnsServerCore
         #endregion
     }
 
-    class ZoneEntry
-    {
-        #region variables
-
-        DnsResourceRecord[] _resourceRecords;
-
-        #endregion
-
-        #region constructor
-
-        public ZoneEntry(DnsResourceRecord[] resourceRecords)
-        {
-            _resourceRecords = resourceRecords;
-        }
-
-        #endregion
-
-        #region public
-
-        public bool IsExpired()
-        {
-            return (_resourceRecords[0].TTLValue < 1);
-        }
-
-        #endregion
-
-        #region properties
-
-        public DnsResourceRecord[] ResourceRecords
-        { get { return _resourceRecords; } }
-
-        #endregion
-    }
-
     class DnsEmptyRecord : DnsResourceRecordData
     {
         #region constructor
@@ -847,5 +813,4 @@ namespace DnsServerCore
 
         #endregion
     }
-
 }
