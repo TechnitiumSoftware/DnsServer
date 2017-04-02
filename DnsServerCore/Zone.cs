@@ -95,109 +95,37 @@ namespace DnsServerCore
             return path;
         }
 
-        #endregion
-
-        #region public static
-
-        public static Zone CreateZone(Zone rootZone, string domain)
+        private void SetRecord(DnsResourceRecord[] resourceRecords)
         {
-            Zone currentZone = rootZone;
-            string[] path = ConvertDomainToPath(domain);
+            if (resourceRecords.Length < 1)
+                return;
 
-            for (int i = 0; i < path.Length; i++)
-            {
-                string nextZoneLabel = path[i];
+            string domain = resourceRecords[0].Name;
+            DnsResourceRecordType type = resourceRecords[0].Type;
 
-                ReaderWriterLockSlim currentSubZoneLock = currentZone._subZoneLock;
-                currentSubZoneLock.EnterWriteLock();
-                try
-                {
-                    if (currentZone._subZone.ContainsKey(nextZoneLabel))
-                    {
-                        currentZone = currentZone._subZone[nextZoneLabel];
-                    }
-                    else
-                    {
-                        string zoneName = nextZoneLabel;
-
-                        if (currentZone._name != "")
-                            zoneName += "." + currentZone._name;
-
-                        Zone nextZone = new Zone(zoneName, currentZone._authoritativeZone);
-                        currentZone._subZone.Add(nextZoneLabel, nextZone);
-
-                        currentZone = nextZone;
-                    }
-                }
-                finally
-                {
-                    currentSubZoneLock.ExitWriteLock();
-                }
-            }
-
-            return currentZone;
-        }
-
-        public static Zone GetClosestZone(Zone rootZone, string domain)
-        {
-            Zone currentZone = rootZone;
-            string[] path = ConvertDomainToPath(domain);
-
-            for (int i = 0; i < path.Length; i++)
-            {
-                string nextZoneLabel = path[i];
-
-                ReaderWriterLockSlim currentSubZoneLock = currentZone._subZoneLock;
-                currentSubZoneLock.EnterReadLock();
-                try
-                {
-                    if (currentZone._subZone.ContainsKey(nextZoneLabel))
-                        currentZone = currentZone._subZone[nextZoneLabel];
-                    else
-                        return currentZone;
-                }
-                finally
-                {
-                    currentSubZoneLock.ExitReadLock();
-                }
-            }
-
-            return currentZone;
-        }
-
-        public static void DeleteZone(Zone rootZone, string domain)
-        {
-            Zone currentZone = rootZone;
-            string[] path = ConvertDomainToPath(domain);
-
-            //find parent zone
-            for (int i = 0; i < path.Length - 1; i++)
-            {
-                string nextZoneLabel = path[i];
-
-                ReaderWriterLockSlim currentSubZoneLock = currentZone._subZoneLock;
-                currentSubZoneLock.EnterReadLock();
-                try
-                {
-                    if (currentZone._subZone.ContainsKey(nextZoneLabel))
-                        currentZone = currentZone._subZone[nextZoneLabel];
-                    else
-                        return;
-                }
-                finally
-                {
-                    currentSubZoneLock.ExitReadLock();
-                }
-            }
-
-            currentZone._subZoneLock.EnterWriteLock();
+            _zoneEntriesLock.EnterWriteLock();
             try
             {
-                currentZone._subZone.Remove(path[path.Length - 1]);
+                Dictionary<DnsResourceRecordType, DnsResourceRecord[]> zoneTypeEntries;
+
+                if (_zoneEntries.ContainsKey(domain))
+                {
+                    zoneTypeEntries = _zoneEntries[domain];
+                }
+                else
+                {
+                    zoneTypeEntries = new Dictionary<DnsResourceRecordType, DnsResourceRecord[]>();
+                    _zoneEntries.Add(domain, zoneTypeEntries);
+                }
+
+                if (zoneTypeEntries.ContainsKey(type))
+                    zoneTypeEntries[type] = resourceRecords;
+                else
+                    zoneTypeEntries.Add(type, resourceRecords);
             }
             finally
             {
-                currentZone._subZoneLock.ExitWriteLock();
+                _zoneEntriesLock.ExitWriteLock();
             }
         }
 
@@ -358,6 +286,112 @@ namespace DnsServerCore
             }
 
             return new DnsDatagram(null, null, answer, authority, additional);
+        }
+
+        #endregion
+
+        #region public static
+
+        public static Zone CreateZone(Zone rootZone, string domain)
+        {
+            Zone currentZone = rootZone;
+            string[] path = ConvertDomainToPath(domain);
+
+            for (int i = 0; i < path.Length; i++)
+            {
+                string nextZoneLabel = path[i];
+
+                ReaderWriterLockSlim currentSubZoneLock = currentZone._subZoneLock;
+                currentSubZoneLock.EnterWriteLock();
+                try
+                {
+                    if (currentZone._subZone.ContainsKey(nextZoneLabel))
+                    {
+                        currentZone = currentZone._subZone[nextZoneLabel];
+                    }
+                    else
+                    {
+                        string zoneName = nextZoneLabel;
+
+                        if (currentZone._name != "")
+                            zoneName += "." + currentZone._name;
+
+                        Zone nextZone = new Zone(zoneName, currentZone._authoritativeZone);
+                        currentZone._subZone.Add(nextZoneLabel, nextZone);
+
+                        currentZone = nextZone;
+                    }
+                }
+                finally
+                {
+                    currentSubZoneLock.ExitWriteLock();
+                }
+            }
+
+            return currentZone;
+        }
+
+        public static Zone GetClosestZone(Zone rootZone, string domain)
+        {
+            Zone currentZone = rootZone;
+            string[] path = ConvertDomainToPath(domain);
+
+            for (int i = 0; i < path.Length; i++)
+            {
+                string nextZoneLabel = path[i];
+
+                ReaderWriterLockSlim currentSubZoneLock = currentZone._subZoneLock;
+                currentSubZoneLock.EnterReadLock();
+                try
+                {
+                    if (currentZone._subZone.ContainsKey(nextZoneLabel))
+                        currentZone = currentZone._subZone[nextZoneLabel];
+                    else
+                        return currentZone;
+                }
+                finally
+                {
+                    currentSubZoneLock.ExitReadLock();
+                }
+            }
+
+            return currentZone;
+        }
+
+        public static void DeleteZone(Zone rootZone, string domain)
+        {
+            Zone currentZone = rootZone;
+            string[] path = ConvertDomainToPath(domain);
+
+            //find parent zone
+            for (int i = 0; i < path.Length - 1; i++)
+            {
+                string nextZoneLabel = path[i];
+
+                ReaderWriterLockSlim currentSubZoneLock = currentZone._subZoneLock;
+                currentSubZoneLock.EnterReadLock();
+                try
+                {
+                    if (currentZone._subZone.ContainsKey(nextZoneLabel))
+                        currentZone = currentZone._subZone[nextZoneLabel];
+                    else
+                        return;
+                }
+                finally
+                {
+                    currentSubZoneLock.ExitReadLock();
+                }
+            }
+
+            currentZone._subZoneLock.EnterWriteLock();
+            try
+            {
+                currentZone._subZone.Remove(path[path.Length - 1]);
+            }
+            finally
+            {
+                currentZone._subZoneLock.ExitWriteLock();
+            }
         }
 
         public static DnsDatagram Query(Zone rootZone, DnsDatagram request, bool enableIPv6)
@@ -600,40 +634,6 @@ namespace DnsServerCore
                 resourceRecords[i] = new DnsResourceRecord(domain, type, DnsClass.Internet, ttl, records[i]);
 
             SetRecord(resourceRecords);
-        }
-
-        public void SetRecord(DnsResourceRecord[] resourceRecords)
-        {
-            if (resourceRecords.Length < 1)
-                return;
-
-            string domain = resourceRecords[0].Name;
-            DnsResourceRecordType type = resourceRecords[0].Type;
-
-            _zoneEntriesLock.EnterWriteLock();
-            try
-            {
-                Dictionary<DnsResourceRecordType, DnsResourceRecord[]> zoneTypeEntries;
-
-                if (_zoneEntries.ContainsKey(domain))
-                {
-                    zoneTypeEntries = _zoneEntries[domain];
-                }
-                else
-                {
-                    zoneTypeEntries = new Dictionary<DnsResourceRecordType, DnsResourceRecord[]>();
-                    _zoneEntries.Add(domain, zoneTypeEntries);
-                }
-
-                if (zoneTypeEntries.ContainsKey(type))
-                    zoneTypeEntries[type] = resourceRecords;
-                else
-                    zoneTypeEntries.Add(type, resourceRecords);
-            }
-            finally
-            {
-                _zoneEntriesLock.ExitWriteLock();
-            }
         }
 
         public DnsResourceRecord[] GetRecord(string domain, DnsResourceRecordType type)
