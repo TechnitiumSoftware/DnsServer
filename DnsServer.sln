@@ -1,11 +1,13 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
-# Visual Studio 14
-VisualStudioVersion = 14.0.25420.1
+# Visual Studio 15
+VisualStudioVersion = 15.0.26730.16
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DnsServerCore", "DnsServerCore\DnsServerCore.csproj", "{A561CF13-FE21-40A1-BF8D-BD242304187A}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "TechnitiumLibrary.Net", "..\TechnitiumLibrary\TechnitiumLibrary.Net\TechnitiumLibrary.Net.csproj", "{C8293A12-5A6A-4F53-BEBE-35A6D37BD891}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "TechnitiumLibrary.IO", "..\TechnitiumLibrary\TechnitiumLibrary.IO\TechnitiumLibrary.IO.csproj", "{E0BA5456-FEAA-4380-92BB-6B1C4BC3DC70}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -21,8 +23,15 @@ Global
 		{C8293A12-5A6A-4F53-BEBE-35A6D37BD891}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{C8293A12-5A6A-4F53-BEBE-35A6D37BD891}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{C8293A12-5A6A-4F53-BEBE-35A6D37BD891}.Release|Any CPU.Build.0 = Release|Any CPU
+		{E0BA5456-FEAA-4380-92BB-6B1C4BC3DC70}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{E0BA5456-FEAA-4380-92BB-6B1C4BC3DC70}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{E0BA5456-FEAA-4380-92BB-6B1C4BC3DC70}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{E0BA5456-FEAA-4380-92BB-6B1C4BC3DC70}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {6747BB6D-2826-4356-A213-805FBCCF9201}
 	EndGlobalSection
 EndGlobal
