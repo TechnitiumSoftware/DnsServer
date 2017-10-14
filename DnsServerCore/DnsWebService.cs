@@ -19,6 +19,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 using Newtonsoft.Json;
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.IO;
 using System.Net;
@@ -34,19 +35,23 @@ namespace DnsServerCore
     {
         #region variables
 
-        readonly string _serverDomain;
+        const int SESSION_TIMEOUT = 30 * 60 * 1000; //30 mins
+
+        string _serverDomain = "localhost";
         readonly DnsServer _dnsServer;
 
         readonly HttpListener _webService;
         readonly Thread _webServiceThread;
 
+        readonly ConcurrentDictionary<string, string> _credentials = new ConcurrentDictionary<string, string>();
+        readonly ConcurrentDictionary<string, DateTime> _sessions = new ConcurrentDictionary<string, DateTime>();
+
         #endregion
 
         #region constructor
 
-        public DnsWebService(string serverDomain)
+        public DnsWebService()
         {
-            _serverDomain = serverDomain;
             _dnsServer = new DnsServer();
 
             _webService = new HttpListener();
@@ -57,7 +62,7 @@ namespace DnsServerCore
             _webServiceThread.IsBackground = true;
             _webServiceThread.Start();
 
-            CreateZone("technitium.com");
+            _credentials.TryAdd("admin", "admin");
         }
 
         #endregion
@@ -101,36 +106,73 @@ namespace DnsServerCore
 
                         try
                         {
-                            jsonWriter.WritePropertyName("response");
-                            jsonWriter.WriteStartObject();
-
                             switch (path)
                             {
-                                case "/api/listZones":
-                                    ListZones(jsonWriter);
+                                case "/api/login":
+                                    Login(request, jsonWriter);
                                     break;
 
-                                case "/api/createZone":
-                                    CreateZone(request.QueryString["domain"]);
-                                    break;
-
-                                case "/api/deleteZone":
-                                    DeleteZone(request.QueryString["domain"]);
-                                    break;
-
-                                case "/api/setRecords":
-                                    SetRecords(request);
-                                    break;
-
-                                case "/api/getRecords":
-                                    GetRecords(request.QueryString["domain"], jsonWriter);
+                                case "/api/logout":
+                                    Logout(request);
                                     break;
 
                                 default:
-                                    throw new Exception("Invalid command: " + path);
-                            }
+                                    if (!IsSessionValid(request))
+                                        throw new Exception("Invalid token or session expired.");
 
-                            jsonWriter.WriteEndObject();
+                                    jsonWriter.WritePropertyName("response");
+                                    jsonWriter.WriteStartObject();
+
+                                    try
+                                    {
+                                        switch (path)
+                                        {
+                                            case "/api/getDnsSettings":
+                                                GetDnsSettings(jsonWriter);
+                                                break;
+
+                                            case "/api/setDnsSettings":
+                                                SetDnsSettings(request);
+                                                break;
+
+                                            case "/api/listZones":
+                                                ListZones(jsonWriter);
+                                                break;
+
+                                            case "/api/createZone":
+                                                CreateZone(request);
+                                                break;
+
+                                            case "/api/deleteZone":
+                                                DeleteZone(request);
+                                                break;
+
+                                            case "/api/setRecords":
+                                                SetRecords(request);
+                                                break;
+
+                                            case "/api/addRecord":
+                                                AddRecord(request);
+                                                break;
+
+                                            case "/api/getRecords":
+                                                GetRecords(request, jsonWriter);
+                                                break;
+
+                                            case "/api/deleteRecord":
+                                                DeleteRecord(request);
+                                                break;
+
+                                            default:
+                                                throw new Exception("Invalid command: " + path);
+                                        }
+                                    }
+                                    finally
+                                    {
+                                        jsonWriter.WriteEndObject();
+                                    }
+                                    break;
+                            }
 
                             jsonWriter.WritePropertyName("status");
                             jsonWriter.WriteValue("ok");
@@ -225,6 +267,119 @@ namespace DnsServerCore
             }
         }
 
+        private void Login(HttpListenerRequest request, JsonTextWriter jsonWriter)
+        {
+            string strUsername = request.QueryString["user"];
+            if (string.IsNullOrEmpty(strUsername))
+                throw new Exception("Parameter 'user' missing.");
+
+            string strPassword = request.QueryString["pass"];
+            if (string.IsNullOrEmpty(strPassword))
+                throw new Exception("Parameter 'pass' missing.");
+
+            if (!_credentials.TryGetValue(strUsername, out string password) || (password != strPassword))
+                throw new Exception("Invalid username or password.");
+
+            string token = BinaryNumber.GenerateRandomNumber256().ToString();
+            if (!_sessions.TryAdd(token, DateTime.UtcNow))
+                throw new Exception("Error while creating session. Please try again.");
+
+            jsonWriter.WritePropertyName("token");
+            jsonWriter.WriteValue(token);
+        }
+
+        private bool IsSessionValid(HttpListenerRequest request)
+        {
+            string strToken = request.QueryString["token"];
+            if (string.IsNullOrEmpty(strToken))
+                throw new Exception("Parameter 'token' missing.");
+
+            if (_sessions.TryGetValue(strToken, out DateTime sessionTime))
+            {
+                if (sessionTime.AddMilliseconds(SESSION_TIMEOUT) < DateTime.UtcNow)
+                {
+                    _sessions.TryRemove(strToken, out DateTime value);
+                    return false;
+                }
+
+                _sessions.TryUpdate(strToken, DateTime.UtcNow, sessionTime);
+                return true;
+            }
+
+            return false;
+        }
+
+        private void Logout(HttpListenerRequest request)
+        {
+            string strToken = request.QueryString["token"];
+            if (string.IsNullOrEmpty(strToken))
+                throw new Exception("Parameter 'token' missing.");
+
+            _sessions.TryRemove(strToken, out DateTime value);
+        }
+
+        private void GetDnsSettings(JsonTextWriter jsonWriter)
+        {
+            jsonWriter.WritePropertyName("serverDomain");
+            jsonWriter.WriteValue(_serverDomain);
+
+            jsonWriter.WritePropertyName("preferIPv6");
+            jsonWriter.WriteValue(_dnsServer.PreferIPv6);
+
+            jsonWriter.WritePropertyName("allowRecursion");
+            jsonWriter.WriteValue(_dnsServer.AllowRecursion);
+
+            jsonWriter.WritePropertyName("forwarders");
+
+            if (_dnsServer.Forwarders == null)
+            {
+                jsonWriter.WriteNull();
+            }
+            else
+            {
+                jsonWriter.WriteStartArray();
+
+                foreach (NameServerAddress forwarder in _dnsServer.Forwarders)
+                    jsonWriter.WriteValue(forwarder.EndPoint.Address.ToString());
+
+                jsonWriter.WriteEndArray();
+            }
+        }
+
+        private void SetDnsSettings(HttpListenerRequest request)
+        {
+            string strServerDomain = request.QueryString["serverDomain"];
+            if (!string.IsNullOrEmpty(strServerDomain))
+                _serverDomain = strServerDomain;
+
+            string strPreferIPv6 = request.QueryString["preferIPv6"];
+            if (!string.IsNullOrEmpty(strPreferIPv6))
+                _dnsServer.PreferIPv6 = bool.Parse(strPreferIPv6);
+
+            string strAllowRecursion = request.QueryString["allowRecursion"];
+            if (!string.IsNullOrEmpty(strAllowRecursion))
+                _dnsServer.AllowRecursion = bool.Parse(strAllowRecursion);
+
+            string strForwarders = request.QueryString["forwarders"];
+            if (!string.IsNullOrEmpty(strForwarders))
+            {
+                if (strForwarders == "false")
+                {
+                    _dnsServer.Forwarders = null;
+                }
+                else
+                {
+                    string[] strForwardersList = strForwarders.Split(',');
+                    NameServerAddress[] forwarders = new NameServerAddress[strForwardersList.Length];
+
+                    for (int i = 0; i < strForwardersList.Length; i++)
+                        forwarders[i] = new NameServerAddress(IPAddress.Parse(strForwardersList[i]));
+
+                    _dnsServer.Forwarders = forwarders;
+                }
+            }
+        }
+
         private void ListZones(JsonTextWriter jsonWriter)
         {
             string[] zones = _dnsServer.AuthoritativeZoneRoot.ListAuthoritativeZones();
@@ -233,23 +388,23 @@ namespace DnsServerCore
             jsonWriter.WriteStartArray();
 
             foreach (string zone in zones)
-            {
                 jsonWriter.WriteValue(zone);
-            }
 
             jsonWriter.WriteEndArray();
         }
 
-        private void CreateZone(string domain)
+        private void CreateZone(HttpListenerRequest request)
         {
+            string domain = request.QueryString["domain"];
             if (string.IsNullOrEmpty(domain))
                 throw new Exception("Parameter 'domain' missing.");
 
             _dnsServer.AuthoritativeZoneRoot.SetRecords(domain, DnsResourceRecordType.SOA, 14400, new DnsResourceRecordData[] { new DnsSOARecord(_serverDomain, "admin." + _serverDomain, uint.Parse(DateTime.UtcNow.ToString("yyyymmddHH")), 28800, 7200, 604800, 600) });
         }
 
-        private void DeleteZone(string domain)
+        private void DeleteZone(HttpListenerRequest request)
         {
+            string domain = request.QueryString["domain"];
             if (string.IsNullOrEmpty(domain))
                 throw new Exception("Parameter 'domain' missing.");
 
@@ -414,15 +569,107 @@ namespace DnsServerCore
                         _dnsServer.AuthoritativeZoneRoot.SetRecords(domain, type, ttl, new DnsResourceRecordData[] { new DnsCNAMERecord(cnameDomain) });
                     }
                     break;
+
+                default:
+                    throw new Exception("Type not supported for SetRecords().");
             }
         }
 
-        private void GetRecords(string domain, JsonTextWriter jsonWriter)
+        private void AddRecord(HttpListenerRequest request)
         {
+            string domain = request.QueryString["domain"];
+            if (string.IsNullOrEmpty(domain))
+                throw new Exception("Parameter 'domain' missing.");
+
+            string strType = request.QueryString["type"];
+            if (string.IsNullOrEmpty(strType))
+                throw new Exception("Parameter 'type' missing.");
+
+            DnsResourceRecordType type = (DnsResourceRecordType)Enum.Parse(typeof(DnsResourceRecordType), strType);
+
+            uint ttl;
+            string strTtl = request.QueryString["ttl"];
+            if (string.IsNullOrEmpty(strTtl))
+                ttl = 3600;
+            else
+                ttl = uint.Parse(strTtl);
+
+            switch (type)
+            {
+                case DnsResourceRecordType.A:
+                    {
+                        string strIP = request.QueryString["ip"];
+                        if (string.IsNullOrEmpty(strIP))
+                            throw new Exception("Parameter 'ip' missing.");
+
+                        _dnsServer.AuthoritativeZoneRoot.AddRecord(domain, type, ttl, new DnsARecord(IPAddress.Parse(strIP)));
+                    }
+                    break;
+
+                case DnsResourceRecordType.AAAA:
+                    {
+                        string strIP = request.QueryString["ip"];
+                        if (string.IsNullOrEmpty(strIP))
+                            throw new Exception("Parameter 'ip' missing.");
+
+                        _dnsServer.AuthoritativeZoneRoot.AddRecord(domain, type, ttl, new DnsAAAARecord(IPAddress.Parse(strIP)));
+                    }
+                    break;
+
+                case DnsResourceRecordType.MX:
+                    {
+                        string preference = request.QueryString["preference"];
+                        if (string.IsNullOrEmpty(preference))
+                            throw new Exception("Parameter 'preference' missing.");
+
+                        string exchange = request.QueryString["exchange"];
+                        if (string.IsNullOrEmpty(exchange))
+                            throw new Exception("Parameter 'exchange' missing.");
+
+                        _dnsServer.AuthoritativeZoneRoot.AddRecord(domain, type, ttl, new DnsMXRecord(ushort.Parse(preference), exchange));
+                    }
+                    break;
+
+                case DnsResourceRecordType.TXT:
+                    {
+                        string txtData = request.QueryString["txtData"];
+                        if (string.IsNullOrEmpty(txtData))
+                            throw new Exception("Parameter 'txtData' missing.");
+
+                        _dnsServer.AuthoritativeZoneRoot.AddRecord(domain, type, ttl, new DnsTXTRecord(txtData));
+                    }
+                    break;
+
+                case DnsResourceRecordType.NS:
+                    {
+                        string nsDomain = request.QueryString["nsDomain"];
+                        if (string.IsNullOrEmpty(nsDomain))
+                            throw new Exception("Parameter 'nsDomain' missing.");
+
+                        _dnsServer.AuthoritativeZoneRoot.AddRecord(domain, type, ttl, new DnsNSRecord(nsDomain));
+                    }
+                    break;
+
+                default:
+                    throw new Exception("Type not supported for AddRecords().");
+            }
+        }
+
+        private void GetRecords(HttpListenerRequest request, JsonTextWriter jsonWriter)
+        {
+            string domain = request.QueryString["domain"];
             if (string.IsNullOrEmpty(domain))
                 throw new Exception("Parameter 'domain' missing.");
 
             DnsResourceRecord[] records = _dnsServer.AuthoritativeZoneRoot.GetRecords(domain);
+            if (records == null)
+            {
+                jsonWriter.WritePropertyName("records");
+                jsonWriter.WriteStartArray();
+                jsonWriter.WriteEndArray();
+
+                return;
+            }
 
             Dictionary<string, Dictionary<DnsResourceRecordType, List<DnsResourceRecord>>> groupedByDomainRecords = Zone.GroupRecords(records);
 
@@ -431,173 +678,225 @@ namespace DnsServerCore
 
             foreach (KeyValuePair<string, Dictionary<DnsResourceRecordType, List<DnsResourceRecord>>> groupedByTypeRecords in groupedByDomainRecords)
             {
-                string recordName = groupedByTypeRecords.Key;
-
                 foreach (KeyValuePair<DnsResourceRecordType, List<DnsResourceRecord>> groupedRecords in groupedByTypeRecords.Value)
                 {
-                    DnsResourceRecordType type = groupedRecords.Key;
-                    DnsResourceRecord[] resourceRecords = groupedRecords.Value.ToArray();
-
-                    jsonWriter.WriteStartObject();
-
-                    jsonWriter.WritePropertyName("name");
-                    jsonWriter.WriteValue(recordName);
-
-                    jsonWriter.WritePropertyName("type");
-                    jsonWriter.WriteValue(type.ToString());
-
-                    jsonWriter.WritePropertyName("ttl");
-                    jsonWriter.WriteValue(resourceRecords[0].TTLValue);
-
-                    jsonWriter.WritePropertyName("rData");
-                    jsonWriter.WriteStartObject();
-
-                    switch (type)
+                    foreach (DnsResourceRecord resourceRecord in groupedRecords.Value)
                     {
-                        case DnsResourceRecordType.A:
-                            {
-                                jsonWriter.WritePropertyName("ipAddress");
-                                jsonWriter.WriteStartArray();
+                        jsonWriter.WriteStartObject();
 
-                                foreach (DnsResourceRecord record in resourceRecords)
-                                    jsonWriter.WriteValue((record.RDATA as DnsARecord).IPAddress);
+                        jsonWriter.WritePropertyName("name");
+                        jsonWriter.WriteValue(resourceRecord.Name);
 
-                                jsonWriter.WriteEndArray();
-                            }
-                            break;
+                        jsonWriter.WritePropertyName("type");
+                        jsonWriter.WriteValue(resourceRecord.Type.ToString());
 
-                        case DnsResourceRecordType.AAAA:
-                            {
-                                jsonWriter.WritePropertyName("ipAddress");
-                                jsonWriter.WriteStartArray();
+                        jsonWriter.WritePropertyName("ttl");
+                        jsonWriter.WriteValue(resourceRecord.TTLValue);
 
-                                foreach (DnsResourceRecord record in resourceRecords)
-                                    jsonWriter.WriteValue((record.RDATA as DnsAAAARecord).IPAddress);
+                        jsonWriter.WritePropertyName("rData");
+                        jsonWriter.WriteStartObject();
 
-                                jsonWriter.WriteEndArray();
-                            }
-                            break;
-
-                        case DnsResourceRecordType.SOA:
-                            {
-                                DnsSOARecord rdata = resourceRecords[0].RDATA as DnsSOARecord;
-
-                                jsonWriter.WritePropertyName("masterNameServer");
-                                jsonWriter.WriteValue(rdata.MasterNameServer);
-
-                                jsonWriter.WritePropertyName("responsiblePerson");
-                                jsonWriter.WriteValue(rdata.ResponsiblePerson);
-
-                                jsonWriter.WritePropertyName("serial");
-                                jsonWriter.WriteValue(rdata.Serial);
-
-                                jsonWriter.WritePropertyName("refresh");
-                                jsonWriter.WriteValue(rdata.Refresh);
-
-                                jsonWriter.WritePropertyName("retry");
-                                jsonWriter.WriteValue(rdata.Retry);
-
-                                jsonWriter.WritePropertyName("expire");
-                                jsonWriter.WriteValue(rdata.Expire);
-
-                                jsonWriter.WritePropertyName("minimum");
-                                jsonWriter.WriteValue(rdata.Minimum);
-                            }
-                            break;
-
-                        case DnsResourceRecordType.PTR:
-                            {
-                                DnsPTRRecord rdata = resourceRecords[0].RDATA as DnsPTRRecord;
-
-                                jsonWriter.WritePropertyName("domain");
-                                jsonWriter.WriteValue(rdata.PTRDomainName);
-                            }
-                            break;
-
-                        case DnsResourceRecordType.MX:
-                            {
-                                jsonWriter.WritePropertyName("mxData");
-                                jsonWriter.WriteStartArray();
-
-                                foreach (DnsResourceRecord record in resourceRecords)
+                        switch (resourceRecord.Type)
+                        {
+                            case DnsResourceRecordType.A:
                                 {
-                                    DnsMXRecord rdata = record.RDATA as DnsMXRecord;
+                                    jsonWriter.WritePropertyName("ipAddress");
+                                    jsonWriter.WriteValue((resourceRecord.RDATA as DnsARecord).IPAddress);
+                                }
+                                break;
 
-                                    jsonWriter.WriteStartObject();
+                            case DnsResourceRecordType.AAAA:
+                                {
+                                    jsonWriter.WritePropertyName("ipAddress");
+                                    jsonWriter.WriteValue((resourceRecord.RDATA as DnsAAAARecord).IPAddress);
+                                }
+                                break;
+
+                            case DnsResourceRecordType.SOA:
+                                {
+                                    DnsSOARecord rdata = resourceRecord.RDATA as DnsSOARecord;
+
+                                    jsonWriter.WritePropertyName("masterNameServer");
+                                    jsonWriter.WriteValue(rdata.MasterNameServer);
+
+                                    jsonWriter.WritePropertyName("responsiblePerson");
+                                    jsonWriter.WriteValue(rdata.ResponsiblePerson);
+
+                                    jsonWriter.WritePropertyName("serial");
+                                    jsonWriter.WriteValue(rdata.Serial);
+
+                                    jsonWriter.WritePropertyName("refresh");
+                                    jsonWriter.WriteValue(rdata.Refresh);
+
+                                    jsonWriter.WritePropertyName("retry");
+                                    jsonWriter.WriteValue(rdata.Retry);
+
+                                    jsonWriter.WritePropertyName("expire");
+                                    jsonWriter.WriteValue(rdata.Expire);
+
+                                    jsonWriter.WritePropertyName("minimum");
+                                    jsonWriter.WriteValue(rdata.Minimum);
+                                }
+                                break;
+
+                            case DnsResourceRecordType.PTR:
+                                {
+                                    DnsPTRRecord rdata = resourceRecord.RDATA as DnsPTRRecord;
+
+                                    jsonWriter.WritePropertyName("domain");
+                                    jsonWriter.WriteValue(rdata.PTRDomainName);
+                                }
+                                break;
+
+                            case DnsResourceRecordType.MX:
+                                {
+                                    DnsMXRecord rdata = resourceRecord.RDATA as DnsMXRecord;
 
                                     jsonWriter.WritePropertyName("preference");
                                     jsonWriter.WriteValue(rdata.Preference);
 
                                     jsonWriter.WritePropertyName("exchange");
                                     jsonWriter.WriteValue(rdata.Exchange);
-
-                                    jsonWriter.WriteEndObject();
                                 }
+                                break;
 
-                                jsonWriter.WriteEndArray();
-                            }
-                            break;
-
-                        case DnsResourceRecordType.TXT:
-                            {
-                                jsonWriter.WritePropertyName("txtData");
-                                jsonWriter.WriteStartArray();
-
-                                foreach (DnsResourceRecord record in resourceRecords)
-                                    jsonWriter.WriteValue((record.RDATA as DnsTXTRecord).TXTData);
-
-                                jsonWriter.WriteEndArray();
-                            }
-                            break;
-
-                        case DnsResourceRecordType.NS:
-                            {
-                                jsonWriter.WritePropertyName("txtData");
-                                jsonWriter.WriteStartArray();
-
-                                foreach (DnsResourceRecord record in resourceRecords)
-                                    jsonWriter.WriteValue((record.RDATA as DnsNSRecord).NSDomainName);
-
-                                jsonWriter.WriteEndArray();
-                            }
-                            break;
-
-                        case DnsResourceRecordType.CNAME:
-                            {
-                                DnsCNAMERecord rdata = resourceRecords[0].RDATA as DnsCNAMERecord;
-
-                                jsonWriter.WritePropertyName("domain");
-                                jsonWriter.WriteValue(rdata.CNAMEDomainName);
-                            }
-                            break;
-
-                        default:
-                            {
-                                jsonWriter.WritePropertyName("unknownData");
-                                jsonWriter.WriteStartArray();
-
-                                foreach (DnsResourceRecord record in resourceRecords)
+                            case DnsResourceRecordType.TXT:
                                 {
+                                    jsonWriter.WritePropertyName("txtData");
+                                    jsonWriter.WriteValue((resourceRecord.RDATA as DnsTXTRecord).TXTData);
+                                }
+                                break;
+
+                            case DnsResourceRecordType.NS:
+                                {
+                                    jsonWriter.WritePropertyName("domain");
+                                    jsonWriter.WriteValue((resourceRecord.RDATA as DnsNSRecord).NSDomainName);
+                                }
+                                break;
+
+                            case DnsResourceRecordType.CNAME:
+                                {
+                                    DnsCNAMERecord rdata = resourceRecord.RDATA as DnsCNAMERecord;
+
+                                    jsonWriter.WritePropertyName("domain");
+                                    jsonWriter.WriteValue(rdata.CNAMEDomainName);
+                                }
+                                break;
+
+                            default:
+                                {
+                                    jsonWriter.WritePropertyName("binaryData");
+
                                     using (MemoryStream mS = new MemoryStream())
                                     {
-                                        record.RDATA.WriteTo(mS, new List<DnsDomainOffset>());
+                                        resourceRecord.RDATA.WriteTo(mS, new List<DnsDomainOffset>());
 
                                         jsonWriter.WriteValue(Convert.ToBase64String(mS.ToArray()));
                                     }
                                 }
+                                break;
+                        }
 
-                                jsonWriter.WriteEndArray();
-                            }
-                            break;
+                        jsonWriter.WriteEndObject();
+
+                        jsonWriter.WriteEndObject();
                     }
-
-                    jsonWriter.WriteEndObject();
-
-                    jsonWriter.WriteEndObject();
                 }
             }
 
             jsonWriter.WriteEndArray();
+        }
+
+        private void DeleteRecord(HttpListenerRequest request)
+        {
+            string domain = request.QueryString["domain"];
+            if (string.IsNullOrEmpty(domain))
+                throw new Exception("Parameter 'domain' missing.");
+
+            string strType = request.QueryString["type"];
+            if (string.IsNullOrEmpty(strType))
+                throw new Exception("Parameter 'type' missing.");
+
+            DnsResourceRecordType type = (DnsResourceRecordType)Enum.Parse(typeof(DnsResourceRecordType), strType);
+
+            uint ttl;
+            string strTtl = request.QueryString["ttl"];
+            if (string.IsNullOrEmpty(strTtl))
+                ttl = 3600;
+            else
+                ttl = uint.Parse(strTtl);
+
+            switch (type)
+            {
+                case DnsResourceRecordType.A:
+                    {
+                        string strIP = request.QueryString["ip"];
+                        if (string.IsNullOrEmpty(strIP))
+                            throw new Exception("Parameter 'ip' missing.");
+
+                        _dnsServer.AuthoritativeZoneRoot.DeleteRecord(domain, type, ttl, new DnsARecord(IPAddress.Parse(strIP)));
+                    }
+                    break;
+
+                case DnsResourceRecordType.AAAA:
+                    {
+                        string strIP = request.QueryString["ip"];
+                        if (string.IsNullOrEmpty(strIP))
+                            throw new Exception("Parameter 'ip' missing.");
+
+                        _dnsServer.AuthoritativeZoneRoot.DeleteRecord(domain, type, ttl, new DnsAAAARecord(IPAddress.Parse(strIP)));
+                    }
+                    break;
+
+                case DnsResourceRecordType.PTR:
+                    {
+                        _dnsServer.AuthoritativeZoneRoot.DeleteRecords(domain, type);
+                    }
+                    break;
+
+                case DnsResourceRecordType.MX:
+                    {
+                        string preference = request.QueryString["preference"];
+                        if (string.IsNullOrEmpty(preference))
+                            throw new Exception("Parameter 'preference' missing.");
+
+                        string exchange = request.QueryString["exchange"];
+                        if (string.IsNullOrEmpty(exchange))
+                            throw new Exception("Parameter 'exchange' missing.");
+
+                        _dnsServer.AuthoritativeZoneRoot.DeleteRecord(domain, type, ttl, new DnsMXRecord(ushort.Parse(preference), exchange));
+                    }
+                    break;
+
+                case DnsResourceRecordType.TXT:
+                    {
+                        string txtData = request.QueryString["txtData"];
+                        if (string.IsNullOrEmpty(txtData))
+                            throw new Exception("Parameter 'txtData' missing.");
+
+                        _dnsServer.AuthoritativeZoneRoot.DeleteRecord(domain, type, ttl, new DnsTXTRecord(txtData));
+                    }
+                    break;
+
+                case DnsResourceRecordType.NS:
+                    {
+                        string nsDomain = request.QueryString["nsDomain"];
+                        if (string.IsNullOrEmpty(nsDomain))
+                            throw new Exception("Parameter 'nsDomain' missing.");
+
+                        _dnsServer.AuthoritativeZoneRoot.DeleteRecord(domain, type, ttl, new DnsNSRecord(nsDomain));
+                    }
+                    break;
+
+                case DnsResourceRecordType.CNAME:
+                    {
+                        _dnsServer.AuthoritativeZoneRoot.DeleteRecords(domain, type);
+                    }
+                    break;
+
+                default:
+                    throw new Exception("Type not supported for DeleteRecord().");
+            }
         }
 
         #endregion
