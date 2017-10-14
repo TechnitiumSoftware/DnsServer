@@ -171,10 +171,68 @@ namespace DnsServerCore
 
         private void SetRecords(DnsResourceRecordType type, DnsResourceRecord[] records)
         {
-            DnsResourceRecord[] existingRecords = _entries.AddOrUpdate(type, records, delegate (DnsResourceRecordType key, DnsResourceRecord[] oldValue)
+            _entries.AddOrUpdate(type, records, delegate (DnsResourceRecordType key, DnsResourceRecord[] existingRecords)
             {
                 return records;
             });
+        }
+
+        private void AddRecord(DnsResourceRecord record)
+        {
+            _entries.AddOrUpdate(record.Type, new DnsResourceRecord[] { record }, delegate (DnsResourceRecordType key, DnsResourceRecord[] existingRecords)
+            {
+                foreach (DnsResourceRecord existingRecord in existingRecords)
+                {
+                    if (record.Equals(existingRecord))
+                        return existingRecords;
+                }
+
+                DnsResourceRecord[] newValue = new DnsResourceRecord[existingRecords.Length + 1];
+                existingRecords.CopyTo(newValue, 0);
+
+                newValue[newValue.Length - 1] = record;
+
+                return newValue;
+            });
+        }
+
+        private void DeleteRecord(DnsResourceRecord record)
+        {
+            if (_entries.TryGetValue(record.Type, out DnsResourceRecord[] existingRecords))
+            {
+                bool recordFound = false;
+
+                for (int i = 0; i < existingRecords.Length; i++)
+                {
+                    if (record.Equals(existingRecords[i]))
+                    {
+                        existingRecords[i] = null;
+                        recordFound = true;
+                        break;
+                    }
+                }
+
+                if (!recordFound)
+                    return;
+
+                DnsResourceRecord[] newRecords = new DnsResourceRecord[existingRecords.Length - 1];
+
+                for (int i = 0, j = 0; i < existingRecords.Length; i++)
+                {
+                    if (existingRecords[i] != null)
+                        newRecords[j++] = existingRecords[i];
+                }
+
+                _entries.AddOrUpdate(record.Type, newRecords, delegate (DnsResourceRecordType key, DnsResourceRecord[] oldValue)
+                {
+                    return newRecords;
+                });
+            }
+        }
+
+        private void DeleteRecords(DnsResourceRecordType type)
+        {
+            _entries.TryRemove(type, out DnsResourceRecord[] existingValues);
         }
 
         private DnsResourceRecord[] GetRecords(DnsResourceRecordType type)
@@ -500,15 +558,35 @@ namespace DnsServerCore
             foreach (KeyValuePair<string, Dictionary<DnsResourceRecordType, List<DnsResourceRecord>>> groupedByTypeRecords in groupedByDomainRecords)
             {
                 string domain = groupedByTypeRecords.Key;
+                Zone zone = CreateZone(this, domain);
 
                 foreach (KeyValuePair<DnsResourceRecordType, List<DnsResourceRecord>> groupedRecords in groupedByTypeRecords.Value)
                 {
                     DnsResourceRecordType type = groupedRecords.Key;
                     DnsResourceRecord[] resourceRecords = groupedRecords.Value.ToArray();
 
-                    CreateZone(this, domain).SetRecords(type, resourceRecords);
+                    zone.SetRecords(type, resourceRecords);
                 }
             }
+        }
+
+        public void AddRecord(string domain, DnsResourceRecordType type, uint ttl, DnsResourceRecordData record)
+        {
+            CreateZone(this, domain).AddRecord(new DnsResourceRecord(domain, type, DnsClass.IN, ttl, record));
+        }
+
+        public void DeleteRecord(string domain, DnsResourceRecordType type, uint ttl, DnsResourceRecordData record)
+        {
+            Zone zone = FindClosestZone(this, domain);
+            if (zone._zoneName.Equals(domain, StringComparison.CurrentCultureIgnoreCase))
+                zone.DeleteRecord(new DnsResourceRecord(domain, type, DnsClass.IN, ttl, record));
+        }
+
+        public void DeleteRecords(string domain, DnsResourceRecordType type)
+        {
+            Zone zone = FindClosestZone(this, domain);
+            if (zone._zoneName.Equals(domain, StringComparison.CurrentCultureIgnoreCase))
+                zone.DeleteRecords(type);
         }
 
         public DnsResourceRecord[] GetRecords(string domain = "")
@@ -524,7 +602,7 @@ namespace DnsServerCore
                 if (currentZone._zones.TryGetValue(nextZoneName, out Zone nextZone))
                     currentZone = nextZone;
                 else
-                    return new DnsResourceRecord[] { }; //no zone for given domain
+                    return null; //no zone for given domain
             }
 
             DnsResourceRecord[] records = currentZone.GetRecords(DnsResourceRecordType.ANY);
@@ -621,6 +699,30 @@ namespace DnsServerCore
 
             #endregion
 
+            #region public
+
+            public override bool Equals(object obj)
+            {
+                if (ReferenceEquals(null, obj))
+                    return false;
+
+                if (ReferenceEquals(this, obj))
+                    return true;
+
+                DnsNXRecord other = obj as DnsNXRecord;
+                if (other == null)
+                    return false;
+
+                return _authority.Equals(other._authority);
+            }
+
+            public override int GetHashCode()
+            {
+                return _authority.GetHashCode();
+            }
+
+            #endregion
+
             #region properties
 
             public DnsResourceRecord Authority
@@ -657,6 +759,30 @@ namespace DnsServerCore
 
             protected override void WriteRecordData(Stream s, List<DnsDomainOffset> domainEntries)
             { }
+
+            #endregion
+
+            #region public
+
+            public override bool Equals(object obj)
+            {
+                if (ReferenceEquals(null, obj))
+                    return false;
+
+                if (ReferenceEquals(this, obj))
+                    return true;
+
+                DnsEmptyRecord other = obj as DnsEmptyRecord;
+                if (other == null)
+                    return false;
+
+                return _authority.Equals(other._authority);
+            }
+
+            public override int GetHashCode()
+            {
+                return _authority.GetHashCode();
+            }
 
             #endregion
 
