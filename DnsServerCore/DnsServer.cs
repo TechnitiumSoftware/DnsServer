@@ -35,6 +35,8 @@ namespace DnsServerCore
         const int TCP_SOCKET_SEND_TIMEOUT = 30000;
         const int TCP_SOCKET_RECV_TIMEOUT = 60000;
 
+        readonly IPEndPoint _localEP;
+
         readonly Socket _udpListener;
         readonly Thread _udpListenerThread;
 
@@ -65,15 +67,16 @@ namespace DnsServerCore
 
         public DnsServer(IPEndPoint localEP)
         {
+            _localEP = localEP;
             _dnsCache = new DnsCache(_cacheZoneRoot);
 
             _udpListener = new Socket(AddressFamily.InterNetworkV6, SocketType.Dgram, ProtocolType.Udp);
             _udpListener.SetSocketOption(SocketOptionLevel.IPv6, SocketOptionName.IPv6Only, false);
-            _udpListener.Bind(localEP);
+            _udpListener.Bind(_localEP);
 
             _tcpListener = new Socket(AddressFamily.InterNetworkV6, SocketType.Stream, ProtocolType.Tcp);
             _tcpListener.SetSocketOption(SocketOptionLevel.IPv6, SocketOptionName.IPv6Only, false);
-            _tcpListener.Bind(localEP);
+            _tcpListener.Bind(_localEP);
             _tcpListener.Listen(10);
 
             //start reading query packets
@@ -130,6 +133,16 @@ namespace DnsServerCore
                 remoteEP = new IPEndPoint(IPAddress.Any, 0);
             else
                 remoteEP = new IPEndPoint(IPAddress.IPv6Any, 0);
+
+            #region this code ignores ICMP port unreachable responses which creates SocketException in ReceiveFrom()
+
+            const uint IOC_IN = 0x80000000;
+            const uint IOC_VENDOR = 0x18000000;
+            const uint SIO_UDP_CONNRESET = IOC_IN | IOC_VENDOR | 12;
+
+            _udpListener.IOControl((IOControlCode)SIO_UDP_CONNRESET, new byte[] { Convert.ToByte(false) }, null);
+
+            #endregion
 
             while (true)
             {
@@ -343,6 +356,9 @@ namespace DnsServerCore
         #endregion
 
         #region properties
+
+        public IPEndPoint LocalEP
+        { get { return _localEP; } }
 
         public Zone AuthoritativeZoneRoot
         { get { return _authoritativeZoneRoot; } }
