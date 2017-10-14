@@ -41,6 +41,16 @@ a {
             margin-left: 4px;
         }
 
+    #header .menu {
+        float: right;
+        padding: 6px;
+    }
+
+        #header .menu .menu-title {
+            color: #ffffff;
+            font-family: Arial;
+            font-size: 16px;
+        }
 
 #content {
     min-height: 100%;

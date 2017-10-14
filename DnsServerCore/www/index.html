@@ -8,7 +8,7 @@
     <script src="/js/jquery.min.js"></script>
 
     <link href="/css/bootstrap.min.css" rel="stylesheet">
-    <link href="/css/bootstrap-theme.min.css" rel="stylesheet">
+    <!--<link href="/css/bootstrap-theme.min.css" rel="stylesheet">-->
     <script src="/js/bootstrap.min.js"></script>
 
     <link href="/css/font-awesome.min.css" rel="stylesheet" />
@@ -17,10 +17,240 @@
     <script src="/js/main.js"></script>
 </head>
 <body>
-    <div id="header"></div>
+    <div id="header">
+        <div id="mnuUser" class="menu dropdown" style="display: none;">
+            <a href="#" class="dropdown-toggle" data-toggle="dropdown" role="button" aria-haspopup="true" aria-expanded="false">
+                <span class="menu-title">
+                    <span class="glyphicon glyphicon-user" aria-hidden="true"></span>
+                    <span id="mnuUserDisplayName"></span>
+                    <span class="caret"></span>
+                </span>
+            </a>
+            <ul class="dropdown-menu">
+                <li><a href="#" onclick="return changePassword();">Change Password</a></li>
+                <li><a href="#" onclick="return logout();">Logout</a></li>
+            </ul>
+        </div>
+    </div>
 
     <div id="content">
         <div class="container" style="max-width: 990px;">
+
+            <div id="pageLogin" style="margin: auto; width: 500px; padding: 100px 0 0 0;">
+                <div class="panel panel-default">
+                    <div class="panel-heading">
+                        <h3 class="panel-title">DNS Server</h3>
+                    </div>
+                    <div class="panel-body">
+                        <div class="AlertPlaceholder"></div>
+                        <form class="form-horizontal">
+                            <div class="form-group">
+                                <label for="inputUsername" class="col-sm-3 control-label">Username</label>
+                                <div class="col-sm-8">
+                                    <input type="text" class="form-control" id="txtUser" placeholder="username">
+                                </div>
+                            </div>
+
+                            <div class="form-group">
+                                <label for="inputPassword" class="col-sm-3 control-label">Password</label>
+                                <div class="col-sm-8">
+                                    <input type="password" class="form-control" id="txtPass" placeholder="password">
+                                </div>
+                            </div>
+
+                            <div class="form-group">
+                                <div class="col-sm-offset-3 col-sm-8">
+                                    <button id="btnLogin" type="submit" class="btn btn-primary" data-loading-text="Working..." onclick="return login();">Login</button>
+                                </div>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+
+            <div id="pageMain">
+                <div class="AlertPlaceholder"></div>
+                <div class="panel panel-default">
+                    <div class="panel-heading">
+                        <h3 class="panel-title">DNS Server</h3>
+                    </div>
+
+                    <div class="panel-body" style="min-height: 500px;">
+
+                        <div id="mainPanelTabs">
+                            <ul class="nav nav-tabs" role="tablist">
+                                <li role="presentation" class="active"><a href="#mainPanelTabPaneZones" aria-controls="mainPanelTabPaneZones" role="tab" data-toggle="tab">Zones</a></li>
+                                <li role="presentation"><a href="#mainPanelTabPaneSettings" aria-controls="mainPanelTabPaneSettings" role="tab" data-toggle="tab">Settings</a></li>
+                            </ul>
+
+                            <div class="tab-content">
+
+                                <div id="mainPanelTabPaneZones" role="tabpanel" class="tab-pane active" style="padding: 10px 0 0 0;">
+                                    <div id="divZones" class="well well-sm" style="float: left; width: 24%; min-height: 500px;">
+                                        <form class="form-inline">
+                                            <div class="form-group">
+                                                <input type="text" class="form-control" style="width: 180px;" id="inputAddZone" placeholder="example.com">
+                                                <button type="button" class="btn btn-primary">Add</button>
+                                            </div>
+                                        </form>
+
+                                        <div style="font-size: 16px;">
+                                            <div style="padding: 4px;"><a href="#">technitium.com</a></div>
+                                            <div style="padding: 4px;"><a href="#">dnsclient.net</a></div>
+                                        </div>
+                                    </div>
+
+                                    <div id="divZoneViewer" style="float: right; width: 75%;">
+                                        <div class="panel panel-default">
+                                            <div class="panel-heading" style="height: 36px; padding: 4px 6px;">
+                                                <div style="float: left; padding: 4px;">technitium.com</div>
+                                                <div style="float: right;"><button type="button" class="btn btn-danger" style="font-size: 12px; padding: 4px 6px;">Delete</button></div>
+                                            </div>
+                                            <div class="panel-body">
+
+                                                <ul class="list-group">
+                                                    <li class="list-group-item" style="background-color: #f5f5f5;">
+                                                        <form class="form-inline" style="height: 90px;">
+                                                            <div class="form-group">
+                                                                <label for="optType">Type</label>
+                                                                <select class="form-control" id="optType">
+                                                                    <option>A</option>
+                                                                    <option>NS</option>
+                                                                    <option>CNAME</option>
+                                                                    <option>SOA</option>
+                                                                    <option>PTR</option>
+                                                                    <option>MX</option>
+                                                                    <option>TXT</option>
+                                                                    <option>AAAA</option>
+                                                                </select>
+                                                            </div>
+                                                            <div class="form-group">
+                                                                <label for="addRRSubDomain">Name</label>
+                                                                <input type="text" class="form-control" id="addRRSubDomain" placeholder="@" style="width: 138px;">
+                                                            </div>
+                                                            <div class="form-group">
+                                                                <label for="addRRSubDomain">Value</label>
+                                                                <input type="text" class="form-control" id="addRRValue" placeholder="value" style="width: 250px;">
+                                                            </div>
+                                                            <div class="form-group">
+                                                                <label for="addRRTtl">TTL</label>
+                                                                <input type="number" class="form-control" id="addRRTtl" placeholder="3600" style="width: 80px;">
+                                                            </div>
+                                                            <div style="float: right;">
+                                                                <div class="form-group">
+                                                                    <button type="submit" class="btn btn-primary">Update</button>
+                                                                </div>
+                                                                <div class="form-group">
+                                                                    <button type="submit" class="btn btn-warning">Delete</button>
+                                                                </div>
+                                                            </div>
+                                                        </form>
+                                                    </li>
+
+                                                    <li class="list-group-item">
+                                                        <form class="form-inline" style="height: 90px;">
+                                                            <div class="form-group">
+                                                                <label for="optType">Type</label>
+                                                                <select class="form-control" id="optType">
+                                                                    <option>A</option>
+                                                                    <option>NS</option>
+                                                                    <option>CNAME</option>
+                                                                    <option>SOA</option>
+                                                                    <option>PTR</option>
+                                                                    <option>MX</option>
+                                                                    <option>TXT</option>
+                                                                    <option>AAAA</option>
+                                                                </select>
+                                                            </div>
+                                                            <div class="form-group">
+                                                                <label for="addRRSubDomain">Name</label>
+                                                                <input type="text" class="form-control" id="addRRSubDomain" placeholder="@" style="width: 138px;">
+                                                            </div>
+                                                            <div class="form-group">
+                                                                <label for="addRRSubDomain">Value</label>
+                                                                <input type="text" class="form-control" id="addRRValue" placeholder="value" style="width: 250px;">
+                                                            </div>
+                                                            <div class="form-group">
+                                                                <label for="addRRTtl">TTL</label>
+                                                                <input type="number" class="form-control" id="addRRTtl" placeholder="3600" style="width: 80px;">
+                                                            </div>
+                                                            <div style="float: right;">
+                                                                <div class="form-group">
+                                                                    <button type="submit" class="btn btn-primary">Add</button>
+                                                                </div>
+                                                            </div>
+                                                        </form>
+                                                    </li>
+                                                </ul>
+
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div role="tabpanel" class="tab-pane" id="mainPanelTabPaneSettings">
+
+                                    <form style="margin-top: 20px;" class="form-horizontal">
+                                        <div class="well well-sm">
+                                            <div class="form-group">
+                                                <label class="col-sm-3 control-label">Local End Point</label>
+                                                <div class="col-sm-6">
+                                                    <p class="form-control-static">[::]:53</p>
+                                                </div>
+                                            </div>
+
+                                            <div class="form-group">
+                                                <label for="inputServerDomain" class="col-sm-3 control-label">Server Domain</label>
+                                                <div class="col-sm-6">
+                                                    <input type="text" class="form-control" id="inputServerDomain" placeholder="Domain Name" value="localhost">
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </form>
+
+                                    <form style="margin-top: 20px;">
+
+                                        <div class="well well-sm">
+                                            <div class="form-group">
+                                                <div class="checkbox">
+                                                    <label>
+                                                        <input type="checkbox"> Prefer IPv6
+                                                    </label>
+                                                </div>
+
+                                                <div>Use this option only if this DNS server has native IPv6 Internet access. DNS Server will use IPv6 for querying whenever possible with this option enabled.</div>
+                                            </div>
+                                        </div>
+
+                                        <div class="well well-sm">
+                                            <div class="form-group">
+                                                <div class="checkbox">
+                                                    <label>
+                                                        <input type="checkbox"> Allow Recursion
+                                                    </label>
+                                                </div>
+
+                                                <div>Enabling recursion will allow this DNS server to resolve any domain and act as a general purpose DNS server. Disable this option only if you wish this server to act only as authoritative name server for the configured zones.</div>
+                                            </div>
+
+                                            <div class="form-group">
+                                                <label for="inputForwarders">Forwarders</label>
+                                                <textarea class="form-control" style="width: 250px; margin-bottom: 10px;" rows="3" id="inputForwarders"></textarea>
+
+                                                <div>Enter forwarder DNS Server IP addresses one below another in above text field. Forwarders are DNS servers which this DNS Server should use to resolve recursive queries. If no forwarders are configured then this DNS server will use preconfigured ROOT SERVERS.</div>
+                                            </div>
+                                        </div>
+                                    </form>
+
+                                </div>
+
+                            </div>
+                        </div>
+
+                    </div>
+                </div>
+            </div>
+
         </div>
     </div>
 
