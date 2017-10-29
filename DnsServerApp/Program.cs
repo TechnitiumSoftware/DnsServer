@@ -29,6 +29,7 @@ namespace DnsServerApp
             if (args.Length == 0)
             {
                 Console.WriteLine("Technitium DNS Server");
+                Console.WriteLine("---------------------");
                 Console.WriteLine("Error! Expected command line parameter 'configFolder' is missing.");
                 Console.WriteLine("");
                 Console.WriteLine("Note: Create an empty folder and pass the folder path as parameter. This folder will store DNS config and zone data for this app instance.");
@@ -39,12 +40,12 @@ namespace DnsServerApp
             DnsWebService service = new DnsWebService(args[0]);
 
             service.Start();
-            Console.WriteLine("Technitium DNS Server was started");
+            Console.WriteLine("Technitium DNS Server was started successfully.");
             Console.WriteLine("Press any key to stop...");
             Console.ReadKey();
 
             service.Stop();
-            Console.WriteLine("Technitium DNS Server was stopped.");
+            Console.WriteLine("Technitium DNS Server was stopped successfully.");
         }
     }
 }
