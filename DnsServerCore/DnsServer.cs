@@ -28,8 +28,19 @@ using TechnitiumLibrary.Net.Dns;
 
 namespace DnsServerCore
 {
-    public class DnsServer : IDisposable
+    public class DnsServer
     {
+        #region enum
+
+        enum ServiceState
+        {
+            Stopped = 0,
+            Running = 1,
+            Stopping = 2
+        }
+
+        #endregion
+
         #region variables
 
         const int TCP_SOCKET_SEND_TIMEOUT = 30000;
@@ -37,11 +48,11 @@ namespace DnsServerCore
 
         readonly IPEndPoint _localEP;
 
-        readonly Socket _udpListener;
-        readonly Thread _udpListenerThread;
+        Socket _udpListener;
+        Thread _udpListenerThread;
 
-        readonly Socket _tcpListener;
-        readonly Thread _tcpListenerThread;
+        Socket _tcpListener;
+        Thread _tcpListenerThread;
 
         readonly Zone _authoritativeZoneRoot = new Zone(true);
         readonly Zone _cacheZoneRoot = new Zone(false);
@@ -52,6 +63,8 @@ namespace DnsServerCore
         NameServerAddress[] _forwarders;
         bool _preferIPv6 = false;
         int _retries = 2;
+
+        volatile ServiceState _state = ServiceState.Stopped;
 
         #endregion
 
@@ -70,51 +83,13 @@ namespace DnsServerCore
             _localEP = localEP;
             _dnsCache = new DnsCache(_cacheZoneRoot);
 
-            _udpListener = new Socket(AddressFamily.InterNetworkV6, SocketType.Dgram, ProtocolType.Udp);
-            _udpListener.SetSocketOption(SocketOptionLevel.IPv6, SocketOptionName.IPv6Only, false);
-            _udpListener.Bind(_localEP);
-
-            _tcpListener = new Socket(AddressFamily.InterNetworkV6, SocketType.Stream, ProtocolType.Tcp);
-            _tcpListener.SetSocketOption(SocketOptionLevel.IPv6, SocketOptionName.IPv6Only, false);
-            _tcpListener.Bind(_localEP);
-            _tcpListener.Listen(10);
-
-            //start reading query packets
-            _udpListenerThread = new Thread(ReadUdpQueryPacketsAsync);
-            _udpListenerThread.IsBackground = true;
-            _udpListenerThread.Start();
-
-            _tcpListenerThread = new Thread(AcceptTcpConnectionAsync);
-            _tcpListenerThread.IsBackground = true;
-            _tcpListenerThread.Start();
-        }
-
-        #endregion
-
-        #region IDisposable Support
-
-        bool _disposed = false;
-
-        public void Dispose()
-        {
-            Dispose(true);
-            GC.SuppressFinalize(this);
-        }
-
-        protected virtual void Dispose(bool disposing)
-        {
-            if (!_disposed)
+            //set min threads since the default value is too small
             {
-                if (disposing)
-                {
-                    if (_udpListener != null)
-                        _udpListener.Dispose();
+                int minWorker, minIOC;
+                ThreadPool.GetMinThreads(out minWorker, out minIOC);
 
-                    if (_tcpListener != null)
-                        _tcpListener.Dispose();
-                }
-
-                _disposed = true;
+                minWorker = Environment.ProcessorCount * 32;
+                ThreadPool.SetMinThreads(minWorker, minIOC);
             }
         }
 
@@ -124,83 +99,118 @@ namespace DnsServerCore
 
         private void ReadUdpQueryPacketsAsync(object parameter)
         {
-            EndPoint remoteEP;
-            FixMemoryStream recvBufferStream = new FixMemoryStream(128);
-            FixMemoryStream sendBufferStream = new FixMemoryStream(512);
-            int bytesRecv;
-
-            if (_udpListener.AddressFamily == AddressFamily.InterNetwork)
-                remoteEP = new IPEndPoint(IPAddress.Any, 0);
-            else
-                remoteEP = new IPEndPoint(IPAddress.IPv6Any, 0);
-
             #region this code ignores ICMP port unreachable responses which creates SocketException in ReceiveFrom()
 
-            const uint IOC_IN = 0x80000000;
-            const uint IOC_VENDOR = 0x18000000;
-            const uint SIO_UDP_CONNRESET = IOC_IN | IOC_VENDOR | 12;
+            try
+            {
+                const uint IOC_IN = 0x80000000;
+                const uint IOC_VENDOR = 0x18000000;
+                const uint SIO_UDP_CONNRESET = IOC_IN | IOC_VENDOR | 12;
 
-            _udpListener.IOControl((IOControlCode)SIO_UDP_CONNRESET, new byte[] { Convert.ToByte(false) }, null);
+                _udpListener.IOControl((IOControlCode)SIO_UDP_CONNRESET, new byte[] { Convert.ToByte(false) }, null);
+            }
+            catch
+            { }
 
             #endregion
 
-            while (true)
+            FixMemoryStream recvBufferStream = new FixMemoryStream(128);
+            int bytesRecv;
+
+            try
             {
-                bytesRecv = _udpListener.ReceiveFrom(recvBufferStream.Buffer, ref remoteEP);
-
-                if (bytesRecv > 0)
+                while (true)
                 {
-                    recvBufferStream.Position = 0;
-                    recvBufferStream.SetLength(bytesRecv);
+                    EndPoint remoteEP;
 
-                    IPEndPoint remoteNodeEP = remoteEP as IPEndPoint;
+                    if (_udpListener.AddressFamily == AddressFamily.InterNetwork)
+                        remoteEP = new IPEndPoint(IPAddress.Any, 0);
+                    else
+                        remoteEP = new IPEndPoint(IPAddress.IPv6Any, 0);
+
+                    bytesRecv = _udpListener.ReceiveFrom(recvBufferStream.Buffer, ref remoteEP);
+
+                    if (bytesRecv > 0)
+                    {
+                        recvBufferStream.Position = 0;
+                        recvBufferStream.SetLength(bytesRecv);
+
+                        try
+                        {
+                            ThreadPool.QueueUserWorkItem(ProcessUdpRequestAsync, new object[] { remoteEP, new DnsDatagram(recvBufferStream) });
+                        }
+                        catch
+                        { }
+                    }
+                }
+            }
+            catch
+            {
+                if (_state == ServiceState.Running)
+                    throw;
+            }
+        }
+
+        private void ProcessUdpRequestAsync(object parameter)
+        {
+            object[] parameters = parameter as object[];
+
+            EndPoint remoteEP = parameters[0] as EndPoint;
+            DnsDatagram request = parameters[1] as DnsDatagram;
+
+            try
+            {
+                DnsDatagram response = ProcessQuery(request);
+
+                //send response
+                if (response != null)
+                {
+                    FixMemoryStream sendBufferStream = new FixMemoryStream(512);
 
                     try
                     {
-                        DnsDatagram response = ProcessQuery(recvBufferStream);
-
-                        //send response
-                        if (response != null)
-                        {
-                            try
-                            {
-                                sendBufferStream.Position = 0;
-                                response.WriteTo(sendBufferStream);
-                            }
-                            catch (EndOfStreamException)
-                            {
-                                DnsHeader header = response.Header;
-                                response = new DnsDatagram(new DnsHeader(header.Identifier, true, header.OPCODE, header.AuthoritativeAnswer, true, header.RecursionDesired, header.RecursionAvailable, header.AuthenticData, header.CheckingDisabled, header.RCODE, header.QDCOUNT, 0, 0, 0), response.Question, null, null, null);
-
-                                sendBufferStream.Position = 0;
-                                response.WriteTo(sendBufferStream);
-                            }
-
-                            //send dns datagram
-                            _udpListener.SendTo(sendBufferStream.Buffer, 0, (int)sendBufferStream.Position, SocketFlags.None, remoteEP);
-                        }
+                        response.WriteTo(sendBufferStream);
                     }
-                    catch
-                    { }
+                    catch (EndOfStreamException)
+                    {
+                        DnsHeader header = response.Header;
+                        response = new DnsDatagram(new DnsHeader(header.Identifier, true, header.OPCODE, header.AuthoritativeAnswer, true, header.RecursionDesired, header.RecursionAvailable, header.AuthenticData, header.CheckingDisabled, header.RCODE, header.QDCOUNT, 0, 0, 0), response.Question, null, null, null);
+
+                        sendBufferStream.Position = 0;
+                        response.WriteTo(sendBufferStream);
+                    }
+
+                    //send dns datagram
+                    _udpListener.SendTo(sendBufferStream.Buffer, 0, (int)sendBufferStream.Position, SocketFlags.None, remoteEP);
                 }
             }
+            catch
+            { }
         }
 
         private void AcceptTcpConnectionAsync(object parameter)
         {
-            while (true)
+            try
             {
-                Socket socket = _tcpListener.Accept();
+                while (true)
+                {
+                    Socket socket = _tcpListener.Accept();
 
-                socket.NoDelay = true;
-                socket.SendTimeout = TCP_SOCKET_SEND_TIMEOUT;
-                socket.ReceiveTimeout = TCP_SOCKET_RECV_TIMEOUT;
+                    socket.NoDelay = true;
+                    socket.SendTimeout = TCP_SOCKET_SEND_TIMEOUT;
+                    socket.ReceiveTimeout = TCP_SOCKET_RECV_TIMEOUT;
 
-                ThreadPool.QueueUserWorkItem(ReadTcpQueryPacketsAsync, socket);
+                    ThreadPool.QueueUserWorkItem(ProcessTcpRequestAsync, socket);
+                }
+            }
+            catch
+            {
+                if (_state == ServiceState.Running)
+                    throw;
             }
         }
 
-        private void ReadTcpQueryPacketsAsync(object parameter)
+        private void ProcessTcpRequestAsync(object parameter)
         {
             Socket tcpSocket = parameter as Socket;
 
@@ -238,7 +248,7 @@ namespace DnsServerCore
                         recvBufferStream.Position = 0;
                         recvBufferStream.SetLength(bytesRecv);
 
-                        DnsDatagram response = ProcessQuery(recvBufferStream);
+                        DnsDatagram response = ProcessQuery(new DnsDatagram(recvBufferStream));
 
                         //send response
                         if (response != null)
@@ -274,19 +284,8 @@ namespace DnsServerCore
             }
         }
 
-        private DnsDatagram ProcessQuery(Stream s)
+        private DnsDatagram ProcessQuery(DnsDatagram request)
         {
-            DnsDatagram request;
-
-            try
-            {
-                request = new DnsDatagram(s);
-            }
-            catch
-            {
-                return null;
-            }
-
             if (request.Header.IsResponse)
                 return null;
 
@@ -294,13 +293,13 @@ namespace DnsServerCore
             {
                 case DnsOpcode.StandardQuery:
                     if (request.Question.Length != 1)
-                        return new DnsDatagram(new DnsHeader(request.Header.Identifier, true, request.Header.OPCODE, false, false, request.Header.RecursionDesired, _allowRecursion, false, false, DnsResponseCode.Refused, request.Header.QDCOUNT, 0, 0, 0), request.Question, null, null, null);
+                        return new DnsDatagram(new DnsHeader(request.Header.Identifier, true, DnsOpcode.StandardQuery, false, false, request.Header.RecursionDesired, _allowRecursion, false, false, DnsResponseCode.Refused, request.Header.QDCOUNT, 0, 0, 0), request.Question, null, null, null);
 
                     try
                     {
-                        DnsDatagram authoritativeResponse = _authoritativeZoneRoot.Query(request);
+                        DnsDatagram authoritativeResponse = ProcessAuthoritativeQuery(request);
 
-                        if ((authoritativeResponse.Header.AuthoritativeAnswer) || !request.Header.RecursionDesired || !_allowRecursion)
+                        if ((authoritativeResponse.Header.RCODE != DnsResponseCode.Refused) || !request.Header.RecursionDesired || !_allowRecursion)
                             return authoritativeResponse;
 
                         return ProcessRecursiveQuery(request);
@@ -315,42 +314,166 @@ namespace DnsServerCore
             }
         }
 
-        public DnsDatagram ProcessRecursiveQuery(DnsDatagram request)
+        public DnsDatagram ProcessAuthoritativeQuery(DnsDatagram request)
         {
-            DnsDatagram response = DnsClient.ResolveViaNameServers(_forwarders, request.Question[0], _dnsCache, null, _preferIPv6, false, _retries);
+            DnsDatagram response = _authoritativeZoneRoot.Query(request);
 
             if ((response.Header.RCODE == DnsResponseCode.NoError) && (response.Answer.Length > 0))
             {
-                if ((response.Answer[0].Type == DnsResourceRecordType.CNAME) && (request.Question[0].Type != DnsResourceRecordType.CNAME) && (request.Question[0].Type != DnsResourceRecordType.ANY))
-                {
-                    DnsResourceRecord cnameRR = response.Answer[0];
+                DnsResourceRecordType questionType = request.Question[0].Type;
+                DnsResourceRecord lastRR = response.Answer[response.Answer.Length - 1];
 
+                if ((lastRR.Type != questionType) && (lastRR.Type == DnsResourceRecordType.CNAME) && (questionType != DnsResourceRecordType.ANY))
+                {
                     List<DnsResourceRecord> responseAnswer = new List<DnsResourceRecord>();
-                    responseAnswer.Add(cnameRR);
+                    responseAnswer.AddRange(response.Answer);
+
+                    DnsDatagram lastResponse;
 
                     while (true)
                     {
-                        DnsDatagram cnameResponse = DnsClient.ResolveViaNameServers(_forwarders, (cnameRR.RDATA as DnsCNAMERecord).CNAMEDomainName, request.Question[0].Type, _dnsCache, null, _preferIPv6, false, _retries);
+                        DnsDatagram cnameRequest = new DnsDatagram(new DnsHeader(0, false, DnsOpcode.StandardQuery, false, false, request.Header.RecursionDesired, false, false, false, DnsResponseCode.NoError, 1, 0, 0, 0), new DnsQuestionRecord[] { new DnsQuestionRecord((lastRR.RDATA as DnsCNAMERecord).CNAMEDomainName, questionType, DnsClass.IN) }, null, null, null);
 
-                        if (cnameResponse.Header.RCODE != DnsResponseCode.NoError)
+                        lastResponse = _authoritativeZoneRoot.Query(cnameRequest);
+
+                        if (lastResponse.Header.RCODE == DnsResponseCode.Refused)
+                        {
+                            if (!cnameRequest.Header.RecursionDesired || !_allowRecursion)
+                                break;
+
+                            lastResponse = ProcessRecursiveQuery(cnameRequest);
+                        }
+
+                        if ((lastResponse.Header.RCODE != DnsResponseCode.NoError) || (lastResponse.Answer.Length == 0))
                             break;
 
-                        if (cnameResponse.Answer.Length == 0)
+                        responseAnswer.AddRange(lastResponse.Answer);
+
+                        lastRR = lastResponse.Answer[lastResponse.Answer.Length - 1];
+
+                        if (lastRR.Type != DnsResourceRecordType.CNAME)
                             break;
-
-                        responseAnswer.AddRange(cnameResponse.Answer);
-
-                        if (cnameResponse.Answer[0].Type != DnsResourceRecordType.CNAME)
-                            break;
-
-                        cnameRR = cnameResponse.Answer[0];
                     }
 
-                    return new DnsDatagram(new DnsHeader(request.Header.Identifier, true, DnsOpcode.StandardQuery, false, false, true, true, false, false, DnsResponseCode.NoError, 1, Convert.ToUInt16(responseAnswer.Count), 0, 0), request.Question, responseAnswer.ToArray(), new DnsResourceRecord[] { }, new DnsResourceRecord[] { });
+                    DnsResponseCode rcode;
+                    DnsResourceRecord[] authority;
+
+                    if (lastResponse.Header.RCODE == DnsResponseCode.Refused)
+                    {
+                        rcode = DnsResponseCode.NoError;
+                        authority = new DnsResourceRecord[] { };
+                    }
+                    else
+                    {
+                        rcode = lastResponse.Header.RCODE;
+
+                        if ((lastResponse.Authority.Length > 0) && (lastResponse.Authority[0].Type == DnsResourceRecordType.SOA))
+                            authority = lastResponse.Authority;
+                        else
+                            authority = new DnsResourceRecord[] { };
+                    }
+
+                    return new DnsDatagram(new DnsHeader(request.Header.Identifier, true, DnsOpcode.StandardQuery, lastResponse.Header.AuthoritativeAnswer, false, request.Header.RecursionDesired, _allowRecursion, false, false, rcode, 1, Convert.ToUInt16(responseAnswer.Count), Convert.ToUInt16(authority.Length), 0), request.Question, responseAnswer.ToArray(), authority, new DnsResourceRecord[] { });
                 }
             }
 
-            return new DnsDatagram(new DnsHeader(request.Header.Identifier, true, DnsOpcode.StandardQuery, false, false, true, true, false, false, DnsResponseCode.NoError, 1, Convert.ToUInt16(response.Answer.Length), 0, 0), request.Question, response.Answer, new DnsResourceRecord[] { }, new DnsResourceRecord[] { });
+            return response;
+        }
+
+        public DnsDatagram ProcessRecursiveQuery(DnsDatagram request)
+        {
+            DnsDatagram response = DnsClient.ResolveViaNameServers(request.Question[0], _forwarders, _dnsCache, null, _preferIPv6, false, _retries);
+
+            DnsResourceRecord[] authority;
+
+            if ((response.Header.RCODE == DnsResponseCode.NoError) && (response.Answer.Length > 0))
+            {
+                DnsResourceRecordType questionType = request.Question[0].Type;
+                DnsResourceRecord lastRR = response.Answer[response.Answer.Length - 1];
+
+                if ((lastRR.Type != questionType) && (lastRR.Type == DnsResourceRecordType.CNAME) && (questionType != DnsResourceRecordType.ANY))
+                {
+                    List<DnsResourceRecord> responseAnswer = new List<DnsResourceRecord>();
+                    responseAnswer.AddRange(response.Answer);
+
+                    DnsDatagram lastResponse;
+
+                    while (true)
+                    {
+                        lastResponse = DnsClient.ResolveViaNameServers((lastRR.RDATA as DnsCNAMERecord).CNAMEDomainName, questionType, _forwarders, _dnsCache, null, _preferIPv6, false, _retries);
+
+                        if ((lastResponse.Header.RCODE != DnsResponseCode.NoError) || (lastResponse.Answer.Length == 0))
+                            break;
+
+                        responseAnswer.AddRange(lastResponse.Answer);
+
+                        lastRR = lastResponse.Answer[lastResponse.Answer.Length - 1];
+
+                        if (lastRR.Type == questionType)
+                            break;
+
+                        if (lastRR.Type != DnsResourceRecordType.CNAME)
+                            throw new DnsServerException("Invalid response received from Dns server.");
+                    }
+
+                    if ((lastResponse.Authority.Length > 0) && (lastResponse.Authority[0].Type == DnsResourceRecordType.SOA))
+                        authority = lastResponse.Authority;
+                    else
+                        authority = new DnsResourceRecord[] { };
+
+                    return new DnsDatagram(new DnsHeader(request.Header.Identifier, true, DnsOpcode.StandardQuery, false, false, true, true, false, false, lastResponse.Header.RCODE, 1, Convert.ToUInt16(responseAnswer.Count), Convert.ToUInt16(authority.Length), 0), request.Question, responseAnswer.ToArray(), authority, new DnsResourceRecord[] { });
+                }
+            }
+
+            if ((response.Authority.Length > 0) && (response.Authority[0].Type == DnsResourceRecordType.SOA))
+                authority = response.Authority;
+            else
+                authority = new DnsResourceRecord[] { };
+
+            return new DnsDatagram(new DnsHeader(request.Header.Identifier, true, DnsOpcode.StandardQuery, false, false, true, true, false, false, response.Header.RCODE, 1, Convert.ToUInt16(response.Answer.Length), Convert.ToUInt16(authority.Length), 0), request.Question, response.Answer, authority, new DnsResourceRecord[] { });
+        }
+
+        #endregion
+
+        #region public
+
+        public void Start()
+        {
+            if (_state != ServiceState.Stopped)
+                return;
+
+            _udpListener = new Socket(AddressFamily.InterNetworkV6, SocketType.Dgram, ProtocolType.Udp);
+            _udpListener.SetSocketOption(SocketOptionLevel.IPv6, SocketOptionName.IPv6Only, false);
+            _udpListener.Bind(_localEP);
+
+            _tcpListener = new Socket(AddressFamily.InterNetworkV6, SocketType.Stream, ProtocolType.Tcp);
+            _tcpListener.SetSocketOption(SocketOptionLevel.IPv6, SocketOptionName.IPv6Only, false);
+            _tcpListener.Bind(_localEP);
+            _tcpListener.Listen(10);
+
+            //start reading query packets
+            _udpListenerThread = new Thread(ReadUdpQueryPacketsAsync);
+            _udpListenerThread.IsBackground = true;
+            _udpListenerThread.Start();
+
+            _tcpListenerThread = new Thread(AcceptTcpConnectionAsync);
+            _tcpListenerThread.IsBackground = true;
+            _tcpListenerThread.Start();
+
+            _state = ServiceState.Running;
+        }
+
+        public void Stop()
+        {
+            if (_state != ServiceState.Running)
+                return;
+
+            _state = ServiceState.Stopping;
+
+            _udpListener.Dispose();
+            _tcpListener.Dispose();
+
+            _state = ServiceState.Stopped;
         }
 
         #endregion
