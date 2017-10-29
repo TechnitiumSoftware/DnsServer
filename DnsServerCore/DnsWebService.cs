@@ -33,36 +33,41 @@ namespace DnsServerCore
 {
     public class DnsWebService
     {
+        #region enum
+
+        enum ServiceState
+        {
+            Stopped = 0,
+            Running = 1,
+            Stopping = 2
+        }
+
+        #endregion
+
         #region variables
 
-        const int SESSION_TIMEOUT = 30 * 60 * 1000; //30 mins
+        readonly string _configFolder;
 
-        string _serverDomain = "localhost";
-        readonly DnsServer _dnsServer;
+        string _serverDomain;
+        int _webServicePort;
 
-        readonly HttpListener _webService;
-        readonly Thread _webServiceThread;
+        DnsServer _dnsServer;
+
+        HttpListener _webService;
+        Thread _webServiceThread;
 
         readonly ConcurrentDictionary<string, string> _credentials = new ConcurrentDictionary<string, string>();
-        readonly ConcurrentDictionary<string, DateTime> _sessions = new ConcurrentDictionary<string, DateTime>();
+        readonly ConcurrentDictionary<string, UserSession> _sessions = new ConcurrentDictionary<string, UserSession>();
+
+        volatile ServiceState _state = ServiceState.Stopped;
 
         #endregion
 
         #region constructor
 
-        public DnsWebService()
+        public DnsWebService(string configFolder)
         {
-            _dnsServer = new DnsServer();
-
-            _webService = new HttpListener();
-            _webService.Prefixes.Add("http://localhost:5380/");
-            _webService.Start();
-
-            _webServiceThread = new Thread(AcceptWebRequestAsync);
-            _webServiceThread.IsBackground = true;
-            _webServiceThread.Start();
-
-            _credentials.TryAdd("admin", "admin");
+            _configFolder = configFolder;
         }
 
         #endregion
@@ -71,10 +76,18 @@ namespace DnsServerCore
 
         private void AcceptWebRequestAsync(object state)
         {
-            while (true)
+            try
             {
-                HttpListenerContext context = _webService.GetContext();
-                ThreadPool.QueueUserWorkItem(ProcessRequestAsync, new object[] { context.Request, context.Response });
+                while (true)
+                {
+                    HttpListenerContext context = _webService.GetContext();
+                    ThreadPool.QueueUserWorkItem(ProcessRequestAsync, new object[] { context.Request, context.Response });
+                }
+            }
+            catch
+            {
+                if (_state == ServiceState.Running)
+                    throw;
             }
         }
 
@@ -118,7 +131,7 @@ namespace DnsServerCore
 
                                 default:
                                     if (!IsSessionValid(request))
-                                        throw new Exception("Invalid token or session expired.");
+                                        throw new InvalidTokenDnsWebServiceException("Invalid token or session expired.");
 
                                     jsonWriter.WritePropertyName("response");
                                     jsonWriter.WriteStartObject();
@@ -127,12 +140,20 @@ namespace DnsServerCore
                                     {
                                         switch (path)
                                         {
+                                            case "/api/changePassword":
+                                                ChangePassword(request);
+                                                break;
+
                                             case "/api/getDnsSettings":
                                                 GetDnsSettings(jsonWriter);
                                                 break;
 
                                             case "/api/setDnsSettings":
                                                 SetDnsSettings(request);
+                                                break;
+
+                                            case "/api/flushDnsCache":
+                                                _dnsServer.CacheZoneRoot.Flush();
                                                 break;
 
                                             case "/api/listZones":
@@ -147,10 +168,6 @@ namespace DnsServerCore
                                                 DeleteZone(request);
                                                 break;
 
-                                            case "/api/setRecords":
-                                                SetRecords(request);
-                                                break;
-
                                             case "/api/addRecord":
                                                 AddRecord(request);
                                                 break;
@@ -163,8 +180,12 @@ namespace DnsServerCore
                                                 DeleteRecord(request);
                                                 break;
 
+                                            case "/api/updateRecord":
+                                                UpdateRecord(request);
+                                                break;
+
                                             default:
-                                                throw new Exception("Invalid command: " + path);
+                                                throw new DnsWebServiceException("Invalid command: " + path);
                                         }
                                     }
                                     finally
@@ -176,6 +197,14 @@ namespace DnsServerCore
 
                             jsonWriter.WritePropertyName("status");
                             jsonWriter.WriteValue("ok");
+                        }
+                        catch (InvalidTokenDnsWebServiceException ex)
+                        {
+                            jsonWriter.WritePropertyName("status");
+                            jsonWriter.WriteValue("invalid-token");
+
+                            jsonWriter.WritePropertyName("errorMessage");
+                            jsonWriter.WriteValue(ex.Message);
                         }
                         catch (Exception ex)
                         {
@@ -259,6 +288,7 @@ namespace DnsServerCore
             {
                 response.ContentType = WebUtilities.GetContentType(path).MediaType;
                 response.ContentLength64 = fS.Length;
+                response.AddHeader("Cache-Control", "private, max-age=300");
 
                 using (Stream stream = response.OutputStream)
                 {
@@ -267,22 +297,48 @@ namespace DnsServerCore
             }
         }
 
+        private string CreateSession(string username)
+        {
+            string token = BinaryNumber.GenerateRandomNumber256().ToString();
+
+            if (!_sessions.TryAdd(token, new UserSession(username)))
+                throw new DnsWebServiceException("Error while creating session. Please try again.");
+
+            return token;
+        }
+
+        private UserSession GetSession(string token)
+        {
+            if (_sessions.TryGetValue(token, out UserSession session))
+                return session;
+
+            return null;
+        }
+
+        private UserSession DeleteSession(string token)
+        {
+            if (_sessions.TryRemove(token, out UserSession session))
+                return session;
+
+            return null;
+        }
+
         private void Login(HttpListenerRequest request, JsonTextWriter jsonWriter)
         {
             string strUsername = request.QueryString["user"];
             if (string.IsNullOrEmpty(strUsername))
-                throw new Exception("Parameter 'user' missing.");
+                throw new DnsWebServiceException("Parameter 'user' missing.");
 
             string strPassword = request.QueryString["pass"];
             if (string.IsNullOrEmpty(strPassword))
-                throw new Exception("Parameter 'pass' missing.");
+                throw new DnsWebServiceException("Parameter 'pass' missing.");
+
+            strUsername = strUsername.ToLower();
 
             if (!_credentials.TryGetValue(strUsername, out string password) || (password != strPassword))
-                throw new Exception("Invalid username or password.");
+                throw new DnsWebServiceException("Invalid username or password.");
 
-            string token = BinaryNumber.GenerateRandomNumber256().ToString();
-            if (!_sessions.TryAdd(token, DateTime.UtcNow))
-                throw new Exception("Error while creating session. Please try again.");
+            string token = CreateSession(strUsername);
 
             jsonWriter.WritePropertyName("token");
             jsonWriter.WriteValue(token);
@@ -292,36 +348,56 @@ namespace DnsServerCore
         {
             string strToken = request.QueryString["token"];
             if (string.IsNullOrEmpty(strToken))
-                throw new Exception("Parameter 'token' missing.");
+                throw new DnsWebServiceException("Parameter 'token' missing.");
 
-            if (_sessions.TryGetValue(strToken, out DateTime sessionTime))
+            UserSession session = GetSession(strToken);
+            if (session == null)
+                return false;
+
+            if (session.HasExpired())
             {
-                if (sessionTime.AddMilliseconds(SESSION_TIMEOUT) < DateTime.UtcNow)
-                {
-                    _sessions.TryRemove(strToken, out DateTime value);
-                    return false;
-                }
-
-                _sessions.TryUpdate(strToken, DateTime.UtcNow, sessionTime);
-                return true;
+                _sessions.TryRemove(strToken, out UserSession x);
+                return false;
             }
 
-            return false;
+            session.UpdateLastSeen();
+            return true;
+        }
+
+        private void ChangePassword(HttpListenerRequest request)
+        {
+            string strToken = request.QueryString["token"];
+            if (string.IsNullOrEmpty(strToken))
+                throw new DnsWebServiceException("Parameter 'token' missing.");
+
+            string strPassword = request.QueryString["pass"];
+            if (string.IsNullOrEmpty(strPassword))
+                throw new DnsWebServiceException("Parameter 'pass' missing.");
+
+            UserSession session = GetSession(strToken);
+            if (session == null)
+                throw new DnsWebServiceException("User session does not exists.");
+
+            SetCredentials(session.Username, strPassword);
+            SaveConfigFile();
         }
 
         private void Logout(HttpListenerRequest request)
         {
             string strToken = request.QueryString["token"];
             if (string.IsNullOrEmpty(strToken))
-                throw new Exception("Parameter 'token' missing.");
+                throw new DnsWebServiceException("Parameter 'token' missing.");
 
-            _sessions.TryRemove(strToken, out DateTime value);
+            DeleteSession(strToken);
         }
 
         private void GetDnsSettings(JsonTextWriter jsonWriter)
         {
             jsonWriter.WritePropertyName("serverDomain");
             jsonWriter.WriteValue(_serverDomain);
+
+            jsonWriter.WritePropertyName("webServicePort");
+            jsonWriter.WriteValue(_webServicePort);
 
             jsonWriter.WritePropertyName("preferIPv6");
             jsonWriter.WriteValue(_dnsServer.PreferIPv6);
@@ -352,6 +428,10 @@ namespace DnsServerCore
             if (!string.IsNullOrEmpty(strServerDomain))
                 _serverDomain = strServerDomain;
 
+            string strWebServicePort = request.QueryString["webServicePort"];
+            if (!string.IsNullOrEmpty(strWebServicePort))
+                _webServicePort = int.Parse(strWebServicePort);
+
             string strPreferIPv6 = request.QueryString["preferIPv6"];
             if (!string.IsNullOrEmpty(strPreferIPv6))
                 _dnsServer.PreferIPv6 = bool.Parse(strPreferIPv6);
@@ -378,6 +458,8 @@ namespace DnsServerCore
                     _dnsServer.Forwarders = forwarders;
                 }
             }
+
+            SaveConfigFile();
         }
 
         private void ListZones(JsonTextWriter jsonWriter)
@@ -397,195 +479,37 @@ namespace DnsServerCore
         {
             string domain = request.QueryString["domain"];
             if (string.IsNullOrEmpty(domain))
-                throw new Exception("Parameter 'domain' missing.");
+                throw new DnsWebServiceException("Parameter 'domain' missing.");
 
-            _dnsServer.AuthoritativeZoneRoot.SetRecords(domain, DnsResourceRecordType.SOA, 14400, new DnsResourceRecordData[] { new DnsSOARecord(_serverDomain, "admin." + _serverDomain, uint.Parse(DateTime.UtcNow.ToString("yyyymmddHH")), 28800, 7200, 604800, 600) });
+            _dnsServer.AuthoritativeZoneRoot.SetRecords(domain, DnsResourceRecordType.SOA, 14400, new DnsResourceRecordData[] { new DnsSOARecord(_serverDomain, "hostmaster." + _serverDomain, uint.Parse(DateTime.UtcNow.ToString("yyyymmddHH")), 28800, 7200, 604800, 600) });
+            SaveZoneFile(domain);
         }
 
         private void DeleteZone(HttpListenerRequest request)
         {
             string domain = request.QueryString["domain"];
             if (string.IsNullOrEmpty(domain))
-                throw new Exception("Parameter 'domain' missing.");
+                throw new DnsWebServiceException("Parameter 'domain' missing.");
 
             _dnsServer.AuthoritativeZoneRoot.DeleteZone(domain);
-        }
-
-        private void SetRecords(HttpListenerRequest request)
-        {
-            string domain = request.QueryString["domain"];
-            if (string.IsNullOrEmpty(domain))
-                throw new Exception("Parameter 'domain' missing.");
-
-            string strType = request.QueryString["type"];
-            if (string.IsNullOrEmpty(strType))
-                throw new Exception("Parameter 'type' missing.");
-
-            DnsResourceRecordType type = (DnsResourceRecordType)Enum.Parse(typeof(DnsResourceRecordType), strType);
-
-            uint ttl;
-            string strTtl = request.QueryString["ttl"];
-            if (string.IsNullOrEmpty(strTtl))
-                ttl = 3600;
-            else
-                ttl = uint.Parse(strTtl);
-
-            switch (type)
-            {
-                case DnsResourceRecordType.A:
-                    {
-                        string ip = request.QueryString["ip"];
-                        if (string.IsNullOrEmpty(ip))
-                            throw new Exception("Parameter 'ip' missing.");
-
-                        string[] strIPs = ip.Split(',');
-                        DnsARecord[] records = new DnsARecord[strIPs.Length];
-
-                        for (int i = 0; i < strIPs.Length; i++)
-                            records[i] = new DnsARecord(IPAddress.Parse(strIPs[i]));
-
-                        _dnsServer.AuthoritativeZoneRoot.SetRecords(domain, type, ttl, records);
-                    }
-                    break;
-
-                case DnsResourceRecordType.AAAA:
-                    {
-                        string ip = request.QueryString["ip"];
-                        if (string.IsNullOrEmpty(ip))
-                            throw new Exception("Parameter 'ip' missing.");
-
-                        string[] strIPs = ip.Split(',');
-                        DnsAAAARecord[] records = new DnsAAAARecord[strIPs.Length];
-
-                        for (int i = 0; i < strIPs.Length; i++)
-                            records[i] = new DnsAAAARecord(IPAddress.Parse(strIPs[i]));
-
-                        _dnsServer.AuthoritativeZoneRoot.SetRecords(domain, type, ttl, records);
-                    }
-                    break;
-
-                case DnsResourceRecordType.SOA:
-                    {
-                        string masterNameServer = request.QueryString["masterNameServer"];
-                        if (string.IsNullOrEmpty(masterNameServer))
-                            throw new Exception("Parameter 'masterNameServer' missing.");
-
-                        string responsiblePerson = request.QueryString["responsiblePerson"];
-                        if (string.IsNullOrEmpty(responsiblePerson))
-                            throw new Exception("Parameter 'responsiblePerson' missing.");
-
-                        string serial = request.QueryString["serial"];
-                        if (string.IsNullOrEmpty(serial))
-                            throw new Exception("Parameter 'serial' missing.");
-
-                        string refresh = request.QueryString["refresh"];
-                        if (string.IsNullOrEmpty(refresh))
-                            throw new Exception("Parameter 'refresh' missing.");
-
-                        string retry = request.QueryString["retry"];
-                        if (string.IsNullOrEmpty(retry))
-                            throw new Exception("Parameter 'retry' missing.");
-
-                        string expire = request.QueryString["expire"];
-                        if (string.IsNullOrEmpty(expire))
-                            throw new Exception("Parameter 'expire' missing.");
-
-                        string minimum = request.QueryString["minimum"];
-                        if (string.IsNullOrEmpty(minimum))
-                            throw new Exception("Parameter 'minimum' missing.");
-
-                        _dnsServer.AuthoritativeZoneRoot.SetRecords(domain, type, ttl, new DnsResourceRecordData[] { new DnsSOARecord(masterNameServer, responsiblePerson, uint.Parse(serial), uint.Parse(refresh), uint.Parse(retry), uint.Parse(expire), uint.Parse(minimum)) });
-                    }
-                    break;
-
-                case DnsResourceRecordType.PTR:
-                    {
-                        string ptrDomain = request.QueryString["ptrDomain"];
-                        if (string.IsNullOrEmpty(ptrDomain))
-                            throw new Exception("Parameter 'ptrDomain' missing.");
-
-                        _dnsServer.AuthoritativeZoneRoot.SetRecords(domain, type, ttl, new DnsResourceRecordData[] { new DnsPTRRecord(ptrDomain) });
-                    }
-                    break;
-
-                case DnsResourceRecordType.MX:
-                    {
-                        string mxDomain = request.QueryString["mxDomain"];
-                        if (string.IsNullOrEmpty(mxDomain))
-                            throw new Exception("Parameter 'mxDomain' missing.");
-
-                        string[] mxDomainList = mxDomain.Split(',');
-                        DnsMXRecord[] records = new DnsMXRecord[mxDomain.Length];
-
-                        for (int i = 0; i < mxDomainList.Length; i++)
-                        {
-                            string[] strMxData = mxDomainList[i].Split(':');
-
-                            records[i] = new DnsMXRecord(ushort.Parse(strMxData[0]), strMxData[1]);
-                        }
-
-                        _dnsServer.AuthoritativeZoneRoot.SetRecords(domain, type, ttl, records);
-                    }
-                    break;
-
-                case DnsResourceRecordType.TXT:
-                    {
-                        string txtData = request.QueryString["txtData"];
-                        if (string.IsNullOrEmpty(txtData))
-                            throw new Exception("Parameter 'txtData' missing.");
-
-                        string[] txtDataList = txtData.Split(',');
-                        DnsTXTRecord[] records = new DnsTXTRecord[txtData.Length];
-
-                        for (int i = 0; i < txtDataList.Length; i++)
-                            records[i] = new DnsTXTRecord(txtDataList[i]);
-
-                        _dnsServer.AuthoritativeZoneRoot.SetRecords(domain, type, ttl, records);
-                    }
-                    break;
-
-                case DnsResourceRecordType.NS:
-                    {
-                        string nsDomain = request.QueryString["nsDomain"];
-                        if (string.IsNullOrEmpty(nsDomain))
-                            throw new Exception("Parameter 'nsDomain' missing.");
-
-                        string[] nsDomains = nsDomain.Split(',');
-                        DnsNSRecord[] records = new DnsNSRecord[nsDomain.Length];
-
-                        for (int i = 0; i < nsDomains.Length; i++)
-                            records[i] = new DnsNSRecord(nsDomains[i]);
-
-                        _dnsServer.AuthoritativeZoneRoot.SetRecords(domain, type, ttl, records);
-                    }
-                    break;
-
-                case DnsResourceRecordType.CNAME:
-                    {
-                        string cnameDomain = request.QueryString["cnameDomain"];
-                        if (string.IsNullOrEmpty(cnameDomain))
-                            throw new Exception("Parameter 'cnameDomain' missing.");
-
-                        _dnsServer.AuthoritativeZoneRoot.SetRecords(domain, type, ttl, new DnsResourceRecordData[] { new DnsCNAMERecord(cnameDomain) });
-                    }
-                    break;
-
-                default:
-                    throw new Exception("Type not supported for SetRecords().");
-            }
+            DeleteZoneFile(domain);
         }
 
         private void AddRecord(HttpListenerRequest request)
         {
             string domain = request.QueryString["domain"];
             if (string.IsNullOrEmpty(domain))
-                throw new Exception("Parameter 'domain' missing.");
+                throw new DnsWebServiceException("Parameter 'domain' missing.");
 
             string strType = request.QueryString["type"];
             if (string.IsNullOrEmpty(strType))
-                throw new Exception("Parameter 'type' missing.");
+                throw new DnsWebServiceException("Parameter 'type' missing.");
 
             DnsResourceRecordType type = (DnsResourceRecordType)Enum.Parse(typeof(DnsResourceRecordType), strType);
+
+            string value = request.QueryString["value"];
+            if (string.IsNullOrEmpty(value))
+                throw new DnsWebServiceException("Parameter 'value' missing.");
 
             uint ttl;
             string strTtl = request.QueryString["ttl"];
@@ -597,69 +521,49 @@ namespace DnsServerCore
             switch (type)
             {
                 case DnsResourceRecordType.A:
-                    {
-                        string strIP = request.QueryString["ip"];
-                        if (string.IsNullOrEmpty(strIP))
-                            throw new Exception("Parameter 'ip' missing.");
-
-                        _dnsServer.AuthoritativeZoneRoot.AddRecord(domain, type, ttl, new DnsARecord(IPAddress.Parse(strIP)));
-                    }
+                    _dnsServer.AuthoritativeZoneRoot.AddRecord(domain, type, ttl, new DnsARecord(IPAddress.Parse(value)));
                     break;
 
                 case DnsResourceRecordType.AAAA:
-                    {
-                        string strIP = request.QueryString["ip"];
-                        if (string.IsNullOrEmpty(strIP))
-                            throw new Exception("Parameter 'ip' missing.");
-
-                        _dnsServer.AuthoritativeZoneRoot.AddRecord(domain, type, ttl, new DnsAAAARecord(IPAddress.Parse(strIP)));
-                    }
+                    _dnsServer.AuthoritativeZoneRoot.AddRecord(domain, type, ttl, new DnsAAAARecord(IPAddress.Parse(value)));
                     break;
 
                 case DnsResourceRecordType.MX:
-                    {
-                        string preference = request.QueryString["preference"];
-                        if (string.IsNullOrEmpty(preference))
-                            throw new Exception("Parameter 'preference' missing.");
+                    string preference = request.QueryString["preference"];
+                    if (string.IsNullOrEmpty(preference))
+                        throw new DnsWebServiceException("Parameter 'preference' missing.");
 
-                        string exchange = request.QueryString["exchange"];
-                        if (string.IsNullOrEmpty(exchange))
-                            throw new Exception("Parameter 'exchange' missing.");
-
-                        _dnsServer.AuthoritativeZoneRoot.AddRecord(domain, type, ttl, new DnsMXRecord(ushort.Parse(preference), exchange));
-                    }
+                    _dnsServer.AuthoritativeZoneRoot.AddRecord(domain, type, ttl, new DnsMXRecord(ushort.Parse(preference), value));
                     break;
 
                 case DnsResourceRecordType.TXT:
-                    {
-                        string txtData = request.QueryString["txtData"];
-                        if (string.IsNullOrEmpty(txtData))
-                            throw new Exception("Parameter 'txtData' missing.");
-
-                        _dnsServer.AuthoritativeZoneRoot.AddRecord(domain, type, ttl, new DnsTXTRecord(txtData));
-                    }
+                    _dnsServer.AuthoritativeZoneRoot.AddRecord(domain, type, ttl, new DnsTXTRecord(value));
                     break;
 
                 case DnsResourceRecordType.NS:
-                    {
-                        string nsDomain = request.QueryString["nsDomain"];
-                        if (string.IsNullOrEmpty(nsDomain))
-                            throw new Exception("Parameter 'nsDomain' missing.");
+                    _dnsServer.AuthoritativeZoneRoot.AddRecord(domain, type, ttl, new DnsNSRecord(value));
+                    break;
 
-                        _dnsServer.AuthoritativeZoneRoot.AddRecord(domain, type, ttl, new DnsNSRecord(nsDomain));
-                    }
+                case DnsResourceRecordType.PTR:
+                    _dnsServer.AuthoritativeZoneRoot.SetRecords(domain, type, ttl, new DnsResourceRecordData[] { new DnsPTRRecord(value) });
+                    break;
+
+                case DnsResourceRecordType.CNAME:
+                    _dnsServer.AuthoritativeZoneRoot.SetRecords(domain, type, ttl, new DnsResourceRecordData[] { new DnsCNAMERecord(value) });
                     break;
 
                 default:
-                    throw new Exception("Type not supported for AddRecords().");
+                    throw new DnsWebServiceException("Type not supported for AddRecords().");
             }
+
+            SaveZoneFile(domain);
         }
 
         private void GetRecords(HttpListenerRequest request, JsonTextWriter jsonWriter)
         {
             string domain = request.QueryString["domain"];
             if (string.IsNullOrEmpty(domain))
-                throw new Exception("Parameter 'domain' missing.");
+                throw new DnsWebServiceException("Parameter 'domain' missing.");
 
             DnsResourceRecord[] records = _dnsServer.AuthoritativeZoneRoot.GetRecords(domain);
             if (records == null)
@@ -700,14 +604,14 @@ namespace DnsServerCore
                         {
                             case DnsResourceRecordType.A:
                                 {
-                                    jsonWriter.WritePropertyName("ipAddress");
+                                    jsonWriter.WritePropertyName("value");
                                     jsonWriter.WriteValue((resourceRecord.RDATA as DnsARecord).IPAddress);
                                 }
                                 break;
 
                             case DnsResourceRecordType.AAAA:
                                 {
-                                    jsonWriter.WritePropertyName("ipAddress");
+                                    jsonWriter.WritePropertyName("value");
                                     jsonWriter.WriteValue((resourceRecord.RDATA as DnsAAAARecord).IPAddress);
                                 }
                                 break;
@@ -743,7 +647,7 @@ namespace DnsServerCore
                                 {
                                     DnsPTRRecord rdata = resourceRecord.RDATA as DnsPTRRecord;
 
-                                    jsonWriter.WritePropertyName("domain");
+                                    jsonWriter.WritePropertyName("value");
                                     jsonWriter.WriteValue(rdata.PTRDomainName);
                                 }
                                 break;
@@ -755,21 +659,21 @@ namespace DnsServerCore
                                     jsonWriter.WritePropertyName("preference");
                                     jsonWriter.WriteValue(rdata.Preference);
 
-                                    jsonWriter.WritePropertyName("exchange");
+                                    jsonWriter.WritePropertyName("value");
                                     jsonWriter.WriteValue(rdata.Exchange);
                                 }
                                 break;
 
                             case DnsResourceRecordType.TXT:
                                 {
-                                    jsonWriter.WritePropertyName("txtData");
+                                    jsonWriter.WritePropertyName("value");
                                     jsonWriter.WriteValue((resourceRecord.RDATA as DnsTXTRecord).TXTData);
                                 }
                                 break;
 
                             case DnsResourceRecordType.NS:
                                 {
-                                    jsonWriter.WritePropertyName("domain");
+                                    jsonWriter.WritePropertyName("value");
                                     jsonWriter.WriteValue((resourceRecord.RDATA as DnsNSRecord).NSDomainName);
                                 }
                                 break;
@@ -778,14 +682,14 @@ namespace DnsServerCore
                                 {
                                     DnsCNAMERecord rdata = resourceRecord.RDATA as DnsCNAMERecord;
 
-                                    jsonWriter.WritePropertyName("domain");
+                                    jsonWriter.WritePropertyName("value");
                                     jsonWriter.WriteValue(rdata.CNAMEDomainName);
                                 }
                                 break;
 
                             default:
                                 {
-                                    jsonWriter.WritePropertyName("binaryData");
+                                    jsonWriter.WritePropertyName("value");
 
                                     using (MemoryStream mS = new MemoryStream())
                                     {
@@ -811,13 +715,70 @@ namespace DnsServerCore
         {
             string domain = request.QueryString["domain"];
             if (string.IsNullOrEmpty(domain))
-                throw new Exception("Parameter 'domain' missing.");
+                throw new DnsWebServiceException("Parameter 'domain' missing.");
 
             string strType = request.QueryString["type"];
             if (string.IsNullOrEmpty(strType))
-                throw new Exception("Parameter 'type' missing.");
+                throw new DnsWebServiceException("Parameter 'type' missing.");
 
             DnsResourceRecordType type = (DnsResourceRecordType)Enum.Parse(typeof(DnsResourceRecordType), strType);
+
+            string value = request.QueryString["value"];
+            if (string.IsNullOrEmpty(value))
+                throw new DnsWebServiceException("Parameter 'value' missing.");
+
+            switch (type)
+            {
+                case DnsResourceRecordType.A:
+                    _dnsServer.AuthoritativeZoneRoot.DeleteRecord(domain, type, new DnsARecord(IPAddress.Parse(value)));
+                    break;
+
+                case DnsResourceRecordType.AAAA:
+                    _dnsServer.AuthoritativeZoneRoot.DeleteRecord(domain, type, new DnsAAAARecord(IPAddress.Parse(value)));
+                    break;
+
+                case DnsResourceRecordType.MX:
+                    _dnsServer.AuthoritativeZoneRoot.DeleteRecord(domain, type, new DnsMXRecord(0, value));
+                    break;
+
+                case DnsResourceRecordType.TXT:
+                    _dnsServer.AuthoritativeZoneRoot.DeleteRecord(domain, type, new DnsTXTRecord(value));
+                    break;
+
+                case DnsResourceRecordType.NS:
+                    _dnsServer.AuthoritativeZoneRoot.DeleteRecord(domain, type, new DnsNSRecord(value));
+                    break;
+
+                case DnsResourceRecordType.CNAME:
+                case DnsResourceRecordType.PTR:
+                    _dnsServer.AuthoritativeZoneRoot.DeleteRecords(domain, type);
+                    break;
+
+                default:
+                    throw new DnsWebServiceException("Type not supported for DeleteRecord().");
+            }
+
+            SaveZoneFile(domain);
+        }
+
+        private void UpdateRecord(HttpListenerRequest request)
+        {
+            string strType = request.QueryString["type"];
+            if (string.IsNullOrEmpty(strType))
+                throw new DnsWebServiceException("Parameter 'type' missing.");
+
+            DnsResourceRecordType type = (DnsResourceRecordType)Enum.Parse(typeof(DnsResourceRecordType), strType);
+
+            string domain = request.QueryString["domain"];
+            if (string.IsNullOrEmpty(domain))
+                throw new DnsWebServiceException("Parameter 'domain' missing.");
+
+            string oldDomain = request.QueryString["oldDomain"];
+            if (string.IsNullOrEmpty(oldDomain))
+                oldDomain = domain;
+
+            string value = request.QueryString["value"];
+            string oldValue = request.QueryString["oldValue"];
 
             uint ttl;
             string strTtl = request.QueryString["ttl"];
@@ -829,75 +790,433 @@ namespace DnsServerCore
             switch (type)
             {
                 case DnsResourceRecordType.A:
-                    {
-                        string strIP = request.QueryString["ip"];
-                        if (string.IsNullOrEmpty(strIP))
-                            throw new Exception("Parameter 'ip' missing.");
-
-                        _dnsServer.AuthoritativeZoneRoot.DeleteRecord(domain, type, ttl, new DnsARecord(IPAddress.Parse(strIP)));
-                    }
+                    _dnsServer.AuthoritativeZoneRoot.UpdateRecord(new DnsResourceRecord(oldDomain, type, DnsClass.IN, 0, new DnsARecord(IPAddress.Parse(oldValue))), new DnsResourceRecord(domain, type, DnsClass.IN, ttl, new DnsARecord(IPAddress.Parse(value))));
                     break;
 
                 case DnsResourceRecordType.AAAA:
-                    {
-                        string strIP = request.QueryString["ip"];
-                        if (string.IsNullOrEmpty(strIP))
-                            throw new Exception("Parameter 'ip' missing.");
+                    _dnsServer.AuthoritativeZoneRoot.UpdateRecord(new DnsResourceRecord(oldDomain, type, DnsClass.IN, 0, new DnsAAAARecord(IPAddress.Parse(oldValue))), new DnsResourceRecord(domain, type, DnsClass.IN, ttl, new DnsAAAARecord(IPAddress.Parse(value))));
+                    break;
 
-                        _dnsServer.AuthoritativeZoneRoot.DeleteRecord(domain, type, ttl, new DnsAAAARecord(IPAddress.Parse(strIP)));
+                case DnsResourceRecordType.MX:
+                    string preference = request.QueryString["preference"];
+                    if (string.IsNullOrEmpty(preference))
+                        throw new DnsWebServiceException("Parameter 'preference' missing.");
+
+                    _dnsServer.AuthoritativeZoneRoot.UpdateRecord(new DnsResourceRecord(oldDomain, type, DnsClass.IN, 0, new DnsMXRecord(0, oldValue)), new DnsResourceRecord(domain, type, DnsClass.IN, ttl, new DnsMXRecord(ushort.Parse(preference), value)));
+                    break;
+
+                case DnsResourceRecordType.TXT:
+                    _dnsServer.AuthoritativeZoneRoot.UpdateRecord(new DnsResourceRecord(oldDomain, type, DnsClass.IN, 0, new DnsTXTRecord(oldValue)), new DnsResourceRecord(domain, type, DnsClass.IN, ttl, new DnsTXTRecord(value)));
+                    break;
+
+                case DnsResourceRecordType.NS:
+                    _dnsServer.AuthoritativeZoneRoot.UpdateRecord(new DnsResourceRecord(oldDomain, type, DnsClass.IN, 0, new DnsNSRecord(oldValue)), new DnsResourceRecord(domain, type, DnsClass.IN, ttl, new DnsNSRecord(value)));
+                    break;
+
+                case DnsResourceRecordType.SOA:
+                    {
+                        string masterNameServer = request.QueryString["masterNameServer"];
+                        if (string.IsNullOrEmpty(masterNameServer))
+                            throw new DnsWebServiceException("Parameter 'masterNameServer' missing.");
+
+                        string responsiblePerson = request.QueryString["responsiblePerson"];
+                        if (string.IsNullOrEmpty(responsiblePerson))
+                            throw new DnsWebServiceException("Parameter 'responsiblePerson' missing.");
+
+                        string serial = request.QueryString["serial"];
+                        if (string.IsNullOrEmpty(serial))
+                            throw new DnsWebServiceException("Parameter 'serial' missing.");
+
+                        string refresh = request.QueryString["refresh"];
+                        if (string.IsNullOrEmpty(refresh))
+                            throw new DnsWebServiceException("Parameter 'refresh' missing.");
+
+                        string retry = request.QueryString["retry"];
+                        if (string.IsNullOrEmpty(retry))
+                            throw new DnsWebServiceException("Parameter 'retry' missing.");
+
+                        string expire = request.QueryString["expire"];
+                        if (string.IsNullOrEmpty(expire))
+                            throw new DnsWebServiceException("Parameter 'expire' missing.");
+
+                        string minimum = request.QueryString["minimum"];
+                        if (string.IsNullOrEmpty(minimum))
+                            throw new DnsWebServiceException("Parameter 'minimum' missing.");
+
+                        _dnsServer.AuthoritativeZoneRoot.SetRecords(domain, type, ttl, new DnsResourceRecordData[] { new DnsSOARecord(masterNameServer, responsiblePerson, uint.Parse(serial), uint.Parse(refresh), uint.Parse(retry), uint.Parse(expire), uint.Parse(minimum)) });
                     }
                     break;
 
                 case DnsResourceRecordType.PTR:
-                    {
-                        _dnsServer.AuthoritativeZoneRoot.DeleteRecords(domain, type);
-                    }
-                    break;
-
-                case DnsResourceRecordType.MX:
-                    {
-                        string preference = request.QueryString["preference"];
-                        if (string.IsNullOrEmpty(preference))
-                            throw new Exception("Parameter 'preference' missing.");
-
-                        string exchange = request.QueryString["exchange"];
-                        if (string.IsNullOrEmpty(exchange))
-                            throw new Exception("Parameter 'exchange' missing.");
-
-                        _dnsServer.AuthoritativeZoneRoot.DeleteRecord(domain, type, ttl, new DnsMXRecord(ushort.Parse(preference), exchange));
-                    }
-                    break;
-
-                case DnsResourceRecordType.TXT:
-                    {
-                        string txtData = request.QueryString["txtData"];
-                        if (string.IsNullOrEmpty(txtData))
-                            throw new Exception("Parameter 'txtData' missing.");
-
-                        _dnsServer.AuthoritativeZoneRoot.DeleteRecord(domain, type, ttl, new DnsTXTRecord(txtData));
-                    }
-                    break;
-
-                case DnsResourceRecordType.NS:
-                    {
-                        string nsDomain = request.QueryString["nsDomain"];
-                        if (string.IsNullOrEmpty(nsDomain))
-                            throw new Exception("Parameter 'nsDomain' missing.");
-
-                        _dnsServer.AuthoritativeZoneRoot.DeleteRecord(domain, type, ttl, new DnsNSRecord(nsDomain));
-                    }
+                    _dnsServer.AuthoritativeZoneRoot.UpdateRecord(new DnsResourceRecord(oldDomain, type, DnsClass.IN, 0, new DnsPTRRecord(oldValue)), new DnsResourceRecord(domain, type, DnsClass.IN, ttl, new DnsPTRRecord(value)));
                     break;
 
                 case DnsResourceRecordType.CNAME:
-                    {
-                        _dnsServer.AuthoritativeZoneRoot.DeleteRecords(domain, type);
-                    }
+                    _dnsServer.AuthoritativeZoneRoot.UpdateRecord(new DnsResourceRecord(oldDomain, type, DnsClass.IN, 0, new DnsCNAMERecord(oldValue)), new DnsResourceRecord(domain, type, DnsClass.IN, ttl, new DnsCNAMERecord(value)));
                     break;
 
                 default:
-                    throw new Exception("Type not supported for DeleteRecord().");
+                    throw new DnsWebServiceException("Type not supported for UpdateRecords().");
+            }
+
+            SaveZoneFile(domain);
+        }
+
+        private void SetCredentials(string username, string password)
+        {
+            username = username.ToLower();
+
+            _credentials.AddOrUpdate(username, password, delegate (string key, string oldValue)
+            {
+                return password;
+            });
+        }
+
+        private void LoadZoneFiles()
+        {
+            string[] zoneFiles = Directory.GetFiles(_configFolder, "*.zone");
+
+            if (zoneFiles.Length == 0)
+            {
+                {
+                    _dnsServer.AuthoritativeZoneRoot.SetRecords("localhost", DnsResourceRecordType.SOA, 14400, new DnsResourceRecordData[] { new DnsSOARecord("localhost", "hostmaster.localhost", uint.Parse(DateTime.UtcNow.ToString("yyyymmddHH")), 28800, 7200, 604800, 600) });
+                    _dnsServer.AuthoritativeZoneRoot.SetRecords("localhost", DnsResourceRecordType.A, 3600, new DnsResourceRecordData[] { new DnsARecord(IPAddress.Loopback) });
+                    _dnsServer.AuthoritativeZoneRoot.SetRecords("localhost", DnsResourceRecordType.AAAA, 3600, new DnsResourceRecordData[] { new DnsAAAARecord(IPAddress.IPv6Loopback) });
+
+                    SaveZoneFile("localhost");
+                }
+
+                {
+                    string prtDomain = new DnsQuestionRecord(IPAddress.Loopback, DnsClass.IN).Name;
+
+                    _dnsServer.AuthoritativeZoneRoot.SetRecords(prtDomain, DnsResourceRecordType.SOA, 14400, new DnsResourceRecordData[] { new DnsSOARecord("localhost", "hostmaster.localhost", uint.Parse(DateTime.UtcNow.ToString("yyyymmddHH")), 28800, 7200, 604800, 600) });
+                    _dnsServer.AuthoritativeZoneRoot.SetRecords(prtDomain, DnsResourceRecordType.PTR, 3600, new DnsResourceRecordData[] { new DnsPTRRecord("localhost") });
+
+                    SaveZoneFile(prtDomain);
+                }
+
+                {
+                    string prtDomain = new DnsQuestionRecord(IPAddress.IPv6Loopback, DnsClass.IN).Name;
+
+                    _dnsServer.AuthoritativeZoneRoot.SetRecords(prtDomain, DnsResourceRecordType.SOA, 14400, new DnsResourceRecordData[] { new DnsSOARecord("localhost", "hostmaster.localhost", uint.Parse(DateTime.UtcNow.ToString("yyyymmddHH")), 28800, 7200, 604800, 600) });
+                    _dnsServer.AuthoritativeZoneRoot.SetRecords(prtDomain, DnsResourceRecordType.PTR, 3600, new DnsResourceRecordData[] { new DnsPTRRecord("localhost") });
+
+                    SaveZoneFile(prtDomain);
+                }
+            }
+            else
+            {
+                foreach (string zoneFile in zoneFiles)
+                    LoadZoneFile(zoneFile);
             }
         }
+
+        private void LoadZoneFile(string zoneFile)
+        {
+            using (FileStream fS = new FileStream(zoneFile, FileMode.Open, FileAccess.Read))
+            {
+                BincodingDecoder decoder = new BincodingDecoder(fS, "DZ");
+
+                switch (decoder.Version)
+                {
+                    case 1:
+                        List<Bincoding> entries = decoder.DecodeNext().GetList();
+                        DnsResourceRecord[] records = new DnsResourceRecord[entries.Count];
+
+                        for (int i = 0; i < entries.Count; i++)
+                            records[i] = new DnsResourceRecord(entries[i].GetValueStream());
+
+                        _dnsServer.AuthoritativeZoneRoot.SetRecords(records);
+                        break;
+
+                    default:
+                        throw new IOException("Dns Zone file version not supported: " + decoder.Version);
+                }
+            }
+        }
+
+        private void SaveZoneFile(string domain)
+        {
+            domain = domain.ToLower();
+            DnsResourceRecord[] records = _dnsServer.AuthoritativeZoneRoot.GetRecords(domain, false);
+
+            if ((records == null) || (records.Length == 0))
+            {
+                DeleteZoneFile(domain, false);
+            }
+            else
+            {
+                using (FileStream fS = new FileStream(Path.Combine(_configFolder, domain + ".zone"), FileMode.Create, FileAccess.Write))
+                {
+                    BincodingEncoder encoder = new BincodingEncoder(fS, "DZ", 1);
+
+                    encoder.Encode(records);
+                }
+            }
+        }
+
+        private void DeleteZoneFile(string domain, bool deleteSubDomains = true)
+        {
+            domain = domain.ToLower();
+
+            if (deleteSubDomains)
+            {
+                string[] zoneFiles = Directory.GetFiles(_configFolder, "*." + domain + ".zone");
+
+                foreach (string zoneFile in zoneFiles)
+                    File.Delete(zoneFile);
+            }
+
+            File.Delete(Path.Combine(_configFolder, domain + ".zone"));
+        }
+
+        private void LoadConfigFile()
+        {
+            try
+            {
+                using (FileStream fS = new FileStream(Path.Combine(_configFolder, "dns.config"), FileMode.Open, FileAccess.Read))
+                {
+                    BincodingDecoder decoder = new BincodingDecoder(fS, "DS");
+
+                    switch (decoder.Version)
+                    {
+                        case 1:
+                            while (true)
+                            {
+                                Bincoding item = decoder.DecodeNext();
+                                if (item.Type == BincodingType.NULL)
+                                    break;
+
+                                if (item.Type == BincodingType.KEY_VALUE_PAIR)
+                                {
+                                    KeyValuePair<string, Bincoding> entry = item.GetKeyValuePair();
+
+                                    switch (entry.Key)
+                                    {
+                                        case "serverDomain":
+                                            _serverDomain = entry.Value.GetStringValue();
+                                            break;
+
+                                        case "webServicePort":
+                                            _webServicePort = entry.Value.GetIntegerValue();
+                                            break;
+
+                                        case "dnsPreferIPv6":
+                                            _dnsServer.PreferIPv6 = entry.Value.GetBooleanValue();
+                                            break;
+
+                                        case "dnsAllowRecursion":
+                                            _dnsServer.AllowRecursion = entry.Value.GetBooleanValue();
+                                            break;
+
+                                        case "dnsForwarders":
+                                            List<Bincoding> entries = entry.Value.GetList();
+                                            NameServerAddress[] forwarders = new NameServerAddress[entries.Count];
+
+                                            for (int i = 0; i < entries.Count; i++)
+                                                forwarders[i] = new NameServerAddress(IPAddress.Parse(entries[i].GetStringValue()));
+
+                                            _dnsServer.Forwarders = forwarders;
+                                            break;
+
+                                        case "credentials":
+                                            foreach (KeyValuePair<string, Bincoding> credential in entry.Value.GetDictionary())
+                                                SetCredentials(credential.Key, credential.Value.GetStringValue());
+
+                                            break;
+                                    }
+                                }
+                            }
+                            break;
+
+                        default:
+                            throw new IOException("Dns Config file version not supported: " + decoder.Version);
+                    }
+                }
+            }
+            catch (IOException)
+            {
+                _serverDomain = System.Environment.MachineName;
+                _webServicePort = 5380;
+
+                SetCredentials("admin", "admin");
+
+                _dnsServer.AllowRecursion = true;
+
+                SaveConfigFile();
+            }
+        }
+
+        private void SaveConfigFile()
+        {
+            using (FileStream fS = new FileStream(Path.Combine(_configFolder, "dns.config"), FileMode.Create, FileAccess.Write))
+            {
+                BincodingEncoder encoder = new BincodingEncoder(fS, "DS", 1);
+
+                encoder.Encode("serverDomain", _serverDomain);
+                encoder.Encode("webServicePort", _webServicePort);
+
+                encoder.Encode("dnsPreferIPv6", _dnsServer.PreferIPv6);
+                encoder.Encode("dnsAllowRecursion", _dnsServer.AllowRecursion);
+
+                if (_dnsServer.Forwarders != null)
+                {
+                    List<Bincoding> forwarders = new List<Bincoding>();
+
+                    foreach (NameServerAddress forwarder in _dnsServer.Forwarders)
+                        forwarders.Add(Bincoding.GetValue(forwarder.EndPoint.Address.ToString()));
+
+                    encoder.Encode("dnsForwarders", forwarders);
+                }
+
+                Dictionary<string, Bincoding> credentials = new Dictionary<string, Bincoding>();
+
+                foreach (KeyValuePair<string, string> credential in _credentials)
+                    credentials.Add(credential.Key, Bincoding.GetValue(credential.Value));
+
+                encoder.Encode("credentials", credentials);
+                encoder.EncodeNull();
+            }
+        }
+
+        #endregion
+
+        #region public
+
+        public void Start()
+        {
+            if (_state != ServiceState.Stopped)
+                return;
+
+            _dnsServer = new DnsServer();
+
+            LoadConfigFile();
+            LoadZoneFiles();
+
+            _dnsServer.Start();
+
+            try
+            {
+                _webService = new HttpListener();
+                _webService.Prefixes.Add("http://localhost:" + _webServicePort + "/");
+                _webService.Prefixes.Add("http://127.0.0.1:" + _webServicePort + "/");
+                _webService.Prefixes.Add("http://*:" + _webServicePort + "/");
+                _webService.Start();
+            }
+            catch
+            {
+                _webService = new HttpListener();
+                _webService.Prefixes.Add("http://localhost:" + _webServicePort + "/");
+                _webService.Prefixes.Add("http://127.0.0.1:" + _webServicePort + "/");
+                _webService.Start();
+            }
+
+            _webServiceThread = new Thread(AcceptWebRequestAsync);
+            _webServiceThread.IsBackground = true;
+            _webServiceThread.Start();
+        }
+
+        public void Stop()
+        {
+            if (_state != ServiceState.Running)
+                return;
+
+            _state = ServiceState.Stopping;
+
+            _webService.Stop();
+            _dnsServer.Stop();
+
+            _state = ServiceState.Stopped;
+        }
+
+        #endregion
+    }
+
+    public class UserSession
+    {
+        #region variables
+
+        const int SESSION_TIMEOUT = 30 * 60 * 1000; //30 mins
+
+        readonly string _username;
+        DateTime _lastSeen;
+
+        #endregion
+
+        #region constructor
+
+        public UserSession(string username)
+        {
+            _username = username;
+            _lastSeen = DateTime.UtcNow;
+        }
+
+        #endregion
+
+        #region public
+
+        public void UpdateLastSeen()
+        {
+            _lastSeen = DateTime.UtcNow;
+        }
+
+        public bool HasExpired()
+        {
+            return _lastSeen.AddMilliseconds(SESSION_TIMEOUT) < DateTime.UtcNow;
+        }
+
+        #endregion
+
+        #region properties
+
+        public string Username
+        { get { return _username; } }
+
+        #endregion
+    }
+
+    public class DnsWebServiceException : Exception
+    {
+        #region constructors
+
+        public DnsWebServiceException()
+            : base()
+        { }
+
+        public DnsWebServiceException(string message)
+            : base(message)
+        { }
+
+        public DnsWebServiceException(string message, Exception innerException)
+            : base(message, innerException)
+        { }
+
+        protected DnsWebServiceException(System.Runtime.Serialization.SerializationInfo info, System.Runtime.Serialization.StreamingContext context)
+            : base(info, context)
+        { }
+
+        #endregion
+    }
+
+    public class InvalidTokenDnsWebServiceException : Exception
+    {
+        #region constructors
+
+        public InvalidTokenDnsWebServiceException()
+            : base()
+        { }
+
+        public InvalidTokenDnsWebServiceException(string message)
+            : base(message)
+        { }
+
+        public InvalidTokenDnsWebServiceException(string message, Exception innerException)
+            : base(message, innerException)
+        { }
+
+        protected InvalidTokenDnsWebServiceException(System.Runtime.Serialization.SerializationInfo info, System.Runtime.Serialization.StreamingContext context)
+            : base(info, context)
+        { }
 
         #endregion
     }
