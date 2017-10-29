@@ -14,6 +14,7 @@
     <link href="/css/font-awesome.min.css" rel="stylesheet" />
 
     <link href="/css/main.css" rel="stylesheet" />
+    <script src="/js/common.js"></script>
     <script src="/js/main.js"></script>
 </head>
 <body>
@@ -27,32 +28,32 @@
                 </span>
             </a>
             <ul class="dropdown-menu">
-                <li><a href="#" onclick="return changePassword();">Change Password</a></li>
+                <li><a href="#" onclick="return resetChangePasswordModal();" data-toggle="modal" data-target="#modalChangePassword">Change Password</a></li>
                 <li><a href="#" onclick="return logout();">Logout</a></li>
             </ul>
         </div>
     </div>
 
     <div id="content">
-        <div class="container" style="max-width: 990px;">
+        <div class="container">
+            <div class="AlertPlaceholder"></div>
 
-            <div id="pageLogin" style="margin: auto; width: 500px; padding: 100px 0 0 0;">
+            <div id="pageLogin" class="pageLogin">
                 <div class="panel panel-default">
                     <div class="panel-heading">
                         <h3 class="panel-title">DNS Server</h3>
                     </div>
                     <div class="panel-body">
-                        <div class="AlertPlaceholder"></div>
                         <form class="form-horizontal">
                             <div class="form-group">
-                                <label for="inputUsername" class="col-sm-3 control-label">Username</label>
+                                <label for="txtUser" class="col-sm-3 control-label">Username</label>
                                 <div class="col-sm-8">
                                     <input type="text" class="form-control" id="txtUser" placeholder="username">
                                 </div>
                             </div>
 
                             <div class="form-group">
-                                <label for="inputPassword" class="col-sm-3 control-label">Password</label>
+                                <label for="txtPass" class="col-sm-3 control-label">Password</label>
                                 <div class="col-sm-8">
                                     <input type="password" class="form-control" id="txtPass" placeholder="password">
                                 </div>
@@ -68,121 +69,223 @@
                 </div>
             </div>
 
-            <div id="pageMain">
-                <div class="AlertPlaceholder"></div>
+            <div id="pageMain" class="page">
                 <div class="panel panel-default">
                     <div class="panel-heading">
-                        <h3 class="panel-title">DNS Server</h3>
+                        <h3 class="panel-title">DNS Server<span id="lblServerDomain"></span></h3>
                     </div>
 
                     <div class="panel-body" style="min-height: 500px;">
 
-                        <div id="mainPanelTabs">
+                        <div>
                             <ul class="nav nav-tabs" role="tablist">
-                                <li role="presentation" class="active"><a href="#mainPanelTabPaneZones" aria-controls="mainPanelTabPaneZones" role="tab" data-toggle="tab">Zones</a></li>
-                                <li role="presentation"><a href="#mainPanelTabPaneSettings" aria-controls="mainPanelTabPaneSettings" role="tab" data-toggle="tab">Settings</a></li>
+                                <li id="mainPanelTabListZones" role="presentation" class="active"><a href="#mainPanelTabPaneZones" aria-controls="mainPanelTabPaneZones" role="tab" data-toggle="tab">Zones</a></li>
+                                <li id="mainPanelTabListSettings" role="presentation"><a href="#mainPanelTabPaneSettings" aria-controls="mainPanelTabPaneSettings" role="tab" data-toggle="tab" onclick="loadDnsSettings();">Settings</a></li>
                             </ul>
 
                             <div class="tab-content">
 
                                 <div id="mainPanelTabPaneZones" role="tabpanel" class="tab-pane active" style="padding: 10px 0 0 0;">
-                                    <div id="divZones" class="well well-sm" style="float: left; width: 24%; min-height: 500px;">
+                                    <div class="well well-sm zone-list-pane">
                                         <form class="form-inline">
                                             <div class="form-group">
-                                                <input type="text" class="form-control" style="width: 180px;" id="inputAddZone" placeholder="example.com">
-                                                <button type="button" class="btn btn-primary">Add</button>
+                                                <input type="text" class="form-control" style="width: 180px;" id="txtAddZone" placeholder="example.com">
+                                                <button id="btnAddZone" type="submit" class="btn btn-primary" data-loading-text="Add" onclick="return addZone();">Add</button>
                                             </div>
                                         </form>
 
-                                        <div style="font-size: 16px;">
-                                            <div style="padding: 4px;"><a href="#">technitium.com</a></div>
-                                            <div style="padding: 4px;"><a href="#">dnsclient.net</a></div>
+                                        <div id="lstZones" class="zone">
+                                            <div class="zones"><a href="#" onclick="return viewZone('technitium.com');">technitium.com</a></div>
                                         </div>
                                     </div>
 
-                                    <div id="divZoneViewer" style="float: right; width: 75%;">
+                                    <div id="divZoneViewer" class="zone-viewer-pane">
                                         <div class="panel panel-default">
                                             <div class="panel-heading" style="height: 36px; padding: 4px 6px;">
-                                                <div style="float: left; padding: 4px;">technitium.com</div>
-                                                <div style="float: right;"><button type="button" class="btn btn-danger" style="font-size: 12px; padding: 4px 6px;">Delete</button></div>
+                                                <div id="txtZoneViewerTitle" style="float: left; padding: 4px;">technitium.com</div>
+                                                <div style="float: right;"><button id="btnDeleteZone" type="button" class="btn btn-danger" data-loading-text="Delete" onclick="return deleteZone();" style="font-size: 12px; padding: 4px 6px;">Delete</button></div>
                                             </div>
+
                                             <div class="panel-body">
+                                                <div id="divZoneViewerLoader" style="margin-top: 20px; height: 400px;"></div>
 
-                                                <ul class="list-group">
-                                                    <li class="list-group-item" style="background-color: #f5f5f5;">
-                                                        <form class="form-inline" style="height: 90px;">
-                                                            <div class="form-group">
-                                                                <label for="optType">Type</label>
-                                                                <select class="form-control" id="optType">
-                                                                    <option>A</option>
-                                                                    <option>NS</option>
-                                                                    <option>CNAME</option>
-                                                                    <option>SOA</option>
-                                                                    <option>PTR</option>
-                                                                    <option>MX</option>
-                                                                    <option>TXT</option>
-                                                                    <option>AAAA</option>
-                                                                </select>
-                                                            </div>
-                                                            <div class="form-group">
-                                                                <label for="addRRSubDomain">Name</label>
-                                                                <input type="text" class="form-control" id="addRRSubDomain" placeholder="@" style="width: 138px;">
-                                                            </div>
-                                                            <div class="form-group">
-                                                                <label for="addRRSubDomain">Value</label>
-                                                                <input type="text" class="form-control" id="addRRValue" placeholder="value" style="width: 250px;">
-                                                            </div>
-                                                            <div class="form-group">
-                                                                <label for="addRRTtl">TTL</label>
-                                                                <input type="number" class="form-control" id="addRRTtl" placeholder="3600" style="width: 80px;">
-                                                            </div>
-                                                            <div style="float: right;">
+                                                <div id="divZoneViewerBody">
+                                                    <ul class="list-group">
+                                                        <li class="list-group-item resource-record">
+                                                            <form class="form-inline">
                                                                 <div class="form-group">
-                                                                    <button type="submit" class="btn btn-primary">Update</button>
+                                                                    <label for="optType">Type</label>
+                                                                    <select class="form-control" id="optType" disabled>
+                                                                        <option>A</option>
+                                                                        <option>NS</option>
+                                                                        <option>CNAME</option>
+                                                                        <option>SOA</option>
+                                                                        <option>PTR</option>
+                                                                        <option>MX</option>
+                                                                        <option>TXT</option>
+                                                                        <option>AAAA</option>
+                                                                    </select>
                                                                 </div>
                                                                 <div class="form-group">
-                                                                    <button type="submit" class="btn btn-warning">Delete</button>
+                                                                    <label for="addRRSubDomain">Name</label>
+                                                                    <input type="text" class="form-control" id="addRRSubDomain" placeholder="@" style="width: 136px;">
                                                                 </div>
-                                                            </div>
-                                                        </form>
-                                                    </li>
-
-                                                    <li class="list-group-item">
-                                                        <form class="form-inline" style="height: 90px;">
-                                                            <div class="form-group">
-                                                                <label for="optType">Type</label>
-                                                                <select class="form-control" id="optType">
-                                                                    <option>A</option>
-                                                                    <option>NS</option>
-                                                                    <option>CNAME</option>
-                                                                    <option>SOA</option>
-                                                                    <option>PTR</option>
-                                                                    <option>MX</option>
-                                                                    <option>TXT</option>
-                                                                    <option>AAAA</option>
-                                                                </select>
-                                                            </div>
-                                                            <div class="form-group">
-                                                                <label for="addRRSubDomain">Name</label>
-                                                                <input type="text" class="form-control" id="addRRSubDomain" placeholder="@" style="width: 138px;">
-                                                            </div>
-                                                            <div class="form-group">
-                                                                <label for="addRRSubDomain">Value</label>
-                                                                <input type="text" class="form-control" id="addRRValue" placeholder="value" style="width: 250px;">
-                                                            </div>
-                                                            <div class="form-group">
-                                                                <label for="addRRTtl">TTL</label>
-                                                                <input type="number" class="form-control" id="addRRTtl" placeholder="3600" style="width: 80px;">
-                                                            </div>
-                                                            <div style="float: right;">
                                                                 <div class="form-group">
-                                                                    <button type="submit" class="btn btn-primary">Add</button>
+                                                                    <label for="addRRSubDomain">Value</label>
+                                                                    <input type="text" class="form-control" id="addRRValue" placeholder="value" style="width: 250px;">
                                                                 </div>
-                                                            </div>
-                                                        </form>
-                                                    </li>
-                                                </ul>
+                                                                <div class="form-group">
+                                                                    <label for="addRRTtl">TTL</label>
+                                                                    <input type="number" class="form-control" id="addRRTtl" placeholder="3600" style="width: 80px;">
+                                                                </div>
 
+                                                                <div class="form-group" style="display: block; margin-bottom: 0px;">
+                                                                    <button type="button" class="btn btn-primary">Update</button>
+                                                                    <button type="button" class="btn btn-warning">Delete</button>
+                                                                </div>
+                                                            </form>
+                                                        </li>
+
+                                                        <li class="list-group-item resource-record">
+                                                            <form class="form-inline">
+                                                                <div class="form-group">
+                                                                    <label for="optType">Type</label>
+                                                                    <select class="form-control" id="optType" disabled>
+                                                                        <option>A</option>
+                                                                        <option>NS</option>
+                                                                        <option>CNAME</option>
+                                                                        <option selected>SOA</option>
+                                                                        <option>PTR</option>
+                                                                        <option>MX</option>
+                                                                        <option>TXT</option>
+                                                                        <option>AAAA</option>
+                                                                    </select>
+                                                                </div>
+                                                                <div class="form-group">
+                                                                    <label for="addRRSubDomain">Name</label>
+                                                                    <input type="text" class="form-control" id="addRRSubDomain" placeholder="@" style="width: 136px;">
+                                                                </div>
+                                                                <div class="form-group">
+                                                                    <label for="addRRSubDomain">Master Name Server</label>
+                                                                    <input type="text" class="form-control" id="addRRValue" placeholder="value" style="width: 250px;">
+                                                                </div>
+                                                                <div class="form-group">
+                                                                    <label for="addRRSubDomain">Responsible Person</label>
+                                                                    <input type="text" class="form-control" id="addRRValue" placeholder="value" style="width: 200px;">
+                                                                </div>
+                                                                <div class="form-group">
+                                                                    <label for="addRRSubDomain">Serial</label>
+                                                                    <input type="number" class="form-control" id="addRRValue" placeholder="value" style="width: 100px;">
+                                                                </div>
+                                                                <div class="form-group">
+                                                                    <label for="addRRSubDomain">Refresh</label>
+                                                                    <input type="number" class="form-control" id="addRRValue" placeholder="value" style="width: 80px;">
+                                                                </div>
+                                                                <div class="form-group">
+                                                                    <label for="addRRSubDomain">Retry</label>
+                                                                    <input type="number" class="form-control" id="addRRValue" placeholder="value" style="width: 80px;">
+                                                                </div>
+                                                                <div class="form-group">
+                                                                    <label for="addRRSubDomain">Expire</label>
+                                                                    <input type="number" class="form-control" id="addRRValue" placeholder="value" style="width: 80px;">
+                                                                </div>
+                                                                <div class="form-group">
+                                                                    <label for="addRRSubDomain">Minimum</label>
+                                                                    <input type="number" class="form-control" id="addRRValue" placeholder="value" style="width: 80px;">
+                                                                </div>
+                                                                <div class="form-group">
+                                                                    <label for="addRRTtl">TTL</label>
+                                                                    <input type="number" class="form-control" id="addRRTtl" placeholder="3600" style="width: 80px;">
+                                                                </div>
+
+                                                                <div class="form-group" style="display: block; margin-bottom: 0px;">
+                                                                    <button type="button" class="btn btn-primary">Update</button>
+                                                                    <button type="button" class="btn btn-warning">Delete</button>
+                                                                </div>
+                                                            </form>
+                                                        </li>
+
+                                                        <li class="list-group-item resource-record">
+                                                            <form class="form-inline">
+                                                                <div class="form-group">
+                                                                    <label for="optType">Type</label>
+                                                                    <select class="form-control" id="optType" disabled>
+                                                                        <option>A</option>
+                                                                        <option>NS</option>
+                                                                        <option>CNAME</option>
+                                                                        <option>SOA</option>
+                                                                        <option>PTR</option>
+                                                                        <option selected>MX</option>
+                                                                        <option>TXT</option>
+                                                                        <option>AAAA</option>
+                                                                    </select>
+                                                                </div>
+                                                                <div class="form-group">
+                                                                    <label for="addRRSubDomain">Name</label>
+                                                                    <input type="text" class="form-control" id="addRRSubDomain" placeholder="@" style="width: 136px;">
+                                                                </div>
+                                                                <div class="form-group">
+                                                                    <label for="addRRSubDomain">Exchange</label>
+                                                                    <input type="text" class="form-control" id="addRRValue" placeholder="mx1.example.com" style="width: 250px;">
+                                                                </div>
+                                                                <div class="form-group">
+                                                                    <label for="addRRSubDomain">Preference</label>
+                                                                    <input type="number" class="form-control" id="addRRValue" placeholder="10" style="width: 80px;">
+                                                                </div>
+                                                                <div class="form-group">
+                                                                    <label for="addRRTtl">TTL</label>
+                                                                    <input type="number" class="form-control" id="addRRTtl" placeholder="3600" style="width: 80px;">
+                                                                </div>
+
+                                                                <div class="form-group" style="display: block; margin-bottom: 0px;">
+                                                                    <button type="button" class="btn btn-primary">Update</button>
+                                                                    <button type="button" class="btn btn-warning">Delete</button>
+                                                                </div>
+                                                            </form>
+                                                        </li>
+
+                                                        <li class="list-group-item" id="addRecordFormItem">
+                                                            <form class="form-inline">
+                                                                <div class="form-group">
+                                                                    <label for="optAddRecordType">Type</label>
+                                                                    <select id="optAddRecordType" class="form-control" onchange="return modifyAddRecordForm();">
+                                                                        <option>A</option>
+                                                                        <option>NS</option>
+                                                                        <option>CNAME</option>
+                                                                        <option>PTR</option>
+                                                                        <option>MX</option>
+                                                                        <option>TXT</option>
+                                                                        <option>AAAA</option>
+                                                                    </select>
+                                                                </div>
+                                                                <div class="form-group">
+                                                                    <label for="txtAddRecordName">Name</label>
+                                                                    <input id="txtAddRecordName" type="text" class="form-control" placeholder="@" style="width: 136px;">
+                                                                </div>
+                                                                <div class="form-group" id="divAddRecordValue">
+                                                                    <label for="txtAddRecordValue">Value</label>
+                                                                    <input id="txtAddRecordValue" type="text" class="form-control" placeholder="value" style="width: 250px;">
+                                                                </div>
+                                                                <div class="form-group" id="divAddRecordMXExchange" style="display: none;">
+                                                                    <label for="txtAddRecordExchange">Exchange</label>
+                                                                    <input id="txtAddRecordExchange" type="text" class="form-control" placeholder="value" style="width: 250px;">
+                                                                </div>
+                                                                <div class="form-group" id="divAddRecordMXPreference" style="display: none;">
+                                                                    <label for="txtAddRecordPreference">Preference</label>
+                                                                    <input id="txtAddRecordPreference" type="number" class="form-control" placeholder="value" style="width: 80px;">
+                                                                </div>
+                                                                <div class="form-group">
+                                                                    <label for="txtAddRecordTtl">TTL</label>
+                                                                    <input id="txtAddRecordTtl" type="number" class="form-control" placeholder="3600" style="width: 80px;">
+                                                                </div>
+
+                                                                <div class="form-group" style="display: block; margin-bottom: 0px;">
+                                                                    <button id="btnAddRecord" type="button" class="btn btn-primary">Add</button>
+                                                                </div>
+                                                            </form>
+                                                        </li>
+                                                    </ul>
+                                                </div>
                                             </div>
                                         </div>
                                     </div>
@@ -190,57 +293,71 @@
 
                                 <div role="tabpanel" class="tab-pane" id="mainPanelTabPaneSettings">
 
-                                    <form style="margin-top: 20px;" class="form-horizontal">
-                                        <div class="well well-sm">
-                                            <div class="form-group">
-                                                <label class="col-sm-3 control-label">Local End Point</label>
-                                                <div class="col-sm-6">
-                                                    <p class="form-control-static">[::]:53</p>
+                                    <div id="divDnsSettingsLoader" style="margin-top: 20px; height: 400px;"></div>
+
+                                    <div id="divDnsSettings" style="display: none;">
+                                        <form style="margin-top: 20px;" class="form-horizontal" onsubmit="return false;">
+
+                                            <div class="well well-sm">
+                                                <div class="form-group">
+                                                    <label for="txtServerDomain" class="col-sm-3 control-label">Server Domain</label>
+                                                    <div class="col-sm-6">
+                                                        <input type="text" class="form-control" id="txtServerDomain" placeholder="Domain Name">
+                                                    </div>
+                                                </div>
+
+                                                <div class="form-group">
+                                                    <label class="col-sm-3 control-label">Web Service Port</label>
+                                                    <div class="col-sm-6">
+                                                        <input type="number" class="form-control" id="txtWebServicePort" placeholder="Web Service Port">
+                                                        <br />
+                                                        <div>To apply web service port changes, you need to manually restart the main service.</div>
+                                                    </div>
                                                 </div>
                                             </div>
 
-                                            <div class="form-group">
-                                                <label for="inputServerDomain" class="col-sm-3 control-label">Server Domain</label>
-                                                <div class="col-sm-6">
-                                                    <input type="text" class="form-control" id="inputServerDomain" placeholder="Domain Name" value="localhost">
+                                        </form>
+
+                                        <form style="margin-top: 20px;" onsubmit="return false;">
+
+                                            <div class="well well-sm">
+                                                <div class="form-group">
+                                                    <div class="checkbox">
+                                                        <label>
+                                                            <input id="chkPreferIPv6" type="checkbox"> Prefer IPv6
+                                                        </label>
+                                                    </div>
+
+                                                    <div>Use this option only if this DNS server has native IPv6 Internet access. DNS Server will use IPv6 for querying whenever possible with this option enabled.</div>
                                                 </div>
                                             </div>
-                                        </div>
-                                    </form>
 
-                                    <form style="margin-top: 20px;">
+                                            <div class="well well-sm">
+                                                <div class="form-group">
+                                                    <div class="checkbox">
+                                                        <label>
+                                                            <input id="chkAllowRecursion" type="checkbox"> Allow Recursion
+                                                        </label>
+                                                    </div>
 
-                                        <div class="well well-sm">
-                                            <div class="form-group">
-                                                <div class="checkbox">
-                                                    <label>
-                                                        <input type="checkbox"> Prefer IPv6
-                                                    </label>
+                                                    <div>Enabling recursion will allow this DNS server to resolve any domain and act as a general purpose DNS server. Disable this option if you wish this server to act only as authoritative name server for the configured zones.</div>
                                                 </div>
 
-                                                <div>Use this option only if this DNS server has native IPv6 Internet access. DNS Server will use IPv6 for querying whenever possible with this option enabled.</div>
-                                            </div>
-                                        </div>
+                                                <div class="form-group">
+                                                    <label for="txtForwarders">Forwarders</label>
+                                                    <textarea id="txtForwarders" class="form-control" style="width: 250px; margin-bottom: 10px;" rows="3"></textarea>
 
-                                        <div class="well well-sm">
-                                            <div class="form-group">
-                                                <div class="checkbox">
-                                                    <label>
-                                                        <input type="checkbox"> Allow Recursion
-                                                    </label>
+                                                    <div>Enter forwarder DNS Server IP addresses one below another in above text field. Forwarders are DNS servers which this DNS Server should use to resolve recursive queries. If no forwarders are configured then this DNS server will use preconfigured ROOT SERVERS.</div>
                                                 </div>
-
-                                                <div>Enabling recursion will allow this DNS server to resolve any domain and act as a general purpose DNS server. Disable this option only if you wish this server to act only as authoritative name server for the configured zones.</div>
                                             </div>
 
-                                            <div class="form-group">
-                                                <label for="inputForwarders">Forwarders</label>
-                                                <textarea class="form-control" style="width: 250px; margin-bottom: 10px;" rows="3" id="inputForwarders"></textarea>
-
-                                                <div>Enter forwarder DNS Server IP addresses one below another in above text field. Forwarders are DNS servers which this DNS Server should use to resolve recursive queries. If no forwarders are configured then this DNS server will use preconfigured ROOT SERVERS.</div>
+                                            <div class="form-group" style="margin-bottom: 0px;">
+                                                <button id="btnSaveDnsSettings" type="button" class="btn btn-primary" data-loading-text="Saving..." onclick="return saveDnsSettings();" style="margin-right: 6px;">Save Settings</button>
+                                                <button id="btnFlushDnsCache" type="button" class="btn btn-warning" data-loading-text="Flushing..." onclick="return flushDnsCache();">Flush Cache</button>
                                             </div>
-                                        </div>
-                                    </form>
+
+                                        </form>
+                                    </div>
 
                                 </div>
 
@@ -251,6 +368,47 @@
                 </div>
             </div>
 
+        </div>
+    </div>
+
+    <div id="modalChangePassword" class="modal fade" tabindex="-1" role="dialog">
+        <div class="modal-dialog" role="document">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <button type="button" class="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button>
+                    <h4 class="modal-title">Change Password</h4>
+                </div>
+                <div class="modal-body">
+                    <div id="divChangePasswordAlert"></div>
+
+                    <form class="form-horizontal" onsubmit="return false;">
+                        <div class="form-group">
+                            <label for="txtChangePasswordUsername" class="col-sm-4 control-label">Username</label>
+                            <div class="col-sm-7">
+                                <input id="txtChangePasswordUsername" type="text" class="form-control" placeholder="username" disabled>
+                            </div>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="txtChangePasswordNewPassword" class="col-sm-4 control-label">New Password</label>
+                            <div class="col-sm-7">
+                                <input id="txtChangePasswordNewPassword" type="password" class="form-control" placeholder="new password">
+                            </div>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="txtChangePasswordConfirmPassword" class="col-sm-4 control-label">Confirm Password</label>
+                            <div class="col-sm-7">
+                                <input id="txtChangePasswordConfirmPassword" type="password" class="form-control" placeholder="confirm password">
+                            </div>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-default" data-dismiss="modal">Close</button>
+                    <button id="btnChangePasswordSave" type="button" class="btn btn-primary" data-loading-text="Saving..." onclick="return changePassword();">Save</button>
+                </div>
+            </div>
         </div>
     </div>
 

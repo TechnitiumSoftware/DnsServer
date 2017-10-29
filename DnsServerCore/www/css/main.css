@@ -59,9 +59,21 @@ a {
 .container {
     margin-left: auto;
     margin-right: auto;
-    padding: 80px 15px 85px 15px;
+    padding: 55px 15px 60px 15px;
     word-wrap: break-word;
+    min-width: 970px;
 }
+
+    .container .pageLogin {
+        display: none;
+        margin: auto;
+        width: 500px;
+        padding: 150px 0 0 0;
+    }
+
+    .container .page {
+        display: none;
+    }
 
 .auto-resize-img {
     max-width: 100%;
@@ -132,5 +144,42 @@ a {
 
 .form-inline .form-group {
     margin-right: 10px;
-    margin-bottom: 15px;
+    margin-bottom: 10px;
 }
+
+label {
+    margin-right: 4px;
+}
+
+.AlertPlaceholder {
+    position: fixed;
+    width: 800px;
+    margin: auto;
+    left: 0;
+    right: 0;
+    top: 45px;
+    z-index: 1000;
+}
+
+.zone-list-pane {
+    float: left;
+    width: 24%;
+}
+
+.zones {
+    font-size: 16px;
+}
+
+    .zones .zone {
+        padding: 4px;
+    }
+
+.zone-viewer-pane {
+    float: right;
+    width: 75%;
+    display: none;
+}
+
+    .zone-viewer-pane .resource-record {
+        background-color: #f5f5f5;
+    }
