@@ -423,6 +423,12 @@ namespace DnsServerCore
                     if (records[0].RDATA is DnsNXRecord)
                         return new DnsDatagram(new DnsHeader(request.Header.Identifier, true, DnsOpcode.StandardQuery, false, false, request.Header.RecursionDesired, true, false, false, DnsResponseCode.NameError, 1, 0, 1, 0), request.Question, new DnsResourceRecord[] { }, new DnsResourceRecord[] { (records[0].RDATA as DnsNXRecord).Authority }, new DnsResourceRecord[] { });
 
+                    if (records[0].RDATA is DnsANYRecord)
+                    {
+                        DnsANYRecord anyRR = records[0].RDATA as DnsANYRecord;
+                        return new DnsDatagram(new DnsHeader(request.Header.Identifier, true, DnsOpcode.StandardQuery, false, false, request.Header.RecursionDesired, true, false, false, DnsResponseCode.NoError, 1, Convert.ToUInt16(anyRR.Records.Length), 0, 0), request.Question, anyRR.Records, new DnsResourceRecord[] { }, new DnsResourceRecord[] { });
+                    }
+
                     return new DnsDatagram(new DnsHeader(request.Header.Identifier, true, DnsOpcode.StandardQuery, false, false, request.Header.RecursionDesired, true, false, false, DnsResponseCode.NoError, 1, (ushort)records.Length, 0, 0), request.Question, records, new DnsResourceRecord[] { }, new DnsResourceRecord[] { });
                 }
             }
@@ -564,8 +570,13 @@ namespace DnsServerCore
             SetRecords(allRecords);
 
             //cache for ANY request
-            if (response.Question[0].Type == DnsResourceRecordType.ANY)
-                CreateZone(this, response.Question[0].Name).SetRecords(DnsResourceRecordType.ANY, response.Answer);
+            if ((response.Question[0].Type == DnsResourceRecordType.ANY) && (response.Answer.Length > 0))
+            {
+                DnsResourceRecord anyRR = new DnsResourceRecord(response.Question[0].Name, DnsResourceRecordType.ANY, DnsClass.IN, DEFAULT_RECORD_TTL, new DnsANYRecord(response.Answer));
+                anyRR.SetExpiry();
+
+                CreateZone(this, response.Question[0].Name).SetRecords(DnsResourceRecordType.ANY, new DnsResourceRecord[] { anyRR });
+            }
         }
 
         #endregion
@@ -761,10 +772,6 @@ namespace DnsServerCore
                 _authority = authority;
             }
 
-            public DnsNXRecord(Stream s)
-                : base(s)
-            { }
-
             #endregion
 
             #region protected
@@ -824,10 +831,6 @@ namespace DnsServerCore
                 _authority = authority;
             }
 
-            public DnsEmptyRecord(Stream s)
-                : base(s)
-            { }
-
             #endregion
 
             #region protected
@@ -868,6 +871,69 @@ namespace DnsServerCore
 
             public DnsResourceRecord Authority
             { get { return _authority; } }
+
+            #endregion
+        }
+
+        class DnsANYRecord : DnsResourceRecordData
+        {
+            #region variables
+
+            DnsResourceRecord[] _records;
+
+            #endregion
+
+            #region constructor
+
+            public DnsANYRecord(DnsResourceRecord[] records)
+            {
+                _records = records;
+            }
+
+            public DnsANYRecord(Stream s)
+                : base(s)
+            { }
+
+            #endregion
+
+            #region protected
+
+            protected override void Parse(Stream s)
+            { }
+
+            protected override void WriteRecordData(Stream s, List<DnsDomainOffset> domainEntries)
+            { }
+
+            #endregion
+
+            #region public
+
+            public override bool Equals(object obj)
+            {
+                if (ReferenceEquals(null, obj))
+                    return false;
+
+                if (ReferenceEquals(this, obj))
+                    return true;
+
+                DnsANYRecord other = obj as DnsANYRecord;
+                if (other == null)
+                    return false;
+
+                return true;
+            }
+
+            public override int GetHashCode()
+            {
+                return 0;
+            }
+
+            #endregion
+
+            #region properties
+
+            public DnsResourceRecord[] Records
+            { get { return _records; } }
 
             #endregion
         }
