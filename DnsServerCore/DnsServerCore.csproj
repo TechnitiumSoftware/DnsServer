@@ -39,6 +39,14 @@
     <Reference Include="System.Core" />
     <Reference Include="Microsoft.CSharp" />
     <Reference Include="System.Runtime.Serialization" />
+    <Reference Include="TechnitiumLibrary.IO, Version=2.3.2.0, Culture=neutral, processorArchitecture=MSIL">
+      <SpecificVersion>False</SpecificVersion>
+      <HintPath>..\..\TechnitiumLibrary\bin\TechnitiumLibrary.IO.dll</HintPath>
+    </Reference>
+    <Reference Include="TechnitiumLibrary.Net, Version=2.3.1.0, Culture=neutral, processorArchitecture=MSIL">
+      <SpecificVersion>False</SpecificVersion>
+      <HintPath>..\..\TechnitiumLibrary\bin\TechnitiumLibrary.Net.dll</HintPath>
+    </Reference>
   </ItemGroup>
   <ItemGroup>
     <Compile Include="DnsServer.cs" />
@@ -90,16 +98,6 @@
     <Content Include="www\js\main.js">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </Content>
-  </ItemGroup>
-  <ItemGroup>
-    <ProjectReference Include="..\..\TechnitiumLibrary\TechnitiumLibrary.IO\TechnitiumLibrary.IO.csproj">
-      <Project>{e0ba5456-feaa-4380-92bb-6b1c4bc3dc70}</Project>
-      <Name>TechnitiumLibrary.IO</Name>
-    </ProjectReference>
-    <ProjectReference Include="..\..\TechnitiumLibrary\TechnitiumLibrary.Net\TechnitiumLibrary.Net.csproj">
-      <Project>{c8293a12-5a6a-4f53-bebe-35a6d37bd891}</Project>
-      <Name>TechnitiumLibrary.Net</Name>
-    </ProjectReference>
   </ItemGroup>
   <ItemGroup>
     <Content Include="www\css\bootstrap-theme.min.css.map">
