@@ -328,7 +328,7 @@ namespace DnsServerCore
             while (currentZone != null)
             {
                 nsRecords = currentZone.GetRecords(DnsResourceRecordType.NS);
-                if (nsRecords != null)
+                if ((nsRecords != null) && (nsRecords.Length > 0) && (nsRecords[0].Type == DnsResourceRecordType.NS))
                     return nsRecords;
 
                 currentZone = currentZone._parentZone;
@@ -345,7 +345,7 @@ namespace DnsServerCore
             while (currentZone != null)
             {
                 nsRecords = currentZone.GetRecords(DnsResourceRecordType.SOA);
-                if (nsRecords != null)
+                if ((nsRecords != null) && (nsRecords.Length > 0) && (nsRecords[0].Type == DnsResourceRecordType.SOA))
                     return nsRecords;
 
                 currentZone = currentZone._parentZone;
