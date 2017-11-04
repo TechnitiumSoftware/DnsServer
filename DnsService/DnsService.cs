@@ -33,7 +33,7 @@ namespace DnsService
 
         protected override void OnStart(string[] args)
         {
-            _service = new DnsWebService(args[0]);
+            _service = new DnsWebService();
             _service.Start();
         }
 

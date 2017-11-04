@@ -5,11 +5,11 @@ using System.Runtime.InteropServices;
 // General Information about an assembly is controlled through the following
 // set of attributes. Change these attribute values to modify the information
 // associated with an assembly.
-[assembly: AssemblyTitle("DnsService")]
-[assembly: AssemblyDescription("")]
+[assembly: AssemblyTitle("Technitium DNS Server")]
+[assembly: AssemblyDescription("Technitium DNS Server")]
 [assembly: AssemblyConfiguration("")]
-[assembly: AssemblyCompany("")]
-[assembly: AssemblyProduct("DnsService")]
+[assembly: AssemblyCompany("Technitium")]
+[assembly: AssemblyProduct("Technitium DNS Server")]
 [assembly: AssemblyCopyright("Copyright ©  2017")]
 [assembly: AssemblyTrademark("")]
 [assembly: AssemblyCulture("")]
