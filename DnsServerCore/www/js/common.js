@@ -7,7 +7,7 @@ function htmlDecode(value) {
     return $('<div/>').html(value).text();
 }
 
-function HTTPRequest(url, data, success, error, invalidToken, objAlertPlaceholder, objLoaderPlaceholder, dataIsFormData, dataContentType) {
+function HTTPRequest(url, data, success, error, invalidToken, objAlertPlaceholder, objLoaderPlaceholder, dataIsFormData, dataContentType, dontHideAlert) {
 
     var async = false;
     var finalUrl;
@@ -37,7 +37,11 @@ function HTTPRequest(url, data, success, error, invalidToken, objAlertPlaceholde
     if (objAlertPlaceholder == null)
         objAlertPlaceholder = arguments[0].objAlertPlaceholder;
 
-    hideAlert(objAlertPlaceholder);
+    if (dontHideAlert == null)
+        dontHideAlert = arguments[0].dontHideAlert;
+
+    if ((dontHideAlert == null) || !dontHideAlert)
+        hideAlert(objAlertPlaceholder);
 
     if (objLoaderPlaceholder == null)
         objLoaderPlaceholder = arguments[0].objLoaderPlaceholder;
@@ -105,7 +109,7 @@ function HTTPRequest(url, data, success, error, invalidToken, objAlertPlaceholde
                     if (error != null)
                         error();
 
-                    showAlert("danger", "Invalid Response! Server returned invalid response: ", responseJson.status, objAlertPlaceholder);
+                    showAlert("danger", "Invalid Response!", "Server returned invalid response status: " + responseJson.status, objAlertPlaceholder);
                     break;
             }
 

@@ -13,6 +13,8 @@ function showPageLogin() {
     $("#btnLogin").button('reset');
     $("#pageLogin").show();
 
+    $("#txtUser").focus();
+
     if (refreshZonesTimerHandle != null) {
         clearInterval(refreshZonesTimerHandle);
         refreshZonesTimerHandle = null;
@@ -33,13 +35,21 @@ function showPageMain(username) {
     $("#mainPanelTabListZones").addClass("active");
     $("#mainPanelTabPaneZones").addClass("active");
 
+    $("#txtDnsClientNameServer").val("This Server (this-server)");
+    $("#txtDnsClientDomain").val("");
+    $("#optDnsClientType").val("A");
+    $("#optDnsClientProtocol").val("UDP");
+    $("#divDnsClientLoader").hide();
+    $("#divDnsClientOutput").text("");
+
     $("#divZoneViewer").hide();
     $("#pageMain").show();
 
-    refreshZonesList();
     loadDnsSettings();
+    refreshZonesList();
+    refreshCachedZonesList();
 
-    refreshZonesTimerHandle = setInterval(function () { refreshZonesList(true); }, 10000);
+    refreshZonesTimerHandle = setInterval(function () { refreshZonesList(true); }, 60000);
 }
 
 $(function () {
@@ -47,6 +57,11 @@ $(function () {
 
     $("#header").html("<div class=\"title\"><a href=\"/\"><img src=\"/img/logo25x25.png\" alt=\"Technitium Logo\" /><span class=\"text\" style=\"color: #ffffff;\">Technitium</span></a>" + headerHtml + "</div>");
     $("#footer").html("<div class=\"content\"><a href=\"https://technitium.com\" target=\"_blank\">Technitium</a> | <a href=\"http://blog.technitium.com\" target=\"_blank\">Blog</a> | <a href=\"https://github.com/TechnitiumSoftware/DnsServer\" target=\"_blank\"><i class=\"fa fa-github\"></i>&nbsp;GitHub</a> | <a href=\"https://technitium.com/aboutus.html\" target=\"_blank\">About</a></div>");
+
+    //dropdown list box support
+    $('.dropdown').on('click', 'a', function () {
+        $(this).closest('.dropdown').find('input').val($(this).text());
+    });
 
     showPageLogin();
 });
@@ -280,12 +295,127 @@ function flushDnsCache() {
     return false;
 }
 
+function deleteCachedZone() {
+
+    var domain = $("#txtCachedZoneViewerTitle").text();
+
+    if (!confirm("Are you sure you want to delete the cached zone '" + domain + "' and all its records?"))
+        return false;
+
+    var btn = $("#btnDeleteCachedZone").button('loading');
+
+    HTTPRequest({
+        url: "/api/deleteCachedZone?token=" + token + "&domain=" + domain,
+        success: function (responseJSON) {
+            refreshCachedZonesList(getParentDomain(domain));
+
+            btn.button('reset');
+            showAlert("success", "Cached Zone Deleted!", "Cached zone was deleted successfully.");
+        },
+        error: function () {
+            btn.button('reset');
+        },
+        invalidToken: function () {
+            btn.button('reset');
+            showPageLogin();
+        }
+    });
+
+    return false;
+}
+
+function getParentDomain(domain) {
+
+    if ((domain != null) && (domain != "")) {
+        var parentDomain;
+        var i = domain.indexOf(".");
+
+        if (i == -1)
+            parentDomain = "";
+        else
+            parentDomain = domain.substr(i + 1);
+
+        return parentDomain;
+    }
+
+    return null;
+}
+
+function refreshCachedZonesList(domain) {
+
+    if (domain == null)
+        domain = "";
+
+    domain.toLowerCase();
+
+    var lstCachedZones = $("#lstCachedZones");
+    var divCachedZoneViewer = $("#divCachedZoneViewer");
+    var preCachedZoneViewerBody = $("#preCachedZoneViewerBody");
+
+    divCachedZoneViewer.hide();
+    preCachedZoneViewerBody.hide();
+
+    HTTPRequest({
+        url: "/api/listCachedZones?token=" + token + "&domain=" + domain,
+        success: function (responseJSON) {
+            var zones = responseJSON.response.zones;
+
+            var list = "<div class=\"zone\"><a href=\"#\" onclick=\"return refreshCachedZonesList('" + domain + "');\"><b>[refresh]</b></a></div>"
+
+            var parentDomain = getParentDomain(domain);
+
+            if (parentDomain != null)
+                list += "<div class=\"zone\"><a href=\"#\" onclick=\"return refreshCachedZonesList('" + parentDomain + "');\"><b>[up]</b></a></div>"
+
+            for (var i = 0; i < zones.length; i++) {
+                var zoneName = htmlEncode(zones[i]);
+
+                list += "<div class=\"zone\"><a href=\"#\" onclick=\"return refreshCachedZonesList('" + zoneName + "');\">" + zoneName + "</a></div>"
+            }
+
+            lstCachedZones.html(list);
+
+            if (domain == "") {
+                $("#txtCachedZoneViewerTitle").text("<ROOT>");
+                $("#btnDeleteCachedZone").hide();
+            }
+            else {
+                $("#txtCachedZoneViewerTitle").text(domain);
+
+                if ((domain == "root-servers.net") || domain.endsWith(".root-servers.net"))
+                    $("#btnDeleteCachedZone").hide();
+                else
+                    $("#btnDeleteCachedZone").show();
+            }
+
+            if (responseJSON.response.records.length > 0) {
+                preCachedZoneViewerBody.text(JSON.stringify(responseJSON.response.records, null, 2));
+                preCachedZoneViewerBody.show();
+            }
+
+            divCachedZoneViewer.show();
+        },
+        invalidToken: function () {
+            showPageLogin();
+        },
+        error: function () {
+            lstCachedZones.html("<div class=\"zone\"><a href=\"#\" onclick=\"return refreshCachedZonesList('" + domain + "');\"><b>[refresh]</b></a></div>");
+        },
+        objLoaderPlaceholder: lstCachedZones
+    });
+
+    return false;
+}
+
 function refreshZonesList(hideLoader) {
+
+    if (hideLoader == null)
+        hideLoader = false;
 
     var lstZones = $("#lstZones");
     var divLoader;
 
-    if ((hideLoader == null) || !hideLoader)
+    if (!hideLoader)
         divLoader = lstZones;
 
     HTTPRequest({
@@ -296,9 +426,9 @@ function refreshZonesList(hideLoader) {
             var list = "";
 
             for (var i = 0; i < zones.length; i++) {
-                var zoneName = htmlEncode(zones[i]);
+                var zoneName = htmlEncode(zones[i].zoneName);
 
-                list += "<div style=\"padding: 4px; \"><a href=\"#\" onclick=\"return viewZone('" + zoneName + "');\">" + zoneName + "</a></div>"
+                list += "<div class=\"zone\"><a href=\"#\" onclick=\"return viewZone('" + zoneName + "', " + zones[i].disabled + ");\">" + zoneName + "</a></div>"
             }
 
             lstZones.html(list);
@@ -306,7 +436,8 @@ function refreshZonesList(hideLoader) {
         invalidToken: function () {
             showPageLogin();
         },
-        objLoaderPlaceholder: divLoader
+        objLoaderPlaceholder: divLoader,
+        dontHideAlert: hideLoader
     });
 
     return false;
@@ -337,6 +468,7 @@ function addZone() {
             btn.button('reset');
         },
         invalidToken: function () {
+            btn.button('reset');
             showPageLogin();
         }
     });
@@ -344,11 +476,11 @@ function addZone() {
     return false;
 }
 
-function deleteZone(domain) {
+function deleteZone() {
 
     var domain = $("#txtZoneViewerTitle").text();
 
-    if (!confirm("Are you sure to permanently delete the zone '" + domain + "' and all its records?"))
+    if (!confirm("Are you sure you want to permanently delete the zone '" + domain + "' and all its records?"))
         return false;
 
     var btn = $("#btnDeleteZone").button('loading');
@@ -367,6 +499,7 @@ function deleteZone(domain) {
             btn.button('reset');
         },
         invalidToken: function () {
+            btn.button('reset');
             showPageLogin();
         }
     });
@@ -374,7 +507,73 @@ function deleteZone(domain) {
     return false;
 }
 
-function viewZone(domain) {
+function enableZone() {
+
+    var domain = $("#txtZoneViewerTitle").text();
+
+    if (!confirm("Are you sure you want to enable the zone '" + domain + "'?"))
+        return false;
+
+    var btn = $("#btnEnableZone").button('loading');
+
+    HTTPRequest({
+        url: "/api/enableZone?token=" + token + "&domain=" + domain,
+        success: function (responseJSON) {
+            refreshZonesList();
+
+            $("#btnEnableZone").hide();
+            $("#btnDisableZone").show();
+
+            btn.button('reset');
+
+            showAlert("success", "Zone Enabled!", "Zone was enabled successfully.");
+        },
+        error: function () {
+            btn.button('reset');
+        },
+        invalidToken: function () {
+            btn.button('reset');
+            showPageLogin();
+        }
+    });
+
+    return false;
+}
+
+function disableZone() {
+
+    var domain = $("#txtZoneViewerTitle").text();
+
+    if (!confirm("Are you sure you want to disable the zone '" + domain + "'?"))
+        return false;
+
+    var btn = $("#btnDisableZone").button('loading');
+
+    HTTPRequest({
+        url: "/api/disableZone?token=" + token + "&domain=" + domain,
+        success: function (responseJSON) {
+            refreshZonesList();
+
+            $("#btnEnableZone").show();
+            $("#btnDisableZone").hide();
+
+            btn.button('reset');
+
+            showAlert("success", "Zone Disabled!", "Zone was disabled successfully.");
+        },
+        error: function () {
+            btn.button('reset');
+        },
+        invalidToken: function () {
+            btn.button('reset');
+            showPageLogin();
+        }
+    });
+
+    return false;
+}
+
+function viewZone(domain, disabled) {
 
     var divZoneViewer = $("#divZoneViewer");
     var txtZoneViewerTitle = $("#txtZoneViewerTitle");
@@ -382,6 +581,16 @@ function viewZone(domain) {
     var divZoneViewerLoader = $("#divZoneViewerLoader");
 
     txtZoneViewerTitle.text(domain);
+
+    if (disabled) {
+        $("#btnEnableZone").show();
+        $("#btnDisableZone").hide();
+    }
+    else {
+        $("#btnEnableZone").hide();
+        $("#btnDisableZone").show();
+    }
+
     divZoneViewerLoader.show();
     divZoneViewerBody.hide();
     divZoneViewer.show();
@@ -872,6 +1081,7 @@ function addResourceRecord() {
             btn.button('reset');
         },
         invalidToken: function () {
+            btn.button('reset');
             showPageLogin();
         }
     });
@@ -905,6 +1115,7 @@ function deleteResourceRecord(objBtn) {
             btnDelete.button('reset');
         },
         invalidToken: function () {
+            btnDelete.button('reset');
             showPageLogin();
         }
     });
@@ -1064,9 +1275,113 @@ function updateResourceRecord(objBtn) {
             btnUpdate.button('reset');
         },
         invalidToken: function () {
+            btnUpdate.button('reset');
             showPageLogin();
         }
     });
+
+    return false;
+}
+
+function resolveQuery(importRecords) {
+
+    if (importRecords == null)
+        importRecords = false;
+
+    var server = $("#txtDnsClientNameServer").val();
+    var domain = $("#txtDnsClientDomain").val();
+    var type = $("#optDnsClientType").val();
+    var protocol = $("#optDnsClientProtocol").val();
+
+    {
+        var i = server.indexOf("(");
+        if (i > -1) {
+            var j = server.indexOf(")");
+            server = server.substring(i + 1, j);
+        }
+    }
+
+    if ((server === null) || (server === "")) {
+        showAlert("warning", "Missing!", "Please enter a valid Name Server.");
+        return false;
+    }
+
+    if ((domain === null) || (domain === "")) {
+        showAlert("warning", "Missing!", "Please enter a domain name to query.");
+        return false;
+    }
+
+    {
+        var i = domain.indexOf("://");
+        if (i > -1) {
+            var j = domain.indexOf(":", i + 3);
+
+            if (j < 0)
+                j = domain.indexOf("/", i + 3);
+
+            if (j > -1)
+                domain = domain.substring(i + 3, j);
+            else
+                domain = domain.substring(i + 3);
+
+            $("#txtDnsClientDomain").val(domain);
+        }
+    }
+
+    if (importRecords) {
+        if (!confirm("Importing all the records from the result of this query will overwrite existing records in the zone '" + domain + "'.\n\nAre you sure you want to import all records?"))
+            return false;
+    }
+
+    var btn = $(importRecords ? "#btnDnsClientImport" : "#btnDnsClientResolve").button('loading');
+    var btnOther = $(importRecords ? "#btnDnsClientResolve" : "#btnDnsClientImport").prop("disabled", true);
+
+    var divDnsClientLoader = $("#divDnsClientLoader");
+    var preDnsClientOutput = $("#preDnsClientOutput");
+
+    preDnsClientOutput.hide();
+    divDnsClientLoader.show();
+
+    HTTPRequest({
+        url: "/api/resolveQuery?token=" + token + "&server=" + server + "&domain=" + domain + "&type=" + type + "&protocol=" + protocol + (importRecords ? "&import=true" : ""),
+        success: function (responseJSON) {
+            preDnsClientOutput.text(JSON.stringify(responseJSON.response.result, null, 2));
+
+            preDnsClientOutput.show();
+            divDnsClientLoader.hide();
+
+            btn.button('reset');
+            btnOther.prop("disabled", false);
+
+            if (importRecords) {
+                showAlert("success", "Records Imported!", "Resource records resolved by this DNS client query were successfully imported into this server.");
+            }
+        },
+        error: function () {
+            divDnsClientLoader.hide();
+            btn.button('reset');
+            btnOther.prop("disabled", false);
+        },
+        invalidToken: function () {
+            divDnsClientLoader.hide();
+            btn.button('reset');
+            btnOther.prop("disabled", false);
+            showPageLogin();
+        },
+        objLoaderPlaceholder: divDnsClientLoader
+    });
+
+    //add server name to list if doesnt exists
+    var txtServerName = $("#txtDnsClientNameServer").val();
+    var containsServer = false;
+
+    $("#optDnsClientNameServers a").each(function () {
+        if ($(this).html() === txtServerName)
+            containsServer = true;
+    });
+
+    if (!containsServer)
+        $("#optDnsClientNameServers").prepend('<li><a href="#" onclick="return false;">' + txtServerName + '</a></li>');
 
     return false;
 }

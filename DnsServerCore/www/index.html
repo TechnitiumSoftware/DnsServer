@@ -79,13 +79,16 @@
 
                         <div>
                             <ul class="nav nav-tabs" role="tablist">
-                                <li id="mainPanelTabListZones" role="presentation" class="active"><a href="#mainPanelTabPaneZones" aria-controls="mainPanelTabPaneZones" role="tab" data-toggle="tab">Zones</a></li>
-                                <li id="mainPanelTabListSettings" role="presentation"><a href="#mainPanelTabPaneSettings" aria-controls="mainPanelTabPaneSettings" role="tab" data-toggle="tab" onclick="loadDnsSettings();">Settings</a></li>
+                                <li id="mainPanelTabListZones" role="presentation" class="active"><a href="#mainPanelTabPaneZones" aria-controls="mainPanelTabPaneZones" role="tab" data-toggle="tab" onclick="return refreshZonesList();">Zones</a></li>
+                                <li id="mainPanelTabListCachedZones" role="presentation"><a href="#mainPanelTabPaneCachedZones" aria-controls="mainPanelTabPaneCachedZones" role="tab" data-toggle="tab" onclick="return false;">Cached Zones</a></li>
+                                <li id="mainPanelTabListDnsClient" role="presentation"><a href="#mainPanelTabPaneDnsClient" aria-controls="mainPanelTabPaneZones" role="tab" data-toggle="tab" onclick="return false;">DNS Client</a></li>
+                                <li id="mainPanelTabListSettings" role="presentation"><a href="#mainPanelTabPaneSettings" aria-controls="mainPanelTabPaneSettings" role="tab" data-toggle="tab" onclick="return loadDnsSettings();">Settings</a></li>
                             </ul>
 
                             <div class="tab-content">
 
                                 <div id="mainPanelTabPaneZones" role="tabpanel" class="tab-pane active" style="padding: 10px 0 0 0;">
+
                                     <div class="well well-sm zone-list-pane">
                                         <form class="form-inline">
                                             <div class="form-group">
@@ -94,8 +97,8 @@
                                             </div>
                                         </form>
 
-                                        <div id="lstZones" class="zone">
-                                            <div class="zones"><a href="#" onclick="return viewZone('technitium.com');">technitium.com</a></div>
+                                        <div id="lstZones" class="zones">
+                                            <div class="zone"><a href="#" onclick="return viewZone('technitium.com');">technitium.com</a></div>
                                         </div>
                                     </div>
 
@@ -103,7 +106,11 @@
                                         <div class="panel panel-default">
                                             <div class="panel-heading" style="height: 36px; padding: 4px 6px;">
                                                 <div id="txtZoneViewerTitle" style="float: left; padding: 4px;">technitium.com</div>
-                                                <div style="float: right;"><button id="btnDeleteZone" type="button" class="btn btn-danger" data-loading-text="Delete" onclick="return deleteZone();" style="font-size: 12px; padding: 4px 6px;">Delete</button></div>
+                                                <div style="float: right;">
+                                                    <button id="btnDisableZone" type="button" class="btn btn-warning" data-loading-text="Disable" onclick="return disableZone();" style="font-size: 12px; padding: 4px 6px;">Disable</button>
+                                                    <button id="btnEnableZone" type="button" class="btn btn-default" data-loading-text="Enable" onclick="return enableZone();" style="font-size: 12px; padding: 4px 6px;">Enable</button>
+                                                    <button id="btnDeleteZone" type="button" class="btn btn-danger" data-loading-text="Delete" onclick="return deleteZone();" style="font-size: 12px; padding: 4px 6px;">Delete</button>
+                                                </div>
                                             </div>
 
                                             <div class="panel-body">
@@ -289,14 +296,119 @@
                                             </div>
                                         </div>
                                     </div>
+
                                 </div>
 
-                                <div role="tabpanel" class="tab-pane" id="mainPanelTabPaneSettings">
+                                <div id="mainPanelTabPaneCachedZones" role="tabpanel" class="tab-pane" style="padding: 10px 0 0 0;">
 
-                                    <div id="divDnsSettingsLoader" style="margin-top: 20px; height: 400px;"></div>
+                                    <div class="well well-sm zone-list-pane">
+                                        <div id="lstCachedZones" class="zones">
+                                            <div class="zone"><a href="#" onclick="return refreshCachedZonesList('technitium.com');">technitium.com</a></div>
+                                        </div>
+                                    </div>
+
+                                    <div id="divCachedZoneViewer" class="zone-viewer-pane">
+                                        <div class="panel panel-default">
+                                            <div class="panel-heading" style="height: 36px; padding: 4px 6px;">
+                                                <div id="txtCachedZoneViewerTitle" style="float: left; padding: 4px;">technitium.com</div>
+                                                <div style="float: right;">
+                                                    <button id="btnDeleteCachedZone" type="button" class="btn btn-danger" data-loading-text="Delete" onclick="return deleteCachedZone();" style="font-size: 12px; padding: 4px 6px;">Delete</button>
+                                                </div>
+                                            </div>
+
+                                            <div class="panel-body">
+                                                <pre id="preCachedZoneViewerBody">
+                                                    
+                                                </pre>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                </div>
+
+                                <div id="mainPanelTabPaneDnsClient" role="tabpanel" class="tab-pane" style="padding: 10px 0 0 0;">
+
+                                    <form class="form-inline well">
+                                        <div class="form-group">
+                                            <label for="txtDnsClientNameServer">Server</label>
+                                            <div class="input-group dropdown">
+                                                <input type="text" class="form-control dropdown-toggle" style="width: 180px;" id="txtDnsClientNameServer" value="This Server (this-server)">
+                                                <ul class="dropdown-menu" id="optDnsClientNameServers">
+                                                    <li><a href="#" onclick="return false;">This Server (this-server)</a></li>
+                                                    <li><a href="#" onclick="return false;">Google (8.8.8.8)</a></li>
+                                                    <li><a href="#" onclick="return false;">Google (8.8.4.4)</a></li>
+                                                    <li><a href="#" onclick="return false;">OpenDNS (208.67.222.222)</a></li>
+                                                    <li><a href="#" onclick="return false;">OpenDNS (208.67.220.220)</a></li>
+                                                    <li><a href="#" onclick="return false;">Level3 (4.2.2.1)</a></li>
+                                                    <li><a href="#" onclick="return false;">Level3 (4.2.2.2)</a></li>
+                                                    <li><a href="#" onclick="return false;">Ultra (156.154.70.1)</a></li>
+                                                    <li><a href="#" onclick="return false;">Ultra (156.154.71.1)</a></li>
+                                                    <li><a href="#" onclick="return false;">Dyn (216.146.35.35)</a></li>
+                                                    <li><a href="#" onclick="return false;">Dyn (216.146.36.36)</a></li>
+                                                    <li><a href="#" onclick="return false;">Recursive Query Via Root Servers (root-servers)</a></li>
+                                                    <li><a href="#" onclick="return false;">a.root-servers.net</a></li>
+                                                    <li><a href="#" onclick="return false;">b.root-servers.net</a></li>
+                                                    <li><a href="#" onclick="return false;">c.root-servers.net</a></li>
+                                                    <li><a href="#" onclick="return false;">d.root-servers.net</a></li>
+                                                    <li><a href="#" onclick="return false;">e.root-servers.net</a></li>
+                                                    <li><a href="#" onclick="return false;">f.root-servers.net</a></li>
+                                                    <li><a href="#" onclick="return false;">g.root-servers.net</a></li>
+                                                    <li><a href="#" onclick="return false;">h.root-servers.net</a></li>
+                                                    <li><a href="#" onclick="return false;">i.root-servers.net</a></li>
+                                                    <li><a href="#" onclick="return false;">j.root-servers.net</a></li>
+                                                    <li><a href="#" onclick="return false;">k.root-servers.net</a></li>
+                                                    <li><a href="#" onclick="return false;">l.root-servers.net</a></li>
+                                                    <li><a href="#" onclick="return false;">m.root-servers.net</a></li>
+                                                </ul>
+                                                <span role="button" class="input-group-addon dropdown-toggle" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false"><span class="caret"></span></span>
+                                            </div>
+                                        </div>
+
+                                        <div class="form-group">
+                                            <label for="txtDnsClientDomain">Domain</label>
+                                            <input type="text" class="form-control" style="width: 210px;" id="txtDnsClientDomain" placeholder="example.com">
+                                        </div>
+
+                                        <div class="form-group">
+                                            <label for="optDnsClientType">Type</label>
+                                            <select class="form-control" id="optDnsClientType">
+                                                <option>A</option>
+                                                <option>NS</option>
+                                                <option>CNAME</option>
+                                                <option>SOA</option>
+                                                <option>PTR</option>
+                                                <option>MX</option>
+                                                <option>TXT</option>
+                                                <option>AAAA</option>
+                                                <option>ANY</option>
+                                            </select>
+                                        </div>
+
+                                        <div class="form-group">
+                                            <label for="optDnsClientProtocol">Protocol</label>
+                                            <select class="form-control" id="optDnsClientProtocol">
+                                                <option>UDP</option>
+                                                <option>TCP</option>
+                                            </select>
+                                        </div>
+
+                                        <div class="form-group">
+                                            <button type="submit" class="btn btn-primary" id="btnDnsClientResolve" data-loading-text="Resolving..." onclick="return resolveQuery();" style="margin-right: 6px;">Resolve</button>
+                                            <button type="button" class="btn btn-warning" id="btnDnsClientImport" data-loading-text="Importing..." onclick="return resolveQuery(true);">Import</button>
+                                        </div>
+                                    </form>
+
+                                    <div id="divDnsClientLoader" style="margin-top: 20px; height: 300px;"></div>
+                                    <pre id="preDnsClientOutput" style="display: none;"></pre>
+
+                                </div>
+
+                                <div id="mainPanelTabPaneSettings" role="tabpanel" class="tab-pane">
+
+                                    <div id="divDnsSettingsLoader" style="margin-top: 10px; height: 400px;"></div>
 
                                     <div id="divDnsSettings" style="display: none;">
-                                        <form style="margin-top: 20px;" class="form-horizontal" onsubmit="return false;">
+                                        <form style="margin-top: 10px;" class="form-horizontal" onsubmit="return false;">
 
                                             <div class="well well-sm">
                                                 <div class="form-group">
@@ -318,7 +430,7 @@
 
                                         </form>
 
-                                        <form style="margin-top: 20px;" onsubmit="return false;">
+                                        <form style="margin-top: 10px;" onsubmit="return false;">
 
                                             <div class="well well-sm">
                                                 <div class="form-group">
