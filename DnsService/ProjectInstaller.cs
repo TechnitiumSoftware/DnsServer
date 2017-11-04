@@ -17,12 +17,22 @@ namespace DnsService
 
         private void ServiceInstaller1_AfterInstall(object sender, InstallEventArgs e)
         {
-            new ServiceController(serviceInstaller1.ServiceName).Start();
+            try
+            {
+                new ServiceController(serviceInstaller1.ServiceName).Start();
+            }
+            catch
+            { }
         }
 
         private void ServiceInstaller1_BeforeUninstall(object sender, InstallEventArgs e)
         {
-            new ServiceController(serviceInstaller1.ServiceName).Stop();
+            try
+            {
+                new ServiceController(serviceInstaller1.ServiceName).Stop();
+            }
+            catch
+            { }
         }
     }
 }
