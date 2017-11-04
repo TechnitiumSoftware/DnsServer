@@ -9,6 +9,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DnsServerApp", "DnsServerAp
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DnsService", "DnsService\DnsService.csproj", "{7873B2B8-01BA-48BC-B4B0-0857FFD873C9}"
 EndProject
+Project("{54435603-DBB4-11D2-8724-00A0C9A8B90C}") = "DnsServiceSetup", "DnsServiceSetup\DnsServiceSetup.vdproj", "{7A6C95A1-FBB7-43CD-9AF5-87CD05DF7CDE}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -27,6 +29,8 @@ Global
 		{7873B2B8-01BA-48BC-B4B0-0857FFD873C9}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{7873B2B8-01BA-48BC-B4B0-0857FFD873C9}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{7873B2B8-01BA-48BC-B4B0-0857FFD873C9}.Release|Any CPU.Build.0 = Release|Any CPU
+		{7A6C95A1-FBB7-43CD-9AF5-87CD05DF7CDE}.Debug|Any CPU.ActiveCfg = Debug
+		{7A6C95A1-FBB7-43CD-9AF5-87CD05DF7CDE}.Release|Any CPU.ActiveCfg = Release
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

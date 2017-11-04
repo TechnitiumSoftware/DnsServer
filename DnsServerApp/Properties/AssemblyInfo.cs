@@ -6,7 +6,7 @@ using System.Runtime.InteropServices;
 // set of attributes. Change these attribute values to modify the information
 // associated with an assembly.
 [assembly: AssemblyTitle("Technitium DNS Server")]
-[assembly: AssemblyDescription("")]
+[assembly: AssemblyDescription("Technitium DNS Server")]
 [assembly: AssemblyConfiguration("")]
 [assembly: AssemblyCompany("Technitium")]
 [assembly: AssemblyProduct("Technitium DNS Server")]
