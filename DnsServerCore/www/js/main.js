@@ -48,6 +48,7 @@ function showPageMain(username) {
     loadDnsSettings();
     refreshZonesList();
     refreshCachedZonesList();
+    checkForUpdate();
 
     refreshZonesTimerHandle = setInterval(function () { refreshZonesList(true); }, 60000);
 }
@@ -174,6 +175,30 @@ function changePassword() {
             showPageLogin();
         },
         objAlertPlaceholder: divChangePasswordAlert
+    });
+
+    return false;
+}
+
+function checkForUpdate() {
+
+    HTTPRequest({
+        url: "/api/checkForUpdate?token=" + token,
+        success: function (responseJSON) {
+
+            var lnkNewVersionAvailable = $("#lnkNewVersionAvailable");
+
+            if (responseJSON.response.updateAvailable) {
+                lnkNewVersionAvailable.attr("href", responseJSON.response.landingPage);
+                lnkNewVersionAvailable.show();
+            }
+            else {
+                lnkNewVersionAvailable.hide();
+            }
+        },
+        invalidToken: function () {
+            showPageLogin();
+        }
     });
 
     return false;

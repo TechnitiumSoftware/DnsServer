@@ -48,6 +48,9 @@ namespace DnsServerCore
 
         #region variables
 
+        readonly static Uri UPDATE_URI = new Uri("https://technitium.com/download/dns/update.bin");
+
+        readonly string _currentVersion;
         readonly string _appFolder;
         readonly string _configFolder;
 
@@ -70,7 +73,10 @@ namespace DnsServerCore
 
         public DnsWebService(string configFolder = null)
         {
-            _appFolder = Path.GetDirectoryName(Assembly.GetEntryAssembly().Location);
+            Assembly assembly = Assembly.GetEntryAssembly();
+
+            _currentVersion = assembly.GetName().Version.ToString();
+            _appFolder = Path.GetDirectoryName(assembly.Location);
 
             if (configFolder == null)
                 _configFolder = Path.Combine(_appFolder, "config");
@@ -153,6 +159,10 @@ namespace DnsServerCore
                                         {
                                             case "/api/changePassword":
                                                 ChangePassword(request);
+                                                break;
+
+                                            case "/api/checkForUpdate":
+                                                CheckForUpdate(jsonWriter);
                                                 break;
 
                                             case "/api/getDnsSettings":
@@ -420,6 +430,104 @@ namespace DnsServerCore
                 throw new DnsWebServiceException("Parameter 'token' missing.");
 
             DeleteSession(strToken);
+        }
+
+        public static void CreateUpdateInfo(Stream s, string version, string landingPage)
+        {
+            BincodingEncoder encoder = new BincodingEncoder(s, "DU", 1);
+
+            encoder.Encode("version", version);
+            encoder.Encode("landingPage", landingPage);
+            encoder.EncodeNull();
+        }
+
+        private void CheckForUpdate(JsonTextWriter jsonWriter)
+        {
+            bool updateAvailable = false;
+            string landingPage = null;
+
+            try
+            {
+                using (WebClient wc = new WebClient())
+                {
+                    byte[] response = wc.DownloadData(UPDATE_URI);
+
+                    using (MemoryStream mS = new MemoryStream(response, false))
+                    {
+                        BincodingDecoder decoder = new BincodingDecoder(mS, "DU");
+
+                        switch (decoder.Version)
+                        {
+                            case 1:
+                                while (true)
+                                {
+                                    Bincoding entry = decoder.DecodeNext();
+                                    if (entry.Type == BincodingType.NULL)
+                                        break;
+
+                                    KeyValuePair<string, Bincoding> value = entry.GetKeyValuePair();
+
+                                    switch (value.Key)
+                                    {
+                                        case "version":
+                                            string updateVersion = value.Value.GetStringValue();
+
+                                            updateAvailable = IsUpdateAvailable(_currentVersion, updateVersion);
+                                            break;
+
+                                        case "landingPage":
+                                            landingPage = value.Value.GetStringValue();
+                                            break;
+                                    }
+                                }
+                                break;
+
+                            default:
+                                throw new IOException("File version not supported: " + decoder.Version);
+                        }
+                    }
+                }
+            }
+            catch
+            { }
+
+            jsonWriter.WritePropertyName("updateAvailable");
+            jsonWriter.WriteValue(updateAvailable);
+
+            if (updateAvailable)
+            {
+                jsonWriter.WritePropertyName("landingPage");
+                jsonWriter.WriteValue(landingPage);
+            }
+        }
+
+        private static bool IsUpdateAvailable(string currentVersion, string updateVersion)
+        {
+            string[] uVer = updateVersion.Split(new char[] { '.' });
+            string[] cVer = currentVersion.Split(new char[] { '.' });
+
+            int x = uVer.Length;
+            if (x > cVer.Length)
+                x = cVer.Length;
+
+            for (int i = 0; i < x; i++)
+            {
+                if (Convert.ToInt32(uVer[i]) > Convert.ToInt32(cVer[i]))
+                    return true;
+                else if (Convert.ToInt32(uVer[i]) < Convert.ToInt32(cVer[i]))
+                    return false;
+            }
+
+            if (uVer.Length > cVer.Length)
+            {
+                for (int i = x; i < uVer.Length; i++)
+                {
+                    if (Convert.ToInt32(uVer[i]) > 0)
+                        return true;
+                }
+            }
+
+            return false;
         }
 
         private void GetDnsSettings(JsonTextWriter jsonWriter)
