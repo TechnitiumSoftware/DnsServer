@@ -502,6 +502,8 @@ namespace DnsServerCore
             string[] subZones = _dnsServer.CacheZoneRoot.ListSubZones(domain);
             DnsResourceRecord[] records = _dnsServer.CacheZoneRoot.GetAllRecords(domain, false);
 
+            Array.Sort(subZones);
+
             jsonWriter.WritePropertyName("zones");
             jsonWriter.WriteStartArray();
 
@@ -528,6 +530,8 @@ namespace DnsServerCore
         private void ListZones(JsonTextWriter jsonWriter)
         {
             Zone.ZoneInfo[] zones = _dnsServer.AuthoritativeZoneRoot.ListAuthoritativeZones();
+
+            Array.Sort(zones);
 
             jsonWriter.WritePropertyName("zones");
             jsonWriter.WriteStartArray();

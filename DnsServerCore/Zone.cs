@@ -824,7 +824,7 @@ namespace DnsServerCore
 
         #endregion
 
-        public class ZoneInfo
+        public class ZoneInfo : IComparable<ZoneInfo>
         {
             #region variables
 
@@ -845,6 +845,15 @@ namespace DnsServerCore
             {
                 _zoneName = zone._zoneName;
                 _disabled = zone._disabled;
+            }
+
+            #endregion
+
+            #region public
+
+            public int CompareTo(ZoneInfo other)
+            {
+                return this._zoneName.CompareTo(other._zoneName);
             }
 
             #endregion
