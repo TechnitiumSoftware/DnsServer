@@ -26,23 +26,17 @@ namespace DnsServerApp
     {
         static void Main(string[] args)
         {
-            if (args.Length == 0)
-            {
-                Console.WriteLine("Technitium DNS Server");
-                Console.WriteLine("---------------------");
-                Console.WriteLine("Error! Expected command line parameter 'configFolder' is missing.");
-                Console.WriteLine("");
-                Console.WriteLine("Note: Create an empty folder and pass the folder path as parameter. This folder will store DNS config and zone data for this app instance.");
-                Console.WriteLine("Example: DnsServerApp.exe \"C:\\DnsConfig\\\"");
-                return;
-            }
+            string configFolder = null;
 
-            DnsWebService service = new DnsWebService(args[0]);
+            if (args.Length == 1)
+                configFolder = args[0];
+
+            DnsWebService service = new DnsWebService(configFolder);
 
             service.Start();
             Console.WriteLine("Technitium DNS Server was started successfully.");
-            Console.WriteLine("Press any key to stop...");
-            Console.ReadKey();
+            Console.WriteLine("Press ENTER key to stop...");
+            Console.ReadLine();
 
             service.Stop();
             Console.WriteLine("Technitium DNS Server was stopped successfully.");
