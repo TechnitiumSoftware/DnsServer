@@ -64,12 +64,20 @@ $(function () {
     });
 
     showPageLogin();
+    login("admin", "admin");
 });
 
-function login() {
+function login(username, password) {
 
-    var username = $("#txtUser").val();
-    var password = $("#txtPass").val();
+    var autoLogin = false;
+
+    if (username == null) {
+        username = $("#txtUser").val();
+        password = $("#txtPass").val();
+    }
+    else {
+        autoLogin = true;
+    }
 
     if ((username === null) || (username === "")) {
         showAlert("warning", "Missing!", "Please enter username.");
@@ -92,6 +100,9 @@ function login() {
         },
         error: function () {
             btn.button('reset');
+
+            if (autoLogin)
+                hideAlert();
         }
     });
 

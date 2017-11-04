@@ -99,17 +99,19 @@ function HTTPRequest(url, data, success, error, invalidToken, objAlertPlaceholde
                     break;
 
                 case "error":
+                    showAlert("danger", "Error!", responseJson.errorMessage, objAlertPlaceholder);
+
                     if (error != null)
                         error();
 
-                    showAlert("danger", "Error!", responseJson.errorMessage, objAlertPlaceholder);
                     break;
 
                 default:
+                    showAlert("danger", "Invalid Response!", "Server returned invalid response status: " + responseJson.status, objAlertPlaceholder);
+
                     if (error != null)
                         error();
 
-                    showAlert("danger", "Invalid Response!", "Server returned invalid response status: " + responseJson.status, objAlertPlaceholder);
                     break;
             }
 
