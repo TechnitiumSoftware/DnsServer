@@ -127,139 +127,149 @@ namespace DnsServerCore
 
                 if (path.StartsWith("/api/"))
                 {
-                    response.ContentType = "application/json; charset=utf-8";
-                    response.ContentEncoding = Encoding.UTF8;
-
-                    using (JsonTextWriter jsonWriter = new JsonTextWriter(new StreamWriter(response.OutputStream)))
+                    using (MemoryStream mS = new MemoryStream())
                     {
-                        jsonWriter.WriteStartObject();
-
-                        try
+                        using (JsonTextWriter jsonWriter = new JsonTextWriter(new StreamWriter(mS)))
                         {
-                            switch (path)
+                            jsonWriter.WriteStartObject();
+
+                            try
                             {
-                                case "/api/login":
-                                    Login(request, jsonWriter);
-                                    break;
+                                switch (path)
+                                {
+                                    case "/api/login":
+                                        Login(request, jsonWriter);
+                                        break;
 
-                                case "/api/logout":
-                                    Logout(request);
-                                    break;
+                                    case "/api/logout":
+                                        Logout(request);
+                                        break;
 
-                                default:
-                                    if (!IsSessionValid(request))
-                                        throw new InvalidTokenDnsWebServiceException("Invalid token or session expired.");
+                                    default:
+                                        if (!IsSessionValid(request))
+                                            throw new InvalidTokenDnsWebServiceException("Invalid token or session expired.");
 
-                                    jsonWriter.WritePropertyName("response");
-                                    jsonWriter.WriteStartObject();
+                                        jsonWriter.WritePropertyName("response");
+                                        jsonWriter.WriteStartObject();
 
-                                    try
-                                    {
-                                        switch (path)
+                                        try
                                         {
-                                            case "/api/changePassword":
-                                                ChangePassword(request);
-                                                break;
+                                            switch (path)
+                                            {
+                                                case "/api/changePassword":
+                                                    ChangePassword(request);
+                                                    break;
 
-                                            case "/api/checkForUpdate":
-                                                CheckForUpdate(jsonWriter);
-                                                break;
+                                                case "/api/checkForUpdate":
+                                                    CheckForUpdate(jsonWriter);
+                                                    break;
 
-                                            case "/api/getDnsSettings":
-                                                GetDnsSettings(jsonWriter);
-                                                break;
+                                                case "/api/getDnsSettings":
+                                                    GetDnsSettings(jsonWriter);
+                                                    break;
 
-                                            case "/api/setDnsSettings":
-                                                SetDnsSettings(request);
-                                                break;
+                                                case "/api/setDnsSettings":
+                                                    SetDnsSettings(request);
+                                                    break;
 
-                                            case "/api/flushDnsCache":
-                                                _dnsServer.CacheZoneRoot.Flush();
-                                                break;
+                                                case "/api/flushDnsCache":
+                                                    _dnsServer.CacheZoneRoot.Flush();
+                                                    break;
 
-                                            case "/api/listCachedZones":
-                                                ListCachedZones(request, jsonWriter);
-                                                break;
+                                                case "/api/listCachedZones":
+                                                    ListCachedZones(request, jsonWriter);
+                                                    break;
 
-                                            case "/api/deleteCachedZone":
-                                                DeleteCachedZone(request);
-                                                break;
+                                                case "/api/deleteCachedZone":
+                                                    DeleteCachedZone(request);
+                                                    break;
 
-                                            case "/api/listZones":
-                                                ListZones(jsonWriter);
-                                                break;
+                                                case "/api/listZones":
+                                                    ListZones(jsonWriter);
+                                                    break;
 
-                                            case "/api/createZone":
-                                                CreateZone(request);
-                                                break;
+                                                case "/api/createZone":
+                                                    CreateZone(request);
+                                                    break;
 
-                                            case "/api/deleteZone":
-                                                DeleteZone(request);
-                                                break;
+                                                case "/api/deleteZone":
+                                                    DeleteZone(request);
+                                                    break;
 
-                                            case "/api/enableZone":
-                                                EnableZone(request);
-                                                break;
+                                                case "/api/enableZone":
+                                                    EnableZone(request);
+                                                    break;
 
-                                            case "/api/disableZone":
-                                                DisableZone(request);
-                                                break;
+                                                case "/api/disableZone":
+                                                    DisableZone(request);
+                                                    break;
 
-                                            case "/api/addRecord":
-                                                AddRecord(request);
-                                                break;
+                                                case "/api/addRecord":
+                                                    AddRecord(request);
+                                                    break;
 
-                                            case "/api/getRecords":
-                                                GetRecords(request, jsonWriter);
-                                                break;
+                                                case "/api/getRecords":
+                                                    GetRecords(request, jsonWriter);
+                                                    break;
 
-                                            case "/api/deleteRecord":
-                                                DeleteRecord(request);
-                                                break;
+                                                case "/api/deleteRecord":
+                                                    DeleteRecord(request);
+                                                    break;
 
-                                            case "/api/updateRecord":
-                                                UpdateRecord(request);
-                                                break;
+                                                case "/api/updateRecord":
+                                                    UpdateRecord(request);
+                                                    break;
 
-                                            case "/api/resolveQuery":
-                                                ResolveQuery(request, jsonWriter);
-                                                break;
+                                                case "/api/resolveQuery":
+                                                    ResolveQuery(request, jsonWriter);
+                                                    break;
 
-                                            default:
-                                                throw new DnsWebServiceException("Invalid command: " + path);
+                                                default:
+                                                    throw new DnsWebServiceException("Invalid command: " + path);
+                                            }
                                         }
-                                    }
-                                    finally
-                                    {
-                                        jsonWriter.WriteEndObject();
-                                    }
-                                    break;
+                                        finally
+                                        {
+                                            jsonWriter.WriteEndObject();
+                                        }
+                                        break;
+                                }
+
+                                jsonWriter.WritePropertyName("status");
+                                jsonWriter.WriteValue("ok");
+                            }
+                            catch (InvalidTokenDnsWebServiceException ex)
+                            {
+                                jsonWriter.WritePropertyName("status");
+                                jsonWriter.WriteValue("invalid-token");
+
+                                jsonWriter.WritePropertyName("errorMessage");
+                                jsonWriter.WriteValue(ex.Message);
+                            }
+                            catch (Exception ex)
+                            {
+                                jsonWriter.WritePropertyName("status");
+                                jsonWriter.WriteValue("error");
+
+                                jsonWriter.WritePropertyName("errorMessage");
+                                jsonWriter.WriteValue(ex.Message);
+
+                                jsonWriter.WritePropertyName("stackTrace");
+                                jsonWriter.WriteValue(ex.StackTrace);
                             }
 
-                            jsonWriter.WritePropertyName("status");
-                            jsonWriter.WriteValue("ok");
+                            jsonWriter.WriteEndObject();
+
+                            jsonWriter.Flush();
+
+                            response.ContentType = "application/json; charset=utf-8";
+                            response.ContentEncoding = Encoding.UTF8;
+
+                            using (Stream stream = response.OutputStream)
+                            {
+                                mS.WriteTo(response.OutputStream);
+                            }
                         }
-                        catch (InvalidTokenDnsWebServiceException ex)
-                        {
-                            jsonWriter.WritePropertyName("status");
-                            jsonWriter.WriteValue("invalid-token");
-
-                            jsonWriter.WritePropertyName("errorMessage");
-                            jsonWriter.WriteValue(ex.Message);
-                        }
-                        catch (Exception ex)
-                        {
-                            jsonWriter.WritePropertyName("status");
-                            jsonWriter.WriteValue("error");
-
-                            jsonWriter.WritePropertyName("errorMessage");
-                            jsonWriter.WriteValue(ex.Message);
-
-                            jsonWriter.WritePropertyName("stackTrace");
-                            jsonWriter.WriteValue(ex.StackTrace);
-                        }
-
-                        jsonWriter.WriteEndObject();
                     }
                 }
                 else
@@ -286,7 +296,12 @@ namespace DnsServerCore
             }
             catch (Exception ex)
             {
-                Send500(response, ex);
+                try
+                {
+                    Send500(response, ex);
+                }
+                catch
+                { }
             }
         }
 
