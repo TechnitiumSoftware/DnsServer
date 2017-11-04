@@ -15,14 +15,20 @@
     {
         "Entry"
         {
-        "MsmKey" = "8:_215D4D58D7EC4D2AAEB2F99D8BFB9758"
+        "MsmKey" = "8:_15991140B7544DE8B0A1CC5BC70CB9AB"
+        "OwnerKey" = "8:_UNDEFINED"
+        "MsmSig" = "8:_UNDEFINED"
+        }
+        "Entry"
+        {
+        "MsmKey" = "8:_3A68F4CD330342C29F36E5CDC72A9700"
         "OwnerKey" = "8:_UNDEFINED"
         "MsmSig" = "8:_UNDEFINED"
         }
         "Entry"
         {
         "MsmKey" = "8:_45DD210EAFF8F7BF1EB143A29E746376"
-        "OwnerKey" = "8:_215D4D58D7EC4D2AAEB2F99D8BFB9758"
+        "OwnerKey" = "8:_660DBF7FDBC94D1497784165428392A6"
         "MsmSig" = "8:_UNDEFINED"
         }
         "Entry"
@@ -34,7 +40,25 @@
         "Entry"
         {
         "MsmKey" = "8:_485D68BB84478F1A4A2FEE1613C4D833"
-        "OwnerKey" = "8:_215D4D58D7EC4D2AAEB2F99D8BFB9758"
+        "OwnerKey" = "8:_660DBF7FDBC94D1497784165428392A6"
+        "MsmSig" = "8:_UNDEFINED"
+        }
+        "Entry"
+        {
+        "MsmKey" = "8:_48AC206A6928424003A8AA65481A25FD"
+        "OwnerKey" = "8:_45DD210EAFF8F7BF1EB143A29E746376"
+        "MsmSig" = "8:_UNDEFINED"
+        }
+        "Entry"
+        {
+        "MsmKey" = "8:_48AC206A6928424003A8AA65481A25FD"
+        "OwnerKey" = "8:_660DBF7FDBC94D1497784165428392A6"
+        "MsmSig" = "8:_UNDEFINED"
+        }
+        "Entry"
+        {
+        "MsmKey" = "8:_660DBF7FDBC94D1497784165428392A6"
+        "OwnerKey" = "8:_UNDEFINED"
         "MsmSig" = "8:_UNDEFINED"
         }
         "Entry"
@@ -46,31 +70,13 @@
         "Entry"
         {
         "MsmKey" = "8:_87B1B336016C5957BCE4EBC8D5DB694E"
-        "OwnerKey" = "8:_215D4D58D7EC4D2AAEB2F99D8BFB9758"
+        "OwnerKey" = "8:_660DBF7FDBC94D1497784165428392A6"
         "MsmSig" = "8:_UNDEFINED"
         }
         "Entry"
         {
         "MsmKey" = "8:_87B1B336016C5957BCE4EBC8D5DB694E"
         "OwnerKey" = "8:_485D68BB84478F1A4A2FEE1613C4D833"
-        "MsmSig" = "8:_UNDEFINED"
-        }
-        "Entry"
-        {
-        "MsmKey" = "8:_F6AAEAEE0D97E2E4385ED1051A108C76"
-        "OwnerKey" = "8:_45DD210EAFF8F7BF1EB143A29E746376"
-        "MsmSig" = "8:_UNDEFINED"
-        }
-        "Entry"
-        {
-        "MsmKey" = "8:_F6AAEAEE0D97E2E4385ED1051A108C76"
-        "OwnerKey" = "8:_215D4D58D7EC4D2AAEB2F99D8BFB9758"
-        "MsmSig" = "8:_UNDEFINED"
-        }
-        "Entry"
-        {
-        "MsmKey" = "8:_UNDEFINED"
-        "OwnerKey" = "8:_215D4D58D7EC4D2AAEB2F99D8BFB9758"
         "MsmSig" = "8:_UNDEFINED"
         }
         "Entry"
@@ -88,13 +94,19 @@
         "Entry"
         {
         "MsmKey" = "8:_UNDEFINED"
+        "OwnerKey" = "8:_48AC206A6928424003A8AA65481A25FD"
+        "MsmSig" = "8:_UNDEFINED"
+        }
+        "Entry"
+        {
+        "MsmKey" = "8:_UNDEFINED"
         "OwnerKey" = "8:_45DD210EAFF8F7BF1EB143A29E746376"
         "MsmSig" = "8:_UNDEFINED"
         }
         "Entry"
         {
         "MsmKey" = "8:_UNDEFINED"
-        "OwnerKey" = "8:_F6AAEAEE0D97E2E4385ED1051A108C76"
+        "OwnerKey" = "8:_660DBF7FDBC94D1497784165428392A6"
         "MsmSig" = "8:_UNDEFINED"
         }
     }
@@ -115,6 +127,22 @@
         "PrivateKeyFile" = "8:"
         "TimeStampServer" = "8:"
         "InstallerBootstrapper" = "3:2"
+            "BootstrapperCfg:{63ACBE69-63AA-4F98-B2B6-99F9E24495F2}"
+            {
+            "Enabled" = "11:TRUE"
+            "PromptEnabled" = "11:TRUE"
+            "PrerequisitesLocation" = "2:1"
+            "Url" = "8:"
+            "ComponentsUrl" = "8:"
+                "Items"
+                {
+                    "{EDC2488A-8267-493A-A98E-7D9C3B36CDF3}:.NETFramework,Version=v4.6.1"
+                    {
+                    "Name" = "8:Microsoft .NET Framework 4.6.1 (x86 and x64)"
+                    "ProductCode" = "8:.NETFramework,Version=v4.6.1"
+                    }
+                }
+            }
         }
         "Release"
         {
@@ -131,65 +159,81 @@
         "PrivateKeyFile" = "8:"
         "TimeStampServer" = "8:"
         "InstallerBootstrapper" = "3:2"
+            "BootstrapperCfg:{63ACBE69-63AA-4F98-B2B6-99F9E24495F2}"
+            {
+            "Enabled" = "11:TRUE"
+            "PromptEnabled" = "11:TRUE"
+            "PrerequisitesLocation" = "2:1"
+            "Url" = "8:"
+            "ComponentsUrl" = "8:"
+                "Items"
+                {
+                    "{EDC2488A-8267-493A-A98E-7D9C3B36CDF3}:.NETFramework,Version=v4.6.1"
+                    {
+                    "Name" = "8:Microsoft .NET Framework 4.6.1 (x86 and x64)"
+                    "ProductCode" = "8:.NETFramework,Version=v4.6.1"
+                    }
+                }
+            }
         }
     }
     "Deployable"
     {
         "CustomAction"
         {
-            "{4AA51A2D-7D85-4A59-BA75-B0809FC8B380}:_2DDA369ACF804D3F955FB1FD9A52CFCC"
+            "{4AA51A2D-7D85-4A59-BA75-B0809FC8B380}:_0919DA4C75C24E5BB66AC4422726BB01"
             {
-            "Name" = "8:Primary output from DnsService (Release Any CPU)"
+            "Name" = "8:Primary output from DnsService (Active)"
             "Condition" = "8:"
-            "Object" = "8:_215D4D58D7EC4D2AAEB2F99D8BFB9758"
-            "FileType" = "3:2"
-            "InstallAction" = "3:4"
-            "Arguments" = "8:"
-            "EntryPoint" = "8:"
-            "Sequence" = "3:1"
-            "Identifier" = "8:_7D7B077C_13BC_442C_A378_6A3238A8679F"
-            "InstallerClass" = "11:TRUE"
-            "CustomActionData" = "8:"
-            }
-            "{4AA51A2D-7D85-4A59-BA75-B0809FC8B380}:_4EA414F779554BD3A2B80EB6CA3FF482"
-            {
-            "Name" = "8:Primary output from DnsService (Release Any CPU)"
-            "Condition" = "8:"
-            "Object" = "8:_215D4D58D7EC4D2AAEB2F99D8BFB9758"
-            "FileType" = "3:2"
-            "InstallAction" = "3:1"
-            "Arguments" = "8:"
-            "EntryPoint" = "8:"
-            "Sequence" = "3:1"
-            "Identifier" = "8:_86C83C4E_7BDC_452B_83CB_9731247435DC"
-            "InstallerClass" = "11:TRUE"
-            "CustomActionData" = "8:"
-            }
-            "{4AA51A2D-7D85-4A59-BA75-B0809FC8B380}:_7EB5BCE8563140F986B21FFFFE0EDA89"
-            {
-            "Name" = "8:Primary output from DnsService (Release Any CPU)"
-            "Condition" = "8:"
-            "Object" = "8:_215D4D58D7EC4D2AAEB2F99D8BFB9758"
+            "Object" = "8:_660DBF7FDBC94D1497784165428392A6"
             "FileType" = "3:2"
             "InstallAction" = "3:2"
             "Arguments" = "8:"
             "EntryPoint" = "8:"
             "Sequence" = "3:1"
-            "Identifier" = "8:_28B47D75_B315_41B9_8442_D24FDAE61C37"
+            "Identifier" = "8:_A70C2390_F2F3_456E_8C46_0AB6EF700CCC"
             "InstallerClass" = "11:TRUE"
             "CustomActionData" = "8:"
             }
-            "{4AA51A2D-7D85-4A59-BA75-B0809FC8B380}:_CEEA5CD90A674AEA869DB80CAF04ECB8"
+            "{4AA51A2D-7D85-4A59-BA75-B0809FC8B380}:_684D1575FBB4413CA43352AC3AAD0F0C"
             {
-            "Name" = "8:Primary output from DnsService (Release Any CPU)"
+            "Name" = "8:Primary output from DnsService (Active)"
             "Condition" = "8:"
-            "Object" = "8:_215D4D58D7EC4D2AAEB2F99D8BFB9758"
+            "Object" = "8:_660DBF7FDBC94D1497784165428392A6"
+            "FileType" = "3:2"
+            "InstallAction" = "3:4"
+            "Arguments" = "8:"
+            "EntryPoint" = "8:"
+            "Sequence" = "3:1"
+            "Identifier" = "8:_139454E6_7DB8_48C5_BC65_50D9E272E3C6"
+            "InstallerClass" = "11:TRUE"
+            "CustomActionData" = "8:"
+            }
+            "{4AA51A2D-7D85-4A59-BA75-B0809FC8B380}:_93D0BE33A5684F808D07F6530963E48F"
+            {
+            "Name" = "8:Primary output from DnsService (Active)"
+            "Condition" = "8:"
+            "Object" = "8:_660DBF7FDBC94D1497784165428392A6"
+            "FileType" = "3:2"
+            "InstallAction" = "3:1"
+            "Arguments" = "8:"
+            "EntryPoint" = "8:"
+            "Sequence" = "3:1"
+            "Identifier" = "8:_84522D99_AD88_4CA1_9C6C_2111FF93D6D9"
+            "InstallerClass" = "11:TRUE"
+            "CustomActionData" = "8:"
+            }
+            "{4AA51A2D-7D85-4A59-BA75-B0809FC8B380}:_B6828F3A9E5F402299F7655907DC5944"
+            {
+            "Name" = "8:Primary output from DnsService (Active)"
+            "Condition" = "8:"
+            "Object" = "8:_660DBF7FDBC94D1497784165428392A6"
             "FileType" = "3:2"
             "InstallAction" = "3:3"
             "Arguments" = "8:"
             "EntryPoint" = "8:"
             "Sequence" = "3:1"
-            "Identifier" = "8:_CFEF72F4_6A21_4143_94E9_58F2D662E67A"
+            "Identifier" = "8:_E76B1F10_1C31_43AE_84C7_EE12C5779F61"
             "InstallerClass" = "11:TRUE"
             "CustomActionData" = "8:"
             }
@@ -216,6 +260,46 @@
         }
         "File"
         {
+            "{1FB2D0AE-D3B9-43D4-B9DD-F88EC61E35DE}:_15991140B7544DE8B0A1CC5BC70CB9AB"
+            {
+            "SourcePath" = "8:Technitium DNS Server.url"
+            "TargetName" = "8:Technitium DNS Server.url"
+            "Tag" = "8:"
+            "Folder" = "8:_B64F4B2B381C4C938D59A088F053533E"
+            "Condition" = "8:"
+            "Transitive" = "11:FALSE"
+            "Vital" = "11:TRUE"
+            "ReadOnly" = "11:FALSE"
+            "Hidden" = "11:FALSE"
+            "System" = "11:FALSE"
+            "Permanent" = "11:FALSE"
+            "SharedLegacy" = "11:FALSE"
+            "PackageAs" = "3:1"
+            "Register" = "3:1"
+            "Exclude" = "11:FALSE"
+            "IsDependency" = "11:FALSE"
+            "IsolateTo" = "8:"
+            }
+            "{1FB2D0AE-D3B9-43D4-B9DD-F88EC61E35DE}:_3A68F4CD330342C29F36E5CDC72A9700"
+            {
+            "SourcePath" = "8:..\\DnsService\\logo2.ico"
+            "TargetName" = "8:logo2.ico"
+            "Tag" = "8:"
+            "Folder" = "8:_92D8D371EEF34E8A92831042A33F621E"
+            "Condition" = "8:"
+            "Transitive" = "11:FALSE"
+            "Vital" = "11:TRUE"
+            "ReadOnly" = "11:FALSE"
+            "Hidden" = "11:FALSE"
+            "System" = "11:FALSE"
+            "Permanent" = "11:FALSE"
+            "SharedLegacy" = "11:FALSE"
+            "PackageAs" = "3:1"
+            "Register" = "3:1"
+            "Exclude" = "11:FALSE"
+            "IsDependency" = "11:FALSE"
+            "IsolateTo" = "8:"
+            }
             "{9F6F8455-1EF1-4B85-886A-4223BCC8E7F7}:_45DD210EAFF8F7BF1EB143A29E746376"
             {
             "AssemblyRegister" = "3:1"
@@ -278,20 +362,20 @@
             "IsDependency" = "11:TRUE"
             "IsolateTo" = "8:"
             }
-            "{9F6F8455-1EF1-4B85-886A-4223BCC8E7F7}:_87B1B336016C5957BCE4EBC8D5DB694E"
+            "{9F6F8455-1EF1-4B85-886A-4223BCC8E7F7}:_48AC206A6928424003A8AA65481A25FD"
             {
             "AssemblyRegister" = "3:1"
             "AssemblyIsInGAC" = "11:FALSE"
-            "AssemblyAsmDisplayName" = "8:TechnitiumLibrary.IO, Version=2.3.2.1, Culture=neutral, processorArchitecture=MSIL"
+            "AssemblyAsmDisplayName" = "8:Newtonsoft.Json, Version=9.0.0.0, Culture=neutral, PublicKeyToken=30ad4fe6b2a6aeed, processorArchitecture=MSIL"
                 "ScatterAssemblies"
                 {
-                    "_87B1B336016C5957BCE4EBC8D5DB694E"
+                    "_48AC206A6928424003A8AA65481A25FD"
                     {
-                    "Name" = "8:TechnitiumLibrary.IO.dll"
+                    "Name" = "8:Newtonsoft.Json.dll"
                     "Attributes" = "3:512"
                     }
                 }
-            "SourcePath" = "8:TechnitiumLibrary.IO.dll"
+            "SourcePath" = "8:Newtonsoft.Json.dll"
             "TargetName" = "8:"
             "Tag" = "8:"
             "Folder" = "8:_92D8D371EEF34E8A92831042A33F621E"
@@ -309,20 +393,20 @@
             "IsDependency" = "11:TRUE"
             "IsolateTo" = "8:"
             }
-            "{9F6F8455-1EF1-4B85-886A-4223BCC8E7F7}:_F6AAEAEE0D97E2E4385ED1051A108C76"
+            "{9F6F8455-1EF1-4B85-886A-4223BCC8E7F7}:_87B1B336016C5957BCE4EBC8D5DB694E"
             {
             "AssemblyRegister" = "3:1"
             "AssemblyIsInGAC" = "11:FALSE"
-            "AssemblyAsmDisplayName" = "8:Newtonsoft.Json, Version=9.0.0.0, Culture=neutral, PublicKeyToken=30ad4fe6b2a6aeed, processorArchitecture=MSIL"
+            "AssemblyAsmDisplayName" = "8:TechnitiumLibrary.IO, Version=2.3.2.1, Culture=neutral, processorArchitecture=MSIL"
                 "ScatterAssemblies"
                 {
-                    "_F6AAEAEE0D97E2E4385ED1051A108C76"
+                    "_87B1B336016C5957BCE4EBC8D5DB694E"
                     {
-                    "Name" = "8:Newtonsoft.Json.dll"
+                    "Name" = "8:TechnitiumLibrary.IO.dll"
                     "Attributes" = "3:512"
                     }
                 }
-            "SourcePath" = "8:Newtonsoft.Json.dll"
+            "SourcePath" = "8:TechnitiumLibrary.IO.dll"
             "TargetName" = "8:"
             "Tag" = "8:"
             "Folder" = "8:_92D8D371EEF34E8A92831042A33F621E"
@@ -367,17 +451,6 @@
             "Property" = "8:TARGETDIR"
                 "Folders"
                 {
-                    "{9EF0B969-E518-4E46-987F-47570745A589}:_37523C33C82C4758A8A2DFBB77F324B8"
-                    {
-                    "Name" = "8:config"
-                    "AlwaysCreate" = "11:FALSE"
-                    "Condition" = "8:"
-                    "Transitive" = "11:FALSE"
-                    "Property" = "8:_1EE532B613FF4670A4488B737C7C1A02"
-                        "Folders"
-                        {
-                        }
-                    }
                 }
             }
             "{1525181F-901A-416C-8A58-119130FE478E}:_B64F4B2B381C4C938D59A088F053533E"
@@ -408,7 +481,7 @@
         "Name" = "8:Microsoft Visual Studio"
         "ProductName" = "8:Technitium DNS Server"
         "ProductCode" = "8:{2164B43B-AC68-4695-8B0D-E2D7674A5DB5}"
-        "PackageCode" = "8:{A18A08FD-63FB-48C5-B16F-7CBCA6A1D4E4}"
+        "PackageCode" = "8:{CE2A9536-34B8-4A14-8226-9BD0D1842E82}"
         "UpgradeCode" = "8:{ED5F64A5-EFD9-4A95-AA7C-4B8447343BD4}"
         "AspNetVersion" = "8:4.0.30319.0"
         "RestartWWWService" = "11:FALSE"
@@ -418,14 +491,14 @@
         "ProductVersion" = "8:1.0.0"
         "Manufacturer" = "8:Technitium"
         "ARPHELPTELEPHONE" = "8:"
-        "ARPHELPLINK" = "8:https://technitium.com"
+        "ARPHELPLINK" = "8:https://technitium.com/dns/"
         "Title" = "8:Technitium DNS Server"
         "Subject" = "8:"
         "ARPCONTACT" = "8:Technitium"
         "Keywords" = "8:"
         "ARPCOMMENTS" = "8:Technitium DNS Server"
-        "ARPURLINFOABOUT" = "8:https://technitium.com"
-        "ARPPRODUCTICON" = "8:"
+        "ARPURLINFOABOUT" = "8:https://technitium.com/"
+        "ARPPRODUCTICON" = "8:_3A68F4CD330342C29F36E5CDC72A9700"
         "ARPIconIndex" = "3:0"
         "SearchPath" = "8:"
         "UseSystemSearchPath" = "11:TRUE"
@@ -927,34 +1000,6 @@
         }
         "ProjectOutput"
         {
-            "{5259A561-127C-4D43-A0A1-72F10C7B3BF8}:_215D4D58D7EC4D2AAEB2F99D8BFB9758"
-            {
-            "SourcePath" = "8:..\\DnsService\\obj\\Release\\DnsService.exe"
-            "TargetName" = "8:"
-            "Tag" = "8:"
-            "Folder" = "8:_92D8D371EEF34E8A92831042A33F621E"
-            "Condition" = "8:"
-            "Transitive" = "11:FALSE"
-            "Vital" = "11:TRUE"
-            "ReadOnly" = "11:FALSE"
-            "Hidden" = "11:FALSE"
-            "System" = "11:FALSE"
-            "Permanent" = "11:FALSE"
-            "SharedLegacy" = "11:FALSE"
-            "PackageAs" = "3:1"
-            "Register" = "3:1"
-            "Exclude" = "11:FALSE"
-            "IsDependency" = "11:FALSE"
-            "IsolateTo" = "8:"
-            "ProjectOutputGroupRegister" = "3:1"
-            "OutputConfiguration" = "8:Release|Any CPU"
-            "OutputGroupCanonicalName" = "8:Built"
-            "OutputProjectGuid" = "8:{7873B2B8-01BA-48BC-B4B0-0857FFD873C9}"
-            "ShowKeyOutput" = "11:TRUE"
-                "ExcludeFilters"
-                {
-                }
-            }
             "{5259A561-127C-4D43-A0A1-72F10C7B3BF8}:_409D4293597744A68638FB3A82632C05"
             {
             "SourcePath" = "8:"
@@ -978,6 +1023,34 @@
             "OutputConfiguration" = "8:"
             "OutputGroupCanonicalName" = "8:ContentFiles"
             "OutputProjectGuid" = "8:{A561CF13-FE21-40A1-BF8D-BD242304187A}"
+            "ShowKeyOutput" = "11:TRUE"
+                "ExcludeFilters"
+                {
+                }
+            }
+            "{5259A561-127C-4D43-A0A1-72F10C7B3BF8}:_660DBF7FDBC94D1497784165428392A6"
+            {
+            "SourcePath" = "8:..\\DnsService\\obj\\Release\\DnsService.exe"
+            "TargetName" = "8:"
+            "Tag" = "8:"
+            "Folder" = "8:_92D8D371EEF34E8A92831042A33F621E"
+            "Condition" = "8:"
+            "Transitive" = "11:FALSE"
+            "Vital" = "11:TRUE"
+            "ReadOnly" = "11:FALSE"
+            "Hidden" = "11:FALSE"
+            "System" = "11:FALSE"
+            "Permanent" = "11:FALSE"
+            "SharedLegacy" = "11:FALSE"
+            "PackageAs" = "3:1"
+            "Register" = "3:1"
+            "Exclude" = "11:FALSE"
+            "IsDependency" = "11:FALSE"
+            "IsolateTo" = "8:"
+            "ProjectOutputGroupRegister" = "3:1"
+            "OutputConfiguration" = "8:"
+            "OutputGroupCanonicalName" = "8:Built"
+            "OutputProjectGuid" = "8:{7873B2B8-01BA-48BC-B4B0-0857FFD873C9}"
             "ShowKeyOutput" = "11:TRUE"
                 "ExcludeFilters"
                 {
