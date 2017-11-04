@@ -1392,6 +1392,19 @@ namespace DnsServerCore
         }
 
         #endregion
+
+        #region properties
+
+        public string ConfigFolder
+        { get { return _configFolder; } }
+
+        public string ServerDomain
+        { get { return _serverDomain; } }
+
+        public int WebServicePort
+        { get { return _webServicePort; } }
+
+        #endregion
     }
 
     public class UserSession
