@@ -130,10 +130,12 @@ namespace DnsServerCore
 
             for (int i = 0; i < path.Length; i++)
             {
-                string nextZoneName = path[i];
+                string nextZoneLabel = path[i];
 
-                if (currentZone._zones.TryGetValue(nextZoneName, out Zone nextZone))
+                if (currentZone._zones.TryGetValue(nextZoneLabel, out Zone nextZone))
                     currentZone = nextZone;
+                else if (currentZone._zones.TryGetValue("*", out Zone nextWildcardZone))
+                    currentZone = nextWildcardZone;
                 else
                     return currentZone;
 
@@ -144,45 +146,54 @@ namespace DnsServerCore
             return currentZone;
         }
 
-        private static Zone GetZone(Zone rootZone, string domain)
+        private static Zone GetZone(Zone rootZone, string domain, bool authoritative = false)
         {
+            Zone authoritativeZone = null;
             Zone currentZone = rootZone;
             string[] path = ConvertDomainToPath(domain);
 
             for (int i = 0; i < path.Length; i++)
             {
-                string nextZoneName = path[i];
+                string nextZoneLabel = path[i];
 
-                if (currentZone._zones.TryGetValue(nextZoneName, out Zone nextZone))
+                if (currentZone._zones.TryGetValue(nextZoneLabel, out Zone nextZone))
+                {
                     currentZone = nextZone;
+                }
                 else
+                {
+                    if (authoritative)
+                        return authoritativeZone;
+
                     return null;
+                }
+
+                if (authoritative && currentZone._entries.ContainsKey(DnsResourceRecordType.SOA))
+                    authoritativeZone = currentZone;
             }
+
+            if (authoritative)
+                return authoritativeZone;
 
             return currentZone;
         }
 
-        private static Zone[] DeleteZone(Zone rootZone, string domain)
+        private static void DeleteZone(Zone rootZone, string domain)
         {
             Zone currentZone = GetZone(rootZone, domain);
             if (currentZone == null)
-                return null;
+                return;
 
             if (!currentZone._authoritativeZone && (currentZone._zoneName.Equals("root-servers.net", StringComparison.CurrentCultureIgnoreCase)))
-                return null; //cannot delete root-servers.net
+                return; //cannot delete root-servers.net
 
             currentZone._entries.Clear();
 
-            List<Zone> deletedSubDomains = new List<Zone>();
-
-            DeleteSubDomains(currentZone, deletedSubDomains);
-
+            DeleteSubDomains(currentZone);
             DeleteEmptyParentZones(currentZone);
-
-            return deletedSubDomains.ToArray();
         }
 
-        private static bool DeleteSubDomains(Zone currentZone, List<Zone> deletedSubDomains)
+        private static bool DeleteSubDomains(Zone currentZone)
         {
             if (currentZone._authoritativeZone)
             {
@@ -197,13 +208,12 @@ namespace DnsServerCore
             }
 
             currentZone._entries.Clear();
-            deletedSubDomains.Add(currentZone);
 
             List<Zone> subDomainsToDelete = new List<Zone>();
 
             foreach (KeyValuePair<string, Zone> zone in currentZone._zones)
             {
-                if (DeleteSubDomains(zone.Value, deletedSubDomains))
+                if (DeleteSubDomains(zone.Value))
                     subDomainsToDelete.Add(zone.Value);
             }
 
@@ -447,7 +457,7 @@ namespace DnsServerCore
             if (closestZone._disabled)
                 return new DnsDatagram(new DnsHeader(request.Header.Identifier, true, DnsOpcode.StandardQuery, false, false, request.Header.RecursionDesired, false, false, false, DnsResponseCode.Refused, 1, 0, 0, 0), request.Question, new DnsResourceRecord[] { }, new DnsResourceRecord[] { }, new DnsResourceRecord[] { });
 
-            if (closestZone._zoneName.Equals(domain))
+            if (closestZone._zoneName.Equals(domain) || (closestZone._zoneLabel == "*"))
             {
                 //zone found
                 DnsResourceRecord[] records = closestZone.QueryRecords(question.Type);
@@ -464,6 +474,19 @@ namespace DnsServerCore
                 else
                 {
                     //record type found
+                    if (closestZone._zoneLabel == "*")
+                    {
+                        DnsResourceRecord[] wildcardRecords = new DnsResourceRecord[records.Length];
+
+                        for (int i = 0; i < records.Length; i++)
+                        {
+                            DnsResourceRecord record = records[i];
+                            wildcardRecords[i] = new DnsResourceRecord(domain, record.Type, record.Class, record.TTLValue, record.RDATA);
+                        }
+
+                        records = wildcardRecords;
+                    }
+
                     return new DnsDatagram(new DnsHeader(request.Header.Identifier, true, DnsOpcode.StandardQuery, true, false, request.Header.RecursionDesired, false, false, false, DnsResponseCode.NoError, 1, (ushort)records.Length, 0, 0), request.Question, records, new DnsResourceRecord[] { }, new DnsResourceRecord[] { });
                 }
             }
@@ -746,9 +769,9 @@ namespace DnsServerCore
                 currentZone.DeleteRecords(type);
         }
 
-        public DnsResourceRecord[] GetAllRecords(string domain = "", bool includeSubDomains = true)
+        public DnsResourceRecord[] GetAllRecords(string domain = "", bool includeSubDomains = true, bool authoritative = false)
         {
-            Zone currentZone = GetZone(this, domain);
+            Zone currentZone = GetZone(this, domain, authoritative);
             if (currentZone == null)
                 return null;
 
@@ -788,18 +811,9 @@ namespace DnsServerCore
             return zoneNames.ToArray();
         }
 
-        public string[] DeleteZone(string domain)
+        public void DeleteZone(string domain)
         {
-            Zone[] deletedZones = DeleteZone(this, domain);
-            if (deletedZones == null)
-                return new string[] { };
-
-            List<string> deletedZoneNames = new List<string>();
-
-            foreach (Zone deletedZone in deletedZones)
-                deletedZoneNames.Add(deletedZone._zoneName);
-
-            return deletedZoneNames.ToArray();
+            DeleteZone(this, domain);
         }
 
         public void DisableZone(string domain)
