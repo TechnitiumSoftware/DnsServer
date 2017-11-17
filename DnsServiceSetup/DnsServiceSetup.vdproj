@@ -307,11 +307,6 @@
             "AssemblyAsmDisplayName" = "8:DnsServerCore, Version=1.0.0.0, Culture=neutral, processorArchitecture=MSIL"
                 "ScatterAssemblies"
                 {
-                    "_45DD210EAFF8F7BF1EB143A29E746376"
-                    {
-                    "Name" = "8:DnsServerCore.dll"
-                    "Attributes" = "3:512"
-                    }
                 }
             "SourcePath" = "8:DnsServerCore.dll"
             "TargetName" = "8:"
@@ -338,11 +333,6 @@
             "AssemblyAsmDisplayName" = "8:TechnitiumLibrary.Net, Version=2.3.1.0, Culture=neutral, processorArchitecture=MSIL"
                 "ScatterAssemblies"
                 {
-                    "_485D68BB84478F1A4A2FEE1613C4D833"
-                    {
-                    "Name" = "8:TechnitiumLibrary.Net.dll"
-                    "Attributes" = "3:512"
-                    }
                 }
             "SourcePath" = "8:TechnitiumLibrary.Net.dll"
             "TargetName" = "8:"
@@ -369,11 +359,6 @@
             "AssemblyAsmDisplayName" = "8:Newtonsoft.Json, Version=9.0.0.0, Culture=neutral, PublicKeyToken=30ad4fe6b2a6aeed, processorArchitecture=MSIL"
                 "ScatterAssemblies"
                 {
-                    "_48AC206A6928424003A8AA65481A25FD"
-                    {
-                    "Name" = "8:Newtonsoft.Json.dll"
-                    "Attributes" = "3:512"
-                    }
                 }
             "SourcePath" = "8:Newtonsoft.Json.dll"
             "TargetName" = "8:"
@@ -400,11 +385,6 @@
             "AssemblyAsmDisplayName" = "8:TechnitiumLibrary.IO, Version=2.3.2.1, Culture=neutral, processorArchitecture=MSIL"
                 "ScatterAssemblies"
                 {
-                    "_87B1B336016C5957BCE4EBC8D5DB694E"
-                    {
-                    "Name" = "8:TechnitiumLibrary.IO.dll"
-                    "Attributes" = "3:512"
-                    }
                 }
             "SourcePath" = "8:TechnitiumLibrary.IO.dll"
             "TargetName" = "8:"
@@ -479,16 +459,16 @@
         "Product"
         {
         "Name" = "8:Microsoft Visual Studio"
-        "ProductName" = "8:Technitium DNS Server"
-        "ProductCode" = "8:{2164B43B-AC68-4695-8B0D-E2D7674A5DB5}"
-        "PackageCode" = "8:{7EE9B0A6-F988-4615-8C19-B4E00350F59D}"
+        "ProductName" = "8:DNS Server"
+        "ProductCode" = "8:{719D4CA2-5043-484B-AE8F-EED9BAE01A67}"
+        "PackageCode" = "8:{10FA54B8-974F-41EB-BF30-D4A42DC98945}"
         "UpgradeCode" = "8:{ED5F64A5-EFD9-4A95-AA7C-4B8447343BD4}"
         "AspNetVersion" = "8:4.0.30319.0"
         "RestartWWWService" = "11:FALSE"
         "RemovePreviousVersions" = "11:TRUE"
         "DetectNewerInstalledVersion" = "11:TRUE"
         "InstallAllUsers" = "11:TRUE"
-        "ProductVersion" = "8:1.0.0"
+        "ProductVersion" = "8:1.1.0"
         "Manufacturer" = "8:Technitium"
         "ARPHELPTELEPHONE" = "8:"
         "ARPHELPLINK" = "8:https://technitium.com/dns/"
