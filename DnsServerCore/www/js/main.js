@@ -698,7 +698,7 @@ function renderStandardResourceRecord(record, domain) {
 
     html += "<div class=\"form-group\">";
     html += "<label for=\"txtName" + id + "\">Name</label>";
-    html += "<input id=\"txtName" + id + "\" type=\"text\" class=\"form-control\" placeholder=\"@\" style=\"width: 136px;\" value=\"" + name + "\" disabled>";
+    html += "<input id=\"txtName" + id + "\" type=\"text\" class=\"form-control\" placeholder=\"@\" style=\"width: 120px;\" value=\"" + name + "\" disabled>";
     html += "</div>";
 
     //value
