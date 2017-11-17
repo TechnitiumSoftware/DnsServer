@@ -691,10 +691,8 @@ namespace DnsServerCore
             if (string.IsNullOrEmpty(domain))
                 throw new DnsWebServiceException("Parameter 'domain' missing.");
 
-            string[] deletedZones = _dnsServer.AuthoritativeZoneRoot.DeleteZone(domain);
-
-            foreach (string deletedZone in deletedZones)
-                DeleteZoneFile(deletedZone);
+            _dnsServer.AuthoritativeZoneRoot.DeleteZone(domain);
+            DeleteZoneFile(domain);
         }
 
         private void EnableZone(HttpListenerRequest request)
@@ -1311,26 +1309,22 @@ namespace DnsServerCore
         private void SaveZoneFile(string domain)
         {
             domain = domain.ToLower();
-            DnsResourceRecord[] records = _dnsServer.AuthoritativeZoneRoot.GetAllRecords(domain, false);
+            DnsResourceRecord[] records = _dnsServer.AuthoritativeZoneRoot.GetAllRecords(domain, true, true);
 
-            if ((records == null) || (records.Length == 0))
-            {
-                DeleteZoneFile(domain);
-            }
-            else
-            {
-                using (FileStream fS = new FileStream(Path.Combine(_configFolder, domain + ".zone"), FileMode.Create, FileAccess.Write))
-                {
-                    BincodingEncoder encoder = new BincodingEncoder(fS, "DZ", 1);
+            string authZone = records[0].Name.ToLower();
 
-                    encoder.Encode(records);
-                }
+            using (FileStream fS = new FileStream(Path.Combine(_configFolder, authZone + ".zone"), FileMode.Create, FileAccess.Write))
+            {
+                BincodingEncoder encoder = new BincodingEncoder(fS, "DZ", 1);
+
+                encoder.Encode(records);
             }
         }
 
         private void DeleteZoneFile(string domain)
         {
             domain = domain.ToLower();
+
             File.Delete(Path.Combine(_configFolder, domain + ".zone"));
         }
 
