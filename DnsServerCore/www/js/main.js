@@ -57,7 +57,7 @@ $(function () {
     var headerHtml = $("#header").html();
 
     $("#header").html("<div class=\"title\"><a href=\"/\"><img src=\"/img/logo25x25.png\" alt=\"Technitium Logo\" /><span class=\"text\" style=\"color: #ffffff;\">Technitium</span></a>" + headerHtml + "</div>");
-    $("#footer").html("<div class=\"content\"><a href=\"https://technitium.com\" target=\"_blank\">Technitium</a> | <a href=\"http://blog.technitium.com\" target=\"_blank\">Blog</a> | <a href=\"https://github.com/TechnitiumSoftware/DnsServer\" target=\"_blank\"><i class=\"fa fa-github\"></i>&nbsp;GitHub</a> | <a href=\"https://technitium.com/aboutus.html\" target=\"_blank\">About</a></div>");
+    $("#footer").html("<div class=\"content\"><a href=\"https://technitium.com\" target=\"_blank\">Technitium</a> | <a href=\"http://blog.technitium.com\" target=\"_blank\">Blog</a> | <a href=\"http://dnsclient.net/\" target=\"_blank\">DNS Client</a> | <a href=\"https://github.com/TechnitiumSoftware/DnsServer\" target=\"_blank\"><i class=\"fa fa-github\"></i>&nbsp;GitHub</a> | <a href=\"https://technitium.com/aboutus.html\" target=\"_blank\">About</a></div>");
 
     //dropdown list box support
     $('.dropdown').on('click', 'a', function () {
@@ -1048,8 +1048,7 @@ function addResourceRecord() {
     var ttl = $("#txtAddRecordTtl").val();
 
     if ((subDomain === null) || (subDomain === "")) {
-        showAlert("warning", "Missing!", "Please enter a sub domain name into the name field.");
-        return false;
+        subDomain = "@";
     }
 
     var value;
