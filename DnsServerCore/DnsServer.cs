@@ -101,7 +101,7 @@ namespace DnsServerCore
         {
             #region this code ignores ICMP port unreachable responses which creates SocketException in ReceiveFrom()
 
-            try
+            if (Environment.OSVersion.Platform == PlatformID.Win32NT)
             {
                 const uint IOC_IN = 0x80000000;
                 const uint IOC_VENDOR = 0x18000000;
@@ -109,8 +109,6 @@ namespace DnsServerCore
 
                 _udpListener.IOControl((IOControlCode)SIO_UDP_CONNRESET, new byte[] { Convert.ToByte(false) }, null);
             }
-            catch
-            { }
 
             #endregion
 
@@ -128,7 +126,23 @@ namespace DnsServerCore
                     else
                         remoteEP = new IPEndPoint(IPAddress.IPv6Any, 0);
 
-                    bytesRecv = _udpListener.ReceiveFrom(recvBufferStream.Buffer, ref remoteEP);
+                    try
+                    {
+                        bytesRecv = _udpListener.ReceiveFrom(recvBufferStream.Buffer, ref remoteEP);
+                    }
+                    catch (SocketException ex)
+                    {
+                        switch (ex.SocketErrorCode)
+                        {
+                            case SocketError.ConnectionReset:
+                            case SocketError.HostUnreachable:
+                                bytesRecv = 0;
+                                break;
+
+                            default:
+                                throw;
+                        }
+                    }
 
                     if (bytesRecv > 0)
                     {
