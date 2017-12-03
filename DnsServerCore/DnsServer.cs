@@ -371,23 +371,35 @@ namespace DnsServerCore
 
                     DnsResponseCode rcode;
                     DnsResourceRecord[] authority;
+                    DnsResourceRecord[] additional;
 
                     if (lastResponse.Header.RCODE == DnsResponseCode.Refused)
                     {
                         rcode = DnsResponseCode.NoError;
                         authority = new DnsResourceRecord[] { };
+                        additional = new DnsResourceRecord[] { };
                     }
                     else
                     {
                         rcode = lastResponse.Header.RCODE;
 
-                        if ((lastResponse.Authority.Length > 0) && (lastResponse.Authority[0].Type == DnsResourceRecordType.SOA))
+                        if (lastResponse.Header.AuthoritativeAnswer)
+                        {
                             authority = lastResponse.Authority;
+                            additional = lastResponse.Additional;
+                        }
                         else
-                            authority = new DnsResourceRecord[] { };
+                        {
+                            if ((lastResponse.Authority.Length > 0) && (lastResponse.Authority[0].Type == DnsResourceRecordType.SOA))
+                                authority = lastResponse.Authority;
+                            else
+                                authority = new DnsResourceRecord[] { };
+
+                            additional = new DnsResourceRecord[] { };
+                        }
                     }
 
-                    return new DnsDatagram(new DnsHeader(request.Header.Identifier, true, DnsOpcode.StandardQuery, lastResponse.Header.AuthoritativeAnswer, false, request.Header.RecursionDesired, _allowRecursion, false, false, rcode, 1, Convert.ToUInt16(responseAnswer.Count), Convert.ToUInt16(authority.Length), 0), request.Question, responseAnswer.ToArray(), authority, new DnsResourceRecord[] { });
+                    return new DnsDatagram(new DnsHeader(request.Header.Identifier, true, DnsOpcode.StandardQuery, lastResponse.Header.AuthoritativeAnswer, false, request.Header.RecursionDesired, _allowRecursion, false, false, rcode, 1, Convert.ToUInt16(responseAnswer.Count), Convert.ToUInt16(authority.Length), (ushort)additional.Length), request.Question, responseAnswer.ToArray(), authority, additional);
                 }
             }
 
@@ -414,7 +426,14 @@ namespace DnsServerCore
 
                     while (true)
                     {
-                        lastResponse = DnsClient.ResolveViaNameServers((lastRR.RDATA as DnsCNAMERecord).CNAMEDomainName, questionType, _forwarders, _dnsCache, null, _preferIPv6, false, _retries);
+                        DnsQuestionRecord question;
+
+                        if (questionType == DnsResourceRecordType.PTR)
+                            question = new DnsQuestionRecord(IPAddress.Parse((lastRR.RDATA as DnsCNAMERecord).CNAMEDomainName), DnsClass.IN);
+                        else
+                            question = new DnsQuestionRecord((lastRR.RDATA as DnsCNAMERecord).CNAMEDomainName, questionType, DnsClass.IN);
+
+                        lastResponse = DnsClient.ResolveViaNameServers(question, _forwarders, _dnsCache, null, _preferIPv6, false, _retries);
 
                         if ((lastResponse.Header.RCODE != DnsResponseCode.NoError) || (lastResponse.Answer.Length == 0))
                             break;
