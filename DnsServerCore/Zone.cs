@@ -238,6 +238,16 @@ namespace DnsServerCore
 
         private DnsResourceRecord[] QueryRecords(DnsResourceRecordType type, bool bypassCNAME = false)
         {
+            if (_authoritativeZone && (type == DnsResourceRecordType.ANY))
+            {
+                List<DnsResourceRecord> allRecords = new List<DnsResourceRecord>();
+
+                foreach (KeyValuePair<DnsResourceRecordType, DnsResourceRecord[]> entry in _entries)
+                    allRecords.AddRange(entry.Value);
+
+                return allRecords.ToArray();
+            }
+
             if (!bypassCNAME && _entries.TryGetValue(DnsResourceRecordType.CNAME, out DnsResourceRecord[] existingCNAMERecords))
             {
                 if (_authoritativeZone)
@@ -435,9 +445,6 @@ namespace DnsServerCore
 
             while (currentZone != null)
             {
-                if (currentZone._entries.ContainsKey(DnsResourceRecordType.CNAME))
-                    return null;
-
                 if (currentZone._entries.ContainsKey(DnsResourceRecordType.SOA))
                 {
                     nsRecords = currentZone.QueryRecords(DnsResourceRecordType.NS);
@@ -548,8 +555,11 @@ namespace DnsServerCore
                         records = wildcardRecords;
                     }
 
-                    DnsResourceRecord[] closestAuthoritativeNameServers = closestZone.GetClosestAuthoritativeNameServers();
+                    DnsResourceRecord[] closestAuthoritativeNameServers = null;
                     DnsResourceRecord[] additional;
+
+                    if (question.Type != DnsResourceRecordType.ANY)
+                        closestAuthoritativeNameServers = closestZone.GetClosestAuthoritativeNameServers();
 
                     if (closestAuthoritativeNameServers == null)
                     {
