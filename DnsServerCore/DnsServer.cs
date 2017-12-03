@@ -399,7 +399,7 @@ namespace DnsServerCore
                         }
                     }
 
-                    return new DnsDatagram(new DnsHeader(request.Header.Identifier, true, DnsOpcode.StandardQuery, lastResponse.Header.AuthoritativeAnswer, false, request.Header.RecursionDesired, _allowRecursion, false, false, rcode, 1, Convert.ToUInt16(responseAnswer.Count), Convert.ToUInt16(authority.Length), (ushort)additional.Length), request.Question, responseAnswer.ToArray(), authority, additional);
+                    return new DnsDatagram(new DnsHeader(request.Header.Identifier, true, DnsOpcode.StandardQuery, lastResponse.Header.AuthoritativeAnswer, false, request.Header.RecursionDesired, _allowRecursion, false, false, rcode, 1, (ushort)responseAnswer.Count, (ushort)authority.Length, (ushort)additional.Length), request.Question, responseAnswer.ToArray(), authority, additional);
                 }
             }
 
@@ -454,7 +454,7 @@ namespace DnsServerCore
                     else
                         authority = new DnsResourceRecord[] { };
 
-                    return new DnsDatagram(new DnsHeader(request.Header.Identifier, true, DnsOpcode.StandardQuery, false, false, true, true, false, false, lastResponse.Header.RCODE, 1, Convert.ToUInt16(responseAnswer.Count), Convert.ToUInt16(authority.Length), 0), request.Question, responseAnswer.ToArray(), authority, new DnsResourceRecord[] { });
+                    return new DnsDatagram(new DnsHeader(request.Header.Identifier, true, DnsOpcode.StandardQuery, false, false, true, true, false, false, lastResponse.Header.RCODE, 1, (ushort)responseAnswer.Count, (ushort)authority.Length, 0), request.Question, responseAnswer.ToArray(), authority, new DnsResourceRecord[] { });
                 }
             }
 
@@ -463,7 +463,7 @@ namespace DnsServerCore
             else
                 authority = new DnsResourceRecord[] { };
 
-            return new DnsDatagram(new DnsHeader(request.Header.Identifier, true, DnsOpcode.StandardQuery, false, false, true, true, false, false, response.Header.RCODE, 1, Convert.ToUInt16(response.Answer.Length), Convert.ToUInt16(authority.Length), 0), request.Question, response.Answer, authority, new DnsResourceRecord[] { });
+            return new DnsDatagram(new DnsHeader(request.Header.Identifier, true, DnsOpcode.StandardQuery, false, false, true, true, false, false, response.Header.RCODE, 1, (ushort)response.Answer.Length, (ushort)authority.Length, 0), request.Question, response.Answer, authority, new DnsResourceRecord[] { });
         }
 
         #endregion
