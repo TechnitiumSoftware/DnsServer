@@ -516,9 +516,21 @@ namespace DnsServerCore
                     if (closestAuthority == null)
                         return new DnsDatagram(new DnsHeader(request.Header.Identifier, true, DnsOpcode.StandardQuery, false, false, request.Header.RecursionDesired, false, false, false, DnsResponseCode.Refused, 1, 0, 0, 0), request.Question, new DnsResourceRecord[] { }, new DnsResourceRecord[] { }, new DnsResourceRecord[] { });
 
-                    DnsResourceRecord[] additional = GetGlueRecords(rootZone, closestAuthority);
+                    bool authoritativeAnswer;
+                    DnsResourceRecord[] additional;
 
-                    return new DnsDatagram(new DnsHeader(request.Header.Identifier, true, DnsOpcode.StandardQuery, true, false, request.Header.RecursionDesired, false, false, false, DnsResponseCode.NoError, 1, 0, (ushort)closestAuthority.Length, (ushort)additional.Length), request.Question, new DnsResourceRecord[] { }, closestAuthority, additional);
+                    if (closestAuthority[0].Type == DnsResourceRecordType.SOA)
+                    {
+                        authoritativeAnswer = true;
+                        additional = new DnsResourceRecord[] { };
+                    }
+                    else
+                    {
+                        authoritativeAnswer = false;
+                        additional = GetGlueRecords(rootZone, closestAuthority);
+                    }
+
+                    return new DnsDatagram(new DnsHeader(request.Header.Identifier, true, DnsOpcode.StandardQuery, authoritativeAnswer, false, request.Header.RecursionDesired, false, false, false, DnsResponseCode.NoError, 1, 0, (ushort)closestAuthority.Length, (ushort)additional.Length), request.Question, new DnsResourceRecord[] { }, closestAuthority, additional);
                 }
                 else
                 {
@@ -560,21 +572,24 @@ namespace DnsServerCore
                 if (closestAuthority == null)
                     return new DnsDatagram(new DnsHeader(request.Header.Identifier, true, DnsOpcode.StandardQuery, false, false, request.Header.RecursionDesired, false, false, false, DnsResponseCode.Refused, 1, 0, 0, 0), request.Question, new DnsResourceRecord[] { }, new DnsResourceRecord[] { }, new DnsResourceRecord[] { });
 
+                bool authoritativeAnswer;
                 DnsResponseCode rCode;
                 DnsResourceRecord[] additional;
 
                 if (closestAuthority[0].Type == DnsResourceRecordType.SOA)
                 {
+                    authoritativeAnswer = true;
                     rCode = DnsResponseCode.NameError;
                     additional = new DnsResourceRecord[] { };
                 }
                 else
                 {
+                    authoritativeAnswer = false;
                     rCode = DnsResponseCode.NoError;
                     additional = GetGlueRecords(rootZone, closestAuthority);
                 }
 
-                return new DnsDatagram(new DnsHeader(request.Header.Identifier, true, DnsOpcode.StandardQuery, true, false, request.Header.RecursionDesired, false, false, false, rCode, 1, 0, (ushort)closestAuthority.Length, (ushort)additional.Length), request.Question, new DnsResourceRecord[] { }, closestAuthority, additional);
+                return new DnsDatagram(new DnsHeader(request.Header.Identifier, true, DnsOpcode.StandardQuery, authoritativeAnswer, false, request.Header.RecursionDesired, false, false, false, rCode, 1, 0, (ushort)closestAuthority.Length, (ushort)additional.Length), request.Question, new DnsResourceRecord[] { }, closestAuthority, additional);
             }
         }
 
