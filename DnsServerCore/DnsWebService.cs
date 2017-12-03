@@ -451,8 +451,8 @@ namespace DnsServerCore
         {
             BincodingEncoder encoder = new BincodingEncoder(s, "DU", 1);
 
-            encoder.Encode("version", version);
-            encoder.Encode("landingPage", landingPage);
+            encoder.EncodeKeyValue("version", version);
+            encoder.EncodeKeyValue("landingPage", landingPage);
             encoder.EncodeNull();
         }
 
@@ -1291,11 +1291,12 @@ namespace DnsServerCore
                 switch (decoder.Version)
                 {
                     case 1:
-                        List<Bincoding> entries = decoder.DecodeNext().GetList();
+                        ICollection<Bincoding> entries = decoder.DecodeNext().GetList();
                         DnsResourceRecord[] records = new DnsResourceRecord[entries.Count];
 
-                        for (int i = 0; i < entries.Count; i++)
-                            records[i] = new DnsResourceRecord(entries[i].GetValueStream());
+                        int i = 0;
+                        foreach (Bincoding entry in entries)
+                            records[i++] = new DnsResourceRecord(entry.GetValueStream());
 
                         _dnsServer.AuthoritativeZoneRoot.SetRecords(records);
                         break;
@@ -1317,7 +1318,7 @@ namespace DnsServerCore
             {
                 BincodingEncoder encoder = new BincodingEncoder(fS, "DZ", 1);
 
-                encoder.Encode(records);
+                encoder.EncodeBinaryList(records);
             }
         }
 
@@ -1347,44 +1348,45 @@ namespace DnsServerCore
 
                                 if (item.Type == BincodingType.KEY_VALUE_PAIR)
                                 {
-                                    KeyValuePair<string, Bincoding> entry = item.GetKeyValuePair();
+                                    KeyValuePair<string, Bincoding> pair = item.GetKeyValuePair();
 
-                                    switch (entry.Key)
+                                    switch (pair.Key)
                                     {
                                         case "serverDomain":
-                                            _serverDomain = entry.Value.GetStringValue();
+                                            _serverDomain = pair.Value.GetStringValue();
                                             break;
 
                                         case "webServicePort":
-                                            _webServicePort = entry.Value.GetIntegerValue();
+                                            _webServicePort = pair.Value.GetIntegerValue();
                                             break;
 
                                         case "dnsPreferIPv6":
-                                            _dnsServer.PreferIPv6 = entry.Value.GetBooleanValue();
+                                            _dnsServer.PreferIPv6 = pair.Value.GetBooleanValue();
                                             break;
 
                                         case "dnsAllowRecursion":
-                                            _dnsServer.AllowRecursion = entry.Value.GetBooleanValue();
+                                            _dnsServer.AllowRecursion = pair.Value.GetBooleanValue();
                                             break;
 
                                         case "dnsForwarders":
-                                            List<Bincoding> entries = entry.Value.GetList();
+                                            ICollection<Bincoding> entries = pair.Value.GetList();
                                             NameServerAddress[] forwarders = new NameServerAddress[entries.Count];
 
-                                            for (int i = 0; i < entries.Count; i++)
-                                                forwarders[i] = new NameServerAddress(IPAddress.Parse(entries[i].GetStringValue()));
+                                            int i = 0;
+                                            foreach (Bincoding entry in entries)
+                                                forwarders[i++] = new NameServerAddress(IPAddress.Parse(entry.GetStringValue()));
 
                                             _dnsServer.Forwarders = forwarders;
                                             break;
 
                                         case "credentials":
-                                            foreach (KeyValuePair<string, Bincoding> credential in entry.Value.GetDictionary())
+                                            foreach (KeyValuePair<string, Bincoding> credential in pair.Value.GetDictionary())
                                                 SetCredentials(credential.Key, credential.Value.GetStringValue());
 
                                             break;
 
                                         case "disabledZones":
-                                            foreach (Bincoding disabledZone in entry.Value.GetList())
+                                            foreach (Bincoding disabledZone in pair.Value.GetList())
                                                 _dnsServer.AuthoritativeZoneRoot.DisableZone(disabledZone.GetStringValue());
 
                                             break;
@@ -1417,29 +1419,29 @@ namespace DnsServerCore
             {
                 BincodingEncoder encoder = new BincodingEncoder(fS, "DS", 1);
 
-                encoder.Encode("serverDomain", _serverDomain);
-                encoder.Encode("webServicePort", _webServicePort);
+                encoder.EncodeKeyValue("serverDomain", _serverDomain);
+                encoder.EncodeKeyValue("webServicePort", _webServicePort);
 
-                encoder.Encode("dnsPreferIPv6", _dnsServer.PreferIPv6);
-                encoder.Encode("dnsAllowRecursion", _dnsServer.AllowRecursion);
+                encoder.EncodeKeyValue("dnsPreferIPv6", _dnsServer.PreferIPv6);
+                encoder.EncodeKeyValue("dnsAllowRecursion", _dnsServer.AllowRecursion);
 
                 if (_dnsServer.Forwarders != null)
                 {
                     List<Bincoding> forwarders = new List<Bincoding>();
 
                     foreach (NameServerAddress forwarder in _dnsServer.Forwarders)
-                        forwarders.Add(Bincoding.GetValue(forwarder.EndPoint.Address.ToString()));
+                        forwarders.Add(Bincoding.ParseValue(forwarder.EndPoint.Address.ToString()));
 
-                    encoder.Encode("dnsForwarders", forwarders);
+                    encoder.EncodeKeyValue("dnsForwarders", forwarders);
                 }
 
                 {
                     Dictionary<string, Bincoding> credentials = new Dictionary<string, Bincoding>();
 
                     foreach (KeyValuePair<string, string> credential in _credentials)
-                        credentials.Add(credential.Key, Bincoding.GetValue(credential.Value));
+                        credentials.Add(credential.Key, Bincoding.ParseValue(credential.Value));
 
-                    encoder.Encode("credentials", credentials);
+                    encoder.EncodeKeyValue("credentials", credentials);
                 }
 
                 {
@@ -1448,10 +1450,10 @@ namespace DnsServerCore
                     foreach (Zone.ZoneInfo zone in _dnsServer.AuthoritativeZoneRoot.ListAuthoritativeZones())
                     {
                         if (zone.Disabled)
-                            disabledZones.Add(Bincoding.GetValue(zone.ZoneName));
+                            disabledZones.Add(Bincoding.ParseValue(zone.ZoneName));
                     }
 
-                    encoder.Encode("disabledZones", disabledZones);
+                    encoder.EncodeKeyValue("disabledZones", disabledZones);
                 }
 
                 encoder.EncodeNull();
