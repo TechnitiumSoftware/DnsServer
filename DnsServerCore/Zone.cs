@@ -418,23 +418,45 @@ namespace DnsServerCore
                 if ((nsRecords != null) && (nsRecords.Length > 0) && (nsRecords[0].Type == DnsResourceRecordType.SOA))
                     return nsRecords;
 
+                nsRecords = currentZone.QueryRecords(DnsResourceRecordType.NS);
+                if ((nsRecords != null) && (nsRecords.Length > 0) && (nsRecords[0].Type == DnsResourceRecordType.NS))
+                    return nsRecords;
+
                 currentZone = currentZone._parentZone;
             }
 
             return null;
         }
 
-        private static DnsResourceRecord[] GetGlueRecords(Zone rootZone, string domain, DnsResourceRecordType type)
+        private static DnsResourceRecord[] GetGlueRecords(Zone rootZone, DnsResourceRecord[] nsRecords)
         {
-            Zone currentZone = GetZone(rootZone, domain);
-            if (currentZone != null)
+            List<DnsResourceRecord> glueRecords = new List<DnsResourceRecord>();
+
+            foreach (DnsResourceRecord nsRecord in nsRecords)
             {
-                DnsResourceRecord[] records = currentZone.QueryRecords(type);
-                if ((records != null) && (records.Length > 0) && (records[0].Type == type))
-                    return records;
+                if (nsRecord.Type == DnsResourceRecordType.NS)
+                {
+                    string nsDomain = (nsRecord.RDATA as DnsNSRecord).NSDomainName;
+
+                    Zone zone = GetZone(rootZone, nsDomain);
+                    if (zone != null)
+                    {
+                        {
+                            DnsResourceRecord[] records = zone.QueryRecords(DnsResourceRecordType.A);
+                            if ((records != null) && (records.Length > 0) && (records[0].Type == DnsResourceRecordType.A))
+                                glueRecords.AddRange(records);
+                        }
+
+                        {
+                            DnsResourceRecord[] records = zone.QueryRecords(DnsResourceRecordType.AAAA);
+                            if ((records != null) && (records.Length > 0) && (records[0].Type == DnsResourceRecordType.AAAA))
+                                glueRecords.AddRange(records);
+                        }
+                    }
+                }
             }
 
-            return null;
+            return glueRecords.ToArray();
         }
 
         private void GetAuthoritativeZones(List<Zone> zones)
@@ -469,7 +491,9 @@ namespace DnsServerCore
                     if (closestAuthority == null)
                         return new DnsDatagram(new DnsHeader(request.Header.Identifier, true, DnsOpcode.StandardQuery, false, false, request.Header.RecursionDesired, false, false, false, DnsResponseCode.Refused, 1, 0, 0, 0), request.Question, new DnsResourceRecord[] { }, new DnsResourceRecord[] { }, new DnsResourceRecord[] { });
 
-                    return new DnsDatagram(new DnsHeader(request.Header.Identifier, true, DnsOpcode.StandardQuery, true, false, request.Header.RecursionDesired, false, false, false, DnsResponseCode.NoError, 1, 0, 1, 0), request.Question, new DnsResourceRecord[] { }, closestAuthority, new DnsResourceRecord[] { });
+                    DnsResourceRecord[] additional = GetGlueRecords(rootZone, closestAuthority);
+
+                    return new DnsDatagram(new DnsHeader(request.Header.Identifier, true, DnsOpcode.StandardQuery, true, false, request.Header.RecursionDesired, false, false, false, DnsResponseCode.NoError, 1, 0, (ushort)closestAuthority.Length, (ushort)additional.Length), request.Question, new DnsResourceRecord[] { }, closestAuthority, additional);
                 }
                 else
                 {
@@ -498,7 +522,21 @@ namespace DnsServerCore
                 if (closestAuthority == null)
                     return new DnsDatagram(new DnsHeader(request.Header.Identifier, true, DnsOpcode.StandardQuery, false, false, request.Header.RecursionDesired, false, false, false, DnsResponseCode.Refused, 1, 0, 0, 0), request.Question, new DnsResourceRecord[] { }, new DnsResourceRecord[] { }, new DnsResourceRecord[] { });
 
-                return new DnsDatagram(new DnsHeader(request.Header.Identifier, true, DnsOpcode.StandardQuery, true, false, request.Header.RecursionDesired, false, false, false, DnsResponseCode.NameError, 1, 0, 1, 0), request.Question, new DnsResourceRecord[] { }, closestAuthority, new DnsResourceRecord[] { });
+                DnsResponseCode rCode;
+                DnsResourceRecord[] additional;
+
+                if (closestAuthority[0].Type == DnsResourceRecordType.SOA)
+                {
+                    rCode = DnsResponseCode.NameError;
+                    additional = new DnsResourceRecord[] { };
+                }
+                else
+                {
+                    rCode = DnsResponseCode.NoError;
+                    additional = GetGlueRecords(rootZone, closestAuthority);
+                }
+
+                return new DnsDatagram(new DnsHeader(request.Header.Identifier, true, DnsOpcode.StandardQuery, true, false, request.Header.RecursionDesired, false, false, false, rCode, 1, 0, (ushort)closestAuthority.Length, (ushort)additional.Length), request.Question, new DnsResourceRecord[] { }, closestAuthority, additional);
             }
         }
 
@@ -533,22 +571,7 @@ namespace DnsServerCore
             DnsResourceRecord[] nameServers = closestZone.GetClosestNameServers();
             if (nameServers != null)
             {
-                List<DnsResourceRecord> glueRecords = new List<DnsResourceRecord>();
-
-                foreach (DnsResourceRecord nameServer in nameServers)
-                {
-                    string nsDomain = (nameServer.RDATA as DnsNSRecord).NSDomainName;
-
-                    DnsResourceRecord[] glueAs = GetGlueRecords(rootZone, nsDomain, DnsResourceRecordType.A);
-                    if (glueAs != null)
-                        glueRecords.AddRange(glueAs);
-
-                    DnsResourceRecord[] glueAAAAs = GetGlueRecords(rootZone, nsDomain, DnsResourceRecordType.AAAA);
-                    if (glueAAAAs != null)
-                        glueRecords.AddRange(glueAAAAs);
-                }
-
-                DnsResourceRecord[] additional = glueRecords.ToArray();
+                DnsResourceRecord[] additional = GetGlueRecords(rootZone, nameServers);
 
                 return new DnsDatagram(new DnsHeader(request.Header.Identifier, true, DnsOpcode.StandardQuery, false, false, request.Header.RecursionDesired, true, false, false, DnsResponseCode.NoError, 1, 0, (ushort)nameServers.Length, (ushort)additional.Length), request.Question, new DnsResourceRecord[] { }, nameServers, additional);
             }
@@ -698,14 +721,17 @@ namespace DnsServerCore
             foreach (KeyValuePair<string, Dictionary<DnsResourceRecordType, List<DnsResourceRecord>>> groupedByTypeRecords in groupedByDomainRecords)
             {
                 string domain = groupedByTypeRecords.Key;
-                Zone zone = CreateZone(this, domain);
-
-                foreach (KeyValuePair<DnsResourceRecordType, List<DnsResourceRecord>> groupedRecords in groupedByTypeRecords.Value)
+                if (!string.IsNullOrEmpty(domain))
                 {
-                    DnsResourceRecordType type = groupedRecords.Key;
-                    DnsResourceRecord[] resourceRecords = groupedRecords.Value.ToArray();
+                    Zone zone = CreateZone(this, domain);
 
-                    zone.SetRecords(type, resourceRecords);
+                    foreach (KeyValuePair<DnsResourceRecordType, List<DnsResourceRecord>> groupedRecords in groupedByTypeRecords.Value)
+                    {
+                        DnsResourceRecordType type = groupedRecords.Key;
+                        DnsResourceRecord[] resourceRecords = groupedRecords.Value.ToArray();
+
+                        zone.SetRecords(type, resourceRecords);
+                    }
                 }
             }
         }
@@ -834,6 +860,9 @@ namespace DnsServerCore
         {
             _zones.Clear();
             _entries.Clear();
+
+            if (!_authoritativeZone)
+                LoadRootHintsInCache();
         }
 
         #endregion
