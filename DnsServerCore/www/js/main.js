@@ -377,7 +377,7 @@ function getParentDomain(domain) {
     return null;
 }
 
-function refreshCachedZonesList(domain) {
+function refreshCachedZonesList(domain, direction) {
 
     if (domain == null)
         domain = "";
@@ -392,16 +392,17 @@ function refreshCachedZonesList(domain) {
     preCachedZoneViewerBody.hide();
 
     HTTPRequest({
-        url: "/api/listCachedZones?token=" + token + "&domain=" + domain,
+        url: "/api/listCachedZones?token=" + token + "&domain=" + domain + ((direction == null) ? "" : "&direction=" + direction),
         success: function (responseJSON) {
+            var newDomain = responseJSON.response.domain;
             var zones = responseJSON.response.zones;
 
-            var list = "<div class=\"zone\"><a href=\"#\" onclick=\"return refreshCachedZonesList('" + domain + "');\"><b>[refresh]</b></a></div>"
+            var list = "<div class=\"zone\"><a href=\"#\" onclick=\"return refreshCachedZonesList('" + newDomain + "');\"><b>[refresh]</b></a></div>"
 
-            var parentDomain = getParentDomain(domain);
+            var parentDomain = getParentDomain(newDomain);
 
             if (parentDomain != null)
-                list += "<div class=\"zone\"><a href=\"#\" onclick=\"return refreshCachedZonesList('" + parentDomain + "');\"><b>[up]</b></a></div>"
+                list += "<div class=\"zone\"><a href=\"#\" onclick=\"return refreshCachedZonesList('" + parentDomain + "', 'up');\"><b>[up]</b></a></div>"
 
             for (var i = 0; i < zones.length; i++) {
                 var zoneName = htmlEncode(zones[i]);
@@ -411,14 +412,14 @@ function refreshCachedZonesList(domain) {
 
             lstCachedZones.html(list);
 
-            if (domain == "") {
+            if (newDomain == "") {
                 $("#txtCachedZoneViewerTitle").text("<ROOT>");
                 $("#btnDeleteCachedZone").hide();
             }
             else {
-                $("#txtCachedZoneViewerTitle").text(domain);
+                $("#txtCachedZoneViewerTitle").text(newDomain);
 
-                if ((domain == "root-servers.net") || domain.endsWith(".root-servers.net"))
+                if ((newDomain == "root-servers.net") || newDomain.endsWith(".root-servers.net"))
                     $("#btnDeleteCachedZone").hide();
                 else
                     $("#btnDeleteCachedZone").show();

@@ -622,10 +622,40 @@ namespace DnsServerCore
             if (domain == null)
                 domain = "";
 
-            string[] subZones = _dnsServer.CacheZoneRoot.ListSubZones(domain);
-            DnsResourceRecord[] records = _dnsServer.CacheZoneRoot.GetAllRecords(domain, false);
+            string direction = request.QueryString["direction"];
+
+            string[] subZones;
+            DnsResourceRecord[] records;
+
+            while (true)
+            {
+                subZones = _dnsServer.CacheZoneRoot.ListSubZones(domain);
+                records = _dnsServer.CacheZoneRoot.GetAllRecords(domain, false);
+
+                if (records.Length > 0)
+                    break;
+
+                if (subZones.Length != 1)
+                    break;
+
+                if (direction == "up")
+                {
+                    int i = domain.IndexOf('.');
+                    if (i < 0)
+                        break;
+
+                    domain = domain.Substring(i + 1);
+                }
+                else
+                {
+                    domain = subZones[0] + "." + domain;
+                }
+            }
 
             Array.Sort(subZones);
+
+            jsonWriter.WritePropertyName("domain");
+            jsonWriter.WriteValue(domain);
 
             jsonWriter.WritePropertyName("zones");
             jsonWriter.WriteStartArray();
