@@ -63,6 +63,7 @@ namespace DnsServerCore
         NameServerAddress[] _forwarders;
         bool _preferIPv6 = false;
         int _retries = 2;
+        LogManager _log;
 
         volatile ServiceState _state = ServiceState.Stopped;
 
@@ -112,6 +113,7 @@ namespace DnsServerCore
 
             #endregion
 
+            EndPoint remoteEP = null;
             FixMemoryStream recvBufferStream = new FixMemoryStream(128);
             int bytesRecv;
 
@@ -119,7 +121,6 @@ namespace DnsServerCore
             {
                 while (true)
                 {
-                    EndPoint remoteEP;
 
                     if (_udpListener.AddressFamily == AddressFamily.InterNetwork)
                         remoteEP = new IPEndPoint(IPAddress.Any, 0);
@@ -158,8 +159,11 @@ namespace DnsServerCore
                     }
                 }
             }
-            catch
+            catch (Exception ex)
             {
+                if (_log != null)
+                    _log.Write((IPEndPoint)remoteEP, ex);
+
                 if (_state == ServiceState.Running)
                     throw;
             }
@@ -174,7 +178,7 @@ namespace DnsServerCore
 
             try
             {
-                DnsDatagram response = ProcessQuery(request);
+                DnsDatagram response = ProcessQuery(request, remoteEP);
 
                 //send response
                 if (response != null)
@@ -196,10 +200,19 @@ namespace DnsServerCore
 
                     //send dns datagram
                     _udpListener.SendTo(sendBufferStream.Buffer, 0, (int)sendBufferStream.Position, SocketFlags.None, remoteEP);
+
+                    if (_log != null)
+                        _log.Write((IPEndPoint)remoteEP, request, response);
                 }
             }
-            catch
-            { }
+            catch (Exception ex)
+            {
+                if (_log != null)
+                {
+                    _log.Write((IPEndPoint)remoteEP, request, null);
+                    _log.Write((IPEndPoint)remoteEP, ex);
+                }
+            }
         }
 
         private void AcceptTcpConnectionAsync(object parameter)
@@ -217,8 +230,11 @@ namespace DnsServerCore
                     ThreadPool.QueueUserWorkItem(ProcessTcpRequestAsync, socket);
                 }
             }
-            catch
+            catch (Exception ex)
             {
+                if (_log != null)
+                    _log.Write(_localEP, ex);
+
                 if (_state == ServiceState.Running)
                     throw;
             }
@@ -262,7 +278,8 @@ namespace DnsServerCore
                         recvBufferStream.Position = 0;
                         recvBufferStream.SetLength(bytesRecv);
 
-                        DnsDatagram response = ProcessQuery(new DnsDatagram(recvBufferStream));
+                        DnsDatagram request = new DnsDatagram(recvBufferStream);
+                        DnsDatagram response = ProcessQuery(request, tcpSocket.RemoteEndPoint);
 
                         //send response
                         if (response != null)
@@ -285,12 +302,18 @@ namespace DnsServerCore
 
                             //send dns datagram
                             tcpSocket.Send(buffer, 0, buffer.Length, SocketFlags.None);
+
+                            if (_log != null)
+                                _log.Write((IPEndPoint)tcpSocket.RemoteEndPoint, request, response);
                         }
                     }
                 }
             }
-            catch
-            { }
+            catch (Exception ex)
+            {
+                if (_log != null)
+                    _log.Write((IPEndPoint)tcpSocket.RemoteEndPoint, ex);
+            }
             finally
             {
                 if (tcpSocket != null)
@@ -298,7 +321,7 @@ namespace DnsServerCore
             }
         }
 
-        private DnsDatagram ProcessQuery(DnsDatagram request)
+        private DnsDatagram ProcessQuery(DnsDatagram request, EndPoint remoteEP)
         {
             if (request.Header.IsResponse)
                 return null;
@@ -306,8 +329,17 @@ namespace DnsServerCore
             switch (request.Header.OPCODE)
             {
                 case DnsOpcode.StandardQuery:
-                    if (request.Question.Length != 1)
+                    if ((request.Question.Length != 1) || (request.Question[0].Class != DnsClass.IN))
                         return new DnsDatagram(new DnsHeader(request.Header.Identifier, true, DnsOpcode.StandardQuery, false, false, request.Header.RecursionDesired, _allowRecursion, false, false, DnsResponseCode.Refused, request.Header.QDCOUNT, 0, 0, 0), request.Question, null, null, null);
+
+                    switch (request.Question[0].Type)
+                    {
+                        case DnsResourceRecordType.IXFR:
+                        case DnsResourceRecordType.AXFR:
+                        case DnsResourceRecordType.MAILB:
+                        case DnsResourceRecordType.MAILA:
+                            return new DnsDatagram(new DnsHeader(request.Header.Identifier, true, DnsOpcode.StandardQuery, false, false, request.Header.RecursionDesired, _allowRecursion, false, false, DnsResponseCode.Refused, request.Header.QDCOUNT, 0, 0, 0), request.Question, null, null, null);
+                    }
 
                     try
                     {
@@ -318,8 +350,11 @@ namespace DnsServerCore
 
                         return ProcessRecursiveQuery(request);
                     }
-                    catch
+                    catch (Exception ex)
                     {
+                        if (_log != null)
+                            _log.Write((IPEndPoint)remoteEP, ex);
+
                         return new DnsDatagram(new DnsHeader(request.Header.Identifier, true, DnsOpcode.StandardQuery, false, false, request.Header.RecursionDesired, _allowRecursion, false, false, DnsResponseCode.ServerFailure, request.Header.QDCOUNT, 0, 0, 0), request.Question, null, null, null);
                     }
 
@@ -544,6 +579,12 @@ namespace DnsServerCore
         {
             get { return _retries; }
             set { _retries = value; }
+        }
+
+        public LogManager LogManager
+        {
+            get { return _log; }
+            set { _log = value; }
         }
 
         #endregion
