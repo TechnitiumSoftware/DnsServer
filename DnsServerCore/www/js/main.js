@@ -465,7 +465,7 @@ function refreshZonesList(hideLoader) {
             for (var i = 0; i < zones.length; i++) {
                 var zoneName = htmlEncode(zones[i].zoneName);
 
-                list += "<div class=\"zone\"><a href=\"#\" onclick=\"return viewZone('" + zoneName + "', " + zones[i].disabled + ");\">" + zoneName + "</a></div>"
+                list += "<div class=\"zone\"><a href=\"#\" onclick=\"return viewZone('" + zoneName + "', " + zones[i].disabled + ");\"" + (zones[i].disabled ? "style=\"color: #ff0000 !important\"" : "") + ">" + zoneName + "</a></div>"
             }
 
             lstZones.html(list);
@@ -1418,6 +1418,102 @@ function resolveQuery(importRecords) {
 
     if (!containsServer)
         $("#optDnsClientNameServers").prepend('<li><a href="#" onclick="return false;">' + txtServerName + '</a></li>');
+
+    return false;
+}
+
+function refreshLogFilesList() {
+
+    var lstLogFiles = $("#lstLogFiles");
+
+    HTTPRequest({
+        url: "/api/listLogs?token=" + token,
+        success: function (responseJSON) {
+            var logFiles = responseJSON.response.logFiles;
+
+            var list = "";
+
+            for (var i = 0; i < logFiles.length; i++) {
+                var logFile = logFiles[i];
+
+                list += "<div class=\"log\"><a href=\"#\" onclick=\"return viewLog('" + logFile.fileName + "');\">" + logFile.fileName + " [" + logFile.size + "]</a></div>"
+            }
+
+            lstLogFiles.html(list);
+        },
+        invalidToken: function () {
+            showPageLogin();
+        },
+        objLoaderPlaceholder: lstLogFiles
+    });
+
+    return false;
+}
+
+function viewLog(logFile) {
+
+    var divLogViewer = $("#divLogViewer");
+    var txtLogViewerTitle = $("#txtLogViewerTitle");
+    var divLogViewerLoader = $("#divLogViewerLoader");
+    var preLogViewerBody = $("#preLogViewerBody");
+
+    txtLogViewerTitle.text(logFile);
+
+    preLogViewerBody.hide();
+    divLogViewerLoader.show();
+    divLogViewer.show();
+
+    HTTPGetFileRequest({
+        url: "/log/" + logFile + "?token=" + token,
+        success: function (response) {
+
+            divLogViewerLoader.hide();
+
+            preLogViewerBody.text(response);
+            preLogViewerBody.show();
+        },
+        objLoaderPlaceholder: divLogViewerLoader
+    });
+
+    return false;
+}
+
+function downloadLog() {
+
+    var logFile = $("#txtLogViewerTitle").text();
+
+    window.open("/log/" + logFile + "?token=" + token, "_blank");
+
+    return false;
+}
+
+function deleteLog() {
+
+    var logFile = $("#txtLogViewerTitle").text();
+
+    if (!confirm("Are you sure you want to permanently delete the log file '" + logFile + "'?"))
+        return false;
+
+    var btn = $("#btnDeleteLog").button('loading');
+
+    HTTPRequest({
+        url: "/api/deleteLog?token=" + token + "&log=" + logFile,
+        success: function (responseJSON) {
+            refreshLogFilesList();
+
+            $("#divLogViewer").hide();
+            btn.button('reset');
+
+            showAlert("success", "Log Deleted!", "Log file was deleted successfully.");
+        },
+        error: function () {
+            btn.button('reset');
+        },
+        invalidToken: function () {
+            btn.button('reset');
+            showPageLogin();
+        }
+    });
 
     return false;
 }

@@ -183,3 +183,22 @@ label {
     .zone-viewer-pane .resource-record {
         background-color: #f5f5f5;
     }
+
+.log-list-pane {
+    float: left;
+    width: 15%;
+}
+
+.logs {
+    font-size: 12px;
+}
+
+    .logs .log {
+        padding: 2px;
+    }
+
+.log-viewer-pane {
+    float: right;
+    width: 84%;
+    display: none;
+}

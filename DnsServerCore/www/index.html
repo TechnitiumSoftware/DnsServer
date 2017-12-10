@@ -88,6 +88,7 @@
                                 <li id="mainPanelTabListCachedZones" role="presentation"><a href="#mainPanelTabPaneCachedZones" aria-controls="mainPanelTabPaneCachedZones" role="tab" data-toggle="tab" onclick="return false;">Cached Zones</a></li>
                                 <li id="mainPanelTabListDnsClient" role="presentation"><a href="#mainPanelTabPaneDnsClient" aria-controls="mainPanelTabPaneZones" role="tab" data-toggle="tab" onclick="return false;">DNS Client</a></li>
                                 <li id="mainPanelTabListSettings" role="presentation"><a href="#mainPanelTabPaneSettings" aria-controls="mainPanelTabPaneSettings" role="tab" data-toggle="tab" onclick="return loadDnsSettings();">Settings</a></li>
+                                <li id="mainPanelTabListLogs" role="presentation"><a href="#mainPanelTabPaneLogs" aria-controls="mainPanelTabPaneLogs" role="tab" data-toggle="tab" onclick="return refreshLogFilesList();">Logs</a></li>
                             </ul>
 
                             <div class="tab-content">
@@ -474,6 +475,36 @@
                                             </div>
 
                                         </form>
+                                    </div>
+
+                                </div>
+
+                                <div id="mainPanelTabPaneLogs" role="tabpanel" class="tab-pane" style="padding: 10px 0 0 0;">
+
+                                    <div class="well well-sm log-list-pane">
+                                        <div id="lstLogFiles" class="logs">
+                                            <div class="log"><a href="#" onclick="return viewLog('20171012');">20171012</a></div>
+                                        </div>
+                                    </div>
+
+                                    <div id="divLogViewer" class="log-viewer-pane">
+                                        <div class="panel panel-default">
+                                            <div class="panel-heading" style="height: 36px; padding: 4px 6px;">
+                                                <div id="txtLogViewerTitle" style="float: left; padding: 4px;">20171012</div>
+                                                <div style="float: right;">
+                                                    <button type="button" class="btn btn-default" data-loading-text="Download" onclick="return downloadLog();" style="font-size: 12px; padding: 4px 6px;">Download</button>
+                                                    <button id="btnDeleteLog" type="button" class="btn btn-danger" data-loading-text="Delete" onclick="return deleteLog();" style="font-size: 12px; padding: 4px 6px;">Delete</button>
+                                                </div>
+                                            </div>
+
+                                            <div class="panel-body">
+                                                <div id="divLogViewerLoader" style="margin-top: 20px; height: 400px;"></div>
+
+                                                <pre id="preLogViewerBody" style="display: none;">
+                                                    
+                                                </pre>
+                                            </div>
+                                        </div>
                                     </div>
 
                                 </div>

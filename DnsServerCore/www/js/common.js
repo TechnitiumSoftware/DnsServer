@@ -138,6 +138,78 @@ function HTTPRequest(url, data, success, error, invalidToken, objAlertPlaceholde
     return successFlag;
 }
 
+function HTTPGetFileRequest(url, success, error, objAlertPlaceholder, objLoaderPlaceholder, dontHideAlert) {
+
+    var async = false;
+    var finalUrl;
+
+    finalUrl = arguments[0].url;
+
+    if (success != null)
+        async = true;
+    else
+        if (arguments[0].success != null) {
+            async = true;
+            success = arguments[0].success;
+        }
+
+    if (error == null)
+        error = arguments[0].error;
+
+    if (objAlertPlaceholder == null)
+        objAlertPlaceholder = arguments[0].objAlertPlaceholder;
+
+    if (dontHideAlert == null)
+        dontHideAlert = arguments[0].dontHideAlert;
+
+    if ((dontHideAlert == null) || !dontHideAlert)
+        hideAlert(objAlertPlaceholder);
+
+    if (objLoaderPlaceholder == null)
+        objLoaderPlaceholder = arguments[0].objLoaderPlaceholder;
+
+    if (objLoaderPlaceholder != null)
+        objLoaderPlaceholder.html("<div style='width: 64px; height: inherit; margin: auto;'><div style='height: inherit; display: table-cell; vertical-align: middle;'><img src='/img/loader.gif'/></div></div>");
+
+    var successFlag = false;
+
+    $.ajax({
+        type: "GET",
+        url: finalUrl,
+        async: async,
+        cache: false,
+        success: function (response, status, jqXHR) {
+
+            if (objLoaderPlaceholder != null)
+                objLoaderPlaceholder.html("");
+
+            if (success == null)
+                successFlag = true;
+            else
+                success(response);
+        },
+        error: function (jqXHR, textStatus, errorThrown) {
+
+            if (objLoaderPlaceholder != null)
+                objLoaderPlaceholder.html("");
+
+            if (error != null)
+                error();
+
+            var msg;
+
+            if ((textStatus === "error") && (errorThrown === ""))
+                msg = "Unable to connect to the server. Please try again."
+            else
+                msg = textStatus + " - " + errorThrown;
+
+            showAlert("danger", "Error!", msg, objAlertPlaceholder);
+        }
+    });
+
+    return successFlag;
+}
+
 function showAlert(type, title, message, objAlertPlaceholder) {
     var alertHTML = "<div class=\"alert alert-" + type + "\">\
     <button type=\"button\" class=\"close\" data-dismiss=\"alert\">&times;</button>\
