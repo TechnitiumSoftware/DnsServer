@@ -1024,6 +1024,11 @@ namespace DnsServerCore
                 return _authority.GetHashCode();
             }
 
+            public override string ToString()
+            {
+                return _authority.RDATA.ToString();
+            }
+
             #endregion
 
             #region properties
@@ -1083,6 +1088,11 @@ namespace DnsServerCore
                 return _authority.GetHashCode();
             }
 
+            public override string ToString()
+            {
+                return _authority.RDATA.ToString();
+            }
+
             #endregion
 
             #region properties
@@ -1121,6 +1131,11 @@ namespace DnsServerCore
 
             protected override void WriteRecordData(Stream s, List<DnsDomainOffset> domainEntries)
             { }
+
+            public override string ToString()
+            {
+                return "[MultipleRecords: " + _records.Length + "]";
+            }
 
             #endregion
 

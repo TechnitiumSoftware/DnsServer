@@ -52,6 +52,7 @@
     <Compile Include="DnsServer.cs" />
     <Compile Include="DnsServerException.cs" />
     <Compile Include="DnsWebService.cs" />
+    <Compile Include="LogManager.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="Zone.cs" />
   </ItemGroup>
