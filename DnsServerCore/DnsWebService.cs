@@ -54,6 +54,8 @@ namespace DnsServerCore
         readonly string _appFolder;
         readonly string _configFolder;
 
+        readonly LogManager _log;
+
         string _serverDomain;
         int _webServicePort;
 
@@ -85,6 +87,13 @@ namespace DnsServerCore
 
             if (!Directory.Exists(_configFolder))
                 Directory.CreateDirectory(_configFolder);
+
+            string logFolder = Path.Combine(_configFolder, "logs");
+
+            if (!Directory.Exists(logFolder))
+                Directory.CreateDirectory(logFolder);
+
+            _log = new LogManager(logFolder);
         }
 
         #endregion
@@ -161,7 +170,7 @@ namespace DnsServerCore
                                                     break;
 
                                                 case "/api/checkForUpdate":
-                                                    CheckForUpdate(jsonWriter);
+                                                    CheckForUpdate(request, jsonWriter);
                                                     break;
 
                                                 case "/api/getDnsSettings":
@@ -224,6 +233,14 @@ namespace DnsServerCore
                                                     ResolveQuery(request, jsonWriter);
                                                     break;
 
+                                                case "/api/listLogs":
+                                                    ListLogs(jsonWriter);
+                                                    break;
+
+                                                case "/api/deleteLog":
+                                                    DeleteLog(request);
+                                                    break;
+
                                                 default:
                                                     throw new DnsWebServiceException("Invalid command: " + path);
                                             }
@@ -248,6 +265,8 @@ namespace DnsServerCore
                             }
                             catch (Exception ex)
                             {
+                                _log.Write(request.RemoteEndPoint, ex);
+
                                 jsonWriter.WritePropertyName("status");
                                 jsonWriter.WriteValue("error");
 
@@ -271,6 +290,21 @@ namespace DnsServerCore
                             }
                         }
                     }
+                }
+                else if (path.StartsWith("/log/"))
+                {
+                    if (!IsSessionValid(request))
+                    {
+                        Send403(response, "Invalid token or session expired.");
+                        return;
+                    }
+
+                    string[] pathParts = path.Split('/');
+
+                    string logFileName = pathParts[2];
+                    string logFile = Path.Combine(_log.LogFolder, logFileName + ".log");
+
+                    LogManager.DownloadLog(response, logFile, 10 * 1024 * 1024);
                 }
                 else
                 {
@@ -296,6 +330,8 @@ namespace DnsServerCore
             }
             catch (Exception ex)
             {
+                _log.Write(request.RemoteEndPoint, ex);
+
                 try
                 {
                     Send500(response, ex);
@@ -338,6 +374,20 @@ namespace DnsServerCore
             }
         }
 
+        private void Send403(HttpListenerResponse response, string message)
+        {
+            byte[] buffer = Encoding.UTF8.GetBytes("<h1>403 Forbidden</h1><p>" + message + "</p>");
+
+            response.StatusCode = 403;
+            response.ContentType = "text/html";
+            response.ContentLength64 = buffer.Length;
+
+            using (Stream stream = response.OutputStream)
+            {
+                stream.Write(buffer, 0, buffer.Length);
+            }
+        }
+
         private void SendFile(HttpListenerResponse response, string path)
         {
             using (FileStream fS = new FileStream(path, FileMode.Open, FileAccess.Read))
@@ -371,12 +421,30 @@ namespace DnsServerCore
             return null;
         }
 
+        private UserSession GetSession(HttpListenerRequest request)
+        {
+            string strToken = request.QueryString["token"];
+            if (string.IsNullOrEmpty(strToken))
+                throw new DnsWebServiceException("Parameter 'token' missing.");
+
+            return GetSession(strToken);
+        }
+
         private UserSession DeleteSession(string token)
         {
             if (_sessions.TryRemove(token, out UserSession session))
                 return session;
 
             return null;
+        }
+
+        private UserSession DeleteSession(HttpListenerRequest request)
+        {
+            string strToken = request.QueryString["token"];
+            if (string.IsNullOrEmpty(strToken))
+                throw new DnsWebServiceException("Parameter 'token' missing.");
+
+            return DeleteSession(strToken);
         }
 
         private void Login(HttpListenerRequest request, JsonTextWriter jsonWriter)
@@ -394,6 +462,8 @@ namespace DnsServerCore
             if (!_credentials.TryGetValue(strUsername, out string password) || (password != strPassword))
                 throw new DnsWebServiceException("Invalid username or password.");
 
+            _log.Write(request.RemoteEndPoint, "[" + strUsername + "] User logged in.");
+
             string token = CreateSession(strUsername);
 
             jsonWriter.WritePropertyName("token");
@@ -402,17 +472,13 @@ namespace DnsServerCore
 
         private bool IsSessionValid(HttpListenerRequest request)
         {
-            string strToken = request.QueryString["token"];
-            if (string.IsNullOrEmpty(strToken))
-                throw new DnsWebServiceException("Parameter 'token' missing.");
-
-            UserSession session = GetSession(strToken);
+            UserSession session = GetSession(request);
             if (session == null)
                 return false;
 
             if (session.HasExpired())
             {
-                _sessions.TryRemove(strToken, out UserSession x);
+                DeleteSession(request);
                 return false;
             }
 
@@ -436,6 +502,8 @@ namespace DnsServerCore
 
             SetCredentials(session.Username, strPassword);
             SaveConfigFile();
+
+            _log.Write(request.RemoteEndPoint, "[" + session.Username + "] Password was changed for user.");
         }
 
         private void Logout(HttpListenerRequest request)
@@ -444,7 +512,10 @@ namespace DnsServerCore
             if (string.IsNullOrEmpty(strToken))
                 throw new DnsWebServiceException("Parameter 'token' missing.");
 
-            DeleteSession(strToken);
+            UserSession session = DeleteSession(strToken);
+
+            if (session != null)
+                _log.Write(request.RemoteEndPoint, "[" + session.Username + "] User logged out.");
         }
 
         public static void CreateUpdateInfo(Stream s, string version, string landingPage)
@@ -456,7 +527,7 @@ namespace DnsServerCore
             encoder.EncodeNull();
         }
 
-        private void CheckForUpdate(JsonTextWriter jsonWriter)
+        private void CheckForUpdate(HttpListenerRequest request, JsonTextWriter jsonWriter)
         {
             bool updateAvailable = false;
             string landingPage = null;
@@ -505,6 +576,8 @@ namespace DnsServerCore
             }
             catch
             { }
+
+            _log.Write(request.RemoteEndPoint, "Check for update was done [updateAvailable: " + updateAvailable + "; landingPage: " + landingPage + ";]");
 
             jsonWriter.WritePropertyName("updateAvailable");
             jsonWriter.WriteValue(updateAvailable);
@@ -613,6 +686,8 @@ namespace DnsServerCore
                 }
             }
 
+            _log.Write(request.RemoteEndPoint, "[" + GetSession(request).Username + "] Dns Settings were updated {serverDomain: " + _serverDomain + "; webServicePort: " + _webServicePort + "; preferIPv6: " + _dnsServer.PreferIPv6 + "; allowRecursion: " + _dnsServer.AllowRecursion + "; forwarders: " + strForwarders + ";}");
+
             SaveConfigFile();
         }
 
@@ -678,6 +753,8 @@ namespace DnsServerCore
                 throw new DnsWebServiceException("Parameter 'domain' missing.");
 
             _dnsServer.CacheZoneRoot.DeleteZone(domain);
+
+            _log.Write(request.RemoteEndPoint, "[" + GetSession(request).Username + "] Cached zone was deleted: " + domain);
         }
 
         private void ListZones(JsonTextWriter jsonWriter)
@@ -712,6 +789,9 @@ namespace DnsServerCore
                 throw new DnsWebServiceException("Parameter 'domain' missing.");
 
             _dnsServer.AuthoritativeZoneRoot.SetRecords(domain, DnsResourceRecordType.SOA, 14400, new DnsResourceRecordData[] { new DnsSOARecord(_serverDomain, "hostmaster." + _serverDomain, uint.Parse(DateTime.UtcNow.ToString("yyyyMMddHH")), 28800, 7200, 604800, 600) });
+
+            _log.Write(request.RemoteEndPoint, "[" + GetSession(request).Username + "] Authoritative zone was created: " + domain);
+
             SaveZoneFile(domain);
         }
 
@@ -722,6 +802,9 @@ namespace DnsServerCore
                 throw new DnsWebServiceException("Parameter 'domain' missing.");
 
             _dnsServer.AuthoritativeZoneRoot.DeleteZone(domain);
+
+            _log.Write(request.RemoteEndPoint, "[" + GetSession(request).Username + "] Authoritative zone was deleted: " + domain);
+
             DeleteZoneFile(domain);
         }
 
@@ -732,6 +815,9 @@ namespace DnsServerCore
                 throw new DnsWebServiceException("Parameter 'domain' missing.");
 
             _dnsServer.AuthoritativeZoneRoot.EnableZone(domain);
+
+            _log.Write(request.RemoteEndPoint, "[" + GetSession(request).Username + "] Authoritative zone was enabled: " + domain);
+
             SaveConfigFile();
         }
 
@@ -742,6 +828,9 @@ namespace DnsServerCore
                 throw new DnsWebServiceException("Parameter 'domain' missing.");
 
             _dnsServer.AuthoritativeZoneRoot.DisableZone(domain);
+
+            _log.Write(request.RemoteEndPoint, "[" + GetSession(request).Username + "] Authoritative zone was disabled: " + domain);
+
             SaveConfigFile();
         }
 
@@ -805,6 +894,8 @@ namespace DnsServerCore
                 default:
                     throw new DnsWebServiceException("Type not supported for AddRecords().");
             }
+
+            _log.Write(request.RemoteEndPoint, "[" + GetSession(request).Username + "] New record was added to authoritative zone {domain: " + domain + "; type: " + type + "; value: " + value + "; ttl: " + ttl + ";}");
 
             SaveZoneFile(domain);
         }
@@ -1038,6 +1129,8 @@ namespace DnsServerCore
                     throw new DnsWebServiceException("Type not supported for DeleteRecord().");
             }
 
+            _log.Write(request.RemoteEndPoint, "[" + GetSession(request).Username + "] Record was deleted from authoritative zone {domain: " + domain + "; type: " + type + "; value: " + value + ";}");
+
             SaveZoneFile(domain);
         }
 
@@ -1138,6 +1231,8 @@ namespace DnsServerCore
                 default:
                     throw new DnsWebServiceException("Type not supported for UpdateRecords().");
             }
+
+            _log.Write(request.RemoteEndPoint, "[" + GetSession(request).Username + "] Record was updated for authoritative zone {oldDomain: " + oldDomain + "; domain: " + domain + "; type: " + type + "; oldValue: " + oldValue + "; value: " + value + "; ttl: " + ttl + ";}");
 
             SaveZoneFile(domain);
         }
@@ -1256,11 +1351,55 @@ namespace DnsServerCore
                 }
 
                 _dnsServer.AuthoritativeZoneRoot.SetRecords(recordsToSet);
+
+                _log.Write(request.RemoteEndPoint, "[" + GetSession(request).Username + "] DNS Client imported record(s) for authoritative zone {server: " + server + "; domain: " + domain + "; type: " + type + ";}");
+
                 SaveZoneFile(domain);
             }
 
             jsonWriter.WritePropertyName("result");
             jsonWriter.WriteRawValue(JsonConvert.SerializeObject(dnsResponse, new StringEnumConverter()));
+        }
+
+        private void ListLogs(JsonTextWriter jsonWriter)
+        {
+            string[] logFiles = Directory.GetFiles(_log.LogFolder, "*.log");
+
+            Array.Sort(logFiles);
+
+            jsonWriter.WritePropertyName("logFiles");
+            jsonWriter.WriteStartArray();
+
+            foreach (string logFile in logFiles)
+            {
+                jsonWriter.WriteStartObject();
+
+                jsonWriter.WritePropertyName("fileName");
+                jsonWriter.WriteValue(Path.GetFileNameWithoutExtension(logFile));
+
+                jsonWriter.WritePropertyName("size");
+                jsonWriter.WriteValue(WebUtilities.GetFormattedSize(new FileInfo(logFile).Length));
+
+                jsonWriter.WriteEndObject();
+            }
+
+            jsonWriter.WriteEndArray();
+        }
+
+        private void DeleteLog(HttpListenerRequest request)
+        {
+            string log = request.QueryString["log"];
+            if (string.IsNullOrEmpty(log))
+                throw new DnsWebServiceException("Parameter 'log' missing.");
+
+            string logFile = Path.Combine(_log.LogFolder, log + ".log");
+
+            if (_log.CurrentLogFile.Equals(logFile, StringComparison.CurrentCultureIgnoreCase))
+                _log.DeleteCurrentLogFile();
+            else
+                File.Delete(logFile);
+
+            _log.Write(request.RemoteEndPoint, "[" + GetSession(request).Username + "] Log file was deleted: " + log);
         }
 
         private void SetCredentials(string username, string password)
@@ -1329,6 +1468,8 @@ namespace DnsServerCore
                             records[i++] = new DnsResourceRecord(entry.GetValueStream());
 
                         _dnsServer.AuthoritativeZoneRoot.SetRecords(records);
+
+                        _log.Write("Loaded zone file: " + zoneFile);
                         break;
 
                     default:
@@ -1350,6 +1491,8 @@ namespace DnsServerCore
 
                 encoder.EncodeBinaryList(records);
             }
+
+            _log.Write("Saved zone file for domain: " + domain);
         }
 
         private void DeleteZoneFile(string domain)
@@ -1357,13 +1500,17 @@ namespace DnsServerCore
             domain = domain.ToLower();
 
             File.Delete(Path.Combine(_configFolder, domain + ".zone"));
+
+            _log.Write("Deleted zone file for domain: " + domain);
         }
 
         private void LoadConfigFile()
         {
             try
             {
-                using (FileStream fS = new FileStream(Path.Combine(_configFolder, "dns.config"), FileMode.Open, FileAccess.Read))
+                string configFile = Path.Combine(_configFolder, "dns.config");
+
+                using (FileStream fS = new FileStream(configFile, FileMode.Open, FileAccess.Read))
                 {
                     BincodingDecoder decoder = new BincodingDecoder(fS, "DS");
 
@@ -1429,6 +1576,8 @@ namespace DnsServerCore
                             throw new IOException("Dns Config file version not supported: " + decoder.Version);
                     }
                 }
+
+                _log.Write("Dns Server config file was loaded: " + configFile);
             }
             catch (IOException)
             {
@@ -1445,7 +1594,9 @@ namespace DnsServerCore
 
         private void SaveConfigFile()
         {
-            using (FileStream fS = new FileStream(Path.Combine(_configFolder, "dns.config"), FileMode.Create, FileAccess.Write))
+            string configFile = Path.Combine(_configFolder, "dns.config");
+
+            using (FileStream fS = new FileStream(configFile, FileMode.Create, FileAccess.Write))
             {
                 BincodingEncoder encoder = new BincodingEncoder(fS, "DS", 1);
 
@@ -1488,6 +1639,8 @@ namespace DnsServerCore
 
                 encoder.EncodeNull();
             }
+
+            _log.Write("Dns Server config file was saved: " + configFile);
         }
 
         #endregion
@@ -1500,6 +1653,7 @@ namespace DnsServerCore
                 return;
 
             _dnsServer = new DnsServer();
+            _dnsServer.LogManager = _log;
 
             LoadZoneFiles();
             LoadConfigFile();
@@ -1525,6 +1679,10 @@ namespace DnsServerCore
             _webServiceThread = new Thread(AcceptWebRequestAsync);
             _webServiceThread.IsBackground = true;
             _webServiceThread.Start();
+
+            _state = ServiceState.Running;
+
+            _log.Write(new IPEndPoint(IPAddress.Loopback, _webServicePort), "Dns Web Service was started successfully.");
         }
 
         public void Stop()
@@ -1538,6 +1696,9 @@ namespace DnsServerCore
             _dnsServer.Stop();
 
             _state = ServiceState.Stopped;
+
+            _log.Write(new IPEndPoint(IPAddress.Loopback, _webServicePort), "Dns Web Service was stopped successfully.");
+            _log.Dispose();
         }
 
         #endregion
