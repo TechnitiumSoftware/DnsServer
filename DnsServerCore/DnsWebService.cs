@@ -270,7 +270,7 @@ namespace DnsServerCore
                             }
                             catch (Exception ex)
                             {
-                                _log.Write(request.RemoteEndPoint, ex);
+                                _log.Write(GetRequestRemoteEndPoint(request), ex);
 
                                 jsonWriter.WritePropertyName("status");
                                 jsonWriter.WriteValue("error");
@@ -335,7 +335,7 @@ namespace DnsServerCore
             }
             catch (Exception ex)
             {
-                _log.Write(request.RemoteEndPoint, ex);
+                _log.Write(GetRequestRemoteEndPoint(request), ex);
 
                 try
                 {
@@ -343,6 +343,19 @@ namespace DnsServerCore
                 }
                 catch
                 { }
+            }
+        }
+
+        private IPEndPoint GetRequestRemoteEndPoint(HttpListenerRequest request)
+        {
+            //this is due to mono NullReferenceException issue
+            try
+            {
+                return request.RemoteEndPoint;
+            }
+            catch
+            {
+                return new IPEndPoint(IPAddress.Any, 0);
             }
         }
 
@@ -467,7 +480,7 @@ namespace DnsServerCore
             if (!_credentials.TryGetValue(strUsername, out string password) || (password != strPassword))
                 throw new DnsWebServiceException("Invalid username or password.");
 
-            _log.Write(request.RemoteEndPoint, "[" + strUsername + "] User logged in.");
+            _log.Write(GetRequestRemoteEndPoint(request), "[" + strUsername + "] User logged in.");
 
             string token = CreateSession(strUsername);
 
@@ -508,7 +521,7 @@ namespace DnsServerCore
             SetCredentials(session.Username, strPassword);
             SaveConfigFile();
 
-            _log.Write(request.RemoteEndPoint, "[" + session.Username + "] Password was changed for user.");
+            _log.Write(GetRequestRemoteEndPoint(request), "[" + session.Username + "] Password was changed for user.");
         }
 
         private void Logout(HttpListenerRequest request)
@@ -520,7 +533,7 @@ namespace DnsServerCore
             UserSession session = DeleteSession(strToken);
 
             if (session != null)
-                _log.Write(request.RemoteEndPoint, "[" + session.Username + "] User logged out.");
+                _log.Write(GetRequestRemoteEndPoint(request), "[" + session.Username + "] User logged out.");
         }
 
         public static void CreateUpdateInfo(Stream s, string version, string displayText, string downloadLink)
@@ -600,11 +613,11 @@ namespace DnsServerCore
                     }
                 }
 
-                _log.Write(request.RemoteEndPoint, "Check for update was done {updateAvailable: " + updateAvailable + "; updateVersion: " + updateVersion + "; displayText: " + displayText + "; downloadLink: " + downloadLink + ";}");
+                _log.Write(GetRequestRemoteEndPoint(request), "Check for update was done {updateAvailable: " + updateAvailable + "; updateVersion: " + updateVersion + "; displayText: " + displayText + "; downloadLink: " + downloadLink + ";}");
             }
             catch
             {
-                _log.Write(request.RemoteEndPoint, "Check for update was done {updateAvailable: False;}");
+                _log.Write(GetRequestRemoteEndPoint(request), "Check for update was done {updateAvailable: False;}");
             }
 
             jsonWriter.WritePropertyName("updateAvailable");
@@ -735,7 +748,7 @@ namespace DnsServerCore
                 }
             }
 
-            _log.Write(request.RemoteEndPoint, "[" + GetSession(request).Username + "] Dns Settings were updated {serverDomain: " + _serverDomain + "; webServicePort: " + _webServicePort + "; preferIPv6: " + _dnsServer.PreferIPv6 + "; logQueries: " + (_dnsServer.QueryLogManager != null) + "; allowRecursion: " + _dnsServer.AllowRecursion + "; forwarders: " + strForwarders + ";}");
+            _log.Write(GetRequestRemoteEndPoint(request), "[" + GetSession(request).Username + "] Dns Settings were updated {serverDomain: " + _serverDomain + "; webServicePort: " + _webServicePort + "; preferIPv6: " + _dnsServer.PreferIPv6 + "; logQueries: " + (_dnsServer.QueryLogManager != null) + "; allowRecursion: " + _dnsServer.AllowRecursion + "; forwarders: " + strForwarders + ";}");
 
             SaveConfigFile();
 
@@ -808,7 +821,7 @@ namespace DnsServerCore
 
             _dnsServer.CacheZoneRoot.DeleteZone(domain);
 
-            _log.Write(request.RemoteEndPoint, "[" + GetSession(request).Username + "] Cached zone was deleted: " + domain);
+            _log.Write(GetRequestRemoteEndPoint(request), "[" + GetSession(request).Username + "] Cached zone was deleted: " + domain);
         }
 
         private void ListZones(JsonTextWriter jsonWriter)
@@ -844,7 +857,7 @@ namespace DnsServerCore
 
             _dnsServer.AuthoritativeZoneRoot.SetRecords(domain, DnsResourceRecordType.SOA, 14400, new DnsResourceRecordData[] { new DnsSOARecord(_serverDomain, "hostmaster." + _serverDomain, uint.Parse(DateTime.UtcNow.ToString("yyyyMMddHH")), 28800, 7200, 604800, 600) });
 
-            _log.Write(request.RemoteEndPoint, "[" + GetSession(request).Username + "] Authoritative zone was created: " + domain);
+            _log.Write(GetRequestRemoteEndPoint(request), "[" + GetSession(request).Username + "] Authoritative zone was created: " + domain);
 
             SaveZoneFile(domain);
         }
@@ -857,7 +870,7 @@ namespace DnsServerCore
 
             _dnsServer.AuthoritativeZoneRoot.DeleteZone(domain);
 
-            _log.Write(request.RemoteEndPoint, "[" + GetSession(request).Username + "] Authoritative zone was deleted: " + domain);
+            _log.Write(GetRequestRemoteEndPoint(request), "[" + GetSession(request).Username + "] Authoritative zone was deleted: " + domain);
 
             DeleteZoneFile(domain);
         }
@@ -870,7 +883,7 @@ namespace DnsServerCore
 
             _dnsServer.AuthoritativeZoneRoot.EnableZone(domain);
 
-            _log.Write(request.RemoteEndPoint, "[" + GetSession(request).Username + "] Authoritative zone was enabled: " + domain);
+            _log.Write(GetRequestRemoteEndPoint(request), "[" + GetSession(request).Username + "] Authoritative zone was enabled: " + domain);
 
             SaveConfigFile();
         }
@@ -883,7 +896,7 @@ namespace DnsServerCore
 
             _dnsServer.AuthoritativeZoneRoot.DisableZone(domain);
 
-            _log.Write(request.RemoteEndPoint, "[" + GetSession(request).Username + "] Authoritative zone was disabled: " + domain);
+            _log.Write(GetRequestRemoteEndPoint(request), "[" + GetSession(request).Username + "] Authoritative zone was disabled: " + domain);
 
             SaveConfigFile();
         }
@@ -949,7 +962,7 @@ namespace DnsServerCore
                     throw new DnsWebServiceException("Type not supported for AddRecords().");
             }
 
-            _log.Write(request.RemoteEndPoint, "[" + GetSession(request).Username + "] New record was added to authoritative zone {domain: " + domain + "; type: " + type + "; value: " + value + "; ttl: " + ttl + ";}");
+            _log.Write(GetRequestRemoteEndPoint(request), "[" + GetSession(request).Username + "] New record was added to authoritative zone {domain: " + domain + "; type: " + type + "; value: " + value + "; ttl: " + ttl + ";}");
 
             SaveZoneFile(domain);
         }
@@ -1183,7 +1196,7 @@ namespace DnsServerCore
                     throw new DnsWebServiceException("Type not supported for DeleteRecord().");
             }
 
-            _log.Write(request.RemoteEndPoint, "[" + GetSession(request).Username + "] Record was deleted from authoritative zone {domain: " + domain + "; type: " + type + "; value: " + value + ";}");
+            _log.Write(GetRequestRemoteEndPoint(request), "[" + GetSession(request).Username + "] Record was deleted from authoritative zone {domain: " + domain + "; type: " + type + "; value: " + value + ";}");
 
             SaveZoneFile(domain);
         }
@@ -1286,7 +1299,7 @@ namespace DnsServerCore
                     throw new DnsWebServiceException("Type not supported for UpdateRecords().");
             }
 
-            _log.Write(request.RemoteEndPoint, "[" + GetSession(request).Username + "] Record was updated for authoritative zone {oldDomain: " + oldDomain + "; domain: " + domain + "; type: " + type + "; oldValue: " + oldValue + "; value: " + value + "; ttl: " + ttl + ";}");
+            _log.Write(GetRequestRemoteEndPoint(request), "[" + GetSession(request).Username + "] Record was updated for authoritative zone {oldDomain: " + oldDomain + "; domain: " + domain + "; type: " + type + "; oldValue: " + oldValue + "; value: " + value + "; ttl: " + ttl + ";}");
 
             SaveZoneFile(domain);
         }
@@ -1406,7 +1419,7 @@ namespace DnsServerCore
 
                 _dnsServer.AuthoritativeZoneRoot.SetRecords(recordsToSet);
 
-                _log.Write(request.RemoteEndPoint, "[" + GetSession(request).Username + "] DNS Client imported record(s) for authoritative zone {server: " + server + "; domain: " + domain + "; type: " + type + ";}");
+                _log.Write(GetRequestRemoteEndPoint(request), "[" + GetSession(request).Username + "] DNS Client imported record(s) for authoritative zone {server: " + server + "; domain: " + domain + "; type: " + type + ";}");
 
                 SaveZoneFile(domain);
             }
@@ -1454,7 +1467,7 @@ namespace DnsServerCore
             else
                 File.Delete(logFile);
 
-            _log.Write(request.RemoteEndPoint, "[" + GetSession(request).Username + "] Log file was deleted: " + log);
+            _log.Write(GetRequestRemoteEndPoint(request), "[" + GetSession(request).Username + "] Log file was deleted: " + log);
         }
 
         private void SetCredentials(string username, string password)
