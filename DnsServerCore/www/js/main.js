@@ -60,7 +60,8 @@ $(function () {
     $("#footer").html("<div class=\"content\"><a href=\"https://technitium.com\" target=\"_blank\">Technitium</a> | <a href=\"http://blog.technitium.com\" target=\"_blank\">Blog</a> | <a href=\"http://dnsclient.net/\" target=\"_blank\">DNS Client</a> | <a href=\"https://github.com/TechnitiumSoftware/DnsServer\" target=\"_blank\"><i class=\"fa fa-github\"></i>&nbsp;GitHub</a> | <a href=\"https://technitium.com/aboutus.html\" target=\"_blank\">About</a></div>");
 
     //dropdown list box support
-    $('.dropdown').on('click', 'a', function () {
+    $('.dropdown').on('click', 'a', function (e) {
+        e.preventDefault();
         $(this).closest('.dropdown').find('input').val($(this).text());
     });
 
@@ -189,7 +190,12 @@ function checkForUpdate() {
             var lnkNewVersionAvailable = $("#lnkNewVersionAvailable");
 
             if (responseJSON.response.updateAvailable) {
-                lnkNewVersionAvailable.attr("href", responseJSON.response.landingPage);
+
+                if (responseJSON.response.displayText == null)
+                    responseJSON.response.displayText = "New Version Available!";
+
+                lnkNewVersionAvailable.text(responseJSON.response.displayText);
+                lnkNewVersionAvailable.attr("href", responseJSON.response.downloadLink);
                 lnkNewVersionAvailable.show();
             }
             else {
@@ -215,6 +221,7 @@ function loadDnsSettings() {
     HTTPRequest({
         url: "/api/getDnsSettings?token=" + token,
         success: function (responseJSON) {
+            document.title = "Technitium DNS Server " + responseJSON.response.version + " - " + responseJSON.response.serverDomain;
 
             $("#txtServerDomain").val(responseJSON.response.serverDomain);
             $("#lblServerDomain").text(" - " + responseJSON.response.serverDomain);
@@ -222,6 +229,7 @@ function loadDnsSettings() {
             $("#txtWebServicePort").val(responseJSON.response.webServicePort);
 
             $("#chkPreferIPv6").prop("checked", responseJSON.response.preferIPv6);
+            $("#chkLogQueries").prop("checked", responseJSON.response.logQueries);
             $("#chkAllowRecursion").prop("checked", responseJSON.response.allowRecursion);
 
             var forwarders = responseJSON.response.forwarders;
@@ -266,6 +274,7 @@ function saveDnsSettings() {
     }
 
     var preferIPv6 = $("#chkPreferIPv6").prop('checked');
+    var logQueries = $("#chkLogQueries").prop('checked');
     var allowRecursion = $("#chkAllowRecursion").prop('checked');
     var forwarders = $("#txtForwarders").val().replace(/\n/g, ",");
 
@@ -287,9 +296,11 @@ function saveDnsSettings() {
     var btn = $("#btnSaveDnsSettings").button('loading');
 
     HTTPRequest({
-        url: "/api/setDnsSettings?token=" + token + "&serverDomain=" + serverDomain + "&webServicePort=" + webServicePort + "&preferIPv6=" + preferIPv6 + "&allowRecursion=" + allowRecursion + "&forwarders=" + forwarders,
+        url: "/api/setDnsSettings?token=" + token + "&serverDomain=" + serverDomain + "&webServicePort=" + webServicePort + "&preferIPv6=" + preferIPv6 + "&logQueries=" + logQueries + "&allowRecursion=" + allowRecursion + "&forwarders=" + forwarders,
         success: function (responseJSON) {
-            $("#lblServerDomain").text(" - " + serverDomain);
+            document.title = "Technitium DNS Server " + responseJSON.response.version + " - " + responseJSON.response.serverDomain;
+            $("#lblServerDomain").text(" - " + responseJSON.response.serverDomain);
+            $("#txtServerDomain").val(responseJSON.response.serverDomain)
 
             btn.button('reset');
             showAlert("success", "Settings Saved!", "Dns server settings were saved successfully.");
@@ -465,7 +476,7 @@ function refreshZonesList(hideLoader) {
             for (var i = 0; i < zones.length; i++) {
                 var zoneName = htmlEncode(zones[i].zoneName);
 
-                list += "<div class=\"zone\"><a href=\"#\" onclick=\"return viewZone('" + zoneName + "', " + zones[i].disabled + ");\"" + (zones[i].disabled ? "style=\"color: #ff0000 !important\"" : "") + ">" + zoneName + "</a></div>"
+                list += "<div class=\"zone\"><a href=\"#\" onclick=\"return viewZone('" + zoneName + "', " + zones[i].disabled + ");\"" + (zones[i].disabled ? "style=\"color: #ffa500 !important\"" : "") + ">" + zoneName + "</a></div>"
             }
 
             lstZones.html(list);
@@ -515,7 +526,7 @@ function addZone() {
 
 function deleteZone() {
 
-    var domain = $("#txtZoneViewerTitle").text();
+    var domain = $("#spanZoneViewerTitle").text();
 
     if (!confirm("Are you sure you want to permanently delete the zone '" + domain + "' and all its records?"))
         return false;
@@ -546,7 +557,7 @@ function deleteZone() {
 
 function enableZone() {
 
-    var domain = $("#txtZoneViewerTitle").text();
+    var domain = $("#spanZoneViewerTitle").text();
 
     if (!confirm("Are you sure you want to enable the zone '" + domain + "'?"))
         return false;
@@ -579,7 +590,7 @@ function enableZone() {
 
 function disableZone() {
 
-    var domain = $("#txtZoneViewerTitle").text();
+    var domain = $("#spanZoneViewerTitle").text();
 
     if (!confirm("Are you sure you want to disable the zone '" + domain + "'?"))
         return false;
@@ -613,11 +624,10 @@ function disableZone() {
 function viewZone(domain, disabled) {
 
     var divZoneViewer = $("#divZoneViewer");
-    var txtZoneViewerTitle = $("#txtZoneViewerTitle");
     var divZoneViewerBody = $("#divZoneViewerBody");
     var divZoneViewerLoader = $("#divZoneViewerLoader");
 
-    txtZoneViewerTitle.text(domain);
+    $("#spanZoneViewerTitle").text(domain);
 
     if (disabled) {
         $("#btnEnableZone").show();
@@ -627,6 +637,8 @@ function viewZone(domain, disabled) {
         $("#btnEnableZone").hide();
         $("#btnDisableZone").show();
     }
+
+    $("#spanZoneViewerTitleLink").html("<a href=\"http://" + domain + "/\" target=\"_blank\"><span class=\"glyphicon glyphicon-new-window\" aria-hidden=\"true\"></span></a>");
 
     divZoneViewerLoader.show();
     divZoneViewerBody.hide();
@@ -1042,7 +1054,7 @@ function modifyAddRecordForm() {
 
 function addResourceRecord() {
 
-    var domain = $("#txtZoneViewerTitle").text();
+    var domain = $("#spanZoneViewerTitle").text();
 
     var type = $("#optAddRecordType").val();
     var subDomain = $("#txtAddRecordName").val();
@@ -1165,7 +1177,7 @@ function updateResourceRecord(objBtn) {
     var id = btnUpdate.attr("data-id");
     var divData = $("#data" + id);
 
-    var domain = $("#txtZoneViewerTitle").text();
+    var domain = $("#spanZoneViewerTitle").text();
     var type = $("#optType" + id).val();
 
     var oldName;

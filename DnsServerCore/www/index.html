@@ -111,7 +111,7 @@
                                     <div id="divZoneViewer" class="zone-viewer-pane">
                                         <div class="panel panel-default">
                                             <div class="panel-heading" style="height: 36px; padding: 4px 6px;">
-                                                <div id="txtZoneViewerTitle" style="float: left; padding: 4px;">technitium.com</div>
+                                                <div style="float: left; padding: 4px;"><span id="spanZoneViewerTitle">technitium.com</span> <span id="spanZoneViewerTitleLink"><a href="" target="_blank"><span class="glyphicon glyphicon-new-window" aria-hidden="true"></span></a></span></div>
                                                 <div style="float: right;">
                                                     <button id="btnDisableZone" type="button" class="btn btn-warning" data-loading-text="Disable" onclick="return disableZone();" style="font-size: 12px; padding: 4px 6px;">Disable</button>
                                                     <button id="btnEnableZone" type="button" class="btn btn-default" data-loading-text="Enable" onclick="return enableZone();" style="font-size: 12px; padding: 4px 6px;">Enable</button>
@@ -340,31 +340,33 @@
                                             <div class="input-group dropdown">
                                                 <input type="text" class="form-control dropdown-toggle" style="width: 180px;" id="txtDnsClientNameServer" value="This Server (this-server)">
                                                 <ul class="dropdown-menu" id="optDnsClientNameServers">
-                                                    <li><a href="#" onclick="return false;">This Server (this-server)</a></li>
-                                                    <li><a href="#" onclick="return false;">Google (8.8.8.8)</a></li>
-                                                    <li><a href="#" onclick="return false;">Google (8.8.4.4)</a></li>
-                                                    <li><a href="#" onclick="return false;">OpenDNS (208.67.222.222)</a></li>
-                                                    <li><a href="#" onclick="return false;">OpenDNS (208.67.220.220)</a></li>
-                                                    <li><a href="#" onclick="return false;">Level3 (4.2.2.1)</a></li>
-                                                    <li><a href="#" onclick="return false;">Level3 (4.2.2.2)</a></li>
-                                                    <li><a href="#" onclick="return false;">Ultra (156.154.70.1)</a></li>
-                                                    <li><a href="#" onclick="return false;">Ultra (156.154.71.1)</a></li>
-                                                    <li><a href="#" onclick="return false;">Dyn (216.146.35.35)</a></li>
-                                                    <li><a href="#" onclick="return false;">Dyn (216.146.36.36)</a></li>
-                                                    <li><a href="#" onclick="return false;">Recursive Query Via Root Servers (root-servers)</a></li>
-                                                    <li><a href="#" onclick="return false;">a.root-servers.net</a></li>
-                                                    <li><a href="#" onclick="return false;">b.root-servers.net</a></li>
-                                                    <li><a href="#" onclick="return false;">c.root-servers.net</a></li>
-                                                    <li><a href="#" onclick="return false;">d.root-servers.net</a></li>
-                                                    <li><a href="#" onclick="return false;">e.root-servers.net</a></li>
-                                                    <li><a href="#" onclick="return false;">f.root-servers.net</a></li>
-                                                    <li><a href="#" onclick="return false;">g.root-servers.net</a></li>
-                                                    <li><a href="#" onclick="return false;">h.root-servers.net</a></li>
-                                                    <li><a href="#" onclick="return false;">i.root-servers.net</a></li>
-                                                    <li><a href="#" onclick="return false;">j.root-servers.net</a></li>
-                                                    <li><a href="#" onclick="return false;">k.root-servers.net</a></li>
-                                                    <li><a href="#" onclick="return false;">l.root-servers.net</a></li>
-                                                    <li><a href="#" onclick="return false;">m.root-servers.net</a></li>
+                                                    <li><a href="#">This Server (this-server)</a></li>
+                                                    <li><a href="#">Google (8.8.8.8)</a></li>
+                                                    <li><a href="#">Google (8.8.4.4)</a></li>
+                                                    <li><a href="#">IBM Quad9 Secure (9.9.9.9)</a></li>
+                                                    <li><a href="#">IBM Quad9 Unsecure (9.9.9.10)</a></li>
+                                                    <li><a href="#">OpenDNS (208.67.222.222)</a></li>
+                                                    <li><a href="#">OpenDNS (208.67.220.220)</a></li>
+                                                    <li><a href="#">Level3 (4.2.2.1)</a></li>
+                                                    <li><a href="#">Level3 (4.2.2.2)</a></li>
+                                                    <li><a href="#">Ultra (156.154.70.1)</a></li>
+                                                    <li><a href="#">Ultra (156.154.71.1)</a></li>
+                                                    <li><a href="#">Dyn (216.146.35.35)</a></li>
+                                                    <li><a href="#">Dyn (216.146.36.36)</a></li>
+                                                    <li><a href="#">Recursive Query Via Root Servers (root-servers)</a></li>
+                                                    <li><a href="#">a.root-servers.net</a></li>
+                                                    <li><a href="#">b.root-servers.net</a></li>
+                                                    <li><a href="#">c.root-servers.net</a></li>
+                                                    <li><a href="#">d.root-servers.net</a></li>
+                                                    <li><a href="#">e.root-servers.net</a></li>
+                                                    <li><a href="#">f.root-servers.net</a></li>
+                                                    <li><a href="#">g.root-servers.net</a></li>
+                                                    <li><a href="#">h.root-servers.net</a></li>
+                                                    <li><a href="#">i.root-servers.net</a></li>
+                                                    <li><a href="#">j.root-servers.net</a></li>
+                                                    <li><a href="#">k.root-servers.net</a></li>
+                                                    <li><a href="#">l.root-servers.net</a></li>
+                                                    <li><a href="#">m.root-servers.net</a></li>
                                                 </ul>
                                                 <span role="button" class="input-group-addon dropdown-toggle" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false"><span class="caret"></span></span>
                                             </div>
@@ -447,6 +449,18 @@
                                                     </div>
 
                                                     <div>Use this option only if this DNS server has native IPv6 Internet access. DNS Server will use IPv6 for querying whenever possible with this option enabled.</div>
+                                                </div>
+                                            </div>
+
+                                            <div class="well well-sm">
+                                                <div class="form-group">
+                                                    <div class="checkbox">
+                                                        <label>
+                                                            <input id="chkLogQueries" type="checkbox"> Log All Queries
+                                                        </label>
+                                                    </div>
+
+                                                    <div>Use this option to log every query received by this Dns Server and the corresponding response answers into the log file. Enabling this option will significantly increase the log file size. Error and audit logs are enabled by default.</div>
                                                 </div>
                                             </div>
 
