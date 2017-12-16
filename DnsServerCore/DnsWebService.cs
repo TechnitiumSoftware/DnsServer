@@ -48,8 +48,11 @@ namespace DnsServerCore
 
         #region variables
 
-        readonly static Uri UPDATE_URI = new Uri("https://technitium.com/download/dns/update.bin");
+        readonly static Uri UPDATE_URI_WINDOWS_SERVICE = new Uri("https://technitium.com/download/dns/updatews.bin");
+        readonly static Uri UPDATE_URI_WINDOWS_APP = new Uri("https://technitium.com/download/dns/updatewa.bin");
+        readonly static Uri UPDATE_URI_MONO_APP = new Uri("https://technitium.com/download/dns/updatema.bin");
 
+        bool _isWindowsService;
         readonly string _currentVersion;
         readonly string _appFolder;
         readonly string _configFolder;
@@ -76,8 +79,10 @@ namespace DnsServerCore
         public DnsWebService(string configFolder = null)
         {
             Assembly assembly = Assembly.GetEntryAssembly();
+            AssemblyName assemblyName = assembly.GetName();
 
-            _currentVersion = assembly.GetName().Version.ToString();
+            _isWindowsService = (assemblyName.Name == "DnsService");
+            _currentVersion = assemblyName.Version.ToString();
             _appFolder = Path.GetDirectoryName(assembly.Location);
 
             if (configFolder == null)
@@ -178,7 +183,7 @@ namespace DnsServerCore
                                                     break;
 
                                                 case "/api/setDnsSettings":
-                                                    SetDnsSettings(request);
+                                                    SetDnsSettings(request, jsonWriter);
                                                     break;
 
                                                 case "/api/flushDnsCache":
@@ -304,7 +309,7 @@ namespace DnsServerCore
                     string logFileName = pathParts[2];
                     string logFile = Path.Combine(_log.LogFolder, logFileName + ".log");
 
-                    LogManager.DownloadLog(response, logFile, 10 * 1024 * 1024);
+                    LogManager.DownloadLog(response, logFile, 2 * 1024 * 1024);
                 }
                 else
                 {
@@ -518,25 +523,42 @@ namespace DnsServerCore
                 _log.Write(request.RemoteEndPoint, "[" + session.Username + "] User logged out.");
         }
 
-        public static void CreateUpdateInfo(Stream s, string version, string landingPage)
+        public static void CreateUpdateInfo(Stream s, string version, string displayText, string downloadLink)
         {
             BincodingEncoder encoder = new BincodingEncoder(s, "DU", 1);
 
             encoder.EncodeKeyValue("version", version);
-            encoder.EncodeKeyValue("landingPage", landingPage);
-            encoder.EncodeNull();
+            encoder.EncodeKeyValue("displayText", displayText);
+            encoder.EncodeKeyValue("downloadLink", downloadLink);
         }
 
         private void CheckForUpdate(HttpListenerRequest request, JsonTextWriter jsonWriter)
         {
+            string updateVersion = null;
+            string displayText = null;
+            string downloadLink = null;
+
             bool updateAvailable = false;
-            string landingPage = null;
 
             try
             {
                 using (WebClient wc = new WebClient())
                 {
-                    byte[] response = wc.DownloadData(UPDATE_URI);
+                    Uri updateUri;
+
+                    if (Environment.OSVersion.Platform == PlatformID.Win32NT)
+                    {
+                        if (_isWindowsService)
+                            updateUri = UPDATE_URI_WINDOWS_SERVICE;
+                        else
+                            updateUri = UPDATE_URI_WINDOWS_APP;
+                    }
+                    else
+                    {
+                        updateUri = UPDATE_URI_MONO_APP;
+                    }
+
+                    byte[] response = wc.DownloadData(updateUri);
 
                     using (MemoryStream mS = new MemoryStream(response, false))
                     {
@@ -548,7 +570,7 @@ namespace DnsServerCore
                                 while (true)
                                 {
                                     Bincoding entry = decoder.DecodeNext();
-                                    if (entry.Type == BincodingType.NULL)
+                                    if (entry == null)
                                         break;
 
                                     KeyValuePair<string, Bincoding> value = entry.GetKeyValuePair();
@@ -556,13 +578,17 @@ namespace DnsServerCore
                                     switch (value.Key)
                                     {
                                         case "version":
-                                            string updateVersion = value.Value.GetStringValue();
+                                            updateVersion = value.Value.GetStringValue();
 
                                             updateAvailable = IsUpdateAvailable(_currentVersion, updateVersion);
                                             break;
 
-                                        case "landingPage":
-                                            landingPage = value.Value.GetStringValue();
+                                        case "displayText":
+                                            displayText = value.Value.GetStringValue();
+                                            break;
+
+                                        case "downloadLink":
+                                            downloadLink = value.Value.GetStringValue();
                                             break;
                                     }
                                 }
@@ -573,19 +599,27 @@ namespace DnsServerCore
                         }
                     }
                 }
+
+                _log.Write(request.RemoteEndPoint, "Check for update was done {updateAvailable: " + updateAvailable + "; updateVersion: " + updateVersion + "; displayText: " + displayText + "; downloadLink: " + downloadLink + ";}");
             }
             catch
-            { }
-
-            _log.Write(request.RemoteEndPoint, "Check for update was done [updateAvailable: " + updateAvailable + "; landingPage: " + landingPage + ";]");
+            {
+                _log.Write(request.RemoteEndPoint, "Check for update was done {updateAvailable: False;}");
+            }
 
             jsonWriter.WritePropertyName("updateAvailable");
             jsonWriter.WriteValue(updateAvailable);
 
             if (updateAvailable)
             {
-                jsonWriter.WritePropertyName("landingPage");
-                jsonWriter.WriteValue(landingPage);
+                if (!string.IsNullOrEmpty(displayText))
+                {
+                    jsonWriter.WritePropertyName("displayText");
+                    jsonWriter.WriteValue(displayText);
+                }
+
+                jsonWriter.WritePropertyName("downloadLink");
+                jsonWriter.WriteValue(downloadLink);
             }
         }
 
@@ -620,6 +654,9 @@ namespace DnsServerCore
 
         private void GetDnsSettings(JsonTextWriter jsonWriter)
         {
+            jsonWriter.WritePropertyName("version");
+            jsonWriter.WriteValue(_currentVersion.Replace(".0", ""));
+
             jsonWriter.WritePropertyName("serverDomain");
             jsonWriter.WriteValue(_serverDomain);
 
@@ -628,6 +665,9 @@ namespace DnsServerCore
 
             jsonWriter.WritePropertyName("preferIPv6");
             jsonWriter.WriteValue(_dnsServer.PreferIPv6);
+
+            jsonWriter.WritePropertyName("logQueries");
+            jsonWriter.WriteValue(_dnsServer.QueryLogManager != null);
 
             jsonWriter.WritePropertyName("allowRecursion");
             jsonWriter.WriteValue(_dnsServer.AllowRecursion);
@@ -649,7 +689,7 @@ namespace DnsServerCore
             }
         }
 
-        private void SetDnsSettings(HttpListenerRequest request)
+        private void SetDnsSettings(HttpListenerRequest request, JsonTextWriter jsonWriter)
         {
             string strServerDomain = request.QueryString["serverDomain"];
             if (!string.IsNullOrEmpty(strServerDomain))
@@ -662,6 +702,15 @@ namespace DnsServerCore
             string strPreferIPv6 = request.QueryString["preferIPv6"];
             if (!string.IsNullOrEmpty(strPreferIPv6))
                 _dnsServer.PreferIPv6 = bool.Parse(strPreferIPv6);
+
+            string strLogQueries = request.QueryString["logQueries"];
+            if (!string.IsNullOrEmpty(strLogQueries))
+            {
+                if (bool.Parse(strLogQueries))
+                    _dnsServer.QueryLogManager = _log;
+                else
+                    _dnsServer.QueryLogManager = null;
+            }
 
             string strAllowRecursion = request.QueryString["allowRecursion"];
             if (!string.IsNullOrEmpty(strAllowRecursion))
@@ -686,9 +735,11 @@ namespace DnsServerCore
                 }
             }
 
-            _log.Write(request.RemoteEndPoint, "[" + GetSession(request).Username + "] Dns Settings were updated {serverDomain: " + _serverDomain + "; webServicePort: " + _webServicePort + "; preferIPv6: " + _dnsServer.PreferIPv6 + "; allowRecursion: " + _dnsServer.AllowRecursion + "; forwarders: " + strForwarders + ";}");
+            _log.Write(request.RemoteEndPoint, "[" + GetSession(request).Username + "] Dns Settings were updated {serverDomain: " + _serverDomain + "; webServicePort: " + _webServicePort + "; preferIPv6: " + _dnsServer.PreferIPv6 + "; logQueries: " + (_dnsServer.QueryLogManager != null) + "; allowRecursion: " + _dnsServer.AllowRecursion + "; forwarders: " + strForwarders + ";}");
 
             SaveConfigFile();
+
+            GetDnsSettings(jsonWriter);
         }
 
         private void ListCachedZones(HttpListenerRequest request, JsonTextWriter jsonWriter)
@@ -715,11 +766,14 @@ namespace DnsServerCore
 
                 if (direction == "up")
                 {
-                    int i = domain.IndexOf('.');
-                    if (i < 0)
+                    if (domain == "")
                         break;
 
-                    domain = domain.Substring(i + 1);
+                    int i = domain.IndexOf('.');
+                    if (i < 0)
+                        domain = "";
+                    else
+                        domain = domain.Substring(i + 1);
                 }
                 else
                 {
@@ -1366,6 +1420,7 @@ namespace DnsServerCore
             string[] logFiles = Directory.GetFiles(_log.LogFolder, "*.log");
 
             Array.Sort(logFiles);
+            Array.Reverse(logFiles);
 
             jsonWriter.WritePropertyName("logFiles");
             jsonWriter.WriteStartArray();
@@ -1541,6 +1596,12 @@ namespace DnsServerCore
                                             _dnsServer.PreferIPv6 = pair.Value.GetBooleanValue();
                                             break;
 
+                                        case "logQueries":
+                                            if (pair.Value.GetBooleanValue())
+                                                _dnsServer.QueryLogManager = _log;
+
+                                            break;
+
                                         case "dnsAllowRecursion":
                                             _dnsServer.AllowRecursion = pair.Value.GetBooleanValue();
                                             break;
@@ -1604,6 +1665,7 @@ namespace DnsServerCore
                 encoder.EncodeKeyValue("webServicePort", _webServicePort);
 
                 encoder.EncodeKeyValue("dnsPreferIPv6", _dnsServer.PreferIPv6);
+                encoder.EncodeKeyValue("logQueries", (_dnsServer.QueryLogManager != null));
                 encoder.EncodeKeyValue("dnsAllowRecursion", _dnsServer.AllowRecursion);
 
                 if (_dnsServer.Forwarders != null)
