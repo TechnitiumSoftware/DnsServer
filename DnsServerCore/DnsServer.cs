@@ -63,7 +63,9 @@ namespace DnsServerCore
         NameServerAddress[] _forwarders;
         bool _preferIPv6 = false;
         int _retries = 2;
+        int _maxStackCount = 10;
         LogManager _log;
+        LogManager _queryLog;
 
         volatile ServiceState _state = ServiceState.Stopped;
 
@@ -161,8 +163,9 @@ namespace DnsServerCore
             }
             catch (Exception ex)
             {
-                if (_log != null)
-                    _log.Write((IPEndPoint)remoteEP, ex);
+                LogManager log = _log;
+                if (log != null)
+                    log.Write((IPEndPoint)remoteEP, ex);
 
                 if (_state == ServiceState.Running)
                     throw;
@@ -201,17 +204,20 @@ namespace DnsServerCore
                     //send dns datagram
                     _udpListener.SendTo(sendBufferStream.Buffer, 0, (int)sendBufferStream.Position, SocketFlags.None, remoteEP);
 
-                    if (_log != null)
-                        _log.Write((IPEndPoint)remoteEP, request, response);
+                    LogManager queryLog = _queryLog;
+                    if (queryLog != null)
+                        queryLog.Write((IPEndPoint)remoteEP, false, request, response);
                 }
             }
             catch (Exception ex)
             {
-                if (_log != null)
-                {
-                    _log.Write((IPEndPoint)remoteEP, request, null);
-                    _log.Write((IPEndPoint)remoteEP, ex);
-                }
+                LogManager queryLog = _queryLog;
+                if (queryLog != null)
+                    queryLog.Write((IPEndPoint)remoteEP, false, request, null);
+
+                LogManager log = _log;
+                if (log != null)
+                    log.Write((IPEndPoint)remoteEP, ex);
             }
         }
 
@@ -232,8 +238,9 @@ namespace DnsServerCore
             }
             catch (Exception ex)
             {
-                if (_log != null)
-                    _log.Write(_localEP, ex);
+                LogManager log = _log;
+                if (log != null)
+                    log.Write(_localEP, ex);
 
                 if (_state == ServiceState.Running)
                     throw;
@@ -243,6 +250,7 @@ namespace DnsServerCore
         private void ProcessTcpRequestAsync(object parameter)
         {
             Socket tcpSocket = parameter as Socket;
+            DnsDatagram request = null;
 
             try
             {
@@ -255,7 +263,7 @@ namespace DnsServerCore
                     //read dns datagram length
                     bytesRecv = tcpSocket.Receive(recvBufferStream.Buffer, 0, 2, SocketFlags.None);
                     if (bytesRecv < 1)
-                        throw new SocketException();
+                        return; //do nothing
 
                     Array.Reverse(recvBufferStream.Buffer, 0, 2);
                     short length = BitConverter.ToInt16(recvBufferStream.Buffer, 0);
@@ -278,7 +286,7 @@ namespace DnsServerCore
                         recvBufferStream.Position = 0;
                         recvBufferStream.SetLength(bytesRecv);
 
-                        DnsDatagram request = new DnsDatagram(recvBufferStream);
+                        request = new DnsDatagram(recvBufferStream);
                         DnsDatagram response = ProcessQuery(request, tcpSocket.RemoteEndPoint);
 
                         //send response
@@ -303,16 +311,22 @@ namespace DnsServerCore
                             //send dns datagram
                             tcpSocket.Send(buffer, 0, buffer.Length, SocketFlags.None);
 
-                            if (_log != null)
-                                _log.Write((IPEndPoint)tcpSocket.RemoteEndPoint, request, response);
+                            LogManager queryLog = _queryLog;
+                            if (queryLog != null)
+                                queryLog.Write((IPEndPoint)tcpSocket.RemoteEndPoint, true, request, response);
                         }
                     }
                 }
             }
             catch (Exception ex)
             {
-                if (_log != null)
-                    _log.Write((IPEndPoint)tcpSocket.RemoteEndPoint, ex);
+                LogManager queryLog = _queryLog;
+                if ((queryLog != null) && (request != null))
+                    queryLog.Write((IPEndPoint)tcpSocket.RemoteEndPoint, true, request, null);
+
+                LogManager log = _log;
+                if (log != null)
+                    log.Write((IPEndPoint)tcpSocket.RemoteEndPoint, ex);
             }
             finally
             {
@@ -352,8 +366,9 @@ namespace DnsServerCore
                     }
                     catch (Exception ex)
                     {
-                        if (_log != null)
-                            _log.Write((IPEndPoint)remoteEP, ex);
+                        LogManager log = _log;
+                        if (log != null)
+                            log.Write((IPEndPoint)remoteEP, ex);
 
                         return new DnsDatagram(new DnsHeader(request.Header.Identifier, true, DnsOpcode.StandardQuery, false, false, request.Header.RecursionDesired, _allowRecursion, false, false, DnsResponseCode.ServerFailure, request.Header.QDCOUNT, 0, 0, 0), request.Question, null, null, null);
                     }
@@ -443,7 +458,7 @@ namespace DnsServerCore
 
         public DnsDatagram ProcessRecursiveQuery(DnsDatagram request)
         {
-            DnsDatagram response = DnsClient.ResolveViaNameServers(request.Question[0], _forwarders, _dnsCache, null, _preferIPv6, false, _retries);
+            DnsDatagram response = DnsClient.ResolveViaNameServers(request.Question[0], _forwarders, _dnsCache, null, _preferIPv6, false, _retries, _maxStackCount);
 
             DnsResourceRecord[] authority;
 
@@ -468,7 +483,7 @@ namespace DnsServerCore
                         else
                             question = new DnsQuestionRecord((lastRR.RDATA as DnsCNAMERecord).CNAMEDomainName, questionType, DnsClass.IN);
 
-                        lastResponse = DnsClient.ResolveViaNameServers(question, _forwarders, _dnsCache, null, _preferIPv6, false, _retries);
+                        lastResponse = DnsClient.ResolveViaNameServers(question, _forwarders, _dnsCache, null, _preferIPv6, false, _retries, _maxStackCount);
 
                         if ((lastResponse.Header.RCODE != DnsResponseCode.NoError) || (lastResponse.Answer.Length == 0))
                             break;
@@ -581,10 +596,22 @@ namespace DnsServerCore
             set { _retries = value; }
         }
 
+        public int MaxStackCount
+        {
+            get { return _maxStackCount; }
+            set { _maxStackCount = value; }
+        }
+
         public LogManager LogManager
         {
             get { return _log; }
             set { _log = value; }
+        }
+
+        public LogManager QueryLogManager
+        {
+            get { return _queryLog; }
+            set { _queryLog = value; }
         }
 
         #endregion
