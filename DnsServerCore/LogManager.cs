@@ -81,19 +81,25 @@ namespace DnsServerCore
 
         private void StartNewLog()
         {
-            lock (this)
+            DateTime now = DateTime.UtcNow;
+
+            if ((_logOut != null) && (now.Date > _logDate.Date))
             {
-                DateTime now = DateTime.UtcNow;
-
-                if ((now.Date > _logDate.Date) && (_logOut != null))
-                    _logOut.Close();
-
-                _logFile = Path.Combine(_logFolder, now.ToString("yyyy-MM-dd") + ".log");
-                _logOut = new StreamWriter(new FileStream(_logFile, FileMode.Append, FileAccess.Write, FileShare.Read));
-                _logDate = now;
-
-                Write("Logging started.");
+                Write(now, "Logging stopped.");
+                _logOut.Close();
             }
+
+            _logFile = Path.Combine(_logFolder, now.ToString("yyyy-MM-dd") + ".log");
+            _logOut = new StreamWriter(new FileStream(_logFile, FileMode.Append, FileAccess.Write, FileShare.Read));
+            _logDate = now;
+
+            Write(now, "Logging started.");
+        }
+
+        private void Write(DateTime dateTime, string message)
+        {
+            _logOut.WriteLine("[" + dateTime.ToString("yyyy-MM-dd HH:mm:ss") + " UTC] " + message);
+            _logOut.Flush();
         }
 
         #endregion
@@ -115,6 +121,12 @@ namespace DnsServerCore
                 using (Stream s = response.OutputStream)
                 {
                     OffsetStream.StreamCopy(oFS, s, 128 * 1024, true);
+
+                    if (fS.Length > limit)
+                    {
+                        byte[] buffer = System.Text.Encoding.UTF8.GetBytes("####___TRUNCATED___####");
+                        s.Write(buffer, 0, buffer.Length);
+                    }
                 }
             }
         }
@@ -128,7 +140,7 @@ namespace DnsServerCore
             Write(ep, ex.ToString());
         }
 
-        public void Write(IPEndPoint ep, DnsDatagram request, DnsDatagram response)
+        public void Write(IPEndPoint ep, bool tcp, DnsDatagram request, DnsDatagram response)
         {
             DnsQuestionRecord q = request.Question[0];
             string question;
@@ -138,28 +150,39 @@ namespace DnsServerCore
             else
                 question = "QNAME: " + q.Name + "; QTYPE: " + q.Type.ToString() + "; QCLASS: " + q.Class;
 
-            string answer;
+            string responseInfo;
 
-            if (response.Answer.Length == 0)
+            if (response == null)
             {
-                answer = "[]";
+                responseInfo = " NO RESPONSE FROM SERVER!";
             }
             else
             {
-                answer = "[";
+                string answer;
 
-                for (int i = 0; i < response.Answer.Length; i++)
+                if (response.Header.ANCOUNT == 0)
                 {
-                    if (i != 0)
-                        answer += ", ";
+                    answer = "[]";
+                }
+                else
+                {
+                    answer = "[";
 
-                    answer += response.Answer[i].RDATA.ToString();
+                    for (int i = 0; i < response.Answer.Length; i++)
+                    {
+                        if (i != 0)
+                            answer += ", ";
+
+                        answer += response.Answer[i].RDATA.ToString();
+                    }
+
+                    answer += "]";
                 }
 
-                answer += "]";
+                responseInfo = " RCODE: " + response.Header.RCODE.ToString() + "; ANSWER: " + answer;
             }
 
-            Write(ep, question + "; RCODE: " + response.Header.RCODE.ToString() + "; ANSWER: " + answer);
+            Write(ep, (tcp ? "[TCP] " : "") + question + ";" + responseInfo);
         }
 
         public void Write(IPEndPoint ep, string message)
@@ -178,17 +201,16 @@ namespace DnsServerCore
 
         public void Write(string message)
         {
-            DateTime now = DateTime.UtcNow;
-
             try
             {
                 lock (this)
                 {
+                    DateTime now = DateTime.UtcNow;
+
                     if (now.Date > _logDate.Date)
                         StartNewLog();
 
-                    _logOut.WriteLine("[" + now.ToString("yyyy-MM-dd HH:mm:ss") + " UTC] " + message);
-                    _logOut.Flush();
+                    Write(now, message);
                 }
             }
             catch
