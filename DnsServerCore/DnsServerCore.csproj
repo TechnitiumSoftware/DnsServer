@@ -36,9 +36,6 @@
       <HintPath>..\..\..\Reference\Newtonsoft.Json\Net40\Newtonsoft.Json.dll</HintPath>
     </Reference>
     <Reference Include="System" />
-    <Reference Include="System.Core" />
-    <Reference Include="Microsoft.CSharp" />
-    <Reference Include="System.Runtime.Serialization" />
     <Reference Include="TechnitiumLibrary.IO, Version=2.3.2.0, Culture=neutral, processorArchitecture=MSIL">
       <SpecificVersion>False</SpecificVersion>
       <HintPath>..\..\TechnitiumLibrary\bin\TechnitiumLibrary.IO.dll</HintPath>
