@@ -11,6 +11,7 @@
     <Authors>Shreyas Zare</Authors>
     <AssemblyName>DnsServerApp</AssemblyName>
     <RootNamespace>DnsServerApp</RootNamespace>
+    <StartupObject>DnsServerApp.Program</StartupObject>
   </PropertyGroup>
 
   <ItemGroup>
