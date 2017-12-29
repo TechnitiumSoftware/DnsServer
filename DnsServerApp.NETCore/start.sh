@@ -1,3 +1,3 @@
 #!/bin/sh
 
-dotnet DnsServerApp.exe
+dotnet DnsServerApp.dll
