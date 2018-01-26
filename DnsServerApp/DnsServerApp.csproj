@@ -48,9 +48,6 @@
     <None Include="App.config">
       <SubType>Designer</SubType>
     </None>
-    <None Include="start.sh">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </None>
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\DnsServerCore\DnsServerCore.csproj">
