@@ -99,6 +99,10 @@ function login(username, password) {
             token = responseJSON.token;
 
             showPageMain(username);
+
+            if ((username === "admin") && (password === "admin")) {
+                $('#modalChangePassword').modal();
+            }
         },
         error: function () {
             btn.button('reset');
@@ -506,6 +510,7 @@ function addZone() {
         url: "/api/createZone?token=" + token + "&domain=" + domain,
         success: function (responseJSON) {
             refreshZonesList();
+            viewZone(domain, false);
 
             $("#txtAddZone").val("");
             btn.button('reset');
