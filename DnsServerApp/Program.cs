@@ -31,7 +31,7 @@ namespace DnsServerApp
             if (args.Length == 1)
                 configFolder = args[0];
 
-            DnsWebService service = new DnsWebService(configFolder);
+            DnsWebService service = new DnsWebService(configFolder, new Uri("https://technitium.com/download/dns/updatewa.bin"));
 
             service.Start();
             Console.WriteLine("Technitium DNS Server was started successfully.");

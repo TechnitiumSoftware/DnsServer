@@ -18,6 +18,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
 using DnsServerCore;
+using System;
 using System.ServiceProcess;
 
 namespace DnsService
@@ -33,7 +34,7 @@ namespace DnsService
 
         protected override void OnStart(string[] args)
         {
-            _service = new DnsWebService();
+            _service = new DnsWebService(null, new Uri("https://technitium.com/download/dns/updatews.bin"));
             _service.Start();
         }
 

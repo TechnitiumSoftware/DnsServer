@@ -48,14 +48,10 @@ namespace DnsServerCore
 
         #region variables
 
-        readonly static Uri UPDATE_URI_WINDOWS_SERVICE = new Uri("https://technitium.com/download/dns/updatews.bin");
-        readonly static Uri UPDATE_URI_WINDOWS_APP = new Uri("https://technitium.com/download/dns/updatewa.bin");
-        readonly static Uri UPDATE_URI_MONO_APP = new Uri("https://technitium.com/download/dns/updatema.bin");
-
-        bool _isWindowsService;
         readonly string _currentVersion;
         readonly string _appFolder;
         readonly string _configFolder;
+        readonly Uri _updateCheckUri;
 
         readonly LogManager _log;
 
@@ -76,12 +72,11 @@ namespace DnsServerCore
 
         #region constructor
 
-        public DnsWebService(string configFolder = null)
+        public DnsWebService(string configFolder = null, Uri updateCheckUri = null)
         {
             Assembly assembly = Assembly.GetEntryAssembly();
             AssemblyName assemblyName = assembly.GetName();
 
-            _isWindowsService = (assemblyName.Name == "DnsService");
             _currentVersion = assemblyName.Version.ToString();
             _appFolder = Path.GetDirectoryName(assembly.Location);
 
@@ -89,6 +84,8 @@ namespace DnsServerCore
                 _configFolder = Path.Combine(_appFolder, "config");
             else
                 _configFolder = configFolder;
+
+            _updateCheckUri = updateCheckUri;
 
             if (!Directory.Exists(_configFolder))
                 Directory.CreateDirectory(_configFolder);
@@ -553,71 +550,60 @@ namespace DnsServerCore
 
             bool updateAvailable = false;
 
-            try
+            if (_updateCheckUri != null)
             {
-                using (WebClient wc = new WebClient())
+                try
                 {
-                    Uri updateUri;
-
-                    if (Environment.OSVersion.Platform == PlatformID.Win32NT)
+                    using (WebClient wc = new WebClient())
                     {
-                        if (_isWindowsService)
-                            updateUri = UPDATE_URI_WINDOWS_SERVICE;
-                        else
-                            updateUri = UPDATE_URI_WINDOWS_APP;
-                    }
-                    else
-                    {
-                        updateUri = UPDATE_URI_MONO_APP;
-                    }
+                        byte[] response = wc.DownloadData(_updateCheckUri);
 
-                    byte[] response = wc.DownloadData(updateUri);
-
-                    using (MemoryStream mS = new MemoryStream(response, false))
-                    {
-                        BincodingDecoder decoder = new BincodingDecoder(mS, "DU");
-
-                        switch (decoder.Version)
+                        using (MemoryStream mS = new MemoryStream(response, false))
                         {
-                            case 1:
-                                while (true)
-                                {
-                                    Bincoding entry = decoder.DecodeNext();
-                                    if (entry == null)
-                                        break;
+                            BincodingDecoder decoder = new BincodingDecoder(mS, "DU");
 
-                                    KeyValuePair<string, Bincoding> value = entry.GetKeyValuePair();
-
-                                    switch (value.Key)
+                            switch (decoder.Version)
+                            {
+                                case 1:
+                                    while (true)
                                     {
-                                        case "version":
-                                            updateVersion = value.Value.GetStringValue();
-
-                                            updateAvailable = IsUpdateAvailable(_currentVersion, updateVersion);
+                                        Bincoding entry = decoder.DecodeNext();
+                                        if (entry == null)
                                             break;
 
-                                        case "displayText":
-                                            displayText = value.Value.GetStringValue();
-                                            break;
+                                        KeyValuePair<string, Bincoding> value = entry.GetKeyValuePair();
 
-                                        case "downloadLink":
-                                            downloadLink = value.Value.GetStringValue();
-                                            break;
+                                        switch (value.Key)
+                                        {
+                                            case "version":
+                                                updateVersion = value.Value.GetStringValue();
+
+                                                updateAvailable = IsUpdateAvailable(_currentVersion, updateVersion);
+                                                break;
+
+                                            case "displayText":
+                                                displayText = value.Value.GetStringValue();
+                                                break;
+
+                                            case "downloadLink":
+                                                downloadLink = value.Value.GetStringValue();
+                                                break;
+                                        }
                                     }
-                                }
-                                break;
+                                    break;
 
-                            default:
-                                throw new IOException("File version not supported: " + decoder.Version);
+                                default:
+                                    throw new IOException("File version not supported: " + decoder.Version);
+                            }
                         }
                     }
-                }
 
-                _log.Write(GetRequestRemoteEndPoint(request), "Check for update was done {updateAvailable: " + updateAvailable + "; updateVersion: " + updateVersion + "; displayText: " + displayText + "; downloadLink: " + downloadLink + ";}");
-            }
-            catch
-            {
-                _log.Write(GetRequestRemoteEndPoint(request), "Check for update was done {updateAvailable: False;}");
+                    _log.Write(GetRequestRemoteEndPoint(request), "Check for update was done {updateAvailable: " + updateAvailable + "; updateVersion: " + updateVersion + "; displayText: " + displayText + "; downloadLink: " + downloadLink + ";}");
+                }
+                catch
+                {
+                    _log.Write(GetRequestRemoteEndPoint(request), "Check for update was done {updateAvailable: False;}");
+                }
             }
 
             jsonWriter.WritePropertyName("updateAvailable");
@@ -668,7 +654,7 @@ namespace DnsServerCore
         private void GetDnsSettings(JsonTextWriter jsonWriter)
         {
             jsonWriter.WritePropertyName("version");
-            jsonWriter.WriteValue(_currentVersion.Replace(".0", ""));
+            jsonWriter.WriteValue(_currentVersion);
 
             jsonWriter.WritePropertyName("serverDomain");
             jsonWriter.WriteValue(_serverDomain);
