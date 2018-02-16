@@ -1,6 +1,6 @@
 ﻿/*
 Technitium DNS Server
-Copyright (C) 2017  Shreyas Zare (shreyas@technitium.com)
+Copyright (C) 2018  Shreyas Zare (shreyas@technitium.com)
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -834,12 +834,7 @@ namespace DnsServerCore
 
                 default:
                     currentZone.DeleteRecord(oldRecord);
-
-                    if (oldRecord.Name.Equals(newRecord.Name, StringComparison.CurrentCultureIgnoreCase))
-                        currentZone.AddRecord(newRecord);
-                    else
-                        CreateZone(this, newRecord.Name).AddRecord(newRecord);
-
+                    CreateZone(this, newRecord.Name).AddRecord(newRecord); //create zone since delete record will also delete empty sub zones
                     break;
             }
         }
@@ -862,7 +857,7 @@ namespace DnsServerCore
         {
             Zone currentZone = GetZone(this, domain, authoritative);
             if (currentZone == null)
-                return null;
+                return new DnsResourceRecord[] { };
 
             DnsResourceRecord[] records = currentZone.GetAllRecords(includeSubDomains);
             if (records != null)
