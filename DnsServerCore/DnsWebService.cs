@@ -1,6 +1,6 @@
 ﻿/*
 Technitium Library
-Copyright (C) 2017  Shreyas Zare (shreyas@technitium.com)
+Copyright (C) 2018  Shreyas Zare (shreyas@technitium.com)
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -921,11 +921,13 @@ namespace DnsServerCore
                     break;
 
                 case DnsResourceRecordType.MX:
-                    string preference = request.QueryString["preference"];
-                    if (string.IsNullOrEmpty(preference))
-                        throw new DnsWebServiceException("Parameter 'preference' missing.");
+                    {
+                        string preference = request.QueryString["preference"];
+                        if (string.IsNullOrEmpty(preference))
+                            throw new DnsWebServiceException("Parameter 'preference' missing.");
 
-                    _dnsServer.AuthoritativeZoneRoot.AddRecord(domain, type, ttl, new DnsMXRecord(ushort.Parse(preference), value));
+                        _dnsServer.AuthoritativeZoneRoot.AddRecord(domain, type, ttl, new DnsMXRecord(ushort.Parse(preference), value));
+                    }
                     break;
 
                 case DnsResourceRecordType.TXT:
@@ -942,6 +944,24 @@ namespace DnsServerCore
 
                 case DnsResourceRecordType.CNAME:
                     _dnsServer.AuthoritativeZoneRoot.SetRecords(domain, type, ttl, new DnsResourceRecordData[] { new DnsCNAMERecord(value) });
+                    break;
+
+                case DnsResourceRecordType.SRV:
+                    {
+                        string priority = request.QueryString["priority"];
+                        if (string.IsNullOrEmpty(priority))
+                            throw new DnsWebServiceException("Parameter 'priority' missing.");
+
+                        string weight = request.QueryString["weight"];
+                        if (string.IsNullOrEmpty(weight))
+                            throw new DnsWebServiceException("Parameter 'weight' missing.");
+
+                        string port = request.QueryString["port"];
+                        if (string.IsNullOrEmpty(port))
+                            throw new DnsWebServiceException("Parameter 'port' missing.");
+
+                        _dnsServer.AuthoritativeZoneRoot.AddRecord(domain, type, ttl, new DnsSRVRecord(ushort.Parse(priority), ushort.Parse(weight), ushort.Parse(port), value));
+                    }
                     break;
 
                 default:
@@ -1111,6 +1131,26 @@ namespace DnsServerCore
                                 }
                                 break;
 
+                            case DnsResourceRecordType.SRV:
+                                {
+                                    DnsSRVRecord rdata = resourceRecord.RDATA as DnsSRVRecord;
+                                    if (rdata != null)
+                                    {
+                                        jsonWriter.WritePropertyName("priority");
+                                        jsonWriter.WriteValue(rdata.Priority);
+
+                                        jsonWriter.WritePropertyName("weight");
+                                        jsonWriter.WriteValue(rdata.Weight);
+
+                                        jsonWriter.WritePropertyName("port");
+                                        jsonWriter.WriteValue(rdata.Port);
+
+                                        jsonWriter.WritePropertyName("value");
+                                        jsonWriter.WriteValue(rdata.Target);
+                                    }
+                                }
+                                break;
+
                             default:
                                 {
                                     jsonWriter.WritePropertyName("value");
@@ -1176,6 +1216,16 @@ namespace DnsServerCore
                 case DnsResourceRecordType.CNAME:
                 case DnsResourceRecordType.PTR:
                     _dnsServer.AuthoritativeZoneRoot.DeleteRecords(domain, type);
+                    break;
+
+                case DnsResourceRecordType.SRV:
+                    {
+                        string port = request.QueryString["port"];
+                        if (string.IsNullOrEmpty(port))
+                            throw new DnsWebServiceException("Parameter 'port' missing.");
+
+                        _dnsServer.AuthoritativeZoneRoot.DeleteRecord(domain, type, new DnsSRVRecord(0, 0, ushort.Parse(port), value));
+                    }
                     break;
 
                 default:
@@ -1279,6 +1329,31 @@ namespace DnsServerCore
 
                 case DnsResourceRecordType.CNAME:
                     _dnsServer.AuthoritativeZoneRoot.UpdateRecord(new DnsResourceRecord(oldDomain, type, DnsClass.IN, 0, new DnsCNAMERecord(oldValue)), new DnsResourceRecord(domain, type, DnsClass.IN, ttl, new DnsCNAMERecord(value)));
+                    break;
+
+                case DnsResourceRecordType.SRV:
+                    {
+                        string oldPort = request.QueryString["oldPort"];
+                        if (string.IsNullOrEmpty(oldPort))
+                            throw new DnsWebServiceException("Parameter 'oldPort' missing.");
+
+                        string priority = request.QueryString["priority"];
+                        if (string.IsNullOrEmpty(priority))
+                            throw new DnsWebServiceException("Parameter 'priority' missing.");
+
+                        string weight = request.QueryString["weight"];
+                        if (string.IsNullOrEmpty(weight))
+                            throw new DnsWebServiceException("Parameter 'weight' missing.");
+
+                        string port = request.QueryString["port"];
+                        if (string.IsNullOrEmpty(port))
+                            throw new DnsWebServiceException("Parameter 'port' missing.");
+
+                        DnsResourceRecord oldRecord = new DnsResourceRecord(oldDomain, type, DnsClass.IN, 0, new DnsSRVRecord(0, 0, ushort.Parse(oldPort), oldValue));
+                        DnsResourceRecord newRecord = new DnsResourceRecord(domain, type, DnsClass.IN, ttl, new DnsSRVRecord(ushort.Parse(priority), ushort.Parse(weight), ushort.Parse(port), value));
+
+                        _dnsServer.AuthoritativeZoneRoot.UpdateRecord(oldRecord, newRecord);
+                    }
                     break;
 
                 default:
@@ -1641,7 +1716,7 @@ namespace DnsServerCore
             }
             catch (IOException)
             {
-                _serverDomain = System.Environment.MachineName;
+                _serverDomain = Environment.MachineName;
                 _webServicePort = 5380;
 
                 SetCredentials("admin", "admin");
