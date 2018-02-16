@@ -35,14 +35,18 @@ function showPageMain(username) {
     $("#mainPanelTabListZones").addClass("active");
     $("#mainPanelTabPaneZones").addClass("active");
 
+    $("#divZoneViewer").hide();
+
     $("#txtDnsClientNameServer").val("This Server (this-server)");
     $("#txtDnsClientDomain").val("");
     $("#optDnsClientType").val("A");
     $("#optDnsClientProtocol").val("UDP");
     $("#divDnsClientLoader").hide();
     $("#divDnsClientOutput").text("");
+    $("#preDnsClientOutput").hide();
 
-    $("#divZoneViewer").hide();
+    $("#divLogViewer").hide();
+
     $("#pageMain").show();
 
     loadDnsSettings();
@@ -57,7 +61,7 @@ $(function () {
     var headerHtml = $("#header").html();
 
     $("#header").html("<div class=\"title\"><a href=\"/\"><img src=\"/img/logo25x25.png\" alt=\"Technitium Logo\" /><span class=\"text\" style=\"color: #ffffff;\">Technitium</span></a>" + headerHtml + "</div>");
-    $("#footer").html("<div class=\"content\"><a href=\"https://technitium.com\" target=\"_blank\">Technitium</a> | <a href=\"http://blog.technitium.com\" target=\"_blank\">Blog</a> | <a href=\"http://dnsclient.net/\" target=\"_blank\">DNS Client</a> | <a href=\"https://github.com/TechnitiumSoftware/DnsServer\" target=\"_blank\"><i class=\"fa fa-github\"></i>&nbsp;GitHub</a> | <a href=\"https://technitium.com/aboutus.html\" target=\"_blank\">About</a></div>");
+    $("#footer").html("<div class=\"content\"><a href=\"https://technitium.com/\" target=\"_blank\">Technitium</a> | <a href=\"http://blog.technitium.com/\" target=\"_blank\">Blog</a> | <a href=\"https://dnsclient.net/\" target=\"_blank\">DNS Client</a> | <a href=\"https://github.com/TechnitiumSoftware/DnsServer\" target=\"_blank\"><i class=\"fa fa-github\"></i>&nbsp;GitHub</a> | <a href=\"https://technitium.com/aboutus.html\" target=\"_blank\">About</a></div>");
 
     //dropdown list box support
     $('.dropdown').on('click', 'a', function (e) {
@@ -358,7 +362,7 @@ function deleteCachedZone() {
     HTTPRequest({
         url: "/api/deleteCachedZone?token=" + token + "&domain=" + domain,
         success: function (responseJSON) {
-            refreshCachedZonesList(getParentDomain(domain));
+            refreshCachedZonesList(getParentDomain(domain), "up");
 
             btn.button('reset');
             showAlert("success", "Cached Zone Deleted!", "Cached zone was deleted successfully.");
@@ -686,6 +690,9 @@ function renderResourceRecord(record, domain) {
         case "MX":
             return renderMXResourceRecord(record, domain);
 
+        case "SRV":
+            return renderSRVResourceRecord(record, domain);
+
         default:
             return renderStandardResourceRecord(record, domain);
     }
@@ -896,6 +903,108 @@ function renderSOAResourceRecord(record, domain) {
     return html;
 }
 
+function renderSRVResourceRecord(record, domain) {
+
+    var id = Math.floor(Math.random() * 10000);
+
+    var html = "<li id=\"li" + id + "\" class=\"list-group-item resource-record\">";
+    html += "<form class=\"form-inline\">";
+
+    //label
+    html += "<div class=\"form-group\">";
+    html += "<label for=\"optType" + id + "\">Type</label>";
+    html += "<select id=\"optType" + id + "\" class=\"form-control\" disabled>";
+    html += "<option selected>SRV</option>";
+    html += "</select>";
+    html += "</div>";
+
+    //parse name, service and protocol
+    var nameParts = record.name.toLowerCase().split(".");
+    var name;
+    var service = nameParts[0];
+    var protocol = nameParts[1];
+
+    for (var i = 2; i < nameParts.length; i++) {
+        if (name == null)
+            name = nameParts[i];
+        else
+            name += "." + nameParts[i];
+    }
+
+    if (name === domain)
+        name = "@";
+    else
+        name = name.replace("." + domain, "");
+
+    if (service.startsWith("_"))
+        service = service.substr(1);
+
+    if (protocol.startsWith("_"))
+        protocol = protocol.substr(1);
+
+    //name
+    html += "<div class=\"form-group\">";
+    html += "<label for=\"txtName" + id + "\">Name</label>";
+    html += "<input id=\"txtName" + id + "\" type=\"text\" class=\"form-control\" placeholder=\"@\" style=\"width: 120px;\" value=\"" + name + "\" disabled>";
+    html += "</div>";
+
+    //service
+    html += "<div class=\"form-group\">";
+    html += "<label for=\"txtService" + id + "\">Service</label>";
+    html += "<input id=\"txtService" + id + "\" type=\"text\" class=\"form-control\" placeholder=\"service\" style=\"width: 80px;\" value=\"" + service + "\" disabled>";
+    html += "</div>";
+
+    //protocol
+    html += "<div class=\"form-group\">";
+    html += "<label for=\"txtProtocol" + id + "\">Protocol</label>";
+    html += "<input id=\"txtProtocol" + id + "\"type=\"text\" class=\"form-control\" placeholder=\"protocol\" style=\"width: 80px;\" value=\"" + protocol + "\" disabled>";
+    html += "</div>";
+
+    //priority
+    html += "<div class=\"form-group\">";
+    html += "<label for=\"txtPriority" + id + "\">Priority</label>";
+    html += "<input id=\"txtPriority" + id + "\" type=\"number\" class=\"form-control\" placeholder=\"priority\" style=\"width: 80px;\" value=\"" + record.rData.priority + "\" disabled>";
+    html += "</div>";
+
+    //weight
+    html += "<div class=\"form-group\">";
+    html += "<label for=\"txtWeight" + id + "\">Weight</label>";
+    html += "<input id=\"txtWeight" + id + "\" type=\"number\" class=\"form-control\" placeholder=\"weight\" style=\"width: 80px;\" value=\"" + record.rData.weight + "\" disabled>";
+    html += "</div>";
+
+    //port
+    html += "<div class=\"form-group\">";
+    html += "<label for=\"txtPort" + id + "\">Port</label>";
+    html += "<input id=\"txtPort" + id + "\" type=\"number\" class=\"form-control\" placeholder=\"port\" style=\"width: 80px;\" value=\"" + record.rData.port + "\" disabled>";
+    html += "</div>";
+
+    //target
+    html += "<div class=\"form-group\">";
+    html += "<label for=\"txtTarget" + id + "\">Target</label>";
+    html += "<input id=\"txtTarget" + id + "\" type=\"text\" class=\"form-control\" placeholder=\"target\" style=\"width: 280px;\" value=\"" + record.rData.value + "\" disabled>";
+    html += "</div>";
+
+    //ttl
+    html += "<div class=\"form-group\">";
+    html += "<label for=\"txtTtl" + id + "\">TTL</label>";
+    html += "<input id=\"txtTtl" + id + "\" type=\"number\" class=\"form-control\" placeholder=\"3600\" style=\"width: 100px;\" value=\"" + record.ttl + "\" disabled>";
+    html += "</div>";
+
+    //buttons
+    html += "<div class=\"form-group\" style=\"display: block; margin-bottom: 0px;\">";
+    html += "<div id=\"data" + id + "\" data-record-name=\"" + record.name + "\" data-record-value=\"" + record.rData.value + "\" data-record-port=\"" + record.rData.port + "\" style=\"display: none;\"></div>";
+    html += "<button id=\"btnEdit" + id + "\" type=\"button\" class=\"btn btn-primary\" data-id=\"" + id + "\" onclick=\"return editResourceRecord(this);\" style=\"margin-right: 10px;\">Edit</button>";
+    html += "<button id=\"btnUpdate" + id + "\" type=\"submit\" class=\"btn btn-primary\" data-loading-text=\"Updating...\" data-id=\"" + id + "\" onclick=\"return updateResourceRecord(this);\" style=\"margin-right: 10px; display: none;\">Update</button>";
+    html += "<button id=\"btnCancelEdit" + id + "\" type=\"button\" class=\"btn btn-default\" data-id=\"" + id + "\" onclick=\"return cancelEditResourceRecord(this);\" style=\"margin-right: 10px; display: none;\">Cancel</button>";
+    html += "<button id=\"btnDelete" + id + "\" type=\"button\" class=\"btn btn-warning\" data-loading-text=\"Deleting...\" data-id=\"" + id + "\" onclick=\"return deleteResourceRecord(this);\">Delete</button>";
+    html += "</div>";
+
+    html += "</form>";
+    html += "</li>";
+
+    return html;
+}
+
 function renderAddResourceRecordForm(domain) {
 
     var html = "<li class=\"list-group-item\" id=\"addRecordFormItem\">";
@@ -912,11 +1021,12 @@ function renderAddResourceRecordForm(domain) {
     html += "<option>MX</option>";
     html += "<option>TXT</option>";
     html += "<option>AAAA</option>";
+    html += "<option>SRV</option>";
     html += "</select>";
     html += "</div>";
 
     //name
-    html += "<div class=\"form-group\">";
+    html += "<div class=\"form-group\" id=\"divAddRecordName\">";
     html += "<label for=\"txtAddRecordName\">Name</label>";
     html += "<input id=\"txtAddRecordName\" type=\"text\" class=\"form-control\" placeholder=\"@\" style=\"width: 80px;\">";
     html += "</div>";
@@ -937,6 +1047,42 @@ function renderAddResourceRecordForm(domain) {
     html += "<div class=\"form-group\" id=\"divAddRecordMXPreference\" style=\"display: none;\">";
     html += "<label for=\"txtAddRecordPreference\">Preference</label>";
     html += "<input id=\"txtAddRecordPreference\" type=\"number\" class=\"form-control\" placeholder=\"value\" style=\"width: 90px;\">";
+    html += "</div>";
+
+    //value SRV Service
+    html += "<div class=\"form-group\" id=\"divAddRecordSRVService\" style=\"display: none;\">";
+    html += "<label for=\"txtAddRecordSRVService\">Service</label>";
+    html += "<input id=\"txtAddRecordSRVService\" type=\"text\" class=\"form-control\" placeholder=\"service\" style=\"width: 80px;\">";
+    html += "</div>";
+
+    //value SRV Protocol
+    html += "<div class=\"form-group\" id=\"divAddRecordSRVProtocol\" style=\"display: none;\">";
+    html += "<label for=\"txtAddRecordSRVProtocol\">Protocol</label>";
+    html += "<input id=\"txtAddRecordSRVProtocol\" type=\"text\" class=\"form-control\" placeholder=\"protocol\" style=\"width: 80px;\">";
+    html += "</div>";
+
+    //value SRV Priority
+    html += "<div class=\"form-group\" id=\"divAddRecordSRVPriority\" style=\"display: none;\">";
+    html += "<label for=\"txtAddRecordSRVPriority\">Priority</label>";
+    html += "<input id=\"txtAddRecordSRVPriority\" type=\"number\" class=\"form-control\" placeholder=\"priority\" style=\"width: 90px;\">";
+    html += "</div>";
+
+    //value SRV Weight
+    html += "<div class=\"form-group\" id=\"divAddRecordSRVWeight\" style=\"display: none;\">";
+    html += "<label for=\"txtAddRecordSRVWeight\">Weight</label>";
+    html += "<input id=\"txtAddRecordSRVWeight\" type=\"number\" class=\"form-control\" placeholder=\"weight\" style=\"width: 90px;\">";
+    html += "</div>";
+
+    //value SRV Port
+    html += "<div class=\"form-group\" id=\"divAddRecordSRVPort\" style=\"display: none;\">";
+    html += "<label for=\"txtAddRecordSRVPort\">Port</label>";
+    html += "<input id=\"txtAddRecordSRVPort\" type=\"number\" class=\"form-control\" placeholder=\"port\" style=\"width: 80px;\">";
+    html += "</div>";
+
+    //value SRV Target
+    html += "<div class=\"form-group\" id=\"divAddRecordSRVTarget\" style=\"display: none;\">";
+    html += "<label for=\"txtAddRecordSRVTarget\">Target</label>";
+    html += "<input id=\"txtAddRecordSRVTarget\" type=\"text\" class=\"form-control\" placeholder=\"target\" style=\"width: 280px;\">";
     html += "</div>";
 
     //ttl
@@ -986,6 +1132,18 @@ function editResourceRecord(btnObj) {
             $("#txtMinimum" + id).prop("disabled", false);
             break;
 
+        case "SRV":
+            $("#btnDelete" + id).hide();
+
+            $("#txtName" + id).prop("disabled", false);
+            $("#txtService" + id).prop("disabled", false);
+            $("#txtProtocol" + id).prop("disabled", false);
+            $("#txtPriority" + id).prop("disabled", false);
+            $("#txtWeight" + id).prop("disabled", false);
+            $("#txtPort" + id).prop("disabled", false);
+            $("#txtTarget" + id).prop("disabled", false);
+            break;
+
         default:
             $("#btnDelete" + id).hide();
 
@@ -1027,6 +1185,18 @@ function cancelEditResourceRecord(btnObj) {
             $("#txtMinimum" + id).prop("disabled", true);
             break;
 
+        case "SRV":
+            $("#btnDelete" + id).show();
+
+            $("#txtName" + id).prop("disabled", true);
+            $("#txtService" + id).prop("disabled", true);
+            $("#txtProtocol" + id).prop("disabled", true);
+            $("#txtPriority" + id).prop("disabled", true);
+            $("#txtWeight" + id).prop("disabled", true);
+            $("#txtPort" + id).prop("disabled", true);
+            $("#txtTarget" + id).prop("disabled", true);
+            break;
+
         default:
             $("#btnDelete" + id).show();
 
@@ -1044,15 +1214,48 @@ function modifyAddRecordForm() {
 
     switch (type) {
         case "MX":
+            $("#divAddRecordName").show();
             $("#divAddRecordValue").hide();
+
             $("#divAddRecordMXExchange").show();
             $("#divAddRecordMXPreference").show();
+
+            $("#divAddRecordSRVService").hide();
+            $("#divAddRecordSRVProtocol").hide();
+            $("#divAddRecordSRVPriority").hide();
+            $("#divAddRecordSRVWeight").hide();
+            $("#divAddRecordSRVPort").hide();
+            $("#divAddRecordSRVTarget").hide();
+            break;
+
+        case "SRV":
+            $("#divAddRecordName").show();
+            $("#divAddRecordValue").hide();
+
+            $("#divAddRecordMXExchange").hide();
+            $("#divAddRecordMXPreference").hide();
+
+            $("#divAddRecordSRVService").show();
+            $("#divAddRecordSRVProtocol").show();
+            $("#divAddRecordSRVPriority").show();
+            $("#divAddRecordSRVWeight").show();
+            $("#divAddRecordSRVPort").show();
+            $("#divAddRecordSRVTarget").show();
             break;
 
         default:
+            $("#divAddRecordName").show();
             $("#divAddRecordValue").show();
+
             $("#divAddRecordMXExchange").hide();
             $("#divAddRecordMXPreference").hide();
+
+            $("#divAddRecordSRVService").hide();
+            $("#divAddRecordSRVProtocol").hide();
+            $("#divAddRecordSRVPriority").hide();
+            $("#divAddRecordSRVWeight").hide();
+            $("#divAddRecordSRVPort").hide();
+            $("#divAddRecordSRVTarget").hide();
             break;
     }
 }
@@ -1069,37 +1272,6 @@ function addResourceRecord() {
         subDomain = "@";
     }
 
-    var value;
-    var preference;
-
-    if (type === "MX") {
-
-        value = $("#txtAddRecordExchange").val();
-        preference = $("#txtAddRecordPreference").val();
-
-        if ((value === null) || (value === "")) {
-            showAlert("warning", "Missing!", "Please enter an mail exchange domain name into the exchange field.");
-            return false;
-        }
-
-        if ((preference === null) || (preference === "")) {
-            preference = 1;
-        }
-
-    } else {
-
-        value = $("#txtAddRecordValue").val();
-
-        if ((value === null) || (value === "")) {
-            showAlert("warning", "Missing!", "Please enter a suitable value into the value field.");
-            return false;
-        }
-    }
-
-    if ((ttl === null) || (ttl === "")) {
-        ttl = 3600;
-    }
-
     var name;
 
     if (subDomain === "@")
@@ -1107,10 +1279,71 @@ function addResourceRecord() {
     else
         name = subDomain + "." + domain;
 
+    var value;
+    var preference;
+
+    var priority;
+    var weight;
+    var port;
+
+    switch (type) {
+        case "MX":
+            value = $("#txtAddRecordExchange").val();
+            preference = $("#txtAddRecordPreference").val();
+
+            if ((value === null) || (value === "")) {
+                showAlert("warning", "Missing!", "Please enter an mail exchange domain name into the exchange field.");
+                return false;
+            }
+
+            if ((preference === null) || (preference === "")) {
+                preference = 1;
+            }
+            break;
+
+        case "SRV":
+            var service = $("#txtAddRecordSRVService").val();
+            var protocol = $("#txtAddRecordSRVProtocol").val();
+
+            if (!service.startsWith("_"))
+                service = "_" + service;
+
+            if (!protocol.startsWith("_"))
+                protocol = "_" + protocol;
+
+            name = service + "." + protocol + "." + name;
+
+            priority = $("#txtAddRecordSRVPriority").val();
+            weight = $("#txtAddRecordSRVWeight").val();
+            port = $("#txtAddRecordSRVPort").val();
+            value = $("#txtAddRecordSRVTarget").val();
+            break;
+
+        default:
+            value = $("#txtAddRecordValue").val();
+
+            if ((value === null) || (value === "")) {
+                showAlert("warning", "Missing!", "Please enter a suitable value into the value field.");
+                return false;
+            }
+            break;
+    }
+
+    if ((ttl === null) || (ttl === "")) {
+        ttl = 3600;
+    }
+
     var apiUrl = "/api/addRecord?token=" + token + "&domain=" + name + "&type=" + type + "&ttl=" + ttl + "&value=" + value;
 
-    if (type === "MX")
-        apiUrl += "&preference=" + preference;
+    switch (type) {
+        case "MX":
+            apiUrl += "&preference=" + preference;
+            break;
+
+        case "SRV":
+            apiUrl += "&priority=" + priority + "&weight=" + weight + "&port=" + port;
+            break;
+    }
 
     var btn = $("#btnAddRecord").button('loading');
 
@@ -1119,10 +1352,18 @@ function addResourceRecord() {
         success: function (responseJSON) {
             $("#txtAddRecordName").val("");
             $("#txtAddRecordValue").val("");
+
             $("#txtAddRecordExchange").val("");
             $("#txtAddRecordPreference").val("");
 
-            var record = { "name": name, "type": type, "ttl": ttl, "rData": { "value": value, "preference": preference } };
+            $("#txtAddRecordSRVService").val("");
+            $("#txtAddRecordSRVProtocol").val("");
+            $("#txtAddRecordSRVPriority").val("");
+            $("#txtAddRecordSRVWeight").val("");
+            $("#txtAddRecordSRVPort").val("");
+            $("#txtAddRecordSRVTarget").val("");
+
+            var record = { "name": name, "type": type, "ttl": ttl, "rData": { "value": value, "preference": preference, "priority": priority, "weight": weight, "port": port } };
             var html = renderResourceRecord(record, domain);
 
             $("#addRecordFormItem").before(html);
@@ -1155,10 +1396,18 @@ function deleteResourceRecord(objBtn) {
     if (!confirm("Are you sure to permanently delete the " + type + " record '" + name + "' with value '" + value + "'?"))
         return false;
 
+    var apiUrl = "/api/deleteRecord?token=" + token + "&domain=" + name + "&type=" + type + "&value=" + value;
+
+    if (type === "SRV") {
+        var port = $("#txtPort" + id).val();
+
+        apiUrl += "&port=" + port;
+    }
+
     btnDelete.button('loading');
 
     HTTPRequest({
-        url: "/api/deleteRecord?token=" + token + "&domain=" + name + "&type=" + type + "&value=" + value,
+        url: apiUrl,
         success: function (responseJSON) {
             $("#li" + id).remove();
 
@@ -1185,14 +1434,6 @@ function updateResourceRecord(objBtn) {
     var domain = $("#spanZoneViewerTitle").text();
     var type = $("#optType" + id).val();
 
-    var oldName;
-    var oldValue;
-
-    if (type !== "SOA") {
-        oldName = divData.attr("data-record-name");
-        oldValue = divData.attr("data-record-value");
-    }
-
     var newName = $("#txtName" + id).val();
     var ttl = $("#txtTtl" + id).val();
 
@@ -1201,7 +1442,19 @@ function updateResourceRecord(objBtn) {
         return false;
     }
 
+    if (newName === "@")
+        newName = domain;
+    else
+        newName = newName + "." + domain;
+
+    if ((ttl === null) || (ttl === "")) {
+        ttl = 3600;
+    }
+
+    var oldName = divData.attr("data-record-name");
+    var oldValue = divData.attr("data-record-value");
     var newValue;
+
     var preference;
 
     var masterNameServer;
@@ -1211,6 +1464,11 @@ function updateResourceRecord(objBtn) {
     var retry;
     var expire;
     var minimum;
+
+    var oldPort;
+    var priority;
+    var weight;
+    var port;
 
     switch (type) {
         case "MX":
@@ -1272,6 +1530,26 @@ function updateResourceRecord(objBtn) {
             }
             break;
 
+        case "SRV":
+            var service = $("#txtService" + id).val();
+            var protocol = $("#txtProtocol" + id).val();
+
+            if (!service.startsWith("_"))
+                service = "_" + service;
+
+            if (!protocol.startsWith("_"))
+                protocol = "_" + protocol;
+
+            newName = service + "." + protocol + "." + newName;
+
+            oldPort = divData.attr("data-record-port");
+
+            priority = $("#txtPriority" + id).val();
+            weight = $("#txtWeight" + id).val();
+            port = $("#txtPort" + id).val();
+            newValue = $("#txtTarget" + id).val();
+            break;
+
         default:
             newValue = $("#txtValue" + id).val();
 
@@ -1281,15 +1559,6 @@ function updateResourceRecord(objBtn) {
             }
             break;
     }
-
-    if ((ttl === null) || (ttl === "")) {
-        ttl = 3600;
-    }
-
-    if (newName === "@")
-        newName = domain;
-    else
-        newName = newName + "." + domain;
 
     var apiUrl = "/api/updateRecord?token=" + token + "&type=" + type + "&domain=" + newName + "&oldDomain=" + oldName + "&value=" + newValue + "&oldValue=" + oldValue + "&ttl=" + ttl;
 
@@ -1301,6 +1570,10 @@ function updateResourceRecord(objBtn) {
         case "SOA":
             apiUrl += "&masterNameServer=" + masterNameServer + "&responsiblePerson=" + responsiblePerson + "&serial=" + serial + "&refresh=" + refresh + "&retry=" + retry + "&expire=" + expire + "&minimum=" + minimum;
             break;
+
+        case "SRV":
+            apiUrl += "&oldPort=" + oldPort + "&priority=" + priority + "&weight=" + weight + "&port=" + port;
+            break;
     }
 
     btnUpdate.button('loading');
@@ -1311,6 +1584,12 @@ function updateResourceRecord(objBtn) {
 
             switch (type) {
                 case "SOA":
+                    break;
+
+                case "SRV":
+                    divData.attr("data-record-name", newName);
+                    divData.attr("data-record-value", newValue);
+                    divData.attr("data-record-port", port);
                     break;
 
                 default:

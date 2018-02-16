@@ -164,14 +164,7 @@
                                                                 <div class="form-group">
                                                                     <label for="optType2">Type</label>
                                                                     <select class="form-control" id="optType2" disabled>
-                                                                        <option>A</option>
-                                                                        <option>NS</option>
-                                                                        <option>CNAME</option>
                                                                         <option selected>SOA</option>
-                                                                        <option>PTR</option>
-                                                                        <option>MX</option>
-                                                                        <option>TXT</option>
-                                                                        <option>AAAA</option>
                                                                     </select>
                                                                 </div>
                                                                 <div class="form-group">
@@ -223,14 +216,7 @@
                                                                 <div class="form-group">
                                                                     <label for="optType3">Type</label>
                                                                     <select class="form-control" id="optType3" disabled>
-                                                                        <option>A</option>
-                                                                        <option>NS</option>
-                                                                        <option>CNAME</option>
-                                                                        <option>SOA</option>
-                                                                        <option>PTR</option>
                                                                         <option selected>MX</option>
-                                                                        <option>TXT</option>
-                                                                        <option>AAAA</option>
                                                                     </select>
                                                                 </div>
                                                                 <div class="form-group">
@@ -257,6 +243,54 @@
                                                             </form>
                                                         </li>
 
+                                                        <li class="list-group-item resource-record">
+                                                            <form class="form-inline">
+                                                                <div class="form-group">
+                                                                    <label for="optType4">Type</label>
+                                                                    <select class="form-control" id="optType4" disabled>
+                                                                        <option selected>SRV</option>
+                                                                    </select>
+                                                                </div>
+                                                                <div class="form-group">
+                                                                    <label for="addRRSubDomain4">Name</label>
+                                                                    <input type="text" class="form-control" id="addRRSubDomain4" placeholder="@" style="width: 136px;">
+                                                                </div>
+                                                                <div class="form-group">
+                                                                    <label for="addRRValueService">Service</label>
+                                                                    <input type="text" class="form-control" id="addRRValueService" placeholder="service" style="width: 136px;">
+                                                                </div>
+                                                                <div class="form-group">
+                                                                    <label for="addRRValueProtocol">Protocol</label>
+                                                                    <input type="text" class="form-control" id="addRRValueProtocol" placeholder="protocol" style="width: 250px;">
+                                                                </div>
+                                                                <div class="form-group">
+                                                                    <label for="addRRValuePriority">Priority</label>
+                                                                    <input type="number" class="form-control" id="addRRValuePriority" placeholder="priority" style="width: 100px;">
+                                                                </div>
+                                                                <div class="form-group">
+                                                                    <label for="addRRValueWeight">Weight</label>
+                                                                    <input type="number" class="form-control" id="addRRValueWeight" placeholder="weight" style="width: 80px;">
+                                                                </div>
+                                                                <div class="form-group">
+                                                                    <label for="addRRValuePort">Port</label>
+                                                                    <input type="number" class="form-control" id="addRRValuePort" placeholder="port" style="width: 80px;">
+                                                                </div>
+                                                                <div class="form-group">
+                                                                    <label for="addRRValueTarget">Target</label>
+                                                                    <input type="text" class="form-control" id="addRRValueTarget" placeholder="target" style="width: 200px;">
+                                                                </div>
+                                                                <div class="form-group">
+                                                                    <label for="addRRTtl4">TTL</label>
+                                                                    <input type="number" class="form-control" id="addRRTtl4" placeholder="3600" style="width: 80px;">
+                                                                </div>
+
+                                                                <div class="form-group" style="display: block; margin-bottom: 0px;">
+                                                                    <button type="button" class="btn btn-primary">Update</button>
+                                                                    <button type="button" class="btn btn-warning">Delete</button>
+                                                                </div>
+                                                            </form>
+                                                        </li>
+
                                                         <li class="list-group-item" id="addRecordFormItem">
                                                             <form class="form-inline">
                                                                 <div class="form-group">
@@ -269,9 +303,10 @@
                                                                         <option>MX</option>
                                                                         <option>TXT</option>
                                                                         <option>AAAA</option>
+                                                                        <option>SRV</option>
                                                                     </select>
                                                                 </div>
-                                                                <div class="form-group">
+                                                                <div class="form-group" id="divAddRecordName">
                                                                     <label for="txtAddRecordName">Name</label>
                                                                     <input id="txtAddRecordName" type="text" class="form-control" placeholder="@" style="width: 136px;">
                                                                 </div>
@@ -279,6 +314,7 @@
                                                                     <label for="txtAddRecordValue">Value</label>
                                                                     <input id="txtAddRecordValue" type="text" class="form-control" placeholder="value" style="width: 250px;">
                                                                 </div>
+
                                                                 <div class="form-group" id="divAddRecordMXExchange" style="display: none;">
                                                                     <label for="txtAddRecordExchange">Exchange</label>
                                                                     <input id="txtAddRecordExchange" type="text" class="form-control" placeholder="value" style="width: 250px;">
@@ -287,6 +323,33 @@
                                                                     <label for="txtAddRecordPreference">Preference</label>
                                                                     <input id="txtAddRecordPreference" type="number" class="form-control" placeholder="value" style="width: 80px;">
                                                                 </div>
+
+
+                                                                <div class="form-group" id="divAddRecordSRVService" style="display: none;">
+                                                                    <label for="txtAddRecordSRVService">Service</label>
+                                                                    <input type="text" class="form-control" id="txtAddRecordSRVService" placeholder="service" style="width: 136px;">
+                                                                </div>
+                                                                <div class="form-group" id="divAddRecordSRVProtocol" style="display: none;">
+                                                                    <label for="txtAddRecordSRVProtocol">Protocol</label>
+                                                                    <input type="text" class="form-control" id="txtAddRecordSRVProtocol" placeholder="protocol" style="width: 250px;">
+                                                                </div>
+                                                                <div class="form-group" id="divAddRecordSRVPriority" style="display: none;">
+                                                                    <label for="txtAddRecordSRVPriority">Priority</label>
+                                                                    <input type="number" class="form-control" id="txtAddRecordSRVPriority" placeholder="priority" style="width: 100px;">
+                                                                </div>
+                                                                <div class="form-group" id="divAddRecordSRVWeight" style="display: none;">
+                                                                    <label for="txtAddRecordSRVWeight">Weight</label>
+                                                                    <input type="number" class="form-control" id="txtAddRecordSRVWeight" placeholder="weight" style="width: 80px;">
+                                                                </div>
+                                                                <div class="form-group" id="divAddRecordSRVPort" style="display: none;">
+                                                                    <label for="txtAddRecordSRVPort">Port</label>
+                                                                    <input type="number" class="form-control" id="txtAddRecordSRVPort" placeholder="port" style="width: 80px;">
+                                                                </div>
+                                                                <div class="form-group" id="divAddRecordSRVTarget" style="display: none;">
+                                                                    <label for="txtAddRecordSRVTarget">Target</label>
+                                                                    <input type="text" class="form-control" id="txtAddRecordSRVTarget" placeholder="target" style="width: 200px;">
+                                                                </div>
+
                                                                 <div class="form-group">
                                                                     <label for="txtAddRecordTtl">TTL</label>
                                                                     <input id="txtAddRecordTtl" type="number" class="form-control" placeholder="3600" style="width: 80px;">
@@ -388,6 +451,7 @@
                                                 <option>MX</option>
                                                 <option>TXT</option>
                                                 <option>AAAA</option>
+                                                <option>SRV</option>
                                                 <option>ANY</option>
                                             </select>
                                         </div>
@@ -429,8 +493,7 @@
                                                 <div class="form-group">
                                                     <label class="col-sm-3 control-label">Web Service Port</label>
                                                     <div class="col-sm-6">
-                                                        <input type="number" class="form-control" id="txtWebServicePort" placeholder="Web Service Port">
-                                                        <br />
+                                                        <input type="number" class="form-control" id="txtWebServicePort" placeholder="Web Service Port" style="width: 100px; margin-bottom: 8px;">
                                                         <div>To apply web service port changes, you need to manually restart the main service.</div>
                                                     </div>
                                                 </div>
@@ -513,10 +576,7 @@
 
                                             <div class="panel-body">
                                                 <div id="divLogViewerLoader" style="margin-top: 20px; height: 400px;"></div>
-
-                                                <pre id="preLogViewerBody" style="display: none;">
-                                                    
-                                                </pre>
+                                                <pre id="preLogViewerBody" style="display: none;"></pre>
                                             </div>
                                         </div>
                                     </div>
