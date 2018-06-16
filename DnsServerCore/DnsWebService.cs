@@ -1,5 +1,5 @@
 ﻿/*
-Technitium Library
+Technitium DNS Server
 Copyright (C) 2018  Shreyas Zare (shreyas@technitium.com)
 
 This program is free software: you can redistribute it and/or modify
@@ -30,6 +30,7 @@ using System.Threading;
 using TechnitiumLibrary.IO;
 using TechnitiumLibrary.Net;
 using TechnitiumLibrary.Net.Dns;
+using TechnitiumLibrary.Net.Proxy;
 
 namespace DnsServerCore
 {
@@ -671,6 +672,40 @@ namespace DnsServerCore
             jsonWriter.WritePropertyName("allowRecursion");
             jsonWriter.WriteValue(_dnsServer.AllowRecursion);
 
+            jsonWriter.WritePropertyName("proxy");
+            if (_dnsServer.Proxy == null)
+            {
+                jsonWriter.WriteNull();
+            }
+            else
+            {
+                jsonWriter.WriteStartObject();
+
+                NetProxy proxy = _dnsServer.Proxy;
+
+                jsonWriter.WritePropertyName("type");
+                jsonWriter.WriteValue(proxy.Type.ToString());
+
+                jsonWriter.WritePropertyName("address");
+                jsonWriter.WriteValue(proxy.Address);
+
+                jsonWriter.WritePropertyName("port");
+                jsonWriter.WriteValue(proxy.Port);
+
+                NetworkCredential credential = proxy.Credential;
+
+                if (credential != null)
+                {
+                    jsonWriter.WritePropertyName("username");
+                    jsonWriter.WriteValue(credential.UserName);
+
+                    jsonWriter.WritePropertyName("password");
+                    jsonWriter.WriteValue(credential.Password);
+                }
+
+                jsonWriter.WriteEndObject();
+            }
+
             jsonWriter.WritePropertyName("forwarders");
 
             if (_dnsServer.Forwarders == null)
@@ -682,10 +717,13 @@ namespace DnsServerCore
                 jsonWriter.WriteStartArray();
 
                 foreach (NameServerAddress forwarder in _dnsServer.Forwarders)
-                    jsonWriter.WriteValue(forwarder.EndPoint.Address.ToString());
+                    jsonWriter.WriteValue(forwarder.EndPoint.ToString());
 
                 jsonWriter.WriteEndArray();
             }
+
+            jsonWriter.WritePropertyName("forwarderProtocol");
+            jsonWriter.WriteValue(_dnsServer.ForwarderProtocol.ToString());
         }
 
         private void SetDnsSettings(HttpListenerRequest request, JsonTextWriter jsonWriter)
@@ -715,6 +753,26 @@ namespace DnsServerCore
             if (!string.IsNullOrEmpty(strAllowRecursion))
                 _dnsServer.AllowRecursion = bool.Parse(strAllowRecursion);
 
+            string strProxyType = request.QueryString["proxyType"];
+            if (!string.IsNullOrEmpty(strProxyType))
+            {
+                NetProxyType proxyType = (NetProxyType)Enum.Parse(typeof(NetProxyType), strProxyType, true);
+                if (proxyType == NetProxyType.None)
+                {
+                    _dnsServer.Proxy = null;
+                }
+                else
+                {
+                    NetworkCredential credential = null;
+
+                    string strUsername = request.QueryString["proxyUsername"];
+                    if (!string.IsNullOrEmpty(strUsername))
+                        credential = new NetworkCredential(strUsername, request.QueryString["proxyPassword"]);
+
+                    _dnsServer.Proxy = new NetProxy(proxyType, request.QueryString["proxyAddress"], int.Parse(request.QueryString["proxyPort"]), credential);
+                }
+            }
+
             string strForwarders = request.QueryString["forwarders"];
             if (!string.IsNullOrEmpty(strForwarders))
             {
@@ -728,13 +786,30 @@ namespace DnsServerCore
                     NameServerAddress[] forwarders = new NameServerAddress[strForwardersList.Length];
 
                     for (int i = 0; i < strForwardersList.Length; i++)
-                        forwarders[i] = new NameServerAddress(IPAddress.Parse(strForwardersList[i]));
+                    {
+                        string[] strParts = strForwardersList[i].Split(':');
+
+                        string host = strParts[0];
+                        int port = 53;
+
+                        if (strParts.Length > 1)
+                            port = int.Parse(strParts[1]);
+
+                        if (IPAddress.TryParse(host, out IPAddress ipAddress))
+                            forwarders[i] = new NameServerAddress(new IPEndPoint(ipAddress, port));
+                        else
+                            forwarders[i] = new NameServerAddress(new DomainEndPoint(host, port));
+                    }
 
                     _dnsServer.Forwarders = forwarders;
                 }
             }
 
-            _log.Write(GetRequestRemoteEndPoint(request), "[" + GetSession(request).Username + "] Dns Settings were updated {serverDomain: " + _serverDomain + "; webServicePort: " + _webServicePort + "; preferIPv6: " + _dnsServer.PreferIPv6 + "; logQueries: " + (_dnsServer.QueryLogManager != null) + "; allowRecursion: " + _dnsServer.AllowRecursion + "; forwarders: " + strForwarders + ";}");
+            string strForwarderProtocol = request.QueryString["forwarderProtocol"];
+            if (!string.IsNullOrEmpty(strForwarderProtocol))
+                _dnsServer.ForwarderProtocol = (DnsClientProtocol)Enum.Parse(typeof(DnsClientProtocol), strForwarderProtocol, true);
+
+            _log.Write(GetRequestRemoteEndPoint(request), "[" + GetSession(request).Username + "] Dns Settings were updated {serverDomain: " + _serverDomain + "; webServicePort: " + _webServicePort + "; preferIPv6: " + _dnsServer.PreferIPv6 + "; logQueries: " + (_dnsServer.QueryLogManager != null) + "; allowRecursion: " + _dnsServer.AllowRecursion + "; proxyType: " + strProxyType + "; forwarders: " + strForwarders + "; forwarderProtocol: " + strForwarderProtocol + ";}");
 
             SaveConfigFile();
 
@@ -1371,6 +1446,41 @@ namespace DnsServerCore
             if (string.IsNullOrEmpty(server))
                 throw new DnsWebServiceException("Parameter 'server' missing.");
 
+            if (server.Contains(" "))
+                throw new DnsWebServiceException("Invalid parameter 'server' value.");
+
+            int port = 53;
+
+            {
+                if (server.StartsWith("["))
+                {
+                    //ipv6
+                    if (server.EndsWith("]"))
+                    {
+                        server = server.Trim('[', ']');
+                    }
+                    else
+                    {
+                        int posBracket = server.LastIndexOf(']');
+                        int posCollon = server.IndexOf(':', posBracket);
+
+                        if (posCollon > -1)
+                            port = int.Parse(server.Substring(posCollon + 1));
+
+                        server = server.Substring(1, posBracket - 1);
+                    }
+                }
+                else
+                {
+                    string[] strParts = server.Split(':');
+                    if (strParts.Length > 1)
+                    {
+                        server = strParts[0];
+                        port = int.Parse(strParts[1]);
+                    }
+                }
+            }
+
             string domain = request.QueryString["domain"];
             if (string.IsNullOrEmpty(domain))
                 throw new DnsWebServiceException("Parameter 'domain' missing.");
@@ -1381,24 +1491,25 @@ namespace DnsServerCore
 
             DnsResourceRecordType type = (DnsResourceRecordType)Enum.Parse(typeof(DnsResourceRecordType), strType);
 
-            string protocol = request.QueryString["protocol"];
-            if (string.IsNullOrEmpty(protocol))
-                protocol = "UDP";
+            string strProtocol = request.QueryString["protocol"];
+            if (string.IsNullOrEmpty(strProtocol))
+                strProtocol = "Udp";
 
             bool importRecords = false;
             string strImport = request.QueryString["import"];
             if (!string.IsNullOrEmpty(strImport))
                 importRecords = bool.Parse(strImport);
 
-            bool PREFER_IPv6 = _dnsServer.PreferIPv6;
-            bool TCP = (protocol.Equals("TCP", StringComparison.CurrentCultureIgnoreCase));
+            NetProxy proxy = _dnsServer.Proxy;
+            bool PreferIPv6 = _dnsServer.PreferIPv6;
+            DnsClientProtocol protocol = (DnsClientProtocol)Enum.Parse(typeof(DnsClientProtocol), strProtocol, true);
             const int RETRIES = 2;
 
             DnsDatagram dnsResponse;
 
             if (server == "root-servers")
             {
-                dnsResponse = DnsClient.ResolveViaRootNameServers(domain, type, null, null, PREFER_IPv6, TCP, RETRIES);
+                dnsResponse = DnsClient.ResolveViaRootNameServers(domain, type, null, proxy, PreferIPv6, protocol, RETRIES);
             }
             else
             {
@@ -1407,6 +1518,7 @@ namespace DnsServerCore
                 if (server == "this-server")
                 {
                     nameServers = new NameServerAddress[] { new NameServerAddress(_serverDomain, IPAddress.Parse("127.0.0.1")) };
+                    proxy = null; //no proxy required for this server
                 }
                 else if (IPAddress.TryParse(server, out IPAddress serverIP))
                 {
@@ -1414,15 +1526,21 @@ namespace DnsServerCore
 
                     try
                     {
+                        //reverse resolve name server domain from IP address by PTR query
                         DnsClient client;
 
                         if (_dnsServer.AllowRecursion)
+                        {
                             client = new DnsClient(IPAddress.Parse("127.0.0.1"));
+                        }
                         else
+                        {
                             client = new DnsClient();
+                            client.Proxy = proxy;
+                        }
 
-                        client.PreferIPv6 = PREFER_IPv6;
-                        client.Tcp = TCP;
+                        client.PreferIPv6 = PreferIPv6;
+                        client.Protocol = DnsClientProtocol.Udp;
                         client.Retries = RETRIES;
 
                         serverDomain = client.ResolvePTR(serverIP);
@@ -1430,19 +1548,47 @@ namespace DnsServerCore
                     catch
                     { }
 
-                    nameServers = new NameServerAddress[] { new NameServerAddress(serverDomain, serverIP) };
+                    if (serverDomain == null)
+                        nameServers = new NameServerAddress[] { new NameServerAddress(new IPEndPoint(serverIP, port)) };
+                    else
+                        nameServers = new NameServerAddress[] { new NameServerAddress(serverDomain, new IPEndPoint(serverIP, port)) };
                 }
                 else
                 {
-                    IPAddress[] serverIPs = (new DnsClient() { PreferIPv6 = PREFER_IPv6, Tcp = TCP, Retries = RETRIES }).ResolveIP(server, PREFER_IPv6);
+                    if (proxy == null)
+                    {
+                        //resolve name server domain IP address
+                        DnsClient client;
 
-                    nameServers = new NameServerAddress[serverIPs.Length];
+                        if (_dnsServer.AllowRecursion)
+                        {
+                            client = new DnsClient(IPAddress.Parse("127.0.0.1"));
+                        }
+                        else
+                        {
+                            client = new DnsClient();
+                            client.Proxy = proxy;
+                        }
 
-                    for (int i = 0; i < serverIPs.Length; i++)
-                        nameServers[i] = new NameServerAddress(server, serverIPs[i]);
+                        client.PreferIPv6 = PreferIPv6;
+                        client.Protocol = DnsClientProtocol.Udp;
+                        client.Retries = RETRIES;
+
+                        IPAddress[] serverIPs = client.ResolveIP(server, PreferIPv6);
+
+                        nameServers = new NameServerAddress[serverIPs.Length];
+
+                        for (int i = 0; i < serverIPs.Length; i++)
+                            nameServers[i] = new NameServerAddress(server, new IPEndPoint(serverIPs[i], port));
+                    }
+                    else
+                    {
+                        //proxy will resolve name server domain IP address
+                        nameServers = new NameServerAddress[] { new NameServerAddress(new DomainEndPoint(server, port)) };
+                    }
                 }
 
-                dnsResponse = (new DnsClient(nameServers) { PreferIPv6 = PREFER_IPv6, Tcp = TCP, Retries = RETRIES }).Resolve(domain, type);
+                dnsResponse = (new DnsClient(nameServers) { Proxy = proxy, PreferIPv6 = PreferIPv6, Protocol = protocol, Retries = RETRIES }).Resolve(domain, type);
             }
 
             if (importRecords)
@@ -1584,26 +1730,55 @@ namespace DnsServerCore
         {
             using (FileStream fS = new FileStream(zoneFile, FileMode.Open, FileAccess.Read))
             {
-                BincodingDecoder decoder = new BincodingDecoder(fS, "DZ");
+                BinaryReader bR = new BinaryReader(fS);
 
-                switch (decoder.Version)
+                if (Encoding.ASCII.GetString(bR.ReadBytes(2)) != "DZ")
+                    throw new InvalidDataException("DnsServer zone file format is invalid.");
+
+                switch (bR.ReadByte())
                 {
                     case 1:
-                        ICollection<Bincoding> entries = decoder.DecodeNext().GetList();
-                        DnsResourceRecord[] records = new DnsResourceRecord[entries.Count];
+                        fS.Position = 0;
+                        LoadZoneFileV1(fS);
+                        break;
 
-                        int i = 0;
-                        foreach (Bincoding entry in entries)
-                            records[i++] = new DnsResourceRecord(entry.GetValueStream());
+                    case 2:
+                        int count = bR.ReadInt32();
+                        DnsResourceRecord[] records = new DnsResourceRecord[count];
+
+                        for (int i = 0; i < count; i++)
+                            records[i] = new DnsResourceRecord(fS);
 
                         _dnsServer.AuthoritativeZoneRoot.SetRecords(records);
-
-                        _log.Write("Loaded zone file: " + zoneFile);
                         break;
 
                     default:
-                        throw new IOException("Dns Zone file version not supported: " + decoder.Version);
+                        throw new InvalidDataException("Dns Zone file version not supported.");
                 }
+            }
+
+            _log.Write("Loaded zone file: " + zoneFile);
+        }
+
+        private void LoadZoneFileV1(Stream s)
+        {
+            BincodingDecoder decoder = new BincodingDecoder(s, "DZ");
+
+            switch (decoder.Version)
+            {
+                case 1:
+                    ICollection<Bincoding> entries = decoder.DecodeNext().GetList();
+                    DnsResourceRecord[] records = new DnsResourceRecord[entries.Count];
+
+                    int i = 0;
+                    foreach (Bincoding entry in entries)
+                        records[i++] = new DnsResourceRecord(entry.GetValueStream());
+
+                    _dnsServer.AuthoritativeZoneRoot.SetRecords(records);
+                    break;
+
+                default:
+                    throw new IOException("Dns Zone file version not supported: " + decoder.Version);
             }
         }
 
@@ -1616,9 +1791,15 @@ namespace DnsServerCore
 
             using (FileStream fS = new FileStream(Path.Combine(_configFolder, authZone + ".zone"), FileMode.Create, FileAccess.Write))
             {
-                BincodingEncoder encoder = new BincodingEncoder(fS, "DZ", 1);
+                BinaryWriter bW = new BinaryWriter(fS);
 
-                encoder.EncodeBinaryList(records);
+                bW.Write(Encoding.ASCII.GetBytes("DZ")); //format
+                bW.Write((byte)2); //version
+
+                bW.Write(records.Length);
+
+                foreach (DnsResourceRecord record in records)
+                    record.WriteTo(fS);
             }
 
             _log.Write("Saved zone file for domain: " + domain);
@@ -1641,74 +1822,78 @@ namespace DnsServerCore
 
                 using (FileStream fS = new FileStream(configFile, FileMode.Open, FileAccess.Read))
                 {
-                    BincodingDecoder decoder = new BincodingDecoder(fS, "DS");
+                    BinaryReader bR = new BinaryReader(fS);
 
-                    switch (decoder.Version)
+                    if (Encoding.ASCII.GetString(bR.ReadBytes(2)) != "DS") //format
+                        throw new InvalidDataException("DnsServer config file format is invalid.");
+
+                    switch (bR.ReadByte()) //version
                     {
                         case 1:
-                            while (true)
+                            fS.Position = 0;
+                            LoadConfigFileV1(fS);
+                            break;
+
+                        case 2:
+                            _serverDomain = bR.ReadShortString();
+                            _webServicePort = bR.ReadInt32();
+
+                            _dnsServer.PreferIPv6 = bR.ReadBoolean();
+
+                            if (bR.ReadBoolean()) //logQueries
+                                _dnsServer.QueryLogManager = _log;
+
+                            _dnsServer.AllowRecursion = bR.ReadBoolean();
+
+                            NetProxyType proxyType = (NetProxyType)bR.ReadByte();
+                            if (proxyType != NetProxyType.None)
                             {
-                                Bincoding item = decoder.DecodeNext();
-                                if (item.Type == BincodingType.NULL)
-                                    break;
+                                string address = bR.ReadShortString();
+                                int port = bR.ReadInt32();
+                                NetworkCredential credential = null;
 
-                                if (item.Type == BincodingType.KEY_VALUE_PAIR)
+                                if (bR.ReadBoolean()) //credential set
+                                    credential = new NetworkCredential(bR.ReadShortString(), bR.ReadShortString());
+
+                                _dnsServer.Proxy = new NetProxy(proxyType, address, port, credential);
+                            }
+
+                            {
+                                int count = bR.ReadByte();
+                                if (count > 0)
                                 {
-                                    KeyValuePair<string, Bincoding> pair = item.GetKeyValuePair();
+                                    NameServerAddress[] forwarders = new NameServerAddress[count];
 
-                                    switch (pair.Key)
-                                    {
-                                        case "serverDomain":
-                                            _serverDomain = pair.Value.GetStringValue();
-                                            break;
+                                    for (int i = 0; i < count; i++)
+                                        forwarders[i] = new NameServerAddress(EndPointExtension.Parse(bR));
 
-                                        case "webServicePort":
-                                            _webServicePort = pair.Value.GetIntegerValue();
-                                            break;
+                                    _dnsServer.Forwarders = forwarders;
+                                }
+                            }
 
-                                        case "dnsPreferIPv6":
-                                            _dnsServer.PreferIPv6 = pair.Value.GetBooleanValue();
-                                            break;
+                            _dnsServer.ForwarderProtocol = (DnsClientProtocol)bR.ReadByte();
 
-                                        case "logQueries":
-                                            if (pair.Value.GetBooleanValue())
-                                                _dnsServer.QueryLogManager = _log;
+                            {
+                                int count = bR.ReadByte();
+                                if (count > 0)
+                                {
+                                    for (int i = 0; i < count; i++)
+                                        SetCredentials(bR.ReadShortString(), bR.ReadShortString());
+                                }
+                            }
 
-                                            break;
-
-                                        case "dnsAllowRecursion":
-                                            _dnsServer.AllowRecursion = pair.Value.GetBooleanValue();
-                                            break;
-
-                                        case "dnsForwarders":
-                                            ICollection<Bincoding> entries = pair.Value.GetList();
-                                            NameServerAddress[] forwarders = new NameServerAddress[entries.Count];
-
-                                            int i = 0;
-                                            foreach (Bincoding entry in entries)
-                                                forwarders[i++] = new NameServerAddress(IPAddress.Parse(entry.GetStringValue()));
-
-                                            _dnsServer.Forwarders = forwarders;
-                                            break;
-
-                                        case "credentials":
-                                            foreach (KeyValuePair<string, Bincoding> credential in pair.Value.GetDictionary())
-                                                SetCredentials(credential.Key, credential.Value.GetStringValue());
-
-                                            break;
-
-                                        case "disabledZones":
-                                            foreach (Bincoding disabledZone in pair.Value.GetList())
-                                                _dnsServer.AuthoritativeZoneRoot.DisableZone(disabledZone.GetStringValue());
-
-                                            break;
-                                    }
+                            {
+                                int count = bR.ReadInt32();
+                                if (count > 0)
+                                {
+                                    for (int i = 0; i < count; i++)
+                                        _dnsServer.AuthoritativeZoneRoot.DisableZone(bR.ReadShortString());
                                 }
                             }
                             break;
 
                         default:
-                            throw new IOException("Dns Config file version not supported: " + decoder.Version);
+                            throw new InvalidDataException("DnsServer config version not supported.");
                     }
                 }
 
@@ -1727,53 +1912,156 @@ namespace DnsServerCore
             }
         }
 
+        private void LoadConfigFileV1(Stream s)
+        {
+            BincodingDecoder decoder = new BincodingDecoder(s, "DS");
+
+            switch (decoder.Version)
+            {
+                case 1:
+                    while (true)
+                    {
+                        Bincoding item = decoder.DecodeNext();
+                        if (item.Type == BincodingType.NULL)
+                            break;
+
+                        if (item.Type == BincodingType.KEY_VALUE_PAIR)
+                        {
+                            KeyValuePair<string, Bincoding> pair = item.GetKeyValuePair();
+
+                            switch (pair.Key)
+                            {
+                                case "serverDomain":
+                                    _serverDomain = pair.Value.GetStringValue();
+                                    break;
+
+                                case "webServicePort":
+                                    _webServicePort = pair.Value.GetIntegerValue();
+                                    break;
+
+                                case "dnsPreferIPv6":
+                                    _dnsServer.PreferIPv6 = pair.Value.GetBooleanValue();
+                                    break;
+
+                                case "logQueries":
+                                    if (pair.Value.GetBooleanValue())
+                                        _dnsServer.QueryLogManager = _log;
+
+                                    break;
+
+                                case "dnsAllowRecursion":
+                                    _dnsServer.AllowRecursion = pair.Value.GetBooleanValue();
+                                    break;
+
+                                case "dnsForwarders":
+                                    ICollection<Bincoding> entries = pair.Value.GetList();
+                                    NameServerAddress[] forwarders = new NameServerAddress[entries.Count];
+
+                                    int i = 0;
+                                    foreach (Bincoding entry in entries)
+                                        forwarders[i++] = new NameServerAddress(IPAddress.Parse(entry.GetStringValue()));
+
+                                    _dnsServer.Forwarders = forwarders;
+                                    break;
+
+                                case "credentials":
+                                    foreach (KeyValuePair<string, Bincoding> credential in pair.Value.GetDictionary())
+                                        SetCredentials(credential.Key, credential.Value.GetStringValue());
+
+                                    break;
+
+                                case "disabledZones":
+                                    foreach (Bincoding disabledZone in pair.Value.GetList())
+                                        _dnsServer.AuthoritativeZoneRoot.DisableZone(disabledZone.GetStringValue());
+
+                                    break;
+                            }
+                        }
+                    }
+                    break;
+
+                default:
+                    throw new IOException("Dns Config file version not supported: " + decoder.Version);
+            }
+        }
+
         private void SaveConfigFile()
         {
             string configFile = Path.Combine(_configFolder, "dns.config");
 
             using (FileStream fS = new FileStream(configFile, FileMode.Create, FileAccess.Write))
             {
-                BincodingEncoder encoder = new BincodingEncoder(fS, "DS", 1);
+                BinaryWriter bW = new BinaryWriter(fS);
 
-                encoder.EncodeKeyValue("serverDomain", _serverDomain);
-                encoder.EncodeKeyValue("webServicePort", _webServicePort);
+                bW.Write(Encoding.ASCII.GetBytes("DS")); //format
+                bW.Write((byte)2); //version
 
-                encoder.EncodeKeyValue("dnsPreferIPv6", _dnsServer.PreferIPv6);
-                encoder.EncodeKeyValue("logQueries", (_dnsServer.QueryLogManager != null));
-                encoder.EncodeKeyValue("dnsAllowRecursion", _dnsServer.AllowRecursion);
+                bW.WriteShortString(_serverDomain);
+                bW.Write(_webServicePort);
 
-                if (_dnsServer.Forwarders != null)
+                bW.Write(_dnsServer.PreferIPv6);
+                bW.Write((_dnsServer.QueryLogManager != null)); //logQueries
+                bW.Write(_dnsServer.AllowRecursion);
+
+                if (_dnsServer.Proxy == null)
                 {
-                    List<Bincoding> forwarders = new List<Bincoding>();
+                    bW.Write((byte)NetProxyType.None);
+                }
+                else
+                {
+                    bW.Write((byte)_dnsServer.Proxy.Type);
+                    bW.WriteShortString(_dnsServer.Proxy.Address);
+                    bW.Write(_dnsServer.Proxy.Port);
+
+                    NetworkCredential credential = _dnsServer.Proxy.Credential;
+
+                    if (credential == null)
+                    {
+                        bW.Write(false);
+                    }
+                    else
+                    {
+                        bW.Write(true);
+                        bW.WriteShortString(credential.UserName);
+                        bW.WriteShortString(credential.Password);
+                    }
+                }
+
+                if (_dnsServer.Forwarders == null)
+                {
+                    bW.Write((byte)0);
+                }
+                else
+                {
+                    bW.Write(Convert.ToByte(_dnsServer.Forwarders.Length));
 
                     foreach (NameServerAddress forwarder in _dnsServer.Forwarders)
-                        forwarders.Add(Bincoding.ParseValue(forwarder.EndPoint.Address.ToString()));
-
-                    encoder.EncodeKeyValue("dnsForwarders", forwarders);
+                        forwarder.EndPoint.WriteTo(bW);
                 }
 
+                bW.Write((byte)_dnsServer.ForwarderProtocol);
+
                 {
-                    Dictionary<string, Bincoding> credentials = new Dictionary<string, Bincoding>();
+                    bW.Write(Convert.ToByte(_credentials.Count));
 
                     foreach (KeyValuePair<string, string> credential in _credentials)
-                        credentials.Add(credential.Key, Bincoding.ParseValue(credential.Value));
-
-                    encoder.EncodeKeyValue("credentials", credentials);
+                    {
+                        bW.WriteShortString(credential.Key);
+                        bW.WriteShortString(credential.Value);
+                    }
                 }
 
                 {
-                    List<Bincoding> disabledZones = new List<Bincoding>();
+                    Zone.ZoneInfo[] authoritativeZones = _dnsServer.AuthoritativeZoneRoot.ListAuthoritativeZones();
 
-                    foreach (Zone.ZoneInfo zone in _dnsServer.AuthoritativeZoneRoot.ListAuthoritativeZones())
+                    bW.Write(authoritativeZones.Length);
+
+                    foreach (Zone.ZoneInfo zone in authoritativeZones)
                     {
                         if (zone.Disabled)
-                            disabledZones.Add(Bincoding.ParseValue(zone.ZoneName));
+                            bW.WriteShortString(zone.ZoneName);
                     }
-
-                    encoder.EncodeKeyValue("disabledZones", disabledZones);
                 }
-
-                encoder.EncodeNull();
             }
 
             _log.Write("Dns Server config file was saved: " + configFile);
@@ -1799,8 +2087,6 @@ namespace DnsServerCore
             try
             {
                 _webService = new HttpListener();
-                _webService.Prefixes.Add("http://localhost:" + _webServicePort + "/");
-                _webService.Prefixes.Add("http://127.0.0.1:" + _webServicePort + "/");
                 _webService.Prefixes.Add("http://*:" + _webServicePort + "/");
                 _webService.Start();
             }
