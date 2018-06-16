@@ -66,7 +66,30 @@ $(function () {
     //dropdown list box support
     $('.dropdown').on('click', 'a', function (e) {
         e.preventDefault();
-        $(this).closest('.dropdown').find('input').val($(this).text());
+
+        var itemText = $(this).text();
+        $(this).closest('.dropdown').find('input').val(itemText);
+
+        if (itemText.indexOf("TLS") !== -1)
+            $("#optDnsClientProtocol").val("TLS");
+        else if ($("#optDnsClientProtocol").val() === "TLS")
+            $("#optDnsClientProtocol").val("UDP");
+    });
+
+    $("#divNetworkProxy input").click(function () {
+        var proxyType = $('input[name=rdProxyType]:checked').val().toLowerCase();
+        if (proxyType === "none") {
+            $("#txtProxyAddress").prop("disabled", true);
+            $("#txtProxyPort").prop("disabled", true);
+            $("#txtProxyUsername").prop("disabled", true);
+            $("#txtProxyPassword").prop("disabled", true);
+        }
+        else {
+            $("#txtProxyAddress").prop("disabled", false);
+            $("#txtProxyPort").prop("disabled", false);
+            $("#txtProxyUsername").prop("disabled", false);
+            $("#txtProxyPassword").prop("disabled", false);
+        }
     });
 
     showPageLogin();
@@ -240,6 +263,46 @@ function loadDnsSettings() {
             $("#chkLogQueries").prop("checked", responseJSON.response.logQueries);
             $("#chkAllowRecursion").prop("checked", responseJSON.response.allowRecursion);
 
+            var proxy = responseJSON.response.proxy;
+            if (proxy === null) {
+                $("#rdProxyTypeNone").prop("checked", true);
+
+                $("#txtProxyAddress").prop("disabled", true);
+                $("#txtProxyPort").prop("disabled", true);
+                $("#txtProxyUsername").prop("disabled", true);
+                $("#txtProxyPassword").prop("disabled", true);
+
+                $("#txtProxyAddress").val("");
+                $("#txtProxyPort").val("");
+                $("#txtProxyUsername").val("");
+                $("#txtProxyPassword").val("");
+            }
+            else {
+                switch (proxy.type.toLowerCase()) {
+                    case "http":
+                        $("#rdProxyTypeHttp").prop("checked", true);
+                        break;
+
+                    case "socks5":
+                        $("#rdProxyTypeSocks5").prop("checked", true);
+                        break;
+
+                    default:
+                        $("#rdProxyTypeNone").prop("checked", true);
+                        break;
+                }
+
+                $("#txtProxyAddress").val(proxy.address);
+                $("#txtProxyPort").val(proxy.port);
+                $("#txtProxyUsername").val(proxy.username);
+                $("#txtProxyPassword").val(proxy.password);
+
+                $("#txtProxyAddress").prop("disabled", false);
+                $("#txtProxyPort").prop("disabled", false);
+                $("#txtProxyUsername").prop("disabled", false);
+                $("#txtProxyPassword").prop("disabled", false);
+            }
+
             var forwarders = responseJSON.response.forwarders;
             if (forwarders === null) {
                 $("#txtForwarders").val("");
@@ -251,6 +314,20 @@ function loadDnsSettings() {
                     value += forwarders[i] + "\r\n";
 
                 $("#txtForwarders").val(value);
+            }
+
+            switch (responseJSON.response.forwarderProtocol.toLowerCase()) {
+                case "tcp":
+                    $("#rdForwarderProtocolTcp").prop("checked", true);
+                    break;
+
+                case "tls":
+                    $("#rdForwarderProtocolTls").prop("checked", true);
+                    break;
+
+                default:
+                    $("#rdForwarderProtocolUdp").prop("checked", true);
+                    break;
             }
 
             divDnsSettingsLoader.hide();
@@ -284,6 +361,16 @@ function saveDnsSettings() {
     var preferIPv6 = $("#chkPreferIPv6").prop('checked');
     var logQueries = $("#chkLogQueries").prop('checked');
     var allowRecursion = $("#chkAllowRecursion").prop('checked');
+
+    var proxy;
+    var proxyType = $('input[name=rdProxyType]:checked').val().toLowerCase();
+    if (proxyType === "none") {
+        proxy = "&proxyType=" + proxyType;
+    }
+    else {
+        proxy = "&proxyType=" + proxyType + "&proxyAddress=" + $("#txtProxyAddress").val() + "&proxyPort=" + $("#txtProxyPort").val() + "&proxyUsername=" + $("#txtProxyUsername").val() + "&proxyPassword=" + $("#txtProxyPassword").val();
+    }
+
     var forwarders = $("#txtForwarders").val().replace(/\n/g, ",");
 
     while (forwarders.indexOf(",,") !== -1) {
@@ -301,10 +388,12 @@ function saveDnsSettings() {
     else
         $("#txtForwarders").val(forwarders.replace(/,/g, "\n"));
 
+    var forwarderProtocol = $('input[name=rdForwarderProtocol]:checked').val();
+
     var btn = $("#btnSaveDnsSettings").button('loading');
 
     HTTPRequest({
-        url: "/api/setDnsSettings?token=" + token + "&serverDomain=" + serverDomain + "&webServicePort=" + webServicePort + "&preferIPv6=" + preferIPv6 + "&logQueries=" + logQueries + "&allowRecursion=" + allowRecursion + "&forwarders=" + forwarders,
+        url: "/api/setDnsSettings?token=" + token + "&serverDomain=" + serverDomain + "&webServicePort=" + webServicePort + "&preferIPv6=" + preferIPv6 + "&logQueries=" + logQueries + "&allowRecursion=" + allowRecursion + proxy + "&forwarders=" + forwarders + "&forwarderProtocol=" + forwarderProtocol,
         success: function (responseJSON) {
             document.title = "Technitium DNS Server " + responseJSON.response.version + " - " + responseJSON.response.serverDomain;
             $("#lblServerDomain").text(" - " + responseJSON.response.serverDomain);
@@ -1632,6 +1721,8 @@ function resolveQuery(importRecords) {
             server = server.substring(i + 1, j);
         }
     }
+
+    server = server.trim();
 
     if ((server === null) || (server === "")) {
         showAlert("warning", "Missing!", "Please enter a valid Name Server.");

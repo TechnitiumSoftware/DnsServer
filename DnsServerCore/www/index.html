@@ -404,12 +404,28 @@
                                                 <input type="text" class="form-control dropdown-toggle" style="width: 180px;" id="txtDnsClientNameServer" value="This Server (this-server)">
                                                 <ul class="dropdown-menu" id="optDnsClientNameServers">
                                                     <li><a href="#">This Server (this-server)</a></li>
+                                                    <li><a href="#">Cloudflare (1.1.1.1)</a></li>
+                                                    <li><a href="#">Cloudflare (1.0.0.1)</a></li>
+                                                    <li><a href="#">Cloudflare ([2606:4700:4700::1111])</a></li>
+                                                    <li><a href="#">Cloudflare ([2606:4700:4700::1001])</a></li>
+                                                    <li><a href="#">Cloudflare TLS (1.1.1.1:853)</a></li>
+                                                    <li><a href="#">Cloudflare TLS (1.0.0.1:853)</a></li>
+                                                    <li><a href="#">Cloudflare TLS ([2606:4700:4700::1111]:853)</a></li>
+                                                    <li><a href="#">Cloudflare TLS ([2606:4700:4700::1001]:853)</a></li>
                                                     <li><a href="#">Google (8.8.8.8)</a></li>
                                                     <li><a href="#">Google (8.8.4.4)</a></li>
+                                                    <li><a href="#">Google ([2001:4860:4860::8888])</a></li>
+                                                    <li><a href="#">Google ([2001:4860:4860::8844])</a></li>
                                                     <li><a href="#">IBM Quad9 Secure (9.9.9.9)</a></li>
+                                                    <li><a href="#">IBM Quad9 Secure ([2620:fe::fe])</a></li>
+                                                    <li><a href="#">IBM Quad9 Secure TLS (9.9.9.9:853)</a></li>
+                                                    <li><a href="#">IBM Quad9 Secure TLS ([2620:fe::fe]:853)</a></li>
                                                     <li><a href="#">IBM Quad9 Unsecure (9.9.9.10)</a></li>
+                                                    <li><a href="#">IBM Quad9 Unsecure ([2620:fe::10])</a></li>
                                                     <li><a href="#">OpenDNS (208.67.222.222)</a></li>
                                                     <li><a href="#">OpenDNS (208.67.220.220)</a></li>
+                                                    <li><a href="#">OpenDNS ([2620:0:ccc::2])</a></li>
+                                                    <li><a href="#">OpenDNS ([2620:0:ccd::2])</a></li>
                                                     <li><a href="#">Level3 (4.2.2.1)</a></li>
                                                     <li><a href="#">Level3 (4.2.2.2)</a></li>
                                                     <li><a href="#">Ultra (156.154.70.1)</a></li>
@@ -461,6 +477,7 @@
                                             <select class="form-control" id="optDnsClientProtocol">
                                                 <option>UDP</option>
                                                 <option>TCP</option>
+                                                <option>TLS</option>
                                             </select>
                                         </div>
 
@@ -480,9 +497,9 @@
                                     <div id="divDnsSettingsLoader" style="margin-top: 10px; height: 400px;"></div>
 
                                     <div id="divDnsSettings" style="display: none;">
-                                        <form style="margin-top: 10px;" class="form-horizontal" onsubmit="return false;">
+                                        <form style="margin-top: 10px;" onsubmit="return false;">
 
-                                            <div class="well well-sm">
+                                            <div class="well well-sm form-horizontal">
                                                 <div class="form-group">
                                                     <label for="txtServerDomain" class="col-sm-3 control-label">Server Domain</label>
                                                     <div class="col-sm-6">
@@ -490,8 +507,8 @@
                                                     </div>
                                                 </div>
 
-                                                <div class="form-group">
-                                                    <label class="col-sm-3 control-label">Web Service Port</label>
+                                                <div class="form-group" style="margin-bottom: 0px;">
+                                                    <label for="txtWebServicePort" class="col-sm-3 control-label">Web Service Port</label>
                                                     <div class="col-sm-6">
                                                         <input type="number" class="form-control" id="txtWebServicePort" placeholder="Web Service Port" style="width: 100px; margin-bottom: 8px;">
                                                         <div>To apply web service port changes, you need to manually restart the main service.</div>
@@ -499,12 +516,8 @@
                                                 </div>
                                             </div>
 
-                                        </form>
-
-                                        <form style="margin-top: 10px;" onsubmit="return false;">
-
                                             <div class="well well-sm">
-                                                <div class="form-group">
+                                                <div class="form-group" style="margin-bottom: 0px;">
                                                     <div class="checkbox">
                                                         <label>
                                                             <input id="chkPreferIPv6" type="checkbox"> Prefer IPv6
@@ -516,7 +529,7 @@
                                             </div>
 
                                             <div class="well well-sm">
-                                                <div class="form-group">
+                                                <div class="form-group" style="margin-bottom: 0px;">
                                                     <div class="checkbox">
                                                         <label>
                                                             <input id="chkLogQueries" type="checkbox"> Log All Queries
@@ -528,7 +541,7 @@
                                             </div>
 
                                             <div class="well well-sm">
-                                                <div class="form-group">
+                                                <div class="form-group" style="margin-bottom: 0px;">
                                                     <div class="checkbox">
                                                         <label>
                                                             <input id="chkAllowRecursion" type="checkbox"> Allow Recursion
@@ -537,12 +550,93 @@
 
                                                     <div>Enabling recursion will allow this DNS server to resolve any domain and act as a general purpose DNS server. Disable this option if you wish this server to act only as authoritative name server for the configured zones.</div>
                                                 </div>
+                                            </div>
+
+                                            <div class="well well-sm form-horizontal">
+                                                <div class="form-group">
+                                                    <label class="col-sm-3 control-label">Network Proxy</label>
+                                                    <div class="col-sm-6" id="divNetworkProxy">
+                                                        <div class="radio">
+                                                            <label>
+                                                                <input type="radio" name="rdProxyType" id="rdProxyTypeNone" value="None" checked>
+                                                                No Proxy (default)
+                                                            </label>
+                                                        </div>
+                                                        <div class="radio">
+                                                            <label>
+                                                                <input type="radio" name="rdProxyType" id="rdProxyTypeHttp" value="Http">
+                                                                HTTP Proxy
+                                                            </label>
+                                                        </div>
+                                                        <div class="radio">
+                                                            <label>
+                                                                <input type="radio" name="rdProxyType" id="rdProxyTypeSocks5" value="Socks5">
+                                                                SOCKS5 Proxy
+                                                            </label>
+                                                        </div>
+                                                    </div>
+                                                </div>
 
                                                 <div class="form-group">
-                                                    <label for="txtForwarders">Forwarders</label>
-                                                    <textarea id="txtForwarders" class="form-control" style="width: 250px; margin-bottom: 10px;" rows="3"></textarea>
+                                                    <label for="txtProxyAddress" class="col-sm-3 control-label">Proxy Address</label>
+                                                    <div class="col-sm-6">
+                                                        <input type="text" class="form-control" id="txtProxyAddress" placeholder="Proxy Server Address">
+                                                    </div>
+                                                </div>
 
-                                                    <div>Enter forwarder DNS Server IP addresses one below another in above text field. Forwarders are DNS servers which this DNS Server should use to resolve recursive queries. If no forwarders are configured then this DNS server will use preconfigured ROOT SERVERS.</div>
+                                                <div class="form-group">
+                                                    <label for="txtProxyPort" class="col-sm-3 control-label">Proxy Port</label>
+                                                    <div class="col-sm-6">
+                                                        <input type="number" class="form-control" id="txtProxyPort" placeholder="Proxy Server Port" style="width: 170px;">
+                                                    </div>
+                                                </div>
+
+                                                <div class="form-group">
+                                                    <label for="txtProxyUsername" class="col-sm-3 control-label">Username</label>
+                                                    <div class="col-sm-6">
+                                                        <input type="text" class="form-control" id="txtProxyUsername" placeholder="Proxy Server Username">
+                                                    </div>
+                                                </div>
+
+                                                <div class="form-group">
+                                                    <label for="txtProxyPassword" class="col-sm-3 control-label">Password</label>
+                                                    <div class="col-sm-6">
+                                                        <input type="password" class="form-control" id="txtProxyPassword" placeholder="Proxy Server Password">
+                                                    </div>
+                                                </div>
+                                            </div>
+
+                                            <div class="well well-sm form-horizontal">
+                                                <div class="form-group">
+                                                    <label for="txtForwarders" class="col-sm-3 control-label">Forwarders</label>
+                                                    <div class="col-sm-6">
+                                                        <textarea id="txtForwarders" class="form-control" style="width: 500px; margin-bottom: 10px;" rows="3"></textarea>
+                                                        <div>Enter forwarder DNS Server IP addresses one below another in above text field. Forwarders are DNS servers which this DNS Server should use to resolve recursive queries. If no forwarders are configured then this DNS server will use preconfigured ROOT SERVERS.</div>
+                                                    </div>
+                                                </div>
+
+                                                <div class="form-group">
+                                                    <label class="col-sm-3 control-label">Forwarder Protocol</label>
+                                                    <div class="col-sm-8">
+                                                        <div class="radio">
+                                                            <label>
+                                                                <input type="radio" name="rdForwarderProtocol" id="rdForwarderProtocolUdp" value="Udp" checked>
+                                                                DNS-over-UDP (default)
+                                                            </label>
+                                                        </div>
+                                                        <div class="radio">
+                                                            <label>
+                                                                <input type="radio" name="rdForwarderProtocol" id="rdForwarderProtocolTcp" value="Tcp">
+                                                                DNS-over-TCP
+                                                            </label>
+                                                        </div>
+                                                        <div class="radio">
+                                                            <label>
+                                                                <input type="radio" name="rdForwarderProtocol" id="rdForwarderProtocolTls" value="Tls">
+                                                                DNS-over-TLS
+                                                            </label>
+                                                        </div>
+                                                    </div>
                                                 </div>
                                             </div>
 
@@ -576,7 +670,7 @@
 
                                             <div class="panel-body">
                                                 <div id="divLogViewerLoader" style="margin-top: 20px; height: 400px;"></div>
-                                                <pre id="preLogViewerBody" style="display: none;"></pre>
+                                                <pre id="preLogViewerBody" style="display: none; word-wrap: normal; word-break: normal;"></pre>
                                             </div>
                                         </div>
                                     </div>
