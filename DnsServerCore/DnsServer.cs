@@ -1,6 +1,6 @@
 ﻿/*
 Technitium DNS Server
-Copyright (C) 2017  Shreyas Zare (shreyas@technitium.com)
+Copyright (C) 2018  Shreyas Zare (shreyas@technitium.com)
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -25,6 +25,7 @@ using System.Net.Sockets;
 using System.Threading;
 using TechnitiumLibrary.IO;
 using TechnitiumLibrary.Net.Dns;
+using TechnitiumLibrary.Net.Proxy;
 
 namespace DnsServerCore
 {
@@ -60,7 +61,9 @@ namespace DnsServerCore
         readonly IDnsCache _dnsCache;
 
         bool _allowRecursion = false;
+        NetProxy _proxy;
         NameServerAddress[] _forwarders;
+        DnsClientProtocol _forwarderProtocol = DnsClientProtocol.Udp;
         bool _preferIPv6 = false;
         int _retries = 2;
         int _maxStackCount = 10;
@@ -458,7 +461,14 @@ namespace DnsServerCore
 
         public DnsDatagram ProcessRecursiveQuery(DnsDatagram request)
         {
-            DnsDatagram response = DnsClient.ResolveViaNameServers(request.Question[0], _forwarders, _dnsCache, null, _preferIPv6, false, _retries, _maxStackCount);
+            DnsClientProtocol protocol;
+
+            if (_forwarders == null)
+                protocol = DnsClientProtocol.Udp;
+            else
+                protocol = _forwarderProtocol;
+
+            DnsDatagram response = DnsClient.ResolveViaNameServers(request.Question[0], _forwarders, _dnsCache, _proxy, _preferIPv6, protocol, _retries, _maxStackCount);
 
             DnsResourceRecord[] authority;
 
@@ -483,7 +493,7 @@ namespace DnsServerCore
                         else
                             question = new DnsQuestionRecord((lastRR.RDATA as DnsCNAMERecord).CNAMEDomainName, questionType, DnsClass.IN);
 
-                        lastResponse = DnsClient.ResolveViaNameServers(question, _forwarders, _dnsCache, null, _preferIPv6, false, _retries, _maxStackCount);
+                        lastResponse = DnsClient.ResolveViaNameServers(question, _forwarders, _dnsCache, _proxy, _preferIPv6, protocol, _retries, _maxStackCount);
 
                         if ((lastResponse.Header.RCODE != DnsResponseCode.NoError) || (lastResponse.Answer.Length == 0))
                             break;
@@ -578,10 +588,22 @@ namespace DnsServerCore
             set { _allowRecursion = value; }
         }
 
+        public NetProxy Proxy
+        {
+            get { return _proxy; }
+            set { _proxy = value; }
+        }
+
         public NameServerAddress[] Forwarders
         {
             get { return _forwarders; }
             set { _forwarders = value; }
+        }
+
+        public DnsClientProtocol ForwarderProtocol
+        {
+            get { return _forwarderProtocol; }
+            set { _forwarderProtocol = value; }
         }
 
         public bool PreferIPv6
