@@ -72,8 +72,21 @@ $(function () {
 
         if (itemText.indexOf("TLS") !== -1)
             $("#optDnsClientProtocol").val("TLS");
-        else if ($("#optDnsClientProtocol").val() === "TLS")
-            $("#optDnsClientProtocol").val("UDP");
+        else if (itemText.indexOf("HTTPS-JSON") !== -1)
+            $("#optDnsClientProtocol").val("HttpsJson");
+        else if (itemText.indexOf("HTTPS") !== -1)
+            $("#optDnsClientProtocol").val("Https");
+        else {
+            switch ($("#optDnsClientProtocol").val()) {
+                case "UDP":
+                case "TCP":
+                    break;
+
+                default:
+                    $("#optDnsClientProtocol").val("UDP");
+                    break;
+            }
+        }
     });
 
     $("#divNetworkProxy input").click(function () {
@@ -323,6 +336,14 @@ function loadDnsSettings() {
 
                 case "tls":
                     $("#rdForwarderProtocolTls").prop("checked", true);
+                    break;
+
+                case "https":
+                    $("#rdForwarderProtocolHttps").prop("checked", true);
+                    break;
+
+                case "httpsjson":
+                    $("#rdForwarderProtocolHttpJsons").prop("checked", true);
                     break;
 
                 default:
