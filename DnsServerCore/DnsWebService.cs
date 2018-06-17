@@ -717,7 +717,7 @@ namespace DnsServerCore
                 jsonWriter.WriteStartArray();
 
                 foreach (NameServerAddress forwarder in _dnsServer.Forwarders)
-                    jsonWriter.WriteValue(forwarder.EndPoint.ToString());
+                    jsonWriter.WriteValue(forwarder.ToString());
 
                 jsonWriter.WriteEndArray();
             }
@@ -787,18 +787,25 @@ namespace DnsServerCore
 
                     for (int i = 0; i < strForwardersList.Length; i++)
                     {
-                        string[] strParts = strForwardersList[i].Split(':');
-
-                        string host = strParts[0];
-                        int port = 53;
-
-                        if (strParts.Length > 1)
-                            port = int.Parse(strParts[1]);
-
-                        if (IPAddress.TryParse(host, out IPAddress ipAddress))
-                            forwarders[i] = new NameServerAddress(new IPEndPoint(ipAddress, port));
+                        if (strForwardersList[i].StartsWith("https://", StringComparison.CurrentCultureIgnoreCase) || strForwardersList[i].StartsWith("http://", StringComparison.CurrentCultureIgnoreCase))
+                        {
+                            forwarders[i] = new NameServerAddress(new Uri(strForwardersList[i]));
+                        }
                         else
-                            forwarders[i] = new NameServerAddress(new DomainEndPoint(host, port));
+                        {
+                            string[] strParts = strForwardersList[i].Split(':');
+
+                            string host = strParts[0];
+                            int port = 53;
+
+                            if (strParts.Length > 1)
+                                port = int.Parse(strParts[1]);
+
+                            if (IPAddress.TryParse(host, out IPAddress ipAddress))
+                                forwarders[i] = new NameServerAddress(new IPEndPoint(ipAddress, port));
+                            else
+                                forwarders[i] = new NameServerAddress(new DomainEndPoint(host, port));
+                        }
                     }
 
                     _dnsServer.Forwarders = forwarders;
@@ -1452,7 +1459,11 @@ namespace DnsServerCore
             int port = 53;
 
             {
-                if (server.StartsWith("["))
+                if (server.StartsWith("https://", StringComparison.CurrentCultureIgnoreCase) || server.StartsWith("http://", StringComparison.CurrentCultureIgnoreCase))
+                {
+                    //do nothing
+                }
+                else if (server.StartsWith("["))
                 {
                     //ipv6
                     if (server.EndsWith("]"))
@@ -1519,6 +1530,10 @@ namespace DnsServerCore
                 {
                     nameServers = new NameServerAddress[] { new NameServerAddress(_serverDomain, IPAddress.Parse("127.0.0.1")) };
                     proxy = null; //no proxy required for this server
+                }
+                else if (server.StartsWith("https://", StringComparison.CurrentCultureIgnoreCase) || server.StartsWith("http://", StringComparison.CurrentCultureIgnoreCase))
+                {
+                    nameServers = new NameServerAddress[] { new NameServerAddress(new Uri(server)) };
                 }
                 else if (IPAddress.TryParse(server, out IPAddress serverIP))
                 {
@@ -1865,7 +1880,7 @@ namespace DnsServerCore
                                     NameServerAddress[] forwarders = new NameServerAddress[count];
 
                                     for (int i = 0; i < count; i++)
-                                        forwarders[i] = new NameServerAddress(EndPointExtension.Parse(bR));
+                                        forwarders[i] = new NameServerAddress(bR);
 
                                     _dnsServer.Forwarders = forwarders;
                                 }
@@ -2036,7 +2051,7 @@ namespace DnsServerCore
                     bW.Write(Convert.ToByte(_dnsServer.Forwarders.Length));
 
                     foreach (NameServerAddress forwarder in _dnsServer.Forwarders)
-                        forwarder.EndPoint.WriteTo(bW);
+                        forwarder.WriteTo(bW);
                 }
 
                 bW.Write((byte)_dnsServer.ForwarderProtocol);

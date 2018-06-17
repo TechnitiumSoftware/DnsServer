@@ -97,6 +97,8 @@ namespace DnsServerCore
                 minWorker = Environment.ProcessorCount * 32;
                 ThreadPool.SetMinThreads(minWorker, minIOC);
             }
+
+            ServicePointManager.DefaultConnectionLimit = 100; //concurrent http request limit required when using DNS-over-HTTPS
         }
 
         #endregion
