@@ -404,6 +404,7 @@
                                                 <input type="text" class="form-control dropdown-toggle" style="width: 240px;" id="txtDnsClientNameServer" value="This Server (this-server)">
                                                 <ul class="dropdown-menu" id="optDnsClientNameServers">
                                                     <li><a href="#">This Server (this-server)</a></li>
+                                                    <li><a href="#">Recursive Query Via Root Servers (root-servers)</a></li>
                                                     <li><a href="#">Cloudflare (1.1.1.1)</a></li>
                                                     <li><a href="#">Cloudflare (1.0.0.1)</a></li>
                                                     <li><a href="#">Cloudflare ([2606:4700:4700::1111])</a></li>
@@ -435,7 +436,6 @@
                                                     <li><a href="#">Ultra (156.154.71.1)</a></li>
                                                     <li><a href="#">Dyn (216.146.35.35)</a></li>
                                                     <li><a href="#">Dyn (216.146.36.36)</a></li>
-                                                    <li><a href="#">Recursive Query Via Root Servers (root-servers)</a></li>
                                                     <li><a href="#">a.root-servers.net</a></li>
                                                     <li><a href="#">b.root-servers.net</a></li>
                                                     <li><a href="#">c.root-servers.net</a></li>
@@ -609,14 +609,16 @@
                                                         <input type="password" class="form-control" id="txtProxyPassword" placeholder="Proxy Server Password">
                                                     </div>
                                                 </div>
+
+                                                <div style="margin-top: 10px;">When proxy server is configured, DNS Server will use it for all outbound network requests.</div>
                                             </div>
 
                                             <div class="well well-sm form-horizontal">
                                                 <div class="form-group">
                                                     <label for="txtForwarders" class="col-sm-3 control-label">Forwarders</label>
-                                                    <div class="col-sm-6">
-                                                        <textarea id="txtForwarders" class="form-control" style="width: 500px; margin-bottom: 10px;" rows="3"></textarea>
-                                                        <div>Enter forwarder DNS Server IP addresses one below another in above text field. Forwarders are DNS servers which this DNS Server should use to resolve recursive queries. If no forwarders are configured then this DNS server will use preconfigured ROOT SERVERS.</div>
+                                                    <div class="col-sm-8">
+                                                        <textarea id="txtForwarders" class="form-control" style="width: 500px;" rows="3"></textarea>
+                                                        <div style="margin-top: 10px;">Enter forwarder DNS Server IP addresses or URLs one below another in above text field. Forwarders are DNS servers which this DNS Server should use to resolve recursive queries. If no forwarders are configured then this DNS server will use preconfigured ROOT SERVERS.</div>
                                                     </div>
                                                 </div>
 
@@ -653,6 +655,8 @@
                                                                 DNS-over-HTTPS (JSON)
                                                             </label>
                                                         </div>
+
+                                                        <div style="margin-top: 10px;">Select a protocol that this DNS server must use to query the forwarders specified above.</div>
                                                     </div>
                                                 </div>
                                             </div>
