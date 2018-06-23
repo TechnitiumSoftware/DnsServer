@@ -536,6 +536,18 @@ namespace DnsServerCore
 
         public static void CreateUpdateInfo(Stream s, string version, string displayText, string downloadLink)
         {
+            BinaryWriter bW = new BinaryWriter(s);
+
+            bW.Write(Encoding.ASCII.GetBytes("DU")); //format
+            bW.Write((byte)2); //version
+
+            bW.WriteShortString(version);
+            bW.WriteShortString(displayText);
+            bW.WriteShortString(downloadLink);
+        }
+
+        public static void CreateUpdateInfov1(Stream s, string version, string displayText, string downloadLink)
+        {
             BincodingEncoder encoder = new BincodingEncoder(s, "DU", 1);
 
             encoder.EncodeKeyValue("version", version);
@@ -555,46 +567,72 @@ namespace DnsServerCore
             {
                 try
                 {
-                    using (WebClient wc = new WebClient())
+                    using (WebClientEx wc = new WebClientEx())
                     {
+                        wc.Proxy = _dnsServer.Proxy;
+
                         byte[] response = wc.DownloadData(_updateCheckUri);
 
                         using (MemoryStream mS = new MemoryStream(response, false))
                         {
-                            BincodingDecoder decoder = new BincodingDecoder(mS, "DU");
+                            BinaryReader bR = new BinaryReader(mS);
 
-                            switch (decoder.Version)
+                            if (Encoding.ASCII.GetString(bR.ReadBytes(2)) != "DU") //format
+                                throw new InvalidDataException("DNS Server update info format is invalid.");
+
+                            switch (bR.ReadByte()) //version
                             {
                                 case 1:
-                                    while (true)
+                                    #region old version
+
+                                    mS.Position = 0;
+                                    BincodingDecoder decoder = new BincodingDecoder(mS, "DU");
+
+                                    switch (decoder.Version)
                                     {
-                                        Bincoding entry = decoder.DecodeNext();
-                                        if (entry == null)
+                                        case 1:
+                                            while (true)
+                                            {
+                                                Bincoding entry = decoder.DecodeNext();
+                                                if (entry == null)
+                                                    break;
+
+                                                KeyValuePair<string, Bincoding> value = entry.GetKeyValuePair();
+
+                                                switch (value.Key)
+                                                {
+                                                    case "version":
+                                                        updateVersion = value.Value.GetStringValue();
+
+                                                        updateAvailable = IsUpdateAvailable(_currentVersion, updateVersion);
+                                                        break;
+
+                                                    case "displayText":
+                                                        displayText = value.Value.GetStringValue();
+                                                        break;
+
+                                                    case "downloadLink":
+                                                        downloadLink = value.Value.GetStringValue();
+                                                        break;
+                                                }
+                                            }
                                             break;
 
-                                        KeyValuePair<string, Bincoding> value = entry.GetKeyValuePair();
-
-                                        switch (value.Key)
-                                        {
-                                            case "version":
-                                                updateVersion = value.Value.GetStringValue();
-
-                                                updateAvailable = IsUpdateAvailable(_currentVersion, updateVersion);
-                                                break;
-
-                                            case "displayText":
-                                                displayText = value.Value.GetStringValue();
-                                                break;
-
-                                            case "downloadLink":
-                                                downloadLink = value.Value.GetStringValue();
-                                                break;
-                                        }
+                                        default:
+                                            throw new IOException("File version not supported: " + decoder.Version);
                                     }
+
+                                    #endregion
+                                    break;
+
+                                case 2:
+                                    updateVersion = bR.ReadShortString();
+                                    displayText = bR.ReadShortString();
+                                    downloadLink = bR.ReadShortString();
                                     break;
 
                                 default:
-                                    throw new IOException("File version not supported: " + decoder.Version);
+                                    throw new InvalidDataException("DNS Server update info version not supported.");
                             }
                         }
                     }
@@ -787,13 +825,37 @@ namespace DnsServerCore
 
                     for (int i = 0; i < strForwardersList.Length; i++)
                     {
-                        if (strForwardersList[i].StartsWith("https://", StringComparison.CurrentCultureIgnoreCase) || strForwardersList[i].StartsWith("http://", StringComparison.CurrentCultureIgnoreCase))
+                        string forwarder = strForwardersList[i];
+
+                        if (forwarder.StartsWith("https://", StringComparison.CurrentCultureIgnoreCase) || forwarder.StartsWith("http://", StringComparison.CurrentCultureIgnoreCase))
                         {
-                            forwarders[i] = new NameServerAddress(new Uri(strForwardersList[i]));
+                            forwarders[i] = new NameServerAddress(new Uri(forwarder));
+                        }
+                        else if (forwarder.StartsWith("["))
+                        {
+                            //ipv6
+                            int port = 53;
+
+                            if (forwarder.EndsWith("]"))
+                            {
+                                forwarder = forwarder.Trim('[', ']');
+                            }
+                            else
+                            {
+                                int posBracket = forwarder.LastIndexOf(']');
+                                int posCollon = forwarder.IndexOf(':', posBracket);
+
+                                if (posCollon > -1)
+                                    port = int.Parse(forwarder.Substring(posCollon + 1));
+
+                                forwarder = forwarder.Substring(1, posBracket - 1);
+                            }
+
+                            forwarders[i] = new NameServerAddress(new IPEndPoint(IPAddress.Parse(forwarder), port));
                         }
                         else
                         {
-                            string[] strParts = strForwardersList[i].Split(':');
+                            string[] strParts = forwarder.Split(':');
 
                             string host = strParts[0];
                             int port = 53;
@@ -922,6 +984,9 @@ namespace DnsServerCore
             string domain = request.QueryString["domain"];
             if (string.IsNullOrEmpty(domain))
                 throw new DnsWebServiceException("Parameter 'domain' missing.");
+
+            if (IPAddress.TryParse(domain, out IPAddress ipAddress))
+                domain = (new DnsQuestionRecord(ipAddress, DnsClass.IN)).Name;
 
             _dnsServer.AuthoritativeZoneRoot.SetRecords(domain, DnsResourceRecordType.SOA, 14400, new DnsResourceRecordData[] { new DnsSOARecord(_serverDomain, "hostmaster." + _serverDomain, uint.Parse(DateTime.UtcNow.ToString("yyyyMMddHH")), 28800, 7200, 604800, 600) });
 
