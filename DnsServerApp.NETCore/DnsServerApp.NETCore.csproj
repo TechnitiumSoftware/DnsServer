@@ -12,8 +12,8 @@
     <AssemblyName>DnsServerApp</AssemblyName>
     <RootNamespace>DnsServerApp</RootNamespace>
     <StartupObject>DnsServerApp.Program</StartupObject>
-    <AssemblyVersion>1.3.0.0</AssemblyVersion>
-    <FileVersion>1.3.0.0</FileVersion>
+    <AssemblyVersion>1.3.0.1</AssemblyVersion>
+    <FileVersion>1.3.0.1</FileVersion>
   </PropertyGroup>
 
   <ItemGroup>
