@@ -25,6 +25,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Net;
 using System.Reflection;
+using System.Security.Cryptography;
 using System.Text;
 using System.Threading;
 using TechnitiumLibrary.IO;
@@ -474,9 +475,10 @@ namespace DnsServerCore
                 throw new DnsWebServiceException("Parameter 'pass' missing.");
 
             strUsername = strUsername.ToLower();
+            string strPasswordHash = GetPasswordHash(strUsername, strPassword);
 
-            if (!_credentials.TryGetValue(strUsername, out string password) || (password != strPassword))
-                throw new DnsWebServiceException("Invalid username or password.");
+            if (!_credentials.TryGetValue(strUsername, out string passwordHash) || (passwordHash != strPasswordHash))
+                throw new DnsWebServiceException("Invalid username or password: " + strUsername);
 
             _log.Write(GetRequestRemoteEndPoint(request), "[" + strUsername + "] User logged in.");
 
@@ -1760,11 +1762,30 @@ namespace DnsServerCore
         private void SetCredentials(string username, string password)
         {
             username = username.ToLower();
+            string passwordHash = GetPasswordHash(username, password);
 
-            _credentials.AddOrUpdate(username, password, delegate (string key, string oldValue)
+            _credentials.AddOrUpdate(username, passwordHash, delegate (string key, string oldValue)
             {
-                return password;
+                return passwordHash;
             });
+        }
+
+        private void LoadCredentials(string username, string passwordHash)
+        {
+            username = username.ToLower();
+
+            _credentials.AddOrUpdate(username, passwordHash, delegate (string key, string oldValue)
+            {
+                return passwordHash;
+            });
+        }
+
+        private static string GetPasswordHash(string username, string password)
+        {
+            using (HMAC hmac = new HMACSHA256(Encoding.UTF8.GetBytes(password)))
+            {
+                return BitConverter.ToString(hmac.ComputeHash(Encoding.UTF8.GetBytes(username))).Replace("-", "").ToLower();
+            }
         }
 
         private void LoadZoneFiles()
@@ -1896,10 +1917,10 @@ namespace DnsServerCore
 
         private void LoadConfigFile()
         {
+            string configFile = Path.Combine(_configFolder, "dns.config");
+
             try
             {
-                string configFile = Path.Combine(_configFolder, "dns.config");
-
                 using (FileStream fS = new FileStream(configFile, FileMode.Open, FileAccess.Read))
                 {
                     BinaryReader bR = new BinaryReader(fS);
@@ -1907,7 +1928,8 @@ namespace DnsServerCore
                     if (Encoding.ASCII.GetString(bR.ReadBytes(2)) != "DS") //format
                         throw new InvalidDataException("DnsServer config file format is invalid.");
 
-                    switch (bR.ReadByte()) //version
+                    byte version = bR.ReadByte();
+                    switch (version)
                     {
                         case 1:
                             fS.Position = 0;
@@ -1915,6 +1937,7 @@ namespace DnsServerCore
                             break;
 
                         case 2:
+                        case 3:
                             _serverDomain = bR.ReadShortString();
                             _webServicePort = bR.ReadInt32();
 
@@ -1957,8 +1980,16 @@ namespace DnsServerCore
                                 int count = bR.ReadByte();
                                 if (count > 0)
                                 {
-                                    for (int i = 0; i < count; i++)
-                                        SetCredentials(bR.ReadShortString(), bR.ReadShortString());
+                                    if (version > 2)
+                                    {
+                                        for (int i = 0; i < count; i++)
+                                            LoadCredentials(bR.ReadShortString(), bR.ReadShortString());
+                                    }
+                                    else
+                                    {
+                                        for (int i = 0; i < count; i++)
+                                            SetCredentials(bR.ReadShortString(), bR.ReadShortString());
+                                    }
                                 }
                             }
 
@@ -1979,8 +2010,11 @@ namespace DnsServerCore
 
                 _log.Write("Dns Server config file was loaded: " + configFile);
             }
-            catch (IOException)
+            catch (Exception ex)
             {
+                _log.Write("Dns Server failed to load config file: " + configFile + "\r\n" + ex.ToString());
+                _log.Write("Dns Server is restoring default config file.");
+
                 _serverDomain = Environment.MachineName;
                 _webServicePort = 5380;
 
@@ -2074,7 +2108,7 @@ namespace DnsServerCore
                 BinaryWriter bW = new BinaryWriter(fS);
 
                 bW.Write(Encoding.ASCII.GetBytes("DS")); //format
-                bW.Write((byte)2); //version
+                bW.Write((byte)3); //version
 
                 bW.WriteShortString(_serverDomain);
                 bW.Write(_webServicePort);
@@ -2132,15 +2166,18 @@ namespace DnsServerCore
                 }
 
                 {
+                    List<string> disabledZones = new List<string>();
                     Zone.ZoneInfo[] authoritativeZones = _dnsServer.AuthoritativeZoneRoot.ListAuthoritativeZones();
-
-                    bW.Write(authoritativeZones.Length);
 
                     foreach (Zone.ZoneInfo zone in authoritativeZones)
                     {
                         if (zone.Disabled)
-                            bW.WriteShortString(zone.ZoneName);
+                            disabledZones.Add(zone.ZoneName);
                     }
+
+                    bW.Write(disabledZones.Count);
+                    foreach (string disabledZone in disabledZones)
+                        bW.WriteShortString(disabledZone);
                 }
             }
 
