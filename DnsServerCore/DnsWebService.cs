@@ -784,6 +784,7 @@ namespace DnsServerCore
                             DnsSOARecord soaRecordData = soaRecord.RDATA as DnsSOARecord;
 
                             _dnsServer.AuthoritativeZoneRoot.SetRecords(soaRecord.Name, soaRecord.Type, soaRecord.TTLValue, new DnsResourceRecordData[] { new DnsSOARecord(strServerDomain, soaRecordData.ResponsiblePerson, soaRecordData.Serial, soaRecordData.Refresh, soaRecordData.Retry, soaRecordData.Expire, soaRecordData.Minimum) });
+                            SaveZoneFile(soaRecord.Name);
                         }
                     }
 
