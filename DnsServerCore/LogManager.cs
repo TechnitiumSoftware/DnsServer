@@ -49,30 +49,34 @@ namespace DnsServerCore
 
         #endregion
 
-        #region IDisposable Support
+        #region IDisposable
 
-        private bool disposedValue = false;
+        private bool _disposed = false;
 
         protected virtual void Dispose(bool disposing)
         {
-            if (!disposedValue)
+            lock (this)
             {
+                if (_disposed)
+                    return;
+
                 if (disposing)
                 {
-                    lock (this)
+                    if (_logOut != null)
                     {
                         Write("Logging stopped.");
-                        _logOut.Close();
+                        _logOut.Dispose();
                     }
                 }
 
-                disposedValue = true;
+                _disposed = true;
             }
         }
 
         public void Dispose()
         {
             Dispose(true);
+            GC.SuppressFinalize(this);
         }
 
         #endregion
@@ -120,7 +124,7 @@ namespace DnsServerCore
 
                 using (Stream s = response.OutputStream)
                 {
-                    OffsetStream.StreamCopy(oFS, s, 128 * 1024, true);
+                    oFS.CopyTo(s);
 
                     if (fS.Length > limit)
                     {
