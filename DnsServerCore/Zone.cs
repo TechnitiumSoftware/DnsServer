@@ -267,14 +267,17 @@ namespace DnsServerCore
             return null;
         }
 
-        private DnsResourceRecord[] GetAllRecords(bool includeSubDomains)
+        private DnsResourceRecord[] GetAllRecords(DnsResourceRecordType type, bool includeSubDomains)
         {
             List<DnsResourceRecord> allRecords = new List<DnsResourceRecord>();
 
             foreach (KeyValuePair<DnsResourceRecordType, DnsResourceRecord[]> entry in _entries)
             {
                 if (entry.Key != DnsResourceRecordType.ANY)
-                    allRecords.AddRange(entry.Value);
+                {
+                    if ((type == DnsResourceRecordType.ANY) || (entry.Key == type))
+                        allRecords.AddRange(entry.Value);
+                }
             }
 
             if (includeSubDomains)
@@ -282,7 +285,7 @@ namespace DnsServerCore
                 foreach (KeyValuePair<string, Zone> zone in _zones)
                 {
                     if (!zone.Value._entries.ContainsKey(DnsResourceRecordType.SOA))
-                        allRecords.AddRange(zone.Value.GetAllRecords(true));
+                        allRecords.AddRange(zone.Value.GetAllRecords(type, true));
                 }
             }
 
@@ -853,13 +856,13 @@ namespace DnsServerCore
                 currentZone.DeleteRecords(type);
         }
 
-        public DnsResourceRecord[] GetAllRecords(string domain = "", bool includeSubDomains = true, bool authoritative = false)
+        public DnsResourceRecord[] GetAllRecords(string domain = "", DnsResourceRecordType type = DnsResourceRecordType.ANY, bool includeSubDomains = true, bool authoritative = false)
         {
             Zone currentZone = GetZone(this, domain, authoritative);
             if (currentZone == null)
                 return new DnsResourceRecord[] { };
 
-            DnsResourceRecord[] records = currentZone.GetAllRecords(includeSubDomains);
+            DnsResourceRecord[] records = currentZone.GetAllRecords(type, includeSubDomains);
             if (records != null)
                 return records;
 
