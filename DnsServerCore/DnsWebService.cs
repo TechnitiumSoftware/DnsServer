@@ -415,7 +415,7 @@ namespace DnsServerCore
 
                 using (Stream stream = response.OutputStream)
                 {
-                    OffsetStream.StreamCopy(fS, stream);
+                    fS.CopyTo(stream);
                 }
             }
         }
@@ -770,7 +770,26 @@ namespace DnsServerCore
         {
             string strServerDomain = request.QueryString["serverDomain"];
             if (!string.IsNullOrEmpty(strServerDomain))
-                _serverDomain = strServerDomain;
+            {
+                if (_serverDomain != strServerDomain)
+                {
+                    Zone.ZoneInfo[] zones = _dnsServer.AuthoritativeZoneRoot.ListAuthoritativeZones();
+
+                    foreach (Zone.ZoneInfo zone in zones)
+                    {
+                        DnsResourceRecord[] dnsResourceRecords = _dnsServer.AuthoritativeZoneRoot.GetAllRecords(zone.ZoneName, DnsResourceRecordType.SOA, false, true);
+                        if (dnsResourceRecords.Length > 0)
+                        {
+                            DnsResourceRecord soaRecord = dnsResourceRecords[0];
+                            DnsSOARecord soaRecordData = soaRecord.RDATA as DnsSOARecord;
+
+                            _dnsServer.AuthoritativeZoneRoot.SetRecords(soaRecord.Name, soaRecord.Type, soaRecord.TTLValue, new DnsResourceRecordData[] { new DnsSOARecord(strServerDomain, soaRecordData.ResponsiblePerson, soaRecordData.Serial, soaRecordData.Refresh, soaRecordData.Retry, soaRecordData.Expire, soaRecordData.Minimum) });
+                        }
+                    }
+
+                    _serverDomain = strServerDomain;
+                }
+            }
 
             string strWebServicePort = request.QueryString["webServicePort"];
             if (!string.IsNullOrEmpty(strWebServicePort))
@@ -901,7 +920,7 @@ namespace DnsServerCore
             while (true)
             {
                 subZones = _dnsServer.CacheZoneRoot.ListSubZones(domain);
-                records = _dnsServer.CacheZoneRoot.GetAllRecords(domain, false);
+                records = _dnsServer.CacheZoneRoot.GetAllRecords(domain, DnsResourceRecordType.ANY, false);
 
                 if (records.Length > 0)
                     break;
@@ -1886,7 +1905,7 @@ namespace DnsServerCore
         private void SaveZoneFile(string domain)
         {
             domain = domain.ToLower();
-            DnsResourceRecord[] records = _dnsServer.AuthoritativeZoneRoot.GetAllRecords(domain, true, true);
+            DnsResourceRecord[] records = _dnsServer.AuthoritativeZoneRoot.GetAllRecords(domain, DnsResourceRecordType.ANY, true, true);
 
             string authZone = records[0].Name.ToLower();
 
