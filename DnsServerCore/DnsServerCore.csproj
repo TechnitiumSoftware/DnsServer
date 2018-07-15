@@ -111,9 +111,10 @@
   </ItemGroup>
 
   <ItemGroup>
-    <Reference Include="Newtonsoft.Json">
-      <HintPath>..\..\..\Reference\Newtonsoft.Json\netstandard1.0\Newtonsoft.Json.dll</HintPath>
-    </Reference>
+    <PackageReference Include="Newtonsoft.Json" Version="11.0.2" />
+  </ItemGroup>
+
+  <ItemGroup>
     <Reference Include="TechnitiumLibrary.IO">
       <HintPath>..\..\TechnitiumLibrary\bin\TechnitiumLibrary.IO.dll</HintPath>
     </Reference>
