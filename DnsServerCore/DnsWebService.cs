@@ -714,6 +714,9 @@ namespace DnsServerCore
             jsonWriter.WritePropertyName("allowRecursion");
             jsonWriter.WriteValue(_dnsServer.AllowRecursion);
 
+            jsonWriter.WritePropertyName("allowRecursionOnlyForPrivateNetworks");
+            jsonWriter.WriteValue(_dnsServer.AllowRecursionOnlyForPrivateNetworks);
+
             jsonWriter.WritePropertyName("proxy");
             if (_dnsServer.Proxy == null)
             {
@@ -814,6 +817,10 @@ namespace DnsServerCore
             string strAllowRecursion = request.QueryString["allowRecursion"];
             if (!string.IsNullOrEmpty(strAllowRecursion))
                 _dnsServer.AllowRecursion = bool.Parse(strAllowRecursion);
+
+            string strAllowRecursionOnlyForPrivateNetworks = request.QueryString["allowRecursionOnlyForPrivateNetworks"];
+            if (!string.IsNullOrEmpty(strAllowRecursionOnlyForPrivateNetworks))
+                _dnsServer.AllowRecursionOnlyForPrivateNetworks = bool.Parse(strAllowRecursionOnlyForPrivateNetworks);
 
             string strProxyType = request.QueryString["proxyType"];
             if (!string.IsNullOrEmpty(strProxyType))
@@ -1560,7 +1567,7 @@ namespace DnsServerCore
                     }
                 }
 
-                dnsResponse = (new DnsClient(nameServer) { Proxy = proxy, PreferIPv6 = preferIPv6, Protocol = protocol, Retries = RETRIES }).Resolve(domain, type);
+                dnsResponse = (new DnsClient(nameServer) { Proxy = proxy, PreferIPv6 = preferIPv6, Protocol = protocol, Retries = RETRIES, ReceiveTimeout = 5000 }).Resolve(domain, type);
             }
 
             if (importRecords)
@@ -1828,6 +1835,7 @@ namespace DnsServerCore
 
                         case 2:
                         case 3:
+                        case 4:
                             _serverDomain = bR.ReadShortString();
                             _webServicePort = bR.ReadInt32();
 
@@ -1837,6 +1845,11 @@ namespace DnsServerCore
                                 _dnsServer.QueryLogManager = _log;
 
                             _dnsServer.AllowRecursion = bR.ReadBoolean();
+
+                            if (version >= 4)
+                                _dnsServer.AllowRecursionOnlyForPrivateNetworks = bR.ReadBoolean();
+                            else
+                                _dnsServer.AllowRecursionOnlyForPrivateNetworks = true; //default true for security reasons
 
                             NetProxyType proxyType = (NetProxyType)bR.ReadByte();
                             if (proxyType != NetProxyType.None)
@@ -1911,6 +1924,7 @@ namespace DnsServerCore
                 SetCredentials("admin", "admin");
 
                 _dnsServer.AllowRecursion = true;
+                _dnsServer.AllowRecursionOnlyForPrivateNetworks = true; //default true for security reasons
 
                 SaveConfigFile();
             }
@@ -1998,7 +2012,7 @@ namespace DnsServerCore
                 BinaryWriter bW = new BinaryWriter(fS);
 
                 bW.Write(Encoding.ASCII.GetBytes("DS")); //format
-                bW.Write((byte)3); //version
+                bW.Write((byte)4); //version
 
                 bW.WriteShortString(_serverDomain);
                 bW.Write(_webServicePort);
@@ -2006,6 +2020,7 @@ namespace DnsServerCore
                 bW.Write(_dnsServer.PreferIPv6);
                 bW.Write((_dnsServer.QueryLogManager != null)); //logQueries
                 bW.Write(_dnsServer.AllowRecursion);
+                bW.Write(_dnsServer.AllowRecursionOnlyForPrivateNetworks);
 
                 if (_dnsServer.Proxy == null)
                 {
