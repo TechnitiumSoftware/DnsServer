@@ -194,8 +194,8 @@ namespace DnsServerCore
 
             if (ep == null)
                 ipInfo = "";
-            else if (NetUtilities.IsIPv4MappedIPv6Address(ep.Address))
-                ipInfo = "[" + NetUtilities.ConvertFromIPv4MappedIPv6Address(ep.Address).ToString() + ":" + ep.Port + "] ";
+            else if (ep.Address.IsIPv4MappedToIPv6)
+                ipInfo = "[" + ep.Address.MapToIPv4().ToString() + ":" + ep.Port + "] ";
             else
                 ipInfo = "[" + ep.ToString() + "] ";
 
