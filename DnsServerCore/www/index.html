@@ -552,8 +552,13 @@
                                                             <input id="chkAllowRecursion" type="checkbox"> Allow Recursion
                                                         </label>
                                                     </div>
+                                                    <div class="checkbox">
+                                                        <label>
+                                                            <input id="chkAllowRecursionOnlyForPrivateNetworks" type="checkbox"> Allow Recursion Only For Private Networks
+                                                        </label>
+                                                    </div>
 
-                                                    <div>Enabling recursion will allow this DNS server to resolve any domain and act as a general purpose DNS server. Disable this option if you wish this server to act only as authoritative name server for the configured zones.</div>
+                                                    <div>Enabling recursion will allow this DNS server to resolve any domain and act as a general purpose DNS server. Disable this option if you wish this server to act only as authoritative name server for the configured zones. Enable recursion only for private networks option if you do not what the DNS server to support recursion over Internet but want to support it on private networks.</div>
                                                 </div>
                                             </div>
 

@@ -105,6 +105,11 @@ $(function () {
         }
     });
 
+    $("#chkAllowRecursion").click(function () {
+        var allowRecursion = $("#chkAllowRecursion").prop('checked');
+        $("#chkAllowRecursionOnlyForPrivateNetworks").prop('disabled', !allowRecursion);
+    });
+
     showPageLogin();
     login("admin", "admin");
 });
@@ -275,6 +280,8 @@ function loadDnsSettings() {
             $("#chkPreferIPv6").prop("checked", responseJSON.response.preferIPv6);
             $("#chkLogQueries").prop("checked", responseJSON.response.logQueries);
             $("#chkAllowRecursion").prop("checked", responseJSON.response.allowRecursion);
+            $("#chkAllowRecursionOnlyForPrivateNetworks").prop('disabled', !responseJSON.response.allowRecursion);
+            $("#chkAllowRecursionOnlyForPrivateNetworks").prop("checked", responseJSON.response.allowRecursionOnlyForPrivateNetworks);
 
             var proxy = responseJSON.response.proxy;
             if (proxy === null) {
@@ -382,6 +389,7 @@ function saveDnsSettings() {
     var preferIPv6 = $("#chkPreferIPv6").prop('checked');
     var logQueries = $("#chkLogQueries").prop('checked');
     var allowRecursion = $("#chkAllowRecursion").prop('checked');
+    var allowRecursionOnlyForPrivateNetworks = $("#chkAllowRecursionOnlyForPrivateNetworks").prop('checked');
 
     var proxy;
     var proxyType = $('input[name=rdProxyType]:checked').val().toLowerCase();
@@ -414,7 +422,7 @@ function saveDnsSettings() {
     var btn = $("#btnSaveDnsSettings").button('loading');
 
     HTTPRequest({
-        url: "/api/setDnsSettings?token=" + token + "&serverDomain=" + serverDomain + "&webServicePort=" + webServicePort + "&preferIPv6=" + preferIPv6 + "&logQueries=" + logQueries + "&allowRecursion=" + allowRecursion + proxy + "&forwarders=" + forwarders + "&forwarderProtocol=" + forwarderProtocol,
+        url: "/api/setDnsSettings?token=" + token + "&serverDomain=" + serverDomain + "&webServicePort=" + webServicePort + "&preferIPv6=" + preferIPv6 + "&logQueries=" + logQueries + "&allowRecursion=" + allowRecursion + "&allowRecursionOnlyForPrivateNetworks=" + allowRecursionOnlyForPrivateNetworks + proxy + "&forwarders=" + forwarders + "&forwarderProtocol=" + forwarderProtocol,
         success: function (responseJSON) {
             document.title = "Technitium DNS Server " + responseJSON.response.version + " - " + responseJSON.response.serverDomain;
             $("#lblServerDomain").text(" - " + responseJSON.response.serverDomain);
