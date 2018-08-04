@@ -127,6 +127,8 @@ namespace DnsServerCore
             HttpListenerRequest request = parameters[0] as HttpListenerRequest;
             HttpListenerResponse response = parameters[1] as HttpListenerResponse;
 
+            response.AddHeader("Server", "");
+
             try
             {
                 Uri url = request.Url;
@@ -757,7 +759,7 @@ namespace DnsServerCore
                 jsonWriter.WriteStartArray();
 
                 foreach (NameServerAddress forwarder in _dnsServer.Forwarders)
-                    jsonWriter.WriteValue(forwarder.ToString());
+                    jsonWriter.WriteValue(forwarder.OriginalString);
 
                 jsonWriter.WriteEndArray();
             }
@@ -846,51 +848,7 @@ namespace DnsServerCore
                     NameServerAddress[] forwarders = new NameServerAddress[strForwardersList.Length];
 
                     for (int i = 0; i < strForwardersList.Length; i++)
-                    {
-                        string forwarder = strForwardersList[i];
-
-                        if (forwarder.StartsWith("https://", StringComparison.CurrentCultureIgnoreCase) || forwarder.StartsWith("http://", StringComparison.CurrentCultureIgnoreCase))
-                        {
-                            forwarders[i] = new NameServerAddress(new Uri(forwarder));
-                        }
-                        else if (forwarder.StartsWith("["))
-                        {
-                            //ipv6
-                            int port = 53;
-
-                            if (forwarder.EndsWith("]"))
-                            {
-                                forwarder = forwarder.Trim('[', ']');
-                            }
-                            else
-                            {
-                                int posBracket = forwarder.LastIndexOf(']');
-                                int posCollon = forwarder.IndexOf(':', posBracket);
-
-                                if (posCollon > -1)
-                                    port = int.Parse(forwarder.Substring(posCollon + 1));
-
-                                forwarder = forwarder.Substring(1, posBracket - 1);
-                            }
-
-                            forwarders[i] = new NameServerAddress(new IPEndPoint(IPAddress.Parse(forwarder), port));
-                        }
-                        else
-                        {
-                            string[] strParts = forwarder.Split(':');
-
-                            string host = strParts[0];
-                            int port = 53;
-
-                            if (strParts.Length > 1)
-                                port = int.Parse(strParts[1]);
-
-                            if (IPAddress.TryParse(host, out IPAddress ipAddress))
-                                forwarders[i] = new NameServerAddress(new IPEndPoint(ipAddress, port));
-                            else
-                                forwarders[i] = new NameServerAddress(new DomainEndPoint(host, port));
-                        }
-                    }
+                        forwarders[i] = new NameServerAddress(strForwardersList[i]);
 
                     _dnsServer.Forwarders = forwarders;
                 }
@@ -1543,42 +1501,6 @@ namespace DnsServerCore
             if (server.Contains(" "))
                 throw new DnsWebServiceException("Invalid parameter 'server' value.");
 
-            int port = 53;
-
-            {
-                if (server.StartsWith("https://", StringComparison.CurrentCultureIgnoreCase) || server.StartsWith("http://", StringComparison.CurrentCultureIgnoreCase))
-                {
-                    //do nothing
-                }
-                else if (server.StartsWith("["))
-                {
-                    //ipv6
-                    if (server.EndsWith("]"))
-                    {
-                        server = server.Trim('[', ']');
-                    }
-                    else
-                    {
-                        int posBracket = server.LastIndexOf(']');
-                        int posCollon = server.IndexOf(':', posBracket);
-
-                        if (posCollon > -1)
-                            port = int.Parse(server.Substring(posCollon + 1));
-
-                        server = server.Substring(1, posBracket - 1);
-                    }
-                }
-                else
-                {
-                    string[] strParts = server.Split(':');
-                    if (strParts.Length > 1)
-                    {
-                        server = strParts[0];
-                        port = int.Parse(strParts[1]);
-                    }
-                }
-            }
-
             string domain = request.QueryString["domain"];
             if (string.IsNullOrEmpty(domain))
                 throw new DnsWebServiceException("Parameter 'domain' missing.");
@@ -1599,7 +1521,7 @@ namespace DnsServerCore
                 importRecords = bool.Parse(strImport);
 
             NetProxy proxy = _dnsServer.Proxy;
-            bool PreferIPv6 = _dnsServer.PreferIPv6;
+            bool preferIPv6 = _dnsServer.PreferIPv6;
             DnsClientProtocol protocol = (DnsClientProtocol)Enum.Parse(typeof(DnsClientProtocol), strProtocol, true);
             const int RETRIES = 2;
 
@@ -1607,90 +1529,38 @@ namespace DnsServerCore
 
             if (server == "root-servers")
             {
-                dnsResponse = DnsClient.ResolveViaRootNameServers(domain, type, null, proxy, PreferIPv6, protocol, RETRIES);
+                dnsResponse = DnsClient.ResolveViaRootNameServers(domain, type, null, proxy, preferIPv6, protocol, RETRIES);
             }
             else
             {
-                NameServerAddress[] nameServers;
+                NameServerAddress nameServer;
 
                 if (server == "this-server")
                 {
-                    nameServers = new NameServerAddress[] { new NameServerAddress(_serverDomain, IPAddress.Parse("127.0.0.1")) };
+                    nameServer = new NameServerAddress(_serverDomain, IPAddress.Parse("127.0.0.1"));
                     proxy = null; //no proxy required for this server
-                }
-                else if (server.StartsWith("https://", StringComparison.CurrentCultureIgnoreCase) || server.StartsWith("http://", StringComparison.CurrentCultureIgnoreCase))
-                {
-                    nameServers = new NameServerAddress[] { new NameServerAddress(new Uri(server)) };
-                }
-                else if (IPAddress.TryParse(server, out IPAddress serverIP))
-                {
-                    string serverDomain = null;
-
-                    try
-                    {
-                        //reverse resolve name server domain from IP address by PTR query
-                        DnsClient client;
-
-                        if (_dnsServer.AllowRecursion)
-                        {
-                            client = new DnsClient(IPAddress.Parse("127.0.0.1"));
-                        }
-                        else
-                        {
-                            client = new DnsClient();
-                            client.Proxy = proxy;
-                        }
-
-                        client.PreferIPv6 = PreferIPv6;
-                        client.Protocol = DnsClientProtocol.Udp;
-                        client.Retries = RETRIES;
-
-                        serverDomain = client.ResolvePTR(serverIP);
-                    }
-                    catch
-                    { }
-
-                    if (serverDomain == null)
-                        nameServers = new NameServerAddress[] { new NameServerAddress(new IPEndPoint(serverIP, port)) };
-                    else
-                        nameServers = new NameServerAddress[] { new NameServerAddress(serverDomain, new IPEndPoint(serverIP, port)) };
                 }
                 else
                 {
-                    if (proxy == null)
+                    nameServer = new NameServerAddress(server);
+
+                    if (nameServer.IPEndPoint == null)
                     {
-                        //resolve name server domain IP address
-                        DnsClient client;
-
-                        if (_dnsServer.AllowRecursion)
-                        {
-                            client = new DnsClient(IPAddress.Parse("127.0.0.1"));
-                        }
-                        else
-                        {
-                            client = new DnsClient();
-                            client.Proxy = proxy;
-                        }
-
-                        client.PreferIPv6 = PreferIPv6;
-                        client.Protocol = DnsClientProtocol.Udp;
-                        client.Retries = RETRIES;
-
-                        IPAddress[] serverIPs = client.ResolveIP(server, PreferIPv6);
-
-                        nameServers = new NameServerAddress[serverIPs.Length];
-
-                        for (int i = 0; i < serverIPs.Length; i++)
-                            nameServers[i] = new NameServerAddress(server, new IPEndPoint(serverIPs[i], port));
+                        if (proxy == null)
+                            nameServer.ResolveIPAddress(preferIPv6, DnsClientProtocol.Udp, RETRIES);
                     }
                     else
                     {
-                        //proxy will resolve name server domain IP address
-                        nameServers = new NameServerAddress[] { new NameServerAddress(new DomainEndPoint(server, port)) };
+                        try
+                        {
+                            nameServer.ResolveDomainName(preferIPv6, DnsClientProtocol.Udp, RETRIES);
+                        }
+                        catch
+                        { }
                     }
                 }
 
-                dnsResponse = (new DnsClient(nameServers) { Proxy = proxy, PreferIPv6 = PreferIPv6, Protocol = protocol, Retries = RETRIES }).Resolve(domain, type);
+                dnsResponse = (new DnsClient(nameServer) { Proxy = proxy, PreferIPv6 = preferIPv6, Protocol = protocol, Retries = RETRIES }).Resolve(domain, type);
             }
 
             if (importRecords)
