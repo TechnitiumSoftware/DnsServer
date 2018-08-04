@@ -76,6 +76,21 @@ namespace DnsServerCore
 
         #region constructor
 
+        static DnsServer()
+        {
+            //set min threads since the default value is too small
+            {
+                int minWorker, minIOC;
+                ThreadPool.GetMinThreads(out minWorker, out minIOC);
+
+                minWorker = 128;
+                ThreadPool.SetMinThreads(minWorker, minIOC);
+            }
+
+            if (ServicePointManager.DefaultConnectionLimit < 100)
+                ServicePointManager.DefaultConnectionLimit = 100; //concurrent http request limit required when using DNS-over-HTTPS
+        }
+
         public DnsServer()
             : this(new IPEndPoint(IPAddress.IPv6Any, 53))
         { }
@@ -88,17 +103,6 @@ namespace DnsServerCore
         {
             _localEP = localEP;
             _dnsCache = new DnsCache(_cacheZoneRoot);
-
-            //set min threads since the default value is too small
-            {
-                int minWorker, minIOC;
-                ThreadPool.GetMinThreads(out minWorker, out minIOC);
-
-                minWorker = Environment.ProcessorCount * 32;
-                ThreadPool.SetMinThreads(minWorker, minIOC);
-            }
-
-            ServicePointManager.DefaultConnectionLimit = 100; //concurrent http request limit required when using DNS-over-HTTPS
         }
 
         #endregion
@@ -466,7 +470,7 @@ namespace DnsServerCore
             DnsClientProtocol protocol;
 
             if (_forwarders == null)
-                protocol = DnsClientProtocol.Udp;
+                protocol = DnsClient.RecursiveResolveDefaultProtocol;
             else
                 protocol = _forwarderProtocol;
 
@@ -544,7 +548,7 @@ namespace DnsServerCore
             _tcpListener = new Socket(AddressFamily.InterNetworkV6, SocketType.Stream, ProtocolType.Tcp);
             _tcpListener.SetSocketOption(SocketOptionLevel.IPv6, SocketOptionName.IPv6Only, false);
             _tcpListener.Bind(_localEP);
-            _tcpListener.Listen(10);
+            _tcpListener.Listen(100);
 
             //start reading query packets
             _udpListenerThread = new Thread(ReadUdpQueryPacketsAsync);
@@ -599,7 +603,28 @@ namespace DnsServerCore
         public NameServerAddress[] Forwarders
         {
             get { return _forwarders; }
-            set { _forwarders = value; }
+            set
+            {
+                NameServerAddress[] forwarders = value;
+
+                if (forwarders != null)
+                {
+                    foreach (NameServerAddress forwarder in forwarders)
+                    {
+                        if (forwarder.DomainEndPoint == null)
+                        {
+                            try
+                            {
+                                forwarder.RecursiveResolveDomainName(_dnsCache, _proxy, DnsClient.RecursiveResolveDefaultProtocol, _retries);
+                            }
+                            catch
+                            { }
+                        }
+                    }
+                }
+
+                _forwarders = forwarders;
+            }
         }
 
         public DnsClientProtocol ForwarderProtocol
