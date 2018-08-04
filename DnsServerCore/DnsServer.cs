@@ -24,6 +24,7 @@ using System.Net;
 using System.Net.Sockets;
 using System.Threading;
 using TechnitiumLibrary.IO;
+using TechnitiumLibrary.Net;
 using TechnitiumLibrary.Net.Dns;
 using TechnitiumLibrary.Net.Proxy;
 
@@ -61,6 +62,7 @@ namespace DnsServerCore
         readonly IDnsCache _dnsCache;
 
         bool _allowRecursion = false;
+        bool _allowRecursionOnlyForPrivateNetworks = false;
         NetProxy _proxy;
         NameServerAddress[] _forwarders;
         DnsClientProtocol _forwarderProtocol = DnsClientProtocol.Udp;
@@ -344,6 +346,27 @@ namespace DnsServerCore
             }
         }
 
+        private bool IsRecursionAllowed(EndPoint remoteEP)
+        {
+            if (!_allowRecursion)
+                return false;
+
+            if (_allowRecursionOnlyForPrivateNetworks)
+            {
+                switch (remoteEP.AddressFamily)
+                {
+                    case AddressFamily.InterNetwork:
+                    case AddressFamily.InterNetworkV6:
+                        return NetUtilities.IsPrivateIP((remoteEP as IPEndPoint).Address);
+
+                    default:
+                        return false;
+                }
+            }
+
+            return true;
+        }
+
         private DnsDatagram ProcessQuery(DnsDatagram request, EndPoint remoteEP)
         {
             if (request.Header.IsResponse)
@@ -353,7 +376,7 @@ namespace DnsServerCore
             {
                 case DnsOpcode.StandardQuery:
                     if ((request.Question.Length != 1) || (request.Question[0].Class != DnsClass.IN))
-                        return new DnsDatagram(new DnsHeader(request.Header.Identifier, true, DnsOpcode.StandardQuery, false, false, request.Header.RecursionDesired, _allowRecursion, false, false, DnsResponseCode.Refused, request.Header.QDCOUNT, 0, 0, 0), request.Question, null, null, null);
+                        return new DnsDatagram(new DnsHeader(request.Header.Identifier, true, DnsOpcode.StandardQuery, false, false, request.Header.RecursionDesired, IsRecursionAllowed(remoteEP), false, false, DnsResponseCode.Refused, request.Header.QDCOUNT, 0, 0, 0), request.Question, null, null, null);
 
                     switch (request.Question[0].Type)
                     {
@@ -361,14 +384,14 @@ namespace DnsServerCore
                         case DnsResourceRecordType.AXFR:
                         case DnsResourceRecordType.MAILB:
                         case DnsResourceRecordType.MAILA:
-                            return new DnsDatagram(new DnsHeader(request.Header.Identifier, true, DnsOpcode.StandardQuery, false, false, request.Header.RecursionDesired, _allowRecursion, false, false, DnsResponseCode.Refused, request.Header.QDCOUNT, 0, 0, 0), request.Question, null, null, null);
+                            return new DnsDatagram(new DnsHeader(request.Header.Identifier, true, DnsOpcode.StandardQuery, false, false, request.Header.RecursionDesired, IsRecursionAllowed(remoteEP), false, false, DnsResponseCode.Refused, request.Header.QDCOUNT, 0, 0, 0), request.Question, null, null, null);
                     }
 
                     try
                     {
-                        DnsDatagram authoritativeResponse = ProcessAuthoritativeQuery(request);
+                        DnsDatagram authoritativeResponse = ProcessAuthoritativeQuery(request, remoteEP);
 
-                        if ((authoritativeResponse.Header.RCODE != DnsResponseCode.Refused) || !request.Header.RecursionDesired || !_allowRecursion)
+                        if ((authoritativeResponse.Header.RCODE != DnsResponseCode.Refused) || !request.Header.RecursionDesired || !IsRecursionAllowed(remoteEP))
                             return authoritativeResponse;
 
                         return ProcessRecursiveQuery(request);
@@ -379,15 +402,15 @@ namespace DnsServerCore
                         if (log != null)
                             log.Write((IPEndPoint)remoteEP, ex);
 
-                        return new DnsDatagram(new DnsHeader(request.Header.Identifier, true, DnsOpcode.StandardQuery, false, false, request.Header.RecursionDesired, _allowRecursion, false, false, DnsResponseCode.ServerFailure, request.Header.QDCOUNT, 0, 0, 0), request.Question, null, null, null);
+                        return new DnsDatagram(new DnsHeader(request.Header.Identifier, true, DnsOpcode.StandardQuery, false, false, request.Header.RecursionDesired, IsRecursionAllowed(remoteEP), false, false, DnsResponseCode.ServerFailure, request.Header.QDCOUNT, 0, 0, 0), request.Question, null, null, null);
                     }
 
                 default:
-                    return new DnsDatagram(new DnsHeader(request.Header.Identifier, true, request.Header.OPCODE, false, false, request.Header.RecursionDesired, _allowRecursion, false, false, DnsResponseCode.Refused, request.Header.QDCOUNT, 0, 0, 0), request.Question, null, null, null);
+                    return new DnsDatagram(new DnsHeader(request.Header.Identifier, true, request.Header.OPCODE, false, false, request.Header.RecursionDesired, IsRecursionAllowed(remoteEP), false, false, DnsResponseCode.Refused, request.Header.QDCOUNT, 0, 0, 0), request.Question, null, null, null);
             }
         }
 
-        public DnsDatagram ProcessAuthoritativeQuery(DnsDatagram request)
+        private DnsDatagram ProcessAuthoritativeQuery(DnsDatagram request, EndPoint remoteEP)
         {
             DnsDatagram response = _authoritativeZoneRoot.Query(request);
 
@@ -411,7 +434,7 @@ namespace DnsServerCore
 
                         if (lastResponse.Header.RCODE == DnsResponseCode.Refused)
                         {
-                            if (!cnameRequest.Header.RecursionDesired || !_allowRecursion)
+                            if (!cnameRequest.Header.RecursionDesired || !IsRecursionAllowed(remoteEP))
                                 break;
 
                             lastResponse = ProcessRecursiveQuery(cnameRequest);
@@ -458,14 +481,14 @@ namespace DnsServerCore
                         }
                     }
 
-                    return new DnsDatagram(new DnsHeader(request.Header.Identifier, true, DnsOpcode.StandardQuery, lastResponse.Header.AuthoritativeAnswer, false, request.Header.RecursionDesired, _allowRecursion, false, false, rcode, 1, (ushort)responseAnswer.Count, (ushort)authority.Length, (ushort)additional.Length), request.Question, responseAnswer.ToArray(), authority, additional);
+                    return new DnsDatagram(new DnsHeader(request.Header.Identifier, true, DnsOpcode.StandardQuery, lastResponse.Header.AuthoritativeAnswer, false, request.Header.RecursionDesired, IsRecursionAllowed(remoteEP), false, false, rcode, 1, (ushort)responseAnswer.Count, (ushort)authority.Length, (ushort)additional.Length), request.Question, responseAnswer.ToArray(), authority, additional);
                 }
             }
 
             return response;
         }
 
-        public DnsDatagram ProcessRecursiveQuery(DnsDatagram request)
+        private DnsDatagram ProcessRecursiveQuery(DnsDatagram request)
         {
             DnsClientProtocol protocol;
 
@@ -592,6 +615,12 @@ namespace DnsServerCore
         {
             get { return _allowRecursion; }
             set { _allowRecursion = value; }
+        }
+
+        public bool AllowRecursionOnlyForPrivateNetworks
+        {
+            get { return _allowRecursionOnlyForPrivateNetworks; }
+            set { _allowRecursionOnlyForPrivateNetworks = value; }
         }
 
         public NetProxy Proxy
