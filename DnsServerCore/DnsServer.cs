@@ -611,6 +611,9 @@ namespace DnsServerCore
         public Zone CacheZoneRoot
         { get { return _cacheZoneRoot; } }
 
+        internal IDnsCache Cache
+        { get { return _dnsCache; } }
+
         public bool AllowRecursion
         {
             get { return _allowRecursion; }
