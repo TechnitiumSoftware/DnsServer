@@ -865,7 +865,7 @@ namespace DnsServerCore
             if (!string.IsNullOrEmpty(strForwarderProtocol))
                 _dnsServer.ForwarderProtocol = (DnsClientProtocol)Enum.Parse(typeof(DnsClientProtocol), strForwarderProtocol, true);
 
-            _log.Write(GetRequestRemoteEndPoint(request), "[" + GetSession(request).Username + "] Dns Settings were updated {serverDomain: " + _serverDomain + "; webServicePort: " + _webServicePort + "; preferIPv6: " + _dnsServer.PreferIPv6 + "; logQueries: " + (_dnsServer.QueryLogManager != null) + "; allowRecursion: " + _dnsServer.AllowRecursion + "; proxyType: " + strProxyType + "; forwarders: " + strForwarders + "; forwarderProtocol: " + strForwarderProtocol + ";}");
+            _log.Write(GetRequestRemoteEndPoint(request), "[" + GetSession(request).Username + "] Dns Settings were updated {serverDomain: " + _serverDomain + "; webServicePort: " + _webServicePort + "; preferIPv6: " + _dnsServer.PreferIPv6 + "; logQueries: " + (_dnsServer.QueryLogManager != null) + "; allowRecursion: " + _dnsServer.AllowRecursion + "; allowRecursionOnlyForPrivateNetworks: " + _dnsServer.AllowRecursionOnlyForPrivateNetworks + "; proxyType: " + strProxyType + "; forwarders: " + strForwarders + "; forwarderProtocol: " + strForwarderProtocol + ";}");
 
             SaveConfigFile();
 
@@ -1554,13 +1554,21 @@ namespace DnsServerCore
                     if (nameServer.IPEndPoint == null)
                     {
                         if (proxy == null)
-                            nameServer.ResolveIPAddress(preferIPv6, DnsClientProtocol.Udp, RETRIES);
+                        {
+                            if (_dnsServer.AllowRecursion)
+                                nameServer.ResolveIPAddress(new NameServerAddress[] { new NameServerAddress(IPAddress.Loopback) }, _dnsServer.Proxy, preferIPv6, DnsClientProtocol.Udp, RETRIES);
+                            else
+                                nameServer.RecursiveResolveIPAddress(_dnsServer.Cache, _dnsServer.Proxy, preferIPv6, DnsClient.RecursiveResolveDefaultProtocol, RETRIES);
+                        }
                     }
                     else
                     {
                         try
                         {
-                            nameServer.ResolveDomainName(preferIPv6, DnsClientProtocol.Udp, RETRIES);
+                            if (_dnsServer.AllowRecursion)
+                                nameServer.ResolveDomainName(new NameServerAddress[] { new NameServerAddress(IPAddress.Loopback) }, _dnsServer.Proxy, DnsClientProtocol.Udp, RETRIES);
+                            else
+                                nameServer.RecursiveResolveDomainName(_dnsServer.Cache, _dnsServer.Proxy, DnsClient.RecursiveResolveDefaultProtocol, RETRIES);
                         }
                         catch
                         { }
