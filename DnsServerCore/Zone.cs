@@ -514,6 +514,11 @@ namespace DnsServerCore
             if (closestZone._disabled)
                 return new DnsDatagram(new DnsHeader(request.Header.Identifier, true, DnsOpcode.StandardQuery, false, false, request.Header.RecursionDesired, false, false, false, DnsResponseCode.Refused, 1, 0, 0, 0), request.Question, new DnsResourceRecord[] { }, new DnsResourceRecord[] { }, new DnsResourceRecord[] { });
 
+            DnsResourceRecord[] closestAuthority = closestZone.GetClosestAuthority();
+
+            if (closestAuthority == null)
+                return new DnsDatagram(new DnsHeader(request.Header.Identifier, true, DnsOpcode.StandardQuery, false, false, request.Header.RecursionDesired, false, false, false, DnsResponseCode.Refused, 1, 0, 0, 0), request.Question, new DnsResourceRecord[] { }, new DnsResourceRecord[] { }, new DnsResourceRecord[] { });
+
             if (closestZone._zoneName.Equals(domain) || (closestZone._zoneLabel == "*"))
             {
                 //zone found
@@ -521,11 +526,6 @@ namespace DnsServerCore
                 if (records == null)
                 {
                     //record type not found
-                    DnsResourceRecord[] closestAuthority = closestZone.GetClosestAuthority();
-
-                    if (closestAuthority == null)
-                        return new DnsDatagram(new DnsHeader(request.Header.Identifier, true, DnsOpcode.StandardQuery, false, false, request.Header.RecursionDesired, false, false, false, DnsResponseCode.Refused, 1, 0, 0, 0), request.Question, new DnsResourceRecord[] { }, new DnsResourceRecord[] { }, new DnsResourceRecord[] { });
-
                     bool authoritativeAnswer;
                     DnsResourceRecord[] additional;
 
@@ -580,11 +580,6 @@ namespace DnsServerCore
             else
             {
                 //zone doesnt exists
-                DnsResourceRecord[] closestAuthority = closestZone.GetClosestAuthority();
-
-                if (closestAuthority == null)
-                    return new DnsDatagram(new DnsHeader(request.Header.Identifier, true, DnsOpcode.StandardQuery, false, false, request.Header.RecursionDesired, false, false, false, DnsResponseCode.Refused, 1, 0, 0, 0), request.Question, new DnsResourceRecord[] { }, new DnsResourceRecord[] { }, new DnsResourceRecord[] { });
-
                 bool authoritativeAnswer;
                 DnsResponseCode rCode;
                 DnsResourceRecord[] additional;
@@ -619,7 +614,17 @@ namespace DnsServerCore
                 if (records != null)
                 {
                     if (records[0].RDATA is DnsEmptyRecord)
-                        return new DnsDatagram(new DnsHeader(request.Header.Identifier, true, DnsOpcode.StandardQuery, false, false, request.Header.RecursionDesired, true, false, false, DnsResponseCode.NoError, 1, 0, 1, 0), request.Question, new DnsResourceRecord[] { }, new DnsResourceRecord[] { (records[0].RDATA as DnsEmptyRecord).Authority }, new DnsResourceRecord[] { });
+                    {
+                        DnsResourceRecord[] responseAuthority;
+                        DnsResourceRecord authority = (records[0].RDATA as DnsEmptyRecord).Authority;
+
+                        if (authority == null)
+                            responseAuthority = new DnsResourceRecord[] { };
+                        else
+                            responseAuthority = new DnsResourceRecord[] { authority };
+
+                        return new DnsDatagram(new DnsHeader(request.Header.Identifier, true, DnsOpcode.StandardQuery, false, false, request.Header.RecursionDesired, true, false, false, DnsResponseCode.NoError, 1, 0, 1, 0), request.Question, new DnsResourceRecord[] { }, responseAuthority, new DnsResourceRecord[] { });
+                    }
 
                     if (records[0].RDATA is DnsNXRecord)
                         return new DnsDatagram(new DnsHeader(request.Header.Identifier, true, DnsOpcode.StandardQuery, false, false, request.Header.RecursionDesired, true, false, false, DnsResponseCode.NameError, 1, 0, 1, 0), request.Question, new DnsResourceRecord[] { }, new DnsResourceRecord[] { (records[0].RDATA as DnsNXRecord).Authority }, new DnsResourceRecord[] { });
@@ -721,11 +726,16 @@ namespace DnsServerCore
                     break;
 
                 case DnsResponseCode.NoError:
-                    if ((response.Answer.Length == 0) && (response.Authority.Length > 0))
+                    if (response.Answer.Length > 0)
+                    {
+                        allRecords.AddRange(response.Answer);
+                    }
+                    else if (response.Authority.Length > 0)
                     {
                         DnsResourceRecord authority = response.Authority[0];
                         if (authority.Type == DnsResourceRecordType.SOA)
                         {
+                            //empty response with authority
                             foreach (DnsQuestionRecord question in response.Question)
                             {
                                 DnsResourceRecord record = new DnsResourceRecord(question.Name, question.Type, DnsClass.IN, DEFAULT_RECORD_TTL, new DnsEmptyRecord(authority));
@@ -737,7 +747,14 @@ namespace DnsServerCore
                     }
                     else
                     {
-                        allRecords.AddRange(response.Answer);
+                        //empty response with no authority
+                        foreach (DnsQuestionRecord question in response.Question)
+                        {
+                            DnsResourceRecord record = new DnsResourceRecord(question.Name, question.Type, DnsClass.IN, DEFAULT_RECORD_TTL, new DnsEmptyRecord(null));
+                            record.SetExpiry();
+
+                            CreateZone(this, question.Name).SetRecords(question.Type, new DnsResourceRecord[] { record });
+                        }
                     }
 
                     break;
@@ -1115,10 +1132,6 @@ namespace DnsServerCore
             {
                 _records = records;
             }
-
-            public DnsANYRecord(Stream s)
-                : base(s)
-            { }
 
             #endregion
 
