@@ -32,20 +32,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <PackageReference Include="Newtonsoft.Json" Version="11.0.2" />
-  </ItemGroup>
-
-  <ItemGroup>
     <ProjectReference Include="..\DnsServerCore\DnsServerCore.csproj" />
-  </ItemGroup>
-
-  <ItemGroup>
-    <Reference Include="TechnitiumLibrary.IO">
-      <HintPath>..\..\TechnitiumLibrary\bin\TechnitiumLibrary.IO.dll</HintPath>
-    </Reference>
-    <Reference Include="TechnitiumLibrary.Net">
-      <HintPath>..\..\TechnitiumLibrary\bin\TechnitiumLibrary.Net.dll</HintPath>
-    </Reference>
   </ItemGroup>
 
 </Project>
