@@ -82,15 +82,14 @@ namespace DnsServerCore
         {
             //set min threads since the default value is too small
             {
-                int minWorker, minIOC;
-                ThreadPool.GetMinThreads(out minWorker, out minIOC);
+                int minWorker = Environment.ProcessorCount * 64;
+                int minIOC = Environment.ProcessorCount * 64;
 
-                minWorker = 128;
                 ThreadPool.SetMinThreads(minWorker, minIOC);
             }
 
-            if (ServicePointManager.DefaultConnectionLimit < 100)
-                ServicePointManager.DefaultConnectionLimit = 100; //concurrent http request limit required when using DNS-over-HTTPS
+            if (ServicePointManager.DefaultConnectionLimit < 512)
+                ServicePointManager.DefaultConnectionLimit = 512; //concurrent http request limit required when using DNS-over-HTTPS
         }
 
         public DnsServer()
@@ -149,6 +148,7 @@ namespace DnsServerCore
                         {
                             case SocketError.ConnectionReset:
                             case SocketError.HostUnreachable:
+                            case SocketError.MessageSize:
                                 bytesRecv = 0;
                                 break;
 
@@ -171,6 +171,10 @@ namespace DnsServerCore
                         }
                     }
                 }
+            }
+            catch (ThreadAbortException)
+            {
+                //server stopping
             }
             catch (Exception ex)
             {
@@ -247,6 +251,10 @@ namespace DnsServerCore
 
                     ThreadPool.QueueUserWorkItem(ProcessTcpRequestAsync, socket);
                 }
+            }
+            catch (ThreadAbortException)
+            {
+                //server stopping
             }
             catch (Exception ex)
             {
@@ -607,6 +615,9 @@ namespace DnsServerCore
                 return;
 
             _state = ServiceState.Stopping;
+
+            _udpListenerThread.Abort();
+            _tcpListenerThread.Abort();
 
             _udpListener.Dispose();
             _tcpListener.Dispose();
