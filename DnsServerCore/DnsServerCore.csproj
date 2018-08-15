@@ -129,7 +129,7 @@
     <Authors>Shreyas Zare</Authors>
     <Company>Technitium</Company>
     <Product>Technitium DNS Server</Product>
-    <PackageProjectUrl></PackageProjectUrl>
+    <PackageProjectUrl>https://technitium.com/dns/</PackageProjectUrl>
     <RepositoryUrl>https://github.com/TechnitiumSoftware/DnsServer</RepositoryUrl>
     <RepositoryType></RepositoryType>
     <Description>.NET Standard 2.0</Description>
