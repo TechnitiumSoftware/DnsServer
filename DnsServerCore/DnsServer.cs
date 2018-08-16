@@ -149,6 +149,7 @@ namespace DnsServerCore
                             case SocketError.ConnectionReset:
                             case SocketError.HostUnreachable:
                             case SocketError.MessageSize:
+                            case SocketError.NetworkReset:
                                 bytesRecv = 0;
                                 break;
 
