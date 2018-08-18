@@ -1,6 +1,6 @@
 ﻿/*
 Technitium DNS Server
-Copyright (C) 2017  Shreyas Zare (shreyas@technitium.com)
+Copyright (C) 2018  Shreyas Zare (shreyas@technitium.com)
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -31,7 +31,7 @@ namespace DnsServerApp
             if (args.Length == 1)
                 configFolder = args[0];
 
-            DnsWebService service = new DnsWebService(configFolder, new Uri("https://technitium.com/download/dns/updateca.bin"));
+            DnsWebService service = new DnsWebService(configFolder, new Uri("https://technitium.com/download/dns/updateca2.bin"));
 
             service.Start();
             Console.WriteLine("Technitium DNS Server was started successfully.");
