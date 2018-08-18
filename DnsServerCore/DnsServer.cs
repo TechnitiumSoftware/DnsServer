@@ -45,13 +45,14 @@ namespace DnsServerCore
 
         #region variables
 
+        const int UDP_LISTENER_THREAD_COUNT = 3;
         const int TCP_SOCKET_SEND_TIMEOUT = 30000;
         const int TCP_SOCKET_RECV_TIMEOUT = 60000;
 
         readonly IPEndPoint _localEP;
 
         Socket _udpListener;
-        Thread _udpListenerThread;
+        Thread[] _udpListenerThreads;
 
         Socket _tcpListener;
         Thread _tcpListenerThread;
@@ -112,19 +113,6 @@ namespace DnsServerCore
 
         private void ReadUdpQueryPacketsAsync(object parameter)
         {
-            #region this code ignores ICMP port unreachable responses which creates SocketException in ReceiveFrom()
-
-            if (Environment.OSVersion.Platform == PlatformID.Win32NT)
-            {
-                const uint IOC_IN = 0x80000000;
-                const uint IOC_VENDOR = 0x18000000;
-                const uint SIO_UDP_CONNRESET = IOC_IN | IOC_VENDOR | 12;
-
-                _udpListener.IOControl((IOControlCode)SIO_UDP_CONNRESET, new byte[] { Convert.ToByte(false) }, null);
-            }
-
-            #endregion
-
             EndPoint remoteEP;
             byte[] recvBuffer = new byte[512];
             int bytesRecv;
@@ -590,18 +578,36 @@ namespace DnsServerCore
                 return;
 
             _udpListener = new Socket(AddressFamily.InterNetworkV6, SocketType.Dgram, ProtocolType.Udp);
-            _udpListener.SetSocketOption(SocketOptionLevel.IPv6, SocketOptionName.IPv6Only, false);
+            _udpListener.DualMode = true;
             _udpListener.Bind(_localEP);
 
+            #region this code ignores ICMP port unreachable responses which creates SocketException in ReceiveFrom()
+
+            if (Environment.OSVersion.Platform == PlatformID.Win32NT)
+            {
+                const uint IOC_IN = 0x80000000;
+                const uint IOC_VENDOR = 0x18000000;
+                const uint SIO_UDP_CONNRESET = IOC_IN | IOC_VENDOR | 12;
+
+                _udpListener.IOControl((IOControlCode)SIO_UDP_CONNRESET, new byte[] { Convert.ToByte(false) }, null);
+            }
+
+            #endregion
+
             _tcpListener = new Socket(AddressFamily.InterNetworkV6, SocketType.Stream, ProtocolType.Tcp);
-            _tcpListener.SetSocketOption(SocketOptionLevel.IPv6, SocketOptionName.IPv6Only, false);
+            _tcpListener.DualMode = true;
             _tcpListener.Bind(_localEP);
             _tcpListener.Listen(100);
 
             //start reading query packets
-            _udpListenerThread = new Thread(ReadUdpQueryPacketsAsync);
-            _udpListenerThread.IsBackground = true;
-            _udpListenerThread.Start();
+            _udpListenerThreads = new Thread[UDP_LISTENER_THREAD_COUNT];
+
+            for (int i = 0; i < UDP_LISTENER_THREAD_COUNT; i++)
+            {
+                _udpListenerThreads[i] = new Thread(ReadUdpQueryPacketsAsync);
+                _udpListenerThreads[i].IsBackground = true;
+                _udpListenerThreads[i].Start();
+            }
 
             _tcpListenerThread = new Thread(AcceptTcpConnectionAsync);
             _tcpListenerThread.IsBackground = true;
@@ -617,7 +623,9 @@ namespace DnsServerCore
 
             _state = ServiceState.Stopping;
 
-            _udpListenerThread.Abort();
+            for (int i = 0; i < UDP_LISTENER_THREAD_COUNT; i++)
+                _udpListenerThreads[i].Abort();
+
             _tcpListenerThread.Abort();
 
             _udpListener.Dispose();
