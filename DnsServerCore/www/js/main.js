@@ -841,13 +841,13 @@ function renderStandardResourceRecord(record, domain) {
 
     html += "<div class=\"form-group\">";
     html += "<label for=\"txtName" + id + "\">Name</label>";
-    html += "<input id=\"txtName" + id + "\" type=\"text\" class=\"form-control\" placeholder=\"@\" style=\"width: 120px;\" value=\"" + name + "\" disabled>";
+    html += "<input id=\"txtName" + id + "\" type=\"text\" class=\"form-control\" placeholder=\"@\" style=\"width: 120px;\" value=\"" + encodeURI(name) + "\" disabled>";
     html += "</div>";
 
     //value
     html += "<div class=\"form-group\">";
     html += "<label for=\"txtValue" + id + "\">Value</label>";
-    html += "<input id=\"txtValue" + id + "\" type=\"text\" class=\"form-control\" placeholder=\"value\" style=\"width: 250px;\" value=\"" + record.rData.value + "\" disabled>";
+    html += "<input id=\"txtValue" + id + "\" type=\"text\" class=\"form-control\" placeholder=\"value\" style=\"width: 250px;\" value=\"" + encodeURI(record.rData.value) + "\" disabled>";
     html += "</div>";
 
     //ttl
@@ -858,7 +858,7 @@ function renderStandardResourceRecord(record, domain) {
 
     //buttons
     html += "<div class=\"form-group\" style=\"display: block; margin-bottom: 0px;\">";
-    html += "<div id=\"data" + id + "\" data-record-name=\"" + record.name + "\" data-record-value=\"" + record.rData.value + "\" style=\"display: none;\"></div>";
+    html += "<div id=\"data" + id + "\" data-record-name=\"" + encodeURI(record.name) + "\" data-record-value=\"" + encodeURI(record.rData.value) + "\" style=\"display: none;\"></div>";
     html += "<button id=\"btnEdit" + id + "\" type=\"button\" class=\"btn btn-primary\" data-id=\"" + id + "\" onclick=\"return editResourceRecord(this);\" style=\"margin-right: 10px;\">Edit</button>";
     html += "<button id=\"btnUpdate" + id + "\" type=\"submit\" class=\"btn btn-primary\" data-loading-text=\"Updating...\" data-id=\"" + id + "\" onclick=\"return updateResourceRecord(this);\" style=\"margin-right: 10px; display: none;\">Update</button>";
     html += "<button id=\"btnCancelEdit" + id + "\" type=\"button\" class=\"btn btn-default\" data-id=\"" + id + "\" onclick=\"return cancelEditResourceRecord(this);\" style=\"margin-right: 10px; display: none;\">Cancel</button>";
@@ -896,13 +896,13 @@ function renderMXResourceRecord(record, domain) {
 
     html += "<div class=\"form-group\">";
     html += "<label for=\"txtName" + id + "\">Name</label>";
-    html += "<input id=\"txtName" + id + "\" type=\"text\" class=\"form-control\" placeholder=\"@\" style=\"width: 136px;\" value=\"" + name + "\" disabled>";
+    html += "<input id=\"txtName" + id + "\" type=\"text\" class=\"form-control\" placeholder=\"@\" style=\"width: 136px;\" value=\"" + encodeURI(name) + "\" disabled>";
     html += "</div>";
 
     //exchange
     html += "<div class=\"form-group\">";
     html += "<label for=\"txtExchange" + id + "\">Exchange</label>";
-    html += "<input id=\"txtExchange" + id + "\" type=\"text\" class=\"form-control\" placeholder=\"mx1.example.com\" style=\"width: 250px;\" value=\"" + record.rData.value + "\" disabled>";
+    html += "<input id=\"txtExchange" + id + "\" type=\"text\" class=\"form-control\" placeholder=\"mx1.example.com\" style=\"width: 250px;\" value=\"" + encodeURI(record.rData.value) + "\" disabled>";
     html += "</div>";
 
     //preference
@@ -919,7 +919,7 @@ function renderMXResourceRecord(record, domain) {
 
     //buttons
     html += "<div class=\"form-group\" style=\"display: block; margin-bottom: 0px;\">";
-    html += "<div id=\"data" + id + "\" data-record-name=\"" + record.name + "\" data-record-value=\"" + record.rData.value + "\" style=\"display: none;\"></div>";
+    html += "<div id=\"data" + id + "\" data-record-name=\"" + encodeURI(record.name) + "\" data-record-value=\"" + encodeURI(record.rData.value) + "\" style=\"display: none;\"></div>";
     html += "<button id=\"btnEdit" + id + "\" type=\"button\" class=\"btn btn-primary\" data-id=\"" + id + "\" onclick=\"return editResourceRecord(this);\" style=\"margin-right: 10px;\">Edit</button>";
     html += "<button id=\"btnUpdate" + id + "\" type=\"submit\" class=\"btn btn-primary\" data-loading-text=\"Updating...\" data-id=\"" + id + "\" onclick=\"return updateResourceRecord(this);\" style=\"margin-right: 10px; display: none;\">Update</button>";
     html += "<button id=\"btnCancelEdit" + id + "\" type=\"button\" class=\"btn btn-default\" data-id=\"" + id + "\" onclick=\"return cancelEditResourceRecord(this);\" style=\"margin-right: 10px; display: none;\">Cancel</button>";
@@ -957,19 +957,19 @@ function renderSOAResourceRecord(record, domain) {
 
     html += "<div class=\"form-group\">";
     html += "<label for=\"txtName" + id + "\">Name</label>";
-    html += "<input id=\"txtName" + id + "\" type=\"text\" class=\"form-control\" placeholder=\"@\" style=\"width: 70px;\" value=\"" + name + "\" disabled>";
+    html += "<input id=\"txtName" + id + "\" type=\"text\" class=\"form-control\" placeholder=\"@\" style=\"width: 70px;\" value=\"" + encodeURI(name) + "\" disabled>";
     html += "</div>";
 
     //master name server
     html += "<div class=\"form-group\">";
     html += "<label for=\"txtMasterNameServer" + id + "\">Master Name Server</label>";
-    html += "<input id=\"txtMasterNameServer" + id + "\"type=\"text\" class=\"form-control\" placeholder=\"value\" style=\"width: 300px;\" value=\"" + record.rData.masterNameServer + "\" disabled>";
+    html += "<input id=\"txtMasterNameServer" + id + "\"type=\"text\" class=\"form-control\" placeholder=\"value\" style=\"width: 300px;\" value=\"" + encodeURI(record.rData.masterNameServer) + "\" disabled>";
     html += "</div>";
 
     //responsible person
     html += "<div class=\"form-group\">";
     html += "<label for=\"txtResponsiblePerson" + id + "\">Responsible Person</label>";
-    html += "<input id=\"txtResponsiblePerson" + id + "\" type=\"text\" class=\"form-control\" placeholder=\"value\" style=\"width: 220px;\" value=\"" + record.rData.responsiblePerson + "\" disabled>";
+    html += "<input id=\"txtResponsiblePerson" + id + "\" type=\"text\" class=\"form-control\" placeholder=\"value\" style=\"width: 220px;\" value=\"" + encodeURI(record.rData.responsiblePerson) + "\" disabled>";
     html += "</div>";
 
     //serial
@@ -1063,19 +1063,19 @@ function renderSRVResourceRecord(record, domain) {
     //name
     html += "<div class=\"form-group\">";
     html += "<label for=\"txtName" + id + "\">Name</label>";
-    html += "<input id=\"txtName" + id + "\" type=\"text\" class=\"form-control\" placeholder=\"@\" style=\"width: 120px;\" value=\"" + name + "\" disabled>";
+    html += "<input id=\"txtName" + id + "\" type=\"text\" class=\"form-control\" placeholder=\"@\" style=\"width: 120px;\" value=\"" + encodeURI(name) + "\" disabled>";
     html += "</div>";
 
     //service
     html += "<div class=\"form-group\">";
     html += "<label for=\"txtService" + id + "\">Service</label>";
-    html += "<input id=\"txtService" + id + "\" type=\"text\" class=\"form-control\" placeholder=\"service\" style=\"width: 80px;\" value=\"" + service + "\" disabled>";
+    html += "<input id=\"txtService" + id + "\" type=\"text\" class=\"form-control\" placeholder=\"service\" style=\"width: 80px;\" value=\"" + encodeURI(service) + "\" disabled>";
     html += "</div>";
 
     //protocol
     html += "<div class=\"form-group\">";
     html += "<label for=\"txtProtocol" + id + "\">Protocol</label>";
-    html += "<input id=\"txtProtocol" + id + "\"type=\"text\" class=\"form-control\" placeholder=\"protocol\" style=\"width: 80px;\" value=\"" + protocol + "\" disabled>";
+    html += "<input id=\"txtProtocol" + id + "\"type=\"text\" class=\"form-control\" placeholder=\"protocol\" style=\"width: 80px;\" value=\"" + encodeURI(protocol) + "\" disabled>";
     html += "</div>";
 
     //priority
@@ -1110,7 +1110,7 @@ function renderSRVResourceRecord(record, domain) {
 
     //buttons
     html += "<div class=\"form-group\" style=\"display: block; margin-bottom: 0px;\">";
-    html += "<div id=\"data" + id + "\" data-record-name=\"" + record.name + "\" data-record-value=\"" + record.rData.value + "\" data-record-port=\"" + record.rData.port + "\" style=\"display: none;\"></div>";
+    html += "<div id=\"data" + id + "\" data-record-name=\"" + encodeURI(record.name) + "\" data-record-value=\"" + encodeURI(record.rData.value) + "\" data-record-port=\"" + record.rData.port + "\" style=\"display: none;\"></div>";
     html += "<button id=\"btnEdit" + id + "\" type=\"button\" class=\"btn btn-primary\" data-id=\"" + id + "\" onclick=\"return editResourceRecord(this);\" style=\"margin-right: 10px;\">Edit</button>";
     html += "<button id=\"btnUpdate" + id + "\" type=\"submit\" class=\"btn btn-primary\" data-loading-text=\"Updating...\" data-id=\"" + id + "\" onclick=\"return updateResourceRecord(this);\" style=\"margin-right: 10px; display: none;\">Update</button>";
     html += "<button id=\"btnCancelEdit" + id + "\" type=\"button\" class=\"btn btn-default\" data-id=\"" + id + "\" onclick=\"return cancelEditResourceRecord(this);\" style=\"margin-right: 10px; display: none;\">Cancel</button>";
