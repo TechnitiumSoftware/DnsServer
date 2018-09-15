@@ -114,8 +114,14 @@ namespace DnsServerCore
                     ThreadPool.QueueUserWorkItem(ProcessRequestAsync, new object[] { context.Request, context.Response });
                 }
             }
-            catch
+            catch (ThreadAbortException)
             {
+                //web service stopping
+            }
+            catch (Exception ex)
+            {
+                _log.Write(null, ex);
+
                 if (_state == ServiceState.Running)
                     throw;
             }
@@ -188,7 +194,7 @@ namespace DnsServerCore
                                                     break;
 
                                                 case "/api/flushDnsCache":
-                                                    _dnsServer.CacheZoneRoot.Flush();
+                                                    FlushCache(request);
                                                     break;
 
                                                 case "/api/listCachedZones":
@@ -586,6 +592,8 @@ namespace DnsServerCore
                                 default:
                                     throw new InvalidDataException("DNS Server update info version not supported.");
                             }
+
+                            updateAvailable = IsUpdateAvailable(_currentVersion, updateVersion);
                         }
                     }
 
@@ -818,6 +826,13 @@ namespace DnsServerCore
             SaveConfigFile();
 
             GetDnsSettings(jsonWriter);
+        }
+
+        private void FlushCache(HttpListenerRequest request)
+        {
+            _dnsServer.CacheZoneRoot.Flush();
+
+            _log.Write(GetRequestRemoteEndPoint(request), "[" + GetSession(request).Username + "] Cache was flushed.");
         }
 
         private void ListCachedZones(HttpListenerRequest request, JsonTextWriter jsonWriter)
@@ -1747,6 +1762,19 @@ namespace DnsServerCore
 
             try
             {
+                bool passwordResetOption = false;
+
+                if (!File.Exists(configFile))
+                {
+                    string passwordResetConfigFile = Path.Combine(_configFolder, "reset.config");
+
+                    if (File.Exists(passwordResetConfigFile))
+                    {
+                        passwordResetOption = true;
+                        configFile = passwordResetConfigFile;
+                    }
+                }
+
                 using (FileStream fS = new FileStream(configFile, FileMode.Open, FileAccess.Read))
                 {
                     BinaryReader bR = new BinaryReader(fS);
@@ -1836,10 +1864,25 @@ namespace DnsServerCore
                 }
 
                 _log.Write("Dns Server config file was loaded: " + configFile);
+
+                if (passwordResetOption)
+                {
+                    SetCredentials("admin", "admin");
+
+                    _log.Write("Dns Server reset password for user: admin");
+                    SaveConfigFile();
+
+                    try
+                    {
+                        File.Delete(configFile);
+                    }
+                    catch
+                    { }
+                }
             }
-            catch (Exception ex)
+            catch (FileNotFoundException)
             {
-                _log.Write("Dns Server failed to load config file: " + configFile + "\r\n" + ex.ToString());
+                _log.Write("Dns Server config file was not found: " + configFile);
                 _log.Write("Dns Server is restoring default config file.");
 
                 _serverDomain = Environment.MachineName;
@@ -1851,6 +1894,11 @@ namespace DnsServerCore
                 _dnsServer.AllowRecursionOnlyForPrivateNetworks = true; //default true for security reasons
 
                 SaveConfigFile();
+            }
+            catch (Exception ex)
+            {
+                _log.Write("Dns Server encountered an error while loading config file: " + configFile + "\r\n" + ex.ToString());
+                _log.Write("Note: You may try deleting the config file to fix this issue. However, you will lose DNS settings but, zone data wont be affected.");
             }
         }
 
@@ -1977,7 +2025,7 @@ namespace DnsServerCore
 
             _state = ServiceState.Running;
 
-            _log.Write(new IPEndPoint(IPAddress.Loopback, _webServicePort), "Dns Web Service was started successfully.");
+            _log.Write(new IPEndPoint(IPAddress.Loopback, _webServicePort), "Dns Web Service (v" + _currentVersion + ") was started successfully.");
         }
 
         public void Stop()
@@ -1986,6 +2034,8 @@ namespace DnsServerCore
                 return;
 
             _state = ServiceState.Stopping;
+
+            _webServiceThread.Abort();
 
             _webService.Stop();
             _dnsServer.Stop();
