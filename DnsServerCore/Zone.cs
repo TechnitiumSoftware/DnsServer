@@ -427,7 +427,7 @@ namespace DnsServerCore
 
             while (currentZone != null)
             {
-                nsRecords = currentZone.QueryRecords(DnsResourceRecordType.SOA);
+                nsRecords = currentZone.QueryRecords(DnsResourceRecordType.SOA, true);
                 if ((nsRecords != null) && (nsRecords.Length > 0) && (nsRecords[0].Type == DnsResourceRecordType.SOA))
                     return nsRecords;
 
@@ -742,6 +742,24 @@ namespace DnsServerCore
                                 record.SetExpiry();
 
                                 CreateZone(this, question.Name).SetRecords(question.Type, new DnsResourceRecord[] { record });
+                            }
+                        }
+                        else
+                        {
+                            foreach (DnsQuestionRecord question in response.Question)
+                            {
+                                foreach (DnsResourceRecord authorityRecord in response.Authority)
+                                {
+                                    if ((authorityRecord.Type == DnsResourceRecordType.NS) && question.Name.Equals(authorityRecord.Name, StringComparison.CurrentCultureIgnoreCase) && (authorityRecord.RDATA as DnsNSRecord).NSDomainName.Equals(response.NameServerAddress.Host, StringComparison.CurrentCultureIgnoreCase))
+                                    {
+                                        //empty response from authority name server
+                                        DnsResourceRecord record = new DnsResourceRecord(question.Name, question.Type, DnsClass.IN, DEFAULT_RECORD_TTL, new DnsEmptyRecord(null));
+                                        record.SetExpiry();
+
+                                        CreateZone(this, question.Name).SetRecords(question.Type, new DnsResourceRecord[] { record });
+                                        break;
+                                    }
+                                }
                             }
                         }
                     }
