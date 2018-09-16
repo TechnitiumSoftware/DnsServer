@@ -59,6 +59,7 @@ namespace DnsServerCore
 
         readonly Zone _authoritativeZoneRoot = new Zone(true);
         readonly Zone _cacheZoneRoot = new Zone(false);
+        readonly Zone _blockedZoneRoot = new Zone(true);
 
         readonly IDnsCache _dnsCache;
 
@@ -389,6 +390,11 @@ namespace DnsServerCore
                         if ((authoritativeResponse.Header.RCODE != DnsResponseCode.Refused) || !request.Header.RecursionDesired || !isRecursionAllowed)
                             return authoritativeResponse;
 
+                        DnsDatagram blockedResponse = _blockedZoneRoot.Query(request);
+
+                        if (blockedResponse.Header.RCODE != DnsResponseCode.Refused)
+                            return blockedResponse;
+
                         return ProcessRecursiveQuery(request);
                     }
                     catch (Exception ex)
@@ -646,6 +652,9 @@ namespace DnsServerCore
 
         public Zone CacheZoneRoot
         { get { return _cacheZoneRoot; } }
+
+        public Zone BlockedZoneRoot
+        { get { return _blockedZoneRoot; } }
 
         internal IDnsCache Cache
         { get { return _dnsCache; } }
