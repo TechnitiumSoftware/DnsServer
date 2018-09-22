@@ -111,6 +111,96 @@ $(function () {
         $("#chkAllowRecursionOnlyForPrivateNetworks").prop('disabled', !allowRecursion);
     });
 
+    $("#optQuickForwarders").change(function () {
+        var selectedOption = $("#optQuickForwarders").val();
+
+        switch (selectedOption) {
+            case "cloudflare-udp":
+                $("#txtForwarders").val("1.1.1.1\r\n1.0.0.1");
+                $("#rdForwarderProtocolUdp").prop("checked", true);
+                break;
+
+            case "cloudflare-udp-ipv6":
+                $("#txtForwarders").val("[2606:4700:4700::1111]\r\n[2606:4700:4700::1001]");
+                $("#rdForwarderProtocolUdp").prop("checked", true);
+                break;
+
+            case "cloudflare-tls":
+                $("#txtForwarders").val("1.1.1.1:853\r\n1.0.0.1:853");
+                $("#rdForwarderProtocolTls").prop("checked", true);
+                break;
+
+            case "cloudflare-tls-ipv6":
+                $("#txtForwarders").val("[2606:4700:4700::1111]:853\r\n[2606:4700:4700::1001]:853");
+                $("#rdForwarderProtocolTls").prop("checked", true);
+                break;
+
+            case "cloudflare-https":
+                $("#txtForwarders").val("https://cloudflare-dns.com/dns-query");
+                $("#rdForwarderProtocolHttps").prop("checked", true);
+                break;
+
+            case "cloudflare-json":
+                $("#txtForwarders").val("https://cloudflare-dns.com/dns-query");
+                $("#rdForwarderProtocolHttpJsons").prop("checked", true);
+                break;
+
+
+            case "google-udp":
+                $("#txtForwarders").val("8.8.8.8\r\n8.8.4.4");
+                $("#rdForwarderProtocolUdp").prop("checked", true);
+                break;
+
+            case "google-udp-ipv6":
+                $("#txtForwarders").val("[2001:4860:4860::8888]\r\n[2001:4860:4860::8844]");
+                $("#rdForwarderProtocolUdp").prop("checked", true);
+                break;
+
+            case "google-json":
+                $("#txtForwarders").val("https://dns.google.com/resolve");
+                $("#rdForwarderProtocolHttpJsons").prop("checked", true);
+                break;
+
+
+            case "quad9-udp":
+                $("#txtForwarders").val("9.9.9.9");
+                $("#rdForwarderProtocolUdp").prop("checked", true);
+                break;
+
+            case "quad9-udp-ipv6":
+                $("#txtForwarders").val("[2620:fe::fe]");
+                $("#rdForwarderProtocolUdp").prop("checked", true);
+                break;
+
+            case "quad9-tls":
+                $("#txtForwarders").val("9.9.9.9:853");
+                $("#rdForwarderProtocolTls").prop("checked", true);
+                break;
+
+            case "quad9-tls-ipv6":
+                $("#txtForwarders").val("[2620:fe::fe]:853");
+                $("#rdForwarderProtocolTls").prop("checked", true);
+                break;
+
+
+            case "opendns-udp":
+                $("#txtForwarders").val("208.67.222.222\r\n208.67.220.220");
+                $("#rdForwarderProtocolUdp").prop("checked", true);
+                break;
+
+            case "opendns-udp-ipv6":
+                $("#txtForwarders").val("[2620:0:ccc::2]\r\n[2620:0:ccd::2]");
+                $("#rdForwarderProtocolUdp").prop("checked", true);
+                break;
+
+
+            case "none":
+                $("#txtForwarders").val("");
+                $("#rdForwarderProtocolUdp").prop("checked", true);
+                break;
+        }
+    });
+
     showPageLogin();
     login("admin", "admin");
 });
