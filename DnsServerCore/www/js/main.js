@@ -427,6 +427,8 @@ function loadDnsSettings() {
                 $("#txtForwarders").val(value);
             }
 
+            $("#optQuickForwarders").val("none");
+
             switch (responseJSON.response.forwarderProtocol.toLowerCase()) {
                 case "tcp":
                     $("#rdForwarderProtocolTcp").prop("checked", true);
