@@ -74,7 +74,7 @@ namespace DnsServerCore
         Uri _blockListUrl;
         DateTime _blockListLastUpdatedOn;
         const int BLOCK_LIST_UPDATE_AFTER_HOURS = 24;
-        const int BLOCK_LIST_UPDATE_TIMER_INITIAL_INTERVAL = 60000;
+        const int BLOCK_LIST_UPDATE_TIMER_INITIAL_INTERVAL = 5000;
         const int BLOCK_LIST_UPDATE_TIMER_INTERVAL = 900000;
 
         #endregion
@@ -885,12 +885,18 @@ namespace DnsServerCore
                 if (strBlockListUrl == "false")
                 {
                     StopBlockListUpdateTimer();
+                    FlushBlockedZone(request);
+
                     _blockListUrl = null;
                 }
                 else if ((_blockListUrl == null) || !_blockListUrl.AbsoluteUri.Equals(strBlockListUrl))
                 {
                     _blockListUrl = new Uri(strBlockListUrl);
                     _blockListLastUpdatedOn = new DateTime();
+
+                    StopBlockListUpdateTimer();
+                    FlushBlockedZone(request);
+
                     StartBlockListUpdateTimer();
                 }
             }
@@ -1049,6 +1055,8 @@ namespace DnsServerCore
             _dnsServer.BlockedZoneRoot.Flush();
 
             _log.Write(GetRequestRemoteEndPoint(request), "[" + GetSession(request).Username + "] Blocked zone was flushed.");
+
+            SaveBlockedZoneFile();
         }
 
         private void DeleteBlockedZone(HttpListenerRequest request)
