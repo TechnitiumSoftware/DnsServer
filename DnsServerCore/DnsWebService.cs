@@ -2420,6 +2420,8 @@ namespace DnsServerCore
             _webService.Stop();
             _dnsServer.Stop();
 
+            StopBlockListUpdateTimer();
+
             _state = ServiceState.Stopped;
 
             _log.Write(new IPEndPoint(IPAddress.Loopback, _webServicePort), "DNS Web Service was stopped successfully.");
