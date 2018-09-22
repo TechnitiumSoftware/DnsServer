@@ -46,8 +46,8 @@ namespace DnsServerCore
         #region variables
 
         const int UDP_LISTENER_THREAD_COUNT = 3;
-        const int TCP_SOCKET_SEND_TIMEOUT = 30000;
-        const int TCP_SOCKET_RECV_TIMEOUT = 60000;
+        const int TCP_SOCKET_SEND_TIMEOUT = 10000;
+        const int TCP_SOCKET_RECV_TIMEOUT = 10000;
 
         readonly IPEndPoint _localEP;
 
