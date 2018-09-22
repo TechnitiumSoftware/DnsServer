@@ -360,11 +360,23 @@ function loadDnsSettings() {
             }
 
             var blockListUrl = responseJSON.response.blockListUrl;
-            if (blockListUrl === null) {
-                $("#txtBlockListUrl").val("");
+            if (blockListUrl == null) {
+                $("#txtBlockListUrl").val("None");
             }
             else {
-                $("#txtBlockListUrl").val(blockListUrl);
+                var foundItem = false;
+
+                $("#optBlockListUrl a").each(function () {
+                    var item = $(this).html();
+
+                    if (item.indexOf(blockListUrl) > -1) {
+                        $("#txtBlockListUrl").val(item);
+                        foundItem = true;
+                    }
+                });
+
+                if (!foundItem)
+                    $("#txtBlockListUrl").val(blockListUrl);
             }
 
             divDnsSettingsLoader.hide();
@@ -429,8 +441,19 @@ function saveDnsSettings() {
     var forwarderProtocol = $('input[name=rdForwarderProtocol]:checked').val();
 
     var blockListUrl = $("#txtBlockListUrl").val();
-    if (blockListUrl.length === 0)
+    if (blockListUrl.length === 0) {
         blockListUrl = false;
+    }
+    else {
+        var i = blockListUrl.indexOf("(");
+        if (i > -1) {
+            var j = blockListUrl.indexOf(")");
+            blockListUrl = blockListUrl.substring(i + 1, j);
+        }
+
+        if (blockListUrl === "None")
+            blockListUrl = false;
+    }
 
     var btn = $("#btnSaveDnsSettings").button('loading');
 
