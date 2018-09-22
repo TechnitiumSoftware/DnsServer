@@ -89,6 +89,7 @@
                             <ul class="nav nav-tabs" role="tablist">
                                 <li id="mainPanelTabListZones" role="presentation" class="active"><a href="#mainPanelTabPaneZones" aria-controls="mainPanelTabPaneZones" role="tab" data-toggle="tab" onclick="return refreshZonesList();">Zones</a></li>
                                 <li id="mainPanelTabListCachedZones" role="presentation"><a href="#mainPanelTabPaneCachedZones" aria-controls="mainPanelTabPaneCachedZones" role="tab" data-toggle="tab" onclick="return false;">Cached Zones</a></li>
+                                <li id="mainPanelTabListBlockedZones" role="presentation"><a href="#mainPanelTabPaneBlockedZones" aria-controls="mainPanelTabPaneBlockedZones" role="tab" data-toggle="tab" onclick="return false;">Blocked Zones</a></li>
                                 <li id="mainPanelTabListDnsClient" role="presentation"><a href="#mainPanelTabPaneDnsClient" aria-controls="mainPanelTabPaneZones" role="tab" data-toggle="tab" onclick="return false;">DNS Client</a></li>
                                 <li id="mainPanelTabListSettings" role="presentation"><a href="#mainPanelTabPaneSettings" aria-controls="mainPanelTabPaneSettings" role="tab" data-toggle="tab" onclick="return loadDnsSettings();">Settings</a></li>
                                 <li id="mainPanelTabListLogs" role="presentation"><a href="#mainPanelTabPaneLogs" aria-controls="mainPanelTabPaneLogs" role="tab" data-toggle="tab" onclick="return refreshLogFilesList();">Logs</a></li>
@@ -398,6 +399,40 @@
 
                                 </div>
 
+                                <div id="mainPanelTabPaneBlockedZones" role="tabpanel" class="tab-pane" style="padding: 10px 0 0 0;">
+
+                                    <div class="well well-sm zone-list-pane">
+                                        <form class="form-inline">
+                                            <div class="form-group">
+                                                <input type="text" class="form-control" style="width: 170px;" id="txtBlockZone" placeholder="example.com">
+                                                <button id="btnBlockZone" type="submit" class="btn btn-primary" data-loading-text="Block" onclick="return blockZone();">Block</button>
+                                            </div>
+                                        </form>
+
+                                        <div id="lstBlockedZones" class="zones">
+                                            <div class="zone"><a href="#" onclick="return refreshBlockedZonesList('technitium.com');">technitium.com</a></div>
+                                        </div>
+                                    </div>
+
+                                    <div id="divBlockedZoneViewer" class="zone-viewer-pane">
+                                        <div class="panel panel-default">
+                                            <div class="panel-heading" style="height: 36px; padding: 4px 6px;">
+                                                <div id="txtBlockedZoneViewerTitle" style="float: left; padding: 4px;">technitium.com</div>
+                                                <div style="float: right;">
+                                                    <button id="btnDeleteBlockedZone" type="button" class="btn btn-danger" data-loading-text="Delete" onclick="return deleteBlockedZone();" style="font-size: 12px; padding: 4px 6px;">Delete</button>
+                                                </div>
+                                            </div>
+
+                                            <div class="panel-body">
+                                                <pre id="preBlockedZoneViewerBody">
+                                                    
+                                                </pre>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                </div>
+
                                 <div id="mainPanelTabPaneDnsClient" role="tabpanel" class="tab-pane" style="padding: 10px 0 0 0;">
 
                                     <form class="form-inline well">
@@ -567,6 +602,17 @@
 
                                             <div class="well well-sm form-horizontal">
                                                 <div class="form-group">
+                                                    <label for="txtBlockListUrl" class="col-sm-3 control-label">Block List URL</label>
+                                                    <div class="col-sm-6">
+                                                        <input type="text" class="form-control" id="txtBlockListUrl" placeholder="Block List URL">
+                                                    </div>
+                                                </div>
+
+                                                <div style="margin-top: 10px;">DNS Server will use the <i>hosts</i> file returned by the block list URL to update the blocked zones automatically every 24 hours. The expected file format is standard <i>hosts</i> file format.</div>
+                                            </div>
+
+                                            <div class="well well-sm form-horizontal">
+                                                <div class="form-group">
                                                     <label class="col-sm-3 control-label">Network Proxy</label>
                                                     <div class="col-sm-6" id="divNetworkProxy">
                                                         <div class="radio">
@@ -674,6 +720,7 @@
                                             <div class="form-group" style="margin-bottom: 0px;">
                                                 <button id="btnSaveDnsSettings" type="button" class="btn btn-primary" data-loading-text="Saving..." onclick="return saveDnsSettings();" style="margin-right: 6px;">Save Settings</button>
                                                 <button id="btnFlushDnsCache" type="button" class="btn btn-warning" data-loading-text="Flushing..." onclick="return flushDnsCache();">Flush Cache</button>
+                                                <button id="btnFlushBlockedZone" type="button" class="btn btn-warning" data-loading-text="Flushing..." onclick="return flushBlockedZone();">Flush Blocked Zone</button>
                                             </div>
 
                                         </form>

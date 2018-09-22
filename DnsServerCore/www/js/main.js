@@ -52,6 +52,7 @@ function showPageMain(username) {
     loadDnsSettings();
     refreshZonesList();
     refreshCachedZonesList();
+    refreshBlockedZonesList();
     checkForUpdate();
 
     refreshZonesTimerHandle = setInterval(function () { refreshZonesList(true); }, 60000);
@@ -358,6 +359,14 @@ function loadDnsSettings() {
                     break;
             }
 
+            var blockListUrl = responseJSON.response.blockListUrl;
+            if (blockListUrl === null) {
+                $("#txtBlockListUrl").val("");
+            }
+            else {
+                $("#txtBlockListUrl").val(blockListUrl);
+            }
+
             divDnsSettingsLoader.hide();
             divDnsSettings.show();
         },
@@ -419,17 +428,21 @@ function saveDnsSettings() {
 
     var forwarderProtocol = $('input[name=rdForwarderProtocol]:checked').val();
 
+    var blockListUrl = $("#txtBlockListUrl").val();
+    if (blockListUrl.length === 0)
+        blockListUrl = false;
+
     var btn = $("#btnSaveDnsSettings").button('loading');
 
     HTTPRequest({
-        url: "/api/setDnsSettings?token=" + token + "&serverDomain=" + serverDomain + "&webServicePort=" + webServicePort + "&preferIPv6=" + preferIPv6 + "&logQueries=" + logQueries + "&allowRecursion=" + allowRecursion + "&allowRecursionOnlyForPrivateNetworks=" + allowRecursionOnlyForPrivateNetworks + proxy + "&forwarders=" + forwarders + "&forwarderProtocol=" + forwarderProtocol,
+        url: "/api/setDnsSettings?token=" + token + "&serverDomain=" + serverDomain + "&webServicePort=" + webServicePort + "&preferIPv6=" + preferIPv6 + "&logQueries=" + logQueries + "&allowRecursion=" + allowRecursion + "&allowRecursionOnlyForPrivateNetworks=" + allowRecursionOnlyForPrivateNetworks + proxy + "&forwarders=" + forwarders + "&forwarderProtocol=" + forwarderProtocol + "&blockListUrl=" + blockListUrl,
         success: function (responseJSON) {
             document.title = "Technitium DNS Server " + responseJSON.response.version + " - " + responseJSON.response.serverDomain;
             $("#lblServerDomain").text(" - " + responseJSON.response.serverDomain);
-            $("#txtServerDomain").val(responseJSON.response.serverDomain)
+            $("#txtServerDomain").val(responseJSON.response.serverDomain);
 
             btn.button('reset');
-            showAlert("success", "Settings Saved!", "Dns server settings were saved successfully.");
+            showAlert("success", "Settings Saved!", "DNS Server settings were saved successfully.");
         },
         error: function () {
             btn.button('reset');
@@ -445,7 +458,7 @@ function saveDnsSettings() {
 
 function flushDnsCache() {
 
-    if (!confirm("Are you sure to flush the DNS server cache?"))
+    if (!confirm("Are you sure to flush the DNS Server cache?"))
         return false;
 
     var btn = $("#btnFlushDnsCache").button('loading');
@@ -454,7 +467,7 @@ function flushDnsCache() {
         url: "/api/flushDnsCache?token=" + token,
         success: function (responseJSON) {
             btn.button('reset');
-            showAlert("success", "Cache Flushed!", "Dns server cache was flushed successfully.");
+            showAlert("success", "Cache Flushed!", "DNS Server cache was flushed successfully.");
         },
         error: function () {
             btn.button('reset');
@@ -576,6 +589,160 @@ function refreshCachedZonesList(domain, direction) {
             lstCachedZones.html("<div class=\"zone\"><a href=\"#\" onclick=\"return refreshCachedZonesList('" + domain + "');\"><b>[refresh]</b></a></div>");
         },
         objLoaderPlaceholder: lstCachedZones
+    });
+
+    return false;
+}
+
+function blockZone() {
+
+    var domain = $("#txtBlockZone").val();
+
+    if ((domain === null) || (domain === "")) {
+        showAlert("warning", "Missing!", "Please enter a domain name to block.");
+        return false;
+    }
+
+    var btn = $("#btnBlockZone").button('loading');
+
+    HTTPRequest({
+        url: "/api/blockZone?token=" + token + "&domain=" + domain,
+        success: function (responseJSON) {
+            refreshBlockedZonesList(domain);
+
+            $("#txtBlockZone").val("");
+            btn.button('reset');
+
+            showAlert("success", "Zone Blocked!", "Zone was blocked successfully.");
+        },
+        error: function () {
+            btn.button('reset');
+        },
+        invalidToken: function () {
+            btn.button('reset');
+            showPageLogin();
+        }
+    });
+
+    return false;
+}
+
+function flushBlockedZone() {
+
+    if (!confirm("Are you sure to flush the DNS Server blocked zone?"))
+        return false;
+
+    var btn = $("#btnFlushBlockedZone").button('loading');
+
+    HTTPRequest({
+        url: "/api/flushBlockedZone?token=" + token,
+        success: function (responseJSON) {
+            btn.button('reset');
+            showAlert("success", "Blocked Zone Flushed!", "DNS Server blocked zone was flushed successfully.");
+        },
+        error: function () {
+            btn.button('reset');
+        },
+        invalidToken: function () {
+            btn.button('reset');
+            showPageLogin();
+        }
+    });
+
+    return false;
+}
+
+function deleteBlockedZone() {
+
+    var domain = $("#txtBlockedZoneViewerTitle").text();
+
+    if (!confirm("Are you sure you want to delete the blocked zone '" + domain + "'?"))
+        return false;
+
+    var btn = $("#btnDeleteBlockedZone").button('loading');
+
+    HTTPRequest({
+        url: "/api/deleteBlockedZone?token=" + token + "&domain=" + domain,
+        success: function (responseJSON) {
+            refreshBlockedZonesList(getParentDomain(domain), "up");
+
+            btn.button('reset');
+            showAlert("success", "Blocked Zone Deleted!", "Blocked zone was deleted successfully.");
+        },
+        error: function () {
+            btn.button('reset');
+        },
+        invalidToken: function () {
+            btn.button('reset');
+            showPageLogin();
+        }
+    });
+
+    return false;
+}
+
+function refreshBlockedZonesList(domain, direction) {
+
+    if (domain == null)
+        domain = "";
+
+    domain.toLowerCase();
+
+    var lstBlockedZones = $("#lstBlockedZones");
+    var divBlockedZoneViewer = $("#divBlockedZoneViewer");
+    var preBlockedZoneViewerBody = $("#preBlockedZoneViewerBody");
+
+    divBlockedZoneViewer.hide();
+    preBlockedZoneViewerBody.hide();
+
+    HTTPRequest({
+        url: "/api/listBlockedZones?token=" + token + "&domain=" + domain + ((direction == null) ? "" : "&direction=" + direction),
+        success: function (responseJSON) {
+            var newDomain = responseJSON.response.domain;
+            var zones = responseJSON.response.zones;
+
+            var list = "<div class=\"zone\"><a href=\"#\" onclick=\"return refreshBlockedZonesList('" + newDomain + "');\"><b>[refresh]</b></a></div>"
+
+            var parentDomain = getParentDomain(newDomain);
+
+            if (parentDomain != null)
+                list += "<div class=\"zone\"><a href=\"#\" onclick=\"return refreshBlockedZonesList('" + parentDomain + "', 'up');\"><b>[up]</b></a></div>"
+
+            for (var i = 0; i < zones.length; i++) {
+                var zoneName = htmlEncode(zones[i]);
+
+                list += "<div class=\"zone\"><a href=\"#\" onclick=\"return refreshBlockedZonesList('" + zoneName + "');\">" + zoneName + "</a></div>"
+            }
+
+            lstBlockedZones.html(list);
+
+            if (newDomain == "") {
+                $("#txtBlockedZoneViewerTitle").text("<ROOT>");
+                $("#btnDeleteBlockedZone").hide();
+            }
+            else {
+                $("#txtBlockedZoneViewerTitle").text(newDomain);
+
+                if ((newDomain == "root-servers.net") || newDomain.endsWith(".root-servers.net"))
+                    $("#btnDeleteBlockedZone").hide();
+                else
+                    $("#btnDeleteBlockedZone").show();
+            }
+
+            if (responseJSON.response.records.length > 0) {
+                preBlockedZoneViewerBody.text(JSON.stringify(responseJSON.response.records, null, 2));
+                preBlockedZoneViewerBody.show();
+            }
+
+            divBlockedZoneViewer.show();
+        },
+        invalidToken: function () {
+            showPageLogin();
+        },
+        error: function () {
+            lstBlockedZones.html("<div class=\"zone\"><a href=\"#\" onclick=\"return refreshBlockedZonesList('" + domain + "');\"><b>[refresh]</b></a></div>");
+        },
+        objLoaderPlaceholder: lstBlockedZones
     });
 
     return false;
