@@ -178,7 +178,7 @@ namespace DnsServerCore
             return currentZone;
         }
 
-        private static void DeleteZone(Zone rootZone, string domain)
+        private static void DeleteZone(Zone rootZone, string domain, bool deleteSubZones)
         {
             Zone currentZone = GetZone(rootZone, domain);
             if (currentZone == null)
@@ -189,15 +189,15 @@ namespace DnsServerCore
 
             currentZone._entries.Clear();
 
-            DeleteSubDomains(currentZone);
+            DeleteSubDomains(currentZone, deleteSubZones);
             DeleteEmptyParentZones(currentZone);
         }
 
-        private static bool DeleteSubDomains(Zone currentZone)
+        private static bool DeleteSubDomains(Zone currentZone, bool deleteSubZones)
         {
             if (currentZone._authoritativeZone)
             {
-                if (currentZone._entries.ContainsKey(DnsResourceRecordType.SOA))
+                if (!deleteSubZones && currentZone._entries.ContainsKey(DnsResourceRecordType.SOA))
                     return false; //this is a zone so return false
             }
             else
@@ -213,7 +213,7 @@ namespace DnsServerCore
 
             foreach (KeyValuePair<string, Zone> zone in currentZone._zones)
             {
-                if (DeleteSubDomains(zone.Value))
+                if (DeleteSubDomains(zone.Value, deleteSubZones))
                     subDomainsToDelete.Add(zone.Value);
             }
 
@@ -225,7 +225,7 @@ namespace DnsServerCore
 
         private static void DeleteEmptyParentZones(Zone currentZone)
         {
-            while (true)
+            while (currentZone._parentZone != null)
             {
                 if ((currentZone._entries.Count > 0) || (currentZone._zones.Count > 0))
                     break;
@@ -933,9 +933,9 @@ namespace DnsServerCore
             return zoneNames.ToArray();
         }
 
-        public void DeleteZone(string domain)
+        public void DeleteZone(string domain, bool deleteSubZones)
         {
-            DeleteZone(this, domain);
+            DeleteZone(this, domain, deleteSubZones);
         }
 
         public void DisableZone(string domain)
