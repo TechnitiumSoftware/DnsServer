@@ -137,6 +137,11 @@ namespace DnsServerCore
 
         #region public
 
+        public void Write(Exception ex)
+        {
+            Write(null, ex.ToString());
+        }
+
         public void Write(IPEndPoint ep, Exception ex)
         {
             Write(ep, ex.ToString());
