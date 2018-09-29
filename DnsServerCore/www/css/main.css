@@ -202,3 +202,65 @@ label {
     width: 84%;
     display: none;
 }
+
+
+.stats-panel {
+    height: 100px;
+    padding: 10px 0 10px 0;
+}
+
+    .stats-panel .total-queries {
+        background-color: rgba(102, 153, 255, 0.7);
+        color: #ffffff;
+    }
+
+    .stats-panel .no-error {
+        background-color: rgba(92, 184, 92, 0.7);
+        color: #ffffff;
+    }
+
+    .stats-panel .server-failure {
+        background-color: rgba(217, 83, 79, 0.7);
+        color: #ffffff;
+    }
+
+    .stats-panel .name-error {
+        background-color: rgba(7, 7, 7, 0.7);
+        color: #ffffff;
+    }
+
+    .stats-panel .refused {
+        background-color: rgba(91, 192, 222, 0.7);
+        color: #ffffff;
+    }
+
+    .stats-panel .blocked {
+        background-color: rgba(255, 165, 0, 0.7);
+        color: #ffffff;
+    }
+
+    .stats-panel .clients {
+        background-color: rgba(51, 122, 183, 0.7);
+        color: #ffffff;
+    }
+
+    .stats-panel .stats-item {
+        width: 150px;
+        float: left;
+        padding: 10px;
+        margin-right: 8px;
+    }
+
+        .stats-panel .stats-item .number {
+            font-size: 22px;
+            font-weight: bold;
+        }
+
+        .stats-panel .stats-item .percentage {
+            font-size: 12px;
+            font-weight: bold;
+        }
+
+        .stats-panel .stats-item .title {
+            font-weight: bold;
+        }

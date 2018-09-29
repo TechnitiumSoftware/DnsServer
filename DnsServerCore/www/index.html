@@ -10,6 +10,7 @@
     <link href="/css/bootstrap.min.css" rel="stylesheet">
     <!--<link href="/css/bootstrap-theme.min.css" rel="stylesheet">-->
     <script src="/js/bootstrap.min.js"></script>
+    <script src="/js/Chart.min.js"></script>
 
     <link href="/css/font-awesome.min.css" rel="stylesheet" />
 
@@ -87,17 +88,160 @@
 
                         <div>
                             <ul class="nav nav-tabs" role="tablist">
-                                <li id="mainPanelTabListZones" role="presentation" class="active"><a href="#mainPanelTabPaneZones" aria-controls="mainPanelTabPaneZones" role="tab" data-toggle="tab" onclick="return refreshZonesList();">Zones</a></li>
+                                <li id="mainPanelTabListDashboard" role="presentation" class="active"><a href="#mainPanelTabPaneDashboard" aria-controls="mainPanelTabPaneDashboard" role="tab" data-toggle="tab" onclick="return refreshDashboard();">Dashboard</a></li>
+                                <li id="mainPanelTabListZones" role="presentation"><a href="#mainPanelTabPaneZones" aria-controls="mainPanelTabPaneZones" role="tab" data-toggle="tab" onclick="return refreshZonesList();">Zones</a></li>
                                 <li id="mainPanelTabListCachedZones" role="presentation"><a href="#mainPanelTabPaneCachedZones" aria-controls="mainPanelTabPaneCachedZones" role="tab" data-toggle="tab" onclick="return false;">Cached Zones</a></li>
                                 <li id="mainPanelTabListBlockedZones" role="presentation"><a href="#mainPanelTabPaneBlockedZones" aria-controls="mainPanelTabPaneBlockedZones" role="tab" data-toggle="tab" onclick="return false;">Blocked Zones</a></li>
-                                <li id="mainPanelTabListDnsClient" role="presentation"><a href="#mainPanelTabPaneDnsClient" aria-controls="mainPanelTabPaneZones" role="tab" data-toggle="tab" onclick="return false;">DNS Client</a></li>
+                                <li id="mainPanelTabListDnsClient" role="presentation"><a href="#mainPanelTabPaneDnsClient" aria-controls="mainPanelTabPaneDnsClient" role="tab" data-toggle="tab" onclick="return false;">DNS Client</a></li>
                                 <li id="mainPanelTabListSettings" role="presentation"><a href="#mainPanelTabPaneSettings" aria-controls="mainPanelTabPaneSettings" role="tab" data-toggle="tab" onclick="return loadDnsSettings();">Settings</a></li>
                                 <li id="mainPanelTabListLogs" role="presentation"><a href="#mainPanelTabPaneLogs" aria-controls="mainPanelTabPaneLogs" role="tab" data-toggle="tab" onclick="return refreshLogFilesList();">Logs</a></li>
                             </ul>
 
                             <div class="tab-content">
 
-                                <div id="mainPanelTabPaneZones" role="tabpanel" class="tab-pane active" style="padding: 10px 0 0 0;">
+                                <div id="mainPanelTabPaneDashboard" role="tabpanel" class="tab-pane active" style="padding: 10px 0 0 0;">
+                                    <div id="divDashboardLoader" style="margin-top: 10px; height: 400px;"></div>
+
+                                    <div id="divDashboard" style="display: none;">
+                                        <div class="btn-group" data-toggle="buttons">
+                                            <label class="btn btn-default active">
+                                                <input type="radio" name="optStatMode" id="optLastHour" autocomplete="off" checked> Last Hour
+                                            </label>
+                                            <label class="btn btn-default">
+                                                <input type="radio" name="optStatMode" id="optLastDay" autocomplete="off"> Last Day
+                                            </label>
+                                            <label class="btn btn-default">
+                                                <input type="radio" name="optStatMode" id="optLastWeek" autocomplete="off"> Last Week
+                                            </label>
+                                            <label class="btn btn-default">
+                                                <input type="radio" name="optStatMode" id="optLastMonth" autocomplete="off"> Last Month
+                                            </label>
+                                        </div>
+
+                                        <div class="stats-panel">
+                                            <div class="stats-item total-queries">
+                                                <div class="number" id="divDashboardStatsTotalQueries">100</div>
+                                                <div class="percentage">100%</div>
+                                                <div class="title">Total Queries</div>
+                                            </div>
+
+                                            <div class="stats-item no-error">
+                                                <div class="number" id="divDashboardStatsTotalNoError">70</div>
+                                                <div class="percentage" id="divDashboardStatsTotalNoErrorPercentage">0%</div>
+                                                <div class="title">No Error</div>
+                                            </div>
+
+                                            <div class="stats-item server-failure">
+                                                <div class="number" id="divDashboardStatsTotalServerFailure">5</div>
+                                                <div class="percentage" id="divDashboardStatsTotalServerFailurePercentage">0%</div>
+                                                <div class="title">Server Failure</div>
+                                            </div>
+
+                                            <div class="stats-item name-error">
+                                                <div class="number" id="divDashboardStatsTotalNameError">5</div>
+                                                <div class="percentage" id="divDashboardStatsTotalNameErrorPercentage">0%</div>
+                                                <div class="title">Name Error</div>
+                                            </div>
+
+                                            <div class="stats-item refused">
+                                                <div class="number" id="divDashboardStatsTotalRefused">10</div>
+                                                <div class="percentage" id="divDashboardStatsTotalRefusedPercentage">0%</div>
+                                                <div class="title">Refused</div>
+                                            </div>
+
+                                            <div class="stats-item blocked">
+                                                <div class="number" id="divDashboardStatsTotalBlocked">10</div>
+                                                <div class="percentage" id="divDashboardStatsTotalBlockedPercentage">0%</div>
+                                                <div class="title">Blocked</div>
+                                            </div>
+
+                                            <div class="stats-item clients">
+                                                <div class="number" id="divDashboardStatsTotalClients">10</div>
+                                                <div class="percentage">&nbsp;</div>
+                                                <div class="title">Clients</div>
+                                            </div>
+                                        </div>
+
+                                        <div>
+                                            <canvas id="canvasDashboardMain" style="margin: 10px 0 10px 0;"></canvas>
+                                        </div>
+
+                                        <div style="margin-top: 15px;">
+                                            <div class="panel panel-default" style="float: left; width: 547px; margin-bottom: 0px;">
+                                                <div class="panel-heading">Top Query Type</div>
+                                                <div class="panel-body">
+                                                    <canvas id="canvasDashboardPie"></canvas>
+                                                </div>
+                                            </div>
+
+                                            <div class="panel panel-default" style="float: right; width: 547px; margin-bottom: 0px;">
+                                                <div class="panel-heading">Top Clients</div>
+                                                <table class="table table-hover" id="tableTopClients">
+                                                    <thead>
+                                                        <tr>
+                                                            <th>Client</th>
+                                                            <th>Queries</th>
+                                                        </tr>
+                                                    </thead>
+                                                    <tbody>
+                                                        <tr>
+                                                            <td>127.0.0.1</td>
+                                                            <td>100</td>
+                                                        </tr>
+                                                        <tr>
+                                                            <td>::1</td>
+                                                            <td>10</td>
+                                                        </tr>
+                                                    </tbody>
+                                                </table>
+                                            </div>
+
+                                            <div style="clear: both;"></div>
+                                        </div>
+
+                                        <div style="margin-top: 15px;">
+                                            <div class="panel panel-default" style="float: left; width: 547px; margin-bottom: 0px;">
+                                                <div class="panel-heading">Top Domains</div>
+                                                <table class="table table-hover" id="tableTopDomains">
+                                                    <thead>
+                                                        <tr>
+                                                            <th>Domain</th>
+                                                            <th>Hits</th>
+                                                        </tr>
+                                                    </thead>
+                                                    <tbody>
+                                                        <tr>
+                                                            <td>example.com</td>
+                                                            <td>10</td>
+                                                        </tr>
+                                                    </tbody>
+                                                </table>
+                                            </div>
+
+                                            <div class="panel panel-default" style="float: right; width: 547px; margin-bottom: 0px;">
+                                                <div class="panel-heading">Top Blocked Domains</div>
+                                                <table class="table table-hover" id="tableTopBlockedDomains">
+                                                    <thead>
+                                                        <tr>
+                                                            <th>Domain</th>
+                                                            <th>Hits</th>
+                                                        </tr>
+                                                    </thead>
+                                                    <tbody>
+                                                        <tr>
+                                                            <td>blocked.example.com</td>
+                                                            <td>10</td>
+                                                        </tr>
+                                                    </tbody>
+                                                </table>
+                                            </div>
+
+                                            <div style="clear: both;"></div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div id="mainPanelTabPaneZones" role="tabpanel" class="tab-pane" style="padding: 10px 0 0 0;">
 
                                     <div class="well well-sm zone-list-pane">
                                         <form class="form-inline">
@@ -763,9 +907,9 @@
                                             </div>
 
                                             <div class="form-group" style="margin-bottom: 0px;">
-                                                <button id="btnSaveDnsSettings" type="button" class="btn btn-primary" data-loading-text="Saving..." onclick="return saveDnsSettings();" style="margin-right: 6px;">Save Settings</button>
-                                                <button id="btnFlushDnsCache" type="button" class="btn btn-warning" data-loading-text="Flushing..." onclick="return flushDnsCache();">Flush Cache</button>
-                                                <button id="btnFlushBlockedZone" type="button" class="btn btn-warning" data-loading-text="Flushing..." onclick="return flushBlockedZone();">Flush Blocked Zone</button>
+                                                <button id="btnSaveDnsSettings" type="button" class="btn btn-primary" data-loading-text="Saving..." onclick="return saveDnsSettings();">Save Settings</button>
+                                                <button id="btnFlushDnsCache" type="button" class="btn btn-warning" data-loading-text="Flushing..." onclick="return flushDnsCache();" style="margin-left: 6px;">Flush Cache</button>
+                                                <button id="btnFlushBlockedZone" type="button" class="btn btn-warning" data-loading-text="Flushing..." onclick="return flushBlockedZone();" style="margin-left: 6px;">Flush Blocked Zone</button>
                                             </div>
 
                                         </form>

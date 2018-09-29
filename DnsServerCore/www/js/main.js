@@ -1,6 +1,6 @@
 ﻿
 var token = null;
-var refreshZonesTimerHandle;
+var refreshTimerHandle;
 
 function showPageLogin() {
     hideAlert();
@@ -15,9 +15,9 @@ function showPageLogin() {
 
     $("#txtUser").focus();
 
-    if (refreshZonesTimerHandle != null) {
-        clearInterval(refreshZonesTimerHandle);
-        refreshZonesTimerHandle = null;
+    if (refreshTimerHandle != null) {
+        clearInterval(refreshTimerHandle);
+        refreshTimerHandle = null;
     }
 }
 
@@ -32,8 +32,8 @@ function showPageMain(username) {
 
     $(".nav-tabs li").removeClass("active");
     $(".tab-pane").removeClass("active");
-    $("#mainPanelTabListZones").addClass("active");
-    $("#mainPanelTabPaneZones").addClass("active");
+    $("#mainPanelTabListDashboard").addClass("active");
+    $("#mainPanelTabPaneDashboard").addClass("active");
 
     $("#divZoneViewer").hide();
 
@@ -50,12 +50,16 @@ function showPageMain(username) {
     $("#pageMain").show();
 
     loadDnsSettings();
+    refreshDashboard();
     refreshZonesList();
     refreshCachedZonesList();
     refreshBlockedZonesList();
     checkForUpdate();
 
-    refreshZonesTimerHandle = setInterval(function () { refreshZonesList(true); }, 60000);
+    refreshTimerHandle = setInterval(function () {
+        refreshDashboard(true);
+        refreshZonesList(true);
+    }, 60000);
 }
 
 $(function () {
@@ -566,6 +570,164 @@ function saveDnsSettings() {
             btn.button('reset');
             showPageLogin();
         }
+    });
+
+    return false;
+}
+
+function refreshDashboard(hideLoader) {
+
+    if (!$("#mainPanelTabPaneDashboard").hasClass("active"))
+        return;
+
+    if (hideLoader == null)
+        hideLoader = false;
+
+    var divDashboardLoader = $("#divDashboardLoader");
+    var divDashboard = $("#divDashboard");
+
+    if (!hideLoader) {
+        divDashboard.hide();
+        divDashboardLoader.show();
+    }
+
+    HTTPRequest({
+        url: "/api/getStats?token=" + token,
+        success: function (responseJSON) {
+
+            //stats
+            $("#divDashboardStatsTotalQueries").text(responseJSON.response.stats.totalQueries);
+            $("#divDashboardStatsTotalNoError").text(responseJSON.response.stats.totalNoError);
+            $("#divDashboardStatsTotalServerFailure").text(responseJSON.response.stats.totalServerFailure);
+            $("#divDashboardStatsTotalNameError").text(responseJSON.response.stats.totalNameError);
+            $("#divDashboardStatsTotalRefused").text(responseJSON.response.stats.totalRefused);
+            $("#divDashboardStatsTotalBlocked").text(responseJSON.response.stats.totalBlocked);
+            $("#divDashboardStatsTotalClients").text(responseJSON.response.stats.totalClients);
+
+            if (responseJSON.response.stats.totalQueries > 0) {
+                $("#divDashboardStatsTotalNoErrorPercentage").text((responseJSON.response.stats.totalNoError * 100 / responseJSON.response.stats.totalQueries).toFixed(2) + "%");
+                $("#divDashboardStatsTotalServerFailurePercentage").text((responseJSON.response.stats.totalServerFailure * 100 / responseJSON.response.stats.totalQueries).toFixed(2) + "%");
+                $("#divDashboardStatsTotalNameErrorPercentage").text((responseJSON.response.stats.totalNameError * 100 / responseJSON.response.stats.totalQueries).toFixed(2) + "%");
+                $("#divDashboardStatsTotalRefusedPercentage").text((responseJSON.response.stats.totalRefused * 100 / responseJSON.response.stats.totalQueries).toFixed(2) + "%");
+                $("#divDashboardStatsTotalBlockedPercentage").text((responseJSON.response.stats.totalBlocked * 100 / responseJSON.response.stats.totalQueries).toFixed(2) + "%");
+            }
+            else {
+                $("#divDashboardStatsTotalNoErrorPercentage").text("0%");
+                $("#divDashboardStatsTotalServerFailurePercentage").text("0%");
+                $("#divDashboardStatsTotalNameErrorPercentage").text("0%");
+                $("#divDashboardStatsTotalRefusedPercentage").text("0%");
+                $("#divDashboardStatsTotalBlockedPercentage").text("0%");
+            }
+
+            //main chart
+            if (window.chartDashboardMain == null) {
+                var contextDashboardMain = document.getElementById("canvasDashboardMain").getContext('2d');
+
+                window.chartDashboardMain = new Chart(contextDashboardMain, {
+                    type: 'line',
+                    data: responseJSON.response.mainChartData,
+                    options: {
+                        elements: {
+                            line: {
+                                tension: .5,
+                            }
+                        },
+                        scales: {
+                            yAxes: [{
+                                ticks: {
+                                    beginAtZero: true
+                                }
+                            }]
+                        }
+                    }
+                });
+            }
+            else {
+                window.chartDashboardMain.data = responseJSON.response.mainChartData;
+                window.chartDashboardMain.update();
+            }
+
+            //query type chart
+            if (window.chartDashboardPie == null) {
+                var contextDashboardPie = document.getElementById("canvasDashboardPie").getContext('2d');
+
+                window.chartDashboardPie = new Chart(contextDashboardPie, {
+                    type: 'doughnut',
+                    data: responseJSON.response.queryTypeChartData
+                });
+            }
+            else {
+                window.chartDashboardPie.data = responseJSON.response.queryTypeChartData;
+                window.chartDashboardPie.update();
+            }
+
+            //top clients
+            {
+                var tableHtml = "<thead><tr><th>Client</th><th>Queries</th></tr></thead><tbody>";
+                var topClients = responseJSON.response.topClients;
+
+                if (topClients.length < 1) {
+                    tableHtml += "<tr><td>No Data</td><td></td></tr>";
+                }
+                else {
+                    for (var i = 0; i < topClients.length; i++) {
+                        tableHtml += "<tr><td>" + topClients[i].name + "</td><td>" + topClients[i].hits + "</td></tr>";
+                    }
+                }
+
+                tableHtml += "</tbody>";
+
+                $("#tableTopClients").html(tableHtml);
+            }
+
+            //top domains
+            {
+                var tableHtml = "<thead><tr><th>Domain</th><th>Hits</th></tr></thead><tbody>";
+                var topDomains = responseJSON.response.topDomains;
+
+                if (topDomains.length < 1) {
+                    tableHtml += "<tr><td>No Data</td><td></td></tr>";
+                }
+                else {
+                    for (var i = 0; i < topDomains.length; i++) {
+                        tableHtml += "<tr><td>" + topDomains[i].name + "</td><td>" + topDomains[i].hits + "</td></tr>";
+                    }
+                }
+
+                tableHtml += "</tbody>";
+
+                $("#tableTopDomains").html(tableHtml);
+            }
+
+            //top blocked domains
+            {
+                var tableHtml = "<thead><tr><th>Domain</th><th>Hits</th></tr></thead><tbody>";
+                var topBlockedDomains = responseJSON.response.topBlockedDomains;
+
+                if (topBlockedDomains.length < 1) {
+                    tableHtml += "<tr><td>No Data</td><td></td></tr>";
+                }
+                else {
+                    for (var i = 0; i < topBlockedDomains.length; i++) {
+                        tableHtml += "<tr><td>" + topBlockedDomains[i].name + "</td><td>" + topBlockedDomains[i].hits + "</td></tr>";
+                    }
+                }
+
+                tableHtml += "</tbody>";
+
+                $("#tableTopBlockedDomains").html(tableHtml);
+            }
+
+            if (!hideLoader) {
+                divDashboardLoader.hide();
+                divDashboard.show();
+            }
+        },
+        invalidToken: function () {
+            showPageLogin();
+        },
+        objLoaderPlaceholder: divDashboardLoader,
+        dontHideAlert: hideLoader
     });
 
     return false;
