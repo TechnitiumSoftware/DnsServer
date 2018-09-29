@@ -35,7 +35,7 @@ using TechnitiumLibrary.Net.Proxy;
 
 namespace DnsServerCore
 {
-    public class DnsWebService
+    public class DnsWebService : IDisposable
     {
         #region enum
 
@@ -56,6 +56,7 @@ namespace DnsServerCore
         readonly Uri _updateCheckUri;
 
         readonly LogManager _log;
+        readonly StatsManager _stats;
 
         string _serverDomain;
         int _webServicePort;
@@ -105,6 +106,43 @@ namespace DnsServerCore
                 Directory.CreateDirectory(logFolder);
 
             _log = new LogManager(logFolder);
+
+            string statsFolder = Path.Combine(_configFolder, "stats");
+
+            if (!Directory.Exists(statsFolder))
+                Directory.CreateDirectory(statsFolder);
+
+            _stats = new StatsManager(statsFolder, _log);
+        }
+
+        #endregion
+
+        #region IDisposable
+
+        private bool _disposed = false;
+
+        protected virtual void Dispose(bool disposing)
+        {
+            if (_disposed)
+                return;
+
+            if (disposing)
+            {
+                Stop();
+
+                if (_log != null)
+                    _log.Dispose();
+
+                if (_stats != null)
+                    _stats.Dispose();
+            }
+
+            _disposed = true;
+        }
+
+        public void Dispose()
+        {
+            Dispose(true);
         }
 
         #endregion
@@ -127,7 +165,7 @@ namespace DnsServerCore
             }
             catch (Exception ex)
             {
-                _log.Write(null, ex);
+                _log.Write(ex);
 
                 if (_state == ServiceState.Running)
                     throw;
@@ -198,6 +236,10 @@ namespace DnsServerCore
 
                                                 case "/api/setDnsSettings":
                                                     SetDnsSettings(request, jsonWriter);
+                                                    break;
+
+                                                case "/api/getStats":
+                                                    GetStats(request, jsonWriter);
                                                     break;
 
                                                 case "/api/flushDnsCache":
@@ -908,6 +950,209 @@ namespace DnsServerCore
             GetDnsSettings(jsonWriter);
         }
 
+        private void GetStats(HttpListenerRequest request, JsonTextWriter jsonWriter)
+        {
+            Dictionary<string, List<KeyValuePair<string, int>>> data = _stats.GetLastHourStats();
+
+            //stats
+            {
+                List<KeyValuePair<string, int>> stats = data["stats"];
+
+                jsonWriter.WritePropertyName("stats");
+                jsonWriter.WriteStartObject();
+
+                foreach (KeyValuePair<string, int> item in stats)
+                {
+                    jsonWriter.WritePropertyName(item.Key);
+                    jsonWriter.WriteValue(item.Value);
+                }
+
+                jsonWriter.WriteEndObject();
+            }
+
+            //main chart
+            {
+                jsonWriter.WritePropertyName("mainChartData");
+                jsonWriter.WriteStartObject();
+
+                //label
+                {
+                    List<KeyValuePair<string, int>> statsPerInterval = data["totalQueriesPerInterval"];
+
+                    jsonWriter.WritePropertyName("labels");
+                    jsonWriter.WriteStartArray();
+
+                    foreach (KeyValuePair<string, int> item in statsPerInterval)
+                        jsonWriter.WriteValue(item.Key);
+
+                    jsonWriter.WriteEndArray();
+                }
+
+                //datasets
+                {
+                    jsonWriter.WritePropertyName("datasets");
+                    jsonWriter.WriteStartArray();
+
+                    WriteChartDataSet(jsonWriter, "Total Queries", "rgba(102, 153, 255, 0.5)", "rgb(102, 153, 255)", data["totalQueriesPerInterval"]);
+                    WriteChartDataSet(jsonWriter, "No Error", "rgba(92, 184, 92, 0.5)", "rgb(92, 184, 92)", data["totalNoErrorPerInterval"]);
+                    WriteChartDataSet(jsonWriter, "Server Failure", "rgba(217, 83, 79, 0.5)", "rgb(217, 83, 79)", data["totalServerFailurePerInterval"]);
+                    WriteChartDataSet(jsonWriter, "Name Error", "rgba(7, 7, 7, 0.5)", "rgb(7, 7, 7)", data["totalNameErrorPerInterval"]);
+                    WriteChartDataSet(jsonWriter, "Refused", "rgba(91, 192, 222, 0.5)", "rgb(91, 192, 222)", data["totalRefusedPerInterval"]);
+                    WriteChartDataSet(jsonWriter, "Blocked", "rgba(255, 165, 0, 0.5)", "rgb(255, 165, 0)", data["totalBlockedPerInterval"]);
+                    WriteChartDataSet(jsonWriter, "Clients", "rgba(51, 122, 183, 0.5)", "rgb(51, 122, 183)", data["totalClientsPerInterval"]);
+
+                    jsonWriter.WriteEndArray();
+                }
+
+                jsonWriter.WriteEndObject();
+            }
+
+            //query type chart
+            {
+                jsonWriter.WritePropertyName("queryTypeChartData");
+                jsonWriter.WriteStartObject();
+
+                List<KeyValuePair<string, int>> queryTypes = data["queryTypes"];
+
+                //labels
+                {
+                    jsonWriter.WritePropertyName("labels");
+                    jsonWriter.WriteStartArray();
+
+                    foreach (KeyValuePair<string, int> item in queryTypes)
+                        jsonWriter.WriteValue(item.Key);
+
+                    jsonWriter.WriteEndArray();
+                }
+
+                //datasets
+                {
+                    jsonWriter.WritePropertyName("datasets");
+                    jsonWriter.WriteStartArray();
+
+                    jsonWriter.WriteStartObject();
+
+                    jsonWriter.WritePropertyName("data");
+                    jsonWriter.WriteStartArray();
+                    foreach (KeyValuePair<string, int> item in queryTypes)
+                        jsonWriter.WriteValue(item.Value);
+                    jsonWriter.WriteEndArray();
+
+                    jsonWriter.WritePropertyName("backgroundColor");
+                    jsonWriter.WriteStartArray();
+                    jsonWriter.WriteValue("rgba(102, 153, 255, 0.5)");
+                    jsonWriter.WriteValue("rgba(92, 184, 92, 0.5)");
+                    jsonWriter.WriteValue("rgba(91, 192, 222, 0.5)");
+                    jsonWriter.WriteValue("rgba(255, 165, 0, 0.5)");
+                    jsonWriter.WriteValue("rgba(51, 122, 183, 0.5)");
+                    jsonWriter.WriteEndArray();
+
+                    jsonWriter.WriteEndObject();
+
+                    jsonWriter.WriteEndArray();
+                }
+
+                jsonWriter.WriteEndObject();
+            }
+
+            //top clients
+            {
+                List<KeyValuePair<string, int>> topClients = data["topClients"];
+
+                jsonWriter.WritePropertyName("topClients");
+                jsonWriter.WriteStartArray();
+
+                foreach (KeyValuePair<string, int> item in topClients)
+                {
+                    jsonWriter.WriteStartObject();
+
+                    jsonWriter.WritePropertyName("name");
+                    jsonWriter.WriteValue(item.Key);
+
+                    jsonWriter.WritePropertyName("hits");
+                    jsonWriter.WriteValue(item.Value);
+
+                    jsonWriter.WriteEndObject();
+                }
+
+                jsonWriter.WriteEndArray();
+            }
+
+            //top domains
+            {
+                List<KeyValuePair<string, int>> topDomains = data["topDomains"];
+
+                jsonWriter.WritePropertyName("topDomains");
+                jsonWriter.WriteStartArray();
+
+                foreach (KeyValuePair<string, int> item in topDomains)
+                {
+                    jsonWriter.WriteStartObject();
+
+                    jsonWriter.WritePropertyName("name");
+                    jsonWriter.WriteValue(item.Key);
+
+                    jsonWriter.WritePropertyName("hits");
+                    jsonWriter.WriteValue(item.Value);
+
+                    jsonWriter.WriteEndObject();
+                }
+
+                jsonWriter.WriteEndArray();
+            }
+
+            //top blocked domains
+            {
+                List<KeyValuePair<string, int>> topBlockedDomains = data["topBlockedDomains"];
+
+                jsonWriter.WritePropertyName("topBlockedDomains");
+                jsonWriter.WriteStartArray();
+
+                foreach (KeyValuePair<string, int> item in topBlockedDomains)
+                {
+                    jsonWriter.WriteStartObject();
+
+                    jsonWriter.WritePropertyName("name");
+                    jsonWriter.WriteValue(item.Key);
+
+                    jsonWriter.WritePropertyName("hits");
+                    jsonWriter.WriteValue(item.Value);
+
+                    jsonWriter.WriteEndObject();
+                }
+
+                jsonWriter.WriteEndArray();
+            }
+        }
+
+        private void WriteChartDataSet(JsonTextWriter jsonWriter, string label, string backgroundColor, string borderColor, List<KeyValuePair<string, int>> statsPerInterval)
+        {
+            jsonWriter.WriteStartObject();
+
+            jsonWriter.WritePropertyName("label");
+            jsonWriter.WriteValue(label);
+
+            //jsonWriter.WritePropertyName("backgroundColor");
+            //jsonWriter.WriteValue(backgroundColor);
+
+            jsonWriter.WritePropertyName("borderColor");
+            jsonWriter.WriteValue(borderColor);
+
+            jsonWriter.WritePropertyName("borderWidth");
+            jsonWriter.WriteValue(1);
+
+            //jsonWriter.WritePropertyName("fill");
+            //jsonWriter.WriteValue(true);
+
+            jsonWriter.WritePropertyName("data");
+            jsonWriter.WriteStartArray();
+            foreach (KeyValuePair<string, int> item in statsPerInterval)
+                jsonWriter.WriteValue(item.Value);
+            jsonWriter.WriteEndArray();
+
+            jsonWriter.WriteEndObject();
+        }
+
         private void FlushCache(HttpListenerRequest request)
         {
             _dnsServer.CacheZoneRoot.Flush();
@@ -1090,7 +1335,9 @@ namespace DnsServerCore
 
         private void BlockZone(string domain)
         {
-            _dnsServer.BlockedZoneRoot.SetRecords(domain, DnsResourceRecordType.SOA, 60, new DnsResourceRecordData[] { new DnsSOARecord(_serverDomain, "hostmaster." + _serverDomain, 1, 28800, 7200, 604800, 600) });
+            _dnsServer.BlockedZoneRoot.SetRecords(domain, DnsResourceRecordType.SOA, 60, new DnsResourceRecordData[] { new DnsSOARecord(_serverDomain, "blockmaster." + _serverDomain, 1, 28800, 7200, 604800, 600) });
+            //_dnsServer.BlockedZoneRoot.SetRecords(domain, DnsResourceRecordType.A, 60, new DnsResourceRecordData[] { new DnsARecord(IPAddress.Any) });
+            //_dnsServer.BlockedZoneRoot.SetRecords(domain, DnsResourceRecordType.AAAA, 60, new DnsResourceRecordData[] { new DnsAAAARecord(IPAddress.IPv6Any) });
         }
 
         private void ListZones(JsonTextWriter jsonWriter)
@@ -1968,7 +2215,7 @@ namespace DnsServerCore
                             {
                                 string domain = bR.ReadShortString();
 
-                                _dnsServer.BlockedZoneRoot.SetRecords(domain, DnsResourceRecordType.SOA, 60, new DnsResourceRecordData[] { new DnsSOARecord(_serverDomain, "hostmaster." + _serverDomain, 1, 28800, 7200, 604800, 600) });
+                                BlockZone(domain);
                             }
 
                             break;
@@ -2378,6 +2625,7 @@ namespace DnsServerCore
 
             _dnsServer = new DnsServer();
             _dnsServer.LogManager = _log;
+            _dnsServer.StatsManager = _stats;
 
             LoadZoneFiles();
             LoadConfigFile();
@@ -2425,7 +2673,6 @@ namespace DnsServerCore
             _state = ServiceState.Stopped;
 
             _log.Write(new IPEndPoint(IPAddress.Loopback, _webServicePort), "DNS Web Service was stopped successfully.");
-            _log.Dispose();
         }
 
         #endregion
