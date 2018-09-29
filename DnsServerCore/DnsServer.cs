@@ -73,6 +73,7 @@ namespace DnsServerCore
         int _maxStackCount = 10;
         LogManager _log;
         LogManager _queryLog;
+        StatsManager _stats;
 
         volatile ServiceState _state = ServiceState.Stopped;
 
@@ -213,6 +214,10 @@ namespace DnsServerCore
                     LogManager queryLog = _queryLog;
                     if (queryLog != null)
                         queryLog.Write(remoteEP as IPEndPoint, false, request, response);
+
+                    StatsManager stats = _stats;
+                    if (stats != null)
+                        stats.Update(response, (remoteEP as IPEndPoint).Address);
                 }
             }
             catch (Exception ex)
@@ -315,7 +320,11 @@ namespace DnsServerCore
 
                         LogManager queryLog = _queryLog;
                         if (queryLog != null)
-                            queryLog.Write((IPEndPoint)tcpSocket.RemoteEndPoint, true, request, response);
+                            queryLog.Write(tcpSocket.RemoteEndPoint as IPEndPoint, true, request, response);
+
+                        StatsManager stats = _stats;
+                        if (stats != null)
+                            stats.Update(response, (tcpSocket.RemoteEndPoint as IPEndPoint).Address);
                     }
                 }
             }
@@ -327,11 +336,11 @@ namespace DnsServerCore
             {
                 LogManager queryLog = _queryLog;
                 if ((queryLog != null) && (request != null))
-                    queryLog.Write((IPEndPoint)tcpSocket.RemoteEndPoint, true, request, null);
+                    queryLog.Write(tcpSocket.RemoteEndPoint as IPEndPoint, true, request, null);
 
                 LogManager log = _log;
                 if (log != null)
-                    log.Write((IPEndPoint)tcpSocket.RemoteEndPoint, ex);
+                    log.Write(tcpSocket.RemoteEndPoint as IPEndPoint, ex);
             }
             finally
             {
@@ -738,6 +747,12 @@ namespace DnsServerCore
         {
             get { return _queryLog; }
             set { _queryLog = value; }
+        }
+
+        public StatsManager StatsManager
+        {
+            get { return _stats; }
+            set { _stats = value; }
         }
 
         #endregion
