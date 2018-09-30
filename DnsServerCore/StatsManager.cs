@@ -258,38 +258,33 @@ namespace DnsServerCore
         {
             StatsResponseType responseType;
 
-            switch (response.Header.RCODE)
+            if (response.Tag == "blocked")
             {
-                case DnsResponseCode.NoError:
-                    if (response.Header.AuthoritativeAnswer && (response.Header.ANCOUNT == 0) && (response.Header.NSCOUNT == 1) && (response.Authority[0].Type == DnsResourceRecordType.SOA) && (response.Authority[0].RDATA as DnsSOARecord).ResponsiblePerson.StartsWith("blockmaster."))
-                        responseType = StatsResponseType.Blocked;
-                    else if (response.Header.AuthoritativeAnswer && (response.Header.ANCOUNT == 1) && (response.Answer[0].Type == DnsResourceRecordType.A) && (response.Answer[0].RDATA as DnsARecord).Address.Equals(IPAddress.Any))
-                        responseType = StatsResponseType.Blocked;
-                    else if (response.Header.AuthoritativeAnswer && (response.Header.ANCOUNT == 1) && (response.Answer[0].Type == DnsResourceRecordType.AAAA) && (response.Answer[0].RDATA as DnsAAAARecord).Address.Equals(IPAddress.IPv6Any))
-                        responseType = StatsResponseType.Blocked;
-                    else
+                responseType = StatsResponseType.Blocked;
+            }
+            else
+            {
+                switch (response.Header.RCODE)
+                {
+                    case DnsResponseCode.NoError:
                         responseType = StatsResponseType.NoError;
+                        break;
 
-                    break;
+                    case DnsResponseCode.ServerFailure:
+                        responseType = StatsResponseType.ServerFailure;
+                        break;
 
-                case DnsResponseCode.ServerFailure:
-                    responseType = StatsResponseType.ServerFailure;
-                    break;
-
-                case DnsResponseCode.NameError:
-                    if (response.Header.AuthoritativeAnswer && (response.Header.ANCOUNT == 0) && (response.Header.NSCOUNT == 1) && (response.Authority[0].Type == DnsResourceRecordType.SOA) && (response.Authority[0].RDATA as DnsSOARecord).ResponsiblePerson.StartsWith("blockmaster."))
-                        responseType = StatsResponseType.Blocked;
-                    else
+                    case DnsResponseCode.NameError:
                         responseType = StatsResponseType.NameError;
+                        break;
 
-                    break;
+                    case DnsResponseCode.Refused:
+                        responseType = StatsResponseType.Refused;
+                        break;
 
-                case DnsResponseCode.Refused:
-                    responseType = StatsResponseType.Refused;
-                    break;
-
-                default:
-                    return;
+                    default:
+                        return;
+                }
             }
 
             Update(response.Question[0].Name, response.Question[0].Type, responseType, clientIpAddress);

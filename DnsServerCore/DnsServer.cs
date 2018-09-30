@@ -402,7 +402,10 @@ namespace DnsServerCore
                         DnsDatagram blockedResponse = _blockedZoneRoot.Query(request);
 
                         if (blockedResponse.Header.RCODE != DnsResponseCode.Refused)
+                        {
+                            blockedResponse.Tag = "blocked";
                             return blockedResponse;
+                        }
 
                         return ProcessRecursiveQuery(request);
                     }
