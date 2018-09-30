@@ -40,7 +40,7 @@ namespace DnsService
 
         protected override void OnStop()
         {
-            _service.Stop();
+            _service.Dispose();
         }
     }
 }

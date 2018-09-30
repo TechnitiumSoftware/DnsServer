@@ -49,7 +49,7 @@ namespace DnsServerApp
                     break;
             }
 
-            service.Stop();
+            service.Dispose();
             Console.WriteLine("Technitium DNS Server was stopped successfully.");
         }
     }
