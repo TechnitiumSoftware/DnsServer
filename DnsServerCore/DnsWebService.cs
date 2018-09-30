@@ -952,7 +952,33 @@ namespace DnsServerCore
 
         private void GetStats(HttpListenerRequest request, JsonTextWriter jsonWriter)
         {
-            Dictionary<string, List<KeyValuePair<string, int>>> data = _stats.GetLastHourStats();
+            string strType = request.QueryString["type"];
+            if (string.IsNullOrEmpty(strType))
+                strType = "lastHour";
+
+            Dictionary<string, List<KeyValuePair<string, int>>> data;
+
+            switch (strType)
+            {
+                case "lastHour":
+                    data = _stats.GetLastHourStats();
+                    break;
+
+                case "lastDay":
+                    data = _stats.GetLastDayStats();
+                    break;
+
+                case "lastWeek":
+                    data = _stats.GetLastWeekStats();
+                    break;
+
+                case "lastMonth":
+                    data = _stats.GetLastMonthStats();
+                    break;
+
+                default:
+                    throw new DnsWebServiceException("Unknown stats type requested: " + strType);
+            }
 
             //stats
             {
