@@ -993,13 +993,13 @@ namespace DnsServerCore
                     jsonWriter.WritePropertyName("datasets");
                     jsonWriter.WriteStartArray();
 
-                    WriteChartDataSet(jsonWriter, "Total Queries", "rgba(102, 153, 255, 0.5)", "rgb(102, 153, 255)", data["totalQueriesPerInterval"]);
-                    WriteChartDataSet(jsonWriter, "No Error", "rgba(92, 184, 92, 0.5)", "rgb(92, 184, 92)", data["totalNoErrorPerInterval"]);
-                    WriteChartDataSet(jsonWriter, "Server Failure", "rgba(217, 83, 79, 0.5)", "rgb(217, 83, 79)", data["totalServerFailurePerInterval"]);
-                    WriteChartDataSet(jsonWriter, "Name Error", "rgba(7, 7, 7, 0.5)", "rgb(7, 7, 7)", data["totalNameErrorPerInterval"]);
-                    WriteChartDataSet(jsonWriter, "Refused", "rgba(91, 192, 222, 0.5)", "rgb(91, 192, 222)", data["totalRefusedPerInterval"]);
-                    WriteChartDataSet(jsonWriter, "Blocked", "rgba(255, 165, 0, 0.5)", "rgb(255, 165, 0)", data["totalBlockedPerInterval"]);
-                    WriteChartDataSet(jsonWriter, "Clients", "rgba(51, 122, 183, 0.5)", "rgb(51, 122, 183)", data["totalClientsPerInterval"]);
+                    WriteChartDataSet(jsonWriter, "Total Queries", "rgba(102, 153, 255, 0.1)", "rgb(102, 153, 255)", data["totalQueriesPerInterval"]);
+                    WriteChartDataSet(jsonWriter, "No Error", "rgba(92, 184, 92, 0.1)", "rgb(92, 184, 92)", data["totalNoErrorPerInterval"]);
+                    WriteChartDataSet(jsonWriter, "Server Failure", "rgba(217, 83, 79, 0.1)", "rgb(217, 83, 79)", data["totalServerFailurePerInterval"]);
+                    WriteChartDataSet(jsonWriter, "Name Error", "rgba(7, 7, 7, 0.1)", "rgb(7, 7, 7)", data["totalNameErrorPerInterval"]);
+                    WriteChartDataSet(jsonWriter, "Refused", "rgba(91, 192, 222, 0.1)", "rgb(91, 192, 222)", data["totalRefusedPerInterval"]);
+                    WriteChartDataSet(jsonWriter, "Blocked", "rgba(255, 165, 0, 0.1)", "rgb(255, 165, 0)", data["totalBlockedPerInterval"]);
+                    WriteChartDataSet(jsonWriter, "Clients", "rgba(51, 122, 183, 0.1)", "rgb(51, 122, 183)", data["totalClientsPerInterval"]);
 
                     jsonWriter.WriteEndArray();
                 }
@@ -1132,17 +1132,17 @@ namespace DnsServerCore
             jsonWriter.WritePropertyName("label");
             jsonWriter.WriteValue(label);
 
-            //jsonWriter.WritePropertyName("backgroundColor");
-            //jsonWriter.WriteValue(backgroundColor);
+            jsonWriter.WritePropertyName("backgroundColor");
+            jsonWriter.WriteValue(backgroundColor);
 
             jsonWriter.WritePropertyName("borderColor");
             jsonWriter.WriteValue(borderColor);
 
             jsonWriter.WritePropertyName("borderWidth");
-            jsonWriter.WriteValue(1);
+            jsonWriter.WriteValue(2);
 
-            //jsonWriter.WritePropertyName("fill");
-            //jsonWriter.WriteValue(true);
+            jsonWriter.WritePropertyName("fill");
+            jsonWriter.WriteValue(true);
 
             jsonWriter.WritePropertyName("data");
             jsonWriter.WriteStartArray();

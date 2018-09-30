@@ -629,7 +629,7 @@ function refreshDashboard(hideLoader) {
                     options: {
                         elements: {
                             line: {
-                                tension: .5,
+                                tension: 0.2,
                             }
                         },
                         scales: {
