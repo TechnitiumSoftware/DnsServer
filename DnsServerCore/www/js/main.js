@@ -205,6 +205,10 @@ $(function () {
         }
     });
 
+    $("input[type=radio][name=rdStatType]").change(function () {
+        refreshDashboard();
+    });
+
     showPageLogin();
     login("admin", "admin");
 });
@@ -591,8 +595,10 @@ function refreshDashboard(hideLoader) {
         divDashboardLoader.show();
     }
 
+    var type = $('input[name=rdStatType]:checked').val();
+
     HTTPRequest({
-        url: "/api/getStats?token=" + token,
+        url: "/api/getStats?token=" + token + "&type=" + type,
         success: function (responseJSON) {
 
             //stats

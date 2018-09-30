@@ -100,24 +100,24 @@
                             <div class="tab-content">
 
                                 <div id="mainPanelTabPaneDashboard" role="tabpanel" class="tab-pane active" style="padding: 10px 0 0 0;">
+                                    <div class="btn-group" data-toggle="buttons">
+                                        <label class="btn btn-default active">
+                                            <input type="radio" name="rdStatType" value="lastHour" autocomplete="off" checked> Last Hour
+                                        </label>
+                                        <label class="btn btn-default">
+                                            <input type="radio" name="rdStatType" value="lastDay" autocomplete="off"> Last Day
+                                        </label>
+                                        <label class="btn btn-default">
+                                            <input type="radio" name="rdStatType" value="lastWeek" autocomplete="off"> Last Week
+                                        </label>
+                                        <label class="btn btn-default">
+                                            <input type="radio" name="rdStatType" value="lastMonth" autocomplete="off"> Last Month
+                                        </label>
+                                    </div>
+
                                     <div id="divDashboardLoader" style="margin-top: 10px; height: 400px;"></div>
 
                                     <div id="divDashboard" style="display: none;">
-                                        <div class="btn-group" data-toggle="buttons">
-                                            <label class="btn btn-default active">
-                                                <input type="radio" name="optStatMode" id="optLastHour" autocomplete="off" checked> Last Hour
-                                            </label>
-                                            <label class="btn btn-default">
-                                                <input type="radio" name="optStatMode" id="optLastDay" autocomplete="off"> Last Day
-                                            </label>
-                                            <label class="btn btn-default">
-                                                <input type="radio" name="optStatMode" id="optLastWeek" autocomplete="off"> Last Week
-                                            </label>
-                                            <label class="btn btn-default">
-                                                <input type="radio" name="optStatMode" id="optLastMonth" autocomplete="off"> Last Month
-                                            </label>
-                                        </div>
-
                                         <div class="stats-panel">
                                             <div class="stats-item total-queries">
                                                 <div class="number" id="divDashboardStatsTotalQueries">100</div>
