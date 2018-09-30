@@ -175,6 +175,23 @@ namespace DnsServerCore
                     SaveHourlyStats(lastDateTime, hourlyStats);
                 }
             }
+
+            //remove old data from hourly cache
+            {
+                DateTime threshold = DateTime.UtcNow.AddDays(-31);
+                threshold = new DateTime(threshold.Year, threshold.Month, threshold.Day, 0, 0, 0, DateTimeKind.Utc);
+
+                List<DateTime> _keysToRemove = new List<DateTime>();
+
+                foreach (KeyValuePair<DateTime, HourlyStats> item in _hourlyStatsCache)
+                {
+                    if (item.Key < threshold)
+                        _keysToRemove.Add(item.Key);
+                }
+
+                foreach (DateTime key in _keysToRemove)
+                    _hourlyStatsCache.TryRemove(key, out HourlyStats hourlyStats);
+            }
         }
 
         private HourlyStats LoadHourlyStats(DateTime dateTime)
