@@ -621,6 +621,15 @@ namespace DnsServerCore
             bW.WriteShortString(downloadLink);
         }
 
+        public static void CreateUpdateInfov1(Stream s, string version, string displayText, string downloadLink)
+        {
+            BincodingEncoder encoder = new BincodingEncoder(s, "DU", 1);
+
+            encoder.EncodeKeyValue("version", version);
+            encoder.EncodeKeyValue("displayText", displayText);
+            encoder.EncodeKeyValue("downloadLink", downloadLink);
+        }
+
         private void CheckForUpdate(HttpListenerRequest request, JsonTextWriter jsonWriter)
         {
             string updateVersion = null;
@@ -648,6 +657,47 @@ namespace DnsServerCore
 
                             switch (bR.ReadByte()) //version
                             {
+                                case 1:
+                                    #region old version
+
+                                    mS.Position = 0;
+                                    BincodingDecoder decoder = new BincodingDecoder(mS, "DU");
+
+                                    switch (decoder.Version)
+                                    {
+                                        case 1:
+                                            while (true)
+                                            {
+                                                Bincoding entry = decoder.DecodeNext();
+                                                if (entry == null)
+                                                    break;
+
+                                                KeyValuePair<string, Bincoding> value = entry.GetKeyValuePair();
+
+                                                switch (value.Key)
+                                                {
+                                                    case "version":
+                                                        updateVersion = value.Value.GetStringValue();
+                                                        break;
+
+                                                    case "displayText":
+                                                        displayText = value.Value.GetStringValue();
+                                                        break;
+
+                                                    case "downloadLink":
+                                                        downloadLink = value.Value.GetStringValue();
+                                                        break;
+                                                }
+                                            }
+                                            break;
+
+                                        default:
+                                            throw new IOException("File version not supported: " + decoder.Version);
+                                    }
+
+                                    #endregion
+                                    break;
+
                                 case 2:
                                     updateVersion = bR.ReadShortString();
                                     displayText = bR.ReadShortString();
@@ -688,6 +738,9 @@ namespace DnsServerCore
 
         private static bool IsUpdateAvailable(string currentVersion, string updateVersion)
         {
+            if (updateVersion == null)
+                return false;
+
             string[] uVer = updateVersion.Split(new char[] { '.' });
             string[] cVer = currentVersion.Split(new char[] { '.' });
 
@@ -2168,6 +2221,11 @@ namespace DnsServerCore
 
                 switch (bR.ReadByte())
                 {
+                    case 1:
+                        fS.Position = 0;
+                        LoadZoneFileV1(fS);
+                        break;
+
                     case 2:
                         int count = bR.ReadInt32();
                         DnsResourceRecord[] records = new DnsResourceRecord[count];
@@ -2184,6 +2242,28 @@ namespace DnsServerCore
             }
 
             _log.Write("Loaded zone file: " + zoneFile);
+        }
+
+        private void LoadZoneFileV1(Stream s)
+        {
+            BincodingDecoder decoder = new BincodingDecoder(s, "DZ");
+
+            switch (decoder.Version)
+            {
+                case 1:
+                    ICollection<Bincoding> entries = decoder.DecodeNext().GetList();
+                    DnsResourceRecord[] records = new DnsResourceRecord[entries.Count];
+
+                    int i = 0;
+                    foreach (Bincoding entry in entries)
+                        records[i++] = new DnsResourceRecord(entry.GetValueStream());
+
+                    _dnsServer.AuthoritativeZoneRoot.SetRecords(records);
+                    break;
+
+                default:
+                    throw new IOException("DNS Zone file version not supported: " + decoder.Version);
+            }
         }
 
         private void SaveZoneFile(string domain)
@@ -2411,6 +2491,11 @@ namespace DnsServerCore
                     byte version = bR.ReadByte();
                     switch (version)
                     {
+                        case 1:
+                            fS.Position = 0;
+                            LoadConfigFileV1(fS);
+                            break;
+
                         case 2:
                         case 3:
                         case 4:
@@ -2537,6 +2622,79 @@ namespace DnsServerCore
             {
                 _log.Write("DNS Server encountered an error while loading config file: " + configFile + "\r\n" + ex.ToString());
                 _log.Write("Note: You may try deleting the config file to fix this issue. However, you will lose DNS settings but, zone data wont be affected.");
+            }
+        }
+
+        private void LoadConfigFileV1(Stream s)
+        {
+            BincodingDecoder decoder = new BincodingDecoder(s, "DS");
+
+            switch (decoder.Version)
+            {
+                case 1:
+                    while (true)
+                    {
+                        Bincoding item = decoder.DecodeNext();
+                        if (item.Type == BincodingType.NULL)
+                            break;
+
+                        if (item.Type == BincodingType.KEY_VALUE_PAIR)
+                        {
+                            KeyValuePair<string, Bincoding> pair = item.GetKeyValuePair();
+
+                            switch (pair.Key)
+                            {
+                                case "serverDomain":
+                                    _serverDomain = pair.Value.GetStringValue();
+                                    break;
+
+                                case "webServicePort":
+                                    _webServicePort = pair.Value.GetIntegerValue();
+                                    break;
+
+                                case "dnsPreferIPv6":
+                                    _dnsServer.PreferIPv6 = pair.Value.GetBooleanValue();
+                                    break;
+
+                                case "logQueries":
+                                    if (pair.Value.GetBooleanValue())
+                                        _dnsServer.QueryLogManager = _log;
+
+                                    break;
+
+                                case "dnsAllowRecursion":
+                                    _dnsServer.AllowRecursion = pair.Value.GetBooleanValue();
+                                    break;
+
+                                case "dnsForwarders":
+                                    ICollection<Bincoding> entries = pair.Value.GetList();
+                                    NameServerAddress[] forwarders = new NameServerAddress[entries.Count];
+
+                                    int i = 0;
+                                    foreach (Bincoding entry in entries)
+                                        forwarders[i++] = new NameServerAddress(IPAddress.Parse(entry.GetStringValue()));
+
+                                    _dnsServer.Forwarders = forwarders;
+                                    break;
+
+                                case "credentials":
+                                    foreach (KeyValuePair<string, Bincoding> credential in pair.Value.GetDictionary())
+                                        SetCredentials(credential.Key, credential.Value.GetStringValue());
+
+                                    break;
+
+                                case "disabledZones":
+                                    foreach (Bincoding disabledZone in pair.Value.GetList())
+                                        _dnsServer.AuthoritativeZoneRoot.DisableZone(disabledZone.GetStringValue());
+
+                                    break;
+                            }
+                        }
+                    }
+                    break;
+
+                default:
+                    throw new IOException("DNS Config file version not supported: " + decoder.Version);
             }
         }
 
