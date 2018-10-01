@@ -1415,8 +1415,8 @@ namespace DnsServerCore
         private void BlockZone(string domain)
         {
             _dnsServer.BlockedZoneRoot.SetRecords(domain, DnsResourceRecordType.SOA, 60, new DnsResourceRecordData[] { new DnsSOARecord(_serverDomain, "blockmaster." + _serverDomain, 1, 28800, 7200, 604800, 600) });
-            //_dnsServer.BlockedZoneRoot.SetRecords(domain, DnsResourceRecordType.A, 60, new DnsResourceRecordData[] { new DnsARecord(IPAddress.Any) });
-            //_dnsServer.BlockedZoneRoot.SetRecords(domain, DnsResourceRecordType.AAAA, 60, new DnsResourceRecordData[] { new DnsAAAARecord(IPAddress.IPv6Any) });
+            _dnsServer.BlockedZoneRoot.SetRecords(domain, DnsResourceRecordType.A, 60, new DnsResourceRecordData[] { new DnsARecord(IPAddress.Any) });
+            _dnsServer.BlockedZoneRoot.SetRecords(domain, DnsResourceRecordType.AAAA, 60, new DnsResourceRecordData[] { new DnsAAAARecord(IPAddress.IPv6Any) });
         }
 
         private void ListZones(JsonTextWriter jsonWriter)
