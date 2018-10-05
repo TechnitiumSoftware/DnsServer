@@ -205,8 +205,8 @@ label {
 
 
 .stats-panel {
-    height: 100px;
-    padding: 10px 0 10px 0;
+    height: 80px;
+    padding: 6px 0 6px 0;
 }
 
     .stats-panel .total-queries {
@@ -244,23 +244,35 @@ label {
         color: #ffffff;
     }
 
+    .stats-panel .allowedZones {
+        background-color: rgba(51, 122, 183, 0.7);
+        color: #ffffff;
+    }
+
+    .stats-panel .blockedZones {
+        background-color: rgba(51, 122, 183, 0.7);
+        color: #ffffff;
+    }
+
     .stats-panel .stats-item {
-        width: 150px;
+        width: 120px;
         float: left;
-        padding: 10px;
-        margin-right: 8px;
+        padding: 6px;
+        margin-right: 3px;
+        margin-bottom: 3px;
     }
 
         .stats-panel .stats-item .number {
-            font-size: 22px;
+            font-size: 16px;
             font-weight: bold;
         }
 
         .stats-panel .stats-item .percentage {
-            font-size: 12px;
+            font-size: 10px;
             font-weight: bold;
         }
 
         .stats-panel .stats-item .title {
+            font-size: 12px;
             font-weight: bold;
         }
