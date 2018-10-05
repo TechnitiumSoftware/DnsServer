@@ -91,6 +91,7 @@
                                 <li id="mainPanelTabListDashboard" role="presentation" class="active"><a href="#mainPanelTabPaneDashboard" aria-controls="mainPanelTabPaneDashboard" role="tab" data-toggle="tab" onclick="return refreshDashboard();">Dashboard</a></li>
                                 <li id="mainPanelTabListZones" role="presentation"><a href="#mainPanelTabPaneZones" aria-controls="mainPanelTabPaneZones" role="tab" data-toggle="tab" onclick="return refreshZonesList();">Zones</a></li>
                                 <li id="mainPanelTabListCachedZones" role="presentation"><a href="#mainPanelTabPaneCachedZones" aria-controls="mainPanelTabPaneCachedZones" role="tab" data-toggle="tab" onclick="return false;">Cached Zones</a></li>
+                                <li id="mainPanelTabListAllowedZones" role="presentation"><a href="#mainPanelTabPaneAllowedZones" aria-controls="mainPanelTabPaneAllowedZones" role="tab" data-toggle="tab" onclick="return false;">Allowed Zones</a></li>
                                 <li id="mainPanelTabListBlockedZones" role="presentation"><a href="#mainPanelTabPaneBlockedZones" aria-controls="mainPanelTabPaneBlockedZones" role="tab" data-toggle="tab" onclick="return false;">Blocked Zones</a></li>
                                 <li id="mainPanelTabListDnsClient" role="presentation"><a href="#mainPanelTabPaneDnsClient" aria-controls="mainPanelTabPaneDnsClient" role="tab" data-toggle="tab" onclick="return false;">DNS Client</a></li>
                                 <li id="mainPanelTabListSettings" role="presentation"><a href="#mainPanelTabPaneSettings" aria-controls="mainPanelTabPaneSettings" role="tab" data-toggle="tab" onclick="return loadDnsSettings();">Settings</a></li>
@@ -112,6 +113,9 @@
                                         </label>
                                         <label class="btn btn-default">
                                             <input type="radio" name="rdStatType" value="lastMonth" autocomplete="off"> Last Month
+                                        </label>
+                                        <label class="btn btn-default">
+                                            <input type="radio" name="rdStatType" value="lastYear" autocomplete="off"> Last Year
                                         </label>
                                     </div>
 
@@ -160,6 +164,18 @@
                                                 <div class="percentage">&nbsp;</div>
                                                 <div class="title">Clients</div>
                                             </div>
+
+                                            <div class="stats-item allowedZones">
+                                                <div class="number" id="divDashboardStatsAllowedZones">10</div>
+                                                <div class="percentage">&nbsp;</div>
+                                                <div class="title">Allowed Zones</div>
+                                            </div>
+
+                                            <div class="stats-item blockedZones">
+                                                <div class="number" id="divDashboardStatsBlockedZones">10</div>
+                                                <div class="percentage">&nbsp;</div>
+                                                <div class="title">Blocked Zones</div>
+                                            </div>
                                         </div>
 
                                         <div>
@@ -167,73 +183,81 @@
                                         </div>
 
                                         <div style="margin-top: 15px;">
-                                            <div class="panel panel-default" style="float: left; width: 547px; margin-bottom: 0px;">
-                                                <div class="panel-heading">Top Query Type</div>
-                                                <div class="panel-body">
-                                                    <canvas id="canvasDashboardPie"></canvas>
+                                            <div style="float: left; width: 50%; padding-right: 7px;">
+                                                <div class="panel panel-default" style="margin-bottom: 0px;">
+                                                    <div class="panel-heading">Top Query Type</div>
+                                                    <div class="panel-body">
+                                                        <canvas id="canvasDashboardPie"></canvas>
+                                                    </div>
                                                 </div>
                                             </div>
 
-                                            <div class="panel panel-default" style="float: right; width: 547px; margin-bottom: 0px;">
-                                                <div class="panel-heading">Top Clients</div>
-                                                <table class="table table-hover" id="tableTopClients">
-                                                    <thead>
-                                                        <tr>
-                                                            <th>Client</th>
-                                                            <th>Queries</th>
-                                                        </tr>
-                                                    </thead>
-                                                    <tbody>
-                                                        <tr>
-                                                            <td>127.0.0.1</td>
-                                                            <td>100</td>
-                                                        </tr>
-                                                        <tr>
-                                                            <td>::1</td>
-                                                            <td>10</td>
-                                                        </tr>
-                                                    </tbody>
-                                                </table>
+                                            <div style="float: right; width: 50%; padding-left: 7px;">
+                                                <div class="panel panel-default" style="margin-bottom: 0px;">
+                                                    <div class="panel-heading">Top Clients</div>
+                                                    <table class="table table-hover" id="tableTopClients">
+                                                        <thead>
+                                                            <tr>
+                                                                <th>Client</th>
+                                                                <th>Queries</th>
+                                                            </tr>
+                                                        </thead>
+                                                        <tbody>
+                                                            <tr>
+                                                                <td>127.0.0.1</td>
+                                                                <td>100</td>
+                                                            </tr>
+                                                            <tr>
+                                                                <td>::1</td>
+                                                                <td>10</td>
+                                                            </tr>
+                                                        </tbody>
+                                                    </table>
+                                                </div>
                                             </div>
 
                                             <div style="clear: both;"></div>
                                         </div>
 
                                         <div style="margin-top: 15px;">
-                                            <div class="panel panel-default" style="float: left; width: 547px; margin-bottom: 0px;">
-                                                <div class="panel-heading">Top Domains</div>
-                                                <table class="table table-hover" id="tableTopDomains">
-                                                    <thead>
-                                                        <tr>
-                                                            <th>Domain</th>
-                                                            <th>Hits</th>
-                                                        </tr>
-                                                    </thead>
-                                                    <tbody>
-                                                        <tr>
-                                                            <td>example.com</td>
-                                                            <td>10</td>
-                                                        </tr>
-                                                    </tbody>
-                                                </table>
+                                            <div style="float: left; width: 50%; padding-right: 7px;">
+                                                <div class="panel panel-default" style="margin-bottom: 0px;">
+                                                    <div class="panel-heading">Top Domains</div>
+                                                    <table class="table table-hover" id="tableTopDomains">
+                                                        <thead>
+                                                            <tr>
+                                                                <th>Domain</th>
+                                                                <th>Hits</th>
+                                                            </tr>
+                                                        </thead>
+                                                        <tbody>
+                                                            <tr>
+                                                                <td>example.com</td>
+                                                                <td>10</td>
+                                                            </tr>
+                                                        </tbody>
+                                                    </table>
+                                                </div>
                                             </div>
 
-                                            <div class="panel panel-default" style="float: right; width: 547px; margin-bottom: 0px;">
-                                                <div class="panel-heading">Top Blocked Domains</div>
-                                                <table class="table table-hover" id="tableTopBlockedDomains">
-                                                    <thead>
-                                                        <tr>
-                                                            <th>Domain</th>
-                                                            <th>Hits</th>
-                                                        </tr>
-                                                    </thead>
-                                                    <tbody>
-                                                        <tr>
-                                                            <td>blocked.example.com</td>
-                                                            <td>10</td>
-                                                        </tr>
-                                                    </tbody>
-                                                </table>
+                                            <div style="float: right; width: 50%; padding-left: 7px;">
+                                                <div class="panel panel-default" style="margin-bottom: 0px;">
+                                                    <div class="panel-heading">Top Blocked Domains</div>
+                                                    <table class="table table-hover" id="tableTopBlockedDomains">
+                                                        <thead>
+                                                            <tr>
+                                                                <th>Domain</th>
+                                                                <th>Hits</th>
+                                                            </tr>
+                                                        </thead>
+                                                        <tbody>
+                                                            <tr>
+                                                                <td>blocked.example.com</td>
+                                                                <td>10</td>
+                                                            </tr>
+                                                        </tbody>
+                                                    </table>
+                                                </div>
                                             </div>
 
                                             <div style="clear: both;"></div>
@@ -543,6 +567,40 @@
 
                                 </div>
 
+                                <div id="mainPanelTabPaneAllowedZones" role="tabpanel" class="tab-pane" style="padding: 10px 0 0 0;">
+
+                                    <div class="well well-sm zone-list-pane">
+                                        <form class="form-inline">
+                                            <div class="form-group">
+                                                <input type="text" class="form-control" style="width: 170px;" id="txtAllowZone" placeholder="example.com">
+                                                <button id="btnAllowZone" type="submit" class="btn btn-primary" data-loading-text="Allow" onclick="return allowZone();">Allow</button>
+                                            </div>
+                                        </form>
+
+                                        <div id="lstAllowedZones" class="zones">
+                                            <div class="zone"><a href="#" onclick="return refreshAllowedZonesList('technitium.com');">technitium.com</a></div>
+                                        </div>
+                                    </div>
+
+                                    <div id="divAllowedZoneViewer" class="zone-viewer-pane">
+                                        <div class="panel panel-default">
+                                            <div class="panel-heading" style="height: 36px; padding: 4px 6px;">
+                                                <div id="txtAllowedZoneViewerTitle" style="float: left; padding: 4px;">technitium.com</div>
+                                                <div style="float: right;">
+                                                    <button id="btnDeleteAllowedZone" type="button" class="btn btn-danger" data-loading-text="Delete" onclick="return deleteAllowedZone();" style="font-size: 12px; padding: 4px 6px;">Delete</button>
+                                                </div>
+                                            </div>
+
+                                            <div class="panel-body">
+                                                <pre id="preAllowedZoneViewerBody">
+                                                    
+                                                </pre>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                </div>
+
                                 <div id="mainPanelTabPaneBlockedZones" role="tabpanel" class="tab-pane" style="padding: 10px 0 0 0;">
 
                                     <div class="well well-sm zone-list-pane">
@@ -746,39 +804,65 @@
 
                                             <div class="well well-sm form-horizontal">
                                                 <div class="form-group">
-                                                    <label for="txtBlockListUrl" class="col-sm-3 control-label">Block List URL</label>
-                                                    <div class="input-group dropdown col-sm-6">
-                                                        <input type="text" class="form-control dropdown-toggle" id="txtBlockListUrl" value="" placeholder="Block List URL">
-                                                        <ul class="dropdown-menu" id="optBlockListUrl">
-                                                            <li><a href="#">None</a></li>
-                                                            <li><a href="#">Steven Black [adware + malware] (https://raw.githubusercontent.com/StevenBlack/hosts/master/hosts)</a></li>
-                                                            <li><a href="#">Steven Black [adware + malware + fakenews] (https://raw.githubusercontent.com/StevenBlack/hosts/master/alternates/fakenews/hosts)</a></li>
-                                                            <li><a href="#">Steven Black [adware + malware + gambling] (https://raw.githubusercontent.com/StevenBlack/hosts/master/alternates/gambling/hosts)</a></li>
-                                                            <li><a href="#">Steven Black [adware + malware + porn] (https://raw.githubusercontent.com/StevenBlack/hosts/master/alternates/porn/hosts)</a></li>
-                                                            <li><a href="#">Steven Black [adware + malware + social] (https://raw.githubusercontent.com/StevenBlack/hosts/master/alternates/social/hosts)</a></li>
-                                                            <li><a href="#">Steven Black [adware + malware + fakenews + gambling] (https://raw.githubusercontent.com/StevenBlack/hosts/master/alternates/fakenews-gambling/hosts)</a></li>
-                                                            <li><a href="#">Steven Black [adware + malware + fakenews + porn] (https://raw.githubusercontent.com/StevenBlack/hosts/master/alternates/fakenews-porn/hosts)</a></li>
-                                                            <li><a href="#">Steven Black [adware + malware + fakenews + social] (https://raw.githubusercontent.com/StevenBlack/hosts/master/alternates/fakenews-social/hosts)</a></li>
-                                                            <li><a href="#">Steven Black [adware + malware + gambling + porn] (https://raw.githubusercontent.com/StevenBlack/hosts/master/alternates/gambling-porn/hosts)</a></li>
-                                                            <li><a href="#">Steven Black [adware + malware + gambling + social] (https://raw.githubusercontent.com/StevenBlack/hosts/master/alternates/gambling-social/hosts)</a></li>
-                                                            <li><a href="#">Steven Black [adware + malware + porn + social] (https://raw.githubusercontent.com/StevenBlack/hosts/master/alternates/porn-social/hosts)</a></li>
-                                                            <li><a href="#">Steven Black [adware + malware + fakenews + gambling + porn] (https://raw.githubusercontent.com/StevenBlack/hosts/master/alternates/fakenews-gambling-porn/hosts)</a></li>
-                                                            <li><a href="#">Steven Black [adware + malware + fakenews + gambling + social] (https://raw.githubusercontent.com/StevenBlack/hosts/master/alternates/fakenews-gambling-social/hosts)</a></li>
-                                                            <li><a href="#">Steven Black [adware + malware + fakenews + porn + social] (https://raw.githubusercontent.com/StevenBlack/hosts/master/alternates/fakenews-porn-social/hosts)</a></li>
-                                                            <li><a href="#">Steven Black [adware + malware + gambling + porn + social] (https://raw.githubusercontent.com/StevenBlack/hosts/master/alternates/gambling-porn-social/hosts)</a></li>
-                                                            <li><a href="#">Steven Black [adware + malware + fakenews + gambling + porn + social] (https://raw.githubusercontent.com/StevenBlack/hosts/master/alternates/fakenews-gambling-porn-social/hosts)</a></li>
-                                                        </ul>
-                                                        <span role="button" class="input-group-addon dropdown-toggle" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false"><span class="caret"></span></span>
+                                                    <label for="txtBlockListUrls" class="col-sm-3 control-label">Block List URLs</label>
+                                                    <div class="col-sm-8">
+                                                        <textarea id="txtBlockListUrls" class="form-control" style="width: 600px; height: 150px;" rows="3"></textarea>
+
+                                                        <label for="optQuickBlockList" class="control-label">Quick Add</label>
+                                                        <select id="optQuickBlockList" style="width: 520px;">
+                                                            <option value="blank" selected></option>
+                                                            <option value="none">None</option>
+                                                            <option value="default">Default</option>
+
+                                                            <option value="http://localhost:5380/blocklist.txt">Custom Local Block List (http://localhost:5380/blocklist.txt)</option>
+
+                                                            <option value="https://raw.githubusercontent.com/StevenBlack/hosts/master/hosts">Steven Black [adware + malware] (https://raw.githubusercontent.com/StevenBlack/hosts/master/hosts)</option>
+                                                            <option value="https://raw.githubusercontent.com/StevenBlack/hosts/master/alternates/fakenews/hosts">Steven Black [adware + malware + fakenews] (https://raw.githubusercontent.com/StevenBlack/hosts/master/alternates/fakenews/hosts)</option>
+                                                            <option value="https://raw.githubusercontent.com/StevenBlack/hosts/master/alternates/gambling/hosts">Steven Black [adware + malware + gambling] (https://raw.githubusercontent.com/StevenBlack/hosts/master/alternates/gambling/hosts)</option>
+                                                            <option value="https://raw.githubusercontent.com/StevenBlack/hosts/master/alternates/porn/hosts">Steven Black [adware + malware + porn] (https://raw.githubusercontent.com/StevenBlack/hosts/master/alternates/porn/hosts)</option>
+                                                            <option value="https://raw.githubusercontent.com/StevenBlack/hosts/master/alternates/social/hosts">Steven Black [adware + malware + social] (https://raw.githubusercontent.com/StevenBlack/hosts/master/alternates/social/hosts)</option>
+                                                            <option value="https://raw.githubusercontent.com/StevenBlack/hosts/master/alternates/fakenews-gambling/hosts">Steven Black [adware + malware + fakenews + gambling] (https://raw.githubusercontent.com/StevenBlack/hosts/master/alternates/fakenews-gambling/hosts)</option>
+                                                            <option value="https://raw.githubusercontent.com/StevenBlack/hosts/master/alternates/fakenews-porn/hosts">Steven Black [adware + malware + fakenews + porn] (https://raw.githubusercontent.com/StevenBlack/hosts/master/alternates/fakenews-porn/hosts)</option>
+                                                            <option value="https://raw.githubusercontent.com/StevenBlack/hosts/master/alternates/fakenews-social/hosts">Steven Black [adware + malware + fakenews + social] (https://raw.githubusercontent.com/StevenBlack/hosts/master/alternates/fakenews-social/hosts)</option>
+                                                            <option value="https://raw.githubusercontent.com/StevenBlack/hosts/master/alternates/gambling-porn/hosts">Steven Black [adware + malware + gambling + porn] (https://raw.githubusercontent.com/StevenBlack/hosts/master/alternates/gambling-porn/hosts)</option>
+                                                            <option value="https://raw.githubusercontent.com/StevenBlack/hosts/master/alternates/gambling-social/hosts">Steven Black [adware + malware + gambling + social] (https://raw.githubusercontent.com/StevenBlack/hosts/master/alternates/gambling-social/hosts)</option>
+                                                            <option value="https://raw.githubusercontent.com/StevenBlack/hosts/master/alternates/porn-social/hosts">Steven Black [adware + malware + porn + social] (https://raw.githubusercontent.com/StevenBlack/hosts/master/alternates/porn-social/hosts)</option>
+                                                            <option value="https://raw.githubusercontent.com/StevenBlack/hosts/master/alternates/fakenews-gambling-porn/hosts">Steven Black [adware + malware + fakenews + gambling + porn] (https://raw.githubusercontent.com/StevenBlack/hosts/master/alternates/fakenews-gambling-porn/hosts)</option>
+                                                            <option value="https://raw.githubusercontent.com/StevenBlack/hosts/master/alternates/fakenews-gambling-social/hosts">Steven Black [adware + malware + fakenews + gambling + social] (https://raw.githubusercontent.com/StevenBlack/hosts/master/alternates/fakenews-gambling-social/hosts)</option>
+                                                            <option value="https://raw.githubusercontent.com/StevenBlack/hosts/master/alternates/fakenews-porn-social/hosts">Steven Black [adware + malware + fakenews + porn + social] (https://raw.githubusercontent.com/StevenBlack/hosts/master/alternates/fakenews-porn-social/hosts)</option>
+                                                            <option value="https://raw.githubusercontent.com/StevenBlack/hosts/master/alternates/gambling-porn-social/hosts">Steven Black [adware + malware + gambling + porn + social] (https://raw.githubusercontent.com/StevenBlack/hosts/master/alternates/gambling-porn-social/hosts)</option>
+                                                            <option value="https://raw.githubusercontent.com/StevenBlack/hosts/master/alternates/fakenews-gambling-porn-social/hosts">Steven Black [adware + malware + fakenews + gambling + porn + social] (https://raw.githubusercontent.com/StevenBlack/hosts/master/alternates/fakenews-gambling-porn-social/hosts)</option>
+
+                                                            <option value="https://mirror1.malwaredomains.com/files/justdomains">Malware Domains (https://mirror1.malwaredomains.com/files/justdomains)</option>
+                                                            <option value="https://zeustracker.abuse.ch/blocklist.php?download=domainblocklist">Zeus Tracker (https://zeustracker.abuse.ch/blocklist.php?download=domainblocklist)</option>
+
+                                                            <option value="https://s3.amazonaws.com/lists.disconnect.me/simple_tracking.txt">Disconnect.me [tracking] (https://s3.amazonaws.com/lists.disconnect.me/simple_tracking.txt)</option>
+                                                            <option value="https://s3.amazonaws.com/lists.disconnect.me/simple_ad.txt">Disconnect.me [ads] (https://s3.amazonaws.com/lists.disconnect.me/simple_ad.txt)</option>
+
+                                                            <option value="https://hosts-file.net/ad_servers.txt">hosts-file.net [ad/tracking] (https://hosts-file.net/ad_servers.txt)</option>
+                                                            <option value="https://hosts-file.net/emd.txt">hosts-file.net [malware] (https://hosts-file.net/emd.txt)</option>
+                                                            <option value="https://hosts-file.net/exp.txt">hosts-file.net [exploit] (https://hosts-file.net/exp.txt)</option>
+                                                            <option value="https://hosts-file.net/fsa.txt">hosts-file.net [fraud] (https://hosts-file.net/fsa.txt)</option>
+                                                            <option value="https://hosts-file.net/grm.txt">hosts-file.net [spam] (https://hosts-file.net/grm.txt)</option>
+                                                            <option value="https://hosts-file.net/hjk.txt">hosts-file.net [hijack] (https://hosts-file.net/hjk.txt)</option>
+                                                            <option value="https://hosts-file.net/mmt.txt">hosts-file.net [misleading marketing] (https://hosts-file.net/mmt.txt)</option>
+                                                            <option value="https://hosts-file.net/pha.txt">hosts-file.net [illegal pharmacy] (https://hosts-file.net/pha.txt)</option>
+                                                            <option value="https://hosts-file.net/psh.txt">hosts-file.net [phishing] (https://hosts-file.net/psh.txt)</option>
+                                                            <option value="https://hosts-file.net/pup.txt">hosts-file.net [potentially unwanted programs] (https://hosts-file.net/pup.txt)</option>
+                                                            <option value="https://hosts-file.net/wrz.txt">hosts-file.net [warez/piracy] (https://hosts-file.net/wrz.txt)</option>
+                                                        </select>
+
+                                                        <div style="margin-top: 10px;">Enter block list URL one below another in the above text field or use the Quick Add list to add known block list URLs.</div>
                                                     </div>
                                                 </div>
 
-                                                <div style="margin-top: 10px;">DNS Server will use the <i>hosts</i> file returned by the block list URL to update the blocked zones automatically every 24 hours. The expected file format is standard <i>hosts</i> file format.</div>
+                                                <div style="margin-top: 10px;">DNS Server will use the data returned by the block list URLs to update the blocked zone automatically every 24 hours. The expected file format is standard <i>hosts</i> file format or plain text file containing list of domains to block.</div>
                                             </div>
 
                                             <div class="well well-sm form-horizontal">
                                                 <div class="form-group">
                                                     <label class="col-sm-3 control-label">Network Proxy</label>
-                                                    <div class="col-sm-6" id="divNetworkProxy">
+                                                    <div class="col-sm-6">
                                                         <div class="radio">
                                                             <label>
                                                                 <input type="radio" name="rdProxyType" id="rdProxyTypeNone" value="None" checked>
@@ -835,11 +919,12 @@
                                                 <div class="form-group">
                                                     <label for="txtForwarders" class="col-sm-3 control-label">Forwarders</label>
                                                     <div class="col-sm-8">
-                                                        <textarea id="txtForwarders" class="form-control" style="width: 500px;" rows="3"></textarea>
+                                                        <textarea id="txtForwarders" class="form-control" style="width: 600px;" rows="3"></textarea>
 
                                                         <label for="optQuickForwarders" class="control-label">Quick Select</label>
                                                         <select id="optQuickForwarders">
-                                                            <option value="none"></option>
+                                                            <option value="blank" selected></option>
+                                                            <option value="none">None</option>
 
                                                             <option value="cloudflare-udp">Cloudflare (DNS-over-UDP)</option>
                                                             <option value="cloudflare-udp-ipv6">Cloudflare (DNS-over-UDP IPv6)</option>
@@ -847,6 +932,7 @@
                                                             <option value="cloudflare-tls-ipv6">Cloudflare (DNS-over-TLS IPv6)</option>
                                                             <option value="cloudflare-https">Cloudflare (DNS-over-HTTPS)</option>
                                                             <option value="cloudflare-json">Cloudflare (DNS-over-HTTPS-JSON)</option>
+                                                            <option value="cloudflare-tor">Cloudflare (DNS-over-TOR!)</option>
 
                                                             <option value="google-udp">Google (DNS-over-UDP)</option>
                                                             <option value="google-udp-ipv6">Google (DNS-over-UDP IPv6)</option>
@@ -861,7 +947,7 @@
                                                             <option value="opendns-udp-ipv6">OpenDNS (DNS-over-UDP IPv6)</option>
                                                         </select>
 
-                                                        <div style="margin-top: 10px;">Enter forwarder DNS Server IP addresses or URLs one below another in above text field or use the Quick Select list to select desired forwarder. Forwarders are DNS servers which this DNS Server should use to resolve recursive queries. If no forwarders are configured then this DNS server will use preconfigured ROOT SERVERS.</div>
+                                                        <div style="margin-top: 10px;">Enter forwarder DNS Server IP addresses or URLs one below another in above text field or use the Quick Select list to select desired forwarder.</div>
                                                     </div>
                                                 </div>
 
@@ -903,12 +989,14 @@
                                                     </div>
                                                 </div>
 
+                                                <div style="margin-top: 10px;">Forwarders are DNS servers which this DNS Server should use to resolve recursive queries. If no forwarders are configured then this DNS server will use preconfigured ROOT SERVERS to perform recursive resolution.</div>
                                                 <div style="margin-top: 10px;"><a href="https://blog.technitium.com/2018/06/configuring-dns-server-for-privacy.html" target="_blank">Help: Configuring DNS Server For Privacy & Security</a></div>
                                             </div>
 
                                             <div class="form-group" style="margin-bottom: 0px;">
                                                 <button id="btnSaveDnsSettings" type="button" class="btn btn-primary" data-loading-text="Saving..." onclick="return saveDnsSettings();">Save Settings</button>
                                                 <button id="btnFlushDnsCache" type="button" class="btn btn-warning" data-loading-text="Flushing..." onclick="return flushDnsCache();" style="margin-left: 6px;">Flush Cache</button>
+                                                <button id="btnFlushAllowedZone" type="button" class="btn btn-warning" data-loading-text="Flushing..." onclick="return flushAllowedZone();" style="margin-left: 6px;">Flush Allowed Zone</button>
                                                 <button id="btnFlushBlockedZone" type="button" class="btn btn-warning" data-loading-text="Flushing..." onclick="return flushBlockedZone();" style="margin-left: 6px;">Flush Blocked Zone</button>
                                             </div>
 
