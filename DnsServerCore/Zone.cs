@@ -94,6 +94,8 @@ namespace DnsServerCore
 
         private static string[] ConvertDomainToPath(string domainName)
         {
+            DnsDatagram.IsDomainNameValid(domainName, true);
+
             if (string.IsNullOrEmpty(domainName))
                 return new string[] { };
 
@@ -178,19 +180,21 @@ namespace DnsServerCore
             return currentZone;
         }
 
-        private static void DeleteZone(Zone rootZone, string domain, bool deleteSubZones)
+        private static bool DeleteZone(Zone rootZone, string domain, bool deleteSubZones)
         {
             Zone currentZone = GetZone(rootZone, domain);
             if (currentZone == null)
-                return;
+                return false;
 
             if (!currentZone._authoritativeZone && (currentZone._zoneName.Equals("root-servers.net", StringComparison.CurrentCultureIgnoreCase)))
-                return; //cannot delete root-servers.net
+                return false; //cannot delete root-servers.net
 
             currentZone._entries.Clear();
 
             DeleteSubDomains(currentZone, deleteSubZones);
             DeleteEmptyParentZones(currentZone);
+
+            return true;
         }
 
         private static bool DeleteSubDomains(Zone currentZone, bool deleteSubZones)
@@ -933,9 +937,22 @@ namespace DnsServerCore
             return zoneNames.ToArray();
         }
 
-        public void DeleteZone(string domain, bool deleteSubZones)
+        public bool AuthoritativeZoneExists(string domain)
         {
-            DeleteZone(this, domain, deleteSubZones);
+            Zone currentZone = GetZone(this, domain, true);
+            return (currentZone != null);
+        }
+
+        public bool DeleteZone(string domain, bool deleteSubZones)
+        {
+            return DeleteZone(this, domain, deleteSubZones);
+        }
+
+        public void DeleteSubZones(string domain)
+        {
+            Zone currentZone = GetZone(this, domain);
+            if (currentZone != null)
+                currentZone._zones.Clear();
         }
 
         public void DisableZone(string domain)
@@ -960,6 +977,13 @@ namespace DnsServerCore
             if (!_authoritativeZone)
                 LoadRootHintsInCache();
         }
+
+        #endregion
+
+        #region properties
+
+        public bool IsAuthoritative
+        { get { return _authoritativeZone; } }
 
         #endregion
 
