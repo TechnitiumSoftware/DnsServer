@@ -213,7 +213,7 @@ function HTTPGetFileRequest(url, success, error, objAlertPlaceholder, objLoaderP
 function showAlert(type, title, message, objAlertPlaceholder) {
     var alertHTML = "<div class=\"alert alert-" + type + "\">\
     <button type=\"button\" class=\"close\" data-dismiss=\"alert\">&times;</button>\
-    <strong>" + title + "</strong>&nbsp;" + message + "\
+    <strong>" + title + "</strong>&nbsp;" + htmlEncode(message) + "\
     </div>";
 
     if (objAlertPlaceholder == null)
