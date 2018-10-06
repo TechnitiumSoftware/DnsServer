@@ -1603,9 +1603,12 @@ namespace DnsServerCore
             if (blockedZoneRoot.AuthoritativeZoneExists(domain))
                 return false; //a top level authoritative zone already exists
 
-            blockedZoneRoot.SetRecords(domain, DnsResourceRecordType.SOA, 60, new DnsResourceRecordData[] { new DnsSOARecord(_serverDomain, "hostmaster." + _serverDomain, 1, 28800, 7200, 604800, 600) });
-            blockedZoneRoot.SetRecords(domain, DnsResourceRecordType.A, 60, new DnsResourceRecordData[] { new DnsARecord(IPAddress.Any) });
-            blockedZoneRoot.SetRecords(domain, DnsResourceRecordType.AAAA, 60, new DnsResourceRecordData[] { new DnsAAAARecord(IPAddress.IPv6Any) });
+            blockedZoneRoot.SetRecords(new DnsResourceRecord[]
+            {
+                new DnsResourceRecord(domain, DnsResourceRecordType.SOA, DnsClass.IN, 60, new DnsSOARecord(_serverDomain, "hostmaster." + _serverDomain, 1, 28800, 7200, 604800, 600)),
+                new DnsResourceRecord(domain, DnsResourceRecordType.A, DnsClass.IN, 60, new DnsARecord(IPAddress.Any)),
+                new DnsResourceRecord(domain, DnsResourceRecordType.AAAA, DnsClass.IN, 60, new DnsAAAARecord(IPAddress.IPv6Any))
+            });
 
             blockedZoneRoot.DeleteSubZones(domain); //remove all sub zones since current zone covers the blocking
 
