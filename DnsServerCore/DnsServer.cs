@@ -819,28 +819,7 @@ namespace DnsServerCore
         public NameServerAddress[] Forwarders
         {
             get { return _forwarders; }
-            set
-            {
-                NameServerAddress[] forwarders = value;
-
-                if (forwarders != null)
-                {
-                    foreach (NameServerAddress forwarder in forwarders)
-                    {
-                        if (forwarder.DomainEndPoint == null)
-                        {
-                            try
-                            {
-                                forwarder.RecursiveResolveDomainName(_dnsCache, _proxy, _preferIPv6, DnsClient.RecursiveResolveDefaultProtocol, _retries);
-                            }
-                            catch
-                            { }
-                        }
-                    }
-                }
-
-                _forwarders = forwarders;
-            }
+            set { _forwarders = value; }
         }
 
         public DnsClientProtocol ForwarderProtocol
