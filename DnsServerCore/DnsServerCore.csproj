@@ -5,6 +5,7 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <None Remove="www\blocklist.txt" />
     <None Remove="www\css\bootstrap-theme.min.css" />
     <None Remove="www\css\bootstrap-theme.min.css.map" />
     <None Remove="www\css\bootstrap.min.css" />
@@ -27,12 +28,16 @@
     <None Remove="www\img\logo25x25.png" />
     <None Remove="www\index.html" />
     <None Remove="www\js\bootstrap.min.js" />
+    <None Remove="www\js\Chart.min.js" />
     <None Remove="www\js\common.js" />
     <None Remove="www\js\jquery.min.js" />
     <None Remove="www\js\main.js" />
   </ItemGroup>
 
   <ItemGroup>
+    <Content Include="www\blocklist.txt">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </Content>
     <Content Include="www\favicon.ico">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </Content>
@@ -99,6 +104,9 @@
     <Content Include="www\js\bootstrap.min.js">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </Content>
+    <Content Include="www\js\Chart.min.js">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </Content>
     <Content Include="www\js\common.js">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </Content>
@@ -134,9 +142,9 @@
     <RepositoryType></RepositoryType>
     <Description>.NET Standard 2.0</Description>
     <PackageId>DnsServer</PackageId>
-    <AssemblyVersion>1.3.3.0</AssemblyVersion>
-    <FileVersion>1.3.3.0</FileVersion>
-    <Version>1.3.3</Version>
+    <AssemblyVersion>2.0.0.0</AssemblyVersion>
+    <FileVersion>2.0.0.0</FileVersion>
+    <Version>2.0</Version>
   </PropertyGroup>
 
 </Project>
