@@ -260,12 +260,12 @@ $(function () {
                 break;
 
             case "quad9-tls":
-                $("#txtForwarders").val("9.9.9.9:853");
+                $("#txtForwarders").val("dns.quad9.net (9.9.9.9:853)");
                 $("#rdForwarderProtocolTls").prop("checked", true);
                 break;
 
             case "quad9-tls-ipv6":
-                $("#txtForwarders").val("[2620:fe::fe]:853");
+                $("#txtForwarders").val("dns.quad9.net ([2620:fe::fe]:853)");
                 $("#rdForwarderProtocolTls").prop("checked", true);
                 break;
 
@@ -2431,7 +2431,7 @@ function resolveQuery(importRecords) {
     {
         var i = server.indexOf("(");
         if (i > -1) {
-            var j = server.indexOf(")");
+            var j = server.lastIndexOf(")");
             server = server.substring(i + 1, j);
         }
     }
