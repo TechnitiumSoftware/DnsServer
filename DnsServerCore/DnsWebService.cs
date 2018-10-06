@@ -2180,9 +2180,6 @@ namespace DnsServerCore
             if (string.IsNullOrEmpty(server))
                 throw new DnsWebServiceException("Parameter 'server' missing.");
 
-            if (server.Contains(" "))
-                throw new DnsWebServiceException("Invalid parameter 'server' value.");
-
             string domain = request.QueryString["domain"];
             if (string.IsNullOrEmpty(domain))
                 throw new DnsWebServiceException("Parameter 'domain' missing.");
@@ -2236,7 +2233,7 @@ namespace DnsServerCore
                                 nameServer.RecursiveResolveIPAddress(_dnsServer.Cache, _dnsServer.Proxy, preferIPv6, DnsClient.RecursiveResolveDefaultProtocol, RETRIES);
                         }
                     }
-                    else
+                    else if (protocol != DnsClientProtocol.Tls)
                     {
                         try
                         {
