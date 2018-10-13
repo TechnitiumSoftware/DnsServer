@@ -202,12 +202,12 @@ $(function () {
                 break;
 
             case "cloudflare-tls":
-                $("#txtForwarders").val("1.1.1.1:853\r\n1.0.0.1:853");
+                $("#txtForwarders").val("cloudflare-dns.com (1.1.1.1:853)\r\ncloudflare-dns.com (1.0.0.1:853)");
                 $("#rdForwarderProtocolTls").prop("checked", true);
                 break;
 
             case "cloudflare-tls-ipv6":
-                $("#txtForwarders").val("[2606:4700:4700::1111]:853\r\n[2606:4700:4700::1001]:853");
+                $("#txtForwarders").val("cloudflare-dns.com ([2606:4700:4700::1111]:853)\r\ncloudflare-dns.com ([2606:4700:4700::1001]:853)");
                 $("#rdForwarderProtocolTls").prop("checked", true);
                 break;
 
