@@ -786,7 +786,7 @@ namespace DnsServerCore
             set
             {
                 if (value == null)
-                    throw new NullReferenceException();
+                    throw new ArgumentNullException();
 
                 if (!value.IsAuthoritative)
                     throw new ArgumentException("Blocked zone must be authoritative.");
