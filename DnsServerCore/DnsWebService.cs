@@ -3259,7 +3259,12 @@ namespace DnsServerCore
 
             _state = ServiceState.Stopping;
 
-            _webServiceThread.Abort();
+            try
+            {
+                _webServiceThread.Abort();
+            }
+            catch (PlatformNotSupportedException)
+            { }
 
             _webService.Stop();
             _dnsServer.Stop();

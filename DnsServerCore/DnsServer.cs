@@ -754,9 +754,22 @@ namespace DnsServerCore
             _state = ServiceState.Stopping;
 
             for (int i = 0; i < UDP_LISTENER_THREAD_COUNT; i++)
-                _udpListenerThreads[i].Abort();
+            {
+                try
+                {
+                    _udpListenerThreads[i].Abort();
+                }
+                catch (PlatformNotSupportedException)
+                { }
+            }
 
-            _tcpListenerThread.Abort();
+
+            try
+            {
+                _tcpListenerThread.Abort();
+            }
+            catch (PlatformNotSupportedException)
+            { }
 
             _udpListener.Dispose();
             _tcpListener.Dispose();
