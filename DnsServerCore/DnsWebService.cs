@@ -892,6 +892,8 @@ namespace DnsServerCore
             string strServerDomain = request.QueryString["serverDomain"];
             if (!string.IsNullOrEmpty(strServerDomain))
             {
+                strServerDomain = strServerDomain.ToLower();
+
                 if (_serverDomain != strServerDomain)
                 {
                     //authoritative zone
@@ -900,10 +902,11 @@ namespace DnsServerCore
 
                         foreach (Zone.ZoneInfo zone in zones)
                         {
-                            DnsResourceRecord[] dnsResourceRecords = _dnsServer.AuthoritativeZoneRoot.GetAllRecords(zone.ZoneName, DnsResourceRecordType.SOA, false, true);
-                            if (dnsResourceRecords.Length > 0)
+                            DnsResourceRecord[] soaResourceRecords = _dnsServer.AuthoritativeZoneRoot.GetAllRecords(zone.ZoneName, DnsResourceRecordType.SOA, false, true);
+                            if (soaResourceRecords.Length > 0)
                             {
-                                DnsResourceRecord soaRecord = dnsResourceRecords[0];
+                                //update SOA record
+                                DnsResourceRecord soaRecord = soaResourceRecords[0];
                                 DnsSOARecord soaRecordData = soaRecord.RDATA as DnsSOARecord;
 
                                 string responsiblePerson = soaRecordData.ResponsiblePerson;
@@ -911,9 +914,38 @@ namespace DnsServerCore
                                     responsiblePerson = responsiblePerson.Replace(_serverDomain, strServerDomain);
 
                                 _dnsServer.AuthoritativeZoneRoot.SetRecords(soaRecord.Name, soaRecord.Type, soaRecord.TTLValue, new DnsResourceRecordData[] { new DnsSOARecord(strServerDomain, responsiblePerson, soaRecordData.Serial, soaRecordData.Refresh, soaRecordData.Retry, soaRecordData.Expire, soaRecordData.Minimum) });
-                                SaveZoneFile(soaRecord.Name);
+
+                                //update NS records
+                                DnsResourceRecord[] nsResourceRecords = _dnsServer.AuthoritativeZoneRoot.GetAllRecords(zone.ZoneName, DnsResourceRecordType.NS, false, true);
+
+                                foreach (DnsResourceRecord nsResourceRecord in nsResourceRecords)
+                                {
+                                    if ((nsResourceRecord.RDATA as DnsNSRecord).NSDomainName.Equals(_serverDomain, StringComparison.CurrentCultureIgnoreCase))
+                                        _dnsServer.AuthoritativeZoneRoot.UpdateRecord(nsResourceRecord, new DnsResourceRecord(nsResourceRecord.Name, nsResourceRecord.Type, nsResourceRecord.Class, nsResourceRecord.TTLValue, new DnsNSRecord(strServerDomain)));
+                                }
+
+                                SaveZoneFile(zone.ZoneName);
                             }
                         }
+                    }
+
+                    //allowed zone
+                    {
+                        Zone.ZoneInfo[] zones = _dnsServer.AllowedZoneRoot.ListAuthoritativeZones();
+
+                        foreach (Zone.ZoneInfo zone in zones)
+                        {
+                            DnsResourceRecord[] soaResourceRecords = _dnsServer.AllowedZoneRoot.GetAllRecords(zone.ZoneName, DnsResourceRecordType.SOA, false, true);
+                            if (soaResourceRecords.Length > 0)
+                            {
+                                DnsResourceRecord soaRecord = soaResourceRecords[0];
+                                DnsSOARecord soaRecordData = soaRecord.RDATA as DnsSOARecord;
+
+                                _dnsServer.AllowedZoneRoot.SetRecords(soaRecord.Name, soaRecord.Type, soaRecord.TTLValue, new DnsResourceRecordData[] { new DnsSOARecord(strServerDomain, "hostmaster." + strServerDomain, soaRecordData.Serial, soaRecordData.Refresh, soaRecordData.Retry, soaRecordData.Expire, soaRecordData.Minimum) });
+                            }
+                        }
+
+                        SaveAllowedZoneFile();
                     }
 
                     //blocked zone
@@ -922,20 +954,17 @@ namespace DnsServerCore
 
                         foreach (Zone.ZoneInfo zone in zones)
                         {
-                            DnsResourceRecord[] dnsResourceRecords = _dnsServer.BlockedZoneRoot.GetAllRecords(zone.ZoneName, DnsResourceRecordType.SOA, false, true);
-                            if (dnsResourceRecords.Length > 0)
+                            DnsResourceRecord[] soaResourceRecords = _dnsServer.BlockedZoneRoot.GetAllRecords(zone.ZoneName, DnsResourceRecordType.SOA, false, true);
+                            if (soaResourceRecords.Length > 0)
                             {
-                                DnsResourceRecord soaRecord = dnsResourceRecords[0];
+                                DnsResourceRecord soaRecord = soaResourceRecords[0];
                                 DnsSOARecord soaRecordData = soaRecord.RDATA as DnsSOARecord;
 
-                                string responsiblePerson = soaRecordData.ResponsiblePerson;
-                                if (responsiblePerson.EndsWith(_serverDomain))
-                                    responsiblePerson = responsiblePerson.Replace(_serverDomain, strServerDomain);
-
-                                _dnsServer.BlockedZoneRoot.SetRecords(soaRecord.Name, soaRecord.Type, soaRecord.TTLValue, new DnsResourceRecordData[] { new DnsSOARecord(strServerDomain, responsiblePerson, soaRecordData.Serial, soaRecordData.Refresh, soaRecordData.Retry, soaRecordData.Expire, soaRecordData.Minimum) });
-                                SaveZoneFile(soaRecord.Name);
+                                _dnsServer.BlockedZoneRoot.SetRecords(soaRecord.Name, soaRecord.Type, soaRecord.TTLValue, new DnsResourceRecordData[] { new DnsSOARecord(strServerDomain, "hostmaster." + strServerDomain, soaRecordData.Serial, soaRecordData.Refresh, soaRecordData.Retry, soaRecordData.Expire, soaRecordData.Minimum) });
                             }
                         }
+
+                        SaveBlockedZoneFile();
                     }
 
                     _serverDomain = strServerDomain;
@@ -2669,7 +2698,6 @@ namespace DnsServerCore
                     {
                         wC.Proxy = _dnsServer.Proxy;
                         wC.Timeout = 60000;
-                        wC.IfModifiedSince = _blockListLastUpdatedOn;
 
                         wC.DownloadFile(blockListUrl, blockListDownloadFilePath);
                     }
@@ -2777,9 +2805,6 @@ namespace DnsServerCore
                 //save last updated on time
                 _blockListLastUpdatedOn = DateTime.UtcNow;
                 SaveConfigFile();
-
-                //force GC
-                GC.Collect();
             }
         }
 
