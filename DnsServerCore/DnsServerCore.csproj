@@ -142,9 +142,9 @@
     <RepositoryType></RepositoryType>
     <Description>.NET Standard 2.0</Description>
     <PackageId>DnsServer</PackageId>
-    <AssemblyVersion>2.0.0.1</AssemblyVersion>
-    <FileVersion>2.0.0.1</FileVersion>
-    <Version>2.0</Version>
+    <AssemblyVersion>2.0.1.0</AssemblyVersion>
+    <FileVersion>2.0.1.0</FileVersion>
+    <Version>2.0.1</Version>
   </PropertyGroup>
 
 </Project>
