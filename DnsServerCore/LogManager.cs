@@ -149,7 +149,11 @@ namespace DnsServerCore
 
         public void Write(IPEndPoint ep, bool tcp, DnsDatagram request, DnsDatagram response)
         {
-            DnsQuestionRecord q = request.Question[0];
+            DnsQuestionRecord q = null;
+
+            if (request.Header.QDCOUNT > 0)
+                q = request.Question[0];
+
             string question;
 
             if (q == null)

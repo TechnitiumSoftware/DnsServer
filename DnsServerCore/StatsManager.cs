@@ -270,7 +270,10 @@ namespace DnsServerCore
                 }
             }
 
-            Update(response.Question[0].Name, response.Question[0].Type, responseType, clientIpAddress);
+            if (response.Header.QDCOUNT > 0)
+                Update(response.Question[0].Name, response.Question[0].Type, responseType, clientIpAddress);
+            else
+                Update("", DnsResourceRecordType.ANY, responseType, clientIpAddress);
         }
 
         public void Update(string queryDomain, DnsResourceRecordType queryType, StatsResponseType responseType, IPAddress clientIpAddress)
