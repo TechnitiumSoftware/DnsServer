@@ -50,6 +50,9 @@ namespace DnsServerCore
 
         #region variables
 
+        const int DNS_SERVER_TIMEOUT = 2000;
+        const int DNS_SERVER_TIMEOUT_WITH_PROXY = 10000;
+
         readonly string _currentVersion;
         readonly string _appFolder;
         readonly string _configFolder;
@@ -77,6 +80,7 @@ namespace DnsServerCore
         const int BLOCK_LIST_UPDATE_AFTER_HOURS = 24;
         const int BLOCK_LIST_UPDATE_TIMER_INITIAL_INTERVAL = 5000;
         const int BLOCK_LIST_UPDATE_TIMER_INTERVAL = 900000;
+        const int BLOCK_LIST_UPDATE_RETRIES = 3;
 
         int _totalZonesAllowed;
         int _totalZonesBlocked;
@@ -1003,6 +1007,7 @@ namespace DnsServerCore
                 if (proxyType == NetProxyType.None)
                 {
                     _dnsServer.Proxy = null;
+                    _dnsServer.Timeout = DNS_SERVER_TIMEOUT;
                 }
                 else
                 {
@@ -1013,6 +1018,7 @@ namespace DnsServerCore
                         credential = new NetworkCredential(strUsername, request.QueryString["proxyPassword"]);
 
                     _dnsServer.Proxy = new NetProxy(proxyType, request.QueryString["proxyAddress"], int.Parse(request.QueryString["proxyPort"]), credential);
+                    _dnsServer.Timeout = DNS_SERVER_TIMEOUT_WITH_PROXY;
                 }
             }
 
@@ -2237,7 +2243,7 @@ namespace DnsServerCore
 
             if (server == "root-servers")
             {
-                dnsResponse = DnsClient.ResolveViaRootNameServers(domain, type, new SimpleDnsCache(), proxy, preferIPv6, protocol, RETRIES);
+                dnsResponse = DnsClient.ResolveViaRootNameServers(domain, type, new SimpleDnsCache(), proxy, preferIPv6, protocol, RETRIES, 10, _dnsServer.Timeout);
             }
             else
             {
@@ -2257,9 +2263,9 @@ namespace DnsServerCore
                         if (proxy == null)
                         {
                             if (_dnsServer.AllowRecursion)
-                                nameServer.ResolveIPAddress(new NameServerAddress[] { new NameServerAddress(IPAddress.Loopback) }, _dnsServer.Proxy, preferIPv6, DnsClientProtocol.Udp, RETRIES);
+                                nameServer.ResolveIPAddress(new NameServerAddress[] { new NameServerAddress(IPAddress.Loopback) }, _dnsServer.Proxy, preferIPv6, DnsClientProtocol.Udp, RETRIES, _dnsServer.Timeout);
                             else
-                                nameServer.RecursiveResolveIPAddress(_dnsServer.Cache, _dnsServer.Proxy, preferIPv6, DnsClient.RecursiveResolveDefaultProtocol, RETRIES);
+                                nameServer.RecursiveResolveIPAddress(_dnsServer.Cache, _dnsServer.Proxy, preferIPv6, DnsClient.RecursiveResolveDefaultProtocol, RETRIES, _dnsServer.Timeout);
                         }
                     }
                     else if (protocol != DnsClientProtocol.Tls)
@@ -2267,16 +2273,16 @@ namespace DnsServerCore
                         try
                         {
                             if (_dnsServer.AllowRecursion)
-                                nameServer.ResolveDomainName(new NameServerAddress[] { new NameServerAddress(IPAddress.Loopback) }, _dnsServer.Proxy, _dnsServer.PreferIPv6, DnsClientProtocol.Udp, RETRIES);
+                                nameServer.ResolveDomainName(new NameServerAddress[] { new NameServerAddress(IPAddress.Loopback) }, _dnsServer.Proxy, _dnsServer.PreferIPv6, DnsClientProtocol.Udp, RETRIES, _dnsServer.Timeout);
                             else
-                                nameServer.RecursiveResolveDomainName(_dnsServer.Cache, _dnsServer.Proxy, _dnsServer.PreferIPv6, DnsClient.RecursiveResolveDefaultProtocol, RETRIES);
+                                nameServer.RecursiveResolveDomainName(_dnsServer.Cache, _dnsServer.Proxy, _dnsServer.PreferIPv6, DnsClient.RecursiveResolveDefaultProtocol, RETRIES, _dnsServer.Timeout);
                         }
                         catch
                         { }
                     }
                 }
 
-                dnsResponse = (new DnsClient(nameServer) { Proxy = proxy, PreferIPv6 = preferIPv6, Protocol = protocol, Retries = RETRIES, ReceiveTimeout = 5000 }).Resolve(domain, type);
+                dnsResponse = (new DnsClient(nameServer) { Proxy = proxy, PreferIPv6 = preferIPv6, Protocol = protocol, Retries = RETRIES, ConnectionTimeout = _dnsServer.Timeout, SendTimeout = _dnsServer.Timeout, ReceiveTimeout = _dnsServer.Timeout }).Resolve(domain, type);
             }
 
             if (importRecords)
@@ -2691,21 +2697,40 @@ namespace DnsServerCore
 
                 try
                 {
-                    if (File.Exists(blockListDownloadFilePath))
-                        File.Delete(blockListDownloadFilePath);
+                    int retries = 1;
 
-                    using (WebClientEx wC = new WebClientEx())
+                    while (true)
                     {
-                        wC.Proxy = _dnsServer.Proxy;
-                        wC.Timeout = 60000;
+                        if (File.Exists(blockListDownloadFilePath))
+                            File.Delete(blockListDownloadFilePath);
 
-                        wC.DownloadFile(blockListUrl, blockListDownloadFilePath);
+                        using (WebClientEx wC = new WebClientEx())
+                        {
+                            wC.Proxy = _dnsServer.Proxy;
+                            wC.Timeout = 60000;
+
+                            try
+                            {
+                                wC.DownloadFile(blockListUrl, blockListDownloadFilePath);
+                            }
+                            catch (WebException)
+                            {
+                                if (retries < BLOCK_LIST_UPDATE_RETRIES)
+                                {
+                                    retries++;
+                                    continue;
+                                }
+
+                                throw;
+                            }
+                        }
+
+                        if (File.Exists(blockListFilePath))
+                            File.Delete(blockListFilePath);
+
+                        File.Move(blockListDownloadFilePath, blockListFilePath);
+                        break;
                     }
-
-                    if (File.Exists(blockListFilePath))
-                        File.Delete(blockListFilePath);
-
-                    File.Move(blockListDownloadFilePath, blockListFilePath);
                 }
                 catch (Exception ex)
                 {
@@ -2929,6 +2954,12 @@ namespace DnsServerCore
                                     credential = new NetworkCredential(bR.ReadShortString(), bR.ReadShortString());
 
                                 _dnsServer.Proxy = new NetProxy(proxyType, address, port, credential);
+                                _dnsServer.Timeout = DNS_SERVER_TIMEOUT_WITH_PROXY;
+                            }
+                            else
+                            {
+                                _dnsServer.Proxy = null;
+                                _dnsServer.Timeout = DNS_SERVER_TIMEOUT;
                             }
 
                             {
