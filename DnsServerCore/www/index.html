@@ -664,8 +664,10 @@
                                                     <li><a href="#">IBM Quad9 Secure ([2620:fe::fe])</a></li>
                                                     <li><a href="#">IBM Quad9 Secure TLS (dns.quad9.net (9.9.9.9:853))</a></li>
                                                     <li><a href="#">IBM Quad9 Secure TLS (dns.quad9.net ([2620:fe::fe]:853))</a></li>
+                                                    <li><a href="#">IBM Quad9 Secure HTTPS (https://dns.quad9.net/dns-query)</a></li>
                                                     <li><a href="#">IBM Quad9 Unsecure (9.9.9.10)</a></li>
                                                     <li><a href="#">IBM Quad9 Unsecure ([2620:fe::10])</a></li>
+                                                    <li><a href="#">IBM Quad9 Unsecure HTTPS (https://dns10.quad9.net/dns-query)</a></li>
                                                     <li><a href="#">OpenDNS (208.67.222.222)</a></li>
                                                     <li><a href="#">OpenDNS (208.67.220.220)</a></li>
                                                     <li><a href="#">OpenDNS ([2620:0:ccc::2])</a></li>
@@ -781,7 +783,7 @@
                                                         </label>
                                                     </div>
 
-                                                    <div>Use this option to log every query received by this Dns Server and the corresponding response answers into the log file. Enabling this option will significantly increase the log file size. Error and audit logs are enabled by default.</div>
+                                                    <div>Use this option to log every query received by this DNS Server and the corresponding response answers into the log file. Enabling this option will significantly increase the log file size. Error and audit logs are enabled by default.</div>
                                                 </div>
                                             </div>
 
@@ -857,6 +859,7 @@
                                                 </div>
 
                                                 <div style="margin-top: 10px;">DNS Server will use the data returned by the block list URLs to update the blocked zone automatically every 24 hours. The expected file format is standard <i>hosts</i> file format or plain text file containing list of domains to block.</div>
+                                                <div style="margin-top: 10px;"><a href="https://blog.technitium.com/2018/10/blocking-internet-ads-using-dns-sinkhole.html" target="_blank">Help: Blocking Internet Ads Using DNS Sinkhole</a></div>
                                             </div>
 
                                             <div class="well well-sm form-horizontal">
@@ -942,6 +945,7 @@
                                                             <option value="quad9-udp-ipv6">IBM Quad9 Secure (DNS-over-UDP IPv6)</option>
                                                             <option value="quad9-tls">IBM Quad9 Secure (DNS-over-TLS)</option>
                                                             <option value="quad9-tls-ipv6">IBM Quad9 Secure (DNS-over-TLS IPv6)</option>
+                                                            <option value="quad9-https">IBM Quad9 Secure (DNS-over-HTTPS)</option>
 
                                                             <option value="opendns-udp">OpenDNS (DNS-over-UDP)</option>
                                                             <option value="opendns-udp-ipv6">OpenDNS (DNS-over-UDP IPv6)</option>
