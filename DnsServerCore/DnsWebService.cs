@@ -3250,38 +3250,47 @@ namespace DnsServerCore
             if (_state != ServiceState.Stopped)
                 return;
 
-            _dnsServer = new DnsServer();
-            _dnsServer.LogManager = _log;
-            _dnsServer.StatsManager = _stats;
-
-            LoadZoneFiles();
-            LoadConfigFile();
-            LoadAllowedZoneFile();
-            LoadBlockedZoneFile();
-
-            _dnsServer.Start();
-
             try
             {
-                _webService = new HttpListener();
-                _webService.Prefixes.Add("http://*:" + _webServicePort + "/");
-                _webService.Start();
+                _dnsServer = new DnsServer();
+                _dnsServer.LogManager = _log;
+                _dnsServer.StatsManager = _stats;
+
+                LoadZoneFiles();
+                LoadConfigFile();
+                LoadAllowedZoneFile();
+                LoadBlockedZoneFile();
+
+                _dnsServer.Start();
+
+                try
+                {
+                    _webService = new HttpListener();
+                    _webService.Prefixes.Add("http://*:" + _webServicePort + "/");
+                    _webService.Start();
+                }
+                catch
+                {
+                    _webService = new HttpListener();
+                    _webService.Prefixes.Add("http://localhost:" + _webServicePort + "/");
+                    _webService.Prefixes.Add("http://127.0.0.1:" + _webServicePort + "/");
+                    _webService.Start();
+                }
+
+                _webServiceThread = new Thread(AcceptWebRequestAsync);
+                _webServiceThread.IsBackground = true;
+                _webServiceThread.Start();
+
+                _state = ServiceState.Running;
+
+                _log.Write(new IPEndPoint(IPAddress.Loopback, _webServicePort), "DNS Web Service (v" + _currentVersion + ") was started successfully.");
             }
-            catch
+            catch (Exception ex)
             {
-                _webService = new HttpListener();
-                _webService.Prefixes.Add("http://localhost:" + _webServicePort + "/");
-                _webService.Prefixes.Add("http://127.0.0.1:" + _webServicePort + "/");
-                _webService.Start();
+                _log.Write("Failed to start DNS Web Service (v" + _currentVersion + ")");
+                _log.Write(ex);
+                throw;
             }
-
-            _webServiceThread = new Thread(AcceptWebRequestAsync);
-            _webServiceThread.IsBackground = true;
-            _webServiceThread.Start();
-
-            _state = ServiceState.Running;
-
-            _log.Write(new IPEndPoint(IPAddress.Loopback, _webServicePort), "DNS Web Service (v" + _currentVersion + ") was started successfully.");
         }
 
         public void Stop()
@@ -3293,19 +3302,28 @@ namespace DnsServerCore
 
             try
             {
-                _webServiceThread.Abort();
+                try
+                {
+                    _webServiceThread.Abort();
+                }
+                catch (PlatformNotSupportedException)
+                { }
+
+                _webService.Stop();
+                _dnsServer.Stop();
+
+                StopBlockListUpdateTimer();
+
+                _state = ServiceState.Stopped;
+
+                _log.Write(new IPEndPoint(IPAddress.Loopback, _webServicePort), "DNS Web Service was stopped successfully.");
             }
-            catch (PlatformNotSupportedException)
-            { }
-
-            _webService.Stop();
-            _dnsServer.Stop();
-
-            StopBlockListUpdateTimer();
-
-            _state = ServiceState.Stopped;
-
-            _log.Write(new IPEndPoint(IPAddress.Loopback, _webServicePort), "DNS Web Service was stopped successfully.");
+            catch (Exception ex)
+            {
+                _log.Write("Failed to stop DNS Web Service (v" + _currentVersion + ")");
+                _log.Write(ex);
+                throw;
+            }
         }
 
         #endregion
