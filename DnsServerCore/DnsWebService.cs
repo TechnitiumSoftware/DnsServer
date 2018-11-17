@@ -186,6 +186,7 @@ namespace DnsServerCore
             HttpListenerResponse response = parameters[1] as HttpListenerResponse;
 
             response.AddHeader("Server", "");
+            response.AddHeader("X-Robots-Tag", "noindex, nofollow");
 
             try
             {
