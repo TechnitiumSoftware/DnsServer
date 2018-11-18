@@ -32,6 +32,7 @@
     <None Remove="www\js\common.js" />
     <None Remove="www\js\jquery.min.js" />
     <None Remove="www\js\main.js" />
+    <None Remove="www\robots.txt" />
   </ItemGroup>
 
   <ItemGroup>
@@ -116,6 +117,9 @@
     <Content Include="www\js\main.js">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </Content>
+    <Content Include="www\robots.txt">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </Content>
   </ItemGroup>
 
   <ItemGroup>
@@ -142,9 +146,9 @@
     <RepositoryType></RepositoryType>
     <Description>.NET Standard 2.0</Description>
     <PackageId>DnsServer</PackageId>
-    <AssemblyVersion>2.0.1.0</AssemblyVersion>
-    <FileVersion>2.0.1.0</FileVersion>
-    <Version>2.0.1</Version>
+    <AssemblyVersion>2.0.2.0</AssemblyVersion>
+    <FileVersion>2.0.2.0</FileVersion>
+    <Version>2.0.2</Version>
   </PropertyGroup>
 
 </Project>
