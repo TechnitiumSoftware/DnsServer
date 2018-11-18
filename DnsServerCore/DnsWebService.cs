@@ -2844,6 +2844,8 @@ namespace DnsServerCore
                             File.Delete(blockListFilePath);
 
                         File.Move(blockListDownloadFilePath, blockListFilePath);
+
+                        _log.Write("DNS Server successfully downloaded block list (" + WebUtilities.GetFormattedSize(new FileInfo(blockListFilePath).Length) + "): " + blockListUrl.AbsoluteUri);
                         break;
                     }
                 }
@@ -2856,6 +2858,8 @@ namespace DnsServerCore
                 {
                     try
                     {
+                        int count = 0;
+
                         using (BufferedStream bS = new BufferedStream(new FileStream(blockListFilePath, FileMode.Open, FileAccess.Read)))
                         {
                             //parse hosts file and populate block zone
@@ -2920,11 +2924,14 @@ namespace DnsServerCore
                                     ipAddress = IPAddress.Any;
 
                                 if (ipAddress.Equals(IPAddress.Any) || ipAddress.Equals(IPAddress.Loopback) || ipAddress.Equals(IPAddress.IPv6Any) || ipAddress.Equals(IPAddress.IPv6Loopback))
+                                {
                                     BlockZone(hostname, blockedZoneRoot);
+                                    count++;
+                                }
                             }
                         }
 
-                        _log.Write("DNS Server blocked zone was updated from: " + blockListUrl.AbsoluteUri);
+                        _log.Write("DNS Server blocked zone was updated (" + count + " domains) from: " + blockListUrl.AbsoluteUri);
                         success = true;
                     }
                     catch (Exception ex)
