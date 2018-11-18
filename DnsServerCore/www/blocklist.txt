@@ -1,7 +1,5 @@
 # Technitium DNS Server Custom Block List
 #
-# Use this file to create a persistent block list of custom domains.
-#
 # This file is accessible from the DNS Server's web service using URL:
 # http://localhost:5380/blocklist.txt
 #
@@ -15,4 +13,3 @@
 #
 # For example:
 # example.com
-
