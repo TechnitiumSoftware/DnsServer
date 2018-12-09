@@ -53,6 +53,8 @@ namespace DnsServerCore
         const int DNS_SERVER_TIMEOUT = 2000;
         const int DNS_SERVER_TIMEOUT_WITH_PROXY = 10000;
 
+        const DnsClientProtocol RECURSIVE_RESOLVE_PROTOCOL = DnsClientProtocol.Udp;
+
         readonly string _currentVersion;
         readonly string _appFolder;
         readonly string _configFolder;
@@ -1201,6 +1203,7 @@ namespace DnsServerCore
                     jsonWriter.WriteStartArray();
 
                     WriteChartDataSet(jsonWriter, "Total Queries", "rgba(102, 153, 255, 0.1)", "rgb(102, 153, 255)", data["totalQueriesPerInterval"]);
+                    WriteChartDataSet(jsonWriter, "Cache Hit", "rgba(111, 84, 153, 0.1)", "rgb(111, 84, 153)", data["totalCacheHitPerInterval"]);
                     WriteChartDataSet(jsonWriter, "No Error", "rgba(92, 184, 92, 0.1)", "rgb(92, 184, 92)", data["totalNoErrorPerInterval"]);
                     WriteChartDataSet(jsonWriter, "Server Failure", "rgba(217, 83, 79, 0.1)", "rgb(217, 83, 79)", data["totalServerFailurePerInterval"]);
                     WriteChartDataSet(jsonWriter, "Name Error", "rgba(7, 7, 7, 0.1)", "rgb(7, 7, 7)", data["totalNameErrorPerInterval"]);
@@ -2311,7 +2314,7 @@ namespace DnsServerCore
                             if (_dnsServer.AllowRecursion)
                                 nameServer.ResolveIPAddress(new NameServerAddress[] { new NameServerAddress(IPAddress.Loopback) }, _dnsServer.Proxy, preferIPv6, DnsClientProtocol.Udp, RETRIES, _dnsServer.Timeout);
                             else
-                                nameServer.RecursiveResolveIPAddress(_dnsServer.Cache, _dnsServer.Proxy, preferIPv6, DnsClient.RecursiveResolveDefaultProtocol, RETRIES, _dnsServer.Timeout);
+                                nameServer.RecursiveResolveIPAddress(_dnsServer.Cache, _dnsServer.Proxy, preferIPv6, RECURSIVE_RESOLVE_PROTOCOL, RETRIES, _dnsServer.Timeout, RECURSIVE_RESOLVE_PROTOCOL);
                         }
                     }
                     else if (protocol != DnsClientProtocol.Tls)
@@ -2321,14 +2324,14 @@ namespace DnsServerCore
                             if (_dnsServer.AllowRecursion)
                                 nameServer.ResolveDomainName(new NameServerAddress[] { new NameServerAddress(IPAddress.Loopback) }, _dnsServer.Proxy, _dnsServer.PreferIPv6, DnsClientProtocol.Udp, RETRIES, _dnsServer.Timeout);
                             else
-                                nameServer.RecursiveResolveDomainName(_dnsServer.Cache, _dnsServer.Proxy, _dnsServer.PreferIPv6, DnsClient.RecursiveResolveDefaultProtocol, RETRIES, _dnsServer.Timeout);
+                                nameServer.RecursiveResolveDomainName(_dnsServer.Cache, _dnsServer.Proxy, _dnsServer.PreferIPv6, RECURSIVE_RESOLVE_PROTOCOL, RETRIES, _dnsServer.Timeout, RECURSIVE_RESOLVE_PROTOCOL);
                         }
                         catch
                         { }
                     }
                 }
 
-                dnsResponse = (new DnsClient(nameServer) { Proxy = proxy, PreferIPv6 = preferIPv6, Protocol = protocol, Retries = RETRIES, ConnectionTimeout = _dnsServer.Timeout, SendTimeout = _dnsServer.Timeout, ReceiveTimeout = _dnsServer.Timeout }).Resolve(domain, type);
+                dnsResponse = (new DnsClient(nameServer) { Proxy = proxy, PreferIPv6 = preferIPv6, Protocol = protocol, Retries = RETRIES, ConnectionTimeout = _dnsServer.Timeout, SendTimeout = _dnsServer.Timeout, ReceiveTimeout = _dnsServer.Timeout, RecursiveResolveProtocol = RECURSIVE_RESOLVE_PROTOCOL }).Resolve(domain, type);
             }
 
             if (importRecords)
@@ -2597,9 +2600,9 @@ namespace DnsServerCore
 
             try
             {
-                using (BufferedStream bS = new BufferedStream(new FileStream(allowedZoneFile, FileMode.Open, FileAccess.Read)))
+                using (FileStream fS = new FileStream(allowedZoneFile, FileMode.Open, FileAccess.Read))
                 {
-                    BinaryReader bR = new BinaryReader(bS);
+                    BinaryReader bR = new BinaryReader(fS);
 
                     if (Encoding.ASCII.GetString(bR.ReadBytes(2)) != "AZ") //format
                         throw new InvalidDataException("DnsServer allowed zone file format is invalid.");
@@ -2639,9 +2642,9 @@ namespace DnsServerCore
 
             string allowedZoneFile = Path.Combine(_configFolder, "allowed.config");
 
-            using (BufferedStream bS = new BufferedStream(new FileStream(allowedZoneFile, FileMode.Create, FileAccess.Write)))
+            using (FileStream fS = new FileStream(allowedZoneFile, FileMode.Create, FileAccess.Write))
             {
-                BinaryWriter bW = new BinaryWriter(bS);
+                BinaryWriter bW = new BinaryWriter(fS);
 
                 bW.Write(Encoding.ASCII.GetBytes("AZ")); //format
                 bW.Write((byte)1); //version
@@ -2661,9 +2664,9 @@ namespace DnsServerCore
 
             try
             {
-                using (BufferedStream bS = new BufferedStream(new FileStream(customBlockedZoneFile, FileMode.Open, FileAccess.Read)))
+                using (FileStream fS = new FileStream(customBlockedZoneFile, FileMode.Open, FileAccess.Read))
                 {
-                    BinaryReader bR = new BinaryReader(bS);
+                    BinaryReader bR = new BinaryReader(fS);
 
                     if (Encoding.ASCII.GetString(bR.ReadBytes(2)) != "BZ") //format
                         throw new InvalidDataException("DnsServer blocked zone file format is invalid.");
@@ -2706,9 +2709,9 @@ namespace DnsServerCore
 
             string customBlockedZoneFile = Path.Combine(_configFolder, "custom-blocked.config");
 
-            using (BufferedStream bS = new BufferedStream(new FileStream(customBlockedZoneFile, FileMode.Create, FileAccess.Write)))
+            using (FileStream fS = new FileStream(customBlockedZoneFile, FileMode.Create, FileAccess.Write))
             {
-                BinaryWriter bW = new BinaryWriter(bS);
+                BinaryWriter bW = new BinaryWriter(fS);
 
                 bW.Write(Encoding.ASCII.GetBytes("BZ")); //format
                 bW.Write((byte)1); //version
@@ -2728,9 +2731,9 @@ namespace DnsServerCore
 
             try
             {
-                using (BufferedStream bS = new BufferedStream(new FileStream(blockedZoneFile, FileMode.Open, FileAccess.Read)))
+                using (FileStream fS = new FileStream(blockedZoneFile, FileMode.Open, FileAccess.Read))
                 {
-                    BinaryReader bR = new BinaryReader(bS);
+                    BinaryReader bR = new BinaryReader(fS);
 
                     if (Encoding.ASCII.GetString(bR.ReadBytes(2)) != "BZ") //format
                         throw new InvalidDataException("DnsServer blocked zone file format is invalid.");
@@ -2772,9 +2775,9 @@ namespace DnsServerCore
 
             string blockedZoneFile = Path.Combine(_configFolder, "blocked.config");
 
-            using (BufferedStream bS = new BufferedStream(new FileStream(blockedZoneFile, FileMode.Create, FileAccess.Write)))
+            using (FileStream fS = new FileStream(blockedZoneFile, FileMode.Create, FileAccess.Write))
             {
-                BinaryWriter bW = new BinaryWriter(bS);
+                BinaryWriter bW = new BinaryWriter(fS);
 
                 bW.Write(Encoding.ASCII.GetBytes("BZ")); //format
                 bW.Write((byte)1); //version
@@ -2860,10 +2863,10 @@ namespace DnsServerCore
                     {
                         int count = 0;
 
-                        using (BufferedStream bS = new BufferedStream(new FileStream(blockListFilePath, FileMode.Open, FileAccess.Read)))
+                        using (FileStream fS = new FileStream(blockListFilePath, FileMode.Open, FileAccess.Read))
                         {
                             //parse hosts file and populate block zone
-                            StreamReader sR = new StreamReader(bS, true);
+                            StreamReader sR = new StreamReader(fS, true);
 
                             while (true)
                             {
@@ -3378,6 +3381,7 @@ namespace DnsServerCore
             try
             {
                 _dnsServer = new DnsServer();
+                _dnsServer.RecursiveResolveProtocol = RECURSIVE_RESOLVE_PROTOCOL;
                 _dnsServer.LogManager = _log;
                 _dnsServer.StatsManager = _stats;
 
