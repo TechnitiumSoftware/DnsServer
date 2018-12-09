@@ -687,6 +687,7 @@ function refreshDashboard(hideLoader) {
 
             //stats
             $("#divDashboardStatsTotalQueries").text(responseJSON.response.stats.totalQueries.toLocaleString());
+            $("#divDashboardStatsTotalCacheHit").text(responseJSON.response.stats.totalCacheHit.toLocaleString());
             $("#divDashboardStatsTotalNoError").text(responseJSON.response.stats.totalNoError.toLocaleString());
             $("#divDashboardStatsTotalServerFailure").text(responseJSON.response.stats.totalServerFailure.toLocaleString());
             $("#divDashboardStatsTotalNameError").text(responseJSON.response.stats.totalNameError.toLocaleString());
@@ -697,6 +698,7 @@ function refreshDashboard(hideLoader) {
             $("#divDashboardStatsBlockedZones").text(responseJSON.response.stats.blockedZones.toLocaleString());
 
             if (responseJSON.response.stats.totalQueries > 0) {
+                $("#divDashboardStatsTotalCacheHitPercentage").text((responseJSON.response.stats.totalCacheHit * 100 / responseJSON.response.stats.totalQueries).toFixed(2) + "%");
                 $("#divDashboardStatsTotalNoErrorPercentage").text((responseJSON.response.stats.totalNoError * 100 / responseJSON.response.stats.totalQueries).toFixed(2) + "%");
                 $("#divDashboardStatsTotalServerFailurePercentage").text((responseJSON.response.stats.totalServerFailure * 100 / responseJSON.response.stats.totalQueries).toFixed(2) + "%");
                 $("#divDashboardStatsTotalNameErrorPercentage").text((responseJSON.response.stats.totalNameError * 100 / responseJSON.response.stats.totalQueries).toFixed(2) + "%");
@@ -704,6 +706,7 @@ function refreshDashboard(hideLoader) {
                 $("#divDashboardStatsTotalBlockedPercentage").text((responseJSON.response.stats.totalBlocked * 100 / responseJSON.response.stats.totalQueries).toFixed(2) + "%");
             }
             else {
+                $("#divDashboardStatsTotalCacheHitPercentage").text("0%");
                 $("#divDashboardStatsTotalNoErrorPercentage").text("0%");
                 $("#divDashboardStatsTotalServerFailurePercentage").text("0%");
                 $("#divDashboardStatsTotalNameErrorPercentage").text("0%");

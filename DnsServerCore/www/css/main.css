@@ -214,6 +214,11 @@ label {
         color: #ffffff;
     }
 
+    .stats-panel .cache-hit {
+        background-color: rgba(111, 84, 153, 0.7);
+        color: #ffffff;
+    }
+
     .stats-panel .no-error {
         background-color: rgba(92, 184, 92, 0.7);
         color: #ffffff;
@@ -255,7 +260,7 @@ label {
     }
 
     .stats-panel .stats-item {
-        width: 120px;
+        width: 107px;
         float: left;
         padding: 6px;
         margin-right: 3px;
@@ -263,7 +268,7 @@ label {
     }
 
         .stats-panel .stats-item .number {
-            font-size: 16px;
+            font-size: 15px;
             font-weight: bold;
         }
 
