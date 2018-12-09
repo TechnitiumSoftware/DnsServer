@@ -720,7 +720,12 @@ namespace DnsServerCore
                         {
                             foreach (DnsQuestionRecord question in response.Question)
                             {
-                                DnsResourceRecord record = new DnsResourceRecord(question.Name, question.Type, DnsClass.IN, DEFAULT_RECORD_TTL, new DnsNXRecord(authority));
+                                uint ttl = DEFAULT_RECORD_TTL;
+
+                                if (authority.TTLValue < ttl)
+                                    ttl = authority.TTLValue;
+
+                                DnsResourceRecord record = new DnsResourceRecord(question.Name, question.Type, DnsClass.IN, ttl, new DnsNXRecord(authority));
                                 record.SetExpiry();
 
                                 CreateZone(this, question.Name).SetRecords(question.Type, new DnsResourceRecord[] { record });
@@ -742,7 +747,12 @@ namespace DnsServerCore
                             //empty response with authority
                             foreach (DnsQuestionRecord question in response.Question)
                             {
-                                DnsResourceRecord record = new DnsResourceRecord(question.Name, question.Type, DnsClass.IN, DEFAULT_RECORD_TTL, new DnsEmptyRecord(authority));
+                                uint ttl = DEFAULT_RECORD_TTL;
+
+                                if (authority.TTLValue < ttl)
+                                    ttl = authority.TTLValue;
+
+                                DnsResourceRecord record = new DnsResourceRecord(question.Name, question.Type, DnsClass.IN, ttl, new DnsEmptyRecord(authority));
                                 record.SetExpiry();
 
                                 CreateZone(this, question.Name).SetRecords(question.Type, new DnsResourceRecord[] { record });
@@ -754,7 +764,7 @@ namespace DnsServerCore
                             {
                                 foreach (DnsResourceRecord authorityRecord in response.Authority)
                                 {
-                                    if ((authorityRecord.Type == DnsResourceRecordType.NS) && question.Name.Equals(authorityRecord.Name, StringComparison.CurrentCultureIgnoreCase) && (authorityRecord.RDATA as DnsNSRecord).NSDomainName.Equals(response.NameServerAddress.Host, StringComparison.CurrentCultureIgnoreCase))
+                                    if ((authorityRecord.Type == DnsResourceRecordType.NS) && question.Name.Equals(authorityRecord.Name, StringComparison.CurrentCultureIgnoreCase) && (authorityRecord.RDATA as DnsNSRecord).NSDomainName.Equals(response.Metadata.NameServerAddress.Host, StringComparison.CurrentCultureIgnoreCase))
                                     {
                                         //empty response from authority name server
                                         DnsResourceRecord record = new DnsResourceRecord(question.Name, question.Type, DnsClass.IN, DEFAULT_RECORD_TTL, new DnsEmptyRecord(null));
@@ -797,7 +807,15 @@ namespace DnsServerCore
             //cache for ANY request
             if ((response.Question[0].Type == DnsResourceRecordType.ANY) && (response.Answer.Length > 0))
             {
-                DnsResourceRecord anyRR = new DnsResourceRecord(response.Question[0].Name, DnsResourceRecordType.ANY, DnsClass.IN, DEFAULT_RECORD_TTL, new DnsANYRecord(response.Answer));
+                uint ttl = DEFAULT_RECORD_TTL;
+
+                foreach (DnsResourceRecord answer in response.Answer)
+                {
+                    if (answer.TTLValue < ttl)
+                        ttl = answer.TTLValue;
+                }
+
+                DnsResourceRecord anyRR = new DnsResourceRecord(response.Question[0].Name, DnsResourceRecordType.ANY, DnsClass.IN, ttl, new DnsANYRecord(response.Answer));
                 anyRR.SetExpiry();
 
                 CreateZone(this, response.Question[0].Name).SetRecords(DnsResourceRecordType.ANY, new DnsResourceRecord[] { anyRR });
