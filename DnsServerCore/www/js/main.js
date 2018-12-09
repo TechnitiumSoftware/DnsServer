@@ -174,6 +174,18 @@ $(function () {
         }
     });
 
+    //check for web console port for custom block list url
+    {
+        var url = new URL(window.location.href);
+
+        if (url.port !== 5380) {
+            var optCustomLocalBlockList = $("#optCustomLocalBlockList");
+
+            optCustomLocalBlockList.attr("value", "http://localhost:" + url.port + "/blocklist.txt");
+            optCustomLocalBlockList.text("Custom Local Block List (http://localhost:" + url.port + "/blocklist.txt)");
+        }
+    }
+
     $("#optQuickForwarders").change(function () {
 
         if (($('input[name=rdProxyType]:checked').val() === "Socks5") && ($("#txtProxyAddress").val() === "127.0.0.1") && ($("#txtProxyPort").val() === "9150")) {
