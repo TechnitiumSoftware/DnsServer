@@ -89,8 +89,8 @@ namespace DnsServerCore
         #region IDisposable
 
         private bool _disposed = false;
-        private object _disposeLock = new object();
-        
+        private readonly object _disposeLock = new object();
+
         protected virtual void Dispose(bool disposing)
         {
             lock (_disposeLock)
