@@ -999,6 +999,8 @@ namespace DnsServerCore
                 }
             }
 
+            int oldWebServicePort = _webServicePort;
+
             string strWebServicePort = request.QueryString["webServicePort"];
             if (!string.IsNullOrEmpty(strWebServicePort))
                 _webServicePort = int.Parse(strWebServicePort);
@@ -1085,18 +1087,34 @@ namespace DnsServerCore
 
                     string[] strBlockListUrlList = Encoding.UTF8.GetString(Convert.FromBase64String(strBlockListUrls)).Split(',');
 
-                    if (strBlockListUrlList.Length != _blockListUrls.Count)
+                    if (oldWebServicePort != _webServicePort)
                     {
-                        updated = true;
-                    }
-                    else
-                    {
-                        foreach (string strBlockListUrl in strBlockListUrlList)
+                        for (int i = 0; i < strBlockListUrlList.Length; i++)
                         {
-                            if (!_blockListUrls.Contains(new Uri(strBlockListUrl)))
+                            if (strBlockListUrlList[i].Contains("http://localhost:" + oldWebServicePort + "/blocklist.txt"))
                             {
+                                strBlockListUrlList[i] = "http://localhost:" + _webServicePort + "/blocklist.txt";
                                 updated = true;
                                 break;
+                            }
+                        }
+                    }
+
+                    if (!updated)
+                    {
+                        if (strBlockListUrlList.Length != _blockListUrls.Count)
+                        {
+                            updated = true;
+                        }
+                        else
+                        {
+                            foreach (string strBlockListUrl in strBlockListUrlList)
+                            {
+                                if (!_blockListUrls.Contains(new Uri(strBlockListUrl)))
+                                {
+                                    updated = true;
+                                    break;
+                                }
                             }
                         }
                     }
@@ -2292,7 +2310,7 @@ namespace DnsServerCore
 
             if (server == "root-servers")
             {
-                dnsResponse = DnsClient.ResolveViaRootNameServers(domain, type, new SimpleDnsCache(), proxy, preferIPv6, protocol, RETRIES, 10, _dnsServer.Timeout);
+                dnsResponse = DnsClient.ResolveViaRootNameServers(domain, type, new SimpleDnsCache(), proxy, preferIPv6, protocol, RETRIES, _dnsServer.Timeout);
             }
             else
             {
@@ -2331,7 +2349,7 @@ namespace DnsServerCore
                     }
                 }
 
-                dnsResponse = (new DnsClient(nameServer) { Proxy = proxy, PreferIPv6 = preferIPv6, Protocol = protocol, Retries = RETRIES, ConnectionTimeout = _dnsServer.Timeout, SendTimeout = _dnsServer.Timeout, ReceiveTimeout = _dnsServer.Timeout, RecursiveResolveProtocol = RECURSIVE_RESOLVE_PROTOCOL }).Resolve(domain, type);
+                dnsResponse = (new DnsClient(nameServer) { Proxy = proxy, PreferIPv6 = preferIPv6, Protocol = protocol, Retries = RETRIES, Timeout = _dnsServer.Timeout, RecursiveResolveProtocol = RECURSIVE_RESOLVE_PROTOCOL }).Resolve(domain, type);
             }
 
             if (importRecords)
