@@ -34,6 +34,8 @@ namespace DnsServerCore
         string _logFile;
         StreamWriter _logOut;
         DateTime _logDate;
+        
+        readonly object _logFileLock = new object();
 
         #endregion
 
@@ -54,7 +56,7 @@ namespace DnsServerCore
 
         protected virtual void Dispose(bool disposing)
         {
-            lock (this)
+            lock (_logFileLock)
             {
                 if (_disposed)
                     return;
@@ -214,7 +216,7 @@ namespace DnsServerCore
         {
             try
             {
-                lock (this)
+                lock (_logFileLock)
                 {
                     DateTime now = DateTime.UtcNow;
 
@@ -230,7 +232,7 @@ namespace DnsServerCore
 
         public void DeleteCurrentLogFile()
         {
-            lock (this)
+            lock (_logFileLock)
             {
                 _logOut.Close();
                 File.Delete(_logFile);
