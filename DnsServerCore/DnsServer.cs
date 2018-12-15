@@ -47,8 +47,6 @@ namespace DnsServerCore
         #region variables
 
         const int UDP_LISTENER_THREAD_COUNT = 3;
-        const int TCP_SOCKET_SEND_TIMEOUT = 30000;
-        const int TCP_SOCKET_RECV_TIMEOUT = 120000;
 
         readonly IPEndPoint _localEP;
 
@@ -78,6 +76,9 @@ namespace DnsServerCore
         LogManager _log;
         LogManager _queryLog;
         StatsManager _stats;
+
+        int _tcpSendTimeout = 10000;
+        int _tcpReceiveTimeout = 10000;
 
         readonly ConcurrentDictionary<DnsQuestionRecord, object> _recursiveQueryLocks = new ConcurrentDictionary<DnsQuestionRecord, object>();
 
@@ -246,8 +247,8 @@ namespace DnsServerCore
                 {
                     Socket socket = _tcpListener.Accept();
 
-                    socket.SendTimeout = TCP_SOCKET_SEND_TIMEOUT;
-                    socket.ReceiveTimeout = TCP_SOCKET_RECV_TIMEOUT;
+                    socket.SendTimeout = _tcpSendTimeout;
+                    socket.ReceiveTimeout = _tcpReceiveTimeout;
 
                     ThreadPool.QueueUserWorkItem(ReadTcpRequestAsync, socket);
                 }
@@ -676,7 +677,7 @@ namespace DnsServerCore
                     //question already being recursively resolved by another thread, wait till timeout or pulse signal
                     lock (actualLockObj)
                     {
-                        Monitor.Wait(actualLockObj, _timeout);
+                        Monitor.Wait(actualLockObj, _timeout * _retries);
                     }
 
                     //query cache zone again to see if answer available
@@ -713,7 +714,7 @@ namespace DnsServerCore
 
             try
             {
-                return DnsClient.ResolveViaNameServers(request.Question[0], viaNameServers, _dnsCache, _proxy, _preferIPv6, protocol, _retries, _maxStackCount, _timeout, _recursiveResolveProtocol);
+                return DnsClient.ResolveViaNameServers(request.Question[0], viaNameServers, _dnsCache, _proxy, _preferIPv6, protocol, _retries, _timeout, _recursiveResolveProtocol, _maxStackCount);
             }
             finally
             {
@@ -918,6 +919,18 @@ namespace DnsServerCore
         {
             get { return _stats; }
             set { _stats = value; }
+        }
+
+        public int TcpSendTimeout
+        {
+            get { return _tcpSendTimeout; }
+            set { _tcpSendTimeout = value; }
+        }
+
+        public int TcpReceiveTimeout
+        {
+            get { return _tcpReceiveTimeout; }
+            set { _tcpReceiveTimeout = value; }
         }
 
         #endregion
