@@ -49,6 +49,7 @@ namespace DnsServerCore
         readonly StatCounter[] _lastHourStatCounters = new StatCounter[60];
         readonly StatCounter[] _lastHourStatCountersCopy = new StatCounter[60];
         readonly ConcurrentDictionary<DateTime, HourlyStats> _hourlyStatsCache = new ConcurrentDictionary<DateTime, HourlyStats>();
+        readonly ConcurrentDictionary<DateTime, StatCounter> _dailyStatsCache = new ConcurrentDictionary<DateTime, StatCounter>();
 
         readonly Timer _maintenanceTimer;
         const int MAINTENANCE_TIMER_INITIAL_INTERVAL = 60000;
@@ -181,6 +182,43 @@ namespace DnsServerCore
                     _lastHourStatCountersCopy[lastDateTime.Minute] = lastStatCounter;
                 }
             }
+
+            //load previous day stats to auto create daily stats file
+            LoadDailyStats(currentDateTime.AddDays(-1));
+
+            //remove old data from hourly stats cache
+            {
+                DateTime threshold = DateTime.UtcNow.AddHours(-24);
+                threshold = new DateTime(threshold.Year, threshold.Month, threshold.Day, threshold.Hour, 0, 0, DateTimeKind.Utc);
+
+                List<DateTime> _keysToRemove = new List<DateTime>();
+
+                foreach (KeyValuePair<DateTime, HourlyStats> item in _hourlyStatsCache)
+                {
+                    if (item.Key < threshold)
+                        _keysToRemove.Add(item.Key);
+                }
+
+                foreach (DateTime key in _keysToRemove)
+                    _hourlyStatsCache.TryRemove(key, out HourlyStats hourlyStats);
+            }
+
+            //remove old data from daily stats cache
+            {
+                DateTime threshold = DateTime.UtcNow.AddMonths(-12);
+                threshold = new DateTime(threshold.Year, threshold.Month, 1, 0, 0, 0, DateTimeKind.Utc);
+
+                List<DateTime> _keysToRemove = new List<DateTime>();
+
+                foreach (KeyValuePair<DateTime, StatCounter> item in _dailyStatsCache)
+                {
+                    if (item.Key < threshold)
+                        _keysToRemove.Add(item.Key);
+                }
+
+                foreach (DateTime key in _keysToRemove)
+                    _dailyStatsCache.TryRemove(key, out StatCounter dailyStats);
+            }
         }
 
         private HourlyStats LoadHourlyStats(DateTime dateTime)
@@ -222,6 +260,55 @@ namespace DnsServerCore
             return hourlyStats;
         }
 
+        private StatCounter LoadDailyStats(DateTime dateTime)
+        {
+            StatCounter dailyStats;
+            DateTime dailyDateTime = new DateTime(dateTime.Year, dateTime.Month, dateTime.Day, 0, 0, 0, 0, DateTimeKind.Utc);
+
+            if (!_dailyStatsCache.TryGetValue(dailyDateTime, out dailyStats))
+            {
+                string dailyStatsFile = Path.Combine(_statsFolder, dateTime.ToString("yyyyMMdd") + ".dstat");
+
+                if (File.Exists(dailyStatsFile))
+                {
+                    try
+                    {
+                        using (FileStream fS = new FileStream(dailyStatsFile, FileMode.Open, FileAccess.Read))
+                        {
+                            dailyStats = new StatCounter(new BinaryReader(fS));
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        _log.Write(ex);
+                    }
+                }
+
+                if (dailyStats == null)
+                {
+                    dailyStats = new StatCounter();
+                    dailyStats.Lock();
+
+                    for (int hour = 0; hour < 24; hour++) //hours
+                    {
+                        HourlyStats hourlyStats = LoadHourlyStats(dailyDateTime.AddHours(hour));
+                        dailyStats.Merge(hourlyStats.HourStat);
+                    }
+
+                    if (dailyStats.TotalQueries > 0)
+                        SaveDailyStats(dailyDateTime, dailyStats);
+                }
+
+                if (!_dailyStatsCache.TryAdd(dailyDateTime, dailyStats))
+                {
+                    if (!_dailyStatsCache.TryGetValue(dailyDateTime, out dailyStats))
+                        throw new DnsServerException("Unable to load daily stats.");
+                }
+            }
+
+            return dailyStats;
+        }
+
         private void SaveHourlyStats(DateTime dateTime, HourlyStats hourlyStats)
         {
             string hourlyStatsFile = Path.Combine(_statsFolder, dateTime.ToString("yyyyMMddHH") + ".stat");
@@ -231,6 +318,23 @@ namespace DnsServerCore
                 using (FileStream fS = new FileStream(hourlyStatsFile, FileMode.Create, FileAccess.Write))
                 {
                     hourlyStats.WriteTo(new BinaryWriter(fS));
+                }
+            }
+            catch (Exception ex)
+            {
+                _log.Write(ex);
+            }
+        }
+
+        private void SaveDailyStats(DateTime dateTime, StatCounter dailyStats)
+        {
+            string dailyStatsFile = Path.Combine(_statsFolder, dateTime.ToString("yyyyMMdd") + ".dstat");
+
+            try
+            {
+                using (FileStream fS = new FileStream(dailyStatsFile, FileMode.Create, FileAccess.Write))
+                {
+                    dailyStats.WriteTo(new BinaryWriter(fS));
                 }
             }
             catch (Exception ex)
@@ -467,20 +571,10 @@ namespace DnsServerCore
 
             for (int day = 0; day < 7; day++) //days
             {
-                StatCounter dailyStatCounter = new StatCounter();
-                dailyStatCounter.Lock();
-
                 DateTime lastDayDateTime = lastWeekDateTime.AddDays(day);
                 string label = lastDayDateTime.ToLocalTime().ToString("MM/dd");
 
-                for (int hour = 0; hour < 24; hour++) //hours
-                {
-                    DateTime lastDateTime = lastDayDateTime.AddHours(hour);
-                    HourlyStats hourlyStats = LoadHourlyStats(lastDateTime);
-
-                    dailyStatCounter.Merge(hourlyStats.HourStat);
-                }
-
+                StatCounter dailyStatCounter = LoadDailyStats(lastDayDateTime);
                 totalStatCounter.Merge(dailyStatCounter);
 
                 totalQueriesPerInterval.Add(new KeyValuePair<string, int>(label, dailyStatCounter.TotalQueries));
@@ -546,20 +640,10 @@ namespace DnsServerCore
 
             for (int day = 0; day < 31; day++) //days
             {
-                StatCounter dailyStatCounter = new StatCounter();
-                dailyStatCounter.Lock();
-
                 DateTime lastDayDateTime = lastMonthDateTime.AddDays(day);
                 string label = lastDayDateTime.ToLocalTime().ToString("MM/dd");
 
-                for (int hour = 0; hour < 24; hour++) //hours
-                {
-                    DateTime lastDateTime = lastDayDateTime.AddHours(hour);
-                    HourlyStats hourlyStats = LoadHourlyStats(lastDateTime);
-
-                    dailyStatCounter.Merge(hourlyStats.HourStat);
-                }
-
+                StatCounter dailyStatCounter = LoadDailyStats(lastDayDateTime);
                 totalStatCounter.Merge(dailyStatCounter);
 
                 totalQueriesPerInterval.Add(new KeyValuePair<string, int>(label, dailyStatCounter.TotalQueries));
@@ -635,15 +719,8 @@ namespace DnsServerCore
 
                 for (int day = 0; day < days; day++) //days
                 {
-                    DateTime lastDayDateTime = lastMonthDateTime.AddDays(day);
-
-                    for (int hour = 0; hour < 24; hour++) //hours
-                    {
-                        DateTime lastDateTime = lastDayDateTime.AddHours(hour);
-                        HourlyStats hourlyStats = LoadHourlyStats(lastDateTime);
-
-                        monthlyStatCounter.Merge(hourlyStats.HourStat);
-                    }
+                    StatCounter dailyStatCounter = LoadDailyStats(lastMonthDateTime.AddDays(day));
+                    monthlyStatCounter.Merge(dailyStatCounter);
                 }
 
                 totalStatCounter.Merge(monthlyStatCounter);
