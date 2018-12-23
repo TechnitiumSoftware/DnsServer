@@ -272,9 +272,11 @@ namespace DnsServerCore
         {
             Socket tcpSocket = parameter as Socket;
             DnsDatagram request = null;
+            EndPoint remoteEP = null;
 
             try
             {
+                remoteEP = tcpSocket.RemoteEndPoint as IPEndPoint;
                 NetworkStream tcpStream = new NetworkStream(tcpSocket);
                 OffsetStream recvDatagramStream = new OffsetStream(tcpStream, 0, 0);
                 MemoryStream sendBufferStream = new MemoryStream(64);
@@ -294,7 +296,7 @@ namespace DnsServerCore
                     request = new DnsDatagram(recvDatagramStream);
 
                     //process request async
-                    ThreadPool.QueueUserWorkItem(ProcessTcpRequestAsync, new object[] { request, tcpSocket, tcpStream, sendBufferStream });
+                    ThreadPool.QueueUserWorkItem(ProcessTcpRequestAsync, new object[] { request, tcpStream, sendBufferStream, remoteEP });
                 }
             }
             catch (IOException)
@@ -305,11 +307,11 @@ namespace DnsServerCore
             {
                 LogManager queryLog = _queryLog;
                 if ((queryLog != null) && (request != null))
-                    queryLog.Write(tcpSocket.RemoteEndPoint as IPEndPoint, true, request, null);
+                    queryLog.Write(remoteEP as IPEndPoint, true, request, null);
 
                 LogManager log = _log;
                 if (log != null)
-                    log.Write(tcpSocket.RemoteEndPoint as IPEndPoint, ex);
+                    log.Write(remoteEP as IPEndPoint, ex);
             }
             finally
             {
@@ -323,18 +325,18 @@ namespace DnsServerCore
             object[] parameters = parameter as object[];
 
             DnsDatagram request = parameters[0] as DnsDatagram;
-            Socket tcpSocket = parameters[1] as Socket;
-            NetworkStream tcpStream = parameters[2] as NetworkStream;
-            MemoryStream sendBufferStream = parameters[3] as MemoryStream;
+            NetworkStream tcpStream = parameters[1] as NetworkStream;
+            MemoryStream sendBufferStream = parameters[2] as MemoryStream;
+            EndPoint remoteEP = parameters[3] as EndPoint;
 
             try
             {
-                DnsDatagram response = ProcessQuery(request, tcpSocket.RemoteEndPoint);
+                DnsDatagram response = ProcessQuery(request, remoteEP);
 
                 //send response
                 if (response != null)
                 {
-                    lock (tcpSocket)
+                    lock (tcpStream)
                     {
                         //write dns datagram
                         sendBufferStream.Position = 0;
@@ -355,11 +357,11 @@ namespace DnsServerCore
 
                     LogManager queryLog = _queryLog;
                     if (queryLog != null)
-                        queryLog.Write(tcpSocket.RemoteEndPoint as IPEndPoint, true, request, response);
+                        queryLog.Write(remoteEP as IPEndPoint, true, request, response);
 
                     StatsManager stats = _stats;
                     if (stats != null)
-                        stats.Update(response, (tcpSocket.RemoteEndPoint as IPEndPoint).Address);
+                        stats.Update(response, (remoteEP as IPEndPoint).Address);
                 }
             }
             catch (IOException)
@@ -370,11 +372,11 @@ namespace DnsServerCore
             {
                 LogManager queryLog = _queryLog;
                 if ((queryLog != null) && (request != null))
-                    queryLog.Write(tcpSocket.RemoteEndPoint as IPEndPoint, true, request, null);
+                    queryLog.Write(remoteEP as IPEndPoint, true, request, null);
 
                 LogManager log = _log;
                 if (log != null)
-                    log.Write(tcpSocket.RemoteEndPoint as IPEndPoint, ex);
+                    log.Write(remoteEP as IPEndPoint, ex);
             }
         }
 
