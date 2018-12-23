@@ -61,7 +61,7 @@ namespace DnsServerCore
         readonly Uri _updateCheckUri;
 
         readonly LogManager _log;
-        readonly StatsManager _stats;
+        StatsManager _stats;
 
         string _serverDomain;
         int _webServicePort;
@@ -118,12 +118,10 @@ namespace DnsServerCore
 
             _log = new LogManager(logFolder);
 
-            string statsFolder = Path.Combine(_configFolder, "stats");
-
-            if (!Directory.Exists(statsFolder))
-                Directory.CreateDirectory(statsFolder);
-
-            _stats = new StatsManager(statsFolder, _log);
+            AppDomain.CurrentDomain.UnhandledException += delegate (object sender, UnhandledExceptionEventArgs e)
+            {
+                _log.Write((Exception)e.ExceptionObject);
+            };
         }
 
         #endregion
@@ -3398,6 +3396,16 @@ namespace DnsServerCore
 
             try
             {
+                if (_stats == null)
+                {
+                    string statsFolder = Path.Combine(_configFolder, "stats");
+
+                    if (!Directory.Exists(statsFolder))
+                        Directory.CreateDirectory(statsFolder);
+
+                    _stats = new StatsManager(statsFolder, _log);
+                }
+
                 _dnsServer = new DnsServer();
                 _dnsServer.RecursiveResolveProtocol = RECURSIVE_RESOLVE_PROTOCOL;
                 _dnsServer.LogManager = _log;
