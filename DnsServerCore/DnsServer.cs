@@ -31,7 +31,7 @@ using TechnitiumLibrary.Net.Proxy;
 
 namespace DnsServerCore
 {
-    public class DnsServer
+    public class DnsServer : IDisposable
     {
         #region enum
 
@@ -48,13 +48,11 @@ namespace DnsServerCore
 
         const int UDP_LISTENER_THREAD_COUNT = 3;
 
-        readonly IPEndPoint _localEP;
+        IPEndPoint[] _localEPs;
 
-        Socket _udpListener;
-        Thread[] _udpListenerThreads;
-
-        Socket _tcpListener;
-        Thread _tcpListenerThread;
+        List<Socket> _udpListeners = new List<Socket>();
+        List<Socket> _tcpListeners = new List<Socket>();
+        List<Thread> _listenerThreads = new List<Thread>();
 
         readonly Zone _authoritativeZoneRoot = new Zone(true);
         readonly Zone _cacheZoneRoot = new Zone(false);
@@ -98,12 +96,12 @@ namespace DnsServerCore
                 ThreadPool.SetMinThreads(minWorker, minIOC);
             }
 
-            if (ServicePointManager.DefaultConnectionLimit < 512)
-                ServicePointManager.DefaultConnectionLimit = 512; //concurrent http request limit required when using DNS-over-HTTPS
+            if (ServicePointManager.DefaultConnectionLimit < 10)
+                ServicePointManager.DefaultConnectionLimit = 10; //concurrent http request limit required when using DNS-over-HTTPS forwarders
         }
 
         public DnsServer()
-            : this(new IPEndPoint(IPAddress.IPv6Any, 53))
+            : this(new IPEndPoint[] { new IPEndPoint(IPAddress.Any, 53), new IPEndPoint(IPAddress.IPv6Any, 53) })
         { }
 
         public DnsServer(IPAddress localIP)
@@ -111,9 +109,46 @@ namespace DnsServerCore
         { }
 
         public DnsServer(IPEndPoint localEP)
+            : this(new IPEndPoint[] { localEP })
+        { }
+
+        public DnsServer(IPEndPoint[] localEPs)
         {
-            _localEP = localEP;
+            _localEPs = localEPs;
             _dnsCache = new DnsCache(_cacheZoneRoot);
+        }
+
+        #endregion
+
+        #region IDisposable
+
+        private bool _disposed = false;
+
+        protected virtual void Dispose(bool disposing)
+        {
+            if (_disposed)
+                return;
+
+            if (disposing)
+            {
+                Stop();
+
+                if (_log != null)
+                    _log.Dispose();
+
+                if (_queryLog != null)
+                    _queryLog.Dispose();
+
+                if (_stats != null)
+                    _stats.Dispose();
+            }
+
+            _disposed = true;
+        }
+
+        public void Dispose()
+        {
+            Dispose(true);
         }
 
         #endregion
@@ -122,11 +157,12 @@ namespace DnsServerCore
 
         private void ReadUdpRequestAsync(object parameter)
         {
+            Socket udpListener = parameter as Socket;
             EndPoint remoteEP;
             byte[] recvBuffer = new byte[512];
             int bytesRecv;
 
-            if (_udpListener.AddressFamily == AddressFamily.InterNetwork)
+            if (udpListener.AddressFamily == AddressFamily.InterNetwork)
                 remoteEP = new IPEndPoint(IPAddress.Any, 0);
             else
                 remoteEP = new IPEndPoint(IPAddress.IPv6Any, 0);
@@ -137,7 +173,7 @@ namespace DnsServerCore
                 {
                     try
                     {
-                        bytesRecv = _udpListener.ReceiveFrom(recvBuffer, ref remoteEP);
+                        bytesRecv = udpListener.ReceiveFrom(recvBuffer, ref remoteEP);
                     }
                     catch (SocketException ex)
                     {
@@ -159,7 +195,7 @@ namespace DnsServerCore
                     {
                         try
                         {
-                            ThreadPool.QueueUserWorkItem(ProcessUdpRequestAsync, new object[] { remoteEP, new DnsDatagram(new MemoryStream(recvBuffer, 0, bytesRecv, false)) });
+                            ThreadPool.QueueUserWorkItem(ProcessUdpRequestAsync, new object[] { udpListener, remoteEP, new DnsDatagram(new MemoryStream(recvBuffer, 0, bytesRecv, false)) });
                         }
                         catch (Exception ex)
                         {
@@ -170,9 +206,17 @@ namespace DnsServerCore
                     }
                 }
             }
-            catch (ThreadAbortException)
+            catch (SocketException ex)
             {
-                //server stopping
+                if (ex.SocketErrorCode == SocketError.Interrupted)
+                    return; //server stopping
+
+                LogManager log = _log;
+                if (log != null)
+                    log.Write(remoteEP as IPEndPoint, ex);
+
+                if (_state == ServiceState.Running)
+                    throw;
             }
             catch (Exception ex)
             {
@@ -189,8 +233,9 @@ namespace DnsServerCore
         {
             object[] parameters = parameter as object[];
 
-            EndPoint remoteEP = parameters[0] as EndPoint;
-            DnsDatagram request = parameters[1] as DnsDatagram;
+            Socket udpListener = parameters[0] as Socket;
+            EndPoint remoteEP = parameters[1] as EndPoint;
+            DnsDatagram request = parameters[2] as DnsDatagram;
 
             try
             {
@@ -216,7 +261,7 @@ namespace DnsServerCore
                     }
 
                     //send dns datagram
-                    _udpListener.SendTo(sendBuffer, 0, (int)sendBufferStream.Position, SocketFlags.None, remoteEP);
+                    udpListener.SendTo(sendBuffer, 0, (int)sendBufferStream.Position, SocketFlags.None, remoteEP);
 
                     LogManager queryLog = _queryLog;
                     if (queryLog != null)
@@ -226,6 +271,19 @@ namespace DnsServerCore
                     if (stats != null)
                         stats.Update(response, (remoteEP as IPEndPoint).Address);
                 }
+            }
+            catch (SocketException ex)
+            {
+                if (ex.SocketErrorCode == SocketError.Interrupted)
+                    return; //server stopping
+
+                LogManager queryLog = _queryLog;
+                if (queryLog != null)
+                    queryLog.Write(remoteEP as IPEndPoint, false, request, null);
+
+                LogManager log = _log;
+                if (log != null)
+                    log.Write(remoteEP as IPEndPoint, ex);
             }
             catch (Exception ex)
             {
@@ -241,11 +299,14 @@ namespace DnsServerCore
 
         private void AcceptTcpConnectionAsync(object parameter)
         {
+            Socket tcpListener = parameter as Socket;
+            IPEndPoint localEP = tcpListener.LocalEndPoint as IPEndPoint;
+
             try
             {
                 while (true)
                 {
-                    Socket socket = _tcpListener.Accept();
+                    Socket socket = tcpListener.Accept();
 
                     socket.SendTimeout = _tcpSendTimeout;
                     socket.ReceiveTimeout = _tcpReceiveTimeout;
@@ -253,15 +314,23 @@ namespace DnsServerCore
                     ThreadPool.QueueUserWorkItem(ReadTcpRequestAsync, socket);
                 }
             }
-            catch (ThreadAbortException)
+            catch (SocketException ex)
             {
-                //server stopping
+                if (ex.SocketErrorCode == SocketError.Interrupted)
+                    return; //server stopping
+
+                LogManager log = _log;
+                if (log != null)
+                    log.Write(localEP, ex);
+
+                if (_state == ServiceState.Running)
+                    throw;
             }
             catch (Exception ex)
             {
                 LogManager log = _log;
                 if (log != null)
-                    log.Write(_localEP, ex);
+                    log.Write(localEP, ex);
 
                 if (_state == ServiceState.Running)
                     throw;
@@ -738,44 +807,85 @@ namespace DnsServerCore
 
         public void Start()
         {
+            if (_disposed)
+                throw new ObjectDisposedException("DnsServer");
+
             if (_state != ServiceState.Stopped)
-                return;
+                throw new InvalidOperationException("DNS Server is already running.");
 
-            _udpListener = new Socket(AddressFamily.InterNetworkV6, SocketType.Dgram, ProtocolType.Udp);
-            _udpListener.DualMode = true;
-            _udpListener.Bind(_localEP);
-
-            #region this code ignores ICMP port unreachable responses which creates SocketException in ReceiveFrom()
-
-            if (Environment.OSVersion.Platform == PlatformID.Win32NT)
+            //bind on all local end points
+            for (int i = 0; i < _localEPs.Length; i++)
             {
-                const uint IOC_IN = 0x80000000;
-                const uint IOC_VENDOR = 0x18000000;
-                const uint SIO_UDP_CONNRESET = IOC_IN | IOC_VENDOR | 12;
+                Socket udpListener = new Socket(_localEPs[i].AddressFamily, SocketType.Dgram, ProtocolType.Udp);
 
-                _udpListener.IOControl((IOControlCode)SIO_UDP_CONNRESET, new byte[] { Convert.ToByte(false) }, null);
+                #region this code ignores ICMP port unreachable responses which creates SocketException in ReceiveFrom()
+
+                if (Environment.OSVersion.Platform == PlatformID.Win32NT)
+                {
+                    const uint IOC_IN = 0x80000000;
+                    const uint IOC_VENDOR = 0x18000000;
+                    const uint SIO_UDP_CONNRESET = IOC_IN | IOC_VENDOR | 12;
+
+                    udpListener.IOControl((IOControlCode)SIO_UDP_CONNRESET, new byte[] { Convert.ToByte(false) }, null);
+                }
+
+                #endregion
+
+                try
+                {
+                    udpListener.Bind(_localEPs[i]);
+
+                    _udpListeners.Add(udpListener);
+                }
+                catch (Exception ex)
+                {
+                    LogManager log = _log;
+                    if (log != null)
+                        log.Write(_localEPs[i], ex);
+
+                    udpListener.Dispose();
+                }
+
+                Socket tcpListener = new Socket(_localEPs[i].AddressFamily, SocketType.Stream, ProtocolType.Tcp);
+
+                try
+                {
+                    tcpListener.Bind(_localEPs[i]);
+                    tcpListener.Listen(100);
+
+                    _tcpListeners.Add(tcpListener);
+                }
+                catch (Exception ex)
+                {
+                    LogManager log = _log;
+                    if (log != null)
+                        log.Write(_localEPs[i], ex);
+
+                    tcpListener.Dispose();
+                }
             }
-
-            #endregion
-
-            _tcpListener = new Socket(AddressFamily.InterNetworkV6, SocketType.Stream, ProtocolType.Tcp);
-            _tcpListener.DualMode = true;
-            _tcpListener.Bind(_localEP);
-            _tcpListener.Listen(100);
 
             //start reading query packets
-            _udpListenerThreads = new Thread[UDP_LISTENER_THREAD_COUNT];
-
-            for (int i = 0; i < UDP_LISTENER_THREAD_COUNT; i++)
+            foreach (Socket udpListener in _udpListeners)
             {
-                _udpListenerThreads[i] = new Thread(ReadUdpRequestAsync);
-                _udpListenerThreads[i].IsBackground = true;
-                _udpListenerThreads[i].Start();
+                for (int i = 0; i < UDP_LISTENER_THREAD_COUNT; i++)
+                {
+                    Thread listenerThread = new Thread(ReadUdpRequestAsync);
+                    listenerThread.IsBackground = true;
+                    listenerThread.Start(udpListener);
+
+                    _listenerThreads.Add(listenerThread);
+                }
             }
 
-            _tcpListenerThread = new Thread(AcceptTcpConnectionAsync);
-            _tcpListenerThread.IsBackground = true;
-            _tcpListenerThread.Start();
+            foreach (Socket tcpListener in _tcpListeners)
+            {
+                Thread listenerThread = new Thread(AcceptTcpConnectionAsync);
+                listenerThread.IsBackground = true;
+                listenerThread.Start(tcpListener);
+
+                _listenerThreads.Add(listenerThread);
+            }
 
             _state = ServiceState.Running;
         }
@@ -787,26 +897,13 @@ namespace DnsServerCore
 
             _state = ServiceState.Stopping;
 
-            for (int i = 0; i < UDP_LISTENER_THREAD_COUNT; i++)
-            {
-                try
-                {
-                    _udpListenerThreads[i].Abort();
-                }
-                catch (PlatformNotSupportedException)
-                { }
-            }
+            _listenerThreads.Clear();
 
+            foreach (Socket udpListener in _udpListeners)
+                udpListener.Dispose();
 
-            try
-            {
-                _tcpListenerThread.Abort();
-            }
-            catch (PlatformNotSupportedException)
-            { }
-
-            _udpListener.Dispose();
-            _tcpListener.Dispose();
+            foreach (Socket tcpListener in _tcpListeners)
+                tcpListener.Dispose();
 
             _state = ServiceState.Stopped;
         }
@@ -815,8 +912,17 @@ namespace DnsServerCore
 
         #region properties
 
-        public IPEndPoint LocalEP
-        { get { return _localEP; } }
+        public IPEndPoint[] LocalEndPoints
+        {
+            get { return _localEPs; }
+            set
+            {
+                if (_state != ServiceState.Stopped)
+                    throw new InvalidOperationException("DNS Server is already running.");
+
+                _localEPs = value;
+            }
+        }
 
         public Zone AuthoritativeZoneRoot
         { get { return _authoritativeZoneRoot; } }
