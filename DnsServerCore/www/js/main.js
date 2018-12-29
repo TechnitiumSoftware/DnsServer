@@ -176,19 +176,21 @@ $(function () {
 
     $("#optQuickForwarders").change(function () {
 
-        if (($('input[name=rdProxyType]:checked').val() === "Socks5") && ($("#txtProxyAddress").val() === "127.0.0.1") && ($("#txtProxyPort").val() === "9150")) {
-            $("#rdProxyTypeNone").prop("checked", true);
-            $("#txtProxyAddress").prop("disabled", true);
-            $("#txtProxyPort").prop("disabled", true);
-            $("#txtProxyUsername").prop("disabled", true);
-            $("#txtProxyPassword").prop("disabled", true);
-            $("#txtProxyAddress").val("");
-            $("#txtProxyPort").val("");
-            $("#txtProxyUsername").val("");
-            $("#txtProxyPassword").val("");
-        }
-
         var selectedOption = $("#optQuickForwarders").val();
+
+        if (selectedOption !== "blank") {
+            if (($('input[name=rdProxyType]:checked').val() === "Socks5") && ($("#txtProxyAddress").val() === "127.0.0.1") && ($("#txtProxyPort").val() === "9150")) {
+                $("#rdProxyTypeNone").prop("checked", true);
+                $("#txtProxyAddress").prop("disabled", true);
+                $("#txtProxyPort").prop("disabled", true);
+                $("#txtProxyUsername").prop("disabled", true);
+                $("#txtProxyPassword").prop("disabled", true);
+                $("#txtProxyAddress").val("");
+                $("#txtProxyPort").val("");
+                $("#txtProxyUsername").val("");
+                $("#txtProxyPassword").val("");
+            }
+        }
 
         switch (selectedOption) {
             case "cloudflare-udp":
@@ -504,6 +506,19 @@ function loadDnsSettings() {
 
             $("#txtWebServicePort").val(responseJSON.response.webServicePort);
 
+            var dnsServerLocalAddresses = responseJSON.response.dnsServerLocalAddresses;
+            if (dnsServerLocalAddresses == null) {
+                $("#txtdnsServerLocalAddresses").val("0.0.0.0");
+            }
+            else {
+                var value = "";
+
+                for (var i = 0; i < dnsServerLocalAddresses.length; i++)
+                    value += dnsServerLocalAddresses[i] + "\r\n";
+
+                $("#txtdnsServerLocalAddresses").val(value);
+            }
+
             $("#chkPreferIPv6").prop("checked", responseJSON.response.preferIPv6);
             $("#chkLogQueries").prop("checked", responseJSON.response.logQueries);
             $("#chkAllowRecursion").prop("checked", responseJSON.response.allowRecursion);
@@ -638,6 +653,13 @@ function saveDnsSettings() {
         return false;
     }
 
+    var dnsServerLocalAddresses = cleanTextList($("#txtdnsServerLocalAddresses").val());
+
+    if ((dnsServerLocalAddresses.length === 0) || (dnsServerLocalAddresses === ","))
+        dnsServerLocalAddresses = "0.0.0.0,::";
+    else
+        $("#txtdnsServerLocalAddresses").val(dnsServerLocalAddresses.replace(/,/g, "\n"));
+
     var preferIPv6 = $("#chkPreferIPv6").prop('checked');
     var logQueries = $("#chkLogQueries").prop('checked');
     var allowRecursion = $("#chkAllowRecursion").prop('checked');
@@ -674,7 +696,7 @@ function saveDnsSettings() {
     var btn = $("#btnSaveDnsSettings").button('loading');
 
     HTTPRequest({
-        url: "/api/setDnsSettings?token=" + token + "&serverDomain=" + serverDomain + "&webServicePort=" + webServicePort + "&preferIPv6=" + preferIPv6 + "&logQueries=" + logQueries + "&allowRecursion=" + allowRecursion + "&allowRecursionOnlyForPrivateNetworks=" + allowRecursionOnlyForPrivateNetworks + proxy + "&forwarders=" + forwarders + "&forwarderProtocol=" + forwarderProtocol + "&blockListUrls=" + blockListUrls,
+        url: "/api/setDnsSettings?token=" + token + "&serverDomain=" + serverDomain + "&webServicePort=" + webServicePort + "&dnsServerLocalAddresses=" + dnsServerLocalAddresses + "&preferIPv6=" + preferIPv6 + "&logQueries=" + logQueries + "&allowRecursion=" + allowRecursion + "&allowRecursionOnlyForPrivateNetworks=" + allowRecursionOnlyForPrivateNetworks + proxy + "&forwarders=" + forwarders + "&forwarderProtocol=" + forwarderProtocol + "&blockListUrls=" + blockListUrls,
         success: function (responseJSON) {
             document.title = "Technitium DNS Server " + responseJSON.response.version + " - " + responseJSON.response.serverDomain;
             $("#lblServerDomain").text(" - " + responseJSON.response.serverDomain);
