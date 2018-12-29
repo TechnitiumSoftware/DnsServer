@@ -50,11 +50,6 @@ namespace DnsServerCore
 
         #region variables
 
-        const int DNS_SERVER_TIMEOUT = 2000;
-        const int DNS_SERVER_TIMEOUT_WITH_PROXY = 10000;
-
-        const DnsClientProtocol RECURSIVE_RESOLVE_PROTOCOL = DnsClientProtocol.Udp;
-
         readonly string _currentVersion;
         readonly string _appFolder;
         readonly string _configFolder;
@@ -65,6 +60,7 @@ namespace DnsServerCore
 
         string _serverDomain;
         int _webServicePort;
+        IPAddress[] _dnsServerLocalAddresses;
 
         DnsServer _dnsServer;
 
@@ -139,6 +135,9 @@ namespace DnsServerCore
             {
                 Stop();
 
+                if (_dnsServer != null)
+                    _dnsServer.Dispose();
+
                 if (_log != null)
                     _log.Dispose();
 
@@ -168,9 +167,15 @@ namespace DnsServerCore
                     ThreadPool.QueueUserWorkItem(ProcessRequestAsync, new object[] { context.Request, context.Response });
                 }
             }
-            catch (ThreadAbortException)
+            catch (HttpListenerException ex)
             {
-                //web service stopping
+                if (ex.ErrorCode == 995)
+                    return; //web service stopping
+
+                _log.Write(ex);
+
+                if (_state == ServiceState.Running)
+                    throw;
             }
             catch (Exception ex)
             {
@@ -811,6 +816,14 @@ namespace DnsServerCore
             jsonWriter.WritePropertyName("webServicePort");
             jsonWriter.WriteValue(_webServicePort);
 
+            jsonWriter.WritePropertyName("dnsServerLocalAddresses");
+            jsonWriter.WriteStartArray();
+
+            foreach (IPAddress localAddress in _dnsServerLocalAddresses)
+                jsonWriter.WriteValue(localAddress.ToString());
+
+            jsonWriter.WriteEndArray();
+
             jsonWriter.WritePropertyName("preferIPv6");
             jsonWriter.WriteValue(_dnsServer.PreferIPv6);
 
@@ -1003,6 +1016,21 @@ namespace DnsServerCore
             if (!string.IsNullOrEmpty(strWebServicePort))
                 _webServicePort = int.Parse(strWebServicePort);
 
+            string strDnsServerLocalAddresses = request.QueryString["dnsServerLocalAddresses"];
+            if (strDnsServerLocalAddresses != null)
+            {
+                if (string.IsNullOrEmpty(strDnsServerLocalAddresses))
+                    strDnsServerLocalAddresses = "0.0.0.0,::";
+
+                string[] strLocalAddresses = strDnsServerLocalAddresses.Split(new char[] { ',' }, StringSplitOptions.RemoveEmptyEntries);
+                IPAddress[] localAddresses = new IPAddress[strLocalAddresses.Length];
+
+                for (int i = 0; i < strLocalAddresses.Length; i++)
+                    localAddresses[i] = IPAddress.Parse(strLocalAddresses[i]);
+
+                _dnsServerLocalAddresses = localAddresses;
+            }
+
             string strPreferIPv6 = request.QueryString["preferIPv6"];
             if (!string.IsNullOrEmpty(strPreferIPv6))
                 _dnsServer.PreferIPv6 = bool.Parse(strPreferIPv6);
@@ -1031,7 +1059,6 @@ namespace DnsServerCore
                 if (proxyType == NetProxyType.None)
                 {
                     _dnsServer.Proxy = null;
-                    _dnsServer.Timeout = DNS_SERVER_TIMEOUT;
                 }
                 else
                 {
@@ -1042,7 +1069,6 @@ namespace DnsServerCore
                         credential = new NetworkCredential(strUsername, request.QueryString["proxyPassword"]);
 
                     _dnsServer.Proxy = new NetProxy(proxyType, request.QueryString["proxyAddress"], int.Parse(request.QueryString["proxyPort"]), credential);
-                    _dnsServer.Timeout = DNS_SERVER_TIMEOUT_WITH_PROXY;
                 }
             }
 
@@ -1055,7 +1081,7 @@ namespace DnsServerCore
                 }
                 else
                 {
-                    string[] strForwardersList = strForwarders.Split(',');
+                    string[] strForwardersList = strForwarders.Split(new char[] { ',' }, StringSplitOptions.RemoveEmptyEntries);
                     NameServerAddress[] forwarders = new NameServerAddress[strForwardersList.Length];
 
                     for (int i = 0; i < strForwardersList.Length; i++)
@@ -1083,7 +1109,7 @@ namespace DnsServerCore
                 {
                     bool updated = false;
 
-                    string[] strBlockListUrlList = Encoding.UTF8.GetString(Convert.FromBase64String(strBlockListUrls)).Split(',');
+                    string[] strBlockListUrlList = Encoding.UTF8.GetString(Convert.FromBase64String(strBlockListUrls)).Split(new char[] { ',' }, StringSplitOptions.RemoveEmptyEntries);
 
                     if (oldWebServicePort != _webServicePort)
                     {
@@ -2330,7 +2356,7 @@ namespace DnsServerCore
                             if (_dnsServer.AllowRecursion)
                                 nameServer.ResolveIPAddress(new NameServerAddress[] { new NameServerAddress(IPAddress.Loopback) }, _dnsServer.Proxy, preferIPv6, DnsClientProtocol.Udp, RETRIES, _dnsServer.Timeout);
                             else
-                                nameServer.RecursiveResolveIPAddress(_dnsServer.Cache, _dnsServer.Proxy, preferIPv6, RECURSIVE_RESOLVE_PROTOCOL, RETRIES, _dnsServer.Timeout, RECURSIVE_RESOLVE_PROTOCOL);
+                                nameServer.RecursiveResolveIPAddress(_dnsServer.Cache, _dnsServer.Proxy, preferIPv6, DnsClientProtocol.Udp, RETRIES, _dnsServer.Timeout, DnsClientProtocol.Udp);
                         }
                     }
                     else if (protocol != DnsClientProtocol.Tls)
@@ -2340,14 +2366,14 @@ namespace DnsServerCore
                             if (_dnsServer.AllowRecursion)
                                 nameServer.ResolveDomainName(new NameServerAddress[] { new NameServerAddress(IPAddress.Loopback) }, _dnsServer.Proxy, _dnsServer.PreferIPv6, DnsClientProtocol.Udp, RETRIES, _dnsServer.Timeout);
                             else
-                                nameServer.RecursiveResolveDomainName(_dnsServer.Cache, _dnsServer.Proxy, _dnsServer.PreferIPv6, RECURSIVE_RESOLVE_PROTOCOL, RETRIES, _dnsServer.Timeout, RECURSIVE_RESOLVE_PROTOCOL);
+                                nameServer.RecursiveResolveDomainName(_dnsServer.Cache, _dnsServer.Proxy, _dnsServer.PreferIPv6, DnsClientProtocol.Udp, RETRIES, _dnsServer.Timeout, DnsClientProtocol.Udp);
                         }
                         catch
                         { }
                     }
                 }
 
-                dnsResponse = (new DnsClient(nameServer) { Proxy = proxy, PreferIPv6 = preferIPv6, Protocol = protocol, Retries = RETRIES, Timeout = _dnsServer.Timeout, RecursiveResolveProtocol = RECURSIVE_RESOLVE_PROTOCOL }).Resolve(domain, type);
+                dnsResponse = (new DnsClient(nameServer) { Proxy = proxy, PreferIPv6 = preferIPv6, Protocol = protocol, Retries = RETRIES, Timeout = _dnsServer.Timeout, RecursiveResolveProtocol = DnsClientProtocol.Udp }).Resolve(domain, type);
             }
 
             if (importRecords)
@@ -3073,6 +3099,7 @@ namespace DnsServerCore
                         case 3:
                         case 4:
                         case 5:
+                        case 6:
                             _serverDomain = bR.ReadShortString();
                             _webServicePort = bR.ReadInt32();
 
@@ -3099,12 +3126,10 @@ namespace DnsServerCore
                                     credential = new NetworkCredential(bR.ReadShortString(), bR.ReadShortString());
 
                                 _dnsServer.Proxy = new NetProxy(proxyType, address, port, credential);
-                                _dnsServer.Timeout = DNS_SERVER_TIMEOUT_WITH_PROXY;
                             }
                             else
                             {
                                 _dnsServer.Proxy = null;
-                                _dnsServer.Timeout = DNS_SERVER_TIMEOUT;
                             }
 
                             {
@@ -3161,6 +3186,26 @@ namespace DnsServerCore
                                 if (count > 0)
                                     StartBlockListUpdateTimer();
                             }
+
+                            if (version >= 6)
+                            {
+                                int count = bR.ReadByte();
+                                _dnsServerLocalAddresses = new IPAddress[count];
+                                IPEndPoint[] localEPs = new IPEndPoint[count];
+
+                                for (int i = 0; i < count; i++)
+                                {
+                                    _dnsServerLocalAddresses[i] = IPAddressExtension.Parse(bR);
+                                    localEPs[i] = new IPEndPoint(_dnsServerLocalAddresses[i], 53);
+                                }
+
+                                _dnsServer.LocalEndPoints = localEPs;
+                            }
+                            else
+                            {
+                                _dnsServerLocalAddresses = new IPAddress[] { IPAddress.Any, IPAddress.IPv6Any };
+                            }
+
                             break;
 
                         default:
@@ -3290,7 +3335,7 @@ namespace DnsServerCore
                 BinaryWriter bW = new BinaryWriter(mS);
 
                 bW.Write(Encoding.ASCII.GetBytes("DS")); //format
-                bW.Write((byte)5); //version
+                bW.Write((byte)6); //version
 
                 bW.WriteShortString(_serverDomain);
                 bW.Write(_webServicePort);
@@ -3373,6 +3418,18 @@ namespace DnsServerCore
                     bW.Write(_blockListLastUpdatedOn);
                 }
 
+                if (_dnsServerLocalAddresses == null)
+                {
+                    bW.Write((byte)0);
+                }
+                else
+                {
+                    bW.Write(Convert.ToByte(_dnsServerLocalAddresses.Length));
+
+                    foreach (IPAddress localAddress in _dnsServerLocalAddresses)
+                        localAddress.WriteTo(bW);
+                }
+
                 //write config
                 mS.Position = 0;
 
@@ -3391,8 +3448,11 @@ namespace DnsServerCore
 
         public void Start()
         {
+            if (_disposed)
+                throw new ObjectDisposedException("DnsWebService");
+
             if (_state != ServiceState.Stopped)
-                return;
+                throw new InvalidOperationException("DNS Web Service is already running.");
 
             try
             {
@@ -3407,7 +3467,6 @@ namespace DnsServerCore
                 }
 
                 _dnsServer = new DnsServer();
-                _dnsServer.RecursiveResolveProtocol = RECURSIVE_RESOLVE_PROTOCOL;
                 _dnsServer.LogManager = _log;
                 _dnsServer.StatsManager = _stats;
 
@@ -3457,13 +3516,6 @@ namespace DnsServerCore
 
             try
             {
-                try
-                {
-                    _webServiceThread.Abort();
-                }
-                catch (PlatformNotSupportedException)
-                { }
-
                 _webService.Stop();
                 _dnsServer.Stop();
 
@@ -3562,7 +3614,7 @@ namespace DnsServerCore
         #endregion
     }
 
-    public class InvalidTokenDnsWebServiceException : Exception
+    public class InvalidTokenDnsWebServiceException : DnsWebServiceException
     {
         #region constructors
 
