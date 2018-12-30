@@ -42,8 +42,9 @@ namespace DnsServerCore
         enum ServiceState
         {
             Stopped = 0,
-            Running = 1,
-            Stopping = 2
+            Starting = 1,
+            Running = 2,
+            Stopping = 3
         }
 
         #endregion
@@ -167,22 +168,14 @@ namespace DnsServerCore
                     ThreadPool.QueueUserWorkItem(ProcessRequestAsync, new object[] { context.Request, context.Response });
                 }
             }
-            catch (HttpListenerException ex)
+            catch (Exception ex)
             {
-                if (ex.ErrorCode == 995)
+                if ((_state == ServiceState.Stopping) || (_state == ServiceState.Stopped))
                     return; //web service stopping
 
                 _log.Write(ex);
 
-                if (_state == ServiceState.Running)
-                    throw;
-            }
-            catch (Exception ex)
-            {
-                _log.Write(ex);
-
-                if (_state == ServiceState.Running)
-                    throw;
+                throw;
             }
         }
 
@@ -444,6 +437,9 @@ namespace DnsServerCore
             }
             catch (Exception ex)
             {
+                if ((_state == ServiceState.Stopping) || (_state == ServiceState.Stopped))
+                    return; //web service stopping
+
                 _log.Write(GetRequestRemoteEndPoint(request), ex);
 
                 try
@@ -3237,6 +3233,7 @@ namespace DnsServerCore
 
                 _serverDomain = Environment.MachineName;
                 _webServicePort = 5380;
+                _dnsServerLocalAddresses = new IPAddress[] { IPAddress.Any, IPAddress.IPv6Any };
 
                 SetCredentials("admin", "admin");
 
@@ -3453,6 +3450,8 @@ namespace DnsServerCore
 
             if (_state != ServiceState.Stopped)
                 throw new InvalidOperationException("DNS Web Service is already running.");
+
+            _state = ServiceState.Starting;
 
             try
             {
