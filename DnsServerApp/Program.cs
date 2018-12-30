@@ -19,6 +19,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 using DnsServerCore;
 using System;
+using System.Threading;
 
 namespace DnsServerApp
 {
@@ -31,26 +32,50 @@ namespace DnsServerApp
             if (args.Length == 1)
                 configFolder = args[0];
 
-            DnsWebService service = new DnsWebService(configFolder, new Uri("https://technitium.com/download/dns/updatewa2.bin"));
+            DnsWebService service = null;
 
-            service.Start();
-            Console.WriteLine("Technitium DNS Server was started successfully.");
-            Console.WriteLine("Using config folder: " + service.ConfigFolder);
-            Console.WriteLine("");
-            Console.WriteLine("Note: Open http://localhost:" + service.WebServicePort + "/ in web browser to access web console.");
-            Console.WriteLine("");
-            Console.WriteLine("Press [CTRL + X] to stop...");
-
-            while (true)
+            try
             {
-                ConsoleKeyInfo key = Console.ReadKey(true);
+                service = new DnsWebService(configFolder, new Uri("https://technitium.com/download/dns/updatewa2.bin"));
+                service.Start();
 
-                if (key.Modifiers == ConsoleModifiers.Control && key.Key == ConsoleKey.X)
-                    break;
+                Console.WriteLine("Technitium DNS Server was started successfully.");
+                Console.WriteLine("Using config folder: " + service.ConfigFolder);
+                Console.WriteLine("");
+                Console.WriteLine("Note: Open http://localhost:" + service.WebServicePort + "/ in web browser to access web console.");
+                Console.WriteLine("");
+
+                if (Console.IsInputRedirected)
+                {
+                    //app running as background service
+                    Thread.Sleep(Timeout.Infinite);
+                }
+                else
+                {
+                    Console.WriteLine("Press [CTRL + X] to stop...");
+
+                    while (true)
+                    {
+                        ConsoleKeyInfo key = Console.ReadKey(true);
+
+                        if (key.Modifiers == ConsoleModifiers.Control && key.Key == ConsoleKey.X)
+                            break;
+                    }
+                }
             }
-
-            service.Dispose();
-            Console.WriteLine("Technitium DNS Server was stopped successfully.");
+            catch (Exception ex)
+            {
+                Console.WriteLine(ex.ToString());
+            }
+            finally
+            {
+                if (service != null)
+                {
+                    Console.WriteLine("Technitium DNS Server is stopping...");
+                    service.Dispose();
+                    Console.WriteLine("Technitium DNS Server was stopped successfully.");
+                }
+            }
         }
     }
 }
