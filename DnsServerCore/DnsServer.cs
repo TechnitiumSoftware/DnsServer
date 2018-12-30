@@ -38,8 +38,9 @@ namespace DnsServerCore
         enum ServiceState
         {
             Stopped = 0,
-            Running = 1,
-            Stopping = 2
+            Starting = 1,
+            Running = 2,
+            Stopping = 3
         }
 
         #endregion
@@ -206,26 +207,16 @@ namespace DnsServerCore
                     }
                 }
             }
-            catch (SocketException ex)
+            catch (Exception ex)
             {
-                if (ex.SocketErrorCode == SocketError.Interrupted)
+                if ((_state == ServiceState.Stopping) || (_state == ServiceState.Stopped))
                     return; //server stopping
 
                 LogManager log = _log;
                 if (log != null)
                     log.Write(remoteEP as IPEndPoint, ex);
 
-                if (_state == ServiceState.Running)
-                    throw;
-            }
-            catch (Exception ex)
-            {
-                LogManager log = _log;
-                if (log != null)
-                    log.Write(remoteEP as IPEndPoint, ex);
-
-                if (_state == ServiceState.Running)
-                    throw;
+                throw;
             }
         }
 
@@ -272,21 +263,11 @@ namespace DnsServerCore
                         stats.Update(response, (remoteEP as IPEndPoint).Address);
                 }
             }
-            catch (SocketException ex)
-            {
-                if (ex.SocketErrorCode == SocketError.Interrupted)
-                    return; //server stopping
-
-                LogManager queryLog = _queryLog;
-                if (queryLog != null)
-                    queryLog.Write(remoteEP as IPEndPoint, false, request, null);
-
-                LogManager log = _log;
-                if (log != null)
-                    log.Write(remoteEP as IPEndPoint, ex);
-            }
             catch (Exception ex)
             {
+                if ((_state == ServiceState.Stopping) || (_state == ServiceState.Stopped))
+                    return; //server stopping
+
                 LogManager queryLog = _queryLog;
                 if (queryLog != null)
                     queryLog.Write(remoteEP as IPEndPoint, false, request, null);
@@ -314,26 +295,16 @@ namespace DnsServerCore
                     ThreadPool.QueueUserWorkItem(ReadTcpRequestAsync, socket);
                 }
             }
-            catch (SocketException ex)
+            catch (Exception ex)
             {
-                if (ex.SocketErrorCode == SocketError.Interrupted)
+                if ((_state == ServiceState.Stopping) || (_state == ServiceState.Stopped))
                     return; //server stopping
 
                 LogManager log = _log;
                 if (log != null)
                     log.Write(localEP, ex);
 
-                if (_state == ServiceState.Running)
-                    throw;
-            }
-            catch (Exception ex)
-            {
-                LogManager log = _log;
-                if (log != null)
-                    log.Write(localEP, ex);
-
-                if (_state == ServiceState.Running)
-                    throw;
+                throw;
             }
         }
 
@@ -813,6 +784,8 @@ namespace DnsServerCore
             if (_state != ServiceState.Stopped)
                 throw new InvalidOperationException("DNS Server is already running.");
 
+            _state = ServiceState.Starting;
+
             //bind on all local end points
             for (int i = 0; i < _localEPs.Length; i++)
             {
@@ -897,13 +870,15 @@ namespace DnsServerCore
 
             _state = ServiceState.Stopping;
 
-            _listenerThreads.Clear();
-
             foreach (Socket udpListener in _udpListeners)
                 udpListener.Dispose();
 
             foreach (Socket tcpListener in _tcpListeners)
                 tcpListener.Dispose();
+
+            _listenerThreads.Clear();
+            _udpListeners.Clear();
+            _tcpListeners.Clear();
 
             _state = ServiceState.Stopped;
         }
