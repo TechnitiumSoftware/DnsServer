@@ -366,7 +366,7 @@ namespace DnsServerCore
                             }
                             catch (Exception ex)
                             {
-                                _log.Write(GetRequestRemoteEndPoint(request), ex);
+                                _log.Write(GetRequestRemoteEndPoint(request), true, ex);
 
                                 jsonWriter.WritePropertyName("status");
                                 jsonWriter.WriteValue("error");
@@ -445,7 +445,7 @@ namespace DnsServerCore
                 if ((_state == ServiceState.Stopping) || (_state == ServiceState.Stopped))
                     return; //web service stopping
 
-                _log.Write(GetRequestRemoteEndPoint(request), ex);
+                _log.Write(GetRequestRemoteEndPoint(request), true, ex);
 
                 try
                 {

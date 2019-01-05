@@ -144,9 +144,9 @@ namespace DnsServerCore
             Write(null, ex.ToString());
         }
 
-        public void Write(IPEndPoint ep, Exception ex)
+        public void Write(IPEndPoint ep, bool tcp, Exception ex)
         {
-            Write(ep, ex.ToString());
+            Write(ep, (tcp ? "[TCP] " : "") + ex.ToString());
         }
 
         public void Write(IPEndPoint ep, bool tcp, DnsDatagram request, DnsDatagram response)

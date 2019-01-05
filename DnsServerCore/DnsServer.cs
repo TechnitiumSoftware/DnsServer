@@ -202,7 +202,7 @@ namespace DnsServerCore
                         {
                             LogManager log = _log;
                             if (log != null)
-                                log.Write(remoteEP as IPEndPoint, ex);
+                                log.Write(remoteEP as IPEndPoint, false, ex);
                         }
                     }
                 }
@@ -214,7 +214,7 @@ namespace DnsServerCore
 
                 LogManager log = _log;
                 if (log != null)
-                    log.Write(remoteEP as IPEndPoint, ex);
+                    log.Write(remoteEP as IPEndPoint, false, ex);
 
                 throw;
             }
@@ -230,7 +230,7 @@ namespace DnsServerCore
 
             try
             {
-                DnsDatagram response = ProcessQuery(request, remoteEP);
+                DnsDatagram response = ProcessQuery(request, remoteEP, false);
 
                 //send response
                 if (response != null)
@@ -274,7 +274,7 @@ namespace DnsServerCore
 
                 LogManager log = _log;
                 if (log != null)
-                    log.Write(remoteEP as IPEndPoint, ex);
+                    log.Write(remoteEP as IPEndPoint, false, ex);
             }
         }
 
@@ -302,7 +302,7 @@ namespace DnsServerCore
 
                 LogManager log = _log;
                 if (log != null)
-                    log.Write(localEP, ex);
+                    log.Write(localEP, true, ex);
 
                 throw;
             }
@@ -351,7 +351,7 @@ namespace DnsServerCore
 
                 LogManager log = _log;
                 if (log != null)
-                    log.Write(remoteEP as IPEndPoint, ex);
+                    log.Write(remoteEP as IPEndPoint, true, ex);
             }
             finally
             {
@@ -371,7 +371,7 @@ namespace DnsServerCore
 
             try
             {
-                DnsDatagram response = ProcessQuery(request, remoteEP);
+                DnsDatagram response = ProcessQuery(request, remoteEP, true);
 
                 //send response
                 if (response != null)
@@ -416,7 +416,7 @@ namespace DnsServerCore
 
                 LogManager log = _log;
                 if (log != null)
-                    log.Write(remoteEP as IPEndPoint, ex);
+                    log.Write(remoteEP as IPEndPoint, true, ex);
             }
         }
 
@@ -441,7 +441,7 @@ namespace DnsServerCore
             return true;
         }
 
-        private DnsDatagram ProcessQuery(DnsDatagram request, EndPoint remoteEP)
+        private DnsDatagram ProcessQuery(DnsDatagram request, EndPoint remoteEP, bool tcp)
         {
             if (request.Header.IsResponse)
                 return null;
@@ -522,7 +522,7 @@ namespace DnsServerCore
                     {
                         LogManager log = _log;
                         if (log != null)
-                            log.Write(remoteEP as IPEndPoint, ex);
+                            log.Write(remoteEP as IPEndPoint, tcp, ex);
 
                         return new DnsDatagram(new DnsHeader(request.Header.Identifier, true, DnsOpcode.StandardQuery, false, false, request.Header.RecursionDesired, isRecursionAllowed, false, false, DnsResponseCode.ServerFailure, request.Header.QDCOUNT, 0, 0, 0), request.Question, null, null, null);
                     }
@@ -814,7 +814,7 @@ namespace DnsServerCore
                 {
                     LogManager log = _log;
                     if (log != null)
-                        log.Write(_localEPs[i], ex);
+                        log.Write(_localEPs[i], false, ex);
 
                     udpListener.Dispose();
                 }
@@ -832,7 +832,7 @@ namespace DnsServerCore
                 {
                     LogManager log = _log;
                     if (log != null)
-                        log.Write(_localEPs[i], ex);
+                        log.Write(_localEPs[i], true, ex);
 
                     tcpListener.Dispose();
                 }
