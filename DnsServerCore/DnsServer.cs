@@ -550,7 +550,7 @@ namespace DnsServerCore
                         responseAnswer.AddRange(response.Answer);
 
                         DnsDatagram lastResponse;
-                        bool cacheHit = (response.Tag == "cacheHit");
+                        bool cacheHit = ("cacheHit".Equals(response.Tag));
 
                         while (true)
                         {
@@ -564,7 +564,7 @@ namespace DnsServerCore
                                     break;
 
                                 lastResponse = ProcessRecursiveQuery(cnameRequest);
-                                cacheHit &= (lastResponse.Tag == "cacheHit");
+                                cacheHit &= ("cacheHit".Equals(lastResponse.Tag));
                             }
 
                             if ((lastResponse.Header.RCODE != DnsResponseCode.NoError) || (lastResponse.Answer.Length == 0))
@@ -643,7 +643,7 @@ namespace DnsServerCore
                     responseAnswer.AddRange(response.Answer);
 
                     DnsDatagram lastResponse;
-                    bool cacheHit = (response.Tag == "cacheHit");
+                    bool cacheHit = ("cacheHit".Equals(response.Tag));
 
                     while (true)
                     {
@@ -655,7 +655,7 @@ namespace DnsServerCore
                             question = new DnsQuestionRecord((lastRR.RDATA as DnsCNAMERecord).CNAMEDomainName, questionType, DnsClass.IN);
 
                         lastResponse = RecursiveResolve(question, _forwarders);
-                        cacheHit &= (lastResponse.Tag == "cacheHit");
+                        cacheHit &= ("cacheHit".Equals(lastResponse.Tag));
 
                         if ((lastResponse.Header.RCODE != DnsResponseCode.NoError) || (lastResponse.Answer.Length == 0))
                             break;

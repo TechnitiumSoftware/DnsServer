@@ -352,7 +352,7 @@ namespace DnsServerCore
             StatsResponseType responseType;
             bool cacheHit;
 
-            if (response.Tag == "blocked")
+            if ("blocked".Equals(response.Tag))
             {
                 responseType = StatsResponseType.Blocked;
                 cacheHit = true;
@@ -381,7 +381,7 @@ namespace DnsServerCore
                         return;
                 }
 
-                cacheHit = (response.Tag == "cacheHit");
+                cacheHit = ("cacheHit".Equals(response.Tag));
             }
 
             if (response.Header.QDCOUNT > 0)
