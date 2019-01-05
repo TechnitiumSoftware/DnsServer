@@ -20,6 +20,8 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <None Remove="install-raspi.sh" />
+    <None Remove="install-ubuntu.sh" />
     <None Remove="start.bat" />
     <None Remove="start.sh" />
     <None Remove="supervisor.conf" />
@@ -27,6 +29,12 @@
   </ItemGroup>
 
   <ItemGroup>
+    <Content Include="install-raspi.sh">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="install-ubuntu.sh">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
     <Content Include="start.bat">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
