@@ -405,7 +405,12 @@ namespace DnsServerCore
                     string logFileName = pathParts[2];
                     string logFile = Path.Combine(_log.LogFolder, logFileName + ".log");
 
-                    LogManager.DownloadLog(response, logFile, 2 * 1024 * 1024);
+                    int limit = 0;
+                    string strLimit = request.QueryString["limit"];
+                    if (!string.IsNullOrEmpty(strLimit))
+                        limit = int.Parse(strLimit);
+
+                    LogManager.DownloadLog(response, logFile, limit * 1024 * 1024);
                 }
                 else
                 {

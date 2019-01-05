@@ -34,7 +34,7 @@ namespace DnsServerCore
         string _logFile;
         StreamWriter _logOut;
         DateTime _logDate;
-        
+
         readonly object _logFileLock = new object();
 
         #endregion
@@ -117,7 +117,7 @@ namespace DnsServerCore
                 response.ContentType = "text/plain";
                 response.AddHeader("Content-Disposition", "attachment;filename=" + Path.GetFileName(logFile));
 
-                if (limit > fS.Length)
+                if ((limit > fS.Length) || (limit < 1))
                     limit = fS.Length;
 
                 OffsetStream oFS = new OffsetStream(fS, 0, limit);

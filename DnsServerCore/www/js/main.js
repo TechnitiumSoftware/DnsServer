@@ -2651,7 +2651,7 @@ function viewLog(logFile) {
     divLogViewer.show();
 
     HTTPGetFileRequest({
-        url: "/log/" + logFile + "?token=" + token,
+        url: "/log/" + logFile + "?limit=2&token=" + token,
         success: function (response) {
 
             divLogViewerLoader.hide();
