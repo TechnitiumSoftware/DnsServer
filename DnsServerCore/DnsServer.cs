@@ -1,6 +1,6 @@
 ﻿/*
 Technitium DNS Server
-Copyright (C) 2018  Shreyas Zare (shreyas@technitium.com)
+Copyright (C) 2019  Shreyas Zare (shreyas@technitium.com)
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -112,6 +112,16 @@ namespace DnsServerCore
         public DnsServer(IPEndPoint localEP)
             : this(new IPEndPoint[] { localEP })
         { }
+
+        public DnsServer(IPAddress[] localIPs)
+        {
+            _localEPs = new IPEndPoint[localIPs.Length];
+
+            for (int i = 0; i < _localEPs.Length; i++)
+                _localEPs[i] = new IPEndPoint(localIPs[i], 53);
+
+            _dnsCache = new DnsCache(_cacheZoneRoot);
+        }
 
         public DnsServer(IPEndPoint[] localEPs)
         {
@@ -809,6 +819,10 @@ namespace DnsServerCore
                     udpListener.Bind(_localEPs[i]);
 
                     _udpListeners.Add(udpListener);
+
+                    LogManager log = _log;
+                    if (log != null)
+                        log.Write(_localEPs[i], false, "DNS Server was bound successfully.");
                 }
                 catch (Exception ex)
                 {
@@ -827,6 +841,10 @@ namespace DnsServerCore
                     tcpListener.Listen(100);
 
                     _tcpListeners.Add(tcpListener);
+
+                    LogManager log = _log;
+                    if (log != null)
+                        log.Write(_localEPs[i], true, "DNS Server was bound successfully.");
                 }
                 catch (Exception ex)
                 {
