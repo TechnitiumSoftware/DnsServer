@@ -1,6 +1,6 @@
 ﻿/*
 Technitium DNS Server
-Copyright (C) 2018  Shreyas Zare (shreyas@technitium.com)
+Copyright (C) 2019  Shreyas Zare (shreyas@technitium.com)
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -1553,7 +1553,7 @@ function viewZone(domain, disabled) {
                 list += renderResourceRecord(records[i], domain);
             }
 
-            list += renderAddResourceRecordForm(domain);
+            list += renderAddResourceRecordForm();
 
             list += "</ul>";
 
@@ -1591,7 +1591,7 @@ function renderStandardResourceRecord(record, domain) {
 
     var id = Math.floor(Math.random() * 10000);
 
-    var html = "<li id=\"li" + id + "\" class=\"list-group-item resource-record\">";
+    var html = "<li id=\"li" + id + "\" class=\"list-group-item resource-record" + (record.disabled ? " disabled" : "") + "\">";
     html += "<form class=\"form-inline\">";
 
     //label
@@ -1629,11 +1629,14 @@ function renderStandardResourceRecord(record, domain) {
 
     //buttons
     html += "<div class=\"form-group\" style=\"display: block; margin-bottom: 0px;\">";
-    html += "<div id=\"data" + id + "\" data-record-name=\"" + encodeURI(record.name) + "\" data-record-value=\"" + encodeURI(record.rData.value) + "\" style=\"display: none;\"></div>";
+    html += "<div id=\"data" + id + "\" data-record-name=\"" + encodeURI(record.name) + "\" data-record-value=\"" + encodeURI(record.rData.value) + "\" data-record-disabled=\"" + record.disabled + "\" style=\"display: none;\"></div>";
     html += "<button id=\"btnEdit" + id + "\" type=\"button\" class=\"btn btn-primary\" data-id=\"" + id + "\" onclick=\"return editResourceRecord(this);\" style=\"margin-right: 10px;\">Edit</button>";
     html += "<button id=\"btnUpdate" + id + "\" type=\"submit\" class=\"btn btn-primary\" data-loading-text=\"Updating...\" data-id=\"" + id + "\" onclick=\"return updateResourceRecord(this);\" style=\"margin-right: 10px; display: none;\">Update</button>";
     html += "<button id=\"btnCancelEdit" + id + "\" type=\"button\" class=\"btn btn-default\" data-id=\"" + id + "\" onclick=\"return cancelEditResourceRecord(this);\" style=\"margin-right: 10px; display: none;\">Cancel</button>";
-    html += "<button id=\"btnDelete" + id + "\" type=\"button\" class=\"btn btn-warning\" data-loading-text=\"Deleting...\" data-id=\"" + id + "\" onclick=\"return deleteResourceRecord(this);\">Delete</button>";
+    html += "<button id=\"btnDelete" + id + "\" type=\"button\" class=\"btn btn-danger\" data-loading-text=\"Deleting...\" data-id=\"" + id + "\" onclick=\"return deleteResourceRecord(this);\" style=\"margin-right: 10px;\">Delete</button>";
+    html += "<button id=\"btnDisable" + id + "\" type=\"button\" class=\"btn btn-warning\" data-loading-text=\"Disabling...\" data-id=\"" + id + "\" onclick=\"return updateResourceRecord(this, true);\"" + (record.disabled ? " style=\"display: none;\"" : "") + ">Disable</button>";
+    html += "<button id=\"btnEnable" + id + "\" type=\"button\" class=\"btn btn-default\" data-loading-text=\"Enabling...\" data-id=\"" + id + "\" onclick=\"return updateResourceRecord(this, false);\"" + (record.disabled ? "" : " style=\"display: none;\"") + ">Enable</button>";
+
     html += "</div>";
 
     html += "</form>";
@@ -1646,7 +1649,7 @@ function renderMXResourceRecord(record, domain) {
 
     var id = Math.floor(Math.random() * 10000);
 
-    var html = "<li id=\"li" + id + "\" class=\"list-group-item resource-record\">";
+    var html = "<li id=\"li" + id + "\" class=\"list-group-item resource-record" + (record.disabled ? " disabled" : "") + "\">";
     html += "<form class=\"form-inline\">";
 
     //label
@@ -1690,11 +1693,13 @@ function renderMXResourceRecord(record, domain) {
 
     //buttons
     html += "<div class=\"form-group\" style=\"display: block; margin-bottom: 0px;\">";
-    html += "<div id=\"data" + id + "\" data-record-name=\"" + encodeURI(record.name) + "\" data-record-value=\"" + encodeURI(record.rData.value) + "\" style=\"display: none;\"></div>";
+    html += "<div id=\"data" + id + "\" data-record-name=\"" + encodeURI(record.name) + "\" data-record-value=\"" + encodeURI(record.rData.value) + "\" data-record-disabled=\"" + record.disabled + "\" style=\"display: none;\"></div>";
     html += "<button id=\"btnEdit" + id + "\" type=\"button\" class=\"btn btn-primary\" data-id=\"" + id + "\" onclick=\"return editResourceRecord(this);\" style=\"margin-right: 10px;\">Edit</button>";
     html += "<button id=\"btnUpdate" + id + "\" type=\"submit\" class=\"btn btn-primary\" data-loading-text=\"Updating...\" data-id=\"" + id + "\" onclick=\"return updateResourceRecord(this);\" style=\"margin-right: 10px; display: none;\">Update</button>";
     html += "<button id=\"btnCancelEdit" + id + "\" type=\"button\" class=\"btn btn-default\" data-id=\"" + id + "\" onclick=\"return cancelEditResourceRecord(this);\" style=\"margin-right: 10px; display: none;\">Cancel</button>";
-    html += "<button id=\"btnDelete" + id + "\" type=\"button\" class=\"btn btn-warning\" data-loading-text=\"Deleting...\" data-id=\"" + id + "\" onclick=\"return deleteResourceRecord(this);\">Delete</button>";
+    html += "<button id=\"btnDelete" + id + "\" type=\"button\" class=\"btn btn-danger\" data-loading-text=\"Deleting...\" data-id=\"" + id + "\" onclick=\"return deleteResourceRecord(this);\" style=\"margin-right: 10px;\">Delete</button>";
+    html += "<button id=\"btnDisable" + id + "\" type=\"button\" class=\"btn btn-warning\" data-loading-text=\"Disabling...\" data-id=\"" + id + "\" onclick=\"return updateResourceRecord(this, true);\"" + (record.disabled ? " style=\"display: none;\"" : "") + ">Disable</button>";
+    html += "<button id=\"btnEnable" + id + "\" type=\"button\" class=\"btn btn-default\" data-loading-text=\"Enabling...\" data-id=\"" + id + "\" onclick=\"return updateResourceRecord(this, false);\"" + (record.disabled ? "" : " style=\"display: none;\"") + ">Enable</button>";
     html += "</div>";
 
     html += "</form>";
@@ -1796,7 +1801,7 @@ function renderSRVResourceRecord(record, domain) {
 
     var id = Math.floor(Math.random() * 10000);
 
-    var html = "<li id=\"li" + id + "\" class=\"list-group-item resource-record\">";
+    var html = "<li id=\"li" + id + "\" class=\"list-group-item resource-record" + (record.disabled ? " disabled" : "") + "\">";
     html += "<form class=\"form-inline\">";
 
     //label
@@ -1881,11 +1886,13 @@ function renderSRVResourceRecord(record, domain) {
 
     //buttons
     html += "<div class=\"form-group\" style=\"display: block; margin-bottom: 0px;\">";
-    html += "<div id=\"data" + id + "\" data-record-name=\"" + encodeURI(record.name) + "\" data-record-value=\"" + encodeURI(record.rData.value) + "\" data-record-port=\"" + record.rData.port + "\" style=\"display: none;\"></div>";
+    html += "<div id=\"data" + id + "\" data-record-name=\"" + encodeURI(record.name) + "\" data-record-value=\"" + encodeURI(record.rData.value) + "\" data-record-port=\"" + record.rData.port + "\" data-record-disabled=\"" + record.disabled + "\" style=\"display: none;\"></div>";
     html += "<button id=\"btnEdit" + id + "\" type=\"button\" class=\"btn btn-primary\" data-id=\"" + id + "\" onclick=\"return editResourceRecord(this);\" style=\"margin-right: 10px;\">Edit</button>";
     html += "<button id=\"btnUpdate" + id + "\" type=\"submit\" class=\"btn btn-primary\" data-loading-text=\"Updating...\" data-id=\"" + id + "\" onclick=\"return updateResourceRecord(this);\" style=\"margin-right: 10px; display: none;\">Update</button>";
     html += "<button id=\"btnCancelEdit" + id + "\" type=\"button\" class=\"btn btn-default\" data-id=\"" + id + "\" onclick=\"return cancelEditResourceRecord(this);\" style=\"margin-right: 10px; display: none;\">Cancel</button>";
-    html += "<button id=\"btnDelete" + id + "\" type=\"button\" class=\"btn btn-warning\" data-loading-text=\"Deleting...\" data-id=\"" + id + "\" onclick=\"return deleteResourceRecord(this);\">Delete</button>";
+    html += "<button id=\"btnDelete" + id + "\" type=\"button\" class=\"btn btn-danger\" data-loading-text=\"Deleting...\" data-id=\"" + id + "\" onclick=\"return deleteResourceRecord(this);\" style=\"margin-right: 10px;\">Delete</button>";
+    html += "<button id=\"btnDisable" + id + "\" type=\"button\" class=\"btn btn-warning\" data-loading-text=\"Disabling...\" data-id=\"" + id + "\" onclick=\"return updateResourceRecord(this, true);\"" + (record.disabled ? " style=\"display: none;\"" : "") + ">Disable</button>";
+    html += "<button id=\"btnEnable" + id + "\" type=\"button\" class=\"btn btn-default\" data-loading-text=\"Enabling...\" data-id=\"" + id + "\" onclick=\"return updateResourceRecord(this, false);\"" + (record.disabled ? "" : " style=\"display: none;\"") + ">Enable</button>";
     html += "</div>";
 
     html += "</form>";
@@ -1894,7 +1901,7 @@ function renderSRVResourceRecord(record, domain) {
     return html;
 }
 
-function renderAddResourceRecordForm(domain) {
+function renderAddResourceRecordForm() {
 
     var html = "<li class=\"list-group-item\" id=\"addRecordFormItem\">";
     html += "<form class=\"form-inline\">";
@@ -2005,6 +2012,8 @@ function editResourceRecord(btnObj) {
     switch (type) {
         case "MX":
             $("#btnDelete" + id).hide();
+            $("#btnDisable" + id).hide();
+            $("#btnEnable" + id).hide();
 
             $("#txtName" + id).prop("disabled", false);
             $("#txtExchange" + id).prop("disabled", false);
@@ -2023,6 +2032,8 @@ function editResourceRecord(btnObj) {
 
         case "SRV":
             $("#btnDelete" + id).hide();
+            $("#btnDisable" + id).hide();
+            $("#btnEnable" + id).hide();
 
             $("#txtName" + id).prop("disabled", false);
             $("#txtService" + id).prop("disabled", false);
@@ -2035,6 +2046,8 @@ function editResourceRecord(btnObj) {
 
         default:
             $("#btnDelete" + id).hide();
+            $("#btnDisable" + id).hide();
+            $("#btnEnable" + id).hide();
 
             $("#txtName" + id).prop("disabled", false);
             $("#txtValue" + id).prop("disabled", false);
@@ -2049,6 +2062,9 @@ function cancelEditResourceRecord(btnObj) {
     var btnCancelEdit = $(btnObj);
     var id = btnCancelEdit.attr("data-id");
 
+    var divData = $("#data" + id);
+    var disabled = (divData.attr("data-record-disabled") === "true");
+
     var type = $("#optType" + id).val();
 
     $("#btnEdit" + id).show();
@@ -2058,6 +2074,11 @@ function cancelEditResourceRecord(btnObj) {
     switch (type) {
         case "MX":
             $("#btnDelete" + id).show();
+
+            if (disabled)
+                $("#btnEnable" + id).show();
+            else
+                $("#btnDisable" + id).show();
 
             $("#txtName" + id).prop("disabled", true);
             $("#txtExchange" + id).prop("disabled", true);
@@ -2077,6 +2098,11 @@ function cancelEditResourceRecord(btnObj) {
         case "SRV":
             $("#btnDelete" + id).show();
 
+            if (disabled)
+                $("#btnEnable" + id).show();
+            else
+                $("#btnDisable" + id).show();
+
             $("#txtName" + id).prop("disabled", true);
             $("#txtService" + id).prop("disabled", true);
             $("#txtProtocol" + id).prop("disabled", true);
@@ -2088,6 +2114,11 @@ function cancelEditResourceRecord(btnObj) {
 
         default:
             $("#btnDelete" + id).show();
+
+            if (disabled)
+                $("#btnEnable" + id).show();
+            else
+                $("#btnDisable" + id).show();
 
             $("#txtName" + id).prop("disabled", true);
             $("#txtValue" + id).prop("disabled", true);
@@ -2314,11 +2345,14 @@ function deleteResourceRecord(objBtn) {
     return false;
 }
 
-function updateResourceRecord(objBtn) {
+function updateResourceRecord(objBtn, disable) {
 
     var btnUpdate = $(objBtn);
     var id = btnUpdate.attr("data-id");
     var divData = $("#data" + id);
+
+    if (disable === undefined)
+        disable = (divData.attr("data-record-disabled") === "true");
 
     var domain = $("#spanZoneViewerTitle").text();
     var type = $("#optType" + id).val();
@@ -2449,7 +2483,7 @@ function updateResourceRecord(objBtn) {
             break;
     }
 
-    var apiUrl = "/api/updateRecord?token=" + token + "&type=" + type + "&domain=" + newName + "&oldDomain=" + oldName + "&value=" + newValue + "&oldValue=" + oldValue + "&ttl=" + ttl;
+    var apiUrl = "/api/updateRecord?token=" + token + "&type=" + type + "&domain=" + newName + "&oldDomain=" + oldName + "&value=" + newValue + "&oldValue=" + oldValue + "&ttl=" + ttl + "&disable=" + disable;
 
     switch (type) {
         case "MX":
@@ -2479,16 +2513,29 @@ function updateResourceRecord(objBtn) {
                     divData.attr("data-record-name", newName);
                     divData.attr("data-record-value", newValue);
                     divData.attr("data-record-port", port);
+                    divData.attr("data-record-disabled", disable);
                     break;
 
                 default:
                     divData.attr("data-record-name", newName);
                     divData.attr("data-record-value", newValue);
+                    divData.attr("data-record-disabled", disable);
                     break;
             }
 
             btnUpdate.button('reset');
             cancelEditResourceRecord(objBtn);
+
+            if (disable) {
+                $("#btnDisable" + id).hide();
+                $("#btnEnable" + id).show();
+                $("#li" + id).addClass("disabled");
+            }
+            else {
+                $("#btnDisable" + id).show();
+                $("#btnEnable" + id).hide();
+                $("#li" + id).removeClass("disabled");
+            }
 
             showAlert("success", "Record Updated!", "Resource record was updated successfully.");
         },
