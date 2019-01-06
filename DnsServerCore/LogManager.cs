@@ -1,6 +1,6 @@
 ﻿/*
 Technitium DNS Server
-Copyright (C) 2018  Shreyas Zare (shreyas@technitium.com)
+Copyright (C) 2019  Shreyas Zare (shreyas@technitium.com)
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -141,12 +141,12 @@ namespace DnsServerCore
 
         public void Write(Exception ex)
         {
-            Write(null, ex.ToString());
+            Write(null, false, ex.ToString());
         }
 
         public void Write(IPEndPoint ep, bool tcp, Exception ex)
         {
-            Write(ep, (tcp ? "[TCP] " : "") + ex.ToString());
+            Write(ep, tcp, ex.ToString());
         }
 
         public void Write(IPEndPoint ep, bool tcp, DnsDatagram request, DnsDatagram response)
@@ -195,10 +195,10 @@ namespace DnsServerCore
                 responseInfo = " RCODE: " + response.Header.RCODE.ToString() + "; ANSWER: " + answer;
             }
 
-            Write(ep, (tcp ? "[TCP] " : "") + question + ";" + responseInfo);
+            Write(ep, tcp, question + ";" + responseInfo);
         }
 
-        public void Write(IPEndPoint ep, string message)
+        public void Write(IPEndPoint ep, bool tcp, string message)
         {
             string ipInfo;
 
@@ -209,7 +209,7 @@ namespace DnsServerCore
             else
                 ipInfo = "[" + ep.ToString() + "] ";
 
-            Write(ipInfo + message);
+            Write(ipInfo + (tcp ? "[TCP] " : "") + message);
         }
 
         public void Write(string message)
