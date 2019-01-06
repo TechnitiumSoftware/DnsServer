@@ -1,6 +1,6 @@
 ﻿/*
 Technitium DNS Server
-Copyright (C) 2018  Shreyas Zare (shreyas@technitium.com)
+Copyright (C) 2019  Shreyas Zare (shreyas@technitium.com)
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -249,24 +249,14 @@ namespace DnsServerCore
                 foreach (KeyValuePair<DnsResourceRecordType, DnsResourceRecord[]> entry in _entries)
                     allRecords.AddRange(entry.Value);
 
-                return allRecords.ToArray();
+                return FilterExpiredDisabledRecords(allRecords.ToArray());
             }
 
             if (!bypassCNAME && _entries.TryGetValue(DnsResourceRecordType.CNAME, out DnsResourceRecord[] existingCNAMERecords))
-            {
-                if (_authoritativeZone)
-                    return existingCNAMERecords;
-
-                return FilterExpiredRecords(existingCNAMERecords);
-            }
+                return FilterExpiredDisabledRecords(existingCNAMERecords);
 
             if (_entries.TryGetValue(type, out DnsResourceRecord[] existingRecords))
-            {
-                if (_authoritativeZone)
-                    return existingRecords;
-
-                return FilterExpiredRecords(existingRecords);
-            }
+                return FilterExpiredDisabledRecords(existingRecords);
 
             return null;
         }
@@ -383,11 +373,15 @@ namespace DnsServerCore
             DeleteEmptyParentZones(this);
         }
 
-        private DnsResourceRecord[] FilterExpiredRecords(DnsResourceRecord[] records)
+        private DnsResourceRecord[] FilterExpiredDisabledRecords(DnsResourceRecord[] records)
         {
             if (records.Length == 1)
             {
                 if (records[0].TTLValue < 1)
+                    return null;
+
+                DnsResourceRecordInfo rrInfo = records[0].Tag as DnsResourceRecordInfo;
+                if ((rrInfo != null) && rrInfo.Disabled)
                     return null;
 
                 return records;
@@ -397,8 +391,14 @@ namespace DnsServerCore
 
             foreach (DnsResourceRecord record in records)
             {
-                if (record.TTLValue > 0)
-                    newRecords.Add(record);
+                if (record.TTLValue < 1)
+                    continue;
+
+                DnsResourceRecordInfo rrInfo = record.Tag as DnsResourceRecordInfo;
+                if ((rrInfo != null) && rrInfo.Disabled)
+                    continue;
+
+                newRecords.Add(record);
             }
 
             if (newRecords.Count > 0)
@@ -987,6 +987,15 @@ namespace DnsServerCore
                 currentZone._disabled = false;
         }
 
+        public bool IsZoneDisabled(string domain)
+        {
+            Zone currentZone = GetZone(this, domain);
+            if (currentZone != null)
+                return currentZone._disabled;
+
+            return false;
+        }
+
         public void Flush()
         {
             _zones.Clear();
@@ -1043,6 +1052,57 @@ namespace DnsServerCore
 
             public string ZoneName
             { get { return _zoneName; } }
+
+            public bool Disabled
+            { get { return _disabled; } }
+
+            #endregion
+        }
+
+        public class DnsResourceRecordInfo
+        {
+            #region variables
+
+            readonly bool _disabled;
+
+            #endregion
+
+            #region constructor
+
+            public DnsResourceRecordInfo()
+            { }
+
+            public DnsResourceRecordInfo(bool disabled)
+            {
+                _disabled = disabled;
+            }
+
+            public DnsResourceRecordInfo(BinaryReader bR)
+            {
+                switch (bR.ReadByte()) //version
+                {
+                    case 1:
+                        _disabled = bR.ReadBoolean();
+                        break;
+
+                    default:
+                        throw new NotSupportedException("Zone.DnsResourceRecordInfo format version not supported.");
+                }
+            }
+
+            #endregion
+
+            #region public
+
+            public void WriteTo(BinaryWriter bW)
+            {
+                bW.Write((byte)1); //version
+                bW.Write(_disabled);
+            }
+
+            #endregion
+
+            #region properties
 
             public bool Disabled
             { get { return _disabled; } }
