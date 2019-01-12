@@ -290,13 +290,13 @@ namespace DnsServerCore
         {
             if (type == DnsResourceRecordType.CNAME)
             {
-                //delete all sub zones and entries except SOA
-                _zones.Clear();
+                if (!_zones.IsEmpty)
+                    throw new DnsServerException("Cannot add CNAME record: sub domains exists in same zone");
 
                 foreach (DnsResourceRecordType key in _entries.Keys)
                 {
                     if (key != DnsResourceRecordType.SOA)
-                        _entries.TryRemove(key, out DnsResourceRecord[] removedValues);
+                        throw new DnsServerException("Cannot add CNAME record: other records exists in same zone");
                 }
             }
 
@@ -308,6 +308,14 @@ namespace DnsServerCore
 
         private void AddRecord(DnsResourceRecord record)
         {
+            switch (record.Type)
+            {
+                case DnsResourceRecordType.CNAME:
+                case DnsResourceRecordType.PTR:
+                case DnsResourceRecordType.SOA:
+                    throw new DnsServerException("Cannot add record: use SetRecords() for " + record.Type.ToString() + " record");
+            }
+
             _entries.AddOrUpdate(record.Type, new DnsResourceRecord[] { record }, delegate (DnsResourceRecordType key, DnsResourceRecord[] existingRecords)
             {
                 foreach (DnsResourceRecord existingRecord in existingRecords)
