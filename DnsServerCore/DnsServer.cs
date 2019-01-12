@@ -295,12 +295,15 @@ namespace DnsServerCore
 
             try
             {
+                tcpListener.SendTimeout = _tcpSendTimeout;
+                tcpListener.ReceiveTimeout = _tcpReceiveTimeout;
+                tcpListener.SendBufferSize = 2048;
+                tcpListener.ReceiveBufferSize = 512;
+                tcpListener.NoDelay = true;
+
                 while (true)
                 {
                     Socket socket = tcpListener.Accept();
-
-                    socket.SendTimeout = _tcpSendTimeout;
-                    socket.ReceiveTimeout = _tcpReceiveTimeout;
 
                     ThreadPool.QueueUserWorkItem(ReadTcpRequestAsync, socket);
                 }
@@ -327,9 +330,10 @@ namespace DnsServerCore
             try
             {
                 remoteEP = tcpSocket.RemoteEndPoint as IPEndPoint;
-                NetworkStream tcpStream = new NetworkStream(tcpSocket);
+                Stream tcpStream = new WriteBufferedStream(new NetworkStream(tcpSocket), 2048);
                 OffsetStream recvDatagramStream = new OffsetStream(tcpStream, 0, 0);
                 MemoryStream sendBufferStream = new MemoryStream(64);
+                byte[] lengthBuffer = new byte[2];
                 ushort length;
 
                 while (true)
@@ -337,7 +341,7 @@ namespace DnsServerCore
                     request = null;
 
                     //read dns datagram length
-                    byte[] lengthBuffer = tcpStream.ReadBytes(2);
+                    tcpStream.ReadBytes(lengthBuffer, 0, 2);
                     Array.Reverse(lengthBuffer, 0, 2);
                     length = BitConverter.ToUInt16(lengthBuffer, 0);
 
@@ -346,7 +350,7 @@ namespace DnsServerCore
                     request = new DnsDatagram(recvDatagramStream);
 
                     //process request async
-                    ThreadPool.QueueUserWorkItem(ProcessTcpRequestAsync, new object[] { request, tcpStream, sendBufferStream, remoteEP });
+                    ThreadPool.QueueUserWorkItem(ProcessTcpRequestAsync, new object[] { remoteEP, tcpStream, request, sendBufferStream });
                 }
             }
             catch (IOException)
@@ -374,10 +378,10 @@ namespace DnsServerCore
         {
             object[] parameters = parameter as object[];
 
-            DnsDatagram request = parameters[0] as DnsDatagram;
-            NetworkStream tcpStream = parameters[1] as NetworkStream;
-            MemoryStream sendBufferStream = parameters[2] as MemoryStream;
-            EndPoint remoteEP = parameters[3] as EndPoint;
+            EndPoint remoteEP = parameters[0] as EndPoint;
+            Stream tcpStream = parameters[1] as Stream;
+            DnsDatagram request = parameters[2] as DnsDatagram;
+            MemoryStream sendBufferStream = parameters[3] as MemoryStream;
 
             try
             {
