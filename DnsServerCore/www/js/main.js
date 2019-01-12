@@ -265,6 +265,16 @@ $(function () {
                 $("#rdForwarderProtocolTcp").prop("checked", true);
                 break;
 
+            case "google-tls":
+                $("#txtForwarders").val("dns.google (8.8.8.8:853)\r\ndns.google (8.8.4.4:853)");
+                $("#rdForwarderProtocolTls").prop("checked", true);
+                break;
+
+            case "google-tls-ipv6":
+                $("#txtForwarders").val("dns.google ([2001:4860:4860::8888]:853)\r\ndns.google ([2001:4860:4860::8844]:853)");
+                $("#rdForwarderProtocolTls").prop("checked", true);
+                break;
+
             case "google-json":
                 $("#txtForwarders").val("https://dns.google.com/resolve");
                 $("#rdForwarderProtocolHttpJsons").prop("checked", true);
