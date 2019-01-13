@@ -292,13 +292,18 @@ namespace DnsServerCore
         {
             if (type == DnsResourceRecordType.CNAME)
             {
-                if (!_zones.IsEmpty)
-                    throw new DnsServerException("Cannot add CNAME record: sub domains exists in same zone");
-
                 foreach (DnsResourceRecordType key in _entries.Keys)
                 {
-                    if (key != DnsResourceRecordType.SOA)
-                        throw new DnsServerException("Cannot add CNAME record: other records exists in same zone");
+                    switch (key)
+                    {
+                        case DnsResourceRecordType.SOA:
+                        case DnsResourceRecordType.NS:
+                        case DnsResourceRecordType.CNAME:
+                            continue;
+
+                        default:
+                            throw new DnsServerException("Cannot add CNAME record: other records exists in same zone");
+                    }
                 }
             }
 
