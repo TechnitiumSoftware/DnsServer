@@ -290,23 +290,6 @@ namespace DnsServerCore
 
         private void SetRecords(DnsResourceRecordType type, DnsResourceRecord[] records)
         {
-            if (type == DnsResourceRecordType.CNAME)
-            {
-                foreach (DnsResourceRecordType key in _entries.Keys)
-                {
-                    switch (key)
-                    {
-                        case DnsResourceRecordType.SOA:
-                        case DnsResourceRecordType.NS:
-                        case DnsResourceRecordType.CNAME:
-                            continue;
-
-                        default:
-                            throw new DnsServerException("Cannot add CNAME record: other records exists in same zone");
-                    }
-                }
-            }
-
             _entries.AddOrUpdate(type, records, delegate (DnsResourceRecordType key, DnsResourceRecord[] existingRecords)
             {
                 return records;
