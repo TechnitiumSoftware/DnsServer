@@ -627,9 +627,6 @@ namespace DnsServerCore
                 }
                 else if ((response.Authority.Length > 0) && (response.Authority[0].Type == DnsResourceRecordType.NS) && isRecursionAllowed)
                 {
-                    if (_forwarders != null)
-                        return ProcessRecursiveQuery(request); //do recursive resolution using forwarders
-
                     //do recursive resolution using response authority name servers
                     NameServerAddress[] nameServers = NameServerAddress.GetNameServersFromResponse(response, _preferIPv6, false);
 
@@ -758,14 +755,14 @@ namespace DnsServerCore
             //select protocol
             DnsClientProtocol protocol;
 
-            if (_forwarders == null)
+            if ((viaNameServers == null) && (_forwarders != null))
             {
-                protocol = _recursiveResolveProtocol;
+                viaNameServers = _forwarders;
+                protocol = _forwarderProtocol;
             }
             else
             {
-                viaNameServers = _forwarders; //forwarder has higher weightage
-                protocol = _forwarderProtocol;
+                protocol = _recursiveResolveProtocol;
             }
 
             try

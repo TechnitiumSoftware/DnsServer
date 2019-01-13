@@ -42,6 +42,8 @@ namespace DnsServerCore
         readonly ConcurrentDictionary<string, Zone> _zones = new ConcurrentDictionary<string, Zone>();
         readonly ConcurrentDictionary<DnsResourceRecordType, DnsResourceRecord[]> _entries = new ConcurrentDictionary<DnsResourceRecordType, DnsResourceRecord[]>();
 
+        string _serverDomain;
+
         #endregion
 
         #region constructor
@@ -432,7 +434,7 @@ namespace DnsServerCore
             return null;
         }
 
-        private DnsResourceRecord[] GetClosestAuthority()
+        private DnsResourceRecord[] GetClosestAuthority(string rootZoneServerDomain)
         {
             Zone currentZone = this;
             DnsResourceRecord[] nsRecords = null;
@@ -440,7 +442,7 @@ namespace DnsServerCore
             while (currentZone != null)
             {
                 nsRecords = currentZone.QueryRecords(DnsResourceRecordType.SOA, true);
-                if ((nsRecords != null) && (nsRecords.Length > 0) && (nsRecords[0].Type == DnsResourceRecordType.SOA))
+                if ((nsRecords != null) && (nsRecords.Length > 0) && (nsRecords[0].Type == DnsResourceRecordType.SOA) && (nsRecords[0].RDATA as DnsSOARecord).MasterNameServer.Equals(rootZoneServerDomain, StringComparison.CurrentCultureIgnoreCase))
                     return nsRecords;
 
                 nsRecords = currentZone.QueryRecords(DnsResourceRecordType.NS);
@@ -526,7 +528,7 @@ namespace DnsServerCore
             if (closestZone._disabled)
                 return new DnsDatagram(new DnsHeader(request.Header.Identifier, true, DnsOpcode.StandardQuery, false, false, request.Header.RecursionDesired, false, false, false, DnsResponseCode.Refused, 1, 0, 0, 0), request.Question, new DnsResourceRecord[] { }, new DnsResourceRecord[] { }, new DnsResourceRecord[] { });
 
-            DnsResourceRecord[] closestAuthority = closestZone.GetClosestAuthority();
+            DnsResourceRecord[] closestAuthority = closestZone.GetClosestAuthority(rootZone._serverDomain);
 
             if (closestAuthority == null)
                 return new DnsDatagram(new DnsHeader(request.Header.Identifier, true, DnsOpcode.StandardQuery, false, false, request.Header.RecursionDesired, false, false, false, DnsResponseCode.Refused, 1, 0, 0, 0), request.Question, new DnsResourceRecord[] { }, new DnsResourceRecord[] { }, new DnsResourceRecord[] { });
@@ -1019,6 +1021,12 @@ namespace DnsServerCore
 
         public bool IsAuthoritative
         { get { return _authoritativeZone; } }
+
+        public string ServerDomain
+        {
+            get { return _serverDomain; }
+            set { _serverDomain = value; }
+        }
 
         #endregion
 
