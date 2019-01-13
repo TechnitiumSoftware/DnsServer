@@ -918,6 +918,12 @@ namespace DnsServerCore
             }
         }
 
+        public string ServerDomain
+        {
+            get { return _authoritativeZoneRoot.ServerDomain; }
+            set { _authoritativeZoneRoot.ServerDomain = value; }
+        }
+
         public Zone AuthoritativeZoneRoot
         { get { return _authoritativeZoneRoot; } }
 
