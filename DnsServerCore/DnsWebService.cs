@@ -86,6 +86,8 @@ namespace DnsServerCore
         int _totalZonesAllowed;
         int _totalZonesBlocked;
 
+        List<string> _configDisabledZones;
+
         #endregion
 
         #region constructor
@@ -3233,11 +3235,14 @@ namespace DnsServerCore
 
                             if (version <= 6)
                             {
-                                //read for backward compatibility
                                 int count = bR.ReadInt32();
+                                _configDisabledZones = new List<string>(count);
 
                                 for (int i = 0; i < count; i++)
-                                    bR.ReadShortString(); //read domain name
+                                {
+                                    string domain = bR.ReadShortString();
+                                    _configDisabledZones.Add(domain);
+                                }
                             }
 
                             if (version > 4)
@@ -3530,6 +3535,15 @@ namespace DnsServerCore
 
                 LoadConfigFile();
                 LoadZoneFiles();
+
+                if (_configDisabledZones != null)
+                {
+                    foreach (string domain in _configDisabledZones)
+                    {
+                        _dnsServer.AuthoritativeZoneRoot.DisableZone(domain);
+                        SaveZoneFile(domain);
+                    }
+                }
 
                 ThreadPool.QueueUserWorkItem(delegate (object state)
                 {
