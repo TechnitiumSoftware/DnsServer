@@ -32,12 +32,7 @@ then
 	
 	mkdir -p $aspnetcoreDir
 	
-	if [ -f $aspnetcoreTar ]
-	then
-		rm $aspnetcoreTar
-	fi
-	
-	if wget -q "$aspnetcoreUrl" -P /opt/dotnet/
+	if wget -q "$aspnetcoreUrl" -O $aspnetcoreTar
 	then
 		echo "Installing .NET Core Runtime..."
 		tar -zxf $aspnetcoreTar -C $aspnetcoreDir
@@ -54,12 +49,7 @@ fi
 echo ""
 echo "Downloading Technitium DNS Server..."
 
-if [ -f $dnsTar ]
-then
-	rm $dnsTar
-fi
-
-if wget -q "$dnsUrl" -P /etc/dns/
+if wget -q "$dnsUrl" -O $dnsTar
 then
 	echo "Installing Technitium DNS Server..."
 	tar -zxf $dnsTar -C $dnsDir
