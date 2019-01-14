@@ -46,6 +46,11 @@ namespace DnsServerCore
             _logFolder = logFolder;
 
             StartNewLog();
+
+            AppDomain.CurrentDomain.UnhandledException += delegate (object sender, UnhandledExceptionEventArgs e)
+            {
+                Write((Exception)e.ExceptionObject);
+            };
         }
 
         #endregion

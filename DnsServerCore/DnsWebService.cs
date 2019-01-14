@@ -116,11 +116,6 @@ namespace DnsServerCore
                 Directory.CreateDirectory(logFolder);
 
             _log = new LogManager(logFolder);
-
-            AppDomain.CurrentDomain.UnhandledException += delegate (object sender, UnhandledExceptionEventArgs e)
-            {
-                _log.Write((Exception)e.ExceptionObject);
-            };
         }
 
         #endregion
