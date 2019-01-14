@@ -523,7 +523,14 @@ namespace DnsServerCore
 
                 using (Stream stream = response.OutputStream)
                 {
-                    fS.CopyTo(stream);
+                    try
+                    {
+                        fS.CopyTo(stream);
+                    }
+                    catch (HttpListenerException)
+                    {
+                        //ignore this error
+                    }
                 }
             }
         }
