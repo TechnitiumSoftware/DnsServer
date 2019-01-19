@@ -916,7 +916,12 @@ namespace DnsServerCore
         public string ServerDomain
         {
             get { return _authoritativeZoneRoot.ServerDomain; }
-            set { _authoritativeZoneRoot.ServerDomain = value; }
+            set
+            {
+                _authoritativeZoneRoot.ServerDomain = value;
+                _allowedZoneRoot.ServerDomain = value;
+                _blockedZoneRoot.ServerDomain = value;
+            }
         }
 
         public Zone AuthoritativeZoneRoot
