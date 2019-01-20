@@ -945,6 +945,7 @@ namespace DnsServerCore
                     throw new ArgumentException("Blocked zone must be authoritative.");
 
                 _blockedZoneRoot = value;
+                _blockedZoneRoot.ServerDomain = _authoritativeZoneRoot.ServerDomain;
             }
         }
 
