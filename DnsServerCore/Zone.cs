@@ -242,7 +242,7 @@ namespace DnsServerCore
             }
         }
 
-        private DnsResourceRecord[] QueryRecords(DnsResourceRecordType type, bool bypassCNAME = false)
+        private DnsResourceRecord[] QueryRecords(DnsResourceRecordType type, bool bypassCNAME)
         {
             if (_authoritativeZone && (type == DnsResourceRecordType.ANY))
             {
@@ -412,8 +412,8 @@ namespace DnsServerCore
 
             while (currentZone != null)
             {
-                nsRecords = currentZone.QueryRecords(DnsResourceRecordType.NS);
-                if ((nsRecords != null) && (nsRecords.Length > 0) && (nsRecords[0].Type == DnsResourceRecordType.NS))
+                nsRecords = currentZone.QueryRecords(DnsResourceRecordType.NS, true);
+                if ((nsRecords != null) && (nsRecords.Length > 0))
                     return nsRecords;
 
                 currentZone = currentZone._parentZone;
@@ -430,11 +430,11 @@ namespace DnsServerCore
             while (currentZone != null)
             {
                 nsRecords = currentZone.QueryRecords(DnsResourceRecordType.SOA, true);
-                if ((nsRecords != null) && (nsRecords.Length > 0) && (nsRecords[0].Type == DnsResourceRecordType.SOA) && (nsRecords[0].RDATA as DnsSOARecord).MasterNameServer.Equals(rootZoneServerDomain, StringComparison.CurrentCultureIgnoreCase))
+                if ((nsRecords != null) && (nsRecords.Length > 0) && (nsRecords[0].RDATA as DnsSOARecord).MasterNameServer.Equals(rootZoneServerDomain, StringComparison.CurrentCultureIgnoreCase))
                     return nsRecords;
 
-                nsRecords = currentZone.QueryRecords(DnsResourceRecordType.NS);
-                if ((nsRecords != null) && (nsRecords.Length > 0) && (nsRecords[0].Type == DnsResourceRecordType.NS))
+                nsRecords = currentZone.QueryRecords(DnsResourceRecordType.NS, true);
+                if ((nsRecords != null) && (nsRecords.Length > 0))
                     return nsRecords;
 
                 currentZone = currentZone._parentZone;
@@ -452,8 +452,8 @@ namespace DnsServerCore
             {
                 if (currentZone._entries.ContainsKey(DnsResourceRecordType.SOA))
                 {
-                    nsRecords = currentZone.QueryRecords(DnsResourceRecordType.NS);
-                    if ((nsRecords != null) && (nsRecords.Length > 0) && (nsRecords[0].Type == DnsResourceRecordType.NS))
+                    nsRecords = currentZone.QueryRecords(DnsResourceRecordType.NS, true);
+                    if ((nsRecords != null) && (nsRecords.Length > 0))
                         return nsRecords;
 
                     return null;
@@ -479,14 +479,14 @@ namespace DnsServerCore
                     if (zone != null)
                     {
                         {
-                            DnsResourceRecord[] records = zone.QueryRecords(DnsResourceRecordType.A);
-                            if ((records != null) && (records.Length > 0) && (records[0].Type == DnsResourceRecordType.A))
+                            DnsResourceRecord[] records = zone.QueryRecords(DnsResourceRecordType.A, true);
+                            if ((records != null) && (records.Length > 0))
                                 glueRecords.AddRange(records);
                         }
 
                         {
-                            DnsResourceRecord[] records = zone.QueryRecords(DnsResourceRecordType.AAAA);
-                            if ((records != null) && (records.Length > 0) && (records[0].Type == DnsResourceRecordType.AAAA))
+                            DnsResourceRecord[] records = zone.QueryRecords(DnsResourceRecordType.AAAA, true);
+                            if ((records != null) && (records.Length > 0))
                                 glueRecords.AddRange(records);
                         }
                     }
@@ -499,7 +499,7 @@ namespace DnsServerCore
         private void GetAuthoritativeZones(List<Zone> zones)
         {
             DnsResourceRecord[] soa = QueryRecords(DnsResourceRecordType.SOA, true);
-            if ((soa != null) && (soa[0].Type == DnsResourceRecordType.SOA))
+            if (soa != null)
                 zones.Add(this);
 
             foreach (KeyValuePair<string, Zone> entry in _zones)
@@ -524,7 +524,7 @@ namespace DnsServerCore
             if (closestZone._zoneName.Equals(domain) || (closestZone._zoneLabel == "*"))
             {
                 //zone found
-                DnsResourceRecord[] records = closestZone.QueryRecords(question.Type);
+                DnsResourceRecord[] records = closestZone.QueryRecords(question.Type, false);
                 if (records == null)
                 {
                     //record type not found
@@ -612,7 +612,7 @@ namespace DnsServerCore
 
             if (closestZone._zoneName.Equals(domain))
             {
-                DnsResourceRecord[] records = closestZone.QueryRecords(question.Type);
+                DnsResourceRecord[] records = closestZone.QueryRecords(question.Type, false);
                 if (records != null)
                 {
                     if (records[0].RDATA is DnsEmptyRecord)
