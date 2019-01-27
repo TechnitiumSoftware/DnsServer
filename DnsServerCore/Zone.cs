@@ -405,7 +405,7 @@ namespace DnsServerCore
             return null;
         }
 
-        private DnsResourceRecord[] GetClosestNameServers()
+        private DnsResourceRecord[] GetClosestCachedNameServers()
         {
             Zone currentZone = this;
             DnsResourceRecord[] nsRecords = null;
@@ -413,7 +413,7 @@ namespace DnsServerCore
             while (currentZone != null)
             {
                 nsRecords = currentZone.QueryRecords(DnsResourceRecordType.NS, true);
-                if ((nsRecords != null) && (nsRecords.Length > 0))
+                if ((nsRecords != null) && (nsRecords.Length > 0) && (nsRecords[0].RDATA is DnsNSRecord))
                     return nsRecords;
 
                 currentZone = currentZone._parentZone;
@@ -521,85 +521,65 @@ namespace DnsServerCore
             if (closestAuthority == null)
                 return new DnsDatagram(new DnsHeader(request.Header.Identifier, true, DnsOpcode.StandardQuery, false, false, request.Header.RecursionDesired, false, false, false, DnsResponseCode.Refused, 1, 0, 0, 0), request.Question, new DnsResourceRecord[] { }, new DnsResourceRecord[] { }, new DnsResourceRecord[] { });
 
-            if (closestZone._zoneName.Equals(domain) || (closestZone._zoneLabel == "*"))
+            if (closestAuthority[0].Type == DnsResourceRecordType.SOA)
             {
-                //zone found
-                DnsResourceRecord[] records = closestZone.QueryRecords(question.Type, false);
-                if (records == null)
+                //zone is hosted on this server
+                if (closestZone._zoneName.Equals(domain) || (closestZone._zoneLabel == "*"))
                 {
-                    //record type not found
-                    bool authoritativeAnswer;
-                    DnsResourceRecord[] additional;
-
-                    if (closestAuthority[0].Type == DnsResourceRecordType.SOA)
+                    //zone found
+                    DnsResourceRecord[] records = closestZone.QueryRecords(question.Type, false);
+                    if (records == null)
                     {
-                        authoritativeAnswer = true;
-                        additional = new DnsResourceRecord[] { };
+                        //record type not found
+                        return new DnsDatagram(new DnsHeader(request.Header.Identifier, true, DnsOpcode.StandardQuery, true, false, request.Header.RecursionDesired, false, false, false, DnsResponseCode.NoError, 1, 0, (ushort)closestAuthority.Length, 0), request.Question, new DnsResourceRecord[] { }, closestAuthority, new DnsResourceRecord[] { });
                     }
                     else
                     {
-                        authoritativeAnswer = false;
-                        additional = GetGlueRecords(rootZone, closestAuthority);
-                    }
+                        //record type found
+                        if (closestZone._zoneLabel == "*")
+                        {
+                            DnsResourceRecord[] wildcardRecords = new DnsResourceRecord[records.Length];
 
-                    return new DnsDatagram(new DnsHeader(request.Header.Identifier, true, DnsOpcode.StandardQuery, authoritativeAnswer, false, request.Header.RecursionDesired, false, false, false, DnsResponseCode.NoError, 1, 0, (ushort)closestAuthority.Length, (ushort)additional.Length), request.Question, new DnsResourceRecord[] { }, closestAuthority, additional);
+                            for (int i = 0; i < records.Length; i++)
+                            {
+                                DnsResourceRecord record = records[i];
+                                wildcardRecords[i] = new DnsResourceRecord(domain, record.Type, record.Class, record.TTLValue, record.RDATA);
+                            }
+
+                            records = wildcardRecords;
+                        }
+
+                        DnsResourceRecord[] closestAuthoritativeNameServers = null;
+                        DnsResourceRecord[] additional;
+
+                        if (question.Type != DnsResourceRecordType.ANY)
+                            closestAuthoritativeNameServers = closestZone.GetClosestAuthoritativeNameServers();
+
+                        if (closestAuthoritativeNameServers == null)
+                        {
+                            closestAuthoritativeNameServers = new DnsResourceRecord[] { };
+                            additional = new DnsResourceRecord[] { };
+                        }
+                        else
+                        {
+                            additional = GetGlueRecords(rootZone, closestAuthoritativeNameServers);
+                        }
+
+                        return new DnsDatagram(new DnsHeader(request.Header.Identifier, true, DnsOpcode.StandardQuery, true, false, request.Header.RecursionDesired, false, false, false, DnsResponseCode.NoError, 1, (ushort)records.Length, (ushort)closestAuthoritativeNameServers.Length, (ushort)additional.Length), request.Question, records, closestAuthoritativeNameServers, additional);
+                    }
                 }
                 else
                 {
-                    //record type found
-                    if (closestZone._zoneLabel == "*")
-                    {
-                        DnsResourceRecord[] wildcardRecords = new DnsResourceRecord[records.Length];
-
-                        for (int i = 0; i < records.Length; i++)
-                        {
-                            DnsResourceRecord record = records[i];
-                            wildcardRecords[i] = new DnsResourceRecord(domain, record.Type, record.Class, record.TTLValue, record.RDATA);
-                        }
-
-                        records = wildcardRecords;
-                    }
-
-                    DnsResourceRecord[] closestAuthoritativeNameServers = null;
-                    DnsResourceRecord[] additional;
-
-                    if (question.Type != DnsResourceRecordType.ANY)
-                        closestAuthoritativeNameServers = closestZone.GetClosestAuthoritativeNameServers();
-
-                    if (closestAuthoritativeNameServers == null)
-                    {
-                        closestAuthoritativeNameServers = new DnsResourceRecord[] { };
-                        additional = new DnsResourceRecord[] { };
-                    }
-                    else
-                    {
-                        additional = GetGlueRecords(rootZone, closestAuthoritativeNameServers);
-                    }
-
-                    return new DnsDatagram(new DnsHeader(request.Header.Identifier, true, DnsOpcode.StandardQuery, true, false, request.Header.RecursionDesired, false, false, false, DnsResponseCode.NoError, 1, (ushort)records.Length, (ushort)closestAuthoritativeNameServers.Length, (ushort)additional.Length), request.Question, records, closestAuthoritativeNameServers, additional);
+                    //zone doesnt exists
+                    return new DnsDatagram(new DnsHeader(request.Header.Identifier, true, DnsOpcode.StandardQuery, true, false, request.Header.RecursionDesired, false, false, false, DnsResponseCode.NameError, 1, 0, (ushort)closestAuthority.Length, 0), request.Question, new DnsResourceRecord[] { }, closestAuthority, new DnsResourceRecord[] { });
                 }
             }
             else
             {
-                //zone doesnt exists
-                bool authoritativeAnswer;
-                DnsResponseCode rCode;
-                DnsResourceRecord[] additional;
+                //zone is delegated
+                DnsResourceRecord[] additional = GetGlueRecords(rootZone, closestAuthority);
 
-                if (closestAuthority[0].Type == DnsResourceRecordType.SOA)
-                {
-                    authoritativeAnswer = true;
-                    rCode = DnsResponseCode.NameError;
-                    additional = new DnsResourceRecord[] { };
-                }
-                else
-                {
-                    authoritativeAnswer = false;
-                    rCode = DnsResponseCode.NoError;
-                    additional = GetGlueRecords(rootZone, closestAuthority);
-                }
-
-                return new DnsDatagram(new DnsHeader(request.Header.Identifier, true, DnsOpcode.StandardQuery, authoritativeAnswer, false, request.Header.RecursionDesired, false, false, false, rCode, 1, 0, (ushort)closestAuthority.Length, (ushort)additional.Length), request.Question, new DnsResourceRecord[] { }, closestAuthority, additional);
+                return new DnsDatagram(new DnsHeader(request.Header.Identifier, true, DnsOpcode.StandardQuery, false, false, request.Header.RecursionDesired, false, false, false, DnsResponseCode.NoError, 1, 0, (ushort)closestAuthority.Length, (ushort)additional.Length), request.Question, new DnsResourceRecord[] { }, closestAuthority, additional);
             }
         }
 
@@ -641,7 +621,7 @@ namespace DnsServerCore
                 }
             }
 
-            DnsResourceRecord[] nameServers = closestZone.GetClosestNameServers();
+            DnsResourceRecord[] nameServers = closestZone.GetClosestCachedNameServers();
             if (nameServers != null)
             {
                 DnsResourceRecord[] additional = GetGlueRecords(rootZone, nameServers);
@@ -793,7 +773,9 @@ namespace DnsServerCore
                     return; //nothing to do
             }
 
-            allRecords.AddRange(response.Authority);
+            if ((response.Question.Length > 0) && (response.Question[0].Type != DnsResourceRecordType.NS))
+                allRecords.AddRange(response.Authority);
+
             allRecords.AddRange(response.Additional);
 
             //set expiry for cached records
