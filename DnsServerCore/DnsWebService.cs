@@ -815,10 +815,20 @@ namespace DnsServerCore
             return false;
         }
 
+        private static string GetCleanVersion(string version)
+        {
+            while (version.EndsWith(".0"))
+            {
+                version = version.Substring(0, version.Length - 2);
+            }
+
+            return version;
+        }
+
         private void GetDnsSettings(JsonTextWriter jsonWriter)
         {
             jsonWriter.WritePropertyName("version");
-            jsonWriter.WriteValue(_currentVersion);
+            jsonWriter.WriteValue(GetCleanVersion(_currentVersion));
 
             jsonWriter.WritePropertyName("serverDomain");
             jsonWriter.WriteValue(_dnsServer.ServerDomain);
