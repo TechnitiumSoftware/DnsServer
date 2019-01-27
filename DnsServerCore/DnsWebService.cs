@@ -1807,7 +1807,8 @@ namespace DnsServerCore
             if (string.IsNullOrEmpty(domain))
                 throw new DnsWebServiceException("Parameter 'domain' missing.");
 
-            _dnsServer.AuthoritativeZoneRoot.DeleteZone(domain, false);
+            if (!_dnsServer.AuthoritativeZoneRoot.DeleteZone(domain, false))
+                throw new DnsWebServiceException("Zone '" + domain + "' was not found.");
 
             _log.Write(GetRequestRemoteEndPoint(request), true, "[" + GetSession(request).Username + "] Authoritative zone was deleted: " + domain);
 
@@ -1819,6 +1820,9 @@ namespace DnsServerCore
             string domain = request.QueryString["domain"];
             if (string.IsNullOrEmpty(domain))
                 throw new DnsWebServiceException("Parameter 'domain' missing.");
+
+            if (!_dnsServer.AuthoritativeZoneRoot.DeleteZone(domain, false))
+                throw new DnsWebServiceException("Zone '" + domain + "' was not found.");
 
             _dnsServer.AuthoritativeZoneRoot.EnableZone(domain);
 
@@ -1832,6 +1836,9 @@ namespace DnsServerCore
             string domain = request.QueryString["domain"];
             if (string.IsNullOrEmpty(domain))
                 throw new DnsWebServiceException("Parameter 'domain' missing.");
+
+            if (!_dnsServer.AuthoritativeZoneRoot.DeleteZone(domain, false))
+                throw new DnsWebServiceException("Zone '" + domain + "' was not found.");
 
             _dnsServer.AuthoritativeZoneRoot.DisableZone(domain);
 
@@ -1933,6 +1940,8 @@ namespace DnsServerCore
                 throw new DnsWebServiceException("Parameter 'domain' missing.");
 
             DnsResourceRecord[] records = _dnsServer.AuthoritativeZoneRoot.GetAllRecords(domain);
+            if (records.Length == 0)
+                throw new DnsWebServiceException("Zone '" + domain + "' was not found.");
 
             WriteRecordsAsJson(records, jsonWriter, true);
         }
@@ -2150,6 +2159,9 @@ namespace DnsServerCore
             string value = request.QueryString["value"];
             if (string.IsNullOrEmpty(value))
                 throw new DnsWebServiceException("Parameter 'value' missing.");
+
+            if (!_dnsServer.AuthoritativeZoneRoot.ZoneExists(domain))
+                throw new DnsWebServiceException("Zone '" + domain + "' was not found.");
 
             switch (type)
             {
@@ -2654,6 +2666,8 @@ namespace DnsServerCore
         {
             domain = domain.ToLower();
             DnsResourceRecord[] records = _dnsServer.AuthoritativeZoneRoot.GetAllRecords(domain, DnsResourceRecordType.ANY, true, true);
+            if (records.Length == 0)
+                throw new DnsWebServiceException("Zone '" + domain + "' was not found.");
 
             string authZone = records[0].Name.ToLower();
 
