@@ -1208,7 +1208,7 @@ function refreshAllowedZonesList(domain, direction) {
     return false;
 }
 
-function blockZone() {
+function customBlockZone() {
 
     var domain = $("#txtBlockZone").val();
 
@@ -1220,14 +1220,14 @@ function blockZone() {
     var btn = $("#btnBlockZone").button('loading');
 
     HTTPRequest({
-        url: "/api/blockZone?token=" + token + "&domain=" + domain,
+        url: "/api/customBlockZone?token=" + token + "&domain=" + domain,
         success: function (responseJSON) {
             refreshBlockedZonesList(domain);
 
             $("#txtBlockZone").val("");
             btn.button('reset');
 
-            showAlert("success", "Zone Blocked!", "Zone was blocked successfully.");
+            showAlert("success", "Zone Blocked!", "Domain was added to Custom Blocked Zone successfully.");
         },
         error: function () {
             btn.button('reset');
@@ -1241,18 +1241,18 @@ function blockZone() {
     return false;
 }
 
-function flushBlockedZone() {
+function flushCustomBlockedZone() {
 
     if (!confirm("Are you sure to flush the DNS Server blocked zone?"))
         return false;
 
-    var btn = $("#btnFlushBlockedZone").button('loading');
+    var btn = $("#btnFlushCustomBlockedZone").button('loading');
 
     HTTPRequest({
-        url: "/api/flushBlockedZone?token=" + token,
+        url: "/api/flushCustomBlockedZone?token=" + token,
         success: function (responseJSON) {
             btn.button('reset');
-            showAlert("success", "Blocked Zone Flushed!", "DNS Server blocked zone was flushed successfully.");
+            showAlert("success", "Custom Blocked Zone Flushed!", "DNS Server custom blocked zone was flushed successfully.");
         },
         error: function () {
             btn.button('reset');
@@ -1266,22 +1266,22 @@ function flushBlockedZone() {
     return false;
 }
 
-function deleteBlockedZone() {
+function deleteCustomBlockedZone() {
 
     var domain = $("#txtBlockedZoneViewerTitle").text();
 
     if (!confirm("Are you sure you want to delete the blocked zone '" + domain + "'?"))
         return false;
 
-    var btn = $("#btnDeleteBlockedZone").button('loading');
+    var btn = $("#btnDeleteCustomBlockedZone").button('loading');
 
     HTTPRequest({
-        url: "/api/deleteBlockedZone?token=" + token + "&domain=" + domain,
+        url: "/api/deleteCustomBlockedZone?token=" + token + "&domain=" + domain,
         success: function (responseJSON) {
             refreshBlockedZonesList(getParentDomain(domain), "up");
 
             btn.button('reset');
-            showAlert("success", "Blocked Zone Deleted!", "Blocked zone was deleted successfully.");
+            showAlert("success", "Custom Blocked Zone Deleted!", "Custom blocked zone was deleted successfully.");
         },
         error: function () {
             btn.button('reset');
@@ -1332,15 +1332,15 @@ function refreshBlockedZonesList(domain, direction) {
 
             if (newDomain == "") {
                 $("#txtBlockedZoneViewerTitle").text("<ROOT>");
-                $("#btnDeleteBlockedZone").hide();
+                $("#btnDeleteCustomBlockedZone").hide();
             }
             else {
                 $("#txtBlockedZoneViewerTitle").text(newDomain);
 
                 if ((newDomain == "root-servers.net") || newDomain.endsWith(".root-servers.net"))
-                    $("#btnDeleteBlockedZone").hide();
+                    $("#btnDeleteCustomBlockedZone").hide();
                 else
-                    $("#btnDeleteBlockedZone").show();
+                    $("#btnDeleteCustomBlockedZone").show();
             }
 
             if (responseJSON.response.records.length > 0) {

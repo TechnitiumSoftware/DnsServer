@@ -105,10 +105,10 @@ namespace DnsServerCore
             else
                 _configFolder = configFolder;
 
-            _updateCheckUri = updateCheckUri;
-
             if (!Directory.Exists(_configFolder))
                 Directory.CreateDirectory(_configFolder);
+
+            _updateCheckUri = updateCheckUri;
 
             string logFolder = Path.Combine(_configFolder, "logs");
 
@@ -116,6 +116,11 @@ namespace DnsServerCore
                 Directory.CreateDirectory(logFolder);
 
             _log = new LogManager(logFolder);
+
+            string blockListsFolder = Path.Combine(_configFolder, "blocklists");
+
+            if (!Directory.Exists(blockListsFolder))
+                Directory.CreateDirectory(blockListsFolder);
         }
 
         #endregion
@@ -279,16 +284,16 @@ namespace DnsServerCore
                                                     ListBlockedZones(request, jsonWriter);
                                                     break;
 
-                                                case "/api/flushBlockedZone":
-                                                    FlushBlockedZone(request, true);
+                                                case "/api/flushCustomBlockedZone":
+                                                    FlushCustomBlockedZone(request);
                                                     break;
 
-                                                case "/api/deleteBlockedZone":
-                                                    DeleteBlockedZone(request);
+                                                case "/api/deleteCustomBlockedZone":
+                                                    DeleteCustomBlockedZone(request);
                                                     break;
 
-                                                case "/api/blockZone":
-                                                    BlockZone(request);
+                                                case "/api/customBlockZone":
+                                                    CustomBlockZone(request);
                                                     break;
 
                                                 case "/api/listZones":
@@ -978,8 +983,6 @@ namespace DnsServerCore
                                         _dnsServer.AllowedZoneRoot.SetRecords(soaRecord.Name, soaRecord.Type, soaRecord.TTLValue, new DnsResourceRecordData[] { new DnsSOARecord(strServerDomain, "hostmaster." + strServerDomain, soaRecordData.Serial, soaRecordData.Refresh, soaRecordData.Retry, soaRecordData.Expire, soaRecordData.Minimum) });
                                     }
                                 }
-
-                                SaveAllowedZoneFile();
                             }
 
                             //custom blocked zone
@@ -997,8 +1000,6 @@ namespace DnsServerCore
                                         _customBlockedZoneRoot.SetRecords(soaRecord.Name, soaRecord.Type, soaRecord.TTLValue, new DnsResourceRecordData[] { new DnsSOARecord(strServerDomain, "hostmaster." + strServerDomain, soaRecordData.Serial, soaRecordData.Refresh, soaRecordData.Retry, soaRecordData.Expire, soaRecordData.Minimum) });
                                     }
                                 }
-
-                                SaveCustomBlockedZoneFile();
                             }
 
                             //blocked zone
@@ -1016,8 +1017,6 @@ namespace DnsServerCore
                                         _dnsServer.BlockedZoneRoot.SetRecords(soaRecord.Name, soaRecord.Type, soaRecord.TTLValue, new DnsResourceRecordData[] { new DnsSOARecord(strServerDomain, "hostmaster." + strServerDomain, soaRecordData.Serial, soaRecordData.Refresh, soaRecordData.Retry, soaRecordData.Expire, soaRecordData.Minimum) });
                                     }
                                 }
-
-                                SaveBlockedZoneFile();
                             }
                         }
                         catch (Exception ex)
@@ -1119,7 +1118,7 @@ namespace DnsServerCore
                 if (strBlockListUrls == "false")
                 {
                     StopBlockListUpdateTimer();
-                    FlushBlockedZone(request, false);
+                    FlushBlockedZone(request);
 
                     _blockListUrls.Clear();
                 }
@@ -1580,7 +1579,7 @@ namespace DnsServerCore
             if (string.IsNullOrEmpty(domain))
                 throw new DnsWebServiceException("Parameter 'domain' missing.");
 
-            _dnsServer.AllowedZoneRoot.DeleteZone(domain, true);
+            _dnsServer.AllowedZoneRoot.DeleteZone(domain, false);
 
             _log.Write(GetRequestRemoteEndPoint(request), true, "[" + GetSession(request).Username + "] Allowed zone was deleted: " + domain);
 
@@ -1596,23 +1595,15 @@ namespace DnsServerCore
             if (IPAddress.TryParse(domain, out IPAddress ipAddress))
                 domain = (new DnsQuestionRecord(ipAddress, DnsClass.IN)).Name;
 
-            if (AllowZone(domain))
-            {
-                _log.Write(GetRequestRemoteEndPoint(request), true, "[" + GetSession(request).Username + "] Zone was allowed: " + domain);
-                SaveAllowedZoneFile();
-            }
+            AllowZone(domain);
+
+            _log.Write(GetRequestRemoteEndPoint(request), true, "[" + GetSession(request).Username + "] Zone was allowed: " + domain);
+            SaveAllowedZoneFile();
         }
 
-        private bool AllowZone(string domain)
+        private void AllowZone(string domain)
         {
-            if (_dnsServer.AllowedZoneRoot.AuthoritativeZoneExists(domain))
-                return false; //a top level authoritative zone already exists
-
             _dnsServer.AllowedZoneRoot.SetRecords(domain, DnsResourceRecordType.SOA, 60, new DnsResourceRecordData[] { new DnsSOARecord(_dnsServer.ServerDomain, "hostmaster." + _dnsServer.ServerDomain, 1, 28800, 7200, 604800, 600) });
-
-            _dnsServer.AllowedZoneRoot.DeleteSubZones(domain); //remove all sub zones since current zone covers the allowing
-
-            return true;
         }
 
         private void ListBlockedZones(HttpListenerRequest request, JsonTextWriter jsonWriter)
@@ -1677,50 +1668,51 @@ namespace DnsServerCore
             WriteRecordsAsJson(records, jsonWriter, false);
         }
 
-        private void FlushBlockedZone(HttpListenerRequest request, bool includeCustomBlockedZone)
+        private void FlushCustomBlockedZone(HttpListenerRequest request)
+        {
+            //delete custom blocked zones from dns blocked zone
+            foreach (Zone.ZoneInfo zone in _customBlockedZoneRoot.ListAuthoritativeZones())
+                _dnsServer.BlockedZoneRoot.DeleteZone(zone.ZoneName, false);
+
+            _customBlockedZoneRoot.Flush();
+
+            _log.Write(GetRequestRemoteEndPoint(request), true, "[" + GetSession(request).Username + "] Custom blocked zone was flushed.");
+
+            SaveCustomBlockedZoneFile();
+            _totalZonesBlocked = _dnsServer.BlockedZoneRoot.ListAuthoritativeZones().Length;
+        }
+
+        private void FlushBlockedZone(HttpListenerRequest request)
         {
             _dnsServer.BlockedZoneRoot.Flush();
 
-            if (includeCustomBlockedZone)
-            {
-                _customBlockedZoneRoot.Flush();
-
-                _log.Write(GetRequestRemoteEndPoint(request), true, "[" + GetSession(request).Username + "] Custom blocked zone was flushed.");
-
-                SaveCustomBlockedZoneFile();
-            }
-            else
-            {
-                //load custom blocked zone into dns block zone
-                foreach (Zone.ZoneInfo zone in _customBlockedZoneRoot.ListAuthoritativeZones())
-                    BlockZone(zone.ZoneName, _dnsServer.BlockedZoneRoot);
-            }
+            //load custom blocked zone into dns block zone
+            foreach (Zone.ZoneInfo zone in _customBlockedZoneRoot.ListAuthoritativeZones())
+                BlockZone(zone.ZoneName, _dnsServer.BlockedZoneRoot, "custom");
 
             _log.Write(GetRequestRemoteEndPoint(request), true, "[" + GetSession(request).Username + "] Blocked zone was flushed.");
-
-            SaveBlockedZoneFile();
+            _totalZonesBlocked = _dnsServer.BlockedZoneRoot.ListAuthoritativeZones().Length;
         }
 
-        private void DeleteBlockedZone(HttpListenerRequest request)
+        private void DeleteCustomBlockedZone(HttpListenerRequest request)
         {
             string domain = request.QueryString["domain"];
             if (string.IsNullOrEmpty(domain))
                 throw new DnsWebServiceException("Parameter 'domain' missing.");
 
-            bool customZoneDeleted = _customBlockedZoneRoot.DeleteZone(domain, true);
-            bool zoneDeleted = _dnsServer.BlockedZoneRoot.DeleteZone(domain, true);
+            bool customZoneDeleted = _customBlockedZoneRoot.DeleteZone(domain, false);
+            if (!customZoneDeleted)
+                throw new DnsWebServiceException("Domain '" + domain + "' was not found in custom blocked zone. Try adding the domain into allowed zone instead to unblock it.");
 
-            if (customZoneDeleted || zoneDeleted)
-                _log.Write(GetRequestRemoteEndPoint(request), true, "[" + GetSession(request).Username + "] Blocked zone was deleted: " + domain);
+            _dnsServer.BlockedZoneRoot.DeleteZone(domain, false);
 
-            if (customZoneDeleted)
-                SaveCustomBlockedZoneFile();
+            _log.Write(GetRequestRemoteEndPoint(request), true, "[" + GetSession(request).Username + "] Blocked zone was deleted: " + domain);
 
-            if (zoneDeleted)
-                SaveBlockedZoneFile();
+            SaveCustomBlockedZoneFile();
+            _totalZonesBlocked--;
         }
 
-        private void BlockZone(HttpListenerRequest request)
+        private void CustomBlockZone(HttpListenerRequest request)
         {
             string domain = request.QueryString["domain"];
             if (string.IsNullOrEmpty(domain))
@@ -1729,24 +1721,20 @@ namespace DnsServerCore
             if (IPAddress.TryParse(domain, out IPAddress ipAddress))
                 domain = (new DnsQuestionRecord(ipAddress, DnsClass.IN)).Name;
 
-            if (BlockZone(domain, _customBlockedZoneRoot))
-            {
-                bool zoneBlocked = BlockZone(domain, _dnsServer.BlockedZoneRoot);
+            if (_dnsServer.BlockedZoneRoot.ZoneExists(domain))
+                throw new DnsWebServiceException("Domain '" + domain + "' already exists in blocked zone.");
 
-                _log.Write(GetRequestRemoteEndPoint(request), true, "[" + GetSession(request).Username + "] Zone was blocked: " + domain);
+            BlockZone(domain, _customBlockedZoneRoot, "custom");
+            BlockZone(domain, _dnsServer.BlockedZoneRoot, "custom");
 
-                SaveCustomBlockedZoneFile();
+            _log.Write(GetRequestRemoteEndPoint(request), true, "[" + GetSession(request).Username + "] Domain was added to Custom Block Zone: " + domain);
 
-                if (zoneBlocked)
-                    SaveBlockedZoneFile();
-            }
+            SaveCustomBlockedZoneFile();
+            _totalZonesBlocked++;
         }
 
-        private bool BlockZone(string domain, Zone blockedZoneRoot)
+        private void BlockZone(string domain, Zone blockedZoneRoot, string blockListUrl)
         {
-            if (blockedZoneRoot.AuthoritativeZoneExists(domain))
-                return false; //a top level authoritative zone already exists
-
             blockedZoneRoot.SetRecords(new DnsResourceRecord[]
             {
                 new DnsResourceRecord(domain, DnsResourceRecordType.SOA, DnsClass.IN, 60, new DnsSOARecord(_dnsServer.ServerDomain, "hostmaster." + _dnsServer.ServerDomain, 1, 28800, 7200, 604800, 600)),
@@ -1754,9 +1742,7 @@ namespace DnsServerCore
                 new DnsResourceRecord(domain, DnsResourceRecordType.AAAA, DnsClass.IN, 60, new DnsAAAARecord(IPAddress.IPv6Any))
             });
 
-            blockedZoneRoot.DeleteSubZones(domain); //remove all sub zones since current zone covers the blocking
-
-            return true;
+            blockedZoneRoot.AddRecord(domain, DnsResourceRecordType.TXT, 60, new DnsTXTRecord("blockList=" + blockListUrl));
         }
 
         private void ListZones(JsonTextWriter jsonWriter)
@@ -2710,6 +2696,8 @@ namespace DnsServerCore
 
             try
             {
+                _log.Write("DNS Server is loading allowed zone file: " + allowedZoneFile);
+
                 using (FileStream fS = new FileStream(allowedZoneFile, FileMode.Open, FileAccess.Read))
                 {
                     BinaryReader bR = new BinaryReader(fS);
@@ -2774,6 +2762,8 @@ namespace DnsServerCore
 
             try
             {
+                _log.Write("DNS Server is loading custom blocked zone file: " + customBlockedZoneFile);
+
                 using (FileStream fS = new FileStream(customBlockedZoneFile, FileMode.Open, FileAccess.Read))
                 {
                     BinaryReader bR = new BinaryReader(fS);
@@ -2791,8 +2781,8 @@ namespace DnsServerCore
                             {
                                 string zoneName = bR.ReadShortString();
 
-                                BlockZone(zoneName, _customBlockedZoneRoot);
-                                BlockZone(zoneName, _dnsServer.BlockedZoneRoot);
+                                BlockZone(zoneName, _customBlockedZoneRoot, "custom");
+                                BlockZone(zoneName, _dnsServer.BlockedZoneRoot, "custom");
                             }
 
                             _totalZonesBlocked = length;
@@ -2835,92 +2825,127 @@ namespace DnsServerCore
             _log.Write("DNS Server custom blocked zone file was saved: " + customBlockedZoneFile);
         }
 
-        private void LoadBlockedZoneFile()
+        private void LoadBlockLists()
         {
-            string blockedZoneFile = Path.Combine(_configFolder, "blocked.config");
+            Zone blockedZoneRoot = new Zone(true);
+
+            foreach (Uri blockListUrl in _blockListUrls)
+                LoadBlockListFile(blockedZoneRoot, blockListUrl);
+
+            //load custom blocked zone into new block zone
+            foreach (Zone.ZoneInfo zone in _customBlockedZoneRoot.ListAuthoritativeZones())
+                BlockZone(zone.ZoneName, blockedZoneRoot, "custom");
+
+            //set new blocked zone
+            _dnsServer.BlockedZoneRoot = blockedZoneRoot;
+            _totalZonesBlocked = _dnsServer.BlockedZoneRoot.ListAuthoritativeZones().Length;
+        }
+
+        private string GetBlockListFilePath(Uri blockListUrl)
+        {
+            using (HashAlgorithm hash = SHA256.Create())
+            {
+                return Path.Combine(_configFolder, "blocklists", BitConverter.ToString(hash.ComputeHash(Encoding.UTF8.GetBytes(blockListUrl.AbsoluteUri))).Replace("-", "").ToLower());
+            }
+        }
+
+        private void LoadBlockListFile(Zone blockedZoneRoot, Uri blockListUrl)
+        {
+            string blockListAbsoluteUrl = blockListUrl.AbsoluteUri;
 
             try
             {
-                using (FileStream fS = new FileStream(blockedZoneFile, FileMode.Open, FileAccess.Read))
+                string blockListFilePath = GetBlockListFilePath(blockListUrl);
+                int count = 0;
+
+                _log.Write("DNS Server is loading blocked zone from: " + blockListAbsoluteUrl);
+
+                using (FileStream fS = new FileStream(blockListFilePath, FileMode.Open, FileAccess.Read))
                 {
-                    BinaryReader bR = new BinaryReader(fS);
+                    //parse hosts file and populate block zone
+                    StreamReader sR = new StreamReader(fS, true);
 
-                    if (Encoding.ASCII.GetString(bR.ReadBytes(2)) != "BZ") //format
-                        throw new InvalidDataException("DnsServer blocked zone file format is invalid.");
-
-                    byte version = bR.ReadByte();
-                    switch (version)
+                    while (true)
                     {
-                        case 1:
-                            int length = bR.ReadInt32();
+                        string line = sR.ReadLine();
+                        if (line == null)
+                            break; //eof
 
-                            for (int i = 0; i < length; i++)
-                                BlockZone(bR.ReadShortString(), _dnsServer.BlockedZoneRoot);
+                        line = line.TrimStart(' ', '\t');
 
-                            if (length > 0)
-                                _totalZonesBlocked = length;
+                        if (line == "")
+                            continue; //skip empty line
 
-                            break;
+                        if (line.StartsWith("#"))
+                            continue; //skip comment line
 
-                        default:
-                            throw new InvalidDataException("DnsServer blocked zone file version not supported.");
+                        string firstWord = PopWord(ref line);
+                        string secondWord = PopWord(ref line);
+
+                        string strIpAddress = null;
+                        string hostname;
+
+                        if (secondWord == "")
+                        {
+                            hostname = firstWord;
+                        }
+                        else
+                        {
+                            strIpAddress = firstWord;
+                            hostname = secondWord;
+                        }
+
+                        if (!DnsDatagram.IsDomainNameValid(hostname, false))
+                            continue;
+
+                        switch (hostname.ToLower())
+                        {
+                            case "":
+                            case "localhost":
+                            case "localhost.localdomain":
+                            case "local":
+                            case "broadcasthost":
+                            case "ip6-localhost":
+                            case "ip6-loopback":
+                            case "ip6-localnet":
+                            case "ip6-mcastprefix":
+                            case "ip6-allnodes":
+                            case "ip6-allrouters":
+                            case "ip6-allhosts":
+                                continue; //skip these hostnames
+                        }
+
+                        if (IPAddress.TryParse(hostname, out IPAddress host))
+                            continue; //skip line when hostname is IP address
+
+                        IPAddress ipAddress;
+
+                        if (string.IsNullOrEmpty(strIpAddress) || !IPAddress.TryParse(strIpAddress, out ipAddress))
+                            ipAddress = IPAddress.Any;
+
+                        if (ipAddress.Equals(IPAddress.Any) || ipAddress.Equals(IPAddress.Loopback) || ipAddress.Equals(IPAddress.IPv6Any) || ipAddress.Equals(IPAddress.IPv6Loopback))
+                        {
+                            BlockZone(hostname, blockedZoneRoot, blockListAbsoluteUrl);
+                            count++;
+                        }
                     }
                 }
 
-                _log.Write("DNS Server blocked zone file was loaded: " + blockedZoneFile);
+                _log.Write("DNS Server blocked zone was loaded (" + count + " domains) from: " + blockListAbsoluteUrl);
             }
-            catch (FileNotFoundException)
-            { }
             catch (Exception ex)
             {
-                _log.Write("DNS Server encountered an error while loading blocked zone file: " + blockedZoneFile + "\r\n" + ex.ToString());
+                _log.Write("DNS Server failed to load block list from: " + blockListAbsoluteUrl + "\r\n" + ex.ToString());
             }
         }
 
-        private void SaveBlockedZoneFile()
+        private void UpdateBlockLists()
         {
-            Zone.ZoneInfo[] blockedZones = _dnsServer.BlockedZoneRoot.ListAuthoritativeZones();
-
-            _totalZonesBlocked = blockedZones.Length;
-
-            string blockedZoneFile = Path.Combine(_configFolder, "blocked.config");
-
-            using (FileStream fS = new FileStream(blockedZoneFile, FileMode.Create, FileAccess.Write))
-            {
-                BinaryWriter bW = new BinaryWriter(fS);
-
-                bW.Write(Encoding.ASCII.GetBytes("BZ")); //format
-                bW.Write((byte)1); //version
-
-                bW.Write(blockedZones.Length);
-
-                foreach (Zone.ZoneInfo zone in blockedZones)
-                    bW.WriteShortString(zone.ZoneName);
-            }
-
-            _log.Write("DNS Server blocked zone file was saved: " + blockedZoneFile);
-        }
-
-        private void UpdateBlockedZone()
-        {
-            string blockListsFolder = Path.Combine(_configFolder, "blocklists");
-
-            if (!Directory.Exists(blockListsFolder))
-                Directory.CreateDirectory(blockListsFolder);
-
-            Zone blockedZoneRoot = new Zone(true);
             bool success = false;
 
             foreach (Uri blockListUrl in _blockListUrls)
             {
-                string blockListFileName;
-
-                using (HashAlgorithm hash = SHA256.Create())
-                {
-                    blockListFileName = BitConverter.ToString(hash.ComputeHash(Encoding.UTF8.GetBytes(blockListUrl.AbsoluteUri))).Replace("-", "").ToLower();
-                }
-
-                string blockListFilePath = Path.Combine(blockListsFolder, blockListFileName);
+                string blockListFilePath = GetBlockListFilePath(blockListUrl);
                 string blockListDownloadFilePath = blockListFilePath + ".downloading";
 
                 try
@@ -2958,6 +2983,7 @@ namespace DnsServerCore
 
                         File.Move(blockListDownloadFilePath, blockListFilePath);
 
+                        success = true;
                         _log.Write("DNS Server successfully downloaded block list (" + WebUtilities.GetFormattedSize(new FileInfo(blockListFilePath).Length) + "): " + blockListUrl.AbsoluteUri);
                         break;
                     }
@@ -2966,109 +2992,16 @@ namespace DnsServerCore
                 {
                     _log.Write("DNS Server failed to download block list and will use previously downloaded file (if available): " + blockListUrl.AbsoluteUri + "\r\n" + ex.ToString());
                 }
-
-                if (File.Exists(blockListFilePath))
-                {
-                    try
-                    {
-                        int count = 0;
-
-                        using (FileStream fS = new FileStream(blockListFilePath, FileMode.Open, FileAccess.Read))
-                        {
-                            //parse hosts file and populate block zone
-                            StreamReader sR = new StreamReader(fS, true);
-
-                            while (true)
-                            {
-                                string line = sR.ReadLine();
-                                if (line == null)
-                                    break; //eof
-
-                                line = line.TrimStart(' ', '\t');
-
-                                if (line == "")
-                                    continue; //skip empty line
-
-                                if (line.StartsWith("#"))
-                                    continue; //skip comment line
-
-                                string firstWord = PopWord(ref line);
-                                string secondWord = PopWord(ref line);
-
-                                string strIpAddress = null;
-                                string hostname;
-
-                                if (secondWord == "")
-                                {
-                                    hostname = firstWord;
-                                }
-                                else
-                                {
-                                    strIpAddress = firstWord;
-                                    hostname = secondWord;
-                                }
-
-                                if (!DnsDatagram.IsDomainNameValid(hostname, false))
-                                    continue;
-
-                                switch (hostname.ToLower())
-                                {
-                                    case "":
-                                    case "localhost":
-                                    case "localhost.localdomain":
-                                    case "local":
-                                    case "broadcasthost":
-                                    case "ip6-localhost":
-                                    case "ip6-loopback":
-                                    case "ip6-localnet":
-                                    case "ip6-mcastprefix":
-                                    case "ip6-allnodes":
-                                    case "ip6-allrouters":
-                                    case "ip6-allhosts":
-                                        continue; //skip these hostnames
-                                }
-
-                                if (IPAddress.TryParse(hostname, out IPAddress host))
-                                    continue; //skip line when hostname is IP address
-
-                                IPAddress ipAddress;
-
-                                if (string.IsNullOrEmpty(strIpAddress) || !IPAddress.TryParse(strIpAddress, out ipAddress))
-                                    ipAddress = IPAddress.Any;
-
-                                if (ipAddress.Equals(IPAddress.Any) || ipAddress.Equals(IPAddress.Loopback) || ipAddress.Equals(IPAddress.IPv6Any) || ipAddress.Equals(IPAddress.IPv6Loopback))
-                                {
-                                    BlockZone(hostname, blockedZoneRoot);
-                                    count++;
-                                }
-                            }
-                        }
-
-                        _log.Write("DNS Server blocked zone was updated (" + count + " domains) from: " + blockListUrl.AbsoluteUri);
-                        success = true;
-                    }
-                    catch (Exception ex)
-                    {
-                        _log.Write("DNS Server failed to update block list from: " + blockListUrl.AbsoluteUri + "\r\n" + ex.ToString());
-                    }
-                }
             }
 
             if (success)
             {
-                //load custom blocked zone into new block zone
-                foreach (Zone.ZoneInfo zone in _customBlockedZoneRoot.ListAuthoritativeZones())
-                    BlockZone(zone.ZoneName, blockedZoneRoot);
-
-                //set new blocked zone
-                _dnsServer.BlockedZoneRoot = blockedZoneRoot;
-
-                //save block list file
-                SaveBlockedZoneFile();
 
                 //save last updated on time
                 _blockListLastUpdatedOn = DateTime.UtcNow;
                 SaveConfigFile();
+
+                LoadBlockLists();
             }
         }
 
@@ -3109,7 +3042,7 @@ namespace DnsServerCore
                     try
                     {
                         if (DateTime.UtcNow > _blockListLastUpdatedOn.AddHours(BLOCK_LIST_UPDATE_AFTER_HOURS))
-                            UpdateBlockedZone();
+                            UpdateBlockLists();
                     }
                     catch (Exception ex)
                     {
@@ -3553,7 +3486,7 @@ namespace DnsServerCore
                     {
                         LoadAllowedZoneFile();
                         LoadCustomBlockedZoneFile();
-                        LoadBlockedZoneFile();
+                        LoadBlockLists();
                     }
                     catch (Exception ex)
                     {

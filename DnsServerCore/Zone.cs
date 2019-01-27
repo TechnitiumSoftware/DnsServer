@@ -150,7 +150,7 @@ namespace DnsServerCore
             return currentZone;
         }
 
-        private static Zone GetZone(Zone rootZone, string domain, bool authoritative = false)
+        private static Zone GetZone(Zone rootZone, string domain, bool authoritative)
         {
             Zone authoritativeZone = null;
             Zone currentZone = rootZone;
@@ -184,7 +184,7 @@ namespace DnsServerCore
 
         private static bool DeleteZone(Zone rootZone, string domain, bool deleteSubZones)
         {
-            Zone currentZone = GetZone(rootZone, domain);
+            Zone currentZone = GetZone(rootZone, domain, false);
             if (currentZone == null)
                 return false;
 
@@ -193,13 +193,13 @@ namespace DnsServerCore
 
             currentZone._entries.Clear();
 
-            DeleteSubDomains(currentZone, deleteSubZones);
+            DeleteSubZones(currentZone, deleteSubZones);
             DeleteEmptyParentZones(currentZone);
 
             return true;
         }
 
-        private static bool DeleteSubDomains(Zone currentZone, bool deleteSubZones)
+        private static bool DeleteSubZones(Zone currentZone, bool deleteSubZones)
         {
             if (currentZone._authoritativeZone)
             {
@@ -219,7 +219,7 @@ namespace DnsServerCore
 
             foreach (KeyValuePair<string, Zone> zone in currentZone._zones)
             {
-                if (DeleteSubDomains(zone.Value, deleteSubZones))
+                if (DeleteSubZones(zone.Value, deleteSubZones))
                     subDomainsToDelete.Add(zone.Value);
             }
 
@@ -311,7 +311,7 @@ namespace DnsServerCore
                 foreach (DnsResourceRecord existingRecord in existingRecords)
                 {
                     if (record.RDATA.Equals(existingRecord.RDATA))
-                        throw new DnsServerException("Resource record already exists.");
+                        return existingRecords;
                 }
 
                 DnsResourceRecord[] newValue = new DnsResourceRecord[existingRecords.Length + 1];
@@ -475,7 +475,7 @@ namespace DnsServerCore
                 {
                     string nsDomain = (nsRecord.RDATA as DnsNSRecord).NSDomainName;
 
-                    Zone zone = GetZone(rootZone, nsDomain);
+                    Zone zone = GetZone(rootZone, nsDomain, false);
                     if (zone != null)
                     {
                         {
@@ -871,7 +871,7 @@ namespace DnsServerCore
             if (oldRecord.Type == DnsResourceRecordType.SOA)
                 throw new DnsServerException("Cannot update record: use SetRecords() for updating SOA record.");
 
-            Zone currentZone = GetZone(this, oldRecord.Name);
+            Zone currentZone = GetZone(this, oldRecord.Name, false);
             if (currentZone == null)
                 throw new DnsServerException("Cannot update record: old record does not exists.");
 
@@ -899,14 +899,14 @@ namespace DnsServerCore
 
         public void DeleteRecord(string domain, DnsResourceRecordType type, DnsResourceRecordData record)
         {
-            Zone currentZone = GetZone(this, domain);
+            Zone currentZone = GetZone(this, domain, false);
             if (currentZone != null)
                 currentZone.DeleteRecord(new DnsResourceRecord(domain, type, DnsClass.IN, 0, record));
         }
 
         public void DeleteRecords(string domain, DnsResourceRecordType type)
         {
-            Zone currentZone = GetZone(this, domain);
+            Zone currentZone = GetZone(this, domain, false);
             if (currentZone != null)
                 currentZone.DeleteRecords(type);
         }
@@ -926,7 +926,7 @@ namespace DnsServerCore
 
         public string[] ListSubZones(string domain = "")
         {
-            Zone currentZone = GetZone(this, domain);
+            Zone currentZone = GetZone(this, domain, false);
             if (currentZone == null)
                 return new string[] { }; //no zone for given domain
 
@@ -938,7 +938,7 @@ namespace DnsServerCore
 
         public ZoneInfo[] ListAuthoritativeZones(string domain = "")
         {
-            Zone currentZone = GetZone(this, domain);
+            Zone currentZone = GetZone(this, domain, false);
             if (currentZone == null)
                 return new ZoneInfo[] { }; //no zone for given domain
 
@@ -953,45 +953,38 @@ namespace DnsServerCore
             return zoneNames.ToArray();
         }
 
-        public bool AuthoritativeZoneExists(string domain)
-        {
-            Zone currentZone = GetZone(this, domain, true);
-            return (currentZone != null);
-        }
-
         public bool DeleteZone(string domain, bool deleteSubZones)
         {
             return DeleteZone(this, domain, deleteSubZones);
         }
 
-        public void DeleteSubZones(string domain)
-        {
-            Zone currentZone = GetZone(this, domain);
-            if (currentZone != null)
-                currentZone._zones.Clear();
-        }
-
         public void DisableZone(string domain)
         {
-            Zone currentZone = GetZone(this, domain);
+            Zone currentZone = GetZone(this, domain, false);
             if (currentZone != null)
                 currentZone._disabled = true;
         }
 
         public void EnableZone(string domain)
         {
-            Zone currentZone = GetZone(this, domain);
+            Zone currentZone = GetZone(this, domain, false);
             if (currentZone != null)
                 currentZone._disabled = false;
         }
 
         public bool IsZoneDisabled(string domain)
         {
-            Zone currentZone = GetZone(this, domain);
+            Zone currentZone = GetZone(this, domain, false);
             if (currentZone != null)
                 return currentZone._disabled;
 
             return false;
+        }
+
+        public bool ZoneExists(string domain)
+        {
+            Zone currentZone = GetZone(this, domain, false);
+            return (currentZone != null);
         }
 
         public void Flush()

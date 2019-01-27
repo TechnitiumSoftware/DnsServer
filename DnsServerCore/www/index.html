@@ -615,7 +615,7 @@
                                         <form class="form-inline">
                                             <div class="form-group">
                                                 <input type="text" class="form-control" style="width: 170px;" id="txtBlockZone" placeholder="example.com">
-                                                <button id="btnBlockZone" type="submit" class="btn btn-primary" data-loading-text="Block" onclick="return blockZone();">Block</button>
+                                                <button id="btnCustomBlockZone" type="submit" class="btn btn-primary" data-loading-text="Block" onclick="return customBlockZone();">Block</button>
                                             </div>
                                         </form>
 
@@ -629,7 +629,7 @@
                                             <div class="panel-heading" style="height: 36px; padding: 4px 6px;">
                                                 <div id="txtBlockedZoneViewerTitle" style="float: left; padding: 4px;">technitium.com</div>
                                                 <div style="float: right;">
-                                                    <button id="btnDeleteBlockedZone" type="button" class="btn btn-danger" data-loading-text="Delete" onclick="return deleteBlockedZone();" style="font-size: 12px; padding: 4px 6px;">Delete</button>
+                                                    <button id="btnDeleteCustomBlockedZone" type="button" class="btn btn-danger" data-loading-text="Delete" onclick="return deleteCustomBlockedZone();" style="font-size: 12px; padding: 4px 6px;">Delete</button>
                                                 </div>
                                             </div>
 
@@ -1031,7 +1031,7 @@
                                                 <button id="btnSaveDnsSettings" type="button" class="btn btn-primary" data-loading-text="Saving..." onclick="return saveDnsSettings();">Save Settings</button>
                                                 <button id="btnFlushDnsCache" type="button" class="btn btn-warning" data-loading-text="Flushing..." onclick="return flushDnsCache();" style="margin-left: 6px;">Flush Cache</button>
                                                 <button id="btnFlushAllowedZone" type="button" class="btn btn-warning" data-loading-text="Flushing..." onclick="return flushAllowedZone();" style="margin-left: 6px;">Flush Allowed Zone</button>
-                                                <button id="btnFlushBlockedZone" type="button" class="btn btn-warning" data-loading-text="Flushing..." onclick="return flushBlockedZone();" style="margin-left: 6px;">Flush Blocked Zone</button>
+                                                <button id="btnFlushCustomBlockedZone" type="button" class="btn btn-warning" data-loading-text="Flushing..." onclick="return flushCustomBlockedZone();" style="margin-left: 6px;">Flush Custom Blocked Zone</button>
                                             </div>
 
                                         </form>
