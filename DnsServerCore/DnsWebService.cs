@@ -68,6 +68,10 @@ namespace DnsServerCore
         HttpListener _webService;
         Thread _webServiceThread;
 
+        const int MAX_LOGIN_ATTEMPTS = 5;
+        const int BLOCK_ADDRESS_INTERVAL = 5 * 60 * 1000;
+        readonly ConcurrentDictionary<IPAddress, int> _failedLoginAttempts = new ConcurrentDictionary<IPAddress, int>();
+        readonly ConcurrentDictionary<IPAddress, DateTime> _blockedAddresses = new ConcurrentDictionary<IPAddress, DateTime>();
         readonly ConcurrentDictionary<string, string> _credentials = new ConcurrentDictionary<string, string>();
         readonly ConcurrentDictionary<string, UserSession> _sessions = new ConcurrentDictionary<string, UserSession>();
 
@@ -584,6 +588,55 @@ namespace DnsServerCore
             return DeleteSession(strToken);
         }
 
+        private void FailedLoginAttempt(IPAddress address)
+        {
+            _failedLoginAttempts.AddOrUpdate(address, 1, delegate (IPAddress key, int attempts)
+            {
+                return attempts + 1;
+            });
+        }
+
+        private bool LoginAttemptsExceedLimit(IPAddress address, int limit)
+        {
+            if (!_failedLoginAttempts.TryGetValue(address, out int attempts))
+                return false;
+
+            return attempts >= limit;
+        }
+
+        private void ResetFailedLoginAttempt(IPAddress address)
+        {
+            _failedLoginAttempts.TryRemove(address, out int value);
+        }
+
+        private void BlockAddress(IPAddress address, int interval)
+        {
+            _blockedAddresses.TryAdd(address, DateTime.UtcNow.AddMilliseconds(interval));
+        }
+
+        private bool IsAddressBlocked(IPAddress address)
+        {
+            if (!_blockedAddresses.TryGetValue(address, out DateTime expiry))
+                return false;
+
+            if (expiry > DateTime.UtcNow)
+            {
+                return true;
+            }
+            else
+            {
+                UnblockAddress(address);
+                ResetFailedLoginAttempt(address);
+
+                return false;
+            }
+        }
+
+        private void UnblockAddress(IPAddress address)
+        {
+            _blockedAddresses.TryRemove(address, out DateTime value);
+        }
+
         private void Login(HttpListenerRequest request, JsonTextWriter jsonWriter)
         {
             string strUsername = request.QueryString["user"];
@@ -594,13 +647,28 @@ namespace DnsServerCore
             if (string.IsNullOrEmpty(strPassword))
                 throw new DnsWebServiceException("Parameter 'pass' missing.");
 
+            IPEndPoint remoteEP = GetRequestRemoteEndPoint(request);
+
+            if (IsAddressBlocked(remoteEP.Address))
+                throw new DnsWebServiceException("Max limit of " + MAX_LOGIN_ATTEMPTS + " attempts exceeded. Access blocked for " + (BLOCK_ADDRESS_INTERVAL / 1000) + " seconds.");
+
             strUsername = strUsername.ToLower();
             string strPasswordHash = GetPasswordHash(strUsername, strPassword);
 
             if (!_credentials.TryGetValue(strUsername, out string passwordHash) || (passwordHash != strPasswordHash))
-                throw new DnsWebServiceException("Invalid username or password: " + strUsername);
+            {
+                FailedLoginAttempt(remoteEP.Address);
 
-            _log.Write(GetRequestRemoteEndPoint(request), true, "[" + strUsername + "] User logged in.");
+                if (LoginAttemptsExceedLimit(remoteEP.Address, MAX_LOGIN_ATTEMPTS))
+                    BlockAddress(remoteEP.Address, BLOCK_ADDRESS_INTERVAL);
+
+                Thread.Sleep(1000);
+                throw new DnsWebServiceException("Invalid username or password: " + strUsername);
+            }
+
+            ResetFailedLoginAttempt(remoteEP.Address);
+
+            _log.Write(remoteEP, true, "[" + strUsername + "] User logged in.");
 
             string token = CreateSession(strUsername);
 
