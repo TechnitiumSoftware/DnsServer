@@ -277,9 +277,12 @@
 
                                     <div class="well well-sm zone-list-pane">
                                         <form class="form-inline">
+                                            <div class="form-group" style="width: 100%">
+                                                <input type="text" class="form-control" style="width: inherit;" id="txtAddZone" placeholder="example.com">
+                                            </div>
                                             <div class="form-group">
-                                                <input type="text" class="form-control" style="width: 180px;" id="txtAddZone" placeholder="example.com">
                                                 <button id="btnAddZone" type="submit" class="btn btn-primary" data-loading-text="Add" onclick="return addZone();">Add</button>
+                                                <button id="btnBrowseZone" type="button" class="btn btn-default" data-loading-text="Browse" onclick="return viewZone($('#txtAddZone').val());">Browse</button>
                                             </div>
                                         </form>
 
@@ -551,6 +554,15 @@
                                 <div id="mainPanelTabPaneCachedZones" role="tabpanel" class="tab-pane" style="padding: 10px 0 0 0;">
 
                                     <div class="well well-sm zone-list-pane">
+                                        <form class="form-inline">
+                                            <div class="form-group" style="width: 100%">
+                                                <input type="text" class="form-control" style="width: inherit;" id="txtCacheZone" placeholder="example.com">
+                                            </div>
+                                            <div class="form-group">
+                                                <button id="btnBrowseBlockZone" type="submit" class="btn btn-primary" data-loading-text="Browse" onclick="return refreshCachedZonesList($('#txtCacheZone').val());">Browse</button>
+                                            </div>
+                                        </form>
+
                                         <div id="lstCachedZones" class="zones">
                                             <div class="zone"><a href="#" onclick="return refreshCachedZonesList('technitium.com');">technitium.com</a></div>
                                         </div>
@@ -579,9 +591,12 @@
 
                                     <div class="well well-sm zone-list-pane">
                                         <form class="form-inline">
+                                            <div class="form-group" style="width: 100%">
+                                                <input type="text" class="form-control" style="width: inherit;" id="txtAllowZone" placeholder="example.com">
+                                            </div>
                                             <div class="form-group">
-                                                <input type="text" class="form-control" style="width: 170px;" id="txtAllowZone" placeholder="example.com">
                                                 <button id="btnAllowZone" type="submit" class="btn btn-primary" data-loading-text="Allow" onclick="return allowZone();">Allow</button>
+                                                <button id="btnBrowseAllowZone" type="button" class="btn btn-default" data-loading-text="Browse" onclick="return refreshAllowedZonesList($('#txtAllowZone').val());">Browse</button>
                                             </div>
                                         </form>
 
@@ -613,9 +628,12 @@
 
                                     <div class="well well-sm zone-list-pane">
                                         <form class="form-inline">
+                                            <div class="form-group" style="width: 100%">
+                                                <input type="text" class="form-control" style="width: inherit;" id="txtBlockZone" placeholder="example.com">
+                                            </div>
                                             <div class="form-group">
-                                                <input type="text" class="form-control" style="width: 170px;" id="txtBlockZone" placeholder="example.com">
                                                 <button id="btnCustomBlockZone" type="submit" class="btn btn-primary" data-loading-text="Block" onclick="return customBlockZone();">Block</button>
+                                                <button id="btnBrowseBlockZone" type="button" class="btn btn-default" data-loading-text="Browse" onclick="return refreshBlockedZonesList($('#txtBlockZone').val());">Browse</button>
                                             </div>
                                         </form>
 
