@@ -292,6 +292,16 @@ namespace DnsServerCore
             return allRecords.ToArray();
         }
 
+        private void ListAuthoritativeZones(List<Zone> zones)
+        {
+            DnsResourceRecord[] soa = QueryRecords(DnsResourceRecordType.SOA, true);
+            if (soa != null)
+                zones.Add(this);
+
+            foreach (KeyValuePair<string, Zone> entry in _zones)
+                entry.Value.ListAuthoritativeZones(zones);
+        }
+
         private void SetRecords(DnsResourceRecordType type, DnsResourceRecord[] records)
         {
             _entries.AddOrUpdate(type, records, delegate (DnsResourceRecordType key, DnsResourceRecord[] existingRecords)
@@ -498,16 +508,6 @@ namespace DnsServerCore
             }
 
             return glueRecords.ToArray();
-        }
-
-        private void GetAuthoritativeZones(List<Zone> zones)
-        {
-            DnsResourceRecord[] soa = QueryRecords(DnsResourceRecordType.SOA, true);
-            if (soa != null)
-                zones.Add(this);
-
-            foreach (KeyValuePair<string, Zone> entry in _zones)
-                entry.Value.GetAuthoritativeZones(zones);
         }
 
         private static DnsDatagram QueryAuthoritative(Zone rootZone, DnsDatagram request)
@@ -929,7 +929,7 @@ namespace DnsServerCore
                 return new ZoneInfo[] { }; //no zone for given domain
 
             List<Zone> zones = new List<Zone>();
-            currentZone.GetAuthoritativeZones(zones);
+            currentZone.ListAuthoritativeZones(zones);
 
             List<ZoneInfo> zoneNames = new List<ZoneInfo>();
 
