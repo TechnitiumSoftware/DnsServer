@@ -118,36 +118,38 @@
     <value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
   </resheader>
   <data name="AboutMenuItem" xml:space="preserve">
-    <value>A&amp;bout...</value>
+    <value>A&amp;bout</value>
   </data>
   <data name="AreYouSureYouWantToQuit" xml:space="preserve">
-    <value>If you quit Technitium DNS Server Tray Icon, Technitium DNS Server will continue to run in the background, are you sure you want to quit?</value>
+    <value>Are you sure to close the system tray icon?
+
+Closing the system tray icon will not stop Technitium DNS Server.</value>
   </data>
   <data name="DashboardMenuItem" xml:space="preserve">
-    <value>D&amp;ashboard...</value>
-  </data>
-  <data name="ErrorOccurred" xml:space="preserve">
-    <value />
+    <value>&amp;Dashboard</value>
   </data>
   <data name="ExitMenuItem" xml:space="preserve">
     <value>E&amp;xit</value>
   </data>
+  <data name="NetworkDnsMenuItem" xml:space="preserve">
+    <value>Network DNS</value>
+  </data>
   <data name="Quit" xml:space="preserve">
-    <value>Quit Technitium DNS Server Tray Icon?</value>
+    <value>Close System Tray Icon?</value>
   </data>
   <data name="ServiceMenuItem" xml:space="preserve">
-    <value>Service</value>
+    <value>&amp;Service</value>
   </data>
   <data name="ServiceName" xml:space="preserve">
     <value>Technitium DNS Server</value>
   </data>
   <data name="ServiceRestartMenuItem" xml:space="preserve">
-    <value>Restart</value>
+    <value>R&amp;estart</value>
   </data>
   <data name="ServiceStartMenuItem" xml:space="preserve">
-    <value>Start</value>
+    <value>&amp;Start</value>
   </data>
   <data name="ServiceStopMenuItem" xml:space="preserve">
-    <value>Stop</value>
+    <value>St&amp;op</value>
   </data>
 </root>

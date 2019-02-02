@@ -8,7 +8,7 @@
 // </auto-generated>
 //------------------------------------------------------------------------------
 
-namespace DnsServerTrayIcon.Properties {
+namespace DnsServerSystemTrayApp.Properties {
     using System;
     
     
@@ -39,7 +39,7 @@ namespace DnsServerTrayIcon.Properties {
         internal static global::System.Resources.ResourceManager ResourceManager {
             get {
                 if (object.ReferenceEquals(resourceMan, null)) {
-                    global::System.Resources.ResourceManager temp = new global::System.Resources.ResourceManager("DnsServerTrayIcon.Properties.Resources", typeof(Resources).Assembly);
+                    global::System.Resources.ResourceManager temp = new global::System.Resources.ResourceManager("DnsServerSystemTrayApp.Properties.Resources", typeof(Resources).Assembly);
                     resourceMan = temp;
                 }
                 return resourceMan;
@@ -61,7 +61,7 @@ namespace DnsServerTrayIcon.Properties {
         }
         
         /// <summary>
-        ///   Looks up a localized string similar to A&amp;bout....
+        ///   Looks up a localized string similar to A&amp;bout.
         /// </summary>
         internal static string AboutMenuItem {
             get {
@@ -70,7 +70,9 @@ namespace DnsServerTrayIcon.Properties {
         }
         
         /// <summary>
-        ///   Looks up a localized string similar to If you quit Technitium DNS Server Tray Icon, Technitium DNS Server will continue to run in the background, are you sure you want to quit?.
+        ///   Looks up a localized string similar to Are you sure to close the system tray icon?
+        ///
+        ///Closing the system tray icon will not stop Technitium DNS Server..
         /// </summary>
         internal static string AreYouSureYouWantToQuit {
             get {
@@ -79,20 +81,11 @@ namespace DnsServerTrayIcon.Properties {
         }
         
         /// <summary>
-        ///   Looks up a localized string similar to D&amp;ashboard....
+        ///   Looks up a localized string similar to &amp;Dashboard.
         /// </summary>
         internal static string DashboardMenuItem {
             get {
                 return ResourceManager.GetString("DashboardMenuItem", resourceCulture);
-            }
-        }
-        
-        /// <summary>
-        ///   Looks up a localized string similar to .
-        /// </summary>
-        internal static string ErrorOccurred {
-            get {
-                return ResourceManager.GetString("ErrorOccurred", resourceCulture);
             }
         }
         
@@ -106,7 +99,16 @@ namespace DnsServerTrayIcon.Properties {
         }
         
         /// <summary>
-        ///   Looks up a localized string similar to Quit Technitium DNS Server Tray Icon?.
+        ///   Looks up a localized string similar to Network DNS.
+        /// </summary>
+        internal static string NetworkDnsMenuItem {
+            get {
+                return ResourceManager.GetString("NetworkDnsMenuItem", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Close System Tray Icon?.
         /// </summary>
         internal static string Quit {
             get {
@@ -115,7 +117,7 @@ namespace DnsServerTrayIcon.Properties {
         }
         
         /// <summary>
-        ///   Looks up a localized string similar to Service.
+        ///   Looks up a localized string similar to &amp;Service.
         /// </summary>
         internal static string ServiceMenuItem {
             get {
@@ -133,7 +135,7 @@ namespace DnsServerTrayIcon.Properties {
         }
         
         /// <summary>
-        ///   Looks up a localized string similar to Restart.
+        ///   Looks up a localized string similar to R&amp;estart.
         /// </summary>
         internal static string ServiceRestartMenuItem {
             get {
@@ -142,7 +144,7 @@ namespace DnsServerTrayIcon.Properties {
         }
         
         /// <summary>
-        ///   Looks up a localized string similar to Start.
+        ///   Looks up a localized string similar to &amp;Start.
         /// </summary>
         internal static string ServiceStartMenuItem {
             get {
@@ -151,7 +153,7 @@ namespace DnsServerTrayIcon.Properties {
         }
         
         /// <summary>
-        ///   Looks up a localized string similar to Stop.
+        ///   Looks up a localized string similar to St&amp;op.
         /// </summary>
         internal static string ServiceStopMenuItem {
             get {
