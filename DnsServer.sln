@@ -13,7 +13,7 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DnsServerApp", "DnsServerAp
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "DnsServerApp.NETCore", "DnsServerApp.NETCore\DnsServerApp.NETCore.csproj", "{ADE80805-9FA7-4F66-8A18-57B98F8C0B0F}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DnsServerTrayIcon", "DnsServerTrayIcon\DnsServerTrayIcon.csproj", "{2F91BD07-2CEE-47FA-8486-457B54612B4C}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DnsServerSystemTrayApp", "DnsServerSystemTrayApp\DnsServerSystemTrayApp.csproj", "{2F91BD07-2CEE-47FA-8486-457B54612B4C}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
