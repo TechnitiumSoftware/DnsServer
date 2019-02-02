@@ -3043,16 +3043,38 @@ namespace DnsServerCore
         {
             Zone blockedZoneRoot = new Zone(true);
 
-            foreach (Uri blockListUrl in _blockListUrls)
-                LoadBlockListFile(blockedZoneRoot, blockListUrl);
+            using (CountdownEvent countdown = new CountdownEvent(_blockListUrls.Count))
+            {
+                foreach (Uri blockListUrl in _blockListUrls)
+                {
+                    ThreadPool.QueueUserWorkItem(delegate (object state)
+                    {
+                        try
+                        {
+                            LoadBlockListFile(blockedZoneRoot, state as Uri);
+                        }
+                        catch (Exception ex)
+                        {
+                            _log.Write(ex);
+                        }
 
-            //load custom blocked zone into new block zone
-            foreach (Zone.ZoneInfo zone in _customBlockedZoneRoot.ListAuthoritativeZones())
-                BlockZone(zone.ZoneName, blockedZoneRoot, "custom");
+                        countdown.Signal();
+
+                    }, blockListUrl);
+                }
+
+                //load custom blocked zone into new block zone
+                foreach (Zone.ZoneInfo zone in _customBlockedZoneRoot.ListAuthoritativeZones())
+                    BlockZone(zone.ZoneName, blockedZoneRoot, "custom");
+
+                countdown.Wait();
+            }
 
             //set new blocked zone
             _dnsServer.BlockedZoneRoot = blockedZoneRoot;
-            _totalZonesBlocked = _dnsServer.BlockedZoneRoot.ListAuthoritativeZones().Count;
+            _totalZonesBlocked = blockedZoneRoot.ListAuthoritativeZones().Count;
+
+            _log.Write("DNS Server blocked zone loading finished successfully.");
         }
 
         private string GetBlockListFilePath(Uri blockListUrl)
