@@ -127,29 +127,6 @@ namespace DnsServerCore
             return currentZone;
         }
 
-        private static Zone FindClosestZone(Zone rootZone, string domain)
-        {
-            Zone currentZone = rootZone;
-            string[] path = ConvertDomainToPath(domain);
-
-            for (int i = 0; i < path.Length; i++)
-            {
-                string nextZoneLabel = path[i];
-
-                if (currentZone._zones.TryGetValue(nextZoneLabel, out Zone nextZone))
-                    currentZone = nextZone;
-                else if (currentZone._zones.TryGetValue("*", out Zone nextWildcardZone))
-                    currentZone = nextWildcardZone;
-                else
-                    return currentZone;
-
-                if (currentZone._disabled)
-                    return currentZone;
-            }
-
-            return currentZone;
-        }
-
         private static Zone GetZone(Zone rootZone, string domain, bool authoritative)
         {
             Zone authoritativeZone = null;
@@ -419,6 +396,29 @@ namespace DnsServerCore
             return null;
         }
 
+        private static Zone QueryFindClosestZone(Zone rootZone, string domain)
+        {
+            Zone currentZone = rootZone;
+            string[] path = ConvertDomainToPath(domain);
+
+            for (int i = 0; i < path.Length; i++)
+            {
+                string nextZoneLabel = path[i];
+
+                if (currentZone._zones.TryGetValue(nextZoneLabel, out Zone nextZone))
+                    currentZone = nextZone;
+                else if (currentZone._zones.TryGetValue("*", out Zone nextWildcardZone))
+                    currentZone = nextWildcardZone;
+                else
+                    return currentZone;
+
+                if (currentZone._disabled)
+                    return currentZone;
+            }
+
+            return currentZone;
+        }
+
         private DnsResourceRecord[] QueryClosestCachedNameServers()
         {
             Zone currentZone = this;
@@ -515,7 +515,7 @@ namespace DnsServerCore
             DnsQuestionRecord question = request.Question[0];
             string domain = question.Name.ToLower();
 
-            Zone closestZone = FindClosestZone(rootZone, domain);
+            Zone closestZone = QueryFindClosestZone(rootZone, domain);
 
             if (closestZone._disabled)
                 return new DnsDatagram(new DnsHeader(request.Header.Identifier, true, DnsOpcode.StandardQuery, false, false, request.Header.RecursionDesired, false, false, false, DnsResponseCode.Refused, 1, 0, 0, 0), request.Question, new DnsResourceRecord[] { }, new DnsResourceRecord[] { }, new DnsResourceRecord[] { });
@@ -592,7 +592,7 @@ namespace DnsServerCore
             DnsQuestionRecord question = request.Question[0];
             string domain = question.Name.ToLower();
 
-            Zone closestZone = FindClosestZone(rootZone, domain);
+            Zone closestZone = QueryFindClosestZone(rootZone, domain);
 
             if (closestZone._zoneName.Equals(domain))
             {
