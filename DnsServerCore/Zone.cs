@@ -918,7 +918,7 @@ namespace DnsServerCore
             return subZoneNames;
         }
 
-        public ZoneInfo[] ListAuthoritativeZones(string domain = "")
+        public ICollection<ZoneInfo> ListAuthoritativeZones(string domain = "")
         {
             Zone currentZone = GetZone(this, domain, false);
             if (currentZone == null)
@@ -932,7 +932,7 @@ namespace DnsServerCore
             foreach (Zone zone in zones)
                 zoneNames.Add(new ZoneInfo(zone));
 
-            return zoneNames.ToArray();
+            return zoneNames;
         }
 
         public bool DeleteZone(string domain, bool deleteSubZones)
