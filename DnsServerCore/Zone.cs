@@ -255,7 +255,11 @@ namespace DnsServerCore
             }
 
             if (!bypassCNAME && _entries.TryGetValue(DnsResourceRecordType.CNAME, out DnsResourceRecord[] existingCNAMERecords))
-                return FilterExpiredDisabledRecords(existingCNAMERecords);
+            {
+                DnsResourceRecord[] records = FilterExpiredDisabledRecords(existingCNAMERecords);
+                if (records != null)
+                    return records;
+            }
 
             if (_entries.TryGetValue(type, out DnsResourceRecord[] existingRecords))
                 return FilterExpiredDisabledRecords(existingRecords);
@@ -405,7 +409,7 @@ namespace DnsServerCore
             return null;
         }
 
-        private DnsResourceRecord[] GetClosestCachedNameServers()
+        private DnsResourceRecord[] QueryClosestCachedNameServers()
         {
             Zone currentZone = this;
             DnsResourceRecord[] nsRecords = null;
@@ -422,7 +426,7 @@ namespace DnsServerCore
             return null;
         }
 
-        private DnsResourceRecord[] GetClosestAuthority(string rootZoneServerDomain)
+        private DnsResourceRecord[] QueryClosestAuthority(string rootZoneServerDomain)
         {
             Zone currentZone = this;
             DnsResourceRecord[] nsRecords = null;
@@ -443,7 +447,7 @@ namespace DnsServerCore
             return null;
         }
 
-        private DnsResourceRecord[] GetClosestAuthoritativeNameServers()
+        private DnsResourceRecord[] QueryClosestAuthoritativeNameServers()
         {
             Zone currentZone = this;
             DnsResourceRecord[] nsRecords = null;
@@ -465,7 +469,7 @@ namespace DnsServerCore
             return null;
         }
 
-        private static DnsResourceRecord[] GetGlueRecords(Zone rootZone, DnsResourceRecord[] nsRecords)
+        private static DnsResourceRecord[] QueryGlueRecords(Zone rootZone, DnsResourceRecord[] nsRecords)
         {
             List<DnsResourceRecord> glueRecords = new List<DnsResourceRecord>();
 
@@ -476,7 +480,7 @@ namespace DnsServerCore
                     string nsDomain = (nsRecord.RDATA as DnsNSRecord).NSDomainName;
 
                     Zone zone = GetZone(rootZone, nsDomain, false);
-                    if (zone != null)
+                    if ((zone != null) && !zone._disabled)
                     {
                         {
                             DnsResourceRecord[] records = zone.QueryRecords(DnsResourceRecordType.A, true);
@@ -516,7 +520,7 @@ namespace DnsServerCore
             if (closestZone._disabled)
                 return new DnsDatagram(new DnsHeader(request.Header.Identifier, true, DnsOpcode.StandardQuery, false, false, request.Header.RecursionDesired, false, false, false, DnsResponseCode.Refused, 1, 0, 0, 0), request.Question, new DnsResourceRecord[] { }, new DnsResourceRecord[] { }, new DnsResourceRecord[] { });
 
-            DnsResourceRecord[] closestAuthority = closestZone.GetClosestAuthority(rootZone._serverDomain);
+            DnsResourceRecord[] closestAuthority = closestZone.QueryClosestAuthority(rootZone._serverDomain);
 
             if (closestAuthority == null)
                 return new DnsDatagram(new DnsHeader(request.Header.Identifier, true, DnsOpcode.StandardQuery, false, false, request.Header.RecursionDesired, false, false, false, DnsResponseCode.Refused, 1, 0, 0, 0), request.Question, new DnsResourceRecord[] { }, new DnsResourceRecord[] { }, new DnsResourceRecord[] { });
@@ -553,7 +557,7 @@ namespace DnsServerCore
                         DnsResourceRecord[] additional;
 
                         if (question.Type != DnsResourceRecordType.ANY)
-                            closestAuthoritativeNameServers = closestZone.GetClosestAuthoritativeNameServers();
+                            closestAuthoritativeNameServers = closestZone.QueryClosestAuthoritativeNameServers();
 
                         if (closestAuthoritativeNameServers == null)
                         {
@@ -562,7 +566,7 @@ namespace DnsServerCore
                         }
                         else
                         {
-                            additional = GetGlueRecords(rootZone, closestAuthoritativeNameServers);
+                            additional = QueryGlueRecords(rootZone, closestAuthoritativeNameServers);
                         }
 
                         return new DnsDatagram(new DnsHeader(request.Header.Identifier, true, DnsOpcode.StandardQuery, true, false, request.Header.RecursionDesired, false, false, false, DnsResponseCode.NoError, 1, (ushort)records.Length, (ushort)closestAuthoritativeNameServers.Length, (ushort)additional.Length), request.Question, records, closestAuthoritativeNameServers, additional);
@@ -577,7 +581,7 @@ namespace DnsServerCore
             else
             {
                 //zone is delegated
-                DnsResourceRecord[] additional = GetGlueRecords(rootZone, closestAuthority);
+                DnsResourceRecord[] additional = QueryGlueRecords(rootZone, closestAuthority);
 
                 return new DnsDatagram(new DnsHeader(request.Header.Identifier, true, DnsOpcode.StandardQuery, false, false, request.Header.RecursionDesired, false, false, false, DnsResponseCode.NoError, 1, 0, (ushort)closestAuthority.Length, (ushort)additional.Length), request.Question, new DnsResourceRecord[] { }, closestAuthority, additional);
             }
@@ -621,10 +625,10 @@ namespace DnsServerCore
                 }
             }
 
-            DnsResourceRecord[] nameServers = closestZone.GetClosestCachedNameServers();
+            DnsResourceRecord[] nameServers = closestZone.QueryClosestCachedNameServers();
             if (nameServers != null)
             {
-                DnsResourceRecord[] additional = GetGlueRecords(rootZone, nameServers);
+                DnsResourceRecord[] additional = QueryGlueRecords(rootZone, nameServers);
 
                 return new DnsDatagram(new DnsHeader(request.Header.Identifier, true, DnsOpcode.StandardQuery, false, false, request.Header.RecursionDesired, true, false, false, DnsResponseCode.NoError, 1, 0, (ushort)nameServers.Length, (ushort)additional.Length), request.Question, new DnsResourceRecord[] { }, nameServers, additional);
             }
