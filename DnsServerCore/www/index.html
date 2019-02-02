@@ -98,6 +98,7 @@
                                 <li id="mainPanelTabListDnsClient" role="presentation"><a href="#mainPanelTabPaneDnsClient" aria-controls="mainPanelTabPaneDnsClient" role="tab" data-toggle="tab" onclick="return false;">DNS Client</a></li>
                                 <li id="mainPanelTabListSettings" role="presentation"><a href="#mainPanelTabPaneSettings" aria-controls="mainPanelTabPaneSettings" role="tab" data-toggle="tab" onclick="return loadDnsSettings();">Settings</a></li>
                                 <li id="mainPanelTabListLogs" role="presentation"><a href="#mainPanelTabPaneLogs" aria-controls="mainPanelTabPaneLogs" role="tab" data-toggle="tab" onclick="return refreshLogFilesList();">Logs</a></li>
+                                <li id="mainPanelTabListAbout" role="presentation"><a href="#mainPanelTabPaneAbout" aria-controls="mainPanelTabPaneAbout" role="tab" data-toggle="tab">About</a></li>
                             </ul>
 
                             <div class="tab-content">
@@ -610,6 +611,8 @@
                                             <div class="panel-heading" style="height: 36px; padding: 4px 6px;">
                                                 <div id="txtAllowedZoneViewerTitle" style="float: left; padding: 4px;">technitium.com</div>
                                                 <div style="float: right;">
+                                                    <button id="btnImportAllowedZone" type="button" class="btn btn-default" data-loading-text="Import" onclick="return resetImportAllowedZonesModal();" data-toggle="modal" data-target="#modalImportAllowedZones" style="font-size: 12px; padding: 4px 6px;">Import</button>
+                                                    <button id="btnExportAllowedZone" type="button" class="btn btn-default" data-loading-text="Export" onclick="return exportAllowedZones();" style="font-size: 12px; padding: 4px 6px;">Export</button>
                                                     <button id="btnDeleteAllowedZone" type="button" class="btn btn-danger" data-loading-text="Delete" onclick="return deleteAllowedZone();" style="font-size: 12px; padding: 4px 6px;">Delete</button>
                                                 </div>
                                             </div>
@@ -647,6 +650,8 @@
                                             <div class="panel-heading" style="height: 36px; padding: 4px 6px;">
                                                 <div id="txtBlockedZoneViewerTitle" style="float: left; padding: 4px;">technitium.com</div>
                                                 <div style="float: right;">
+                                                    <button id="btnImportBlockedZone" type="button" class="btn btn-default" data-loading-text="Import" onclick="return resetImportCustomBlockedZonesModal();" data-toggle="modal" data-target="#modalImportCustomBlockedZones" style="font-size: 12px; padding: 4px 6px;">Import</button>
+                                                    <button id="btnExportBlockedZone" type="button" class="btn btn-default" data-loading-text="Export" onclick="return exportCustomBlockedZones();" style="font-size: 12px; padding: 4px 6px;">Export</button>
                                                     <button id="btnDeleteCustomBlockedZone" type="button" class="btn btn-danger" data-loading-text="Delete" onclick="return deleteCustomBlockedZone();" style="font-size: 12px; padding: 4px 6px;">Delete</button>
                                                 </div>
                                             </div>
@@ -1084,9 +1089,36 @@
 
                                 </div>
 
-                            </div>
-                        </div>
+                                <div id="mainPanelTabPaneAbout" role="tabpanel" class="tab-pane" style="padding: 40px 0 20px 0;">
 
+                                    <div class="about" style="text-align: center;">
+                                        <img src="/img/logo.png" alt="Technitium Logo" />
+                                        <h1>Technitium DNS Server</h1>
+                                        <p>Version <span id="lblAboutVersion"></span></p>
+                                        <p style="max-width: 800px; margin: 0 auto 10px auto;">
+                                            Copyright (C) 2019  Shreyas Zare (shreyas@technitium.com)<br />
+                                            This program comes with ABSOLUTELY NO WARRANTY. This is free software, and you are welcome to redistribute it under certain conditions.<br />
+                                        </p>
+                                        <p>Source code available under <a href="https://github.com/TechnitiumSoftware/DnsServer/blob/master/LICENSE" target="_blank">GNU General Public License v3.0</a> on <a href="https://github.com/TechnitiumSoftware/DnsServer" target="_blank"><i class="fa fa-github"></i>&nbsp;GitHub</a></p>
+
+                                        <h3 style="margin-top: 40px;">Contact</h3>
+                                        <p>For support, send an email to <a href="mailto:support@technitium.com" target="_blank">support@technitium.com</a>.</p>
+                                        <p>
+                                            Follow <a href="https://twitter.com/Technitium" target="_blank">@technitium</a> on Twitter.<br />
+                                            Checkout <a href="https://blog.technitium.com/" target="_blank">Technitium Blog</a>.
+                                        </p>
+
+                                        <h3 style="margin-top: 40px;"><a style="color: rgb(51,51,51) !important;" href="https://www.patreon.com/technitium" target="_blank">Become A Patron</a></h3>
+                                        <p>Make contribution to Technitium by becoming a Patron and help making new software, updates, and features possible.</p>
+                                        <p>
+                                            <a href="https://www.patreon.com/technitium" target="_blank">Become A Patron Now!</a>
+                                        </p>
+                                    </div>
+
+                                </div>
+                            </div>
+
+                        </div>
                     </div>
                 </div>
             </div>
@@ -1154,6 +1186,56 @@
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-default" data-dismiss="modal">Close</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="modalImportAllowedZones" class="modal fade" tabindex="-1" role="dialog">
+        <div class="modal-dialog" role="document">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <button type="button" class="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button>
+                    <h4 class="modal-title">Import Allowed Zones</h4>
+                </div>
+                <div class="modal-body">
+                    <div id="divImportAllowedZonesAlert"></div>
+
+                    <p>Enter domain names one below other to import into Allowed Zone:</p>
+
+                    <div class="form-group">
+                        <label for="txtImportAllowedZones" class="control-label">Allowed Zones</label>
+                        <textarea id="txtImportAllowedZones" class="form-control" rows="15"></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-default" data-dismiss="modal">Close</button>
+                    <button id="btnImportAllowedZones" type="submit" class="btn btn-primary" data-loading-text="Importing..." onclick="return importAllowedZones();">Import</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="modalImportCustomBlockedZones" class="modal fade" tabindex="-1" role="dialog">
+        <div class="modal-dialog" role="document">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <button type="button" class="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button>
+                    <h4 class="modal-title">Import Custom Blocked Zones</h4>
+                </div>
+                <div class="modal-body">
+                    <div id="divImportCustomBlockedZonesAlert"></div>
+
+                    <p>Enter domain names one below other to import into custom blocked zone:</p>
+
+                    <div class="form-group">
+                        <label for="txtImportCustomBlockedZones" class="control-label">Blocked Zones</label>
+                        <textarea id="txtImportCustomBlockedZones" class="form-control" rows="15"></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-default" data-dismiss="modal">Close</button>
+                    <button id="btnImportCustomBlockedZones" type="submit" class="btn btn-primary" data-loading-text="Importing..." onclick="return importCustomBlockedZones();">Import</button>
                 </div>
             </div>
         </div>

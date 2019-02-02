@@ -510,6 +510,7 @@ function loadDnsSettings() {
         url: "/api/getDnsSettings?token=" + token,
         success: function (responseJSON) {
             document.title = "Technitium DNS Server " + responseJSON.response.version + " - " + responseJSON.response.serverDomain;
+            $("#lblAboutVersion").text(responseJSON.response.version);
 
             $("#txtServerDomain").val(responseJSON.response.serverDomain);
             $("#lblServerDomain").text(" - " + responseJSON.response.serverDomain);
@@ -2758,6 +2759,106 @@ function deleteLog() {
             showPageLogin();
         }
     });
+
+    return false;
+}
+
+function resetImportAllowedZonesModal() {
+
+    $("#divImportAllowedZonesAlert").html("");
+    $("#txtImportAllowedZones").val("");
+
+    return false;
+}
+
+function importAllowedZones() {
+    var divImportAllowedZonesAlert = $("#divImportAllowedZonesAlert");
+    var allowedZones = cleanTextList($("#txtImportAllowedZones").val());
+
+    if ((allowedZones.length === 0) || (allowedZones === ",")) {
+        showAlert("warning", "Missing!", "Please enter allowed zones to import.", divImportAllowedZonesAlert);
+        return false;
+    }
+
+    var btn = $("#btnImportAllowedZones").button('loading');
+
+    HTTPRequest({
+        url: "/api/importAllowedZones?token=" + token,
+        data: "allowedZones=" + allowedZones,
+        success: function (responseJSON) {
+            $("#modalImportAllowedZones").modal("hide");
+            btn.button('reset');
+
+            showAlert("success", "Imported!", "Domain names were imported to allowed zone successfully.");
+        },
+        error: function () {
+            btn.button('reset');
+        },
+        invalidToken: function () {
+            btn.button('reset');
+            showPageLogin();
+        },
+        objAlertPlaceholder: divImportAllowedZonesAlert
+    });
+
+    return false;
+}
+
+function exportAllowedZones() {
+
+    window.open("/api/exportAllowedZones?token=" + token, "_blank");
+
+    showAlert("success", "Exported!", "Allowed zones were exported successfully.");
+
+    return false;
+}
+
+function resetImportCustomBlockedZonesModal() {
+
+    $("#divImportCustomBlockedZonesAlert").html("");
+    $("#txtImportCustomBlockedZones").val("");
+
+    return false;
+}
+
+function importCustomBlockedZones() {
+    var divImportCustomBlockedZonesAlert = $("#divImportCustomBlockedZonesAlert");
+    var blockedZones = cleanTextList($("#txtImportCustomBlockedZones").val());
+
+    if ((blockedZones.length === 0) || (blockedZones === ",")) {
+        showAlert("warning", "Missing!", "Please enter custom blocked zones to import.", divImportCustomBlockedZonesAlert);
+        return false;
+    }
+
+    var btn = $("#btnImportCustomBlockedZones").button('loading');
+
+    HTTPRequest({
+        url: "/api/importCustomBlockedZones?token=" + token,
+        data: "blockedZones=" + blockedZones,
+        success: function (responseJSON) {
+            $("#modalImportCustomBlockedZones").modal("hide");
+            btn.button('reset');
+
+            showAlert("success", "Imported!", "Domain names were imported to custom blocked zone successfully.");
+        },
+        error: function () {
+            btn.button('reset');
+        },
+        invalidToken: function () {
+            btn.button('reset');
+            showPageLogin();
+        },
+        objAlertPlaceholder: divImportCustomBlockedZonesAlert
+    });
+
+    return false;
+}
+
+function exportCustomBlockedZones() {
+
+    window.open("/api/exportCustomBlockedZones?token=" + token, "_blank");
+
+    showAlert("success", "Exported!", "Custom blocked zones were exported successfully.");
 
     return false;
 }

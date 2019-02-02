@@ -281,3 +281,8 @@ label {
             font-size: 12px;
             font-weight: bold;
         }
+
+.about p {
+    color: rgb(119, 119, 119);
+    text-align: center;
+}
