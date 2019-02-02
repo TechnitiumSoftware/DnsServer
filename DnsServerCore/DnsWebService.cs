@@ -209,192 +209,220 @@ namespace DnsServerCore
                 {
                     using (MemoryStream mS = new MemoryStream())
                     {
-                        using (JsonTextWriter jsonWriter = new JsonTextWriter(new StreamWriter(mS)))
+                        try
                         {
+                            JsonTextWriter jsonWriter = new JsonTextWriter(new StreamWriter(mS));
                             jsonWriter.WriteStartObject();
 
-                            try
+                            switch (path)
                             {
-                                switch (path)
-                                {
-                                    case "/api/login":
-                                        Login(request, jsonWriter);
-                                        break;
+                                case "/api/login":
+                                    Login(request, jsonWriter);
+                                    break;
 
-                                    case "/api/logout":
-                                        Logout(request);
-                                        break;
+                                case "/api/logout":
+                                    Logout(request);
+                                    break;
 
-                                    default:
-                                        if (!IsSessionValid(request))
-                                            throw new InvalidTokenDnsWebServiceException("Invalid token or session expired.");
+                                default:
+                                    if (!IsSessionValid(request))
+                                        throw new InvalidTokenDnsWebServiceException("Invalid token or session expired.");
 
-                                        jsonWriter.WritePropertyName("response");
-                                        jsonWriter.WriteStartObject();
+                                    jsonWriter.WritePropertyName("response");
+                                    jsonWriter.WriteStartObject();
 
-                                        try
+                                    try
+                                    {
+                                        switch (path)
                                         {
-                                            switch (path)
-                                            {
-                                                case "/api/changePassword":
-                                                    ChangePassword(request);
-                                                    break;
+                                            case "/api/changePassword":
+                                                ChangePassword(request);
+                                                break;
 
-                                                case "/api/checkForUpdate":
-                                                    CheckForUpdate(request, jsonWriter);
-                                                    break;
+                                            case "/api/checkForUpdate":
+                                                CheckForUpdate(request, jsonWriter);
+                                                break;
 
-                                                case "/api/getDnsSettings":
-                                                    GetDnsSettings(jsonWriter);
-                                                    break;
+                                            case "/api/getDnsSettings":
+                                                GetDnsSettings(jsonWriter);
+                                                break;
 
-                                                case "/api/setDnsSettings":
-                                                    SetDnsSettings(request, jsonWriter);
-                                                    break;
+                                            case "/api/setDnsSettings":
+                                                SetDnsSettings(request, jsonWriter);
+                                                break;
 
-                                                case "/api/getStats":
-                                                    GetStats(request, jsonWriter);
-                                                    break;
+                                            case "/api/getStats":
+                                                GetStats(request, jsonWriter);
+                                                break;
 
-                                                case "/api/flushDnsCache":
-                                                    FlushCache(request);
-                                                    break;
+                                            case "/api/flushDnsCache":
+                                                FlushCache(request);
+                                                break;
 
-                                                case "/api/listCachedZones":
-                                                    ListCachedZones(request, jsonWriter);
-                                                    break;
+                                            case "/api/listCachedZones":
+                                                ListCachedZones(request, jsonWriter);
+                                                break;
 
-                                                case "/api/deleteCachedZone":
-                                                    DeleteCachedZone(request);
-                                                    break;
+                                            case "/api/deleteCachedZone":
+                                                DeleteCachedZone(request);
+                                                break;
 
-                                                case "/api/listAllowedZones":
-                                                    ListAllowedZones(request, jsonWriter);
-                                                    break;
+                                            case "/api/listAllowedZones":
+                                                ListAllowedZones(request, jsonWriter);
+                                                break;
 
-                                                case "/api/flushAllowedZone":
-                                                    FlushAllowedZone(request);
-                                                    break;
+                                            case "/api/importAllowedZones":
+                                                ImportAllowedZones(request);
+                                                break;
 
-                                                case "/api/deleteAllowedZone":
-                                                    DeleteAllowedZone(request);
-                                                    break;
+                                            case "/api/exportAllowedZones":
+                                                ExportAllowedZones(response);
+                                                return;
 
-                                                case "/api/allowZone":
-                                                    AllowZone(request);
-                                                    break;
+                                            case "/api/flushAllowedZone":
+                                                FlushAllowedZone(request);
+                                                break;
 
-                                                case "/api/listBlockedZones":
-                                                    ListBlockedZones(request, jsonWriter);
-                                                    break;
+                                            case "/api/deleteAllowedZone":
+                                                DeleteAllowedZone(request);
+                                                break;
 
-                                                case "/api/flushCustomBlockedZone":
-                                                    FlushCustomBlockedZone(request);
-                                                    break;
+                                            case "/api/allowZone":
+                                                AllowZone(request);
+                                                break;
 
-                                                case "/api/deleteCustomBlockedZone":
-                                                    DeleteCustomBlockedZone(request);
-                                                    break;
+                                            case "/api/listBlockedZones":
+                                                ListBlockedZones(request, jsonWriter);
+                                                break;
 
-                                                case "/api/customBlockZone":
-                                                    CustomBlockZone(request);
-                                                    break;
+                                            case "/api/importCustomBlockedZones":
+                                                ImportCustomBlockedZones(request);
+                                                break;
 
-                                                case "/api/listZones":
-                                                    ListZones(jsonWriter);
-                                                    break;
+                                            case "/api/exportCustomBlockedZones":
+                                                ExportCustomBlockedZones(response);
+                                                return;
 
-                                                case "/api/createZone":
-                                                    CreateZone(request);
-                                                    break;
+                                            case "/api/flushCustomBlockedZone":
+                                                FlushCustomBlockedZone(request);
+                                                break;
 
-                                                case "/api/deleteZone":
-                                                    DeleteZone(request);
-                                                    break;
+                                            case "/api/deleteCustomBlockedZone":
+                                                DeleteCustomBlockedZone(request);
+                                                break;
 
-                                                case "/api/enableZone":
-                                                    EnableZone(request);
-                                                    break;
+                                            case "/api/customBlockZone":
+                                                CustomBlockZone(request);
+                                                break;
 
-                                                case "/api/disableZone":
-                                                    DisableZone(request);
-                                                    break;
+                                            case "/api/listZones":
+                                                ListZones(jsonWriter);
+                                                break;
 
-                                                case "/api/addRecord":
-                                                    AddRecord(request);
-                                                    break;
+                                            case "/api/createZone":
+                                                CreateZone(request);
+                                                break;
 
-                                                case "/api/getRecords":
-                                                    GetRecords(request, jsonWriter);
-                                                    break;
+                                            case "/api/deleteZone":
+                                                DeleteZone(request);
+                                                break;
 
-                                                case "/api/deleteRecord":
-                                                    DeleteRecord(request);
-                                                    break;
+                                            case "/api/enableZone":
+                                                EnableZone(request);
+                                                break;
 
-                                                case "/api/updateRecord":
-                                                    UpdateRecord(request);
-                                                    break;
+                                            case "/api/disableZone":
+                                                DisableZone(request);
+                                                break;
 
-                                                case "/api/resolveQuery":
-                                                    ResolveQuery(request, jsonWriter);
-                                                    break;
+                                            case "/api/addRecord":
+                                                AddRecord(request);
+                                                break;
 
-                                                case "/api/listLogs":
-                                                    ListLogs(jsonWriter);
-                                                    break;
+                                            case "/api/getRecords":
+                                                GetRecords(request, jsonWriter);
+                                                break;
 
-                                                case "/api/deleteLog":
-                                                    DeleteLog(request);
-                                                    break;
+                                            case "/api/deleteRecord":
+                                                DeleteRecord(request);
+                                                break;
 
-                                                default:
-                                                    throw new DnsWebServiceException("Invalid command: " + path);
-                                            }
+                                            case "/api/updateRecord":
+                                                UpdateRecord(request);
+                                                break;
+
+                                            case "/api/resolveQuery":
+                                                ResolveQuery(request, jsonWriter);
+                                                break;
+
+                                            case "/api/listLogs":
+                                                ListLogs(jsonWriter);
+                                                break;
+
+                                            case "/api/deleteLog":
+                                                DeleteLog(request);
+                                                break;
+
+                                            default:
+                                                throw new DnsWebServiceException("Invalid command: " + path);
                                         }
-                                        finally
-                                        {
-                                            jsonWriter.WriteEndObject();
-                                        }
-                                        break;
-                                }
-
-                                jsonWriter.WritePropertyName("status");
-                                jsonWriter.WriteValue("ok");
+                                    }
+                                    finally
+                                    {
+                                        jsonWriter.WriteEndObject();
+                                    }
+                                    break;
                             }
-                            catch (InvalidTokenDnsWebServiceException ex)
-                            {
-                                jsonWriter.WritePropertyName("status");
-                                jsonWriter.WriteValue("invalid-token");
 
-                                jsonWriter.WritePropertyName("errorMessage");
-                                jsonWriter.WriteValue(ex.Message);
-                            }
-                            catch (Exception ex)
-                            {
-                                _log.Write(GetRequestRemoteEndPoint(request), true, ex);
-
-                                jsonWriter.WritePropertyName("status");
-                                jsonWriter.WriteValue("error");
-
-                                jsonWriter.WritePropertyName("errorMessage");
-                                jsonWriter.WriteValue(ex.Message);
-
-                                jsonWriter.WritePropertyName("stackTrace");
-                                jsonWriter.WriteValue(ex.StackTrace);
-                            }
+                            jsonWriter.WritePropertyName("status");
+                            jsonWriter.WriteValue("ok");
 
                             jsonWriter.WriteEndObject();
-
                             jsonWriter.Flush();
+                        }
+                        catch (InvalidTokenDnsWebServiceException ex)
+                        {
+                            mS.SetLength(0);
+                            JsonTextWriter jsonWriter = new JsonTextWriter(new StreamWriter(mS));
+                            jsonWriter.WriteStartObject();
 
-                            response.ContentType = "application/json; charset=utf-8";
-                            response.ContentEncoding = Encoding.UTF8;
+                            jsonWriter.WritePropertyName("status");
+                            jsonWriter.WriteValue("invalid-token");
 
-                            using (Stream stream = response.OutputStream)
-                            {
-                                mS.WriteTo(response.OutputStream);
-                            }
+                            jsonWriter.WritePropertyName("errorMessage");
+                            jsonWriter.WriteValue(ex.Message);
+
+                            jsonWriter.WriteEndObject();
+                            jsonWriter.Flush();
+                        }
+                        catch (Exception ex)
+                        {
+                            mS.SetLength(0);
+                            JsonTextWriter jsonWriter = new JsonTextWriter(new StreamWriter(mS));
+                            jsonWriter.WriteStartObject();
+
+                            _log.Write(GetRequestRemoteEndPoint(request), true, ex);
+
+                            jsonWriter.WritePropertyName("status");
+                            jsonWriter.WriteValue("error");
+
+                            jsonWriter.WritePropertyName("errorMessage");
+                            jsonWriter.WriteValue(ex.Message);
+
+                            jsonWriter.WritePropertyName("stackTrace");
+                            jsonWriter.WriteValue(ex.StackTrace);
+
+                            jsonWriter.WriteEndObject();
+                            jsonWriter.Flush();
+                        }
+
+                        response.ContentType = "application/json; charset=utf-8";
+                        response.ContentEncoding = Encoding.UTF8;
+                        response.ContentLength64 = mS.Length;
+
+                        using (Stream stream = response.OutputStream)
+                        {
+                            mS.WriteTo(response.OutputStream);
                         }
                     }
                 }
@@ -657,12 +685,16 @@ namespace DnsServerCore
 
             if (!_credentials.TryGetValue(strUsername, out string passwordHash) || (passwordHash != strPasswordHash))
             {
-                FailedLoginAttempt(remoteEP.Address);
+                if (strPassword != "admin") //exception for default password
+                {
+                    FailedLoginAttempt(remoteEP.Address);
 
-                if (LoginAttemptsExceedLimit(remoteEP.Address, MAX_LOGIN_ATTEMPTS))
-                    BlockAddress(remoteEP.Address, BLOCK_ADDRESS_INTERVAL);
+                    if (LoginAttemptsExceedLimit(remoteEP.Address, MAX_LOGIN_ATTEMPTS))
+                        BlockAddress(remoteEP.Address, BLOCK_ADDRESS_INTERVAL);
 
-                Thread.Sleep(1000);
+                    Thread.Sleep(1000);
+                }
+
                 throw new DnsWebServiceException("Invalid username or password: " + strUsername);
             }
 
@@ -1013,7 +1045,7 @@ namespace DnsServerCore
                         {
                             //authoritative zone
                             {
-                                Zone.ZoneInfo[] zones = _dnsServer.AuthoritativeZoneRoot.ListAuthoritativeZones();
+                                ICollection<Zone.ZoneInfo> zones = _dnsServer.AuthoritativeZoneRoot.ListAuthoritativeZones();
 
                                 foreach (Zone.ZoneInfo zone in zones)
                                 {
@@ -1048,7 +1080,7 @@ namespace DnsServerCore
 
                             //allowed zone
                             {
-                                Zone.ZoneInfo[] zones = _dnsServer.AllowedZoneRoot.ListAuthoritativeZones();
+                                ICollection<Zone.ZoneInfo> zones = _dnsServer.AllowedZoneRoot.ListAuthoritativeZones();
 
                                 foreach (Zone.ZoneInfo zone in zones)
                                 {
@@ -1065,7 +1097,7 @@ namespace DnsServerCore
 
                             //custom blocked zone
                             {
-                                Zone.ZoneInfo[] zones = _customBlockedZoneRoot.ListAuthoritativeZones();
+                                ICollection<Zone.ZoneInfo> zones = _customBlockedZoneRoot.ListAuthoritativeZones();
 
                                 foreach (Zone.ZoneInfo zone in zones)
                                 {
@@ -1082,7 +1114,7 @@ namespace DnsServerCore
 
                             //blocked zone
                             {
-                                Zone.ZoneInfo[] zones = _dnsServer.BlockedZoneRoot.ListAuthoritativeZones();
+                                ICollection<Zone.ZoneInfo> zones = _dnsServer.BlockedZoneRoot.ListAuthoritativeZones();
 
                                 foreach (Zone.ZoneInfo zone in zones)
                                 {
@@ -1642,6 +1674,51 @@ namespace DnsServerCore
             WriteRecordsAsJson(records, jsonWriter, false);
         }
 
+        private void ImportAllowedZones(HttpListenerRequest request)
+        {
+            if (!request.ContentType.StartsWith("application/x-www-form-urlencoded"))
+                throw new DnsWebServiceException("Invalid content type. Expected application/x-www-form-urlencoded.");
+
+            string formRequest;
+            using (StreamReader sR = new StreamReader(request.InputStream, request.ContentEncoding))
+            {
+                formRequest = sR.ReadToEnd();
+            }
+
+            string[] formParts = formRequest.Split('&');
+
+            foreach (string formPart in formParts)
+            {
+                if (formPart.StartsWith("allowedZones="))
+                {
+                    string[] allowedZones = formPart.Substring(13).Split(',');
+
+                    foreach (string allowedZone in allowedZones)
+                        AllowZone(allowedZone);
+
+                    _log.Write(GetRequestRemoteEndPoint(request), true, "[" + GetSession(request).Username + "] Total " + allowedZones.Length + " zones were imported into allowed zone successfully.");
+                    SaveAllowedZoneFile();
+                    return;
+                }
+            }
+
+            throw new DnsWebServiceException("Parameter 'allowedZones' missing.");
+        }
+
+        private void ExportAllowedZones(HttpListenerResponse response)
+        {
+            ICollection<Zone.ZoneInfo> zoneInfoList = _dnsServer.AllowedZoneRoot.ListAuthoritativeZones();
+
+            response.ContentType = "text/plain";
+            response.AddHeader("Content-Disposition", "attachment;filename=AllowedZones.txt");
+
+            using (StreamWriter sW = new StreamWriter(new BufferedStream(response.OutputStream)))
+            {
+                foreach (Zone.ZoneInfo zoneInfo in zoneInfoList)
+                    sW.WriteLine(zoneInfo.ZoneName);
+            }
+        }
+
         private void FlushAllowedZone(HttpListenerRequest request)
         {
             _dnsServer.AllowedZoneRoot.Flush();
@@ -1746,6 +1823,54 @@ namespace DnsServerCore
             WriteRecordsAsJson(records, jsonWriter, false);
         }
 
+        private void ImportCustomBlockedZones(HttpListenerRequest request)
+        {
+            if (!request.ContentType.StartsWith("application/x-www-form-urlencoded"))
+                throw new DnsWebServiceException("Invalid content type. Expected application/x-www-form-urlencoded.");
+
+            string formRequest;
+            using (StreamReader sR = new StreamReader(request.InputStream, request.ContentEncoding))
+            {
+                formRequest = sR.ReadToEnd();
+            }
+
+            string[] formParts = formRequest.Split('&');
+
+            foreach (string formPart in formParts)
+            {
+                if (formPart.StartsWith("blockedZones="))
+                {
+                    string[] blockedZones = formPart.Substring(13).Split(',');
+
+                    foreach (string blockedZone in blockedZones)
+                    {
+                        BlockZone(blockedZone, _customBlockedZoneRoot, "custom");
+                        BlockZone(blockedZone, _dnsServer.BlockedZoneRoot, "custom");
+                    }
+
+                    _log.Write(GetRequestRemoteEndPoint(request), true, "[" + GetSession(request).Username + "] Total " + blockedZones.Length + " zones were imported into custom blocked zone successfully.");
+                    SaveCustomBlockedZoneFile();
+                    return;
+                }
+            }
+
+            throw new DnsWebServiceException("Parameter 'blockedZones' missing.");
+        }
+
+        private void ExportCustomBlockedZones(HttpListenerResponse response)
+        {
+            ICollection<Zone.ZoneInfo> zoneInfoList = _customBlockedZoneRoot.ListAuthoritativeZones();
+
+            response.ContentType = "text/plain";
+            response.AddHeader("Content-Disposition", "attachment;filename=CustomBlockedZones.txt");
+
+            using (StreamWriter sW = new StreamWriter(new BufferedStream(response.OutputStream)))
+            {
+                foreach (Zone.ZoneInfo zoneInfo in zoneInfoList)
+                    sW.WriteLine(zoneInfo.ZoneName);
+            }
+        }
+
         private void FlushCustomBlockedZone(HttpListenerRequest request)
         {
             //delete custom blocked zones from dns blocked zone
@@ -1757,7 +1882,7 @@ namespace DnsServerCore
             _log.Write(GetRequestRemoteEndPoint(request), true, "[" + GetSession(request).Username + "] Custom blocked zone was flushed.");
 
             SaveCustomBlockedZoneFile();
-            _totalZonesBlocked = _dnsServer.BlockedZoneRoot.ListAuthoritativeZones().Length;
+            _totalZonesBlocked = _dnsServer.BlockedZoneRoot.ListAuthoritativeZones().Count;
         }
 
         private void FlushBlockedZone(HttpListenerRequest request)
@@ -1769,7 +1894,7 @@ namespace DnsServerCore
                 BlockZone(zone.ZoneName, _dnsServer.BlockedZoneRoot, "custom");
 
             _log.Write(GetRequestRemoteEndPoint(request), true, "[" + GetSession(request).Username + "] Blocked zone was flushed.");
-            _totalZonesBlocked = _dnsServer.BlockedZoneRoot.ListAuthoritativeZones().Length;
+            _totalZonesBlocked = _dnsServer.BlockedZoneRoot.ListAuthoritativeZones().Count;
         }
 
         private void DeleteCustomBlockedZone(HttpListenerRequest request)
@@ -1784,7 +1909,7 @@ namespace DnsServerCore
 
             _dnsServer.BlockedZoneRoot.DeleteZone(domain, false);
 
-            _log.Write(GetRequestRemoteEndPoint(request), true, "[" + GetSession(request).Username + "] Blocked zone was deleted: " + domain);
+            _log.Write(GetRequestRemoteEndPoint(request), true, "[" + GetSession(request).Username + "] Custom blocked zone was deleted: " + domain);
 
             SaveCustomBlockedZoneFile();
             _totalZonesBlocked--;
@@ -1805,7 +1930,7 @@ namespace DnsServerCore
             BlockZone(domain, _customBlockedZoneRoot, "custom");
             BlockZone(domain, _dnsServer.BlockedZoneRoot, "custom");
 
-            _log.Write(GetRequestRemoteEndPoint(request), true, "[" + GetSession(request).Username + "] Domain was added to Custom Block Zone: " + domain);
+            _log.Write(GetRequestRemoteEndPoint(request), true, "[" + GetSession(request).Username + "] Domain was added to custom block zone: " + domain);
 
             SaveCustomBlockedZoneFile();
             _totalZonesBlocked++;
@@ -1825,7 +1950,10 @@ namespace DnsServerCore
 
         private void ListZones(JsonTextWriter jsonWriter)
         {
-            Zone.ZoneInfo[] zones = _dnsServer.AuthoritativeZoneRoot.ListAuthoritativeZones();
+            ICollection<Zone.ZoneInfo> zoneList = _dnsServer.AuthoritativeZoneRoot.ListAuthoritativeZones();
+
+            Zone.ZoneInfo[] zones = new Zone.ZoneInfo[zoneList.Count];
+            zoneList.CopyTo(zones, 0);
 
             Array.Sort(zones);
 
@@ -2826,9 +2954,9 @@ namespace DnsServerCore
 
         private void SaveAllowedZoneFile()
         {
-            Zone.ZoneInfo[] allowedZones = _dnsServer.AllowedZoneRoot.ListAuthoritativeZones();
+            ICollection<Zone.ZoneInfo> allowedZones = _dnsServer.AllowedZoneRoot.ListAuthoritativeZones();
 
-            _totalZonesAllowed = allowedZones.Length;
+            _totalZonesAllowed = allowedZones.Count;
 
             string allowedZoneFile = Path.Combine(_configFolder, "allowed.config");
 
@@ -2839,7 +2967,7 @@ namespace DnsServerCore
                 bW.Write(Encoding.ASCII.GetBytes("AZ")); //format
                 bW.Write((byte)1); //version
 
-                bW.Write(allowedZones.Length);
+                bW.Write(allowedZones.Count);
 
                 foreach (Zone.ZoneInfo zone in allowedZones)
                     bW.WriteShortString(zone.ZoneName);
@@ -2897,7 +3025,7 @@ namespace DnsServerCore
 
         private void SaveCustomBlockedZoneFile()
         {
-            Zone.ZoneInfo[] customBlockedZones = _customBlockedZoneRoot.ListAuthoritativeZones();
+            ICollection<Zone.ZoneInfo> customBlockedZones = _customBlockedZoneRoot.ListAuthoritativeZones();
 
             string customBlockedZoneFile = Path.Combine(_configFolder, "custom-blocked.config");
 
@@ -2908,7 +3036,7 @@ namespace DnsServerCore
                 bW.Write(Encoding.ASCII.GetBytes("BZ")); //format
                 bW.Write((byte)1); //version
 
-                bW.Write(customBlockedZones.Length);
+                bW.Write(customBlockedZones.Count);
 
                 foreach (Zone.ZoneInfo zone in customBlockedZones)
                     bW.WriteShortString(zone.ZoneName);
@@ -2930,7 +3058,7 @@ namespace DnsServerCore
 
             //set new blocked zone
             _dnsServer.BlockedZoneRoot = blockedZoneRoot;
-            _totalZonesBlocked = _dnsServer.BlockedZoneRoot.ListAuthoritativeZones().Length;
+            _totalZonesBlocked = _dnsServer.BlockedZoneRoot.ListAuthoritativeZones().Count;
         }
 
         private string GetBlockListFilePath(Uri blockListUrl)
