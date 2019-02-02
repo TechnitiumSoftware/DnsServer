@@ -2017,9 +2017,6 @@ namespace DnsServerCore
             if (string.IsNullOrEmpty(domain))
                 throw new DnsWebServiceException("Parameter 'domain' missing.");
 
-            if (!_dnsServer.AuthoritativeZoneRoot.DeleteZone(domain, false))
-                throw new DnsWebServiceException("Zone '" + domain + "' was not found.");
-
             _dnsServer.AuthoritativeZoneRoot.EnableZone(domain);
 
             _log.Write(GetRequestRemoteEndPoint(request), true, "[" + GetSession(request).Username + "] Authoritative zone was enabled: " + domain);
@@ -2032,9 +2029,6 @@ namespace DnsServerCore
             string domain = request.QueryString["domain"];
             if (string.IsNullOrEmpty(domain))
                 throw new DnsWebServiceException("Parameter 'domain' missing.");
-
-            if (!_dnsServer.AuthoritativeZoneRoot.DeleteZone(domain, false))
-                throw new DnsWebServiceException("Zone '" + domain + "' was not found.");
 
             _dnsServer.AuthoritativeZoneRoot.DisableZone(domain);
 
