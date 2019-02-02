@@ -107,6 +107,23 @@ namespace DnsServerCore
             return path;
         }
 
+        private static bool DomainEquals(string domain1, string domain2)
+        {
+            string[] path1 = ConvertDomainToPath(domain1);
+            string[] path2 = ConvertDomainToPath(domain2);
+
+            if (path1.Length != path2.Length)
+                return false;
+
+            for (int i = 0; i < path1.Length; i++)
+            {
+                if ((path1[i] != path2[i]) && (path1[i] != "*") && (path2[i] != "*"))
+                    return false;
+            }
+
+            return true;
+        }
+
         private static Zone CreateZone(Zone rootZone, string domain)
         {
             Zone currentZone = rootZone;
@@ -528,7 +545,7 @@ namespace DnsServerCore
             if (closestAuthority[0].Type == DnsResourceRecordType.SOA)
             {
                 //zone is hosted on this server
-                if (closestZone._zoneName.Equals(domain) || (closestZone._zoneLabel == "*"))
+                if (DomainEquals(closestZone._zoneName, domain))
                 {
                     //zone found
                     DnsResourceRecord[] records = closestZone.QueryRecords(question.Type, false);
@@ -540,7 +557,7 @@ namespace DnsServerCore
                     else
                     {
                         //record type found
-                        if (closestZone._zoneLabel == "*")
+                        if (closestZone._zoneName.Contains("*"))
                         {
                             DnsResourceRecord[] wildcardRecords = new DnsResourceRecord[records.Length];
 
