@@ -25,6 +25,7 @@
     <None Remove="www\fonts\glyphicons-halflings-regular.woff" />
     <None Remove="www\fonts\glyphicons-halflings-regular.woff2" />
     <None Remove="www\img\loader.gif" />
+    <None Remove="www\img\logo.png" />
     <None Remove="www\img\logo25x25.png" />
     <None Remove="www\index.html" />
     <None Remove="www\js\bootstrap.min.js" />
@@ -96,6 +97,9 @@
     <Content Include="www\img\loader.gif">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </Content>
+    <Content Include="www\img\logo.png">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </Content>
     <Content Include="www\img\logo25x25.png">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </Content>
@@ -146,9 +150,9 @@
     <RepositoryType></RepositoryType>
     <Description>.NET Standard 2.0</Description>
     <PackageId>DnsServer</PackageId>
-    <AssemblyVersion>2.3.1.0</AssemblyVersion>
-    <FileVersion>2.3.1.0</FileVersion>
-    <Version>2.3.1</Version>
+    <AssemblyVersion>2.4.0.0</AssemblyVersion>
+    <FileVersion>2.4.0.0</FileVersion>
+    <Version>2.4</Version>
   </PropertyGroup>
 
 </Project>
