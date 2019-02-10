@@ -3232,7 +3232,6 @@ namespace DnsServerCore
 
             if (success)
             {
-
                 //save last updated on time
                 _blockListLastUpdatedOn = DateTime.UtcNow;
                 SaveConfigFile();
@@ -3732,31 +3731,19 @@ namespace DnsServerCore
 
                 _dnsServer.Start();
 
-                IPAddress webServiceLocalAddress;
-
                 try
                 {
                     _webService = new HttpListener();
                     _webService.Prefixes.Add("http://+:" + _webServicePort + "/");
                     _webService.Start();
-
-                    webServiceLocalAddress = IPAddress.Any;
                 }
                 catch (Exception ex)
                 {
                     _log.Write(ex);
 
                     _webService = new HttpListener();
-
-                    if (Socket.OSSupportsIPv4)
-                        _webService.Prefixes.Add("http://127.0.0.1:" + _webServicePort + "/");
-
-                    if (Socket.OSSupportsIPv6)
-                        _webService.Prefixes.Add("http://[::1]:" + _webServicePort + "/");
-
+                    _webService.Prefixes.Add("http://localhost:" + _webServicePort + "/");
                     _webService.Start();
-
-                    webServiceLocalAddress = IPAddress.Loopback;
                 }
 
                 _webServiceThread = new Thread(AcceptWebRequestAsync);
@@ -3765,7 +3752,7 @@ namespace DnsServerCore
 
                 _state = ServiceState.Running;
 
-                _log.Write(new IPEndPoint(webServiceLocalAddress, _webServicePort), true, "DNS Web Service (v" + _currentVersion + ") was started successfully.");
+                _log.Write(new IPEndPoint(IPAddress.Any, _webServicePort), true, "DNS Web Service (v" + _currentVersion + ") was started successfully.");
             }
             catch (Exception ex)
             {
