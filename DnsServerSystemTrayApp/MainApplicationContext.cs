@@ -20,6 +20,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 using DnsServerSystemTrayApp.Properties;
 using Microsoft.Win32;
 using System;
+using System.Collections.Generic;
 using System.ComponentModel;
 using System.Diagnostics;
 using System.Drawing;
@@ -43,19 +44,15 @@ namespace DnsServerSystemTrayApp
         const int SERVICE_WAIT_TIMEOUT_SECONDS = 30;
         private readonly ServiceController _service = new ServiceController("DnsService");
 
-        readonly IPAddress[] _cloudflareDns = new IPAddress[] { IPAddress.Parse("1.1.1.1"), IPAddress.Parse("1.0.0.1") };
-        readonly IPAddress[] _googleDns = new IPAddress[] { IPAddress.Parse("8.8.8.8"), IPAddress.Parse("8.8.4.4") };
-        readonly IPAddress[] _quad9Dns = new IPAddress[] { IPAddress.Parse("9.9.9.9") };
+        readonly string _configFile;
+        readonly List<DnsProvider> _dnsProviders = new List<DnsProvider>();
 
         private NotifyIcon TrayIcon;
         private ContextMenuStrip TrayIconContextMenu;
         private ToolStripMenuItem DashboardMenuItem;
         private ToolStripMenuItem NetworkDnsMenuItem;
         private ToolStripMenuItem DefaultNetworkDnsMenuItem;
-        private ToolStripMenuItem TechnitiumNetworkDnsMenuItem;
-        private ToolStripMenuItem CloudflareNetworkDnsMenuItem;
-        private ToolStripMenuItem GoogleNetworkDnsMenuItem;
-        private ToolStripMenuItem Quad9NetworkDnsMenuItem;
+        private ToolStripMenuItem ManageNetworkDnsMenuItem;
         private ToolStripMenuItem ServiceMenuItem;
         private ToolStripMenuItem StartServiceMenuItem;
         private ToolStripMenuItem RestartServiceMenuItem;
@@ -68,8 +65,11 @@ namespace DnsServerSystemTrayApp
 
         #region constructor
 
-        public MainApplicationContext()
+        public MainApplicationContext(string configFile)
         {
+            _configFile = configFile;
+            LoadConfig();
+
             InitializeComponent();
         }
 
@@ -102,7 +102,7 @@ namespace DnsServerSystemTrayApp
             //
             // TrayIcon
             //
-            var resources = new ComponentResourceManager(typeof(AboutForm));
+            var resources = new ComponentResourceManager(typeof(frmAbout));
             TrayIcon = new NotifyIcon();
             TrayIcon.Icon = (Icon)resources.GetObject("$this.Icon");
             TrayIcon.Visible = true;
@@ -129,27 +129,8 @@ namespace DnsServerSystemTrayApp
             DefaultNetworkDnsMenuItem = new ToolStripMenuItem("Default");
             DefaultNetworkDnsMenuItem.Click += DefaultNetworkDnsMenuItem_Click;
 
-            TechnitiumNetworkDnsMenuItem = new ToolStripMenuItem("Technitium");
-            TechnitiumNetworkDnsMenuItem.Click += TechnitiumNetworkDnsMenuItem_Click;
-
-            CloudflareNetworkDnsMenuItem = new ToolStripMenuItem("Cloudflare");
-            CloudflareNetworkDnsMenuItem.Click += CloudflareNetworkDnsMenuItem_Click;
-
-            GoogleNetworkDnsMenuItem = new ToolStripMenuItem("Google");
-            GoogleNetworkDnsMenuItem.Click += GoogleNetworkDnsMenuItem_Click;
-
-            Quad9NetworkDnsMenuItem = new ToolStripMenuItem("IBM Quad9");
-            Quad9NetworkDnsMenuItem.Click += Quad9NetworkDnsMenuItem_Click;
-
-            NetworkDnsMenuItem.DropDownItems.AddRange(new ToolStripItem[]
-            {
-                DefaultNetworkDnsMenuItem,
-                new ToolStripSeparator(),
-                TechnitiumNetworkDnsMenuItem,
-                CloudflareNetworkDnsMenuItem,
-                GoogleNetworkDnsMenuItem,
-                Quad9NetworkDnsMenuItem
-            });
+            ManageNetworkDnsMenuItem = new ToolStripMenuItem("Manage");
+            ManageNetworkDnsMenuItem.Click += ManageNetworkDnsMenuItem_Click;
 
             //
             // ServiceMenuItem
@@ -213,7 +194,76 @@ namespace DnsServerSystemTrayApp
             TrayIconContextMenu.ResumeLayout(false);
         }
 
-        private static void SetNameServerIPv4(NetworkInterface nic, IPAddress[] dnsAddresses)
+        private void LoadConfig()
+        {
+            try
+            {
+                using (FileStream fS = new FileStream(_configFile, FileMode.Open, FileAccess.Read))
+                {
+                    BinaryReader bR = new BinaryReader(fS);
+
+                    if (Encoding.ASCII.GetString(bR.ReadBytes(2)) != "DT")
+                        throw new InvalidDataException("Invalid DNS Server System Tray App config file format.");
+
+                    switch (bR.ReadByte())
+                    {
+                        case 1:
+                            int count = bR.ReadInt32();
+                            _dnsProviders.Clear();
+
+                            for (int i = 0; i < count; i++)
+                                _dnsProviders.Add(new DnsProvider(bR));
+
+                            _dnsProviders.Sort();
+                            break;
+
+                        default:
+                            throw new NotSupportedException("DNS Server System Tray App config file format is not supported.");
+                    }
+                }
+            }
+            catch (FileNotFoundException)
+            {
+                _dnsProviders.Clear();
+                _dnsProviders.AddRange(DnsProvider.GetDefaultProviders());
+                SaveConfig();
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show("Error occured while loading config file. " + ex.Message, "Error - " + Resources.ServiceName, MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+        }
+
+        private void SaveConfig()
+        {
+            try
+            {
+                using (FileStream fS = new FileStream(_configFile, FileMode.Create, FileAccess.Write))
+                {
+                    BinaryWriter bW = new BinaryWriter(fS);
+
+                    bW.Write(Encoding.ASCII.GetBytes("DT"));
+                    bW.Write((byte)1);
+
+                    bW.Write(_dnsProviders.Count);
+
+                    foreach (DnsProvider dnsProvider in _dnsProviders)
+                        dnsProvider.WriteTo(bW);
+                }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show("Error occured while saving config file. " + ex.Message, "Error - " + Resources.ServiceName, MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+        }
+
+        private static void SetNameServer(NetworkInterface nic, ICollection<IPAddress> dnsAddresses)
+        {
+            SetNameServerIPv4(nic, dnsAddresses);
+            SetNameServerIPv6(nic, dnsAddresses);
+        }
+
+        private static void SetNameServerIPv4(NetworkInterface nic, ICollection<IPAddress> dnsAddresses)
         {
             ManagementClass networkAdapterConfig = new ManagementClass("Win32_NetworkAdapterConfiguration");
             ManagementObjectCollection instances = networkAdapterConfig.GetInstances();
@@ -222,17 +272,18 @@ namespace DnsServerSystemTrayApp
             {
                 if ((bool)obj["IPEnabled"] && obj["SettingID"].Equals(nic.Id))
                 {
-                    string[] dnsServers = new string[dnsAddresses.Length];
+                    List<string> dnsServers = new List<string>();
 
-                    for (int i = 0; i < dnsServers.Length; i++)
+                    foreach (IPAddress dnsAddress in dnsAddresses)
                     {
-                        if (dnsAddresses[i].AddressFamily != AddressFamily.InterNetwork)
-                            throw new ArgumentException();
+                        if (dnsAddress.AddressFamily != AddressFamily.InterNetwork)
+                            continue;
 
-                        dnsServers[i] = dnsAddresses[i].ToString();
+                        dnsServers.Add(dnsAddress.ToString());
                     }
+
                     ManagementBaseObject objParameter = obj.GetMethodParameters("SetDNSServerSearchOrder");
-                    objParameter["DNSServerSearchOrder"] = dnsServers;
+                    objParameter["DNSServerSearchOrder"] = dnsServers.ToArray();
 
                     ManagementBaseObject response = obj.InvokeMethod("SetDNSServerSearchOrder", objParameter, null);
                     uint returnValue = (uint)response.GetPropertyValue("ReturnValue");
@@ -267,7 +318,7 @@ namespace DnsServerSystemTrayApp
             }
         }
 
-        private static void SetNameServerIPv6(NetworkInterface nic, IPAddress[] dnsAddresses)
+        private static void SetNameServerIPv6(NetworkInterface nic, ICollection<IPAddress> dnsAddresses)
         {
             //HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Services\Tcpip6\Parameters\Interfaces\{}
 
@@ -276,7 +327,7 @@ namespace DnsServerSystemTrayApp
             foreach (IPAddress dnsAddress in dnsAddresses)
             {
                 if (dnsAddress.AddressFamily != AddressFamily.InterNetworkV6)
-                    throw new ArgumentException();
+                    continue;
 
                 if (nameServer == null)
                     nameServer = dnsAddress.ToString();
@@ -294,12 +345,15 @@ namespace DnsServerSystemTrayApp
             }
         }
 
-        private static bool AddressExists(IPAddress checkAddress, IPAddress[] addresses)
+        private static bool AddressExists(ICollection<IPAddress> checkAddresses, ICollection<IPAddress> addresses)
         {
-            foreach (IPAddress address in addresses)
+            foreach (IPAddress checkAddress in checkAddresses)
             {
-                if (checkAddress.Equals(address))
-                    return true;
+                foreach (IPAddress address in addresses)
+                {
+                    if (checkAddress.Equals(address))
+                        return true;
+                }
             }
 
             return false;
@@ -311,11 +365,7 @@ namespace DnsServerSystemTrayApp
             {
                 #region Network DNS
 
-                bool isDefaultDns = false;
-                bool isTechnitiumDns = false;
-                bool isCloudflareDns = false;
-                bool isGoogleDns = false;
-                bool isQuad9Dns = false;
+                List<IPAddress> networkDnsAddresses = new List<IPAddress>();
 
                 try
                 {
@@ -324,42 +374,51 @@ namespace DnsServerSystemTrayApp
                         if (nic.OperationalStatus != OperationalStatus.Up)
                             continue;
 
-                        foreach (IPAddress dnsAddress in nic.GetIPProperties().DnsAddresses)
-                        {
-                            if (IPAddress.IsLoopback(dnsAddress))
-                            {
-                                isTechnitiumDns = true;
-                            }
-                            else if (AddressExists(dnsAddress, _cloudflareDns))
-                            {
-                                isCloudflareDns = true;
-                            }
-                            else if (AddressExists(dnsAddress, _googleDns))
-                            {
-                                isGoogleDns = true;
-                            }
-                            else if (AddressExists(dnsAddress, _quad9Dns))
-                            {
-                                isQuad9Dns = true;
-                            }
-                            else if (!dnsAddress.IsIPv6SiteLocal)
-                            {
-                                isDefaultDns = true;
-                            }
-
-                            if (isDefaultDns && isTechnitiumDns && isCloudflareDns && isGoogleDns && isQuad9Dns)
-                                break;
-                        }
+                        networkDnsAddresses.AddRange(nic.GetIPProperties().DnsAddresses);
                     }
                 }
                 catch
                 { }
 
-                DefaultNetworkDnsMenuItem.Checked = isDefaultDns;
-                TechnitiumNetworkDnsMenuItem.Checked = isTechnitiumDns;
-                CloudflareNetworkDnsMenuItem.Checked = isCloudflareDns;
-                GoogleNetworkDnsMenuItem.Checked = isGoogleDns;
-                Quad9NetworkDnsMenuItem.Checked = isQuad9Dns;
+
+                NetworkDnsMenuItem.DropDownItems.Clear();
+                NetworkDnsMenuItem.DropDownItems.Add(DefaultNetworkDnsMenuItem);
+                NetworkDnsMenuItem.DropDownItems.Add(new ToolStripSeparator());
+
+                bool noItemChecked = true;
+                DefaultNetworkDnsMenuItem.Checked = false;
+
+                foreach (DnsProvider dnsProvider in _dnsProviders)
+                {
+                    ToolStripMenuItem item = new ToolStripMenuItem(dnsProvider.Name);
+                    item.Tag = dnsProvider;
+                    item.Click += NetworkDnsMenuSubItem_Click;
+
+                    if (AddressExists(networkDnsAddresses, dnsProvider.Addresses))
+                    {
+                        item.Checked = true;
+                        noItemChecked = false;
+                    }
+
+                    NetworkDnsMenuItem.DropDownItems.Add(item);
+                }
+
+                if (noItemChecked)
+                {
+                    foreach (IPAddress dnsAddress in networkDnsAddresses)
+                    {
+                        if (!dnsAddress.IsIPv6SiteLocal)
+                        {
+                            DefaultNetworkDnsMenuItem.Checked = true;
+                            break;
+                        }
+                    }
+                }
+
+                if (_dnsProviders.Count > 0)
+                    NetworkDnsMenuItem.DropDownItems.Add(new ToolStripSeparator());
+
+                NetworkDnsMenuItem.DropDownItems.Add(ManageNetworkDnsMenuItem);
 
                 #endregion
 
@@ -370,7 +429,6 @@ namespace DnsServerSystemTrayApp
                     switch (_service.Status)
                     {
                         case ServiceControllerStatus.Stopped:
-                            TechnitiumNetworkDnsMenuItem.Enabled = false;
                             DashboardMenuItem.Enabled = false;
                             StartServiceMenuItem.Enabled = true;
                             RestartServiceMenuItem.Enabled = false;
@@ -378,7 +436,6 @@ namespace DnsServerSystemTrayApp
                             break;
 
                         case ServiceControllerStatus.Running:
-                            TechnitiumNetworkDnsMenuItem.Enabled = true;
                             DashboardMenuItem.Enabled = true;
                             StartServiceMenuItem.Enabled = false;
                             RestartServiceMenuItem.Enabled = true;
@@ -386,7 +443,6 @@ namespace DnsServerSystemTrayApp
                             break;
 
                         default:
-                            TechnitiumNetworkDnsMenuItem.Enabled = false;
                             DashboardMenuItem.Enabled = false;
                             StartServiceMenuItem.Enabled = false;
                             RestartServiceMenuItem.Enabled = false;
@@ -398,7 +454,6 @@ namespace DnsServerSystemTrayApp
                 }
                 catch
                 {
-                    TechnitiumNetworkDnsMenuItem.Enabled = false;
                     DashboardMenuItem.Enabled = false;
                     ServiceMenuItem.Enabled = false;
                 }
@@ -471,20 +526,25 @@ namespace DnsServerSystemTrayApp
 
                     SetNameServerIPv6(nic, new IPAddress[] { });
 
-                    IPInterfaceProperties properties = nic.GetIPProperties();
+                    try
+                    {
+                        IPInterfaceProperties properties = nic.GetIPProperties();
 
-                    if (properties.GetIPv4Properties().IsDhcpEnabled)
-                    {
-                        SetNameServerIPv4(nic, new IPAddress[] { });
+                        if (properties.GetIPv4Properties().IsDhcpEnabled)
+                        {
+                            SetNameServerIPv4(nic, new IPAddress[] { });
+                        }
+                        else if (properties.GatewayAddresses.Count > 0)
+                        {
+                            SetNameServerIPv4(nic, new IPAddress[] { properties.GatewayAddresses[0].Address });
+                        }
+                        else
+                        {
+                            SetNameServerIPv4(nic, new IPAddress[] { });
+                        }
                     }
-                    else if (properties.GatewayAddresses.Count > 0)
-                    {
-                        SetNameServerIPv4(nic, new IPAddress[] { properties.GatewayAddresses[0].Address });
-                    }
-                    else
-                    {
-                        SetNameServerIPv4(nic, new IPAddress[] { });
-                    }
+                    catch (NetworkInformationException)
+                    { }
                 }
 
                 MessageBox.Show("The network DNS servers were set to default successfully.", "Default DNS Set - " + Resources.ServiceName, MessageBoxButtons.OK, MessageBoxIcon.Information);
@@ -495,34 +555,26 @@ namespace DnsServerSystemTrayApp
             }
         }
 
-        private void TechnitiumNetworkDnsMenuItem_Click(object sender, EventArgs e)
+        private void ManageNetworkDnsMenuItem_Click(object sender, EventArgs e)
         {
-            try
+            using (frmManageDnsProviders frm = new frmManageDnsProviders(_dnsProviders))
             {
-                foreach (NetworkInterface nic in NetworkInterface.GetAllNetworkInterfaces())
+                if (frm.ShowDialog() == DialogResult.OK)
                 {
-                    if (nic.OperationalStatus != OperationalStatus.Up)
-                        continue;
+                    _dnsProviders.Clear();
+                    _dnsProviders.AddRange(frm.DnsProviders);
+                    _dnsProviders.Sort();
 
-                    IPInterfaceProperties properties = nic.GetIPProperties();
-
-                    if ((properties.DnsAddresses.Count > 0) && !properties.DnsAddresses[0].IsIPv6SiteLocal)
-                    {
-                        SetNameServerIPv6(nic, new IPAddress[] { IPAddress.IPv6Loopback });
-                        SetNameServerIPv4(nic, new IPAddress[] { IPAddress.Loopback });
-                    }
+                    SaveConfig();
                 }
-
-                MessageBox.Show("The network DNS servers were set to Technitium DNS successfully.", "Technitium DNS Set - " + Resources.ServiceName, MessageBoxButtons.OK, MessageBoxIcon.Information);
-            }
-            catch (Exception ex)
-            {
-                MessageBox.Show("Error occured while setting Technitium as network DNS server. " + ex.Message, "Error - " + Resources.ServiceName, MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
         }
 
-        private void CloudflareNetworkDnsMenuItem_Click(object sender, EventArgs e)
+        private void NetworkDnsMenuSubItem_Click(object sender, EventArgs e)
         {
+            ToolStripMenuItem item = sender as ToolStripMenuItem;
+            DnsProvider dnsProvider = item.Tag as DnsProvider;
+
             try
             {
                 foreach (NetworkInterface nic in NetworkInterface.GetAllNetworkInterfaces())
@@ -533,69 +585,14 @@ namespace DnsServerSystemTrayApp
                     IPInterfaceProperties properties = nic.GetIPProperties();
 
                     if ((properties.DnsAddresses.Count > 0) && !properties.DnsAddresses[0].IsIPv6SiteLocal)
-                    {
-                        SetNameServerIPv6(nic, new IPAddress[] { });
-                        SetNameServerIPv4(nic, _cloudflareDns);
-                    }
+                        SetNameServer(nic, dnsProvider.Addresses);
                 }
 
-                MessageBox.Show("The network DNS servers were set to Cloudflare DNS successfully.", "Cloudflare DNS Set - " + Resources.ServiceName, MessageBoxButtons.OK, MessageBoxIcon.Information);
+                MessageBox.Show("The network DNS servers were set to " + dnsProvider.Name + " successfully.", dnsProvider.Name + " Configured - " + Resources.ServiceName, MessageBoxButtons.OK, MessageBoxIcon.Information);
             }
             catch (Exception ex)
             {
-                MessageBox.Show("Error occured while setting Cloudflare as network DNS server. " + ex.Message, "Error - " + Resources.ServiceName, MessageBoxButtons.OK, MessageBoxIcon.Error);
-            }
-        }
-
-        private void GoogleNetworkDnsMenuItem_Click(object sender, EventArgs e)
-        {
-            try
-            {
-                foreach (NetworkInterface nic in NetworkInterface.GetAllNetworkInterfaces())
-                {
-                    if (nic.OperationalStatus != OperationalStatus.Up)
-                        continue;
-
-                    IPInterfaceProperties properties = nic.GetIPProperties();
-
-                    if ((properties.DnsAddresses.Count > 0) && !properties.DnsAddresses[0].IsIPv6SiteLocal)
-                    {
-                        SetNameServerIPv6(nic, new IPAddress[] { });
-                        SetNameServerIPv4(nic, _googleDns);
-                    }
-                }
-
-                MessageBox.Show("The network DNS servers were set to Google DNS successfully.", "Google DNS Set - " + Resources.ServiceName, MessageBoxButtons.OK, MessageBoxIcon.Information);
-            }
-            catch (Exception ex)
-            {
-                MessageBox.Show("Error occured while setting Google as network DNS server. " + ex.Message, "Error - " + Resources.ServiceName, MessageBoxButtons.OK, MessageBoxIcon.Error);
-            }
-        }
-
-        private void Quad9NetworkDnsMenuItem_Click(object sender, EventArgs e)
-        {
-            try
-            {
-                foreach (NetworkInterface nic in NetworkInterface.GetAllNetworkInterfaces())
-                {
-                    if (nic.OperationalStatus != OperationalStatus.Up)
-                        continue;
-
-                    IPInterfaceProperties properties = nic.GetIPProperties();
-
-                    if ((properties.DnsAddresses.Count > 0) && !properties.DnsAddresses[0].IsIPv6SiteLocal)
-                    {
-                        SetNameServerIPv6(nic, new IPAddress[] { });
-                        SetNameServerIPv4(nic, _quad9Dns);
-                    }
-                }
-
-                MessageBox.Show("The network DNS servers were set to IBM Quad9 DNS successfully.", "IBM Quad9 DNS Set - " + Resources.ServiceName, MessageBoxButtons.OK, MessageBoxIcon.Information);
-            }
-            catch (Exception ex)
-            {
-                MessageBox.Show("Error occured while setting IBM Quad9 as network DNS server. " + ex.Message, "Error - " + Resources.ServiceName, MessageBoxButtons.OK, MessageBoxIcon.Error);
+                MessageBox.Show("Error occured while setting " + dnsProvider.Name + " as network DNS server. " + ex.Message, "Error - " + Resources.ServiceName, MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
         }
 
@@ -660,9 +657,9 @@ namespace DnsServerSystemTrayApp
 
         private void AboutMenuItem_Click(object sender, EventArgs e)
         {
-            using (AboutForm aboutForm = new AboutForm())
+            using (frmAbout frm = new frmAbout())
             {
-                aboutForm.ShowDialog();
+                frm.ShowDialog();
             }
         }
 

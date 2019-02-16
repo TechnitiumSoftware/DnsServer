@@ -20,6 +20,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 using System;
 using System.ComponentModel;
 using System.Diagnostics;
+using System.IO;
 using System.Reflection;
 using System.Security.Principal;
 using System.Threading;
@@ -45,12 +46,13 @@ namespace DnsServerSystemTrayApp
             Application.EnableVisualStyles();
             Application.SetCompatibleTextRenderingDefault(false);
 
+            string appPath = Assembly.GetEntryAssembly().Location;
+
             #region admin elevation
 
             bool isAdmin = (new WindowsPrincipal(WindowsIdentity.GetCurrent())).IsInRole(WindowsBuiltInRole.Administrator);
             if (!isAdmin)
             {
-                string appPath = Assembly.GetEntryAssembly().Location;
                 ProcessStartInfo processInfo = new ProcessStartInfo(appPath, string.Join(" ", args));
 
                 processInfo.UseShellExecute = true;
@@ -86,7 +88,9 @@ namespace DnsServerSystemTrayApp
 
             #endregion
 
-            Application.Run(new MainApplicationContext());
+            string configFile = Path.Combine(Path.GetDirectoryName(appPath), "SystemTrayApp.config");
+
+            Application.Run(new MainApplicationContext(configFile));
         }
 
         #endregion
