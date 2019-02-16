@@ -21,9 +21,9 @@ using System.Windows.Forms;
 
 namespace DnsServerSystemTrayApp
 {
-    public partial class AboutForm : Form
+    public partial class frmAbout : Form
     {
-        public AboutForm()
+        public frmAbout()
         {
             InitializeComponent();
 
