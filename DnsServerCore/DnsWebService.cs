@@ -1236,7 +1236,7 @@ namespace DnsServerCore
                 {
                     bool updated = false;
 
-                    string[] strBlockListUrlList = Encoding.UTF8.GetString(Convert.FromBase64String(strBlockListUrls)).Split(new char[] { ',' }, StringSplitOptions.RemoveEmptyEntries);
+                    string[] strBlockListUrlList = strBlockListUrls.Split(new char[] { ',' }, StringSplitOptions.RemoveEmptyEntries);
 
                     if (oldWebServicePort != _webServicePort)
                     {
