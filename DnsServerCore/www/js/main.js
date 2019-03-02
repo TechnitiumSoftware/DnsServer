@@ -97,11 +97,11 @@ $(function () {
         var itemText = $(this).text();
         $(this).closest('.dropdown').find('input').val(itemText);
 
-        if (itemText.indexOf("TLS") !== -1)
+        if ((itemText.indexOf("TLS") !== -1) || (itemText.indexOf(":853") !== -1))
             $("#optDnsClientProtocol").val("TLS");
         else if (itemText.indexOf("HTTPS-JSON") !== -1)
             $("#optDnsClientProtocol").val("HttpsJson");
-        else if (itemText.indexOf("HTTPS") !== -1)
+        else if ((itemText.indexOf("HTTPS") !== -1) || (itemText.indexOf("http://") !== -1) || (itemText.indexOf("https://") !== -1))
             $("#optDnsClientProtocol").val("Https");
         else {
             switch ($("#optDnsClientProtocol").val()) {
@@ -349,6 +349,8 @@ $(function () {
         refreshDashboard();
     });
 
+    $("#lblDoHHost").text(window.location.host);
+
     showPageLogin();
     login("admin", "admin");
 });
@@ -509,7 +511,7 @@ function loadDnsSettings() {
     HTTPRequest({
         url: "/api/getDnsSettings?token=" + token,
         success: function (responseJSON) {
-            document.title = "Technitium DNS Server " + responseJSON.response.version + " - " + responseJSON.response.serverDomain;
+            document.title = "Technitium DNS Server v" + responseJSON.response.version + " - " + responseJSON.response.serverDomain;
             $("#lblAboutVersion").text(responseJSON.response.version);
 
             $("#txtServerDomain").val(responseJSON.response.serverDomain);
@@ -529,6 +531,16 @@ function loadDnsSettings() {
 
                 $("#txtdnsServerLocalAddresses").val(value);
             }
+
+            $("#chkEnableDoHOnWebService").prop("checked", responseJSON.response.enableDoHOnWebService);
+            $("#chkEnableDoT").prop("checked", responseJSON.response.enableDoT);
+            $("#chkEnableDoH").prop("checked", responseJSON.response.enableDoH);
+            $("#txtTlsCertificatePath").val(responseJSON.response.tlsCertificatePath);
+
+            if (responseJSON.response.tlsCertificatePath == null)
+                $("#txtTlsCertificatePassword").val("");
+            else
+                $("#txtTlsCertificatePassword").val(responseJSON.response.tlsCertificatePassword);
 
             $("#chkPreferIPv6").prop("checked", responseJSON.response.preferIPv6);
             $("#chkLogQueries").prop("checked", responseJSON.response.logQueries);
@@ -671,6 +683,12 @@ function saveDnsSettings() {
     else
         $("#txtdnsServerLocalAddresses").val(dnsServerLocalAddresses.replace(/,/g, "\n"));
 
+    var enableDoHOnWebService = $("#chkEnableDoHOnWebService").prop('checked');
+    var enableDoT = $("#chkEnableDoT").prop('checked');
+    var enableDoH = $("#chkEnableDoH").prop('checked');
+    var tlsCertificatePath = $("#txtTlsCertificatePath").val();
+    var tlsCertificatePassword = $("#txtTlsCertificatePassword").val();
+
     var preferIPv6 = $("#chkPreferIPv6").prop('checked');
     var logQueries = $("#chkLogQueries").prop('checked');
     var allowRecursion = $("#chkAllowRecursion").prop('checked');
@@ -704,7 +722,9 @@ function saveDnsSettings() {
     var btn = $("#btnSaveDnsSettings").button('loading');
 
     HTTPRequest({
-        url: "/api/setDnsSettings?token=" + token + "&serverDomain=" + serverDomain + "&webServicePort=" + webServicePort + "&dnsServerLocalAddresses=" + encodeURIComponent(dnsServerLocalAddresses) + "&preferIPv6=" + preferIPv6 + "&logQueries=" + logQueries + "&allowRecursion=" + allowRecursion + "&allowRecursionOnlyForPrivateNetworks=" + allowRecursionOnlyForPrivateNetworks + proxy + "&forwarders=" + encodeURIComponent(forwarders) + "&forwarderProtocol=" + forwarderProtocol + "&blockListUrls=" + encodeURIComponent(blockListUrls),
+        url: "/api/setDnsSettings?token=" + token + "&serverDomain=" + serverDomain + "&webServicePort=" + webServicePort + "&dnsServerLocalAddresses=" + encodeURIComponent(dnsServerLocalAddresses)
+            + "&enableDoHOnWebService=" + enableDoHOnWebService + "&enableDoT=" + enableDoT + "&enableDoH=" + enableDoH + "&tlsCertificatePath=" + encodeURIComponent(tlsCertificatePath) + "&tlsCertificatePassword=" + encodeURIComponent(tlsCertificatePassword)
+            + "&preferIPv6=" + preferIPv6 + "&logQueries=" + logQueries + "&allowRecursion=" + allowRecursion + "&allowRecursionOnlyForPrivateNetworks=" + allowRecursionOnlyForPrivateNetworks + proxy + "&forwarders=" + encodeURIComponent(forwarders) + "&forwarderProtocol=" + forwarderProtocol + "&blockListUrls=" + encodeURIComponent(blockListUrls),
         success: function (responseJSON) {
             document.title = "Technitium DNS Server " + responseJSON.response.version + " - " + responseJSON.response.serverDomain;
             $("#lblServerDomain").text(" - " + responseJSON.response.serverDomain);

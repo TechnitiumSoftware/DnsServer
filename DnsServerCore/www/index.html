@@ -801,50 +801,123 @@
                                                     <div class="col-sm-6">
                                                         <textarea id="txtdnsServerLocalAddresses" class="form-control" rows="3"></textarea>
                                                     </div>
+                                                    <label class="col-sm-3 control-label">&nbsp;</label>
+                                                    <div class="col-sm-8" style="padding-top: 5px;">Local addresses are the network interface IP addresses you want the DNS Server to listen for requests.</div>
                                                 </div>
 
-                                                <div>To apply web service port and DNS Server local address changes, you need to manually restart the main service.</div>
+                                                <div>To apply web service port and DNS Server local address changes, you will need to manually restart the main service.</div>
                                             </div>
 
-                                            <div class="well well-sm">
-                                                <div class="form-group" style="margin-bottom: 0px;">
-                                                    <div class="checkbox">
-                                                        <label>
-                                                            <input id="chkPreferIPv6" type="checkbox"> Prefer IPv6
-                                                        </label>
+                                            <div class="well well-sm form-horizontal">
+                                                <div class="form-group">
+                                                    <label class="col-sm-3 control-label">Web Service Feature</label>
+                                                    <div class="col-sm-8">
+                                                        <div class="checkbox">
+                                                            <label>
+                                                                <input id="chkEnableDoHOnWebService" type="checkbox"> Enable DNS-over-HTTP On This Web Service
+                                                            </label>
+                                                        </div>
+                                                        <div style="padding-top: 5px;">Use <i>http://<span id="lblDoHHost">localhost:5380</span>/dns-query</i> URL with a reverse proxy for both wire and json formats.</div>
                                                     </div>
-
-                                                    <div>Use this option only if this DNS server has native IPv6 Internet access. DNS Server will use IPv6 for querying whenever possible with this option enabled.</div>
                                                 </div>
+
+                                                <div>This feature does not have TLS termination and will work only on private networks. It is intended to be used with an TLS terminating reverse proxy like nginx.</div>
                                             </div>
 
-                                            <div class="well well-sm">
-                                                <div class="form-group" style="margin-bottom: 0px;">
-                                                    <div class="checkbox">
-                                                        <label>
-                                                            <input id="chkLogQueries" type="checkbox"> Log All Queries
-                                                        </label>
-                                                    </div>
+                                            <div class="well well-sm form-horizontal">
+                                                <div class="form-group">
+                                                    <label class="col-sm-3 control-label">Protocols</label>
+                                                    <div class="col-sm-8">
+                                                        <div class="checkbox">
+                                                            <label>
+                                                                <input id="chkEnableDoT" type="checkbox"> Enable DNS-over-TLS
+                                                            </label>
+                                                        </div>
+                                                        <div style="padding-top: 5px;">Enable this option to accept DNS-over-TLS requests.</div>
 
-                                                    <div>Use this option to log every query received by this DNS Server and the corresponding response answers into the log file. Enabling this option will significantly increase the log file size. Error and audit logs are enabled by default.</div>
+                                                        <div class="checkbox">
+                                                            <label>
+                                                                <input id="chkEnableDoH" type="checkbox"> Enable DNS-over-HTTPS
+                                                            </label>
+                                                        </div>
+                                                        <div style="padding-top: 5px;">Enable this option to accept DNS-over-HTTPS requests for both wire and json formats.</div>
+                                                    </div>
                                                 </div>
+
+                                                <div class="form-group">
+                                                    <label for="txtTlsCertificatePath" class="col-sm-3 control-label">TLS Certificate File Path</label>
+                                                    <div class="col-sm-6">
+                                                        <input type="text" class="form-control" id="txtTlsCertificatePath" placeholder="TLS Certificate File Path On Server">
+                                                    </div>
+                                                    <label class="col-sm-3 control-label">&nbsp;</label>
+                                                    <div class="col-sm-8" style="padding-top: 5px;">Specify a PKCS #12 certificate (.pfx) file path on the server. The certificate must contain private key.</div>
+                                                </div>
+
+                                                <div class="form-group">
+                                                    <label for="txtTlsCertificatePassword" class="col-sm-3 control-label">TLS Certificate Password</label>
+                                                    <div class="col-sm-6">
+                                                        <input type="password" class="form-control" id="txtTlsCertificatePassword" placeholder="TLS Certificate Password">
+                                                    </div>
+                                                    <label class="col-sm-3 control-label">&nbsp;</label>
+                                                    <div class="col-sm-8" style="padding-top: 5px;">Enter the certificate (.pfx) password, if any.</div>
+                                                </div>
+
+                                                <div>To enable or disable these protocols, you will need to manually restart the main service. For DNS-over-TLS, use <i>tls-certificate-domain:853</i> and for DNS-over-HTTPS use <i>https://tls-certificate-domain/dns-query</i> to configure supported DNS clients.</div>
                                             </div>
 
-                                            <div class="well well-sm">
-                                                <div class="form-group" style="margin-bottom: 0px;">
-                                                    <div class="checkbox">
-                                                        <label>
-                                                            <input id="chkAllowRecursion" type="checkbox"> Allow Recursion
-                                                        </label>
+                                            <div class="well well-sm form-horizontal">
+                                                <div class="form-group">
+                                                    <label class="col-sm-3 control-label">IPv6 Support</label>
+                                                    <div class="col-sm-8">
+                                                        <div class="checkbox">
+                                                            <label>
+                                                                <input id="chkPreferIPv6" type="checkbox"> Prefer IPv6
+                                                            </label>
+                                                        </div>
+                                                        <div style="padding-top: 5px;">DNS Server will use IPv6 for querying whenever possible with this option enabled.</div>
                                                     </div>
-                                                    <div class="checkbox">
-                                                        <label>
-                                                            <input id="chkAllowRecursionOnlyForPrivateNetworks" type="checkbox"> Allow Recursion Only For Private Networks
-                                                        </label>
-                                                    </div>
-
-                                                    <div>Enabling recursion will allow this DNS server to resolve any domain and act as a general purpose DNS server. Disable this option if you wish this server to act only as authoritative name server for the configured zones. Enable recursion only for private networks option if you do not what the DNS server to support recursion over Internet but want to support it on private networks.</div>
                                                 </div>
+
+                                                <div>Use this option only if this DNS server has native IPv6 Internet access otherwise it will affect performance.</div>
+                                            </div>
+
+                                            <div class="well well-sm form-horizontal">
+                                                <div class="form-group">
+                                                    <label class="col-sm-3 control-label">Logging</label>
+                                                    <div class="col-sm-8">
+                                                        <div class="checkbox">
+                                                            <label>
+                                                                <input id="chkLogQueries" type="checkbox"> Log All Queries
+                                                            </label>
+                                                        </div>
+                                                        <div style="padding-top: 5px;">Enable this option to log every query received by this DNS Server and the corresponding response answers into the log file.</div>
+                                                    </div>
+                                                </div>
+
+                                                <div>Enabling query logging will significantly increase the log file size. Error and audit logs are enabled by default.</div>
+                                            </div>
+
+                                            <div class="well well-sm form-horizontal">
+                                                <div class="form-group">
+                                                    <label class="col-sm-3 control-label">Recursive Resolver</label>
+                                                    <div class="col-sm-8">
+                                                        <div class="checkbox">
+                                                            <label>
+                                                                <input id="chkAllowRecursion" type="checkbox"> Allow Recursion
+                                                            </label>
+                                                        </div>
+                                                        <div style="padding-top: 5px;">Enable recursion to allow this DNS Server to resolve any domain name.</div>
+
+                                                        <div class="checkbox">
+                                                            <label>
+                                                                <input id="chkAllowRecursionOnlyForPrivateNetworks" type="checkbox"> Allow Recursion Only For Private Networks
+                                                            </label>
+                                                        </div>
+                                                        <div style="padding-top: 5px;">Enable this option if you want to support recursion only on private networks. Any recursive request from public network will be refused.</div>
+                                                    </div>
+                                                </div>
+
+                                                <div>Disable recursion if you wish this server to act only as authoritative name server for the configured zones.</div>
                                             </div>
 
                                             <div class="well well-sm form-horizontal">
