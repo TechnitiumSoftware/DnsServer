@@ -146,15 +146,34 @@ namespace DnsServerCore
 
         public void Write(Exception ex)
         {
-            Write(null, false, ex.ToString());
+            Write(ex.ToString());
         }
 
-        public void Write(IPEndPoint ep, bool tcp, Exception ex)
+        public void Write(IPEndPoint ep, Exception ex)
         {
-            Write(ep, tcp, ex.ToString());
+            Write(ep, ex.ToString());
         }
 
-        public void Write(IPEndPoint ep, bool tcp, DnsDatagram request, DnsDatagram response)
+        public void Write(IPEndPoint ep, string mesage)
+        {
+            string ipInfo;
+
+            if (ep == null)
+                ipInfo = "";
+            else if (ep.Address.IsIPv4MappedToIPv6)
+                ipInfo = "[" + ep.Address.MapToIPv4().ToString() + ":" + ep.Port + "] ";
+            else
+                ipInfo = "[" + ep.ToString() + "] ";
+
+            Write(ipInfo + mesage);
+        }
+
+        public void Write(IPEndPoint ep, DnsTransportProtocol protocol, Exception ex)
+        {
+            Write(ep, protocol, ex.ToString());
+        }
+
+        public void Write(IPEndPoint ep, DnsTransportProtocol protocol, DnsDatagram request, DnsDatagram response)
         {
             DnsQuestionRecord q = null;
 
@@ -200,10 +219,10 @@ namespace DnsServerCore
                 responseInfo = " RCODE: " + response.Header.RCODE.ToString() + "; ANSWER: " + answer;
             }
 
-            Write(ep, tcp, question + ";" + responseInfo);
+            Write(ep, protocol, question + ";" + responseInfo);
         }
 
-        public void Write(IPEndPoint ep, bool tcp, string message)
+        public void Write(IPEndPoint ep, DnsTransportProtocol protocol, string message)
         {
             string ipInfo;
 
@@ -214,7 +233,7 @@ namespace DnsServerCore
             else
                 ipInfo = "[" + ep.ToString() + "] ";
 
-            Write(ipInfo + (tcp ? "[TCP] " : "") + message);
+            Write(ipInfo + "[" + protocol.ToString().ToUpper() + "] " + message);
         }
 
         public void Write(string message)
