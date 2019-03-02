@@ -24,9 +24,9 @@ using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.IO;
 using System.Net;
-using System.Net.Sockets;
 using System.Reflection;
 using System.Security.Cryptography;
+using System.Security.Cryptography.X509Certificates;
 using System.Text;
 using System.Threading;
 using TechnitiumLibrary.IO;
@@ -60,13 +60,18 @@ namespace DnsServerCore
         readonly LogManager _log;
         StatsManager _stats;
 
-        int _webServicePort;
-        IPAddress[] _dnsServerLocalAddresses;
-
         DnsServer _dnsServer;
 
+        int _webServicePort;
         HttpListener _webService;
         Thread _webServiceThread;
+        bool _enableDoHOnWebService;
+        string _tlsCertificatePath;
+        string _tlsCertificatePassword;
+        Timer _tlsCertificateUpdateTimer;
+        DateTime _tlsCertificateLastModifiedOn;
+        const int TLS_CERTIFICATE_UPDATE_TIMER_INITIAL_INTERVAL = 60000;
+        const int TLS_CERTIFICATE_UPDATE_TIMER_INTERVAL = 60000;
 
         const int MAX_LOGIN_ATTEMPTS = 5;
         const int BLOCK_ADDRESS_INTERVAL = 5 * 60 * 1000;
@@ -205,7 +210,11 @@ namespace DnsServerCore
                     return;
                 }
 
-                if (path.StartsWith("/api/"))
+                if (path == "/dns-query")
+                {
+                    ProcessDoH(request, response);
+                }
+                else if (path.StartsWith("/api/"))
                 {
                     using (MemoryStream mS = new MemoryStream())
                     {
@@ -401,7 +410,7 @@ namespace DnsServerCore
                             JsonTextWriter jsonWriter = new JsonTextWriter(new StreamWriter(mS));
                             jsonWriter.WriteStartObject();
 
-                            _log.Write(GetRequestRemoteEndPoint(request), true, ex);
+                            _log.Write(GetRequestRemoteEndPoint(request), ex);
 
                             jsonWriter.WritePropertyName("status");
                             jsonWriter.WriteValue("error");
@@ -479,7 +488,7 @@ namespace DnsServerCore
                 if ((_state == ServiceState.Stopping) || (_state == ServiceState.Stopped))
                     return; //web service stopping
 
-                _log.Write(GetRequestRemoteEndPoint(request), true, ex);
+                _log.Write(GetRequestRemoteEndPoint(request), ex);
 
                 try
                 {
@@ -503,12 +512,182 @@ namespace DnsServerCore
             }
         }
 
-        private void Send500(HttpListenerResponse response, Exception ex)
+        private void ProcessDoH(HttpListenerRequest request, HttpListenerResponse response)
+        {
+            IPEndPoint remoteEP = GetRequestRemoteEndPoint(request);
+            DnsDatagram dnsRequest = null;
+            DnsTransportProtocol dnsProtocol = DnsTransportProtocol.Https;
+
+            try
+            {
+                if (!_enableDoHOnWebService)
+                {
+                    Send404(response);
+                    return;
+                }
+
+                if (!NetUtilities.IsPrivateIP(remoteEP.Address))
+                {
+                    //intentionally blocking public IP addresses from using this feature
+                    //this feature must only be used with an SSL terminated reverse proxy like nginx on private network
+                    Send404(response);
+                    return;
+                }
+
+                string xForwardedFor = request.Headers["X-Forwarded-For"];
+                if (!string.IsNullOrEmpty(xForwardedFor))
+                {
+                    //get the real IP address of the requesting client from X-Forwarded-For header set in nginx proxy_pass block
+                    string[] xForwardedForParts = xForwardedFor.Split(new char[] { ',' }, StringSplitOptions.RemoveEmptyEntries);
+
+                    remoteEP = new IPEndPoint(IPAddress.Parse(xForwardedForParts[0]), 0);
+                }
+
+                DnsTransportProtocol protocol = DnsTransportProtocol.Udp;
+
+                foreach (string acceptType in request.AcceptTypes)
+                {
+                    if (acceptType == "application/dns-message")
+                    {
+                        protocol = DnsTransportProtocol.Https;
+                        break;
+                    }
+                    else if (acceptType == "application/dns-json")
+                    {
+                        protocol = DnsTransportProtocol.HttpsJson;
+                        dnsProtocol = DnsTransportProtocol.HttpsJson;
+                        break;
+                    }
+                }
+
+                switch (protocol)
+                {
+                    case DnsTransportProtocol.Https:
+                        #region https wire format
+                        {
+                            switch (request.HttpMethod)
+                            {
+                                case "GET":
+                                    string strRequest = request.QueryString["dns"];
+                                    if (string.IsNullOrEmpty(strRequest))
+                                        throw new ArgumentNullException("dns");
+
+                                    //convert from base64url to base64
+                                    strRequest = strRequest.Replace('-', '+');
+                                    strRequest = strRequest.Replace('_', '/');
+
+                                    //add padding
+                                    int x = strRequest.Length % 4;
+                                    if (x > 0)
+                                        strRequest = strRequest.PadRight(strRequest.Length - x + 4, '=');
+
+                                    dnsRequest = new DnsDatagram(new MemoryStream(Convert.FromBase64String(strRequest)));
+                                    break;
+
+                                case "POST":
+                                    if (request.ContentType != "application/dns-message")
+                                        throw new NotSupportedException("DNS request type not supported: " + request.ContentType);
+
+                                    dnsRequest = new DnsDatagram(request.InputStream);
+                                    break;
+
+                                default:
+                                    throw new NotSupportedException("DoH request type not supported."); ;
+                            }
+
+                            DnsDatagram dnsResponse = _dnsServer.ProcessQuery(dnsRequest, remoteEP, protocol);
+                            if (dnsResponse != null)
+                            {
+                                using (MemoryStream mS = new MemoryStream())
+                                {
+                                    dnsResponse.WriteTo(mS);
+
+                                    response.ContentType = "application/dns-message";
+                                    response.ContentLength64 = mS.Length;
+
+                                    mS.WriteTo(response.OutputStream);
+                                }
+
+                                LogManager queryLog = _dnsServer.QueryLogManager;
+                                if (queryLog != null)
+                                    queryLog.Write(remoteEP, protocol, dnsRequest, dnsResponse);
+
+                                StatsManager stats = _dnsServer.StatsManager;
+                                if (stats != null)
+                                    stats.Update(dnsResponse, remoteEP.Address);
+                            }
+                        }
+                        #endregion
+                        break;
+
+                    case DnsTransportProtocol.HttpsJson:
+                        #region https json format
+                        {
+                            string strName = request.QueryString["name"];
+                            if (string.IsNullOrEmpty(strName))
+                                throw new ArgumentNullException("name");
+
+                            string strType = request.QueryString["type"];
+                            if (string.IsNullOrEmpty(strType))
+                                strType = "1";
+
+                            dnsRequest = new DnsDatagram(new DnsHeader(0, false, DnsOpcode.StandardQuery, false, false, true, false, false, false, DnsResponseCode.NoError, 1, 0, 0, 0), new DnsQuestionRecord[] { new DnsQuestionRecord(strName, (DnsResourceRecordType)int.Parse(strType), DnsClass.IN) }, null, null, null);
+
+                            DnsDatagram dnsResponse = _dnsServer.ProcessQuery(dnsRequest, remoteEP, protocol);
+                            if (dnsResponse != null)
+                            {
+                                using (MemoryStream mS = new MemoryStream())
+                                {
+                                    JsonTextWriter jsonWriter = new JsonTextWriter(new StreamWriter(mS));
+                                    dnsResponse.WriteTo(jsonWriter);
+                                    jsonWriter.Flush();
+
+                                    response.ContentType = "application/dns-json";
+                                    response.ContentEncoding = Encoding.UTF8;
+                                    response.ContentLength64 = mS.Length;
+
+                                    mS.WriteTo(response.OutputStream);
+                                }
+
+                                LogManager queryLog = _dnsServer.QueryLogManager;
+                                if (queryLog != null)
+                                    queryLog.Write(remoteEP, protocol, dnsRequest, dnsResponse);
+
+                                StatsManager stats = _dnsServer.StatsManager;
+                                if (stats != null)
+                                    stats.Update(dnsResponse, remoteEP.Address);
+                            }
+                        }
+                        #endregion
+                        break;
+
+                    default:
+                        Send406(response, "Only application/dns-message and application/dns-json types are accepted.");
+                        return;
+                }
+            }
+            catch (IOException)
+            {
+                //ignore IO exceptions
+            }
+            catch (Exception ex)
+            {
+                LogManager queryLog = _dnsServer.QueryLogManager;
+                if ((queryLog != null) && (dnsRequest != null))
+                    queryLog.Write(remoteEP as IPEndPoint, dnsProtocol, dnsRequest, null);
+
+                LogManager log = _log;
+                if (log != null)
+                    log.Write(remoteEP as IPEndPoint, dnsProtocol, ex);
+            }
+        }
+
+        private static void Send500(HttpListenerResponse response, Exception ex)
         {
             Send500(response, ex.ToString());
         }
 
-        private void Send500(HttpListenerResponse response, string message)
+        private static void Send500(HttpListenerResponse response, string message)
         {
             byte[] buffer = Encoding.UTF8.GetBytes("<h1>500 Internal Server Error</h1><p>" + message + "</p>");
 
@@ -522,7 +701,21 @@ namespace DnsServerCore
             }
         }
 
-        private void Send404(HttpListenerResponse response)
+        private static void Send406(HttpListenerResponse response, string message)
+        {
+            byte[] buffer = Encoding.UTF8.GetBytes("<h1>406 Not Acceptable</h1><p>" + message + "</p>");
+
+            response.StatusCode = 406;
+            response.ContentType = "text/html";
+            response.ContentLength64 = buffer.Length;
+
+            using (Stream stream = response.OutputStream)
+            {
+                stream.Write(buffer, 0, buffer.Length);
+            }
+        }
+
+        private static void Send404(HttpListenerResponse response)
         {
             byte[] buffer = Encoding.UTF8.GetBytes("<h1>404 Not Found</h1>");
 
@@ -536,7 +729,7 @@ namespace DnsServerCore
             }
         }
 
-        private void Send403(HttpListenerResponse response, string message)
+        private static void Send403(HttpListenerResponse response, string message)
         {
             byte[] buffer = Encoding.UTF8.GetBytes("<h1>403 Forbidden</h1><p>" + message + "</p>");
 
@@ -550,7 +743,7 @@ namespace DnsServerCore
             }
         }
 
-        private void SendFile(HttpListenerResponse response, string path)
+        private static void SendFile(HttpListenerResponse response, string path)
         {
             using (FileStream fS = new FileStream(path, FileMode.Open, FileAccess.Read))
             {
@@ -700,7 +893,7 @@ namespace DnsServerCore
 
             ResetFailedLoginAttempt(remoteEP.Address);
 
-            _log.Write(remoteEP, true, "[" + strUsername + "] User logged in.");
+            _log.Write(remoteEP, "[" + strUsername + "] User logged in.");
 
             string token = CreateSession(strUsername);
 
@@ -741,7 +934,7 @@ namespace DnsServerCore
             SetCredentials(session.Username, strPassword);
             SaveConfigFile();
 
-            _log.Write(GetRequestRemoteEndPoint(request), true, "[" + session.Username + "] Password was changed for user.");
+            _log.Write(GetRequestRemoteEndPoint(request), "[" + session.Username + "] Password was changed for user.");
         }
 
         private void Logout(HttpListenerRequest request)
@@ -753,7 +946,7 @@ namespace DnsServerCore
             UserSession session = DeleteSession(strToken);
 
             if (session != null)
-                _log.Write(GetRequestRemoteEndPoint(request), true, "[" + session.Username + "] User logged out.");
+                _log.Write(GetRequestRemoteEndPoint(request), "[" + session.Username + "] User logged out.");
         }
 
         public static void CreateUpdateInfo(Stream s, string version, string displayText, string downloadLink)
@@ -859,11 +1052,11 @@ namespace DnsServerCore
                         }
                     }
 
-                    _log.Write(GetRequestRemoteEndPoint(request), true, "Check for update was done {updateAvailable: " + updateAvailable + "; updateVersion: " + updateVersion + "; displayText: " + displayText + "; downloadLink: " + downloadLink + ";}");
+                    _log.Write(GetRequestRemoteEndPoint(request), "Check for update was done {updateAvailable: " + updateAvailable + "; updateVersion: " + updateVersion + "; displayText: " + displayText + "; downloadLink: " + downloadLink + ";}");
                 }
                 catch
                 {
-                    _log.Write(GetRequestRemoteEndPoint(request), true, "Check for update was done {updateAvailable: False;}");
+                    _log.Write(GetRequestRemoteEndPoint(request), "Check for update was done {updateAvailable: False;}");
                 }
             }
 
@@ -939,10 +1132,25 @@ namespace DnsServerCore
             jsonWriter.WritePropertyName("dnsServerLocalAddresses");
             jsonWriter.WriteStartArray();
 
-            foreach (IPAddress localAddress in _dnsServerLocalAddresses)
+            foreach (IPAddress localAddress in _dnsServer.LocalAddresses)
                 jsonWriter.WriteValue(localAddress.ToString());
 
             jsonWriter.WriteEndArray();
+
+            jsonWriter.WritePropertyName("enableDoHOnWebService");
+            jsonWriter.WriteValue(_enableDoHOnWebService);
+
+            jsonWriter.WritePropertyName("enableDoT");
+            jsonWriter.WriteValue(_dnsServer.EnableDoT);
+
+            jsonWriter.WritePropertyName("enableDoH");
+            jsonWriter.WriteValue(_dnsServer.EnableDoH);
+
+            jsonWriter.WritePropertyName("tlsCertificatePath");
+            jsonWriter.WriteValue(_tlsCertificatePath);
+
+            jsonWriter.WritePropertyName("tlsCertificatePassword");
+            jsonWriter.WriteValue("************");
 
             jsonWriter.WritePropertyName("preferIPv6");
             jsonWriter.WriteValue(_dnsServer.PreferIPv6);
@@ -1155,7 +1363,43 @@ namespace DnsServerCore
                 for (int i = 0; i < strLocalAddresses.Length; i++)
                     localAddresses[i] = IPAddress.Parse(strLocalAddresses[i]);
 
-                _dnsServerLocalAddresses = localAddresses;
+                _dnsServer.LocalAddresses = localAddresses;
+            }
+
+            string strEnableDoHOnWebService = request.QueryString["enableDoHOnWebService"];
+            if (!string.IsNullOrEmpty(strEnableDoHOnWebService))
+                _enableDoHOnWebService = bool.Parse(strEnableDoHOnWebService);
+
+            string strEnableDoT = request.QueryString["enableDoT"];
+            if (!string.IsNullOrEmpty(strEnableDoT))
+                _dnsServer.EnableDoT = bool.Parse(strEnableDoT);
+
+            string strEnableDoH = request.QueryString["enableDoH"];
+            if (!string.IsNullOrEmpty(strEnableDoH))
+                _dnsServer.EnableDoH = bool.Parse(strEnableDoH);
+
+            string strTlsCertificatePath = request.QueryString["tlsCertificatePath"];
+            string strTlsCertificatePassword = request.QueryString["tlsCertificatePassword"];
+            if (string.IsNullOrEmpty(strTlsCertificatePath))
+            {
+                StopTlsCertificateUpdateTimer();
+                _tlsCertificatePath = null;
+                _tlsCertificatePassword = "";
+            }
+            else
+            {
+                if (strTlsCertificatePassword == "************")
+                    strTlsCertificatePassword = _tlsCertificatePassword;
+
+                if ((strTlsCertificatePath != _tlsCertificatePath) || (strTlsCertificatePassword != _tlsCertificatePassword))
+                {
+                    LoadTlsCertificate(strTlsCertificatePath, strTlsCertificatePassword);
+
+                    _tlsCertificatePath = strTlsCertificatePath;
+                    _tlsCertificatePassword = strTlsCertificatePassword;
+
+                    StartTlsCertificateUpdateTimer();
+                }
             }
 
             string strPreferIPv6 = request.QueryString["preferIPv6"];
@@ -1220,7 +1464,7 @@ namespace DnsServerCore
 
             string strForwarderProtocol = request.QueryString["forwarderProtocol"];
             if (!string.IsNullOrEmpty(strForwarderProtocol))
-                _dnsServer.ForwarderProtocol = (DnsClientProtocol)Enum.Parse(typeof(DnsClientProtocol), strForwarderProtocol, true);
+                _dnsServer.ForwarderProtocol = (DnsTransportProtocol)Enum.Parse(typeof(DnsTransportProtocol), strForwarderProtocol, true);
 
             string strBlockListUrls = request.QueryString["blockListUrls"];
             if (!string.IsNullOrEmpty(strBlockListUrls))
@@ -1285,7 +1529,7 @@ namespace DnsServerCore
                 }
             }
 
-            _log.Write(GetRequestRemoteEndPoint(request), true, "[" + GetSession(request).Username + "] DNS Settings were updated {serverDomain: " + _dnsServer.ServerDomain + "; webServicePort: " + _webServicePort + "; preferIPv6: " + _dnsServer.PreferIPv6 + "; logQueries: " + (_dnsServer.QueryLogManager != null) + "; allowRecursion: " + _dnsServer.AllowRecursion + "; allowRecursionOnlyForPrivateNetworks: " + _dnsServer.AllowRecursionOnlyForPrivateNetworks + "; proxyType: " + strProxyType + "; forwarders: " + strForwarders + "; forwarderProtocol: " + strForwarderProtocol + "; blockListUrl: " + strBlockListUrls + ";}");
+            _log.Write(GetRequestRemoteEndPoint(request), "[" + GetSession(request).Username + "] DNS Settings were updated {serverDomain: " + _dnsServer.ServerDomain + "; webServicePort: " + _webServicePort + "; preferIPv6: " + _dnsServer.PreferIPv6 + "; logQueries: " + (_dnsServer.QueryLogManager != null) + "; allowRecursion: " + _dnsServer.AllowRecursion + "; allowRecursionOnlyForPrivateNetworks: " + _dnsServer.AllowRecursionOnlyForPrivateNetworks + "; proxyType: " + strProxyType + "; forwarders: " + strForwarders + "; forwarderProtocol: " + strForwarderProtocol + "; blockListUrl: " + strBlockListUrls + ";}");
 
             SaveConfigFile();
 
@@ -1536,7 +1780,7 @@ namespace DnsServerCore
         {
             _dnsServer.CacheZoneRoot.Flush();
 
-            _log.Write(GetRequestRemoteEndPoint(request), true, "[" + GetSession(request).Username + "] Cache was flushed.");
+            _log.Write(GetRequestRemoteEndPoint(request), "[" + GetSession(request).Username + "] Cache was flushed.");
         }
 
         private void ListCachedZones(HttpListenerRequest request, JsonTextWriter jsonWriter)
@@ -1609,7 +1853,7 @@ namespace DnsServerCore
 
             _dnsServer.CacheZoneRoot.DeleteZone(domain, true);
 
-            _log.Write(GetRequestRemoteEndPoint(request), true, "[" + GetSession(request).Username + "] Cached zone was deleted: " + domain);
+            _log.Write(GetRequestRemoteEndPoint(request), "[" + GetSession(request).Username + "] Cached zone was deleted: " + domain);
         }
 
         private void ListAllowedZones(HttpListenerRequest request, JsonTextWriter jsonWriter)
@@ -1696,7 +1940,7 @@ namespace DnsServerCore
                     foreach (string allowedZone in allowedZones)
                         AllowZone(allowedZone);
 
-                    _log.Write(GetRequestRemoteEndPoint(request), true, "[" + GetSession(request).Username + "] Total " + allowedZones.Length + " zones were imported into allowed zone successfully.");
+                    _log.Write(GetRequestRemoteEndPoint(request), "[" + GetSession(request).Username + "] Total " + allowedZones.Length + " zones were imported into allowed zone successfully.");
                     SaveAllowedZoneFile();
                     return;
                 }
@@ -1723,7 +1967,7 @@ namespace DnsServerCore
         {
             _dnsServer.AllowedZoneRoot.Flush();
 
-            _log.Write(GetRequestRemoteEndPoint(request), true, "[" + GetSession(request).Username + "] Allowed zone was flushed.");
+            _log.Write(GetRequestRemoteEndPoint(request), "[" + GetSession(request).Username + "] Allowed zone was flushed.");
 
             SaveAllowedZoneFile();
         }
@@ -1736,7 +1980,7 @@ namespace DnsServerCore
 
             _dnsServer.AllowedZoneRoot.DeleteZone(domain, false);
 
-            _log.Write(GetRequestRemoteEndPoint(request), true, "[" + GetSession(request).Username + "] Allowed zone was deleted: " + domain);
+            _log.Write(GetRequestRemoteEndPoint(request), "[" + GetSession(request).Username + "] Allowed zone was deleted: " + domain);
 
             SaveAllowedZoneFile();
         }
@@ -1752,7 +1996,7 @@ namespace DnsServerCore
 
             AllowZone(domain);
 
-            _log.Write(GetRequestRemoteEndPoint(request), true, "[" + GetSession(request).Username + "] Zone was allowed: " + domain);
+            _log.Write(GetRequestRemoteEndPoint(request), "[" + GetSession(request).Username + "] Zone was allowed: " + domain);
             SaveAllowedZoneFile();
         }
 
@@ -1848,7 +2092,7 @@ namespace DnsServerCore
                         BlockZone(blockedZone, _dnsServer.BlockedZoneRoot, "custom");
                     }
 
-                    _log.Write(GetRequestRemoteEndPoint(request), true, "[" + GetSession(request).Username + "] Total " + blockedZones.Length + " zones were imported into custom blocked zone successfully.");
+                    _log.Write(GetRequestRemoteEndPoint(request), "[" + GetSession(request).Username + "] Total " + blockedZones.Length + " zones were imported into custom blocked zone successfully.");
                     SaveCustomBlockedZoneFile();
                     return;
                 }
@@ -1879,7 +2123,7 @@ namespace DnsServerCore
 
             _customBlockedZoneRoot.Flush();
 
-            _log.Write(GetRequestRemoteEndPoint(request), true, "[" + GetSession(request).Username + "] Custom blocked zone was flushed.");
+            _log.Write(GetRequestRemoteEndPoint(request), "[" + GetSession(request).Username + "] Custom blocked zone was flushed.");
 
             SaveCustomBlockedZoneFile();
             _totalZonesBlocked = _dnsServer.BlockedZoneRoot.ListAuthoritativeZones().Count;
@@ -1893,7 +2137,7 @@ namespace DnsServerCore
             foreach (Zone.ZoneInfo zone in _customBlockedZoneRoot.ListAuthoritativeZones())
                 BlockZone(zone.ZoneName, _dnsServer.BlockedZoneRoot, "custom");
 
-            _log.Write(GetRequestRemoteEndPoint(request), true, "[" + GetSession(request).Username + "] Blocked zone was flushed.");
+            _log.Write(GetRequestRemoteEndPoint(request), "[" + GetSession(request).Username + "] Blocked zone was flushed.");
             _totalZonesBlocked = _dnsServer.BlockedZoneRoot.ListAuthoritativeZones().Count;
         }
 
@@ -1909,7 +2153,7 @@ namespace DnsServerCore
 
             _dnsServer.BlockedZoneRoot.DeleteZone(domain, false);
 
-            _log.Write(GetRequestRemoteEndPoint(request), true, "[" + GetSession(request).Username + "] Custom blocked zone was deleted: " + domain);
+            _log.Write(GetRequestRemoteEndPoint(request), "[" + GetSession(request).Username + "] Custom blocked zone was deleted: " + domain);
 
             SaveCustomBlockedZoneFile();
             _totalZonesBlocked--;
@@ -1930,7 +2174,7 @@ namespace DnsServerCore
             BlockZone(domain, _customBlockedZoneRoot, "custom");
             BlockZone(domain, _dnsServer.BlockedZoneRoot, "custom");
 
-            _log.Write(GetRequestRemoteEndPoint(request), true, "[" + GetSession(request).Username + "] Domain was added to custom block zone: " + domain);
+            _log.Write(GetRequestRemoteEndPoint(request), "[" + GetSession(request).Username + "] Domain was added to custom block zone: " + domain);
 
             SaveCustomBlockedZoneFile();
             _totalZonesBlocked++;
@@ -1986,7 +2230,7 @@ namespace DnsServerCore
                 domain = (new DnsQuestionRecord(ipAddress, DnsClass.IN)).Name;
 
             CreateZone(domain);
-            _log.Write(GetRequestRemoteEndPoint(request), true, "[" + GetSession(request).Username + "] Authoritative zone was created: " + domain);
+            _log.Write(GetRequestRemoteEndPoint(request), "[" + GetSession(request).Username + "] Authoritative zone was created: " + domain);
 
             SaveZoneFile(domain);
         }
@@ -2006,7 +2250,7 @@ namespace DnsServerCore
             if (!_dnsServer.AuthoritativeZoneRoot.DeleteZone(domain, false))
                 throw new DnsWebServiceException("Zone '" + domain + "' was not found.");
 
-            _log.Write(GetRequestRemoteEndPoint(request), true, "[" + GetSession(request).Username + "] Authoritative zone was deleted: " + domain);
+            _log.Write(GetRequestRemoteEndPoint(request), "[" + GetSession(request).Username + "] Authoritative zone was deleted: " + domain);
 
             DeleteZoneFile(domain);
         }
@@ -2019,7 +2263,7 @@ namespace DnsServerCore
 
             _dnsServer.AuthoritativeZoneRoot.EnableZone(domain);
 
-            _log.Write(GetRequestRemoteEndPoint(request), true, "[" + GetSession(request).Username + "] Authoritative zone was enabled: " + domain);
+            _log.Write(GetRequestRemoteEndPoint(request), "[" + GetSession(request).Username + "] Authoritative zone was enabled: " + domain);
 
             SaveZoneFile(domain);
         }
@@ -2032,7 +2276,7 @@ namespace DnsServerCore
 
             _dnsServer.AuthoritativeZoneRoot.DisableZone(domain);
 
-            _log.Write(GetRequestRemoteEndPoint(request), true, "[" + GetSession(request).Username + "] Authoritative zone was disabled: " + domain);
+            _log.Write(GetRequestRemoteEndPoint(request), "[" + GetSession(request).Username + "] Authoritative zone was disabled: " + domain);
 
             SaveZoneFile(domain);
         }
@@ -2118,7 +2362,7 @@ namespace DnsServerCore
                     throw new DnsWebServiceException("Type not supported for AddRecords().");
             }
 
-            _log.Write(GetRequestRemoteEndPoint(request), true, "[" + GetSession(request).Username + "] New record was added to authoritative zone {domain: " + domain + "; type: " + type + "; value: " + value + "; ttl: " + ttl + ";}");
+            _log.Write(GetRequestRemoteEndPoint(request), "[" + GetSession(request).Username + "] New record was added to authoritative zone {domain: " + domain + "; type: " + type + "; value: " + value + "; ttl: " + ttl + ";}");
 
             SaveZoneFile(domain);
         }
@@ -2394,7 +2638,7 @@ namespace DnsServerCore
                     throw new DnsWebServiceException("Type not supported for DeleteRecord().");
             }
 
-            _log.Write(GetRequestRemoteEndPoint(request), true, "[" + GetSession(request).Username + "] Record was deleted from authoritative zone {domain: " + domain + "; type: " + type + "; value: " + value + ";}");
+            _log.Write(GetRequestRemoteEndPoint(request), "[" + GetSession(request).Username + "] Record was deleted from authoritative zone {domain: " + domain + "; type: " + type + "; value: " + value + ";}");
 
             SaveZoneFile(domain);
         }
@@ -2527,7 +2771,7 @@ namespace DnsServerCore
                     throw new DnsWebServiceException("Type not supported for UpdateRecords().");
             }
 
-            _log.Write(GetRequestRemoteEndPoint(request), true, "[" + GetSession(request).Username + "] Record was updated for authoritative zone {oldDomain: " + oldDomain + "; domain: " + domain + "; type: " + type + "; oldValue: " + oldValue + "; value: " + value + "; ttl: " + ttl + "; disabled: " + disable + ";}");
+            _log.Write(GetRequestRemoteEndPoint(request), "[" + GetSession(request).Username + "] Record was updated for authoritative zone {oldDomain: " + oldDomain + "; domain: " + domain + "; type: " + type + "; oldValue: " + oldValue + "; value: " + value + "; ttl: " + ttl + "; disabled: " + disable + ";}");
 
             SaveZoneFile(domain);
         }
@@ -2559,7 +2803,7 @@ namespace DnsServerCore
 
             NetProxy proxy = _dnsServer.Proxy;
             bool preferIPv6 = _dnsServer.PreferIPv6;
-            DnsClientProtocol protocol = (DnsClientProtocol)Enum.Parse(typeof(DnsClientProtocol), strProtocol, true);
+            DnsTransportProtocol protocol = (DnsTransportProtocol)Enum.Parse(typeof(DnsTransportProtocol), strProtocol, true);
             const int RETRIES = 2;
 
             DnsDatagram dnsResponse;
@@ -2586,26 +2830,26 @@ namespace DnsServerCore
                         if (proxy == null)
                         {
                             if (_dnsServer.AllowRecursion)
-                                nameServer.ResolveIPAddress(new NameServerAddress[] { new NameServerAddress(IPAddress.Loopback) }, _dnsServer.Proxy, preferIPv6, DnsClientProtocol.Udp, RETRIES, _dnsServer.Timeout);
+                                nameServer.ResolveIPAddress(new NameServerAddress[] { new NameServerAddress(IPAddress.Loopback) }, _dnsServer.Proxy, preferIPv6, DnsTransportProtocol.Udp, RETRIES, _dnsServer.Timeout);
                             else
-                                nameServer.RecursiveResolveIPAddress(_dnsServer.Cache, _dnsServer.Proxy, preferIPv6, DnsClientProtocol.Udp, RETRIES, _dnsServer.Timeout, DnsClientProtocol.Udp);
+                                nameServer.RecursiveResolveIPAddress(_dnsServer.Cache, _dnsServer.Proxy, preferIPv6, DnsTransportProtocol.Udp, RETRIES, _dnsServer.Timeout, DnsTransportProtocol.Udp);
                         }
                     }
-                    else if (protocol != DnsClientProtocol.Tls)
+                    else if (protocol != DnsTransportProtocol.Tls)
                     {
                         try
                         {
                             if (_dnsServer.AllowRecursion)
-                                nameServer.ResolveDomainName(new NameServerAddress[] { new NameServerAddress(IPAddress.Loopback) }, _dnsServer.Proxy, _dnsServer.PreferIPv6, DnsClientProtocol.Udp, RETRIES, _dnsServer.Timeout);
+                                nameServer.ResolveDomainName(new NameServerAddress[] { new NameServerAddress(IPAddress.Loopback) }, _dnsServer.Proxy, _dnsServer.PreferIPv6, DnsTransportProtocol.Udp, RETRIES, _dnsServer.Timeout);
                             else
-                                nameServer.RecursiveResolveDomainName(_dnsServer.Cache, _dnsServer.Proxy, _dnsServer.PreferIPv6, DnsClientProtocol.Udp, RETRIES, _dnsServer.Timeout, DnsClientProtocol.Udp);
+                                nameServer.RecursiveResolveDomainName(_dnsServer.Cache, _dnsServer.Proxy, _dnsServer.PreferIPv6, DnsTransportProtocol.Udp, RETRIES, _dnsServer.Timeout, DnsTransportProtocol.Udp);
                         }
                         catch
                         { }
                     }
                 }
 
-                dnsResponse = (new DnsClient(nameServer) { Proxy = proxy, PreferIPv6 = preferIPv6, Protocol = protocol, Retries = RETRIES, Timeout = _dnsServer.Timeout, RecursiveResolveProtocol = DnsClientProtocol.Udp }).Resolve(domain, type);
+                dnsResponse = (new DnsClient(nameServer) { Proxy = proxy, PreferIPv6 = preferIPv6, Protocol = protocol, Retries = RETRIES, Timeout = _dnsServer.Timeout, RecursiveResolveProtocol = DnsTransportProtocol.Udp }).Resolve(domain, type);
             }
 
             if (importRecords)
@@ -2643,7 +2887,7 @@ namespace DnsServerCore
 
                 _dnsServer.AuthoritativeZoneRoot.SetRecords(recordsToSet);
 
-                _log.Write(GetRequestRemoteEndPoint(request), true, "[" + GetSession(request).Username + "] DNS Client imported record(s) for authoritative zone {server: " + server + "; domain: " + domain + "; type: " + type + ";}");
+                _log.Write(GetRequestRemoteEndPoint(request), "[" + GetSession(request).Username + "] DNS Client imported record(s) for authoritative zone {server: " + server + "; domain: " + domain + "; type: " + type + ";}");
 
                 SaveZoneFile(domain);
             }
@@ -2691,7 +2935,7 @@ namespace DnsServerCore
             else
                 File.Delete(logFile);
 
-            _log.Write(GetRequestRemoteEndPoint(request), true, "[" + GetSession(request).Username + "] Log file was deleted: " + log);
+            _log.Write(GetRequestRemoteEndPoint(request), "[" + GetSession(request).Username + "] Log file was deleted: " + log);
         }
 
         private void SetCredentials(string username, string password)
@@ -3297,6 +3541,51 @@ namespace DnsServerCore
             }
         }
 
+        private void StartTlsCertificateUpdateTimer()
+        {
+            if (_tlsCertificateUpdateTimer == null)
+            {
+                _tlsCertificateUpdateTimer = new Timer(delegate (object state)
+                {
+                    try
+                    {
+                        FileInfo fileInfo = new FileInfo(_tlsCertificatePath);
+
+                        if (fileInfo.Exists && (fileInfo.LastWriteTimeUtc != _tlsCertificateLastModifiedOn))
+                            LoadTlsCertificate(_tlsCertificatePath, _tlsCertificatePassword);
+                    }
+                    catch (Exception ex)
+                    {
+                        _log.Write("DNS Server encountered an error while updating TLS Certificate.\r\n" + ex.ToString());
+                    }
+
+                }, null, TLS_CERTIFICATE_UPDATE_TIMER_INITIAL_INTERVAL, TLS_CERTIFICATE_UPDATE_TIMER_INTERVAL);
+            }
+        }
+
+        private void StopTlsCertificateUpdateTimer()
+        {
+            if (_tlsCertificateUpdateTimer != null)
+            {
+                _tlsCertificateUpdateTimer.Dispose();
+                _tlsCertificateUpdateTimer = null;
+            }
+        }
+
+        private void LoadTlsCertificate(string tlsCertificatePath, string tlsCertificatePassword)
+        {
+            FileInfo fileInfo = new FileInfo(tlsCertificatePath);
+
+            if (!fileInfo.Exists)
+                throw new ArgumentException("Tls certificate file does not exists: " + tlsCertificatePath);
+
+            if (Path.GetExtension(tlsCertificatePath) != ".pfx")
+                throw new ArgumentException("Tls certificate file must be PKCS #12 formatted with .pfx extension: " + tlsCertificatePath);
+
+            _dnsServer.Certificate = new X509Certificate2(tlsCertificatePath, tlsCertificatePassword);
+            _tlsCertificateLastModifiedOn = fileInfo.LastWriteTimeUtc;
+        }
+
         private void LoadConfigFile()
         {
             string configFile = Path.Combine(_configFolder, "dns.config");
@@ -3339,6 +3628,7 @@ namespace DnsServerCore
                         case 5:
                         case 6:
                         case 7:
+                        case 8:
                             _dnsServer.ServerDomain = bR.ReadShortString();
                             _webServicePort = bR.ReadInt32();
 
@@ -3384,7 +3674,7 @@ namespace DnsServerCore
                                 }
                             }
 
-                            _dnsServer.ForwarderProtocol = (DnsClientProtocol)bR.ReadByte();
+                            _dnsServer.ForwarderProtocol = (DnsTransportProtocol)bR.ReadByte();
 
                             {
                                 int count = bR.ReadByte();
@@ -3432,20 +3722,40 @@ namespace DnsServerCore
                             if (version >= 6)
                             {
                                 int count = bR.ReadByte();
-                                _dnsServerLocalAddresses = new IPAddress[count];
-                                IPEndPoint[] localEPs = new IPEndPoint[count];
+                                _dnsServer.LocalAddresses = new IPAddress[count];
 
                                 for (int i = 0; i < count; i++)
-                                {
-                                    _dnsServerLocalAddresses[i] = IPAddressExtension.Parse(bR);
-                                    localEPs[i] = new IPEndPoint(_dnsServerLocalAddresses[i], 53);
-                                }
-
-                                _dnsServer.LocalEndPoints = localEPs;
+                                    _dnsServer.LocalAddresses[i] = IPAddressExtension.Parse(bR);
                             }
                             else
                             {
-                                _dnsServerLocalAddresses = new IPAddress[] { IPAddress.Any, IPAddress.IPv6Any };
+                                _dnsServer.LocalAddresses = new IPAddress[] { IPAddress.Any, IPAddress.IPv6Any };
+                            }
+
+                            if (version >= 8)
+                            {
+                                _enableDoHOnWebService = bR.ReadBoolean();
+                                _dnsServer.EnableDoT = bR.ReadBoolean();
+                                _dnsServer.EnableDoH = bR.ReadBoolean();
+                                _tlsCertificatePath = bR.ReadShortString();
+                                _tlsCertificatePassword = bR.ReadShortString();
+
+                                if (_tlsCertificatePath == "")
+                                    _tlsCertificatePath = null;
+
+                                if (_tlsCertificatePath != null)
+                                {
+                                    try
+                                    {
+                                        LoadTlsCertificate(_tlsCertificatePath, _tlsCertificatePassword);
+                                    }
+                                    catch (Exception ex)
+                                    {
+                                        _log.Write(ex);
+                                    }
+
+                                    StartTlsCertificateUpdateTimer();
+                                }
                             }
 
                             break;
@@ -3482,7 +3792,7 @@ namespace DnsServerCore
 
                 _dnsServer.ServerDomain = Environment.MachineName.ToLower();
                 _webServicePort = 5380;
-                _dnsServerLocalAddresses = new IPAddress[] { IPAddress.Any, IPAddress.IPv6Any };
+                _dnsServer.LocalAddresses = new IPAddress[] { IPAddress.Any, IPAddress.IPv6Any };
 
                 SetCredentials("admin", "admin");
 
@@ -3581,7 +3891,7 @@ namespace DnsServerCore
                 BinaryWriter bW = new BinaryWriter(mS);
 
                 bW.Write(Encoding.ASCII.GetBytes("DS")); //format
-                bW.Write((byte)7); //version
+                bW.Write((byte)8); //version
 
                 bW.WriteShortString(_dnsServer.ServerDomain);
                 bW.Write(_webServicePort);
@@ -3649,17 +3959,31 @@ namespace DnsServerCore
                     bW.Write(_blockListLastUpdatedOn);
                 }
 
-                if (_dnsServerLocalAddresses == null)
+                if (_dnsServer.LocalAddresses == null)
                 {
                     bW.Write((byte)0);
                 }
                 else
                 {
-                    bW.Write(Convert.ToByte(_dnsServerLocalAddresses.Length));
+                    bW.Write(Convert.ToByte(_dnsServer.LocalAddresses.Length));
 
-                    foreach (IPAddress localAddress in _dnsServerLocalAddresses)
+                    foreach (IPAddress localAddress in _dnsServer.LocalAddresses)
                         localAddress.WriteTo(bW);
                 }
+
+                bW.Write(_enableDoHOnWebService);
+                bW.Write(_dnsServer.EnableDoT);
+                bW.Write(_dnsServer.EnableDoH);
+
+                if (_tlsCertificatePath == null)
+                    bW.WriteShortString(string.Empty);
+                else
+                    bW.WriteShortString(_tlsCertificatePath);
+
+                if (_tlsCertificatePassword == null)
+                    bW.WriteShortString(string.Empty);
+                else
+                    bW.WriteShortString(_tlsCertificatePassword);
 
                 //write config
                 mS.Position = 0;
@@ -3752,7 +4076,7 @@ namespace DnsServerCore
 
                 _state = ServiceState.Running;
 
-                _log.Write(new IPEndPoint(IPAddress.Any, _webServicePort), true, "DNS Web Service (v" + _currentVersion + ") was started successfully.");
+                _log.Write(new IPEndPoint(IPAddress.Any, _webServicePort), "DNS Web Service (v" + _currentVersion + ") was started successfully.");
             }
             catch (Exception ex)
             {
@@ -3774,10 +4098,11 @@ namespace DnsServerCore
                 _dnsServer.Stop();
 
                 StopBlockListUpdateTimer();
+                StopTlsCertificateUpdateTimer();
 
                 _state = ServiceState.Stopped;
 
-                _log.Write(new IPEndPoint(IPAddress.Loopback, _webServicePort), true, "DNS Web Service (v" + _currentVersion + ") was stopped successfully.");
+                _log.Write(new IPEndPoint(IPAddress.Loopback, _webServicePort), "DNS Web Service (v" + _currentVersion + ") was stopped successfully.");
             }
             catch (Exception ex)
             {
