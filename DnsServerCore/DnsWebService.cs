@@ -536,8 +536,16 @@ namespace DnsServerCore
                     return;
                 }
 
+                string xRealIp = request.Headers["X-Real-IP"];
                 string xForwardedFor = request.Headers["X-Forwarded-For"];
-                if (!string.IsNullOrEmpty(xForwardedFor))
+
+                if (!string.IsNullOrEmpty(xRealIp))
+                {
+                    //get the real IP address of the requesting client from X-Real-IP header set in nginx proxy_pass block
+
+                    remoteEP = new IPEndPoint(IPAddress.Parse(xRealIp), 0);
+                }
+                else if (!string.IsNullOrEmpty(xForwardedFor))
                 {
                     //get the real IP address of the requesting client from X-Forwarded-For header set in nginx proxy_pass block
                     string[] xForwardedForParts = xForwardedFor.Split(new char[] { ',' }, StringSplitOptions.RemoveEmptyEntries);
