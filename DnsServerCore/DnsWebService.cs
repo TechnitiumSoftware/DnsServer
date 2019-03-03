@@ -64,7 +64,9 @@ namespace DnsServerCore
 
         int _webServicePort;
         HttpListener _webService;
-        Thread _webServiceThread;
+        List<Thread> _webServiceThreads = new List<Thread>();
+        const int WEB_SERVICE_ACCEPT_THREADS = 3;
+
         bool _enableDoHOnWebService;
         string _tlsCertificatePath;
         string _tlsCertificatePassword;
@@ -4070,9 +4072,14 @@ namespace DnsServerCore
                     _webService.Start();
                 }
 
-                _webServiceThread = new Thread(AcceptWebRequestAsync);
-                _webServiceThread.IsBackground = true;
-                _webServiceThread.Start();
+                for (int i = 0; i < WEB_SERVICE_ACCEPT_THREADS; i++)
+                {
+                    Thread webServiceThread = new Thread(AcceptWebRequestAsync);
+                    webServiceThread.IsBackground = true;
+                    webServiceThread.Start();
+
+                    _webServiceThreads.Add(webServiceThread);
+                }
 
                 _state = ServiceState.Running;
 
@@ -4096,6 +4103,8 @@ namespace DnsServerCore
             {
                 _webService.Stop();
                 _dnsServer.Stop();
+
+                _webServiceThreads.Clear();
 
                 StopBlockListUpdateTimer();
                 StopTlsCertificateUpdateTimer();
