@@ -783,17 +783,12 @@
 
                                             <div class="well well-sm form-horizontal">
                                                 <div class="form-group">
-                                                    <label for="txtServerDomain" class="col-sm-3 control-label">Server Domain</label>
+                                                    <label for="txtServerDomain" class="col-sm-3 control-label">DNS Server Domain</label>
                                                     <div class="col-sm-6">
                                                         <input type="text" class="form-control" id="txtServerDomain" placeholder="Domain Name">
                                                     </div>
-                                                </div>
-
-                                                <div class="form-group">
-                                                    <label for="txtWebServicePort" class="col-sm-3 control-label">Web Service Port</label>
-                                                    <div class="col-sm-6">
-                                                        <input type="number" class="form-control" id="txtWebServicePort" placeholder="Web Service Port" style="width: 100px;">
-                                                    </div>
+                                                    <label class="col-sm-3 control-label">&nbsp;</label>
+                                                    <div class="col-sm-8" style="padding-top: 5px;">The primary domain name used by this DNS Server to identify itself.</div>
                                                 </div>
 
                                                 <div class="form-group">
@@ -805,10 +800,19 @@
                                                     <div class="col-sm-8" style="padding-top: 5px;">Local addresses are the network interface IP addresses you want the DNS Server to listen for requests.</div>
                                                 </div>
 
-                                                <div>To apply web service port and DNS Server local address changes, you will need to manually restart the main service.</div>
+                                                <div>To apply DNS Server local address changes, you will need to manually restart the main service.</div>
                                             </div>
 
                                             <div class="well well-sm form-horizontal">
+                                                <div class="form-group">
+                                                    <label for="txtWebServicePort" class="col-sm-3 control-label">Web Service Port</label>
+                                                    <div class="col-sm-6">
+                                                        <input type="number" class="form-control" id="txtWebServicePort" placeholder="Web Service Port" style="width: 100px;">
+                                                    </div>
+                                                    <label class="col-sm-3 control-label">&nbsp;</label>
+                                                    <div class="col-sm-8" style="padding-top: 5px;">Specify the TCP port number for this web console.</div>
+                                                </div>
+
                                                 <div class="form-group">
                                                     <label class="col-sm-3 control-label">Web Service Feature</label>
                                                     <div class="col-sm-8">
@@ -817,16 +821,16 @@
                                                                 <input id="chkEnableDoHOnWebService" type="checkbox"> Enable DNS-over-HTTP On This Web Service
                                                             </label>
                                                         </div>
-                                                        <div style="padding-top: 5px;">Use <i>http://<span id="lblDoHHost">localhost:5380</span>/dns-query</i> URL with a reverse proxy for both wire and json formats.</div>
+                                                        <div style="padding-top: 5px;">Use <i>http://<span id="lblDoHHost">localhost:5380</span>/dns-query</i> URL with a TLS terminating reverse proxy like nginx for both wire and json response formats.</div>
                                                     </div>
                                                 </div>
 
-                                                <div>This feature does not have TLS termination and will work only on private networks. It is intended to be used with an TLS terminating reverse proxy like nginx.</div>
+                                                <div>To apply web service port changes, you will need to manually restart the main service. The web service DNS-over-HTTP feature does not have TLS termination and will work only on private networks.</div>
                                             </div>
 
                                             <div class="well well-sm form-horizontal">
                                                 <div class="form-group">
-                                                    <label class="col-sm-3 control-label">Protocols</label>
+                                                    <label class="col-sm-3 control-label">Secure Protocols</label>
                                                     <div class="col-sm-8">
                                                         <div class="checkbox">
                                                             <label>
@@ -840,7 +844,7 @@
                                                                 <input id="chkEnableDoH" type="checkbox"> Enable DNS-over-HTTPS
                                                             </label>
                                                         </div>
-                                                        <div style="padding-top: 5px;">Enable this option to accept DNS-over-HTTPS requests for both wire and json formats.</div>
+                                                        <div style="padding-top: 5px;">Enable this option to accept DNS-over-HTTPS requests for both wire and json response formats.</div>
                                                     </div>
                                                 </div>
 
