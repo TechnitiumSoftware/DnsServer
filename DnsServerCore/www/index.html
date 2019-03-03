@@ -560,7 +560,7 @@
                                                 <input type="text" class="form-control" style="width: inherit;" id="txtCacheZone" placeholder="example.com">
                                             </div>
                                             <div class="form-group">
-                                                <button id="btnBrowseBlockZone" type="submit" class="btn btn-primary" data-loading-text="Browse" onclick="return refreshCachedZonesList($('#txtCacheZone').val());">Browse</button>
+                                                <button id="btnBrowseCacheZone" type="submit" class="btn btn-primary" data-loading-text="Browse" onclick="return refreshCachedZonesList($('#txtCacheZone').val());">Browse</button>
                                             </div>
                                         </form>
 
@@ -923,11 +923,11 @@
                                             <div class="well well-sm form-horizontal">
                                                 <div class="form-group">
                                                     <label for="txtBlockListUrls" class="col-sm-3 control-label">Block List URLs</label>
-                                                    <div class="col-sm-8">
-                                                        <textarea id="txtBlockListUrls" class="form-control" style="width: 600px; height: 150px;" rows="3"></textarea>
+                                                    <div class="col-sm-6">
+                                                        <textarea id="txtBlockListUrls" class="form-control" rows="7"></textarea>
 
                                                         <label for="optQuickBlockList" class="control-label">Quick Add</label>
-                                                        <select id="optQuickBlockList" style="width: 520px;">
+                                                        <select id="optQuickBlockList" style="width: 100%;">
                                                             <option value="blank" selected></option>
                                                             <option value="none">None</option>
                                                             <option value="default">Default</option>
@@ -1037,11 +1037,11 @@
                                             <div class="well well-sm form-horizontal">
                                                 <div class="form-group">
                                                     <label for="txtForwarders" class="col-sm-3 control-label">Forwarders</label>
-                                                    <div class="col-sm-8">
-                                                        <textarea id="txtForwarders" class="form-control" style="width: 600px;" rows="3"></textarea>
+                                                    <div class="col-sm-6">
+                                                        <textarea id="txtForwarders" class="form-control" rows="3"></textarea>
 
                                                         <label for="optQuickForwarders" class="control-label">Quick Select</label>
-                                                        <select id="optQuickForwarders">
+                                                        <select id="optQuickForwarders" style="width: 100%;">
                                                             <option value="blank" selected></option>
                                                             <option value="none">None</option>
 
