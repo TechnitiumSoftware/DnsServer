@@ -58,12 +58,14 @@ namespace DnsServerCore
 
         List<Socket> _udpListeners = new List<Socket>();
         List<Socket> _tcpListeners = new List<Socket>();
+        List<Socket> _httpListeners = new List<Socket>();
         List<Socket> _tlsListeners = new List<Socket>();
         List<Socket> _httpsListeners = new List<Socket>();
         List<Thread> _listenerThreads = new List<Thread>();
 
-        bool _enableDoT = false;
-        bool _enableDoH = false;
+        bool _enableDnsOverHttp = false;
+        bool _enableDnsOverTls = false;
+        bool _enableDnsOverHttps = false;
         X509Certificate2 _certificate;
 
         readonly Zone _authoritativeZoneRoot = new Zone(true);
@@ -292,6 +294,10 @@ namespace DnsServerCore
             Socket tcpListener = parameters[0] as Socket;
             DnsTransportProtocol protocol = (DnsTransportProtocol)parameters[1];
 
+            bool usingHttps = true;
+            if (parameters.Length > 2)
+                usingHttps = (bool)parameters[2];
+
             IPEndPoint localEP = tcpListener.LocalEndPoint as IPEndPoint;
 
             try
@@ -328,10 +334,23 @@ namespace DnsServerCore
                                     break;
 
                                 case DnsTransportProtocol.Https:
-                                    SslStream httpsStream = new SslStream(new NetworkStream(socket));
-                                    httpsStream.AuthenticateAsServer(_certificate);
+                                    Stream stream = new NetworkStream(socket);
 
-                                    ProcessHttpsRequest(httpsStream, remoteEP);
+                                    if (usingHttps)
+                                    {
+                                        SslStream httpsStream = new SslStream(stream);
+                                        httpsStream.AuthenticateAsServer(_certificate);
+
+                                        stream = httpsStream;
+                                    }
+                                    else if (!NetUtilities.IsPrivateIP((remoteEP as IPEndPoint).Address))
+                                    {
+                                        //intentionally blocking public IP addresses from using DNS-over-HTTP (without TLS)
+                                        //this feature is intended to be used with an SSL terminated reverse proxy like nginx on private network
+                                        return;
+                                    }
+
+                                    ProcessDoHRequest(stream, remoteEP, !usingHttps);
                                     break;
                             }
                         }
@@ -472,7 +491,7 @@ namespace DnsServerCore
             }
         }
 
-        private void ProcessHttpsRequest(Stream stream, EndPoint remoteEP)
+        private void ProcessDoHRequest(Stream stream, EndPoint remoteEP, bool usingReverseProxy)
         {
             DnsDatagram dnsRequest = null;
             DnsTransportProtocol dnsProtocol = DnsTransportProtocol.Https;
@@ -571,143 +590,186 @@ namespace DnsServerCore
 
                     #endregion
 
+                    if (usingReverseProxy)
+                    {
+                        string xRealIp = requestHeaders["X-Real-IP"];
+                        string xForwardedFor = requestHeaders["X-Forwarded-For"];
+
+                        if (!string.IsNullOrEmpty(xRealIp))
+                        {
+                            //get the real IP address of the requesting client from X-Real-IP header set in nginx proxy_pass block
+                            remoteEP = new IPEndPoint(IPAddress.Parse(xRealIp), 0);
+                        }
+                        else if (!string.IsNullOrEmpty(xForwardedFor))
+                        {
+                            //get the real IP address of the requesting client from X-Forwarded-For header set in nginx proxy_pass block
+                            string[] xForwardedForParts = xForwardedFor.Split(new char[] { ',' }, StringSplitOptions.RemoveEmptyEntries);
+                            remoteEP = new IPEndPoint(IPAddress.Parse(xForwardedForParts[0]), 0);
+                        }
+                    }
+
                     string requestConnection = requestHeaders[HttpRequestHeader.Connection];
                     if (string.IsNullOrEmpty(requestConnection))
                         requestConnection = "close";
 
-                    if (requestPath != "/dns-query")
+                    switch (requestPath)
                     {
-                        Send404(stream);
-                        return;
-                    }
+                        case "/dns-query":
+                            DnsTransportProtocol protocol = DnsTransportProtocol.Udp;
 
-                    DnsTransportProtocol protocol = DnsTransportProtocol.Udp;
-
-                    string strRequestAcceptTypes = requestHeaders[HttpRequestHeader.Accept];
-                    if (!string.IsNullOrEmpty(strRequestAcceptTypes))
-                    {
-                        protocol = DnsTransportProtocol.Udp;
-
-                        foreach (string acceptType in strRequestAcceptTypes.Split(','))
-                        {
-                            if (acceptType == "application/dns-message")
+                            string strRequestAcceptTypes = requestHeaders[HttpRequestHeader.Accept];
+                            if (!string.IsNullOrEmpty(strRequestAcceptTypes))
                             {
-                                protocol = DnsTransportProtocol.Https;
-                                break;
-                            }
-                            else if (acceptType == "application/dns-json")
-                            {
-                                protocol = DnsTransportProtocol.HttpsJson;
-                                dnsProtocol = DnsTransportProtocol.HttpsJson;
-                                break;
-                            }
-                        }
-                    }
+                                protocol = DnsTransportProtocol.Udp;
 
-                    switch (protocol)
-                    {
-                        case DnsTransportProtocol.Https:
-                            #region https wire format
-                            {
-                                switch (requestMethod)
+                                foreach (string acceptType in strRequestAcceptTypes.Split(','))
                                 {
-                                    case "GET":
-                                        string strRequest = requestQueryString["dns"];
-                                        if (string.IsNullOrEmpty(strRequest))
-                                            throw new ArgumentNullException("dns");
-
-                                        //convert from base64url to base64
-                                        strRequest = strRequest.Replace('-', '+');
-                                        strRequest = strRequest.Replace('_', '/');
-
-                                        //add padding
-                                        int x = strRequest.Length % 4;
-                                        if (x > 0)
-                                            strRequest = strRequest.PadRight(strRequest.Length - x + 4, '=');
-
-                                        dnsRequest = new DnsDatagram(new MemoryStream(Convert.FromBase64String(strRequest)));
-                                        break;
-
-                                    case "POST":
-                                        string strContentType = requestHeaders[HttpRequestHeader.ContentType];
-                                        if (strContentType != "application/dns-message")
-                                            throw new NotSupportedException("DNS request type not supported: " + strContentType);
-
-                                        dnsRequest = new DnsDatagram(stream);
-                                        break;
-
-                                    default:
-                                        throw new NotSupportedException("DoH request type not supported."); ;
-                                }
-
-                                DnsDatagram dnsResponse = ProcessQuery(dnsRequest, remoteEP, protocol);
-                                if (dnsResponse != null)
-                                {
-                                    using (MemoryStream mS = new MemoryStream())
+                                    if (acceptType == "application/dns-message")
                                     {
-                                        dnsResponse.WriteTo(mS);
-
-                                        byte[] buffer = mS.ToArray();
-                                        Send200(stream, "application/dns-message", buffer);
+                                        protocol = DnsTransportProtocol.Https;
+                                        break;
                                     }
-
-                                    LogManager queryLog = _queryLog;
-                                    if (queryLog != null)
-                                        queryLog.Write(remoteEP as IPEndPoint, protocol, dnsRequest, dnsResponse);
-
-                                    StatsManager stats = _stats;
-                                    if (stats != null)
-                                        stats.Update(dnsResponse, (remoteEP as IPEndPoint).Address);
+                                    else if (acceptType == "application/dns-json")
+                                    {
+                                        protocol = DnsTransportProtocol.HttpsJson;
+                                        dnsProtocol = DnsTransportProtocol.HttpsJson;
+                                        break;
+                                    }
                                 }
                             }
-                            #endregion
+
+                            switch (protocol)
+                            {
+                                case DnsTransportProtocol.Https:
+                                    #region https wire format
+                                    {
+                                        switch (requestMethod)
+                                        {
+                                            case "GET":
+                                                string strRequest = requestQueryString["dns"];
+                                                if (string.IsNullOrEmpty(strRequest))
+                                                    throw new ArgumentNullException("dns");
+
+                                                //convert from base64url to base64
+                                                strRequest = strRequest.Replace('-', '+');
+                                                strRequest = strRequest.Replace('_', '/');
+
+                                                //add padding
+                                                int x = strRequest.Length % 4;
+                                                if (x > 0)
+                                                    strRequest = strRequest.PadRight(strRequest.Length - x + 4, '=');
+
+                                                dnsRequest = new DnsDatagram(new MemoryStream(Convert.FromBase64String(strRequest)));
+                                                break;
+
+                                            case "POST":
+                                                string strContentType = requestHeaders[HttpRequestHeader.ContentType];
+                                                if (strContentType != "application/dns-message")
+                                                    throw new NotSupportedException("DNS request type not supported: " + strContentType);
+
+                                                dnsRequest = new DnsDatagram(stream);
+                                                break;
+
+                                            default:
+                                                throw new NotSupportedException("DoH request type not supported."); ;
+                                        }
+
+                                        DnsDatagram dnsResponse = ProcessQuery(dnsRequest, remoteEP, protocol);
+                                        if (dnsResponse != null)
+                                        {
+                                            using (MemoryStream mS = new MemoryStream())
+                                            {
+                                                dnsResponse.WriteTo(mS);
+
+                                                byte[] buffer = mS.ToArray();
+                                                Send200(stream, "application/dns-message", buffer);
+                                            }
+
+                                            LogManager queryLog = _queryLog;
+                                            if (queryLog != null)
+                                                queryLog.Write(remoteEP as IPEndPoint, protocol, dnsRequest, dnsResponse);
+
+                                            StatsManager stats = _stats;
+                                            if (stats != null)
+                                                stats.Update(dnsResponse, (remoteEP as IPEndPoint).Address);
+                                        }
+                                    }
+                                    #endregion
+                                    break;
+
+                                case DnsTransportProtocol.HttpsJson:
+                                    #region https json format
+                                    {
+                                        string strName = requestQueryString["name"];
+                                        if (string.IsNullOrEmpty(strName))
+                                            throw new ArgumentNullException("name");
+
+                                        string strType = requestQueryString["type"];
+                                        if (string.IsNullOrEmpty(strType))
+                                            strType = "1";
+
+                                        dnsRequest = new DnsDatagram(new DnsHeader(0, false, DnsOpcode.StandardQuery, false, false, true, false, false, false, DnsResponseCode.NoError, 1, 0, 0, 0), new DnsQuestionRecord[] { new DnsQuestionRecord(strName, (DnsResourceRecordType)int.Parse(strType), DnsClass.IN) }, null, null, null);
+
+                                        DnsDatagram dnsResponse = ProcessQuery(dnsRequest, remoteEP, protocol);
+                                        if (dnsResponse != null)
+                                        {
+                                            using (MemoryStream mS = new MemoryStream())
+                                            {
+                                                JsonTextWriter jsonWriter = new JsonTextWriter(new StreamWriter(mS));
+                                                dnsResponse.WriteTo(jsonWriter);
+                                                jsonWriter.Flush();
+
+                                                byte[] buffer = mS.ToArray();
+                                                Send200(stream, "application/dns-json; charset=utf-8", buffer);
+                                            }
+
+                                            LogManager queryLog = _queryLog;
+                                            if (queryLog != null)
+                                                queryLog.Write(remoteEP as IPEndPoint, protocol, dnsRequest, dnsResponse);
+
+                                            StatsManager stats = _stats;
+                                            if (stats != null)
+                                                stats.Update(dnsResponse, (remoteEP as IPEndPoint).Address);
+                                        }
+                                    }
+                                    #endregion
+                                    break;
+
+                                default:
+                                    Send406(stream, "Only application/dns-message and application/dns-json types are accepted.");
+                                    return;
+                            }
+
+                            if (requestConnection.Equals("close", StringComparison.CurrentCultureIgnoreCase))
+                                break;
                             break;
 
-                        case DnsTransportProtocol.HttpsJson:
-                            #region https json format
+                        case "/.well-known/doh-servers-associated/":
+                            using (MemoryStream mS = new MemoryStream())
                             {
-                                string strName = requestQueryString["name"];
-                                if (string.IsNullOrEmpty(strName))
-                                    throw new ArgumentNullException("name");
+                                JsonTextWriter jsonWriter = new JsonTextWriter(new StreamWriter(mS, Encoding.UTF8));
+                                jsonWriter.WriteStartObject();
 
-                                string strType = requestQueryString["type"];
-                                if (string.IsNullOrEmpty(strType))
-                                    strType = "1";
+                                jsonWriter.WritePropertyName("associated-resolvers");
+                                jsonWriter.WriteStartArray();
 
-                                dnsRequest = new DnsDatagram(new DnsHeader(0, false, DnsOpcode.StandardQuery, false, false, true, false, false, false, DnsResponseCode.NoError, 1, 0, 0, 0), new DnsQuestionRecord[] { new DnsQuestionRecord(strName, (DnsResourceRecordType)int.Parse(strType), DnsClass.IN) }, null, null, null);
+                                if (_enableDnsOverHttp || _enableDnsOverHttps)
+                                    jsonWriter.WriteValue("https://" + _authoritativeZoneRoot.ServerDomain + "/dns-query");
 
-                                DnsDatagram dnsResponse = ProcessQuery(dnsRequest, remoteEP, protocol);
-                                if (dnsResponse != null)
-                                {
-                                    using (MemoryStream mS = new MemoryStream())
-                                    {
-                                        JsonTextWriter jsonWriter = new JsonTextWriter(new StreamWriter(mS));
-                                        dnsResponse.WriteTo(jsonWriter);
-                                        jsonWriter.Flush();
+                                jsonWriter.WriteEndArray();
 
-                                        byte[] buffer = mS.ToArray();
-                                        Send200(stream, "application/dns-json; charset=utf-8", buffer);
-                                    }
+                                jsonWriter.WriteEndObject();
+                                jsonWriter.Flush();
 
-                                    LogManager queryLog = _queryLog;
-                                    if (queryLog != null)
-                                        queryLog.Write(remoteEP as IPEndPoint, protocol, dnsRequest, dnsResponse);
-
-                                    StatsManager stats = _stats;
-                                    if (stats != null)
-                                        stats.Update(dnsResponse, (remoteEP as IPEndPoint).Address);
-                                }
+                                Send200(stream, "application/json", mS.ToArray());
                             }
-                            #endregion
+
                             break;
 
                         default:
-                            Send406(stream, "Only application/dns-message and application/dns-json types are accepted.");
-                            return;
+                            Send404(stream);
+                            break;
                     }
-
-                    if (requestConnection.Equals("close", StringComparison.CurrentCultureIgnoreCase))
-                        break;
                 }
             }
             catch (IOException)
@@ -1206,7 +1268,33 @@ namespace DnsServerCore
                     tcpListener.Dispose();
                 }
 
-                if (_enableDoT && (_certificate != null))
+                if (_enableDnsOverHttp)
+                {
+                    IPEndPoint httpEP = new IPEndPoint(_localIPs[i], 8053);
+                    Socket httpListener = new Socket(httpEP.AddressFamily, SocketType.Stream, ProtocolType.Tcp);
+
+                    try
+                    {
+                        httpListener.Bind(httpEP);
+                        httpListener.Listen(100);
+
+                        _httpListeners.Add(httpListener);
+
+                        LogManager log = _log;
+                        if (log != null)
+                            log.Write(httpEP, DnsTransportProtocol.Https, "DNS Server was bound successfully.");
+                    }
+                    catch (Exception ex)
+                    {
+                        LogManager log = _log;
+                        if (log != null)
+                            log.Write(httpEP, DnsTransportProtocol.Https, ex);
+
+                        httpListener.Dispose();
+                    }
+                }
+
+                if (_enableDnsOverTls && (_certificate != null))
                 {
                     IPEndPoint tlsEP = new IPEndPoint(_localIPs[i], 853);
                     Socket tlsListener = new Socket(tlsEP.AddressFamily, SocketType.Stream, ProtocolType.Tcp);
@@ -1232,7 +1320,7 @@ namespace DnsServerCore
                     }
                 }
 
-                if (_enableDoH && (_certificate != null))
+                if (_enableDnsOverHttps && (_certificate != null))
                 {
                     IPEndPoint httpsEP = new IPEndPoint(_localIPs[i], 443);
                     Socket httpsListener = new Socket(httpsEP.AddressFamily, SocketType.Stream, ProtocolType.Tcp);
@@ -1284,6 +1372,18 @@ namespace DnsServerCore
                 }
             }
 
+            foreach (Socket httpListener in _httpListeners)
+            {
+                for (int i = 0; i < LISTENER_THREAD_COUNT; i++)
+                {
+                    Thread listenerThread = new Thread(AcceptConnectionAsync);
+                    listenerThread.IsBackground = true;
+                    listenerThread.Start(new object[] { httpListener, DnsTransportProtocol.Https, false });
+
+                    _listenerThreads.Add(listenerThread);
+                }
+            }
+
             foreach (Socket tlsListener in _tlsListeners)
             {
                 for (int i = 0; i < LISTENER_THREAD_COUNT; i++)
@@ -1324,6 +1424,9 @@ namespace DnsServerCore
             foreach (Socket tcpListener in _tcpListeners)
                 tcpListener.Dispose();
 
+            foreach (Socket httpListener in _httpListeners)
+                httpListener.Dispose();
+
             foreach (Socket tlsListener in _tlsListeners)
                 tlsListener.Dispose();
 
@@ -1333,6 +1436,7 @@ namespace DnsServerCore
             _listenerThreads.Clear();
             _udpListeners.Clear();
             _tcpListeners.Clear();
+            _httpListeners.Clear();
             _tlsListeners.Clear();
             _httpsListeners.Clear();
 
@@ -1357,19 +1461,33 @@ namespace DnsServerCore
                 _authoritativeZoneRoot.ServerDomain = value;
                 _allowedZoneRoot.ServerDomain = value;
                 _blockedZoneRoot.ServerDomain = value;
+
+                _authoritativeZoneRoot.SetRecords("resolver-associated-doh.arpa", DnsResourceRecordType.SOA, 14400, new DnsResourceRecordData[] { new DnsSOARecord(value, "hostmaster." + value, uint.Parse(DateTime.UtcNow.ToString("yyyyMMddHH")), 28800, 7200, 604800, 600) });
+                _authoritativeZoneRoot.SetRecords("resolver-associated-doh.arpa", DnsResourceRecordType.NS, 14400, new DnsResourceRecordData[] { new DnsNSRecord(value) });
+                _authoritativeZoneRoot.SetRecords("resolver-associated-doh.arpa", DnsResourceRecordType.TXT, 60, new DnsResourceRecordData[] { new DnsTXTRecord("https://" + value + "/dns-query") });
+
+                _authoritativeZoneRoot.SetRecords("resolver-addresses.arpa", DnsResourceRecordType.SOA, 14400, new DnsResourceRecordData[] { new DnsSOARecord(value, "hostmaster." + value, uint.Parse(DateTime.UtcNow.ToString("yyyyMMddHH")), 28800, 7200, 604800, 600) });
+                _authoritativeZoneRoot.SetRecords("resolver-addresses.arpa", DnsResourceRecordType.NS, 14400, new DnsResourceRecordData[] { new DnsNSRecord(value) });
+                _authoritativeZoneRoot.SetRecords("resolver-addresses.arpa", DnsResourceRecordType.CNAME, 60, new DnsResourceRecordData[] { new DnsCNAMERecord(value) });
             }
         }
 
-        public bool EnableDoT
+        public bool EnableDnsOverHttp
         {
-            get { return _enableDoT; }
-            set { _enableDoT = value; }
+            get { return _enableDnsOverHttp; }
+            set { _enableDnsOverHttp = value; }
         }
 
-        public bool EnableDoH
+        public bool EnableDnsOverTls
         {
-            get { return _enableDoH; }
-            set { _enableDoH = value; }
+            get { return _enableDnsOverTls; }
+            set { _enableDnsOverTls = value; }
+        }
+
+        public bool EnableDnsOverHttps
+        {
+            get { return _enableDnsOverHttps; }
+            set { _enableDnsOverHttps = value; }
         }
 
         public X509Certificate2 Certificate
