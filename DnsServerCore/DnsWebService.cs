@@ -64,10 +64,8 @@ namespace DnsServerCore
 
         int _webServicePort;
         HttpListener _webService;
-        List<Thread> _webServiceThreads = new List<Thread>();
-        const int WEB_SERVICE_ACCEPT_THREADS = 3;
+        Thread _webServiceThread;
 
-        bool _enableDoHOnWebService;
         string _tlsCertificatePath;
         string _tlsCertificatePassword;
         Timer _tlsCertificateUpdateTimer;
@@ -212,11 +210,7 @@ namespace DnsServerCore
                     return;
                 }
 
-                if (path == "/dns-query")
-                {
-                    ProcessDoH(request, response);
-                }
-                else if (path.StartsWith("/api/"))
+                if (path.StartsWith("/api/"))
                 {
                     using (MemoryStream mS = new MemoryStream())
                     {
@@ -511,184 +505,6 @@ namespace DnsServerCore
             catch
             {
                 return new IPEndPoint(IPAddress.Any, 0);
-            }
-        }
-
-        private void ProcessDoH(HttpListenerRequest request, HttpListenerResponse response)
-        {
-            IPEndPoint remoteEP = GetRequestRemoteEndPoint(request);
-            DnsDatagram dnsRequest = null;
-            DnsTransportProtocol dnsProtocol = DnsTransportProtocol.Https;
-
-            try
-            {
-                if (!_enableDoHOnWebService)
-                {
-                    Send404(response);
-                    return;
-                }
-
-                if (!NetUtilities.IsPrivateIP(remoteEP.Address))
-                {
-                    //intentionally blocking public IP addresses from using this feature
-                    //this feature must only be used with an SSL terminated reverse proxy like nginx on private network
-                    Send404(response);
-                    return;
-                }
-
-                string xRealIp = request.Headers["X-Real-IP"];
-                string xForwardedFor = request.Headers["X-Forwarded-For"];
-
-                if (!string.IsNullOrEmpty(xRealIp))
-                {
-                    //get the real IP address of the requesting client from X-Real-IP header set in nginx proxy_pass block
-
-                    remoteEP = new IPEndPoint(IPAddress.Parse(xRealIp), 0);
-                }
-                else if (!string.IsNullOrEmpty(xForwardedFor))
-                {
-                    //get the real IP address of the requesting client from X-Forwarded-For header set in nginx proxy_pass block
-                    string[] xForwardedForParts = xForwardedFor.Split(new char[] { ',' }, StringSplitOptions.RemoveEmptyEntries);
-
-                    remoteEP = new IPEndPoint(IPAddress.Parse(xForwardedForParts[0]), 0);
-                }
-
-                DnsTransportProtocol protocol = DnsTransportProtocol.Udp;
-
-                foreach (string acceptType in request.AcceptTypes)
-                {
-                    if (acceptType == "application/dns-message")
-                    {
-                        protocol = DnsTransportProtocol.Https;
-                        break;
-                    }
-                    else if (acceptType == "application/dns-json")
-                    {
-                        protocol = DnsTransportProtocol.HttpsJson;
-                        dnsProtocol = DnsTransportProtocol.HttpsJson;
-                        break;
-                    }
-                }
-
-                switch (protocol)
-                {
-                    case DnsTransportProtocol.Https:
-                        #region https wire format
-                        {
-                            switch (request.HttpMethod)
-                            {
-                                case "GET":
-                                    string strRequest = request.QueryString["dns"];
-                                    if (string.IsNullOrEmpty(strRequest))
-                                        throw new ArgumentNullException("dns");
-
-                                    //convert from base64url to base64
-                                    strRequest = strRequest.Replace('-', '+');
-                                    strRequest = strRequest.Replace('_', '/');
-
-                                    //add padding
-                                    int x = strRequest.Length % 4;
-                                    if (x > 0)
-                                        strRequest = strRequest.PadRight(strRequest.Length - x + 4, '=');
-
-                                    dnsRequest = new DnsDatagram(new MemoryStream(Convert.FromBase64String(strRequest)));
-                                    break;
-
-                                case "POST":
-                                    if (request.ContentType != "application/dns-message")
-                                        throw new NotSupportedException("DNS request type not supported: " + request.ContentType);
-
-                                    dnsRequest = new DnsDatagram(request.InputStream);
-                                    break;
-
-                                default:
-                                    throw new NotSupportedException("DoH request type not supported."); ;
-                            }
-
-                            DnsDatagram dnsResponse = _dnsServer.ProcessQuery(dnsRequest, remoteEP, protocol);
-                            if (dnsResponse != null)
-                            {
-                                using (MemoryStream mS = new MemoryStream())
-                                {
-                                    dnsResponse.WriteTo(mS);
-
-                                    response.ContentType = "application/dns-message";
-                                    response.ContentLength64 = mS.Length;
-
-                                    mS.WriteTo(response.OutputStream);
-                                }
-
-                                LogManager queryLog = _dnsServer.QueryLogManager;
-                                if (queryLog != null)
-                                    queryLog.Write(remoteEP, protocol, dnsRequest, dnsResponse);
-
-                                StatsManager stats = _dnsServer.StatsManager;
-                                if (stats != null)
-                                    stats.Update(dnsResponse, remoteEP.Address);
-                            }
-                        }
-                        #endregion
-                        break;
-
-                    case DnsTransportProtocol.HttpsJson:
-                        #region https json format
-                        {
-                            string strName = request.QueryString["name"];
-                            if (string.IsNullOrEmpty(strName))
-                                throw new ArgumentNullException("name");
-
-                            string strType = request.QueryString["type"];
-                            if (string.IsNullOrEmpty(strType))
-                                strType = "1";
-
-                            dnsRequest = new DnsDatagram(new DnsHeader(0, false, DnsOpcode.StandardQuery, false, false, true, false, false, false, DnsResponseCode.NoError, 1, 0, 0, 0), new DnsQuestionRecord[] { new DnsQuestionRecord(strName, (DnsResourceRecordType)int.Parse(strType), DnsClass.IN) }, null, null, null);
-
-                            DnsDatagram dnsResponse = _dnsServer.ProcessQuery(dnsRequest, remoteEP, protocol);
-                            if (dnsResponse != null)
-                            {
-                                using (MemoryStream mS = new MemoryStream())
-                                {
-                                    JsonTextWriter jsonWriter = new JsonTextWriter(new StreamWriter(mS));
-                                    dnsResponse.WriteTo(jsonWriter);
-                                    jsonWriter.Flush();
-
-                                    response.ContentType = "application/dns-json";
-                                    response.ContentEncoding = Encoding.UTF8;
-                                    response.ContentLength64 = mS.Length;
-
-                                    mS.WriteTo(response.OutputStream);
-                                }
-
-                                LogManager queryLog = _dnsServer.QueryLogManager;
-                                if (queryLog != null)
-                                    queryLog.Write(remoteEP, protocol, dnsRequest, dnsResponse);
-
-                                StatsManager stats = _dnsServer.StatsManager;
-                                if (stats != null)
-                                    stats.Update(dnsResponse, remoteEP.Address);
-                            }
-                        }
-                        #endregion
-                        break;
-
-                    default:
-                        Send406(response, "Only application/dns-message and application/dns-json types are accepted.");
-                        return;
-                }
-            }
-            catch (IOException)
-            {
-                //ignore IO exceptions
-            }
-            catch (Exception ex)
-            {
-                LogManager queryLog = _dnsServer.QueryLogManager;
-                if ((queryLog != null) && (dnsRequest != null))
-                    queryLog.Write(remoteEP as IPEndPoint, dnsProtocol, dnsRequest, null);
-
-                LogManager log = _log;
-                if (log != null)
-                    log.Write(remoteEP as IPEndPoint, dnsProtocol, ex);
             }
         }
 
@@ -1147,14 +963,14 @@ namespace DnsServerCore
 
             jsonWriter.WriteEndArray();
 
-            jsonWriter.WritePropertyName("enableDoHOnWebService");
-            jsonWriter.WriteValue(_enableDoHOnWebService);
+            jsonWriter.WritePropertyName("enableDnsOverHttp");
+            jsonWriter.WriteValue(_dnsServer.EnableDnsOverHttp);
 
-            jsonWriter.WritePropertyName("enableDoT");
-            jsonWriter.WriteValue(_dnsServer.EnableDoT);
+            jsonWriter.WritePropertyName("enableDnsOverTls");
+            jsonWriter.WriteValue(_dnsServer.EnableDnsOverTls);
 
-            jsonWriter.WritePropertyName("enableDoH");
-            jsonWriter.WriteValue(_dnsServer.EnableDoH);
+            jsonWriter.WritePropertyName("enableDnsOverHttps");
+            jsonWriter.WriteValue(_dnsServer.EnableDnsOverHttps);
 
             jsonWriter.WritePropertyName("tlsCertificatePath");
             jsonWriter.WriteValue(_tlsCertificatePath);
@@ -1355,12 +1171,6 @@ namespace DnsServerCore
                 }
             }
 
-            int oldWebServicePort = _webServicePort;
-
-            string strWebServicePort = request.QueryString["webServicePort"];
-            if (!string.IsNullOrEmpty(strWebServicePort))
-                _webServicePort = int.Parse(strWebServicePort);
-
             string strDnsServerLocalAddresses = request.QueryString["dnsServerLocalAddresses"];
             if (strDnsServerLocalAddresses != null)
             {
@@ -1376,17 +1186,23 @@ namespace DnsServerCore
                 _dnsServer.LocalAddresses = localAddresses;
             }
 
-            string strEnableDoHOnWebService = request.QueryString["enableDoHOnWebService"];
-            if (!string.IsNullOrEmpty(strEnableDoHOnWebService))
-                _enableDoHOnWebService = bool.Parse(strEnableDoHOnWebService);
+            int oldWebServicePort = _webServicePort;
 
-            string strEnableDoT = request.QueryString["enableDoT"];
-            if (!string.IsNullOrEmpty(strEnableDoT))
-                _dnsServer.EnableDoT = bool.Parse(strEnableDoT);
+            string strWebServicePort = request.QueryString["webServicePort"];
+            if (!string.IsNullOrEmpty(strWebServicePort))
+                _webServicePort = int.Parse(strWebServicePort);
 
-            string strEnableDoH = request.QueryString["enableDoH"];
-            if (!string.IsNullOrEmpty(strEnableDoH))
-                _dnsServer.EnableDoH = bool.Parse(strEnableDoH);
+            string enableDnsOverHttp = request.QueryString["enableDnsOverHttp"];
+            if (!string.IsNullOrEmpty(enableDnsOverHttp))
+                _dnsServer.EnableDnsOverHttp = bool.Parse(enableDnsOverHttp);
+
+            string strEnableDnsOverTls = request.QueryString["enableDnsOverTls"];
+            if (!string.IsNullOrEmpty(strEnableDnsOverTls))
+                _dnsServer.EnableDnsOverTls = bool.Parse(strEnableDnsOverTls);
+
+            string strEnableDnsOverHttps = request.QueryString["enableDnsOverHttps"];
+            if (!string.IsNullOrEmpty(strEnableDnsOverHttps))
+                _dnsServer.EnableDnsOverHttps = bool.Parse(strEnableDnsOverHttps);
 
             string strTlsCertificatePath = request.QueryString["tlsCertificatePath"];
             string strTlsCertificatePassword = request.QueryString["tlsCertificatePassword"];
@@ -1539,7 +1355,7 @@ namespace DnsServerCore
                 }
             }
 
-            _log.Write(GetRequestRemoteEndPoint(request), "[" + GetSession(request).Username + "] DNS Settings were updated {serverDomain: " + _dnsServer.ServerDomain + "; webServicePort: " + _webServicePort + "; preferIPv6: " + _dnsServer.PreferIPv6 + "; logQueries: " + (_dnsServer.QueryLogManager != null) + "; allowRecursion: " + _dnsServer.AllowRecursion + "; allowRecursionOnlyForPrivateNetworks: " + _dnsServer.AllowRecursionOnlyForPrivateNetworks + "; proxyType: " + strProxyType + "; forwarders: " + strForwarders + "; forwarderProtocol: " + strForwarderProtocol + "; blockListUrl: " + strBlockListUrls + ";}");
+            _log.Write(GetRequestRemoteEndPoint(request), "[" + GetSession(request).Username + "] DNS Settings were updated {serverDomain: " + _dnsServer.ServerDomain + "; dnsServerLocalAddresses: " + strDnsServerLocalAddresses + "; webServicePort: " + _webServicePort + "; enableDnsOverHttp: " + _dnsServer.EnableDnsOverHttp + "; enableDnsOverTls: " + _dnsServer.EnableDnsOverTls + "; enableDnsOverHttps: " + _dnsServer.EnableDnsOverHttps + "; tlsCertificatePath: " + _tlsCertificatePath + "; preferIPv6: " + _dnsServer.PreferIPv6 + "; logQueries: " + (_dnsServer.QueryLogManager != null) + "; allowRecursion: " + _dnsServer.AllowRecursion + "; allowRecursionOnlyForPrivateNetworks: " + _dnsServer.AllowRecursionOnlyForPrivateNetworks + "; proxyType: " + strProxyType + "; forwarders: " + strForwarders + "; forwarderProtocol: " + strForwarderProtocol + "; blockListUrl: " + strBlockListUrls + ";}");
 
             SaveConfigFile();
 
@@ -2236,8 +2052,16 @@ namespace DnsServerCore
             if (string.IsNullOrEmpty(domain))
                 throw new DnsWebServiceException("Parameter 'domain' missing.");
 
+            if (domain.Contains("*"))
+                throw new DnsWebServiceException("Domain name for a zone cannot contain wildcard character.");
+
             if (IPAddress.TryParse(domain, out IPAddress ipAddress))
                 domain = (new DnsQuestionRecord(ipAddress, DnsClass.IN)).Name;
+            else if (domain.EndsWith("."))
+                domain = domain.Substring(0, domain.Length - 1);
+
+            if (Zone.DomainEquals(domain, "resolver-associated-doh.arpa") || Zone.DomainEquals(domain, "resolver-addresses.arpa"))
+                throw new DnsWebServiceException("Access was denied to manage special DNS Server zones.");
 
             CreateZone(domain);
             _log.Write(GetRequestRemoteEndPoint(request), "[" + GetSession(request).Username + "] Authoritative zone was created: " + domain);
@@ -2257,6 +2081,12 @@ namespace DnsServerCore
             if (string.IsNullOrEmpty(domain))
                 throw new DnsWebServiceException("Parameter 'domain' missing.");
 
+            if (domain.EndsWith("."))
+                domain = domain.Substring(0, domain.Length - 1);
+
+            if (Zone.DomainEquals(domain, "resolver-associated-doh.arpa") || Zone.DomainEquals(domain, "resolver-addresses.arpa"))
+                throw new DnsWebServiceException("Access was denied to manage special DNS Server zones.");
+
             if (!_dnsServer.AuthoritativeZoneRoot.DeleteZone(domain, false))
                 throw new DnsWebServiceException("Zone '" + domain + "' was not found.");
 
@@ -2271,6 +2101,12 @@ namespace DnsServerCore
             if (string.IsNullOrEmpty(domain))
                 throw new DnsWebServiceException("Parameter 'domain' missing.");
 
+            if (domain.EndsWith("."))
+                domain = domain.Substring(0, domain.Length - 1);
+
+            if (Zone.DomainEquals(domain, "resolver-associated-doh.arpa") || Zone.DomainEquals(domain, "resolver-addresses.arpa"))
+                throw new DnsWebServiceException("Access was denied to manage special DNS Server zones.");
+
             _dnsServer.AuthoritativeZoneRoot.EnableZone(domain);
 
             _log.Write(GetRequestRemoteEndPoint(request), "[" + GetSession(request).Username + "] Authoritative zone was enabled: " + domain);
@@ -2284,6 +2120,12 @@ namespace DnsServerCore
             if (string.IsNullOrEmpty(domain))
                 throw new DnsWebServiceException("Parameter 'domain' missing.");
 
+            if (domain.EndsWith("."))
+                domain = domain.Substring(0, domain.Length - 1);
+
+            if (Zone.DomainEquals(domain, "resolver-associated-doh.arpa") || Zone.DomainEquals(domain, "resolver-addresses.arpa"))
+                throw new DnsWebServiceException("Access was denied to manage special DNS Server zones.");
+
             _dnsServer.AuthoritativeZoneRoot.DisableZone(domain);
 
             _log.Write(GetRequestRemoteEndPoint(request), "[" + GetSession(request).Username + "] Authoritative zone was disabled: " + domain);
@@ -2296,6 +2138,12 @@ namespace DnsServerCore
             string domain = request.QueryString["domain"];
             if (string.IsNullOrEmpty(domain))
                 throw new DnsWebServiceException("Parameter 'domain' missing.");
+
+            if (domain.EndsWith("."))
+                domain = domain.Substring(0, domain.Length - 1);
+
+            if (Zone.DomainEquals(domain, "resolver-associated-doh.arpa") || Zone.DomainEquals(domain, "resolver-addresses.arpa"))
+                throw new DnsWebServiceException("Access was denied to manage special DNS Server zones.");
 
             string strType = request.QueryString["type"];
             if (string.IsNullOrEmpty(strType))
@@ -2382,6 +2230,9 @@ namespace DnsServerCore
             string domain = request.QueryString["domain"];
             if (string.IsNullOrEmpty(domain))
                 throw new DnsWebServiceException("Parameter 'domain' missing.");
+
+            if (domain.EndsWith("."))
+                domain = domain.Substring(0, domain.Length - 1);
 
             DnsResourceRecord[] records = _dnsServer.AuthoritativeZoneRoot.GetAllRecords(domain);
             if (records.Length == 0)
@@ -2594,6 +2445,12 @@ namespace DnsServerCore
             if (string.IsNullOrEmpty(domain))
                 throw new DnsWebServiceException("Parameter 'domain' missing.");
 
+            if (domain.EndsWith("."))
+                domain = domain.Substring(0, domain.Length - 1);
+
+            if (Zone.DomainEquals(domain, "resolver-associated-doh.arpa") || Zone.DomainEquals(domain, "resolver-addresses.arpa"))
+                throw new DnsWebServiceException("Access was denied to manage special DNS Server zones.");
+
             string strType = request.QueryString["type"];
             if (string.IsNullOrEmpty(strType))
                 throw new DnsWebServiceException("Parameter 'type' missing.");
@@ -2665,9 +2522,18 @@ namespace DnsServerCore
             if (string.IsNullOrEmpty(domain))
                 throw new DnsWebServiceException("Parameter 'domain' missing.");
 
+            if (domain.EndsWith("."))
+                domain = domain.Substring(0, domain.Length - 1);
+
+            if (Zone.DomainEquals(domain, "resolver-associated-doh.arpa") || Zone.DomainEquals(domain, "resolver-addresses.arpa"))
+                throw new DnsWebServiceException("Access was denied to manage special DNS Server zones.");
+
             string oldDomain = request.QueryString["oldDomain"];
             if (string.IsNullOrEmpty(oldDomain))
                 oldDomain = domain;
+
+            if (oldDomain.EndsWith("."))
+                oldDomain = oldDomain.Substring(0, oldDomain.Length - 1);
 
             string value = request.QueryString["value"];
             string oldValue = request.QueryString["oldValue"];
@@ -2795,6 +2661,9 @@ namespace DnsServerCore
             string domain = request.QueryString["domain"];
             if (string.IsNullOrEmpty(domain))
                 throw new DnsWebServiceException("Parameter 'domain' missing.");
+
+            if (domain.EndsWith("."))
+                domain = domain.Substring(0, domain.Length - 1);
 
             string strType = request.QueryString["type"];
             if (string.IsNullOrEmpty(strType))
@@ -3114,6 +2983,9 @@ namespace DnsServerCore
                 throw new DnsWebServiceException("Zone '" + domain + "' was not found.");
 
             string authZone = records[0].Name.ToLower();
+
+            if (Zone.DomainEquals(authZone, "resolver-associated-doh.arpa") || Zone.DomainEquals(authZone, "resolver-addresses.arpa"))
+                throw new DnsWebServiceException("Access was denied to manage special DNS Server zones.");
 
             using (MemoryStream mS = new MemoryStream())
             {
@@ -3566,7 +3438,7 @@ namespace DnsServerCore
                     }
                     catch (Exception ex)
                     {
-                        _log.Write("DNS Server encountered an error while updating TLS Certificate.\r\n" + ex.ToString());
+                        _log.Write("DNS Server encountered an error while updating TLS Certificate: " + _tlsCertificatePath + "\r\n" + ex.ToString());
                     }
 
                 }, null, TLS_CERTIFICATE_UPDATE_TIMER_INITIAL_INTERVAL, TLS_CERTIFICATE_UPDATE_TIMER_INTERVAL);
@@ -3592,8 +3464,20 @@ namespace DnsServerCore
             if (Path.GetExtension(tlsCertificatePath) != ".pfx")
                 throw new ArgumentException("Tls certificate file must be PKCS #12 formatted with .pfx extension: " + tlsCertificatePath);
 
-            _dnsServer.Certificate = new X509Certificate2(tlsCertificatePath, tlsCertificatePassword);
+            X509Certificate2 certificate = new X509Certificate2(tlsCertificatePath, tlsCertificatePassword);
+
+            if (!certificate.Verify())
+                throw new ArgumentException("Tls certificate is invalid.");
+
+            string commonName = certificate.GetNameInfo(X509NameType.DnsName, false);
+
+            if (!Zone.DomainEquals(_dnsServer.ServerDomain, commonName))
+                _log.Write("WARNING! DNS Server domain name does not match with TLS certificate common name: " + commonName);
+
+            _dnsServer.Certificate = certificate;
             _tlsCertificateLastModifiedOn = fileInfo.LastWriteTimeUtc;
+
+            _log.Write("DNS Server TLS certificate was loaded: " + tlsCertificatePath);
         }
 
         private void LoadConfigFile()
@@ -3744,9 +3628,9 @@ namespace DnsServerCore
 
                             if (version >= 8)
                             {
-                                _enableDoHOnWebService = bR.ReadBoolean();
-                                _dnsServer.EnableDoT = bR.ReadBoolean();
-                                _dnsServer.EnableDoH = bR.ReadBoolean();
+                                _dnsServer.EnableDnsOverHttp = bR.ReadBoolean();
+                                _dnsServer.EnableDnsOverTls = bR.ReadBoolean();
+                                _dnsServer.EnableDnsOverHttps = bR.ReadBoolean();
                                 _tlsCertificatePath = bR.ReadShortString();
                                 _tlsCertificatePassword = bR.ReadShortString();
 
@@ -3761,7 +3645,7 @@ namespace DnsServerCore
                                     }
                                     catch (Exception ex)
                                     {
-                                        _log.Write(ex);
+                                        _log.Write("DNS Server encountered an error while loading TLS certificate: " + _tlsCertificatePath + "\r\n" + ex.ToString());
                                     }
 
                                     StartTlsCertificateUpdateTimer();
@@ -3981,9 +3865,9 @@ namespace DnsServerCore
                         localAddress.WriteTo(bW);
                 }
 
-                bW.Write(_enableDoHOnWebService);
-                bW.Write(_dnsServer.EnableDoT);
-                bW.Write(_dnsServer.EnableDoH);
+                bW.Write(_dnsServer.EnableDnsOverHttp);
+                bW.Write(_dnsServer.EnableDnsOverTls);
+                bW.Write(_dnsServer.EnableDnsOverHttps);
 
                 if (_tlsCertificatePath == null)
                     bW.WriteShortString(string.Empty);
@@ -4080,14 +3964,9 @@ namespace DnsServerCore
                     _webService.Start();
                 }
 
-                for (int i = 0; i < WEB_SERVICE_ACCEPT_THREADS; i++)
-                {
-                    Thread webServiceThread = new Thread(AcceptWebRequestAsync);
-                    webServiceThread.IsBackground = true;
-                    webServiceThread.Start();
-
-                    _webServiceThreads.Add(webServiceThread);
-                }
+                _webServiceThread = new Thread(AcceptWebRequestAsync);
+                _webServiceThread.IsBackground = true;
+                _webServiceThread.Start();
 
                 _state = ServiceState.Running;
 
@@ -4111,8 +3990,6 @@ namespace DnsServerCore
             {
                 _webService.Stop();
                 _dnsServer.Stop();
-
-                _webServiceThreads.Clear();
 
                 StopBlockListUpdateTimer();
                 StopTlsCertificateUpdateTimer();
