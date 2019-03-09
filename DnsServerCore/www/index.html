@@ -813,35 +813,30 @@
                                                     <div class="col-sm-8" style="padding-top: 5px;">Specify the TCP port number for this web console.</div>
                                                 </div>
 
-                                                <div class="form-group">
-                                                    <label class="col-sm-3 control-label">Web Service Feature</label>
-                                                    <div class="col-sm-8">
-                                                        <div class="checkbox">
-                                                            <label>
-                                                                <input id="chkEnableDoHOnWebService" type="checkbox"> Enable DNS-over-HTTP On This Web Service
-                                                            </label>
-                                                        </div>
-                                                        <div style="padding-top: 5px;">Use <i>http://<span id="lblDoHHost">localhost:5380</span>/dns-query</i> URL with a TLS terminating reverse proxy like nginx for both wire and json response formats.</div>
-                                                    </div>
-                                                </div>
-
-                                                <div>To apply web service port changes, you will need to manually restart the main service. The web service DNS-over-HTTP feature does not have TLS termination and will work only on private networks.</div>
+                                                <div>To apply web service port changes, you will need to manually restart the main service.</div>
                                             </div>
 
                                             <div class="well well-sm form-horizontal">
                                                 <div class="form-group">
-                                                    <label class="col-sm-3 control-label">Secure Protocols</label>
+                                                    <label class="col-sm-3 control-label">Protocols</label>
                                                     <div class="col-sm-8">
                                                         <div class="checkbox">
                                                             <label>
-                                                                <input id="chkEnableDoT" type="checkbox"> Enable DNS-over-TLS
+                                                                <input id="chkEnableDnsOverHttp" type="checkbox"> Enable DNS-over-HTTP
+                                                            </label>
+                                                        </div>
+                                                        <div style="padding-top: 5px;">Enable this option to accept DNS-over-HTTP requests for both wire and json response formats. It must be used with a TLS terminating reverse proxy like nginx and will work only on private networks.</div>
+
+                                                        <div class="checkbox">
+                                                            <label>
+                                                                <input id="chkEnableDnsOverTls" type="checkbox"> Enable DNS-over-TLS
                                                             </label>
                                                         </div>
                                                         <div style="padding-top: 5px;">Enable this option to accept DNS-over-TLS requests.</div>
 
                                                         <div class="checkbox">
                                                             <label>
-                                                                <input id="chkEnableDoH" type="checkbox"> Enable DNS-over-HTTPS
+                                                                <input id="chkEnableDnsOverHttps" type="checkbox"> Enable DNS-over-HTTPS
                                                             </label>
                                                         </div>
                                                         <div style="padding-top: 5px;">Enable this option to accept DNS-over-HTTPS requests for both wire and json response formats.</div>
@@ -866,7 +861,7 @@
                                                     <div class="col-sm-8" style="padding-top: 5px;">Enter the certificate (.pfx) password, if any.</div>
                                                 </div>
 
-                                                <div>To enable or disable these protocols, you will need to manually restart the main service. For DNS-over-TLS, use <i>tls-certificate-domain:853</i> and for DNS-over-HTTPS use <i>https://tls-certificate-domain/dns-query</i> to configure supported DNS clients.</div>
+                                                <div>To enable or disable these protocols, you will need to manually restart the main service. For DNS-over-HTTP, use <i>http://<span id="lblDoHHost">localhost:8053</span>/dns-query</i> with a TLS terminating reverse proxy like nginx. For DNS-over-TLS, use <i>tls-certificate-domain:853</i> and for DNS-over-HTTPS use <i>https://tls-certificate-domain/dns-query</i> to configure supported DNS clients.</div>
                                             </div>
 
                                             <div class="well well-sm form-horizontal">
