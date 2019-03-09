@@ -236,13 +236,17 @@ $(function () {
             case "cloudflare-tor":
                 $("#txtForwarders").val("dns4torpnlfs2ifuz2s2yf3fc7rdmsbhm6rw75euj35pac6ap25zgqad.onion");
                 $("#rdForwarderProtocolTcp").prop("checked", true);
-                $("#rdProxyTypeSocks5").prop("checked", true);
-                $("#txtProxyAddress").val("127.0.0.1");
-                $("#txtProxyPort").val("9150");
-                $("#txtProxyAddress").prop("disabled", false);
-                $("#txtProxyPort").prop("disabled", false);
-                $("#txtProxyUsername").prop("disabled", false);
-                $("#txtProxyPassword").prop("disabled", false);
+
+                if ($('input[name=rdProxyType]:checked').val() !== "Socks5") {
+                    $("#rdProxyTypeSocks5").prop("checked", true);
+                    $("#txtProxyAddress").val("127.0.0.1");
+                    $("#txtProxyPort").val("9150");
+                    $("#txtProxyAddress").prop("disabled", false);
+                    $("#txtProxyPort").prop("disabled", false);
+                    $("#txtProxyUsername").prop("disabled", false);
+                    $("#txtProxyPassword").prop("disabled", false);
+                }
+
                 break;
 
             case "google-udp":
@@ -349,7 +353,7 @@ $(function () {
         refreshDashboard();
     });
 
-    $("#lblDoHHost").text(window.location.host);
+    $("#lblDoHHost").text(window.location.hostname + ":8053");
 
     showPageLogin();
     login("admin", "admin");
@@ -369,11 +373,13 @@ function login(username, password) {
 
     if ((username === null) || (username === "")) {
         showAlert("warning", "Missing!", "Please enter username.");
+        $("#txtUser").focus();
         return false;
     }
 
     if ((password === null) || (password === "")) {
         showAlert("warning", "Missing!", "Please enter password.");
+        $("#txtPass").focus();
         return false;
     }
 
@@ -392,6 +398,7 @@ function login(username, password) {
         },
         error: function () {
             btn.button('reset');
+            $("#txtUser").focus();
 
             if (autoLogin)
                 hideAlert();
@@ -435,16 +442,19 @@ function changePassword() {
 
     if ((newPassword === null) || (newPassword === "")) {
         showAlert("warning", "Missing!", "Please enter new password.", divChangePasswordAlert);
+        $("#txtChangePasswordNewPassword").focus();
         return false;
     }
 
     if ((confirmPassword === null) || (confirmPassword === "")) {
         showAlert("warning", "Missing!", "Please enter confirm password.", divChangePasswordAlert);
+        $("#txtChangePasswordConfirmPassword").focus();
         return false;
     }
 
     if (newPassword !== confirmPassword) {
         showAlert("warning", "Mismatch!", "Passwords do not match. Please try again.", divChangePasswordAlert);
+        $("#txtChangePasswordNewPassword").focus();
         return false;
     }
 
@@ -532,9 +542,9 @@ function loadDnsSettings() {
                 $("#txtdnsServerLocalAddresses").val(value);
             }
 
-            $("#chkEnableDoHOnWebService").prop("checked", responseJSON.response.enableDoHOnWebService);
-            $("#chkEnableDoT").prop("checked", responseJSON.response.enableDoT);
-            $("#chkEnableDoH").prop("checked", responseJSON.response.enableDoH);
+            $("#chkEnableDnsOverHttp").prop("checked", responseJSON.response.enableDnsOverHttp);
+            $("#chkEnableDnsOverTls").prop("checked", responseJSON.response.enableDnsOverTls);
+            $("#chkEnableDnsOverHttps").prop("checked", responseJSON.response.enableDnsOverHttps);
             $("#txtTlsCertificatePath").val(responseJSON.response.tlsCertificatePath);
 
             if (responseJSON.response.tlsCertificatePath == null)
@@ -666,6 +676,7 @@ function saveDnsSettings() {
 
     if ((serverDomain === null) || (serverDomain === "")) {
         showAlert("warning", "Missing!", "Please enter server domain name.");
+        $("#txtServerDomain").focus();
         return false;
     }
 
@@ -673,6 +684,7 @@ function saveDnsSettings() {
 
     if ((webServicePort === null) || (webServicePort === "")) {
         showAlert("warning", "Missing!", "Please enter web service port.");
+        $("#txtWebServicePort").focus();
         return false;
     }
 
@@ -683,9 +695,9 @@ function saveDnsSettings() {
     else
         $("#txtdnsServerLocalAddresses").val(dnsServerLocalAddresses.replace(/,/g, "\n"));
 
-    var enableDoHOnWebService = $("#chkEnableDoHOnWebService").prop('checked');
-    var enableDoT = $("#chkEnableDoT").prop('checked');
-    var enableDoH = $("#chkEnableDoH").prop('checked');
+    var enableDnsOverHttp = $("#chkEnableDnsOverHttp").prop('checked');
+    var enableDnsOverTls = $("#chkEnableDnsOverTls").prop('checked');
+    var enableDnsOverHttps = $("#chkEnableDnsOverHttps").prop('checked');
     var tlsCertificatePath = $("#txtTlsCertificatePath").val();
     var tlsCertificatePassword = $("#txtTlsCertificatePassword").val();
 
@@ -700,7 +712,23 @@ function saveDnsSettings() {
         proxy = "&proxyType=" + proxyType;
     }
     else {
-        proxy = "&proxyType=" + proxyType + "&proxyAddress=" + $("#txtProxyAddress").val() + "&proxyPort=" + $("#txtProxyPort").val() + "&proxyUsername=" + encodeURIComponent($("#txtProxyUsername").val()) + "&proxyPassword=" + encodeURIComponent($("#txtProxyPassword").val());
+        var proxyAddress = $("#txtProxyAddress").val();
+
+        if ((proxyAddress === null) || (proxyAddress === "")) {
+            showAlert("warning", "Missing!", "Please enter proxy server address.");
+            $("#txtProxyAddress").focus();
+            return false;
+        }
+
+        var proxyPort = $("#txtProxyPort").val();
+
+        if ((proxyPort === null) || (proxyPort === "")) {
+            showAlert("warning", "Missing!", "Please enter proxy server port.");
+            $("#txtProxyPort").focus();
+            return false;
+        }
+
+        proxy = "&proxyType=" + proxyType + "&proxyAddress=" + encodeURIComponent(proxyAddress) + "&proxyPort=" + proxyPort + "&proxyUsername=" + encodeURIComponent($("#txtProxyUsername").val()) + "&proxyPassword=" + encodeURIComponent($("#txtProxyPassword").val());
     }
 
     var forwarders = cleanTextList($("#txtForwarders").val());
@@ -723,7 +751,7 @@ function saveDnsSettings() {
 
     HTTPRequest({
         url: "/api/setDnsSettings?token=" + token + "&serverDomain=" + serverDomain + "&webServicePort=" + webServicePort + "&dnsServerLocalAddresses=" + encodeURIComponent(dnsServerLocalAddresses)
-            + "&enableDoHOnWebService=" + enableDoHOnWebService + "&enableDoT=" + enableDoT + "&enableDoH=" + enableDoH + "&tlsCertificatePath=" + encodeURIComponent(tlsCertificatePath) + "&tlsCertificatePassword=" + encodeURIComponent(tlsCertificatePassword)
+            + "&enableDnsOverHttp=" + enableDnsOverHttp + "&enableDnsOverTls=" + enableDnsOverTls + "&enableDnsOverHttps=" + enableDnsOverHttps + "&tlsCertificatePath=" + encodeURIComponent(tlsCertificatePath) + "&tlsCertificatePassword=" + encodeURIComponent(tlsCertificatePassword)
             + "&preferIPv6=" + preferIPv6 + "&logQueries=" + logQueries + "&allowRecursion=" + allowRecursion + "&allowRecursionOnlyForPrivateNetworks=" + allowRecursionOnlyForPrivateNetworks + proxy + "&forwarders=" + encodeURIComponent(forwarders) + "&forwarderProtocol=" + forwarderProtocol + "&blockListUrls=" + encodeURIComponent(blockListUrls),
         success: function (responseJSON) {
             document.title = "Technitium DNS Server " + responseJSON.response.version + " - " + responseJSON.response.serverDomain;
@@ -1078,6 +1106,7 @@ function allowZone() {
 
     if ((domain === null) || (domain === "")) {
         showAlert("warning", "Missing!", "Please enter a domain name to allow.");
+        $("#txtAllowZone").focus();
         return false;
     }
 
@@ -1232,6 +1261,7 @@ function customBlockZone() {
 
     if ((domain === null) || (domain === "")) {
         showAlert("warning", "Missing!", "Please enter a domain name to block.");
+        $("#txtBlockZone").focus();
         return false;
     }
 
@@ -1401,6 +1431,9 @@ function refreshZonesList(hideLoader) {
             for (var i = 0; i < zones.length; i++) {
                 var zoneName = htmlEncode(zones[i].zoneName);
 
+                if (zoneName === "")
+                    zoneName = ".";
+
                 list += "<div class=\"zone\"><a href=\"#\" onclick=\"return viewZone('" + zoneName + "', " + zones[i].disabled + ");\"" + (zones[i].disabled ? "style=\"color: #ffa500 !important\"" : "") + ">" + zoneName + "</a></div>"
             }
 
@@ -1422,6 +1455,7 @@ function addZone() {
 
     if ((domain === null) || (domain === "")) {
         showAlert("warning", "Missing!", "Please enter a domain name to add zone.");
+        $("#txtAddZone").focus();
         return false;
     }
 
@@ -1431,6 +1465,10 @@ function addZone() {
         url: "/api/createZone?token=" + token + "&domain=" + domain,
         success: function (responseJSON) {
             refreshZonesList();
+
+            if ((domain !== ".") && domain.endsWith("."))
+                domain = domain.substr(0, domain.length - 1);
+
             viewZone(domain, false);
 
             $("#txtAddZone").val("");
@@ -2224,6 +2262,8 @@ function addResourceRecord() {
 
     if (subDomain === "@")
         name = domain;
+    else if (domain === ".")
+        name = subDomain;
     else
         name = subDomain + "." + domain;
 
@@ -2241,6 +2281,7 @@ function addResourceRecord() {
 
             if ((value === null) || (value === "")) {
                 showAlert("warning", "Missing!", "Please enter an mail exchange domain name into the exchange field.");
+                $("#txtAddRecordExchange").focus();
                 return false;
             }
 
@@ -2251,7 +2292,20 @@ function addResourceRecord() {
 
         case "SRV":
             var service = $("#txtAddRecordSRVService").val();
+
+            if ((service === null) || (service === "")) {
+                showAlert("warning", "Missing!", "Please enter a suitable service name.");
+                $("#txtAddRecordSRVService").focus();
+                return false;
+            }
+
             var protocol = $("#txtAddRecordSRVProtocol").val();
+
+            if ((protocol === null) || (protocol === "")) {
+                showAlert("warning", "Missing!", "Please enter a suitable protocol name.");
+                $("#txtAddRecordSRVProtocol").focus();
+                return false;
+            }
 
             if (!service.startsWith("_"))
                 service = "_" + service;
@@ -2262,9 +2316,36 @@ function addResourceRecord() {
             name = service + "." + protocol + "." + name;
 
             priority = $("#txtAddRecordSRVPriority").val();
+
+            if ((priority === null) || (priority === "")) {
+                showAlert("warning", "Missing!", "Please enter a suitable priority.");
+                $("#txtAddRecordSRVPriority").focus();
+                return false;
+            }
+
             weight = $("#txtAddRecordSRVWeight").val();
+
+            if ((weight === null) || (weight === "")) {
+                showAlert("warning", "Missing!", "Please enter a suitable weight.");
+                $("#txtAddRecordSRVWeight").focus();
+                return false;
+            }
+
             port = $("#txtAddRecordSRVPort").val();
+
+            if ((port === null) || (port === "")) {
+                showAlert("warning", "Missing!", "Please enter a suitable port number.");
+                $("#txtAddRecordSRVPort").focus();
+                return false;
+            }
+
             value = $("#txtAddRecordSRVTarget").val();
+
+            if ((value === null) || (value === "")) {
+                showAlert("warning", "Missing!", "Please enter a suitable value into the target field.");
+                $("#txtAddRecordSRVTarget").focus();
+                return false;
+            }
             break;
 
         default:
@@ -2272,6 +2353,7 @@ function addResourceRecord() {
 
             if ((value === null) || (value === "")) {
                 showAlert("warning", "Missing!", "Please enter a suitable value into the value field.");
+                $("#txtAddRecordValue").focus();
                 return false;
             }
             break;
@@ -2341,6 +2423,9 @@ function deleteResourceRecord(objBtn) {
     var name = divData.attr("data-record-name");
     var value = divData.attr("data-record-value");
 
+    if (name === "")
+        name = ".";
+
     if (!confirm("Are you sure to permanently delete the " + type + " record '" + name + "' with value '" + value + "'?"))
         return false;
 
@@ -2388,13 +2473,10 @@ function updateResourceRecord(objBtn, disable) {
     var newName = $("#txtName" + id).val();
     var ttl = $("#txtTtl" + id).val();
 
-    if ((newName === null) || (newName === "")) {
-        showAlert("warning", "Missing!", "Please enter a sub domain name into the name field.");
-        return false;
-    }
-
     if (newName === "@")
         newName = domain;
+    else if (domain === ".")
+        newName = newName + ".";
     else
         newName = newName + "." + domain;
 
@@ -2428,6 +2510,7 @@ function updateResourceRecord(objBtn, disable) {
 
             if ((newValue === null) || (newValue === "")) {
                 showAlert("warning", "Missing!", "Please enter an mail exchange domain name into the exchange field.");
+                $("#txtExchange" + id).focus();
                 return false;
             }
 
@@ -2447,43 +2530,63 @@ function updateResourceRecord(objBtn, disable) {
 
             if ((masterNameServer === null) || (masterNameServer === "")) {
                 showAlert("warning", "Missing!", "Please enter a master name server domain name.");
+                $("#txtMasterNameServer" + id).focus();
                 return false;
             }
 
             if ((responsiblePerson === null) || (responsiblePerson === "")) {
                 showAlert("warning", "Missing!", "Please enter a responsible person email address in domain name format.");
+                $("#txtResponsiblePerson" + id).focus();
                 return false;
             }
 
             if ((serial === null) || (serial === "")) {
                 showAlert("warning", "Missing!", "Please enter a serial number.");
+                $("#txtSerial" + id).focus();
                 return false;
             }
 
             if ((refresh === null) || (refresh === "")) {
                 showAlert("warning", "Missing!", "Please enter a refresh value.");
+                $("#txtRefresh" + id).focus();
                 return false;
             }
 
             if ((retry === null) || (retry === "")) {
                 showAlert("warning", "Missing!", "Please enter a retry value.");
+                $("#txtRetry" + id).focus();
                 return false;
             }
 
             if ((expire === null) || (expire === "")) {
                 showAlert("warning", "Missing!", "Please enter an expire value.");
+                $("#txtExpire" + id).focus();
                 return false;
             }
 
             if ((minimum === null) || (minimum === "")) {
                 showAlert("warning", "Missing!", "Please enter a minimum value.");
+                $("#txtMinimum" + id).focus();
                 return false;
             }
             break;
 
         case "SRV":
             var service = $("#txtService" + id).val();
+
+            if ((service === null) || (service === "")) {
+                showAlert("warning", "Missing!", "Please enter a suitable service name.");
+                $("#txtService" + id).focus();
+                return false;
+            }
+
             var protocol = $("#txtProtocol" + id).val();
+
+            if ((protocol === null) || (protocol === "")) {
+                showAlert("warning", "Missing!", "Please enter a suitable protocol name.");
+                $("#txtProtocol" + id).focus();
+                return false;
+            }
 
             if (!service.startsWith("_"))
                 service = "_" + service;
@@ -2496,9 +2599,37 @@ function updateResourceRecord(objBtn, disable) {
             oldPort = divData.attr("data-record-port");
 
             priority = $("#txtPriority" + id).val();
+
+            if ((priority === null) || (priority === "")) {
+                showAlert("warning", "Missing!", "Please enter a suitable priority.");
+                $("#txtPriority" + id).focus();
+                return false;
+            }
+
             weight = $("#txtWeight" + id).val();
+
+            if ((weight === null) || (weight === "")) {
+                showAlert("warning", "Missing!", "Please enter a suitable weight.");
+                $("#txtWeight" + id).focus();
+                return false;
+            }
+
             port = $("#txtPort" + id).val();
+
+            if ((port === null) || (port === "")) {
+                showAlert("warning", "Missing!", "Please enter a suitable port number.");
+                $("#txtPort" + id).focus();
+                return false;
+            }
+
             newValue = $("#txtTarget" + id).val();
+
+            if ((newValue === null) || (newValue === "")) {
+                showAlert("warning", "Missing!", "Please enter a suitable value into the target field.");
+                $("#txtTarget" + id).focus();
+                return false;
+            }
+
             break;
 
         default:
@@ -2506,8 +2637,10 @@ function updateResourceRecord(objBtn, disable) {
 
             if ((newValue === null) || (newValue === "")) {
                 showAlert("warning", "Missing!", "Please enter a suitable value into the value field.");
+                $("#txtValue" + id).focus();
                 return false;
             }
+
             break;
     }
 
@@ -2601,11 +2734,13 @@ function resolveQuery(importRecords) {
 
     if ((server === null) || (server === "")) {
         showAlert("warning", "Missing!", "Please enter a valid Name Server.");
+        $("#txtDnsClientNameServer").focus();
         return false;
     }
 
     if ((domain === null) || (domain === "")) {
         showAlert("warning", "Missing!", "Please enter a domain name to query.");
+        $("#txtDnsClientDomain").focus();
         return false;
     }
 
@@ -2794,6 +2929,7 @@ function importAllowedZones() {
 
     if ((allowedZones.length === 0) || (allowedZones === ",")) {
         showAlert("warning", "Missing!", "Please enter allowed zones to import.", divImportAllowedZonesAlert);
+        $("#txtImportAllowedZones").focus();
         return false;
     }
 
@@ -2844,6 +2980,7 @@ function importCustomBlockedZones() {
 
     if ((blockedZones.length === 0) || (blockedZones === ",")) {
         showAlert("warning", "Missing!", "Please enter custom blocked zones to import.", divImportCustomBlockedZonesAlert);
+        $("#txtImportCustomBlockedZones").focus();
         return false;
     }
 
