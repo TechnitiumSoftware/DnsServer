@@ -107,17 +107,34 @@ namespace DnsServerCore
             return path;
         }
 
-        private static bool DomainEquals(string domain1, string domain2)
+        internal static bool DomainEquals(string domain1, string domain2)
         {
             string[] path1 = ConvertDomainToPath(domain1);
             string[] path2 = ConvertDomainToPath(domain2);
 
-            if (path1.Length != path2.Length)
-                return false;
+            int maxLen;
+            int minLen;
 
-            for (int i = 0; i < path1.Length; i++)
+            if (path1.Length > path2.Length)
             {
-                if ((path1[i] != path2[i]) && (path1[i] != "*") && (path2[i] != "*"))
+                maxLen = path1.Length;
+                minLen = path2.Length;
+            }
+            else
+            {
+                maxLen = path2.Length;
+                minLen = path1.Length;
+            }
+
+            for (int i = 0; i < maxLen; i++)
+            {
+                if (i == minLen)
+                    return false;
+
+                if ((path1[i] == "*") || (path2[i] == "*"))
+                    return true;
+
+                if (path1[i] != path2[i])
                     return false;
             }
 
@@ -146,8 +163,12 @@ namespace DnsServerCore
 
         private static Zone GetZone(Zone rootZone, string domain, bool authoritative)
         {
-            Zone authoritativeZone = null;
             Zone currentZone = rootZone;
+            Zone authoritativeZone = null;
+
+            if (authoritative && currentZone._entries.ContainsKey(DnsResourceRecordType.SOA))
+                authoritativeZone = currentZone;
+
             string[] path = ConvertDomainToPath(domain);
 
             for (int i = 0; i < path.Length; i++)
@@ -416,6 +437,10 @@ namespace DnsServerCore
         private static Zone QueryFindClosestZone(Zone rootZone, string domain)
         {
             Zone currentZone = rootZone;
+
+            if (currentZone._disabled)
+                return currentZone;
+
             string[] path = ConvertDomainToPath(domain);
 
             for (int i = 0; i < path.Length; i++)
@@ -845,17 +870,14 @@ namespace DnsServerCore
             foreach (KeyValuePair<string, Dictionary<DnsResourceRecordType, List<DnsResourceRecord>>> groupedByTypeRecords in groupedByDomainRecords)
             {
                 string domain = groupedByTypeRecords.Key;
-                if (!string.IsNullOrEmpty(domain))
+                Zone zone = CreateZone(this, domain);
+
+                foreach (KeyValuePair<DnsResourceRecordType, List<DnsResourceRecord>> groupedRecords in groupedByTypeRecords.Value)
                 {
-                    Zone zone = CreateZone(this, domain);
+                    DnsResourceRecordType type = groupedRecords.Key;
+                    DnsResourceRecord[] resourceRecords = groupedRecords.Value.ToArray();
 
-                    foreach (KeyValuePair<DnsResourceRecordType, List<DnsResourceRecord>> groupedRecords in groupedByTypeRecords.Value)
-                    {
-                        DnsResourceRecordType type = groupedRecords.Key;
-                        DnsResourceRecord[] resourceRecords = groupedRecords.Value.ToArray();
-
-                        zone.SetRecords(type, resourceRecords);
-                    }
+                    zone.SetRecords(type, resourceRecords);
                 }
             }
         }
