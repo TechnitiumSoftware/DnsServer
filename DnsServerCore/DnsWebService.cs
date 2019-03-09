@@ -3469,11 +3469,6 @@ namespace DnsServerCore
             if (!certificate.Verify())
                 throw new ArgumentException("Tls certificate is invalid.");
 
-            string commonName = certificate.GetNameInfo(X509NameType.DnsName, false);
-
-            if (!Zone.DomainEquals(_dnsServer.ServerDomain, commonName))
-                _log.Write("WARNING! DNS Server domain name does not match with TLS certificate common name: " + commonName);
-
             _dnsServer.Certificate = certificate;
             _tlsCertificateLastModifiedOn = fileInfo.LastWriteTimeUtc;
 
