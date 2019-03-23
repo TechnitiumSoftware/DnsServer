@@ -66,6 +66,7 @@ namespace DnsServerCore
         bool _enableDnsOverHttp = false;
         bool _enableDnsOverTls = false;
         bool _enableDnsOverHttps = false;
+        bool _isDnsOverHttpsEnabled;
         X509Certificate2 _certificate;
 
         readonly Zone _authoritativeZoneRoot = new Zone(true);
@@ -1177,7 +1178,7 @@ namespace DnsServerCore
 
             try
             {
-                return DnsClient.ResolveViaNameServers(request.Question[0], viaNameServers, _dnsCache, _proxy, _preferIPv6, protocol, _retries, _timeout, _recursiveResolveProtocol, _maxStackCount);
+                return DnsClient.RecursiveResolve(request.Question[0], viaNameServers, _dnsCache, _proxy, _preferIPv6, protocol, _retries, _timeout, _recursiveResolveProtocol, _maxStackCount);
             }
             finally
             {
@@ -1280,6 +1281,8 @@ namespace DnsServerCore
 
                         _httpListeners.Add(httpListener);
 
+                        _isDnsOverHttpsEnabled = true;
+
                         LogManager log = _log;
                         if (log != null)
                             log.Write(httpEP, DnsTransportProtocol.Https, "DNS Server was bound successfully.");
@@ -1332,6 +1335,8 @@ namespace DnsServerCore
 
                         _httpsListeners.Add(httpsListener);
 
+                        _isDnsOverHttpsEnabled = true;
+
                         LogManager log = _log;
                         if (log != null)
                             log.Write(httpsEP, DnsTransportProtocol.Https, "DNS Server was bound successfully.");
@@ -1345,6 +1350,19 @@ namespace DnsServerCore
                         httpsListener.Dispose();
                     }
                 }
+            }
+
+            if (_isDnsOverHttpsEnabled)
+            {
+                string serverDomain = _authoritativeZoneRoot.ServerDomain;
+
+                _authoritativeZoneRoot.SetRecords("resolver-associated-doh.arpa", DnsResourceRecordType.SOA, 14400, new DnsResourceRecordData[] { new DnsSOARecord(serverDomain, "hostmaster." + serverDomain, uint.Parse(DateTime.UtcNow.ToString("yyyyMMddHH")), 28800, 7200, 604800, 600) });
+                _authoritativeZoneRoot.SetRecords("resolver-associated-doh.arpa", DnsResourceRecordType.NS, 14400, new DnsResourceRecordData[] { new DnsNSRecord(serverDomain) });
+                _authoritativeZoneRoot.SetRecords("resolver-associated-doh.arpa", DnsResourceRecordType.TXT, 60, new DnsResourceRecordData[] { new DnsTXTRecord("https://" + serverDomain + "/dns-query") });
+
+                _authoritativeZoneRoot.SetRecords("resolver-addresses.arpa", DnsResourceRecordType.SOA, 14400, new DnsResourceRecordData[] { new DnsSOARecord(serverDomain, "hostmaster." + serverDomain, uint.Parse(DateTime.UtcNow.ToString("yyyyMMddHH")), 28800, 7200, 604800, 600) });
+                _authoritativeZoneRoot.SetRecords("resolver-addresses.arpa", DnsResourceRecordType.NS, 14400, new DnsResourceRecordData[] { new DnsNSRecord(serverDomain) });
+                _authoritativeZoneRoot.SetRecords("resolver-addresses.arpa", DnsResourceRecordType.CNAME, 60, new DnsResourceRecordData[] { new DnsCNAMERecord(serverDomain) });
             }
 
             //start reading query packets
@@ -1462,13 +1480,11 @@ namespace DnsServerCore
                 _allowedZoneRoot.ServerDomain = value;
                 _blockedZoneRoot.ServerDomain = value;
 
-                _authoritativeZoneRoot.SetRecords("resolver-associated-doh.arpa", DnsResourceRecordType.SOA, 14400, new DnsResourceRecordData[] { new DnsSOARecord(value, "hostmaster." + value, uint.Parse(DateTime.UtcNow.ToString("yyyyMMddHH")), 28800, 7200, 604800, 600) });
-                _authoritativeZoneRoot.SetRecords("resolver-associated-doh.arpa", DnsResourceRecordType.NS, 14400, new DnsResourceRecordData[] { new DnsNSRecord(value) });
-                _authoritativeZoneRoot.SetRecords("resolver-associated-doh.arpa", DnsResourceRecordType.TXT, 60, new DnsResourceRecordData[] { new DnsTXTRecord("https://" + value + "/dns-query") });
-
-                _authoritativeZoneRoot.SetRecords("resolver-addresses.arpa", DnsResourceRecordType.SOA, 14400, new DnsResourceRecordData[] { new DnsSOARecord(value, "hostmaster." + value, uint.Parse(DateTime.UtcNow.ToString("yyyyMMddHH")), 28800, 7200, 604800, 600) });
-                _authoritativeZoneRoot.SetRecords("resolver-addresses.arpa", DnsResourceRecordType.NS, 14400, new DnsResourceRecordData[] { new DnsNSRecord(value) });
-                _authoritativeZoneRoot.SetRecords("resolver-addresses.arpa", DnsResourceRecordType.CNAME, 60, new DnsResourceRecordData[] { new DnsCNAMERecord(value) });
+                if (_isDnsOverHttpsEnabled)
+                {
+                    _authoritativeZoneRoot.SetRecords("resolver-associated-doh.arpa", DnsResourceRecordType.TXT, 60, new DnsResourceRecordData[] { new DnsTXTRecord("https://" + value + "/dns-query") });
+                    _authoritativeZoneRoot.SetRecords("resolver-addresses.arpa", DnsResourceRecordType.CNAME, 60, new DnsResourceRecordData[] { new DnsCNAMERecord(value) });
+                }
             }
         }
 
@@ -1489,6 +1505,9 @@ namespace DnsServerCore
             get { return _enableDnsOverHttps; }
             set { _enableDnsOverHttps = value; }
         }
+
+        public bool IsDnsOverHttpsEnabled
+        { get { return _isDnsOverHttpsEnabled; } }
 
         public X509Certificate2 Certificate
         {
