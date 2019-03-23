@@ -186,7 +186,7 @@ label {
 
 .log-list-pane {
     float: left;
-    width: 15%;
+    width: 17%;
 }
 
 .logs {
@@ -199,7 +199,7 @@ label {
 
 .log-viewer-pane {
     float: right;
-    width: 84%;
+    width: 82%;
     display: none;
 }
 
