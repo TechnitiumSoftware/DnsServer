@@ -325,7 +325,7 @@ namespace DnsServerCore
                                                 break;
 
                                             case "/api/createZone":
-                                                CreateZone(request);
+                                                CreateZone(request, jsonWriter);
                                                 break;
 
                                             case "/api/deleteZone":
@@ -1106,7 +1106,14 @@ namespace DnsServerCore
                                                     _dnsServer.AuthoritativeZoneRoot.UpdateRecord(nsResourceRecord, new DnsResourceRecord(nsResourceRecord.Name, nsResourceRecord.Type, nsResourceRecord.Class, nsResourceRecord.TTLValue, new DnsNSRecord(strServerDomain)));
                                             }
 
-                                            SaveZoneFile(zone.ZoneName);
+                                            try
+                                            {
+                                                SaveZoneFile(zone.ZoneName);
+                                            }
+                                            catch (Exception ex)
+                                            {
+                                                _log.Write(ex);
+                                            }
                                         }
                                     }
                                 }
@@ -2046,7 +2053,7 @@ namespace DnsServerCore
             jsonWriter.WriteEndArray();
         }
 
-        private void CreateZone(HttpListenerRequest request)
+        private void CreateZone(HttpListenerRequest request, JsonTextWriter jsonWriter)
         {
             string domain = request.QueryString["domain"];
             if (string.IsNullOrEmpty(domain))
@@ -2056,7 +2063,7 @@ namespace DnsServerCore
                 throw new DnsWebServiceException("Domain name for a zone cannot contain wildcard character.");
 
             if (IPAddress.TryParse(domain, out IPAddress ipAddress))
-                domain = (new DnsQuestionRecord(ipAddress, DnsClass.IN)).Name;
+                domain = (new DnsQuestionRecord(ipAddress, DnsClass.IN)).Name.ToLower();
             else if (domain.EndsWith("."))
                 domain = domain.Substring(0, domain.Length - 1);
 
@@ -2067,6 +2074,9 @@ namespace DnsServerCore
             _log.Write(GetRequestRemoteEndPoint(request), "[" + GetSession(request).Username + "] Authoritative zone was created: " + domain);
 
             SaveZoneFile(domain);
+
+            jsonWriter.WritePropertyName("domain");
+            jsonWriter.WriteValue(domain);
         }
 
         private void CreateZone(string domain)
@@ -2251,6 +2261,8 @@ namespace DnsServerCore
 
                 return;
             }
+
+            Array.Sort(records);
 
             Dictionary<string, Dictionary<DnsResourceRecordType, List<DnsResourceRecord>>> groupedByDomainRecords = Zone.GroupRecords(records);
 
@@ -2687,9 +2699,9 @@ namespace DnsServerCore
 
             DnsDatagram dnsResponse;
 
-            if (server == "root-servers")
+            if (server == "recursive-resolver")
             {
-                dnsResponse = DnsClient.ResolveViaRootNameServers(domain, type, new SimpleDnsCache(), proxy, preferIPv6, protocol, RETRIES, _dnsServer.Timeout);
+                dnsResponse = DnsClient.RecursiveResolve(domain, type, new SimpleDnsCache(), proxy, preferIPv6, protocol, RETRIES, _dnsServer.Timeout);
             }
             else
             {
@@ -2985,7 +2997,7 @@ namespace DnsServerCore
             string authZone = records[0].Name.ToLower();
 
             if (Zone.DomainEquals(authZone, "resolver-associated-doh.arpa") || Zone.DomainEquals(authZone, "resolver-addresses.arpa"))
-                throw new DnsWebServiceException("Access was denied to manage special DNS Server zones.");
+                return;
 
             using (MemoryStream mS = new MemoryStream())
             {
