@@ -1466,10 +1466,7 @@ function addZone() {
         success: function (responseJSON) {
             refreshZonesList();
 
-            if ((domain !== ".") && domain.endsWith("."))
-                domain = domain.substr(0, domain.length - 1);
-
-            viewZone(domain, false);
+            viewZone(responseJSON.response.domain, false);
 
             $("#txtAddZone").val("");
             btn.button('reset');
