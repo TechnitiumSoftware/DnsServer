@@ -755,7 +755,7 @@ namespace DnsServerCore
                                 jsonWriter.WriteStartArray();
 
                                 if (_enableDnsOverHttp || _enableDnsOverHttps)
-                                    jsonWriter.WriteValue("https://" + _authoritativeZoneRoot.ServerDomain + "/dns-query");
+                                    jsonWriter.WriteValue("https://" + _authoritativeZoneRoot.ServerDomain + "/dns-query{?dns}");
 
                                 jsonWriter.WriteEndArray();
 
@@ -1360,7 +1360,7 @@ namespace DnsServerCore
 
                 _authoritativeZoneRoot.SetRecords("resolver-associated-doh.arpa", DnsResourceRecordType.SOA, 14400, new DnsResourceRecordData[] { new DnsSOARecord(serverDomain, "hostmaster." + serverDomain, uint.Parse(DateTime.UtcNow.ToString("yyyyMMddHH")), 28800, 7200, 604800, 600) });
                 _authoritativeZoneRoot.SetRecords("resolver-associated-doh.arpa", DnsResourceRecordType.NS, 14400, new DnsResourceRecordData[] { new DnsNSRecord(serverDomain) });
-                _authoritativeZoneRoot.SetRecords("resolver-associated-doh.arpa", DnsResourceRecordType.TXT, 60, new DnsResourceRecordData[] { new DnsTXTRecord("https://" + serverDomain + "/dns-query") });
+                _authoritativeZoneRoot.SetRecords("resolver-associated-doh.arpa", DnsResourceRecordType.TXT, 60, new DnsResourceRecordData[] { new DnsTXTRecord("https://" + serverDomain + "/dns-query{?dns}") });
 
                 _authoritativeZoneRoot.SetRecords("resolver-addresses.arpa", DnsResourceRecordType.SOA, 14400, new DnsResourceRecordData[] { new DnsSOARecord(serverDomain, "hostmaster." + serverDomain, uint.Parse(DateTime.UtcNow.ToString("yyyyMMddHH")), 28800, 7200, 604800, 600) });
                 _authoritativeZoneRoot.SetRecords("resolver-addresses.arpa", DnsResourceRecordType.NS, 14400, new DnsResourceRecordData[] { new DnsNSRecord(serverDomain) });
@@ -1484,7 +1484,7 @@ namespace DnsServerCore
 
                 if (_isDnsOverHttpsEnabled)
                 {
-                    _authoritativeZoneRoot.SetRecords("resolver-associated-doh.arpa", DnsResourceRecordType.TXT, 60, new DnsResourceRecordData[] { new DnsTXTRecord("https://" + value + "/dns-query") });
+                    _authoritativeZoneRoot.SetRecords("resolver-associated-doh.arpa", DnsResourceRecordType.TXT, 60, new DnsResourceRecordData[] { new DnsTXTRecord("https://" + value + "/dns-query{?dns}") });
                     _authoritativeZoneRoot.SetRecords("resolver-addresses.arpa", DnsResourceRecordType.CNAME, 60, new DnsResourceRecordData[] { new DnsCNAMERecord(value) });
                 }
             }
