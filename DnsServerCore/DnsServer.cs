@@ -1119,16 +1119,9 @@ namespace DnsServerCore
         {
             //query cache zone to see if answer available
             {
-                DnsDatagram cacheResponse = _cacheZoneRoot.Query(request);
-
-                if (cacheResponse.Header.RCODE != DnsResponseCode.Refused)
-                {
-                    if ((cacheResponse.Answer.Length > 0) || ((cacheResponse.Authority.Length == 0) || (cacheResponse.Authority[0].Type == DnsResourceRecordType.SOA)))
-                    {
-                        cacheResponse.Tag = "cacheHit";
-                        return cacheResponse;
-                    }
-                }
+                DnsDatagram cacheResponse = QueryCache(request);
+                if (cacheResponse != null)
+                    return cacheResponse;
             }
 
             //recursion with locking
@@ -1146,16 +1139,9 @@ namespace DnsServerCore
 
                     //query cache zone again to see if answer available
                     {
-                        DnsDatagram cacheResponse = _cacheZoneRoot.Query(request);
-
-                        if (cacheResponse.Header.RCODE != DnsResponseCode.Refused)
-                        {
-                            if ((cacheResponse.Answer.Length > 0) || ((cacheResponse.Authority.Length == 0) || (cacheResponse.Authority[0].Type == DnsResourceRecordType.SOA)))
-                            {
-                                cacheResponse.Tag = "cacheHit";
-                                return cacheResponse;
-                            }
-                        }
+                        DnsDatagram cacheResponse = QueryCache(request);
+                        if (cacheResponse != null)
+                            return cacheResponse;
                     }
 
                     //no response available in cache so respond with server failure
@@ -1192,6 +1178,22 @@ namespace DnsServerCore
                     }
                 }
             }
+        }
+
+        private DnsDatagram QueryCache(DnsDatagram request)
+        {
+            DnsDatagram cacheResponse = _cacheZoneRoot.Query(request);
+
+            if (cacheResponse.Header.RCODE != DnsResponseCode.Refused)
+            {
+                if ((cacheResponse.Answer.Length > 0) || (cacheResponse.Authority.Length == 0) || (cacheResponse.Authority[0].Type == DnsResourceRecordType.SOA))
+                {
+                    cacheResponse.Tag = "cacheHit";
+                    return cacheResponse;
+                }
+            }
+
+            return null;
         }
 
         #endregion
