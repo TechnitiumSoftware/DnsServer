@@ -2291,7 +2291,7 @@ namespace DnsServerCore
                         jsonWriter.WriteValue(resourceRecord.Type.ToString());
 
                         jsonWriter.WritePropertyName("ttl");
-                        jsonWriter.WriteValue(resourceRecord.TTLValue);
+                        jsonWriter.WriteValue(resourceRecord.TTL);
 
                         jsonWriter.WritePropertyName("rData");
                         jsonWriter.WriteStartObject();
@@ -2695,13 +2695,14 @@ namespace DnsServerCore
             NetProxy proxy = _dnsServer.Proxy;
             bool preferIPv6 = _dnsServer.PreferIPv6;
             DnsTransportProtocol protocol = (DnsTransportProtocol)Enum.Parse(typeof(DnsTransportProtocol), strProtocol, true);
-            const int RETRIES = 2;
+            const int RETRIES = 1;
+            const int TIMEOUT = 10000;
 
             DnsDatagram dnsResponse;
 
             if (server == "recursive-resolver")
             {
-                dnsResponse = DnsClient.RecursiveResolve(domain, type, new SimpleDnsCache(), proxy, preferIPv6, protocol, RETRIES, _dnsServer.Timeout);
+                dnsResponse = DnsClient.RecursiveResolve(domain, type, new SimpleDnsCache(), proxy, preferIPv6, protocol, RETRIES, TIMEOUT);
             }
             else
             {
@@ -2721,9 +2722,9 @@ namespace DnsServerCore
                         if (proxy == null)
                         {
                             if (_dnsServer.AllowRecursion)
-                                nameServer.ResolveIPAddress(new NameServerAddress[] { new NameServerAddress(IPAddress.Loopback) }, _dnsServer.Proxy, preferIPv6, DnsTransportProtocol.Udp, RETRIES, _dnsServer.Timeout);
+                                nameServer.ResolveIPAddress(new NameServerAddress[] { new NameServerAddress(IPAddress.Loopback) }, _dnsServer.Proxy, preferIPv6, DnsTransportProtocol.Udp, RETRIES, TIMEOUT);
                             else
-                                nameServer.RecursiveResolveIPAddress(_dnsServer.Cache, _dnsServer.Proxy, preferIPv6, DnsTransportProtocol.Udp, RETRIES, _dnsServer.Timeout, DnsTransportProtocol.Udp);
+                                nameServer.RecursiveResolveIPAddress(_dnsServer.Cache, _dnsServer.Proxy, preferIPv6, DnsTransportProtocol.Udp, RETRIES, TIMEOUT, DnsTransportProtocol.Udp);
                         }
                     }
                     else if (protocol != DnsTransportProtocol.Tls)
@@ -2731,16 +2732,16 @@ namespace DnsServerCore
                         try
                         {
                             if (_dnsServer.AllowRecursion)
-                                nameServer.ResolveDomainName(new NameServerAddress[] { new NameServerAddress(IPAddress.Loopback) }, _dnsServer.Proxy, _dnsServer.PreferIPv6, DnsTransportProtocol.Udp, RETRIES, _dnsServer.Timeout);
+                                nameServer.ResolveDomainName(new NameServerAddress[] { new NameServerAddress(IPAddress.Loopback) }, _dnsServer.Proxy, _dnsServer.PreferIPv6, DnsTransportProtocol.Udp, RETRIES, TIMEOUT);
                             else
-                                nameServer.RecursiveResolveDomainName(_dnsServer.Cache, _dnsServer.Proxy, _dnsServer.PreferIPv6, DnsTransportProtocol.Udp, RETRIES, _dnsServer.Timeout, DnsTransportProtocol.Udp);
+                                nameServer.RecursiveResolveDomainName(_dnsServer.Cache, _dnsServer.Proxy, _dnsServer.PreferIPv6, DnsTransportProtocol.Udp, RETRIES, TIMEOUT, DnsTransportProtocol.Udp);
                         }
                         catch
                         { }
                     }
                 }
 
-                dnsResponse = (new DnsClient(nameServer) { Proxy = proxy, PreferIPv6 = preferIPv6, Protocol = protocol, Retries = RETRIES, Timeout = _dnsServer.Timeout, RecursiveResolveProtocol = DnsTransportProtocol.Udp }).Resolve(domain, type);
+                dnsResponse = (new DnsClient(nameServer) { Proxy = proxy, PreferIPv6 = preferIPv6, Protocol = protocol, Retries = RETRIES, Timeout = TIMEOUT, RecursiveResolveProtocol = DnsTransportProtocol.Udp }).Resolve(domain, type);
             }
 
             if (importRecords)
@@ -3269,7 +3270,7 @@ namespace DnsServerCore
                             hostname = secondWord;
                         }
 
-                        if (!DnsDatagram.IsDomainNameValid(hostname, false))
+                        if (!DnsClient.IsDomainNameValid(hostname, false))
                             continue;
 
                         switch (hostname.ToLower())
