@@ -70,7 +70,7 @@ namespace DnsServerCore
         X509Certificate2 _certificate;
 
         readonly Zone _authoritativeZoneRoot = new Zone(true);
-        readonly Zone _cacheZoneRoot = new Zone(false);
+        readonly Zone _cacheZoneRoot = new Zone(false) { ServeStaleTtl = 7 * 24 * 60 * 60 }; //7 days serve stale ttl as per draft-ietf-dnsop-serve-stale-04
         readonly Zone _allowedZoneRoot = new Zone(true);
         Zone _blockedZoneRoot = new Zone(true);
 
@@ -83,7 +83,7 @@ namespace DnsServerCore
         DnsTransportProtocol _forwarderProtocol = DnsTransportProtocol.Udp;
         DnsTransportProtocol _recursiveResolveProtocol = DnsTransportProtocol.Udp;
         bool _preferIPv6 = false;
-        int _retries = 3;
+        int _retries = 2;
         int _timeout = 2000;
         int _maxStackCount = 10;
         LogManager _log;
@@ -93,7 +93,7 @@ namespace DnsServerCore
         int _tcpSendTimeout = 10000;
         int _tcpReceiveTimeout = 10000;
 
-        readonly ConcurrentDictionary<DnsQuestionRecord, object> _recursiveQueryLocks = new ConcurrentDictionary<DnsQuestionRecord, object>();
+        readonly ConcurrentDictionary<DnsQuestionRecord, RecursiveQueryLock> _recursiveQueryLocks = new ConcurrentDictionary<DnsQuestionRecord, RecursiveQueryLock>(Environment.ProcessorCount * 64, Environment.ProcessorCount * 32);
 
         volatile ServiceState _state = ServiceState.Stopped;
 
@@ -1119,76 +1119,140 @@ namespace DnsServerCore
         {
             //query cache zone to see if answer available
             {
-                DnsDatagram cacheResponse = QueryCache(request);
+                DnsDatagram cacheResponse = QueryCache(request, false, true);
                 if (cacheResponse != null)
                     return cacheResponse;
             }
 
             //recursion with locking
+            RecursiveQueryLock newLockObj = new RecursiveQueryLock();
+            RecursiveQueryLock actualLockObj = _recursiveQueryLocks.GetOrAdd(request.Question[0], newLockObj);
+
+            if (actualLockObj.Equals(newLockObj))
             {
-                object newLockObj = new object();
-                object actualLockObj = _recursiveQueryLocks.GetOrAdd(request.Question[0], newLockObj);
-
-                if (!actualLockObj.Equals(newLockObj))
+                //got lock so question not being resolved; do recursive resolution in worker thread
+                ThreadPool.QueueUserWorkItem(delegate (object state)
                 {
-                    //question already being recursively resolved by another thread, wait till timeout or pulse signal
-                    lock (actualLockObj)
+                    //select protocol
+                    DnsTransportProtocol protocol;
+
+                    if ((viaNameServers == null) && (_forwarders != null))
                     {
-                        Monitor.Wait(actualLockObj, _timeout * _retries);
+                        viaNameServers = _forwarders;
+                        protocol = _forwarderProtocol;
+                    }
+                    else
+                    {
+                        protocol = _recursiveResolveProtocol;
                     }
 
-                    //query cache zone again to see if answer available
+                    try
                     {
-                        DnsDatagram cacheResponse = QueryCache(request);
-                        if (cacheResponse != null)
-                            return cacheResponse;
+                        //recursive resolve and update cache
+                        DnsClient.RecursiveResolve(request.Question[0], viaNameServers, _dnsCache, _proxy, _preferIPv6, protocol, _retries, _timeout, _recursiveResolveProtocol, _maxStackCount);
                     }
+                    catch (Exception ex)
+                    {
+                        LogManager log = _log;
+                        if (log != null)
+                        {
+                            string nameServers = null;
 
-                    //no response available in cache so respond with server failure
-                    return new DnsDatagram(new DnsHeader(request.Header.Identifier, true, DnsOpcode.StandardQuery, false, false, request.Header.RecursionDesired, true, false, false, DnsResponseCode.ServerFailure, request.Header.QDCOUNT, 0, 0, 0), request.Question, null, null, null);
+                            if (viaNameServers != null)
+                            {
+                                foreach (NameServerAddress nameServer in viaNameServers)
+                                {
+                                    if (nameServers == null)
+                                        nameServers = nameServer.ToString();
+                                    else
+                                        nameServers += ", " + nameServer.ToString();
+                                }
+                            }
+
+                            log.Write("DNS Server recursive resolution failed for QNAME: " + request.Question[0].Name + "; QTYPE: " + request.Question[0].Type.ToString() + "; QCLASS: " + request.Question[0].Class.ToString() + (nameServers == null ? "" : "; Name Servers: " + nameServers) + ";\r\n" + ex.ToString());
+                        }
+
+                        //fetch stale record and reset expiry
+                        {
+                            DnsDatagram cacheResponse = QueryCache(request, true, false);
+                            if (cacheResponse != null)
+                            {
+                                foreach (DnsResourceRecord record in cacheResponse.Answer)
+                                {
+                                    if (record.IsStale)
+                                        record.ResetExpiry(30); //reset expiry by 30 seconds so that resolver tries again only after 30 seconds as per draft-ietf-dnsop-serve-stale-04
+                                }
+                            }
+                        }
+                    }
+                    finally
+                    {
+                        //remove question lock
+                        if (_recursiveQueryLocks.TryRemove(request.Question[0], out RecursiveQueryLock lockObj))
+                        {
+                            //pulse all waiting threads
+                            lock (lockObj)
+                            {
+                                lockObj.SetComplete();
+                                Monitor.PulseAll(lockObj);
+                            }
+                        }
+                    }
+                });
+            }
+
+            //request is being recursively resolved by worker thread
+
+            bool timeout = false;
+
+            //wait till short timeout or pulse signal
+            lock (actualLockObj)
+            {
+                if (!actualLockObj.Complete)
+                    timeout = !Monitor.Wait(actualLockObj, _timeout - 200); //1.8 sec wait with default client timeout as 2 sec as per draft-ietf-dnsop-serve-stale-04
+            }
+
+            //query cache zone to get the cached answer
+            {
+                //if there was timeout then return stale answer (if available) as per draft-ietf-dnsop-serve-stale-04
+                DnsDatagram cacheResponse = QueryCache(request, timeout, timeout);
+                if (cacheResponse != null)
+                    return cacheResponse;
+            }
+
+            if (timeout)
+            {
+                //wait till timeout or pulse signal for some more time before responding as ServerFailure
+                //this is required since, quickly returning ServerFailure results in clients giving up lookup attempt early causing DNS error messages in web browsers
+                lock (actualLockObj)
+                {
+                    if (!actualLockObj.Complete)
+                        Monitor.Wait(actualLockObj, _timeout + 200);
+                }
+
+                //query cache zone to see if answer is available now
+                {
+                    DnsDatagram cacheResponse = QueryCache(request, false, false);
+                    if (cacheResponse != null)
+                        return cacheResponse;
                 }
             }
 
-            //select protocol
-            DnsTransportProtocol protocol;
-
-            if ((viaNameServers == null) && (_forwarders != null))
-            {
-                viaNameServers = _forwarders;
-                protocol = _forwarderProtocol;
-            }
-            else
-            {
-                protocol = _recursiveResolveProtocol;
-            }
-
-            try
-            {
-                return DnsClient.RecursiveResolve(request.Question[0], viaNameServers, _dnsCache, _proxy, _preferIPv6, protocol, _retries, _timeout, _recursiveResolveProtocol, _maxStackCount);
-            }
-            finally
-            {
-                //remove question lock
-                if (_recursiveQueryLocks.TryRemove(request.Question[0], out object lockObj))
-                {
-                    //pulse all waiting threads
-                    lock (lockObj)
-                    {
-                        Monitor.PulseAll(lockObj);
-                    }
-                }
-            }
+            //no response available in cache so respond with ServerFailure
+            return new DnsDatagram(new DnsHeader(request.Header.Identifier, true, DnsOpcode.StandardQuery, false, false, request.Header.RecursionDesired, true, false, false, DnsResponseCode.ServerFailure, request.Header.QDCOUNT, 0, 0, 0), request.Question, null, null, null);
         }
 
-        private DnsDatagram QueryCache(DnsDatagram request)
+        private DnsDatagram QueryCache(DnsDatagram request, bool serveStale, bool tagAsCacheHit)
         {
-            DnsDatagram cacheResponse = _cacheZoneRoot.Query(request);
+            DnsDatagram cacheResponse = _cacheZoneRoot.Query(request, serveStale);
 
             if (cacheResponse.Header.RCODE != DnsResponseCode.Refused)
             {
                 if ((cacheResponse.Answer.Length > 0) || (cacheResponse.Authority.Length == 0) || (cacheResponse.Authority[0].Type == DnsResourceRecordType.SOA))
                 {
-                    cacheResponse.Tag = "cacheHit";
+                    if (tagAsCacheHit)
+                        cacheResponse.Tag = "cacheHit";
+
                     return cacheResponse;
                 }
             }
@@ -1596,13 +1660,21 @@ namespace DnsServerCore
         public int Retries
         {
             get { return _retries; }
-            set { _retries = value; }
+            set
+            {
+                if (value > 0)
+                    _retries = value;
+            }
         }
 
         public int Timeout
         {
             get { return _timeout; }
-            set { _timeout = value; }
+            set
+            {
+                if (value >= 2000)
+                    _timeout = value;
+            }
         }
 
         public int MaxStackCount
@@ -1671,6 +1743,31 @@ namespace DnsServerCore
             {
                 _cacheZoneRoot.CacheResponse(response);
             }
+
+            #endregion
+        }
+
+        class RecursiveQueryLock
+        {
+            #region variables
+
+            bool _complete;
+
+            #endregion
+
+            #region public
+
+            public void SetComplete()
+            {
+                _complete = true;
+            }
+
+            #endregion
+
+            #region properties
+
+            public bool Complete
+            { get { return _complete; } }
 
             #endregion
         }
