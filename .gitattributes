@@ -3,6 +3,8 @@
 ###############################################################################
 * text=auto
 *.sh text eol=lf
+supervisor.conf text eol=lf
+systemd.service text eol=lf
 ###############################################################################
 # Set default behavior for command prompt diff.
 #
