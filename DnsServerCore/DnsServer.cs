@@ -672,7 +672,7 @@ namespace DnsServerCore
                                                 break;
 
                                             default:
-                                                throw new NotSupportedException("DoH request type not supported."); ;
+                                                throw new NotSupportedException("DoH request type not supported.");
                                         }
 
                                         DnsDatagram dnsResponse = ProcessQuery(dnsRequest, remoteEP, protocol);
@@ -1081,7 +1081,7 @@ namespace DnsServerCore
                         else
                             question = new DnsQuestionRecord((lastRR.RDATA as DnsCNAMERecord).CNAMEDomainName, questionType, DnsClass.IN);
 
-                        lastResponse = RecursiveResolve(new DnsDatagram(new DnsHeader(0, false, DnsOpcode.StandardQuery, false, false, true, false, false, false, DnsResponseCode.NoError, 1, 0, 0, 0), new DnsQuestionRecord[] { question }, null, null, null), null); ;
+                        lastResponse = RecursiveResolve(new DnsDatagram(new DnsHeader(0, false, DnsOpcode.StandardQuery, false, false, true, false, false, false, DnsResponseCode.NoError, 1, 0, 0, 0), new DnsQuestionRecord[] { question }, null, null, null), null);
                         cacheHit &= ("cacheHit".Equals(lastResponse.Tag));
 
                         if ((lastResponse.Header.RCODE != DnsResponseCode.NoError) || (lastResponse.Answer.Length == 0))
