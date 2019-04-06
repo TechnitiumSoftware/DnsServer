@@ -1119,7 +1119,7 @@ namespace DnsServerCore
         {
             //query cache zone to see if answer available
             {
-                DnsDatagram cacheResponse = QueryCache(request, false, true);
+                DnsDatagram cacheResponse = QueryCache(request, false);
                 if (cacheResponse != null)
                     return cacheResponse;
             }
@@ -1146,10 +1146,12 @@ namespace DnsServerCore
                         protocol = _recursiveResolveProtocol;
                     }
 
+                    DnsDatagram response = null;
+
                     try
                     {
                         //recursive resolve and update cache
-                        DnsClient.RecursiveResolve(request.Question[0], viaNameServers, _dnsCache, _proxy, _preferIPv6, protocol, _retries, _timeout, _recursiveResolveProtocol, _maxStackCount);
+                        response = DnsClient.RecursiveResolve(request.Question[0], viaNameServers, _dnsCache, _proxy, _preferIPv6, protocol, _retries, _timeout, _recursiveResolveProtocol, _maxStackCount);
                     }
                     catch (Exception ex)
                     {
@@ -1174,7 +1176,7 @@ namespace DnsServerCore
 
                         //fetch stale record and reset expiry
                         {
-                            DnsDatagram cacheResponse = QueryCache(request, true, false);
+                            DnsDatagram cacheResponse = QueryCache(request, true);
                             if (cacheResponse != null)
                             {
                                 foreach (DnsResourceRecord record in cacheResponse.Answer)
@@ -1182,6 +1184,8 @@ namespace DnsServerCore
                                     if (record.IsStale)
                                         record.ResetExpiry(30); //reset expiry by 30 seconds so that resolver tries again only after 30 seconds as per draft-ietf-dnsop-serve-stale-04
                                 }
+
+                                response = cacheResponse;
                             }
                         }
                     }
@@ -1193,7 +1197,7 @@ namespace DnsServerCore
                             //pulse all waiting threads
                             lock (lockObj)
                             {
-                                lockObj.SetComplete();
+                                lockObj.SetComplete(response);
                                 Monitor.PulseAll(lockObj);
                             }
                         }
@@ -1212,37 +1216,42 @@ namespace DnsServerCore
                     timeout = !Monitor.Wait(actualLockObj, _timeout - 200); //1.8 sec wait with default client timeout as 2 sec as per draft-ietf-dnsop-serve-stale-04
             }
 
-            //query cache zone to get the cached answer
-            {
-                //if there was timeout then return stale answer (if available) as per draft-ietf-dnsop-serve-stale-04
-                DnsDatagram cacheResponse = QueryCache(request, timeout, timeout);
-                if (cacheResponse != null)
-                    return cacheResponse;
-            }
-
             if (timeout)
             {
-                //wait till timeout or pulse signal for some more time before responding as ServerFailure
-                //this is required since, quickly returning ServerFailure results in clients giving up lookup attempt early causing DNS error messages in web browsers
-                lock (actualLockObj)
+                //query cache zone to return stale answer (if available) as per draft-ietf-dnsop-serve-stale-04
                 {
-                    if (!actualLockObj.Complete)
-                        Monitor.Wait(actualLockObj, _timeout + 200);
-                }
-
-                //query cache zone to see if answer is available now
-                {
-                    DnsDatagram cacheResponse = QueryCache(request, false, false);
+                    DnsDatagram cacheResponse = QueryCache(request, true);
                     if (cacheResponse != null)
                         return cacheResponse;
                 }
+
+                //wait till timeout or pulse signal for some more time before responding as ServerFailure
+                //this is required since, quickly returning ServerFailure results in clients giving up lookup attempt early causing DNS error messages in web browsers
+                timeout = false;
+
+                lock (actualLockObj)
+                {
+                    if (!actualLockObj.Complete)
+                        timeout = !Monitor.Wait(actualLockObj, _timeout + 200);
+                }
+
+                if (!timeout)
+                {
+                    if (actualLockObj.Response != null)
+                        return actualLockObj.Response;
+                }
+            }
+            else
+            {
+                if (actualLockObj.Response != null)
+                    return actualLockObj.Response;
             }
 
             //no response available in cache so respond with ServerFailure
             return new DnsDatagram(new DnsHeader(request.Header.Identifier, true, DnsOpcode.StandardQuery, false, false, request.Header.RecursionDesired, true, false, false, DnsResponseCode.ServerFailure, request.Header.QDCOUNT, 0, 0, 0), request.Question, null, null, null);
         }
 
-        private DnsDatagram QueryCache(DnsDatagram request, bool serveStale, bool tagAsCacheHit)
+        private DnsDatagram QueryCache(DnsDatagram request, bool serveStale)
         {
             DnsDatagram cacheResponse = _cacheZoneRoot.Query(request, serveStale);
 
@@ -1250,8 +1259,7 @@ namespace DnsServerCore
             {
                 if ((cacheResponse.Answer.Length > 0) || (cacheResponse.Authority.Length == 0) || (cacheResponse.Authority[0].Type == DnsResourceRecordType.SOA))
                 {
-                    if (tagAsCacheHit)
-                        cacheResponse.Tag = "cacheHit";
+                    cacheResponse.Tag = "cacheHit";
 
                     return cacheResponse;
                 }
@@ -1752,14 +1760,19 @@ namespace DnsServerCore
             #region variables
 
             bool _complete;
+            DnsDatagram _response;
 
             #endregion
 
             #region public
 
-            public void SetComplete()
+            public void SetComplete(DnsDatagram response)
             {
-                _complete = true;
+                if (!_complete)
+                {
+                    _complete = true;
+                    _response = response;
+                }
             }
 
             #endregion
@@ -1768,6 +1781,9 @@ namespace DnsServerCore
 
             public bool Complete
             { get { return _complete; } }
+
+            public DnsDatagram Response
+            { get { return _response; } }
 
             #endregion
         }
