@@ -711,6 +711,24 @@ namespace DnsServerCore
             return new DnsDatagram(new DnsHeader(request.Header.Identifier, true, DnsOpcode.StandardQuery, false, false, request.Header.RecursionDesired, true, false, false, DnsResponseCode.Refused, 1, 0, 0, 0), request.Question, new DnsResourceRecord[] { }, new DnsResourceRecord[] { }, new DnsResourceRecord[] { });
         }
 
+        private static DnsDatagram QueryCacheGetClosestNameServers(Zone rootZone, DnsDatagram request, bool serveStale)
+        {
+            DnsQuestionRecord question = request.Question[0];
+            string domain = question.Name.ToLower();
+
+            Zone closestZone = QueryFindClosestZone(rootZone, domain);
+
+            DnsResourceRecord[] nameServers = closestZone.QueryClosestCachedNameServers(serveStale);
+            if (nameServers != null)
+            {
+                DnsResourceRecord[] additional = QueryGlueRecords(rootZone, nameServers, serveStale);
+
+                return new DnsDatagram(new DnsHeader(request.Header.Identifier, true, DnsOpcode.StandardQuery, false, false, request.Header.RecursionDesired, true, false, false, DnsResponseCode.NoError, 1, 0, (ushort)nameServers.Length, (ushort)additional.Length), request.Question, new DnsResourceRecord[] { }, nameServers, additional);
+            }
+
+            return new DnsDatagram(new DnsHeader(request.Header.Identifier, true, DnsOpcode.StandardQuery, false, false, request.Header.RecursionDesired, true, false, false, DnsResponseCode.Refused, 1, 0, 0, 0), request.Question, new DnsResourceRecord[] { }, new DnsResourceRecord[] { }, new DnsResourceRecord[] { });
+        }
+
         #endregion
 
         #region internal
@@ -761,6 +779,9 @@ namespace DnsServerCore
 
         internal void CacheResponse(DnsDatagram response)
         {
+            if (_authoritativeZone)
+                throw new InvalidOperationException("Cannot cache response into authoritative zone.");
+
             if (!response.Header.IsResponse)
                 return;
 
@@ -879,6 +900,14 @@ namespace DnsServerCore
 
                 CreateZone(this, response.Question[0].Name).SetRecords(DnsResourceRecordType.ANY, new DnsResourceRecord[] { anyRR });
             }
+        }
+
+        internal DnsDatagram QueryCacheGetClosestNameServers(DnsDatagram request, bool serveStale = false)
+        {
+            if (_authoritativeZone)
+                throw new InvalidOperationException("Cannot query authoritative zone for closest cached name servers.");
+
+            return QueryCacheGetClosestNameServers(this, request, serveStale);
         }
 
         #endregion
@@ -1043,6 +1072,12 @@ namespace DnsServerCore
         {
             Zone currentZone = GetZone(this, domain, false);
             return (currentZone != null);
+        }
+
+        public bool ZoneExistsAndEnabled(string domain)
+        {
+            Zone currentZone = GetZone(this, domain, false);
+            return (currentZone != null) && !currentZone._disabled;
         }
 
         public void Flush()

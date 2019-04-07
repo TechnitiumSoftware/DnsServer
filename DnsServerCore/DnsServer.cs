@@ -86,12 +86,17 @@ namespace DnsServerCore
         int _retries = 2;
         int _timeout = 2000;
         int _maxStackCount = 10;
+        int _prefetchMinHourlyFrequency = 180;
         LogManager _log;
         LogManager _queryLog;
         StatsManager _stats;
 
         int _tcpSendTimeout = 10000;
         int _tcpReceiveTimeout = 10000;
+
+        Timer _prefetchTimer;
+        const int PREFETCH_TIMER_INITIAL_INTEVAL = 5 * 60 * 1000;
+        const int PREFETCH_TIMER_PERIODIC_INTERVAL = 5000;
 
         readonly ConcurrentDictionary<DnsQuestionRecord, RecursiveQueryLock> _recursiveQueryLocks = new ConcurrentDictionary<DnsQuestionRecord, RecursiveQueryLock>(Environment.ProcessorCount * 64, Environment.ProcessorCount * 32);
 
@@ -1053,9 +1058,9 @@ namespace DnsServerCore
             return response;
         }
 
-        private DnsDatagram ProcessRecursiveQuery(DnsDatagram request, NameServerAddress[] viaNameServers = null)
+        private DnsDatagram ProcessRecursiveQuery(DnsDatagram request, NameServerAddress[] viaNameServers = null, bool prefetchOperation = false)
         {
-            DnsDatagram response = RecursiveResolve(request, viaNameServers);
+            DnsDatagram response = RecursiveResolve(request, viaNameServers, prefetchOperation);
 
             DnsResourceRecord[] authority;
 
@@ -1081,7 +1086,7 @@ namespace DnsServerCore
                         else
                             question = new DnsQuestionRecord((lastRR.RDATA as DnsCNAMERecord).CNAMEDomainName, questionType, DnsClass.IN);
 
-                        lastResponse = RecursiveResolve(new DnsDatagram(new DnsHeader(0, false, DnsOpcode.StandardQuery, false, false, true, false, false, false, DnsResponseCode.NoError, 1, 0, 0, 0), new DnsQuestionRecord[] { question }, null, null, null), null);
+                        lastResponse = RecursiveResolve(new DnsDatagram(new DnsHeader(0, false, DnsOpcode.StandardQuery, false, false, true, false, false, false, DnsResponseCode.NoError, 1, 0, 0, 0), new DnsQuestionRecord[] { question }, null, null, null), null, prefetchOperation);
                         cacheHit &= ("cacheHit".Equals(lastResponse.Tag));
 
                         if ((lastResponse.Header.RCODE != DnsResponseCode.NoError) || (lastResponse.Answer.Length == 0))
@@ -1115,13 +1120,34 @@ namespace DnsServerCore
             return new DnsDatagram(new DnsHeader(request.Header.Identifier, true, DnsOpcode.StandardQuery, false, false, true, true, false, false, response.Header.RCODE, 1, (ushort)response.Answer.Length, (ushort)authority.Length, 0), request.Question, response.Answer, authority, new DnsResourceRecord[] { }) { Tag = response.Tag };
         }
 
-        private DnsDatagram RecursiveResolve(DnsDatagram request, NameServerAddress[] viaNameServers)
+        private DnsDatagram RecursiveResolve(DnsDatagram request, NameServerAddress[] viaNameServers, bool prefetchOperation)
         {
             //query cache zone to see if answer available
             {
                 DnsDatagram cacheResponse = QueryCache(request, false);
                 if (cacheResponse != null)
-                    return cacheResponse;
+                {
+                    if (prefetchOperation)
+                    {
+                        bool doPrefetch = false;
+
+                        foreach (DnsResourceRecord answer in cacheResponse.Answer)
+                        {
+                            if (answer.IsStale || (answer.TTLValue < 10))
+                            {
+                                doPrefetch = true;
+                                break;
+                            }
+                        }
+
+                        if (!doPrefetch)
+                            return cacheResponse;
+                    }
+                    else
+                    {
+                        return cacheResponse;
+                    }
+                }
             }
 
             //recursion with locking
@@ -1151,7 +1177,7 @@ namespace DnsServerCore
                     try
                     {
                         //recursive resolve and update cache
-                        response = DnsClient.RecursiveResolve(request.Question[0], viaNameServers, _dnsCache, _proxy, _preferIPv6, protocol, _retries, _timeout, _recursiveResolveProtocol, _maxStackCount);
+                        response = DnsClient.RecursiveResolve(request.Question[0], viaNameServers, (prefetchOperation ? new PrefetchDnsCache(_cacheZoneRoot, request.Question[0]) : _dnsCache), _proxy, _preferIPv6, protocol, _retries, _timeout, _recursiveResolveProtocol, _maxStackCount);
                     }
                     catch (Exception ex)
                     {
@@ -1266,6 +1292,44 @@ namespace DnsServerCore
             }
 
             return null;
+        }
+
+        private void PrefetchAsync(object state)
+        {
+            try
+            {
+                StatsManager stats = _stats;
+                if (stats != null)
+                {
+                    List<KeyValuePair<DnsQuestionRecord, int>> topQueries = stats.GetLastHourTopQueries(_prefetchMinHourlyFrequency);
+
+                    foreach (KeyValuePair<DnsQuestionRecord, int> item in topQueries)
+                    {
+                        if (_authoritativeZoneRoot.ZoneExistsAndEnabled(item.Key.Name))
+                            continue; //no prefetch for zone that is hosted and enabled
+
+                        ThreadPool.QueueUserWorkItem(delegate (object state2)
+                        {
+                            try
+                            {
+                                ProcessRecursiveQuery(new DnsDatagram(new DnsHeader(0, false, DnsOpcode.StandardQuery, false, false, true, false, false, false, DnsResponseCode.NoError, 1, 0, 0, 0), new DnsQuestionRecord[] { item.Key }, null, null, null), null, true);
+                            }
+                            catch (Exception ex)
+                            {
+                                LogManager log = _log;
+                                if (log != null)
+                                    log.Write(ex);
+                            }
+                        });
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                LogManager log = _log;
+                if (log != null)
+                    log.Write(ex);
+            }
         }
 
         #endregion
@@ -1500,6 +1564,8 @@ namespace DnsServerCore
                 }
             }
 
+            _prefetchTimer = new Timer(PrefetchAsync, null, PREFETCH_TIMER_INITIAL_INTEVAL, PREFETCH_TIMER_PERIODIC_INTERVAL);
+
             _state = ServiceState.Running;
         }
 
@@ -1509,6 +1575,8 @@ namespace DnsServerCore
                 return;
 
             _state = ServiceState.Stopping;
+
+            _prefetchTimer?.Dispose();
 
             foreach (Socket udpListener in _udpListeners)
                 udpListener.Dispose();
@@ -1691,6 +1759,12 @@ namespace DnsServerCore
             set { _maxStackCount = value; }
         }
 
+        public int PrefetchMinHourlyFrequency
+        {
+            get { return _prefetchMinHourlyFrequency; }
+            set { _prefetchMinHourlyFrequency = value; }
+        }
+
         public LogManager LogManager
         {
             get { return _log; }
@@ -1744,6 +1818,43 @@ namespace DnsServerCore
 
             public DnsDatagram Query(DnsDatagram request)
             {
+                return _cacheZoneRoot.Query(request);
+            }
+
+            public void CacheResponse(DnsDatagram response)
+            {
+                _cacheZoneRoot.CacheResponse(response);
+            }
+
+            #endregion
+        }
+
+        class PrefetchDnsCache : IDnsCache
+        {
+            #region variables
+
+            readonly Zone _cacheZoneRoot;
+            readonly DnsQuestionRecord _prefetchQuery;
+
+            #endregion
+
+            #region constructor
+
+            public PrefetchDnsCache(Zone cacheZoneRoot, DnsQuestionRecord prefetchQuery)
+            {
+                _cacheZoneRoot = cacheZoneRoot;
+                _prefetchQuery = prefetchQuery;
+            }
+
+            #endregion
+
+            #region public
+
+            public DnsDatagram Query(DnsDatagram request)
+            {
+                if (_prefetchQuery.Equals(request.Question[0]))
+                    return _cacheZoneRoot.QueryCacheGetClosestNameServers(request);
+
                 return _cacheZoneRoot.Query(request);
             }
 

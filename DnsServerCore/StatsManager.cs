@@ -1,6 +1,6 @@
 ﻿/*
 Technitium DNS Server
-Copyright (C) 2018  Shreyas Zare (shreyas@technitium.com)
+Copyright (C) 2019  Shreyas Zare (shreyas@technitium.com)
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -385,17 +385,17 @@ namespace DnsServerCore
             }
 
             if (response.Header.QDCOUNT > 0)
-                Update(response.Question[0].Name, response.Question[0].Type, responseType, cacheHit, clientIpAddress);
+                Update(response.Question[0], responseType, cacheHit, clientIpAddress);
             else
-                Update("", DnsResourceRecordType.ANY, responseType, cacheHit, clientIpAddress);
+                Update(new DnsQuestionRecord("", DnsResourceRecordType.ANY, DnsClass.IN), responseType, cacheHit, clientIpAddress);
         }
 
-        public void Update(string queryDomain, DnsResourceRecordType queryType, StatsResponseType responseType, bool cacheHit, IPAddress clientIpAddress)
+        public void Update(DnsQuestionRecord query, StatsResponseType responseType, bool cacheHit, IPAddress clientIpAddress)
         {
             StatCounter statCounter = _lastHourStatCounters[DateTime.UtcNow.Minute];
 
             if (statCounter != null)
-                statCounter.Update(queryDomain, queryType, responseType, cacheHit, clientIpAddress);
+                statCounter.Update(query, responseType, cacheHit, clientIpAddress);
         }
 
         public Dictionary<string, List<KeyValuePair<string, int>>> GetLastHourStats()
@@ -769,6 +769,26 @@ namespace DnsServerCore
             return data;
         }
 
+        public List<KeyValuePair<DnsQuestionRecord, int>> GetLastHourTopQueries(int minHourlyFrequency)
+        {
+            StatCounter totalStatCounter = new StatCounter();
+            totalStatCounter.Lock();
+
+            DateTime lastHourDateTime = DateTime.UtcNow.AddMinutes(-60);
+            lastHourDateTime = new DateTime(lastHourDateTime.Year, lastHourDateTime.Month, lastHourDateTime.Day, lastHourDateTime.Hour, lastHourDateTime.Minute, 0, DateTimeKind.Utc);
+
+            for (int minute = 0; minute < 60; minute++)
+            {
+                DateTime lastDateTime = lastHourDateTime.AddMinutes(minute);
+
+                StatCounter statCounter = _lastHourStatCountersCopy[lastDateTime.Minute];
+                if ((statCounter != null) && statCounter.IsLocked)
+                    totalStatCounter.Merge(statCounter);
+            }
+
+            return totalStatCounter.GetTopQueries(minHourlyFrequency);
+        }
+
         #endregion
 
         class HourlyStats
@@ -876,6 +896,7 @@ namespace DnsServerCore
             ConcurrentDictionary<string, Counter> _queryBlockedDomains = new ConcurrentDictionary<string, Counter>(100, 100);
             ConcurrentDictionary<DnsResourceRecordType, Counter> _queryTypes = new ConcurrentDictionary<DnsResourceRecordType, Counter>(100, 10);
             ConcurrentDictionary<IPAddress, Counter> _clientIpAddresses = new ConcurrentDictionary<IPAddress, Counter>(100, 100);
+            ConcurrentDictionary<DnsQuestionRecord, Counter> _queries = new ConcurrentDictionary<DnsQuestionRecord, Counter>(100, 100);
 
             #endregion
 
@@ -936,6 +957,8 @@ namespace DnsServerCore
                 _locked = true;
             }
 
+            #endregion
+
             #region private
 
             private List<KeyValuePair<string, int>> GetTopList(List<KeyValuePair<string, int>> list, int limit)
@@ -953,8 +976,6 @@ namespace DnsServerCore
 
             #endregion
 
-            #endregion
-
             #region public
 
             public void Lock()
@@ -962,7 +983,7 @@ namespace DnsServerCore
                 _locked = true;
             }
 
-            public void Update(string queryDomain, DnsResourceRecordType queryType, StatsResponseType responseType, bool cacheHit, IPAddress clientIpAddress)
+            public void Update(DnsQuestionRecord query, StatsResponseType responseType, bool cacheHit, IPAddress clientIpAddress)
             {
                 if (_locked)
                     return;
@@ -975,7 +996,8 @@ namespace DnsServerCore
                 switch (responseType)
                 {
                     case StatsResponseType.NoError:
-                        _queryDomains.GetOrAdd(queryDomain, new Counter()).Increment();
+                        _queryDomains.GetOrAdd(query.Name, new Counter()).Increment();
+                        _queries.GetOrAdd(query, new Counter()).Increment();
 
                         Interlocked.Increment(ref _totalNoError);
                         break;
@@ -993,7 +1015,7 @@ namespace DnsServerCore
                         break;
 
                     case StatsResponseType.Blocked:
-                        _queryBlockedDomains.GetOrAdd(queryDomain, new Counter()).Increment();
+                        _queryBlockedDomains.GetOrAdd(query.Name, new Counter()).Increment();
                         Interlocked.Increment(ref _totalBlocked);
                         break;
                 }
@@ -1001,7 +1023,7 @@ namespace DnsServerCore
                 if (cacheHit)
                     Interlocked.Increment(ref _totalCacheHit);
 
-                _queryTypes.GetOrAdd(queryType, new Counter()).Increment();
+                _queryTypes.GetOrAdd(query.Type, new Counter()).Increment();
                 _clientIpAddresses.GetOrAdd(clientIpAddress, new Counter()).Increment();
             }
 
@@ -1029,6 +1051,9 @@ namespace DnsServerCore
 
                 foreach (KeyValuePair<IPAddress, Counter> clientIpAddress in statCounter._clientIpAddresses)
                     _clientIpAddresses.GetOrAdd(clientIpAddress.Key, new Counter()).Merge(clientIpAddress.Value);
+
+                foreach (KeyValuePair<DnsQuestionRecord, Counter> query in statCounter._queries)
+                    _queries.GetOrAdd(query.Key, new Counter()).Merge(query.Value);
             }
 
             public void WriteTo(BinaryWriter bW)
@@ -1138,6 +1163,19 @@ namespace DnsServerCore
                 }
 
                 return queryTypes;
+            }
+
+            public List<KeyValuePair<DnsQuestionRecord, int>> GetTopQueries(int minHourlyFrequency)
+            {
+                List<KeyValuePair<DnsQuestionRecord, int>> topQueries = new List<KeyValuePair<DnsQuestionRecord, int>>(100);
+
+                foreach (KeyValuePair<DnsQuestionRecord, Counter> item in _queries)
+                {
+                    if (item.Value.Count >= minHourlyFrequency)
+                        topQueries.Add(new KeyValuePair<DnsQuestionRecord, int>(item.Key, item.Value.Count));
+                }
+
+                return topQueries;
             }
 
             #endregion
