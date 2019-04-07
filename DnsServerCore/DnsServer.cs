@@ -86,7 +86,8 @@ namespace DnsServerCore
         int _retries = 2;
         int _timeout = 2000;
         int _maxStackCount = 10;
-        int _prefetchMinHourlyFrequency = 180;
+        int _prefetchMinutes = 5;
+        int _prefetchHitsPerMinute = 6;
         LogManager _log;
         LogManager _queryLog;
         StatsManager _stats;
@@ -1301,7 +1302,7 @@ namespace DnsServerCore
                 StatsManager stats = _stats;
                 if (stats != null)
                 {
-                    List<KeyValuePair<DnsQuestionRecord, int>> topQueries = stats.GetLastHourTopQueries(_prefetchMinHourlyFrequency);
+                    List<KeyValuePair<DnsQuestionRecord, int>> topQueries = stats.GetTopQueries(_prefetchMinutes, _prefetchHitsPerMinute);
 
                     foreach (KeyValuePair<DnsQuestionRecord, int> item in topQueries)
                     {
@@ -1759,10 +1760,20 @@ namespace DnsServerCore
             set { _maxStackCount = value; }
         }
 
-        public int PrefetchMinHourlyFrequency
+        public int PrefetchMinutes
         {
-            get { return _prefetchMinHourlyFrequency; }
-            set { _prefetchMinHourlyFrequency = value; }
+            get { return _prefetchMinutes; }
+            set
+            {
+                if ((value > 0) && (value <= 60))
+                    _prefetchMinutes = value;
+            }
+        }
+
+        public int PrefetchHitsPerMinute
+        {
+            get { return _prefetchHitsPerMinute; }
+            set { _prefetchHitsPerMinute = value; }
         }
 
         public LogManager LogManager
