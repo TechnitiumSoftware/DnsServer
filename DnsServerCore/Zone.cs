@@ -108,40 +108,6 @@ namespace DnsServerCore
             return path;
         }
 
-        internal static bool DomainEquals(string domain1, string domain2)
-        {
-            string[] path1 = ConvertDomainToPath(domain1);
-            string[] path2 = ConvertDomainToPath(domain2);
-
-            int maxLen;
-            int minLen;
-
-            if (path1.Length > path2.Length)
-            {
-                maxLen = path1.Length;
-                minLen = path2.Length;
-            }
-            else
-            {
-                maxLen = path2.Length;
-                minLen = path1.Length;
-            }
-
-            for (int i = 0; i < maxLen; i++)
-            {
-                if (i == minLen)
-                    return false;
-
-                if ((path1[i] == "*") || (path2[i] == "*"))
-                    return true;
-
-                if (path1[i] != path2[i])
-                    return false;
-            }
-
-            return true;
-        }
-
         private static Zone CreateZone(Zone rootZone, string domain)
         {
             Zone currentZone = rootZone;
@@ -732,6 +698,40 @@ namespace DnsServerCore
         #endregion
 
         #region internal
+
+        internal static bool DomainEquals(string domain1, string domain2)
+        {
+            string[] path1 = ConvertDomainToPath(domain1);
+            string[] path2 = ConvertDomainToPath(domain2);
+
+            int maxLen;
+            int minLen;
+
+            if (path1.Length > path2.Length)
+            {
+                maxLen = path1.Length;
+                minLen = path2.Length;
+            }
+            else
+            {
+                maxLen = path2.Length;
+                minLen = path1.Length;
+            }
+
+            for (int i = 0; i < maxLen; i++)
+            {
+                if (i == minLen)
+                    return false;
+
+                if ((path1[i] == "*") || (path2[i] == "*"))
+                    return true;
+
+                if (path1[i] != path2[i])
+                    return false;
+            }
+
+            return true;
+        }
 
         internal static Dictionary<string, Dictionary<DnsResourceRecordType, List<DnsResourceRecord>>> GroupRecords(ICollection<DnsResourceRecord> records)
         {
