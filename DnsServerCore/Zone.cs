@@ -224,6 +224,82 @@ namespace DnsServerCore
             }
         }
 
+        private static void RemoveExpiredCachedRecords(Zone currentZone)
+        {
+            //remove expired entries in current zone
+            {
+                List<KeyValuePair<DnsResourceRecordType, DnsResourceRecord[]>> updateEntries = null;
+
+                foreach (KeyValuePair<DnsResourceRecordType, DnsResourceRecord[]> entry in currentZone._entries)
+                {
+                    foreach (DnsResourceRecord record in entry.Value)
+                    {
+                        if (record.TTLValue < 1u)
+                        {
+                            //create new entry
+                            if (updateEntries == null)
+                                updateEntries = new List<KeyValuePair<DnsResourceRecordType, DnsResourceRecord[]>>();
+
+                            List<DnsResourceRecord> newRecords = new List<DnsResourceRecord>(entry.Value.Length);
+
+                            foreach (DnsResourceRecord existingRecord in entry.Value)
+                            {
+                                if (existingRecord.TTLValue < 1u)
+                                    continue;
+
+                                newRecords.Add(existingRecord);
+                            }
+
+                            updateEntries.Add(new KeyValuePair<DnsResourceRecordType, DnsResourceRecord[]>(entry.Key, newRecords.ToArray()));
+                            break;
+                        }
+                    }
+                }
+
+                if (updateEntries != null)
+                {
+                    foreach (KeyValuePair<DnsResourceRecordType, DnsResourceRecord[]> updateEntry in updateEntries)
+                    {
+                        if (updateEntry.Value.Length > 0)
+                        {
+                            currentZone._entries.AddOrUpdate(updateEntry.Key, updateEntry.Value, delegate (DnsResourceRecordType key, DnsResourceRecord[] existingRecords)
+                            {
+                                return updateEntry.Value;
+                            });
+                        }
+                        else
+                        {
+                            currentZone._entries.TryRemove(updateEntry.Key, out DnsResourceRecord[] removedValues);
+                        }
+                    }
+                }
+            }
+
+            //remove expired entries in sub zones
+            {
+                List<string> subZonesToRemove = null;
+
+                foreach (KeyValuePair<string, Zone> zone in currentZone._zones)
+                {
+                    RemoveExpiredCachedRecords(zone.Value);
+
+                    if ((zone.Value._zones.Count == 0) && (zone.Value._entries.Count == 0))
+                    {
+                        if (subZonesToRemove == null)
+                            subZonesToRemove = new List<string>();
+
+                        subZonesToRemove.Add(zone.Key);
+                    }
+                }
+
+                if (subZonesToRemove != null)
+                {
+                    foreach (string subZone in subZonesToRemove)
+                        currentZone._zones.TryRemove(subZone, out Zone value);
+                }
+            }
+        }
+
         private DnsResourceRecord[] QueryRecords(DnsResourceRecordType type, bool bypassCNAME, bool serveStale)
         {
             if (_authoritativeZone && (type == DnsResourceRecordType.ANY))
@@ -908,6 +984,14 @@ namespace DnsServerCore
                 throw new InvalidOperationException("Cannot query authoritative zone for closest cached name servers.");
 
             return QueryCacheGetClosestNameServers(this, request, serveStale);
+        }
+
+        internal void RemoveExpiredCachedRecords()
+        {
+            if (_authoritativeZone)
+                throw new InvalidOperationException("Cannot remove cached records from authoritative zone.");
+
+            RemoveExpiredCachedRecords(this);
         }
 
         #endregion

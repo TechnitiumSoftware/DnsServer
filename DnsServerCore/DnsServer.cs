@@ -100,6 +100,10 @@ namespace DnsServerCore
         const int PREFETCH_TIMER_INITIAL_INTEVAL = 60000;
         const int PREFETCH_TIMER_PERIODIC_INTERVAL = 5000;
 
+        Timer _cacheMaintenanceTimer;
+        const int CACHE_MAINTENANCE_TIMER_INITIAL_INTEVAL = 60 * 60 * 1000;
+        const int CACHE_MAINTENANCE_TIMER_PERIODIC_INTERVAL = 60 * 60 * 1000;
+
         readonly ConcurrentDictionary<DnsQuestionRecord, RecursiveQueryLock> _recursiveQueryLocks = new ConcurrentDictionary<DnsQuestionRecord, RecursiveQueryLock>(Environment.ProcessorCount * 64, Environment.ProcessorCount * 32);
 
         volatile ServiceState _state = ServiceState.Stopped;
@@ -1342,6 +1346,20 @@ namespace DnsServerCore
             }
         }
 
+        private void CacheMaintenanceAsync(object state)
+        {
+            try
+            {
+                _cacheZoneRoot.RemoveExpiredCachedRecords();
+            }
+            catch (Exception ex)
+            {
+                LogManager log = _log;
+                if (log != null)
+                    log.Write(ex);
+            }
+        }
+
         #endregion
 
         #region public
@@ -1575,6 +1593,7 @@ namespace DnsServerCore
             }
 
             _prefetchTimer = new Timer(PrefetchAsync, null, PREFETCH_TIMER_INITIAL_INTEVAL, System.Threading.Timeout.Infinite);
+            _cacheMaintenanceTimer = new Timer(CacheMaintenanceAsync, null, CACHE_MAINTENANCE_TIMER_INITIAL_INTEVAL, CACHE_MAINTENANCE_TIMER_PERIODIC_INTERVAL);
 
             _state = ServiceState.Running;
         }
@@ -1593,6 +1612,12 @@ namespace DnsServerCore
                     _prefetchTimer.Dispose();
                     _prefetchTimer = null;
                 }
+            }
+
+            if (_cacheMaintenanceTimer != null)
+            {
+                _cacheMaintenanceTimer.Dispose();
+                _cacheMaintenanceTimer = null;
             }
 
             foreach (Socket udpListener in _udpListeners)
