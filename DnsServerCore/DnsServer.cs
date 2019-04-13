@@ -96,7 +96,8 @@ namespace DnsServerCore
         int _tcpReceiveTimeout = 10000;
 
         Timer _prefetchTimer;
-        const int PREFETCH_TIMER_INITIAL_INTEVAL = 5 * 60 * 1000;
+        readonly object _prefetchTimerLock = new object();
+        const int PREFETCH_TIMER_INITIAL_INTEVAL = 60000;
         const int PREFETCH_TIMER_PERIODIC_INTERVAL = 5000;
 
         readonly ConcurrentDictionary<DnsQuestionRecord, RecursiveQueryLock> _recursiveQueryLocks = new ConcurrentDictionary<DnsQuestionRecord, RecursiveQueryLock>(Environment.ProcessorCount * 64, Environment.ProcessorCount * 32);
@@ -1331,6 +1332,14 @@ namespace DnsServerCore
                 if (log != null)
                     log.Write(ex);
             }
+            finally
+            {
+                lock (_prefetchTimerLock)
+                {
+                    if (_prefetchTimer != null)
+                        _prefetchTimer.Change(PREFETCH_TIMER_PERIODIC_INTERVAL, System.Threading.Timeout.Infinite);
+                }
+            }
         }
 
         #endregion
@@ -1565,7 +1574,7 @@ namespace DnsServerCore
                 }
             }
 
-            _prefetchTimer = new Timer(PrefetchAsync, null, PREFETCH_TIMER_INITIAL_INTEVAL, PREFETCH_TIMER_PERIODIC_INTERVAL);
+            _prefetchTimer = new Timer(PrefetchAsync, null, PREFETCH_TIMER_INITIAL_INTEVAL, System.Threading.Timeout.Infinite);
 
             _state = ServiceState.Running;
         }
@@ -1577,7 +1586,14 @@ namespace DnsServerCore
 
             _state = ServiceState.Stopping;
 
-            _prefetchTimer?.Dispose();
+            lock (_prefetchTimerLock)
+            {
+                if (_prefetchTimer != null)
+                {
+                    _prefetchTimer.Dispose();
+                    _prefetchTimer = null;
+                }
+            }
 
             foreach (Socket udpListener in _udpListeners)
                 udpListener.Dispose();
