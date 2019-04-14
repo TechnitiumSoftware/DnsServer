@@ -872,6 +872,8 @@ namespace DnsServerCore
                         DnsResourceRecord authority = response.Authority[0];
                         if (authority.Type == DnsResourceRecordType.SOA)
                         {
+                            authority.SetExpiry(_serveStaleTtl);
+
                             foreach (DnsQuestionRecord question in response.Question)
                             {
                                 uint ttl = DEFAULT_RECORD_TTL;
@@ -891,13 +893,58 @@ namespace DnsServerCore
                 case DnsResponseCode.NoError:
                     if (response.Answer.Length > 0)
                     {
-                        allRecords.AddRange(response.Answer);
+                        foreach (DnsQuestionRecord question in response.Question)
+                        {
+                            string qName = question.Name;
+
+                            foreach (DnsResourceRecord answer in response.Answer)
+                            {
+                                if (answer.Name.Equals(qName, StringComparison.CurrentCultureIgnoreCase))
+                                {
+                                    allRecords.Add(answer);
+
+                                    switch (answer.Type)
+                                    {
+                                        case DnsResourceRecordType.CNAME:
+                                            qName = (answer.RDATA as DnsCNAMERecord).CNAMEDomainName;
+                                            break;
+
+                                        case DnsResourceRecordType.NS:
+                                            string nsDomain = (answer.RDATA as DnsNSRecord).NSDomainName;
+
+                                            if (!nsDomain.EndsWith(".root-servers.net", StringComparison.CurrentCultureIgnoreCase))
+                                            {
+                                                foreach (DnsResourceRecord record in response.Additional)
+                                                {
+                                                    if (nsDomain.Equals(record.Name, StringComparison.CurrentCultureIgnoreCase))
+                                                        allRecords.Add(record);
+                                                }
+                                            }
+
+                                            break;
+
+                                        case DnsResourceRecordType.MX:
+                                            string mxExchange = (answer.RDATA as DnsMXRecord).Exchange;
+
+                                            foreach (DnsResourceRecord record in response.Additional)
+                                            {
+                                                if (mxExchange.Equals(record.Name, StringComparison.CurrentCultureIgnoreCase))
+                                                    allRecords.Add(record);
+                                            }
+
+                                            break;
+                                    }
+                                }
+                            }
+                        }
                     }
                     else if (response.Authority.Length > 0)
                     {
                         DnsResourceRecord authority = response.Authority[0];
                         if (authority.Type == DnsResourceRecordType.SOA)
                         {
+                            authority.SetExpiry(_serveStaleTtl);
+
                             //empty response with authority
                             foreach (DnsQuestionRecord question in response.Question)
                             {
@@ -950,9 +997,32 @@ namespace DnsServerCore
             }
 
             if ((response.Question.Length > 0) && (response.Question[0].Type != DnsResourceRecordType.NS))
-                allRecords.AddRange(response.Authority);
+            {
+                foreach (DnsQuestionRecord question in response.Question)
+                {
+                    foreach (DnsResourceRecord authority in response.Authority)
+                    {
+                        if (question.Name.Equals(authority.Name, StringComparison.CurrentCultureIgnoreCase) || question.Name.EndsWith("." + authority.Name, StringComparison.CurrentCultureIgnoreCase))
+                        {
+                            allRecords.Add(authority);
 
-            allRecords.AddRange(response.Additional);
+                            if (authority.Type == DnsResourceRecordType.NS)
+                            {
+                                string nsDomain = (authority.RDATA as DnsNSRecord).NSDomainName;
+
+                                if (!nsDomain.EndsWith(".root-servers.net", StringComparison.CurrentCultureIgnoreCase))
+                                {
+                                    foreach (DnsResourceRecord record in response.Additional)
+                                    {
+                                        if (nsDomain.Equals(record.Name, StringComparison.CurrentCultureIgnoreCase))
+                                            allRecords.Add(record);
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
 
             //set expiry for cached records
             foreach (DnsResourceRecord record in allRecords)
@@ -961,7 +1031,7 @@ namespace DnsServerCore
             SetRecords(allRecords);
 
             //cache for ANY request
-            if ((response.Question[0].Type == DnsResourceRecordType.ANY) && (response.Answer.Length > 0))
+            if ((response.Question.Length > 0) && (response.Question[0].Type == DnsResourceRecordType.ANY) && (response.Answer.Length > 0))
             {
                 uint ttl = DEFAULT_RECORD_TTL;
 
