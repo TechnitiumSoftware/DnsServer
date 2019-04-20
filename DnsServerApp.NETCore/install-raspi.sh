@@ -6,7 +6,7 @@ aspnetcoreUrl="https://download.visualstudio.microsoft.com/download/pr/860e937d-
 
 dnsDir="/etc/dns"
 dnsTar="/etc/dns/DnsServerPortable.tar.gz"
-dnsUrl="https://technitium.com/download/dns/DnsServerPortable.tar.gz"
+dnsUrl="https://download.technitium.com/dns/DnsServerPortable.tar.gz"
 
 mkdir -p $dnsDir
 installLog="$dnsDir/install.log"
