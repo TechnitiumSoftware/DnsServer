@@ -1,6 +1,6 @@
 ﻿/*
 Technitium DNS Server
-Copyright (C) 2018  Shreyas Zare (shreyas@technitium.com)
+Copyright (C) 2019  Shreyas Zare (shreyas@technitium.com)
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -34,7 +34,7 @@ namespace DnsService
 
         protected override void OnStart(string[] args)
         {
-            _service = new DnsWebService(null, new Uri("https://technitium.com/download/dns/updatews2.bin"));
+            _service = new DnsWebService(null, new Uri("https://go.technitium.com/?id=22"));
             _service.Start();
         }
 
