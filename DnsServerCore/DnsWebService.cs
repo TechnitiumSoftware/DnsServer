@@ -2702,7 +2702,7 @@ namespace DnsServerCore
 
             if (server == "recursive-resolver")
             {
-                dnsResponse = DnsClient.RecursiveResolve(domain, type, new SimpleDnsCache(), proxy, preferIPv6, protocol, RETRIES, TIMEOUT);
+                dnsResponse = DnsClient.RecursiveResolve(domain, type, null, new SimpleDnsCache(), proxy, preferIPv6, protocol, RETRIES, TIMEOUT);
             }
             else
             {
@@ -3965,7 +3965,7 @@ namespace DnsServerCore
                 }
                 catch (Exception ex)
                 {
-                    _log.Write(ex);
+                    _log.Write("DNS Web Service failed to bind using default hostname. Attempting to bind again using 'localhost' hostname.\r\n" + ex.ToString());
 
                     _webService = new HttpListener();
                     _webService.Prefixes.Add("http://localhost:" + _webServicePort + "/");
