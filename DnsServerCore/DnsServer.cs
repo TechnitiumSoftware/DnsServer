@@ -632,8 +632,6 @@ namespace DnsServerCore
                             string strRequestAcceptTypes = requestHeaders[HttpRequestHeader.Accept];
                             if (!string.IsNullOrEmpty(strRequestAcceptTypes))
                             {
-                                protocol = DnsTransportProtocol.Udp;
-
                                 foreach (string acceptType in strRequestAcceptTypes.Split(','))
                                 {
                                     if (acceptType == "application/dns-message")
@@ -753,7 +751,8 @@ namespace DnsServerCore
                             }
 
                             if (requestConnection.Equals("close", StringComparison.CurrentCultureIgnoreCase))
-                                break;
+                                return;
+
                             break;
 
                         case "/.well-known/doh-servers-associated/":
@@ -1114,7 +1113,7 @@ namespace DnsServerCore
                     else
                         authority = new DnsResourceRecord[] { };
 
-                    return new DnsDatagram(new DnsHeader(request.Header.Identifier, true, DnsOpcode.StandardQuery, false, false, true, true, false, false, lastResponse.Header.RCODE, 1, (ushort)responseAnswer.Count, (ushort)authority.Length, 0), request.Question, responseAnswer.ToArray(), authority, new DnsResourceRecord[] { }) { Tag = (cacheHit ? "cacheHit" : null) };
+                    return new DnsDatagram(new DnsHeader(request.Header.Identifier, true, DnsOpcode.StandardQuery, false, false, true, true, false, false, lastResponse.Header.RCODE, 1, (ushort)responseAnswer.Count, (ushort)authority.Length, lastResponse.Header.ARCOUNT), request.Question, responseAnswer.ToArray(), authority, lastResponse.Additional) { Tag = (cacheHit ? "cacheHit" : null) };
                 }
             }
 
@@ -1123,7 +1122,7 @@ namespace DnsServerCore
             else
                 authority = new DnsResourceRecord[] { };
 
-            return new DnsDatagram(new DnsHeader(request.Header.Identifier, true, DnsOpcode.StandardQuery, false, false, true, true, false, false, response.Header.RCODE, 1, (ushort)response.Answer.Length, (ushort)authority.Length, 0), request.Question, response.Answer, authority, new DnsResourceRecord[] { }) { Tag = response.Tag };
+            return new DnsDatagram(new DnsHeader(request.Header.Identifier, true, DnsOpcode.StandardQuery, false, false, true, true, false, false, response.Header.RCODE, 1, (ushort)response.Answer.Length, (ushort)authority.Length, response.Header.ARCOUNT), request.Question, response.Answer, authority, response.Additional) { Tag = response.Tag };
         }
 
         private DnsDatagram RecursiveResolve(DnsDatagram request, NameServerAddress[] viaNameServers, bool prefetchOperation)
@@ -1408,7 +1407,7 @@ namespace DnsServerCore
                 {
                     LogManager log = _log;
                     if (log != null)
-                        log.Write(dnsEP, DnsTransportProtocol.Udp, ex);
+                        log.Write(dnsEP, DnsTransportProtocol.Udp, "DNS Server failed to bind.\r\n" + ex.ToString());
 
                     udpListener.Dispose();
                 }
@@ -1430,7 +1429,7 @@ namespace DnsServerCore
                 {
                     LogManager log = _log;
                     if (log != null)
-                        log.Write(dnsEP, DnsTransportProtocol.Tcp, ex);
+                        log.Write(dnsEP, DnsTransportProtocol.Tcp, "DNS Server failed to bind.\r\n" + ex.ToString());
 
                     tcpListener.Dispose();
                 }
@@ -1457,7 +1456,7 @@ namespace DnsServerCore
                     {
                         LogManager log = _log;
                         if (log != null)
-                            log.Write(httpEP, DnsTransportProtocol.Https, ex);
+                            log.Write(httpEP, DnsTransportProtocol.Https, "DNS Server failed to bind.\r\n" + ex.ToString());
 
                         httpListener.Dispose();
                     }
@@ -1483,7 +1482,7 @@ namespace DnsServerCore
                     {
                         LogManager log = _log;
                         if (log != null)
-                            log.Write(tlsEP, DnsTransportProtocol.Tls, ex);
+                            log.Write(tlsEP, DnsTransportProtocol.Tls, "DNS Server failed to bind.\r\n" + ex.ToString());
 
                         tlsListener.Dispose();
                     }
@@ -1511,7 +1510,7 @@ namespace DnsServerCore
                     {
                         LogManager log = _log;
                         if (log != null)
-                            log.Write(httpsEP, DnsTransportProtocol.Https, ex);
+                            log.Write(httpsEP, DnsTransportProtocol.Https, "DNS Server failed to bind.\r\n" + ex.ToString());
 
                         httpsListener.Dispose();
                     }
@@ -1905,7 +1904,7 @@ namespace DnsServerCore
             public DnsDatagram Query(DnsDatagram request)
             {
                 if (_prefetchQuery.Equals(request.Question[0]))
-                    return _cacheZoneRoot.QueryCacheGetClosestNameServers(request);
+                    return _cacheZoneRoot.QueryCacheGetClosestNameServers(request); //return closest name servers so that the recursive resolver queries them to refreshes cache instead of returning response from cache
 
                 return _cacheZoneRoot.Query(request);
             }
