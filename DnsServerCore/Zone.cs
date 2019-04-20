@@ -30,6 +30,7 @@ namespace DnsServerCore
         #region variables
 
         const uint DEFAULT_RECORD_TTL = 60u;
+        const uint MINIMUM_RECORD_TTL = 10u;
 
         readonly bool _authoritativeZone;
 
@@ -596,30 +597,41 @@ namespace DnsServerCore
             return null;
         }
 
-        private static DnsResourceRecord[] QueryGlueRecords(Zone rootZone, DnsResourceRecord[] nsRecords, bool serveStale)
+        private static DnsResourceRecord[] QueryGlueRecords(Zone rootZone, DnsResourceRecord[] referenceRecords, bool serveStale)
         {
             List<DnsResourceRecord> glueRecords = new List<DnsResourceRecord>();
 
-            foreach (DnsResourceRecord nsRecord in nsRecords)
+            foreach (DnsResourceRecord record in referenceRecords)
             {
-                if (nsRecord.Type == DnsResourceRecordType.NS)
+                string glueDomain;
+
+                switch (record.Type)
                 {
-                    string nsDomain = (nsRecord.RDATA as DnsNSRecord).NSDomainName;
+                    case DnsResourceRecordType.NS:
+                        glueDomain = (record.RDATA as DnsNSRecord).NSDomainName;
+                        break;
 
-                    Zone zone = GetZone(rootZone, nsDomain, false);
-                    if ((zone != null) && !zone._disabled)
+                    case DnsResourceRecordType.MX:
+                        glueDomain = (record.RDATA as DnsMXRecord).Exchange;
+                        break;
+
+                    default:
+                        continue;
+                }
+
+                Zone zone = GetZone(rootZone, glueDomain, false);
+                if ((zone != null) && !zone._disabled)
+                {
                     {
-                        {
-                            DnsResourceRecord[] records = zone.QueryRecords(DnsResourceRecordType.A, true, serveStale);
-                            if ((records != null) && (records.Length > 0))
-                                glueRecords.AddRange(records);
-                        }
+                        DnsResourceRecord[] records = zone.QueryRecords(DnsResourceRecordType.A, true, serveStale);
+                        if ((records != null) && (records.Length > 0))
+                            glueRecords.AddRange(records);
+                    }
 
-                        {
-                            DnsResourceRecord[] records = zone.QueryRecords(DnsResourceRecordType.AAAA, true, serveStale);
-                            if ((records != null) && (records.Length > 0))
-                                glueRecords.AddRange(records);
-                        }
+                    {
+                        DnsResourceRecord[] records = zone.QueryRecords(DnsResourceRecordType.AAAA, true, serveStale);
+                        if ((records != null) && (records.Length > 0))
+                            glueRecords.AddRange(records);
                     }
                 }
             }
@@ -648,8 +660,8 @@ namespace DnsServerCore
                 if (DomainEquals(closestZone._zoneName, domain))
                 {
                     //zone found
-                    DnsResourceRecord[] records = closestZone.QueryRecords(question.Type, false, false);
-                    if (records == null)
+                    DnsResourceRecord[] answerRecords = closestZone.QueryRecords(question.Type, false, false);
+                    if (answerRecords == null)
                     {
                         //record type not found
                         return new DnsDatagram(new DnsHeader(request.Header.Identifier, true, DnsOpcode.StandardQuery, true, false, request.Header.RecursionDesired, false, false, false, DnsResponseCode.NoError, 1, 0, (ushort)closestAuthority.Length, 0), request.Question, new DnsResourceRecord[] { }, closestAuthority, new DnsResourceRecord[] { });
@@ -659,34 +671,50 @@ namespace DnsServerCore
                         //record type found
                         if (closestZone._zoneName.Contains("*"))
                         {
-                            DnsResourceRecord[] wildcardRecords = new DnsResourceRecord[records.Length];
+                            DnsResourceRecord[] wildcardAnswerRecords = new DnsResourceRecord[answerRecords.Length];
 
-                            for (int i = 0; i < records.Length; i++)
+                            for (int i = 0; i < answerRecords.Length; i++)
                             {
-                                DnsResourceRecord record = records[i];
-                                wildcardRecords[i] = new DnsResourceRecord(domain, record.Type, record.Class, record.TTLValue, record.RDATA);
+                                DnsResourceRecord record = answerRecords[i];
+                                wildcardAnswerRecords[i] = new DnsResourceRecord(domain, record.Type, record.Class, record.TTLValue, record.RDATA);
                             }
 
-                            records = wildcardRecords;
+                            answerRecords = wildcardAnswerRecords;
                         }
 
-                        DnsResourceRecord[] closestAuthoritativeNameServers = null;
+                        DnsResourceRecord[] closestAuthoritativeNameServers;
                         DnsResourceRecord[] additional;
 
-                        if (question.Type != DnsResourceRecordType.ANY)
-                            closestAuthoritativeNameServers = closestZone.QueryClosestAuthoritativeNameServers();
-
-                        if (closestAuthoritativeNameServers == null)
+                        switch (question.Type)
                         {
-                            closestAuthoritativeNameServers = new DnsResourceRecord[] { };
-                            additional = new DnsResourceRecord[] { };
-                        }
-                        else
-                        {
-                            additional = QueryGlueRecords(rootZone, closestAuthoritativeNameServers, false);
+                            case DnsResourceRecordType.NS:
+                            case DnsResourceRecordType.MX:
+                                closestAuthoritativeNameServers = new DnsResourceRecord[] { };
+                                additional = QueryGlueRecords(rootZone, answerRecords, false);
+                                break;
+
+                            case DnsResourceRecordType.ANY:
+                                closestAuthoritativeNameServers = new DnsResourceRecord[] { };
+                                additional = new DnsResourceRecord[] { };
+                                break;
+
+                            default:
+                                closestAuthoritativeNameServers = closestZone.QueryClosestAuthoritativeNameServers();
+
+                                if (closestAuthoritativeNameServers == null)
+                                {
+                                    closestAuthoritativeNameServers = new DnsResourceRecord[] { };
+                                    additional = new DnsResourceRecord[] { };
+                                }
+                                else
+                                {
+                                    additional = QueryGlueRecords(rootZone, closestAuthoritativeNameServers, false);
+                                }
+
+                                break;
                         }
 
-                        return new DnsDatagram(new DnsHeader(request.Header.Identifier, true, DnsOpcode.StandardQuery, true, false, request.Header.RecursionDesired, false, false, false, DnsResponseCode.NoError, 1, (ushort)records.Length, (ushort)closestAuthoritativeNameServers.Length, (ushort)additional.Length), request.Question, records, closestAuthoritativeNameServers, additional);
+                        return new DnsDatagram(new DnsHeader(request.Header.Identifier, true, DnsOpcode.StandardQuery, true, false, request.Header.RecursionDesired, false, false, false, DnsResponseCode.NoError, 1, (ushort)answerRecords.Length, (ushort)closestAuthoritativeNameServers.Length, (ushort)additional.Length), request.Question, answerRecords, closestAuthoritativeNameServers, additional);
                     }
                 }
                 else
@@ -713,13 +741,13 @@ namespace DnsServerCore
 
             if (closestZone._zoneName.Equals(domain))
             {
-                DnsResourceRecord[] records = closestZone.QueryRecords(question.Type, false, serveStale);
-                if (records != null)
+                DnsResourceRecord[] answerRecords = closestZone.QueryRecords(question.Type, false, serveStale);
+                if (answerRecords != null)
                 {
-                    if (records[0].RDATA is DnsEmptyRecord)
+                    if (answerRecords[0].RDATA is DnsEmptyRecord)
                     {
                         DnsResourceRecord[] responseAuthority;
-                        DnsResourceRecord authority = (records[0].RDATA as DnsEmptyRecord).Authority;
+                        DnsResourceRecord authority = (answerRecords[0].RDATA as DnsEmptyRecord).Authority;
 
                         if (authority == null)
                             responseAuthority = new DnsResourceRecord[] { };
@@ -729,16 +757,30 @@ namespace DnsServerCore
                         return new DnsDatagram(new DnsHeader(request.Header.Identifier, true, DnsOpcode.StandardQuery, false, false, request.Header.RecursionDesired, true, false, false, DnsResponseCode.NoError, 1, 0, 1, 0), request.Question, new DnsResourceRecord[] { }, responseAuthority, new DnsResourceRecord[] { });
                     }
 
-                    if (records[0].RDATA is DnsNXRecord)
-                        return new DnsDatagram(new DnsHeader(request.Header.Identifier, true, DnsOpcode.StandardQuery, false, false, request.Header.RecursionDesired, true, false, false, DnsResponseCode.NameError, 1, 0, 1, 0), request.Question, new DnsResourceRecord[] { }, new DnsResourceRecord[] { (records[0].RDATA as DnsNXRecord).Authority }, new DnsResourceRecord[] { });
+                    if (answerRecords[0].RDATA is DnsNXRecord)
+                        return new DnsDatagram(new DnsHeader(request.Header.Identifier, true, DnsOpcode.StandardQuery, false, false, request.Header.RecursionDesired, true, false, false, DnsResponseCode.NameError, 1, 0, 1, 0), request.Question, new DnsResourceRecord[] { }, new DnsResourceRecord[] { (answerRecords[0].RDATA as DnsNXRecord).Authority }, new DnsResourceRecord[] { });
 
-                    if (records[0].RDATA is DnsANYRecord)
+                    if (answerRecords[0].RDATA is DnsANYRecord)
                     {
-                        DnsANYRecord anyRR = records[0].RDATA as DnsANYRecord;
+                        DnsANYRecord anyRR = answerRecords[0].RDATA as DnsANYRecord;
                         return new DnsDatagram(new DnsHeader(request.Header.Identifier, true, DnsOpcode.StandardQuery, false, false, request.Header.RecursionDesired, true, false, false, DnsResponseCode.NoError, 1, (ushort)anyRR.Records.Length, 0, 0), request.Question, anyRR.Records, new DnsResourceRecord[] { }, new DnsResourceRecord[] { });
                     }
 
-                    return new DnsDatagram(new DnsHeader(request.Header.Identifier, true, DnsOpcode.StandardQuery, false, false, request.Header.RecursionDesired, true, false, false, DnsResponseCode.NoError, 1, (ushort)records.Length, 0, 0), request.Question, records, new DnsResourceRecord[] { }, new DnsResourceRecord[] { });
+                    DnsResourceRecord[] additional;
+
+                    switch (question.Type)
+                    {
+                        case DnsResourceRecordType.NS:
+                        case DnsResourceRecordType.MX:
+                            additional = QueryGlueRecords(rootZone, answerRecords, serveStale);
+                            break;
+
+                        default:
+                            additional = new DnsResourceRecord[] { };
+                            break;
+                    }
+
+                    return new DnsDatagram(new DnsHeader(request.Header.Identifier, true, DnsOpcode.StandardQuery, false, false, request.Header.RecursionDesired, true, false, false, DnsResponseCode.NoError, 1, (ushort)answerRecords.Length, 0, (ushort)additional.Length), request.Question, answerRecords, new DnsResourceRecord[] { }, additional);
                 }
             }
 
@@ -872,7 +914,7 @@ namespace DnsServerCore
                         DnsResourceRecord authority = response.Authority[0];
                         if (authority.Type == DnsResourceRecordType.SOA)
                         {
-                            authority.SetExpiry(_serveStaleTtl);
+                            authority.SetExpiry(MINIMUM_RECORD_TTL, _serveStaleTtl);
 
                             foreach (DnsQuestionRecord question in response.Question)
                             {
@@ -882,7 +924,7 @@ namespace DnsServerCore
                                     ttl = authority.TTLValue;
 
                                 DnsResourceRecord record = new DnsResourceRecord(question.Name, question.Type, DnsClass.IN, ttl, new DnsNXRecord(authority));
-                                record.SetExpiry(_serveStaleTtl);
+                                record.SetExpiry(MINIMUM_RECORD_TTL, _serveStaleTtl);
 
                                 CreateZone(this, question.Name).SetRecords(question.Type, new DnsResourceRecord[] { record });
                             }
@@ -943,7 +985,7 @@ namespace DnsServerCore
                         DnsResourceRecord authority = response.Authority[0];
                         if (authority.Type == DnsResourceRecordType.SOA)
                         {
-                            authority.SetExpiry(_serveStaleTtl);
+                            authority.SetExpiry(MINIMUM_RECORD_TTL, _serveStaleTtl);
 
                             //empty response with authority
                             foreach (DnsQuestionRecord question in response.Question)
@@ -954,7 +996,7 @@ namespace DnsServerCore
                                     ttl = authority.TTLValue;
 
                                 DnsResourceRecord record = new DnsResourceRecord(question.Name, question.Type, DnsClass.IN, ttl, new DnsEmptyRecord(authority));
-                                record.SetExpiry(_serveStaleTtl);
+                                record.SetExpiry(MINIMUM_RECORD_TTL, _serveStaleTtl);
 
                                 CreateZone(this, question.Name).SetRecords(question.Type, new DnsResourceRecord[] { record });
                             }
@@ -969,7 +1011,7 @@ namespace DnsServerCore
                                     {
                                         //empty response from authority name server
                                         DnsResourceRecord record = new DnsResourceRecord(question.Name, question.Type, DnsClass.IN, DEFAULT_RECORD_TTL, new DnsEmptyRecord(null));
-                                        record.SetExpiry(_serveStaleTtl);
+                                        record.SetExpiry(MINIMUM_RECORD_TTL, _serveStaleTtl);
 
                                         CreateZone(this, question.Name).SetRecords(question.Type, new DnsResourceRecord[] { record });
                                         break;
@@ -984,7 +1026,7 @@ namespace DnsServerCore
                         foreach (DnsQuestionRecord question in response.Question)
                         {
                             DnsResourceRecord record = new DnsResourceRecord(question.Name, question.Type, DnsClass.IN, DEFAULT_RECORD_TTL, new DnsEmptyRecord(null));
-                            record.SetExpiry(_serveStaleTtl);
+                            record.SetExpiry(MINIMUM_RECORD_TTL, _serveStaleTtl);
 
                             CreateZone(this, question.Name).SetRecords(question.Type, new DnsResourceRecord[] { record });
                         }
@@ -1026,7 +1068,7 @@ namespace DnsServerCore
 
             //set expiry for cached records
             foreach (DnsResourceRecord record in allRecords)
-                record.SetExpiry(_serveStaleTtl);
+                record.SetExpiry(MINIMUM_RECORD_TTL, _serveStaleTtl);
 
             SetRecords(allRecords);
 
@@ -1042,7 +1084,7 @@ namespace DnsServerCore
                 }
 
                 DnsResourceRecord anyRR = new DnsResourceRecord(response.Question[0].Name, DnsResourceRecordType.ANY, DnsClass.IN, ttl, new DnsANYRecord(response.Answer));
-                anyRR.SetExpiry(_serveStaleTtl);
+                anyRR.SetExpiry(MINIMUM_RECORD_TTL, _serveStaleTtl);
 
                 CreateZone(this, response.Question[0].Name).SetRecords(DnsResourceRecordType.ANY, new DnsResourceRecord[] { anyRR });
             }
