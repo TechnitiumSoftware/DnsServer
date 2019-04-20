@@ -1,8 +1,8 @@
 #!/bin/sh
 
 aspnetcoreDir="/opt/dotnet"
-aspnetcoreTar="/opt/dotnet/aspnetcore-runtime-2.2.0-linux-x64.tar.gz"
-aspnetcoreUrl="https://download.visualstudio.microsoft.com/download/pr/69ee3993-54fe-4687-9388-25b1e0c888fb/df2ba0637e68f6e8ee212a38756a4002/aspnetcore-runtime-2.2.0-linux-x64.tar.gz"
+aspnetcoreTar="/opt/dotnet/aspnetcore-runtime-2.2.4-linux-x64.tar.gz"
+aspnetcoreUrl="https://download.visualstudio.microsoft.com/download/pr/61a33dc2-fc56-4bbe-b564-d232172eb210/d8006a719a3bcc65d2937a909623afcb/aspnetcore-runtime-2.2.4-linux-x64.tar.gz"
 
 dnsDir="/etc/dns"
 dnsTar="/etc/dns/DnsServerPortable.tar.gz"
