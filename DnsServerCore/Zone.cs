@@ -30,7 +30,7 @@ namespace DnsServerCore
         #region variables
 
         const uint DEFAULT_RECORD_TTL = 60u;
-        const uint MINIMUM_RECORD_TTL = 10u;
+        const uint MINIMUM_RECORD_TTL = 0u;
 
         readonly bool _authoritativeZone;
 
@@ -235,7 +235,7 @@ namespace DnsServerCore
                 {
                     foreach (DnsResourceRecord record in entry.Value)
                     {
-                        if (record.TTLValue < 1u)
+                        if (record.TtlValue < 1u)
                         {
                             //create new entry
                             if (updateEntries == null)
@@ -245,7 +245,7 @@ namespace DnsServerCore
 
                             foreach (DnsResourceRecord existingRecord in entry.Value)
                             {
-                                if (existingRecord.TTLValue < 1u)
+                                if (existingRecord.TtlValue < 1u)
                                     continue;
 
                                 newRecords.Add(existingRecord);
@@ -474,15 +474,20 @@ namespace DnsServerCore
         {
             if (records.Length == 1)
             {
-                if (!serveStale && records[0].IsStale)
-                    return null;
+                if (_authoritativeZone)
+                {
+                    DnsResourceRecordInfo rrInfo = records[0].Tag as DnsResourceRecordInfo;
+                    if ((rrInfo != null) && rrInfo.Disabled)
+                        return null;
+                }
+                else
+                {
+                    if (!serveStale && records[0].IsStale)
+                        return null;
 
-                if (records[0].TTLValue < 1u)
-                    return null; //ttl expired
-
-                DnsResourceRecordInfo rrInfo = records[0].Tag as DnsResourceRecordInfo;
-                if ((rrInfo != null) && rrInfo.Disabled)
-                    return null;
+                    if (records[0].TtlValue < 1u)
+                        return null; //ttl expired
+                }
 
                 return records;
             }
@@ -491,15 +496,20 @@ namespace DnsServerCore
 
             foreach (DnsResourceRecord record in records)
             {
-                if (!serveStale && record.IsStale)
-                    continue;
+                if (_authoritativeZone)
+                {
+                    DnsResourceRecordInfo rrInfo = record.Tag as DnsResourceRecordInfo;
+                    if ((rrInfo != null) && rrInfo.Disabled)
+                        continue;
+                }
+                else
+                {
+                    if (!serveStale && record.IsStale)
+                        continue;
 
-                if (record.TTLValue < 1u)
-                    continue; //ttl expired
-
-                DnsResourceRecordInfo rrInfo = record.Tag as DnsResourceRecordInfo;
-                if ((rrInfo != null) && rrInfo.Disabled)
-                    continue;
+                    if (record.TtlValue < 1u)
+                        continue; //ttl expired
+                }
 
                 newRecords.Add(record);
             }
@@ -676,7 +686,7 @@ namespace DnsServerCore
                             for (int i = 0; i < answerRecords.Length; i++)
                             {
                                 DnsResourceRecord record = answerRecords[i];
-                                wildcardAnswerRecords[i] = new DnsResourceRecord(domain, record.Type, record.Class, record.TTLValue, record.RDATA);
+                                wildcardAnswerRecords[i] = new DnsResourceRecord(domain, record.Type, record.Class, record.TtlValue, record.RDATA);
                             }
 
                             answerRecords = wildcardAnswerRecords;
@@ -920,8 +930,8 @@ namespace DnsServerCore
                             {
                                 uint ttl = DEFAULT_RECORD_TTL;
 
-                                if (authority.TTLValue < ttl)
-                                    ttl = authority.TTLValue;
+                                if (authority.TtlValue < ttl)
+                                    ttl = authority.TtlValue;
 
                                 DnsResourceRecord record = new DnsResourceRecord(question.Name, question.Type, DnsClass.IN, ttl, new DnsNXRecord(authority));
                                 record.SetExpiry(MINIMUM_RECORD_TTL, _serveStaleTtl);
@@ -992,8 +1002,8 @@ namespace DnsServerCore
                             {
                                 uint ttl = DEFAULT_RECORD_TTL;
 
-                                if (authority.TTLValue < ttl)
-                                    ttl = authority.TTLValue;
+                                if (authority.TtlValue < ttl)
+                                    ttl = authority.TtlValue;
 
                                 DnsResourceRecord record = new DnsResourceRecord(question.Name, question.Type, DnsClass.IN, ttl, new DnsEmptyRecord(authority));
                                 record.SetExpiry(MINIMUM_RECORD_TTL, _serveStaleTtl);
@@ -1079,8 +1089,8 @@ namespace DnsServerCore
 
                 foreach (DnsResourceRecord answer in response.Answer)
                 {
-                    if (answer.TTLValue < ttl)
-                        ttl = answer.TTLValue;
+                    if (answer.TtlValue < ttl)
+                        ttl = answer.TtlValue;
                 }
 
                 DnsResourceRecord anyRR = new DnsResourceRecord(response.Question[0].Name, DnsResourceRecordType.ANY, DnsClass.IN, ttl, new DnsANYRecord(response.Answer));
