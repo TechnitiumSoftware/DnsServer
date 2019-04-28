@@ -65,6 +65,7 @@ namespace DnsServerCore
         int _webServicePort;
         HttpListener _webService;
         Thread _webServiceThread;
+        string _webServiceHostname;
 
         string _tlsCertificatePath;
         string _tlsCertificatePassword;
@@ -518,20 +519,6 @@ namespace DnsServerCore
             byte[] buffer = Encoding.UTF8.GetBytes("<h1>500 Internal Server Error</h1><p>" + message + "</p>");
 
             response.StatusCode = 500;
-            response.ContentType = "text/html";
-            response.ContentLength64 = buffer.Length;
-
-            using (Stream stream = response.OutputStream)
-            {
-                stream.Write(buffer, 0, buffer.Length);
-            }
-        }
-
-        private static void Send406(HttpListenerResponse response, string message)
-        {
-            byte[] buffer = Encoding.UTF8.GetBytes("<h1>406 Not Acceptable</h1><p>" + message + "</p>");
-
-            response.StatusCode = 406;
             response.ContentType = "text/html";
             response.ContentLength64 = buffer.Length;
 
@@ -1095,7 +1082,7 @@ namespace DnsServerCore
                                             if (responsiblePerson.EndsWith(oldServerDomain))
                                                 responsiblePerson = responsiblePerson.Replace(oldServerDomain, strServerDomain);
 
-                                            _dnsServer.AuthoritativeZoneRoot.SetRecords(soaRecord.Name, soaRecord.Type, soaRecord.TTLValue, new DnsResourceRecordData[] { new DnsSOARecord(strServerDomain, responsiblePerson, soaRecordData.Serial, soaRecordData.Refresh, soaRecordData.Retry, soaRecordData.Expire, soaRecordData.Minimum) });
+                                            _dnsServer.AuthoritativeZoneRoot.SetRecords(soaRecord.Name, soaRecord.Type, soaRecord.TtlValue, new DnsResourceRecordData[] { new DnsSOARecord(strServerDomain, responsiblePerson, soaRecordData.Serial, soaRecordData.Refresh, soaRecordData.Retry, soaRecordData.Expire, soaRecordData.Minimum) });
 
                                             //update NS records
                                             DnsResourceRecord[] nsResourceRecords = _dnsServer.AuthoritativeZoneRoot.GetAllRecords(zone.ZoneName, DnsResourceRecordType.NS, false, true);
@@ -1103,7 +1090,7 @@ namespace DnsServerCore
                                             foreach (DnsResourceRecord nsResourceRecord in nsResourceRecords)
                                             {
                                                 if ((nsResourceRecord.RDATA as DnsNSRecord).NSDomainName.Equals(oldServerDomain, StringComparison.CurrentCultureIgnoreCase))
-                                                    _dnsServer.AuthoritativeZoneRoot.UpdateRecord(nsResourceRecord, new DnsResourceRecord(nsResourceRecord.Name, nsResourceRecord.Type, nsResourceRecord.Class, nsResourceRecord.TTLValue, new DnsNSRecord(strServerDomain)));
+                                                    _dnsServer.AuthoritativeZoneRoot.UpdateRecord(nsResourceRecord, new DnsResourceRecord(nsResourceRecord.Name, nsResourceRecord.Type, nsResourceRecord.Class, nsResourceRecord.TtlValue, new DnsNSRecord(strServerDomain)));
                                             }
 
                                             try
@@ -1131,7 +1118,7 @@ namespace DnsServerCore
                                         DnsResourceRecord soaRecord = soaResourceRecords[0];
                                         DnsSOARecord soaRecordData = soaRecord.RDATA as DnsSOARecord;
 
-                                        _dnsServer.AllowedZoneRoot.SetRecords(soaRecord.Name, soaRecord.Type, soaRecord.TTLValue, new DnsResourceRecordData[] { new DnsSOARecord(strServerDomain, "hostmaster." + strServerDomain, soaRecordData.Serial, soaRecordData.Refresh, soaRecordData.Retry, soaRecordData.Expire, soaRecordData.Minimum) });
+                                        _dnsServer.AllowedZoneRoot.SetRecords(soaRecord.Name, soaRecord.Type, soaRecord.TtlValue, new DnsResourceRecordData[] { new DnsSOARecord(strServerDomain, "hostmaster." + strServerDomain, soaRecordData.Serial, soaRecordData.Refresh, soaRecordData.Retry, soaRecordData.Expire, soaRecordData.Minimum) });
                                     }
                                 }
                             }
@@ -1148,7 +1135,7 @@ namespace DnsServerCore
                                         DnsResourceRecord soaRecord = soaResourceRecords[0];
                                         DnsSOARecord soaRecordData = soaRecord.RDATA as DnsSOARecord;
 
-                                        _customBlockedZoneRoot.SetRecords(soaRecord.Name, soaRecord.Type, soaRecord.TTLValue, new DnsResourceRecordData[] { new DnsSOARecord(strServerDomain, "hostmaster." + strServerDomain, soaRecordData.Serial, soaRecordData.Refresh, soaRecordData.Retry, soaRecordData.Expire, soaRecordData.Minimum) });
+                                        _customBlockedZoneRoot.SetRecords(soaRecord.Name, soaRecord.Type, soaRecord.TtlValue, new DnsResourceRecordData[] { new DnsSOARecord(strServerDomain, "hostmaster." + strServerDomain, soaRecordData.Serial, soaRecordData.Refresh, soaRecordData.Retry, soaRecordData.Expire, soaRecordData.Minimum) });
                                     }
                                 }
                             }
@@ -1165,7 +1152,7 @@ namespace DnsServerCore
                                         DnsResourceRecord soaRecord = soaResourceRecords[0];
                                         DnsSOARecord soaRecordData = soaRecord.RDATA as DnsSOARecord;
 
-                                        _dnsServer.BlockedZoneRoot.SetRecords(soaRecord.Name, soaRecord.Type, soaRecord.TTLValue, new DnsResourceRecordData[] { new DnsSOARecord(strServerDomain, "hostmaster." + strServerDomain, soaRecordData.Serial, soaRecordData.Refresh, soaRecordData.Retry, soaRecordData.Expire, soaRecordData.Minimum) });
+                                        _dnsServer.BlockedZoneRoot.SetRecords(soaRecord.Name, soaRecord.Type, soaRecord.TtlValue, new DnsResourceRecordData[] { new DnsSOARecord(strServerDomain, "hostmaster." + strServerDomain, soaRecordData.Serial, soaRecordData.Refresh, soaRecordData.Retry, soaRecordData.Expire, soaRecordData.Minimum) });
                                     }
                                 }
                             }
@@ -2291,7 +2278,10 @@ namespace DnsServerCore
                         jsonWriter.WriteValue(resourceRecord.Type.ToString());
 
                         jsonWriter.WritePropertyName("ttl");
-                        jsonWriter.WriteValue(resourceRecord.TTL);
+                        if (authoritativeZoneRecords)
+                            jsonWriter.WriteValue(resourceRecord.TtlValue);
+                        else
+                            jsonWriter.WriteValue(resourceRecord.TTL);
 
                         jsonWriter.WritePropertyName("rData");
                         jsonWriter.WriteStartObject();
@@ -3962,6 +3952,8 @@ namespace DnsServerCore
                     _webService = new HttpListener();
                     _webService.Prefixes.Add("http://+:" + _webServicePort + "/");
                     _webService.Start();
+
+                    _webServiceHostname = Environment.MachineName.ToLower();
                 }
                 catch (Exception ex)
                 {
@@ -3970,6 +3962,8 @@ namespace DnsServerCore
                     _webService = new HttpListener();
                     _webService.Prefixes.Add("http://localhost:" + _webServicePort + "/");
                     _webService.Start();
+
+                    _webServiceHostname = "localhost";
                 }
 
                 _webServiceThread = new Thread(AcceptWebRequestAsync);
@@ -4025,6 +4019,9 @@ namespace DnsServerCore
 
         public int WebServicePort
         { get { return _webServicePort; } }
+
+        public string WebServiceHostname
+        { get { return _webServiceHostname; } }
 
         #endregion
     }
