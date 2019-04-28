@@ -558,6 +558,11 @@ function loadDnsSettings() {
             $("#chkAllowRecursionOnlyForPrivateNetworks").prop('disabled', !responseJSON.response.allowRecursion);
             $("#chkAllowRecursionOnlyForPrivateNetworks").prop("checked", responseJSON.response.allowRecursionOnlyForPrivateNetworks);
 
+            $("#txtCachePrefetchEligibility").val(responseJSON.response.cachePrefetchEligibility);
+            $("#txtCachePrefetchTrigger").val(responseJSON.response.cachePrefetchTrigger);
+            $("#txtCachePrefetchSampleIntervalInMinutes").val(responseJSON.response.cachePrefetchSampleIntervalInMinutes);
+            $("#txtCachePrefetchSampleEligibilityHitsPerHour").val(responseJSON.response.cachePrefetchSampleEligibilityHitsPerHour);
+
             var proxy = responseJSON.response.proxy;
             if (proxy === null) {
                 $("#rdProxyTypeNone").prop("checked", true);
@@ -706,6 +711,34 @@ function saveDnsSettings() {
     var allowRecursion = $("#chkAllowRecursion").prop('checked');
     var allowRecursionOnlyForPrivateNetworks = $("#chkAllowRecursionOnlyForPrivateNetworks").prop('checked');
 
+    var cachePrefetchEligibility = $("#txtCachePrefetchEligibility").val();
+    if ((cachePrefetchEligibility === null) || (cachePrefetchEligibility === "")) {
+        showAlert("warning", "Missing!", "Please enter cache prefetch eligibility value.");
+        $("#txtCachePrefetchEligibility").focus();
+        return false;
+    }
+
+    var cachePrefetchTrigger = $("#txtCachePrefetchTrigger").val();
+    if ((cachePrefetchTrigger === null) || (cachePrefetchTrigger === "")) {
+        showAlert("warning", "Missing!", "Please enter cache prefetch trigger value.");
+        $("#txtCachePrefetchTrigger").focus();
+        return false;
+    }
+
+    var cachePrefetchSampleIntervalInMinutes = $("#txtCachePrefetchSampleIntervalInMinutes").val();
+    if ((cachePrefetchSampleIntervalInMinutes === null) || (cachePrefetchSampleIntervalInMinutes === "")) {
+        showAlert("warning", "Missing!", "Please enter cache auto prefetch sample interval value.");
+        $("#txtCachePrefetchSampleIntervalInMinutes").focus();
+        return false;
+    }
+
+    var cachePrefetchSampleEligibilityHitsPerHour = $("#txtCachePrefetchSampleEligibilityHitsPerHour").val();
+    if ((cachePrefetchSampleEligibilityHitsPerHour === null) || (cachePrefetchSampleEligibilityHitsPerHour === "")) {
+        showAlert("warning", "Missing!", "Please enter cache auto prefetch sample eligibility value.");
+        $("#txtCachePrefetchSampleEligibilityHitsPerHour").focus();
+        return false;
+    }
+
     var proxy;
     var proxyType = $('input[name=rdProxyType]:checked').val().toLowerCase();
     if (proxyType === "none") {
@@ -752,7 +785,9 @@ function saveDnsSettings() {
     HTTPRequest({
         url: "/api/setDnsSettings?token=" + token + "&serverDomain=" + serverDomain + "&webServicePort=" + webServicePort + "&dnsServerLocalAddresses=" + encodeURIComponent(dnsServerLocalAddresses)
             + "&enableDnsOverHttp=" + enableDnsOverHttp + "&enableDnsOverTls=" + enableDnsOverTls + "&enableDnsOverHttps=" + enableDnsOverHttps + "&tlsCertificatePath=" + encodeURIComponent(tlsCertificatePath) + "&tlsCertificatePassword=" + encodeURIComponent(tlsCertificatePassword)
-            + "&preferIPv6=" + preferIPv6 + "&logQueries=" + logQueries + "&allowRecursion=" + allowRecursion + "&allowRecursionOnlyForPrivateNetworks=" + allowRecursionOnlyForPrivateNetworks + proxy + "&forwarders=" + encodeURIComponent(forwarders) + "&forwarderProtocol=" + forwarderProtocol + "&blockListUrls=" + encodeURIComponent(blockListUrls),
+            + "&preferIPv6=" + preferIPv6 + "&logQueries=" + logQueries + "&allowRecursion=" + allowRecursion + "&allowRecursionOnlyForPrivateNetworks=" + allowRecursionOnlyForPrivateNetworks
+            + "&cachePrefetchEligibility=" + cachePrefetchEligibility + "&cachePrefetchTrigger=" + cachePrefetchTrigger + "&cachePrefetchSampleIntervalInMinutes=" + cachePrefetchSampleIntervalInMinutes + "&cachePrefetchSampleEligibilityHitsPerHour=" + cachePrefetchSampleEligibilityHitsPerHour
+            + proxy + "&forwarders=" + encodeURIComponent(forwarders) + "&forwarderProtocol=" + forwarderProtocol + "&blockListUrls=" + encodeURIComponent(blockListUrls),
         success: function (responseJSON) {
             document.title = "Technitium DNS Server " + responseJSON.response.version + " - " + responseJSON.response.serverDomain;
             $("#lblServerDomain").text(" - " + responseJSON.response.serverDomain);

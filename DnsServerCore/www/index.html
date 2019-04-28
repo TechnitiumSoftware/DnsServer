@@ -921,6 +921,50 @@
 
                                             <div class="well well-sm form-horizontal">
                                                 <div class="form-group">
+                                                    <label for="txtCachePrefetchEligibility" class="col-sm-3 control-label">Prefetch Eligibility</label>
+                                                    <div class="col-sm-6">
+                                                        <input type="number" class="form-control" id="txtCachePrefetchEligibility" placeholder="eligibility" style="width: 100px; display: inline;">
+                                                        <span>(recommended 2)</span>
+                                                    </div>
+                                                    <label class="col-sm-3 control-label">&nbsp;</label>
+                                                    <div class="col-sm-8" style="padding-top: 5px;">The minimum initial TTL value of a record needed to be eligible for prefetching.</div>
+                                                </div>
+
+                                                <div class="form-group">
+                                                    <label for="txtCachePrefetchTrigger" class="col-sm-3 control-label">Prefetch Trigger</label>
+                                                    <div class="col-sm-6">
+                                                        <input type="number" class="form-control" id="txtCachePrefetchTrigger" placeholder="trigger" style="width: 100px; display: inline;">
+                                                        <span>(recommended 9; set 0 to completely disable prefetching)</span>
+                                                    </div>
+                                                    <label class="col-sm-3 control-label">&nbsp;</label>
+                                                    <div class="col-sm-8" style="padding-top: 5px;">A record with TTL value less than trigger value will initiate prefetch operation immediately for itself.</div>
+                                                </div>
+
+                                                <div class="form-group">
+                                                    <label for="txtCachePrefetchSampleIntervalInMinutes" class="col-sm-3 control-label">Auto Prefetch Sample Interval</label>
+                                                    <div class="col-sm-6">
+                                                        <input type="number" class="form-control" id="txtCachePrefetchSampleIntervalInMinutes" placeholder="interval" style="width: 100px; display: inline;">
+                                                        <span>minutes (valid range 1-60; default 5)</span>
+                                                    </div>
+                                                    <label class="col-sm-3 control-label">&nbsp;</label>
+                                                    <div class="col-sm-8" style="padding-top: 5px;">The interval to sample eligible domain names from last hour stats for auto prefetch.</div>
+                                                </div>
+
+                                                <div class="form-group">
+                                                    <label for="txtCachePrefetchSampleEligibilityHitsPerHour" class="col-sm-3 control-label">Auto Prefetch Sample Eligibility</label>
+                                                    <div class="col-sm-6">
+                                                        <input type="number" class="form-control" id="txtCachePrefetchSampleEligibilityHitsPerHour" placeholder="hits" style="width: 100px; display: inline;">
+                                                        <span>hits/hour (default 30)</span>
+                                                    </div>
+                                                    <label class="col-sm-3 control-label">&nbsp;</label>
+                                                    <div class="col-sm-8" style="padding-top: 5px;">Minimum required hits per hour for a domain name to be eligible for auto prefetch.</div>
+                                                </div>
+
+                                                <div>The DNS Server cache auto prefetch option can keep eligible domain names from last hour stats "hot" in cache. Sample eligibility value can be decided by keeping an eye on the hits shown for last hour on the dashboard. Experiment with sample interval and sample eligibility to get best results.</div>
+                                            </div>
+
+                                            <div class="well well-sm form-horizontal">
+                                                <div class="form-group">
                                                     <label for="txtBlockListUrls" class="col-sm-3 control-label">Block List URLs</label>
                                                     <div class="col-sm-6">
                                                         <textarea id="txtBlockListUrls" class="form-control" rows="7"></textarea>
