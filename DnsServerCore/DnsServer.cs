@@ -1502,6 +1502,42 @@ namespace DnsServerCore
             }
         }
 
+        private void ResetPrefetchTimers()
+        {
+            if (_cachePrefetchTrigger == 0)
+            {
+                lock (_cachePrefetchSamplingTimerLock)
+                {
+                    if (_cachePrefetchSamplingTimer != null)
+                        _cachePrefetchSamplingTimer.Change(System.Threading.Timeout.Infinite, System.Threading.Timeout.Infinite);
+                }
+
+                lock (_cachePrefetchRefreshTimerLock)
+                {
+                    if (_cachePrefetchRefreshTimer != null)
+                        _cachePrefetchRefreshTimer.Change(System.Threading.Timeout.Infinite, System.Threading.Timeout.Infinite);
+                }
+            }
+            else if (_state == ServiceState.Running)
+            {
+                lock (_cachePrefetchSamplingTimerLock)
+                {
+                    if (_cachePrefetchSamplingTimer != null)
+                    {
+                        _cachePrefetchSamplingTimer.Change(_cachePrefetchSampleIntervalInMinutes * 60 * 1000, System.Threading.Timeout.Infinite);
+                        _cachePrefetchSamplingTimerTriggersOn = DateTime.UtcNow.AddMinutes(_cachePrefetchSampleIntervalInMinutes);
+                    }
+                }
+
+                lock (_cachePrefetchRefreshTimerLock)
+                {
+                    if (_cachePrefetchRefreshTimer != null)
+                        _cachePrefetchRefreshTimer.Change(CACHE_PREFETCH_REFRESH_TIMER_INITIAL_INTEVAL, System.Threading.Timeout.Infinite);
+                }
+            }
+
+        }
+
         #endregion
 
         #region public
@@ -1734,12 +1770,13 @@ namespace DnsServerCore
                 }
             }
 
-            _cachePrefetchSamplingTimer = new Timer(CachePrefetchSamplingAsync, null, _cachePrefetchSampleIntervalInMinutes * 60 * 1000, System.Threading.Timeout.Infinite);
-            _cachePrefetchSamplingTimerTriggersOn = DateTime.UtcNow.AddMinutes(_cachePrefetchSampleIntervalInMinutes);
-            _cachePrefetchRefreshTimer = new Timer(CachePrefetchRefreshAsync, null, CACHE_PREFETCH_REFRESH_TIMER_INITIAL_INTEVAL, System.Threading.Timeout.Infinite);
+            _cachePrefetchSamplingTimer = new Timer(CachePrefetchSamplingAsync, null, System.Threading.Timeout.Infinite, System.Threading.Timeout.Infinite);
+            _cachePrefetchRefreshTimer = new Timer(CachePrefetchRefreshAsync, null, System.Threading.Timeout.Infinite, System.Threading.Timeout.Infinite);
             _cacheMaintenanceTimer = new Timer(CacheMaintenanceAsync, null, CACHE_MAINTENANCE_TIMER_INITIAL_INTEVAL, CACHE_MAINTENANCE_TIMER_PERIODIC_INTERVAL);
 
             _state = ServiceState.Running;
+
+            ResetPrefetchTimers();
         }
 
         public void Stop()
@@ -1974,39 +2011,9 @@ namespace DnsServerCore
                 if (value < 0)
                     throw new ArgumentOutOfRangeException("CachePrefetchTrigger", "Valid value is greater that or equal to 0.");
 
-                if (value == 0)
-                {
-                    lock (_cachePrefetchSamplingTimerLock)
-                    {
-                        if (_cachePrefetchSamplingTimer != null)
-                            _cachePrefetchSamplingTimer.Change(System.Threading.Timeout.Infinite, System.Threading.Timeout.Infinite);
-                    }
-
-                    lock (_cachePrefetchRefreshTimerLock)
-                    {
-                        if (_cachePrefetchRefreshTimer != null)
-                            _cachePrefetchRefreshTimer.Change(System.Threading.Timeout.Infinite, System.Threading.Timeout.Infinite);
-                    }
-                }
-                else if (_state == ServiceState.Running)
-                {
-                    lock (_cachePrefetchSamplingTimerLock)
-                    {
-                        if (_cachePrefetchSamplingTimer != null)
-                        {
-                            _cachePrefetchSamplingTimer.Change(_cachePrefetchSampleIntervalInMinutes * 60 * 1000, System.Threading.Timeout.Infinite);
-                            _cachePrefetchSamplingTimerTriggersOn = DateTime.UtcNow.AddMinutes(_cachePrefetchSampleIntervalInMinutes);
-                        }
-                    }
-
-                    lock (_cachePrefetchRefreshTimerLock)
-                    {
-                        if (_cachePrefetchRefreshTimer != null)
-                            _cachePrefetchRefreshTimer.Change(CACHE_PREFETCH_REFRESH_TIMER_INITIAL_INTEVAL, System.Threading.Timeout.Infinite);
-                    }
-                }
-
                 _cachePrefetchTrigger = value;
+
+                ResetPrefetchTimers();
             }
         }
 
