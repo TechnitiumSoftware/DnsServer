@@ -769,18 +769,15 @@ namespace DnsServerCore
             return data;
         }
 
-        public List<KeyValuePair<DnsQuestionRecord, int>> GetTopQueries(int minutes, int hitsPerMinute)
+        public List<KeyValuePair<DnsQuestionRecord, int>> GetLastHourEligibleQueries(int minimumHitsPerHour)
         {
-            if (minutes > 60)
-                throw new ArgumentOutOfRangeException("minutes");
-
             StatCounter totalStatCounter = new StatCounter();
             totalStatCounter.Lock();
 
-            DateTime lastHourDateTime = DateTime.UtcNow.AddMinutes(-minutes);
+            DateTime lastHourDateTime = DateTime.UtcNow.AddMinutes(-60);
             lastHourDateTime = new DateTime(lastHourDateTime.Year, lastHourDateTime.Month, lastHourDateTime.Day, lastHourDateTime.Hour, lastHourDateTime.Minute, 0, DateTimeKind.Utc);
 
-            for (int minute = 0; minute < minutes; minute++)
+            for (int minute = 0; minute < 60; minute++)
             {
                 DateTime lastDateTime = lastHourDateTime.AddMinutes(minute);
 
@@ -789,7 +786,7 @@ namespace DnsServerCore
                     totalStatCounter.Merge(statCounter);
             }
 
-            return totalStatCounter.GetTopQueries(minutes * hitsPerMinute);
+            return totalStatCounter.GetEligibleQueries(minimumHitsPerHour);
         }
 
         #endregion
@@ -1168,17 +1165,17 @@ namespace DnsServerCore
                 return queryTypes;
             }
 
-            public List<KeyValuePair<DnsQuestionRecord, int>> GetTopQueries(int minimumHits)
+            public List<KeyValuePair<DnsQuestionRecord, int>> GetEligibleQueries(int minimumHits)
             {
-                List<KeyValuePair<DnsQuestionRecord, int>> topQueries = new List<KeyValuePair<DnsQuestionRecord, int>>(100);
+                List<KeyValuePair<DnsQuestionRecord, int>> eligibleQueries = new List<KeyValuePair<DnsQuestionRecord, int>>(100);
 
                 foreach (KeyValuePair<DnsQuestionRecord, Counter> item in _queries)
                 {
                     if (item.Value.Count >= minimumHits)
-                        topQueries.Add(new KeyValuePair<DnsQuestionRecord, int>(item.Key, item.Value.Count));
+                        eligibleQueries.Add(new KeyValuePair<DnsQuestionRecord, int>(item.Key, item.Value.Count));
                 }
 
-                return topQueries;
+                return eligibleQueries;
             }
 
             #endregion
