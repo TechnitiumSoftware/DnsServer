@@ -977,6 +977,18 @@ namespace DnsServerCore
             jsonWriter.WritePropertyName("allowRecursionOnlyForPrivateNetworks");
             jsonWriter.WriteValue(_dnsServer.AllowRecursionOnlyForPrivateNetworks);
 
+            jsonWriter.WritePropertyName("cachePrefetchEligibility");
+            jsonWriter.WriteValue(_dnsServer.CachePrefetchEligibility);
+
+            jsonWriter.WritePropertyName("cachePrefetchTrigger");
+            jsonWriter.WriteValue(_dnsServer.CachePrefetchTrigger);
+
+            jsonWriter.WritePropertyName("cachePrefetchSampleIntervalInMinutes");
+            jsonWriter.WriteValue(_dnsServer.CachePrefetchSampleIntervalInMinutes);
+
+            jsonWriter.WritePropertyName("cachePrefetchSampleEligibilityHitsPerHour");
+            jsonWriter.WriteValue(_dnsServer.CachePrefetchSampleEligibilityHitsPerHour);
+
             jsonWriter.WritePropertyName("proxy");
             if (_dnsServer.Proxy == null)
             {
@@ -1242,6 +1254,22 @@ namespace DnsServerCore
             string strAllowRecursionOnlyForPrivateNetworks = request.QueryString["allowRecursionOnlyForPrivateNetworks"];
             if (!string.IsNullOrEmpty(strAllowRecursionOnlyForPrivateNetworks))
                 _dnsServer.AllowRecursionOnlyForPrivateNetworks = bool.Parse(strAllowRecursionOnlyForPrivateNetworks);
+
+            string strCachePrefetchEligibility = request.QueryString["cachePrefetchEligibility"];
+            if (!string.IsNullOrEmpty(strCachePrefetchEligibility))
+                _dnsServer.CachePrefetchEligibility = int.Parse(strCachePrefetchEligibility);
+
+            string strCachePrefetchTrigger = request.QueryString["cachePrefetchTrigger"];
+            if (!string.IsNullOrEmpty(strCachePrefetchTrigger))
+                _dnsServer.CachePrefetchTrigger = int.Parse(strCachePrefetchTrigger);
+
+            string strCachePrefetchSampleIntervalInMinutes = request.QueryString["cachePrefetchSampleIntervalInMinutes"];
+            if (!string.IsNullOrEmpty(strCachePrefetchSampleIntervalInMinutes))
+                _dnsServer.CachePrefetchSampleIntervalInMinutes = int.Parse(strCachePrefetchSampleIntervalInMinutes);
+
+            string strCachePrefetchSampleEligibilityHitsPerHour = request.QueryString["cachePrefetchSampleEligibilityHitsPerHour"];
+            if (!string.IsNullOrEmpty(strCachePrefetchSampleEligibilityHitsPerHour))
+                _dnsServer.CachePrefetchSampleEligibilityHitsPerHour = int.Parse(strCachePrefetchSampleEligibilityHitsPerHour);
 
             string strProxyType = request.QueryString["proxyType"];
             if (!string.IsNullOrEmpty(strProxyType))
@@ -3521,6 +3549,7 @@ namespace DnsServerCore
                         case 6:
                         case 7:
                         case 8:
+                        case 9:
                             _dnsServer.ServerDomain = bR.ReadShortString();
                             _webServicePort = bR.ReadInt32();
 
@@ -3535,6 +3564,14 @@ namespace DnsServerCore
                                 _dnsServer.AllowRecursionOnlyForPrivateNetworks = bR.ReadBoolean();
                             else
                                 _dnsServer.AllowRecursionOnlyForPrivateNetworks = true; //default true for security reasons
+
+                            if (version >= 9)
+                            {
+                                _dnsServer.CachePrefetchEligibility = bR.ReadInt32();
+                                _dnsServer.CachePrefetchTrigger = bR.ReadInt32();
+                                _dnsServer.CachePrefetchSampleIntervalInMinutes = bR.ReadInt32();
+                                _dnsServer.CachePrefetchSampleEligibilityHitsPerHour = bR.ReadInt32();
+                            }
 
                             NetProxyType proxyType = (NetProxyType)bR.ReadByte();
                             if (proxyType != NetProxyType.None)
@@ -3783,7 +3820,7 @@ namespace DnsServerCore
                 BinaryWriter bW = new BinaryWriter(mS);
 
                 bW.Write(Encoding.ASCII.GetBytes("DS")); //format
-                bW.Write((byte)8); //version
+                bW.Write((byte)9); //version
 
                 bW.WriteShortString(_dnsServer.ServerDomain);
                 bW.Write(_webServicePort);
@@ -3792,6 +3829,11 @@ namespace DnsServerCore
                 bW.Write((_dnsServer.QueryLogManager != null)); //logQueries
                 bW.Write(_dnsServer.AllowRecursion);
                 bW.Write(_dnsServer.AllowRecursionOnlyForPrivateNetworks);
+
+                bW.Write(_dnsServer.CachePrefetchEligibility);
+                bW.Write(_dnsServer.CachePrefetchTrigger);
+                bW.Write(_dnsServer.CachePrefetchSampleIntervalInMinutes);
+                bW.Write(_dnsServer.CachePrefetchSampleEligibilityHitsPerHour);
 
                 if (_dnsServer.Proxy == null)
                 {
