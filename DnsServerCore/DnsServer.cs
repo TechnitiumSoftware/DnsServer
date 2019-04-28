@@ -53,6 +53,7 @@ namespace DnsServerCore
         #region variables
 
         const int LISTENER_THREAD_COUNT = 3;
+        const int MAX_HOPS = 16;
 
         IPAddress[] _localIPs;
 
@@ -86,8 +87,10 @@ namespace DnsServerCore
         int _retries = 2;
         int _timeout = 2000;
         int _maxStackCount = 10;
-        int _prefetchMinutes = 5;
-        int _prefetchHitsPerMinute = 6;
+        int _cachePrefetchEligibility = 2;
+        int _cachePrefetchTrigger = 9;
+        int _cachePrefetchSampleIntervalInMinutes = 5;
+        int _cachePrefetchSampleEligibilityHitsPerHour = 30;
         LogManager _log;
         LogManager _queryLog;
         StatsManager _stats;
@@ -95,10 +98,15 @@ namespace DnsServerCore
         int _tcpSendTimeout = 10000;
         int _tcpReceiveTimeout = 10000;
 
-        Timer _prefetchTimer;
-        readonly object _prefetchTimerLock = new object();
-        const int PREFETCH_TIMER_INITIAL_INTEVAL = 60000;
-        const int PREFETCH_TIMER_PERIODIC_INTERVAL = 5000;
+        Timer _cachePrefetchSamplingTimer;
+        readonly object _cachePrefetchSamplingTimerLock = new object();
+
+        Timer _cachePrefetchRefreshTimer;
+        readonly object _cachePrefetchRefreshTimerLock = new object();
+        const int CACHE_PREFETCH_REFRESH_TIMER_INITIAL_INTEVAL = 60000;
+        const int CACHE_PREFETCH_REFRESH_TIMER_PERIODIC_INTERVAL = 10000;
+        DateTime _cachePrefetchSamplingTimerTriggersOn;
+        DnsQuestionRecord[] _cachePrefetchSampleList;
 
         Timer _cacheMaintenanceTimer;
         const int CACHE_MAINTENANCE_TIMER_INITIAL_INTEVAL = 60 * 60 * 1000;
@@ -1063,9 +1071,9 @@ namespace DnsServerCore
             return response;
         }
 
-        private DnsDatagram ProcessRecursiveQuery(DnsDatagram request, NameServerAddress[] viaNameServers = null, bool prefetchOperation = false)
+        private DnsDatagram ProcessRecursiveQuery(DnsDatagram request, NameServerAddress[] viaNameServers = null, bool cacheRefreshOperation = false)
         {
-            DnsDatagram response = RecursiveResolve(request, viaNameServers, prefetchOperation);
+            DnsDatagram response = RecursiveResolve(request, viaNameServers, false, cacheRefreshOperation);
 
             DnsResourceRecord[] authority;
 
@@ -1081,17 +1089,13 @@ namespace DnsServerCore
 
                     DnsDatagram lastResponse;
                     bool cacheHit = ("cacheHit".Equals(response.Tag));
+                    int queryCount = 0;
 
                     while (true)
                     {
-                        DnsQuestionRecord question;
+                        DnsQuestionRecord question = new DnsQuestionRecord((lastRR.RDATA as DnsCNAMERecord).CNAMEDomainName, questionType, DnsClass.IN);
 
-                        if (questionType == DnsResourceRecordType.PTR)
-                            question = new DnsQuestionRecord(IPAddress.Parse((lastRR.RDATA as DnsCNAMERecord).CNAMEDomainName), DnsClass.IN);
-                        else
-                            question = new DnsQuestionRecord((lastRR.RDATA as DnsCNAMERecord).CNAMEDomainName, questionType, DnsClass.IN);
-
-                        lastResponse = RecursiveResolve(new DnsDatagram(new DnsHeader(0, false, DnsOpcode.StandardQuery, false, false, true, false, false, false, DnsResponseCode.NoError, 1, 0, 0, 0), new DnsQuestionRecord[] { question }, null, null, null), null, prefetchOperation);
+                        lastResponse = RecursiveResolve(new DnsDatagram(new DnsHeader(0, false, DnsOpcode.StandardQuery, false, false, true, false, false, false, DnsResponseCode.NoError, 1, 0, 0, 0), new DnsQuestionRecord[] { question }, null, null, null), null, false, cacheRefreshOperation);
                         cacheHit &= ("cacheHit".Equals(lastResponse.Tag));
 
                         if ((lastResponse.Header.RCODE != DnsResponseCode.NoError) || (lastResponse.Answer.Length == 0))
@@ -1106,6 +1110,10 @@ namespace DnsServerCore
 
                         if (lastRR.Type != DnsResourceRecordType.CNAME)
                             throw new DnsServerException("Invalid response received from DNS server.");
+
+                        queryCount++;
+                        if (queryCount > MAX_HOPS)
+                            throw new DnsServerException("Recursive resolution exceeded max hops.");
                     }
 
                     if ((lastResponse.Authority.Length > 0) && (lastResponse.Authority[0].Type == DnsResourceRecordType.SOA))
@@ -1125,33 +1133,42 @@ namespace DnsServerCore
             return new DnsDatagram(new DnsHeader(request.Header.Identifier, true, DnsOpcode.StandardQuery, false, false, true, true, false, false, response.Header.RCODE, 1, (ushort)response.Answer.Length, (ushort)authority.Length, response.Header.ARCOUNT), request.Question, response.Answer, authority, response.Additional) { Tag = response.Tag };
         }
 
-        private DnsDatagram RecursiveResolve(DnsDatagram request, NameServerAddress[] viaNameServers, bool prefetchOperation)
+        private DnsDatagram RecursiveResolve(DnsDatagram request, NameServerAddress[] viaNameServers, bool cachePrefetchOperation, bool cacheRefreshOperation)
         {
-            //query cache zone to see if answer available
+            if (!cachePrefetchOperation && !cacheRefreshOperation)
             {
+                //query cache zone to see if answer available
                 DnsDatagram cacheResponse = QueryCache(request, false);
                 if (cacheResponse != null)
                 {
-                    if (prefetchOperation)
+                    if (_cachePrefetchTrigger > 0)
                     {
-                        bool doPrefetch = false;
-
+                        //inspect response TTL values to decide if prefetch trigger is needed
                         foreach (DnsResourceRecord answer in cacheResponse.Answer)
                         {
-                            if (answer.IsStale || (answer.TTLValue < 10))
+                            if ((answer.OriginalTtlValue > _cachePrefetchEligibility) && (answer.TtlValue < _cachePrefetchTrigger))
                             {
-                                doPrefetch = true;
+                                //trigger prefetch in worker thread
+                                ThreadPool.QueueUserWorkItem(delegate (object state)
+                                {
+                                    try
+                                    {
+                                        RecursiveResolve(request, viaNameServers, true, false);
+                                    }
+                                    catch (Exception ex)
+                                    {
+                                        LogManager log = _log;
+                                        if (log != null)
+                                            log.Write(ex);
+                                    }
+                                });
+
                                 break;
                             }
                         }
+                    }
 
-                        if (!doPrefetch)
-                            return cacheResponse;
-                    }
-                    else
-                    {
-                        return cacheResponse;
-                    }
+                    return cacheResponse;
                 }
             }
 
@@ -1182,7 +1199,7 @@ namespace DnsServerCore
                     try
                     {
                         //recursive resolve and update cache
-                        response = DnsClient.RecursiveResolve(request.Question[0], viaNameServers, (prefetchOperation ? new PrefetchDnsCache(_cacheZoneRoot, request.Question[0]) : _dnsCache), _proxy, _preferIPv6, protocol, _retries, _timeout, _recursiveResolveProtocol, _maxStackCount);
+                        response = DnsClient.RecursiveResolve(request.Question[0], viaNameServers, (cachePrefetchOperation || cacheRefreshOperation ? new PrefetchDnsCache(_cacheZoneRoot, request.Question[0]) : _dnsCache), _proxy, _preferIPv6, protocol, _retries, _timeout, _recursiveResolveProtocol, _maxStackCount);
                     }
                     catch (Exception ex)
                     {
@@ -1237,6 +1254,9 @@ namespace DnsServerCore
             }
 
             //request is being recursively resolved by worker thread
+
+            if (cachePrefetchOperation)
+                return null; //return null as prefetch worker thread does not need valid response and thus does not need to wait
 
             bool timeout = false;
 
@@ -1299,25 +1319,148 @@ namespace DnsServerCore
             return null;
         }
 
-        private void PrefetchAsync(object state)
+        private DnsQuestionRecord GetCacheRefreshNeededQuery(DnsQuestionRecord question, int trigger)
+        {
+            int queryCount = 0;
+
+            while (true)
+            {
+                DnsDatagram cacheResponse = QueryCache(new DnsDatagram(new DnsHeader(0, false, DnsOpcode.StandardQuery, false, false, true, false, false, false, DnsResponseCode.NoError, 1, 0, 0, 0), new DnsQuestionRecord[] { question }, null, null, null), false);
+                if (cacheResponse == null)
+                    return question; //cache expired so refresh question
+
+                if (cacheResponse.Answer.Length == 0)
+                    return null; //dont refresh empty responses
+
+                //inspect response TTL values to decide if refresh is needed
+                foreach (DnsResourceRecord answer in cacheResponse.Answer)
+                {
+                    if ((answer.OriginalTtlValue > _cachePrefetchEligibility) && (answer.TtlValue < trigger))
+                        return question; //TTL eligible and less than trigger so refresh question
+                }
+
+                DnsResourceRecord lastRR = cacheResponse.Answer[cacheResponse.Answer.Length - 1];
+
+                if (lastRR.Type == question.Type)
+                    return null; //answer was resolved
+
+                if (lastRR.Type != DnsResourceRecordType.CNAME)
+                    return null; //invalid response so ignore question
+
+                queryCount++;
+                if (queryCount > MAX_HOPS)
+                    return null; //too many hops so ignore question
+
+                //follow CNAME chain to inspect TTL further
+                question = new DnsQuestionRecord((lastRR.RDATA as DnsCNAMERecord).CNAMEDomainName, question.Type, DnsClass.IN);
+            }
+        }
+
+        private bool CacheRefreshNeeded(DnsQuestionRecord question, int trigger)
+        {
+            DnsDatagram cacheResponse = QueryCache(new DnsDatagram(new DnsHeader(0, false, DnsOpcode.StandardQuery, false, false, true, false, false, false, DnsResponseCode.NoError, 1, 0, 0, 0), new DnsQuestionRecord[] { question }, null, null, null), false);
+            if (cacheResponse == null)
+                return true; //cache expired so refresh needed
+
+            if (cacheResponse.Answer.Length == 0)
+                return false; //dont refresh empty responses
+
+            //inspect response TTL values to decide if refresh is needed
+            foreach (DnsResourceRecord answer in cacheResponse.Answer)
+            {
+                if ((answer.OriginalTtlValue > _cachePrefetchEligibility) && (answer.TtlValue < trigger))
+                    return true; //TTL eligible less than trigger so refresh
+            }
+
+            return false; //no need to refresh for this query
+        }
+
+        private void CachePrefetchSamplingAsync(object state)
         {
             try
             {
                 StatsManager stats = _stats;
                 if (stats != null)
                 {
-                    List<KeyValuePair<DnsQuestionRecord, int>> topQueries = stats.GetTopQueries(_prefetchMinutes, _prefetchHitsPerMinute);
+                    List<KeyValuePair<DnsQuestionRecord, int>> eligibleQueries = stats.GetLastHourEligibleQueries(_cachePrefetchSampleEligibilityHitsPerHour);
+                    List<DnsQuestionRecord> cacheRefreshSampleList = new List<DnsQuestionRecord>();
+                    int cacheRefreshTrigger = (_cachePrefetchSampleIntervalInMinutes + 1) * 60;
 
-                    foreach (KeyValuePair<DnsQuestionRecord, int> item in topQueries)
+                    foreach (KeyValuePair<DnsQuestionRecord, int> query in eligibleQueries)
                     {
-                        if (_authoritativeZoneRoot.ZoneExistsAndEnabled(item.Key.Name))
-                            continue; //no prefetch for zone that is hosted and enabled
+                        if (_authoritativeZoneRoot.ZoneExistsAndEnabled(query.Key.Name))
+                            continue; //no cache refresh for zone that is hosted and enabled
+
+                        if (query.Key.Type == DnsResourceRecordType.ANY)
+                            continue; //dont refresh ANY queries
+
+                        DnsQuestionRecord refreshQuery = GetCacheRefreshNeededQuery(query.Key, cacheRefreshTrigger);
+                        if (refreshQuery != null)
+                            cacheRefreshSampleList.Add(refreshQuery);
+                    }
+
+                    _cachePrefetchSampleList = cacheRefreshSampleList.ToArray();
+                }
+            }
+            catch (Exception ex)
+            {
+                LogManager log = _log;
+                if (log != null)
+                    log.Write(ex);
+            }
+            finally
+            {
+                lock (_cachePrefetchSamplingTimerLock)
+                {
+                    if (_cachePrefetchSamplingTimer != null)
+                    {
+                        _cachePrefetchSamplingTimer.Change(_cachePrefetchSampleIntervalInMinutes * 60 * 1000, System.Threading.Timeout.Infinite);
+                        _cachePrefetchSamplingTimerTriggersOn = DateTime.UtcNow.AddMinutes(_cachePrefetchSampleIntervalInMinutes);
+                    }
+                }
+            }
+        }
+
+        private void CachePrefetchRefreshAsync(object state)
+        {
+            try
+            {
+                DnsQuestionRecord[] cacheRefreshSampleList = _cachePrefetchSampleList;
+                if (cacheRefreshSampleList != null)
+                {
+                    for (int i = 0; i < cacheRefreshSampleList.Length; i++)
+                    {
+                        DnsQuestionRecord sampleQuestion = cacheRefreshSampleList[i];
+                        if (sampleQuestion == null)
+                            continue;
+
+                        if (!CacheRefreshNeeded(sampleQuestion, _cachePrefetchTrigger))
+                            continue;
+
+                        int sampleQuestionIndex = i;
 
                         ThreadPool.QueueUserWorkItem(delegate (object state2)
                         {
                             try
                             {
-                                ProcessRecursiveQuery(new DnsDatagram(new DnsHeader(0, false, DnsOpcode.StandardQuery, false, false, true, false, false, false, DnsResponseCode.NoError, 1, 0, 0, 0), new DnsQuestionRecord[] { item.Key }, null, null, null), null, true);
+                                //refresh cache
+                                DnsDatagram response = ProcessRecursiveQuery(new DnsDatagram(new DnsHeader(0, false, DnsOpcode.StandardQuery, false, false, true, false, false, false, DnsResponseCode.NoError, 1, 0, 0, 0), new DnsQuestionRecord[] { sampleQuestion }, null, null, null), null, true);
+
+                                bool removeFromSampleList = true;
+                                DateTime utcNow = DateTime.UtcNow;
+
+                                foreach (DnsResourceRecord answer in response.Answer)
+                                {
+                                    if ((answer.OriginalTtlValue > _cachePrefetchEligibility) && (utcNow.AddSeconds(answer.TtlValue) < _cachePrefetchSamplingTimerTriggersOn))
+                                    {
+                                        //answer expires before next sampling so dont remove from list to allow refreshing it
+                                        removeFromSampleList = false;
+                                        break;
+                                    }
+                                }
+
+                                if (removeFromSampleList)
+                                    cacheRefreshSampleList[sampleQuestionIndex] = null;
                             }
                             catch (Exception ex)
                             {
@@ -1337,10 +1480,10 @@ namespace DnsServerCore
             }
             finally
             {
-                lock (_prefetchTimerLock)
+                lock (_cachePrefetchRefreshTimerLock)
                 {
-                    if (_prefetchTimer != null)
-                        _prefetchTimer.Change(PREFETCH_TIMER_PERIODIC_INTERVAL, System.Threading.Timeout.Infinite);
+                    if (_cachePrefetchRefreshTimer != null)
+                        _cachePrefetchRefreshTimer.Change(CACHE_PREFETCH_REFRESH_TIMER_PERIODIC_INTERVAL, System.Threading.Timeout.Infinite);
                 }
             }
         }
@@ -1591,7 +1734,9 @@ namespace DnsServerCore
                 }
             }
 
-            _prefetchTimer = new Timer(PrefetchAsync, null, PREFETCH_TIMER_INITIAL_INTEVAL, System.Threading.Timeout.Infinite);
+            _cachePrefetchSamplingTimer = new Timer(CachePrefetchSamplingAsync, null, _cachePrefetchSampleIntervalInMinutes * 60 * 1000, System.Threading.Timeout.Infinite);
+            _cachePrefetchSamplingTimerTriggersOn = DateTime.UtcNow.AddMinutes(_cachePrefetchSampleIntervalInMinutes);
+            _cachePrefetchRefreshTimer = new Timer(CachePrefetchRefreshAsync, null, CACHE_PREFETCH_REFRESH_TIMER_INITIAL_INTEVAL, System.Threading.Timeout.Infinite);
             _cacheMaintenanceTimer = new Timer(CacheMaintenanceAsync, null, CACHE_MAINTENANCE_TIMER_INITIAL_INTEVAL, CACHE_MAINTENANCE_TIMER_PERIODIC_INTERVAL);
 
             _state = ServiceState.Running;
@@ -1604,12 +1749,21 @@ namespace DnsServerCore
 
             _state = ServiceState.Stopping;
 
-            lock (_prefetchTimerLock)
+            lock (_cachePrefetchSamplingTimerLock)
             {
-                if (_prefetchTimer != null)
+                if (_cachePrefetchSamplingTimer != null)
                 {
-                    _prefetchTimer.Dispose();
-                    _prefetchTimer = null;
+                    _cachePrefetchSamplingTimer.Dispose();
+                    _cachePrefetchSamplingTimer = null;
+                }
+            }
+
+            lock (_cachePrefetchRefreshTimerLock)
+            {
+                if (_cachePrefetchRefreshTimer != null)
+                {
+                    _cachePrefetchRefreshTimer.Dispose();
+                    _cachePrefetchRefreshTimer = null;
                 }
             }
 
@@ -1800,20 +1954,84 @@ namespace DnsServerCore
             set { _maxStackCount = value; }
         }
 
-        public int PrefetchMinutes
+        public int CachePrefetchEligibility
         {
-            get { return _prefetchMinutes; }
+            get { return _cachePrefetchEligibility; }
             set
             {
-                if ((value > 0) && (value <= 60))
-                    _prefetchMinutes = value;
+                if (value < 2)
+                    throw new ArgumentOutOfRangeException("CachePrefetchEligibility", "Valid value is greater that or equal to 2.");
+
+                _cachePrefetchEligibility = value;
             }
         }
 
-        public int PrefetchHitsPerMinute
+        public int CachePrefetchTrigger
         {
-            get { return _prefetchHitsPerMinute; }
-            set { _prefetchHitsPerMinute = value; }
+            get { return _cachePrefetchTrigger; }
+            set
+            {
+                if (value < 0)
+                    throw new ArgumentOutOfRangeException("CachePrefetchTrigger", "Valid value is greater that or equal to 0.");
+
+                if (value == 0)
+                {
+                    lock (_cachePrefetchSamplingTimerLock)
+                    {
+                        if (_cachePrefetchSamplingTimer != null)
+                            _cachePrefetchSamplingTimer.Change(System.Threading.Timeout.Infinite, System.Threading.Timeout.Infinite);
+                    }
+
+                    lock (_cachePrefetchRefreshTimerLock)
+                    {
+                        if (_cachePrefetchRefreshTimer != null)
+                            _cachePrefetchRefreshTimer.Change(System.Threading.Timeout.Infinite, System.Threading.Timeout.Infinite);
+                    }
+                }
+                else if (_state == ServiceState.Running)
+                {
+                    lock (_cachePrefetchSamplingTimerLock)
+                    {
+                        if (_cachePrefetchSamplingTimer != null)
+                        {
+                            _cachePrefetchSamplingTimer.Change(_cachePrefetchSampleIntervalInMinutes * 60 * 1000, System.Threading.Timeout.Infinite);
+                            _cachePrefetchSamplingTimerTriggersOn = DateTime.UtcNow.AddMinutes(_cachePrefetchSampleIntervalInMinutes);
+                        }
+                    }
+
+                    lock (_cachePrefetchRefreshTimerLock)
+                    {
+                        if (_cachePrefetchRefreshTimer != null)
+                            _cachePrefetchRefreshTimer.Change(CACHE_PREFETCH_REFRESH_TIMER_INITIAL_INTEVAL, System.Threading.Timeout.Infinite);
+                    }
+                }
+
+                _cachePrefetchTrigger = value;
+            }
+        }
+
+        public int CachePrefetchSampleIntervalInMinutes
+        {
+            get { return _cachePrefetchSampleIntervalInMinutes; }
+            set
+            {
+                if ((value < 1) || (value > 60))
+                    throw new ArgumentOutOfRangeException("CacheRefreshSampleIntervalInMinutes", "Valid range is between 1 and 60 minutes.");
+
+                _cachePrefetchSampleIntervalInMinutes = value;
+            }
+        }
+
+        public int CachePrefetchSampleEligibilityHitsPerHour
+        {
+            get { return _cachePrefetchSampleEligibilityHitsPerHour; }
+            set
+            {
+                if (value < 1)
+                    throw new ArgumentOutOfRangeException("CachePrefetchSampleEligibilityHitsPerHour", "Valid value is greater than or equal to 1.");
+
+                _cachePrefetchSampleEligibilityHitsPerHour = value;
+            }
         }
 
         public LogManager LogManager
