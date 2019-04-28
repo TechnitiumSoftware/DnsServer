@@ -42,7 +42,7 @@ namespace DnsServerApp
                 Console.WriteLine("Technitium DNS Server was started successfully.");
                 Console.WriteLine("Using config folder: " + service.ConfigFolder);
                 Console.WriteLine("");
-                Console.WriteLine("Note: Open http://" + Environment.MachineName.ToLower() + ":" + service.WebServicePort + "/ in web browser to access web console.");
+                Console.WriteLine("Note: Open http://" + service.WebServiceHostname + ":" + service.WebServicePort + "/ in web browser to access web console.");
                 Console.WriteLine("");
                 Console.WriteLine("Press [CTRL + C] to stop...");
 
