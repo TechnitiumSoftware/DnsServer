@@ -171,7 +171,7 @@ namespace DnsServerCore
             if (currentZone == null)
                 return false;
 
-            if (!currentZone._authoritativeZone && (currentZone._zoneName.Equals("root-servers.net", StringComparison.CurrentCultureIgnoreCase)))
+            if (!currentZone._authoritativeZone && (currentZone._zoneName.Equals("root-servers.net", StringComparison.OrdinalIgnoreCase)))
                 return false; //cannot delete root-servers.net
 
             currentZone._entries.Clear();
@@ -192,7 +192,7 @@ namespace DnsServerCore
             else
             {
                 //cache zone
-                if (currentZone._zoneName.Equals("root-servers.net", StringComparison.CurrentCultureIgnoreCase))
+                if (currentZone._zoneName.Equals("root-servers.net", StringComparison.OrdinalIgnoreCase))
                     return false; //cannot delete root-servers.net
             }
 
@@ -550,7 +550,7 @@ namespace DnsServerCore
         private DnsResourceRecord[] QueryClosestCachedNameServers(bool serveStale)
         {
             Zone currentZone = this;
-            DnsResourceRecord[] nsRecords = null;
+            DnsResourceRecord[] nsRecords;
 
             while (currentZone != null)
             {
@@ -572,7 +572,7 @@ namespace DnsServerCore
             while (currentZone != null)
             {
                 nsRecords = currentZone.QueryRecords(DnsResourceRecordType.SOA, true, false);
-                if ((nsRecords != null) && (nsRecords.Length > 0) && (nsRecords[0].RDATA as DnsSOARecord).MasterNameServer.Equals(rootZoneServerDomain, StringComparison.CurrentCultureIgnoreCase))
+                if ((nsRecords != null) && (nsRecords.Length > 0) && (nsRecords[0].RDATA as DnsSOARecord).MasterNameServer.Equals(rootZoneServerDomain, StringComparison.OrdinalIgnoreCase))
                     return nsRecords;
 
                 nsRecords = currentZone.QueryRecords(DnsResourceRecordType.NS, true, false);
@@ -634,13 +634,13 @@ namespace DnsServerCore
                 {
                     {
                         DnsResourceRecord[] records = zone.QueryRecords(DnsResourceRecordType.A, true, serveStale);
-                        if ((records != null) && (records.Length > 0))
+                        if ((records != null) && (records.Length > 0) && (records[0].RDATA is DnsARecord))
                             glueRecords.AddRange(records);
                     }
 
                     {
                         DnsResourceRecord[] records = zone.QueryRecords(DnsResourceRecordType.AAAA, true, serveStale);
-                        if ((records != null) && (records.Length > 0))
+                        if ((records != null) && (records.Length > 0) && (records[0].RDATA is DnsAAAARecord))
                             glueRecords.AddRange(records);
                     }
                 }
@@ -868,15 +868,16 @@ namespace DnsServerCore
             foreach (DnsResourceRecord record in records)
             {
                 Dictionary<DnsResourceRecordType, List<DnsResourceRecord>> groupedByTypeRecords;
+                string recordName = record.Name.ToLower();
 
-                if (groupedByDomainRecords.ContainsKey(record.Name))
+                if (groupedByDomainRecords.ContainsKey(recordName))
                 {
-                    groupedByTypeRecords = groupedByDomainRecords[record.Name];
+                    groupedByTypeRecords = groupedByDomainRecords[recordName];
                 }
                 else
                 {
                     groupedByTypeRecords = new Dictionary<DnsResourceRecordType, List<DnsResourceRecord>>();
-                    groupedByDomainRecords.Add(record.Name, groupedByTypeRecords);
+                    groupedByDomainRecords.Add(recordName, groupedByTypeRecords);
                 }
 
                 List<DnsResourceRecord> groupedRecords;
@@ -951,7 +952,7 @@ namespace DnsServerCore
 
                             foreach (DnsResourceRecord answer in response.Answer)
                             {
-                                if (answer.Name.Equals(qName, StringComparison.CurrentCultureIgnoreCase))
+                                if (answer.Name.Equals(qName, StringComparison.OrdinalIgnoreCase))
                                 {
                                     allRecords.Add(answer);
 
@@ -964,11 +965,11 @@ namespace DnsServerCore
                                         case DnsResourceRecordType.NS:
                                             string nsDomain = (answer.RDATA as DnsNSRecord).NSDomainName;
 
-                                            if (!nsDomain.EndsWith(".root-servers.net", StringComparison.CurrentCultureIgnoreCase))
+                                            if (!nsDomain.EndsWith(".root-servers.net", StringComparison.OrdinalIgnoreCase))
                                             {
                                                 foreach (DnsResourceRecord record in response.Additional)
                                                 {
-                                                    if (nsDomain.Equals(record.Name, StringComparison.CurrentCultureIgnoreCase))
+                                                    if (nsDomain.Equals(record.Name, StringComparison.OrdinalIgnoreCase))
                                                         allRecords.Add(record);
                                                 }
                                             }
@@ -980,7 +981,7 @@ namespace DnsServerCore
 
                                             foreach (DnsResourceRecord record in response.Additional)
                                             {
-                                                if (mxExchange.Equals(record.Name, StringComparison.CurrentCultureIgnoreCase))
+                                                if (mxExchange.Equals(record.Name, StringComparison.OrdinalIgnoreCase))
                                                     allRecords.Add(record);
                                             }
 
@@ -1017,7 +1018,7 @@ namespace DnsServerCore
                             {
                                 foreach (DnsResourceRecord authorityRecord in response.Authority)
                                 {
-                                    if ((authorityRecord.Type == DnsResourceRecordType.NS) && question.Name.Equals(authorityRecord.Name, StringComparison.CurrentCultureIgnoreCase) && (authorityRecord.RDATA as DnsNSRecord).NSDomainName.Equals(response.Metadata.NameServerAddress.Host, StringComparison.CurrentCultureIgnoreCase))
+                                    if ((authorityRecord.Type == DnsResourceRecordType.NS) && question.Name.Equals(authorityRecord.Name, StringComparison.OrdinalIgnoreCase) && (authorityRecord.RDATA as DnsNSRecord).NSDomainName.Equals(response.Metadata.NameServerAddress.Host, StringComparison.OrdinalIgnoreCase))
                                     {
                                         //empty response from authority name server
                                         DnsResourceRecord record = new DnsResourceRecord(question.Name, question.Type, DnsClass.IN, DEFAULT_RECORD_TTL, new DnsEmptyRecord(null));
@@ -1054,7 +1055,7 @@ namespace DnsServerCore
                 {
                     foreach (DnsResourceRecord authority in response.Authority)
                     {
-                        if (question.Name.Equals(authority.Name, StringComparison.CurrentCultureIgnoreCase) || question.Name.EndsWith("." + authority.Name, StringComparison.CurrentCultureIgnoreCase))
+                        if (question.Name.Equals(authority.Name, StringComparison.OrdinalIgnoreCase) || question.Name.EndsWith("." + authority.Name, StringComparison.OrdinalIgnoreCase))
                         {
                             allRecords.Add(authority);
 
@@ -1062,11 +1063,11 @@ namespace DnsServerCore
                             {
                                 string nsDomain = (authority.RDATA as DnsNSRecord).NSDomainName;
 
-                                if (!nsDomain.EndsWith(".root-servers.net", StringComparison.CurrentCultureIgnoreCase))
+                                if (!nsDomain.EndsWith(".root-servers.net", StringComparison.OrdinalIgnoreCase))
                                 {
                                     foreach (DnsResourceRecord record in response.Additional)
                                     {
-                                        if (nsDomain.Equals(record.Name, StringComparison.CurrentCultureIgnoreCase))
+                                        if (nsDomain.Equals(record.Name, StringComparison.OrdinalIgnoreCase))
                                             allRecords.Add(record);
                                     }
                                 }
@@ -1172,7 +1173,7 @@ namespace DnsServerCore
             {
                 case DnsResourceRecordType.CNAME:
                 case DnsResourceRecordType.PTR:
-                    if (oldRecord.Name.Equals(newRecord.Name, StringComparison.CurrentCultureIgnoreCase))
+                    if (oldRecord.Name.Equals(newRecord.Name, StringComparison.OrdinalIgnoreCase))
                     {
                         currentZone.SetRecords(newRecord.Type, new DnsResourceRecord[] { newRecord });
                     }
