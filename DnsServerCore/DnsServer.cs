@@ -758,7 +758,7 @@ namespace DnsServerCore
                                     return;
                             }
 
-                            if (requestConnection.Equals("close", StringComparison.CurrentCultureIgnoreCase))
+                            if (requestConnection.Equals("close", StringComparison.OrdinalIgnoreCase))
                                 return;
 
                             break;
