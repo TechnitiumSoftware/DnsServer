@@ -1088,7 +1088,7 @@ namespace DnsServerCore
                                         DnsResourceRecord soaRecord = soaResourceRecords[0];
                                         DnsSOARecord soaRecordData = soaRecord.RDATA as DnsSOARecord;
 
-                                        if (soaRecordData.MasterNameServer.Equals(oldServerDomain, StringComparison.CurrentCultureIgnoreCase))
+                                        if (soaRecordData.MasterNameServer.Equals(oldServerDomain, StringComparison.OrdinalIgnoreCase))
                                         {
                                             string responsiblePerson = soaRecordData.ResponsiblePerson;
                                             if (responsiblePerson.EndsWith(oldServerDomain))
@@ -1101,7 +1101,7 @@ namespace DnsServerCore
 
                                             foreach (DnsResourceRecord nsResourceRecord in nsResourceRecords)
                                             {
-                                                if ((nsResourceRecord.RDATA as DnsNSRecord).NSDomainName.Equals(oldServerDomain, StringComparison.CurrentCultureIgnoreCase))
+                                                if ((nsResourceRecord.RDATA as DnsNSRecord).NSDomainName.Equals(oldServerDomain, StringComparison.OrdinalIgnoreCase))
                                                     _dnsServer.AuthoritativeZoneRoot.UpdateRecord(nsResourceRecord, new DnsResourceRecord(nsResourceRecord.Name, nsResourceRecord.Type, nsResourceRecord.Class, nsResourceRecord.TtlValue, new DnsNSRecord(strServerDomain)));
                                             }
 
@@ -2016,9 +2016,6 @@ namespace DnsServerCore
             if (IPAddress.TryParse(domain, out IPAddress ipAddress))
                 domain = (new DnsQuestionRecord(ipAddress, DnsClass.IN)).Name;
 
-            if (_dnsServer.BlockedZoneRoot.ZoneExists(domain))
-                throw new DnsWebServiceException("Domain '" + domain + "' already exists in blocked zone.");
-
             BlockZone(domain, _customBlockedZoneRoot, "custom");
             BlockZone(domain, _dnsServer.BlockedZoneRoot, "custom");
 
@@ -2769,7 +2766,7 @@ namespace DnsServerCore
 
                 foreach (DnsResourceRecord record in dnsResponse.Answer)
                 {
-                    if (record.Name.Equals(domain, StringComparison.CurrentCultureIgnoreCase))
+                    if (record.Name.Equals(domain, StringComparison.OrdinalIgnoreCase))
                     {
                         recordsToSet.Add(record);
 
@@ -2784,7 +2781,7 @@ namespace DnsServerCore
 
                     foreach (Zone.ZoneInfo zone in _dnsServer.AuthoritativeZoneRoot.ListAuthoritativeZones())
                     {
-                        if (domain.EndsWith(zone.ZoneName, StringComparison.CurrentCultureIgnoreCase))
+                        if (domain.EndsWith(zone.ZoneName, StringComparison.OrdinalIgnoreCase))
                         {
                             SOARecordExists = true;
                             break;
@@ -2840,7 +2837,7 @@ namespace DnsServerCore
 
             string logFile = Path.Combine(_log.LogFolder, log + ".log");
 
-            if (_log.CurrentLogFile.Equals(logFile, StringComparison.CurrentCultureIgnoreCase))
+            if (_log.CurrentLogFile.Equals(logFile, StringComparison.OrdinalIgnoreCase))
                 _log.DeleteCurrentLogFile();
             else
                 File.Delete(logFile);
