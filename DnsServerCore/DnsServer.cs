@@ -613,18 +613,11 @@ namespace DnsServerCore
                     if (usingReverseProxy)
                     {
                         string xRealIp = requestHeaders["X-Real-IP"];
-                        string xForwardedFor = requestHeaders["X-Forwarded-For"];
 
                         if (!string.IsNullOrEmpty(xRealIp))
                         {
                             //get the real IP address of the requesting client from X-Real-IP header set in nginx proxy_pass block
                             remoteEP = new IPEndPoint(IPAddress.Parse(xRealIp), 0);
-                        }
-                        else if (!string.IsNullOrEmpty(xForwardedFor))
-                        {
-                            //get the real IP address of the requesting client from X-Forwarded-For header set in nginx proxy_pass block
-                            string[] xForwardedForParts = xForwardedFor.Split(new char[] { ',' }, StringSplitOptions.RemoveEmptyEntries);
-                            remoteEP = new IPEndPoint(IPAddress.Parse(xForwardedForParts[0]), 0);
                         }
                     }
 
@@ -700,7 +693,7 @@ namespace DnsServerCore
                                                 dnsResponse.WriteTo(mS);
 
                                                 byte[] buffer = mS.ToArray();
-                                                Send200(stream, "application/dns-message", buffer);
+                                                SendContent(stream, "application/dns-message", buffer);
                                             }
 
                                             LogManager queryLog = _queryLog;
@@ -738,7 +731,7 @@ namespace DnsServerCore
                                                 jsonWriter.Flush();
 
                                                 byte[] buffer = mS.ToArray();
-                                                Send200(stream, "application/dns-json; charset=utf-8", buffer);
+                                                SendContent(stream, "application/dns-json; charset=utf-8", buffer);
                                             }
 
                                             LogManager queryLog = _queryLog;
@@ -754,8 +747,8 @@ namespace DnsServerCore
                                     break;
 
                                 default:
-                                    Send406(stream, "Only application/dns-message and application/dns-json types are accepted.");
-                                    return;
+                                    SendError(stream, 406, "Only application/dns-message and application/dns-json types are accepted.");
+                                    break;
                             }
 
                             if (requestConnection.Equals("close", StringComparison.OrdinalIgnoreCase))
@@ -780,13 +773,13 @@ namespace DnsServerCore
                                 jsonWriter.WriteEndObject();
                                 jsonWriter.Flush();
 
-                                Send200(stream, "application/json", mS.ToArray());
+                                SendContent(stream, "application/json", mS.ToArray());
                             }
 
                             break;
 
                         default:
-                            Send404(stream);
+                            SendError(stream, 404);
                             break;
                     }
                 }
@@ -804,51 +797,54 @@ namespace DnsServerCore
                 LogManager log = _log;
                 if (log != null)
                     log.Write(remoteEP as IPEndPoint, dnsProtocol, ex);
+
+                SendError(stream, ex);
             }
         }
 
-        private static void Send404(Stream outputStream)
-        {
-            byte[] bufferContent = Encoding.UTF8.GetBytes("<h1>404 Not Found</h1>");
-            byte[] bufferHeader = Encoding.UTF8.GetBytes("HTTP/1.1 404 Not Found\r\nDate: " + DateTime.UtcNow.ToString("r") + "\r\nContent-Type: text/html; charset=utf-8\r\nContent-Length: " + bufferContent.Length + "\r\nX-Robots-Tag: noindex, nofollow\r\n\r\n");
-
-            using (MemoryStream mS = new MemoryStream())
-            {
-                mS.Write(bufferHeader, 0, bufferHeader.Length);
-                mS.Write(bufferContent, 0, bufferContent.Length);
-
-                byte[] buffer = mS.ToArray();
-                outputStream.Write(buffer, 0, buffer.Length);
-            }
-        }
-
-        private static void Send406(Stream outputStream, string message)
-        {
-            byte[] bufferContent = Encoding.UTF8.GetBytes("<h1>406 Not Acceptable</h1><p>" + message + "</p>");
-            byte[] bufferHeader = Encoding.UTF8.GetBytes("HTTP/1.1 406 Not Acceptable\r\nDate: " + DateTime.UtcNow.ToString("r") + "\r\nContent-Type: text/html; charset=utf-8\r\nContent-Length: " + bufferContent.Length + "\r\nX-Robots-Tag: noindex, nofollow\r\n\r\n");
-
-            using (MemoryStream mS = new MemoryStream())
-            {
-                mS.Write(bufferHeader, 0, bufferHeader.Length);
-                mS.Write(bufferContent, 0, bufferContent.Length);
-
-                byte[] buffer = mS.ToArray();
-                outputStream.Write(buffer, 0, buffer.Length);
-            }
-        }
-
-        private static void Send200(Stream outputStream, string contentType, byte[] bufferContent)
+        private static void SendContent(Stream outputStream, string contentType, byte[] bufferContent)
         {
             byte[] bufferHeader = Encoding.UTF8.GetBytes("HTTP/1.1 200 OK\r\nDate: " + DateTime.UtcNow.ToString("r") + "\r\nContent-Type: " + contentType + "\r\nContent-Length: " + bufferContent.Length + "\r\nX-Robots-Tag: noindex, nofollow\r\n\r\n");
 
-            using (MemoryStream mS = new MemoryStream())
-            {
-                mS.Write(bufferHeader, 0, bufferHeader.Length);
-                mS.Write(bufferContent, 0, bufferContent.Length);
+            outputStream.Write(bufferHeader, 0, bufferHeader.Length);
+            outputStream.Write(bufferContent, 0, bufferContent.Length);
+            outputStream.Flush();
+        }
 
-                byte[] buffer = mS.ToArray();
-                outputStream.Write(buffer, 0, buffer.Length);
+        private static void SendError(Stream outputStream, Exception ex)
+        {
+            SendError(outputStream, 500, ex.ToString());
+        }
+
+        private static void SendError(Stream outputStream, int statusCode, string message = null)
+        {
+            try
+            {
+                string statusString = statusCode + " " + GetStatusString((HttpStatusCode)statusCode);
+                byte[] bufferContent = Encoding.UTF8.GetBytes("<html><head><title>" + statusString + "</title></head><body><h1>" + statusString + "</h1>" + (message == null ? "" : "<p>" + message + "</p>") + "</body></html>");
+                byte[] bufferHeader = Encoding.UTF8.GetBytes("HTTP/1.1 " + statusString + "\r\nDate: " + DateTime.UtcNow.ToString("r") + "\r\nContent-Type: text/html; charset=utf-8\r\nContent-Length: " + bufferContent.Length + "\r\nX-Robots-Tag: noindex, nofollow\r\n\r\n");
+
+                outputStream.Write(bufferHeader, 0, bufferHeader.Length);
+                outputStream.Write(bufferContent, 0, bufferContent.Length);
+                outputStream.Flush();
             }
+            catch
+            { }
+        }
+
+        internal static string GetStatusString(HttpStatusCode statusCode)
+        {
+            StringBuilder sb = new StringBuilder();
+
+            foreach (char c in statusCode.ToString().ToCharArray())
+            {
+                if (char.IsUpper(c) && sb.Length > 0)
+                    sb.Append(' ');
+
+                sb.Append(c);
+            }
+
+            return sb.ToString();
         }
 
         private bool IsRecursionAllowed(EndPoint remoteEP)
