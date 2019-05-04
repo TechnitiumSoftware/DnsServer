@@ -207,7 +207,7 @@ namespace DnsServerCore
 
                 if (!path.StartsWith("/"))
                 {
-                    Send404(response);
+                    SendError(response, 404);
                     return;
                 }
 
@@ -436,7 +436,7 @@ namespace DnsServerCore
                 {
                     if (!IsSessionValid(request))
                     {
-                        Send403(response, "Invalid token or session expired.");
+                        SendError(response, 403, "Invalid token or session expired.");
                         return;
                     }
 
@@ -456,14 +456,14 @@ namespace DnsServerCore
                 {
                     if (path.Contains("/../"))
                     {
-                        Send404(response);
+                        SendError(response, 404);
                         return;
                     }
 
                     if (path == "/blocklist.txt")
                     {
                         if (!IPAddress.IsLoopback(GetRequestRemoteEndPoint(request).Address))
-                            Send403(response, "Access Denied.");
+                            SendError(response, 403);
                     }
 
                     if (path == "/")
@@ -473,7 +473,7 @@ namespace DnsServerCore
 
                     if (!File.Exists(path))
                     {
-                        Send404(response);
+                        SendError(response, 404);
                         return;
                     }
 
@@ -487,12 +487,7 @@ namespace DnsServerCore
 
                 _log.Write(GetRequestRemoteEndPoint(request), ex);
 
-                try
-                {
-                    Send500(response, ex);
-                }
-                catch
-                { }
+                SendError(response, ex);
             }
         }
 
@@ -501,6 +496,18 @@ namespace DnsServerCore
             //this is due to mono NullReferenceException issue
             try
             {
+                if (NetUtilities.IsPrivateIP(request.RemoteEndPoint.Address))
+                {
+                    //reverse proxy X-Real-IP header supported only when remote IP address is private
+
+                    string xRealIp = request.Headers["X-Real-IP"];
+                    if (!string.IsNullOrEmpty(xRealIp))
+                    {
+                        //get the real IP address of the requesting client from X-Real-IP header set in nginx proxy_pass block
+                        return new IPEndPoint(IPAddress.Parse(xRealIp), 0);
+                    }
+                }
+
                 return request.RemoteEndPoint;
             }
             catch
@@ -509,51 +516,29 @@ namespace DnsServerCore
             }
         }
 
-        private static void Send500(HttpListenerResponse response, Exception ex)
+        private static void SendError(HttpListenerResponse response, Exception ex)
         {
-            Send500(response, ex.ToString());
+            SendError(response, 500, ex.ToString());
         }
 
-        private static void Send500(HttpListenerResponse response, string message)
+        private static void SendError(HttpListenerResponse response, int statusCode, string message = null)
         {
-            byte[] buffer = Encoding.UTF8.GetBytes("<h1>500 Internal Server Error</h1><p>" + message + "</p>");
-
-            response.StatusCode = 500;
-            response.ContentType = "text/html";
-            response.ContentLength64 = buffer.Length;
-
-            using (Stream stream = response.OutputStream)
+            try
             {
-                stream.Write(buffer, 0, buffer.Length);
+                string statusString = statusCode + " " + DnsServer.GetStatusString((HttpStatusCode)statusCode);
+                byte[] buffer = Encoding.UTF8.GetBytes("<html><head><title>" + statusString + "</title></head><body><h1>" + statusString + "</h1>" + (message == null ? "" : "<p>" + message + "</p>") + "</body></html>");
+
+                response.StatusCode = statusCode;
+                response.ContentType = "text/html";
+                response.ContentLength64 = buffer.Length;
+
+                using (Stream stream = response.OutputStream)
+                {
+                    stream.Write(buffer, 0, buffer.Length);
+                }
             }
-        }
-
-        private static void Send404(HttpListenerResponse response)
-        {
-            byte[] buffer = Encoding.UTF8.GetBytes("<h1>404 Not Found</h1>");
-
-            response.StatusCode = 404;
-            response.ContentType = "text/html";
-            response.ContentLength64 = buffer.Length;
-
-            using (Stream stream = response.OutputStream)
-            {
-                stream.Write(buffer, 0, buffer.Length);
-            }
-        }
-
-        private static void Send403(HttpListenerResponse response, string message)
-        {
-            byte[] buffer = Encoding.UTF8.GetBytes("<h1>403 Forbidden</h1><p>" + message + "</p>");
-
-            response.StatusCode = 403;
-            response.ContentType = "text/html";
-            response.ContentLength64 = buffer.Length;
-
-            using (Stream stream = response.OutputStream)
-            {
-                stream.Write(buffer, 0, buffer.Length);
-            }
+            catch
+            { }
         }
 
         private static void SendFile(HttpListenerResponse response, string path)
@@ -4004,6 +3989,8 @@ namespace DnsServerCore
 
                     _webServiceHostname = "localhost";
                 }
+
+                _webService.IgnoreWriteExceptions = true;
 
                 _webServiceThread = new Thread(AcceptWebRequestAsync);
                 _webServiceThread.IsBackground = true;
