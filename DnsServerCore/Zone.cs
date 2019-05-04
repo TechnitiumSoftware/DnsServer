@@ -1046,7 +1046,7 @@ namespace DnsServerCore
                     return; //nothing to do
             }
 
-            if ((response.Question.Length > 0) && (response.Question[0].Type != DnsResourceRecordType.NS))
+            if ((response.Question.Length > 0) && ((response.Question[0].Type != DnsResourceRecordType.NS) || (response.Answer.Length == 0)))
             {
                 foreach (DnsQuestionRecord question in response.Question)
                 {
