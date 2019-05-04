@@ -219,7 +219,7 @@ namespace DnsServerCore
                 if ((currentZone._entries.Count > 0) || (currentZone._zones.Count > 0))
                     break;
 
-                currentZone._parentZone._zones.TryRemove(currentZone._zoneLabel, out Zone deletedZone);
+                currentZone._parentZone._zones.TryRemove(currentZone._zoneLabel, out _);
 
                 currentZone = currentZone._parentZone;
             }
@@ -465,7 +465,7 @@ namespace DnsServerCore
 
         private void DeleteRecords(DnsResourceRecordType type)
         {
-            _entries.TryRemove(type, out DnsResourceRecord[] existingValues);
+            _entries.TryRemove(type, out _);
 
             DeleteEmptyParentZones(this);
         }
@@ -524,9 +524,6 @@ namespace DnsServerCore
         {
             Zone currentZone = rootZone;
 
-            if (currentZone._disabled)
-                return currentZone;
-
             string[] path = ConvertDomainToPath(domain);
 
             for (int i = 0; i < path.Length; i++)
@@ -538,9 +535,6 @@ namespace DnsServerCore
                 else if (currentZone._zones.TryGetValue("*", out Zone nextWildcardZone))
                     currentZone = nextWildcardZone;
                 else
-                    return currentZone;
-
-                if (currentZone._disabled)
                     return currentZone;
             }
 
@@ -564,13 +558,16 @@ namespace DnsServerCore
             return null;
         }
 
-        private DnsResourceRecord[] QueryClosestAuthority(string rootZoneServerDomain)
+        private DnsResourceRecord[] QueryClosestEnabledAuthority(string rootZoneServerDomain)
         {
             Zone currentZone = this;
-            DnsResourceRecord[] nsRecords = null;
+            DnsResourceRecord[] nsRecords;
 
             while (currentZone != null)
             {
+                if (currentZone._disabled)
+                    return null;
+
                 nsRecords = currentZone.QueryRecords(DnsResourceRecordType.SOA, true, false);
                 if ((nsRecords != null) && (nsRecords.Length > 0) && (nsRecords[0].RDATA as DnsSOARecord).MasterNameServer.Equals(rootZoneServerDomain, StringComparison.OrdinalIgnoreCase))
                     return nsRecords;
@@ -588,7 +585,7 @@ namespace DnsServerCore
         private DnsResourceRecord[] QueryClosestAuthoritativeNameServers()
         {
             Zone currentZone = this;
-            DnsResourceRecord[] nsRecords = null;
+            DnsResourceRecord[] nsRecords;
 
             while (currentZone != null)
             {
@@ -659,7 +656,7 @@ namespace DnsServerCore
             if (closestZone._disabled)
                 return new DnsDatagram(new DnsHeader(request.Header.Identifier, true, DnsOpcode.StandardQuery, false, false, request.Header.RecursionDesired, false, false, false, DnsResponseCode.Refused, 1, 0, 0, 0), request.Question, new DnsResourceRecord[] { }, new DnsResourceRecord[] { }, new DnsResourceRecord[] { });
 
-            DnsResourceRecord[] closestAuthority = closestZone.QueryClosestAuthority(rootZone._serverDomain);
+            DnsResourceRecord[] closestAuthority = closestZone.QueryClosestEnabledAuthority(rootZone._serverDomain);
 
             if (closestAuthority == null)
                 return new DnsDatagram(new DnsHeader(request.Header.Identifier, true, DnsOpcode.StandardQuery, false, false, request.Header.RecursionDesired, false, false, false, DnsResponseCode.Refused, 1, 0, 0, 0), request.Question, new DnsResourceRecord[] { }, new DnsResourceRecord[] { }, new DnsResourceRecord[] { });
@@ -1417,7 +1414,7 @@ namespace DnsServerCore
         {
             #region variables
 
-            DnsResourceRecord _authority;
+            readonly DnsResourceRecord _authority;
 
             #endregion
 
@@ -1481,7 +1478,7 @@ namespace DnsServerCore
         {
             #region variables
 
-            DnsResourceRecord _authority;
+            readonly DnsResourceRecord _authority;
 
             #endregion
 
@@ -1545,7 +1542,7 @@ namespace DnsServerCore
         {
             #region variables
 
-            DnsResourceRecord[] _records;
+            readonly DnsResourceRecord[] _records;
 
             #endregion
 
