@@ -57,12 +57,12 @@ namespace DnsServerCore
 
         IPAddress[] _localIPs;
 
-        List<Socket> _udpListeners = new List<Socket>();
-        List<Socket> _tcpListeners = new List<Socket>();
-        List<Socket> _httpListeners = new List<Socket>();
-        List<Socket> _tlsListeners = new List<Socket>();
-        List<Socket> _httpsListeners = new List<Socket>();
-        List<Thread> _listenerThreads = new List<Thread>();
+        readonly List<Socket> _udpListeners = new List<Socket>();
+        readonly List<Socket> _tcpListeners = new List<Socket>();
+        readonly List<Socket> _httpListeners = new List<Socket>();
+        readonly List<Socket> _tlsListeners = new List<Socket>();
+        readonly List<Socket> _httpsListeners = new List<Socket>();
+        readonly List<Thread> _listenerThreads = new List<Thread>();
 
         bool _enableDnsOverHttp = false;
         bool _enableDnsOverTls = false;
