@@ -1072,6 +1072,7 @@ namespace DnsServerCore
             DnsDatagram response = RecursiveResolve(request, viaNameServers, false, cacheRefreshOperation);
 
             DnsResourceRecord[] authority;
+            DnsResourceRecord[] additional;
 
             if ((response.Header.RCODE == DnsResponseCode.NoError) && (response.Answer.Length > 0))
             {
@@ -1117,7 +1118,12 @@ namespace DnsServerCore
                     else
                         authority = new DnsResourceRecord[] { };
 
-                    return new DnsDatagram(new DnsHeader(request.Header.Identifier, true, DnsOpcode.StandardQuery, false, false, true, true, false, false, lastResponse.Header.RCODE, 1, (ushort)responseAnswer.Count, (ushort)authority.Length, lastResponse.Header.ARCOUNT), request.Question, responseAnswer.ToArray(), authority, lastResponse.Additional) { Tag = (cacheHit ? "cacheHit" : null) };
+                    if ((response.Additional.Length > 0) && (request.Question[0].Type == DnsResourceRecordType.MX))
+                        additional = response.Additional;
+                    else
+                        additional = new DnsResourceRecord[] { };
+
+                    return new DnsDatagram(new DnsHeader(request.Header.Identifier, true, DnsOpcode.StandardQuery, false, false, true, true, false, false, lastResponse.Header.RCODE, 1, (ushort)responseAnswer.Count, (ushort)authority.Length, (ushort)additional.Length), request.Question, responseAnswer.ToArray(), authority, additional) { Tag = (cacheHit ? "cacheHit" : null) };
                 }
             }
 
@@ -1126,7 +1132,12 @@ namespace DnsServerCore
             else
                 authority = new DnsResourceRecord[] { };
 
-            return new DnsDatagram(new DnsHeader(request.Header.Identifier, true, DnsOpcode.StandardQuery, false, false, true, true, false, false, response.Header.RCODE, 1, (ushort)response.Answer.Length, (ushort)authority.Length, response.Header.ARCOUNT), request.Question, response.Answer, authority, response.Additional) { Tag = response.Tag };
+            if ((response.Additional.Length > 0) && (request.Question[0].Type == DnsResourceRecordType.MX))
+                additional = response.Additional;
+            else
+                additional = new DnsResourceRecord[] { };
+
+            return new DnsDatagram(new DnsHeader(request.Header.Identifier, true, DnsOpcode.StandardQuery, false, false, true, true, false, false, response.Header.RCODE, 1, (ushort)response.Answer.Length, (ushort)authority.Length, (ushort)additional.Length), request.Question, response.Answer, authority, additional) { Tag = response.Tag };
         }
 
         private DnsDatagram RecursiveResolve(DnsDatagram request, NameServerAddress[] viaNameServers, bool cachePrefetchOperation, bool cacheRefreshOperation)
