@@ -303,6 +303,9 @@ namespace DnsServerCore
 
         private DnsResourceRecord[] QueryRecords(DnsResourceRecordType type, bool bypassCNAME, bool serveStale)
         {
+            if (_disabled)
+                return null;
+
             if (_authoritativeZone && (type == DnsResourceRecordType.ANY))
             {
                 List<DnsResourceRecord> allRecords = new List<DnsResourceRecord>();
@@ -333,17 +336,21 @@ namespace DnsServerCore
             return null;
         }
 
-        private DnsResourceRecord[] GetAllRecords(DnsResourceRecordType type, bool includeSubDomains)
+        private List<DnsResourceRecord> GetAllRecords(DnsResourceRecordType type, bool includeSubDomains)
         {
             List<DnsResourceRecord> allRecords = new List<DnsResourceRecord>();
 
-            foreach (KeyValuePair<DnsResourceRecordType, DnsResourceRecord[]> entry in _entries)
+            if (type == DnsResourceRecordType.ANY)
             {
-                if (entry.Key != DnsResourceRecordType.ANY)
+                foreach (KeyValuePair<DnsResourceRecordType, DnsResourceRecord[]> entry in _entries)
                 {
-                    if ((type == DnsResourceRecordType.ANY) || (entry.Key == type))
+                    if (entry.Key != DnsResourceRecordType.ANY)
                         allRecords.AddRange(entry.Value);
                 }
+            }
+            else if (_entries.TryGetValue(type, out DnsResourceRecord[] existingRecords))
+            {
+                allRecords.AddRange(existingRecords);
             }
 
             if (includeSubDomains)
@@ -355,13 +362,13 @@ namespace DnsServerCore
                 }
             }
 
-            return allRecords.ToArray();
+            return allRecords;
         }
 
         private void ListAuthoritativeZones(List<Zone> zones)
         {
-            DnsResourceRecord[] soa = QueryRecords(DnsResourceRecordType.SOA, true, false);
-            if (soa != null)
+            List<DnsResourceRecord> soa = GetAllRecords(DnsResourceRecordType.SOA, false);
+            if ((soa.Count > 0) && (soa[0].RDATA is DnsSOARecord))
                 zones.Add(this);
 
             foreach (KeyValuePair<string, Zone> entry in _zones)
@@ -558,23 +565,23 @@ namespace DnsServerCore
             return null;
         }
 
-        private DnsResourceRecord[] QueryClosestEnabledAuthority(string rootZoneServerDomain)
+        private DnsResourceRecord[] QueryClosestAuthority(string rootZoneServerDomain)
         {
             Zone currentZone = this;
             DnsResourceRecord[] nsRecords;
 
             while (currentZone != null)
             {
-                if (currentZone._disabled)
-                    return null;
+                if (!currentZone._disabled)
+                {
+                    nsRecords = currentZone.QueryRecords(DnsResourceRecordType.SOA, true, false);
+                    if ((nsRecords != null) && (nsRecords.Length > 0) && (nsRecords[0].RDATA as DnsSOARecord).MasterNameServer.Equals(rootZoneServerDomain, StringComparison.OrdinalIgnoreCase))
+                        return nsRecords;
 
-                nsRecords = currentZone.QueryRecords(DnsResourceRecordType.SOA, true, false);
-                if ((nsRecords != null) && (nsRecords.Length > 0) && (nsRecords[0].RDATA as DnsSOARecord).MasterNameServer.Equals(rootZoneServerDomain, StringComparison.OrdinalIgnoreCase))
-                    return nsRecords;
-
-                nsRecords = currentZone.QueryRecords(DnsResourceRecordType.NS, true, false);
-                if ((nsRecords != null) && (nsRecords.Length > 0))
-                    return nsRecords;
+                    nsRecords = currentZone.QueryRecords(DnsResourceRecordType.NS, true, false);
+                    if ((nsRecords != null) && (nsRecords.Length > 0))
+                        return nsRecords;
+                }
 
                 currentZone = currentZone._parentZone;
             }
@@ -652,11 +659,7 @@ namespace DnsServerCore
             string domain = question.Name.ToLower();
 
             Zone closestZone = QueryFindClosestZone(rootZone, domain);
-
-            if (closestZone._disabled)
-                return new DnsDatagram(new DnsHeader(request.Header.Identifier, true, DnsOpcode.StandardQuery, false, false, request.Header.RecursionDesired, false, false, false, DnsResponseCode.Refused, 1, 0, 0, 0), request.Question, new DnsResourceRecord[] { }, new DnsResourceRecord[] { }, new DnsResourceRecord[] { });
-
-            DnsResourceRecord[] closestAuthority = closestZone.QueryClosestEnabledAuthority(rootZone._serverDomain);
+            DnsResourceRecord[] closestAuthority = closestZone.QueryClosestAuthority(rootZone._serverDomain);
 
             if (closestAuthority == null)
                 return new DnsDatagram(new DnsHeader(request.Header.Identifier, true, DnsOpcode.StandardQuery, false, false, request.Header.RecursionDesired, false, false, false, DnsResponseCode.Refused, 1, 0, 0, 0), request.Question, new DnsResourceRecord[] { }, new DnsResourceRecord[] { }, new DnsResourceRecord[] { });
@@ -856,43 +859,6 @@ namespace DnsServerCore
             }
 
             return true;
-        }
-
-        internal static Dictionary<string, Dictionary<DnsResourceRecordType, List<DnsResourceRecord>>> GroupRecords(ICollection<DnsResourceRecord> records)
-        {
-            Dictionary<string, Dictionary<DnsResourceRecordType, List<DnsResourceRecord>>> groupedByDomainRecords = new Dictionary<string, Dictionary<DnsResourceRecordType, List<DnsResourceRecord>>>();
-
-            foreach (DnsResourceRecord record in records)
-            {
-                Dictionary<DnsResourceRecordType, List<DnsResourceRecord>> groupedByTypeRecords;
-                string recordName = record.Name.ToLower();
-
-                if (groupedByDomainRecords.ContainsKey(recordName))
-                {
-                    groupedByTypeRecords = groupedByDomainRecords[recordName];
-                }
-                else
-                {
-                    groupedByTypeRecords = new Dictionary<DnsResourceRecordType, List<DnsResourceRecord>>();
-                    groupedByDomainRecords.Add(recordName, groupedByTypeRecords);
-                }
-
-                List<DnsResourceRecord> groupedRecords;
-
-                if (groupedByTypeRecords.ContainsKey(record.Type))
-                {
-                    groupedRecords = groupedByTypeRecords[record.Type];
-                }
-                else
-                {
-                    groupedRecords = new List<DnsResourceRecord>();
-                    groupedByTypeRecords.Add(record.Type, groupedRecords);
-                }
-
-                groupedRecords.Add(record);
-            }
-
-            return groupedByDomainRecords;
         }
 
         internal DnsDatagram Query(DnsDatagram request, bool serveStale = false)
@@ -1130,7 +1096,7 @@ namespace DnsServerCore
 
         public void SetRecords(ICollection<DnsResourceRecord> records)
         {
-            Dictionary<string, Dictionary<DnsResourceRecordType, List<DnsResourceRecord>>> groupedByDomainRecords = GroupRecords(records);
+            Dictionary<string, Dictionary<DnsResourceRecordType, List<DnsResourceRecord>>> groupedByDomainRecords = DnsResourceRecord.GroupRecords(records);
 
             //add grouped records
             foreach (KeyValuePair<string, Dictionary<DnsResourceRecordType, List<DnsResourceRecord>>> groupedByTypeRecords in groupedByDomainRecords)
@@ -1208,11 +1174,7 @@ namespace DnsServerCore
             if (currentZone == null)
                 return new DnsResourceRecord[] { };
 
-            DnsResourceRecord[] records = currentZone.GetAllRecords(type, includeSubDomains);
-            if (records != null)
-                return records;
-
-            return new DnsResourceRecord[] { };
+            return currentZone.GetAllRecords(type, includeSubDomains).ToArray();
         }
 
         public string[] ListSubZones(string domain = "")
