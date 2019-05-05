@@ -625,7 +625,7 @@ namespace DnsServerCore
 
         private void ResetFailedLoginAttempt(IPAddress address)
         {
-            _failedLoginAttempts.TryRemove(address, out int value);
+            _failedLoginAttempts.TryRemove(address, out _);
         }
 
         private void BlockAddress(IPAddress address, int interval)
@@ -653,7 +653,7 @@ namespace DnsServerCore
 
         private void UnblockAddress(IPAddress address)
         {
-            _blockedAddresses.TryRemove(address, out DateTime value);
+            _blockedAddresses.TryRemove(address, out _);
         }
 
         private void Login(HttpListenerRequest request, JsonTextWriter jsonWriter)
@@ -2261,7 +2261,7 @@ namespace DnsServerCore
 
             Array.Sort(records);
 
-            Dictionary<string, Dictionary<DnsResourceRecordType, List<DnsResourceRecord>>> groupedByDomainRecords = Zone.GroupRecords(records);
+            Dictionary<string, Dictionary<DnsResourceRecordType, List<DnsResourceRecord>>> groupedByDomainRecords = DnsResourceRecord.GroupRecords(records);
 
             jsonWriter.WritePropertyName("records");
             jsonWriter.WriteStartArray();
