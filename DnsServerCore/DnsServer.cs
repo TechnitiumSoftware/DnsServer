@@ -71,11 +71,14 @@ namespace DnsServerCore
         X509Certificate2 _certificate;
 
         readonly Zone _authoritativeZoneRoot = new Zone(true);
-        readonly Zone _cacheZoneRoot = new Zone(false) { ServeStaleTtl = 7 * 24 * 60 * 60 }; //7 days serve stale ttl as per draft-ietf-dnsop-serve-stale-04
+        readonly Zone _cacheZoneRoot = new Zone(false);
         readonly Zone _allowedZoneRoot = new Zone(true);
         Zone _blockedZoneRoot = new Zone(true);
 
-        readonly IDnsCache _dnsCache;
+        const uint NEGATIVE_RECORD_TTL = 300u;
+        const uint MINIMUM_RECORD_TTL = 0u;
+        const uint SERVE_STALE_TTL = 7 * 24 * 60 * 60; //7 days serve stale ttl as per draft-ietf-dnsop-serve-stale-04
+        readonly DnsCache _dnsCache;
 
         bool _allowRecursion = false;
         bool _allowRecursionOnlyForPrivateNetworks = false;
@@ -145,7 +148,7 @@ namespace DnsServerCore
         public DnsServer(IPAddress[] localIPs)
         {
             _localIPs = localIPs;
-            _dnsCache = new DnsCache(_cacheZoneRoot);
+            _dnsCache = new ResolverDnsCache(_cacheZoneRoot);
         }
 
         #endregion
@@ -1074,7 +1077,7 @@ namespace DnsServerCore
             DnsResourceRecord[] authority;
             DnsResourceRecord[] additional;
 
-            if ((response.Header.RCODE == DnsResponseCode.NoError) && (response.Answer.Length > 0))
+            if (response.Answer.Length > 0)
             {
                 DnsResourceRecordType questionType = request.Question[0].Type;
                 DnsResourceRecord lastRR = response.Answer[response.Answer.Length - 1];
@@ -1095,7 +1098,7 @@ namespace DnsServerCore
                         lastResponse = RecursiveResolve(new DnsDatagram(new DnsHeader(0, false, DnsOpcode.StandardQuery, false, false, true, false, false, false, DnsResponseCode.NoError, 1, 0, 0, 0), new DnsQuestionRecord[] { question }, null, null, null), null, false, cacheRefreshOperation);
                         cacheHit &= ("cacheHit".Equals(lastResponse.Tag));
 
-                        if ((lastResponse.Header.RCODE != DnsResponseCode.NoError) || (lastResponse.Answer.Length == 0))
+                        if (lastResponse.Answer.Length == 0)
                             break;
 
                         responseAnswer.AddRange(lastResponse.Answer);
@@ -1188,25 +1191,39 @@ namespace DnsServerCore
                 //got lock so question not being resolved; do recursive resolution in worker thread
                 ThreadPool.QueueUserWorkItem(delegate (object state)
                 {
-                    //select protocol
-                    DnsTransportProtocol protocol;
-
-                    if ((viaNameServers == null) && (_forwarders != null))
-                    {
-                        viaNameServers = _forwarders;
-                        protocol = _forwarderProtocol;
-                    }
-                    else
-                    {
-                        protocol = _recursiveResolveProtocol;
-                    }
-
                     DnsDatagram response = null;
 
                     try
                     {
-                        //recursive resolve and update cache
-                        response = DnsClient.RecursiveResolve(request.Question[0], viaNameServers, (cachePrefetchOperation || cacheRefreshOperation ? new PrefetchDnsCache(_cacheZoneRoot, request.Question[0]) : _dnsCache), _proxy, _preferIPv6, protocol, _retries, _timeout, _recursiveResolveProtocol, _maxStackCount);
+                        if ((viaNameServers == null) && (_forwarders != null))
+                        {
+                            //use forwarders
+                            //refresh forwarder IPEndPoint if stale
+                            foreach (NameServerAddress nameServerAddress in _forwarders)
+                            {
+                                if (nameServerAddress.IsIPEndPointStale && (_proxy == null)) //recursive resolve name server when proxy is null else let proxy resolve it
+                                    nameServerAddress.RecursiveResolveIPAddress(_dnsCache, _proxy, _preferIPv6, _recursiveResolveProtocol, _retries, _timeout, _recursiveResolveProtocol);
+                            }
+
+                            //query forwarders and update cache
+                            DnsClient dnsClient = new DnsClient(_forwarders);
+
+                            dnsClient.Proxy = _proxy;
+                            dnsClient.PreferIPv6 = _preferIPv6;
+                            dnsClient.Protocol = _forwarderProtocol;
+                            dnsClient.Retries = _retries;
+                            dnsClient.Timeout = _timeout;
+                            dnsClient.RecursiveResolveProtocol = _recursiveResolveProtocol;
+
+                            response = dnsClient.Resolve(request.Question[0]);
+
+                            _dnsCache.CacheResponse(response);
+                        }
+                        else
+                        {
+                            //recursive resolve and update cache
+                            response = DnsClient.RecursiveResolve(request.Question[0], viaNameServers, (cachePrefetchOperation || cacheRefreshOperation ? new ResolverPrefetchDnsCache(_cacheZoneRoot, request.Question[0]) : _dnsCache), _proxy, _preferIPv6, _recursiveResolveProtocol, _retries, _timeout, _recursiveResolveProtocol, _maxStackCount);
+                        }
                     }
                     catch (Exception ex)
                     {
@@ -1927,7 +1944,7 @@ namespace DnsServerCore
             }
         }
 
-        internal IDnsCache Cache
+        internal DnsCache Cache
         { get { return _dnsCache; } }
 
         public bool AllowRecursion
@@ -2080,17 +2097,18 @@ namespace DnsServerCore
 
         #endregion
 
-        class DnsCache : IDnsCache
+        class ResolverDnsCache : DnsCache
         {
             #region variables
 
-            readonly Zone _cacheZoneRoot;
+            readonly protected Zone _cacheZoneRoot;
 
             #endregion
 
             #region constructor
 
-            public DnsCache(Zone cacheZoneRoot)
+            public ResolverDnsCache(Zone cacheZoneRoot)
+                : base(NEGATIVE_RECORD_TTL, MINIMUM_RECORD_TTL, SERVE_STALE_TTL)
             {
                 _cacheZoneRoot = cacheZoneRoot;
             }
@@ -2099,33 +2117,32 @@ namespace DnsServerCore
 
             #region public
 
-            public DnsDatagram Query(DnsDatagram request)
+            public override DnsDatagram Query(DnsDatagram request)
             {
                 return _cacheZoneRoot.Query(request);
             }
 
-            public void CacheResponse(DnsDatagram response)
+            protected override void CacheRecords(ICollection<DnsResourceRecord> resourceRecords)
             {
-                _cacheZoneRoot.CacheResponse(response);
+                _cacheZoneRoot.SetRecords(resourceRecords);
             }
 
             #endregion
         }
 
-        class PrefetchDnsCache : IDnsCache
+        class ResolverPrefetchDnsCache : ResolverDnsCache
         {
             #region variables
 
-            readonly Zone _cacheZoneRoot;
             readonly DnsQuestionRecord _prefetchQuery;
 
             #endregion
 
             #region constructor
 
-            public PrefetchDnsCache(Zone cacheZoneRoot, DnsQuestionRecord prefetchQuery)
+            public ResolverPrefetchDnsCache(Zone cacheZoneRoot, DnsQuestionRecord prefetchQuery)
+                : base(cacheZoneRoot)
             {
-                _cacheZoneRoot = cacheZoneRoot;
                 _prefetchQuery = prefetchQuery;
             }
 
@@ -2133,17 +2150,12 @@ namespace DnsServerCore
 
             #region public
 
-            public DnsDatagram Query(DnsDatagram request)
+            public override DnsDatagram Query(DnsDatagram request)
             {
                 if (_prefetchQuery.Equals(request.Question[0]))
                     return _cacheZoneRoot.QueryCacheGetClosestNameServers(request); //return closest name servers so that the recursive resolver queries them to refreshes cache instead of returning response from cache
 
                 return _cacheZoneRoot.Query(request);
-            }
-
-            public void CacheResponse(DnsDatagram response)
-            {
-                _cacheZoneRoot.CacheResponse(response);
             }
 
             #endregion
