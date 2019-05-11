@@ -130,10 +130,6 @@ a {
     #header .title, .container, #footer .content {
         width: 970px;
     }
-
-    .stats-panel .stats-item {
-        padding: 4px !important;
-    }
 }
 
 @media (min-width: 1200px) {
@@ -266,7 +262,7 @@ label {
     .stats-panel .stats-item {
         width: 9.7%;
         float: left;
-        padding: 6px;
+        padding: 4px;
         margin-right: 0.3%;
     }
 
