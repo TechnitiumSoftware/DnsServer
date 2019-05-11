@@ -22,6 +22,7 @@ a {
     margin-bottom: -32px;
     box-shadow: 0px 1px 15px 0px #888888;
     width: 100%;
+    min-width: 970px;
 }
 
     #header .title {
@@ -104,6 +105,7 @@ a {
     clear: both;
     position: relative;
     height: 55px;
+    min-width: 970px;
 }
 
     #footer .content {
@@ -124,21 +126,23 @@ a {
                 color: #6699ff;
             }
 
-@media (min-width: 768px) {
-    #header .title, .container, #footer .content {
-        width: 750px;
-    }
-}
-
 @media (min-width: 992px) {
     #header .title, .container, #footer .content {
         width: 970px;
+    }
+
+    .stats-panel .stats-item {
+        padding: 4px !important;
     }
 }
 
 @media (min-width: 1200px) {
     #header .title, .container, #footer .content {
         width: 1170px;
+    }
+
+    .stats-panel .stats-item {
+        padding: 6px !important;
     }
 }
 
@@ -260,11 +264,10 @@ label {
     }
 
     .stats-panel .stats-item {
-        width: 107px;
+        width: 9.7%;
         float: left;
         padding: 6px;
-        margin-right: 3px;
-        margin-bottom: 3px;
+        margin-right: 0.3%;
     }
 
         .stats-panel .stats-item .number {
