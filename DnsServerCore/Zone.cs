@@ -29,9 +29,6 @@ namespace DnsServerCore
     {
         #region variables
 
-        const uint DEFAULT_RECORD_TTL = 60u;
-        const uint MINIMUM_RECORD_TTL = 0u;
-
         readonly bool _authoritativeZone;
 
         readonly Zone _parentZone;
@@ -44,7 +41,6 @@ namespace DnsServerCore
         readonly ConcurrentDictionary<DnsResourceRecordType, DnsResourceRecord[]> _entries = new ConcurrentDictionary<DnsResourceRecordType, DnsResourceRecord[]>();
 
         string _serverDomain;
-        uint _serveStaleTtl;
 
         #endregion
 
@@ -754,10 +750,10 @@ namespace DnsServerCore
                 DnsResourceRecord[] answerRecords = closestZone.QueryRecords(question.Type, false, serveStale);
                 if (answerRecords != null)
                 {
-                    if (answerRecords[0].RDATA is DnsEmptyRecord)
+                    if (answerRecords[0].RDATA is DnsCache.DnsEmptyRecord)
                     {
                         DnsResourceRecord[] responseAuthority;
-                        DnsResourceRecord authority = (answerRecords[0].RDATA as DnsEmptyRecord).Authority;
+                        DnsResourceRecord authority = (answerRecords[0].RDATA as DnsCache.DnsEmptyRecord).Authority;
 
                         if (authority == null)
                             responseAuthority = new DnsResourceRecord[] { };
@@ -767,14 +763,27 @@ namespace DnsServerCore
                         return new DnsDatagram(new DnsHeader(request.Header.Identifier, true, DnsOpcode.StandardQuery, false, false, request.Header.RecursionDesired, true, false, false, DnsResponseCode.NoError, 1, 0, 1, 0), request.Question, new DnsResourceRecord[] { }, responseAuthority, new DnsResourceRecord[] { });
                     }
 
-                    if (answerRecords[0].RDATA is DnsNXRecord)
-                        return new DnsDatagram(new DnsHeader(request.Header.Identifier, true, DnsOpcode.StandardQuery, false, false, request.Header.RecursionDesired, true, false, false, DnsResponseCode.NameError, 1, 0, 1, 0), request.Question, new DnsResourceRecord[] { }, new DnsResourceRecord[] { (answerRecords[0].RDATA as DnsNXRecord).Authority }, new DnsResourceRecord[] { });
-
-                    if (answerRecords[0].RDATA is DnsANYRecord)
+                    if (answerRecords[0].RDATA is DnsCache.DnsNXRecord)
                     {
-                        DnsANYRecord anyRR = answerRecords[0].RDATA as DnsANYRecord;
+                        DnsResourceRecord[] responseAuthority;
+                        DnsResourceRecord authority = (answerRecords[0].RDATA as DnsCache.DnsNXRecord).Authority;
+
+                        if (authority == null)
+                            responseAuthority = new DnsResourceRecord[] { };
+                        else
+                            responseAuthority = new DnsResourceRecord[] { authority };
+
+                        return new DnsDatagram(new DnsHeader(request.Header.Identifier, true, DnsOpcode.StandardQuery, false, false, request.Header.RecursionDesired, true, false, false, DnsResponseCode.NameError, 1, 0, 1, 0), request.Question, new DnsResourceRecord[] { }, responseAuthority, new DnsResourceRecord[] { });
+                    }
+
+                    if (answerRecords[0].RDATA is DnsCache.DnsANYRecord)
+                    {
+                        DnsCache.DnsANYRecord anyRR = answerRecords[0].RDATA as DnsCache.DnsANYRecord;
                         return new DnsDatagram(new DnsHeader(request.Header.Identifier, true, DnsOpcode.StandardQuery, false, false, request.Header.RecursionDesired, true, false, false, DnsResponseCode.NoError, 1, (ushort)anyRR.Records.Length, 0, 0), request.Question, anyRR.Records, new DnsResourceRecord[] { }, new DnsResourceRecord[] { });
                     }
+
+                    if (answerRecords[0].RDATA is DnsCache.DnsFailureRecord)
+                        return new DnsDatagram(new DnsHeader(request.Header.Identifier, true, DnsOpcode.StandardQuery, false, false, request.Header.RecursionDesired, true, false, false, (answerRecords[0].RDATA as DnsCache.DnsFailureRecord).RCODE, 1, 0, 0, 0), request.Question, new DnsResourceRecord[] { }, new DnsResourceRecord[] { }, new DnsResourceRecord[] { });
 
                     DnsResourceRecord[] additional;
 
@@ -869,201 +878,6 @@ namespace DnsServerCore
             return QueryCache(this, request, serveStale);
         }
 
-        internal void CacheResponse(DnsDatagram response)
-        {
-            if (_authoritativeZone)
-                throw new InvalidOperationException("Cannot cache response into authoritative zone.");
-
-            if (!response.Header.IsResponse)
-                return;
-
-            //combine all records in the response
-            List<DnsResourceRecord> allRecords = new List<DnsResourceRecord>();
-
-            switch (response.Header.RCODE)
-            {
-                case DnsResponseCode.NameError:
-                    if (response.Authority.Length > 0)
-                    {
-                        DnsResourceRecord authority = response.Authority[0];
-                        if (authority.Type == DnsResourceRecordType.SOA)
-                        {
-                            authority.SetExpiry(MINIMUM_RECORD_TTL, _serveStaleTtl);
-
-                            foreach (DnsQuestionRecord question in response.Question)
-                            {
-                                uint ttl = DEFAULT_RECORD_TTL;
-
-                                if (authority.TtlValue < ttl)
-                                    ttl = authority.TtlValue;
-
-                                DnsResourceRecord record = new DnsResourceRecord(question.Name, question.Type, DnsClass.IN, ttl, new DnsNXRecord(authority));
-                                record.SetExpiry(MINIMUM_RECORD_TTL, _serveStaleTtl);
-
-                                CreateZone(this, question.Name).SetRecords(question.Type, new DnsResourceRecord[] { record });
-                            }
-                        }
-                    }
-                    break;
-
-                case DnsResponseCode.NoError:
-                    if (response.Answer.Length > 0)
-                    {
-                        foreach (DnsQuestionRecord question in response.Question)
-                        {
-                            string qName = question.Name;
-
-                            foreach (DnsResourceRecord answer in response.Answer)
-                            {
-                                if (answer.Name.Equals(qName, StringComparison.OrdinalIgnoreCase))
-                                {
-                                    allRecords.Add(answer);
-
-                                    switch (answer.Type)
-                                    {
-                                        case DnsResourceRecordType.CNAME:
-                                            qName = (answer.RDATA as DnsCNAMERecord).CNAMEDomainName;
-                                            break;
-
-                                        case DnsResourceRecordType.NS:
-                                            string nsDomain = (answer.RDATA as DnsNSRecord).NSDomainName;
-
-                                            if (!nsDomain.EndsWith(".root-servers.net", StringComparison.OrdinalIgnoreCase))
-                                            {
-                                                foreach (DnsResourceRecord record in response.Additional)
-                                                {
-                                                    if (nsDomain.Equals(record.Name, StringComparison.OrdinalIgnoreCase))
-                                                        allRecords.Add(record);
-                                                }
-                                            }
-
-                                            break;
-
-                                        case DnsResourceRecordType.MX:
-                                            string mxExchange = (answer.RDATA as DnsMXRecord).Exchange;
-
-                                            foreach (DnsResourceRecord record in response.Additional)
-                                            {
-                                                if (mxExchange.Equals(record.Name, StringComparison.OrdinalIgnoreCase))
-                                                    allRecords.Add(record);
-                                            }
-
-                                            break;
-                                    }
-                                }
-                            }
-                        }
-                    }
-                    else if (response.Authority.Length > 0)
-                    {
-                        DnsResourceRecord authority = response.Authority[0];
-                        if (authority.Type == DnsResourceRecordType.SOA)
-                        {
-                            authority.SetExpiry(MINIMUM_RECORD_TTL, _serveStaleTtl);
-
-                            //empty response with authority
-                            foreach (DnsQuestionRecord question in response.Question)
-                            {
-                                uint ttl = DEFAULT_RECORD_TTL;
-
-                                if (authority.TtlValue < ttl)
-                                    ttl = authority.TtlValue;
-
-                                DnsResourceRecord record = new DnsResourceRecord(question.Name, question.Type, DnsClass.IN, ttl, new DnsEmptyRecord(authority));
-                                record.SetExpiry(MINIMUM_RECORD_TTL, _serveStaleTtl);
-
-                                CreateZone(this, question.Name).SetRecords(question.Type, new DnsResourceRecord[] { record });
-                            }
-                        }
-                        else
-                        {
-                            foreach (DnsQuestionRecord question in response.Question)
-                            {
-                                foreach (DnsResourceRecord authorityRecord in response.Authority)
-                                {
-                                    if ((authorityRecord.Type == DnsResourceRecordType.NS) && question.Name.Equals(authorityRecord.Name, StringComparison.OrdinalIgnoreCase) && (authorityRecord.RDATA as DnsNSRecord).NSDomainName.Equals(response.Metadata.NameServerAddress.Host, StringComparison.OrdinalIgnoreCase))
-                                    {
-                                        //empty response from authority name server
-                                        DnsResourceRecord record = new DnsResourceRecord(question.Name, question.Type, DnsClass.IN, DEFAULT_RECORD_TTL, new DnsEmptyRecord(null));
-                                        record.SetExpiry(MINIMUM_RECORD_TTL, _serveStaleTtl);
-
-                                        CreateZone(this, question.Name).SetRecords(question.Type, new DnsResourceRecord[] { record });
-                                        break;
-                                    }
-                                }
-                            }
-                        }
-                    }
-                    else
-                    {
-                        //empty response with no authority
-                        foreach (DnsQuestionRecord question in response.Question)
-                        {
-                            DnsResourceRecord record = new DnsResourceRecord(question.Name, question.Type, DnsClass.IN, DEFAULT_RECORD_TTL, new DnsEmptyRecord(null));
-                            record.SetExpiry(MINIMUM_RECORD_TTL, _serveStaleTtl);
-
-                            CreateZone(this, question.Name).SetRecords(question.Type, new DnsResourceRecord[] { record });
-                        }
-                    }
-
-                    break;
-
-                default:
-                    return; //nothing to do
-            }
-
-            if ((response.Question.Length > 0) && ((response.Question[0].Type != DnsResourceRecordType.NS) || (response.Answer.Length == 0)))
-            {
-                foreach (DnsQuestionRecord question in response.Question)
-                {
-                    foreach (DnsResourceRecord authority in response.Authority)
-                    {
-                        if (question.Name.Equals(authority.Name, StringComparison.OrdinalIgnoreCase) || question.Name.EndsWith("." + authority.Name, StringComparison.OrdinalIgnoreCase))
-                        {
-                            allRecords.Add(authority);
-
-                            if (authority.Type == DnsResourceRecordType.NS)
-                            {
-                                string nsDomain = (authority.RDATA as DnsNSRecord).NSDomainName;
-
-                                if (!nsDomain.EndsWith(".root-servers.net", StringComparison.OrdinalIgnoreCase))
-                                {
-                                    foreach (DnsResourceRecord record in response.Additional)
-                                    {
-                                        if (nsDomain.Equals(record.Name, StringComparison.OrdinalIgnoreCase))
-                                            allRecords.Add(record);
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-
-            //set expiry for cached records
-            foreach (DnsResourceRecord record in allRecords)
-                record.SetExpiry(MINIMUM_RECORD_TTL, _serveStaleTtl);
-
-            SetRecords(allRecords);
-
-            //cache for ANY request
-            if ((response.Question.Length > 0) && (response.Question[0].Type == DnsResourceRecordType.ANY) && (response.Answer.Length > 0))
-            {
-                uint ttl = DEFAULT_RECORD_TTL;
-
-                foreach (DnsResourceRecord answer in response.Answer)
-                {
-                    if (answer.TtlValue < ttl)
-                        ttl = answer.TtlValue;
-                }
-
-                DnsResourceRecord anyRR = new DnsResourceRecord(response.Question[0].Name, DnsResourceRecordType.ANY, DnsClass.IN, ttl, new DnsANYRecord(response.Answer));
-                anyRR.SetExpiry(MINIMUM_RECORD_TTL, _serveStaleTtl);
-
-                CreateZone(this, response.Question[0].Name).SetRecords(DnsResourceRecordType.ANY, new DnsResourceRecord[] { anyRR });
-            }
-        }
-
         internal DnsDatagram QueryCacheGetClosestNameServers(DnsDatagram request, bool serveStale = false)
         {
             if (_authoritativeZone)
@@ -1094,22 +908,30 @@ namespace DnsServerCore
             CreateZone(this, domain).SetRecords(type, resourceRecords);
         }
 
-        public void SetRecords(ICollection<DnsResourceRecord> records)
+        public void SetRecords(ICollection<DnsResourceRecord> resourceRecords)
         {
-            Dictionary<string, Dictionary<DnsResourceRecordType, List<DnsResourceRecord>>> groupedByDomainRecords = DnsResourceRecord.GroupRecords(records);
-
-            //add grouped records
-            foreach (KeyValuePair<string, Dictionary<DnsResourceRecordType, List<DnsResourceRecord>>> groupedByTypeRecords in groupedByDomainRecords)
+            if (resourceRecords.Count == 1)
             {
-                string domain = groupedByTypeRecords.Key;
-                Zone zone = CreateZone(this, domain);
+                foreach (DnsResourceRecord resourceRecord in resourceRecords)
+                    CreateZone(this, resourceRecord.Name).SetRecords(resourceRecord.Type, new DnsResourceRecord[] { resourceRecord });
+            }
+            else
+            {
+                Dictionary<string, Dictionary<DnsResourceRecordType, List<DnsResourceRecord>>> groupedByDomainRecords = DnsResourceRecord.GroupRecords(resourceRecords);
 
-                foreach (KeyValuePair<DnsResourceRecordType, List<DnsResourceRecord>> groupedRecords in groupedByTypeRecords.Value)
+                //add grouped records
+                foreach (KeyValuePair<string, Dictionary<DnsResourceRecordType, List<DnsResourceRecord>>> groupedByTypeRecords in groupedByDomainRecords)
                 {
-                    DnsResourceRecordType type = groupedRecords.Key;
-                    DnsResourceRecord[] resourceRecords = groupedRecords.Value.ToArray();
+                    string domain = groupedByTypeRecords.Key;
+                    Zone zone = CreateZone(this, domain);
 
-                    zone.SetRecords(type, resourceRecords);
+                    foreach (KeyValuePair<DnsResourceRecordType, List<DnsResourceRecord>> groupedRecords in groupedByTypeRecords.Value)
+                    {
+                        DnsResourceRecordType type = groupedRecords.Key;
+                        DnsResourceRecord[] records = groupedRecords.Value.ToArray();
+
+                        zone.SetRecords(type, records);
+                    }
                 }
             }
         }
@@ -1268,12 +1090,6 @@ namespace DnsServerCore
             set { _serverDomain = value; }
         }
 
-        public uint ServeStaleTtl
-        {
-            get { return _serveStaleTtl; }
-            set { _serveStaleTtl = value; }
-        }
-
         #endregion
 
         public class ZoneInfo : IComparable<ZoneInfo>
@@ -1368,198 +1184,6 @@ namespace DnsServerCore
 
             public bool Disabled
             { get { return _disabled; } }
-
-            #endregion
-        }
-
-        class DnsNXRecord : DnsResourceRecordData
-        {
-            #region variables
-
-            readonly DnsResourceRecord _authority;
-
-            #endregion
-
-            #region constructor
-
-            public DnsNXRecord(DnsResourceRecord authority)
-            {
-                _authority = authority;
-            }
-
-            #endregion
-
-            #region protected
-
-            protected override void Parse(Stream s)
-            { }
-
-            protected override void WriteRecordData(Stream s, List<DnsDomainOffset> domainEntries)
-            { }
-
-            #endregion
-
-            #region public
-
-            public override bool Equals(object obj)
-            {
-                if (ReferenceEquals(null, obj))
-                    return false;
-
-                if (ReferenceEquals(this, obj))
-                    return true;
-
-                DnsNXRecord other = obj as DnsNXRecord;
-                if (other == null)
-                    return false;
-
-                return _authority.Equals(other._authority);
-            }
-
-            public override int GetHashCode()
-            {
-                return _authority.GetHashCode();
-            }
-
-            public override string ToString()
-            {
-                return _authority.RDATA.ToString();
-            }
-
-            #endregion
-
-            #region properties
-
-            public DnsResourceRecord Authority
-            { get { return _authority; } }
-
-            #endregion
-        }
-
-        class DnsEmptyRecord : DnsResourceRecordData
-        {
-            #region variables
-
-            readonly DnsResourceRecord _authority;
-
-            #endregion
-
-            #region constructor
-
-            public DnsEmptyRecord(DnsResourceRecord authority)
-            {
-                _authority = authority;
-            }
-
-            #endregion
-
-            #region protected
-
-            protected override void Parse(Stream s)
-            { }
-
-            protected override void WriteRecordData(Stream s, List<DnsDomainOffset> domainEntries)
-            { }
-
-            #endregion
-
-            #region public
-
-            public override bool Equals(object obj)
-            {
-                if (ReferenceEquals(null, obj))
-                    return false;
-
-                if (ReferenceEquals(this, obj))
-                    return true;
-
-                DnsEmptyRecord other = obj as DnsEmptyRecord;
-                if (other == null)
-                    return false;
-
-                return _authority.Equals(other._authority);
-            }
-
-            public override int GetHashCode()
-            {
-                return _authority.GetHashCode();
-            }
-
-            public override string ToString()
-            {
-                return _authority.RDATA.ToString();
-            }
-
-            #endregion
-
-            #region properties
-
-            public DnsResourceRecord Authority
-            { get { return _authority; } }
-
-            #endregion
-        }
-
-        class DnsANYRecord : DnsResourceRecordData
-        {
-            #region variables
-
-            readonly DnsResourceRecord[] _records;
-
-            #endregion
-
-            #region constructor
-
-            public DnsANYRecord(DnsResourceRecord[] records)
-            {
-                _records = records;
-            }
-
-            #endregion
-
-            #region protected
-
-            protected override void Parse(Stream s)
-            { }
-
-            protected override void WriteRecordData(Stream s, List<DnsDomainOffset> domainEntries)
-            { }
-
-            public override string ToString()
-            {
-                return "[MultipleRecords: " + _records.Length + "]";
-            }
-
-            #endregion
-
-            #region public
-
-            public override bool Equals(object obj)
-            {
-                if (ReferenceEquals(null, obj))
-                    return false;
-
-                if (ReferenceEquals(this, obj))
-                    return true;
-
-                DnsANYRecord other = obj as DnsANYRecord;
-                if (other == null)
-                    return false;
-
-                return true;
-            }
-
-            public override int GetHashCode()
-            {
-                return 0;
-            }
-
-            #endregion
-
-            #region properties
-
-            public DnsResourceRecord[] Records
-            { get { return _records; } }
 
             #endregion
         }
