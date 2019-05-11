@@ -517,6 +517,9 @@ namespace DnsServerCore
                 newRecords.Add(record);
             }
 
+            if (records.Length == newRecords.Count)
+                return records;
+
             if (newRecords.Count > 0)
                 return newRecords.ToArray();
 
