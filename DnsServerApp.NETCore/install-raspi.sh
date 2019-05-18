@@ -1,8 +1,9 @@
 #!/bin/sh
 
 aspnetcoreDir="/opt/dotnet"
-aspnetcoreTar="/opt/dotnet/aspnetcore-runtime-2.2.4-linux-arm.tar.gz"
-aspnetcoreUrl="https://download.visualstudio.microsoft.com/download/pr/7c130118-be9f-4e5b-89c3-97ffcfa2f45e/e156161f472b57159868c7b6225679f8/aspnetcore-runtime-2.2.4-linux-arm.tar.gz"
+aspnetcoreTestDir="/opt/dotnet/shared/Microsoft.NETCore.App/2.2.5/"
+aspnetcoreTar="/opt/dotnet/aspnetcore-runtime-2.2.5-linux-arm.tar.gz"
+aspnetcoreUrl="https://download.visualstudio.microsoft.com/download/pr/cd6635b9-f6f8-4c2d-beda-2e381fe39586/740973b83c199bf863a51c83a2432151/aspnetcore-runtime-2.2.5-linux-arm.tar.gz"
 
 dnsDir="/etc/dns"
 dnsTar="/etc/dns/DnsServerPortable.tar.gz"
@@ -16,38 +17,39 @@ echo ""
 echo "==============================="
 echo "Technitium DNS Server Installer"
 echo "==============================="
+echo ""
+echo "Installing dependencies..."
 
-if [ ! -f /etc/dns/DnsServerApp.dll ]
+until apt-get -y update &>> $installLog && apt-get -y install curl libunwind8 gettext apt-transport-https &>> $installLog
+do
+	echo "Trying again.."
+	sleep 2
+done
+
+echo ""
+
+if [ -d "$aspnetcoreTestDir" ] && [ -f "/usr/bin/dotnet" ]
 then
-	echo ""
-	echo "Installing dependencies..."
-
-	until apt-get -y update &>> $installLog && apt-get -y install curl libunwind8 gettext apt-transport-https &>> $installLog
-	do
-		echo "Trying again.."
-		sleep 2
-	done
-
-	echo ""
-
-	if [ ! -f /usr/bin/dotnet ]
+	echo ".NET Core Runtime was found installed."
+else
+	echo "Downloading .NET Core Runtime..."
+	
+	mkdir -p $aspnetcoreDir
+	
+	if wget -q "$aspnetcoreUrl" -O $aspnetcoreTar
 	then
-		echo "Downloading .NET Core Runtime..."
-		
-		mkdir -p $aspnetcoreDir
-		
-		if wget -q "$aspnetcoreUrl" -O $aspnetcoreTar
+		echo "Installing .NET Core Runtime..."
+		tar -zxf $aspnetcoreTar -C $aspnetcoreDir
+
+		if [ ! -f "/usr/bin/dotnet" ]
 		then
-			echo "Installing .NET Core Runtime..."
-			tar -zxf $aspnetcoreTar -C $aspnetcoreDir
 			ln -s $aspnetcoreDir/dotnet /usr/bin
-			echo ".NET Core Runtime was installed succesfully."
-		else
-			echo "Failed to download .NET Core Runtime from: $aspnetcoreUrl"
-			exit 1
 		fi
+
+		echo ".NET Core Runtime was installed succesfully."
 	else
-		echo ".NET Core Runtime was found installed."
+		echo "Failed to download .NET Core Runtime from: $aspnetcoreUrl"
+		exit 1
 	fi
 fi
 
@@ -56,7 +58,7 @@ echo "Downloading Technitium DNS Server..."
 
 if wget -q "$dnsUrl" -O $dnsTar
 then
-	if [ -f /etc/dns/DnsServerApp.dll ]
+	if [ -f "/etc/dns/DnsServerApp.dll" ]
 	then
 		echo "Updating Technitium DNS Server..."
 	else
@@ -67,7 +69,7 @@ then
 	
 	if [ "$(ps --no-headers -o comm 1 | tr -d '\n')" = "systemd" ] 
 	then
-		if [ -f /etc/systemd/system/dns.service ]
+		if [ -f "/etc/systemd/system/dns.service" ]
 		then
 			echo "Restarting systemd service..."
 			systemctl restart dns.service &>> $installLog
@@ -78,7 +80,7 @@ then
 			systemctl start dns.service &>> $installLog
 		fi
 	else
-		if [ -f /etc/supervisor/conf.d/dns.conf ]
+		if [ -f "/etc/supervisor/conf.d/dns.conf" ]
 		then
 			echo "Restarting supervisor service..."
 			service supervisor restart &>> $installLog
