@@ -1,4 +1,13 @@
-# DnsServer
+<p align="center">
+	<a href="https://technitium.com/dns/">
+		<img src="https://technitium.com/img/logo.png" alt="Technitium DNS Server" /><br />
+		<h2>Technitium DNS Server</h2>
+	</a>
+	<h3>Get a personal local DNS Server for privacy & security</h3>
+</p>
+<br />
+<img src="https://technitium.com/dns/ScreenShot1.png" alt="Technitium DNS Server" />
+<br />
 
 Technitium DNS Server is an open source tool that can be used for self hosting a local DNS server for privacy & security or, used for experimentation/testing by software developers on their computer. It works out-of-the-box with no or minimal configuration and provides a user friendly web console accessible using any web browser.
 
@@ -8,4 +17,42 @@ Developers regularly use the hosts file for configuring an IP address for a doma
 
 Applications of using a locally hosted DNS server is limited only by the user's imagination!
 
-Website: https://technitium.com/dns/
+# Features
+- Works on Windows, Linux, macOS and Raspberry Pi.
+- Installs in just a minute and works out-of-the-box with zero configuration.
+- Block Ads using one or more block list URLs.
+- Run DNS-over-TLS and DNS-over-HTTPS DNS service on your network.
+- Use public DNS resolvers like Cloudflare, Google & Quad9 with DNS-over-TLS and DNS-over-HTTPS protocols as forwarders.
+- Advance caching with features like serve stale, prefetching and auto prefetching.
+- Supports working as an authoritative as well as a recursive DNS server.
+- Host domain names on your own server.
+- Wildcard sub domain support.
+- Enable/disable zones and records to allow testing with ease.
+- Built-in DNS Client with option to import responses to local zone.
+- Supports out-of-order DNS request processing for DNS-over-TCP and DNS-over-TLS protocols.
+- IPv6 support in DNS server core.
+- HTTP & SOCKS5 proxy support which can be used with Tor network.
+- Web console portal for easy configuration using any web browser.
+- Built-in system logging and query logging.
+- Open source cross-platform .NET Core implementation hosted on GitHub.
+
+# Installation
+- **Windows**: [Download setup installer](https://technitium.com/dns/) for easy installation.
+- **Linux, macOS & Raspberry**: Follow installation setup from [this blog post](https://blog.technitium.com/2017/11/running-dns-server-on-ubuntu-linux.html).
+
+# Help Topics
+Read the latest [online help topics](https://go.technitium.com/?id=25) which contains the DNS Server user manual and covers frequently asked questions.
+
+# Support
+For support, send an email to support@technitium.com. For any issues, feedback, or feature request, create an issue on [GitHub](https://github.com/TechnitiumSoftware/DnsServer/issues).
+
+# Become A Patron
+Make contribution to Technitium by becoming a Patron and help making new software, updates, and features possible.
+
+[Become a Patron now!](https://www.patreon.com/technitium)
+
+# Blog Posts
+- [Technitium Blog: Turn Raspberry Pi Into Network Wide DNS Server](https://blog.technitium.com/2019/01/turn-raspberry-pi-into-network-wide-dns.html)
+- [Technitium Blog: Blocking Internet Ads Using DNS Sinkhole](https://blog.technitium.com/2018/10/blocking-internet-ads-using-dns-sinkhole.html)
+- [Technitium Blog: Configuring DNS Server For Privacy & Security](https://blog.technitium.com/2018/06/configuring-dns-server-for-privacy.html)
+- [Scott Hanselman: Exploring DNS with the .NET Core based Technitium DNS Server](https://www.hanselman.com/blog/ExploringDNSWithTheNETCoreBasedTechnitiumDNSServer.aspx)
