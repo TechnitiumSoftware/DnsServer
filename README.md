@@ -1,7 +1,7 @@
 <p align="center">
 	<a href="https://technitium.com/dns/">
 		<img src="https://technitium.com/img/logo.png" alt="Technitium DNS Server" /><br />
-		<b><font color="black" size="18">Technitium DNS Server</font></b>
+		<b>Technitium DNS Server</b>
 	</a><br />
 	<br />
 	<b>Get a personal local DNS Server for privacy & security.</b><br />
