@@ -932,16 +932,16 @@
 
                                                 <div class="form-group">
                                                     <label for="txtCachePrefetchTrigger" class="col-sm-3 control-label">Prefetch Trigger</label>
-                                                    <div class="col-sm-6">
+                                                    <div class="col-sm-8">
                                                         <input type="number" class="form-control" id="txtCachePrefetchTrigger" placeholder="trigger" style="width: 100px; display: inline;">
-                                                        <span>(recommended 9; set 0 to completely disable prefetching)</span>
+                                                        <span>(recommended 9; set 0 to disable prefetching &amp; auto prefetching)</span>
                                                     </div>
                                                     <label class="col-sm-3 control-label">&nbsp;</label>
                                                     <div class="col-sm-8" style="padding-top: 5px;">A record with TTL value less than trigger value will initiate prefetch operation immediately for itself.</div>
                                                 </div>
 
                                                 <div class="form-group">
-                                                    <label for="txtCachePrefetchSampleIntervalInMinutes" class="col-sm-3 control-label">Auto Prefetch Sample Interval</label>
+                                                    <label for="txtCachePrefetchSampleIntervalInMinutes" class="col-sm-3 control-label">Auto Prefetch Sampling</label>
                                                     <div class="col-sm-6">
                                                         <input type="number" class="form-control" id="txtCachePrefetchSampleIntervalInMinutes" placeholder="interval" style="width: 100px; display: inline;">
                                                         <span>minutes (valid range 1-60; default 5)</span>
@@ -951,7 +951,7 @@
                                                 </div>
 
                                                 <div class="form-group">
-                                                    <label for="txtCachePrefetchSampleEligibilityHitsPerHour" class="col-sm-3 control-label">Auto Prefetch Sample Eligibility</label>
+                                                    <label for="txtCachePrefetchSampleEligibilityHitsPerHour" class="col-sm-3 control-label">Auto Prefetch Eligibility</label>
                                                     <div class="col-sm-6">
                                                         <input type="number" class="form-control" id="txtCachePrefetchSampleEligibilityHitsPerHour" placeholder="hits" style="width: 100px; display: inline;">
                                                         <span>hits/hour (default 30)</span>
@@ -960,7 +960,7 @@
                                                     <div class="col-sm-8" style="padding-top: 5px;">Minimum required hits per hour for a domain name to be eligible for auto prefetch.</div>
                                                 </div>
 
-                                                <div>The DNS Server cache auto prefetch option can keep eligible domain names from last hour stats "hot" in cache. Sample eligibility value can be decided by keeping an eye on the hits shown for last hour on the dashboard. Experiment with sample interval and sample eligibility to get best results.</div>
+                                                <div>The DNS Server cache auto prefetch option can keep eligible domain names from last hour stats "hot" in cache. Auto prefetch eligibility value can be decided by keeping an eye on the hits shown for last hour on the dashboard. Experiment with auto prefetch sampling interval and eligibility to get best results.</div>
                                             </div>
 
                                             <div class="well well-sm form-horizontal">
