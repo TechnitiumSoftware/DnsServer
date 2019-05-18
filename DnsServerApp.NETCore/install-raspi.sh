@@ -18,20 +18,20 @@ echo "==============================="
 echo "Technitium DNS Server Installer"
 echo "==============================="
 echo ""
-echo "Installing dependencies..."
-
-until apt-get -y update >> $installLog 2>&1 && apt-get -y install curl libunwind8 gettext apt-transport-https >> $installLog 2>&1
-do
-	echo "Trying again.."
-	sleep 2
-done
-
-echo ""
 
 if [ -d "$aspnetcoreTestDir" ] && [ -f "/usr/bin/dotnet" ]
 then
 	echo ".NET Core Runtime was found installed."
 else
+	echo "Installing dependencies..."
+
+	until apt-get -y update >> $installLog 2>&1 && apt-get -y install curl libunwind8 gettext apt-transport-https >> $installLog 2>&1
+	do
+		echo "Trying again.."
+		sleep 2
+	done
+
+	echo ""
 	echo "Downloading .NET Core Runtime..."
 	
 	mkdir -p $aspnetcoreDir
