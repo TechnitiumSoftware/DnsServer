@@ -20,7 +20,7 @@ echo "==============================="
 echo ""
 echo "Installing dependencies..."
 
-until apt-get -y update &>> $installLog && apt-get -y install curl libunwind8 gettext apt-transport-https &>> $installLog
+until apt-get -y update >> $installLog 2>&1 && apt-get -y install curl libunwind8 gettext apt-transport-https >> $installLog 2>&1
 do
 	echo "Trying again.."
 	sleep 2
@@ -39,7 +39,7 @@ else
 	if wget -q "$aspnetcoreUrl" -O $aspnetcoreTar
 	then
 		echo "Installing .NET Core Runtime..."
-		tar -zxf $aspnetcoreTar -C $aspnetcoreDir
+		tar -zxf $aspnetcoreTar -C $aspnetcoreDir >> $installLog 2>&1
 
 		if [ ! -f "/usr/bin/dotnet" ]
 		then
@@ -65,29 +65,29 @@ then
 		echo "Installing Technitium DNS Server..."
 	fi
 	
-	tar -zxf $dnsTar -C $dnsDir
+	tar -zxf $dnsTar -C $dnsDir >> $installLog 2>&1
 	
 	if [ "$(ps --no-headers -o comm 1 | tr -d '\n')" = "systemd" ] 
 	then
 		if [ -f "/etc/systemd/system/dns.service" ]
 		then
 			echo "Restarting systemd service..."
-			systemctl restart dns.service &>> $installLog
+			systemctl restart dns.service >> $installLog 2>&1
 		else
 			echo "Configuring systemd service..."
 			cp $dnsDir/systemd.service /etc/systemd/system/dns.service
-			systemctl enable dns.service &>> $installLog
-			systemctl start dns.service &>> $installLog
+			systemctl enable dns.service >> $installLog 2>&1
+			systemctl start dns.service >> $installLog 2>&1
 		fi
 	else
 		if [ -f "/etc/supervisor/conf.d/dns.conf" ]
 		then
 			echo "Restarting supervisor service..."
-			service supervisor restart &>> $installLog
+			service supervisor restart >> $installLog 2>&1
 		else
 			echo "Installing supervisor..."
 			
-			until apt-get -y install supervisor &>> $installLog
+			until apt-get -y install supervisor >> $installLog 2>&1
 			do
 				echo "Trying again.."
 				sleep 2
@@ -95,7 +95,7 @@ then
 			
 			echo "Configuring supervisor service..."
 			cp $dnsDir/supervisor.conf /etc/supervisor/conf.d/dns.conf
-			service supervisor restart &>> $installLog
+			service supervisor restart >> $installLog 2>&1
 		fi
 	fi
 	
