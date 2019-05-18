@@ -107,7 +107,6 @@ namespace DnsServerCore
         Timer _cachePrefetchRefreshTimer;
         readonly object _cachePrefetchRefreshTimerLock = new object();
         const int CACHE_PREFETCH_REFRESH_TIMER_INITIAL_INTEVAL = 60000;
-        const int CACHE_PREFETCH_REFRESH_TIMER_PERIODIC_INTERVAL = 10000;
         DateTime _cachePrefetchSamplingTimerTriggersOn;
         DnsQuestionRecord[] _cachePrefetchSampleList;
 
@@ -1458,7 +1457,7 @@ namespace DnsServerCore
                         if (sampleQuestion == null)
                             continue;
 
-                        if (!CacheRefreshNeeded(sampleQuestion, _cachePrefetchTrigger))
+                        if (!CacheRefreshNeeded(sampleQuestion, _cachePrefetchTrigger + 2))
                             continue;
 
                         int sampleQuestionIndex = i;
@@ -1507,7 +1506,7 @@ namespace DnsServerCore
                 lock (_cachePrefetchRefreshTimerLock)
                 {
                     if (_cachePrefetchRefreshTimer != null)
-                        _cachePrefetchRefreshTimer.Change(CACHE_PREFETCH_REFRESH_TIMER_PERIODIC_INTERVAL, System.Threading.Timeout.Infinite);
+                        _cachePrefetchRefreshTimer.Change((_cachePrefetchTrigger + 1) * 1000, System.Threading.Timeout.Infinite);
                 }
             }
         }
@@ -2035,9 +2034,11 @@ namespace DnsServerCore
                 if (value < 0)
                     throw new ArgumentOutOfRangeException("CachePrefetchTrigger", "Valid value is greater that or equal to 0.");
 
-                _cachePrefetchTrigger = value;
-
-                ResetPrefetchTimers();
+                if (_cachePrefetchTrigger != value)
+                {
+                    _cachePrefetchTrigger = value;
+                    ResetPrefetchTimers();
+                }
             }
         }
 
@@ -2049,7 +2050,11 @@ namespace DnsServerCore
                 if ((value < 1) || (value > 60))
                     throw new ArgumentOutOfRangeException("CacheRefreshSampleIntervalInMinutes", "Valid range is between 1 and 60 minutes.");
 
-                _cachePrefetchSampleIntervalInMinutes = value;
+                if (_cachePrefetchSampleIntervalInMinutes != value)
+                {
+                    _cachePrefetchSampleIntervalInMinutes = value;
+                    ResetPrefetchTimers();
+                }
             }
         }
 
