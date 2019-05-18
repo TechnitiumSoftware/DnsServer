@@ -1,7 +1,7 @@
 <p align="center">
 	<a href="https://technitium.com/dns/">
 		<img src="https://technitium.com/img/logo.png" alt="Technitium DNS Server" /><br />
-		<b><span style="color: black !important;">Technitium DNS Server</span></b>
+		<b><font color="black" size="18">Technitium DNS Server</span></b>
 	</a><br />
 	<br />
 	<b>Get a personal local DNS Server for privacy & security.</b><br />
@@ -38,8 +38,9 @@ Applications of using a locally hosted DNS server is limited only by the user's 
 - Open source cross-platform .NET Core implementation hosted on GitHub.
 
 # Installation
-- **Windows**: [Download setup installer](https://technitium.com/dns/) for easy installation.
-- **Linux, macOS & Raspberry**: Follow installation setup from [this blog post](https://blog.technitium.com/2017/11/running-dns-server-on-ubuntu-linux.html).
+- **Windows**: [Download setup installer](https://download.technitium.com/dns/DnsServerSetup.zip) for easy installation.
+- **Linux, macOS & Raspberry**: Follow install instructions from [this blog post](https://blog.technitium.com/2017/11/running-dns-server-on-ubuntu-linux.html).
+- **Cross-Platform**: [Download portable app](https://download.technitium.com/dns/DnsServerPortable.tar.gz) to run on any platform that has .NET Core installed.
 
 # Help Topics
 Read the latest [online help topics](https://go.technitium.com/?id=25) which contains the DNS Server user manual and covers frequently asked questions.
