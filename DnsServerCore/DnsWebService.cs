@@ -2702,7 +2702,14 @@ namespace DnsServerCore
 
             if (server == "recursive-resolver")
             {
-                dnsResponse = DnsClient.RecursiveResolve(domain, type, null, new SimpleDnsCache(), proxy, preferIPv6, protocol, RETRIES, TIMEOUT);
+                DnsQuestionRecord question;
+
+                if (type == DnsResourceRecordType.PTR)
+                    question = new DnsQuestionRecord(IPAddress.Parse(domain), DnsClass.IN);
+                else
+                    question = new DnsQuestionRecord(domain, type, DnsClass.IN);
+
+                dnsResponse = DnsClient.RecursiveResolve(question, null, null, proxy, preferIPv6, RETRIES, TIMEOUT);
             }
             else
             {
@@ -2722,9 +2729,9 @@ namespace DnsServerCore
                         if (proxy == null)
                         {
                             if (_dnsServer.AllowRecursion)
-                                nameServer.ResolveIPAddress(new NameServerAddress[] { new NameServerAddress(IPAddress.Loopback) }, _dnsServer.Proxy, preferIPv6, DnsTransportProtocol.Udp, RETRIES, TIMEOUT);
+                                nameServer.ResolveIPAddress(new NameServerAddress[] { new NameServerAddress(IPAddress.Loopback) }, proxy, preferIPv6, RETRIES, TIMEOUT);
                             else
-                                nameServer.RecursiveResolveIPAddress(_dnsServer.Cache, _dnsServer.Proxy, preferIPv6, DnsTransportProtocol.Udp, RETRIES, TIMEOUT, DnsTransportProtocol.Udp);
+                                nameServer.RecursiveResolveIPAddress(_dnsServer.Cache, proxy, preferIPv6, RETRIES, TIMEOUT);
                         }
                     }
                     else if (protocol != DnsTransportProtocol.Tls)
@@ -2732,16 +2739,16 @@ namespace DnsServerCore
                         try
                         {
                             if (_dnsServer.AllowRecursion)
-                                nameServer.ResolveDomainName(new NameServerAddress[] { new NameServerAddress(IPAddress.Loopback) }, _dnsServer.Proxy, _dnsServer.PreferIPv6, DnsTransportProtocol.Udp, RETRIES, TIMEOUT);
+                                nameServer.ResolveDomainName(new NameServerAddress[] { new NameServerAddress(IPAddress.Loopback) }, proxy, preferIPv6, RETRIES, TIMEOUT);
                             else
-                                nameServer.RecursiveResolveDomainName(_dnsServer.Cache, _dnsServer.Proxy, _dnsServer.PreferIPv6, DnsTransportProtocol.Udp, RETRIES, TIMEOUT, DnsTransportProtocol.Udp);
+                                nameServer.RecursiveResolveDomainName(_dnsServer.Cache, proxy, preferIPv6, RETRIES, TIMEOUT);
                         }
                         catch
                         { }
                     }
                 }
 
-                dnsResponse = (new DnsClient(nameServer) { Proxy = proxy, PreferIPv6 = preferIPv6, Protocol = protocol, Retries = RETRIES, Timeout = TIMEOUT, RecursiveResolveProtocol = DnsTransportProtocol.Udp }).Resolve(domain, type);
+                dnsResponse = (new DnsClient(nameServer) { Proxy = proxy, PreferIPv6 = preferIPv6, Protocol = protocol, Retries = RETRIES, Timeout = TIMEOUT }).Resolve(domain, type);
             }
 
             if (importRecords)
