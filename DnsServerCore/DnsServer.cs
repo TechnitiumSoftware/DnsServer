@@ -76,7 +76,7 @@ namespace DnsServerCore
         Zone _blockedZoneRoot = new Zone(true);
 
         const uint NEGATIVE_RECORD_TTL = 300u;
-        const uint MINIMUM_RECORD_TTL = 0u;
+        const uint MINIMUM_RECORD_TTL = 10u;
         const uint SERVE_STALE_TTL = 7 * 24 * 60 * 60; //7 days serve stale ttl as per draft-ietf-dnsop-serve-stale-04
         readonly DnsCache _dnsCache;
 
@@ -85,7 +85,6 @@ namespace DnsServerCore
         NetProxy _proxy;
         NameServerAddress[] _forwarders;
         DnsTransportProtocol _forwarderProtocol = DnsTransportProtocol.Udp;
-        DnsTransportProtocol _recursiveResolveProtocol = DnsTransportProtocol.Udp;
         bool _preferIPv6 = false;
         int _retries = 2;
         int _timeout = 2000;
@@ -971,6 +970,7 @@ namespace DnsServerCore
                 if (response.Answer.Length > 0)
                 {
                     DnsResourceRecordType questionType = request.Question[0].Type;
+                    DnsClass questionClass = request.Question[0].Class;
                     DnsResourceRecord lastRR = response.Answer[response.Answer.Length - 1];
 
                     if ((lastRR.Type != questionType) && (lastRR.Type == DnsResourceRecordType.CNAME) && (questionType != DnsResourceRecordType.ANY))
@@ -984,7 +984,7 @@ namespace DnsServerCore
 
                         while (true)
                         {
-                            DnsDatagram cnameRequest = new DnsDatagram(new DnsHeader(0, false, DnsOpcode.StandardQuery, false, false, request.Header.RecursionDesired, false, false, false, DnsResponseCode.NoError, 1, 0, 0, 0), new DnsQuestionRecord[] { new DnsQuestionRecord((lastRR.RDATA as DnsCNAMERecord).CNAMEDomainName, questionType, DnsClass.IN) }, null, null, null);
+                            DnsDatagram cnameRequest = new DnsDatagram(new DnsHeader(0, false, DnsOpcode.StandardQuery, false, false, request.Header.RecursionDesired, false, false, false, DnsResponseCode.NoError, 1, 0, 0, 0), new DnsQuestionRecord[] { new DnsQuestionRecord((lastRR.RDATA as DnsCNAMERecord).CNAMEDomainName, questionType, questionClass) }, null, null, null);
 
                             //query authoritative zone first
                             lastResponse = _authoritativeZoneRoot.Query(cnameRequest);
@@ -1079,6 +1079,7 @@ namespace DnsServerCore
             if (response.Answer.Length > 0)
             {
                 DnsResourceRecordType questionType = request.Question[0].Type;
+                DnsClass questionClass = request.Question[0].Class;
                 DnsResourceRecord lastRR = response.Answer[response.Answer.Length - 1];
 
                 if ((lastRR.Type != questionType) && (lastRR.Type == DnsResourceRecordType.CNAME) && (questionType != DnsResourceRecordType.ANY))
@@ -1092,7 +1093,7 @@ namespace DnsServerCore
 
                     while (true)
                     {
-                        DnsQuestionRecord question = new DnsQuestionRecord((lastRR.RDATA as DnsCNAMERecord).CNAMEDomainName, questionType, DnsClass.IN);
+                        DnsQuestionRecord question = new DnsQuestionRecord((lastRR.RDATA as DnsCNAMERecord).CNAMEDomainName, questionType, questionClass);
 
                         lastResponse = RecursiveResolve(new DnsDatagram(new DnsHeader(0, false, DnsOpcode.StandardQuery, false, false, true, false, false, false, DnsResponseCode.NoError, 1, 0, 0, 0), new DnsQuestionRecord[] { question }, null, null, null), null, false, cacheRefreshOperation);
                         cacheHit &= ("cacheHit".Equals(lastResponse.Tag));
@@ -1197,11 +1198,15 @@ namespace DnsServerCore
                         if ((viaNameServers == null) && (_forwarders != null))
                         {
                             //use forwarders
-                            //refresh forwarder IPEndPoint if stale
-                            foreach (NameServerAddress nameServerAddress in _forwarders)
+
+                            if (_proxy == null)
                             {
-                                if (nameServerAddress.IsIPEndPointStale && (_proxy == null)) //recursive resolve name server when proxy is null else let proxy resolve it
-                                    nameServerAddress.RecursiveResolveIPAddress(_dnsCache, _proxy, _preferIPv6, _recursiveResolveProtocol, _retries, _timeout, _recursiveResolveProtocol);
+                                //recursive resolve name server when proxy is null else let proxy resolve it
+                                foreach (NameServerAddress nameServerAddress in _forwarders)
+                                {
+                                    if (nameServerAddress.IsIPEndPointStale) //refresh forwarder IPEndPoint if stale
+                                        nameServerAddress.RecursiveResolveIPAddress(_dnsCache, null, _preferIPv6, _retries, _timeout);
+                                }
                             }
 
                             //query forwarders and update cache
@@ -1212,7 +1217,6 @@ namespace DnsServerCore
                             dnsClient.Protocol = _forwarderProtocol;
                             dnsClient.Retries = _retries;
                             dnsClient.Timeout = _timeout;
-                            dnsClient.RecursiveResolveProtocol = _recursiveResolveProtocol;
 
                             response = dnsClient.Resolve(request.Question[0]);
 
@@ -1221,7 +1225,7 @@ namespace DnsServerCore
                         else
                         {
                             //recursive resolve and update cache
-                            response = DnsClient.RecursiveResolve(request.Question[0], viaNameServers, (cachePrefetchOperation || cacheRefreshOperation ? new ResolverPrefetchDnsCache(_cacheZoneRoot, request.Question[0]) : _dnsCache), _proxy, _preferIPv6, _recursiveResolveProtocol, _retries, _timeout, _recursiveResolveProtocol, _maxStackCount);
+                            response = DnsClient.RecursiveResolve(request.Question[0], viaNameServers, (cachePrefetchOperation || cacheRefreshOperation ? new ResolverPrefetchDnsCache(_cacheZoneRoot, request.Question[0]) : _dnsCache), _proxy, _preferIPv6, _retries, _timeout, false, _maxStackCount);
                         }
                     }
                     catch (Exception ex)
@@ -1375,7 +1379,7 @@ namespace DnsServerCore
                     return null; //too many hops so ignore question
 
                 //follow CNAME chain to inspect TTL further
-                question = new DnsQuestionRecord((lastRR.RDATA as DnsCNAMERecord).CNAMEDomainName, question.Type, DnsClass.IN);
+                question = new DnsQuestionRecord((lastRR.RDATA as DnsCNAMERecord).CNAMEDomainName, question.Type, question.Class);
             }
         }
 
@@ -1974,12 +1978,6 @@ namespace DnsServerCore
         {
             get { return _forwarderProtocol; }
             set { _forwarderProtocol = value; }
-        }
-
-        public DnsTransportProtocol RecursiveResolveProtocol
-        {
-            get { return _recursiveResolveProtocol; }
-            set { _recursiveResolveProtocol = value; }
         }
 
         public bool PreferIPv6
