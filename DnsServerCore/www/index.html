@@ -672,7 +672,7 @@
                                         <div class="form-group">
                                             <label for="txtDnsClientNameServer">Server</label>
                                             <div class="input-group dropdown">
-                                                <input type="text" class="form-control dropdown-toggle" style="width: 240px;" id="txtDnsClientNameServer" value="This Server (this-server)">
+                                                <input type="text" class="form-control dropdown-toggle" style="min-width: 240px;" id="txtDnsClientNameServer" value="This Server (this-server)">
                                                 <ul class="dropdown-menu" id="optDnsClientNameServers">
                                                     <li><a href="#">This Server (this-server)</a></li>
                                                     <li><a href="#">Recursive Query (recursive-resolver)</a></li>
@@ -733,7 +733,7 @@
 
                                         <div class="form-group">
                                             <label for="txtDnsClientDomain">Domain</label>
-                                            <input type="text" class="form-control" style="width: 260px;" id="txtDnsClientDomain" placeholder="example.com">
+                                            <input type="text" class="form-control" style="min-width: 260px;" id="txtDnsClientDomain" placeholder="example.com">
                                         </div>
 
                                         <div class="form-group">
@@ -748,6 +748,7 @@
                                                 <option>TXT</option>
                                                 <option>AAAA</option>
                                                 <option>SRV</option>
+                                                <option>CAA</option>
                                                 <option>ANY</option>
                                             </select>
                                         </div>
