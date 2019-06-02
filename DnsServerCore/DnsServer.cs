@@ -1006,7 +1006,7 @@ namespace DnsServerCore
                                     break; //break since no recursion allowed/desired
 
                                 //do recursive resolution using delegated authority name servers
-                                NameServerAddress[] nameServers = NameServerAddress.GetNameServersFromResponse(lastResponse, _preferIPv6);
+                                NameServerAddress[] nameServers = NameServerAddress.GetNameServersFromResponse(lastResponse, _preferIPv6, false);
 
                                 lastResponse = ProcessRecursiveQuery(cnameRequest, nameServers);
                                 cacheHit &= ("cacheHit".Equals(lastResponse.Tag));
@@ -1060,7 +1060,7 @@ namespace DnsServerCore
                 else if ((response.Authority.Length > 0) && (response.Authority[0].Type == DnsResourceRecordType.NS) && isRecursionAllowed)
                 {
                     //do recursive resolution using response authority name servers
-                    NameServerAddress[] nameServers = NameServerAddress.GetNameServersFromResponse(response, _preferIPv6);
+                    NameServerAddress[] nameServers = NameServerAddress.GetNameServersFromResponse(response, _preferIPv6, false);
 
                     return ProcessRecursiveQuery(request, nameServers);
                 }
