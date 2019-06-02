@@ -806,12 +806,17 @@ namespace DnsServerCore
                 }
             }
 
-            DnsResourceRecord[] nameServers = closestZone.QueryClosestCachedNameServers(serveStale);
-            if (nameServers != null)
+            while (closestZone != null)
             {
-                DnsResourceRecord[] additional = QueryGlueRecords(rootZone, nameServers, serveStale);
+                DnsResourceRecord[] nameServers = closestZone.QueryClosestCachedNameServers(serveStale);
+                if (nameServers == null)
+                    break;
 
-                return new DnsDatagram(new DnsHeader(request.Header.Identifier, true, DnsOpcode.StandardQuery, false, false, request.Header.RecursionDesired, true, false, false, DnsResponseCode.NoError, 1, 0, (ushort)nameServers.Length, (ushort)additional.Length), request.Question, new DnsResourceRecord[] { }, nameServers, additional);
+                DnsResourceRecord[] additional = QueryGlueRecords(rootZone, nameServers, serveStale);
+                if (additional.Length > 0)
+                    return new DnsDatagram(new DnsHeader(request.Header.Identifier, true, DnsOpcode.StandardQuery, false, false, request.Header.RecursionDesired, true, false, false, DnsResponseCode.NoError, 1, 0, (ushort)nameServers.Length, (ushort)additional.Length), request.Question, new DnsResourceRecord[] { }, nameServers, additional);
+
+                closestZone = closestZone._parentZone;
             }
 
             return new DnsDatagram(new DnsHeader(request.Header.Identifier, true, DnsOpcode.StandardQuery, false, false, request.Header.RecursionDesired, true, false, false, DnsResponseCode.Refused, 1, 0, 0, 0), request.Question, new DnsResourceRecord[] { }, new DnsResourceRecord[] { }, new DnsResourceRecord[] { });
