@@ -328,6 +328,19 @@ namespace DnsServerCore.Dhcp
                 option.WriteTo(s);
         }
 
+        public string GetClientFullIdentifier()
+        {
+            string hardwareAddress = BitConverter.ToString(_clientHardwareAddress);
+
+            if (_clientFullyQualifiedDomainName != null)
+                return _clientFullyQualifiedDomainName.DomainName + " [" + hardwareAddress + "]";
+
+            if (_hostName != null)
+                return _hostName.HostName + " [" + hardwareAddress + "]";
+
+            return "[" + hardwareAddress + "]";
+        }
+
         #endregion
 
         #region properties

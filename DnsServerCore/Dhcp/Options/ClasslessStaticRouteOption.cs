@@ -25,7 +25,7 @@ using TechnitiumLibrary.IO;
 
 namespace DnsServerCore.Dhcp.Options
 {
-    class ClasslessStaticRouteOption : DhcpOption
+    public class ClasslessStaticRouteOption : DhcpOption
     {
         #region variables
 

@@ -24,7 +24,7 @@ using TechnitiumLibrary.IO;
 
 namespace DnsServerCore.Dhcp
 {
-    enum DhcpOptionCode : byte
+    public enum DhcpOptionCode : byte
     {
         Pad = 0,
         SubnetMask = 1,
@@ -106,7 +106,7 @@ namespace DnsServerCore.Dhcp
         End = 255
     }
 
-    class DhcpOption
+    public class DhcpOption
     {
         #region variables
 
