@@ -202,6 +202,11 @@ namespace DnsServerCore
             {
                 while (true)
                 {
+                    if (udpListener.AddressFamily == AddressFamily.InterNetwork)
+                        remoteEP = new IPEndPoint(IPAddress.Any, 0);
+                    else
+                        remoteEP = new IPEndPoint(IPAddress.IPv6Any, 0);
+
                     try
                     {
                         bytesRecv = udpListener.ReceiveFrom(recvBuffer, ref remoteEP);
