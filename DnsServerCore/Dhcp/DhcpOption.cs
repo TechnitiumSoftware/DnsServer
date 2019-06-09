@@ -17,6 +17,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 */
 
+using DnsServerCore.Dhcp.Options;
 using System;
 using System.IO;
 using TechnitiumLibrary.IO;
@@ -100,6 +101,8 @@ namespace DnsServerCore.Dhcp
         DefaultIrc = 74,
         StreetTalkServer = 75,
         StreetTalkDirectoryAssistance = 76,
+        ClientFullyQualifiedDomainName = 81,
+        ClasslessStaticRoute = 121,
         End = 255
     }
 
@@ -108,21 +111,26 @@ namespace DnsServerCore.Dhcp
         #region variables
 
         readonly DhcpOptionCode _code;
-        readonly byte[] _value;
+        byte[] _value;
 
         #endregion
 
         #region constructor
 
-        protected DhcpOption(DhcpOptionCode type)
+        protected DhcpOption(DhcpOptionCode code, Stream s)
         {
-            _code = type;
+            _code = code;
+
+            int len = s.ReadByte();
+            if (len < 0)
+                throw new EndOfStreamException();
+
+            _value = s.ReadBytes(len);
         }
 
-        private DhcpOption(DhcpOptionCode type, byte[] value)
+        protected DhcpOption(DhcpOptionCode code)
         {
-            _code = type;
-            _value = value;
+            _code = code;
         }
 
         #endregion
@@ -162,9 +170,6 @@ namespace DnsServerCore.Dhcp
                 case DhcpOptionCode.BroadcastAddress:
                     return new BroadcastAddressOption(s);
 
-                case DhcpOptionCode.StaticRoute:
-                    return new StaticRouteOption(s);
-
                 case DhcpOptionCode.NetBiosOverTcpIpNameServer:
                     return new NetBiosNameServerOption(s);
 
@@ -201,17 +206,44 @@ namespace DnsServerCore.Dhcp
                 case DhcpOptionCode.ClientIdentifier:
                     return new ClientIdentifierOption(s);
 
+                case DhcpOptionCode.ClientFullyQualifiedDomainName:
+                    return new ClientFullyQualifiedDomainNameOption(s);
+
+                case DhcpOptionCode.ClasslessStaticRoute:
+                    return new ClasslessStaticRouteOption(s);
+
                 case DhcpOptionCode.Pad:
                 case DhcpOptionCode.End:
-                    return new DhcpOption(optionCode, null);
+                    return new DhcpOption(optionCode);
 
                 default:
                     //unknown option
-                    int len = s.ReadByte();
-                    if (len < 0)
-                        throw new EndOfStreamException();
+                    return new DhcpOption(optionCode, s);
+            }
+        }
 
-                    return new DhcpOption(optionCode, s.ReadBytes(len));
+        #endregion
+
+        #region internal
+
+        internal void AppendOptionValue(DhcpOption option)
+        {
+            byte[] value = new byte[_value.Length + option._value.Length];
+
+            Buffer.BlockCopy(_value, 0, value, 0, _value.Length);
+            Buffer.BlockCopy(option._value, 0, value, _value.Length, option._value.Length);
+
+            _value = value;
+        }
+
+        internal void ParseOptionValue()
+        {
+            if (_value != null)
+            {
+                using (MemoryStream mS = new MemoryStream(_value))
+                {
+                    ParseOptionValue(mS);
+                }
             }
         }
 
@@ -219,12 +251,14 @@ namespace DnsServerCore.Dhcp
 
         #region protected
 
-        protected virtual void WriteOptionTo(Stream s)
+        protected virtual void ParseOptionValue(Stream s)
+        { }
+
+        protected virtual void WriteOptionValue(Stream s)
         {
             if (_value == null)
                 throw new NotImplementedException();
 
-            s.WriteByte(Convert.ToByte(_value.Length));
             s.Write(_value);
         }
 
@@ -234,16 +268,37 @@ namespace DnsServerCore.Dhcp
 
         public void WriteTo(Stream s)
         {
-            s.WriteByte((byte)_code);
-
             switch (_code)
             {
                 case DhcpOptionCode.Pad:
                 case DhcpOptionCode.End:
+                    s.WriteByte((byte)_code);
                     break;
 
                 default:
-                    WriteOptionTo(s);
+                    using (MemoryStream mS = new MemoryStream())
+                    {
+                        WriteOptionValue(mS);
+
+                        int len = 255;
+                        int valueLen = Convert.ToInt32(mS.Position);
+                        mS.Position = 0;
+
+                        do
+                        {
+                            if (valueLen < len)
+                                len = valueLen;
+
+                            //write option
+                            s.WriteByte((byte)_code); //code
+                            s.WriteByte((byte)len); //len
+                            mS.CopyTo(s, len, len); //value
+
+                            valueLen -= len;
+                        }
+                        while (valueLen > 0);
+                    }
+
                     break;
             }
         }

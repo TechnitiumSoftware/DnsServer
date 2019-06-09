@@ -21,47 +21,55 @@ using System;
 using System.IO;
 using TechnitiumLibrary.IO;
 
-namespace DnsServerCore.Dhcp
+namespace DnsServerCore.Dhcp.Options
 {
-    class MaximumDhcpMessageSizeOption : DhcpOption
+    class RebindingTimeValueOption : DhcpOption
     {
         #region variables
 
-        readonly ushort _length;
+        uint _t2Interval;
 
         #endregion
 
         #region constructor
 
-        public MaximumDhcpMessageSizeOption(Stream s)
-            : base(DhcpOptionCode.MaximumDhcpMessageSize)
+        public RebindingTimeValueOption(uint t2Interval)
+            : base(DhcpOptionCode.RebindingTimeValue)
         {
-            int len = s.ReadByte();
-            if (len < 0)
-                throw new EndOfStreamException();
-
-            if (len != 2)
-                throw new InvalidDataException();
-
-            _length = BitConverter.ToUInt16(s.ReadBytes(2), 0);
+            _t2Interval = t2Interval;
         }
+
+        public RebindingTimeValueOption(Stream s)
+            : base(DhcpOptionCode.RebindingTimeValue, s)
+        { }
 
         #endregion
 
         #region protected
 
-        protected override void WriteOptionTo(Stream s)
+        protected override void ParseOptionValue(Stream s)
         {
-            s.WriteByte(2);
-            s.Write(BitConverter.GetBytes(_length));
+            if (s.Length != 4)
+                throw new InvalidDataException();
+
+            byte[] buffer = s.ReadBytes(4);
+            Array.Reverse(buffer);
+            _t2Interval = BitConverter.ToUInt32(buffer, 0);
+        }
+
+        protected override void WriteOptionValue(Stream s)
+        {
+            byte[] buffer = BitConverter.GetBytes(_t2Interval);
+            Array.Reverse(buffer);
+            s.Write(buffer);
         }
 
         #endregion
 
         #region properties
 
-        public uint Length
-        { get { return _length; } }
+        public uint T2Interval
+        { get { return _t2Interval; } }
 
         #endregion
     }

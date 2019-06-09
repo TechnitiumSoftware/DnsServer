@@ -18,59 +18,54 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
 using System.IO;
+using System.Net;
+using TechnitiumLibrary.IO;
 
-namespace DnsServerCore.Dhcp
+namespace DnsServerCore.Dhcp.Options
 {
-    enum OptionOverloadValue : byte
-    {
-        FileFieldUsed = 1,
-        SnameFieldUsed = 2,
-        BothFieldsUsed = 3
-    }
-
-    class OptionOverloadOption : DhcpOption
+    class RequestedIpAddressOption : DhcpOption
     {
         #region variables
 
-        readonly OptionOverloadValue _value;
+        IPAddress _address;
 
         #endregion
 
         #region constructor
 
-        public OptionOverloadOption(Stream s)
-            : base(DhcpOptionCode.OptionOverload)
+        public RequestedIpAddressOption(IPAddress address)
+            : base(DhcpOptionCode.RequestedIpAddress)
         {
-            int len = s.ReadByte();
-            if (len < 0)
-                throw new EndOfStreamException();
-
-            if (len != 1)
-                throw new InvalidDataException();
-
-            int value = s.ReadByte();
-            if (value < 0)
-                throw new EndOfStreamException();
-
-            _value = (OptionOverloadValue)value;
+            _address = address;
         }
+
+        public RequestedIpAddressOption(Stream s)
+            : base(DhcpOptionCode.RequestedIpAddress, s)
+        { }
 
         #endregion
 
         #region protected
 
-        protected override void WriteOptionTo(Stream s)
+        protected override void ParseOptionValue(Stream s)
         {
-            s.WriteByte(4);
-            s.WriteByte((byte)_value);
+            if (s.Length != 4)
+                throw new InvalidDataException();
+
+            _address = new IPAddress(s.ReadBytes(4));
+        }
+
+        protected override void WriteOptionValue(Stream s)
+        {
+            s.Write(_address.GetAddressBytes());
         }
 
         #endregion
 
         #region properties
 
-        public OptionOverloadValue Value
-        { get { return _value; } }
+        public IPAddress Address
+        { get { return _address; } }
 
         #endregion
     }

@@ -21,47 +21,55 @@ using System.IO;
 using System.Net;
 using TechnitiumLibrary.IO;
 
-namespace DnsServerCore.Dhcp
+namespace DnsServerCore.Dhcp.Options
 {
-    class ServerIdentifierOption : DhcpOption
+    class NetBiosNameServerOption : DhcpOption
     {
         #region variables
 
-        readonly IPAddress _address;
+        IPAddress[] _addresses;
 
         #endregion
 
         #region constructor
 
-        public ServerIdentifierOption(Stream s)
-            : base(DhcpOptionCode.ServerIdentifier)
+        public NetBiosNameServerOption(IPAddress[] addresses)
+            : base(DhcpOptionCode.NetBiosOverTcpIpNameServer)
         {
-            int len = s.ReadByte();
-            if (len < 0)
-                throw new EndOfStreamException();
-
-            if (len != 4)
-                throw new InvalidDataException();
-
-            _address = new IPAddress(s.ReadBytes(4));
+            _addresses = addresses;
         }
+
+        public NetBiosNameServerOption(Stream s)
+            : base(DhcpOptionCode.NetBiosOverTcpIpNameServer, s)
+        { }
 
         #endregion
 
         #region protected
 
-        protected override void WriteOptionTo(Stream s)
+        protected override void ParseOptionValue(Stream s)
         {
-            s.WriteByte(4);
-            s.Write(_address.GetAddressBytes());
+            if ((s.Length % 4 != 0) || (s.Length < 4))
+                throw new InvalidDataException();
+
+            _addresses = new IPAddress[s.Length / 4];
+
+            for (int i = 0; i < _addresses.Length; i++)
+                _addresses[i] = new IPAddress(s.ReadBytes(4));
+        }
+
+        protected override void WriteOptionValue(Stream s)
+        {
+            foreach (IPAddress address in _addresses)
+                s.Write(address.GetAddressBytes());
         }
 
         #endregion
 
         #region properties
 
-        public IPAddress Address
-        { get { return _address; } }
+        public IPAddress[] Addresses
+        { get { return _addresses; } }
 
         #endregion
     }

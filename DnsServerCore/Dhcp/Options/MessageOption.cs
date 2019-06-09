@@ -17,60 +17,60 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 */
 
-using System;
 using System.IO;
-using System.Net;
+using System.Text;
 using TechnitiumLibrary.IO;
 
-namespace DnsServerCore.Dhcp
+namespace DnsServerCore.Dhcp.Options
 {
-    class StaticRouteOption : DhcpOption
+    class MessageOption : DhcpOption
     {
         #region variables
 
-        readonly Tuple<IPAddress, IPAddress>[] _routes;
+        string _text;
 
         #endregion
 
         #region constructor
 
-        public StaticRouteOption(Stream s)
-            : base(DhcpOptionCode.StaticRoute)
+        public MessageOption(string text)
+            : base(DhcpOptionCode.Message)
+        {
+            _text = text;
+        }
+
+        public MessageOption(Stream s)
+            : base(DhcpOptionCode.Message, s)
         {
             int len = s.ReadByte();
             if (len < 0)
                 throw new EndOfStreamException();
 
-            if ((len % 8 != 0) || (len < 8))
-                throw new InvalidDataException();
-
-            _routes = new Tuple<IPAddress, IPAddress>[len / 8];
-
-            for (int i = 0; i < _routes.Length; i++)
-                _routes[i] = new Tuple<IPAddress, IPAddress>(new IPAddress(s.ReadBytes(4)), new IPAddress(s.ReadBytes(4)));
         }
 
         #endregion
 
         #region protected
 
-        protected override void WriteOptionTo(Stream s)
+        protected override void ParseOptionValue(Stream s)
         {
-            s.WriteByte(Convert.ToByte(_routes.Length * 4));
+            if (s.Length < 1)
+                throw new InvalidDataException();
 
-            foreach (Tuple<IPAddress, IPAddress> route in _routes)
-            {
-                s.Write(route.Item1.GetAddressBytes());
-                s.Write(route.Item2.GetAddressBytes());
-            }
+            _text = Encoding.ASCII.GetString(s.ReadBytes((int)s.Length));
+        }
+
+        protected override void WriteOptionValue(Stream s)
+        {
+            s.Write(Encoding.ASCII.GetBytes(_text));
         }
 
         #endregion
 
         #region properties
 
-        public Tuple<IPAddress, IPAddress>[] Routes
-        { get { return _routes; } }
+        public string Text
+        { get { return _text; } }
 
         #endregion
     }

@@ -17,47 +17,49 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 */
 
-using System;
 using System.IO;
 using System.Net;
 using TechnitiumLibrary.IO;
 
-namespace DnsServerCore.Dhcp
+namespace DnsServerCore.Dhcp.Options
 {
-    class RouterOption : DhcpOption
+    class NetworkTimeProtocolServersOption : DhcpOption
     {
         #region variables
 
-        readonly IPAddress[] _addresses;
+        IPAddress[] _addresses;
 
         #endregion
 
         #region constructor
 
-        public RouterOption(Stream s)
-            : base(DhcpOptionCode.Router)
+        public NetworkTimeProtocolServersOption(IPAddress[] addresses)
+            : base(DhcpOptionCode.NetworkTimeProtocolServers)
         {
-            int len = s.ReadByte();
-            if (len < 0)
-                throw new EndOfStreamException();
-
-            if ((len % 4 != 0) || (len < 4))
-                throw new InvalidDataException();
-
-            _addresses = new IPAddress[len / 4];
-
-            for (int i = 0; i < _addresses.Length; i++)
-                _addresses[i] = new IPAddress(s.ReadBytes(4));
+            _addresses = addresses;
         }
+
+        public NetworkTimeProtocolServersOption(Stream s)
+            : base(DhcpOptionCode.NetworkTimeProtocolServers, s)
+        { }
 
         #endregion
 
         #region protected
 
-        protected override void WriteOptionTo(Stream s)
+        protected override void ParseOptionValue(Stream s)
         {
-            s.WriteByte(Convert.ToByte(_addresses.Length * 4));
+            if ((s.Length % 4 != 0) || (s.Length < 4))
+                throw new InvalidDataException();
 
+            _addresses = new IPAddress[s.Length / 4];
+
+            for (int i = 0; i < _addresses.Length; i++)
+                _addresses[i] = new IPAddress(s.ReadBytes(4));
+        }
+
+        protected override void WriteOptionValue(Stream s)
+        {
             foreach (IPAddress address in _addresses)
                 s.Write(address.GetAddressBytes());
         }

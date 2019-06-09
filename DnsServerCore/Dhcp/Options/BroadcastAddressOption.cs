@@ -17,52 +17,56 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 */
 
-using System;
 using System.IO;
-using System.Text;
+using System.Net;
 using TechnitiumLibrary.IO;
 
-namespace DnsServerCore.Dhcp
+namespace DnsServerCore.Dhcp.Options
 {
-    class HostNameOption : DhcpOption
+    class BroadcastAddressOption : DhcpOption
     {
         #region variables
 
-        readonly string _hostName;
+        IPAddress _broadcastAddress;
 
         #endregion
 
         #region constructor
 
-        public HostNameOption(Stream s)
-            : base(DhcpOptionCode.HostName)
+        public BroadcastAddressOption(IPAddress broadcastAddress)
+            : base(DhcpOptionCode.BroadcastAddress)
         {
-            int len = s.ReadByte();
-            if (len < 0)
-                throw new EndOfStreamException();
-
-            if (len < 1)
-                throw new InvalidDataException();
-
-            _hostName = Encoding.ASCII.GetString(s.ReadBytes(len));
+            _broadcastAddress = broadcastAddress;
         }
+
+        public BroadcastAddressOption(Stream s)
+            : base(DhcpOptionCode.BroadcastAddress, s)
+        { }
 
         #endregion
 
         #region protected
 
-        protected override void WriteOptionTo(Stream s)
+        protected override void ParseOptionValue(Stream s)
         {
-            s.WriteByte(Convert.ToByte(_hostName.Length));
-            s.Write(Encoding.ASCII.GetBytes(_hostName));
+            if (s.Length != 4)
+                throw new InvalidDataException();
+
+            _broadcastAddress = new IPAddress(s.ReadBytes(4));
+
+        }
+
+        protected override void WriteOptionValue(Stream s)
+        {
+            s.Write(_broadcastAddress.GetAddressBytes());
         }
 
         #endregion
 
         #region properties
 
-        public string HostName
-        { get { return _hostName; } }
+        public IPAddress BroadcastAddress
+        { get { return _broadcastAddress; } }
 
         #endregion
     }

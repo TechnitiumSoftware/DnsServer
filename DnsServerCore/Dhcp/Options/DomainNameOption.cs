@@ -17,51 +17,55 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 */
 
-using System;
 using System.IO;
+using System.Text;
 using TechnitiumLibrary.IO;
 
-namespace DnsServerCore.Dhcp
+namespace DnsServerCore.Dhcp.Options
 {
-    class RenewalTimeValueOption : DhcpOption
+    class DomainNameOption : DhcpOption
     {
         #region variables
 
-        readonly uint _t1Interval;
+        string _domainName;
 
         #endregion
 
         #region constructor
 
-        public RenewalTimeValueOption(Stream s)
-            : base(DhcpOptionCode.RenewalTimeValue)
+        public DomainNameOption(string domainName)
+            : base(DhcpOptionCode.DomainName)
         {
-            int len = s.ReadByte();
-            if (len < 0)
-                throw new EndOfStreamException();
-
-            if (len != 4)
-                throw new InvalidDataException();
-
-            _t1Interval = BitConverter.ToUInt32(s.ReadBytes(4), 0);
+            _domainName = domainName;
         }
+
+        public DomainNameOption(Stream s)
+            : base(DhcpOptionCode.DomainName, s)
+        { }
 
         #endregion
 
         #region protected
 
-        protected override void WriteOptionTo(Stream s)
+        protected override void ParseOptionValue(Stream s)
         {
-            s.WriteByte(4);
-            s.Write(BitConverter.GetBytes(_t1Interval));
+            if (s.Length < 1)
+                throw new InvalidDataException();
+
+            _domainName = Encoding.ASCII.GetString(s.ReadBytes((int)s.Length));
+        }
+
+        protected override void WriteOptionValue(Stream s)
+        {
+            s.Write(Encoding.ASCII.GetBytes(_domainName));
         }
 
         #endregion
 
         #region properties
 
-        public uint T1Interval
-        { get { return _t1Interval; } }
+        public string DomainName
+        { get { return _domainName; } }
 
         #endregion
     }

@@ -17,61 +17,79 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 */
 
-using System;
 using System.IO;
-using TechnitiumLibrary.IO;
 
-namespace DnsServerCore.Dhcp
+namespace DnsServerCore.Dhcp.Options
 {
-    class ClientIdentifierOption : DhcpOption
+    enum DhcpMessageType : byte
+    {
+        Unknown = 0,
+        Discover = 1,
+        Offer = 2,
+        Request = 3,
+        Decline = 4,
+        Ack = 5,
+        Nak = 6,
+        Release = 7,
+        Inform = 8
+    }
+
+    class DhcpMessageTypeOption : DhcpOption
     {
         #region variables
 
-        readonly byte _type;
-        readonly byte[] _identifier;
+        DhcpMessageType _type;
 
         #endregion
 
         #region constructor
 
-        public ClientIdentifierOption(Stream s)
-            : base(DhcpOptionCode.ClientIdentifier)
+        public DhcpMessageTypeOption(DhcpMessageType type)
+            : base(DhcpOptionCode.DhcpMessageType)
         {
-            int len = s.ReadByte();
-            if (len < 0)
-                throw new EndOfStreamException();
+            _type = type;
+        }
 
-            if (len < 2)
+        public DhcpMessageTypeOption(Stream s)
+            : base(DhcpOptionCode.DhcpMessageType, s)
+        { }
+
+        #endregion
+
+        #region protected
+
+        protected override void ParseOptionValue(Stream s)
+        {
+            if (s.Length != 1)
                 throw new InvalidDataException();
 
             int type = s.ReadByte();
             if (type < 0)
                 throw new EndOfStreamException();
 
-            _type = (byte)type;
-            _identifier = s.ReadBytes(len - 1);
+            _type = (DhcpMessageType)type;
+        }
+
+        protected override void WriteOptionValue(Stream s)
+        {
+            s.WriteByte((byte)_type);
         }
 
         #endregion
 
-        #region protected
+        #region string
 
-        protected override void WriteOptionTo(Stream s)
+        public override string ToString()
         {
-            s.WriteByte(Convert.ToByte(_identifier.Length + 1));
-            s.WriteByte(_type);
-            s.Write(_identifier);
+            return _type.ToString();
         }
 
         #endregion
 
         #region properties
 
-        public byte Type
+        public DhcpMessageType Type
         { get { return _type; } }
-
-        public byte[] Identifier
-        { get { return _identifier; } }
 
         #endregion
     }

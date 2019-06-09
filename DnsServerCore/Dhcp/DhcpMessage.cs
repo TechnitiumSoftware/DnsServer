@@ -17,6 +17,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 */
 
+using DnsServerCore.Dhcp.Options;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -39,6 +40,7 @@ namespace DnsServerCore.Dhcp
 
     enum DhcpMessageFlags : ushort
     {
+        None = 0,
         Broadcast = 0x8000
     }
 
@@ -46,16 +48,16 @@ namespace DnsServerCore.Dhcp
     {
         #region variables
 
-        const uint MAGIC_COOKIE = 0x63825363;
+        const uint MAGIC_COOKIE = 0x63538263; //in reverse format
 
         readonly DhcpMessageOpCode _op;
         readonly DhcpMessageHardwareAddressType _htype;
         readonly byte _hlen;
         readonly byte _hops;
 
-        readonly uint _xid;
+        readonly byte[] _xid;
 
-        readonly ushort _secs;
+        readonly byte[] _secs;
         readonly DhcpMessageFlags _flags;
 
         readonly IPAddress _ciaddr;
@@ -67,13 +69,26 @@ namespace DnsServerCore.Dhcp
         readonly byte[] _sname;
         readonly byte[] _file;
 
-        readonly List<DhcpOption> _options;
+        readonly IReadOnlyCollection<DhcpOption> _options;
+
+        readonly byte[] _clientHardwareAddress;
+
+        OptionOverloadOption _optionOverload;
+
+        DhcpMessageTypeOption _dhcpMessageType;
+        ClientIdentifierOption _clientIdentifier;
+        HostNameOption _hostName;
+        ClientFullyQualifiedDomainNameOption _clientFullyQualifiedDomainName;
+        ParameterRequestListOption _parameterRequestList;
+        MaximumDhcpMessageSizeOption _maximumDhcpMessageSize;
+        ServerIdentifierOption _serverIdentifier;
+        RequestedIpAddressOption _requestedIpAddress;
 
         #endregion
 
         #region constructor
 
-        public DhcpMessage(DhcpMessageOpCode op, uint xid, ushort secs, DhcpMessageFlags flags, IPAddress ciaddr, IPAddress yiaddr, IPAddress siaddr, IPAddress giaddr, byte[] chaddr, List<DhcpOption> options)
+        public DhcpMessage(DhcpMessageOpCode op, byte[] xid, byte[] secs, DhcpMessageFlags flags, IPAddress ciaddr, IPAddress yiaddr, IPAddress siaddr, IPAddress giaddr, byte[] clientHardwareAddress, IReadOnlyCollection<DhcpOption> options)
         {
             if (ciaddr.AddressFamily != AddressFamily.InterNetwork)
                 throw new ArgumentException("Address family not supported.", "ciaddr");
@@ -87,22 +102,14 @@ namespace DnsServerCore.Dhcp
             if (giaddr.AddressFamily != AddressFamily.InterNetwork)
                 throw new ArgumentException("Address family not supported.", "giaddr");
 
-            if (chaddr == null)
-            {
-                chaddr = new byte[16];
-            }
-            else
-            {
-                if (chaddr.Length > 16)
-                    throw new ArgumentException("Value cannot be greater that 16 bytes.", "chaddr");
+            if ((clientHardwareAddress != null) && (clientHardwareAddress.Length != 6))
+                throw new ArgumentException("Value must be 6 bytes long for a valid Ethernet hardware address.", "chaddr");
 
-                if (chaddr.Length < 16)
-                {
-                    byte[] newchaddr = new byte[16];
-                    Buffer.BlockCopy(chaddr, 0, newchaddr, 0, chaddr.Length);
-                    chaddr = newchaddr;
-                }
-            }
+            if (xid.Length != 4)
+                throw new ArgumentException("Transaction ID must be 4 bytes.", "xid");
+
+            if (secs.Length != 2)
+                throw new ArgumentException("Seconds elapsed must be 2 bytes.", "secs");
 
             _op = op;
             _htype = DhcpMessageHardwareAddressType.Ethernet;
@@ -119,12 +126,19 @@ namespace DnsServerCore.Dhcp
             _siaddr = siaddr;
             _giaddr = giaddr;
 
-            _chaddr = chaddr;
+            _clientHardwareAddress = clientHardwareAddress;
+            _chaddr = new byte[16];
+            Buffer.BlockCopy(_clientHardwareAddress, 0, _chaddr, 0, 6);
+
             _sname = new byte[64];
             _file = new byte[128];
 
             _options = options;
         }
+
+        public DhcpMessage(DhcpMessage request, IPAddress yiaddr, IPAddress siaddr, IReadOnlyCollection<DhcpOption> options)
+            : this(DhcpMessageOpCode.BootReply, request.TransactionId, request.SecondsElapsed, request.Flags, request.ClientIpAddress, yiaddr, siaddr, request.RelayAgentIpAddress, request.ClientHardwareAddress, options)
+        { }
 
         public DhcpMessage(Stream s)
         {
@@ -136,12 +150,13 @@ namespace DnsServerCore.Dhcp
             _hlen = buffer[2];
             _hops = buffer[3];
 
-            s.ReadBytes(buffer, 0, 4);
-            _xid = BitConverter.ToUInt32(buffer, 0);
+            _xid = s.ReadBytes(4);
 
             s.ReadBytes(buffer, 0, 4);
-            _secs = BitConverter.ToUInt16(buffer, 0);
-            _flags = (DhcpMessageFlags)BitConverter.ToUInt16(buffer, 2);
+            _secs = new byte[2];
+            Buffer.BlockCopy(buffer, 0, _secs, 0, 2);
+            Array.Reverse(buffer);
+            _flags = (DhcpMessageFlags)BitConverter.ToUInt16(buffer, 0);
 
             s.ReadBytes(buffer, 0, 4);
             _ciaddr = new IPAddress(buffer);
@@ -156,25 +171,125 @@ namespace DnsServerCore.Dhcp
             _giaddr = new IPAddress(buffer);
 
             _chaddr = s.ReadBytes(16);
+            _clientHardwareAddress = new byte[_hlen];
+            Buffer.BlockCopy(_chaddr, 0, _clientHardwareAddress, 0, _hlen);
+
             _sname = s.ReadBytes(64);
             _file = s.ReadBytes(128);
 
             //read options
-            _options = new List<DhcpOption>();
+            List<DhcpOption> options = new List<DhcpOption>();
+            _options = options;
 
             s.ReadBytes(buffer, 0, 4);
-            Array.Reverse(buffer);
             uint magicCookie = BitConverter.ToUInt32(buffer, 0);
 
             if (magicCookie == MAGIC_COOKIE)
             {
-                while (true)
+                ParseOptions(s, options);
+
+                if (_optionOverload != null)
                 {
-                    DhcpOption option = DhcpOption.Parse(s);
-                    if (option.Code == DhcpOptionCode.End)
+                    if (_optionOverload.Value.HasFlag(OptionOverloadValue.FileFieldUsed))
+                    {
+                        using (MemoryStream mS = new MemoryStream(_file))
+                        {
+                            ParseOptions(mS, options);
+                        }
+                    }
+
+                    if (_optionOverload.Value.HasFlag(OptionOverloadValue.SnameFieldUsed))
+                    {
+                        using (MemoryStream mS = new MemoryStream(_sname))
+                        {
+                            ParseOptions(mS, options);
+                        }
+                    }
+                }
+
+                //parse all option values
+                foreach (DhcpOption option in options)
+                    option.ParseOptionValue();
+            }
+
+            if (_clientIdentifier == null)
+                _clientIdentifier = new ClientIdentifierOption((byte)_htype, _clientHardwareAddress);
+
+            if (_maximumDhcpMessageSize != null)
+                _maximumDhcpMessageSize = new MaximumDhcpMessageSizeOption(576);
+        }
+
+        #endregion
+
+        #region private
+
+        private void ParseOptions(Stream s, List<DhcpOption> options)
+        {
+            while (true)
+            {
+                DhcpOption option = DhcpOption.Parse(s);
+                if (option.Code == DhcpOptionCode.End)
+                    break;
+
+                if (option.Code == DhcpOptionCode.Pad)
+                    continue;
+
+                bool optionExists = false;
+
+                foreach (DhcpOption existingOption in options)
+                {
+                    if (existingOption.Code == option.Code)
+                    {
+                        //option already exists so append current option value into existing option
+                        existingOption.AppendOptionValue(option);
+                        optionExists = true;
+                        break;
+                    }
+                }
+
+                if (optionExists)
+                    continue;
+
+                //add option to list
+                options.Add(option);
+
+                switch (option.Code)
+                {
+                    case DhcpOptionCode.DhcpMessageType:
+                        _dhcpMessageType = option as DhcpMessageTypeOption;
                         break;
 
-                    _options.Add(option);
+                    case DhcpOptionCode.ClientIdentifier:
+                        _clientIdentifier = option as ClientIdentifierOption;
+                        break;
+
+                    case DhcpOptionCode.HostName:
+                        _hostName = option as HostNameOption;
+                        break;
+
+                    case DhcpOptionCode.ClientFullyQualifiedDomainName:
+                        _clientFullyQualifiedDomainName = option as ClientFullyQualifiedDomainNameOption;
+                        break;
+
+                    case DhcpOptionCode.ParameterRequestList:
+                        _parameterRequestList = option as ParameterRequestListOption;
+                        break;
+
+                    case DhcpOptionCode.MaximumDhcpMessageSize:
+                        _maximumDhcpMessageSize = option as MaximumDhcpMessageSizeOption;
+                        break;
+
+                    case DhcpOptionCode.ServerIdentifier:
+                        _serverIdentifier = option as ServerIdentifierOption;
+                        break;
+
+                    case DhcpOptionCode.RequestedIpAddress:
+                        _requestedIpAddress = option as RequestedIpAddressOption;
+                        break;
+
+                    case DhcpOptionCode.OptionOverload:
+                        _optionOverload = option as OptionOverloadOption;
+                        break;
                 }
             }
         }
@@ -190,10 +305,12 @@ namespace DnsServerCore.Dhcp
             s.WriteByte(_hlen);
             s.WriteByte(_hops);
 
-            s.Write(BitConverter.GetBytes(_xid));
+            s.Write(_xid);
 
-            s.Write(BitConverter.GetBytes(_secs));
-            s.Write(BitConverter.GetBytes((ushort)_flags));
+            s.Write(_secs);
+            byte[] buffer = BitConverter.GetBytes((ushort)_flags);
+            Array.Reverse(buffer);
+            s.Write(buffer);
 
             s.Write(_ciaddr.GetAddressBytes());
             s.Write(_yiaddr.GetAddressBytes());
@@ -227,10 +344,10 @@ namespace DnsServerCore.Dhcp
         public byte Hops
         { get { return _hops; } }
 
-        public uint TransactionId
+        public byte[] TransactionId
         { get { return _xid; } }
 
-        public ushort SecondsElapsed
+        public byte[] SecondsElapsed
         { get { return _secs; } }
 
         public DhcpMessageFlags Flags
@@ -249,7 +366,7 @@ namespace DnsServerCore.Dhcp
         { get { return _giaddr; } }
 
         public byte[] ClientHardwareAddress
-        { get { return _chaddr; } }
+        { get { return _clientHardwareAddress; } }
 
         public byte[] ServerHostName
         { get { return _sname; } }
@@ -257,8 +374,32 @@ namespace DnsServerCore.Dhcp
         public byte[] BootFileName
         { get { return _file; } }
 
-        public IReadOnlyList<DhcpOption> Options
+        public IReadOnlyCollection<DhcpOption> Options
         { get { return _options; } }
+
+        public DhcpMessageTypeOption DhcpMessageType
+        { get { return _dhcpMessageType; } }
+
+        public ClientIdentifierOption ClientIdentifier
+        { get { return _clientIdentifier; } }
+
+        public HostNameOption HostName
+        { get { return _hostName; } }
+
+        public ClientFullyQualifiedDomainNameOption ClientFullyQualifiedDomainName
+        { get { return _clientFullyQualifiedDomainName; } }
+
+        public ParameterRequestListOption ParameterRequestList
+        { get { return _parameterRequestList; } }
+
+        public MaximumDhcpMessageSizeOption MaximumDhcpMessageSize
+        { get { return _maximumDhcpMessageSize; } }
+
+        public ServerIdentifierOption ServerIdentifier
+        { get { return _serverIdentifier; } }
+
+        public RequestedIpAddressOption RequestedIpAddress
+        { get { return _requestedIpAddress; } }
 
         #endregion
     }

@@ -17,51 +17,59 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 */
 
-using System;
 using System.IO;
+using System.Net;
 using TechnitiumLibrary.IO;
 
-namespace DnsServerCore.Dhcp
+namespace DnsServerCore.Dhcp.Options
 {
-    class IpAddressLeaseTimeOption : DhcpOption
+    class DomainNameServerOption : DhcpOption
     {
         #region variables
 
-        readonly uint _leaseTime;
+        IPAddress[] _addresses;
 
         #endregion
 
         #region constructor
 
-        public IpAddressLeaseTimeOption(Stream s)
-            : base(DhcpOptionCode.IpAddressLeaseTime)
+        public DomainNameServerOption(IPAddress[] addresses)
+            : base(DhcpOptionCode.DomainNameServer)
         {
-            int len = s.ReadByte();
-            if (len < 0)
-                throw new EndOfStreamException();
-
-            if (len != 4)
-                throw new InvalidDataException();
-
-            _leaseTime = BitConverter.ToUInt32(s.ReadBytes(4), 0);
+            _addresses = addresses;
         }
+
+        public DomainNameServerOption(Stream s)
+            : base(DhcpOptionCode.DomainNameServer, s)
+        { }
 
         #endregion
 
         #region protected
 
-        protected override void WriteOptionTo(Stream s)
+        protected override void ParseOptionValue(Stream s)
         {
-            s.WriteByte(4);
-            s.Write(BitConverter.GetBytes(_leaseTime));
+            if ((s.Length % 4 != 0) || (s.Length < 4))
+                throw new InvalidDataException();
+
+            _addresses = new IPAddress[s.Length / 4];
+
+            for (int i = 0; i < _addresses.Length; i++)
+                _addresses[i] = new IPAddress(s.ReadBytes(4));
+        }
+
+        protected override void WriteOptionValue(Stream s)
+        {
+            foreach (IPAddress address in _addresses)
+                s.Write(address.GetAddressBytes());
         }
 
         #endregion
 
         #region properties
 
-        public uint LeaseTime
-        { get { return _leaseTime; } }
+        public IPAddress[] Addresses
+        { get { return _addresses; } }
 
         #endregion
     }

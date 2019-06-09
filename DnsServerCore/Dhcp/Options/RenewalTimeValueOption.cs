@@ -19,55 +19,57 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 using System;
 using System.IO;
-using System.Net;
 using TechnitiumLibrary.IO;
 
-namespace DnsServerCore.Dhcp
+namespace DnsServerCore.Dhcp.Options
 {
-    class DomainNameServerOption : DhcpOption
+    class RenewalTimeValueOption : DhcpOption
     {
         #region variables
 
-        readonly IPAddress[] _addresses;
+        uint _t1Interval;
 
         #endregion
 
         #region constructor
 
-        public DomainNameServerOption(Stream s)
-            : base(DhcpOptionCode.DomainNameServer)
+        public RenewalTimeValueOption(uint t1Interval)
+            : base(DhcpOptionCode.RenewalTimeValue)
         {
-            int len = s.ReadByte();
-            if (len < 0)
-                throw new EndOfStreamException();
-
-            if ((len % 4 != 0) || (len < 4))
-                throw new InvalidDataException();
-
-            _addresses = new IPAddress[len / 4];
-
-            for (int i = 0; i < _addresses.Length; i++)
-                _addresses[i] = new IPAddress(s.ReadBytes(4));
+            _t1Interval = t1Interval;
         }
+
+        public RenewalTimeValueOption(Stream s)
+            : base(DhcpOptionCode.RenewalTimeValue, s)
+        { }
 
         #endregion
 
         #region protected
 
-        protected override void WriteOptionTo(Stream s)
+        protected override void ParseOptionValue(Stream s)
         {
-            s.WriteByte(Convert.ToByte(_addresses.Length * 4));
+            if (s.Length != 4)
+                throw new InvalidDataException();
 
-            foreach (IPAddress address in _addresses)
-                s.Write(address.GetAddressBytes());
+            byte[] buffer = s.ReadBytes(4);
+            Array.Reverse(buffer);
+            _t1Interval = BitConverter.ToUInt32(buffer, 0);
+        }
+
+        protected override void WriteOptionValue(Stream s)
+        {
+            byte[] buffer = BitConverter.GetBytes(_t1Interval);
+            Array.Reverse(buffer);
+            s.Write(buffer);
         }
 
         #endregion
 
         #region properties
 
-        public IPAddress[] Addresses
-        { get { return _addresses; } }
+        public uint T1Interval
+        { get { return _t1Interval; } }
 
         #endregion
     }

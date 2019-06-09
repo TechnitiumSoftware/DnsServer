@@ -19,50 +19,57 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 using System;
 using System.IO;
-using System.Text;
 using TechnitiumLibrary.IO;
 
-namespace DnsServerCore.Dhcp
+namespace DnsServerCore.Dhcp.Options
 {
-    class MessageOption : DhcpOption
+    class IpAddressLeaseTimeOption : DhcpOption
     {
         #region variables
 
-        readonly string _text;
+        uint _leaseTime;
 
         #endregion
 
         #region constructor
 
-        public MessageOption(Stream s)
-            : base(DhcpOptionCode.Message)
+        public IpAddressLeaseTimeOption(uint leaseTime)
+            : base(DhcpOptionCode.IpAddressLeaseTime)
         {
-            int len = s.ReadByte();
-            if (len < 0)
-                throw new EndOfStreamException();
-
-            if (len < 1)
-                throw new InvalidDataException();
-
-            _text = Encoding.ASCII.GetString(s.ReadBytes(len));
+            _leaseTime = leaseTime;
         }
+
+        public IpAddressLeaseTimeOption(Stream s)
+            : base(DhcpOptionCode.IpAddressLeaseTime, s)
+        { }
 
         #endregion
 
         #region protected
 
-        protected override void WriteOptionTo(Stream s)
+        protected override void ParseOptionValue(Stream s)
         {
-            s.WriteByte(Convert.ToByte(_text.Length));
-            s.Write(Encoding.ASCII.GetBytes(_text));
+            if (s.Length != 4)
+                throw new InvalidDataException();
+
+            byte[] buffer = s.ReadBytes(4);
+            Array.Reverse(buffer);
+            _leaseTime = BitConverter.ToUInt32(buffer, 0);
+        }
+
+        protected override void WriteOptionValue(Stream s)
+        {
+            byte[] buffer = BitConverter.GetBytes(_leaseTime);
+            Array.Reverse(buffer);
+            s.Write(buffer);
         }
 
         #endregion
 
         #region properties
 
-        public string Text
-        { get { return _text; } }
+        public uint LeaseTime
+        { get { return _leaseTime; } }
 
         #endregion
     }

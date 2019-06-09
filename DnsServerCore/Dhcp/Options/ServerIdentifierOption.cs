@@ -17,57 +17,55 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 */
 
-using System;
 using System.IO;
 using System.Net;
 using TechnitiumLibrary.IO;
 
-namespace DnsServerCore.Dhcp
+namespace DnsServerCore.Dhcp.Options
 {
-    class NetworkTimeProtocolServersOption : DhcpOption
+    class ServerIdentifierOption : DhcpOption
     {
         #region variables
 
-        readonly IPAddress[] _addresses;
+        IPAddress _address;
 
         #endregion
 
         #region constructor
 
-        public NetworkTimeProtocolServersOption(Stream s)
-            : base(DhcpOptionCode.NetworkTimeProtocolServers)
+        public ServerIdentifierOption(IPAddress address)
+            : base(DhcpOptionCode.ServerIdentifier)
         {
-            int len = s.ReadByte();
-            if (len < 0)
-                throw new EndOfStreamException();
-
-            if ((len % 4 != 0) || (len < 4))
-                throw new InvalidDataException();
-
-            _addresses = new IPAddress[len / 4];
-
-            for (int i = 0; i < _addresses.Length; i++)
-                _addresses[i] = new IPAddress(s.ReadBytes(4));
+            _address = address;
         }
+
+        public ServerIdentifierOption(Stream s)
+            : base(DhcpOptionCode.ServerIdentifier, s)
+        { }
 
         #endregion
 
         #region protected
 
-        protected override void WriteOptionTo(Stream s)
+        protected override void ParseOptionValue(Stream s)
         {
-            s.WriteByte(Convert.ToByte(_addresses.Length * 4));
+            if (s.Length != 4)
+                throw new InvalidDataException();
 
-            foreach (IPAddress address in _addresses)
-                s.Write(address.GetAddressBytes());
+            _address = new IPAddress(s.ReadBytes(4));
+        }
+
+        protected override void WriteOptionValue(Stream s)
+        {
+            s.Write(_address.GetAddressBytes());
         }
 
         #endregion
 
         #region properties
 
-        public IPAddress[] Addresses
-        { get { return _addresses; } }
+        public IPAddress Address
+        { get { return _address; } }
 
         #endregion
     }

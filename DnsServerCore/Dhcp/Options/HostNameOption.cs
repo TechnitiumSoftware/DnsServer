@@ -18,50 +18,54 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
 using System.IO;
-using System.Net;
+using System.Text;
 using TechnitiumLibrary.IO;
 
-namespace DnsServerCore.Dhcp
+namespace DnsServerCore.Dhcp.Options
 {
-    class RequestedIpAddressOption : DhcpOption
+    class HostNameOption : DhcpOption
     {
         #region variables
 
-        readonly IPAddress _address;
+        string _hostName;
 
         #endregion
 
         #region constructor
 
-        public RequestedIpAddressOption(Stream s)
-            : base(DhcpOptionCode.RequestedIpAddress)
+        public HostNameOption(string hostName)
+            : base(DhcpOptionCode.HostName)
         {
-            int len = s.ReadByte();
-            if (len < 0)
-                throw new EndOfStreamException();
-
-            if (len != 4)
-                throw new InvalidDataException();
-
-            _address = new IPAddress(s.ReadBytes(4));
+            _hostName = hostName;
         }
+
+        public HostNameOption(Stream s)
+            : base(DhcpOptionCode.HostName, s)
+        { }
 
         #endregion
 
         #region protected
 
-        protected override void WriteOptionTo(Stream s)
+        protected override void ParseOptionValue(Stream s)
         {
-            s.WriteByte(4);
-            s.Write(_address.GetAddressBytes());
+            if (s.Length < 1)
+                throw new InvalidDataException();
+
+            _hostName = Encoding.ASCII.GetString(s.ReadBytes((int)s.Length));
+        }
+
+        protected override void WriteOptionValue(Stream s)
+        {
+            s.Write(Encoding.ASCII.GetBytes(_hostName));
         }
 
         #endregion
 
         #region properties
 
-        public IPAddress Address
-        { get { return _address; } }
+        public string HostName
+        { get { return _hostName; } }
 
         #endregion
     }

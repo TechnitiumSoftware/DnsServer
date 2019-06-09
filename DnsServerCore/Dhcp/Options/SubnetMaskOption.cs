@@ -17,52 +17,55 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 */
 
-using System;
 using System.IO;
-using System.Text;
+using System.Net;
 using TechnitiumLibrary.IO;
 
-namespace DnsServerCore.Dhcp
+namespace DnsServerCore.Dhcp.Options
 {
-    class DomainNameOption : DhcpOption
+    class SubnetMaskOption : DhcpOption
     {
         #region variables
 
-        readonly string _domainName;
+        IPAddress _subnetMask;
 
         #endregion
 
         #region constructor
 
-        public DomainNameOption(Stream s)
-            : base(DhcpOptionCode.DomainName)
+        public SubnetMaskOption(IPAddress subnetMask)
+            : base(DhcpOptionCode.SubnetMask)
         {
-            int len = s.ReadByte();
-            if (len < 0)
-                throw new EndOfStreamException();
-
-            if (len < 1)
-                throw new InvalidDataException();
-
-            _domainName = Encoding.ASCII.GetString(s.ReadBytes(len));
+            _subnetMask = subnetMask;
         }
+
+        public SubnetMaskOption(Stream s)
+            : base(DhcpOptionCode.SubnetMask, s)
+        { }
 
         #endregion
 
         #region protected
 
-        protected override void WriteOptionTo(Stream s)
+        protected override void ParseOptionValue(Stream s)
         {
-            s.WriteByte(Convert.ToByte(_domainName.Length));
-            s.Write(Encoding.ASCII.GetBytes(_domainName));
+            if (s.Length != 4)
+                throw new InvalidDataException();
+
+            _subnetMask = new IPAddress(s.ReadBytes(4));
+        }
+
+        protected override void WriteOptionValue(Stream s)
+        {
+            s.Write(_subnetMask.GetAddressBytes());
         }
 
         #endregion
 
         #region properties
 
-        public string DomainName
-        { get { return _domainName; } }
+        public IPAddress SubnetMask
+        { get { return _subnetMask; } }
 
         #endregion
     }

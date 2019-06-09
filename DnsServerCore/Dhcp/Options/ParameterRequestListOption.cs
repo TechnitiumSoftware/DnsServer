@@ -17,32 +17,40 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 */
 
-using System;
 using System.IO;
 
-namespace DnsServerCore.Dhcp
+namespace DnsServerCore.Dhcp.Options
 {
     class ParameterRequestListOption : DhcpOption
     {
         #region variables
 
-        readonly DhcpOptionCode[] _optionCodes;
+        DhcpOptionCode[] _optionCodes;
 
         #endregion
 
         #region constructor
 
-        public ParameterRequestListOption(Stream s)
+        public ParameterRequestListOption(DhcpOptionCode[] optionCodes)
             : base(DhcpOptionCode.ParameterRequestList)
         {
-            int len = s.ReadByte();
-            if (len < 0)
-                throw new EndOfStreamException();
+            _optionCodes = optionCodes;
+        }
 
-            if (len < 1)
+        public ParameterRequestListOption(Stream s)
+            : base(DhcpOptionCode.ParameterRequestList, s)
+        { }
+
+        #endregion
+
+        #region protected
+
+        protected override void ParseOptionValue(Stream s)
+        {
+            if (s.Length < 1)
                 throw new InvalidDataException();
 
-            _optionCodes = new DhcpOptionCode[len];
+            _optionCodes = new DhcpOptionCode[s.Length];
             int optionCode;
 
             for (int i = 0; i < _optionCodes.Length; i++)
@@ -55,14 +63,8 @@ namespace DnsServerCore.Dhcp
             }
         }
 
-        #endregion
-
-        #region protected
-
-        protected override void WriteOptionTo(Stream s)
+        protected override void WriteOptionValue(Stream s)
         {
-            s.WriteByte(Convert.ToByte(_optionCodes.Length));
-
             foreach (DhcpOptionCode optionCode in _optionCodes)
                 s.WriteByte((byte)optionCode);
         }

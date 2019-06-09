@@ -19,63 +19,62 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 using System.IO;
 
-namespace DnsServerCore.Dhcp
+namespace DnsServerCore.Dhcp.Options
 {
-    enum DhcpMessageType : byte
+    enum OptionOverloadValue : byte
     {
-        Discover = 1,
-        Offer = 2,
-        Request = 3,
-        Decline = 4,
-        Ack = 5,
-        Nak = 6,
-        Release = 7,
-        Inform = 8
+        FileFieldUsed = 1,
+        SnameFieldUsed = 2,
+        BothFieldsUsed = 3
     }
 
-    class DhcpMessageTypeOption : DhcpOption
+    class OptionOverloadOption : DhcpOption
     {
         #region variables
 
-        readonly DhcpMessageType _messageType;
+        OptionOverloadValue _value;
 
         #endregion
 
         #region constructor
 
-        public DhcpMessageTypeOption(Stream s)
-            : base(DhcpOptionCode.DhcpMessageType)
+        public OptionOverloadOption(OptionOverloadValue value)
+            : base(DhcpOptionCode.OptionOverload)
         {
-            int len = s.ReadByte();
-            if (len < 0)
-                throw new EndOfStreamException();
-
-            if (len != 1)
-                throw new InvalidDataException();
-
-            int type = s.ReadByte();
-            if (type < 0)
-                throw new EndOfStreamException();
-
-            _messageType = (DhcpMessageType)type;
+            _value = value;
         }
+
+        public OptionOverloadOption(Stream s)
+            : base(DhcpOptionCode.OptionOverload, s)
+        { }
 
         #endregion
 
         #region protected
 
-        protected override void WriteOptionTo(Stream s)
+        protected override void ParseOptionValue(Stream s)
         {
-            s.WriteByte(1);
-            s.WriteByte((byte)_messageType);
+            if (s.Length != 1)
+                throw new InvalidDataException();
+
+            int value = s.ReadByte();
+            if (value < 0)
+                throw new EndOfStreamException();
+
+            _value = (OptionOverloadValue)value;
+        }
+
+        protected override void WriteOptionValue(Stream s)
+        {
+            s.WriteByte((byte)_value);
         }
 
         #endregion
 
         #region properties
 
-        public DhcpMessageType MessageType
-        { get { return _messageType; } }
+        public OptionOverloadValue Value
+        { get { return _value; } }
 
         #endregion
     }
