@@ -1548,6 +1548,8 @@ namespace DnsServerCore
             {
                 List<KeyValuePair<string, int>> topClients = data["topClients"];
 
+                IDictionary<string, string> clientIpMap = _dhcpServer.GetAddressClientMap();
+
                 jsonWriter.WritePropertyName("topClients");
                 jsonWriter.WriteStartArray();
 
@@ -1556,7 +1558,11 @@ namespace DnsServerCore
                     jsonWriter.WriteStartObject();
 
                     jsonWriter.WritePropertyName("name");
-                    jsonWriter.WriteValue(item.Key);
+
+                    if (clientIpMap.TryGetValue(item.Key, out string clientDomain))
+                        jsonWriter.WriteValue(clientDomain + " (" + item.Key + ")");
+                    else
+                        jsonWriter.WriteValue(item.Key);
 
                     jsonWriter.WritePropertyName("hits");
                     jsonWriter.WriteValue(item.Value);
@@ -2098,7 +2104,7 @@ namespace DnsServerCore
                 domain = domain.Substring(0, domain.Length - 1);
 
             if (Zone.DomainEquals(domain, "resolver-associated-doh.arpa") || Zone.DomainEquals(domain, "resolver-addresses.arpa"))
-                throw new WebServiceException("Access was denied to manage special DNS Server zones.");
+                throw new WebServiceException("Access was denied to manage special DNS Server zone.");
 
             CreateZone(domain);
             _log.Write(GetRequestRemoteEndPoint(request), "[" + GetSession(request).Username + "] Authoritative zone was created: " + domain);
@@ -2124,8 +2130,9 @@ namespace DnsServerCore
             if (domain.EndsWith("."))
                 domain = domain.Substring(0, domain.Length - 1);
 
-            if (Zone.DomainEquals(domain, "resolver-associated-doh.arpa") || Zone.DomainEquals(domain, "resolver-addresses.arpa"))
-                throw new WebServiceException("Access was denied to manage special DNS Server zones.");
+            ZoneInfo zoneInfo = _dnsServer.AuthoritativeZoneRoot.GetZoneInfo(domain);
+            if (zoneInfo.Internal)
+                throw new WebServiceException("Access was denied to manage internal DNS Server zone.");
 
             if (!_dnsServer.AuthoritativeZoneRoot.DeleteZone(domain, false))
                 throw new WebServiceException("Zone '" + domain + "' was not found.");
@@ -2144,8 +2151,9 @@ namespace DnsServerCore
             if (domain.EndsWith("."))
                 domain = domain.Substring(0, domain.Length - 1);
 
-            if (Zone.DomainEquals(domain, "resolver-associated-doh.arpa") || Zone.DomainEquals(domain, "resolver-addresses.arpa"))
-                throw new WebServiceException("Access was denied to manage special DNS Server zones.");
+            ZoneInfo zoneInfo = _dnsServer.AuthoritativeZoneRoot.GetZoneInfo(domain);
+            if (zoneInfo.Internal)
+                throw new WebServiceException("Access was denied to manage internal DNS Server zone.");
 
             _dnsServer.AuthoritativeZoneRoot.EnableZone(domain);
 
@@ -2163,8 +2171,9 @@ namespace DnsServerCore
             if (domain.EndsWith("."))
                 domain = domain.Substring(0, domain.Length - 1);
 
-            if (Zone.DomainEquals(domain, "resolver-associated-doh.arpa") || Zone.DomainEquals(domain, "resolver-addresses.arpa"))
-                throw new WebServiceException("Access was denied to manage special DNS Server zones.");
+            ZoneInfo zoneInfo = _dnsServer.AuthoritativeZoneRoot.GetZoneInfo(domain);
+            if (zoneInfo.Internal)
+                throw new WebServiceException("Access was denied to manage internal DNS Server zone.");
 
             _dnsServer.AuthoritativeZoneRoot.DisableZone(domain);
 
@@ -2182,8 +2191,9 @@ namespace DnsServerCore
             if (domain.EndsWith("."))
                 domain = domain.Substring(0, domain.Length - 1);
 
-            if (Zone.DomainEquals(domain, "resolver-associated-doh.arpa") || Zone.DomainEquals(domain, "resolver-addresses.arpa"))
-                throw new WebServiceException("Access was denied to manage special DNS Server zones.");
+            ZoneInfo zoneInfo = _dnsServer.AuthoritativeZoneRoot.GetZoneInfo(domain);
+            if (zoneInfo.Internal)
+                throw new WebServiceException("Access was denied to manage internal DNS Server zone.");
 
             string strType = request.QueryString["type"];
             if (string.IsNullOrEmpty(strType))
@@ -2493,8 +2503,9 @@ namespace DnsServerCore
             if (domain.EndsWith("."))
                 domain = domain.Substring(0, domain.Length - 1);
 
-            if (Zone.DomainEquals(domain, "resolver-associated-doh.arpa") || Zone.DomainEquals(domain, "resolver-addresses.arpa"))
-                throw new WebServiceException("Access was denied to manage special DNS Server zones.");
+            ZoneInfo zoneInfo = _dnsServer.AuthoritativeZoneRoot.GetZoneInfo(domain);
+            if (zoneInfo.Internal)
+                throw new WebServiceException("Access was denied to manage internal DNS Server zone.");
 
             string strType = request.QueryString["type"];
             if (string.IsNullOrEmpty(strType))
@@ -2570,8 +2581,9 @@ namespace DnsServerCore
             if (domain.EndsWith("."))
                 domain = domain.Substring(0, domain.Length - 1);
 
-            if (Zone.DomainEquals(domain, "resolver-associated-doh.arpa") || Zone.DomainEquals(domain, "resolver-addresses.arpa"))
-                throw new WebServiceException("Access was denied to manage special DNS Server zones.");
+            ZoneInfo zoneInfo = _dnsServer.AuthoritativeZoneRoot.GetZoneInfo(domain);
+            if (zoneInfo.Internal)
+                throw new WebServiceException("Access was denied to manage internal DNS Server zone.");
 
             string oldDomain = request.QueryString["oldDomain"];
             if (string.IsNullOrEmpty(oldDomain))
@@ -2874,12 +2886,24 @@ namespace DnsServerCore
         {
             ICollection<Scope> scopes = _dhcpServer.Scopes;
 
+            //sort by name
+            Scope[] scopesArray = new Scope[scopes.Count];
+            scopes.CopyTo(scopesArray, 0);
+            Array.Sort(scopesArray);
+
             jsonWriter.WritePropertyName("leases");
             jsonWriter.WriteStartArray();
 
-            foreach (Scope scope in scopes)
+            foreach (Scope scope in scopesArray)
             {
-                foreach (Lease lease in scope.Leases)
+                ICollection<Lease> leases = scope.Leases;
+
+                //sort by address
+                Lease[] leasesArray = new Lease[leases.Count];
+                leases.CopyTo(leasesArray, 0);
+                Array.Sort(leasesArray);
+
+                foreach (Lease lease in leasesArray)
                 {
                     jsonWriter.WriteStartObject();
 
@@ -2912,10 +2936,15 @@ namespace DnsServerCore
         {
             ICollection<Scope> scopes = _dhcpServer.Scopes;
 
+            //sort by name
+            Scope[] scopesArray = new Scope[scopes.Count];
+            scopes.CopyTo(scopesArray, 0);
+            Array.Sort(scopesArray);
+
             jsonWriter.WritePropertyName("scopes");
             jsonWriter.WriteStartArray();
 
-            foreach (Scope scope in scopes)
+            foreach (Scope scope in scopesArray)
             {
                 jsonWriter.WriteStartObject();
 
@@ -3070,6 +3099,7 @@ namespace DnsServerCore
                 jsonWriter.WriteEndArray();
             }
 
+            if (scope.ReservedLeases != null)
             {
                 jsonWriter.WritePropertyName("reservedLeases");
                 jsonWriter.WriteStartArray();
@@ -3244,7 +3274,7 @@ namespace DnsServerCore
 
                     for (int i = 0; i < strExclusionsParts.Length; i++)
                     {
-                        string[] rangeParts = strExclusionsParts[i].Split('-');
+                        string[] rangeParts = strExclusionsParts[i].Split(';');
 
                         exclusions[i] = new Exclusion(IPAddress.Parse(rangeParts[0]), IPAddress.Parse(rangeParts[1]));
                     }
@@ -3486,7 +3516,8 @@ namespace DnsServerCore
 
             string authZone = records[0].Name.ToLower();
 
-            if (Zone.DomainEquals(authZone, "resolver-associated-doh.arpa") || Zone.DomainEquals(authZone, "resolver-addresses.arpa"))
+            ZoneInfo zoneInfo = _dnsServer.AuthoritativeZoneRoot.GetZoneInfo(domain);
+            if (zoneInfo.Internal)
                 return;
 
             using (MemoryStream mS = new MemoryStream())
