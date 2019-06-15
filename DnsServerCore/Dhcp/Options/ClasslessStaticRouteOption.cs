@@ -22,6 +22,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Net;
 using TechnitiumLibrary.IO;
+using TechnitiumLibrary.Net;
 
 namespace DnsServerCore.Dhcp.Options
 {
@@ -102,11 +103,11 @@ namespace DnsServerCore.Dhcp.Options
                 if (subnetMaskWidth < 0)
                     throw new EndOfStreamException();
 
-                _destination = new IPAddress(s.ReadBytes(Convert.ToInt32(Math.Ceiling(Convert.ToDecimal(subnetMaskWidth) / 8))));
+                byte[] destinationBuffer = new byte[4];
+                s.ReadBytes(destinationBuffer, 0, Convert.ToInt32(Math.Ceiling(Convert.ToDecimal(subnetMaskWidth) / 8)));
+                _destination = new IPAddress(destinationBuffer);
 
-                byte[] subnetMaskBuffer = BitConverter.GetBytes(0xFFFFFFFFu << (32 - subnetMaskWidth));
-                Array.Reverse(subnetMaskBuffer);
-                _subnetMask = new IPAddress(subnetMaskBuffer);
+                _subnetMask = IPAddressExtension.GetSubnetMask(subnetMaskWidth);
 
                 _router = new IPAddress(s.ReadBytes(4));
             }
@@ -117,17 +118,7 @@ namespace DnsServerCore.Dhcp.Options
 
             public void WriteTo(Stream s)
             {
-                byte[] subnetMaskBuffer = _subnetMask.GetAddressBytes();
-                Array.Reverse(subnetMaskBuffer);
-                uint subnetMaskNumber = BitConverter.ToUInt32(subnetMaskBuffer, 0);
-
-                byte subnetMaskWidth = 0;
-
-                while (subnetMaskNumber > 0u)
-                {
-                    subnetMaskNumber <<= 1;
-                    subnetMaskWidth++;
-                }
+                byte subnetMaskWidth = (byte)_subnetMask.GetSubnetMaskWidth();
 
                 s.WriteByte(subnetMaskWidth);
                 s.Write(_destination.GetAddressBytes(), 0, Convert.ToInt32(Math.Ceiling(Convert.ToDecimal(subnetMaskWidth) / 8)));
