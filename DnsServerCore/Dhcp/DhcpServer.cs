@@ -175,6 +175,21 @@ namespace DnsServerCore.Dhcp
                     }
                 }
             }
+            catch (SocketException ex)
+            {
+                switch (ex.SocketErrorCode)
+                {
+                    case SocketError.Interrupted:
+                        break; //server stopping
+
+                    default:
+                        LogManager log = _log;
+                        if (log != null)
+                            log.Write(remoteEP as IPEndPoint, ex);
+
+                        throw;
+                }
+            }
             catch (Exception ex)
             {
                 if ((_state == ServiceState.Stopping) || (_state == ServiceState.Stopped))
@@ -377,6 +392,7 @@ namespace DnsServerCore.Dhcp
                         if (log != null)
                             log.Write(remoteEP as IPEndPoint, "DHCP Server leased IP address [" + leaseOffer.Address.ToString() + "] to " + request.GetClientFullIdentifier() + ".");
 
+                        if (!string.IsNullOrEmpty(scope.DomainName))
                         {
                             //update dns
                             string clientDomainName = null;
@@ -559,6 +575,8 @@ namespace DnsServerCore.Dhcp
                         //create forward zone
                         _authoritativeZoneRoot.SetRecords(scope.DomainName, DnsResourceRecordType.SOA, 14400, new DnsResourceRecordData[] { new DnsSOARecord(_authoritativeZoneRoot.ServerDomain, "hostmaster." + scope.DomainName, uint.Parse(DateTime.UtcNow.ToString("yyyyMMddHH")), 28800, 7200, 604800, 600) });
                         _authoritativeZoneRoot.SetRecords(scope.DomainName, DnsResourceRecordType.NS, 14400, new DnsResourceRecordData[] { new DnsNSRecord(_authoritativeZoneRoot.ServerDomain) });
+
+                        _authoritativeZoneRoot.MakeZoneInternal(scope.DomainName);
                     }
 
                     _authoritativeZoneRoot.SetRecords(lease.HostName, DnsResourceRecordType.A, scope.DnsTtl, new DnsResourceRecordData[] { new DnsARecord(lease.Address) });
@@ -571,6 +589,8 @@ namespace DnsServerCore.Dhcp
                         //create reverse zone
                         _authoritativeZoneRoot.SetRecords(scope.ReverseZone, DnsResourceRecordType.SOA, 14400, new DnsResourceRecordData[] { new DnsSOARecord(_authoritativeZoneRoot.ServerDomain, "hostmaster." + scope.ReverseZone, uint.Parse(DateTime.UtcNow.ToString("yyyyMMddHH")), 28800, 7200, 604800, 600) });
                         _authoritativeZoneRoot.SetRecords(scope.ReverseZone, DnsResourceRecordType.NS, 14400, new DnsResourceRecordData[] { new DnsNSRecord(_authoritativeZoneRoot.ServerDomain) });
+
+                        _authoritativeZoneRoot.MakeZoneInternal(scope.ReverseZone);
                     }
 
                     _authoritativeZoneRoot.SetRecords(Scope.GetReverseZone(lease.Address, 32), DnsResourceRecordType.PTR, scope.DnsTtl, new DnsResourceRecordData[] { new DnsPTRRecord(lease.HostName) });
@@ -1010,6 +1030,22 @@ namespace DnsServerCore.Dhcp
                     SaveScopeFile(scope);
                 }
             }
+        }
+
+        public IDictionary<string, string> GetAddressClientMap()
+        {
+            Dictionary<string, string> map = new Dictionary<string, string>();
+
+            foreach (KeyValuePair<string, Scope> scope in _scopes)
+            {
+                foreach (Lease lease in scope.Value.Leases)
+                {
+                    if (!string.IsNullOrEmpty(lease.HostName))
+                        map.Add(lease.Address.ToString(), lease.HostName);
+                }
+            }
+
+            return map;
         }
 
         #endregion
