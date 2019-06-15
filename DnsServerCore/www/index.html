@@ -1189,9 +1189,7 @@
                                     </ul>
 
                                     <div class="tab-content">
-
                                         <div id="dhcpTabPaneLeases" class="tab-pane active">
-
                                             <div id="divDhcpLeasesLoader" style="margin-top: 10px; height: 350px;"></div>
 
                                             <div id="divDhcpLeases" style="margin-top: 10px;">
@@ -1218,11 +1216,9 @@
                                                     </tbody>
                                                 </table>
                                             </div>
-
                                         </div>
 
                                         <div id="dhcpTabPaneScopes" class="tab-pane">
-
                                             <div id="divDhcpViewScopesLoader" style="margin-top: 10px; height: 350px;"></div>
 
                                             <div id="divDhcpViewScopes" style="margin-top: 10px;">
@@ -1261,164 +1257,186 @@
 
                                             </div>
 
-                                            <div id="divDhcpEditScope" class="well well-sm" style="margin-top: 10px; margin-bottom: 0px; display: none;">
+                                            <div id="divDhcpEditScope" style="display: none;">
+                                                <form style="margin-top: 10px; margin-bottom: 0px;" onsubmit="return false;">
 
-                                                <h4 style="padding: 10px;" id="titleDhcpEditScope">Edit Scope</h4>
+                                                    <h4 style="padding: 10px 0px;" id="titleDhcpEditScope">Edit Scope</h4>
 
-                                                <form class="form-horizontal">
-                                                    <div class="form-group">
-                                                        <label for="txtDhcpScopeName" class="col-sm-3 control-label">Name</label>
-                                                        <div class="col-sm-3">
-                                                            <input type="text" class="form-control" id="txtDhcpScopeName" data-name="" placeholder="Scope Name">
-                                                        </div>
-                                                    </div>
-
-                                                    <div class="form-group">
-                                                        <label for="txtDhcpScopeStartingAddress" class="col-sm-3 control-label">Starting Address</label>
-                                                        <div class="col-sm-3">
-                                                            <input type="text" class="form-control" id="txtDhcpScopeStartingAddress" placeholder="Starting Address">
-                                                        </div>
-                                                    </div>
-
-                                                    <div class="form-group">
-                                                        <label for="txtDhcpScopeEndingAddress" class="col-sm-3 control-label">Ending Address</label>
-                                                        <div class="col-sm-3">
-                                                            <input type="text" class="form-control" id="txtDhcpScopeEndingAddress" placeholder="Ending Address">
-                                                        </div>
-                                                    </div>
-
-                                                    <div class="form-group">
-                                                        <label for="txtDhcpScopeSubnetMask" class="col-sm-3 control-label">Subnet Mask</label>
-                                                        <div class="col-sm-3">
-                                                            <input type="text" class="form-control" id="txtDhcpScopeSubnetMask" placeholder="Subnet Mask">
-                                                        </div>
-                                                    </div>
-
-                                                    <div class="form-group">
-                                                        <label for="txtDhcpScopeLeaseTime" class="col-sm-3 control-label">Lease Time</label>
-                                                        <div class="col-sm-3">
-                                                            <input type="number" class="form-control" id="txtDhcpScopeLeaseTime" placeholder="Lease Time">
-                                                        </div>
-                                                    </div>
-
-                                                    <div class="form-group">
-                                                        <label for="txtDhcpScopeOfferDelayTime" class="col-sm-3 control-label">Offer Delay Time</label>
-                                                        <div class="col-sm-3">
-                                                            <input type="number" class="form-control" id="txtDhcpScopeOfferDelayTime" placeholder="Offer Delay Time">
-                                                        </div>
-                                                    </div>
-
-                                                    <div class="form-group">
-                                                        <label for="txtDhcpScopeDomainName" class="col-sm-3 control-label">Domain Name</label>
-                                                        <div class="col-sm-3">
-                                                            <input type="text" class="form-control" id="txtDhcpScopeDomainName" placeholder="Domain Name">
-                                                        </div>
-                                                    </div>
-
-                                                    <div class="form-group">
-                                                        <label for="txtDhcpScopeDnsTtl" class="col-sm-3 control-label">DNS TTL</label>
-                                                        <div class="col-sm-3">
-                                                            <input type="number" class="form-control" id="txtDhcpScopeDnsTtl" placeholder="DNS TTL">
-                                                        </div>
-                                                    </div>
-
-                                                    <div class="form-group">
-                                                        <label for="txtDhcpScopeRouterAddress" class="col-sm-3 control-label">Router Address</label>
-                                                        <div class="col-sm-3">
-                                                            <input type="text" class="form-control" id="txtDhcpScopeRouterAddress" placeholder="Router Address">
-                                                        </div>
-                                                    </div>
-
-                                                    <div class="form-group">
-                                                        <label for="txtDhcpScopeDnsServers" class="col-sm-3 control-label">DNS Servers</label>
-                                                        <div class="col-sm-3">
-                                                            <textarea id="txtDhcpScopeDnsServers" class="form-control" rows="2"></textarea>
-                                                        </div>
-                                                    </div>
-
-                                                    <div class="form-group">
-                                                        <label for="txtDhcpScopeWinsServers" class="col-sm-3 control-label">WINS Servers</label>
-                                                        <div class="col-sm-3">
-                                                            <textarea id="txtDhcpScopeWinsServers" class="form-control" rows="2"></textarea>
-                                                        </div>
-                                                    </div>
-
-                                                    <div class="form-group">
-                                                        <label for="txtDhcpScopeNtpServers" class="col-sm-3 control-label">NTP Servers</label>
-                                                        <div class="col-sm-3">
-                                                            <textarea id="txtDhcpScopeNtpServers" class="form-control" rows="2"></textarea>
-                                                        </div>
-                                                    </div>
-
-                                                    <div class="form-group">
-                                                        <label for="tableDhcpScopeStaticRoutes" class="col-sm-3 control-label">Static Routes</label>
-                                                        <div class="col-sm-6">
-                                                            <table class="table table-hover">
-                                                                <thead>
-                                                                    <tr>
-                                                                        <th>Destination</th>
-                                                                        <th>Subnet Mask</th>
-                                                                        <th>Router</th>
-                                                                        <th><button type="button" class="btn btn-default" style="padding: 0px 20px;" onclick="addDhcpScopeStaticRouteRow('', '', '');">Add</button></th>
-                                                                    </tr>
-                                                                </thead>
-                                                                <tbody id="tableDhcpScopeStaticRoutes"></tbody>
-                                                            </table>
-                                                        </div>
-                                                    </div>
-
-                                                    <div class="form-group">
-                                                        <label for="tableDhcpScopeExclusions" class="col-sm-3 control-label">Exclusions</label>
-                                                        <div class="col-sm-6">
-                                                            <table class="table table-hover">
-                                                                <thead>
-                                                                    <tr>
-                                                                        <th>Starting Address</th>
-                                                                        <th>Ending Address</th>
-                                                                        <th><button type="button" class="btn btn-default" style="padding: 0px 20px;" onclick="addDhcpScopeExclusionRow('', '');">Add</button></th>
-                                                                    </tr>
-                                                                </thead>
-                                                                <tbody id="tableDhcpScopeExclusions"></tbody>
-                                                            </table>
-                                                        </div>
-                                                    </div>
-
-                                                    <div class="form-group">
-                                                        <label for="tableDhcpScopeReservedLeases" class="col-sm-3 control-label">Reserved Leases</label>
-                                                        <div class="col-sm-6">
-                                                            <div class="checkbox" style="margin-bottom: 10px;">
-                                                                <label>
-                                                                    <input id="chkAllowOnlyReservedLeases" type="checkbox"> Allow Only Reserved Lease Allocations
-                                                                </label>
+                                                    <div class="well well-sm form-horizontal">
+                                                        <div class="form-group">
+                                                            <label for="txtDhcpScopeName" class="col-sm-3 control-label">Name</label>
+                                                            <div class="col-sm-6">
+                                                                <input type="text" class="form-control" id="txtDhcpScopeName" data-name="" placeholder="Scope Name">
                                                             </div>
+                                                        </div>
 
-                                                            <table class="table table-hover">
-                                                                <thead>
-                                                                    <tr>
-                                                                        <th>MAC Address</th>
-                                                                        <th>IP Address</th>
-                                                                        <th><button type="button" class="btn btn-default" style="padding: 0px 20px;" onclick="addDhcpScopeReservedLeaseRow('', '');">Add</button></th>
-                                                                    </tr>
-                                                                </thead>
-                                                                <tbody id="tableDhcpScopeReservedLeases"></tbody>
-                                                            </table>
+                                                        <div class="form-group">
+                                                            <label for="txtDhcpScopeStartingAddress" class="col-sm-3 control-label">Starting Address</label>
+                                                            <div class="col-sm-3">
+                                                                <input type="text" class="form-control" id="txtDhcpScopeStartingAddress" placeholder="Starting Address">
+                                                            </div>
+                                                        </div>
+
+                                                        <div class="form-group">
+                                                            <label for="txtDhcpScopeEndingAddress" class="col-sm-3 control-label">Ending Address</label>
+                                                            <div class="col-sm-3">
+                                                                <input type="text" class="form-control" id="txtDhcpScopeEndingAddress" placeholder="Ending Address">
+                                                            </div>
+                                                        </div>
+
+                                                        <div class="form-group">
+                                                            <label for="txtDhcpScopeSubnetMask" class="col-sm-3 control-label">Subnet Mask</label>
+                                                            <div class="col-sm-3">
+                                                                <input type="text" class="form-control" id="txtDhcpScopeSubnetMask" placeholder="Subnet Mask">
+                                                            </div>
+                                                        </div>
+
+                                                        <div class="form-group">
+                                                            <label for="txtDhcpScopeLeaseTimeDays" class="col-sm-3 control-label">Lease Time</label>
+                                                            <div class="col-sm-6">
+                                                                <label for="txtDhcpScopeLeaseTimeDays" class="control-label">Days</label>
+                                                                <input type="number" class="form-control" style="display: inline; width: 80px; margin-right: 15px;" id="txtDhcpScopeLeaseTimeDays" placeholder="Days">
+
+                                                                <label for="txtDhcpScopeLeaseTimeHours" class="control-label">Hours</label>
+                                                                <input type="number" class="form-control" style="display: inline; width: 80px; margin-right: 15px;" id="txtDhcpScopeLeaseTimeHours" placeholder="Hrs">
+
+                                                                <label for="txtDhcpScopeLeaseTimeMinutes" class="control-label">Minutes</label>
+                                                                <input type="number" class="form-control" style="display: inline; width: 80px; margin-right: 15px;" id="txtDhcpScopeLeaseTimeMinutes" placeholder="Mins">
+                                                            </div>
+                                                            <div class="col-sm-offset-3 col-sm-8" style="padding-top: 5px;">The duration for which the clients should be leased the IP address.</div>
+                                                        </div>
+
+                                                        <div class="form-group" style="margin-bottom: 0px;">
+                                                            <label for="txtDhcpScopeOfferDelayTime" class="col-sm-3 control-label">Offer Delay Time</label>
+                                                            <div class="col-sm-3">
+                                                                <input type="number" class="form-control" style="width: 80px; display: inline;" id="txtDhcpScopeOfferDelayTime" placeholder="Delay">
+                                                                <span>(milli seconds)</span>
+                                                            </div>
+                                                            <div class="col-sm-offset-3 col-sm-8" style="padding-top: 5px;">The time duration that the DHCP server delays sending an DHCPOFFER message.</div>
                                                         </div>
                                                     </div>
 
-                                                    <div class="form-group">
-                                                        <div class="col-sm-offset-3 col-sm-3">
-                                                            <button type="submit" class="btn btn-primary" id="btnSaveDhcpScope" data-loading-text="Saving..." onclick="saveDhcpScope(); return false;">Save</button>
-                                                            <button type="button" class="btn btn-default" onclick="refreshDhcpScopes();">Cancel</button>
+                                                    <div class="well well-sm form-horizontal">
+                                                        <div class="form-group">
+                                                            <label for="txtDhcpScopeDomainName" class="col-sm-3 control-label">Domain Name</label>
+                                                            <div class="col-sm-6">
+                                                                <input type="text" class="form-control" id="txtDhcpScopeDomainName" placeholder="Domain Name">
+                                                            </div>
+                                                            <div class="col-sm-offset-3 col-sm-8" style="padding-top: 5px;">The domain name for this network to allow updating DNS forward and reverse records for clients.</div>
                                                         </div>
+
+                                                        <div class="form-group">
+                                                            <label for="txtDhcpScopeDnsTtl" class="col-sm-3 control-label">DNS TTL</label>
+                                                            <div class="col-sm-3">
+                                                                <input type="number" class="form-control" style="width: 100px; display: inline;" id="txtDhcpScopeDnsTtl" placeholder="DNS TTL">
+                                                                <span>(seconds)</span>
+                                                            </div>
+                                                            <div class="col-sm-offset-3 col-sm-8" style="padding-top: 5px;">The TTL value of the DNS records updated for the above provided domain name.</div>
+                                                        </div>
+
+                                                        <div class="form-group">
+                                                            <label for="txtDhcpScopeRouterAddress" class="col-sm-3 control-label">Router Address</label>
+                                                            <div class="col-sm-3">
+                                                                <input type="text" class="form-control" id="txtDhcpScopeRouterAddress" placeholder="Router Address">
+                                                            </div>
+                                                            <div class="col-sm-offset-3 col-sm-8" style="padding-top: 5px;">The default gateway IP address to be used by the clients.</div>
+                                                        </div>
+
+                                                        <div class="form-group">
+                                                            <label for="txtDhcpScopeDnsServers" class="col-sm-3 control-label">DNS Servers</label>
+                                                            <div class="col-sm-3">
+                                                                <textarea id="txtDhcpScopeDnsServers" class="form-control" rows="2"></textarea>
+                                                            </div>
+                                                            <div class="col-sm-offset-3 col-sm-8" style="padding-top: 5px;">The DNS server IP addresses to be used by the clients.</div>
+                                                        </div>
+
+                                                        <div class="form-group">
+                                                            <label for="txtDhcpScopeWinsServers" class="col-sm-3 control-label">WINS Servers</label>
+                                                            <div class="col-sm-3">
+                                                                <textarea id="txtDhcpScopeWinsServers" class="form-control" rows="2"></textarea>
+                                                            </div>
+                                                            <div class="col-sm-offset-3 col-sm-8" style="padding-top: 5px;">The NBNS/WINS server IP addresses to be used by the clients.</div>
+                                                        </div>
+
+                                                        <div class="form-group">
+                                                            <label for="txtDhcpScopeNtpServers" class="col-sm-3 control-label">NTP Servers</label>
+                                                            <div class="col-sm-3">
+                                                                <textarea id="txtDhcpScopeNtpServers" class="form-control" rows="2"></textarea>
+                                                            </div>
+                                                            <div class="col-sm-offset-3 col-sm-8" style="padding-top: 5px;">The Network Time Protocol (NTP) server IP addresses to be used by the clients.</div>
+                                                        </div>
+
+                                                        <div class="form-group" style="margin-bottom: 0px;">
+                                                            <label for="tableDhcpScopeStaticRoutes" class="col-sm-3 control-label">Static Routes</label>
+                                                            <div class="col-sm-6">
+                                                                <table class="table table-hover" style="margin-bottom: 0px;">
+                                                                    <thead>
+                                                                        <tr>
+                                                                            <th>Destination</th>
+                                                                            <th>Subnet Mask</th>
+                                                                            <th>Router</th>
+                                                                            <th><button type="button" class="btn btn-default" style="padding: 0px 20px;" onclick="addDhcpScopeStaticRouteRow('', '', '');">Add</button></th>
+                                                                        </tr>
+                                                                    </thead>
+                                                                    <tbody id="tableDhcpScopeStaticRoutes"></tbody>
+                                                                </table>
+                                                            </div>
+                                                            <div class="col-sm-offset-3 col-sm-8" style="padding-top: 5px;">The static routes to be used by the clients for accessing specified destination networks.</div>
+                                                        </div>
+                                                    </div>
+
+                                                    <div class="well well-sm form-horizontal">
+                                                        <div class="form-group">
+                                                            <label for="tableDhcpScopeExclusions" class="col-sm-3 control-label">Exclusions</label>
+                                                            <div class="col-sm-6">
+                                                                <table class="table table-hover" style="margin-bottom: 0px;">
+                                                                    <thead>
+                                                                        <tr>
+                                                                            <th>Starting Address</th>
+                                                                            <th>Ending Address</th>
+                                                                            <th><button type="button" class="btn btn-default" style="padding: 0px 20px;" onclick="addDhcpScopeExclusionRow('', '');">Add</button></th>
+                                                                        </tr>
+                                                                    </thead>
+                                                                    <tbody id="tableDhcpScopeExclusions"></tbody>
+                                                                </table>
+                                                            </div>
+                                                            <div class="col-sm-offset-3 col-sm-8" style="padding-top: 5px;">The IP address range that must be excluded or not assigned to any client by the DHCP server.</div>
+                                                        </div>
+
+                                                        <div class="form-group" style="margin-bottom: 0px;">
+                                                            <label for="tableDhcpScopeReservedLeases" class="col-sm-3 control-label">Reserved Leases</label>
+                                                            <div class="col-sm-6">
+                                                                <div class="checkbox">
+                                                                    <label>
+                                                                        <input id="chkAllowOnlyReservedLeases" type="checkbox"> Allow Only Reserved Lease Allocations
+                                                                    </label>
+                                                                </div>
+                                                            </div>
+                                                            <div class="col-sm-offset-3 col-sm-8" style="padding-top: 5px;">Enable this option to stop dynamic IP address allocation and allocate only reserved IP addresses.</div>
+                                                            <div class="col-sm-offset-3 col-sm-6">
+                                                                <table class="table table-hover" style="margin-bottom: 0px;">
+                                                                    <thead>
+                                                                        <tr>
+                                                                            <th>MAC Address</th>
+                                                                            <th>IP Address</th>
+                                                                            <th><button type="button" class="btn btn-default" style="padding: 0px 20px;" onclick="addDhcpScopeReservedLeaseRow('', '');">Add</button></th>
+                                                                        </tr>
+                                                                    </thead>
+                                                                    <tbody id="tableDhcpScopeReservedLeases"></tbody>
+                                                                </table>
+                                                            </div>
+                                                            <div class="col-sm-offset-3 col-sm-8" style="padding-top: 5px;">The reserved IP addresses to be assigned to specific clients based on their MAC address.</div>
+                                                        </div>
+                                                    </div>
+
+                                                    <div class="form-group" style="margin-bottom: 0px;">
+                                                        <button type="submit" class="btn btn-primary" style="width: 100px;" id="btnSaveDhcpScope" data-loading-text="Saving..." onclick="saveDhcpScope(); return false;">Save</button>
+                                                        <button type="button" class="btn btn-default" style="width: 100px;" onclick="refreshDhcpScopes();">Cancel</button>
                                                     </div>
                                                 </form>
-
                                             </div>
-
                                         </div>
-
                                     </div>
-
                                 </div>
 
                                 <div id="mainPanelTabPaneLogs" role="tabpanel" class="tab-pane" style="padding: 10px 0 0 0;">
