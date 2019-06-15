@@ -29,7 +29,7 @@ function refreshDhcpLeases() {
         url: "/api/listDhcpLeases?token=" + token,
         success: function (responseJSON) {
             var dhcpLeases = responseJSON.response.leases;
-            var tableHtmlRows ;
+            var tableHtmlRows;
 
             if (dhcpLeases.length < 1) {
                 tableHtmlRows = "<tr><td colspan=\"6\" align=\"center\">No Lease Found</td></tr>";
@@ -170,7 +170,9 @@ function clearDhcpScopeForm() {
     $("#txtDhcpScopeStartingAddress").val("");
     $("#txtDhcpScopeEndingAddress").val("");
     $("#txtDhcpScopeSubnetMask").val("");
-    $("#txtDhcpScopeLeaseTime").val("86400");
+    $("#txtDhcpScopeLeaseTimeDays").val("1");
+    $("#txtDhcpScopeLeaseTimeHours").val("0");
+    $("#txtDhcpScopeLeaseTimeMinutes").val("0");
     $("#txtDhcpScopeOfferDelayTime").val("0");
     $("#txtDhcpScopeDomainName").val("");
     $("#txtDhcpScopeDnsTtl").val("900");
@@ -216,7 +218,9 @@ function showEditDhcpScope(scopeName) {
             $("#txtDhcpScopeStartingAddress").val(responseJSON.response.startingAddress);
             $("#txtDhcpScopeEndingAddress").val(responseJSON.response.endingAddress);
             $("#txtDhcpScopeSubnetMask").val(responseJSON.response.subnetMask);
-            $("#txtDhcpScopeLeaseTime").val(responseJSON.response.leaseTime);
+            $("#txtDhcpScopeLeaseTimeDays").val(responseJSON.response.leaseTimeDays);
+            $("#txtDhcpScopeLeaseTimeHours").val(responseJSON.response.leaseTimeHours);
+            $("#txtDhcpScopeLeaseTimeMinutes").val(responseJSON.response.leaseTimeMinutes);
             $("#txtDhcpScopeOfferDelayTime").val(responseJSON.response.offerDelayTime);
 
             if (responseJSON.response.domainName != null)
@@ -281,7 +285,9 @@ function saveDhcpScope() {
     var endingAddress = $("#txtDhcpScopeEndingAddress").val();
     var subnetMask = $("#txtDhcpScopeSubnetMask").val();
 
-    var leaseTime = $("#txtDhcpScopeLeaseTime").val();
+    var leaseTimeDays = $("#txtDhcpScopeLeaseTimeDays").val();
+    var leaseTimeHours = $("#txtDhcpScopeLeaseTimeHours").val();
+    var leaseTimeMinutes = $("#txtDhcpScopeLeaseTimeMinutes").val();
     var offerDelayTime = $("#txtDhcpScopeOfferDelayTime").val();
 
     var domainName = $("#txtDhcpScopeDomainName").val();
@@ -311,7 +317,7 @@ function saveDhcpScope() {
 
     HTTPRequest({
         url: "/api/setDhcpScope?token=" + token + "&name=" + encodeURIComponent(name) + (newName == null ? "" : "&newName=" + encodeURIComponent(newName)) + "&startingAddress=" + encodeURIComponent(startingAddress) + "&endingAddress=" + encodeURIComponent(endingAddress) + "&subnetMask=" + encodeURIComponent(subnetMask) +
-            "&leaseTime=" + leaseTime + "&offerDelayTime=" + offerDelayTime + "&domainName=" + encodeURIComponent(domainName) + "&dnsTtl=" + dnsTtl + "&routerAddress=" + encodeURIComponent(routerAddress) +
+            "&leaseTimeDays=" + leaseTimeDays + "&leaseTimeHours=" + leaseTimeHours + "&leaseTimeMinutes=" + leaseTimeMinutes + "&offerDelayTime=" + offerDelayTime + "&domainName=" + encodeURIComponent(domainName) + "&dnsTtl=" + dnsTtl + "&routerAddress=" + encodeURIComponent(routerAddress) +
             "&dnsServers=" + encodeURIComponent(dnsServers) + "&winsServers=" + encodeURIComponent(winsServers) + "&ntpServers=" + encodeURIComponent(ntpServers) +
             "&staticRoutes=" + encodeURIComponent(staticRoutes) + "&exclusions=" + encodeURIComponent(exclusions) + "&reservedLeases=" + encodeURIComponent(reservedLeases) + "&chkAllowOnlyReservedLeases=" + chkAllowOnlyReservedLeases,
         success: function (responseJSON) {
