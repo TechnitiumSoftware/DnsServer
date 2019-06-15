@@ -19,6 +19,7 @@
     <link href="/css/main.css" rel="stylesheet" />
     <script src="/js/common.js"></script>
     <script src="/js/main.js"></script>
+    <script src="/js/dhcp.js"></script>
 </head>
 <body>
     <div id="header">
@@ -92,11 +93,12 @@
                             <ul class="nav nav-tabs" role="tablist">
                                 <li id="mainPanelTabListDashboard" role="presentation" class="active"><a href="#mainPanelTabPaneDashboard" aria-controls="mainPanelTabPaneDashboard" role="tab" data-toggle="tab" onclick="return refreshDashboard();">Dashboard</a></li>
                                 <li id="mainPanelTabListZones" role="presentation"><a href="#mainPanelTabPaneZones" aria-controls="mainPanelTabPaneZones" role="tab" data-toggle="tab" onclick="return refreshZonesList();">Zones</a></li>
-                                <li id="mainPanelTabListCachedZones" role="presentation"><a href="#mainPanelTabPaneCachedZones" aria-controls="mainPanelTabPaneCachedZones" role="tab" data-toggle="tab" onclick="return false;">Cached Zones</a></li>
+                                <li id="mainPanelTabListCachedZones" role="presentation"><a href="#mainPanelTabPaneCachedZones" aria-controls="mainPanelTabPaneCachedZones" role="tab" data-toggle="tab" onclick="return false;">Cache</a></li>
                                 <li id="mainPanelTabListAllowedZones" role="presentation"><a href="#mainPanelTabPaneAllowedZones" aria-controls="mainPanelTabPaneAllowedZones" role="tab" data-toggle="tab" onclick="return false;">Allowed Zones</a></li>
                                 <li id="mainPanelTabListBlockedZones" role="presentation"><a href="#mainPanelTabPaneBlockedZones" aria-controls="mainPanelTabPaneBlockedZones" role="tab" data-toggle="tab" onclick="return false;">Blocked Zones</a></li>
                                 <li id="mainPanelTabListDnsClient" role="presentation"><a href="#mainPanelTabPaneDnsClient" aria-controls="mainPanelTabPaneDnsClient" role="tab" data-toggle="tab" onclick="return false;">DNS Client</a></li>
                                 <li id="mainPanelTabListSettings" role="presentation"><a href="#mainPanelTabPaneSettings" aria-controls="mainPanelTabPaneSettings" role="tab" data-toggle="tab" onclick="return loadDnsSettings();">Settings</a></li>
+                                <li id="mainPanelTabListDhcp" role="presentation"><a href="#mainPanelTabPaneDhcp" aria-controls="mainPanelTabPaneDhcp" role="tab" data-toggle="tab" onclick="return false;">DHCP</a></li>
                                 <li id="mainPanelTabListLogs" role="presentation"><a href="#mainPanelTabPaneLogs" aria-controls="mainPanelTabPaneLogs" role="tab" data-toggle="tab" onclick="return refreshLogFilesList();">Logs</a></li>
                                 <li id="mainPanelTabListAbout" role="presentation"><a href="#mainPanelTabPaneAbout" aria-controls="mainPanelTabPaneAbout" role="tab" data-toggle="tab">About</a></li>
                             </ul>
@@ -204,14 +206,14 @@
                                             <div style="float: right; width: 50%; padding-left: 7px;">
                                                 <div class="panel panel-default" style="margin-bottom: 0px;">
                                                     <div class="panel-heading">Top Clients</div>
-                                                    <table class="table table-hover" id="tableTopClients">
+                                                    <table class="table table-hover">
                                                         <thead>
                                                             <tr>
                                                                 <th>Client</th>
                                                                 <th>Queries</th>
                                                             </tr>
                                                         </thead>
-                                                        <tbody>
+                                                        <tbody id="tableTopClients">
                                                             <tr>
                                                                 <td>127.0.0.1</td>
                                                                 <td>100</td>
@@ -232,14 +234,14 @@
                                             <div style="float: left; width: 50%; padding-right: 7px;">
                                                 <div class="panel panel-default" style="margin-bottom: 0px;">
                                                     <div class="panel-heading">Top Domains</div>
-                                                    <table class="table table-hover" id="tableTopDomains">
+                                                    <table class="table table-hover">
                                                         <thead>
                                                             <tr>
                                                                 <th>Domain</th>
                                                                 <th>Hits</th>
                                                             </tr>
                                                         </thead>
-                                                        <tbody>
+                                                        <tbody id="tableTopDomains">
                                                             <tr>
                                                                 <td>example.com</td>
                                                                 <td>10</td>
@@ -252,14 +254,14 @@
                                             <div style="float: right; width: 50%; padding-left: 7px;">
                                                 <div class="panel panel-default" style="margin-bottom: 0px;">
                                                     <div class="panel-heading">Top Blocked Domains</div>
-                                                    <table class="table table-hover" id="tableTopBlockedDomains">
+                                                    <table class="table table-hover">
                                                         <thead>
                                                             <tr>
                                                                 <th>Domain</th>
                                                                 <th>Hits</th>
                                                             </tr>
                                                         </thead>
-                                                        <tbody>
+                                                        <tbody id="tableTopBlockedDomains">
                                                             <tr>
                                                                 <td>blocked.example.com</td>
                                                                 <td>10</td>
@@ -1175,6 +1177,246 @@
                                             </div>
 
                                         </form>
+                                    </div>
+
+                                </div>
+
+                                <div id="mainPanelTabPaneDhcp" role="tabpanel" class="tab-pane" style="padding: 10px 0 0 0;">
+
+                                    <ul class="nav nav-tabs" role="tablist">
+                                        <li id="dhcpTabListLeases" role="presentation" class="active"><a href="#dhcpTabPaneLeases" aria-controls="dhcpTabPaneLeases" role="tab" data-toggle="tab" onclick="refreshDhcpLeases();">Leases</a></li>
+                                        <li id="dhcpTabListScopes" role="presentation"><a href="#dhcpTabPaneScopes" aria-controls="dhcpTabPaneScopes" role="tab" data-toggle="tab" onclick="refreshDhcpScopes();">Scopes</a></li>
+                                    </ul>
+
+                                    <div class="tab-content">
+
+                                        <div id="dhcpTabPaneLeases" class="tab-pane active">
+
+                                            <div id="divDhcpLeasesLoader" style="margin-top: 10px; height: 350px;"></div>
+
+                                            <div id="divDhcpLeases" style="margin-top: 10px;">
+                                                <table class="table table-hover">
+                                                    <thead>
+                                                        <tr>
+                                                            <th>Scope</th>
+                                                            <th>MAC Address</th>
+                                                            <th>IP Address</th>
+                                                            <th>Host Name</th>
+                                                            <th>Lease Obtained</th>
+                                                            <th>Lease Expires</th>
+                                                        </tr>
+                                                    </thead>
+                                                    <tbody id="tableDhcpLeases">
+                                                        <tr>
+                                                            <td>Default</td>
+                                                            <td>00-00-00-00-00-00</td>
+                                                            <td>192.168.10.2</td>
+                                                            <td>user-pc.local</td>
+                                                            <td>6/14/2019 3:39 PM</td>
+                                                            <td>6/15/2019 3:39 PM</td>
+                                                        </tr>
+                                                    </tbody>
+                                                </table>
+                                            </div>
+
+                                        </div>
+
+                                        <div id="dhcpTabPaneScopes" class="tab-pane">
+
+                                            <div id="divDhcpViewScopesLoader" style="margin-top: 10px; height: 350px;"></div>
+
+                                            <div id="divDhcpViewScopes" style="margin-top: 10px;">
+
+                                                <div style="float: right; padding: 2px 0px;">
+                                                    <button id="btnAddDhcpScope" type="button" class="btn btn-primary" onclick="showAddDhcpScope();">Add Scope</button>
+                                                </div>
+                                                <div style="clear: both;"></div>
+
+                                                <table class="table table-hover">
+                                                    <thead>
+                                                        <tr>
+                                                            <th>Name</th>
+                                                            <th>Starting Address</th>
+                                                            <th>Ending Address</th>
+                                                            <th>Subnet Mask</th>
+                                                            <th>Network</th>
+                                                            <th>Broadcast</th>
+                                                            <th>Interface</th>
+                                                            <th></th>
+                                                        </tr>
+                                                    </thead>
+                                                    <tbody id="tableDhcpScopes">
+                                                        <tr>
+                                                            <td>Default</td>
+                                                            <td>192.168.10.1</td>
+                                                            <td>192.168.10.100</td>
+                                                            <td>255.255.255.0</td>
+                                                            <td>192.168.10.0</td>
+                                                            <td>192.168.10.255</td>
+                                                            <td>192.168.10.1</td>
+                                                            <td>Edit Delete</td>
+                                                        </tr>
+                                                    </tbody>
+                                                </table>
+
+                                            </div>
+
+                                            <div id="divDhcpEditScope" class="well well-sm" style="margin-top: 10px; margin-bottom: 0px; display: none;">
+
+                                                <h4 style="padding: 10px;" id="titleDhcpEditScope">Edit Scope</h4>
+
+                                                <form class="form-horizontal">
+                                                    <div class="form-group">
+                                                        <label for="txtDhcpScopeName" class="col-sm-3 control-label">Name</label>
+                                                        <div class="col-sm-3">
+                                                            <input type="text" class="form-control" id="txtDhcpScopeName" data-name="" placeholder="Scope Name">
+                                                        </div>
+                                                    </div>
+
+                                                    <div class="form-group">
+                                                        <label for="txtDhcpScopeStartingAddress" class="col-sm-3 control-label">Starting Address</label>
+                                                        <div class="col-sm-3">
+                                                            <input type="text" class="form-control" id="txtDhcpScopeStartingAddress" placeholder="Starting Address">
+                                                        </div>
+                                                    </div>
+
+                                                    <div class="form-group">
+                                                        <label for="txtDhcpScopeEndingAddress" class="col-sm-3 control-label">Ending Address</label>
+                                                        <div class="col-sm-3">
+                                                            <input type="text" class="form-control" id="txtDhcpScopeEndingAddress" placeholder="Ending Address">
+                                                        </div>
+                                                    </div>
+
+                                                    <div class="form-group">
+                                                        <label for="txtDhcpScopeSubnetMask" class="col-sm-3 control-label">Subnet Mask</label>
+                                                        <div class="col-sm-3">
+                                                            <input type="text" class="form-control" id="txtDhcpScopeSubnetMask" placeholder="Subnet Mask">
+                                                        </div>
+                                                    </div>
+
+                                                    <div class="form-group">
+                                                        <label for="txtDhcpScopeLeaseTime" class="col-sm-3 control-label">Lease Time</label>
+                                                        <div class="col-sm-3">
+                                                            <input type="number" class="form-control" id="txtDhcpScopeLeaseTime" placeholder="Lease Time">
+                                                        </div>
+                                                    </div>
+
+                                                    <div class="form-group">
+                                                        <label for="txtDhcpScopeOfferDelayTime" class="col-sm-3 control-label">Offer Delay Time</label>
+                                                        <div class="col-sm-3">
+                                                            <input type="number" class="form-control" id="txtDhcpScopeOfferDelayTime" placeholder="Offer Delay Time">
+                                                        </div>
+                                                    </div>
+
+                                                    <div class="form-group">
+                                                        <label for="txtDhcpScopeDomainName" class="col-sm-3 control-label">Domain Name</label>
+                                                        <div class="col-sm-3">
+                                                            <input type="text" class="form-control" id="txtDhcpScopeDomainName" placeholder="Domain Name">
+                                                        </div>
+                                                    </div>
+
+                                                    <div class="form-group">
+                                                        <label for="txtDhcpScopeDnsTtl" class="col-sm-3 control-label">DNS TTL</label>
+                                                        <div class="col-sm-3">
+                                                            <input type="number" class="form-control" id="txtDhcpScopeDnsTtl" placeholder="DNS TTL">
+                                                        </div>
+                                                    </div>
+
+                                                    <div class="form-group">
+                                                        <label for="txtDhcpScopeRouterAddress" class="col-sm-3 control-label">Router Address</label>
+                                                        <div class="col-sm-3">
+                                                            <input type="text" class="form-control" id="txtDhcpScopeRouterAddress" placeholder="Router Address">
+                                                        </div>
+                                                    </div>
+
+                                                    <div class="form-group">
+                                                        <label for="txtDhcpScopeDnsServers" class="col-sm-3 control-label">DNS Servers</label>
+                                                        <div class="col-sm-3">
+                                                            <textarea id="txtDhcpScopeDnsServers" class="form-control" rows="2"></textarea>
+                                                        </div>
+                                                    </div>
+
+                                                    <div class="form-group">
+                                                        <label for="txtDhcpScopeWinsServers" class="col-sm-3 control-label">WINS Servers</label>
+                                                        <div class="col-sm-3">
+                                                            <textarea id="txtDhcpScopeWinsServers" class="form-control" rows="2"></textarea>
+                                                        </div>
+                                                    </div>
+
+                                                    <div class="form-group">
+                                                        <label for="txtDhcpScopeNtpServers" class="col-sm-3 control-label">NTP Servers</label>
+                                                        <div class="col-sm-3">
+                                                            <textarea id="txtDhcpScopeNtpServers" class="form-control" rows="2"></textarea>
+                                                        </div>
+                                                    </div>
+
+                                                    <div class="form-group">
+                                                        <label for="tableDhcpScopeStaticRoutes" class="col-sm-3 control-label">Static Routes</label>
+                                                        <div class="col-sm-6">
+                                                            <table class="table table-hover">
+                                                                <thead>
+                                                                    <tr>
+                                                                        <th>Destination</th>
+                                                                        <th>Subnet Mask</th>
+                                                                        <th>Router</th>
+                                                                        <th><button type="button" class="btn btn-default" style="padding: 0px 20px;" onclick="addDhcpScopeStaticRouteRow('', '', '');">Add</button></th>
+                                                                    </tr>
+                                                                </thead>
+                                                                <tbody id="tableDhcpScopeStaticRoutes"></tbody>
+                                                            </table>
+                                                        </div>
+                                                    </div>
+
+                                                    <div class="form-group">
+                                                        <label for="tableDhcpScopeExclusions" class="col-sm-3 control-label">Exclusions</label>
+                                                        <div class="col-sm-6">
+                                                            <table class="table table-hover">
+                                                                <thead>
+                                                                    <tr>
+                                                                        <th>Starting Address</th>
+                                                                        <th>Ending Address</th>
+                                                                        <th><button type="button" class="btn btn-default" style="padding: 0px 20px;" onclick="addDhcpScopeExclusionRow('', '');">Add</button></th>
+                                                                    </tr>
+                                                                </thead>
+                                                                <tbody id="tableDhcpScopeExclusions"></tbody>
+                                                            </table>
+                                                        </div>
+                                                    </div>
+
+                                                    <div class="form-group">
+                                                        <label for="tableDhcpScopeReservedLeases" class="col-sm-3 control-label">Reserved Leases</label>
+                                                        <div class="col-sm-6">
+                                                            <div class="checkbox" style="margin-bottom: 10px;">
+                                                                <label>
+                                                                    <input id="chkAllowOnlyReservedLeases" type="checkbox"> Allow Only Reserved Lease Allocations
+                                                                </label>
+                                                            </div>
+
+                                                            <table class="table table-hover">
+                                                                <thead>
+                                                                    <tr>
+                                                                        <th>MAC Address</th>
+                                                                        <th>IP Address</th>
+                                                                        <th><button type="button" class="btn btn-default" style="padding: 0px 20px;" onclick="addDhcpScopeReservedLeaseRow('', '');">Add</button></th>
+                                                                    </tr>
+                                                                </thead>
+                                                                <tbody id="tableDhcpScopeReservedLeases"></tbody>
+                                                            </table>
+                                                        </div>
+                                                    </div>
+
+                                                    <div class="form-group">
+                                                        <div class="col-sm-offset-3 col-sm-3">
+                                                            <button type="submit" class="btn btn-primary" id="btnSaveDhcpScope" data-loading-text="Saving..." onclick="saveDhcpScope(); return false;">Save</button>
+                                                            <button type="button" class="btn btn-default" onclick="refreshDhcpScopes();">Cancel</button>
+                                                        </div>
+                                                    </div>
+                                                </form>
+
+                                            </div>
+
+                                        </div>
+
                                     </div>
 
                                 </div>

@@ -52,6 +52,8 @@ function showPageMain(username) {
     $(".tab-pane").removeClass("active");
     $("#mainPanelTabListDashboard").addClass("active");
     $("#mainPanelTabPaneDashboard").addClass("active");
+    $("#dhcpTabListLeases").addClass("active");
+    $("#dhcpTabPaneLeases").addClass("active");
 
     $("#divZoneViewer").hide();
 
@@ -73,6 +75,7 @@ function showPageMain(username) {
     refreshCachedZonesList();
     refreshAllowedZonesList();
     refreshBlockedZonesList();
+    refreshDhcpLeases();
     checkForUpdate();
 
     refreshTimerHandle = setInterval(function () {
@@ -927,59 +930,59 @@ function refreshDashboard(hideLoader) {
 
             //top clients
             {
-                var tableHtml = "<thead><tr><th>Client</th><th>Queries</th></tr></thead><tbody>";
+                var tableHtmlRows;
                 var topClients = responseJSON.response.topClients;
 
                 if (topClients.length < 1) {
-                    tableHtml += "<tr><td>No Data</td><td></td></tr>";
+                    tableHtmlRows = "<tr><td colspan=\"2\" align=\"center\">No Data</td></tr>";
                 }
                 else {
+                    tableHtmlRows = "";
+
                     for (var i = 0; i < topClients.length; i++) {
-                        tableHtml += "<tr><td>" + topClients[i].name + "</td><td>" + topClients[i].hits + "</td></tr>";
+                        tableHtmlRows += "<tr><td>" + htmlEncode(topClients[i].name) + "</td><td>" + topClients[i].hits + "</td></tr>";
                     }
                 }
 
-                tableHtml += "</tbody>";
-
-                $("#tableTopClients").html(tableHtml);
+                $("#tableTopClients").html(tableHtmlRows);
             }
 
             //top domains
             {
-                var tableHtml = "<thead><tr><th>Domain</th><th>Hits</th></tr></thead><tbody>";
+                var tableHtmlRows;
                 var topDomains = responseJSON.response.topDomains;
 
                 if (topDomains.length < 1) {
-                    tableHtml += "<tr><td>No Data</td><td></td></tr>";
+                    tableHtmlRows = "<tr><td colspan=\"2\" align=\"center\">No Data</td></tr>";
                 }
                 else {
+                    tableHtmlRows = "";
+
                     for (var i = 0; i < topDomains.length; i++) {
-                        tableHtml += "<tr><td>" + topDomains[i].name + "</td><td>" + topDomains[i].hits + "</td></tr>";
+                        tableHtmlRows += "<tr><td>" + topDomains[i].name + "</td><td>" + topDomains[i].hits + "</td></tr>";
                     }
                 }
 
-                tableHtml += "</tbody>";
-
-                $("#tableTopDomains").html(tableHtml);
+                $("#tableTopDomains").html(tableHtmlRows);
             }
 
             //top blocked domains
             {
-                var tableHtml = "<thead><tr><th>Domain</th><th>Hits</th></tr></thead><tbody>";
+                var tableHtmlRows;
                 var topBlockedDomains = responseJSON.response.topBlockedDomains;
 
                 if (topBlockedDomains.length < 1) {
-                    tableHtml += "<tr><td>No Data</td><td></td></tr>";
+                    tableHtmlRows = "<tr><td colspan=\"2\" align=\"center\">No Data</td></tr>";
                 }
                 else {
+                    tableHtmlRows = "";
+
                     for (var i = 0; i < topBlockedDomains.length; i++) {
-                        tableHtml += "<tr><td>" + topBlockedDomains[i].name + "</td><td>" + topBlockedDomains[i].hits + "</td></tr>";
+                        tableHtmlRows += "<tr><td>" + topBlockedDomains[i].name + "</td><td>" + topBlockedDomains[i].hits + "</td></tr>";
                     }
                 }
 
-                tableHtml += "</tbody>";
-
-                $("#tableTopBlockedDomains").html(tableHtml);
+                $("#tableTopBlockedDomains").html(tableHtmlRows);
             }
 
             if (!hideLoader) {
