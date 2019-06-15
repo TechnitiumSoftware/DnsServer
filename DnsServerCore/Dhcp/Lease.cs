@@ -19,7 +19,11 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 using DnsServerCore.Dhcp.Options;
 using System;
+using System.Globalization;
+using System.IO;
 using System.Net;
+using TechnitiumLibrary.IO;
+using TechnitiumLibrary.Net;
 
 namespace DnsServerCore.Dhcp
 {
@@ -28,7 +32,7 @@ namespace DnsServerCore.Dhcp
         #region variables
 
         readonly ClientIdentifierOption _clientIdentifier;
-        readonly string _hostName;
+        string _hostName;
         readonly byte[] _hardwareAddress;
         readonly IPAddress _address;
         DateTime _leaseObtained;
@@ -52,6 +56,53 @@ namespace DnsServerCore.Dhcp
             : this(new ClientIdentifierOption(1, hardwareAddress), null, hardwareAddress, address, leaseTime)
         { }
 
+        internal Lease(string hardwareAddress, IPAddress address)
+            : this(ParseHardwareAddress(hardwareAddress), address, 0)
+        { }
+
+        internal Lease(BinaryReader bR)
+        {
+            switch (bR.ReadByte())
+            {
+                case 1:
+                    _clientIdentifier = DhcpOption.Parse(bR.BaseStream) as ClientIdentifierOption;
+                    _clientIdentifier.ParseOptionValue();
+
+                    _hostName = bR.ReadShortString();
+                    if (_hostName == "")
+                        _hostName = null;
+
+                    _hardwareAddress = bR.ReadBuffer();
+                    _address = IPAddressExtension.Parse(bR);
+                    _leaseObtained = bR.ReadDate();
+                    _leaseExpires = bR.ReadDate();
+                    break;
+
+                default:
+                    throw new InvalidDataException("Lease data format version not supported.");
+            }
+        }
+
+        #endregion
+
+        #region private
+
+        private static byte[] ParseHardwareAddress(string hardwareAddress)
+        {
+            string[] parts = hardwareAddress.Split('-');
+            byte[] address = new byte[parts.Length];
+
+            for (int i = 0; i < parts.Length; i++)
+                address[i] = byte.Parse(parts[i], NumberStyles.HexNumber, CultureInfo.InvariantCulture);
+
+            return address;
+        }
+
+        internal void SetHostName(string hostName)
+        {
+            _hostName = hostName;
+        }
+
         #endregion
 
         #region public
@@ -60,6 +111,33 @@ namespace DnsServerCore.Dhcp
         {
             _leaseObtained = DateTime.UtcNow;
             _leaseExpires = DateTime.UtcNow.AddSeconds(leaseTime);
+        }
+
+        public void WriteTo(BinaryWriter bW)
+        {
+            bW.Write((byte)1); //version
+
+            _clientIdentifier.WriteTo(bW.BaseStream);
+
+            if (string.IsNullOrEmpty(_hostName))
+                bW.Write((byte)0);
+            else
+                bW.WriteShortString(_hostName);
+
+            bW.WriteBuffer(_hardwareAddress);
+            _address.WriteTo(bW);
+            bW.Write(_leaseObtained);
+            bW.Write(_leaseExpires);
+        }
+
+        public string GetClientFullIdentifier()
+        {
+            string hardwareAddress = BitConverter.ToString(_hardwareAddress);
+
+            if (string.IsNullOrEmpty(_hostName))
+                return "[" + hardwareAddress + "]";
+
+            return _hostName + " [" + hardwareAddress + "]";
         }
 
         #endregion
