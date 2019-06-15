@@ -43,7 +43,9 @@ namespace DnsServerCore.Dhcp
         IPAddress _startingAddress;
         IPAddress _endingAddress;
         IPAddress _subnetMask;
-        uint _leaseTime = 86400; //default 1 day lease
+        ushort _leaseTimeDays = 1; //default 1 day lease
+        byte _leaseTimeHours = 0;
+        byte _leaseTimeMinutes = 0;
         ushort _offerDelayTime;
 
         //dhcp options
@@ -67,8 +69,6 @@ namespace DnsServerCore.Dhcp
         IPAddress _networkAddress;
         IPAddress _broadcastAddress;
         string _reverseZone;
-        uint _renewTime;
-        uint _rebindTime;
 
         //internal parameters
         const int OFFER_EXPIRY_SECONDS = 60; //1 mins offer expiry
@@ -87,9 +87,6 @@ namespace DnsServerCore.Dhcp
             _enabled = enabled;
 
             ChangeNetwork(startingAddress, endingAddress, subnetMask);
-
-            _renewTime = _leaseTime / 2;
-            _rebindTime = Convert.ToUInt32(_leaseTime * 0.875);
         }
 
         public Scope(BinaryReader bR)
@@ -105,9 +102,9 @@ namespace DnsServerCore.Dhcp
 
                     ChangeNetwork(IPAddressExtension.Parse(bR), IPAddressExtension.Parse(bR), IPAddressExtension.Parse(bR));
 
-                    _leaseTime = bR.ReadUInt32();
-                    _renewTime = _leaseTime / 2;
-                    _rebindTime = Convert.ToUInt32(_leaseTime * 0.875);
+                    _leaseTimeDays = bR.ReadUInt16();
+                    _leaseTimeHours = bR.ReadByte();
+                    _leaseTimeMinutes = bR.ReadByte();
 
                     _offerDelayTime = bR.ReadUInt16();
 
@@ -225,6 +222,11 @@ namespace DnsServerCore.Dhcp
         #endregion
 
         #region private
+
+        private uint GetLeaseTime()
+        {
+            return Convert.ToUInt32((_leaseTimeDays * 24 * 60 * 60) + (_leaseTimeHours * 60 * 60) + (_leaseTimeMinutes * 60));
+        }
 
         private bool IsAddressAvailable(ref IPAddress address)
         {
@@ -363,7 +365,7 @@ namespace DnsServerCore.Dhcp
                 if (reservedLease.ClientIdentifier.Equals(clientIdentifier))
                 {
                     //reserved address exists
-                    Lease reservedOffer = new Lease(request.ClientIdentifier, request.HostName?.HostName, request.ClientHardwareAddress, reservedLease.Address, _leaseTime);
+                    Lease reservedOffer = new Lease(request.ClientIdentifier, request.HostName?.HostName, request.ClientHardwareAddress, reservedLease.Address, GetLeaseTime());
 
                     return _offers.AddOrUpdate(request.ClientIdentifier, reservedOffer, delegate (ClientIdentifierOption key, Lease existingValue)
                     {
@@ -375,7 +377,7 @@ namespace DnsServerCore.Dhcp
             if (_allowOnlyReservedLeases)
                 return null; //client does not have reserved address as per scope requirements
 
-            Lease dummyOffer = new Lease(request.ClientIdentifier, request.HostName?.HostName, request.ClientHardwareAddress, null, _leaseTime);
+            Lease dummyOffer = new Lease(request.ClientIdentifier, request.HostName?.HostName, request.ClientHardwareAddress, null, 0);
             Lease existingOffer = _offers.GetOrAdd(request.ClientIdentifier, dummyOffer);
 
             if (dummyOffer != existingOffer)
@@ -384,7 +386,7 @@ namespace DnsServerCore.Dhcp
                     return null; //dummy offer so another thread is handling offer; do nothing
 
                 //offer already exists
-                existingOffer.ResetLeaseTime(_leaseTime);
+                existingOffer.ResetLeaseTime(GetLeaseTime());
 
                 return existingOffer;
             }
@@ -428,7 +430,7 @@ namespace DnsServerCore.Dhcp
                 _lastAddressOffered = offerAddress;
             }
 
-            Lease offerLease = new Lease(request.ClientIdentifier, request.HostName?.HostName, request.ClientHardwareAddress, offerAddress, _leaseTime);
+            Lease offerLease = new Lease(request.ClientIdentifier, request.HostName?.HostName, request.ClientHardwareAddress, offerAddress, GetLeaseTime());
 
             return _offers.AddOrUpdate(request.ClientIdentifier, offerLease, delegate (ClientIdentifierOption key, Lease existingValue)
             {
@@ -472,9 +474,11 @@ namespace DnsServerCore.Dhcp
             {
                 case DhcpMessageType.Discover:
                 case DhcpMessageType.Request:
-                    options.Add(new IpAddressLeaseTimeOption(_leaseTime));
-                    options.Add(new RenewalTimeValueOption(_renewTime));
-                    options.Add(new RebindingTimeValueOption(_rebindTime));
+                    uint leaseTime = GetLeaseTime();
+
+                    options.Add(new IpAddressLeaseTimeOption(leaseTime));
+                    options.Add(new RenewalTimeValueOption(leaseTime / 2));
+                    options.Add(new RebindingTimeValueOption(Convert.ToUInt32(leaseTime * 0.875)));
                     break;
             }
 
@@ -568,7 +572,7 @@ namespace DnsServerCore.Dhcp
 
         internal void CommitLease(Lease lease)
         {
-            lease.ResetLeaseTime(_leaseTime);
+            lease.ResetLeaseTime(GetLeaseTime());
 
             _leases.AddOrUpdate(lease.ClientIdentifier, lease, delegate (ClientIdentifierOption key, Lease existingValue)
             {
@@ -657,7 +661,7 @@ namespace DnsServerCore.Dhcp
             uint endingAddressNumber = endingAddress.ConvertIpToNumber();
 
             if (startingAddressNumber >= endingAddressNumber)
-                throw new ArgumentException("Ending address must be greater than starting address.", "endingAddress");
+                throw new ArgumentException("Ending address must be greater than starting address.");
 
             _startingAddress = startingAddress;
             _endingAddress = endingAddress;
@@ -666,9 +670,16 @@ namespace DnsServerCore.Dhcp
             //compute other parameters
             uint subnetMaskNumber = _subnetMask.ConvertIpToNumber();
             uint networkAddressNumber = startingAddressNumber & subnetMaskNumber;
+            uint broadcastAddressNumber = networkAddressNumber | ~subnetMaskNumber;
+
+            if (networkAddressNumber == startingAddressNumber)
+                throw new ArgumentException("Starting address cannot be same as the network address.");
+
+            if (broadcastAddressNumber == endingAddressNumber)
+                throw new ArgumentException("Ending address cannot be same as the broadcast address.");
 
             _networkAddress = IPAddressExtension.ConvertNumberToIp(networkAddressNumber);
-            _broadcastAddress = IPAddressExtension.ConvertNumberToIp(networkAddressNumber | ~subnetMaskNumber);
+            _broadcastAddress = IPAddressExtension.ConvertNumberToIp(broadcastAddressNumber);
             _reverseZone = GetReverseZone(_networkAddress, _subnetMask);
 
             _lastAddressOffered = _startingAddress;
@@ -684,7 +695,9 @@ namespace DnsServerCore.Dhcp
             _startingAddress.WriteTo(bW);
             _endingAddress.WriteTo(bW);
             _subnetMask.WriteTo(bW);
-            bW.Write(_leaseTime);
+            bW.Write(_leaseTimeDays);
+            bW.Write(_leaseTimeHours);
+            bW.Write(_leaseTimeMinutes);
             bW.Write(_offerDelayTime);
 
             if (string.IsNullOrEmpty(_domainName))
@@ -850,14 +863,39 @@ namespace DnsServerCore.Dhcp
         public IPAddress SubnetMask
         { get { return _subnetMask; } }
 
-        public uint LeaseTime
+        public ushort LeaseTimeDays
         {
-            get { return _leaseTime; }
+            get { return _leaseTimeDays; }
             set
             {
-                _leaseTime = value;
-                _renewTime = _leaseTime / 2;
-                _rebindTime = Convert.ToUInt32(_leaseTime * 0.875);
+                if (value > 999)
+                    throw new ArgumentOutOfRangeException("Lease time in days must be between 0 to 999.");
+
+                _leaseTimeDays = value;
+            }
+        }
+
+        public byte LeaseTimeHours
+        {
+            get { return _leaseTimeHours; }
+            set
+            {
+                if (value > 23)
+                    throw new ArgumentOutOfRangeException("Lease time in hours must be between 0 to 23.");
+
+                _leaseTimeHours = value;
+            }
+        }
+
+        public byte LeaseTimeMinutes
+        {
+            get { return _leaseTimeMinutes; }
+            set
+            {
+                if (value > 59)
+                    throw new ArgumentOutOfRangeException("Lease time in minutes must be between 0 to 59.");
+
+                _leaseTimeMinutes = value;
             }
         }
 

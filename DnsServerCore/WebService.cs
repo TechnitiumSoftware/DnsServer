@@ -3000,8 +3000,14 @@ namespace DnsServerCore
             jsonWriter.WritePropertyName("subnetMask");
             jsonWriter.WriteValue(scope.SubnetMask.ToString());
 
-            jsonWriter.WritePropertyName("leaseTime");
-            jsonWriter.WriteValue(scope.LeaseTime);
+            jsonWriter.WritePropertyName("leaseTimeDays");
+            jsonWriter.WriteValue(scope.LeaseTimeDays);
+
+            jsonWriter.WritePropertyName("leaseTimeHours");
+            jsonWriter.WriteValue(scope.LeaseTimeHours);
+
+            jsonWriter.WritePropertyName("leaseTimeMinutes");
+            jsonWriter.WriteValue(scope.LeaseTimeMinutes);
 
             jsonWriter.WritePropertyName("offerDelayTime");
             jsonWriter.WriteValue(scope.OfferDelayTime);
@@ -3160,9 +3166,17 @@ namespace DnsServerCore
                 scope.ChangeNetwork(IPAddress.Parse(strStartingAddress), IPAddress.Parse(strEndingAddress), IPAddress.Parse(strSubnetMask));
             }
 
-            string strLeaseTime = request.QueryString["leaseTime"];
-            if (!string.IsNullOrEmpty(strLeaseTime))
-                scope.LeaseTime = uint.Parse(strLeaseTime);
+            string strLeaseTimeDays = request.QueryString["leaseTimeDays"];
+            if (!string.IsNullOrEmpty(strLeaseTimeDays))
+                scope.LeaseTimeDays = ushort.Parse(strLeaseTimeDays);
+
+            string strLeaseTimeHours = request.QueryString["leaseTimeHours"];
+            if (!string.IsNullOrEmpty(strLeaseTimeHours))
+                scope.LeaseTimeHours = byte.Parse(strLeaseTimeHours);
+
+            string strLeaseTimeMinutes = request.QueryString["leaseTimeMinutes"];
+            if (!string.IsNullOrEmpty(strLeaseTimeMinutes))
+                scope.LeaseTimeMinutes = byte.Parse(strLeaseTimeMinutes);
 
             string strOfferDelayTime = request.QueryString["offerDelayTime"];
             if (!string.IsNullOrEmpty(strOfferDelayTime))
