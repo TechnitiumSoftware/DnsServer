@@ -33,7 +33,7 @@ using TechnitiumLibrary.Net.Dns;
 
 namespace DnsServerCore.Dhcp
 {
-    public class Scope
+    public class Scope : IComparable<Scope>
     {
         #region variables
 
@@ -762,14 +762,19 @@ namespace DnsServerCore.Dhcp
                 }
             }
 
+            if (_reservedLeases == null)
+            {
+                bW.Write(0);
+            }
+            else
             {
                 bW.Write(_reservedLeases.Length);
 
                 foreach (Lease reservedLease in _reservedLeases)
                     reservedLease.WriteTo(bW);
-
-                bW.Write(_allowOnlyReservedLeases);
             }
+
+            bW.Write(_allowOnlyReservedLeases);
 
             {
                 bW.Write(_leases.Count);
@@ -818,6 +823,11 @@ namespace DnsServerCore.Dhcp
             return _name;
         }
 
+        public int CompareTo(Scope other)
+        {
+            return _name.CompareTo(other._name);
+        }
+
         #endregion
 
         #region properties
@@ -862,7 +872,9 @@ namespace DnsServerCore.Dhcp
             get { return _domainName; }
             set
             {
-                DnsClient.IsDomainNameValid(value, true);
+                if (value != null)
+                    DnsClient.IsDomainNameValid(value, true);
+
                 _domainName = value;
             }
         }
