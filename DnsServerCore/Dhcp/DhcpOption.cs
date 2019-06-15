@@ -191,9 +191,6 @@ namespace DnsServerCore.Dhcp
                 case DhcpOptionCode.ParameterRequestList:
                     return new ParameterRequestListOption(s);
 
-                case DhcpOptionCode.Message:
-                    return new MessageOption(s);
-
                 case DhcpOptionCode.MaximumDhcpMessageSize:
                     return new MaximumDhcpMessageSizeOption(s);
 
