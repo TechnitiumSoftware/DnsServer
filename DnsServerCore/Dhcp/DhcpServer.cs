@@ -266,7 +266,7 @@ namespace DnsServerCore.Dhcp
                             return null; //no scope available; do nothing
 
                         if (scope.OfferDelayTime > 0)
-                            Thread.Sleep(scope.OfferDelayTime * 1000); //delay sending offer
+                            Thread.Sleep(scope.OfferDelayTime); //delay sending offer
 
                         Lease offer = scope.GetOffer(request);
                         if (offer == null)
