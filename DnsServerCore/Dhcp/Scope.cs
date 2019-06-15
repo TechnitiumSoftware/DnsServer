@@ -21,15 +21,19 @@ using DnsServerCore.Dhcp.Options;
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Net;
 using System.Net.NetworkInformation;
 using System.Net.Sockets;
-using System.Threading;
+using System.Text;
+using TechnitiumLibrary.IO;
+using TechnitiumLibrary.Net;
+using TechnitiumLibrary.Net.Dns;
 
 namespace DnsServerCore.Dhcp
 {
-    public class Scope : IDisposable, IEquatable<Scope>
+    public class Scope
     {
         #region variables
 
@@ -39,48 +43,45 @@ namespace DnsServerCore.Dhcp
         IPAddress _startingAddress;
         IPAddress _endingAddress;
         IPAddress _subnetMask;
+        uint _leaseTime = 86400; //default 1 day lease
+        ushort _offerDelayTime;
 
-        //optional parameters
+        //dhcp options
         string _domainName;
+        uint _dnsTtl = 900;
         IPAddress _routerAddress;
         IPAddress[] _dnsServers;
         IPAddress[] _winsServers;
         IPAddress[] _ntpServers;
         ClasslessStaticRouteOption.Route[] _staticRoutes;
-        uint _leaseTime = 86400; //default 1 day lease
-        ushort _delayTime;
-        bool _autoRouter;
-        bool _autoDnsServer;
-        bool _reservedAddressOffersOnly;
-        readonly List<Exclusion> _exclusions = new List<Exclusion>();
-        readonly ConcurrentDictionary<ClientIdentifierOption, Lease> _reservedAddresses = new ConcurrentDictionary<ClientIdentifierOption, Lease>();
+
+        //advanced options
+        Exclusion[] _exclusions;
+        Lease[] _reservedLeases;
+        bool _allowOnlyReservedLeases;
 
         //leases
         readonly ConcurrentDictionary<ClientIdentifierOption, Lease> _leases = new ConcurrentDictionary<ClientIdentifierOption, Lease>();
 
-        //computed parameters
+        //internal computed parameters
         IPAddress _networkAddress;
         IPAddress _broadcastAddress;
+        string _reverseZone;
         uint _renewTime;
         uint _rebindTime;
 
         //internal parameters
+        const int OFFER_EXPIRY_SECONDS = 60; //1 mins offer expiry
         readonly ConcurrentDictionary<ClientIdentifierOption, Lease> _offers = new ConcurrentDictionary<ClientIdentifierOption, Lease>();
         IPAddress _lastAddressOffered;
-        const int OFFER_EXPIRY_SECONDS = 120; //2 mins offer expiry
-
-        bool _isActive;
         IPAddress _interfaceAddress;
-        LogManager _log;
-
-        Timer _maintenanceTimer;
-        const int MAINTENANCE_TIMER_INTERVAL = 60000;
+        DateTime _lastModified = DateTime.UtcNow;
 
         #endregion
 
         #region constructor
 
-        public Scope(string name, IPAddress startingAddress, IPAddress endingAddress, IPAddress subnetMask, bool enabled)
+        public Scope(string name, bool enabled, IPAddress startingAddress, IPAddress endingAddress, IPAddress subnetMask)
         {
             _name = name;
             _enabled = enabled;
@@ -89,33 +90,123 @@ namespace DnsServerCore.Dhcp
 
             _renewTime = _leaseTime / 2;
             _rebindTime = Convert.ToUInt32(_leaseTime * 0.875);
-
-            StartMaintenanceTimer();
         }
 
-        #endregion
-
-        #region IDisposable 
-
-        bool _disposed = false;
-
-        protected virtual void Dispose(bool disposing)
+        public Scope(BinaryReader bR)
         {
-            if (_disposed)
-                return;
+            if (Encoding.ASCII.GetString(bR.ReadBytes(2)) != "SC")
+                throw new InvalidDataException("DhcpServer scope file format is invalid.");
 
-            if (disposing)
+            switch (bR.ReadByte())
             {
-                if (_maintenanceTimer != null)
-                    _maintenanceTimer.Dispose();
+                case 1:
+                    _name = bR.ReadShortString();
+                    _enabled = bR.ReadBoolean();
+
+                    ChangeNetwork(IPAddressExtension.Parse(bR), IPAddressExtension.Parse(bR), IPAddressExtension.Parse(bR));
+
+                    _leaseTime = bR.ReadUInt32();
+                    _renewTime = _leaseTime / 2;
+                    _rebindTime = Convert.ToUInt32(_leaseTime * 0.875);
+
+                    _offerDelayTime = bR.ReadUInt16();
+
+                    _domainName = bR.ReadShortString();
+                    if (_domainName == "")
+                        _domainName = null;
+
+                    _dnsTtl = bR.ReadUInt32();
+
+                    _routerAddress = IPAddressExtension.Parse(bR);
+                    if (_routerAddress.Equals(IPAddress.Any))
+                        _routerAddress = null;
+
+                    {
+                        int count = bR.ReadByte();
+                        if (count > 0)
+                        {
+                            _dnsServers = new IPAddress[count];
+
+                            for (int i = 0; i < count; i++)
+                                _dnsServers[i] = IPAddressExtension.Parse(bR);
+                        }
+                    }
+
+                    {
+                        int count = bR.ReadByte();
+                        if (count > 0)
+                        {
+                            _winsServers = new IPAddress[count];
+
+                            for (int i = 0; i < count; i++)
+                                _winsServers[i] = IPAddressExtension.Parse(bR);
+                        }
+                    }
+
+                    {
+                        int count = bR.ReadByte();
+                        if (count > 0)
+                        {
+                            _ntpServers = new IPAddress[count];
+
+                            for (int i = 0; i < count; i++)
+                                _ntpServers[i] = IPAddressExtension.Parse(bR);
+                        }
+                    }
+
+                    {
+                        int count = bR.ReadByte();
+                        if (count > 0)
+                        {
+                            _staticRoutes = new ClasslessStaticRouteOption.Route[count];
+
+                            for (int i = 0; i < count; i++)
+                                _staticRoutes[i] = new ClasslessStaticRouteOption.Route(bR.BaseStream);
+                        }
+                    }
+
+                    {
+                        int count = bR.ReadByte();
+                        if (count > 0)
+                        {
+                            _exclusions = new Exclusion[count];
+
+                            for (int i = 0; i < count; i++)
+                                _exclusions[i] = new Exclusion(IPAddressExtension.Parse(bR), IPAddressExtension.Parse(bR));
+                        }
+                    }
+
+                    {
+                        int count = bR.ReadInt32();
+                        if (count > 0)
+                        {
+                            _reservedLeases = new Lease[count];
+
+                            for (int i = 0; i < count; i++)
+                                _reservedLeases[i] = new Lease(bR);
+                        }
+
+                        _allowOnlyReservedLeases = bR.ReadBoolean();
+                    }
+
+                    {
+                        int count = bR.ReadInt32();
+                        if (count > 0)
+                        {
+                            for (int i = 0; i < count; i++)
+                            {
+                                Lease lease = new Lease(bR);
+
+                                _leases.TryAdd(lease.ClientIdentifier, lease);
+                            }
+                        }
+                    }
+
+                    break;
+
+                default:
+                    throw new InvalidDataException("Scope data format version not supported.");
             }
-
-            _disposed = true;
-        }
-
-        public void Dispose()
-        {
-            Dispose(true);
         }
 
         #endregion
@@ -124,9 +215,9 @@ namespace DnsServerCore.Dhcp
 
         public static bool IsAddressInRange(IPAddress address, IPAddress startingAddress, IPAddress endingAddress)
         {
-            uint addressNumber = ConvertIpToNumber(address);
-            uint startingAddressNumber = ConvertIpToNumber(startingAddress);
-            uint endingAddressNumber = ConvertIpToNumber(endingAddress);
+            uint addressNumber = address.ConvertIpToNumber();
+            uint startingAddressNumber = startingAddress.ConvertIpToNumber();
+            uint endingAddressNumber = endingAddress.ConvertIpToNumber();
 
             return (startingAddressNumber <= addressNumber) && (addressNumber <= endingAddressNumber);
         }
@@ -134,20 +225,6 @@ namespace DnsServerCore.Dhcp
         #endregion
 
         #region private
-
-        private static uint ConvertIpToNumber(IPAddress address)
-        {
-            byte[] addr = address.GetAddressBytes();
-            Array.Reverse(addr);
-            return BitConverter.ToUInt32(addr, 0);
-        }
-
-        private static IPAddress ConvertNumberToIp(uint address)
-        {
-            byte[] addr = BitConverter.GetBytes(address);
-            Array.Reverse(addr);
-            return new IPAddress(addr);
-        }
 
         private bool IsAddressAvailable(ref IPAddress address)
         {
@@ -163,7 +240,7 @@ namespace DnsServerCore.Dhcp
             if ((_ntpServers != null) && _ntpServers.Contains(address))
                 return false;
 
-            lock (_exclusions)
+            if (_exclusions != null)
             {
                 foreach (Exclusion exclusion in _exclusions)
                 {
@@ -175,9 +252,9 @@ namespace DnsServerCore.Dhcp
                 }
             }
 
-            foreach (KeyValuePair<ClientIdentifierOption, Lease> reservedAddress in _reservedAddresses)
+            foreach (Lease reservedLease in _reservedLeases)
             {
-                if (address.Equals(reservedAddress.Value.Address))
+                if (address.Equals(reservedLease.Address))
                     return false;
             }
 
@@ -212,7 +289,7 @@ namespace DnsServerCore.Dhcp
                 responseFlags |= ClientFullyQualifiedDomainNameFlags.OverrideByServer;
             }
 
-            string responseDomainName;
+            string clientDomainName;
 
             if (request.ClientFullyQualifiedDomainName.DomainName == "")
             {
@@ -220,71 +297,52 @@ namespace DnsServerCore.Dhcp
                 if (request.HostName == null)
                     return null; //server unable to decide a name for client
 
-                responseDomainName = request.HostName.HostName + "." + _domainName;
+                clientDomainName = request.HostName.HostName + "." + _domainName;
             }
             else if (request.ClientFullyQualifiedDomainName.DomainName.Contains("."))
             {
                 //client domain is fqdn
                 if (request.ClientFullyQualifiedDomainName.DomainName.EndsWith("." + _domainName, StringComparison.OrdinalIgnoreCase))
                 {
-                    responseDomainName = request.ClientFullyQualifiedDomainName.DomainName;
+                    clientDomainName = request.ClientFullyQualifiedDomainName.DomainName;
                 }
                 else
                 {
                     string[] parts = request.ClientFullyQualifiedDomainName.DomainName.Split('.');
-                    responseDomainName = parts[0] + "." + _domainName;
+                    clientDomainName = parts[0] + "." + _domainName;
                 }
             }
             else
             {
                 //client domain is just hostname
-                responseDomainName = request.ClientFullyQualifiedDomainName.DomainName + "." + _domainName;
+                clientDomainName = request.ClientFullyQualifiedDomainName.DomainName + "." + _domainName;
             }
 
-            return new ClientFullyQualifiedDomainNameOption(responseFlags, 255, 255, responseDomainName);
-        }
-
-        private void StartMaintenanceTimer()
-        {
-            if (_maintenanceTimer == null)
-            {
-                _maintenanceTimer = new Timer(delegate (object state)
-                {
-                    try
-                    {
-                        List<ClientIdentifierOption> expiredOffers = new List<ClientIdentifierOption>();
-                        DateTime utcNow = DateTime.UtcNow;
-
-                        foreach (KeyValuePair<ClientIdentifierOption, Lease> offer in _offers)
-                        {
-                            if (offer.Value.LeaseObtained.AddSeconds(OFFER_EXPIRY_SECONDS) > utcNow)
-                            {
-                                //offer expired
-                                expiredOffers.Add(offer.Key);
-                            }
-                        }
-
-                        foreach (ClientIdentifierOption expiredOffer in expiredOffers)
-                            _offers.TryRemove(expiredOffer, out _);
-                    }
-                    catch (Exception ex)
-                    {
-                        LogManager log = _log;
-                        if (log != null)
-                            log.Write(ex);
-                    }
-                    finally
-                    {
-                        if (!_disposed)
-                            _maintenanceTimer.Change(MAINTENANCE_TIMER_INTERVAL, Timeout.Infinite);
-                    }
-                }, null, MAINTENANCE_TIMER_INTERVAL, Timeout.Infinite);
-            }
+            return new ClientFullyQualifiedDomainNameOption(responseFlags, 255, 255, clientDomainName);
         }
 
         #endregion
 
         #region internal
+
+        internal static string GetReverseZone(IPAddress address, IPAddress subnetMask)
+        {
+            return GetReverseZone(address, subnetMask.GetSubnetMaskWidth());
+        }
+
+        internal static string GetReverseZone(IPAddress address, int subnetMaskWidth)
+        {
+            int addressByteCount = Convert.ToInt32(Math.Ceiling(Convert.ToDecimal(subnetMaskWidth) / 8));
+            byte[] addressBytes = address.GetAddressBytes();
+            string reverseZone = "";
+
+            for (int i = 0; i < addressByteCount; i++)
+                reverseZone = addressBytes[i] + "." + reverseZone;
+
+            reverseZone += "in-addr.arpa";
+
+            return reverseZone;
+        }
 
         internal bool IsAddressInRange(IPAddress address)
         {
@@ -299,18 +357,22 @@ namespace DnsServerCore.Dhcp
                 return existingLease;
             }
 
-            if (_reservedAddresses.TryGetValue(request.ClientIdentifier, out Lease existingReservedAddress))
+            ClientIdentifierOption clientIdentifier = new ClientIdentifierOption(1, request.ClientHardwareAddress);
+            foreach (Lease reservedLease in _reservedLeases)
             {
-                //reserved address exists
-                Lease reservedOffer = new Lease(request.ClientIdentifier, request.HostName?.HostName, request.ClientHardwareAddress, existingReservedAddress.Address, _leaseTime);
-
-                return _offers.AddOrUpdate(request.ClientIdentifier, reservedOffer, delegate (ClientIdentifierOption key, Lease existingValue)
+                if (reservedLease.ClientIdentifier.Equals(clientIdentifier))
                 {
-                    return reservedOffer;
-                });
+                    //reserved address exists
+                    Lease reservedOffer = new Lease(request.ClientIdentifier, request.HostName?.HostName, request.ClientHardwareAddress, reservedLease.Address, _leaseTime);
+
+                    return _offers.AddOrUpdate(request.ClientIdentifier, reservedOffer, delegate (ClientIdentifierOption key, Lease existingValue)
+                    {
+                        return reservedOffer;
+                    });
+                }
             }
 
-            if (_reservedAddressOffersOnly)
+            if (_allowOnlyReservedLeases)
                 return null; //client does not have reserved address as per scope requirements
 
             Lease dummyOffer = new Lease(request.ClientIdentifier, request.HostName?.HostName, request.ClientHardwareAddress, null, _leaseTime);
@@ -347,7 +409,7 @@ namespace DnsServerCore.Dhcp
 
                 while (true)
                 {
-                    offerAddress = ConvertNumberToIp(ConvertIpToNumber(offerAddress) + 1u);
+                    offerAddress = IPAddressExtension.ConvertNumberToIp(offerAddress.ConvertIpToNumber() + 1u);
 
                     if (offerAddress.Equals(_endingAddress))
                     {
@@ -429,14 +491,10 @@ namespace DnsServerCore.Dhcp
                         options.Add(GetClientFullyQualifiedDomainNameOption(request));
                 }
 
-                if (_autoRouter)
-                    options.Add(new RouterOption(new IPAddress[] { interfaceAddress }));
-                else if (_routerAddress != null)
+                if (_routerAddress != null)
                     options.Add(new RouterOption(new IPAddress[] { _routerAddress }));
 
-                if (_autoDnsServer)
-                    options.Add(new DomainNameServerOption(new IPAddress[] { interfaceAddress }));
-                else if (_dnsServers != null)
+                if (_dnsServers != null)
                     options.Add(new DomainNameServerOption(_dnsServers));
 
                 if (_winsServers != null)
@@ -471,17 +529,13 @@ namespace DnsServerCore.Dhcp
                             break;
 
                         case DhcpOptionCode.Router:
-                            if (_autoRouter)
-                                options.Add(new RouterOption(new IPAddress[] { interfaceAddress }));
-                            else if (_routerAddress != null)
+                            if (_routerAddress != null)
                                 options.Add(new RouterOption(new IPAddress[] { _routerAddress }));
 
                             break;
 
                         case DhcpOptionCode.DomainNameServer:
-                            if (_autoDnsServer)
-                                options.Add(new DomainNameServerOption(new IPAddress[] { interfaceAddress }));
-                            else if (_dnsServers != null)
+                            if (_dnsServers != null)
                                 options.Add(new DomainNameServerOption(_dnsServers));
 
                             break;
@@ -520,19 +574,68 @@ namespace DnsServerCore.Dhcp
             {
                 return lease;
             });
+
+            _lastModified = DateTime.UtcNow;
         }
 
         internal void ReleaseLease(Lease lease)
         {
             _leases.TryRemove(lease.ClientIdentifier, out _);
+
+            _lastModified = DateTime.UtcNow;
         }
 
-        internal void SetActive(bool isActive)
+        internal void SetEnabled(bool isEnabled)
         {
-            _isActive = isActive;
+            _enabled = isEnabled;
 
-            if (!_isActive)
+            if (!isEnabled)
                 _interfaceAddress = null; //remove interface address on deactivation to allow finding it back on activation
+        }
+
+        internal void RemoveExpiredOffers()
+        {
+            List<ClientIdentifierOption> expiredOffers = new List<ClientIdentifierOption>();
+            DateTime utcNow = DateTime.UtcNow;
+
+            foreach (KeyValuePair<ClientIdentifierOption, Lease> offer in _offers)
+            {
+                if (utcNow > offer.Value.LeaseObtained.AddSeconds(OFFER_EXPIRY_SECONDS))
+                {
+                    //offer expired
+                    expiredOffers.Add(offer.Key);
+                }
+            }
+
+            foreach (ClientIdentifierOption expiredOffer in expiredOffers)
+                _offers.TryRemove(expiredOffer, out _);
+        }
+
+        internal List<Lease> RemoveExpiredLeases()
+        {
+            List<ClientIdentifierOption> expiredLeaseKeys = new List<ClientIdentifierOption>();
+            DateTime utcNow = DateTime.UtcNow;
+
+            foreach (KeyValuePair<ClientIdentifierOption, Lease> lease in _leases)
+            {
+                if (utcNow > lease.Value.LeaseExpires)
+                {
+                    //lease expired
+                    expiredLeaseKeys.Add(lease.Key);
+                }
+            }
+
+            List<Lease> expiredLeases = new List<Lease>();
+
+            foreach (ClientIdentifierOption expiredLeaseKey in expiredLeaseKeys)
+            {
+                if (_leases.TryRemove(expiredLeaseKey, out Lease expiredLease))
+                    expiredLeases.Add(expiredLease);
+            }
+
+            _lastModified = DateTime.UtcNow;
+
+            return expiredLeases;
         }
 
         #endregion
@@ -550,8 +653,8 @@ namespace DnsServerCore.Dhcp
             if (subnetMask.AddressFamily != AddressFamily.InterNetwork)
                 throw new ArgumentException("Address family not supported.", "subnetMask");
 
-            uint startingAddressNumber = ConvertIpToNumber(startingAddress);
-            uint endingAddressNumber = ConvertIpToNumber(endingAddress);
+            uint startingAddressNumber = startingAddress.ConvertIpToNumber();
+            uint endingAddressNumber = endingAddress.ConvertIpToNumber();
 
             if (startingAddressNumber >= endingAddressNumber)
                 throw new ArgumentException("Ending address must be greater than starting address.", "endingAddress");
@@ -561,76 +664,119 @@ namespace DnsServerCore.Dhcp
             _subnetMask = subnetMask;
 
             //compute other parameters
-            uint subnetMaskNumber = ConvertIpToNumber(_subnetMask);
+            uint subnetMaskNumber = _subnetMask.ConvertIpToNumber();
             uint networkAddressNumber = startingAddressNumber & subnetMaskNumber;
 
-            _networkAddress = ConvertNumberToIp(networkAddressNumber);
-            _broadcastAddress = ConvertNumberToIp(networkAddressNumber | ~subnetMaskNumber);
+            _networkAddress = IPAddressExtension.ConvertNumberToIp(networkAddressNumber);
+            _broadcastAddress = IPAddressExtension.ConvertNumberToIp(networkAddressNumber | ~subnetMaskNumber);
+            _reverseZone = GetReverseZone(_networkAddress, _subnetMask);
 
             _lastAddressOffered = _startingAddress;
         }
 
-        public void AddExclusion(IPAddress startingAddress, IPAddress endingAddress)
+        public void WriteTo(BinaryWriter bW)
         {
-            if (!IsAddressInRange(startingAddress))
-                throw new ArgumentOutOfRangeException("startingAddress", "Exclusion address must be in scope range.");
+            bW.Write(Encoding.ASCII.GetBytes("SC"));
+            bW.Write((byte)1); //version
 
-            if (!IsAddressInRange(endingAddress))
-                throw new ArgumentOutOfRangeException("endingAddress", "Exclusion address must be in scope range.");
+            bW.WriteShortString(_name);
+            bW.Write(_enabled);
+            _startingAddress.WriteTo(bW);
+            _endingAddress.WriteTo(bW);
+            _subnetMask.WriteTo(bW);
+            bW.Write(_leaseTime);
+            bW.Write(_offerDelayTime);
 
-            lock (_exclusions)
+            if (string.IsNullOrEmpty(_domainName))
+                bW.Write((byte)0);
+            else
+                bW.WriteShortString(_domainName);
+
+            bW.Write(_dnsTtl);
+
+            if (_routerAddress == null)
+                IPAddress.Any.WriteTo(bW);
+            else
+                _routerAddress.WriteTo(bW);
+
+            if (_dnsServers == null)
             {
+                bW.Write((byte)0);
+            }
+            else
+            {
+                bW.Write(Convert.ToByte(_dnsServers.Length));
+
+                foreach (IPAddress dnsServer in _dnsServers)
+                    dnsServer.WriteTo(bW);
+            }
+
+            if (_winsServers == null)
+            {
+                bW.Write((byte)0);
+            }
+            else
+            {
+                bW.Write(Convert.ToByte(_winsServers.Length));
+
+                foreach (IPAddress winsServer in _winsServers)
+                    winsServer.WriteTo(bW);
+            }
+
+            if (_ntpServers == null)
+            {
+                bW.Write((byte)0);
+            }
+            else
+            {
+                bW.Write(Convert.ToByte(_ntpServers.Length));
+
+                foreach (IPAddress ntpServer in _ntpServers)
+                    ntpServer.WriteTo(bW);
+            }
+
+            if (_staticRoutes == null)
+            {
+                bW.Write((byte)0);
+            }
+            else
+            {
+                bW.Write(Convert.ToByte(_staticRoutes.Length));
+
+                foreach (ClasslessStaticRouteOption.Route route in _staticRoutes)
+                    route.WriteTo(bW.BaseStream);
+            }
+
+            if (_exclusions == null)
+            {
+                bW.Write((byte)0);
+            }
+            else
+            {
+                bW.Write(Convert.ToByte(_exclusions.Length));
+
                 foreach (Exclusion exclusion in _exclusions)
                 {
-                    if (IsAddressInRange(startingAddress, exclusion.StartingAddress, exclusion.EndingAddress))
-                        throw new ArgumentException("Exclusion range overlaps existing exclusion.");
-
-                    if (IsAddressInRange(endingAddress, exclusion.StartingAddress, exclusion.EndingAddress))
-                        throw new ArgumentException("Exclusion range overlaps existing exclusion.");
+                    exclusion.StartingAddress.WriteTo(bW);
+                    exclusion.EndingAddress.WriteTo(bW);
                 }
-
-                _exclusions.Add(new Exclusion(startingAddress, endingAddress));
             }
-        }
 
-        public bool RemoveExclusion(IPAddress startingAddress, IPAddress endingAddress)
-        {
-            lock (_exclusions)
             {
-                Exclusion exclusionFound = null;
+                bW.Write(_reservedLeases.Length);
 
-                foreach (Exclusion exclusion in _exclusions)
-                {
-                    if (exclusion.StartingAddress.Equals(startingAddress) && exclusion.EndingAddress.Equals(endingAddress))
-                    {
-                        exclusionFound = exclusion;
-                        break;
-                    }
-                }
+                foreach (Lease reservedLease in _reservedLeases)
+                    reservedLease.WriteTo(bW);
 
-                if (exclusionFound == null)
-                    return false;
-
-                return _exclusions.Remove(exclusionFound);
+                bW.Write(_allowOnlyReservedLeases);
             }
-        }
 
-        public void AddReservedAddress(byte[] hardwareAddress, IPAddress address)
-        {
-            if (!IsAddressInRange(address))
-                throw new ArgumentOutOfRangeException("address", "Reserved address must be in scope range.");
-
-            Lease reservedLease = new Lease(hardwareAddress, address, _leaseTime);
-
-            _reservedAddresses.AddOrUpdate(new ClientIdentifierOption(1, hardwareAddress), reservedLease, delegate (ClientIdentifierOption key, Lease existingValue)
             {
-                return reservedLease;
-            });
-        }
+                bW.Write(_leases.Count);
 
-        public bool RemoveReservedAddress(byte[] hardwareAddress)
-        {
-            return _reservedAddresses.TryRemove(new ClientIdentifierOption(1, hardwareAddress), out _);
+                foreach (KeyValuePair<ClientIdentifierOption, Lease> lease in _leases)
+                    lease.Value.WriteTo(bW);
+            }
         }
 
         public override bool Equals(object obj)
@@ -653,9 +799,6 @@ namespace DnsServerCore.Dhcp
                 return false;
 
             if (!_endingAddress.Equals(other._endingAddress))
-                return false;
-
-            if (!_subnetMask.Equals(other._subnetMask))
                 return false;
 
             return true;
@@ -686,10 +829,7 @@ namespace DnsServerCore.Dhcp
         }
 
         public bool Enabled
-        {
-            get { return _enabled; }
-            set { _enabled = value; }
-        }
+        { get { return _enabled; } }
 
         public IPAddress StartingAddress
         { get { return _startingAddress; } }
@@ -700,10 +840,37 @@ namespace DnsServerCore.Dhcp
         public IPAddress SubnetMask
         { get { return _subnetMask; } }
 
+        public uint LeaseTime
+        {
+            get { return _leaseTime; }
+            set
+            {
+                _leaseTime = value;
+                _renewTime = _leaseTime / 2;
+                _rebindTime = Convert.ToUInt32(_leaseTime * 0.875);
+            }
+        }
+
+        public ushort OfferDelayTime
+        {
+            get { return _offerDelayTime; }
+            set { _offerDelayTime = value; }
+        }
+
         public string DomainName
         {
             get { return _domainName; }
-            set { _domainName = value; }
+            set
+            {
+                DnsClient.IsDomainNameValid(value, true);
+                _domainName = value;
+            }
+        }
+
+        public uint DnsTtl
+        {
+            get { return _dnsTtl; }
+            set { _dnsTtl = value; }
         }
 
         public IPAddress RouterAddress
@@ -736,54 +903,64 @@ namespace DnsServerCore.Dhcp
             set { _staticRoutes = value; }
         }
 
-        public uint LeaseTime
-        {
-            get { return _leaseTime; }
-            set
-            {
-                _leaseTime = value;
-                _renewTime = _leaseTime / 2;
-                _rebindTime = Convert.ToUInt32(_leaseTime * 0.875);
-            }
-        }
-
-        public ushort DelayTime
-        {
-            get { return _delayTime; }
-            set { _delayTime = value; }
-        }
-
-        public bool AutoRouter
-        {
-            get { return _autoRouter; }
-            set { _autoRouter = value; }
-        }
-
-        public bool AutoDnsServer
-        {
-            get { return _autoDnsServer; }
-            set { _autoDnsServer = value; }
-        }
-
-        public bool ReservedAddressOffersOnly
-        {
-            get { return _reservedAddressOffersOnly; }
-            set { _reservedAddressOffersOnly = value; }
-        }
-
         public Exclusion[] Exclusions
         {
             get
             {
-                lock (_exclusions)
+                return _exclusions;
+            }
+            set
+            {
+                if (value == null)
                 {
-                    return _exclusions.ToArray();
+                    _exclusions = null;
+                }
+                else
+                {
+                    foreach (Exclusion exclusion in value)
+                    {
+                        if (!IsAddressInRange(exclusion.StartingAddress))
+                            throw new ArgumentOutOfRangeException("StartingAddress", "Exclusion address must be in scope range.");
+
+                        if (!IsAddressInRange(exclusion.EndingAddress))
+                            throw new ArgumentOutOfRangeException("EndingAddress", "Exclusion address must be in scope range.");
+                    }
+
+                    _exclusions = value;
                 }
             }
         }
 
-        public ICollection<Lease> ReservedAddresses
-        { get { return _reservedAddresses.Values; } }
+        public Lease[] ReservedLeases
+        {
+            get
+            {
+                return _reservedLeases;
+            }
+            set
+            {
+                if (value == null)
+                {
+                    _reservedLeases = null;
+                }
+                else
+                {
+                    foreach (Lease reservedLease in value)
+                    {
+                        if (!IsAddressInRange(reservedLease.Address))
+                            throw new ArgumentOutOfRangeException("Address", "Reserved address must be in scope range.");
+                    }
+
+                    _reservedLeases = value;
+                }
+            }
+        }
+
+        public bool AllowOnlyReservedLeases
+        {
+            get { return _allowOnlyReservedLeases; }
+            set { _allowOnlyReservedLeases = value; }
+        }
 
         public ICollection<Lease> Leases
         { get { return _leases.Values; } }
@@ -794,8 +971,8 @@ namespace DnsServerCore.Dhcp
         public IPAddress BroadcastAddress
         { get { return _broadcastAddress; } }
 
-        public bool IsActive
-        { get { return _isActive; } }
+        public string ReverseZone
+        { get { return _reverseZone; } }
 
         public IPAddress InterfaceAddress
         {
@@ -803,8 +980,8 @@ namespace DnsServerCore.Dhcp
             {
                 if (_interfaceAddress == null)
                 {
-                    uint networkAddressNumber = ConvertIpToNumber(_networkAddress);
-                    uint subnetMaskNumber = ConvertIpToNumber(_subnetMask);
+                    uint networkAddressNumber = _networkAddress.ConvertIpToNumber();
+                    uint subnetMaskNumber = _subnetMask.ConvertIpToNumber();
 
                     foreach (NetworkInterface nic in NetworkInterface.GetAllNetworkInterfaces())
                     {
@@ -817,10 +994,13 @@ namespace DnsServerCore.Dhcp
                         {
                             if (ip.Address.AddressFamily == AddressFamily.InterNetwork)
                             {
-                                uint addressNumber = ConvertIpToNumber(ip.Address);
+                                uint addressNumber = ip.Address.ConvertIpToNumber();
 
                                 if ((addressNumber & subnetMaskNumber) == networkAddressNumber)
-                                    return ip.Address;
+                                {
+                                    _interfaceAddress = ip.Address;
+                                    return _interfaceAddress;
+                                }
                             }
                         }
                     }
@@ -832,11 +1012,8 @@ namespace DnsServerCore.Dhcp
             }
         }
 
-        internal LogManager LogManager
-        {
-            get { return _log; }
-            set { _log = value; }
-        }
+        internal DateTime LastModified
+        { get { return _lastModified; } }
 
         #endregion
     }
