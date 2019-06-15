@@ -27,15 +27,17 @@ namespace DnsServerCore.Dns
 
         readonly string _zoneName;
         readonly bool _disabled;
+        readonly bool _internal;
 
         #endregion
 
         #region constructor
 
-        public ZoneInfo(string zoneName, bool disabled)
+        public ZoneInfo(string zoneName, bool disabled, bool @internal)
         {
             _zoneName = zoneName;
             _disabled = disabled;
+            _internal = @internal;
         }
 
         #endregion
@@ -56,6 +58,9 @@ namespace DnsServerCore.Dns
 
         public bool Disabled
         { get { return _disabled; } }
+
+        public bool Internal
+        { get { return _internal; } }
 
         #endregion
     }

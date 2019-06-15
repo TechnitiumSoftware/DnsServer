@@ -36,6 +36,7 @@ namespace DnsServerCore.Dns
         readonly string _zoneName;
 
         bool _disabled;
+        bool _internal;
 
         readonly ConcurrentDictionary<string, Zone> _zones = new ConcurrentDictionary<string, Zone>();
         readonly ConcurrentDictionary<DnsResourceRecordType, DnsResourceRecord[]> _entries = new ConcurrentDictionary<DnsResourceRecordType, DnsResourceRecord[]>();
@@ -1028,9 +1029,25 @@ namespace DnsServerCore.Dns
             List<ZoneInfo> zoneNames = new List<ZoneInfo>();
 
             foreach (Zone zone in zones)
-                zoneNames.Add(new ZoneInfo(zone._zoneName, zone._disabled));
+                zoneNames.Add(new ZoneInfo(zone._zoneName, zone._disabled, zone._internal));
 
             return zoneNames;
+        }
+
+        public ZoneInfo GetZoneInfo(string domain)
+        {
+            Zone currentZone = GetZone(this, domain, true);
+            if (currentZone == null)
+                return null;
+
+            return new ZoneInfo(currentZone._zoneName, currentZone._disabled, currentZone._internal);
+        }
+
+        public void MakeZoneInternal(string domain)
+        {
+            Zone currentZone = GetZone(this, domain, true);
+            if (currentZone != null)
+                currentZone._internal = true;
         }
 
         public bool DeleteZone(string domain, bool deleteSubZones)
