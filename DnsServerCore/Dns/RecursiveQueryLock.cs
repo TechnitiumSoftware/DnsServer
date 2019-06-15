@@ -1,6 +1,6 @@
 ﻿/*
 Technitium DNS Server
-Copyright (C) 2017  Shreyas Zare (shreyas@technitium.com)
+Copyright (C) 2019  Shreyas Zare (shreyas@technitium.com)
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -17,29 +17,39 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 */
 
-using System;
+using TechnitiumLibrary.Net.Dns;
 
-namespace DnsServerCore
+namespace DnsServerCore.Dns
 {
-    public class DnsServerException : Exception
+    class RecursiveQueryLock
     {
-        #region constructors
+        #region variables
 
-        public DnsServerException()
-            : base()
-        { }
+        bool _complete;
+        DnsDatagram _response;
 
-        public DnsServerException(string message)
-            : base(message)
-        { }
+        #endregion
 
-        public DnsServerException(string message, Exception innerException)
-            : base(message, innerException)
-        { }
+        #region public
 
-        protected DnsServerException(System.Runtime.Serialization.SerializationInfo info, System.Runtime.Serialization.StreamingContext context)
-            : base(info, context)
-        { }
+        public void SetComplete(DnsDatagram response)
+        {
+            if (!_complete)
+            {
+                _complete = true;
+                _response = response;
+            }
+        }
+
+        #endregion
+
+        #region properties
+
+        public bool Complete
+        { get { return _complete; } }
+
+        public DnsDatagram Response
+        { get { return _response; } }
 
         #endregion
     }

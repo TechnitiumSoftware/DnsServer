@@ -20,10 +20,10 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
-using System.IO;
 using TechnitiumLibrary.Net.Dns;
+using TechnitiumLibrary.Net.Dns.ResourceRecords;
 
-namespace DnsServerCore
+namespace DnsServerCore.Dns
 {
     public class Zone
     {
@@ -1028,7 +1028,7 @@ namespace DnsServerCore
             List<ZoneInfo> zoneNames = new List<ZoneInfo>();
 
             foreach (Zone zone in zones)
-                zoneNames.Add(new ZoneInfo(zone));
+                zoneNames.Add(new ZoneInfo(zone._zoneName, zone._disabled));
 
             return zoneNames;
         }
@@ -1096,101 +1096,5 @@ namespace DnsServerCore
         }
 
         #endregion
-
-        public class ZoneInfo : IComparable<ZoneInfo>
-        {
-            #region variables
-
-            readonly string _zoneName;
-            readonly bool _disabled;
-
-            #endregion
-
-            #region constructor
-
-            public ZoneInfo(string zoneName, bool disabled)
-            {
-                _zoneName = zoneName;
-                _disabled = disabled;
-            }
-
-            public ZoneInfo(Zone zone)
-            {
-                _zoneName = zone._zoneName;
-                _disabled = zone._disabled;
-            }
-
-            #endregion
-
-            #region public
-
-            public int CompareTo(ZoneInfo other)
-            {
-                return this._zoneName.CompareTo(other._zoneName);
-            }
-
-            #endregion
-
-            #region properties
-
-            public string ZoneName
-            { get { return _zoneName; } }
-
-            public bool Disabled
-            { get { return _disabled; } }
-
-            #endregion
-        }
-
-        public class DnsResourceRecordInfo
-        {
-            #region variables
-
-            readonly bool _disabled;
-
-            #endregion
-
-            #region constructor
-
-            public DnsResourceRecordInfo()
-            { }
-
-            public DnsResourceRecordInfo(bool disabled)
-            {
-                _disabled = disabled;
-            }
-
-            public DnsResourceRecordInfo(BinaryReader bR)
-            {
-                switch (bR.ReadByte()) //version
-                {
-                    case 1:
-                        _disabled = bR.ReadBoolean();
-                        break;
-
-                    default:
-                        throw new NotSupportedException("Zone.DnsResourceRecordInfo format version not supported.");
-                }
-            }
-
-            #endregion
-
-            #region public
-
-            public void WriteTo(BinaryWriter bW)
-            {
-                bW.Write((byte)1); //version
-                bW.Write(_disabled);
-            }
-
-            #endregion
-
-            #region properties
-
-            public bool Disabled
-            { get { return _disabled; } }
-
-            #endregion
-        }
     }
 }

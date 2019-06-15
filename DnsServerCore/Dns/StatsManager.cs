@@ -28,7 +28,7 @@ using TechnitiumLibrary.IO;
 using TechnitiumLibrary.Net;
 using TechnitiumLibrary.Net.Dns;
 
-namespace DnsServerCore
+namespace DnsServerCore.Dns
 {
     public enum StatsResponseType
     {

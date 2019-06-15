@@ -32,9 +32,10 @@ using System.Threading;
 using TechnitiumLibrary.IO;
 using TechnitiumLibrary.Net;
 using TechnitiumLibrary.Net.Dns;
+using TechnitiumLibrary.Net.Dns.ResourceRecords;
 using TechnitiumLibrary.Net.Proxy;
 
-namespace DnsServerCore
+namespace DnsServerCore.Dns
 {
     public class DnsServer : IDisposable
     {
@@ -75,9 +76,6 @@ namespace DnsServerCore
         readonly Zone _allowedZoneRoot = new Zone(true);
         Zone _blockedZoneRoot = new Zone(true);
 
-        const uint NEGATIVE_RECORD_TTL = 300u;
-        const uint MINIMUM_RECORD_TTL = 10u;
-        const uint SERVE_STALE_TTL = 7 * 24 * 60 * 60; //7 days serve stale ttl as per draft-ietf-dnsop-serve-stale-04
         readonly DnsCache _dnsCache;
 
         bool _allowRecursion = false;
@@ -161,18 +159,7 @@ namespace DnsServerCore
                 return;
 
             if (disposing)
-            {
                 Stop();
-
-                if (_log != null)
-                    _log.Dispose();
-
-                if (_queryLog != null)
-                    _queryLog.Dispose();
-
-                if (_stats != null)
-                    _stats.Dispose();
-            }
 
             _disposed = true;
         }
@@ -202,11 +189,6 @@ namespace DnsServerCore
             {
                 while (true)
                 {
-                    if (udpListener.AddressFamily == AddressFamily.InterNetwork)
-                        remoteEP = new IPEndPoint(IPAddress.Any, 0);
-                    else
-                        remoteEP = new IPEndPoint(IPAddress.IPv6Any, 0);
-
                     try
                     {
                         bytesRecv = udpListener.ReceiveFrom(recvBuffer, ref remoteEP);
@@ -2104,102 +2086,5 @@ namespace DnsServerCore
         }
 
         #endregion
-
-        class ResolverDnsCache : DnsCache
-        {
-            #region variables
-
-            readonly protected Zone _cacheZoneRoot;
-
-            #endregion
-
-            #region constructor
-
-            public ResolverDnsCache(Zone cacheZoneRoot)
-                : base(NEGATIVE_RECORD_TTL, MINIMUM_RECORD_TTL, SERVE_STALE_TTL)
-            {
-                _cacheZoneRoot = cacheZoneRoot;
-            }
-
-            #endregion
-
-            #region public
-
-            public override DnsDatagram Query(DnsDatagram request)
-            {
-                return _cacheZoneRoot.Query(request);
-            }
-
-            protected override void CacheRecords(ICollection<DnsResourceRecord> resourceRecords)
-            {
-                _cacheZoneRoot.SetRecords(resourceRecords);
-            }
-
-            #endregion
-        }
-
-        class ResolverPrefetchDnsCache : ResolverDnsCache
-        {
-            #region variables
-
-            readonly DnsQuestionRecord _prefetchQuery;
-
-            #endregion
-
-            #region constructor
-
-            public ResolverPrefetchDnsCache(Zone cacheZoneRoot, DnsQuestionRecord prefetchQuery)
-                : base(cacheZoneRoot)
-            {
-                _prefetchQuery = prefetchQuery;
-            }
-
-            #endregion
-
-            #region public
-
-            public override DnsDatagram Query(DnsDatagram request)
-            {
-                if (_prefetchQuery.Equals(request.Question[0]))
-                    return _cacheZoneRoot.QueryCacheGetClosestNameServers(request); //return closest name servers so that the recursive resolver queries them to refreshes cache instead of returning response from cache
-
-                return _cacheZoneRoot.Query(request);
-            }
-
-            #endregion
-        }
-
-        class RecursiveQueryLock
-        {
-            #region variables
-
-            bool _complete;
-            DnsDatagram _response;
-
-            #endregion
-
-            #region public
-
-            public void SetComplete(DnsDatagram response)
-            {
-                if (!_complete)
-                {
-                    _complete = true;
-                    _response = response;
-                }
-            }
-
-            #endregion
-
-            #region properties
-
-            public bool Complete
-            { get { return _complete; } }
-
-            public DnsDatagram Response
-            { get { return _response; } }
-
-            #endregion
-        }
     }
 }
