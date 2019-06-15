@@ -27,7 +27,7 @@ using TechnitiumLibrary.Net;
 
 namespace DnsServerCore.Dhcp
 {
-    public class Lease
+    public class Lease : IComparable<Lease>
     {
         #region variables
 
@@ -89,7 +89,7 @@ namespace DnsServerCore.Dhcp
 
         private static byte[] ParseHardwareAddress(string hardwareAddress)
         {
-            string[] parts = hardwareAddress.Split('-');
+            string[] parts = hardwareAddress.Split(new char[] { '-', ':' });
             byte[] address = new byte[parts.Length];
 
             for (int i = 0; i < parts.Length; i++)
@@ -138,6 +138,11 @@ namespace DnsServerCore.Dhcp
                 return "[" + hardwareAddress + "]";
 
             return _hostName + " [" + hardwareAddress + "]";
+        }
+
+        public int CompareTo(Lease other)
+        {
+            return _address.ConvertIpToNumber().CompareTo(other._address.ConvertIpToNumber());
         }
 
         #endregion
