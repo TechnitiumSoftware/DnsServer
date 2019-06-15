@@ -1721,6 +1721,9 @@ namespace DnsServerCore.Dns
                 _authoritativeZoneRoot.SetRecords("resolver-addresses.arpa", DnsResourceRecordType.SOA, 14400, new DnsResourceRecordData[] { new DnsSOARecord(serverDomain, "hostmaster." + serverDomain, uint.Parse(DateTime.UtcNow.ToString("yyyyMMddHH")), 28800, 7200, 604800, 600) });
                 _authoritativeZoneRoot.SetRecords("resolver-addresses.arpa", DnsResourceRecordType.NS, 14400, new DnsResourceRecordData[] { new DnsNSRecord(serverDomain) });
                 _authoritativeZoneRoot.SetRecords("resolver-addresses.arpa", DnsResourceRecordType.CNAME, 60, new DnsResourceRecordData[] { new DnsCNAMERecord(serverDomain) });
+
+                _authoritativeZoneRoot.MakeZoneInternal("resolver-associated-doh.arpa");
+                _authoritativeZoneRoot.MakeZoneInternal("resolver-addresses.arpa");
             }
 
             //start reading query packets
