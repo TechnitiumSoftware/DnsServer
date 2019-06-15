@@ -254,10 +254,13 @@ namespace DnsServerCore.Dhcp
                 }
             }
 
-            foreach (Lease reservedLease in _reservedLeases)
+            if (_reservedLeases != null)
             {
-                if (address.Equals(reservedLease.Address))
-                    return false;
+                foreach (Lease reservedLease in _reservedLeases)
+                {
+                    if (address.Equals(reservedLease.Address))
+                        return false;
+                }
             }
 
             foreach (KeyValuePair<ClientIdentifierOption, Lease> lease in _leases)
@@ -359,18 +362,21 @@ namespace DnsServerCore.Dhcp
                 return existingLease;
             }
 
-            ClientIdentifierOption clientIdentifier = new ClientIdentifierOption(1, request.ClientHardwareAddress);
-            foreach (Lease reservedLease in _reservedLeases)
+            if (_reservedLeases != null)
             {
-                if (reservedLease.ClientIdentifier.Equals(clientIdentifier))
+                ClientIdentifierOption clientIdentifier = new ClientIdentifierOption(1, request.ClientHardwareAddress);
+                foreach (Lease reservedLease in _reservedLeases)
                 {
-                    //reserved address exists
-                    Lease reservedOffer = new Lease(request.ClientIdentifier, request.HostName?.HostName, request.ClientHardwareAddress, reservedLease.Address, GetLeaseTime());
-
-                    return _offers.AddOrUpdate(request.ClientIdentifier, reservedOffer, delegate (ClientIdentifierOption key, Lease existingValue)
+                    if (reservedLease.ClientIdentifier.Equals(clientIdentifier))
                     {
-                        return reservedOffer;
-                    });
+                        //reserved address exists
+                        Lease reservedOffer = new Lease(request.ClientIdentifier, request.HostName?.HostName, request.ClientHardwareAddress, reservedLease.Address, GetLeaseTime());
+
+                        return _offers.AddOrUpdate(request.ClientIdentifier, reservedOffer, delegate (ClientIdentifierOption key, Lease existingValue)
+                        {
+                            return reservedOffer;
+                        });
+                    }
                 }
             }
 
@@ -955,10 +961,7 @@ namespace DnsServerCore.Dhcp
 
         public Exclusion[] Exclusions
         {
-            get
-            {
-                return _exclusions;
-            }
+            get { return _exclusions; }
             set
             {
                 if (value == null)
@@ -983,10 +986,7 @@ namespace DnsServerCore.Dhcp
 
         public Lease[] ReservedLeases
         {
-            get
-            {
-                return _reservedLeases;
-            }
+            get { return _reservedLeases; }
             set
             {
                 if (value == null)
