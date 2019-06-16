@@ -646,7 +646,8 @@ namespace DnsServerCore.Dhcp
                     expiredLeases.Add(expiredLease);
             }
 
-            _lastModified = DateTime.UtcNow;
+            if (expiredLeaseKeys.Count > 0)
+                _lastModified = DateTime.UtcNow;
 
             return expiredLeases;
         }
