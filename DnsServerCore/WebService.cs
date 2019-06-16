@@ -2969,8 +2969,11 @@ namespace DnsServerCore
                 jsonWriter.WritePropertyName("broadcastAddress");
                 jsonWriter.WriteValue(scope.BroadcastAddress.ToString());
 
-                jsonWriter.WritePropertyName("interfaceAddress");
-                jsonWriter.WriteValue(scope.InterfaceAddress.ToString());
+                if (scope.InterfaceAddress != null)
+                {
+                    jsonWriter.WritePropertyName("interfaceAddress");
+                    jsonWriter.WriteValue(scope.InterfaceAddress.ToString());
+                }
 
                 jsonWriter.WriteEndObject();
             }
@@ -3137,8 +3140,14 @@ namespace DnsServerCore
                 throw new WebServiceException("Parameter 'name' missing.");
 
             string newName = request.QueryString["newName"];
-            if (!string.IsNullOrEmpty(newName))
+            if (!string.IsNullOrEmpty(newName) && !newName.Equals(scopeName))
+            {
                 _dhcpServer.RenameScope(scopeName, newName);
+
+                _log.Write(GetRequestRemoteEndPoint(request), "[" + GetSession(request).Username + "] DHCP scope was renamed successfully: '" + scopeName + "' to '" + newName + "'");
+
+                scopeName = newName;
+            }
 
             string strStartingAddress = request.QueryString["startingAddress"];
             if (string.IsNullOrEmpty(strStartingAddress))
@@ -3324,8 +3333,18 @@ namespace DnsServerCore
             if (!string.IsNullOrEmpty(strAllowOnlyReservedLeases))
                 scope.AllowOnlyReservedLeases = bool.Parse(strAllowOnlyReservedLeases);
 
-            if (!scopeExists)
+            if (scopeExists)
+            {
+                _dhcpServer.SaveScope(scopeName);
+
+                _log.Write(GetRequestRemoteEndPoint(request), "[" + GetSession(request).Username + "] DHCP scope was updated successfully: " + scopeName);
+            }
+            else
+            {
                 _dhcpServer.AddScope(scope);
+
+                _log.Write(GetRequestRemoteEndPoint(request), "[" + GetSession(request).Username + "] DHCP scope was added successfully: " + scopeName);
+            }
         }
 
         private void EnableDhcpScope(HttpListenerRequest request)
@@ -3334,11 +3353,10 @@ namespace DnsServerCore
             if (string.IsNullOrEmpty(scopeName))
                 throw new WebServiceException("Parameter 'name' missing.");
 
-            Scope scope = _dhcpServer.GetScope(scopeName);
-            if (scope == null)
-                throw new WebServiceException("DHCP scope was not found: " + scopeName);
+            if (!_dhcpServer.EnableScope(scopeName))
+                throw new WebServiceException("Failed to enable DHCP scope: " + scopeName);
 
-            _dhcpServer.EnableScope(scopeName);
+            _log.Write(GetRequestRemoteEndPoint(request), "[" + GetSession(request).Username + "] DHCP scope was enabled successfully: " + scopeName);
         }
 
         private void DisableDhcpScope(HttpListenerRequest request)
@@ -3347,11 +3365,10 @@ namespace DnsServerCore
             if (string.IsNullOrEmpty(scopeName))
                 throw new WebServiceException("Parameter 'name' missing.");
 
-            Scope scope = _dhcpServer.GetScope(scopeName);
-            if (scope == null)
-                throw new WebServiceException("DHCP scope was not found: " + scopeName);
+            if (!_dhcpServer.DisableScope(scopeName))
+                throw new WebServiceException("Failed to disable DHCP scope: " + scopeName);
 
-            _dhcpServer.DisableScope(scopeName);
+            _log.Write(GetRequestRemoteEndPoint(request), "[" + GetSession(request).Username + "] DHCP scope was disabled successfully: " + scopeName);
         }
 
         private void DeleteDhcpScope(HttpListenerRequest request)
@@ -3361,6 +3378,8 @@ namespace DnsServerCore
                 throw new WebServiceException("Parameter 'name' missing.");
 
             _dhcpServer.DeleteScope(scopeName);
+
+            _log.Write(GetRequestRemoteEndPoint(request), "[" + GetSession(request).Username + "] DHCP scope was deleted successfully: " + scopeName);
         }
 
         private void SetCredentials(string username, string password)
