@@ -413,13 +413,14 @@ namespace DnsServerCore.Dhcp
             {
                 //find free address from scope
                 offerAddress = _lastAddressOffered;
+                uint endingAddressNumber = _endingAddress.ConvertIpToNumber();
                 bool offerAddressWasResetFromEnd = false;
 
                 while (true)
                 {
-                    offerAddress = IPAddressExtension.ConvertNumberToIp(offerAddress.ConvertIpToNumber() + 1u);
+                    uint nextOfferAddressNumber = offerAddress.ConvertIpToNumber() + 1u;
 
-                    if (offerAddress.Equals(_endingAddress))
+                    if (nextOfferAddressNumber > endingAddressNumber)
                     {
                         if (offerAddressWasResetFromEnd)
                             return null; //ip pool exhausted
@@ -428,6 +429,8 @@ namespace DnsServerCore.Dhcp
                         offerAddressWasResetFromEnd = true;
                         continue;
                     }
+
+                    offerAddress = IPAddressExtension.ConvertNumberToIp(nextOfferAddressNumber);
 
                     if (IsAddressAvailable(ref offerAddress))
                         break;
@@ -688,7 +691,7 @@ namespace DnsServerCore.Dhcp
             _broadcastAddress = IPAddressExtension.ConvertNumberToIp(broadcastAddressNumber);
             _reverseZone = GetReverseZone(_networkAddress, _subnetMask);
 
-            _lastAddressOffered = _startingAddress;
+            _lastAddressOffered = IPAddressExtension.ConvertNumberToIp(startingAddressNumber - 1u);
         }
 
         public void WriteTo(BinaryWriter bW)
@@ -973,10 +976,10 @@ namespace DnsServerCore.Dhcp
                     foreach (Exclusion exclusion in value)
                     {
                         if (!IsAddressInRange(exclusion.StartingAddress))
-                            throw new ArgumentOutOfRangeException("StartingAddress", "Exclusion address must be in scope range.");
+                            throw new ArgumentOutOfRangeException("Exclusion starting address must be in scope range.");
 
                         if (!IsAddressInRange(exclusion.EndingAddress))
-                            throw new ArgumentOutOfRangeException("EndingAddress", "Exclusion address must be in scope range.");
+                            throw new ArgumentOutOfRangeException("Exclusion ending address must be in scope range.");
                     }
 
                     _exclusions = value;
@@ -998,7 +1001,7 @@ namespace DnsServerCore.Dhcp
                     foreach (Lease reservedLease in value)
                     {
                         if (!IsAddressInRange(reservedLease.Address))
-                            throw new ArgumentOutOfRangeException("Address", "Reserved address must be in scope range.");
+                            throw new ArgumentOutOfRangeException("Reserved address must be in scope range.");
                     }
 
                     _reservedLeases = value;
