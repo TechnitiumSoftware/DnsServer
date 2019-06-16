@@ -989,7 +989,7 @@ namespace DnsServerCore.Dhcp
 
         public void RenameScope(string name, string newName)
         {
-            if (_scopes.TryGetValue(name, out Scope scope))
+            if (!_scopes.TryGetValue(name, out Scope scope))
                 throw new DhcpServerException("Scope with name '" + name + "' does not exists.");
 
             if (!_scopes.TryAdd(newName, scope))
@@ -1030,6 +1030,12 @@ namespace DnsServerCore.Dhcp
                     SaveScopeFile(scope);
                 }
             }
+        }
+
+        public void SaveScope(string name)
+        {
+            if (_scopes.TryGetValue(name, out Scope scope))
+                SaveScopeFile(scope);
         }
 
         public IDictionary<string, string> GetAddressClientMap()
