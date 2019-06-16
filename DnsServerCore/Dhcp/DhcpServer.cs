@@ -103,10 +103,10 @@ namespace DnsServerCore.Dhcp
 
             if (disposing)
             {
+                Stop();
+
                 if (_maintenanceTimer != null)
                     _maintenanceTimer.Dispose();
-
-                Stop();
 
                 SaveModifiedScopes();
             }
@@ -772,7 +772,8 @@ namespace DnsServerCore.Dhcp
 
         private void UnloadScope(Scope scope)
         {
-            DeactivateScope(scope);
+            if (scope.Enabled)
+                DeactivateScope(scope);
 
             if (_scopes.TryRemove(scope.Name, out _))
             {
@@ -836,9 +837,9 @@ namespace DnsServerCore.Dhcp
             }
         }
 
-        private void DeleteScopeFile(Scope scope)
+        private void DeleteScopeFile(string scopeName)
         {
-            string scopeFile = Path.Combine(_configFolder, scope.Name + ".scope");
+            string scopeFile = Path.Combine(_configFolder, scopeName + ".scope");
 
             try
             {
@@ -967,16 +968,19 @@ namespace DnsServerCore.Dhcp
             return null;
         }
 
-        public void RenameScope(string name, string newName)
+        public void RenameScope(string oldName, string newName)
         {
-            if (!_scopes.TryGetValue(name, out Scope scope))
-                throw new DhcpServerException("Scope with name '" + name + "' does not exists.");
+            if (!_scopes.TryGetValue(oldName, out Scope scope))
+                throw new DhcpServerException("Scope with name '" + oldName + "' does not exists.");
 
             if (!_scopes.TryAdd(newName, scope))
                 throw new DhcpServerException("Scope with name '" + newName + "' already exists.");
 
             scope.Name = newName;
-            _scopes.TryRemove(name, out _);
+            _scopes.TryRemove(oldName, out _);
+
+            SaveScopeFile(scope);
+            DeleteScopeFile(oldName);
         }
 
         public void DeleteScope(string name)
@@ -984,7 +988,7 @@ namespace DnsServerCore.Dhcp
             if (_scopes.TryGetValue(name, out Scope scope))
             {
                 UnloadScope(scope);
-                DeleteScopeFile(scope);
+                DeleteScopeFile(scope.Name);
             }
         }
 
@@ -992,7 +996,7 @@ namespace DnsServerCore.Dhcp
         {
             if (_scopes.TryGetValue(name, out Scope scope))
             {
-                if (ActivateScope(scope))
+                if (!scope.Enabled && ActivateScope(scope))
                 {
                     scope.SetEnabled(true);
                     SaveScopeFile(scope);
@@ -1008,7 +1012,7 @@ namespace DnsServerCore.Dhcp
         {
             if (_scopes.TryGetValue(name, out Scope scope))
             {
-                if (DeactivateScope(scope))
+                if (scope.Enabled && DeactivateScope(scope))
                 {
                     scope.SetEnabled(false);
                     SaveScopeFile(scope);
