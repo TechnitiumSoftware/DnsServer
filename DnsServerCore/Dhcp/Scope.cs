@@ -75,6 +75,7 @@ namespace DnsServerCore.Dhcp
         readonly ConcurrentDictionary<ClientIdentifierOption, Lease> _offers = new ConcurrentDictionary<ClientIdentifierOption, Lease>();
         IPAddress _lastAddressOffered;
         IPAddress _interfaceAddress;
+        int _interfaceIndex;
         DateTime _lastModified = DateTime.UtcNow;
 
         #endregion
@@ -330,6 +331,40 @@ namespace DnsServerCore.Dhcp
 
         #region internal
 
+        internal void FindInterface()
+        {
+            uint networkAddressNumber = _networkAddress.ConvertIpToNumber();
+            uint subnetMaskNumber = _subnetMask.ConvertIpToNumber();
+
+            foreach (NetworkInterface nic in NetworkInterface.GetAllNetworkInterfaces())
+            {
+                if (nic.OperationalStatus != OperationalStatus.Up)
+                    continue;
+
+                IPInterfaceProperties ipInterface = nic.GetIPProperties();
+
+                foreach (UnicastIPAddressInformation ip in ipInterface.UnicastAddresses)
+                {
+                    if (ip.Address.AddressFamily == AddressFamily.InterNetwork)
+                    {
+                        uint addressNumber = ip.Address.ConvertIpToNumber();
+
+                        if ((addressNumber & subnetMaskNumber) == networkAddressNumber)
+                        {
+                            //found interface for this scope
+                            _interfaceAddress = ip.Address;
+                            _interfaceIndex = ipInterface.GetIPv4Properties().Index;
+                            return;
+                        }
+                    }
+                }
+            }
+
+            //interface not found
+            _interfaceAddress = IPAddress.Any;
+            _interfaceIndex = 0;
+        }
+
         internal static string GetReverseZone(IPAddress address, IPAddress subnetMask)
         {
             return GetReverseZone(address, subnetMask.GetSubnetMaskWidth());
@@ -458,7 +493,7 @@ namespace DnsServerCore.Dhcp
             return null;
         }
 
-        internal List<DhcpOption> GetOptions(DhcpMessage request, IPAddress interfaceAddress)
+        internal List<DhcpOption> GetOptions(DhcpMessage request, IPAddress serverIdentifierAddress)
         {
             List<DhcpOption> options = new List<DhcpOption>();
 
@@ -477,7 +512,7 @@ namespace DnsServerCore.Dhcp
                     return null;
             }
 
-            options.Add(new ServerIdentifierOption(interfaceAddress));
+            options.Add(new ServerIdentifierOption(serverIdentifierAddress));
 
             switch (request.DhcpMessageType.Type)
             {
@@ -598,12 +633,15 @@ namespace DnsServerCore.Dhcp
             _lastModified = DateTime.UtcNow;
         }
 
-        internal void SetEnabled(bool isEnabled)
+        internal void SetEnabled(bool enabled)
         {
-            _enabled = isEnabled;
+            _enabled = enabled;
 
-            if (!isEnabled)
-                _interfaceAddress = null; //remove interface address on deactivation to allow finding it back on activation
+            if (!enabled)
+            {
+                _interfaceAddress = null;
+                _interfaceIndex = 0;
+            }
         }
 
         internal void RemoveExpiredOffers()
@@ -1029,42 +1067,10 @@ namespace DnsServerCore.Dhcp
         { get { return _reverseZone; } }
 
         public IPAddress InterfaceAddress
-        {
-            get
-            {
-                if (_interfaceAddress == null)
-                {
-                    uint networkAddressNumber = _networkAddress.ConvertIpToNumber();
-                    uint subnetMaskNumber = _subnetMask.ConvertIpToNumber();
+        { get { return _interfaceAddress; } }
 
-                    foreach (NetworkInterface nic in NetworkInterface.GetAllNetworkInterfaces())
-                    {
-                        if (nic.OperationalStatus != OperationalStatus.Up)
-                            continue;
-
-                        IPInterfaceProperties ipInterface = nic.GetIPProperties();
-
-                        foreach (UnicastIPAddressInformation ip in ipInterface.UnicastAddresses)
-                        {
-                            if (ip.Address.AddressFamily == AddressFamily.InterNetwork)
-                            {
-                                uint addressNumber = ip.Address.ConvertIpToNumber();
-
-                                if ((addressNumber & subnetMaskNumber) == networkAddressNumber)
-                                {
-                                    _interfaceAddress = ip.Address;
-                                    return _interfaceAddress;
-                                }
-                            }
-                        }
-                    }
-
-                    _interfaceAddress = IPAddress.Any;
-                }
-
-                return _interfaceAddress;
-            }
-        }
+        internal int InterfaceIndex
+        { get { return _interfaceIndex; } }
 
         internal DateTime LastModified
         { get { return _lastModified; } }
