@@ -147,10 +147,6 @@ a {
     margin-bottom: 10px;
 }
 
-label {
-    margin-right: 4px;
-}
-
 .AlertPlaceholder {
     position: fixed;
     width: 800px;

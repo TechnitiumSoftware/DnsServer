@@ -790,8 +790,7 @@
                                                     <div class="col-sm-6">
                                                         <input type="text" class="form-control" id="txtServerDomain" placeholder="Domain Name">
                                                     </div>
-                                                    <label class="col-sm-3 control-label">&nbsp;</label>
-                                                    <div class="col-sm-8" style="padding-top: 5px;">The primary domain name used by this DNS Server to identify itself.</div>
+                                                    <div class="col-sm-offset-3 col-sm-8" style="padding-top: 5px;">The primary domain name used by this DNS Server to identify itself.</div>
                                                 </div>
 
                                                 <div class="form-group">
@@ -799,8 +798,7 @@
                                                     <div class="col-sm-6">
                                                         <textarea id="txtdnsServerLocalAddresses" class="form-control" rows="3"></textarea>
                                                     </div>
-                                                    <label class="col-sm-3 control-label">&nbsp;</label>
-                                                    <div class="col-sm-8" style="padding-top: 5px;">Local addresses are the network interface IP addresses you want the DNS Server to listen for requests.</div>
+                                                    <div class="col-sm-offset-3 col-sm-8" style="padding-top: 5px;">Local addresses are the network interface IP addresses you want the DNS Server to listen for requests.</div>
                                                 </div>
 
                                                 <div>To apply DNS Server local address changes, you will need to manually restart the main service.</div>
@@ -812,8 +810,7 @@
                                                     <div class="col-sm-6">
                                                         <input type="number" class="form-control" id="txtWebServicePort" placeholder="Web Service Port" style="width: 100px;">
                                                     </div>
-                                                    <label class="col-sm-3 control-label">&nbsp;</label>
-                                                    <div class="col-sm-8" style="padding-top: 5px;">Specify the TCP port number for this web console.</div>
+                                                    <div class="col-sm-offset-3 col-sm-8" style="padding-top: 5px;">Specify the TCP port number for this web console.</div>
                                                 </div>
 
                                                 <div>To apply web service port changes, you will need to manually restart the main service.</div>
@@ -851,8 +848,7 @@
                                                     <div class="col-sm-6">
                                                         <input type="text" class="form-control" id="txtTlsCertificatePath" placeholder="TLS Certificate File Path On Server">
                                                     </div>
-                                                    <label class="col-sm-3 control-label">&nbsp;</label>
-                                                    <div class="col-sm-8" style="padding-top: 5px;">Specify a PKCS #12 certificate (.pfx) file path on the server. The certificate must contain private key.</div>
+                                                    <div class="col-sm-offset-3 col-sm-8" style="padding-top: 5px;">Specify a PKCS #12 certificate (.pfx) file path on the server. The certificate must contain private key.</div>
                                                 </div>
 
                                                 <div class="form-group">
@@ -860,8 +856,7 @@
                                                     <div class="col-sm-6">
                                                         <input type="password" class="form-control" id="txtTlsCertificatePassword" placeholder="TLS Certificate Password">
                                                     </div>
-                                                    <label class="col-sm-3 control-label">&nbsp;</label>
-                                                    <div class="col-sm-8" style="padding-top: 5px;">Enter the certificate (.pfx) password, if any.</div>
+                                                    <div class="col-sm-offset-3 col-sm-8" style="padding-top: 5px;">Enter the certificate (.pfx) password, if any.</div>
                                                 </div>
 
                                                 <div>To enable or disable these protocols, you will need to manually restart the main service. For DNS-over-HTTP, use <i>http://<span id="lblDoHHost">localhost:8053</span>/dns-query</i> with a TLS terminating reverse proxy like nginx. For DNS-over-TLS, use <i>tls-certificate-domain:853</i> and for DNS-over-HTTPS use <i>https://tls-certificate-domain/dns-query</i> to configure supported DNS clients.</div>
@@ -929,8 +924,7 @@
                                                         <input type="number" class="form-control" id="txtCachePrefetchEligibility" placeholder="eligibility" style="width: 100px; display: inline;">
                                                         <span>(recommended 2)</span>
                                                     </div>
-                                                    <label class="col-sm-3 control-label">&nbsp;</label>
-                                                    <div class="col-sm-8" style="padding-top: 5px;">The minimum initial TTL value of a record needed to be eligible for prefetching.</div>
+                                                    <div class="col-sm-offset-3 col-sm-8" style="padding-top: 5px;">The minimum initial TTL value of a record needed to be eligible for prefetching.</div>
                                                 </div>
 
                                                 <div class="form-group">
@@ -939,8 +933,7 @@
                                                         <input type="number" class="form-control" id="txtCachePrefetchTrigger" placeholder="trigger" style="width: 100px; display: inline;">
                                                         <span>(recommended 9; set 0 to disable prefetching &amp; auto prefetching)</span>
                                                     </div>
-                                                    <label class="col-sm-3 control-label">&nbsp;</label>
-                                                    <div class="col-sm-8" style="padding-top: 5px;">A record with TTL value less than trigger value will initiate prefetch operation immediately for itself.</div>
+                                                    <div class="col-sm-offset-3 col-sm-8" style="padding-top: 5px;">A record with TTL value less than trigger value will initiate prefetch operation immediately for itself.</div>
                                                 </div>
 
                                                 <div class="form-group">
@@ -949,8 +942,7 @@
                                                         <input type="number" class="form-control" id="txtCachePrefetchSampleIntervalInMinutes" placeholder="interval" style="width: 100px; display: inline;">
                                                         <span>minutes (valid range 1-60; default 5)</span>
                                                     </div>
-                                                    <label class="col-sm-3 control-label">&nbsp;</label>
-                                                    <div class="col-sm-8" style="padding-top: 5px;">The interval to sample eligible domain names from last hour stats for auto prefetch.</div>
+                                                    <div class="col-sm-offset-3 col-sm-8" style="padding-top: 5px;">The interval to sample eligible domain names from last hour stats for auto prefetch.</div>
                                                 </div>
 
                                                 <div class="form-group">
@@ -959,8 +951,7 @@
                                                         <input type="number" class="form-control" id="txtCachePrefetchSampleEligibilityHitsPerHour" placeholder="hits" style="width: 100px; display: inline;">
                                                         <span>hits/hour (default 30)</span>
                                                     </div>
-                                                    <label class="col-sm-3 control-label">&nbsp;</label>
-                                                    <div class="col-sm-8" style="padding-top: 5px;">Minimum required hits per hour for a domain name to be eligible for auto prefetch.</div>
+                                                    <div class="col-sm-offset-3 col-sm-8" style="padding-top: 5px;">Minimum required hits per hour for a domain name to be eligible for auto prefetch.</div>
                                                 </div>
 
                                                 <div>The DNS Server cache auto prefetch option can keep eligible domain names from last hour stats "hot" in cache. Auto prefetch eligibility value can be decided by keeping an eye on the hits shown for last hour on the dashboard. Experiment with auto prefetch sampling interval and eligibility to get best results.</div>
