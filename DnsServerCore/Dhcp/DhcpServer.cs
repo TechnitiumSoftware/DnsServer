@@ -270,7 +270,7 @@ namespace DnsServerCore.Dhcp
 
                         Lease offer = scope.GetOffer(request);
                         if (offer == null)
-                            throw new DhcpServerException("DHCP Server failed to offer address: address unavailable.");
+                            throw new DhcpServerException("DHCP Server failed to offer address: address unavailable due to address pool exhaustion.");
 
                         List<DhcpOption> options = scope.GetOptions(request, interfaceEP.Address);
                         if (options == null)
