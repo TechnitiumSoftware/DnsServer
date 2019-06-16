@@ -61,7 +61,7 @@ namespace DnsServerCore.Dhcp
 
         readonly string _configFolder;
 
-        readonly List<Socket> _udpListeners = new List<Socket>();
+        readonly ConcurrentDictionary<IPAddress, Socket> _udpListeners = new ConcurrentDictionary<IPAddress, Socket>();
         readonly List<Thread> _listenerThreads = new List<Thread>();
 
         readonly ConcurrentDictionary<string, Scope> _scopes = new ConcurrentDictionary<string, Scope>();
@@ -69,8 +69,9 @@ namespace DnsServerCore.Dhcp
         Zone _authoritativeZoneRoot;
         LogManager _log;
 
-        int _serverAnyAddressScopeCount;
         volatile ServiceState _state = ServiceState.Stopped;
+
+        readonly IPEndPoint _dhcpDefaultEP = new IPEndPoint(IPAddress.Any, 67);
 
         Timer _maintenanceTimer;
         const int MAINTENANCE_TIMER_INTERVAL = 10000;
@@ -128,14 +129,18 @@ namespace DnsServerCore.Dhcp
             EndPoint remoteEP = new IPEndPoint(IPAddress.Any, 0);
             byte[] recvBuffer = new byte[576];
             int bytesRecv;
+            bool processOnlyUnicastMessages = !(udpListener.LocalEndPoint as IPEndPoint).Address.Equals(IPAddress.Any); //only 0.0.0.0 ip should process broadcast to avoid duplicate offers on Windows
 
             try
             {
                 while (true)
                 {
+                    SocketFlags flags = SocketFlags.None;
+                    IPPacketInformation ipPacketInformation;
+
                     try
                     {
-                        bytesRecv = udpListener.ReceiveFrom(recvBuffer, ref remoteEP);
+                        bytesRecv = udpListener.ReceiveMessageFrom(recvBuffer, 0, recvBuffer.Length, ref flags, ref remoteEP, out ipPacketInformation);
                     }
                     catch (SocketException ex)
                     {
@@ -155,13 +160,16 @@ namespace DnsServerCore.Dhcp
 
                     if (bytesRecv > 0)
                     {
+                        if (processOnlyUnicastMessages && ipPacketInformation.Address.Equals(IPAddress.Broadcast))
+                            continue;
+
                         switch ((remoteEP as IPEndPoint).Port)
                         {
                             case 67:
                             case 68:
                                 try
                                 {
-                                    ThreadPool.QueueUserWorkItem(ProcessUdpRequestAsync, new object[] { udpListener, remoteEP, new DhcpMessage(new MemoryStream(recvBuffer, 0, bytesRecv, false)) });
+                                    ThreadPool.QueueUserWorkItem(ProcessUdpRequestAsync, new object[] { udpListener, remoteEP, ipPacketInformation, new DhcpMessage(new MemoryStream(recvBuffer, 0, bytesRecv, false)) });
                                 }
                                 catch (Exception ex)
                                 {
@@ -209,11 +217,12 @@ namespace DnsServerCore.Dhcp
 
             Socket udpListener = parameters[0] as Socket;
             EndPoint remoteEP = parameters[1] as EndPoint;
-            DhcpMessage request = parameters[2] as DhcpMessage;
+            IPPacketInformation ipPacketInformation = (IPPacketInformation)parameters[2];
+            DhcpMessage request = parameters[3] as DhcpMessage;
 
             try
             {
-                DhcpMessage response = ProcessDhcpMessage(request, remoteEP as IPEndPoint, udpListener.LocalEndPoint as IPEndPoint);
+                DhcpMessage response = ProcessDhcpMessage(request, remoteEP as IPEndPoint, ipPacketInformation);
 
                 //send response
                 if (response != null)
@@ -236,8 +245,11 @@ namespace DnsServerCore.Dhcp
                     }
                     else
                     {
-                        //send response as broadcast on port 68
-                        udpListener.SendTo(sendBuffer, 0, (int)sendBufferStream.Position, SocketFlags.None, new IPEndPoint(IPAddress.Broadcast, 68));
+                        //send response as broadcast on port 68 on appropriate interface bound socket
+                        if (!_udpListeners.TryGetValue(response.NextServerIpAddress, out Socket udpSocket))
+                            udpSocket = udpListener; //no appropriate socket found so use default socket
+
+                        udpSocket.SendTo(sendBuffer, 0, (int)sendBufferStream.Position, SocketFlags.None, new IPEndPoint(IPAddress.Broadcast, 68));
                     }
                 }
             }
@@ -252,7 +264,7 @@ namespace DnsServerCore.Dhcp
             }
         }
 
-        private DhcpMessage ProcessDhcpMessage(DhcpMessage request, IPEndPoint remoteEP, IPEndPoint interfaceEP)
+        private DhcpMessage ProcessDhcpMessage(DhcpMessage request, IPEndPoint remoteEP, IPPacketInformation ipPacketInformation)
         {
             if (request.OpCode != DhcpMessageOpCode.BootRequest)
                 return null;
@@ -261,7 +273,7 @@ namespace DnsServerCore.Dhcp
             {
                 case DhcpMessageType.Discover:
                     {
-                        Scope scope = FindScope(request, remoteEP.Address, interfaceEP.Address);
+                        Scope scope = FindScope(request, remoteEP.Address, ipPacketInformation);
                         if (scope == null)
                             return null; //no scope available; do nothing
 
@@ -272,7 +284,7 @@ namespace DnsServerCore.Dhcp
                         if (offer == null)
                             throw new DhcpServerException("DHCP Server failed to offer address: address unavailable due to address pool exhaustion.");
 
-                        List<DhcpOption> options = scope.GetOptions(request, interfaceEP.Address);
+                        List<DhcpOption> options = scope.GetOptions(request, scope.InterfaceAddress);
                         if (options == null)
                             return null;
 
@@ -281,13 +293,16 @@ namespace DnsServerCore.Dhcp
                         if (log != null)
                             log.Write(remoteEP as IPEndPoint, "DHCP Server offered IP address [" + offer.Address.ToString() + "] to " + request.GetClientFullIdentifier() + ".");
 
-                        return new DhcpMessage(request, offer.Address, interfaceEP.Address, options);
+                        return new DhcpMessage(request, offer.Address, scope.InterfaceAddress, options);
                     }
 
                 case DhcpMessageType.Request:
                     {
                         //request ip address lease or extend existing lease
-                        Scope scope;
+                        Scope scope = FindScope(request, remoteEP.Address, ipPacketInformation);
+                        if (scope == null)
+                            return null; //no scope available; do nothing
+
                         Lease leaseOffer;
 
                         if (request.ServerIdentifier == null)
@@ -299,51 +314,38 @@ namespace DnsServerCore.Dhcp
                                 if (request.ClientIpAddress.Equals(IPAddress.Any))
                                     return null; //client must set IP address in ciaddr; do nothing
 
-                                scope = FindScope(request, remoteEP.Address, interfaceEP.Address);
-                                if (scope == null)
-                                {
-                                    //no scope available; do nothing
-                                    return null;
-                                }
-
                                 leaseOffer = scope.GetExistingLeaseOrOffer(request);
                                 if (leaseOffer == null)
                                 {
                                     //no existing lease or offer available for client
                                     //send nak
-                                    return new DhcpMessage(request, IPAddress.Any, interfaceEP.Address, new DhcpOption[] { new DhcpMessageTypeOption(DhcpMessageType.Nak), new ServerIdentifierOption(interfaceEP.Address), DhcpOption.CreateEndOption() });
+                                    return new DhcpMessage(request, IPAddress.Any, scope.InterfaceAddress, new DhcpOption[] { new DhcpMessageTypeOption(DhcpMessageType.Nak), new ServerIdentifierOption(scope.InterfaceAddress), DhcpOption.CreateEndOption() });
                                 }
 
                                 if (!request.ClientIpAddress.Equals(leaseOffer.Address))
                                 {
                                     //client ip is incorrect
                                     //send nak
-                                    return new DhcpMessage(request, IPAddress.Any, interfaceEP.Address, new DhcpOption[] { new DhcpMessageTypeOption(DhcpMessageType.Nak), new ServerIdentifierOption(interfaceEP.Address), DhcpOption.CreateEndOption() });
+                                    return new DhcpMessage(request, IPAddress.Any, scope.InterfaceAddress, new DhcpOption[] { new DhcpMessageTypeOption(DhcpMessageType.Nak), new ServerIdentifierOption(scope.InterfaceAddress), DhcpOption.CreateEndOption() });
                                 }
                             }
                             else
                             {
                                 //init-reboot
-                                scope = FindScope(request, remoteEP.Address, interfaceEP.Address);
-                                if (scope == null)
-                                {
-                                    //no scope available; do nothing
-                                    return null;
-                                }
 
                                 leaseOffer = scope.GetExistingLeaseOrOffer(request);
                                 if (leaseOffer == null)
                                 {
                                     //no existing lease or offer available for client
                                     //send nak
-                                    return new DhcpMessage(request, IPAddress.Any, interfaceEP.Address, new DhcpOption[] { new DhcpMessageTypeOption(DhcpMessageType.Nak), new ServerIdentifierOption(interfaceEP.Address), DhcpOption.CreateEndOption() });
+                                    return new DhcpMessage(request, IPAddress.Any, scope.InterfaceAddress, new DhcpOption[] { new DhcpMessageTypeOption(DhcpMessageType.Nak), new ServerIdentifierOption(scope.InterfaceAddress), DhcpOption.CreateEndOption() });
                                 }
 
                                 if (!request.RequestedIpAddress.Address.Equals(leaseOffer.Address))
                                 {
                                     //the client's notion of its IP address is not correct - RFC 2131
                                     //send nak
-                                    return new DhcpMessage(request, IPAddress.Any, interfaceEP.Address, new DhcpOption[] { new DhcpMessageTypeOption(DhcpMessageType.Nak), new ServerIdentifierOption(interfaceEP.Address), DhcpOption.CreateEndOption() });
+                                    return new DhcpMessage(request, IPAddress.Any, scope.InterfaceAddress, new DhcpOption[] { new DhcpMessageTypeOption(DhcpMessageType.Nak), new ServerIdentifierOption(scope.InterfaceAddress), DhcpOption.CreateEndOption() });
                                 }
                             }
                         }
@@ -354,34 +356,26 @@ namespace DnsServerCore.Dhcp
                             if (request.RequestedIpAddress == null)
                                 return null; //client MUST include this option; do nothing
 
-                            if (!request.ServerIdentifier.Address.Equals(interfaceEP.Address))
+                            if (!request.ServerIdentifier.Address.Equals(scope.InterfaceAddress))
                                 return null; //offer declined by client; do nothing
-
-                            scope = FindScope(request, remoteEP.Address, interfaceEP.Address);
-                            if (scope == null)
-                            {
-                                //no scope available
-                                //send nak
-                                return new DhcpMessage(request, IPAddress.Any, interfaceEP.Address, new DhcpOption[] { new DhcpMessageTypeOption(DhcpMessageType.Nak), new ServerIdentifierOption(interfaceEP.Address), DhcpOption.CreateEndOption() });
-                            }
 
                             leaseOffer = scope.GetExistingLeaseOrOffer(request);
                             if (leaseOffer == null)
                             {
                                 //no existing lease or offer available for client
                                 //send nak
-                                return new DhcpMessage(request, IPAddress.Any, interfaceEP.Address, new DhcpOption[] { new DhcpMessageTypeOption(DhcpMessageType.Nak), new ServerIdentifierOption(interfaceEP.Address), DhcpOption.CreateEndOption() });
+                                return new DhcpMessage(request, IPAddress.Any, scope.InterfaceAddress, new DhcpOption[] { new DhcpMessageTypeOption(DhcpMessageType.Nak), new ServerIdentifierOption(scope.InterfaceAddress), DhcpOption.CreateEndOption() });
                             }
 
                             if (!request.RequestedIpAddress.Address.Equals(leaseOffer.Address))
                             {
                                 //requested ip is incorrect
                                 //send nak
-                                return new DhcpMessage(request, IPAddress.Any, interfaceEP.Address, new DhcpOption[] { new DhcpMessageTypeOption(DhcpMessageType.Nak), new ServerIdentifierOption(interfaceEP.Address), DhcpOption.CreateEndOption() });
+                                return new DhcpMessage(request, IPAddress.Any, scope.InterfaceAddress, new DhcpOption[] { new DhcpMessageTypeOption(DhcpMessageType.Nak), new ServerIdentifierOption(scope.InterfaceAddress), DhcpOption.CreateEndOption() });
                             }
                         }
 
-                        List<DhcpOption> options = scope.GetOptions(request, interfaceEP.Address);
+                        List<DhcpOption> options = scope.GetOptions(request, scope.InterfaceAddress);
                         if (options == null)
                             return null;
 
@@ -419,7 +413,7 @@ namespace DnsServerCore.Dhcp
                             }
                         }
 
-                        return new DhcpMessage(request, leaseOffer.Address, interfaceEP.Address, options);
+                        return new DhcpMessage(request, leaseOffer.Address, scope.InterfaceAddress, options);
                     }
 
                 case DhcpMessageType.Decline:
@@ -429,12 +423,12 @@ namespace DnsServerCore.Dhcp
                         if ((request.ServerIdentifier == null) || (request.RequestedIpAddress == null))
                             return null; //client MUST include these option; do nothing
 
-                        if (!request.ServerIdentifier.Address.Equals(interfaceEP.Address))
-                            return null; //request not for this server; do nothing
-
-                        Scope scope = FindScope(request, remoteEP.Address, interfaceEP.Address);
+                        Scope scope = FindScope(request, remoteEP.Address, ipPacketInformation);
                         if (scope == null)
                             return null; //no scope available; do nothing
+
+                        if (!request.ServerIdentifier.Address.Equals(scope.InterfaceAddress))
+                            return null; //request not for this server; do nothing
 
                         Lease lease = scope.GetExistingLeaseOrOffer(request);
                         if (lease == null)
@@ -465,12 +459,12 @@ namespace DnsServerCore.Dhcp
                         if (request.ServerIdentifier == null)
                             return null; //client MUST include this option; do nothing
 
-                        if (!request.ServerIdentifier.Address.Equals(interfaceEP.Address))
-                            return null; //request not for this server; do nothing
-
-                        Scope scope = FindScope(request, remoteEP.Address, interfaceEP.Address);
+                        Scope scope = FindScope(request, remoteEP.Address, ipPacketInformation);
                         if (scope == null)
                             return null; //no scope available; do nothing
+
+                        if (!request.ServerIdentifier.Address.Equals(scope.InterfaceAddress))
+                            return null; //request not for this server; do nothing
 
                         Lease lease = scope.GetExistingLeaseOrOffer(request);
                         if (lease == null)
@@ -498,11 +492,11 @@ namespace DnsServerCore.Dhcp
                     {
                         //need only local config; already has ip address assigned externally/manually
 
-                        Scope scope = FindScope(request, remoteEP.Address, interfaceEP.Address);
+                        Scope scope = FindScope(request, remoteEP.Address, ipPacketInformation);
                         if (scope == null)
                             return null; //no scope available; do nothing
 
-                        List<DhcpOption> options = scope.GetOptions(request, interfaceEP.Address);
+                        List<DhcpOption> options = scope.GetOptions(request, scope.InterfaceAddress);
                         if (options == null)
                             return null;
 
@@ -511,7 +505,7 @@ namespace DnsServerCore.Dhcp
                         if (log != null)
                             log.Write(remoteEP as IPEndPoint, "DHCP Server received INFORM message from " + request.GetClientFullIdentifier() + ".");
 
-                        return new DhcpMessage(request, IPAddress.Any, interfaceEP.Address, options);
+                        return new DhcpMessage(request, IPAddress.Any, scope.InterfaceAddress, options);
                     }
 
                 default:
@@ -519,23 +513,26 @@ namespace DnsServerCore.Dhcp
             }
         }
 
-        private Scope FindScope(DhcpMessage request, IPAddress remoteAddress, IPAddress interfaceAddress)
+        private Scope FindScope(DhcpMessage request, IPAddress remoteAddress, IPPacketInformation ipPacketInformation)
         {
-            IPAddress address;
+            bool broadcast;
 
             if (request.RelayAgentIpAddress.Equals(IPAddress.Any))
             {
                 //no relay agent
                 if (request.ClientIpAddress.Equals(IPAddress.Any))
                 {
-                    address = interfaceAddress; //broadcast request
+                    if (!ipPacketInformation.Address.Equals(IPAddress.Broadcast))
+                        return null; //message destination address must be broadcast address
+
+                    broadcast = true; //broadcast request
                 }
                 else
                 {
                     if (!remoteAddress.Equals(request.ClientIpAddress))
                         return null; //client ip must match udp src addr
 
-                    address = request.ClientIpAddress; //unicast request
+                    broadcast = false; //unicast request
                 }
             }
             else
@@ -545,13 +542,24 @@ namespace DnsServerCore.Dhcp
                 if (!remoteAddress.Equals(request.RelayAgentIpAddress))
                     return null; //relay ip must match udp src addr
 
-                address = request.RelayAgentIpAddress;
+                broadcast = false; //unicast request
             }
 
-            foreach (KeyValuePair<string, Scope> scope in _scopes)
+            if (broadcast)
             {
-                if (scope.Value.InterfaceAddress.Equals(interfaceAddress) && scope.Value.IsAddressInRange(address))
-                    return scope.Value;
+                foreach (KeyValuePair<string, Scope> scope in _scopes)
+                {
+                    if (scope.Value.Enabled && (scope.Value.InterfaceIndex == ipPacketInformation.Interface))
+                        return scope.Value;
+                }
+            }
+            else
+            {
+                foreach (KeyValuePair<string, Scope> scope in _scopes)
+                {
+                    if (scope.Value.Enabled && (scope.Value.IsAddressInRange(remoteAddress)))
+                        return scope.Value;
+                }
             }
 
             return null;
@@ -626,13 +634,16 @@ namespace DnsServerCore.Dhcp
                 #endregion
 
                 //bind to interface address
+                if (Environment.OSVersion.Platform == PlatformID.Unix)
+                    udpListener.SetSocketOption(SocketOptionLevel.Socket, SocketOptionName.ReuseAddress, 1); //to allow binding to same port with different addresses
+
                 udpListener.EnableBroadcast = true;
+                udpListener.ExclusiveAddressUse = false;
+
                 udpListener.Bind(dhcpEP);
 
-                lock (_udpListeners)
-                {
-                    _udpListeners.Add(udpListener);
-                }
+                if (!_udpListeners.TryAdd(dhcpEP.Address, udpListener))
+                    throw new DhcpServerException("Udp listener already exists for IP address: " + dhcpEP.Address);
 
                 //start reading dhcp packets
                 Thread listenerThread = new Thread(ReadUdpRequestAsync);
@@ -653,24 +664,10 @@ namespace DnsServerCore.Dhcp
 
         private bool UnbindUdpListener(IPEndPoint dhcpEP)
         {
-            lock (_udpListeners)
+            if (_udpListeners.TryRemove(dhcpEP.Address, out Socket socket))
             {
-                Socket foundSocket = null;
-
-                foreach (Socket udpListener in _udpListeners)
-                {
-                    if (dhcpEP.Equals(udpListener.LocalEndPoint))
-                    {
-                        foundSocket = udpListener;
-                        break;
-                    }
-                }
-
-                if (foundSocket != null)
-                {
-                    foundSocket.Dispose();
-                    return _udpListeners.Remove(foundSocket);
-                }
+                socket.Dispose();
+                return true;
             }
 
             return false;
@@ -682,21 +679,14 @@ namespace DnsServerCore.Dhcp
 
             try
             {
+                //find scope interface for binding socket
+                scope.FindInterface();
+
                 IPAddress interfaceAddress = scope.InterfaceAddress;
                 dhcpEP = new IPEndPoint(interfaceAddress, 67);
 
-                if (interfaceAddress.Equals(IPAddress.Any))
-                {
-                    if (_serverAnyAddressScopeCount < 1)
-                        BindUdpListener(dhcpEP);
-
-                    _serverAnyAddressScopeCount++;
-                }
-                else
-                {
+                if (!interfaceAddress.Equals(IPAddress.Any))
                     BindUdpListener(dhcpEP);
-                }
-
 
                 if (_authoritativeZoneRoot != null)
                 {
@@ -735,22 +725,8 @@ namespace DnsServerCore.Dhcp
                 IPAddress interfaceAddress = scope.InterfaceAddress;
                 dhcpEP = new IPEndPoint(interfaceAddress, 67);
 
-                if (interfaceAddress.Equals(IPAddress.Any))
-                {
-                    if (_serverAnyAddressScopeCount < 2)
-                    {
-                        UnbindUdpListener(dhcpEP);
-                        _serverAnyAddressScopeCount = 0;
-                    }
-                    else
-                    {
-                        _serverAnyAddressScopeCount--;
-                    }
-                }
-                else
-                {
+                if (!interfaceAddress.Equals(IPAddress.Any))
                     UnbindUdpListener(dhcpEP);
-                }
 
                 if (_authoritativeZoneRoot != null)
                 {
@@ -949,6 +925,8 @@ namespace DnsServerCore.Dhcp
 
             _state = ServiceState.Starting;
 
+            BindUdpListener(_dhcpDefaultEP);
+
             LoadAllScopeFiles();
             StartMaintenanceTimer();
 
@@ -963,6 +941,8 @@ namespace DnsServerCore.Dhcp
             _state = ServiceState.Stopping;
 
             StopMaintenanceTimer();
+
+            UnbindUdpListener(_dhcpDefaultEP);
 
             foreach (KeyValuePair<string, Scope> scope in _scopes)
                 UnloadScope(scope.Value);
@@ -1008,7 +988,7 @@ namespace DnsServerCore.Dhcp
             }
         }
 
-        public void EnableScope(string name)
+        public bool EnableScope(string name)
         {
             if (_scopes.TryGetValue(name, out Scope scope))
             {
@@ -1016,11 +996,15 @@ namespace DnsServerCore.Dhcp
                 {
                     scope.SetEnabled(true);
                     SaveScopeFile(scope);
+
+                    return true;
                 }
             }
+
+            return false;
         }
 
-        public void DisableScope(string name)
+        public bool DisableScope(string name)
         {
             if (_scopes.TryGetValue(name, out Scope scope))
             {
@@ -1028,8 +1012,12 @@ namespace DnsServerCore.Dhcp
                 {
                     scope.SetEnabled(false);
                     SaveScopeFile(scope);
+
+                    return true;
                 }
             }
+
+            return false;
         }
 
         public void SaveScope(string name)
