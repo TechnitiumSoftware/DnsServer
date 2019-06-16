@@ -77,7 +77,7 @@ function refreshDhcpScopes() {
                 tableHtmlRows = "";
 
                 for (var i = 0; i < dhcpScopes.length; i++) {
-                    tableHtmlRows += "<tr><td>" + htmlEncode(dhcpScopes[i].name) + "</td><td>" + dhcpScopes[i].startingAddress + "</td><td>" + dhcpScopes[i].endingAddress + "</td><td>" + dhcpScopes[i].subnetMask + "</td><td>" + dhcpScopes[i].networkAddress + "</td><td>" + dhcpScopes[i].broadcastAddress + "</td><td>" + dhcpScopes[i].interfaceAddress + "</td>";
+                    tableHtmlRows += "<tr><td>" + htmlEncode(dhcpScopes[i].name) + "</td><td>" + dhcpScopes[i].startingAddress + "</td><td>" + dhcpScopes[i].endingAddress + "</td><td>" + dhcpScopes[i].subnetMask + "</td><td>" + dhcpScopes[i].networkAddress + "</td><td>" + dhcpScopes[i].broadcastAddress + "</td><td>" + (dhcpScopes[i].interfaceAddress == null ? "" : dhcpScopes[i].interfaceAddress) + "</td>";
                     tableHtmlRows += "<td><button type=\"button\" class=\"btn btn-primary\" style=\"font-size: 12px; padding: 2px 16px; margin-right: 6px;\" onclick=\"showEditDhcpScope('" + dhcpScopes[i].name + "');\">Edit</button>";
 
                     if (dhcpScopes[i].enabled)
