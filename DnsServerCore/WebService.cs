@@ -156,6 +156,9 @@ namespace DnsServerCore
                 if (_dnsServer != null)
                     _dnsServer.Dispose();
 
+                if (_dhcpServer != null)
+                    _dhcpServer.Dispose();
+
                 if (_log != null)
                     _log.Dispose();
 
