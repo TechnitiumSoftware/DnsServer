@@ -17,6 +17,16 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 */
 
+function refreshDhcpTab() {
+
+    if ($("#dhcpTabListLeases").hasClass("active"))
+        refreshDhcpLeases();
+    else if ($("#dhcpTabListScopes").hasClass("active"))
+        refreshDhcpScopes();
+    else
+        refreshDhcpLeases();
+}
+
 function refreshDhcpLeases() {
 
     var divDhcpLeasesLoader = $("#divDhcpLeasesLoader");
@@ -32,14 +42,16 @@ function refreshDhcpLeases() {
             var tableHtmlRows;
 
             if (dhcpLeases.length < 1) {
-                tableHtmlRows = "<tr><td colspan=\"6\" align=\"center\">No Lease Found</td></tr>";
+                tableHtmlRows = "<tr><td colspan=\"7\" align=\"center\">No Lease Found</td></tr>";
             }
             else {
                 tableHtmlRows = "";
 
                 for (var i = 0; i < dhcpLeases.length; i++) {
-                    tableHtmlRows += "<tr><td>" + htmlEncode(dhcpLeases[i].scope) + "</td><td>" + dhcpLeases[i].hardwareAddress + "</td><td>" + dhcpLeases[i].address + "</td><td>" + htmlEncode(dhcpLeases[i].hostName) + "</td><td>" + dhcpLeases[i].leaseObtained + "</td><td>" + dhcpLeases[i].leaseExpires + "</td></tr>";
+                    tableHtmlRows += "<tr><td>" + htmlEncode(dhcpLeases[i].scope) + "</td><td>" + dhcpLeases[i].hardwareAddress + "</td><td>" + dhcpLeases[i].address + "</td><td><span class=\"label label-default\">" + dhcpLeases[i].type + "</span></td><td>" + htmlEncode(dhcpLeases[i].hostName) + "</td><td>" + dhcpLeases[i].leaseObtained + "</td><td>" + dhcpLeases[i].leaseExpires + "</td></tr>";
                 }
+
+                tableHtmlRows += "<tr><td colspan=\"7\"><b>Total Leases: " + dhcpLeases.length + "</b></td></tr>";
             }
 
             $("#tableDhcpLeases").html(tableHtmlRows);
@@ -78,7 +90,7 @@ function refreshDhcpScopes() {
 
                 for (var i = 0; i < dhcpScopes.length; i++) {
                     tableHtmlRows += "<tr><td>" + htmlEncode(dhcpScopes[i].name) + "</td><td>" + dhcpScopes[i].startingAddress + " - " + dhcpScopes[i].endingAddress + "<br />" + dhcpScopes[i].subnetMask + "</td><td>" + dhcpScopes[i].networkAddress + "<br />" + dhcpScopes[i].broadcastAddress + "</td><td>" + (dhcpScopes[i].interfaceAddress == null ? "" : dhcpScopes[i].interfaceAddress) + "</td>";
-                    tableHtmlRows += "<td><button type=\"button\" class=\"btn btn-primary\" style=\"font-size: 12px; padding: 2px 0px; width: 60px; margin: 0 6px 6px 0;\" onclick=\"showEditDhcpScope('" + dhcpScopes[i].name + "');\">Edit</button>";
+                    tableHtmlRows += "<td align=\"right\"><button type=\"button\" class=\"btn btn-primary\" style=\"font-size: 12px; padding: 2px 0px; width: 60px; margin: 0 6px 6px 0;\" onclick=\"showEditDhcpScope('" + dhcpScopes[i].name + "');\">Edit</button>";
 
                     if (dhcpScopes[i].enabled)
                         tableHtmlRows += "<button type=\"button\" class=\"btn btn-warning\" style=\"font-size: 12px; padding: 2px 0px; width: 60px; margin: 0 6px 6px 0;\" onclick=\"disableDhcpScope('" + dhcpScopes[i].name + "');\">Disable</button>";
@@ -87,6 +99,8 @@ function refreshDhcpScopes() {
 
                     tableHtmlRows += "<button type=\"button\" class=\"btn btn-danger\" style=\"font-size: 12px; padding: 2px 0px; width: 60px; margin: 0 6px 6px 0;\" onclick=\"deleteDhcpScope('" + dhcpScopes[i].name + "');\">Delete</button></td></tr>";
                 }
+
+                tableHtmlRows += "<tr><td colspan=\"5\"><b>Total Scopes: " + dhcpScopes.length + "</b></td></tr>";
             }
 
             $("#tableDhcpScopes").html(tableHtmlRows);
@@ -124,12 +138,13 @@ function addDhcpScopeExclusionRow(startingAddress, endingAddress) {
     $("#tableDhcpScopeExclusions").append(tableHtmlRows);
 }
 
-function addDhcpScopeReservedLeaseRow(startingAddress, endingAddress) {
+function addDhcpScopeReservedLeaseRow(hostName, hardwareAddress, address) {
 
     var id = Math.floor(Math.random() * 10000);
 
-    var tableHtmlRows = "<tr id=\"tableDhcpScopeReservedLeaseRow" + id + "\"><td><input type=\"text\" class=\"form-control\" value=\"" + startingAddress + "\"></td>";
-    tableHtmlRows += "<td><input type=\"text\" class=\"form-control\" value=\"" + endingAddress + "\"></td>";
+    var tableHtmlRows = "<tr id=\"tableDhcpScopeReservedLeaseRow" + id + "\"><td><input type=\"text\" class=\"form-control\" value=\"" + (hostName == null ? "" : htmlEncode(hostName)) + "\"></td>";
+    tableHtmlRows += "<td><input type=\"text\" class=\"form-control\" value=\"" + hardwareAddress + "\"></td>";
+    tableHtmlRows += "<td><input type=\"text\" class=\"form-control\" value=\"" + address + "\"></td>";
     tableHtmlRows += "<td><button type=\"button\" class=\"btn btn-danger\" onclick=\"$('#tableDhcpScopeReservedLeaseRow" + id + "').remove();\">Delete</button></td></tr>";
 
     $("#tableDhcpScopeReservedLeases").append(tableHtmlRows);
@@ -157,7 +172,7 @@ function getTableCsv(table, columns) {
                 return false;
             }
 
-            csv += cellValue;
+            csv += htmlDecode(cellValue);
         }
     }
 
@@ -177,6 +192,8 @@ function clearDhcpScopeForm() {
     $("#txtDhcpScopeDomainName").val("");
     $("#txtDhcpScopeDnsTtl").val("900");
     $("#txtDhcpScopeRouterAddress").val("");
+    $("#chkUseThisDnsServer").prop("checked", false);
+    $('#txtDhcpScopeDnsServers').prop('disabled', false);
     $("#txtDhcpScopeDnsServers").val("");
     $("#txtDhcpScopeWinsServers").val("");
     $("#txtDhcpScopeNtpServers").val("");
@@ -192,6 +209,8 @@ function showAddDhcpScope() {
     clearDhcpScopeForm();
 
     $("#titleDhcpEditScope").html("Add Scope");
+    $("#chkUseThisDnsServer").prop("checked", true);
+    $('#txtDhcpScopeDnsServers').prop('disabled', true);
     $("#divDhcpViewScopes").hide();
     $("#divDhcpViewScopesLoader").hide();
     $("#divDhcpEditScope").show();
@@ -231,6 +250,9 @@ function showEditDhcpScope(scopeName) {
             if (responseJSON.response.routerAddress != null)
                 $("#txtDhcpScopeRouterAddress").val(responseJSON.response.routerAddress);
 
+            $("#chkUseThisDnsServer").prop("checked", responseJSON.response.useThisDnsServer);
+            $('#txtDhcpScopeDnsServers').prop('disabled', responseJSON.response.useThisDnsServer);
+
             if (responseJSON.response.dnsServers != null)
                 $("#txtDhcpScopeDnsServers").val(responseJSON.response.dnsServers.join("\n"));
 
@@ -254,7 +276,7 @@ function showEditDhcpScope(scopeName) {
 
             if (responseJSON.response.reservedLeases != null) {
                 for (var i = 0; i < responseJSON.response.reservedLeases.length; i++) {
-                    addDhcpScopeReservedLeaseRow(responseJSON.response.reservedLeases[i].hardwareAddress, responseJSON.response.reservedLeases[i].address);
+                    addDhcpScopeReservedLeaseRow(responseJSON.response.reservedLeases[i].hostName, responseJSON.response.reservedLeases[i].hardwareAddress, responseJSON.response.reservedLeases[i].address);
                 }
             }
 
@@ -295,6 +317,7 @@ function saveDhcpScope() {
 
     var routerAddress = $("#txtDhcpScopeRouterAddress").val();
 
+    var useThisDnsServer = $("#chkUseThisDnsServer").prop('checked');
     var dnsServers = cleanTextList($("#txtDhcpScopeDnsServers").val());
     var winsServers = cleanTextList($("#txtDhcpScopeWinsServers").val());
     var ntpServers = cleanTextList($("#txtDhcpScopeNtpServers").val());
@@ -307,19 +330,19 @@ function saveDhcpScope() {
     if (exclusions === false)
         return;
 
-    var reservedLeases = getTableCsv($("#tableDhcpScopeReservedLeases"), 2);
+    var reservedLeases = getTableCsv($("#tableDhcpScopeReservedLeases"), 3);
     if (reservedLeases === false)
         return;
 
-    var chkAllowOnlyReservedLeases = $("#chkAllowOnlyReservedLeases").prop('checked');
+    var allowOnlyReservedLeases = $("#chkAllowOnlyReservedLeases").prop('checked');
 
     var btn = $("#btnSaveDhcpScope").button('loading');
 
     HTTPRequest({
         url: "/api/setDhcpScope?token=" + token + "&name=" + encodeURIComponent(name) + (newName == null ? "" : "&newName=" + encodeURIComponent(newName)) + "&startingAddress=" + encodeURIComponent(startingAddress) + "&endingAddress=" + encodeURIComponent(endingAddress) + "&subnetMask=" + encodeURIComponent(subnetMask) +
             "&leaseTimeDays=" + leaseTimeDays + "&leaseTimeHours=" + leaseTimeHours + "&leaseTimeMinutes=" + leaseTimeMinutes + "&offerDelayTime=" + offerDelayTime + "&domainName=" + encodeURIComponent(domainName) + "&dnsTtl=" + dnsTtl + "&routerAddress=" + encodeURIComponent(routerAddress) +
-            "&dnsServers=" + encodeURIComponent(dnsServers) + "&winsServers=" + encodeURIComponent(winsServers) + "&ntpServers=" + encodeURIComponent(ntpServers) +
-            "&staticRoutes=" + encodeURIComponent(staticRoutes) + "&exclusions=" + encodeURIComponent(exclusions) + "&reservedLeases=" + encodeURIComponent(reservedLeases) + "&chkAllowOnlyReservedLeases=" + chkAllowOnlyReservedLeases,
+            "&useThisDnsServer=" + useThisDnsServer + (useThisDnsServer ? "" : "&dnsServers=" + encodeURIComponent(dnsServers)) + "&winsServers=" + encodeURIComponent(winsServers) + "&ntpServers=" + encodeURIComponent(ntpServers) +
+            "&staticRoutes=" + encodeURIComponent(staticRoutes) + "&exclusions=" + encodeURIComponent(exclusions) + "&reservedLeases=" + encodeURIComponent(reservedLeases) + "&allowOnlyReservedLeases=" + allowOnlyReservedLeases,
         success: function (responseJSON) {
             refreshDhcpScopes();
             btn.button('reset');
@@ -354,6 +377,10 @@ function disableDhcpScope(scopeName) {
             refreshDhcpScopes();
             showAlert("success", "Scope Disabled!", "DHCP Scope was disabled successfully.");
         },
+        error: function () {
+            divDhcpViewScopesLoader.hide();
+            divDhcpViewScopes.show();
+        },
         invalidToken: function () {
             showPageLogin();
         },
@@ -376,6 +403,10 @@ function enableDhcpScope(scopeName) {
         success: function (responseJSON) {
             refreshDhcpScopes();
             showAlert("success", "Scope Enabled!", "DHCP Scope was enabled successfully.");
+        },
+        error: function () {
+            divDhcpViewScopesLoader.hide();
+            divDhcpViewScopes.show();
         },
         invalidToken: function () {
             showPageLogin();
@@ -402,6 +433,10 @@ function deleteDhcpScope(scopeName) {
         success: function (responseJSON) {
             refreshDhcpScopes();
             showAlert("success", "Scope Deleted!", "DHCP Scope was deleted successfully.");
+        },
+        error: function () {
+            divDhcpViewScopesLoader.hide();
+            divDhcpViewScopes.show();
         },
         invalidToken: function () {
             showPageLogin();
