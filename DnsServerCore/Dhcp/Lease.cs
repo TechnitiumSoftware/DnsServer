@@ -27,37 +27,47 @@ using TechnitiumLibrary.Net;
 
 namespace DnsServerCore.Dhcp
 {
+    public enum LeaseType : byte
+    {
+        None = 0,
+        Dynamic = 1,
+        Reserved = 2
+    }
+
     public class Lease : IComparable<Lease>
     {
         #region variables
 
+        readonly LeaseType _type;
         readonly ClientIdentifierOption _clientIdentifier;
         string _hostName;
         readonly byte[] _hardwareAddress;
         readonly IPAddress _address;
-        DateTime _leaseObtained;
+        readonly DateTime _leaseObtained;
         DateTime _leaseExpires;
 
         #endregion
 
         #region constructor
 
-        internal Lease(ClientIdentifierOption clientIdentifier, string hostName, byte[] hardwareAddress, IPAddress address, uint leaseTime)
+        internal Lease(LeaseType type, ClientIdentifierOption clientIdentifier, string hostName, byte[] hardwareAddress, IPAddress address, uint leaseTime)
         {
+            _type = type;
             _clientIdentifier = clientIdentifier;
             _hostName = hostName;
             _hardwareAddress = hardwareAddress;
             _address = address;
+            _leaseObtained = DateTime.UtcNow;
 
-            ResetLeaseTime(leaseTime);
+            ExtendLease(leaseTime);
         }
 
-        internal Lease(byte[] hardwareAddress, IPAddress address, uint leaseTime)
-            : this(new ClientIdentifierOption(1, hardwareAddress), null, hardwareAddress, address, leaseTime)
+        internal Lease(LeaseType type, string hostName, byte[] hardwareAddress, IPAddress address)
+            : this(type, new ClientIdentifierOption(1, hardwareAddress), hostName, hardwareAddress, address, 0)
         { }
 
-        internal Lease(string hardwareAddress, IPAddress address)
-            : this(ParseHardwareAddress(hardwareAddress), address, 0)
+        internal Lease(LeaseType type, string hostName, string hardwareAddress, IPAddress address)
+            : this(type, hostName, ParseHardwareAddress(hardwareAddress), address)
         { }
 
         internal Lease(BinaryReader bR)
@@ -65,6 +75,7 @@ namespace DnsServerCore.Dhcp
             switch (bR.ReadByte())
             {
                 case 1:
+                    _type = (LeaseType)bR.ReadByte();
                     _clientIdentifier = DhcpOption.Parse(bR.BaseStream) as ClientIdentifierOption;
                     _clientIdentifier.ParseOptionValue();
 
@@ -107,9 +118,8 @@ namespace DnsServerCore.Dhcp
 
         #region public
 
-        public void ResetLeaseTime(uint leaseTime)
+        public void ExtendLease(uint leaseTime)
         {
-            _leaseObtained = DateTime.UtcNow;
             _leaseExpires = DateTime.UtcNow.AddSeconds(leaseTime);
         }
 
@@ -117,6 +127,7 @@ namespace DnsServerCore.Dhcp
         {
             bW.Write((byte)1); //version
 
+            bW.Write((byte)_type);
             _clientIdentifier.WriteTo(bW.BaseStream);
 
             if (string.IsNullOrEmpty(_hostName))
@@ -148,6 +159,9 @@ namespace DnsServerCore.Dhcp
         #endregion
 
         #region properties
+
+        public LeaseType Type
+        { get { return _type; } }
 
         internal ClientIdentifierOption ClientIdentifier
         { get { return _clientIdentifier; } }
