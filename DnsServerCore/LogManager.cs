@@ -154,7 +154,7 @@ namespace DnsServerCore
             Write(ep, ex.ToString());
         }
 
-        public void Write(IPEndPoint ep, string mesage)
+        public void Write(IPEndPoint ep, string message)
         {
             string ipInfo;
 
@@ -165,7 +165,7 @@ namespace DnsServerCore
             else
                 ipInfo = "[" + ep.ToString() + "] ";
 
-            Write(ipInfo + mesage);
+            Write(ipInfo + message);
         }
 
         public void Write(IPEndPoint ep, DnsTransportProtocol protocol, Exception ex)
