@@ -52,6 +52,7 @@ namespace DnsServerCore.Dhcp
         string _domainName;
         uint _dnsTtl = 900;
         IPAddress _routerAddress;
+        bool _useThisDnsServer;
         IPAddress[] _dnsServers;
         IPAddress[] _winsServers;
         IPAddress[] _ntpServers;
@@ -123,10 +124,18 @@ namespace DnsServerCore.Dhcp
                         int count = bR.ReadByte();
                         if (count > 0)
                         {
-                            _dnsServers = new IPAddress[count];
+                            if (count == 255)
+                            {
+                                _useThisDnsServer = true;
+                                FindThisDnsServerAddress();
+                            }
+                            else
+                            {
+                                _dnsServers = new IPAddress[count];
 
-                            for (int i = 0; i < count; i++)
-                                _dnsServers[i] = IPAddressExtension.Parse(bR);
+                                for (int i = 0; i < count; i++)
+                                    _dnsServers[i] = IPAddressExtension.Parse(bR);
+                            }
                         }
                     }
 
@@ -333,6 +342,7 @@ namespace DnsServerCore.Dhcp
 
         internal void FindInterface()
         {
+            //find network with static ip address in scope range
             uint networkAddressNumber = _networkAddress.ConvertIpToNumber();
             uint subnetMaskNumber = _subnetMask.ConvertIpToNumber();
 
@@ -351,7 +361,12 @@ namespace DnsServerCore.Dhcp
 
                         if ((addressNumber & subnetMaskNumber) == networkAddressNumber)
                         {
-                            //found interface for this scope
+                            //found interface for this scope range
+
+                            //check if address is static
+                            if (ipInterface.DhcpServerAddresses.Count > 0)
+                                throw new DhcpServerException("DHCP Server requires static IP address to work correctly but the network interface was found to have DHCP configured.");
+
                             _interfaceAddress = ip.Address;
                             _interfaceIndex = ipInterface.GetIPv4Properties().Index;
                             return;
@@ -360,9 +375,109 @@ namespace DnsServerCore.Dhcp
                 }
             }
 
-            //interface not found
-            _interfaceAddress = IPAddress.Any;
-            _interfaceIndex = 0;
+            //check if at least one interface has static ip address
+            foreach (NetworkInterface nic in NetworkInterface.GetAllNetworkInterfaces())
+            {
+                if (nic.OperationalStatus != OperationalStatus.Up)
+                    continue;
+
+                IPInterfaceProperties ipInterface = nic.GetIPProperties();
+
+                foreach (UnicastIPAddressInformation ip in ipInterface.UnicastAddresses)
+                {
+                    if (ip.Address.AddressFamily == AddressFamily.InterNetwork)
+                    {
+                        //check if address is static
+                        if (ipInterface.DhcpServerAddresses.Count < 1)
+                        {
+                            //found static ip address so this scope can be activated
+                            //using ANY ip address for this scope interface since we dont know the relay agent network 
+                            _interfaceAddress = IPAddress.Any;
+                            _interfaceIndex = -1;
+                            return;
+                        }
+                    }
+                }
+            }
+
+            //server has no static ip address configured
+            throw new DhcpServerException("DHCP Server requires static IP address to work correctly but no network interface was found to have any static IP address configured.");
+        }
+
+        internal void FindThisDnsServerAddress()
+        {
+            NetworkInterface[] networkInterfaces = NetworkInterface.GetAllNetworkInterfaces();
+
+            //find interface in current scope range
+            uint networkAddressNumber = _networkAddress.ConvertIpToNumber();
+            uint subnetMaskNumber = _subnetMask.ConvertIpToNumber();
+
+            foreach (NetworkInterface nic in networkInterfaces)
+            {
+                if (nic.OperationalStatus != OperationalStatus.Up)
+                    continue;
+
+                IPInterfaceProperties ipInterface = nic.GetIPProperties();
+
+                foreach (UnicastIPAddressInformation ip in ipInterface.UnicastAddresses)
+                {
+                    if (ip.Address.AddressFamily == AddressFamily.InterNetwork)
+                    {
+                        uint addressNumber = ip.Address.ConvertIpToNumber();
+
+                        if ((addressNumber & subnetMaskNumber) == networkAddressNumber)
+                        {
+                            //found address in this scope range to use as dns server
+                            _dnsServers = new IPAddress[] { ip.Address };
+                            return;
+                        }
+                    }
+                }
+            }
+
+            //find unicast ip address on an interface which has gateway
+            foreach (NetworkInterface nic in networkInterfaces)
+            {
+                if (nic.OperationalStatus != OperationalStatus.Up)
+                    continue;
+
+                IPInterfaceProperties ipInterface = nic.GetIPProperties();
+
+                if (ipInterface.GatewayAddresses.Count > 0)
+                {
+                    foreach (UnicastIPAddressInformation ip in ipInterface.UnicastAddresses)
+                    {
+                        if (ip.Address.AddressFamily == AddressFamily.InterNetwork)
+                        {
+                            //use this address for dns
+                            _dnsServers = new IPAddress[] { ip.Address };
+                            return;
+                        }
+                    }
+                }
+            }
+
+            //find any unicast ip address available
+            foreach (NetworkInterface nic in networkInterfaces)
+            {
+                if (nic.OperationalStatus != OperationalStatus.Up)
+                    continue;
+
+                IPInterfaceProperties ipInterface = nic.GetIPProperties();
+
+                foreach (UnicastIPAddressInformation ip in ipInterface.UnicastAddresses)
+                {
+                    if (ip.Address.AddressFamily == AddressFamily.InterNetwork)
+                    {
+                        //use this address for dns
+                        _dnsServers = new IPAddress[] { ip.Address };
+                        return;
+                    }
+                }
+            }
+
+            //no useable address was found
+            _dnsServers = null;
         }
 
         internal static string GetReverseZone(IPAddress address, IPAddress subnetMask)
@@ -399,13 +514,16 @@ namespace DnsServerCore.Dhcp
 
             if (_reservedLeases != null)
             {
-                ClientIdentifierOption clientIdentifier = new ClientIdentifierOption(1, request.ClientHardwareAddress);
+                ClientIdentifierOption clientIdentifierKey = new ClientIdentifierOption(1, request.ClientHardwareAddress);
                 foreach (Lease reservedLease in _reservedLeases)
                 {
-                    if (reservedLease.ClientIdentifier.Equals(clientIdentifier))
+                    if (reservedLease.ClientIdentifier.Equals(clientIdentifierKey))
                     {
                         //reserved address exists
-                        Lease reservedOffer = new Lease(request.ClientIdentifier, request.HostName?.HostName, request.ClientHardwareAddress, reservedLease.Address, GetLeaseTime());
+                        if (request.HostName != null)
+                            reservedLease.SetHostName(request.HostName.HostName); //update reserved lease entry with latest client hostname
+
+                        Lease reservedOffer = new Lease(LeaseType.Reserved, request.ClientIdentifier, reservedLease.HostName, request.ClientHardwareAddress, reservedLease.Address, GetLeaseTime());
 
                         return _offers.AddOrUpdate(request.ClientIdentifier, reservedOffer, delegate (ClientIdentifierOption key, Lease existingValue)
                         {
@@ -418,16 +536,16 @@ namespace DnsServerCore.Dhcp
             if (_allowOnlyReservedLeases)
                 return null; //client does not have reserved address as per scope requirements
 
-            Lease dummyOffer = new Lease(request.ClientIdentifier, request.HostName?.HostName, request.ClientHardwareAddress, null, 0);
+            Lease dummyOffer = new Lease(LeaseType.None, null, null, null, null, 0);
             Lease existingOffer = _offers.GetOrAdd(request.ClientIdentifier, dummyOffer);
 
             if (dummyOffer != existingOffer)
             {
-                if (existingOffer.Address == null)
+                if (existingOffer.Type == LeaseType.None)
                     return null; //dummy offer so another thread is handling offer; do nothing
 
                 //offer already exists
-                existingOffer.ResetLeaseTime(GetLeaseTime());
+                existingOffer.ExtendLease(GetLeaseTime());
 
                 return existingOffer;
             }
@@ -474,7 +592,7 @@ namespace DnsServerCore.Dhcp
                 _lastAddressOffered = offerAddress;
             }
 
-            Lease offerLease = new Lease(request.ClientIdentifier, request.HostName?.HostName, request.ClientHardwareAddress, offerAddress, GetLeaseTime());
+            Lease offerLease = new Lease(LeaseType.Dynamic, request.ClientIdentifier, request.HostName?.HostName, request.ClientHardwareAddress, offerAddress, GetLeaseTime());
 
             return _offers.AddOrUpdate(request.ClientIdentifier, offerLease, delegate (ClientIdentifierOption key, Lease existingValue)
             {
@@ -616,7 +734,7 @@ namespace DnsServerCore.Dhcp
 
         internal void CommitLease(Lease lease)
         {
-            lease.ResetLeaseTime(GetLeaseTime());
+            lease.ExtendLease(GetLeaseTime());
 
             _leases.AddOrUpdate(lease.ClientIdentifier, lease, delegate (ClientIdentifierOption key, Lease existingValue)
             {
@@ -760,7 +878,11 @@ namespace DnsServerCore.Dhcp
             else
                 _routerAddress.WriteTo(bW);
 
-            if (_dnsServers == null)
+            if (_useThisDnsServer)
+            {
+                bW.Write((byte)255);
+            }
+            else if (_dnsServers == null)
             {
                 bW.Write((byte)0);
             }
@@ -977,10 +1099,28 @@ namespace DnsServerCore.Dhcp
             set { _routerAddress = value; }
         }
 
+        public bool UseThisDnsServer
+        {
+            get { return _useThisDnsServer; }
+            set
+            {
+                _useThisDnsServer = value;
+
+                if (_useThisDnsServer)
+                    FindThisDnsServerAddress();
+            }
+        }
+
         public IPAddress[] DnsServers
         {
             get { return _dnsServers; }
-            set { _dnsServers = value; }
+            set
+            {
+                _dnsServers = value;
+
+                if ((_dnsServers != null) && _dnsServers.Length > 0)
+                    _useThisDnsServer = false;
+            }
         }
 
         public IPAddress[] WinsServers
