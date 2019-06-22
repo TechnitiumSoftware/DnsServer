@@ -69,6 +69,9 @@ namespace DnsServerCore.Dhcp
         Zone _authoritativeZoneRoot;
         LogManager _log;
 
+        int _activeScopeCount = 0;
+        readonly object _activeScopeLock = new object();
+
         volatile ServiceState _state = ServiceState.Stopped;
 
         readonly IPEndPoint _dhcpDefaultEP = new IPEndPoint(IPAddress.Any, 67);
@@ -87,7 +90,19 @@ namespace DnsServerCore.Dhcp
             _configFolder = configFolder;
 
             if (!Directory.Exists(_configFolder))
+            {
                 Directory.CreateDirectory(_configFolder);
+
+                //create default scope
+                Scope scope = new Scope("Default", false, IPAddress.Parse("192.168.1.1"), IPAddress.Parse("192.168.1.254"), IPAddress.Parse("255.255.255.0"));
+                scope.Exclusions = new Exclusion[] { new Exclusion(IPAddress.Parse("192.168.1.1"), IPAddress.Parse("192.168.1.10")) };
+                scope.RouterAddress = IPAddress.Parse("192.168.1.1");
+                scope.UseThisDnsServer = true;
+                scope.DomainName = "local";
+                scope.LeaseTimeDays = 7;
+
+                SaveScopeFile(scope);
+            }
         }
 
         #endregion
@@ -183,6 +198,10 @@ namespace DnsServerCore.Dhcp
                     }
                 }
             }
+            catch (ObjectDisposedException)
+            {
+                //socket disposed
+            }
             catch (SocketException ex)
             {
                 switch (ex.SocketErrorCode)
@@ -227,7 +246,7 @@ namespace DnsServerCore.Dhcp
                 //send response
                 if (response != null)
                 {
-                    byte[] sendBuffer = new byte[512];
+                    byte[] sendBuffer = new byte[1024];
                     MemoryStream sendBufferStream = new MemoryStream(sendBuffer);
 
                     response.WriteTo(sendBufferStream);
@@ -249,9 +268,13 @@ namespace DnsServerCore.Dhcp
                         if (!_udpListeners.TryGetValue(response.NextServerIpAddress, out Socket udpSocket))
                             udpSocket = udpListener; //no appropriate socket found so use default socket
 
-                        udpSocket.SendTo(sendBuffer, 0, (int)sendBufferStream.Position, SocketFlags.None, new IPEndPoint(IPAddress.Broadcast, 68));
+                        udpSocket.SendTo(sendBuffer, 0, (int)sendBufferStream.Position, SocketFlags.DontRoute, new IPEndPoint(IPAddress.Broadcast, 68)); //no routing for broadcast
                     }
                 }
+            }
+            catch (ObjectDisposedException)
+            {
+                //socket disposed
             }
             catch (Exception ex)
             {
@@ -404,6 +427,8 @@ namespace DnsServerCore.Dhcp
                             {
                                 if (request.HostName != null)
                                     clientDomainName = request.HostName.HostName + "." + scope.DomainName;
+                                else if ((leaseOffer.Type == LeaseType.Reserved) && !string.IsNullOrEmpty(leaseOffer.HostName) && !leaseOffer.HostName.EndsWith("." + scope.DomainName, StringComparison.OrdinalIgnoreCase))
+                                    clientDomainName = leaseOffer.HostName + "." + scope.DomainName; //use hostname from reserved lease
                             }
 
                             if (clientDomainName != null)
@@ -679,6 +704,10 @@ namespace DnsServerCore.Dhcp
 
             try
             {
+                //find this dns server address in case the network config has changed
+                if (scope.UseThisDnsServer)
+                    scope.FindThisDnsServerAddress();
+
                 //find scope interface for binding socket
                 scope.FindInterface();
 
@@ -687,6 +716,14 @@ namespace DnsServerCore.Dhcp
 
                 if (!interfaceAddress.Equals(IPAddress.Any))
                     BindUdpListener(dhcpEP);
+
+                lock (_activeScopeLock)
+                {
+                    if (_activeScopeCount < 1)
+                        BindUdpListener(_dhcpDefaultEP);
+
+                    _activeScopeCount++;
+                }
 
                 if (_authoritativeZoneRoot != null)
                 {
@@ -728,6 +765,14 @@ namespace DnsServerCore.Dhcp
                 if (!interfaceAddress.Equals(IPAddress.Any))
                     UnbindUdpListener(dhcpEP);
 
+                lock (_activeScopeLock)
+                {
+                    _activeScopeCount--;
+
+                    if (_activeScopeCount < 1)
+                        UnbindUdpListener(_dhcpDefaultEP);
+                }
+
                 if (_authoritativeZoneRoot != null)
                 {
                     //remove all leases from dns
@@ -763,7 +808,10 @@ namespace DnsServerCore.Dhcp
                 throw new DhcpServerException("Scope with same name already exists.");
 
             if (scope.Enabled)
-                ActivateScope(scope);
+            {
+                if (!ActivateScope(scope))
+                    scope.SetEnabled(false);
+            }
 
             LogManager log = _log;
             if (log != null)
@@ -926,8 +974,6 @@ namespace DnsServerCore.Dhcp
 
             _state = ServiceState.Starting;
 
-            BindUdpListener(_dhcpDefaultEP);
-
             LoadAllScopeFiles();
             StartMaintenanceTimer();
 
@@ -942,8 +988,6 @@ namespace DnsServerCore.Dhcp
             _state = ServiceState.Stopping;
 
             StopMaintenanceTimer();
-
-            UnbindUdpListener(_dhcpDefaultEP);
 
             foreach (KeyValuePair<string, Scope> scope in _scopes)
                 UnloadScope(scope.Value);
