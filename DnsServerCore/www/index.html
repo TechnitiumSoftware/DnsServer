@@ -91,15 +91,15 @@
 
                         <div>
                             <ul class="nav nav-tabs" role="tablist">
-                                <li id="mainPanelTabListDashboard" role="presentation" class="active"><a href="#mainPanelTabPaneDashboard" aria-controls="mainPanelTabPaneDashboard" role="tab" data-toggle="tab" onclick="return refreshDashboard();">Dashboard</a></li>
-                                <li id="mainPanelTabListZones" role="presentation"><a href="#mainPanelTabPaneZones" aria-controls="mainPanelTabPaneZones" role="tab" data-toggle="tab" onclick="return refreshZonesList();">Zones</a></li>
-                                <li id="mainPanelTabListCachedZones" role="presentation"><a href="#mainPanelTabPaneCachedZones" aria-controls="mainPanelTabPaneCachedZones" role="tab" data-toggle="tab" onclick="return false;">Cache</a></li>
-                                <li id="mainPanelTabListAllowedZones" role="presentation"><a href="#mainPanelTabPaneAllowedZones" aria-controls="mainPanelTabPaneAllowedZones" role="tab" data-toggle="tab" onclick="return false;">Allowed Zones</a></li>
-                                <li id="mainPanelTabListBlockedZones" role="presentation"><a href="#mainPanelTabPaneBlockedZones" aria-controls="mainPanelTabPaneBlockedZones" role="tab" data-toggle="tab" onclick="return false;">Blocked Zones</a></li>
-                                <li id="mainPanelTabListDnsClient" role="presentation"><a href="#mainPanelTabPaneDnsClient" aria-controls="mainPanelTabPaneDnsClient" role="tab" data-toggle="tab" onclick="return false;">DNS Client</a></li>
-                                <li id="mainPanelTabListSettings" role="presentation"><a href="#mainPanelTabPaneSettings" aria-controls="mainPanelTabPaneSettings" role="tab" data-toggle="tab" onclick="return loadDnsSettings();">Settings</a></li>
-                                <li id="mainPanelTabListDhcp" role="presentation"><a href="#mainPanelTabPaneDhcp" aria-controls="mainPanelTabPaneDhcp" role="tab" data-toggle="tab" onclick="return false;">DHCP</a></li>
-                                <li id="mainPanelTabListLogs" role="presentation"><a href="#mainPanelTabPaneLogs" aria-controls="mainPanelTabPaneLogs" role="tab" data-toggle="tab" onclick="return refreshLogFilesList();">Logs</a></li>
+                                <li id="mainPanelTabListDashboard" role="presentation" class="active"><a href="#mainPanelTabPaneDashboard" aria-controls="mainPanelTabPaneDashboard" role="tab" data-toggle="tab" onclick="refreshDashboard();">Dashboard</a></li>
+                                <li id="mainPanelTabListZones" role="presentation"><a href="#mainPanelTabPaneZones" aria-controls="mainPanelTabPaneZones" role="tab" data-toggle="tab" onclick="refreshZonesList();">Zones</a></li>
+                                <li id="mainPanelTabListCachedZones" role="presentation"><a href="#mainPanelTabPaneCachedZones" aria-controls="mainPanelTabPaneCachedZones" role="tab" data-toggle="tab">Cache</a></li>
+                                <li id="mainPanelTabListAllowedZones" role="presentation"><a href="#mainPanelTabPaneAllowedZones" aria-controls="mainPanelTabPaneAllowedZones" role="tab" data-toggle="tab">Allowed Zones</a></li>
+                                <li id="mainPanelTabListBlockedZones" role="presentation"><a href="#mainPanelTabPaneBlockedZones" aria-controls="mainPanelTabPaneBlockedZones" role="tab" data-toggle="tab">Blocked Zones</a></li>
+                                <li id="mainPanelTabListDnsClient" role="presentation"><a href="#mainPanelTabPaneDnsClient" aria-controls="mainPanelTabPaneDnsClient" role="tab" data-toggle="tab">DNS Client</a></li>
+                                <li id="mainPanelTabListSettings" role="presentation"><a href="#mainPanelTabPaneSettings" aria-controls="mainPanelTabPaneSettings" role="tab" data-toggle="tab" onclick="loadDnsSettings();">Settings</a></li>
+                                <li id="mainPanelTabListDhcp" role="presentation"><a href="#mainPanelTabPaneDhcp" aria-controls="mainPanelTabPaneDhcp" role="tab" data-toggle="tab" onclick="refreshDhcpTab();">DHCP</a></li>
+                                <li id="mainPanelTabListLogs" role="presentation"><a href="#mainPanelTabPaneLogs" aria-controls="mainPanelTabPaneLogs" role="tab" data-toggle="tab" onclick="refreshLogFilesList();">Logs</a></li>
                                 <li id="mainPanelTabListAbout" role="presentation"><a href="#mainPanelTabPaneAbout" aria-controls="mainPanelTabPaneAbout" role="tab" data-toggle="tab">About</a></li>
                             </ul>
 
@@ -195,7 +195,7 @@
 
                                         <div style="margin-top: 15px;">
                                             <div style="float: left; width: 50%; padding-right: 7px;">
-                                                <div class="panel panel-default" style="margin-bottom: 0px;">
+                                                <div id="divTopQueryType" class="panel panel-default" style="margin-bottom: 0px;">
                                                     <div class="panel-heading">Top Query Type</div>
                                                     <div class="panel-body">
                                                         <canvas id="canvasDashboardPie"></canvas>
@@ -204,7 +204,7 @@
                                             </div>
 
                                             <div style="float: right; width: 50%; padding-left: 7px;">
-                                                <div class="panel panel-default" style="margin-bottom: 0px;">
+                                                <div id="divTopClients" class="panel panel-default" style="margin-bottom: 0px;">
                                                     <div class="panel-heading">Top Clients</div>
                                                     <table class="table table-hover">
                                                         <thead>
@@ -674,7 +674,7 @@
                                         <div class="form-group">
                                             <label for="txtDnsClientNameServer">Server</label>
                                             <div class="input-group dropdown">
-                                                <input type="text" class="form-control dropdown-toggle" style="min-width: 240px;" id="txtDnsClientNameServer" value="This Server (this-server)">
+                                                <input type="text" class="form-control dropdown-toggle" style="min-width: 250px;" id="txtDnsClientNameServer" value="This Server (this-server)">
                                                 <ul class="dropdown-menu" id="optDnsClientNameServers">
                                                     <li><a href="#">This Server (this-server)</a></li>
                                                     <li><a href="#">Recursive Query (recursive-resolver)</a></li>
@@ -735,7 +735,7 @@
 
                                         <div class="form-group">
                                             <label for="txtDnsClientDomain">Domain</label>
-                                            <input type="text" class="form-control" style="min-width: 260px;" id="txtDnsClientDomain" placeholder="example.com">
+                                            <input type="text" class="form-control" style="min-width: 280px;" id="txtDnsClientDomain" placeholder="example.com">
                                         </div>
 
                                         <div class="form-group">
@@ -1190,6 +1190,7 @@
                                                             <th>Scope</th>
                                                             <th>MAC Address</th>
                                                             <th>IP Address</th>
+                                                            <th></th>
                                                             <th>Host Name</th>
                                                             <th>Lease Obtained</th>
                                                             <th>Lease Expires</th>
@@ -1200,6 +1201,7 @@
                                                             <td>Default</td>
                                                             <td>00-00-00-00-00-00</td>
                                                             <td>192.168.10.2</td>
+                                                            <td>Dynamic</td>
                                                             <td>user-pc.local</td>
                                                             <td>6/14/2019 3:39 PM</td>
                                                             <td>6/15/2019 3:39 PM</td>
@@ -1278,7 +1280,7 @@
 
                                                         <div class="form-group">
                                                             <label for="txtDhcpScopeLeaseTimeDays" class="col-sm-3 control-label">Lease Time</label>
-                                                            <div class="col-sm-6">
+                                                            <div class="col-sm-7">
                                                                 <label for="txtDhcpScopeLeaseTimeDays" class="control-label">Days</label>
                                                                 <input type="number" class="form-control" style="display: inline; width: 80px; margin-right: 15px;" id="txtDhcpScopeLeaseTimeDays" placeholder="Days">
 
@@ -1307,7 +1309,7 @@
                                                             <div class="col-sm-6">
                                                                 <input type="text" class="form-control" id="txtDhcpScopeDomainName" placeholder="Domain Name">
                                                             </div>
-                                                            <div class="col-sm-offset-3 col-sm-8" style="padding-top: 5px;">The domain name for this network to allow updating DNS forward and reverse records for clients.</div>
+                                                            <div class="col-sm-offset-3 col-sm-8" style="padding-top: 5px;">The domain name for this network to allow updating DNS forward and reverse records for all clients. Use a domain name that you own or that is not in common use like 'local' so that you don't block out an existing domain name.</div>
                                                         </div>
 
                                                         <div class="form-group">
@@ -1329,7 +1331,15 @@
 
                                                         <div class="form-group">
                                                             <label for="txtDhcpScopeDnsServers" class="col-sm-3 control-label">DNS Servers</label>
-                                                            <div class="col-sm-3">
+                                                            <div class="col-sm-6">
+                                                                <div class="checkbox">
+                                                                    <label>
+                                                                        <input id="chkUseThisDnsServer" type="checkbox" onclick="$('#txtDhcpScopeDnsServers').prop('disabled', $(this).prop('checked'));"> Use This DNS Server
+                                                                    </label>
+                                                                </div>
+                                                            </div>
+                                                            <div class="col-sm-offset-3 col-sm-8" style="padding-top: 5px; margin-bottom: 10px;">Enable this option to automatically use this DNS Server.</div>
+                                                            <div class="col-sm-offset-3 col-sm-3">
                                                                 <textarea id="txtDhcpScopeDnsServers" class="form-control" rows="2"></textarea>
                                                             </div>
                                                             <div class="col-sm-offset-3 col-sm-8" style="padding-top: 5px;">The DNS server IP addresses to be used by the clients.</div>
@@ -1353,7 +1363,7 @@
 
                                                         <div class="form-group" style="margin-bottom: 0px;">
                                                             <label for="tableDhcpScopeStaticRoutes" class="col-sm-3 control-label">Static Routes</label>
-                                                            <div class="col-sm-6">
+                                                            <div class="col-sm-7">
                                                                 <table class="table table-hover" style="margin-bottom: 0px;">
                                                                     <thead>
                                                                         <tr>
@@ -1398,13 +1408,14 @@
                                                                 </div>
                                                             </div>
                                                             <div class="col-sm-offset-3 col-sm-8" style="padding-top: 5px;">Enable this option to stop dynamic IP address allocation and allocate only reserved IP addresses.</div>
-                                                            <div class="col-sm-offset-3 col-sm-6">
+                                                            <div class="col-sm-offset-3 col-sm-7">
                                                                 <table class="table table-hover" style="margin-bottom: 0px;">
                                                                     <thead>
                                                                         <tr>
+                                                                            <th>Host Name</th>
                                                                             <th>MAC Address</th>
                                                                             <th>IP Address</th>
-                                                                            <th><button type="button" class="btn btn-default" style="padding: 0px 20px;" onclick="addDhcpScopeReservedLeaseRow('', '');">Add</button></th>
+                                                                            <th><button type="button" class="btn btn-default" style="padding: 0px 20px;" onclick="addDhcpScopeReservedLeaseRow('', '', '');">Add</button></th>
                                                                         </tr>
                                                                     </thead>
                                                                     <tbody id="tableDhcpScopeReservedLeases"></tbody>
