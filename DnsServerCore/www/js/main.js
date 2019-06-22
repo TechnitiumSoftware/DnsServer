@@ -75,7 +75,6 @@ function showPageMain(username) {
     refreshCachedZonesList();
     refreshAllowedZonesList();
     refreshBlockedZonesList();
-    refreshDhcpLeases();
     checkForUpdate();
 
     refreshTimerHandle = setInterval(function () {
@@ -940,7 +939,7 @@ function refreshDashboard(hideLoader) {
                     tableHtmlRows = "";
 
                     for (var i = 0; i < topClients.length; i++) {
-                        tableHtmlRows += "<tr><td>" + htmlEncode(topClients[i].name) + "</td><td>" + topClients[i].hits + "</td></tr>";
+                        tableHtmlRows += "<tr><td>" + htmlEncode(topClients[i].name) + "<br />" + htmlEncode(topClients[i].domain) + "</td><td>" + topClients[i].hits + "</td></tr>";
                     }
                 }
 
@@ -989,6 +988,11 @@ function refreshDashboard(hideLoader) {
                 divDashboardLoader.hide();
                 divDashboard.show();
             }
+
+            if ($("#divTopClients").height() > 330)
+                $("#divTopQueryType").height($("#divTopClients").height());
+            else
+                $("#divTopQueryType").height("330px");
         },
         invalidToken: function () {
             showPageLogin();
