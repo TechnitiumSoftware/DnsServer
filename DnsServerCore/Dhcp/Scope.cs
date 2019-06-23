@@ -75,6 +75,7 @@ namespace DnsServerCore.Dhcp
         const int OFFER_EXPIRY_SECONDS = 60; //1 mins offer expiry
         readonly ConcurrentDictionary<ClientIdentifierOption, Lease> _offers = new ConcurrentDictionary<ClientIdentifierOption, Lease>();
         IPAddress _lastAddressOffered;
+        readonly object _lastAddressOfferedLock = new object();
         IPAddress _interfaceAddress;
         int _interfaceIndex;
         DateTime _lastModified = DateTime.UtcNow;
@@ -276,6 +277,12 @@ namespace DnsServerCore.Dhcp
             foreach (KeyValuePair<ClientIdentifierOption, Lease> lease in _leases)
             {
                 if (address.Equals(lease.Value.Address))
+                    return false;
+            }
+
+            foreach (KeyValuePair<ClientIdentifierOption, Lease> offer in _offers)
+            {
+                if (address.Equals(offer.Value.Address))
                     return false;
             }
 
@@ -564,32 +571,35 @@ namespace DnsServerCore.Dhcp
 
             if (offerAddress == null)
             {
-                //find free address from scope
-                offerAddress = _lastAddressOffered;
-                uint endingAddressNumber = _endingAddress.ConvertIpToNumber();
-                bool offerAddressWasResetFromEnd = false;
-
-                while (true)
+                lock (_lastAddressOfferedLock)
                 {
-                    uint nextOfferAddressNumber = offerAddress.ConvertIpToNumber() + 1u;
+                    //find free address from scope
+                    offerAddress = _lastAddressOffered;
+                    uint endingAddressNumber = _endingAddress.ConvertIpToNumber();
+                    bool offerAddressWasResetFromEnd = false;
 
-                    if (nextOfferAddressNumber > endingAddressNumber)
+                    while (true)
                     {
-                        if (offerAddressWasResetFromEnd)
-                            return null; //ip pool exhausted
+                        uint nextOfferAddressNumber = offerAddress.ConvertIpToNumber() + 1u;
 
-                        offerAddress = _startingAddress;
-                        offerAddressWasResetFromEnd = true;
-                        continue;
+                        if (nextOfferAddressNumber > endingAddressNumber)
+                        {
+                            if (offerAddressWasResetFromEnd)
+                                return null; //ip pool exhausted
+
+                            offerAddress = IPAddressExtension.ConvertNumberToIp(_startingAddress.ConvertIpToNumber() - 1u);
+                            offerAddressWasResetFromEnd = true;
+                            continue;
+                        }
+
+                        offerAddress = IPAddressExtension.ConvertNumberToIp(nextOfferAddressNumber);
+
+                        if (IsAddressAvailable(ref offerAddress))
+                            break;
                     }
 
-                    offerAddress = IPAddressExtension.ConvertNumberToIp(nextOfferAddressNumber);
-
-                    if (IsAddressAvailable(ref offerAddress))
-                        break;
+                    _lastAddressOffered = offerAddress;
                 }
-
-                _lastAddressOffered = offerAddress;
             }
 
             Lease offerLease = new Lease(LeaseType.Dynamic, request.ClientIdentifier, request.HostName?.HostName, request.ClientHardwareAddress, offerAddress, GetLeaseTime());
@@ -848,7 +858,10 @@ namespace DnsServerCore.Dhcp
             _broadcastAddress = IPAddressExtension.ConvertNumberToIp(broadcastAddressNumber);
             _reverseZone = GetReverseZone(_networkAddress, _subnetMask);
 
-            _lastAddressOffered = IPAddressExtension.ConvertNumberToIp(startingAddressNumber - 1u);
+            lock (_lastAddressOfferedLock)
+            {
+                _lastAddressOffered = IPAddressExtension.ConvertNumberToIp(startingAddressNumber - 1u);
+            }
         }
 
         public void WriteTo(BinaryWriter bW)
