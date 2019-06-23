@@ -22,7 +22,7 @@ function refreshDhcpTab() {
     if ($("#dhcpTabListLeases").hasClass("active"))
         refreshDhcpLeases();
     else if ($("#dhcpTabListScopes").hasClass("active"))
-        refreshDhcpScopes();
+        refreshDhcpScopes(true);
     else
         refreshDhcpLeases();
 }
@@ -66,10 +66,17 @@ function refreshDhcpLeases() {
     });
 }
 
-function refreshDhcpScopes() {
+function refreshDhcpScopes(checkDisplay) {
+
+    if (checkDisplay == null)
+        checkDisplay = false;
+
+    var divDhcpViewScopes = $("#divDhcpViewScopes");
+
+    if (checkDisplay && (divDhcpViewScopes.css('display') === "none"))
+        return;
 
     var divDhcpViewScopesLoader = $("#divDhcpViewScopesLoader");
-    var divDhcpViewScopes = $("#divDhcpViewScopes");
     var divDhcpEditScope = $("#divDhcpEditScope");
 
     divDhcpViewScopes.hide();
