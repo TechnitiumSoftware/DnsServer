@@ -39,22 +39,17 @@ function refreshDhcpLeases() {
         url: "/api/listDhcpLeases?token=" + token,
         success: function (responseJSON) {
             var dhcpLeases = responseJSON.response.leases;
-            var tableHtmlRows;
+            var tableHtmlRows = "";
 
-            if (dhcpLeases.length < 1) {
-                tableHtmlRows = "<tr><td colspan=\"7\" align=\"center\">No Lease Found</td></tr>";
-            }
-            else {
-                tableHtmlRows = "";
+            for (var i = 0; i < dhcpLeases.length; i++)
+                tableHtmlRows += "<tr><td>" + htmlEncode(dhcpLeases[i].scope) + "</td><td>" + dhcpLeases[i].hardwareAddress + "</td><td>" + dhcpLeases[i].address + "</td><td><span class=\"label label-default\">" + dhcpLeases[i].type + "</span></td><td>" + htmlEncode(dhcpLeases[i].hostName) + "</td><td>" + dhcpLeases[i].leaseObtained + "</td><td>" + dhcpLeases[i].leaseExpires + "</td></tr>";
 
-                for (var i = 0; i < dhcpLeases.length; i++) {
-                    tableHtmlRows += "<tr><td>" + htmlEncode(dhcpLeases[i].scope) + "</td><td>" + dhcpLeases[i].hardwareAddress + "</td><td>" + dhcpLeases[i].address + "</td><td><span class=\"label label-default\">" + dhcpLeases[i].type + "</span></td><td>" + htmlEncode(dhcpLeases[i].hostName) + "</td><td>" + dhcpLeases[i].leaseObtained + "</td><td>" + dhcpLeases[i].leaseExpires + "</td></tr>";
-                }
+            $("#tableDhcpLeasesBody").html(tableHtmlRows);
 
-                tableHtmlRows += "<tr><td colspan=\"7\"><b>Total Leases: " + dhcpLeases.length + "</b></td></tr>";
-            }
-
-            $("#tableDhcpLeases").html(tableHtmlRows);
+            if (dhcpLeases.length > 0)
+                $("#tableDhcpLeasesFooter").html("<tr><td colspan=\"7\"><b>Total Leases: " + dhcpLeases.length + "</b></td></tr>");
+            else
+                $("#tableDhcpLeasesFooter").html("<tr><td colspan=\"7\" align=\"center\">No Lease Found</td></tr>");
 
             divDhcpLeasesLoader.hide();
             divDhcpLeases.show();
@@ -87,30 +82,26 @@ function refreshDhcpScopes(checkDisplay) {
         url: "/api/listDhcpScopes?token=" + token,
         success: function (responseJSON) {
             var dhcpScopes = responseJSON.response.scopes;
-            var tableHtmlRows;
+            var tableHtmlRows = "";
 
-            if (dhcpScopes.length < 1) {
-                tableHtmlRows = "<tr><td colspan=\"5\" align=\"center\">No Scope Found</td></tr>";
-            }
-            else {
-                tableHtmlRows = "";
+            for (var i = 0; i < dhcpScopes.length; i++) {
+                tableHtmlRows += "<tr><td>" + htmlEncode(dhcpScopes[i].name) + "</td><td>" + dhcpScopes[i].startingAddress + " - " + dhcpScopes[i].endingAddress + "<br />" + dhcpScopes[i].subnetMask + "</td><td>" + dhcpScopes[i].networkAddress + "<br />" + dhcpScopes[i].broadcastAddress + "</td><td>" + (dhcpScopes[i].interfaceAddress == null ? "" : dhcpScopes[i].interfaceAddress) + "</td>";
+                tableHtmlRows += "<td align=\"right\"><button type=\"button\" class=\"btn btn-primary\" style=\"font-size: 12px; padding: 2px 0px; width: 60px; margin: 0 6px 6px 0;\" onclick=\"showEditDhcpScope('" + dhcpScopes[i].name + "');\">Edit</button>";
 
-                for (var i = 0; i < dhcpScopes.length; i++) {
-                    tableHtmlRows += "<tr><td>" + htmlEncode(dhcpScopes[i].name) + "</td><td>" + dhcpScopes[i].startingAddress + " - " + dhcpScopes[i].endingAddress + "<br />" + dhcpScopes[i].subnetMask + "</td><td>" + dhcpScopes[i].networkAddress + "<br />" + dhcpScopes[i].broadcastAddress + "</td><td>" + (dhcpScopes[i].interfaceAddress == null ? "" : dhcpScopes[i].interfaceAddress) + "</td>";
-                    tableHtmlRows += "<td align=\"right\"><button type=\"button\" class=\"btn btn-primary\" style=\"font-size: 12px; padding: 2px 0px; width: 60px; margin: 0 6px 6px 0;\" onclick=\"showEditDhcpScope('" + dhcpScopes[i].name + "');\">Edit</button>";
+                if (dhcpScopes[i].enabled)
+                    tableHtmlRows += "<button type=\"button\" class=\"btn btn-warning\" style=\"font-size: 12px; padding: 2px 0px; width: 60px; margin: 0 6px 6px 0;\" onclick=\"disableDhcpScope('" + dhcpScopes[i].name + "');\">Disable</button>";
+                else
+                    tableHtmlRows += "<button type=\"button\" class=\"btn btn-default\" style=\"font-size: 12px; padding: 2px 0px; width: 60px; margin: 0 6px 6px 0;\" onclick=\"enableDhcpScope('" + dhcpScopes[i].name + "');\">Enable</button>";
 
-                    if (dhcpScopes[i].enabled)
-                        tableHtmlRows += "<button type=\"button\" class=\"btn btn-warning\" style=\"font-size: 12px; padding: 2px 0px; width: 60px; margin: 0 6px 6px 0;\" onclick=\"disableDhcpScope('" + dhcpScopes[i].name + "');\">Disable</button>";
-                    else
-                        tableHtmlRows += "<button type=\"button\" class=\"btn btn-default\" style=\"font-size: 12px; padding: 2px 0px; width: 60px; margin: 0 6px 6px 0;\" onclick=\"enableDhcpScope('" + dhcpScopes[i].name + "');\">Enable</button>";
-
-                    tableHtmlRows += "<button type=\"button\" class=\"btn btn-danger\" style=\"font-size: 12px; padding: 2px 0px; width: 60px; margin: 0 6px 6px 0;\" onclick=\"deleteDhcpScope('" + dhcpScopes[i].name + "');\">Delete</button></td></tr>";
-                }
-
-                tableHtmlRows += "<tr><td colspan=\"5\"><b>Total Scopes: " + dhcpScopes.length + "</b></td></tr>";
+                tableHtmlRows += "<button type=\"button\" class=\"btn btn-danger\" style=\"font-size: 12px; padding: 2px 0px; width: 60px; margin: 0 6px 6px 0;\" onclick=\"deleteDhcpScope('" + dhcpScopes[i].name + "');\">Delete</button></td></tr>";
             }
 
-            $("#tableDhcpScopes").html(tableHtmlRows);
+            $("#tableDhcpScopesBody").html(tableHtmlRows);
+
+            if (dhcpScopes.length > 0)
+                $("#tableDhcpScopesFooter").html("<tr><td colspan=\"5\"><b>Total Scopes: " + dhcpScopes.length + "</b></td></tr>");
+            else
+                $("#tableDhcpScopesFooter").html("<tr><td colspan=\"5\" align=\"center\">No Scope Found</td></tr>");
 
             divDhcpViewScopesLoader.hide();
             divDhcpViewScopes.show();
