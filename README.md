@@ -32,6 +32,7 @@ Applications of using a locally hosted DNS server is limited only by the user's 
 - Enable/disable zones and records to allow testing with ease.
 - Built-in DNS Client with option to import responses to local zone.
 - Supports out-of-order DNS request processing for DNS-over-TCP and DNS-over-TLS protocols.
+- Built-in DHCP Server that can work for multiple networks.
 - IPv6 support in DNS server core.
 - HTTP & SOCKS5 proxy support which can be configured to route DNS over [Tor Network](https://www.torproject.org/) or use Cloudflare's hidden DNS resolver.
 - Web console portal for easy configuration using any web browser.
@@ -59,3 +60,6 @@ Make contribution to Technitium by becoming a Patron and help making new softwar
 - [Technitium Blog: Turn Raspberry Pi Into Network Wide DNS Server](https://blog.technitium.com/2019/01/turn-raspberry-pi-into-network-wide-dns.html) (Jan 2019)
 - [Technitium Blog: Blocking Internet Ads Using DNS Sinkhole](https://blog.technitium.com/2018/10/blocking-internet-ads-using-dns-sinkhole.html) (Oct 2018)
 - [Technitium Blog: Configuring DNS Server For Privacy & Security](https://blog.technitium.com/2018/06/configuring-dns-server-for-privacy.html) (June 2018)
+- [Technitium Blog: Technitium DNS Server v1.3 Released!](https://blog.technitium.com/2018/06/technitium-dns-server-v13-released.html) (June 2018)
+- [Technitium Blog: Running Technitium DNS Server on Ubuntu Linux](https://blog.technitium.com/2017/11/running-dns-server-on-ubuntu-linux.html) (Nov 2017)
+- [Technitium Blog: Technitium DNS Server Released!](https://blog.technitium.com/2017/11/technitium-dns-server-released.html) (Nov 2017)
