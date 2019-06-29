@@ -374,7 +374,17 @@ namespace DnsServerCore.Dns
 
         private void SetRecords(DnsResourceRecordType type, DnsResourceRecord[] records)
         {
-            _entries.AddOrUpdate(type, records, delegate (DnsResourceRecordType key, DnsResourceRecord[] existingRecords)
+            if (!_authoritativeZone && (records.Length > 0) && (records[0].RDATA is DnsCache.DnsFailureRecord))
+            {
+                //call trying to cache failure record
+                if (_entries.TryGetValue(type, out DnsResourceRecord[] existingRecords))
+                {
+                    if ((existingRecords.Length > 0) && !(existingRecords[0].RDATA is DnsCache.DnsFailureRecord))
+                        return; //skip to avoid overwriting a useful stale record with a failure record to allow serve-stale to work as intended
+                }
+            }
+
+            _entries.AddOrUpdate(type, records, delegate (DnsResourceRecordType key, DnsResourceRecord[] existingValues)
             {
                 return records;
             });
@@ -393,7 +403,7 @@ namespace DnsServerCore.Dns
                     default:
                         //remove old CNAME entry since current new entry type overlaps any existing CNAME entry in cache
                         //keeping both entries will create issue with serve stale implementation since stale CNAME entry will be always returned
-                        _entries.TryRemove(DnsResourceRecordType.CNAME, out DnsResourceRecord[] existingValues);
+                        _entries.TryRemove(DnsResourceRecordType.CNAME, out _);
                         break;
                 }
             }
