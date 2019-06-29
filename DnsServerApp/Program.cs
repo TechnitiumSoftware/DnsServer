@@ -32,11 +32,11 @@ namespace DnsServerApp
             if (args.Length == 1)
                 configFolder = args[0];
 
-            DnsWebService service = null;
+            WebService service = null;
 
             try
             {
-                service = new DnsWebService(configFolder, new Uri("https://go.technitium.com/?id=20"));
+                service = new WebService(configFolder, new Uri("https://go.technitium.com/?id=20"));
                 service.Start();
 
                 Console.WriteLine("Technitium DNS Server was started successfully.");

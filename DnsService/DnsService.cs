@@ -25,7 +25,7 @@ namespace DnsService
 {
     public partial class DnsService : ServiceBase
     {
-        DnsWebService _service;
+        WebService _service;
 
         public DnsService()
         {
@@ -34,7 +34,7 @@ namespace DnsService
 
         protected override void OnStart(string[] args)
         {
-            _service = new DnsWebService(null, new Uri("https://go.technitium.com/?id=22"));
+            _service = new WebService(null, new Uri("https://go.technitium.com/?id=22"));
             _service.Start();
         }
 
