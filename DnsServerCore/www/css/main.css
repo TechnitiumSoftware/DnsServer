@@ -176,10 +176,6 @@ a {
     display: none;
 }
 
-    .zone-viewer-pane .resource-record {
-        background-color: #f5f5f5;
-    }
-
 .log-list-pane {
     float: left;
     width: 17%;
@@ -210,11 +206,6 @@ a {
         color: #ffffff;
     }
 
-    .stats-panel .cache-hit {
-        background-color: rgba(111, 84, 153, 0.7);
-        color: #ffffff;
-    }
-
     .stats-panel .no-error {
         background-color: rgba(92, 184, 92, 0.7);
         color: #ffffff;
@@ -235,22 +226,27 @@ a {
         color: #ffffff;
     }
 
+    .stats-panel .auth-hit {
+        background-color: rgba(150, 150, 0, 0.7);
+        color: #ffffff;
+    }
+
+    .stats-panel .cache-hit {
+        background-color: rgba(111, 84, 153, 0.7);
+        color: #ffffff;
+    }
+
     .stats-panel .blocked {
         background-color: rgba(255, 165, 0, 0.7);
         color: #ffffff;
     }
 
+    .stats-panel .recursions {
+        background-color: rgba(23, 162, 184, 0.7);
+        color: #ffffff;
+    }
+
     .stats-panel .clients {
-        background-color: rgba(51, 122, 183, 0.7);
-        color: #ffffff;
-    }
-
-    .stats-panel .allowedZones {
-        background-color: rgba(51, 122, 183, 0.7);
-        color: #ffffff;
-    }
-
-    .stats-panel .blockedZones {
         background-color: rgba(51, 122, 183, 0.7);
         color: #ffffff;
     }
@@ -273,6 +269,40 @@ a {
         }
 
         .stats-panel .stats-item .title {
+            font-size: 12px;
+            font-weight: bold;
+        }
+
+.zone-stats-panel {
+    height: 70px;
+    padding: 6px 0 6px 4px;
+    margin-bottom: 10px;
+}
+
+    .zone-stats-panel .allowed-zones {
+        background-color: rgba(51, 122, 183, 0.7);
+        color: #ffffff;
+    }
+
+    .zone-stats-panel .blocked-zones {
+        background-color: rgba(51, 122, 183, 0.7);
+        color: #ffffff;
+    }
+
+    .zone-stats-panel .stats-item {
+        width: 49%;
+        float: left;
+        padding: 6px 10px;
+        margin-right: 1%;
+    }
+
+        .zone-stats-panel .stats-item .number {
+            font-size: 16px;
+            font-weight: bold;
+            padding: 6px 0;
+        }
+
+        .zone-stats-panel .stats-item .title {
             font-size: 12px;
             font-weight: bold;
         }

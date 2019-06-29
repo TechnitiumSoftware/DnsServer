@@ -19,6 +19,7 @@
     <link href="/css/main.css" rel="stylesheet" />
     <script src="/js/common.js"></script>
     <script src="/js/main.js"></script>
+    <script src="/js/zone.js"></script>
     <script src="/js/dhcp.js"></script>
 </head>
 <body>
@@ -92,7 +93,7 @@
                         <div>
                             <ul class="nav nav-tabs" role="tablist">
                                 <li id="mainPanelTabListDashboard" role="presentation" class="active"><a href="#mainPanelTabPaneDashboard" aria-controls="mainPanelTabPaneDashboard" role="tab" data-toggle="tab" onclick="refreshDashboard();">Dashboard</a></li>
-                                <li id="mainPanelTabListZones" role="presentation"><a href="#mainPanelTabPaneZones" aria-controls="mainPanelTabPaneZones" role="tab" data-toggle="tab" onclick="refreshZonesList();">Zones</a></li>
+                                <li id="mainPanelTabListZones" role="presentation"><a href="#mainPanelTabPaneZones" aria-controls="mainPanelTabPaneZones" role="tab" data-toggle="tab" onclick="refreshZones(true);">Zones</a></li>
                                 <li id="mainPanelTabListCachedZones" role="presentation"><a href="#mainPanelTabPaneCachedZones" aria-controls="mainPanelTabPaneCachedZones" role="tab" data-toggle="tab">Cache</a></li>
                                 <li id="mainPanelTabListAllowedZones" role="presentation"><a href="#mainPanelTabPaneAllowedZones" aria-controls="mainPanelTabPaneAllowedZones" role="tab" data-toggle="tab">Allowed Zones</a></li>
                                 <li id="mainPanelTabListBlockedZones" role="presentation"><a href="#mainPanelTabPaneBlockedZones" aria-controls="mainPanelTabPaneBlockedZones" role="tab" data-toggle="tab">Blocked Zones</a></li>
@@ -134,12 +135,6 @@
                                                 <div class="title">Total Queries</div>
                                             </div>
 
-                                            <div class="stats-item cache-hit">
-                                                <div class="number" id="divDashboardStatsTotalCacheHit">10</div>
-                                                <div class="percentage" id="divDashboardStatsTotalCacheHitPercentage">0%</div>
-                                                <div class="title">Cache Hit</div>
-                                            </div>
-
                                             <div class="stats-item no-error">
                                                 <div class="number" id="divDashboardStatsTotalNoError">70</div>
                                                 <div class="percentage" id="divDashboardStatsTotalNoErrorPercentage">0%</div>
@@ -164,6 +159,24 @@
                                                 <div class="title">Refused</div>
                                             </div>
 
+                                            <div class="stats-item auth-hit">
+                                                <div class="number" id="divDashboardStatsTotalAuthHit">10</div>
+                                                <div class="percentage" id="divDashboardStatsTotalAuthHitPercentage">0%</div>
+                                                <div class="title">Authoritative</div>
+                                            </div>
+
+                                            <div class="stats-item recursions">
+                                                <div class="number" id="divDashboardStatsTotalRecursions">10</div>
+                                                <div class="percentage" id="divDashboardStatsTotalRecursionsPercentage">0%</div>
+                                                <div class="title">Recursive</div>
+                                            </div>
+
+                                            <div class="stats-item cache-hit">
+                                                <div class="number" id="divDashboardStatsTotalCacheHit">10</div>
+                                                <div class="percentage" id="divDashboardStatsTotalCacheHitPercentage">0%</div>
+                                                <div class="title">Cached</div>
+                                            </div>
+
                                             <div class="stats-item blocked">
                                                 <div class="number" id="divDashboardStatsTotalBlocked">10</div>
                                                 <div class="percentage" id="divDashboardStatsTotalBlockedPercentage">0%</div>
@@ -175,18 +188,6 @@
                                                 <div class="percentage">&nbsp;</div>
                                                 <div class="title">Clients</div>
                                             </div>
-
-                                            <div class="stats-item allowedZones">
-                                                <div class="number" id="divDashboardStatsAllowedZones">10</div>
-                                                <div class="percentage">Zones</div>
-                                                <div class="title">Allowed</div>
-                                            </div>
-
-                                            <div class="stats-item blockedZones">
-                                                <div class="number" id="divDashboardStatsBlockedZones">10</div>
-                                                <div class="percentage">Zones</div>
-                                                <div class="title">Blocked</div>
-                                            </div>
                                         </div>
 
                                         <div>
@@ -195,10 +196,27 @@
 
                                         <div style="margin-top: 15px;">
                                             <div style="float: left; width: 50%; padding-right: 7px;">
-                                                <div id="divTopQueryType" class="panel panel-default" style="margin-bottom: 0px;">
-                                                    <div class="panel-heading">Top Query Type</div>
+                                                <div id="divPieCharts" class="panel panel-default" style="margin-bottom: 0px;">
                                                     <div class="panel-body">
-                                                        <canvas id="canvasDashboardPie"></canvas>
+                                                        <div class="zone-stats-panel">
+                                                            <div class="stats-item allowed-zones">
+                                                                <div class="number" id="divDashboardStatsAllowedZones">10</div>
+                                                                <div class="title">Zones Allowed</div>
+                                                            </div>
+
+                                                            <div class="stats-item blocked-zones">
+                                                                <div class="number" id="divDashboardStatsBlockedZones">10</div>
+                                                                <div class="title">Zones Blocked</div>
+                                                            </div>
+                                                        </div>
+
+                                                        <div style="margin-bottom: 20px;">
+                                                            <canvas id="canvasDashboardPie"></canvas>
+                                                        </div>
+
+                                                        <div>
+                                                            <canvas id="canvasDashboardPie2"></canvas>
+                                                        </div>
                                                     </div>
                                                 </div>
                                             </div>
@@ -277,281 +295,74 @@
                                 </div>
 
                                 <div id="mainPanelTabPaneZones" role="tabpanel" class="tab-pane" style="padding: 10px 0 0 0;">
+                                    <div id="divViewZonesLoader" style=" display: none; margin-top: 10px; height: 400px;"></div>
 
-                                    <div class="well well-sm zone-list-pane">
-                                        <form class="form-inline">
-                                            <div class="form-group" style="width: 100%">
-                                                <input type="text" class="form-control" style="width: inherit;" id="txtAddZone" placeholder="example.com">
+                                    <div id="divViewZones" style="margin-top: 10px;">
+                                        <div>
+                                            <div style="float: right;">
+                                                <button type="button" class="btn btn-primary" onclick="showAddZoneModal();">Add Zone</button>
                                             </div>
-                                            <div class="form-group">
-                                                <button id="btnAddZone" type="submit" class="btn btn-primary" data-loading-text="Add" onclick="return addZone();">Add</button>
-                                                <button id="btnBrowseZone" type="button" class="btn btn-default" data-loading-text="Browse" onclick="return viewZone($('#txtAddZone').val());">Browse</button>
-                                            </div>
-                                        </form>
-
-                                        <div id="lstZones" class="zones">
-                                            <div class="zone"><a href="#" onclick="return viewZone('technitium.com');">technitium.com</a></div>
+                                            <div style="clear: both;"></div>
                                         </div>
+
+                                        <table id="tableZones" class="table table-hover">
+                                            <thead>
+                                                <tr>
+                                                    <th>Zone</th>
+                                                    <th></th>
+                                                </tr>
+                                            </thead>
+                                            <tbody id="tableZonesBody">
+                                                <tr>
+                                                    <td>localhost</td>
+                                                    <td>Edit Disable Delete</td>
+                                                </tr>
+                                            </tbody>
+                                            <tfoot id="tableZonesFooter">
+                                                <tr><td colspan="2"><b>Total Records: 1</b></td></tr>
+                                            </tfoot>
+                                        </table>
                                     </div>
 
-                                    <div id="divZoneViewer" class="zone-viewer-pane">
-                                        <div class="panel panel-default">
-                                            <div class="panel-heading" style="height: 36px; padding: 4px 6px;">
-                                                <div style="float: left; padding: 4px;"><span id="spanZoneViewerTitle">technitium.com</span> <span id="spanZoneViewerTitleLink"><a href="" target="_blank"><span class="glyphicon glyphicon-new-window" aria-hidden="true"></span></a></span></div>
-                                                <div style="float: right;">
-                                                    <button id="btnDisableZone" type="button" class="btn btn-warning" data-loading-text="Disable" onclick="return disableZone();" style="font-size: 12px; padding: 4px 6px;">Disable</button>
-                                                    <button id="btnEnableZone" type="button" class="btn btn-default" data-loading-text="Enable" onclick="return enableZone();" style="font-size: 12px; padding: 4px 6px;">Enable</button>
-                                                    <button id="btnDeleteZone" type="button" class="btn btn-danger" data-loading-text="Delete" onclick="return deleteZone();" style="font-size: 12px; padding: 4px 6px;">Delete</button>
-                                                </div>
+                                    <div id="divEditZone" style="display: none;">
+                                        <ul class="pager" style="margin: 0px;">
+                                            <li class="previous"><a href="#" onclick="refreshZones(); return false;"><span aria-hidden="true">&larr;</span> Back</a></li>
+                                        </ul>
+
+                                        <div style="padding: 10px 0px;">
+                                            <div style="float: left;">
+                                                <h3 id="titleEditZone" style="margin: 4px 0;">example.com</h3>
                                             </div>
-
-                                            <div class="panel-body">
-                                                <div id="divZoneViewerLoader" style="margin-top: 20px; height: 400px;"></div>
-
-                                                <div id="divZoneViewerBody">
-                                                    <ul class="list-group">
-                                                        <li class="list-group-item resource-record">
-                                                            <form class="form-inline">
-                                                                <div class="form-group">
-                                                                    <label for="optType1">Type</label>
-                                                                    <select class="form-control" id="optType1" disabled>
-                                                                        <option>A</option>
-                                                                        <option>NS</option>
-                                                                        <option>CNAME</option>
-                                                                        <option>SOA</option>
-                                                                        <option>PTR</option>
-                                                                        <option>MX</option>
-                                                                        <option>TXT</option>
-                                                                        <option>AAAA</option>
-                                                                    </select>
-                                                                </div>
-                                                                <div class="form-group">
-                                                                    <label for="addRRSubDomain1">Name</label>
-                                                                    <input type="text" class="form-control" id="addRRSubDomain1" placeholder="@" style="width: 136px;">
-                                                                </div>
-                                                                <div class="form-group">
-                                                                    <label for="addRRValue1">Value</label>
-                                                                    <input type="text" class="form-control" id="addRRValue1" placeholder="value" style="width: 250px;">
-                                                                </div>
-                                                                <div class="form-group">
-                                                                    <label for="addRRTtl1">TTL</label>
-                                                                    <input type="number" class="form-control" id="addRRTtl1" placeholder="3600" style="width: 80px;">
-                                                                </div>
-
-                                                                <div class="form-group" style="display: block; margin-bottom: 0px;">
-                                                                    <button type="button" class="btn btn-primary">Update</button>
-                                                                    <button type="button" class="btn btn-warning">Delete</button>
-                                                                </div>
-                                                            </form>
-                                                        </li>
-
-                                                        <li class="list-group-item resource-record">
-                                                            <form class="form-inline">
-                                                                <div class="form-group">
-                                                                    <label for="optType2">Type</label>
-                                                                    <select class="form-control" id="optType2" disabled>
-                                                                        <option selected>SOA</option>
-                                                                    </select>
-                                                                </div>
-                                                                <div class="form-group">
-                                                                    <label for="addRRSubDomain2">Name</label>
-                                                                    <input type="text" class="form-control" id="addRRSubDomain2" placeholder="@" style="width: 136px;">
-                                                                </div>
-                                                                <div class="form-group">
-                                                                    <label for="addRRValue2">Master Name Server</label>
-                                                                    <input type="text" class="form-control" id="addRRValue2" placeholder="value" style="width: 250px;">
-                                                                </div>
-                                                                <div class="form-group">
-                                                                    <label for="addRRValueRP">Responsible Person</label>
-                                                                    <input type="text" class="form-control" id="addRRValueRP" placeholder="value" style="width: 200px;">
-                                                                </div>
-                                                                <div class="form-group">
-                                                                    <label for="addRRValueSerial">Serial</label>
-                                                                    <input type="number" class="form-control" id="addRRValueSerial" placeholder="value" style="width: 100px;">
-                                                                </div>
-                                                                <div class="form-group">
-                                                                    <label for="addRRValueRefresh">Refresh</label>
-                                                                    <input type="number" class="form-control" id="addRRValueRefresh" placeholder="value" style="width: 80px;">
-                                                                </div>
-                                                                <div class="form-group">
-                                                                    <label for="addRRValueRetry">Retry</label>
-                                                                    <input type="number" class="form-control" id="addRRValueRetry" placeholder="value" style="width: 80px;">
-                                                                </div>
-                                                                <div class="form-group">
-                                                                    <label for="addRRValueExpire">Expire</label>
-                                                                    <input type="number" class="form-control" id="addRRValueExpire" placeholder="value" style="width: 80px;">
-                                                                </div>
-                                                                <div class="form-group">
-                                                                    <label for="addRRValueMinimum">Minimum</label>
-                                                                    <input type="number" class="form-control" id="addRRValueMinimum" placeholder="value" style="width: 80px;">
-                                                                </div>
-                                                                <div class="form-group">
-                                                                    <label for="addRRTtl2">TTL</label>
-                                                                    <input type="number" class="form-control" id="addRRTtl2" placeholder="3600" style="width: 80px;">
-                                                                </div>
-
-                                                                <div class="form-group" style="display: block; margin-bottom: 0px;">
-                                                                    <button type="button" class="btn btn-primary">Update</button>
-                                                                    <button type="button" class="btn btn-warning">Delete</button>
-                                                                </div>
-                                                            </form>
-                                                        </li>
-
-                                                        <li class="list-group-item resource-record">
-                                                            <form class="form-inline">
-                                                                <div class="form-group">
-                                                                    <label for="optType3">Type</label>
-                                                                    <select class="form-control" id="optType3" disabled>
-                                                                        <option selected>MX</option>
-                                                                    </select>
-                                                                </div>
-                                                                <div class="form-group">
-                                                                    <label for="addRRSubDomain3">Name</label>
-                                                                    <input type="text" class="form-control" id="addRRSubDomain3" placeholder="@" style="width: 136px;">
-                                                                </div>
-                                                                <div class="form-group">
-                                                                    <label for="addRRValue3">Exchange</label>
-                                                                    <input type="text" class="form-control" id="addRRValue3" placeholder="mx1.example.com" style="width: 250px;">
-                                                                </div>
-                                                                <div class="form-group">
-                                                                    <label for="addRRValuePref">Preference</label>
-                                                                    <input type="number" class="form-control" id="addRRValuePref" placeholder="10" style="width: 80px;">
-                                                                </div>
-                                                                <div class="form-group">
-                                                                    <label for="addRRTtl3">TTL</label>
-                                                                    <input type="number" class="form-control" id="addRRTtl3" placeholder="3600" style="width: 80px;">
-                                                                </div>
-
-                                                                <div class="form-group" style="display: block; margin-bottom: 0px;">
-                                                                    <button type="button" class="btn btn-primary">Update</button>
-                                                                    <button type="button" class="btn btn-warning">Delete</button>
-                                                                </div>
-                                                            </form>
-                                                        </li>
-
-                                                        <li class="list-group-item resource-record">
-                                                            <form class="form-inline">
-                                                                <div class="form-group">
-                                                                    <label for="optType4">Type</label>
-                                                                    <select class="form-control" id="optType4" disabled>
-                                                                        <option selected>SRV</option>
-                                                                    </select>
-                                                                </div>
-                                                                <div class="form-group">
-                                                                    <label for="addRRSubDomain4">Name</label>
-                                                                    <input type="text" class="form-control" id="addRRSubDomain4" placeholder="@" style="width: 136px;">
-                                                                </div>
-                                                                <div class="form-group">
-                                                                    <label for="addRRValueService">Service</label>
-                                                                    <input type="text" class="form-control" id="addRRValueService" placeholder="service" style="width: 136px;">
-                                                                </div>
-                                                                <div class="form-group">
-                                                                    <label for="addRRValueProtocol">Protocol</label>
-                                                                    <input type="text" class="form-control" id="addRRValueProtocol" placeholder="protocol" style="width: 250px;">
-                                                                </div>
-                                                                <div class="form-group">
-                                                                    <label for="addRRValuePriority">Priority</label>
-                                                                    <input type="number" class="form-control" id="addRRValuePriority" placeholder="priority" style="width: 100px;">
-                                                                </div>
-                                                                <div class="form-group">
-                                                                    <label for="addRRValueWeight">Weight</label>
-                                                                    <input type="number" class="form-control" id="addRRValueWeight" placeholder="weight" style="width: 80px;">
-                                                                </div>
-                                                                <div class="form-group">
-                                                                    <label for="addRRValuePort">Port</label>
-                                                                    <input type="number" class="form-control" id="addRRValuePort" placeholder="port" style="width: 80px;">
-                                                                </div>
-                                                                <div class="form-group">
-                                                                    <label for="addRRValueTarget">Target</label>
-                                                                    <input type="text" class="form-control" id="addRRValueTarget" placeholder="target" style="width: 200px;">
-                                                                </div>
-                                                                <div class="form-group">
-                                                                    <label for="addRRTtl4">TTL</label>
-                                                                    <input type="number" class="form-control" id="addRRTtl4" placeholder="3600" style="width: 80px;">
-                                                                </div>
-
-                                                                <div class="form-group" style="display: block; margin-bottom: 0px;">
-                                                                    <button type="button" class="btn btn-primary">Update</button>
-                                                                    <button type="button" class="btn btn-warning">Delete</button>
-                                                                </div>
-                                                            </form>
-                                                        </li>
-
-                                                        <li class="list-group-item" id="addRecordFormItem">
-                                                            <form class="form-inline">
-                                                                <div class="form-group">
-                                                                    <label for="optAddRecordType">Type</label>
-                                                                    <select id="optAddRecordType" class="form-control" onchange="return modifyAddRecordForm();">
-                                                                        <option>A</option>
-                                                                        <option>NS</option>
-                                                                        <option>CNAME</option>
-                                                                        <option>PTR</option>
-                                                                        <option>MX</option>
-                                                                        <option>TXT</option>
-                                                                        <option>AAAA</option>
-                                                                        <option>SRV</option>
-                                                                    </select>
-                                                                </div>
-                                                                <div class="form-group" id="divAddRecordName">
-                                                                    <label for="txtAddRecordName">Name</label>
-                                                                    <input id="txtAddRecordName" type="text" class="form-control" placeholder="@" style="width: 136px;">
-                                                                </div>
-                                                                <div class="form-group" id="divAddRecordValue">
-                                                                    <label for="txtAddRecordValue">Value</label>
-                                                                    <input id="txtAddRecordValue" type="text" class="form-control" placeholder="value" style="width: 250px;">
-                                                                </div>
-
-                                                                <div class="form-group" id="divAddRecordMXExchange" style="display: none;">
-                                                                    <label for="txtAddRecordExchange">Exchange</label>
-                                                                    <input id="txtAddRecordExchange" type="text" class="form-control" placeholder="value" style="width: 250px;">
-                                                                </div>
-                                                                <div class="form-group" id="divAddRecordMXPreference" style="display: none;">
-                                                                    <label for="txtAddRecordPreference">Preference</label>
-                                                                    <input id="txtAddRecordPreference" type="number" class="form-control" placeholder="value" style="width: 80px;">
-                                                                </div>
-
-
-                                                                <div class="form-group" id="divAddRecordSRVService" style="display: none;">
-                                                                    <label for="txtAddRecordSRVService">Service</label>
-                                                                    <input type="text" class="form-control" id="txtAddRecordSRVService" placeholder="service" style="width: 136px;">
-                                                                </div>
-                                                                <div class="form-group" id="divAddRecordSRVProtocol" style="display: none;">
-                                                                    <label for="txtAddRecordSRVProtocol">Protocol</label>
-                                                                    <input type="text" class="form-control" id="txtAddRecordSRVProtocol" placeholder="protocol" style="width: 250px;">
-                                                                </div>
-                                                                <div class="form-group" id="divAddRecordSRVPriority" style="display: none;">
-                                                                    <label for="txtAddRecordSRVPriority">Priority</label>
-                                                                    <input type="number" class="form-control" id="txtAddRecordSRVPriority" placeholder="priority" style="width: 100px;">
-                                                                </div>
-                                                                <div class="form-group" id="divAddRecordSRVWeight" style="display: none;">
-                                                                    <label for="txtAddRecordSRVWeight">Weight</label>
-                                                                    <input type="number" class="form-control" id="txtAddRecordSRVWeight" placeholder="weight" style="width: 80px;">
-                                                                </div>
-                                                                <div class="form-group" id="divAddRecordSRVPort" style="display: none;">
-                                                                    <label for="txtAddRecordSRVPort">Port</label>
-                                                                    <input type="number" class="form-control" id="txtAddRecordSRVPort" placeholder="port" style="width: 80px;">
-                                                                </div>
-                                                                <div class="form-group" id="divAddRecordSRVTarget" style="display: none;">
-                                                                    <label for="txtAddRecordSRVTarget">Target</label>
-                                                                    <input type="text" class="form-control" id="txtAddRecordSRVTarget" placeholder="target" style="width: 200px;">
-                                                                </div>
-
-                                                                <div class="form-group">
-                                                                    <label for="txtAddRecordTtl">TTL</label>
-                                                                    <input id="txtAddRecordTtl" type="number" class="form-control" placeholder="3600" style="width: 80px;">
-                                                                </div>
-
-                                                                <div class="form-group" style="display: block; margin-bottom: 0px;">
-                                                                    <button id="btnAddRecord" type="button" class="btn btn-primary">Add</button>
-                                                                </div>
-                                                            </form>
-                                                        </li>
-                                                    </ul>
-                                                </div>
+                                            <div style="float: right; padding: 2px 0px;">
+                                                <button type="button" class="btn btn-primary" onclick="showAddRecordModal();">Add Record</button>
                                             </div>
+                                            <div style="clear: both;"></div>
                                         </div>
-                                    </div>
 
+                                        <table id="tableEditZone" class="table table-hover">
+                                            <thead>
+                                                <tr>
+                                                    <th onclick="sortTable('tableEditZoneBody', 0);">Name</th>
+                                                    <th onclick="sortTable('tableEditZoneBody', 1);">Type</th>
+                                                    <th onclick="sortTable('tableEditZoneBody', 2);">TTL</th>
+                                                    <th onclick="sortTable('tableEditZoneBody', 3);">Data</th>
+                                                    <th></th>
+                                                </tr>
+                                            </thead>
+                                            <tbody id="tableEditZoneBody">
+                                                <tr>
+                                                    <td>@</td>
+                                                    <td>A</td>
+                                                    <td>3600</td>
+                                                    <td>127.0.0.1</td>
+                                                    <td>Edit Disable Delete</td>
+                                                </tr>
+                                            </tbody>
+                                            <tfoot id="tableEditZoneFooter">
+                                                <tr><td><b>Total Records: 1</b></td></tr>
+                                            </tfoot>
+                                        </table>
+                                    </div>
                                 </div>
 
                                 <div id="mainPanelTabPaneCachedZones" role="tabpanel" class="tab-pane" style="padding: 10px 0 0 0;">
@@ -696,7 +507,8 @@
                                                     <li><a href="#">Google TLS (dns.google (8.8.4.4:853))</a></li>
                                                     <li><a href="#">Google TLS (dns.google ([2001:4860:4860::8888]:853))</a></li>
                                                     <li><a href="#">Google TLS (dns.google ([2001:4860:4860::8844]:853))</a></li>
-                                                    <li><a href="#">Google HTTPS-JSON (https://dns.google.com/resolve)</a></li>
+                                                    <li><a href="#">Google HTTPS (https://dns.google/dns-query)</a></li>
+                                                    <li><a href="#">Google HTTPS-JSON (https://dns.google/resolve)</a></li>
                                                     <li><a href="#">Quad9 Secure (9.9.9.9)</a></li>
                                                     <li><a href="#">Quad9 Secure ([2620:fe::fe])</a></li>
                                                     <li><a href="#">Quad9 Secure TLS (dns.quad9.net (9.9.9.9:853))</a></li>
@@ -1098,6 +910,7 @@
                                                             <option value="google-tcp-ipv6">Google (DNS-over-TCP IPv6)</option>
                                                             <option value="google-tls">Google (DNS-over-TLS)</option>
                                                             <option value="google-tls-ipv6">Google (DNS-over-TLS IPv6)</option>
+                                                            <option value="google-https">Google (DNS-over-HTTPS)</option>
                                                             <option value="google-json">Google (DNS-over-HTTPS-JSON)</option>
 
                                                             <option value="quad9-udp">Quad9 Secure (DNS-over-UDP)</option>
@@ -1147,7 +960,7 @@
                                                         </div>
                                                         <div class="radio">
                                                             <label>
-                                                                <input type="radio" name="rdForwarderProtocol" id="rdForwarderProtocolHttpJsons" value="HttpsJson">
+                                                                <input type="radio" name="rdForwarderProtocol" id="rdForwarderProtocolHttpsJson" value="HttpsJson">
                                                                 DNS-over-HTTPS (JSON)
                                                             </label>
                                                         </div>
@@ -1176,7 +989,7 @@
 
                                     <ul class="nav nav-tabs" role="tablist">
                                         <li id="dhcpTabListLeases" role="presentation" class="active"><a href="#dhcpTabPaneLeases" aria-controls="dhcpTabPaneLeases" role="tab" data-toggle="tab" onclick="refreshDhcpLeases();">Leases</a></li>
-                                        <li id="dhcpTabListScopes" role="presentation"><a href="#dhcpTabPaneScopes" aria-controls="dhcpTabPaneScopes" role="tab" data-toggle="tab" onclick="refreshDhcpScopes();">Scopes</a></li>
+                                        <li id="dhcpTabListScopes" role="presentation"><a href="#dhcpTabPaneScopes" aria-controls="dhcpTabPaneScopes" role="tab" data-toggle="tab" onclick="refreshDhcpScopes(true);">Scopes</a></li>
                                     </ul>
 
                                     <div class="tab-content">
@@ -1196,7 +1009,7 @@
                                                             <th>Lease Expires</th>
                                                         </tr>
                                                     </thead>
-                                                    <tbody id="tableDhcpLeases">
+                                                    <tbody id="tableDhcpLeasesBody">
                                                         <tr>
                                                             <td>Default</td>
                                                             <td>00-00-00-00-00-00</td>
@@ -1207,6 +1020,9 @@
                                                             <td>6/15/2019 3:39 PM</td>
                                                         </tr>
                                                     </tbody>
+                                                    <tfoot id="tableDhcpLeasesFooter">
+                                                        <tr><td><b>Total Leases: 1</b></td></tr>
+                                                    </tfoot>
                                                 </table>
                                             </div>
                                         </div>
@@ -1217,7 +1033,7 @@
                                             <div id="divDhcpViewScopes" style="margin-top: 10px;">
 
                                                 <div style="float: right; padding: 2px 0px;">
-                                                    <button id="btnAddDhcpScope" type="button" class="btn btn-primary" onclick="showAddDhcpScope();">Add Scope</button>
+                                                    <button type="button" class="btn btn-primary" onclick="showAddDhcpScope();">Add Scope</button>
                                                 </div>
                                                 <div style="clear: both;"></div>
 
@@ -1231,7 +1047,7 @@
                                                             <th></th>
                                                         </tr>
                                                     </thead>
-                                                    <tbody id="tableDhcpScopes">
+                                                    <tbody id="tableDhcpScopesBody">
                                                         <tr>
                                                             <td>Default</td>
                                                             <td>192.168.10.1 - 192.168.10.100</td>
@@ -1240,6 +1056,9 @@
                                                             <td>Edit Delete</td>
                                                         </tr>
                                                     </tbody>
+                                                    <tfoot id="tableDhcpScopesFooter">
+                                                        <tr><td><b>Total Leases: 1</b></td></tr>
+                                                    </tfoot>
                                                 </table>
 
                                             </div>
@@ -1535,8 +1354,8 @@
                         </div>
                     </div>
                     <div class="modal-footer">
-                        <button type="button" class="btn btn-default" data-dismiss="modal">Close</button>
                         <button id="btnChangePasswordSave" type="submit" class="btn btn-primary" data-loading-text="Saving..." onclick="return changePassword();">Save</button>
+                        <button type="button" class="btn btn-default" data-dismiss="modal">Close</button>
                     </div>
                 </div>
             </div>
@@ -1567,6 +1386,210 @@
         </div>
     </div>
 
+
+    <div id="modalAddZone" class="modal fade" tabindex="-1" role="dialog">
+        <form class="form-horizontal">
+            <div class="modal-dialog" role="document">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <button type="button" class="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button>
+                        <h4 class="modal-title">Add Zone</h4>
+                    </div>
+                    <div class="modal-body">
+                        <div id="divAddZoneAlert"></div>
+
+                        <div class="form-group">
+                            <label for="txtAddZone" class="col-sm-4 control-label">Zone</label>
+                            <div class="col-sm-7">
+                                <input id="txtAddZone" type="text" class="form-control" placeholder="example.com">
+                            </div>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button id="btnAddZone" type="submit" class="btn btn-primary" data-loading-text="Adding..." onclick="addZone(); return false;">Add</button>
+                        <button type="button" class="btn btn-default" data-dismiss="modal">Close</button>
+                    </div>
+                </div>
+            </div>
+        </form>
+    </div>
+
+    <div id="modalAddEditRecord" class="modal fade" tabindex="-1" role="dialog">
+        <form class="form-horizontal">
+            <div class="modal-dialog" role="document">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <button type="button" class="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button>
+                        <h4 id="titleAddEditRecord" class="modal-title">Add Edit Record</h4>
+                    </div>
+                    <div class="modal-body">
+                        <div id="divAddEditRecordAlert"></div>
+
+                        <div class="form-group">
+                            <label for="txtAddEditRecordName" class="col-sm-4 control-label">Name</label>
+                            <div class="col-sm-7">
+                                <input id="txtAddEditRecordName" type="text" class="form-control" placeholder="@">
+                            </div>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="optAddEditRecordType" class="col-sm-4 control-label">Type</label>
+                            <div class="col-sm-7">
+                                <select id="optAddEditRecordType" class="form-control" onchange="modifyAddRecordForm();" style="width: auto;">
+                                    <option>A</option>
+                                    <option>NS</option>
+                                    <option id="optEditRecordTypeSoa">SOA</option>
+                                    <option>CNAME</option>
+                                    <option>PTR</option>
+                                    <option>MX</option>
+                                    <option>TXT</option>
+                                    <option>AAAA</option>
+                                    <option>SRV</option>
+                                    <option>CAA</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="txtAddEditRecordTtl" class="col-sm-4 control-label">TTL</label>
+                            <div class="col-sm-7">
+                                <input id="txtAddEditRecordTtl" type="number" class="form-control" placeholder="3600" style="width: 100px;">
+                            </div>
+                        </div>
+
+
+                        <div id="divAddEditRecordData">
+                            <div class="form-group">
+                                <label id="lblAddEditRecordDataValue" for="txtAddEditRecordDataValue" class="col-sm-4 control-label">Value</label>
+                                <div class="col-sm-7">
+                                    <input id="txtAddEditRecordDataValue" type="text" class="form-control">
+                                </div>
+                            </div>
+                        </div>
+
+                        <div id="divEditRecordDataSoa" style="display: none;">
+                            <div class="form-group">
+                                <label for="txtEditRecordDataSoaMasterNameServer" class="col-sm-4 control-label">Master Name Server</label>
+                                <div class="col-sm-7">
+                                    <input id="txtEditRecordDataSoaMasterNameServer" type="text" class="form-control">
+                                </div>
+                            </div>
+                            <div class="form-group">
+                                <label for="txtEditRecordDataSoaResponsiblePerson" class="col-sm-4 control-label">Responsible Person</label>
+                                <div class="col-sm-7">
+                                    <input id="txtEditRecordDataSoaResponsiblePerson" type="text" class="form-control">
+                                </div>
+                            </div>
+                            <div class="form-group">
+                                <label for="txtEditRecordDataSoaSerial" class="col-sm-4 control-label">Serial</label>
+                                <div class="col-sm-7">
+                                    <input id="txtEditRecordDataSoaSerial" type="number" class="form-control" style="width: 150px;">
+                                </div>
+                            </div>
+                            <div class="form-group">
+                                <label for="txtEditRecordDataSoaRefresh" class="col-sm-4 control-label">Refresh</label>
+                                <div class="col-sm-7">
+                                    <input id="txtEditRecordDataSoaRefresh" type="number" class="form-control" style="width: 100px;">
+                                </div>
+                            </div>
+                            <div class="form-group">
+                                <label for="txtEditRecordDataSoaRetry" class="col-sm-4 control-label">Retry</label>
+                                <div class="col-sm-7">
+                                    <input id="txtEditRecordDataSoaRetry" type="number" class="form-control" style="width: 100px;">
+                                </div>
+                            </div>
+                            <div class="form-group">
+                                <label for="txtEditRecordDataSoaExpire" class="col-sm-4 control-label">Expire</label>
+                                <div class="col-sm-7">
+                                    <input id="txtEditRecordDataSoaExpire" type="number" class="form-control" style="width: 100px;">
+                                </div>
+                            </div>
+                            <div class="form-group">
+                                <label for="txtEditRecordDataSoaMinimum" class="col-sm-4 control-label">Minimum</label>
+                                <div class="col-sm-7">
+                                    <input id="txtEditRecordDataSoaMinimum" type="number" class="form-control" style="width: 100px;">
+                                </div>
+                            </div>
+                        </div>
+
+
+                        <div id="divAddEditRecordDataMx" style="display: none;">
+                            <div class="form-group">
+                                <label for="txtAddEditRecordDataMxPreference" class="col-sm-4 control-label">Preference</label>
+                                <div class="col-sm-7">
+                                    <input id="txtAddEditRecordDataMxPreference" type="number" class="form-control" placeholder="1" style="width: 100px;">
+                                </div>
+                            </div>
+                            <div class="form-group">
+                                <label for="txtAddEditRecordDataMxExchange" class="col-sm-4 control-label">Exchange</label>
+                                <div class="col-sm-7">
+                                    <input id="txtAddEditRecordDataMxExchange" type="text" class="form-control">
+                                </div>
+                            </div>
+                        </div>
+
+
+                        <div id="divAddEditRecordDataSrv" style="display: none;">
+                            <div class="form-group">
+                                <label for="txtAddEditRecordDataSrvPriority" class="col-sm-4 control-label">Priority</label>
+                                <div class="col-sm-7">
+                                    <input type="number" class="form-control" id="txtAddEditRecordDataSrvPriority" style="width: 100px;">
+                                </div>
+                            </div>
+                            <div class="form-group">
+                                <label for="txtAddEditRecordDataSrvWeight" class="col-sm-4 control-label">Weight</label>
+                                <div class="col-sm-7">
+                                    <input type="number" class="form-control" id="txtAddEditRecordDataSrvWeight" style="width: 100px;">
+                                </div>
+                            </div>
+                            <div class="form-group">
+                                <label for="txtAddEditRecordDataSrvPort" class="col-sm-4 control-label">Port</label>
+                                <div class="col-sm-7">
+                                    <input type="number" class="form-control" id="txtAddEditRecordDataSrvPort" style="width: 100px;">
+                                </div>
+                            </div>
+                            <div class="form-group">
+                                <label for="txtAddEditRecordDataSrvTarget" class="col-sm-4 control-label">Target</label>
+                                <div class="col-sm-7">
+                                    <input type="text" class="form-control" id="txtAddEditRecordDataSrvTarget">
+                                </div>
+                            </div>
+                        </div>
+
+
+                        <div id="divAddEditRecordDataCaa" style="display: none;">
+                            <div class="form-group">
+                                <label for="txtAddEditRecordDataCaaFlags" class="col-sm-4 control-label">Flags</label>
+                                <div class="col-sm-7">
+                                    <input type="number" class="form-control" id="txtAddEditRecordDataCaaFlags" placeholder="0" style="width: 100px;">
+                                </div>
+                            </div>
+                            <div class="form-group">
+                                <label for="txtAddEditRecordDataCaaTag" class="col-sm-4 control-label">Tag</label>
+                                <div class="col-sm-7">
+                                    <input type="text" class="form-control" id="txtAddEditRecordDataCaaTag" placeholder="issue" style="width: 150px;">
+                                </div>
+                            </div>
+                            <div class="form-group">
+                                <label for="txtAddEditRecordDataCaaValue" class="col-sm-4 control-label">Authority</label>
+                                <div class="col-sm-7">
+                                    <input type="text" class="form-control" id="txtAddEditRecordDataCaaValue">
+                                </div>
+                            </div>
+                        </div>
+
+
+                    </div>
+                    <div class="modal-footer">
+                        <button type="submit" class="btn btn-primary" id="btnAddEditRecord" data-loading-text="Saving...">Save</button>
+                        <button type="button" class="btn btn-default" data-dismiss="modal">Close</button>
+                    </div>
+                </div>
+            </div>
+        </form>
+    </div>
+
+
     <div id="modalImportAllowedZones" class="modal fade" tabindex="-1" role="dialog">
         <div class="modal-dialog" role="document">
             <div class="modal-content">
@@ -1585,8 +1608,8 @@
                     </div>
                 </div>
                 <div class="modal-footer">
-                    <button type="button" class="btn btn-default" data-dismiss="modal">Close</button>
                     <button id="btnImportAllowedZones" type="submit" class="btn btn-primary" data-loading-text="Importing..." onclick="return importAllowedZones();">Import</button>
+                    <button type="button" class="btn btn-default" data-dismiss="modal">Close</button>
                 </div>
             </div>
         </div>
@@ -1610,8 +1633,8 @@
                     </div>
                 </div>
                 <div class="modal-footer">
-                    <button type="button" class="btn btn-default" data-dismiss="modal">Close</button>
                     <button id="btnImportCustomBlockedZones" type="submit" class="btn btn-primary" data-loading-text="Importing..." onclick="return importCustomBlockedZones();">Import</button>
+                    <button type="button" class="btn btn-default" data-dismiss="modal">Close</button>
                 </div>
             </div>
         </div>
