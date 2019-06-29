@@ -950,7 +950,7 @@ namespace DnsServerCore.Dns
         private DnsDatagram ProcessAuthoritativeQuery(DnsDatagram request, bool isRecursionAllowed)
         {
             DnsDatagram response = _authoritativeZoneRoot.Query(request);
-            response.Tag = "cacheHit";
+            response.Tag = "authHit";
 
             if (response.Header.RCODE == DnsResponseCode.NoError)
             {
@@ -967,7 +967,6 @@ namespace DnsServerCore.Dns
                         responseAnswer.AddRange(response.Answer);
 
                         DnsDatagram lastResponse;
-                        bool cacheHit = ("cacheHit".Equals(response.Tag));
 
                         while (true)
                         {
@@ -984,7 +983,6 @@ namespace DnsServerCore.Dns
 
                                 //do recursion
                                 lastResponse = ProcessRecursiveQuery(cnameRequest);
-                                cacheHit &= ("cacheHit".Equals(lastResponse.Tag));
                             }
                             else if ((lastResponse.Header.RCODE == DnsResponseCode.NoError) && (lastResponse.Answer.Length == 0) && (lastResponse.Authority.Length > 0) && (lastResponse.Authority[0].Type == DnsResourceRecordType.NS))
                             {
@@ -996,7 +994,6 @@ namespace DnsServerCore.Dns
                                 NameServerAddress[] nameServers = NameServerAddress.GetNameServersFromResponse(lastResponse, _preferIPv6, false);
 
                                 lastResponse = ProcessRecursiveQuery(cnameRequest, nameServers);
-                                cacheHit &= ("cacheHit".Equals(lastResponse.Tag));
                             }
 
                             //check last response
@@ -1041,7 +1038,7 @@ namespace DnsServerCore.Dns
                             }
                         }
 
-                        return new DnsDatagram(new DnsHeader(request.Header.Identifier, true, DnsOpcode.StandardQuery, lastResponse.Header.AuthoritativeAnswer, false, request.Header.RecursionDesired, isRecursionAllowed, false, false, rcode, 1, (ushort)responseAnswer.Count, (ushort)authority.Length, (ushort)additional.Length), request.Question, responseAnswer.ToArray(), authority, additional) { Tag = (cacheHit ? "cacheHit" : null) };
+                        return new DnsDatagram(new DnsHeader(request.Header.Identifier, true, DnsOpcode.StandardQuery, lastResponse.Header.AuthoritativeAnswer, false, request.Header.RecursionDesired, isRecursionAllowed, false, false, rcode, 1, (ushort)responseAnswer.Count, (ushort)authority.Length, (ushort)additional.Length), request.Question, responseAnswer.ToArray(), authority, additional) { Tag = response.Tag };
                     }
                 }
                 else if ((response.Authority.Length > 0) && (response.Authority[0].Type == DnsResourceRecordType.NS) && isRecursionAllowed)
@@ -1075,7 +1072,6 @@ namespace DnsServerCore.Dns
                     responseAnswer.AddRange(response.Answer);
 
                     DnsDatagram lastResponse;
-                    bool cacheHit = ("cacheHit".Equals(response.Tag));
                     int queryCount = 0;
 
                     while (true)
@@ -1083,7 +1079,10 @@ namespace DnsServerCore.Dns
                         DnsQuestionRecord question = new DnsQuestionRecord((lastRR.RDATA as DnsCNAMERecord).CNAMEDomainName, questionType, questionClass);
 
                         lastResponse = RecursiveResolve(new DnsDatagram(new DnsHeader(0, false, DnsOpcode.StandardQuery, false, false, true, false, false, false, DnsResponseCode.NoError, 1, 0, 0, 0), new DnsQuestionRecord[] { question }, null, null, null), null, false, cacheRefreshOperation);
-                        cacheHit &= ("cacheHit".Equals(lastResponse.Tag));
+
+                        //reset response tag to null for correct stats classification as recursive query
+                        if (lastResponse.Tag == null)
+                            response.Tag = null;
 
                         if (lastResponse.Answer.Length == 0)
                             break;
@@ -1113,7 +1112,7 @@ namespace DnsServerCore.Dns
                     else
                         additional = new DnsResourceRecord[] { };
 
-                    return new DnsDatagram(new DnsHeader(request.Header.Identifier, true, DnsOpcode.StandardQuery, false, false, true, true, false, false, lastResponse.Header.RCODE, 1, (ushort)responseAnswer.Count, (ushort)authority.Length, (ushort)additional.Length), request.Question, responseAnswer.ToArray(), authority, additional) { Tag = (cacheHit ? "cacheHit" : null) };
+                    return new DnsDatagram(new DnsHeader(request.Header.Identifier, true, DnsOpcode.StandardQuery, false, false, true, true, false, false, lastResponse.Header.RCODE, 1, (ushort)responseAnswer.Count, (ushort)authority.Length, (ushort)additional.Length), request.Question, responseAnswer.ToArray(), authority, additional) { Tag = response.Tag };
                 }
             }
 
