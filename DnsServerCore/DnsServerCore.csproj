@@ -31,8 +31,10 @@
     <None Remove="www\js\bootstrap.min.js" />
     <None Remove="www\js\Chart.min.js" />
     <None Remove="www\js\common.js" />
+    <None Remove="www\js\dhcp.js" />
     <None Remove="www\js\jquery.min.js" />
     <None Remove="www\js\main.js" />
+    <None Remove="www\js\zone.js" />
     <None Remove="www\robots.txt" />
   </ItemGroup>
 
@@ -121,6 +123,9 @@
     <Content Include="www\js\main.js">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </Content>
+    <Content Include="www\js\zone.js">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </Content>
     <Content Include="www\robots.txt">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </Content>
@@ -139,6 +144,12 @@
     </Reference>
   </ItemGroup>
 
+  <ItemGroup>
+    <Content Include="www\js\dhcp.js">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </Content>
+  </ItemGroup>
+
   <PropertyGroup>
     <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
     <CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>
@@ -150,9 +161,9 @@
     <RepositoryType></RepositoryType>
     <Description>.NET Standard 2.0</Description>
     <PackageId>DnsServer</PackageId>
-    <AssemblyVersion>3.3.0.0</AssemblyVersion>
-    <FileVersion>3.3.0.0</FileVersion>
-    <Version>3.3</Version>
+    <AssemblyVersion>4.0.0.0</AssemblyVersion>
+    <FileVersion>4.0.0.0</FileVersion>
+    <Version>4.0</Version>
   </PropertyGroup>
 
 </Project>
