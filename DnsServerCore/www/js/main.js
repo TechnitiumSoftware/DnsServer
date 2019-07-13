@@ -153,7 +153,7 @@ $(function () {
 
                 defaultList += "https://raw.githubusercontent.com/StevenBlack/hosts/master/hosts" + "\n";
                 defaultList += "https://mirror1.malwaredomains.com/files/justdomains" + "\n";
-                defaultList += "https://zeustracker.abuse.ch/blocklist.php?download=domainblocklist" + "\n";
+                defaultList += "https://ransomwaretracker.abuse.ch/downloads/RW_DOMBL.txt" + "\n";
                 defaultList += "https://s3.amazonaws.com/lists.disconnect.me/simple_tracking.txt" + "\n";
                 defaultList += "https://s3.amazonaws.com/lists.disconnect.me/simple_ad.txt" + "\n";
                 defaultList += "https://hosts-file.net/ad_servers.txt" + "\n";
