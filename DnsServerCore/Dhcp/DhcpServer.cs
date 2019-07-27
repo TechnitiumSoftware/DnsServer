@@ -305,7 +305,7 @@ namespace DnsServerCore.Dhcp
 
                         Lease offer = scope.GetOffer(request);
                         if (offer == null)
-                            throw new DhcpServerException("DHCP Server failed to offer address: address unavailable due to address pool exhaustion.");
+                            return null; //no offer available, do nothing
 
                         List<DhcpOption> options = scope.GetOptions(request, scope.InterfaceAddress);
                         if (options == null)
@@ -426,9 +426,7 @@ namespace DnsServerCore.Dhcp
                             if (clientDomainName == null)
                             {
                                 if (request.HostName != null)
-                                    clientDomainName = request.HostName.HostName + "." + scope.DomainName;
-                                else if ((leaseOffer.Type == LeaseType.Reserved) && !string.IsNullOrEmpty(leaseOffer.HostName) && !leaseOffer.HostName.EndsWith("." + scope.DomainName, StringComparison.OrdinalIgnoreCase))
-                                    clientDomainName = leaseOffer.HostName + "." + scope.DomainName; //use hostname from reserved lease
+                                    clientDomainName = request.HostName.HostName.Replace(' ', '-') + "." + scope.DomainName;
                             }
 
                             if (clientDomainName != null)
@@ -598,6 +596,9 @@ namespace DnsServerCore.Dhcp
             if (string.IsNullOrEmpty(scope.DomainName))
                 return;
 
+            if (string.IsNullOrEmpty(lease.HostName))
+                return;
+
             if (add)
             {
                 //update forward zone
@@ -720,7 +721,19 @@ namespace DnsServerCore.Dhcp
                 lock (_activeScopeLock)
                 {
                     if (_activeScopeCount < 1)
-                        BindUdpListener(_dhcpDefaultEP);
+                    {
+                        try
+                        {
+                            BindUdpListener(_dhcpDefaultEP);
+                        }
+                        catch
+                        {
+                            if (!interfaceAddress.Equals(IPAddress.Any))
+                                UnbindUdpListener(dhcpEP);
+
+                            throw;
+                        }
+                    }
 
                     _activeScopeCount++;
                 }
@@ -770,7 +783,10 @@ namespace DnsServerCore.Dhcp
                     _activeScopeCount--;
 
                     if (_activeScopeCount < 1)
+                    {
+                        _activeScopeCount = 0;
                         UnbindUdpListener(_dhcpDefaultEP);
+                    }
                 }
 
                 if (_authoritativeZoneRoot != null)
