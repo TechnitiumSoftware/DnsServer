@@ -43,6 +43,7 @@ namespace DnsServerCore.Dhcp
         string _hostName;
         readonly byte[] _hardwareAddress;
         readonly IPAddress _address;
+        string _comments;
         readonly DateTime _leaseObtained;
         DateTime _leaseExpires;
 
@@ -72,9 +73,11 @@ namespace DnsServerCore.Dhcp
 
         internal Lease(BinaryReader bR)
         {
-            switch (bR.ReadByte())
+            byte version = bR.ReadByte();
+            switch (version)
             {
                 case 1:
+                case 2:
                     _type = (LeaseType)bR.ReadByte();
                     _clientIdentifier = DhcpOption.Parse(bR.BaseStream) as ClientIdentifierOption;
                     _clientIdentifier.ParseOptionValue();
@@ -85,6 +88,14 @@ namespace DnsServerCore.Dhcp
 
                     _hardwareAddress = bR.ReadBuffer();
                     _address = IPAddressExtension.Parse(bR);
+
+                    if (version >= 2)
+                    {
+                        _comments = bR.ReadShortString();
+                        if (_comments == "")
+                            _comments = null;
+                    }
+
                     _leaseObtained = bR.ReadDate();
                     _leaseExpires = bR.ReadDate();
                     break;
@@ -125,7 +136,7 @@ namespace DnsServerCore.Dhcp
 
         public void WriteTo(BinaryWriter bW)
         {
-            bW.Write((byte)1); //version
+            bW.Write((byte)2); //version
 
             bW.Write((byte)_type);
             _clientIdentifier.WriteTo(bW.BaseStream);
@@ -137,6 +148,12 @@ namespace DnsServerCore.Dhcp
 
             bW.WriteBuffer(_hardwareAddress);
             _address.WriteTo(bW);
+
+            if (string.IsNullOrEmpty(_comments))
+                bW.Write((byte)0);
+            else
+                bW.WriteShortString(_comments);
+
             bW.Write(_leaseObtained);
             bW.Write(_leaseExpires);
         }
@@ -174,6 +191,12 @@ namespace DnsServerCore.Dhcp
 
         public IPAddress Address
         { get { return _address; } }
+
+        public string Comments
+        {
+            get { return _comments; }
+            set { _comments = value; }
+        }
 
         public DateTime LeaseObtained
         { get { return _leaseObtained; } }
