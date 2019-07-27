@@ -541,7 +541,7 @@ namespace DnsServerCore.Dhcp
             }
 
             if (_allowOnlyReservedLeases)
-                return null; //client does not have reserved address as per scope requirements
+                throw new DhcpServerException("DHCP Server failed to offer IP address to " + request.GetClientFullIdentifier() + ": scope allows only reserved lease allocations.");
 
             Lease dummyOffer = new Lease(LeaseType.None, null, null, null, null, 0);
             Lease existingOffer = _offers.GetOrAdd(request.ClientIdentifier, dummyOffer);
@@ -585,7 +585,7 @@ namespace DnsServerCore.Dhcp
                         if (nextOfferAddressNumber > endingAddressNumber)
                         {
                             if (offerAddressWasResetFromEnd)
-                                return null; //ip pool exhausted
+                                throw new DhcpServerException("DHCP Server failed to offer IP address to " + request.GetClientFullIdentifier() + ": address unavailable due to address pool exhaustion.");
 
                             offerAddress = IPAddressExtension.ConvertNumberToIp(_startingAddress.ConvertIpToNumber() - 1u);
                             offerAddressWasResetFromEnd = true;
