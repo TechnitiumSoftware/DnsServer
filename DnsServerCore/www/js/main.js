@@ -324,6 +324,11 @@ $(function () {
                 $("#rdForwarderProtocolHttps").prop("checked", true);
                 break;
 
+            case "quad9-json":
+                $("#txtForwarders").val("https://dns.quad9.net/dns-query");
+                $("#rdForwarderProtocolHttpsJson").prop("checked", true);
+                break;
+
 
             case "opendns-udp":
                 $("#txtForwarders").val("208.67.222.222\r\n208.67.220.220");
