@@ -527,10 +527,7 @@ namespace DnsServerCore.Dhcp
                     if (reservedLease.ClientIdentifier.Equals(clientIdentifierKey))
                     {
                         //reserved address exists
-                        if (request.HostName != null)
-                            reservedLease.SetHostName(request.HostName.HostName); //update reserved lease entry with latest client hostname
-
-                        Lease reservedOffer = new Lease(LeaseType.Reserved, request.ClientIdentifier, reservedLease.HostName, request.ClientHardwareAddress, reservedLease.Address, GetLeaseTime());
+                        Lease reservedOffer = new Lease(LeaseType.Reserved, request.ClientIdentifier, reservedLease.HostName, request.ClientHardwareAddress, reservedLease.Address, null, GetLeaseTime());
 
                         return _offers.AddOrUpdate(request.ClientIdentifier, reservedOffer, delegate (ClientIdentifierOption key, Lease existingValue)
                         {
@@ -543,7 +540,7 @@ namespace DnsServerCore.Dhcp
             if (_allowOnlyReservedLeases)
                 throw new DhcpServerException("DHCP Server failed to offer IP address to " + request.GetClientFullIdentifier() + ": scope allows only reserved lease allocations.");
 
-            Lease dummyOffer = new Lease(LeaseType.None, null, null, null, null, 0);
+            Lease dummyOffer = new Lease(LeaseType.None, null, null, null, null, null, 0);
             Lease existingOffer = _offers.GetOrAdd(request.ClientIdentifier, dummyOffer);
 
             if (dummyOffer != existingOffer)
@@ -602,7 +599,7 @@ namespace DnsServerCore.Dhcp
                 }
             }
 
-            Lease offerLease = new Lease(LeaseType.Dynamic, request.ClientIdentifier, request.HostName?.HostName, request.ClientHardwareAddress, offerAddress, GetLeaseTime());
+            Lease offerLease = new Lease(LeaseType.Dynamic, request.ClientIdentifier, request.HostName?.HostName, request.ClientHardwareAddress, offerAddress, null, GetLeaseTime());
 
             return _offers.AddOrUpdate(request.ClientIdentifier, offerLease, delegate (ClientIdentifierOption key, Lease existingValue)
             {
