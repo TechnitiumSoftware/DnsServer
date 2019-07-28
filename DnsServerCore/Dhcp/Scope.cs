@@ -527,7 +527,7 @@ namespace DnsServerCore.Dhcp
                     if (reservedLease.ClientIdentifier.Equals(clientIdentifierKey))
                     {
                         //reserved address exists
-                        Lease reservedOffer = new Lease(LeaseType.Reserved, request.ClientIdentifier, reservedLease.HostName, request.ClientHardwareAddress, reservedLease.Address, null, GetLeaseTime());
+                        Lease reservedOffer = new Lease(LeaseType.Reserved, request.ClientIdentifier, request.HostName?.HostName, request.ClientHardwareAddress, reservedLease.Address, null, GetLeaseTime());
 
                         return _offers.AddOrUpdate(request.ClientIdentifier, reservedOffer, delegate (ClientIdentifierOption key, Lease existingValue)
                         {
