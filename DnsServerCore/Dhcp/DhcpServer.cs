@@ -409,7 +409,25 @@ namespace DnsServerCore.Dhcp
                         if (log != null)
                             log.Write(remoteEP as IPEndPoint, "DHCP Server leased IP address [" + leaseOffer.Address.ToString() + "] to " + request.GetClientFullIdentifier() + ".");
 
-                        if (!string.IsNullOrEmpty(scope.DomainName))
+                        //update hostname in reserved leases
+                        if ((request.HostName != null) && (scope.ReservedLeases != null))
+                        {
+                            foreach (Lease reservedLease in scope.ReservedLeases)
+                            {
+                                if (reservedLease.ClientIdentifier.Equals(leaseOffer.ClientIdentifier))
+                                {
+                                    reservedLease.SetHostName(request.HostName.HostName);
+                                    break;
+                                }
+                            }
+                        }
+
+                        if (string.IsNullOrEmpty(scope.DomainName))
+                        {
+                            //update lease hostname
+                            leaseOffer.SetHostName(request.HostName?.HostName);
+                        }
+                        else
                         {
                             //update dns
                             string clientDomainName = null;
