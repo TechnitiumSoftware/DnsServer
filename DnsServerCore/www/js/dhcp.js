@@ -136,13 +136,14 @@ function addDhcpScopeExclusionRow(startingAddress, endingAddress) {
     $("#tableDhcpScopeExclusions").append(tableHtmlRows);
 }
 
-function addDhcpScopeReservedLeaseRow(hostName, hardwareAddress, address) {
+function addDhcpScopeReservedLeaseRow(hostName, hardwareAddress, address, comments) {
 
     var id = Math.floor(Math.random() * 10000);
 
-    var tableHtmlRows = "<tr id=\"tableDhcpScopeReservedLeaseRow" + id + "\"><td><input type=\"text\" class=\"form-control\" value=\"" + (hostName == null ? "" : htmlEncode(hostName)) + "\"></td>";
+    var tableHtmlRows = "<tr id=\"tableDhcpScopeReservedLeaseRow" + id + "\"><td style=\"padding: 14px 0px;\">" + (hostName == null ? "" : htmlEncode(hostName)) + "</td>";
     tableHtmlRows += "<td><input type=\"text\" class=\"form-control\" value=\"" + hardwareAddress + "\"></td>";
     tableHtmlRows += "<td><input type=\"text\" class=\"form-control\" value=\"" + address + "\"></td>";
+    tableHtmlRows += "<td><input type=\"text\" class=\"form-control\" value=\"" + (comments == null ? "" : htmlEncode(comments)) + "\"></td>";
     tableHtmlRows += "<td><button type=\"button\" class=\"btn btn-danger\" onclick=\"$('#tableDhcpScopeReservedLeaseRow" + id + "').remove();\">Delete</button></td></tr>";
 
     $("#tableDhcpScopeReservedLeases").append(tableHtmlRows);
@@ -274,7 +275,7 @@ function showEditDhcpScope(scopeName) {
 
             if (responseJSON.response.reservedLeases != null) {
                 for (var i = 0; i < responseJSON.response.reservedLeases.length; i++) {
-                    addDhcpScopeReservedLeaseRow(responseJSON.response.reservedLeases[i].hostName, responseJSON.response.reservedLeases[i].hardwareAddress, responseJSON.response.reservedLeases[i].address);
+                    addDhcpScopeReservedLeaseRow(responseJSON.response.reservedLeases[i].hostName, responseJSON.response.reservedLeases[i].hardwareAddress, responseJSON.response.reservedLeases[i].address, responseJSON.response.reservedLeases[i].comments);
                 }
             }
 
