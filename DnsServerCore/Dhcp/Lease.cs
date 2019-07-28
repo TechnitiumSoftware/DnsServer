@@ -51,24 +51,25 @@ namespace DnsServerCore.Dhcp
 
         #region constructor
 
-        internal Lease(LeaseType type, ClientIdentifierOption clientIdentifier, string hostName, byte[] hardwareAddress, IPAddress address, uint leaseTime)
+        internal Lease(LeaseType type, ClientIdentifierOption clientIdentifier, string hostName, byte[] hardwareAddress, IPAddress address, string comments, uint leaseTime)
         {
             _type = type;
             _clientIdentifier = clientIdentifier;
             _hostName = hostName;
             _hardwareAddress = hardwareAddress;
             _address = address;
+            _comments = comments;
             _leaseObtained = DateTime.UtcNow;
 
             ExtendLease(leaseTime);
         }
 
-        internal Lease(LeaseType type, string hostName, byte[] hardwareAddress, IPAddress address)
-            : this(type, new ClientIdentifierOption(1, hardwareAddress), hostName, hardwareAddress, address, 0)
+        internal Lease(LeaseType type, string hostName, byte[] hardwareAddress, IPAddress address, string comments)
+            : this(type, new ClientIdentifierOption(1, hardwareAddress), hostName, hardwareAddress, address, comments, 0)
         { }
 
-        internal Lease(LeaseType type, string hostName, string hardwareAddress, IPAddress address)
-            : this(type, hostName, ParseHardwareAddress(hardwareAddress), address)
+        internal Lease(LeaseType type, string hostName, string hardwareAddress, IPAddress address, string comments)
+            : this(type, hostName, ParseHardwareAddress(hardwareAddress), address, comments)
         { }
 
         internal Lease(BinaryReader bR)
