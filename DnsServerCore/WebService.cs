@@ -3309,17 +3309,17 @@ namespace DnsServerCore
                 {
                     jsonWriter.WriteStartObject();
 
-                    if (!string.IsNullOrEmpty(reservedLease.HostName))
-                    {
-                        jsonWriter.WritePropertyName("hostName");
-                        jsonWriter.WriteValue(reservedLease.HostName);
-                    }
+                    jsonWriter.WritePropertyName("hostName");
+                    jsonWriter.WriteValue(reservedLease.HostName);
 
                     jsonWriter.WritePropertyName("hardwareAddress");
                     jsonWriter.WriteValue(BitConverter.ToString(reservedLease.HardwareAddress));
 
                     jsonWriter.WritePropertyName("address");
                     jsonWriter.WriteValue(reservedLease.Address.ToString());
+
+                    jsonWriter.WritePropertyName("comments");
+                    jsonWriter.WriteValue(reservedLease.Comments);
 
                     jsonWriter.WriteEndObject();
                 }
@@ -3526,8 +3526,22 @@ namespace DnsServerCore
                     for (int i = 0; i < strReservedLeaseParts.Length; i++)
                     {
                         string[] leaseParts = strReservedLeaseParts[i].Split(';');
+                        string hostname = null;
 
-                        reservedLeases[i] = new Lease(LeaseType.Reserved, leaseParts[0], leaseParts[1], IPAddress.Parse(leaseParts[2]));
+                        if (scope.ReservedLeases != null)
+                        {
+                            //search for current hostname
+                            foreach (Lease lease in scope.ReservedLeases)
+                            {
+                                if (BitConverter.ToString(lease.HardwareAddress) == leaseParts[0])
+                                {
+                                    hostname = lease.HostName;
+                                    break;
+                                }
+                            }
+                        }
+
+                        reservedLeases[i] = new Lease(LeaseType.Reserved, hostname, leaseParts[0], IPAddress.Parse(leaseParts[1]), leaseParts[2]);
                     }
 
                     scope.ReservedLeases = reservedLeases;
