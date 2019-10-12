@@ -80,23 +80,23 @@ So for example suppose you bought www.google.com and you have made a beautifull 
  2. Open a browser and browse to the local host adress that the `DnsServerApp.exe` gives you. E.g. `http://desktop-234asfdn2:5380/`.
  3. Go to the tab: `Zones`.
  4. Click on `Add Zone`
-	![1](./ExamplePictures/4a.png)
+	![1](./ExamplePictures/4.png)
  5. and enter `google.com`
  
-	![1](./ExamplePictures/4b.png)
- 6. Then click on "Add record", 
 	![1](./ExamplePictures/5.png)
+ 6. Then click on "Add record", 
+	![1](./ExamplePictures/6.png)
  7. select Type:`A` and at the IP adress type the PUBLIC IP address of your pc. (The PUBLIC IP adress is what you see when you visit: www.whatsmyip.org, e.g. 202.202.12)
 	![1](./ExamplePictures/6.png)
  8. Now you're already done, but it only works if people visit google.com and not `www.google.com`. So:
  9. Again, click "Add record"
  
-	![1](./ExamplePictures/7a.png)
+	![1](./ExamplePictures/9.png)
  10. at Name enter:`www`
  11. at Type select:`CNAME`
  12. at Domain Name type:`google.com`
  
-![1](./ExamplePictures/7b.png)
+![1](./ExamplePictures/12.png)
 
  13. Now Technitium/your DNS server forwards `www` to `google.com` and then redirects `google.com` to your ip, meaning people see your website :)
  
@@ -109,8 +109,8 @@ So for example suppose you bought www.google.com and you have made a beautifull 
  18. Now type: `nslookup www.google.com <your ip adress>`
  19. So in this example that would be:`nslookup www.google.com 202.202.12`
  
-![1](./ExamplePictures/14.png)
+![1](./ExamplePictures/19.png)
 
  20. That should regurn the ip adress that you entered at step 6 (in steps 10 to 15 of this example it was `234.54.231.1)`.
  
-![1](./ExamplePictures/15.png)
+![1](./ExamplePictures/20.png)
