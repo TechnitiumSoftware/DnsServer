@@ -97,6 +97,7 @@ So for example suppose you bought www.google.com and you have made a beautifull 
  12. at Domain Name type:`google.com`
  
 ![1](./ExamplePictures/7b.png)
+
  13. Now Technitium/your DNS server forwards `www` to `google.com` and then redirects `google.com` to your ip, meaning people see your website :)
  
  You can now verify you indeed redirect `www.google.com` to your computer, to do so: 
@@ -109,6 +110,7 @@ So for example suppose you bought www.google.com and you have made a beautifull 
  19. So in this example that would be:`nslookup www.google.com 202.202.12`
  
 ![1](./ExamplePictures/14.png)
+
  20. That should regurn the ip adress that you entered at step 6 (in steps 10 to 15 of this example it was `234.54.231.1)`.
  
 ![1](./ExamplePictures/15.png)
