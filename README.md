@@ -96,7 +96,7 @@ So for example suppose you bought www.google.com and you have made a beautifull 
  11. at Type select:`CNAME`
  12. at Domain Name type:`google.com`
  
-	![1](./ExamplePictures/7b.png)
+![1](./ExamplePictures/7b.png)
  13. Now Technitium/your DNS server forwards `www` to `google.com` and then redirects `google.com` to your ip, meaning people see your website :)
  
  You can now verify you indeed redirect `www.google.com` to your computer, to do so: 
