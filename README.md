@@ -114,3 +114,22 @@ So for example suppose you bought www.google.com and you have made a beautifull 
  20. That should regurn the ip adress that you entered at step 6 (in steps 10 to 15 of this example it was `234.54.231.1)`.
  
 ![1](./ExamplePictures/20.png)
+
+## Verified settings to host your own dns server:
+ 21. In short your put these settings in your technitium settings panel, (replace the `your ip` with the public ip adress of your computer/host/the device you host your website on. (The `A` `ns1.<yourwebsite>` `<your public ip adress> is a glue record that tells the computer that links people to your website , hey when you are looking for this hostname/website, you can look at this ip to find the hostname/website, (But then it would get in an infinte loop so you tell it ok stop here, you found the website at this ip.)
+
+![1](./ExamplePictures/Final_dns_settings.png)
+
+ 22. Then create the custom dns record in your domain registrar, this is done different for every domain seller. This is the example for namecheap. In short you want to type your your dns server hostname (if you put `ns1.<yourwebsite adres>` in the technitium enter that, together with the public ip adress of your computer. 
+
+![1](./ExamplePictures/registrar.png)
+
+ 23. You can inspect your dns server/glue record to ip is entered correctly by searching: `ns1` or `ns2` (if you entered `ns1.<yourwebsite>`:
+
+![1](./ExamplePictures/registrar2.png)
+
+ 24. Don't forget to also select your own custom dns in the website settings, otherwise you have configured everything correctly in your local dns server, and told the registrar hey at custom dns, look at this ip for my own dns server, but then in the end the registrar still looks in its own default dns server, (where it won't find your ip, you need to pay for that).
+
+![1](./ExamplePictures/registrar3.png)
+
+
