@@ -1202,7 +1202,7 @@ namespace DnsServerCore
             if (strDnsServerLocalAddresses != null)
             {
                 if (string.IsNullOrEmpty(strDnsServerLocalAddresses))
-                    strDnsServerLocalAddresses = "0.0.0.0,::";
+                    strDnsServerLocalAddresses = "0.0.0.0,127.0.0.1,::";
 
                 string[] strLocalAddresses = strDnsServerLocalAddresses.Split(new char[] { ',' }, StringSplitOptions.RemoveEmptyEntries);
                 IPAddress[] localAddresses = new IPAddress[strLocalAddresses.Length];

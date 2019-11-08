@@ -700,7 +700,7 @@ function saveDnsSettings() {
     var dnsServerLocalAddresses = cleanTextList($("#txtdnsServerLocalAddresses").val());
 
     if ((dnsServerLocalAddresses.length === 0) || (dnsServerLocalAddresses === ","))
-        dnsServerLocalAddresses = "0.0.0.0,::";
+        dnsServerLocalAddresses = "0.0.0.0,127.0.0.1,::";
     else
         $("#txtdnsServerLocalAddresses").val(dnsServerLocalAddresses.replace(/,/g, "\n"));
 
