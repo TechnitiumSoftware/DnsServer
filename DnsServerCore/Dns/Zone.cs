@@ -204,7 +204,7 @@ namespace DnsServerCore.Dns
             }
 
             foreach (Zone subDomain in subDomainsToDelete)
-                currentZone._zones.TryRemove(subDomain._zoneLabel, out Zone deletedValue);
+                currentZone._zones.TryRemove(subDomain._zoneLabel, out _);
 
             return (currentZone._zones.Count == 0);
         }
@@ -383,6 +383,9 @@ namespace DnsServerCore.Dns
                         return; //skip to avoid overwriting a useful stale record with a failure record to allow serve-stale to work as intended
                 }
             }
+
+            if (_authoritativeZone && (type == DnsResourceRecordType.CNAME) && _entries.ContainsKey(DnsResourceRecordType.SOA))
+                throw new DnsServerException("Cannot add CNAME record to zone root.");
 
             _entries.AddOrUpdate(type, records, delegate (DnsResourceRecordType key, DnsResourceRecord[] existingValues)
             {
