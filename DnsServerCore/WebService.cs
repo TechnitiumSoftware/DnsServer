@@ -1646,7 +1646,7 @@ namespace DnsServerCore
 
                 IDictionary<string, string> clientIpMap = _dhcpServer.GetAddressClientMap();
 
-                DnsClient dnsClient = new DnsClient(IPAddress.Parse("127.0.0.1"));
+                DnsClient dnsClient = new DnsClient(GetThisDnsServerAddress());
                 dnsClient.Timeout = 200;
 
                 jsonWriter.WritePropertyName("topClients");
@@ -2902,6 +2902,19 @@ namespace DnsServerCore
             SaveZoneFile(newDomain);
         }
 
+        private IPAddress GetThisDnsServerAddress()
+        {
+            if (_dnsServer.LocalAddresses.Length == 0)
+                return IPAddress.Loopback;
+
+            if (_dnsServer.LocalAddresses[0].Equals(IPAddress.Any))
+                return IPAddress.Loopback;
+            else if (_dnsServer.LocalAddresses[0].Equals(IPAddress.IPv6Any))
+                return IPAddress.IPv6Loopback;
+            else
+                return _dnsServer.LocalAddresses[0];
+        }
+
         private void ResolveQuery(HttpListenerRequest request, JsonTextWriter jsonWriter)
         {
             string server = request.QueryString["server"];
@@ -2957,7 +2970,7 @@ namespace DnsServerCore
 
                 if (server == "this-server")
                 {
-                    nameServer = new NameServerAddress(_dnsServer.ServerDomain, IPAddress.Parse("127.0.0.1"));
+                    nameServer = new NameServerAddress(_dnsServer.ServerDomain, GetThisDnsServerAddress());
                     proxy = null; //no proxy required for this server
                 }
                 else
