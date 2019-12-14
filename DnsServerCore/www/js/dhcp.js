@@ -143,7 +143,7 @@ function addDhcpScopeReservedLeaseRow(hostName, hardwareAddress, address, commen
     var tableHtmlRows = "<tr id=\"tableDhcpScopeReservedLeaseRow" + id + "\"><td style=\"padding: 14px 0px;\">" + (hostName == null ? "" : htmlEncode(hostName)) + "</td>";
     tableHtmlRows += "<td><input type=\"text\" class=\"form-control\" value=\"" + hardwareAddress + "\"></td>";
     tableHtmlRows += "<td><input type=\"text\" class=\"form-control\" value=\"" + address + "\"></td>";
-    tableHtmlRows += "<td><input type=\"text\" class=\"form-control\" value=\"" + (comments == null ? "" : htmlEncode(comments)) + "\"></td>";
+    tableHtmlRows += "<td><input type=\"text\" class=\"form-control\" value=\"" + (comments == null ? "" : htmlEncode(comments)) + "\" data-optional=\"true\"></td>";
     tableHtmlRows += "<td><button type=\"button\" class=\"btn btn-danger\" onclick=\"$('#tableDhcpScopeReservedLeaseRow" + id + "').remove();\">Delete</button></td></tr>";
 
     $("#tableDhcpScopeReservedLeases").append(tableHtmlRows);
@@ -164,8 +164,9 @@ function getTableCsv(table, columns) {
 
             var cell = $(data[i + j]);
             var cellValue = cell.val();
+            var optional = (cell.attr("data-optional") === "true");
 
-            if (cellValue === "") {
+            if ((cellValue === "") && !optional) {
                 showAlert("warning", "Missing!", "Please enter a valid value in the text field in focus.");
                 cell.focus();
                 return false;
