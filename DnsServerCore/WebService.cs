@@ -454,6 +454,12 @@ namespace DnsServerCore
                             jsonWriter.WritePropertyName("stackTrace");
                             jsonWriter.WriteValue(ex.StackTrace);
 
+                            if (ex.InnerException != null)
+                            {
+                                jsonWriter.WritePropertyName("innerErrorMessage");
+                                jsonWriter.WriteValue(ex.InnerException.Message);
+                            }
+
                             jsonWriter.WriteEndObject();
                             jsonWriter.Flush();
                         }
@@ -1312,6 +1318,10 @@ namespace DnsServerCore
                 }
             }
 
+            string strForwarderProtocol = request.QueryString["forwarderProtocol"];
+            if (!string.IsNullOrEmpty(strForwarderProtocol))
+                _dnsServer.ForwarderProtocol = (DnsTransportProtocol)Enum.Parse(typeof(DnsTransportProtocol), strForwarderProtocol, true);
+
             string strForwarders = request.QueryString["forwarders"];
             if (!string.IsNullOrEmpty(strForwarders))
             {
@@ -1325,15 +1335,16 @@ namespace DnsServerCore
                     NameServerAddress[] forwarders = new NameServerAddress[strForwardersList.Length];
 
                     for (int i = 0; i < strForwardersList.Length; i++)
+                    {
+                        if ((_dnsServer.ForwarderProtocol == DnsTransportProtocol.Tls) && IPAddress.TryParse(strForwardersList[i], out _))
+                            strForwardersList[i] += ":853";
+
                         forwarders[i] = new NameServerAddress(strForwardersList[i]);
+                    }
 
                     _dnsServer.Forwarders = forwarders;
                 }
             }
-
-            string strForwarderProtocol = request.QueryString["forwarderProtocol"];
-            if (!string.IsNullOrEmpty(strForwarderProtocol))
-                _dnsServer.ForwarderProtocol = (DnsTransportProtocol)Enum.Parse(typeof(DnsTransportProtocol), strForwarderProtocol, true);
 
             string strBlockListUrls = request.QueryString["blockListUrls"];
             if (!string.IsNullOrEmpty(strBlockListUrls))
@@ -1986,7 +1997,7 @@ namespace DnsServerCore
 
         private void AllowZone(string domain)
         {
-            _dnsServer.AllowedZoneRoot.SetRecords(domain, DnsResourceRecordType.SOA, 60, new DnsResourceRecordData[] { new DnsSOARecord(_dnsServer.ServerDomain, "hostmaster." + _dnsServer.ServerDomain, 1, 28800, 7200, 604800, 600) });
+            _dnsServer.AllowedZoneRoot.SetRecords(domain, DnsResourceRecordType.SOA, 60, new DnsResourceRecordData[] { new DnsSOARecord(_dnsServer.ServerDomain, "hostmaster." + _dnsServer.ServerDomain, 1, 14400, 3600, 604800, 900) });
         }
 
         private void ListBlockedZones(HttpListenerRequest request, JsonTextWriter jsonWriter)
@@ -2165,7 +2176,7 @@ namespace DnsServerCore
         {
             blockedZoneRoot.SetRecords(new DnsResourceRecord[]
             {
-                new DnsResourceRecord(domain, DnsResourceRecordType.SOA, DnsClass.IN, 60, new DnsSOARecord(_dnsServer.ServerDomain, "hostmaster." + _dnsServer.ServerDomain, 1, 28800, 7200, 604800, 600)),
+                new DnsResourceRecord(domain, DnsResourceRecordType.SOA, DnsClass.IN, 60, new DnsSOARecord(_dnsServer.ServerDomain, "hostmaster." + _dnsServer.ServerDomain, 1, 14400, 3600, 604800, 900)),
                 new DnsResourceRecord(domain, DnsResourceRecordType.A, DnsClass.IN, 60, new DnsARecord(IPAddress.Any)),
                 new DnsResourceRecord(domain, DnsResourceRecordType.AAAA, DnsClass.IN, 60, new DnsAAAARecord(IPAddress.IPv6Any))
             });
@@ -2229,7 +2240,7 @@ namespace DnsServerCore
 
         private void CreateZone(string domain)
         {
-            _dnsServer.AuthoritativeZoneRoot.SetRecords(domain, DnsResourceRecordType.SOA, 14400, new DnsResourceRecordData[] { new DnsSOARecord(_dnsServer.ServerDomain, "hostmaster." + _dnsServer.ServerDomain, uint.Parse(DateTime.UtcNow.ToString("yyyyMMddHH")), 28800, 7200, 604800, 600) });
+            _dnsServer.AuthoritativeZoneRoot.SetRecords(domain, DnsResourceRecordType.SOA, 14400, new DnsResourceRecordData[] { new DnsSOARecord(_dnsServer.ServerDomain, "hostmaster." + _dnsServer.ServerDomain, 1, 14400, 3600, 604800, 900) });
             _dnsServer.AuthoritativeZoneRoot.SetRecords(domain, DnsResourceRecordType.NS, 14400, new DnsResourceRecordData[] { new DnsNSRecord(_dnsServer.ServerDomain) });
         }
 
@@ -2904,6 +2915,8 @@ namespace DnsServerCore
             if (string.IsNullOrEmpty(domain))
                 throw new WebServiceException("Parameter 'domain' missing.");
 
+            domain = domain.Trim();
+
             if (domain.EndsWith("."))
                 domain = domain.Substring(0, domain.Length - 1);
 
@@ -2934,8 +2947,8 @@ namespace DnsServerCore
             {
                 DnsQuestionRecord question;
 
-                if (type == DnsResourceRecordType.PTR)
-                    question = new DnsQuestionRecord(IPAddress.Parse(domain), DnsClass.IN);
+                if ((type == DnsResourceRecordType.PTR) && IPAddress.TryParse(domain, out IPAddress address))
+                    question = new DnsQuestionRecord(address, DnsClass.IN);
                 else
                     question = new DnsQuestionRecord(domain, type, DnsClass.IN);
 
@@ -3012,7 +3025,7 @@ namespace DnsServerCore
                     }
 
                     if (!SOARecordExists)
-                        _dnsServer.AuthoritativeZoneRoot.SetRecords(domain, DnsResourceRecordType.SOA, 14400, new DnsResourceRecordData[] { new DnsSOARecord(_dnsServer.ServerDomain, "hostmaster." + _dnsServer.ServerDomain, uint.Parse(DateTime.UtcNow.ToString("yyyyMMddHH")), 28800, 7200, 604800, 600) });
+                        _dnsServer.AuthoritativeZoneRoot.SetRecords(domain, DnsResourceRecordType.SOA, 14400, new DnsResourceRecordData[] { new DnsSOARecord(_dnsServer.ServerDomain, "hostmaster." + _dnsServer.ServerDomain, 1, 14400, 3600, 604800, 900) });
                 }
 
                 _dnsServer.AuthoritativeZoneRoot.SetRecords(recordsToSet);
