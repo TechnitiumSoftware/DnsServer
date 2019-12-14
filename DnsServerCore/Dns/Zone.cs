@@ -64,7 +64,7 @@ namespace DnsServerCore.Dns
 
             string zoneName = zoneLabel;
 
-            if (_parentZone._zoneName != "")
+            if (!string.IsNullOrEmpty(_parentZone._zoneName))
                 zoneName += "." + _parentZone._zoneName;
 
             _zoneName = zoneName;

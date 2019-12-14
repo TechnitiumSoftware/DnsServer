@@ -56,7 +56,7 @@ namespace DnsServerCore.Dns
         const int LISTENER_THREAD_COUNT = 3;
         const int MAX_HOPS = 16;
 
-        IPAddress[] _localIPs;
+        IPAddress[] _localAddresses;
 
         readonly List<Socket> _udpListeners = new List<Socket>();
         readonly List<Socket> _tcpListeners = new List<Socket>();
@@ -143,7 +143,7 @@ namespace DnsServerCore.Dns
 
         public DnsServer(IPAddress[] localIPs)
         {
-            _localIPs = localIPs;
+            _localAddresses = localIPs;
             _dnsCache = new ResolverDnsCache(_cacheZoneRoot);
         }
 
@@ -1566,9 +1566,9 @@ namespace DnsServerCore.Dns
             _state = ServiceState.Starting;
 
             //bind on all local end points
-            for (int i = 0; i < _localIPs.Length; i++)
+            for (int i = 0; i < _localAddresses.Length; i++)
             {
-                IPEndPoint dnsEP = new IPEndPoint(_localIPs[i], 53);
+                IPEndPoint dnsEP = new IPEndPoint(_localAddresses[i], 53);
 
                 Socket udpListener = null;
 
@@ -1634,7 +1634,7 @@ namespace DnsServerCore.Dns
 
                 if (_enableDnsOverHttp)
                 {
-                    IPEndPoint httpEP = new IPEndPoint(_localIPs[i], 8053);
+                    IPEndPoint httpEP = new IPEndPoint(_localAddresses[i], 8053);
                     Socket httpListener = null;
 
                     try
@@ -1665,7 +1665,7 @@ namespace DnsServerCore.Dns
 
                 if (_enableDnsOverTls && (_certificate != null))
                 {
-                    IPEndPoint tlsEP = new IPEndPoint(_localIPs[i], 853);
+                    IPEndPoint tlsEP = new IPEndPoint(_localAddresses[i], 853);
                     Socket tlsListener = null;
 
                     try
@@ -1694,7 +1694,7 @@ namespace DnsServerCore.Dns
 
                 if (_enableDnsOverHttps && (_certificate != null))
                 {
-                    IPEndPoint httpsEP = new IPEndPoint(_localIPs[i], 443);
+                    IPEndPoint httpsEP = new IPEndPoint(_localAddresses[i], 443);
                     Socket httpsListener = null;
 
                     try
@@ -1856,8 +1856,8 @@ namespace DnsServerCore.Dns
 
         public IPAddress[] LocalAddresses
         {
-            get { return _localIPs; }
-            set { _localIPs = value; }
+            get { return _localAddresses; }
+            set { _localAddresses = value; }
         }
 
         public string ServerDomain
