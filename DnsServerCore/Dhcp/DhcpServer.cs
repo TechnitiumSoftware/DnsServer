@@ -422,7 +422,7 @@ namespace DnsServerCore.Dhcp
                             }
                         }
 
-                        if (string.IsNullOrEmpty(scope.DomainName))
+                        if (string.IsNullOrWhiteSpace(scope.DomainName))
                         {
                             //update lease hostname
                             leaseOffer.SetHostName(request.HostName?.HostName);
@@ -441,13 +441,13 @@ namespace DnsServerCore.Dhcp
                                 }
                             }
 
-                            if (clientDomainName == null)
+                            if (string.IsNullOrWhiteSpace(clientDomainName))
                             {
                                 if (request.HostName != null)
                                     clientDomainName = request.HostName.HostName.Replace(' ', '-') + "." + scope.DomainName;
                             }
 
-                            if (clientDomainName != null)
+                            if (!string.IsNullOrWhiteSpace(clientDomainName))
                             {
                                 leaseOffer.SetHostName(clientDomainName.ToLower());
                                 UpdateDnsAuthZone(true, scope, leaseOffer);
@@ -611,21 +611,23 @@ namespace DnsServerCore.Dhcp
             if (_authoritativeZoneRoot == null)
                 return;
 
-            if (string.IsNullOrEmpty(scope.DomainName))
+            if (string.IsNullOrWhiteSpace(scope.DomainName))
                 return;
 
-            if (string.IsNullOrEmpty(lease.HostName))
+            if (string.IsNullOrWhiteSpace(lease.HostName))
+                return;
+
+            if (!DnsClient.IsDomainNameValid(lease.HostName))
                 return;
 
             if (add)
             {
                 //update forward zone
-                if (!string.IsNullOrEmpty(scope.DomainName))
                 {
                     if (!_authoritativeZoneRoot.ZoneExists(scope.DomainName))
                     {
                         //create forward zone
-                        _authoritativeZoneRoot.SetRecords(scope.DomainName, DnsResourceRecordType.SOA, 14400, new DnsResourceRecordData[] { new DnsSOARecord(_authoritativeZoneRoot.ServerDomain, "hostmaster." + scope.DomainName, uint.Parse(DateTime.UtcNow.ToString("yyyyMMddHH")), 28800, 7200, 604800, 600) });
+                        _authoritativeZoneRoot.SetRecords(scope.DomainName, DnsResourceRecordType.SOA, 14400, new DnsResourceRecordData[] { new DnsSOARecord(_authoritativeZoneRoot.ServerDomain, "hostmaster." + scope.DomainName, 1, 14400, 3600, 604800, 900) });
                         _authoritativeZoneRoot.SetRecords(scope.DomainName, DnsResourceRecordType.NS, 14400, new DnsResourceRecordData[] { new DnsNSRecord(_authoritativeZoneRoot.ServerDomain) });
 
                         _authoritativeZoneRoot.MakeZoneInternal(scope.DomainName);
@@ -639,7 +641,7 @@ namespace DnsServerCore.Dhcp
                     if (!_authoritativeZoneRoot.ZoneExists(scope.ReverseZone))
                     {
                         //create reverse zone
-                        _authoritativeZoneRoot.SetRecords(scope.ReverseZone, DnsResourceRecordType.SOA, 14400, new DnsResourceRecordData[] { new DnsSOARecord(_authoritativeZoneRoot.ServerDomain, "hostmaster." + scope.ReverseZone, uint.Parse(DateTime.UtcNow.ToString("yyyyMMddHH")), 28800, 7200, 604800, 600) });
+                        _authoritativeZoneRoot.SetRecords(scope.ReverseZone, DnsResourceRecordType.SOA, 14400, new DnsResourceRecordData[] { new DnsSOARecord(_authoritativeZoneRoot.ServerDomain, "hostmaster." + scope.ReverseZone, 1, 14400, 3600, 604800, 900) });
                         _authoritativeZoneRoot.SetRecords(scope.ReverseZone, DnsResourceRecordType.NS, 14400, new DnsResourceRecordData[] { new DnsNSRecord(_authoritativeZoneRoot.ServerDomain) });
 
                         _authoritativeZoneRoot.MakeZoneInternal(scope.ReverseZone);

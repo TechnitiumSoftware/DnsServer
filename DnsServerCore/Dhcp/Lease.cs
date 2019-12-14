@@ -84,7 +84,7 @@ namespace DnsServerCore.Dhcp
                     _clientIdentifier.ParseOptionValue();
 
                     _hostName = bR.ReadShortString();
-                    if (_hostName == "")
+                    if (string.IsNullOrWhiteSpace(_hostName))
                         _hostName = null;
 
                     _hardwareAddress = bR.ReadBuffer();
@@ -93,7 +93,7 @@ namespace DnsServerCore.Dhcp
                     if (version >= 2)
                     {
                         _comments = bR.ReadShortString();
-                        if (_comments == "")
+                        if (string.IsNullOrWhiteSpace(_comments))
                             _comments = null;
                     }
 
@@ -142,7 +142,7 @@ namespace DnsServerCore.Dhcp
             bW.Write((byte)_type);
             _clientIdentifier.WriteTo(bW.BaseStream);
 
-            if (string.IsNullOrEmpty(_hostName))
+            if (string.IsNullOrWhiteSpace(_hostName))
                 bW.Write((byte)0);
             else
                 bW.WriteShortString(_hostName);
@@ -150,7 +150,7 @@ namespace DnsServerCore.Dhcp
             bW.WriteBuffer(_hardwareAddress);
             _address.WriteTo(bW);
 
-            if (string.IsNullOrEmpty(_comments))
+            if (string.IsNullOrWhiteSpace(_comments))
                 bW.Write((byte)0);
             else
                 bW.WriteShortString(_comments);
@@ -163,7 +163,7 @@ namespace DnsServerCore.Dhcp
         {
             string hardwareAddress = BitConverter.ToString(_hardwareAddress);
 
-            if (string.IsNullOrEmpty(_hostName))
+            if (string.IsNullOrWhiteSpace(_hostName))
                 return "[" + hardwareAddress + "]";
 
             return _hostName + " [" + hardwareAddress + "]";
