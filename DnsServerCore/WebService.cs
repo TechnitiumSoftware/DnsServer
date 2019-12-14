@@ -2226,9 +2226,6 @@ namespace DnsServerCore
             else if (domain.EndsWith("."))
                 domain = domain.Substring(0, domain.Length - 1);
 
-            if (Zone.DomainEquals(domain, "resolver-associated-doh.arpa") || Zone.DomainEquals(domain, "resolver-addresses.arpa"))
-                throw new WebServiceException("Access was denied to manage special DNS Server zone.");
-
             CreateZone(domain);
             _log.Write(GetRequestRemoteEndPoint(request), "[" + GetSession(request).Username + "] Authoritative zone was created: " + domain);
 
