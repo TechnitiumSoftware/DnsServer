@@ -1563,7 +1563,8 @@ function resolveQuery(importRecords) {
             btnOther.prop("disabled", false);
             showPageLogin();
         },
-        objLoaderPlaceholder: divDnsClientLoader
+        objLoaderPlaceholder: divDnsClientLoader,
+        showInnerError: true
     });
 
     //add server name to list if doesnt exists

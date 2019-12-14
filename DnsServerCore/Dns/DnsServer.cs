@@ -875,7 +875,7 @@ namespace DnsServerCore.Dns
                         case DnsResourceRecordType.AXFR:
                         case DnsResourceRecordType.MAILB:
                         case DnsResourceRecordType.MAILA:
-                            return new DnsDatagram(new DnsHeader(request.Header.Identifier, true, DnsOpcode.StandardQuery, false, false, request.Header.RecursionDesired, isRecursionAllowed, false, false, DnsResponseCode.Refused, request.Header.QDCOUNT, 0, 0, 0), request.Question, null, null, null);
+                            return new DnsDatagram(new DnsHeader(request.Header.Identifier, true, DnsOpcode.StandardQuery, false, false, request.Header.RecursionDesired, isRecursionAllowed, false, false, DnsResponseCode.NotImplemented, request.Header.QDCOUNT, 0, 0, 0), request.Question, null, null, null);
                     }
 
                     try
@@ -1570,23 +1570,25 @@ namespace DnsServerCore.Dns
             {
                 IPEndPoint dnsEP = new IPEndPoint(_localIPs[i], 53);
 
-                Socket udpListener = new Socket(dnsEP.AddressFamily, SocketType.Dgram, ProtocolType.Udp);
-
-                #region this code ignores ICMP port unreachable responses which creates SocketException in ReceiveFrom()
-
-                if (Environment.OSVersion.Platform == PlatformID.Win32NT)
-                {
-                    const uint IOC_IN = 0x80000000;
-                    const uint IOC_VENDOR = 0x18000000;
-                    const uint SIO_UDP_CONNRESET = IOC_IN | IOC_VENDOR | 12;
-
-                    udpListener.IOControl((IOControlCode)SIO_UDP_CONNRESET, new byte[] { Convert.ToByte(false) }, null);
-                }
-
-                #endregion
+                Socket udpListener = null;
 
                 try
                 {
+                    udpListener = new Socket(dnsEP.AddressFamily, SocketType.Dgram, ProtocolType.Udp);
+
+                    #region this code ignores ICMP port unreachable responses which creates SocketException in ReceiveFrom()
+
+                    if (Environment.OSVersion.Platform == PlatformID.Win32NT)
+                    {
+                        const uint IOC_IN = 0x80000000;
+                        const uint IOC_VENDOR = 0x18000000;
+                        const uint SIO_UDP_CONNRESET = IOC_IN | IOC_VENDOR | 12;
+
+                        udpListener.IOControl((IOControlCode)SIO_UDP_CONNRESET, new byte[] { Convert.ToByte(false) }, null);
+                    }
+
+                    #endregion
+
                     udpListener.Bind(dnsEP);
 
                     _udpListeners.Add(udpListener);
@@ -1601,13 +1603,16 @@ namespace DnsServerCore.Dns
                     if (log != null)
                         log.Write(dnsEP, DnsTransportProtocol.Udp, "DNS Server failed to bind.\r\n" + ex.ToString());
 
-                    udpListener.Dispose();
+                    if (udpListener != null)
+                        udpListener.Dispose();
                 }
 
-                Socket tcpListener = new Socket(dnsEP.AddressFamily, SocketType.Stream, ProtocolType.Tcp);
+                Socket tcpListener = null;
 
                 try
                 {
+                    tcpListener = new Socket(dnsEP.AddressFamily, SocketType.Stream, ProtocolType.Tcp);
+
                     tcpListener.Bind(dnsEP);
                     tcpListener.Listen(100);
 
@@ -1623,16 +1628,19 @@ namespace DnsServerCore.Dns
                     if (log != null)
                         log.Write(dnsEP, DnsTransportProtocol.Tcp, "DNS Server failed to bind.\r\n" + ex.ToString());
 
-                    tcpListener.Dispose();
+                    if (tcpListener != null)
+                        tcpListener.Dispose();
                 }
 
                 if (_enableDnsOverHttp)
                 {
                     IPEndPoint httpEP = new IPEndPoint(_localIPs[i], 8053);
-                    Socket httpListener = new Socket(httpEP.AddressFamily, SocketType.Stream, ProtocolType.Tcp);
+                    Socket httpListener = null;
 
                     try
                     {
+                        httpListener = new Socket(httpEP.AddressFamily, SocketType.Stream, ProtocolType.Tcp);
+
                         httpListener.Bind(httpEP);
                         httpListener.Listen(100);
 
@@ -1650,17 +1658,20 @@ namespace DnsServerCore.Dns
                         if (log != null)
                             log.Write(httpEP, DnsTransportProtocol.Https, "DNS Server failed to bind.\r\n" + ex.ToString());
 
-                        httpListener.Dispose();
+                        if (httpListener != null)
+                            httpListener.Dispose();
                     }
                 }
 
                 if (_enableDnsOverTls && (_certificate != null))
                 {
                     IPEndPoint tlsEP = new IPEndPoint(_localIPs[i], 853);
-                    Socket tlsListener = new Socket(tlsEP.AddressFamily, SocketType.Stream, ProtocolType.Tcp);
+                    Socket tlsListener = null;
 
                     try
                     {
+                        tlsListener = new Socket(tlsEP.AddressFamily, SocketType.Stream, ProtocolType.Tcp);
+
                         tlsListener.Bind(tlsEP);
                         tlsListener.Listen(100);
 
@@ -1676,17 +1687,20 @@ namespace DnsServerCore.Dns
                         if (log != null)
                             log.Write(tlsEP, DnsTransportProtocol.Tls, "DNS Server failed to bind.\r\n" + ex.ToString());
 
-                        tlsListener.Dispose();
+                        if (tlsListener != null)
+                            tlsListener.Dispose();
                     }
                 }
 
                 if (_enableDnsOverHttps && (_certificate != null))
                 {
                     IPEndPoint httpsEP = new IPEndPoint(_localIPs[i], 443);
-                    Socket httpsListener = new Socket(httpsEP.AddressFamily, SocketType.Stream, ProtocolType.Tcp);
+                    Socket httpsListener = null;
 
                     try
                     {
+                        httpsListener = new Socket(httpsEP.AddressFamily, SocketType.Stream, ProtocolType.Tcp);
+
                         httpsListener.Bind(httpsEP);
                         httpsListener.Listen(100);
 
@@ -1704,7 +1718,8 @@ namespace DnsServerCore.Dns
                         if (log != null)
                             log.Write(httpsEP, DnsTransportProtocol.Https, "DNS Server failed to bind.\r\n" + ex.ToString());
 
-                        httpsListener.Dispose();
+                        if (httpsListener != null)
+                            httpsListener.Dispose();
                     }
                 }
             }
@@ -1713,11 +1728,11 @@ namespace DnsServerCore.Dns
             {
                 string serverDomain = _authoritativeZoneRoot.ServerDomain;
 
-                _authoritativeZoneRoot.SetRecords("resolver-associated-doh.arpa", DnsResourceRecordType.SOA, 14400, new DnsResourceRecordData[] { new DnsSOARecord(serverDomain, "hostmaster." + serverDomain, uint.Parse(DateTime.UtcNow.ToString("yyyyMMddHH")), 28800, 7200, 604800, 600) });
+                _authoritativeZoneRoot.SetRecords("resolver-associated-doh.arpa", DnsResourceRecordType.SOA, 14400, new DnsResourceRecordData[] { new DnsSOARecord(serverDomain, "hostmaster." + serverDomain, 1, 14400, 3600, 604800, 900) });
                 _authoritativeZoneRoot.SetRecords("resolver-associated-doh.arpa", DnsResourceRecordType.NS, 14400, new DnsResourceRecordData[] { new DnsNSRecord(serverDomain) });
                 _authoritativeZoneRoot.SetRecords("resolver-associated-doh.arpa", DnsResourceRecordType.TXT, 60, new DnsResourceRecordData[] { new DnsTXTRecord("https://" + serverDomain + "/dns-query{?dns}") });
 
-                _authoritativeZoneRoot.SetRecords("resolver-addresses.arpa", DnsResourceRecordType.SOA, 14400, new DnsResourceRecordData[] { new DnsSOARecord(serverDomain, "hostmaster." + serverDomain, uint.Parse(DateTime.UtcNow.ToString("yyyyMMddHH")), 28800, 7200, 604800, 600) });
+                _authoritativeZoneRoot.SetRecords("resolver-addresses.arpa", DnsResourceRecordType.SOA, 14400, new DnsResourceRecordData[] { new DnsSOARecord(serverDomain, "hostmaster." + serverDomain, 1, 14400, 3600, 604800, 900) });
                 _authoritativeZoneRoot.SetRecords("resolver-addresses.arpa", DnsResourceRecordType.NS, 14400, new DnsResourceRecordData[] { new DnsNSRecord(serverDomain) });
                 _authoritativeZoneRoot.SetRecords("resolver-addresses.arpa", DnsResourceRecordType.CNAME, 60, new DnsResourceRecordData[] { new DnsCNAMERecord(serverDomain) });
 

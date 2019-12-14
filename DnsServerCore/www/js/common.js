@@ -25,7 +25,7 @@ function htmlDecode(value) {
     return $('<div/>').html(value).text();
 }
 
-function HTTPRequest(url, data, success, error, invalidToken, objAlertPlaceholder, objLoaderPlaceholder, dataIsFormData, dataContentType, dontHideAlert) {
+function HTTPRequest(url, data, success, error, invalidToken, objAlertPlaceholder, objLoaderPlaceholder, dataIsFormData, dataContentType, dontHideAlert, showInnerError) {
 
     var async = false;
     var finalUrl;
@@ -60,6 +60,12 @@ function HTTPRequest(url, data, success, error, invalidToken, objAlertPlaceholde
 
     if ((dontHideAlert == null) || !dontHideAlert)
         hideAlert(objAlertPlaceholder);
+
+    if (showInnerError == null)
+        showInnerError = arguments[0].showInnerError;
+
+    if (showInnerError == null)
+        showInnerError = false;
 
     if (objLoaderPlaceholder == null)
         objLoaderPlaceholder = arguments[0].objLoaderPlaceholder;
@@ -117,7 +123,7 @@ function HTTPRequest(url, data, success, error, invalidToken, objAlertPlaceholde
                     break;
 
                 case "error":
-                    showAlert("danger", "Error!", responseJson.errorMessage, objAlertPlaceholder);
+                    showAlert("danger", "Error!", responseJson.errorMessage + (showInnerError && (responseJson.innerErrorMessage != null) ? " " + responseJson.innerErrorMessage : ""), objAlertPlaceholder);
 
                     if (error != null)
                         error();

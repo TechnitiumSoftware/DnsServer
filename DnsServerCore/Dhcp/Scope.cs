@@ -112,7 +112,7 @@ namespace DnsServerCore.Dhcp
                     _offerDelayTime = bR.ReadUInt16();
 
                     _domainName = bR.ReadShortString();
-                    if (_domainName == "")
+                    if (string.IsNullOrWhiteSpace(_domainName))
                         _domainName = null;
 
                     _dnsTtl = bR.ReadUInt32();
@@ -313,7 +313,7 @@ namespace DnsServerCore.Dhcp
 
             string clientDomainName;
 
-            if (request.ClientFullyQualifiedDomainName.DomainName == "")
+            if (string.IsNullOrWhiteSpace(request.ClientFullyQualifiedDomainName.DomainName))
             {
                 //client domain empty and expects server for a fqdn domain name
                 if (request.HostName == null)
@@ -822,13 +822,13 @@ namespace DnsServerCore.Dhcp
         public void ChangeNetwork(IPAddress startingAddress, IPAddress endingAddress, IPAddress subnetMask)
         {
             if (startingAddress.AddressFamily != AddressFamily.InterNetwork)
-                throw new ArgumentException("Address family not supported.", "startingAddress");
+                throw new ArgumentException("Address family not supported.", nameof(startingAddress));
 
             if (endingAddress.AddressFamily != AddressFamily.InterNetwork)
-                throw new ArgumentException("Address family not supported.", "endingAddress");
+                throw new ArgumentException("Address family not supported.", nameof(endingAddress));
 
             if (subnetMask.AddressFamily != AddressFamily.InterNetwork)
-                throw new ArgumentException("Address family not supported.", "subnetMask");
+                throw new ArgumentException("Address family not supported.", nameof(subnetMask));
 
             uint startingAddressNumber = startingAddress.ConvertIpToNumber();
             uint endingAddressNumber = endingAddress.ConvertIpToNumber();
@@ -876,7 +876,7 @@ namespace DnsServerCore.Dhcp
             bW.Write(_leaseTimeMinutes);
             bW.Write(_offerDelayTime);
 
-            if (string.IsNullOrEmpty(_domainName))
+            if (string.IsNullOrWhiteSpace(_domainName))
                 bW.Write((byte)0);
             else
                 bW.WriteShortString(_domainName);

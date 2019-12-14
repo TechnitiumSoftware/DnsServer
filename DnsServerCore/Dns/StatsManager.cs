@@ -1085,7 +1085,7 @@ namespace DnsServerCore.Dns
                     case StatsResponseType.NoError:
                         if (!"blocked".Equals(responseTag)) //skip blocked domains
                         {
-                            _queryDomains.GetOrAdd(query.Name, new Counter()).Increment();
+                            _queryDomains.GetOrAdd(query.Name.ToLower(), new Counter()).Increment();
                             _queries.GetOrAdd(query, new Counter()).Increment();
                         }
 
@@ -1120,7 +1120,7 @@ namespace DnsServerCore.Dns
                         break;
 
                     case "blocked":
-                        _queryBlockedDomains.GetOrAdd(query.Name, new Counter()).Increment();
+                        _queryBlockedDomains.GetOrAdd(query.Name.ToLower(), new Counter()).Increment();
                         Interlocked.Increment(ref _totalBlocked);
                         break;
                 }
