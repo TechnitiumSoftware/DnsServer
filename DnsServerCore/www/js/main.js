@@ -122,12 +122,14 @@ $(function () {
             $("#txtProxyPort").prop("disabled", true);
             $("#txtProxyUsername").prop("disabled", true);
             $("#txtProxyPassword").prop("disabled", true);
+            $("#txtProxyBypassList").prop("disabled", true);
         }
         else {
             $("#txtProxyAddress").prop("disabled", false);
             $("#txtProxyPort").prop("disabled", false);
             $("#txtProxyUsername").prop("disabled", false);
             $("#txtProxyPassword").prop("disabled", false);
+            $("#txtProxyBypassList").prop("disabled", false);
         }
     });
 
@@ -575,11 +577,13 @@ function loadDnsSettings() {
                 $("#txtProxyPort").prop("disabled", true);
                 $("#txtProxyUsername").prop("disabled", true);
                 $("#txtProxyPassword").prop("disabled", true);
+                $("#txtProxyBypassList").prop("disabled", true);
 
                 $("#txtProxyAddress").val("");
                 $("#txtProxyPort").val("");
                 $("#txtProxyUsername").val("");
                 $("#txtProxyPassword").val("");
+                $("#txtProxyBypassList").val("");
             }
             else {
                 switch (proxy.type.toLowerCase()) {
@@ -601,10 +605,20 @@ function loadDnsSettings() {
                 $("#txtProxyUsername").val(proxy.username);
                 $("#txtProxyPassword").val(proxy.password);
 
+                {
+                    var value = "";
+
+                    for (var i = 0; i < proxy.bypass.length; i++)
+                        value += proxy.bypass[i] + "\r\n";
+
+                    $("#txtProxyBypassList").val(value);
+                }
+
                 $("#txtProxyAddress").prop("disabled", false);
                 $("#txtProxyPort").prop("disabled", false);
                 $("#txtProxyUsername").prop("disabled", false);
                 $("#txtProxyPassword").prop("disabled", false);
+                $("#txtProxyBypassList").prop("disabled", false);
             }
 
             var forwarders = responseJSON.response.forwarders;
@@ -765,7 +779,14 @@ function saveDnsSettings() {
             return false;
         }
 
-        proxy = "&proxyType=" + proxyType + "&proxyAddress=" + encodeURIComponent(proxyAddress) + "&proxyPort=" + proxyPort + "&proxyUsername=" + encodeURIComponent($("#txtProxyUsername").val()) + "&proxyPassword=" + encodeURIComponent($("#txtProxyPassword").val());
+        var proxyBypass = cleanTextList($("#txtProxyBypassList").val());
+
+        if ((proxyBypass.length === 0) || (proxyBypass === ","))
+            proxyBypass = "";
+        else
+            $("#txtProxyBypassList").val(proxyBypass.replace(/,/g, "\n"));
+
+        proxy = "&proxyType=" + proxyType + "&proxyAddress=" + encodeURIComponent(proxyAddress) + "&proxyPort=" + proxyPort + "&proxyUsername=" + encodeURIComponent($("#txtProxyUsername").val()) + "&proxyPassword=" + encodeURIComponent($("#txtProxyPassword").val()) + "&proxyBypass=" + encodeURIComponent(proxyBypass);
     }
 
     var forwarders = cleanTextList($("#txtForwarders").val());

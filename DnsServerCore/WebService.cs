@@ -1047,6 +1047,14 @@ namespace DnsServerCore
                     jsonWriter.WriteValue(credential.Password);
                 }
 
+                jsonWriter.WritePropertyName("bypass");
+                jsonWriter.WriteStartArray();
+
+                foreach (NetProxyBypassItem item in proxy.ProxyBypassList)
+                    jsonWriter.WriteValue(item.Value);
+
+                jsonWriter.WriteEndArray();
+
                 jsonWriter.WriteEndObject();
             }
 
@@ -1315,6 +1323,18 @@ namespace DnsServerCore
                         credential = new NetworkCredential(strUsername, request.QueryString["proxyPassword"]);
 
                     _dnsServer.Proxy = new NetProxy(proxyType, request.QueryString["proxyAddress"], int.Parse(request.QueryString["proxyPort"]), credential);
+
+                    string strProxyBypass = request.QueryString["proxyBypass"];
+                    if (!string.IsNullOrEmpty(strProxyBypass))
+                    {
+                        string[] strBypassList = strProxyBypass.Split(new char[] { ',' }, StringSplitOptions.RemoveEmptyEntries);
+                        NetProxyBypassItem[] bypassItems = new NetProxyBypassItem[strBypassList.Length];
+
+                        for (int i = 0; i < strBypassList.Length; i++)
+                            bypassItems[i] = new NetProxyBypassItem(strBypassList[i]);
+
+                        _dnsServer.Proxy.ProxyBypassList = bypassItems;
+                    }
                 }
             }
 
@@ -4339,6 +4359,7 @@ namespace DnsServerCore
                         case 7:
                         case 8:
                         case 9:
+                        case 10:
                             _dnsServer.ServerDomain = bR.ReadShortString();
                             _webServicePort = bR.ReadInt32();
 
@@ -4373,6 +4394,16 @@ namespace DnsServerCore
                                     credential = new NetworkCredential(bR.ReadShortString(), bR.ReadShortString());
 
                                 _dnsServer.Proxy = new NetProxy(proxyType, address, port, credential);
+
+                                if (version >= 10)
+                                {
+                                    NetProxyBypassItem[] bypassList = new NetProxyBypassItem[bR.ReadByte()];
+
+                                    for (int i = 0; i < bypassList.Length; i++)
+                                        bypassList[i] = new NetProxyBypassItem(bR.ReadShortString());
+
+                                    _dnsServer.Proxy.ProxyBypassList = bypassList;
+                                }
                             }
                             else
                             {
@@ -4609,7 +4640,7 @@ namespace DnsServerCore
                 BinaryWriter bW = new BinaryWriter(mS);
 
                 bW.Write(Encoding.ASCII.GetBytes("DS")); //format
-                bW.Write((byte)9); //version
+                bW.Write((byte)10); //version
 
                 bW.WriteShortString(_dnsServer.ServerDomain);
                 bW.Write(_webServicePort);
@@ -4645,6 +4676,14 @@ namespace DnsServerCore
                         bW.Write(true);
                         bW.WriteShortString(credential.UserName);
                         bW.WriteShortString(credential.Password);
+                    }
+
+                    //bypass list
+                    {
+                        bW.Write(Convert.ToByte(_dnsServer.Proxy.ProxyBypassList.Count));
+
+                        foreach (NetProxyBypassItem item in _dnsServer.Proxy.ProxyBypassList)
+                            bW.WriteShortString(item.Value);
                     }
                 }
 
