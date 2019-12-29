@@ -1,9 +1,9 @@
 #!/bin/sh
 
 aspnetcoreDir="/opt/dotnet"
-aspnetcoreTestDir="/opt/dotnet/shared/Microsoft.NETCore.App/2.2.5/"
-aspnetcoreTar="/opt/dotnet/aspnetcore-runtime-2.2.5-linux-arm.tar.gz"
-aspnetcoreUrl="https://download.visualstudio.microsoft.com/download/pr/cd6635b9-f6f8-4c2d-beda-2e381fe39586/740973b83c199bf863a51c83a2432151/aspnetcore-runtime-2.2.5-linux-arm.tar.gz"
+aspnetcoreTestDir="/opt/dotnet/shared/Microsoft.NETCore.App/3.1.0/"
+aspnetcoreTar="/opt/dotnet/aspnetcore-runtime-3.1.0-linux-arm.tar.gz"
+aspnetcoreUrl="https://download.visualstudio.microsoft.com/download/pr/8c839c0e-a5ae-4254-8d8b-c012528fe601/c147e26bad68f97eacc287a71e01331d/aspnetcore-runtime-3.1.0-linux-arm.tar.gz"
 
 dnsDir="/etc/dns"
 dnsTar="/etc/dns/DnsServerPortable.tar.gz"

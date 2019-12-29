@@ -13,31 +13,25 @@ echo "==============================="
 echo "Technitium DNS Server Installer"
 echo "==============================="
 echo ""
+echo "Installing .NET Core Runtime..."
 
-if [ -f "/usr/bin/dotnet" ]
+if wget -q "https://packages.microsoft.com/config/ubuntu/$(lsb_release -r -s)/packages-microsoft-prod.deb" -O "$dnsDir/packages-microsoft-prod.deb"
 then
-	echo ".NET Core Runtime was found installed."
+	dpkg -i "$dnsDir/packages-microsoft-prod.deb">> $installLog 2>&1
+
+	add-apt-repository universe >> $installLog 2>&1
+
+	until apt-get -y update >> $installLog 2>&1 && apt-get -y install libunwind8 icu-devtools apt-transport-https aspnetcore-runtime-3.1 >> $installLog 2>&1
+	do
+		echo "Trying again.."
+		sleep 2
+	done
+
+	echo ".NET Core Runtime was installed succesfully."
 else
-	echo "Installing .NET Core Runtime..."
-
-	if wget -q "https://packages.microsoft.com/config/ubuntu/$(lsb_release -r -s)/packages-microsoft-prod.deb" -O "$dnsDir/packages-microsoft-prod.deb"
-	then
-		dpkg -i "$dnsDir/packages-microsoft-prod.deb">> $installLog 2>&1
-
-		add-apt-repository universe >> $installLog 2>&1
-
-		until apt-get -y update >> $installLog 2>&1 && apt-get -y install libunwind8 icu-devtools apt-transport-https aspnetcore-runtime-2.2 >> $installLog 2>&1
-		do
-			echo "Trying again.."
-			sleep 2
-		done
-
-		echo ".NET Core Runtime was installed succesfully."
-	else
-		echo ""
-		echo "Failed to install .NET Core Runtime. Please try again."
-		exit 1
-	fi
+	echo ""
+	echo "Failed to install .NET Core Runtime. Please try again."
+	exit 1
 fi
 
 echo ""
