@@ -247,7 +247,7 @@ namespace DnsServerCore.Dns
 
             try
             {
-                DnsDatagram response = ProcessQuery(request, remoteEP, DnsTransportProtocol.Udp);
+                DnsDatagram response = ProcessQuery(request, remoteEP, IsRecursionAllowed(remoteEP), DnsTransportProtocol.Udp);
 
                 //send response
                 if (response != null)
@@ -450,7 +450,7 @@ namespace DnsServerCore.Dns
 
             try
             {
-                DnsDatagram response = ProcessQuery(request, remoteEP, protocol);
+                DnsDatagram response = ProcessQuery(request, remoteEP, IsRecursionAllowed(remoteEP), protocol);
 
                 //send response
                 if (response != null)
@@ -673,7 +673,7 @@ namespace DnsServerCore.Dns
                                                 throw new NotSupportedException("DoH request type not supported.");
                                         }
 
-                                        DnsDatagram dnsResponse = ProcessQuery(dnsRequest, remoteEP, protocol);
+                                        DnsDatagram dnsResponse = ProcessQuery(dnsRequest, remoteEP, IsRecursionAllowed(remoteEP), protocol);
                                         if (dnsResponse != null)
                                         {
                                             using (MemoryStream mS = new MemoryStream())
@@ -709,7 +709,7 @@ namespace DnsServerCore.Dns
 
                                         dnsRequest = new DnsDatagram(new DnsHeader(0, false, DnsOpcode.StandardQuery, false, false, true, false, false, false, DnsResponseCode.NoError, 1, 0, 0, 0), new DnsQuestionRecord[] { new DnsQuestionRecord(strName, (DnsResourceRecordType)int.Parse(strType), DnsClass.IN) }, null, null, null);
 
-                                        DnsDatagram dnsResponse = ProcessQuery(dnsRequest, remoteEP, protocol);
+                                        DnsDatagram dnsResponse = ProcessQuery(dnsRequest, remoteEP, IsRecursionAllowed(remoteEP), protocol);
                                         if (dnsResponse != null)
                                         {
                                             using (MemoryStream mS = new MemoryStream())
@@ -856,12 +856,10 @@ namespace DnsServerCore.Dns
             return true;
         }
 
-        internal DnsDatagram ProcessQuery(DnsDatagram request, EndPoint remoteEP, DnsTransportProtocol protocol)
+        internal DnsDatagram ProcessQuery(DnsDatagram request, EndPoint remoteEP, bool isRecursionAllowed, DnsTransportProtocol protocol)
         {
             if (request.Header.IsResponse)
                 return null;
-
-            bool isRecursionAllowed = IsRecursionAllowed(remoteEP);
 
             switch (request.Header.OPCODE)
             {
@@ -1848,6 +1846,33 @@ namespace DnsServerCore.Dns
             _httpsListeners.Clear();
 
             _state = ServiceState.Stopped;
+        }
+
+        public DnsDatagram DirectQuery(DnsQuestionRecord question, int timeout = 2000)
+        {
+            object timeoutLock = new object();
+            DnsDatagram response = null;
+
+            lock (timeoutLock)
+            {
+                ThreadPool.QueueUserWorkItem(delegate (object state)
+                {
+                    try
+                    {
+                        response = ProcessQuery(new DnsDatagram(new DnsHeader(0, false, DnsOpcode.StandardQuery, false, false, true, false, false, false, DnsResponseCode.NoError, 1, 0, 0, 0), new DnsQuestionRecord[] { question }, null, null, null), new IPEndPoint(IPAddress.Any, 0), true, DnsTransportProtocol.Tcp);
+
+                        lock (timeoutLock)
+                        {
+                            Monitor.Pulse(timeoutLock);
+                        }
+                    }
+                    catch
+                    { }
+                });
+
+                Monitor.Wait(timeoutLock, timeout);
+                return response;
+            }
         }
 
         #endregion
