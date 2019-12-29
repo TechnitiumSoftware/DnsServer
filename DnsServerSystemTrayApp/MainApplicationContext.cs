@@ -65,12 +65,49 @@ namespace DnsServerSystemTrayApp
 
         #region constructor
 
-        public MainApplicationContext(string configFile)
+        public MainApplicationContext(string configFile, string[] args)
         {
             _configFile = configFile;
             LoadConfig();
 
             InitializeComponent();
+
+            if (args.Length > 0)
+            {
+                switch (args[0])
+                {
+                    case "--network-dns-default":
+                        DefaultNetworkDnsMenuItem_Click(this, EventArgs.Empty);
+                        break;
+
+                    case "--network-dns-item":
+                        foreach (DnsProvider dnsProvider in _dnsProviders)
+                        {
+                            if (dnsProvider.Name.Equals(args[1]))
+                            {
+                                NetworkDnsMenuSubItem_Click(new ToolStripMenuItem(dnsProvider.Name) { Tag = dnsProvider }, EventArgs.Empty);
+                                break;
+                            }
+                        }
+                        break;
+
+                    case "--network-dns-manage":
+                        ManageNetworkDnsMenuItem_Click(this, EventArgs.Empty);
+                        break;
+
+                    case "--service-start":
+                        StartServiceMenuItem_Click(this, EventArgs.Empty);
+                        break;
+
+                    case "--service-restart":
+                        RestartServiceMenuItem_Click(this, EventArgs.Empty);
+                        break;
+
+                    case "--service-stop":
+                        StopServiceMenuItem_Click(this, EventArgs.Empty);
+                        break;
+                }
+            }
         }
 
         #endregion
@@ -517,6 +554,12 @@ namespace DnsServerSystemTrayApp
 
         private void DefaultNetworkDnsMenuItem_Click(object sender, EventArgs e)
         {
+            if (!Program.IsAdmin)
+            {
+                Program.RunAsAdmin("--network-dns-default");
+                return;
+            }
+
             try
             {
                 foreach (NetworkInterface nic in NetworkInterface.GetAllNetworkInterfaces())
@@ -557,6 +600,12 @@ namespace DnsServerSystemTrayApp
 
         private void ManageNetworkDnsMenuItem_Click(object sender, EventArgs e)
         {
+            if (!Program.IsAdmin)
+            {
+                Program.RunAsAdmin("--network-dns-manage");
+                return;
+            }
+
             using (frmManageDnsProviders frm = new frmManageDnsProviders(_dnsProviders))
             {
                 if (frm.ShowDialog() == DialogResult.OK)
@@ -574,6 +623,12 @@ namespace DnsServerSystemTrayApp
         {
             ToolStripMenuItem item = sender as ToolStripMenuItem;
             DnsProvider dnsProvider = item.Tag as DnsProvider;
+
+            if (!Program.IsAdmin)
+            {
+                Program.RunAsAdmin("--network-dns-item " + dnsProvider.Name);
+                return;
+            }
 
             try
             {
@@ -598,6 +653,12 @@ namespace DnsServerSystemTrayApp
 
         private void StartServiceMenuItem_Click(object sender, EventArgs e)
         {
+            if (!Program.IsAdmin)
+            {
+                Program.RunAsAdmin("--service-start");
+                return;
+            }
+
             try
             {
                 _service.Start();
@@ -617,6 +678,12 @@ namespace DnsServerSystemTrayApp
 
         private void RestartServiceMenuItem_Click(object sender, EventArgs e)
         {
+            if (!Program.IsAdmin)
+            {
+                Program.RunAsAdmin("--service-restart");
+                return;
+            }
+
             try
             {
                 _service.Stop();
@@ -638,6 +705,12 @@ namespace DnsServerSystemTrayApp
 
         private void StopServiceMenuItem_Click(object sender, EventArgs e)
         {
+            if (!Program.IsAdmin)
+            {
+                Program.RunAsAdmin("--service-stop");
+                return;
+            }
+
             try
             {
                 _service.Stop();

@@ -32,8 +32,10 @@ namespace DnsServerSystemTrayApp
     {
         #region variables
 
-        public const string MUTEX_NAME = "TechnitiumDnsServerSystemTrayApp";
+        const string MUTEX_NAME = "TechnitiumDnsServerSystemTrayApp";
 
+        static readonly string _appPath = Assembly.GetEntryAssembly().Location;
+        static readonly bool _isAdmin = (new WindowsPrincipal(WindowsIdentity.GetCurrent())).IsInRole(WindowsBuiltInRole.Administrator);
         static Mutex _app;
 
         #endregion
@@ -46,39 +48,9 @@ namespace DnsServerSystemTrayApp
             Application.EnableVisualStyles();
             Application.SetCompatibleTextRenderingDefault(false);
 
-            string appPath = Assembly.GetEntryAssembly().Location;
-
-            #region admin elevation
-
-            bool isAdmin = (new WindowsPrincipal(WindowsIdentity.GetCurrent())).IsInRole(WindowsBuiltInRole.Administrator);
-            if (!isAdmin)
-            {
-                ProcessStartInfo processInfo = new ProcessStartInfo(appPath, string.Join(" ", args));
-
-                processInfo.UseShellExecute = true;
-                processInfo.Verb = "runas";
-
-                try
-                {
-                    Process.Start(processInfo);
-                }
-                catch (Win32Exception)
-                { }
-                catch (Exception ex)
-                {
-                    MessageBox.Show("Error! " + ex.Message, "Error!", MessageBoxButtons.OK, MessageBoxIcon.Error);
-                }
-
-                return;
-            }
-
-            #endregion
-
             #region check for multiple instances
 
-            bool createdNewMutex;
-
-            _app = new Mutex(true, MUTEX_NAME, out createdNewMutex);
+            _app = new Mutex(true, MUTEX_NAME, out bool createdNewMutex);
 
             if (!createdNewMutex)
             {
@@ -88,10 +60,45 @@ namespace DnsServerSystemTrayApp
 
             #endregion
 
-            string configFile = Path.Combine(Path.GetDirectoryName(appPath), "SystemTrayApp.config");
+            string configFile = Path.Combine(Path.GetDirectoryName(_appPath), "SystemTrayApp.config");
 
-            Application.Run(new MainApplicationContext(configFile));
+            Application.Run(new MainApplicationContext(configFile, args));
         }
+
+        public static void RunAsAdmin(string args)
+        {
+            if (_isAdmin)
+                throw new Exception("App is already running as admin.");
+
+            ProcessStartInfo processInfo = new ProcessStartInfo(_appPath, args);
+
+            processInfo.UseShellExecute = true;
+            processInfo.Verb = "runas";
+
+            try
+            {
+                _app.Dispose();
+                Process.Start(processInfo);
+                Application.Exit();
+                return;
+            }
+            catch (Win32Exception)
+            { }
+            catch (Exception ex)
+            {
+                MessageBox.Show("Error! " + ex.Message, "Error!", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+
+            //user cancels UAC or exception occurred
+            _app = new Mutex(true, MUTEX_NAME, out bool createdNewMutex);
+        }
+
+        #endregion
+
+        #region properties
+
+        public static bool IsAdmin
+        { get { return _isAdmin; } }
 
         #endregion
     }
