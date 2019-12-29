@@ -1666,9 +1666,6 @@ namespace DnsServerCore
 
                 IDictionary<string, string> clientIpMap = _dhcpServer.GetAddressClientMap();
 
-                DnsClient dnsClient = new DnsClient(GetThisDnsServerAddress());
-                dnsClient.Timeout = 200;
-
                 jsonWriter.WritePropertyName("topClients");
                 jsonWriter.WriteStartArray();
 
@@ -1697,7 +1694,7 @@ namespace DnsServerCore
                         {
                             try
                             {
-                                string ptrDomain = dnsClient.ResolvePTR(address);
+                                string ptrDomain = DnsClient.ParseResponsePTR(_dnsServer.DirectQuery(new DnsQuestionRecord(address, DnsClass.IN), 200));
 
                                 jsonWriter.WritePropertyName("domain");
                                 jsonWriter.WriteValue(ptrDomain);
