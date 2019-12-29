@@ -238,11 +238,11 @@ function showEditZone(domain) {
                     case "PTR":
                     case "TXT":
                     case "AAAA":
-                        tableHtmlRows += "<td>" + htmlEncode(records[i].rData.value) + "</td>";
+                        tableHtmlRows += "<td style=\"overflow-wrap: anywhere;\">" + htmlEncode(records[i].rData.value) + "</td>";
                         break;
 
                     case "SOA":
-                        tableHtmlRows += "<td><b>Master Name Server:</b> " + htmlEncode(records[i].rData.masterNameServer) +
+                        tableHtmlRows += "<td style=\"overflow-wrap: anywhere;\"><b>Master Name Server:</b> " + htmlEncode(records[i].rData.masterNameServer) +
                             "<br /><b>Responsible Person:</b> " + htmlEncode(records[i].rData.responsiblePerson) +
                             "<br /><b>Serial:</b> " + htmlEncode(records[i].rData.serial) +
                             "<br /><b>Refresh:</b> " + htmlEncode(records[i].rData.refresh) +
@@ -260,14 +260,14 @@ function showEditZone(domain) {
                         break;
 
                     case "MX":
-                        tableHtmlRows += "<td><b>Preference: </b> " + htmlEncode(records[i].rData.preference) +
+                        tableHtmlRows += "<td style=\"overflow-wrap: anywhere;\"><b>Preference: </b> " + htmlEncode(records[i].rData.preference) +
                             "<br /><b>Exchange:</b> " + htmlEncode(records[i].rData.value) + "</td>";
 
                         additionalDataAttributes = "data-record-preference=\"" + htmlEncode(records[i].rData.preference) + "\" ";
                         break;
 
                     case "SRV":
-                        tableHtmlRows += "<td><b>Priority: </b> " + htmlEncode(records[i].rData.priority) +
+                        tableHtmlRows += "<td style=\"overflow-wrap: anywhere;\"><b>Priority: </b> " + htmlEncode(records[i].rData.priority) +
                             "<br /><b>Weight:</b> " + htmlEncode(records[i].rData.weight) +
                             "<br /><b>Port:</b> " + htmlEncode(records[i].rData.port) +
                             "<br /><b>Target:</b> " + htmlEncode(records[i].rData.value) + "</td>";
@@ -278,7 +278,7 @@ function showEditZone(domain) {
                         break;
 
                     case "CAA":
-                        tableHtmlRows += "<td><b>Flags: </b> " + htmlEncode(records[i].rData.flags) +
+                        tableHtmlRows += "<td style=\"overflow-wrap: anywhere;\"><b>Flags: </b> " + htmlEncode(records[i].rData.flags) +
                             "<br /><b>Tag:</b> " + htmlEncode(records[i].rData.tag) +
                             "<br /><b>Authority:</b> " + htmlEncode(records[i].rData.value) + "</td>";
 
@@ -287,7 +287,7 @@ function showEditZone(domain) {
                         break;
 
                     default:
-                        tableHtmlRows += "<td><b>RDATA:</b> " + htmlEncode(records[i].rData.value) + "</td>";
+                        tableHtmlRows += "<td style=\"overflow-wrap: anywhere;\"><b>RDATA:</b> " + htmlEncode(records[i].rData.value) + "</td>";
                         break;
                 }
 
