@@ -1117,8 +1117,8 @@ namespace DnsServerCore
 
                                 foreach (ZoneInfo zone in zones)
                                 {
-                                    DnsResourceRecord[] soaResourceRecords = _dnsServer.AuthoritativeZoneRoot.GetAllRecords(zone.ZoneName, DnsResourceRecordType.SOA, false, true);
-                                    if (soaResourceRecords.Length > 0)
+                                    List<DnsResourceRecord> soaResourceRecords = _dnsServer.AuthoritativeZoneRoot.GetAllRecords(zone.ZoneName, DnsResourceRecordType.SOA, false, true);
+                                    if (soaResourceRecords.Count > 0)
                                     {
                                         DnsResourceRecord soaRecord = soaResourceRecords[0];
                                         DnsSOARecord soaRecordData = soaRecord.RDATA as DnsSOARecord;
@@ -1132,7 +1132,7 @@ namespace DnsServerCore
                                             _dnsServer.AuthoritativeZoneRoot.SetRecords(soaRecord.Name, soaRecord.Type, soaRecord.TtlValue, new DnsResourceRecordData[] { new DnsSOARecord(strServerDomain, responsiblePerson, soaRecordData.Serial, soaRecordData.Refresh, soaRecordData.Retry, soaRecordData.Expire, soaRecordData.Minimum) });
 
                                             //update NS records
-                                            DnsResourceRecord[] nsResourceRecords = _dnsServer.AuthoritativeZoneRoot.GetAllRecords(zone.ZoneName, DnsResourceRecordType.NS, false, true);
+                                            List<DnsResourceRecord> nsResourceRecords = _dnsServer.AuthoritativeZoneRoot.GetAllRecords(zone.ZoneName, DnsResourceRecordType.NS, false, true);
 
                                             foreach (DnsResourceRecord nsResourceRecord in nsResourceRecords)
                                             {
@@ -1159,8 +1159,8 @@ namespace DnsServerCore
 
                                 foreach (ZoneInfo zone in zones)
                                 {
-                                    DnsResourceRecord[] soaResourceRecords = _dnsServer.AllowedZoneRoot.GetAllRecords(zone.ZoneName, DnsResourceRecordType.SOA, false, true);
-                                    if (soaResourceRecords.Length > 0)
+                                    List<DnsResourceRecord> soaResourceRecords = _dnsServer.AllowedZoneRoot.GetAllRecords(zone.ZoneName, DnsResourceRecordType.SOA, false, true);
+                                    if (soaResourceRecords.Count > 0)
                                     {
                                         DnsResourceRecord soaRecord = soaResourceRecords[0];
                                         DnsSOARecord soaRecordData = soaRecord.RDATA as DnsSOARecord;
@@ -1176,8 +1176,8 @@ namespace DnsServerCore
 
                                 foreach (ZoneInfo zone in zones)
                                 {
-                                    DnsResourceRecord[] soaResourceRecords = _customBlockedZoneRoot.GetAllRecords(zone.ZoneName, DnsResourceRecordType.SOA, false, true);
-                                    if (soaResourceRecords.Length > 0)
+                                    List<DnsResourceRecord> soaResourceRecords = _customBlockedZoneRoot.GetAllRecords(zone.ZoneName, DnsResourceRecordType.SOA, false, true);
+                                    if (soaResourceRecords.Count > 0)
                                     {
                                         DnsResourceRecord soaRecord = soaResourceRecords[0];
                                         DnsSOARecord soaRecordData = soaRecord.RDATA as DnsSOARecord;
@@ -1193,8 +1193,8 @@ namespace DnsServerCore
 
                                 foreach (ZoneInfo zone in zones)
                                 {
-                                    DnsResourceRecord[] soaResourceRecords = _dnsServer.BlockedZoneRoot.GetAllRecords(zone.ZoneName, DnsResourceRecordType.SOA, false, true);
-                                    if (soaResourceRecords.Length > 0)
+                                    List<DnsResourceRecord> soaResourceRecords = _dnsServer.BlockedZoneRoot.GetAllRecords(zone.ZoneName, DnsResourceRecordType.SOA, false, true);
+                                    if (soaResourceRecords.Count > 0)
                                     {
                                         DnsResourceRecord soaRecord = soaResourceRecords[0];
                                         DnsSOARecord soaRecordData = soaRecord.RDATA as DnsSOARecord;
@@ -1804,14 +1804,14 @@ namespace DnsServerCore
             string direction = request.QueryString["direction"];
 
             string[] subZones;
-            DnsResourceRecord[] records;
+            List<DnsResourceRecord> records;
 
             while (true)
             {
                 subZones = _dnsServer.CacheZoneRoot.ListSubZones(domain);
                 records = _dnsServer.CacheZoneRoot.GetAllRecords(domain, DnsResourceRecordType.ANY, false);
 
-                if (records.Length > 0)
+                if (records.Count > 0)
                     break;
 
                 if (subZones.Length != 1)
@@ -1877,14 +1877,14 @@ namespace DnsServerCore
             string direction = request.QueryString["direction"];
 
             string[] subZones;
-            DnsResourceRecord[] records;
+            List<DnsResourceRecord> records;
 
             while (true)
             {
                 subZones = _dnsServer.AllowedZoneRoot.ListSubZones(domain);
                 records = _dnsServer.AllowedZoneRoot.GetAllRecords(domain, DnsResourceRecordType.ANY, false);
 
-                if (records.Length > 0)
+                if (records.Count > 0)
                     break;
 
                 if (subZones.Length != 1)
@@ -2026,14 +2026,14 @@ namespace DnsServerCore
             string direction = request.QueryString["direction"];
 
             string[] subZones;
-            DnsResourceRecord[] records;
+            List<DnsResourceRecord> records;
 
             while (true)
             {
                 subZones = _dnsServer.BlockedZoneRoot.ListSubZones(domain);
                 records = _dnsServer.BlockedZoneRoot.GetAllRecords(domain, DnsResourceRecordType.ANY, false);
 
-                if (records.Length > 0)
+                if (records.Count > 0)
                     break;
 
                 if (subZones.Length != 1)
@@ -2252,10 +2252,13 @@ namespace DnsServerCore
             jsonWriter.WriteValue(domain);
         }
 
-        private void CreateZone(string domain)
+        private void CreateZone(string domain, bool internalZone = false)
         {
             _dnsServer.AuthoritativeZoneRoot.SetRecords(domain, DnsResourceRecordType.SOA, 14400, new DnsResourceRecordData[] { new DnsSOARecord(_dnsServer.ServerDomain, "hostmaster." + _dnsServer.ServerDomain, 1, 14400, 3600, 604800, 900) });
             _dnsServer.AuthoritativeZoneRoot.SetRecords(domain, DnsResourceRecordType.NS, 14400, new DnsResourceRecordData[] { new DnsNSRecord(_dnsServer.ServerDomain) });
+
+            if (internalZone)
+                _dnsServer.AuthoritativeZoneRoot.MakeZoneInternal(domain);
         }
 
         private void DeleteZone(HttpListenerRequest request)
@@ -2435,14 +2438,14 @@ namespace DnsServerCore
             if (domain.EndsWith("."))
                 domain = domain.Substring(0, domain.Length - 1);
 
-            DnsResourceRecord[] records = _dnsServer.AuthoritativeZoneRoot.GetAllRecords(domain);
-            if (records.Length == 0)
+            List<DnsResourceRecord> records = _dnsServer.AuthoritativeZoneRoot.GetAllRecords(domain);
+            if (records.Count == 0)
                 throw new WebServiceException("Zone '" + domain + "' was not found.");
 
             WriteRecordsAsJson(records, jsonWriter, true);
         }
 
-        private void WriteRecordsAsJson(DnsResourceRecord[] records, JsonTextWriter jsonWriter, bool authoritativeZoneRecords)
+        private void WriteRecordsAsJson(List<DnsResourceRecord> records, JsonTextWriter jsonWriter, bool authoritativeZoneRecords)
         {
             if (records == null)
             {
@@ -2453,7 +2456,7 @@ namespace DnsServerCore
                 return;
             }
 
-            Array.Sort(records);
+            records.Sort();
 
             Dictionary<string, Dictionary<DnsResourceRecordType, List<DnsResourceRecord>>> groupedByDomainRecords = DnsResourceRecord.GroupRecords(records);
 
@@ -3689,7 +3692,7 @@ namespace DnsServerCore
             if (zoneFiles.Length == 0)
             {
                 {
-                    CreateZone("localhost");
+                    CreateZone("localhost", true);
                     _dnsServer.AuthoritativeZoneRoot.SetRecords("localhost", DnsResourceRecordType.A, 3600, new DnsResourceRecordData[] { new DnsARecord(IPAddress.Loopback) });
                     _dnsServer.AuthoritativeZoneRoot.SetRecords("localhost", DnsResourceRecordType.AAAA, 3600, new DnsResourceRecordData[] { new DnsAAAARecord(IPAddress.IPv6Loopback) });
 
@@ -3697,10 +3700,24 @@ namespace DnsServerCore
                 }
 
                 {
-                    string prtDomain = new DnsQuestionRecord(IPAddress.Loopback, DnsClass.IN).Name;
+                    string prtDomain = "0.in-addr.arpa";
 
-                    CreateZone(prtDomain);
-                    _dnsServer.AuthoritativeZoneRoot.SetRecords(prtDomain, DnsResourceRecordType.PTR, 3600, new DnsResourceRecordData[] { new DnsPTRRecord("localhost") });
+                    CreateZone(prtDomain, true);
+                    SaveZoneFile(prtDomain);
+                }
+
+                {
+                    string prtDomain = "255.in-addr.arpa";
+
+                    CreateZone(prtDomain, true);
+                    SaveZoneFile(prtDomain);
+                }
+
+                {
+                    string prtDomain = "127.in-addr.arpa";
+
+                    CreateZone(prtDomain, true);
+                    _dnsServer.AuthoritativeZoneRoot.SetRecords("1.0.0.127.in-addr.arpa", DnsResourceRecordType.PTR, 3600, new DnsResourceRecordData[] { new DnsPTRRecord("localhost") });
 
                     SaveZoneFile(prtDomain);
                 }
@@ -3708,7 +3725,7 @@ namespace DnsServerCore
                 {
                     string prtDomain = new DnsQuestionRecord(IPAddress.IPv6Loopback, DnsClass.IN).Name;
 
-                    CreateZone(prtDomain);
+                    CreateZone(prtDomain, true);
                     _dnsServer.AuthoritativeZoneRoot.SetRecords(prtDomain, DnsResourceRecordType.PTR, 3600, new DnsResourceRecordData[] { new DnsPTRRecord("localhost") });
 
                     SaveZoneFile(prtDomain);
@@ -3814,15 +3831,13 @@ namespace DnsServerCore
         private void SaveZoneFile(string domain)
         {
             domain = domain.ToLower();
-            DnsResourceRecord[] records = _dnsServer.AuthoritativeZoneRoot.GetAllRecords(domain, DnsResourceRecordType.ANY, true, true);
-            if (records.Length == 0)
+            List<DnsResourceRecord> records = _dnsServer.AuthoritativeZoneRoot.GetAllRecords(domain, DnsResourceRecordType.ANY, true, true);
+            if (records.Count == 0)
                 throw new WebServiceException("Zone '" + domain + "' was not found.");
 
             string authZone = records[0].Name.ToLower();
 
             ZoneInfo zoneInfo = _dnsServer.AuthoritativeZoneRoot.GetZoneInfo(domain);
-            if (zoneInfo.Internal)
-                return;
 
             using (MemoryStream mS = new MemoryStream())
             {
@@ -3833,7 +3848,8 @@ namespace DnsServerCore
                 bW.Write((byte)3); //version
 
                 bW.Write(_dnsServer.AuthoritativeZoneRoot.IsZoneDisabled(domain));
-                bW.Write(records.Length);
+                //store internal zone boolean
+                bW.Write(records.Count);
 
                 foreach (DnsResourceRecord record in records)
                 {
@@ -4857,21 +4873,6 @@ namespace DnsServerCore
                 _log.Write("Failed to start Web Service (v" + _currentVersion + ")\r\n" + ex.ToString());
                 throw;
             }
-
-            //Scope scope = new Scope("test", IPAddress.Parse("192.168.120.1"), IPAddress.Parse("192.168.120.100"), IPAddress.Parse("255.255.255.0"), true);
-
-            //scope.RouterAddress = IPAddress.Parse("192.168.120.1");
-            //scope.DnsServers = new IPAddress[] { IPAddress.Parse("192.168.10.4") };
-            //scope.WinsServers = new IPAddress[] { IPAddress.Parse("192.168.10.4") };
-            //scope.NtpServers = new IPAddress[] { IPAddress.Parse("192.168.10.4") };
-            //scope.StaticRoutes = new Dhcp.Options.ClasslessStaticRouteOption.Route[] { new Dhcp.Options.ClasslessStaticRouteOption.Route(IPAddress.Parse("192.168.10.0"), IPAddress.Parse("255.255.255.0"), IPAddress.Parse("192.168.10.4")) };
-            //scope.OfferDelayTime = 2;
-            //scope.DomainName = "local";
-            //scope.Enabled = true;
-            //scope.AddExclusion(IPAddress.Parse("192.168.120.1"), IPAddress.Parse("192.168.120.10"));
-            //scope.AddReservedLease(new byte[] { 0x00, 0x0C, 0x29, 0x36, 0xC9, 0x84 }, IPAddress.Parse("192.168.120.50"));
-
-            //_dhcpServer.AddScope(scope);
         }
 
         public void Stop()
