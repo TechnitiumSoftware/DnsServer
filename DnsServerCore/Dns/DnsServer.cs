@@ -1,6 +1,6 @@
 ﻿/*
 Technitium DNS Server
-Copyright (C) 2019  Shreyas Zare (shreyas@technitium.com)
+Copyright (C) 2020  Shreyas Zare (shreyas@technitium.com)
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -867,17 +867,22 @@ namespace DnsServerCore.Dns
                     if ((request.Question.Length != 1) || (request.Question[0].Class != DnsClass.IN))
                         return new DnsDatagram(new DnsHeader(request.Header.Identifier, true, DnsOpcode.StandardQuery, false, false, request.Header.RecursionDesired, isRecursionAllowed, false, false, DnsResponseCode.Refused, request.Header.QDCOUNT, 0, 0, 0), request.Question, null, null, null);
 
-                    switch (request.Question[0].Type)
-                    {
-                        case DnsResourceRecordType.IXFR:
-                        case DnsResourceRecordType.AXFR:
-                        case DnsResourceRecordType.MAILB:
-                        case DnsResourceRecordType.MAILA:
-                            return new DnsDatagram(new DnsHeader(request.Header.Identifier, true, DnsOpcode.StandardQuery, false, false, request.Header.RecursionDesired, isRecursionAllowed, false, false, DnsResponseCode.NotImplemented, request.Header.QDCOUNT, 0, 0, 0), request.Question, null, null, null);
-                    }
-
                     try
                     {
+                        switch (request.Question[0].Type)
+                        {
+                            case DnsResourceRecordType.IXFR:
+                            case DnsResourceRecordType.AXFR:
+                                if (protocol == DnsTransportProtocol.Udp)
+                                    return new DnsDatagram(new DnsHeader(request.Header.Identifier, true, DnsOpcode.StandardQuery, false, false, request.Header.RecursionDesired, isRecursionAllowed, false, false, DnsResponseCode.FormatError, request.Header.QDCOUNT, 0, 0, 0), request.Question, null, null, null);
+
+                                return ProcessZoneTransferQuery(request, remoteEP, isRecursionAllowed);
+
+                            case DnsResourceRecordType.MAILB:
+                            case DnsResourceRecordType.MAILA:
+                                return new DnsDatagram(new DnsHeader(request.Header.Identifier, true, DnsOpcode.StandardQuery, false, false, request.Header.RecursionDesired, isRecursionAllowed, false, false, DnsResponseCode.NotImplemented, request.Header.QDCOUNT, 0, 0, 0), request.Question, null, null, null);
+                        }
+
                         //query authoritative zone
                         DnsDatagram authoritativeResponse = ProcessAuthoritativeQuery(request, isRecursionAllowed);
 
@@ -943,6 +948,87 @@ namespace DnsServerCore.Dns
                 default:
                     return new DnsDatagram(new DnsHeader(request.Header.Identifier, true, request.Header.OPCODE, false, false, request.Header.RecursionDesired, isRecursionAllowed, false, false, DnsResponseCode.Refused, request.Header.QDCOUNT, 0, 0, 0), request.Question, null, null, null);
             }
+        }
+
+        private DnsDatagram ProcessZoneTransferQuery(DnsDatagram request, EndPoint remoteEP, bool isRecursionAllowed)
+        {
+            string zoneName = request.Question[0].Name;
+
+            if (!_authoritativeZoneRoot.ZoneExistsAndEnabled(zoneName))
+                return new DnsDatagram(new DnsHeader(request.Header.Identifier, true, DnsOpcode.StandardQuery, false, false, request.Header.RecursionDesired, isRecursionAllowed, false, false, DnsResponseCode.NameError, request.Header.QDCOUNT, 0, 0, 0), request.Question, null, null, null) { Tag = "authHit" };
+
+            List<DnsResourceRecord> axfrRecords = _authoritativeZoneRoot.GetAllRecords(zoneName, DnsResourceRecordType.AXFR, true, true);
+            if (axfrRecords.Count == 0)
+                return new DnsDatagram(new DnsHeader(request.Header.Identifier, true, DnsOpcode.StandardQuery, false, false, request.Header.RecursionDesired, isRecursionAllowed, false, false, DnsResponseCode.NameError, request.Header.QDCOUNT, 0, 0, 0), request.Question, null, null, null) { Tag = "authHit" };
+
+            bool isAxfrAllowed = false;
+            DnsResourceRecordType type;
+
+            switch (remoteEP.AddressFamily)
+            {
+                case AddressFamily.InterNetwork:
+                    type = DnsResourceRecordType.A;
+                    break;
+
+                case AddressFamily.InterNetworkV6:
+                    type = DnsResourceRecordType.AAAA;
+                    break;
+
+                default:
+                    throw new NotSupportedException("AddressFamily not supported.");
+            }
+
+            IPAddress remoteAddress = (remoteEP as IPEndPoint).Address;
+
+            if (IPAddress.IsLoopback(remoteAddress))
+            {
+                isAxfrAllowed = true;
+            }
+            else
+            {
+                foreach (DnsResourceRecord rr in axfrRecords)
+                {
+                    if (rr.Type == DnsResourceRecordType.NS)
+                    {
+                        string nameServer = (rr.RDATA as DnsNSRecord).NSDomainName;
+
+                        try
+                        {
+                            DnsDatagram response = DirectQuery(new DnsQuestionRecord(nameServer, type, DnsClass.IN));
+                            if (response == null)
+                                continue;
+
+                            IPAddress[] addresses;
+
+                            if (type == DnsResourceRecordType.A)
+                                addresses = DnsClient.ParseResponseA(response);
+                            else
+                                addresses = DnsClient.ParseResponseAAAA(response);
+
+                            foreach (IPAddress address in addresses)
+                            {
+                                if (remoteAddress.Equals(address))
+                                {
+                                    isAxfrAllowed = true;
+                                    break;
+                                }
+                            }
+                        }
+                        catch
+                        {
+                            //ignore error
+                        }
+                    }
+
+                    if (isAxfrAllowed)
+                        break;
+                }
+            }
+
+            if (!isAxfrAllowed)
+                return new DnsDatagram(new DnsHeader(request.Header.Identifier, true, DnsOpcode.StandardQuery, false, false, request.Header.RecursionDesired, isRecursionAllowed, false, false, DnsResponseCode.Refused, request.Header.QDCOUNT, 0, 0, 0), request.Question, null, null, null) { Tag = "authHit" };
+
+            return new DnsDatagram(new DnsHeader(request.Header.Identifier, true, DnsOpcode.StandardQuery, true, false, request.Header.RecursionDesired, isRecursionAllowed, false, false, DnsResponseCode.NoError, request.Header.QDCOUNT, Convert.ToUInt16(axfrRecords.Count), 0, 0), request.Question, axfrRecords.ToArray(), null, null) { Tag = "authHit" };
         }
 
         private DnsDatagram ProcessAuthoritativeQuery(DnsDatagram request, bool isRecursionAllowed)

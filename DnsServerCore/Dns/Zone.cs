@@ -1,6 +1,6 @@
 ﻿/*
 Technitium DNS Server
-Copyright (C) 2019  Shreyas Zare (shreyas@technitium.com)
+Copyright (C) 2020  Shreyas Zare (shreyas@technitium.com)
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -25,10 +25,19 @@ using TechnitiumLibrary.Net.Dns.ResourceRecords;
 
 namespace DnsServerCore.Dns
 {
+    public enum ZoneType
+    {
+        Cache = 0,
+        Primary = 1,
+        Secondary = 2,
+        Stub = 3
+    }
+
     public class Zone
     {
         #region variables
 
+        readonly ZoneType zoneType;
         readonly bool _authoritativeZone;
 
         readonly Zone _parentZone;
@@ -345,6 +354,21 @@ namespace DnsServerCore.Dns
                         allRecords.AddRange(entry.Value);
                 }
             }
+            else if (type == DnsResourceRecordType.AXFR)
+            {
+                includeSubDomains = true;
+
+                if (!_entries.TryGetValue(DnsResourceRecordType.SOA, out DnsResourceRecord[] soaRecord))
+                    throw new DnsServerException("No SOA record found for AXFR in current zone.");
+
+                allRecords.Add(soaRecord[0]);
+
+                foreach (KeyValuePair<DnsResourceRecordType, DnsResourceRecord[]> entry in _entries)
+                {
+                    if (entry.Key != DnsResourceRecordType.SOA)
+                        allRecords.AddRange(entry.Value);
+                }
+            }
             else if (_entries.TryGetValue(type, out DnsResourceRecord[] existingRecords))
             {
                 allRecords.AddRange(existingRecords);
@@ -352,12 +376,22 @@ namespace DnsServerCore.Dns
 
             if (includeSubDomains)
             {
+                DnsResourceRecordType subType;
+
+                if (type == DnsResourceRecordType.AXFR)
+                    subType = DnsResourceRecordType.ANY;
+                else
+                    subType = type;
+
                 foreach (KeyValuePair<string, Zone> zone in _zones)
                 {
                     if (!zone.Value._entries.ContainsKey(DnsResourceRecordType.SOA))
-                        allRecords.AddRange(zone.Value.GetAllRecords(type, true));
+                        allRecords.AddRange(zone.Value.GetAllRecords(subType, true));
                 }
             }
+
+            if (type == DnsResourceRecordType.AXFR)
+                allRecords.Add(allRecords[0]);
 
             return allRecords;
         }
@@ -1009,13 +1043,13 @@ namespace DnsServerCore.Dns
                 currentZone.DeleteRecords(type);
         }
 
-        public DnsResourceRecord[] GetAllRecords(string domain = "", DnsResourceRecordType type = DnsResourceRecordType.ANY, bool includeSubDomains = true, bool authoritative = false)
+        public List<DnsResourceRecord> GetAllRecords(string domain = "", DnsResourceRecordType type = DnsResourceRecordType.ANY, bool includeSubDomains = true, bool authoritative = false)
         {
             Zone currentZone = GetZone(this, domain, authoritative);
             if (currentZone == null)
-                return new DnsResourceRecord[] { };
+                return new List<DnsResourceRecord>();
 
-            return currentZone.GetAllRecords(type, includeSubDomains).ToArray();
+            return currentZone.GetAllRecords(type, includeSubDomains);
         }
 
         public string[] ListSubZones(string domain = "")
@@ -1070,21 +1104,21 @@ namespace DnsServerCore.Dns
 
         public void DisableZone(string domain)
         {
-            Zone currentZone = GetZone(this, domain, false);
+            Zone currentZone = GetZone(this, domain, true);
             if (currentZone != null)
                 currentZone._disabled = true;
         }
 
         public void EnableZone(string domain)
         {
-            Zone currentZone = GetZone(this, domain, false);
+            Zone currentZone = GetZone(this, domain, true);
             if (currentZone != null)
                 currentZone._disabled = false;
         }
 
         public bool IsZoneDisabled(string domain)
         {
-            Zone currentZone = GetZone(this, domain, false);
+            Zone currentZone = GetZone(this, domain, true);
             if (currentZone != null)
                 return currentZone._disabled;
 
@@ -1093,13 +1127,13 @@ namespace DnsServerCore.Dns
 
         public bool ZoneExists(string domain)
         {
-            Zone currentZone = GetZone(this, domain, false);
+            Zone currentZone = GetZone(this, domain, true);
             return (currentZone != null);
         }
 
         public bool ZoneExistsAndEnabled(string domain)
         {
-            Zone currentZone = GetZone(this, domain, false);
+            Zone currentZone = GetZone(this, domain, true);
             return (currentZone != null) && !currentZone._disabled;
         }
 
