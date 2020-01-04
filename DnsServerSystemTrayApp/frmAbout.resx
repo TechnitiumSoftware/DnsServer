@@ -192,7 +192,7 @@
     <value>True</value>
   </metadata>
   <data name="label4.Text" xml:space="preserve">
-    <value>Copyright (C) 2019  Shreyas Zare (shreyas@technitium.com)
+    <value>Copyright (C) 2020  Shreyas Zare (shreyas@technitium.com)
 This program comes with ABSOLUTELY NO WARRANTY. This is free software, and you are welcome to redistribute it under certain conditions. Click link below for details:</value>
   </data>
   <metadata name="lnkTerms.Locked" type="System.Boolean, mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089">

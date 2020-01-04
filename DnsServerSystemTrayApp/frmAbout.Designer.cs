@@ -173,9 +173,9 @@
             this.labVersion.ForeColor = System.Drawing.Color.FromArgb(((int)(((byte)(45)))), ((int)(((byte)(57)))), ((int)(((byte)(69)))));
             this.labVersion.Location = new System.Drawing.Point(86, 132);
             this.labVersion.Name = "labVersion";
-            this.labVersion.Size = new System.Drawing.Size(147, 18);
+            this.labVersion.Size = new System.Drawing.Size(102, 18);
             this.labVersion.TabIndex = 38;
-            this.labVersion.Text = "version x.x.x.x (beta)";
+            this.labVersion.Text = "version x.x.x.x";
             // 
             // label5
             // 
@@ -188,7 +188,7 @@
             this.label5.TabIndex = 39;
             this.label5.Text = "System Tray App";
             // 
-            // AboutForm
+            // frmAbout
             // 
             this.AcceptButton = this.btnClose;
             this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 13F);
@@ -211,7 +211,7 @@
             this.Icon = ((System.Drawing.Icon)(resources.GetObject("$this.Icon")));
             this.MaximizeBox = false;
             this.MinimizeBox = false;
-            this.Name = "AboutForm";
+            this.Name = "frmAbout";
             this.StartPosition = System.Windows.Forms.FormStartPosition.CenterScreen;
             this.Text = "About Technitium DNS Server";
             this.panel1.ResumeLayout(false);

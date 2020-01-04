@@ -27,7 +27,7 @@ namespace DnsServerSystemTrayApp
         {
             InitializeComponent();
 
-            labVersion.Text = "version " + Application.ProductVersion + " (beta)";
+            labVersion.Text = "version " + Application.ProductVersion;
         }
 
         private void lnkContactEmail_LinkClicked(object sender, LinkLabelLinkClickedEventArgs e)
