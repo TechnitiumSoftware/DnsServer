@@ -1,6 +1,6 @@
 ﻿/*
 Technitium DNS Server
-Copyright (C) 2019  Shreyas Zare (shreyas@technitium.com)
+Copyright (C) 2020  Shreyas Zare (shreyas@technitium.com)
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -225,12 +225,12 @@ $(function () {
                 break;
 
             case "cloudflare-https":
-                $("#txtForwarders").val("https://cloudflare-dns.com/dns-query");
+                $("#txtForwarders").val("https://cloudflare-dns.com/dns-query (1.1.1.1)\r\nhttps://cloudflare-dns.com/dns-query (1.0.0.1)");
                 $("#rdForwarderProtocolHttps").prop("checked", true);
                 break;
 
             case "cloudflare-json":
-                $("#txtForwarders").val("https://cloudflare-dns.com/dns-query");
+                $("#txtForwarders").val("https://cloudflare-dns.com/dns-query (1.1.1.1)\r\nhttps://cloudflare-dns.com/dns-query (1.0.0.1)");
                 $("#rdForwarderProtocolHttpsJson").prop("checked", true);
                 break;
 
@@ -281,12 +281,12 @@ $(function () {
                 break;
 
             case "google-https":
-                $("#txtForwarders").val("https://dns.google/dns-query");
+                $("#txtForwarders").val("https://dns.google/dns-query (8.8.8.8)\r\nhttps://dns.google/dns-query (8.8.4.4)");
                 $("#rdForwarderProtocolHttps").prop("checked", true);
                 break;
 
             case "google-json":
-                $("#txtForwarders").val("https://dns.google/resolve");
+                $("#txtForwarders").val("https://dns.google/dns-query (8.8.8.8)\r\nhttps://dns.google/dns-query (8.8.4.4)");
                 $("#rdForwarderProtocolHttpsJson").prop("checked", true);
                 break;
 
@@ -322,7 +322,7 @@ $(function () {
                 break;
 
             case "quad9-https":
-                $("#txtForwarders").val("https://dns.quad9.net/dns-query");
+                $("#txtForwarders").val("https://dns.quad9.net/dns-query (9.9.9.9)");
                 $("#rdForwarderProtocolHttps").prop("checked", true);
                 break;
 
@@ -1663,7 +1663,7 @@ function downloadLog() {
 
     var logFile = $("#txtLogViewerTitle").text();
 
-    window.open("/log/" + logFile + "?token=" + token, "_blank");
+    window.open("/log/" + logFile + "?token=" + token + "&ts=" + (new Date().getTime()), "_blank");
 
     return false;
 }
