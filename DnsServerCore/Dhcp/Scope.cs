@@ -1,6 +1,6 @@
 ﻿/*
 Technitium DNS Server
-Copyright (C) 2019  Shreyas Zare (shreyas@technitium.com)
+Copyright (C) 2020  Shreyas Zare (shreyas@technitium.com)
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -527,6 +527,11 @@ namespace DnsServerCore.Dhcp
                     if (reservedLease.ClientIdentifier.Equals(clientIdentifierKey))
                     {
                         //reserved address exists
+                        IPAddress reservedLeaseAddress = reservedLease.Address;
+
+                        if (!IsAddressAvailable(ref reservedLeaseAddress))
+                            break; //reserved lease address is already allocated so ignore reserved lease
+
                         Lease reservedOffer = new Lease(LeaseType.Reserved, request.ClientIdentifier, request.HostName?.HostName, request.ClientHardwareAddress, reservedLease.Address, null, GetLeaseTime());
 
                         return _offers.AddOrUpdate(request.ClientIdentifier, reservedOffer, delegate (ClientIdentifierOption key, Lease existingValue)
