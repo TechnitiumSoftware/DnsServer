@@ -889,50 +889,6 @@ namespace DnsServerCore.Dns
                         if ((authoritativeResponse.Header.RCODE != DnsResponseCode.Refused) || !request.Header.RecursionDesired || !isRecursionAllowed)
                             return authoritativeResponse;
 
-                        //query blocked zone
-                        DnsDatagram blockedResponse = _blockedZoneRoot.Query(request);
-
-                        if (blockedResponse.Header.RCODE != DnsResponseCode.Refused)
-                        {
-                            //query allowed zone
-                            DnsDatagram allowedResponse = _allowedZoneRoot.Query(request);
-
-                            if (allowedResponse.Header.RCODE == DnsResponseCode.Refused)
-                            {
-                                //request domain not in allowed zone
-
-                                if (blockedResponse.Header.RCODE == DnsResponseCode.NameError)
-                                {
-                                    DnsResourceRecord[] answer;
-                                    DnsResourceRecord[] authority;
-
-                                    switch (blockedResponse.Question[0].Type)
-                                    {
-                                        case DnsResourceRecordType.A:
-                                            answer = new DnsResourceRecord[] { new DnsResourceRecord(blockedResponse.Question[0].Name, DnsResourceRecordType.A, blockedResponse.Question[0].Class, 60, new DnsARecord(IPAddress.Any)) };
-                                            authority = new DnsResourceRecord[] { };
-                                            break;
-
-                                        case DnsResourceRecordType.AAAA:
-                                            answer = new DnsResourceRecord[] { new DnsResourceRecord(blockedResponse.Question[0].Name, DnsResourceRecordType.AAAA, blockedResponse.Question[0].Class, 60, new DnsAAAARecord(IPAddress.IPv6Any)) };
-                                            authority = new DnsResourceRecord[] { };
-                                            break;
-
-                                        default:
-                                            answer = blockedResponse.Answer;
-                                            authority = blockedResponse.Authority;
-                                            break;
-                                    }
-
-                                    blockedResponse = new DnsDatagram(new DnsHeader(blockedResponse.Header.Identifier, true, blockedResponse.Header.OPCODE, false, false, blockedResponse.Header.RecursionDesired, isRecursionAllowed, false, false, DnsResponseCode.NoError, blockedResponse.Header.QDCOUNT, (ushort)answer.Length, (ushort)authority.Length, 0), blockedResponse.Question, answer, authority, null);
-                                }
-
-                                //return blocked response
-                                blockedResponse.Tag = "blocked";
-                                return blockedResponse;
-                            }
-                        }
-
                         //do recursive query
                         return ProcessRecursiveQuery(request);
                     }
@@ -1137,9 +1093,60 @@ namespace DnsServerCore.Dns
             return response;
         }
 
+        private DnsDatagram ProcessBlockedQuery(DnsDatagram request, bool isRecursionAllowed)
+        {
+            DnsDatagram blockedResponse = _blockedZoneRoot.Query(request);
+
+            if (blockedResponse.Header.RCODE == DnsResponseCode.Refused)
+                return null; //domain not blocked
+
+            //query allowed zone
+            DnsDatagram allowedResponse = _allowedZoneRoot.Query(request);
+
+            if (allowedResponse.Header.RCODE != DnsResponseCode.Refused)
+                return null; //domain is allowed
+
+            //request domain not in allowed zone
+            if (blockedResponse.Header.RCODE == DnsResponseCode.NameError)
+            {
+                DnsResourceRecord[] answer;
+                DnsResourceRecord[] authority;
+
+                switch (blockedResponse.Question[0].Type)
+                {
+                    case DnsResourceRecordType.A:
+                        answer = new DnsResourceRecord[] { new DnsResourceRecord(blockedResponse.Question[0].Name, DnsResourceRecordType.A, blockedResponse.Question[0].Class, 60, new DnsARecord(IPAddress.Any)) };
+                        authority = new DnsResourceRecord[] { };
+                        break;
+
+                    case DnsResourceRecordType.AAAA:
+                        answer = new DnsResourceRecord[] { new DnsResourceRecord(blockedResponse.Question[0].Name, DnsResourceRecordType.AAAA, blockedResponse.Question[0].Class, 60, new DnsAAAARecord(IPAddress.IPv6Any)) };
+                        authority = new DnsResourceRecord[] { };
+                        break;
+
+                    default:
+                        answer = blockedResponse.Answer;
+                        authority = blockedResponse.Authority;
+                        break;
+                }
+
+                blockedResponse = new DnsDatagram(new DnsHeader(blockedResponse.Header.Identifier, true, blockedResponse.Header.OPCODE, false, false, blockedResponse.Header.RecursionDesired, isRecursionAllowed, false, false, DnsResponseCode.NoError, blockedResponse.Header.QDCOUNT, (ushort)answer.Length, (ushort)authority.Length, 0), blockedResponse.Question, answer, authority, null);
+            }
+
+            //return blocked response
+            blockedResponse.Tag = "blocked";
+            return blockedResponse;
+        }
+
         private DnsDatagram ProcessRecursiveQuery(DnsDatagram request, NameServerAddress[] viaNameServers = null, bool cacheRefreshOperation = false)
         {
-            DnsDatagram response = RecursiveResolve(request, viaNameServers, false, cacheRefreshOperation);
+            //check if request domain is blocked to prevent cname cloaking
+            DnsDatagram response = ProcessBlockedQuery(request, true);
+            if (response != null)
+                return response;
+
+            //request domain is not blocked to do recursive resolution
+            response = RecursiveResolve(request, viaNameServers, false, cacheRefreshOperation);
 
             DnsResourceRecord[] authority;
             DnsResourceRecord[] additional;
@@ -1160,9 +1167,12 @@ namespace DnsServerCore.Dns
 
                     while (true)
                     {
-                        DnsQuestionRecord question = new DnsQuestionRecord((lastRR.RDATA as DnsCNAMERecord).CNAMEDomainName, questionType, questionClass);
+                        DnsDatagram cnameRequest = new DnsDatagram(new DnsHeader(0, false, DnsOpcode.StandardQuery, false, false, true, false, false, false, DnsResponseCode.NoError, 1, 0, 0, 0), new DnsQuestionRecord[] { new DnsQuestionRecord((lastRR.RDATA as DnsCNAMERecord).CNAMEDomainName, questionType, questionClass) }, null, null, null);
 
-                        lastResponse = RecursiveResolve(new DnsDatagram(new DnsHeader(0, false, DnsOpcode.StandardQuery, false, false, true, false, false, false, DnsResponseCode.NoError, 1, 0, 0, 0), new DnsQuestionRecord[] { question }, null, null, null), null, false, cacheRefreshOperation);
+                        //check if cname domain is blocked to prevent cname cloaking
+                        lastResponse = ProcessBlockedQuery(cnameRequest, true);
+                        if (lastResponse == null)
+                            lastResponse = RecursiveResolve(cnameRequest, null, false, cacheRefreshOperation); //cname domain is not blocked to do recursive resolution
 
                         //reset response tag to null for correct stats classification as recursive query
                         if (lastResponse.Tag == null)
@@ -1544,15 +1554,19 @@ namespace DnsServerCore.Dns
                                 DnsDatagram response = ProcessRecursiveQuery(new DnsDatagram(new DnsHeader(0, false, DnsOpcode.StandardQuery, false, false, true, false, false, false, DnsResponseCode.NoError, 1, 0, 0, 0), new DnsQuestionRecord[] { sampleQuestion }, null, null, null), null, true);
 
                                 bool removeFromSampleList = true;
-                                DateTime utcNow = DateTime.UtcNow;
 
-                                foreach (DnsResourceRecord answer in response.Answer)
+                                if (!"blocked".Equals(response.Tag)) //if response is from blocked zone then let the domain be removed from the sample list
                                 {
-                                    if ((answer.OriginalTtlValue > _cachePrefetchEligibility) && (utcNow.AddSeconds(answer.TtlValue) < _cachePrefetchSamplingTimerTriggersOn))
+                                    DateTime utcNow = DateTime.UtcNow;
+
+                                    foreach (DnsResourceRecord answer in response.Answer)
                                     {
-                                        //answer expires before next sampling so dont remove from list to allow refreshing it
-                                        removeFromSampleList = false;
-                                        break;
+                                        if ((answer.OriginalTtlValue > _cachePrefetchEligibility) && (utcNow.AddSeconds(answer.TtlValue) < _cachePrefetchSamplingTimerTriggersOn))
+                                        {
+                                            //answer expires before next sampling so dont remove from list to allow refreshing it
+                                            removeFromSampleList = false;
+                                            break;
+                                        }
                                     }
                                 }
 
