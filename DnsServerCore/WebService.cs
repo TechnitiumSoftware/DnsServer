@@ -1,6 +1,6 @@
 ﻿/*
 Technitium DNS Server
-Copyright (C) 2019  Shreyas Zare (shreyas@technitium.com)
+Copyright (C) 2020  Shreyas Zare (shreyas@technitium.com)
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -1823,7 +1823,7 @@ namespace DnsServerCore
 
                 if (direction == "up")
                 {
-                    if (domain == "")
+                    if (domain.Length == 0)
                         break;
 
                     int i = domain.IndexOf('.');
@@ -1832,7 +1832,7 @@ namespace DnsServerCore
                     else
                         domain = domain.Substring(i + 1);
                 }
-                else if (domain == "")
+                else if (domain.Length == 0)
                 {
                     domain = subZones[0];
                 }
@@ -1850,7 +1850,7 @@ namespace DnsServerCore
             jsonWriter.WritePropertyName("zones");
             jsonWriter.WriteStartArray();
 
-            if (domain != "")
+            if (domain.Length != 0)
                 domain = "." + domain;
 
             foreach (string subZone in subZones)
@@ -1896,7 +1896,7 @@ namespace DnsServerCore
 
                 if (direction == "up")
                 {
-                    if (domain == "")
+                    if (domain.Length == 0)
                         break;
 
                     int i = domain.IndexOf('.');
@@ -1905,7 +1905,7 @@ namespace DnsServerCore
                     else
                         domain = domain.Substring(i + 1);
                 }
-                else if (domain == "")
+                else if (domain.Length == 0)
                 {
                     domain = subZones[0];
                 }
@@ -1923,7 +1923,7 @@ namespace DnsServerCore
             jsonWriter.WritePropertyName("zones");
             jsonWriter.WriteStartArray();
 
-            if (domain != "")
+            if (domain.Length != 0)
                 domain = "." + domain;
 
             foreach (string subZone in subZones)
@@ -2045,7 +2045,7 @@ namespace DnsServerCore
 
                 if (direction == "up")
                 {
-                    if (domain == "")
+                    if (domain.Length == 0)
                         break;
 
                     int i = domain.IndexOf('.');
@@ -2054,7 +2054,7 @@ namespace DnsServerCore
                     else
                         domain = domain.Substring(i + 1);
                 }
-                else if (domain == "")
+                else if (domain.Length == 0)
                 {
                     domain = subZones[0];
                 }
@@ -2072,7 +2072,7 @@ namespace DnsServerCore
             jsonWriter.WritePropertyName("zones");
             jsonWriter.WriteStartArray();
 
-            if (domain != "")
+            if (domain.Length != 0)
                 domain = "." + domain;
 
             foreach (string subZone in subZones)
@@ -3438,7 +3438,7 @@ namespace DnsServerCore
 
             string strDomainName = request.QueryString["domainName"];
             if (strDomainName != null)
-                scope.DomainName = strDomainName == "" ? null : strDomainName;
+                scope.DomainName = strDomainName.Length == 0 ? null : strDomainName;
 
             string strDnsTtl = request.QueryString["dnsTtl"];
             if (!string.IsNullOrEmpty(strDnsTtl))
@@ -3446,7 +3446,7 @@ namespace DnsServerCore
 
             string strRouterAddress = request.QueryString["routerAddress"];
             if (strRouterAddress != null)
-                scope.RouterAddress = strRouterAddress == "" ? null : IPAddress.Parse(strRouterAddress);
+                scope.RouterAddress = strRouterAddress.Length == 0 ? null : IPAddress.Parse(strRouterAddress);
 
             string strUseThisDnsServer = request.QueryString["useThisDnsServer"];
             if (!string.IsNullOrEmpty(strUseThisDnsServer))
@@ -3457,7 +3457,7 @@ namespace DnsServerCore
                 string strDnsServers = request.QueryString["dnsServers"];
                 if (strDnsServers != null)
                 {
-                    if (strDnsServers == "")
+                    if (strDnsServers.Length == 0)
                     {
                         scope.DnsServers = null;
                     }
@@ -3477,7 +3477,7 @@ namespace DnsServerCore
             string strWinsServers = request.QueryString["winsServers"];
             if (strWinsServers != null)
             {
-                if (strWinsServers == "")
+                if (strWinsServers.Length == 0)
                 {
                     scope.WinsServers = null;
                 }
@@ -3496,7 +3496,7 @@ namespace DnsServerCore
             string strNtpServers = request.QueryString["ntpServers"];
             if (strNtpServers != null)
             {
-                if (strNtpServers == "")
+                if (strNtpServers.Length == 0)
                 {
                     scope.NtpServers = null;
                 }
@@ -3515,7 +3515,7 @@ namespace DnsServerCore
             string strStaticRoutes = request.QueryString["staticRoutes"];
             if (strStaticRoutes != null)
             {
-                if (strStaticRoutes == "")
+                if (strStaticRoutes.Length == 0)
                 {
                     scope.StaticRoutes = null;
                 }
@@ -3538,7 +3538,7 @@ namespace DnsServerCore
             string strExclusions = request.QueryString["exclusions"];
             if (strExclusions != null)
             {
-                if (strExclusions == "")
+                if (strExclusions.Length == 0)
                 {
                     scope.Exclusions = null;
                 }
@@ -3561,7 +3561,7 @@ namespace DnsServerCore
             string strReservedLeases = request.QueryString["reservedLeases"];
             if (strReservedLeases != null)
             {
-                if (strReservedLeases == "")
+                if (strReservedLeases.Length == 0)
                 {
                     scope.ReservedLeases = null;
                 }
@@ -4213,7 +4213,7 @@ namespace DnsServerCore
 
         private static string PopWord(ref string line)
         {
-            if (line == "")
+            if (line.Length == 0)
                 return line;
 
             line = line.TrimStart(' ', '\t');
@@ -4494,7 +4494,7 @@ namespace DnsServerCore
                                 _tlsCertificatePath = bR.ReadShortString();
                                 _tlsCertificatePassword = bR.ReadShortString();
 
-                                if (_tlsCertificatePath == "")
+                                if (_tlsCertificatePath.Length == 0)
                                     _tlsCertificatePath = null;
 
                                 if (_tlsCertificatePath != null)

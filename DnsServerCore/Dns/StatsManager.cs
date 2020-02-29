@@ -1,6 +1,6 @@
 ﻿/*
 Technitium DNS Server
-Copyright (C) 2019  Shreyas Zare (shreyas@technitium.com)
+Copyright (C) 2020  Shreyas Zare (shreyas@technitium.com)
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -199,7 +199,7 @@ namespace DnsServerCore.Dns
                 }
 
                 foreach (DateTime key in _keysToRemove)
-                    _hourlyStatsCache.TryRemove(key, out HourlyStats hourlyStats);
+                    _hourlyStatsCache.TryRemove(key, out _);
             }
 
             //remove old data from daily stats cache
@@ -216,16 +216,15 @@ namespace DnsServerCore.Dns
                 }
 
                 foreach (DateTime key in _keysToRemove)
-                    _dailyStatsCache.TryRemove(key, out StatCounter dailyStats);
+                    _dailyStatsCache.TryRemove(key, out _);
             }
         }
 
         private HourlyStats LoadHourlyStats(DateTime dateTime)
         {
-            HourlyStats hourlyStats;
             DateTime hourlyDateTime = new DateTime(dateTime.Year, dateTime.Month, dateTime.Day, dateTime.Hour, 0, 0, 0, DateTimeKind.Utc);
 
-            if (!_hourlyStatsCache.TryGetValue(hourlyDateTime, out hourlyStats))
+            if (!_hourlyStatsCache.TryGetValue(hourlyDateTime, out HourlyStats hourlyStats))
             {
                 string hourlyStatsFile = Path.Combine(_statsFolder, dateTime.ToString("yyyyMMddHH") + ".stat");
 
@@ -261,10 +260,9 @@ namespace DnsServerCore.Dns
 
         private StatCounter LoadDailyStats(DateTime dateTime)
         {
-            StatCounter dailyStats;
             DateTime dailyDateTime = new DateTime(dateTime.Year, dateTime.Month, dateTime.Day, 0, 0, 0, 0, DateTimeKind.Utc);
 
-            if (!_dailyStatsCache.TryGetValue(dailyDateTime, out dailyStats))
+            if (!_dailyStatsCache.TryGetValue(dailyDateTime, out StatCounter dailyStats))
             {
                 string dailyStatsFile = Path.Combine(_statsFolder, dateTime.ToString("yyyyMMdd") + ".dstat");
 

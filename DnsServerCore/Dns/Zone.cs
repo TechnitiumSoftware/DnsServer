@@ -107,7 +107,7 @@ namespace DnsServerCore.Dns
             DnsClient.IsDomainNameValid(domainName, true);
 
             if (string.IsNullOrEmpty(domainName))
-                return new string[] { };
+                return Array.Empty<string>();
 
             string[] path = domainName.ToLower().Split('.');
             Array.Reverse(path);
@@ -747,7 +747,7 @@ namespace DnsServerCore.Dns
             DnsResourceRecord[] closestAuthority = closestZone.QueryClosestAuthority(rootZone._serverDomain);
 
             if (closestAuthority == null)
-                return new DnsDatagram(new DnsHeader(request.Header.Identifier, true, DnsOpcode.StandardQuery, false, false, request.Header.RecursionDesired, false, false, false, DnsResponseCode.Refused, 1, 0, 0, 0), request.Question, new DnsResourceRecord[] { }, new DnsResourceRecord[] { }, new DnsResourceRecord[] { });
+                return new DnsDatagram(new DnsHeader(request.Header.Identifier, true, DnsOpcode.StandardQuery, false, false, request.Header.RecursionDesired, false, false, false, DnsResponseCode.Refused, 1, 0, 0, 0), request.Question, Array.Empty<DnsResourceRecord>(), Array.Empty<DnsResourceRecord>(), Array.Empty<DnsResourceRecord>());
 
             if (closestAuthority[0].Type == DnsResourceRecordType.SOA)
             {
@@ -759,7 +759,7 @@ namespace DnsServerCore.Dns
                     if (answerRecords == null)
                     {
                         //record type not found
-                        return new DnsDatagram(new DnsHeader(request.Header.Identifier, true, DnsOpcode.StandardQuery, true, false, request.Header.RecursionDesired, false, false, false, DnsResponseCode.NoError, 1, 0, (ushort)closestAuthority.Length, 0), request.Question, new DnsResourceRecord[] { }, closestAuthority, new DnsResourceRecord[] { });
+                        return new DnsDatagram(new DnsHeader(request.Header.Identifier, true, DnsOpcode.StandardQuery, true, false, request.Header.RecursionDesired, false, false, false, DnsResponseCode.NoError, 1, 0, (ushort)closestAuthority.Length, 0), request.Question, Array.Empty<DnsResourceRecord>(), closestAuthority, Array.Empty<DnsResourceRecord>());
                     }
                     else
                     {
@@ -784,13 +784,13 @@ namespace DnsServerCore.Dns
                         {
                             case DnsResourceRecordType.NS:
                             case DnsResourceRecordType.MX:
-                                closestAuthoritativeNameServers = new DnsResourceRecord[] { };
+                                closestAuthoritativeNameServers = Array.Empty<DnsResourceRecord>();
                                 additional = QueryGlueRecords(rootZone, answerRecords, false);
                                 break;
 
                             case DnsResourceRecordType.ANY:
-                                closestAuthoritativeNameServers = new DnsResourceRecord[] { };
-                                additional = new DnsResourceRecord[] { };
+                                closestAuthoritativeNameServers = Array.Empty<DnsResourceRecord>();
+                                additional = Array.Empty<DnsResourceRecord>();
                                 break;
 
                             default:
@@ -798,8 +798,8 @@ namespace DnsServerCore.Dns
 
                                 if (closestAuthoritativeNameServers == null)
                                 {
-                                    closestAuthoritativeNameServers = new DnsResourceRecord[] { };
-                                    additional = new DnsResourceRecord[] { };
+                                    closestAuthoritativeNameServers = Array.Empty<DnsResourceRecord>();
+                                    additional = Array.Empty<DnsResourceRecord>();
                                 }
                                 else
                                 {
@@ -815,7 +815,7 @@ namespace DnsServerCore.Dns
                 else
                 {
                     //zone doesnt exists
-                    return new DnsDatagram(new DnsHeader(request.Header.Identifier, true, DnsOpcode.StandardQuery, true, false, request.Header.RecursionDesired, false, false, false, DnsResponseCode.NameError, 1, 0, (ushort)closestAuthority.Length, 0), request.Question, new DnsResourceRecord[] { }, closestAuthority, new DnsResourceRecord[] { });
+                    return new DnsDatagram(new DnsHeader(request.Header.Identifier, true, DnsOpcode.StandardQuery, true, false, request.Header.RecursionDesired, false, false, false, DnsResponseCode.NameError, 1, 0, (ushort)closestAuthority.Length, 0), request.Question, Array.Empty<DnsResourceRecord>(), closestAuthority, Array.Empty<DnsResourceRecord>());
                 }
             }
             else
@@ -823,7 +823,7 @@ namespace DnsServerCore.Dns
                 //zone is delegated
                 DnsResourceRecord[] additional = QueryGlueRecords(rootZone, closestAuthority, false);
 
-                return new DnsDatagram(new DnsHeader(request.Header.Identifier, true, DnsOpcode.StandardQuery, false, false, request.Header.RecursionDesired, false, false, false, DnsResponseCode.NoError, 1, 0, (ushort)closestAuthority.Length, (ushort)additional.Length), request.Question, new DnsResourceRecord[] { }, closestAuthority, additional);
+                return new DnsDatagram(new DnsHeader(request.Header.Identifier, true, DnsOpcode.StandardQuery, false, false, request.Header.RecursionDesired, false, false, false, DnsResponseCode.NoError, 1, 0, (ushort)closestAuthority.Length, (ushort)additional.Length), request.Question, Array.Empty<DnsResourceRecord>(), closestAuthority, additional);
             }
         }
 
@@ -845,11 +845,11 @@ namespace DnsServerCore.Dns
                         DnsResourceRecord authority = (answerRecords[0].RDATA as DnsCache.DnsEmptyRecord).Authority;
 
                         if (authority == null)
-                            responseAuthority = new DnsResourceRecord[] { };
+                            responseAuthority = Array.Empty<DnsResourceRecord>();
                         else
                             responseAuthority = new DnsResourceRecord[] { authority };
 
-                        return new DnsDatagram(new DnsHeader(request.Header.Identifier, true, DnsOpcode.StandardQuery, false, false, request.Header.RecursionDesired, true, false, false, DnsResponseCode.NoError, 1, 0, 1, 0), request.Question, new DnsResourceRecord[] { }, responseAuthority, new DnsResourceRecord[] { });
+                        return new DnsDatagram(new DnsHeader(request.Header.Identifier, true, DnsOpcode.StandardQuery, false, false, request.Header.RecursionDesired, true, false, false, DnsResponseCode.NoError, 1, 0, 1, 0), request.Question, Array.Empty<DnsResourceRecord>(), responseAuthority, Array.Empty<DnsResourceRecord>());
                     }
 
                     if (answerRecords[0].RDATA is DnsCache.DnsNXRecord)
@@ -858,21 +858,21 @@ namespace DnsServerCore.Dns
                         DnsResourceRecord authority = (answerRecords[0].RDATA as DnsCache.DnsNXRecord).Authority;
 
                         if (authority == null)
-                            responseAuthority = new DnsResourceRecord[] { };
+                            responseAuthority = Array.Empty<DnsResourceRecord>();
                         else
                             responseAuthority = new DnsResourceRecord[] { authority };
 
-                        return new DnsDatagram(new DnsHeader(request.Header.Identifier, true, DnsOpcode.StandardQuery, false, false, request.Header.RecursionDesired, true, false, false, DnsResponseCode.NameError, 1, 0, 1, 0), request.Question, new DnsResourceRecord[] { }, responseAuthority, new DnsResourceRecord[] { });
+                        return new DnsDatagram(new DnsHeader(request.Header.Identifier, true, DnsOpcode.StandardQuery, false, false, request.Header.RecursionDesired, true, false, false, DnsResponseCode.NameError, 1, 0, 1, 0), request.Question, Array.Empty<DnsResourceRecord>(), responseAuthority, Array.Empty<DnsResourceRecord>());
                     }
 
                     if (answerRecords[0].RDATA is DnsCache.DnsANYRecord)
                     {
                         DnsCache.DnsANYRecord anyRR = answerRecords[0].RDATA as DnsCache.DnsANYRecord;
-                        return new DnsDatagram(new DnsHeader(request.Header.Identifier, true, DnsOpcode.StandardQuery, false, false, request.Header.RecursionDesired, true, false, false, DnsResponseCode.NoError, 1, (ushort)anyRR.Records.Length, 0, 0), request.Question, anyRR.Records, new DnsResourceRecord[] { }, new DnsResourceRecord[] { });
+                        return new DnsDatagram(new DnsHeader(request.Header.Identifier, true, DnsOpcode.StandardQuery, false, false, request.Header.RecursionDesired, true, false, false, DnsResponseCode.NoError, 1, (ushort)anyRR.Records.Length, 0, 0), request.Question, anyRR.Records, Array.Empty<DnsResourceRecord>(), Array.Empty<DnsResourceRecord>());
                     }
 
                     if (answerRecords[0].RDATA is DnsCache.DnsFailureRecord)
-                        return new DnsDatagram(new DnsHeader(request.Header.Identifier, true, DnsOpcode.StandardQuery, false, false, request.Header.RecursionDesired, true, false, false, (answerRecords[0].RDATA as DnsCache.DnsFailureRecord).RCODE, 1, 0, 0, 0), request.Question, new DnsResourceRecord[] { }, new DnsResourceRecord[] { }, new DnsResourceRecord[] { });
+                        return new DnsDatagram(new DnsHeader(request.Header.Identifier, true, DnsOpcode.StandardQuery, false, false, request.Header.RecursionDesired, true, false, false, (answerRecords[0].RDATA as DnsCache.DnsFailureRecord).RCODE, 1, 0, 0, 0), request.Question, Array.Empty<DnsResourceRecord>(), Array.Empty<DnsResourceRecord>(), Array.Empty<DnsResourceRecord>());
 
                     DnsResourceRecord[] additional;
 
@@ -884,11 +884,11 @@ namespace DnsServerCore.Dns
                             break;
 
                         default:
-                            additional = new DnsResourceRecord[] { };
+                            additional = Array.Empty<DnsResourceRecord>();
                             break;
                     }
 
-                    return new DnsDatagram(new DnsHeader(request.Header.Identifier, true, DnsOpcode.StandardQuery, false, false, request.Header.RecursionDesired, true, false, false, DnsResponseCode.NoError, 1, (ushort)answerRecords.Length, 0, (ushort)additional.Length), request.Question, answerRecords, new DnsResourceRecord[] { }, additional);
+                    return new DnsDatagram(new DnsHeader(request.Header.Identifier, true, DnsOpcode.StandardQuery, false, false, request.Header.RecursionDesired, true, false, false, DnsResponseCode.NoError, 1, (ushort)answerRecords.Length, 0, (ushort)additional.Length), request.Question, answerRecords, Array.Empty<DnsResourceRecord>(), additional);
                 }
             }
 
@@ -900,12 +900,12 @@ namespace DnsServerCore.Dns
 
                 DnsResourceRecord[] additional = QueryGlueRecords(rootZone, nameServers, serveStale);
                 if (additional.Length > 0)
-                    return new DnsDatagram(new DnsHeader(request.Header.Identifier, true, DnsOpcode.StandardQuery, false, false, request.Header.RecursionDesired, true, false, false, DnsResponseCode.NoError, 1, 0, (ushort)nameServers.Length, (ushort)additional.Length), request.Question, new DnsResourceRecord[] { }, nameServers, additional);
+                    return new DnsDatagram(new DnsHeader(request.Header.Identifier, true, DnsOpcode.StandardQuery, false, false, request.Header.RecursionDesired, true, false, false, DnsResponseCode.NoError, 1, 0, (ushort)nameServers.Length, (ushort)additional.Length), request.Question, Array.Empty<DnsResourceRecord>(), nameServers, additional);
 
                 closestZone = closestZone._parentZone;
             }
 
-            return new DnsDatagram(new DnsHeader(request.Header.Identifier, true, DnsOpcode.StandardQuery, false, false, request.Header.RecursionDesired, true, false, false, DnsResponseCode.Refused, 1, 0, 0, 0), request.Question, new DnsResourceRecord[] { }, new DnsResourceRecord[] { }, new DnsResourceRecord[] { });
+            return new DnsDatagram(new DnsHeader(request.Header.Identifier, true, DnsOpcode.StandardQuery, false, false, request.Header.RecursionDesired, true, false, false, DnsResponseCode.Refused, 1, 0, 0, 0), request.Question, Array.Empty<DnsResourceRecord>(), Array.Empty<DnsResourceRecord>(), Array.Empty<DnsResourceRecord>());
         }
 
         #endregion
@@ -969,12 +969,12 @@ namespace DnsServerCore.Dns
 
                 DnsResourceRecord[] additional = QueryGlueRecords(this, nameServers, serveStale);
                 if (additional.Length > 0)
-                    return new DnsDatagram(new DnsHeader(request.Header.Identifier, true, DnsOpcode.StandardQuery, false, false, request.Header.RecursionDesired, true, false, false, DnsResponseCode.NoError, 1, 0, (ushort)nameServers.Length, (ushort)additional.Length), request.Question, new DnsResourceRecord[] { }, nameServers, additional);
+                    return new DnsDatagram(new DnsHeader(request.Header.Identifier, true, DnsOpcode.StandardQuery, false, false, request.Header.RecursionDesired, true, false, false, DnsResponseCode.NoError, 1, 0, (ushort)nameServers.Length, (ushort)additional.Length), request.Question, Array.Empty<DnsResourceRecord>(), nameServers, additional);
 
                 closestZone = closestZone._parentZone;
             }
 
-            return new DnsDatagram(new DnsHeader(request.Header.Identifier, true, DnsOpcode.StandardQuery, false, false, request.Header.RecursionDesired, true, false, false, DnsResponseCode.Refused, 1, 0, 0, 0), request.Question, new DnsResourceRecord[] { }, new DnsResourceRecord[] { }, new DnsResourceRecord[] { });
+            return new DnsDatagram(new DnsHeader(request.Header.Identifier, true, DnsOpcode.StandardQuery, false, false, request.Header.RecursionDesired, true, false, false, DnsResponseCode.Refused, 1, 0, 0, 0), request.Question, Array.Empty<DnsResourceRecord>(), Array.Empty<DnsResourceRecord>(), Array.Empty<DnsResourceRecord>());
         }
 
         internal void RemoveExpiredCachedRecords()
@@ -1109,7 +1109,7 @@ namespace DnsServerCore.Dns
         {
             Zone currentZone = GetZone(this, domain, false);
             if (currentZone == null)
-                return new ZoneInfo[] { }; //no zone for given domain
+                return Array.Empty<ZoneInfo>(); //no zone for given domain
 
             List<Zone> zones = new List<Zone>();
             currentZone.ListAuthoritativeZones(zones);

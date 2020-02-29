@@ -1055,8 +1055,8 @@ namespace DnsServerCore.Dns
                         if (lastResponse.Header.RCODE == DnsResponseCode.Refused)
                         {
                             rcode = DnsResponseCode.NoError;
-                            authority = new DnsResourceRecord[] { };
-                            additional = new DnsResourceRecord[] { };
+                            authority = Array.Empty<DnsResourceRecord>();
+                            additional = Array.Empty<DnsResourceRecord>();
                         }
                         else
                         {
@@ -1072,9 +1072,9 @@ namespace DnsServerCore.Dns
                                 if ((lastResponse.Authority.Length > 0) && (lastResponse.Authority[0].Type == DnsResourceRecordType.SOA))
                                     authority = lastResponse.Authority;
                                 else
-                                    authority = new DnsResourceRecord[] { };
+                                    authority = Array.Empty<DnsResourceRecord>();
 
-                                additional = new DnsResourceRecord[] { };
+                                additional = Array.Empty<DnsResourceRecord>();
                             }
                         }
 
@@ -1116,12 +1116,12 @@ namespace DnsServerCore.Dns
                 {
                     case DnsResourceRecordType.A:
                         answer = new DnsResourceRecord[] { new DnsResourceRecord(blockedResponse.Question[0].Name, DnsResourceRecordType.A, blockedResponse.Question[0].Class, 60, new DnsARecord(IPAddress.Any)) };
-                        authority = new DnsResourceRecord[] { };
+                        authority = Array.Empty<DnsResourceRecord>();
                         break;
 
                     case DnsResourceRecordType.AAAA:
                         answer = new DnsResourceRecord[] { new DnsResourceRecord(blockedResponse.Question[0].Name, DnsResourceRecordType.AAAA, blockedResponse.Question[0].Class, 60, new DnsAAAARecord(IPAddress.IPv6Any)) };
-                        authority = new DnsResourceRecord[] { };
+                        authority = Array.Empty<DnsResourceRecord>();
                         break;
 
                     default:
@@ -1199,12 +1199,12 @@ namespace DnsServerCore.Dns
                     if ((lastResponse.Authority.Length > 0) && (lastResponse.Authority[0].Type == DnsResourceRecordType.SOA))
                         authority = lastResponse.Authority;
                     else
-                        authority = new DnsResourceRecord[] { };
+                        authority = Array.Empty<DnsResourceRecord>();
 
                     if ((response.Additional.Length > 0) && (request.Question[0].Type == DnsResourceRecordType.MX))
                         additional = response.Additional;
                     else
-                        additional = new DnsResourceRecord[] { };
+                        additional = Array.Empty<DnsResourceRecord>();
 
                     return new DnsDatagram(new DnsHeader(request.Header.Identifier, true, DnsOpcode.StandardQuery, false, false, true, true, false, false, lastResponse.Header.RCODE, 1, (ushort)responseAnswer.Count, (ushort)authority.Length, (ushort)additional.Length), request.Question, responseAnswer.ToArray(), authority, additional) { Tag = response.Tag };
                 }
@@ -1213,12 +1213,12 @@ namespace DnsServerCore.Dns
             if ((response.Authority.Length > 0) && (response.Authority[0].Type == DnsResourceRecordType.SOA))
                 authority = response.Authority;
             else
-                authority = new DnsResourceRecord[] { };
+                authority = Array.Empty<DnsResourceRecord>();
 
             if ((response.Additional.Length > 0) && (request.Question[0].Type == DnsResourceRecordType.MX))
                 additional = response.Additional;
             else
-                additional = new DnsResourceRecord[] { };
+                additional = Array.Empty<DnsResourceRecord>();
 
             return new DnsDatagram(new DnsHeader(request.Header.Identifier, true, DnsOpcode.StandardQuery, false, false, true, true, false, false, response.Header.RCODE, 1, (ushort)response.Answer.Length, (ushort)authority.Length, (ushort)additional.Length), request.Question, response.Answer, authority, additional) { Tag = response.Tag };
         }
