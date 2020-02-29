@@ -47,8 +47,8 @@ namespace DnsServerCore.Dns
         bool _disabled;
         bool _internal;
 
-        readonly ConcurrentDictionary<string, Zone> _zones = new ConcurrentDictionary<string, Zone>();
-        readonly ConcurrentDictionary<DnsResourceRecordType, DnsResourceRecord[]> _entries = new ConcurrentDictionary<DnsResourceRecordType, DnsResourceRecord[]>();
+        ConcurrentDictionary<string, Zone> _zones;
+        ConcurrentDictionary<DnsResourceRecordType, DnsResourceRecord[]> _entries;
 
         string _serverDomain;
 
@@ -124,6 +124,9 @@ namespace DnsServerCore.Dns
             {
                 string nextZoneLabel = path[i];
 
+                if (currentZone._zones == null)
+                    currentZone._zones = new ConcurrentDictionary<string, Zone>(1, 5);
+
                 Zone nextZone = currentZone._zones.GetOrAdd(nextZoneLabel, delegate (string key)
                 {
                     return new Zone(currentZone, nextZoneLabel);
@@ -140,7 +143,7 @@ namespace DnsServerCore.Dns
             Zone currentZone = rootZone;
             Zone authoritativeZone = null;
 
-            if (authoritative && currentZone._entries.ContainsKey(DnsResourceRecordType.SOA))
+            if (authoritative && (currentZone._entries != null) && currentZone._entries.ContainsKey(DnsResourceRecordType.SOA))
                 authoritativeZone = currentZone;
 
             string[] path = ConvertDomainToPath(domain);
@@ -149,7 +152,7 @@ namespace DnsServerCore.Dns
             {
                 string nextZoneLabel = path[i];
 
-                if (currentZone._zones.TryGetValue(nextZoneLabel, out Zone nextZone))
+                if ((currentZone._zones != null) && currentZone._zones.TryGetValue(nextZoneLabel, out Zone nextZone))
                 {
                     currentZone = nextZone;
                 }
@@ -161,7 +164,7 @@ namespace DnsServerCore.Dns
                     return null;
                 }
 
-                if (authoritative && currentZone._entries.ContainsKey(DnsResourceRecordType.SOA))
+                if (authoritative && (currentZone._entries != null) && currentZone._entries.ContainsKey(DnsResourceRecordType.SOA))
                     authoritativeZone = currentZone;
             }
 
@@ -180,7 +183,7 @@ namespace DnsServerCore.Dns
             if (!currentZone._authoritativeZone && (currentZone._zoneName.Equals("root-servers.net", StringComparison.OrdinalIgnoreCase)))
                 return false; //cannot delete root-servers.net
 
-            currentZone._entries.Clear();
+            currentZone._entries = null;
 
             DeleteSubZones(currentZone, deleteSubZones);
             DeleteEmptyParentZones(currentZone);
@@ -192,7 +195,7 @@ namespace DnsServerCore.Dns
         {
             if (currentZone._authoritativeZone)
             {
-                if (!deleteSubZones && currentZone._entries.ContainsKey(DnsResourceRecordType.SOA))
+                if (!deleteSubZones && (currentZone._entries != null) && currentZone._entries.ContainsKey(DnsResourceRecordType.SOA))
                     return false; //this is a zone so return false
             }
             else
@@ -202,7 +205,10 @@ namespace DnsServerCore.Dns
                     return false; //cannot delete root-servers.net
             }
 
-            currentZone._entries.Clear();
+            currentZone._entries = null;
+
+            if (currentZone._zones == null)
+                return true;
 
             List<Zone> subDomainsToDelete = new List<Zone>();
 
@@ -215,14 +221,20 @@ namespace DnsServerCore.Dns
             foreach (Zone subDomain in subDomainsToDelete)
                 currentZone._zones.TryRemove(subDomain._zoneLabel, out _);
 
-            return (currentZone._zones.Count == 0);
+            if (currentZone._zones.Count == 0)
+            {
+                currentZone._zones = null;
+                return true;
+            }
+
+            return false;
         }
 
         private static void DeleteEmptyParentZones(Zone currentZone)
         {
             while (currentZone._parentZone != null)
             {
-                if ((currentZone._entries.Count > 0) || (currentZone._zones.Count > 0))
+                if (((currentZone._entries != null) && (currentZone._entries.Count > 0)) || ((currentZone._zones != null) && (currentZone._zones.Count > 0)))
                     break;
 
                 currentZone._parentZone._zones.TryRemove(currentZone._zoneLabel, out _);
@@ -234,6 +246,7 @@ namespace DnsServerCore.Dns
         private static void RemoveExpiredCachedRecords(Zone currentZone)
         {
             //remove expired entries in current zone
+            if (currentZone._entries != null)
             {
                 List<KeyValuePair<DnsResourceRecordType, DnsResourceRecord[]>> updateEntries = null;
 
@@ -283,6 +296,7 @@ namespace DnsServerCore.Dns
             }
 
             //remove expired entries in sub zones
+            if (currentZone._zones != null)
             {
                 List<string> subZonesToRemove = null;
 
@@ -290,7 +304,7 @@ namespace DnsServerCore.Dns
                 {
                     RemoveExpiredCachedRecords(zone.Value);
 
-                    if ((zone.Value._zones.Count == 0) && (zone.Value._entries.Count == 0))
+                    if (((zone.Value._zones == null) || (zone.Value._zones.Count == 0)) && ((zone.Value._entries == null) || (zone.Value._entries.Count == 0)))
                     {
                         if (subZonesToRemove == null)
                             subZonesToRemove = new List<string>();
@@ -303,6 +317,9 @@ namespace DnsServerCore.Dns
                 {
                     foreach (string subZone in subZonesToRemove)
                         currentZone._zones.TryRemove(subZone, out Zone value);
+
+                    if (currentZone._zones.Count == 0)
+                        currentZone._zones = null;
                 }
             }
         }
@@ -314,6 +331,9 @@ namespace DnsServerCore.Dns
 
             if (_authoritativeZone && (type == DnsResourceRecordType.ANY))
             {
+                if (_entries == null)
+                    return Array.Empty<DnsResourceRecord>();
+
                 List<DnsResourceRecord> allRecords = new List<DnsResourceRecord>();
 
                 foreach (KeyValuePair<DnsResourceRecordType, DnsResourceRecord[]> entry in _entries)
@@ -322,14 +342,14 @@ namespace DnsServerCore.Dns
                 return FilterExpiredDisabledRecords(allRecords.ToArray(), serveStale);
             }
 
-            if (!bypassCNAME && _entries.TryGetValue(DnsResourceRecordType.CNAME, out DnsResourceRecord[] existingCNAMERecords))
+            if (!bypassCNAME && (_entries != null) && _entries.TryGetValue(DnsResourceRecordType.CNAME, out DnsResourceRecord[] existingCNAMERecords))
             {
                 DnsResourceRecord[] records = FilterExpiredDisabledRecords(existingCNAMERecords, serveStale);
                 if (records != null)
                     return records;
             }
 
-            if (_entries.TryGetValue(type, out DnsResourceRecord[] existingRecords))
+            if ((_entries != null) && _entries.TryGetValue(type, out DnsResourceRecord[] existingRecords))
             {
                 DnsResourceRecord[] records = FilterExpiredDisabledRecords(existingRecords, serveStale);
 
@@ -348,17 +368,20 @@ namespace DnsServerCore.Dns
 
             if (type == DnsResourceRecordType.ANY)
             {
-                foreach (KeyValuePair<DnsResourceRecordType, DnsResourceRecord[]> entry in _entries)
+                if (_entries != null)
                 {
-                    if (entry.Key != DnsResourceRecordType.ANY)
-                        allRecords.AddRange(entry.Value);
+                    foreach (KeyValuePair<DnsResourceRecordType, DnsResourceRecord[]> entry in _entries)
+                    {
+                        if (entry.Key != DnsResourceRecordType.ANY)
+                            allRecords.AddRange(entry.Value);
+                    }
                 }
             }
             else if (type == DnsResourceRecordType.AXFR)
             {
                 includeSubDomains = true;
 
-                if (!_entries.TryGetValue(DnsResourceRecordType.SOA, out DnsResourceRecord[] soaRecord))
+                if ((_entries == null) || !_entries.TryGetValue(DnsResourceRecordType.SOA, out DnsResourceRecord[] soaRecord))
                     throw new DnsServerException("No SOA record found for AXFR in current zone.");
 
                 allRecords.Add(soaRecord[0]);
@@ -369,12 +392,12 @@ namespace DnsServerCore.Dns
                         allRecords.AddRange(entry.Value);
                 }
             }
-            else if (_entries.TryGetValue(type, out DnsResourceRecord[] existingRecords))
+            else if ((_entries != null) && _entries.TryGetValue(type, out DnsResourceRecord[] existingRecords))
             {
                 allRecords.AddRange(existingRecords);
             }
 
-            if (includeSubDomains)
+            if (includeSubDomains && (_zones != null))
             {
                 DnsResourceRecordType subType;
 
@@ -385,7 +408,7 @@ namespace DnsServerCore.Dns
 
                 foreach (KeyValuePair<string, Zone> zone in _zones)
                 {
-                    if (!zone.Value._entries.ContainsKey(DnsResourceRecordType.SOA))
+                    if ((zone.Value._entries != null) && !zone.Value._entries.ContainsKey(DnsResourceRecordType.SOA))
                         allRecords.AddRange(zone.Value.GetAllRecords(subType, true));
                 }
             }
@@ -402,8 +425,11 @@ namespace DnsServerCore.Dns
             if ((soa.Count > 0) && (soa[0].RDATA is DnsSOARecord))
                 zones.Add(this);
 
-            foreach (KeyValuePair<string, Zone> entry in _zones)
-                entry.Value.ListAuthoritativeZones(zones);
+            if (_zones != null)
+            {
+                foreach (KeyValuePair<string, Zone> entry in _zones)
+                    entry.Value.ListAuthoritativeZones(zones);
+            }
         }
 
         private void SetRecords(DnsResourceRecordType type, DnsResourceRecord[] records)
@@ -411,15 +437,18 @@ namespace DnsServerCore.Dns
             if (!_authoritativeZone && (records.Length > 0) && (records[0].RDATA is DnsCache.DnsFailureRecord))
             {
                 //call trying to cache failure record
-                if (_entries.TryGetValue(type, out DnsResourceRecord[] existingRecords))
+                if ((_entries != null) && _entries.TryGetValue(type, out DnsResourceRecord[] existingRecords))
                 {
                     if ((existingRecords.Length > 0) && !(existingRecords[0].RDATA is DnsCache.DnsFailureRecord))
                         return; //skip to avoid overwriting a useful stale record with a failure record to allow serve-stale to work as intended
                 }
             }
 
-            if (_authoritativeZone && (type == DnsResourceRecordType.CNAME) && _entries.ContainsKey(DnsResourceRecordType.SOA))
+            if (_authoritativeZone && (type == DnsResourceRecordType.CNAME) && (_entries != null) && _entries.ContainsKey(DnsResourceRecordType.SOA))
                 throw new DnsServerException("Cannot add CNAME record to zone root.");
+
+            if (_entries == null)
+                _entries = new ConcurrentDictionary<DnsResourceRecordType, DnsResourceRecord[]>(1, 5);
 
             _entries.AddOrUpdate(type, records, delegate (DnsResourceRecordType key, DnsResourceRecord[] existingValues)
             {
@@ -456,6 +485,9 @@ namespace DnsServerCore.Dns
                     throw new DnsServerException("Cannot add record: use SetRecords() for " + record.Type.ToString() + " record");
             }
 
+            if (_entries == null)
+                _entries = new ConcurrentDictionary<DnsResourceRecordType, DnsResourceRecord[]>(1, 5);
+
             _entries.AddOrUpdate(record.Type, new DnsResourceRecord[] { record }, delegate (DnsResourceRecordType key, DnsResourceRecord[] existingRecords)
             {
                 foreach (DnsResourceRecord existingRecord in existingRecords)
@@ -475,7 +507,7 @@ namespace DnsServerCore.Dns
 
         private void DeleteRecord(DnsResourceRecord record)
         {
-            if (_entries.TryGetValue(record.Type, out DnsResourceRecord[] existingRecords))
+            if ((_entries != null) && _entries.TryGetValue(record.Type, out DnsResourceRecord[] existingRecords))
             {
                 bool recordFound = false;
 
@@ -517,6 +549,9 @@ namespace DnsServerCore.Dns
         private void DeleteRecords(DnsResourceRecordType type)
         {
             _entries.TryRemove(type, out _);
+
+            if (_entries.Count == 0)
+                _entries = null;
 
             DeleteEmptyParentZones(this);
         }
@@ -584,6 +619,9 @@ namespace DnsServerCore.Dns
             {
                 string nextZoneLabel = path[i];
 
+                if (currentZone._zones == null)
+                    return currentZone;
+
                 if (currentZone._zones.TryGetValue(nextZoneLabel, out Zone nextZone))
                     currentZone = nextZone;
                 else if (currentZone._zones.TryGetValue("*", out Zone nextWildcardZone))
@@ -643,7 +681,7 @@ namespace DnsServerCore.Dns
 
             while (currentZone != null)
             {
-                if (currentZone._entries.ContainsKey(DnsResourceRecordType.SOA))
+                if ((_entries != null) && currentZone._entries.ContainsKey(DnsResourceRecordType.SOA))
                 {
                     nsRecords = currentZone.QueryRecords(DnsResourceRecordType.NS, true, false);
                     if ((nsRecords != null) && (nsRecords.Length > 0))
@@ -1056,7 +1094,10 @@ namespace DnsServerCore.Dns
         {
             Zone currentZone = GetZone(this, domain, false);
             if (currentZone == null)
-                return new string[] { }; //no zone for given domain
+                return Array.Empty<string>(); //no zone for given domain
+
+            if (currentZone._zones == null)
+                return Array.Empty<string>(); //no sub zone for current zone
 
             string[] subZoneNames = new string[currentZone._zones.Keys.Count];
             currentZone._zones.Keys.CopyTo(subZoneNames, 0);
@@ -1139,8 +1180,8 @@ namespace DnsServerCore.Dns
 
         public void Flush()
         {
-            _zones.Clear();
-            _entries.Clear();
+            _zones = null;
+            _entries = null;
 
             if (!_authoritativeZone)
                 LoadRootHintsInCache();
