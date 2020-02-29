@@ -1694,10 +1694,14 @@ namespace DnsServerCore
                         {
                             try
                             {
-                                string ptrDomain = DnsClient.ParseResponsePTR(_dnsServer.DirectQuery(new DnsQuestionRecord(address, DnsClass.IN), 200));
+                                DnsDatagram ptrResponse = _dnsServer.DirectQuery(new DnsQuestionRecord(address, DnsClass.IN), 200);
+                                if (ptrResponse != null)
+                                {
+                                    string ptrDomain = DnsClient.ParseResponsePTR(ptrResponse);
 
-                                jsonWriter.WritePropertyName("domain");
-                                jsonWriter.WriteValue(ptrDomain);
+                                    jsonWriter.WritePropertyName("domain");
+                                    jsonWriter.WriteValue(ptrDomain);
+                                }
                             }
                             catch
                             { }
@@ -3687,30 +3691,24 @@ namespace DnsServerCore
                     File.Move(oldZoneFile, Path.Combine(zonePath, Path.GetFileName(oldZoneFile)));
             }
 
-            string[] zoneFiles = Directory.GetFiles(zonePath, "*.zone");
-
-            if (zoneFiles.Length == 0)
+            //load system zones
             {
                 {
                     CreateZone("localhost", true);
                     _dnsServer.AuthoritativeZoneRoot.SetRecords("localhost", DnsResourceRecordType.A, 3600, new DnsResourceRecordData[] { new DnsARecord(IPAddress.Loopback) });
                     _dnsServer.AuthoritativeZoneRoot.SetRecords("localhost", DnsResourceRecordType.AAAA, 3600, new DnsResourceRecordData[] { new DnsAAAARecord(IPAddress.IPv6Loopback) });
-
-                    SaveZoneFile("localhost");
                 }
 
                 {
                     string prtDomain = "0.in-addr.arpa";
 
                     CreateZone(prtDomain, true);
-                    SaveZoneFile(prtDomain);
                 }
 
                 {
                     string prtDomain = "255.in-addr.arpa";
 
                     CreateZone(prtDomain, true);
-                    SaveZoneFile(prtDomain);
                 }
 
                 {
@@ -3718,8 +3716,6 @@ namespace DnsServerCore
 
                     CreateZone(prtDomain, true);
                     _dnsServer.AuthoritativeZoneRoot.SetRecords("1.0.0.127.in-addr.arpa", DnsResourceRecordType.PTR, 3600, new DnsResourceRecordData[] { new DnsPTRRecord("localhost") });
-
-                    SaveZoneFile(prtDomain);
                 }
 
                 {
@@ -3727,24 +3723,24 @@ namespace DnsServerCore
 
                     CreateZone(prtDomain, true);
                     _dnsServer.AuthoritativeZoneRoot.SetRecords(prtDomain, DnsResourceRecordType.PTR, 3600, new DnsResourceRecordData[] { new DnsPTRRecord("localhost") });
+                }
+            }
 
-                    SaveZoneFile(prtDomain);
-                }
-            }
-            else
+            //load zone files
+            string[] zoneFiles = Directory.GetFiles(zonePath, "*.zone");
+
+            foreach (string zoneFile in zoneFiles)
             {
-                foreach (string zoneFile in zoneFiles)
+                try
                 {
-                    try
-                    {
-                        LoadZoneFile(zoneFile);
-                    }
-                    catch (Exception ex)
-                    {
-                        _log.Write("DNS Server failed to load zone file: " + zoneFile + "\r\n" + ex.ToString());
-                    }
+                    LoadZoneFile(zoneFile);
+                }
+                catch (Exception ex)
+                {
+                    _log.Write("DNS Server failed to load zone file: " + zoneFile + "\r\n" + ex.ToString());
                 }
             }
+
         }
 
         private void LoadZoneFile(string zoneFile)
@@ -4088,30 +4084,28 @@ namespace DnsServerCore
 
                         line = line.TrimStart(' ', '\t');
 
-                        if (line == "")
+                        if (line.Length == 0)
                             continue; //skip empty line
 
                         if (line.StartsWith("#"))
                             continue; //skip comment line
 
                         string firstWord = PopWord(ref line);
-                        string secondWord = PopWord(ref line);
-
-                        string strIpAddress = null;
                         string hostname;
 
-                        if (secondWord == "")
+                        if (line.Length == 0)
                         {
                             hostname = firstWord;
                         }
                         else
                         {
-                            strIpAddress = firstWord;
-                            hostname = secondWord;
-                        }
+                            string secondWord = PopWord(ref line);
 
-                        if (!DnsClient.IsDomainNameValid(hostname, false))
-                            continue;
+                            if (secondWord.Length == 0)
+                                hostname = firstWord;
+                            else
+                                hostname = secondWord;
+                        }
 
                         switch (hostname.ToLower())
                         {
@@ -4133,16 +4127,11 @@ namespace DnsServerCore
                         if (IPAddress.TryParse(hostname, out IPAddress host))
                             continue; //skip line when hostname is IP address
 
-                        IPAddress ipAddress;
+                        if (!DnsClient.IsDomainNameValid(hostname, false))
+                            continue;
 
-                        if (string.IsNullOrEmpty(strIpAddress) || !IPAddress.TryParse(strIpAddress, out ipAddress))
-                            ipAddress = IPAddress.Any;
-
-                        if (ipAddress.Equals(IPAddress.Any) || ipAddress.Equals(IPAddress.Loopback) || ipAddress.Equals(IPAddress.IPv6Any) || ipAddress.Equals(IPAddress.IPv6Loopback))
-                        {
-                            BlockZone(hostname, blockedZoneRoot, blockListAbsoluteUrl);
-                            count++;
-                        }
+                        BlockZone(hostname, blockedZoneRoot, blockListAbsoluteUrl);
+                        count++;
                     }
                 }
 
@@ -4216,6 +4205,9 @@ namespace DnsServerCore
                 SaveConfigFile();
 
                 LoadBlockLists();
+
+                //force GC collection to remove old zone data from memory quickly
+                GC.Collect();
             }
         }
 
