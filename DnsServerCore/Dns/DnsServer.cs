@@ -53,7 +53,7 @@ namespace DnsServerCore.Dns
 
         #region variables
 
-        const int LISTENER_THREAD_COUNT = 3;
+        const int LISTENER_THREAD_COUNT = 4;
         const int MAX_HOPS = 16;
 
         IPAddress[] _localAddresses;
@@ -247,7 +247,31 @@ namespace DnsServerCore.Dns
 
             try
             {
-                DnsDatagram response = ProcessQuery(request, remoteEP, IsRecursionAllowed(remoteEP), DnsTransportProtocol.Udp);
+                DnsDatagram response;
+
+                if (request.ParsingException == null)
+                {
+                    response = ProcessQuery(request, remoteEP, IsRecursionAllowed(remoteEP), DnsTransportProtocol.Udp);
+                }
+                else
+                {
+                    //format error
+                    LogManager log = _log;
+                    if (log != null)
+                        log.Write(remoteEP as IPEndPoint, DnsTransportProtocol.Udp, request.ParsingException);
+
+                    if (request.Header == null)
+                    {
+                        //no response as header was not parsed
+                        response = null;
+                    }
+                    else
+                    {
+                        //format error response
+                        DnsHeader header = request.Header;
+                        response = new DnsDatagram(new DnsHeader(header.Identifier, true, header.OPCODE, false, false, header.RecursionDesired, IsRecursionAllowed(remoteEP), false, false, DnsResponseCode.FormatError, Convert.ToUInt16(request.Question == null ? 0 : request.Question.Length), 0, 0, 0), request.Question, null, null, null);
+                    }
+                }
 
                 //send response
                 if (response != null)
@@ -450,7 +474,31 @@ namespace DnsServerCore.Dns
 
             try
             {
-                DnsDatagram response = ProcessQuery(request, remoteEP, IsRecursionAllowed(remoteEP), protocol);
+                DnsDatagram response;
+
+                if (request.ParsingException == null)
+                {
+                    response = ProcessQuery(request, remoteEP, IsRecursionAllowed(remoteEP), protocol);
+                }
+                else
+                {
+                    //format error
+                    LogManager log = _log;
+                    if (log != null)
+                        log.Write(remoteEP as IPEndPoint, protocol, request.ParsingException);
+
+                    if (request.Header == null)
+                    {
+                        //no response as header was not parsed
+                        response = null;
+                    }
+                    else
+                    {
+                        //format error response
+                        DnsHeader header = request.Header;
+                        response = new DnsDatagram(new DnsHeader(header.Identifier, true, header.OPCODE, false, false, header.RecursionDesired, IsRecursionAllowed(remoteEP), false, false, DnsResponseCode.FormatError, Convert.ToUInt16(request.Question == null ? 0 : request.Question.Length), 0, 0, 0), request.Question, null, null, null);
+                    }
+                }
 
                 //send response
                 if (response != null)
@@ -673,7 +721,32 @@ namespace DnsServerCore.Dns
                                                 throw new NotSupportedException("DoH request type not supported.");
                                         }
 
-                                        DnsDatagram dnsResponse = ProcessQuery(dnsRequest, remoteEP, IsRecursionAllowed(remoteEP), protocol);
+                                        DnsDatagram dnsResponse;
+
+                                        if (dnsRequest.ParsingException == null)
+                                        {
+                                            dnsResponse = ProcessQuery(dnsRequest, remoteEP, IsRecursionAllowed(remoteEP), protocol);
+                                        }
+                                        else
+                                        {
+                                            //format error
+                                            LogManager log = _log;
+                                            if (log != null)
+                                                log.Write(remoteEP as IPEndPoint, protocol, dnsRequest.ParsingException);
+
+                                            if (dnsRequest.Header == null)
+                                            {
+                                                //no response as header was not parsed
+                                                dnsResponse = null;
+                                            }
+                                            else
+                                            {
+                                                //format error response
+                                                DnsHeader header = dnsRequest.Header;
+                                                dnsResponse = new DnsDatagram(new DnsHeader(header.Identifier, true, header.OPCODE, false, false, header.RecursionDesired, IsRecursionAllowed(remoteEP), false, false, DnsResponseCode.FormatError, Convert.ToUInt16(dnsRequest.Question == null ? 0 : dnsRequest.Question.Length), 0, 0, 0), dnsRequest.Question, null, null, null);
+                                            }
+                                        }
+
                                         if (dnsResponse != null)
                                         {
                                             using (MemoryStream mS = new MemoryStream())
@@ -902,7 +975,7 @@ namespace DnsServerCore.Dns
                     }
 
                 default:
-                    return new DnsDatagram(new DnsHeader(request.Header.Identifier, true, request.Header.OPCODE, false, false, request.Header.RecursionDesired, isRecursionAllowed, false, false, DnsResponseCode.Refused, request.Header.QDCOUNT, 0, 0, 0), request.Question, null, null, null);
+                    return new DnsDatagram(new DnsHeader(request.Header.Identifier, true, request.Header.OPCODE, false, false, request.Header.RecursionDesired, isRecursionAllowed, false, false, DnsResponseCode.NotImplemented, request.Header.QDCOUNT, 0, 0, 0), request.Question, null, null, null);
             }
         }
 
