@@ -4878,6 +4878,7 @@ namespace DnsServerCore
             {
                 _webService.Stop();
                 _dnsServer.Stop();
+                _dhcpServer.Stop();
 
                 StopBlockListUpdateTimer();
                 StopTlsCertificateUpdateTimer();
