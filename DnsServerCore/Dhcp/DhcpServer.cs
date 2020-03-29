@@ -1,6 +1,6 @@
 ﻿/*
 Technitium DNS Server
-Copyright (C) 2019  Shreyas Zare (shreyas@technitium.com)
+Copyright (C) 2020  Shreyas Zare (shreyas@technitium.com)
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -144,10 +144,11 @@ namespace DnsServerCore.Dhcp
             EndPoint remoteEP = new IPEndPoint(IPAddress.Any, 0);
             byte[] recvBuffer = new byte[576];
             int bytesRecv;
-            bool processOnlyUnicastMessages = !(udpListener.LocalEndPoint as IPEndPoint).Address.Equals(IPAddress.Any); //only 0.0.0.0 ip should process broadcast to avoid duplicate offers on Windows
 
             try
             {
+                bool processOnlyUnicastMessages = !(udpListener.LocalEndPoint as IPEndPoint).Address.Equals(IPAddress.Any); //only 0.0.0.0 ip should process broadcast to avoid duplicate offers on Windows
+
                 while (true)
                 {
                     SocketFlags flags = SocketFlags.None;
@@ -629,8 +630,6 @@ namespace DnsServerCore.Dhcp
                         //create forward zone
                         _authoritativeZoneRoot.SetRecords(scope.DomainName, DnsResourceRecordType.SOA, 14400, new DnsResourceRecordData[] { new DnsSOARecord(_authoritativeZoneRoot.ServerDomain, "hostmaster." + scope.DomainName, 1, 14400, 3600, 604800, 900) });
                         _authoritativeZoneRoot.SetRecords(scope.DomainName, DnsResourceRecordType.NS, 14400, new DnsResourceRecordData[] { new DnsNSRecord(_authoritativeZoneRoot.ServerDomain) });
-
-                        _authoritativeZoneRoot.MakeZoneInternal(scope.DomainName);
                     }
 
                     _authoritativeZoneRoot.SetRecords(lease.HostName, DnsResourceRecordType.A, scope.DnsTtl, new DnsResourceRecordData[] { new DnsARecord(lease.Address) });
@@ -643,8 +642,6 @@ namespace DnsServerCore.Dhcp
                         //create reverse zone
                         _authoritativeZoneRoot.SetRecords(scope.ReverseZone, DnsResourceRecordType.SOA, 14400, new DnsResourceRecordData[] { new DnsSOARecord(_authoritativeZoneRoot.ServerDomain, "hostmaster." + scope.ReverseZone, 1, 14400, 3600, 604800, 900) });
                         _authoritativeZoneRoot.SetRecords(scope.ReverseZone, DnsResourceRecordType.NS, 14400, new DnsResourceRecordData[] { new DnsNSRecord(_authoritativeZoneRoot.ServerDomain) });
-
-                        _authoritativeZoneRoot.MakeZoneInternal(scope.ReverseZone);
                     }
 
                     _authoritativeZoneRoot.SetRecords(Scope.GetReverseZone(lease.Address, 32), DnsResourceRecordType.PTR, scope.DnsTtl, new DnsResourceRecordData[] { new DnsPTRRecord(lease.HostName) });
@@ -764,10 +761,7 @@ namespace DnsServerCore.Dhcp
                     DateTime utcNow = DateTime.UtcNow;
 
                     foreach (Lease lease in scope.Leases)
-                    {
-                        if (utcNow < lease.LeaseExpires)
-                            UpdateDnsAuthZone(true, scope, lease); //lease valid
-                    }
+                        UpdateDnsAuthZone(utcNow < lease.LeaseExpires, scope, lease); //lease valid
                 }
 
                 LogManager log = _log;
