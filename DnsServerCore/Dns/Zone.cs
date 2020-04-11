@@ -20,6 +20,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
+using TechnitiumLibrary.IO;
 using TechnitiumLibrary.Net.Dns;
 using TechnitiumLibrary.Net.Dns.ResourceRecords;
 
@@ -353,8 +354,16 @@ namespace DnsServerCore.Dns
             {
                 DnsResourceRecord[] records = FilterExpiredDisabledRecords(existingRecords, serveStale);
 
-                if (records != null)
-                    DnsClient.ShuffleArray(records); //shuffle records to allow load balancing
+                if ((records != null) && (records.Length > 1))
+                {
+                    switch (type)
+                    {
+                        case DnsResourceRecordType.A:
+                        case DnsResourceRecordType.AAAA:
+                            records.Shuffle(); //shuffle records to allow load balancing
+                            break;
+                    }
+                }
 
                 return records;
             }
