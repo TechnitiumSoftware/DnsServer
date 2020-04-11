@@ -3006,7 +3006,7 @@ namespace DnsServerCore
                         if (proxy == null)
                         {
                             if (_dnsServer.AllowRecursion)
-                                nameServer.ResolveIPAddress(new NameServerAddress[] { new NameServerAddress(IPAddress.Loopback) }, proxy, preferIPv6, RETRIES, TIMEOUT);
+                                nameServer.ResolveIPAddress(new NameServerAddress[] { new NameServerAddress(GetThisDnsServerAddress()) }, proxy, preferIPv6, RETRIES, TIMEOUT);
                             else
                                 nameServer.RecursiveResolveIPAddress(_dnsServer.Cache, proxy, preferIPv6, RETRIES, TIMEOUT);
                         }
@@ -3016,7 +3016,7 @@ namespace DnsServerCore
                         try
                         {
                             if (_dnsServer.AllowRecursion)
-                                nameServer.ResolveDomainName(new NameServerAddress[] { new NameServerAddress(IPAddress.Loopback) }, proxy, preferIPv6, RETRIES, TIMEOUT);
+                                nameServer.ResolveDomainName(new NameServerAddress[] { new NameServerAddress(GetThisDnsServerAddress()) }, proxy, preferIPv6, RETRIES, TIMEOUT);
                             else
                                 nameServer.RecursiveResolveDomainName(_dnsServer.Cache, proxy, preferIPv6, RETRIES, TIMEOUT);
                         }
