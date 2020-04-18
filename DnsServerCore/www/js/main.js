@@ -1499,6 +1499,10 @@ function resolveQuery(importRecords) {
         importRecords = false;
 
     var server = $("#txtDnsClientNameServer").val();
+
+    if (server.indexOf("recursive-resolver") !== -1)
+        $("#optDnsClientProtocol").val("UDP");
+
     var domain = $("#txtDnsClientDomain").val();
     var type = $("#optDnsClientType").val();
     var protocol = $("#optDnsClientProtocol").val();
