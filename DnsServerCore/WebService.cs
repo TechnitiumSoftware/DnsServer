@@ -1050,7 +1050,7 @@ namespace DnsServerCore
                 jsonWriter.WritePropertyName("bypass");
                 jsonWriter.WriteStartArray();
 
-                foreach (NetProxyBypassItem item in proxy.ProxyBypassList)
+                foreach (NetProxyBypassItem item in proxy.BypassList)
                     jsonWriter.WriteValue(item.Value);
 
                 jsonWriter.WriteEndArray();
@@ -1322,18 +1322,16 @@ namespace DnsServerCore
                     if (!string.IsNullOrEmpty(strUsername))
                         credential = new NetworkCredential(strUsername, request.QueryString["proxyPassword"]);
 
-                    _dnsServer.Proxy = new NetProxy(proxyType, request.QueryString["proxyAddress"], int.Parse(request.QueryString["proxyPort"]), credential);
+                    _dnsServer.Proxy = NetProxy.CreateProxy(proxyType, request.QueryString["proxyAddress"], int.Parse(request.QueryString["proxyPort"]), credential);
 
                     string strProxyBypass = request.QueryString["proxyBypass"];
                     if (!string.IsNullOrEmpty(strProxyBypass))
                     {
                         string[] strBypassList = strProxyBypass.Split(new char[] { ',' }, StringSplitOptions.RemoveEmptyEntries);
-                        NetProxyBypassItem[] bypassItems = new NetProxyBypassItem[strBypassList.Length];
+                        _dnsServer.Proxy.BypassList.Clear();
 
                         for (int i = 0; i < strBypassList.Length; i++)
-                            bypassItems[i] = new NetProxyBypassItem(strBypassList[i]);
-
-                        _dnsServer.Proxy.ProxyBypassList = bypassItems;
+                            _dnsServer.Proxy.BypassList.Add(new NetProxyBypassItem(strBypassList[i]));
                     }
                 }
             }
@@ -4398,16 +4396,15 @@ namespace DnsServerCore
                                 if (bR.ReadBoolean()) //credential set
                                     credential = new NetworkCredential(bR.ReadShortString(), bR.ReadShortString());
 
-                                _dnsServer.Proxy = new NetProxy(proxyType, address, port, credential);
+                                _dnsServer.Proxy = NetProxy.CreateProxy(proxyType, address, port, credential);
 
                                 if (version >= 10)
                                 {
-                                    NetProxyBypassItem[] bypassList = new NetProxyBypassItem[bR.ReadByte()];
+                                    int count = bR.ReadByte();
+                                    _dnsServer.Proxy.BypassList.Clear();
 
-                                    for (int i = 0; i < bypassList.Length; i++)
-                                        bypassList[i] = new NetProxyBypassItem(bR.ReadShortString());
-
-                                    _dnsServer.Proxy.ProxyBypassList = bypassList;
+                                    for (int i = 0; i < count; i++)
+                                        _dnsServer.Proxy.BypassList.Add(new NetProxyBypassItem(bR.ReadShortString()));
                                 }
                             }
                             else
@@ -4685,9 +4682,9 @@ namespace DnsServerCore
 
                     //bypass list
                     {
-                        bW.Write(Convert.ToByte(_dnsServer.Proxy.ProxyBypassList.Count));
+                        bW.Write(Convert.ToByte(_dnsServer.Proxy.BypassList.Count));
 
-                        foreach (NetProxyBypassItem item in _dnsServer.Proxy.ProxyBypassList)
+                        foreach (NetProxyBypassItem item in _dnsServer.Proxy.BypassList)
                             bW.WriteShortString(item.Value);
                     }
                 }
