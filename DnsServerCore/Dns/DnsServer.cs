@@ -649,11 +649,10 @@ namespace DnsServerCore.Dns
                     if (usingReverseProxy)
                     {
                         string xRealIp = requestHeaders["X-Real-IP"];
-
-                        if (!string.IsNullOrEmpty(xRealIp))
+                        if (IPAddress.TryParse(xRealIp, out IPAddress address))
                         {
                             //get the real IP address of the requesting client from X-Real-IP header set in nginx proxy_pass block
-                            remoteEP = new IPEndPoint(IPAddress.Parse(xRealIp), 0);
+                            remoteEP = new IPEndPoint(address, 0);
                         }
                     }
 
@@ -944,26 +943,29 @@ namespace DnsServerCore.Dns
                     {
                         switch (request.Question[0].Type)
                         {
-                            case DnsResourceRecordType.IXFR:
                             case DnsResourceRecordType.AXFR:
                                 if (protocol == DnsTransportProtocol.Udp)
                                     return new DnsDatagram(new DnsHeader(request.Header.Identifier, true, DnsOpcode.StandardQuery, false, false, request.Header.RecursionDesired, isRecursionAllowed, false, false, DnsResponseCode.FormatError, request.Header.QDCOUNT, 0, 0, 0), request.Question, null, null, null);
 
                                 return ProcessZoneTransferQuery(request, remoteEP, isRecursionAllowed);
 
+                            case DnsResourceRecordType.IXFR:
+                                return ProcessZoneTransferQuery(request, remoteEP, isRecursionAllowed);
+
                             case DnsResourceRecordType.MAILB:
                             case DnsResourceRecordType.MAILA:
                                 return new DnsDatagram(new DnsHeader(request.Header.Identifier, true, DnsOpcode.StandardQuery, false, false, request.Header.RecursionDesired, isRecursionAllowed, false, false, DnsResponseCode.NotImplemented, request.Header.QDCOUNT, 0, 0, 0), request.Question, null, null, null);
+
+                            default:
+                                //query authoritative zone
+                                DnsDatagram authoritativeResponse = ProcessAuthoritativeQuery(request, isRecursionAllowed);
+
+                                if ((authoritativeResponse.Header.RCODE != DnsResponseCode.Refused) || !request.Header.RecursionDesired || !isRecursionAllowed)
+                                    return authoritativeResponse;
+
+                                //do recursive query
+                                return ProcessRecursiveQuery(request);
                         }
-
-                        //query authoritative zone
-                        DnsDatagram authoritativeResponse = ProcessAuthoritativeQuery(request, isRecursionAllowed);
-
-                        if ((authoritativeResponse.Header.RCODE != DnsResponseCode.Refused) || !request.Header.RecursionDesired || !isRecursionAllowed)
-                            return authoritativeResponse;
-
-                        //do recursive query
-                        return ProcessRecursiveQuery(request);
                     }
                     catch (Exception ex)
                     {
