@@ -535,20 +535,17 @@ namespace DnsServerCore
 
         private IPEndPoint GetRequestRemoteEndPoint(HttpListenerRequest request)
         {
-            //this is due to mono NullReferenceException issue
             try
             {
-                if (NetUtilities.IsPrivateIP(request.RemoteEndPoint.Address))
+                string xRealIp = request.Headers["X-Real-IP"];
+                if (IPAddress.TryParse(xRealIp, out IPAddress address))
                 {
-                    //reverse proxy X-Real-IP header supported only when remote IP address is private
-
-                    string xRealIp = request.Headers["X-Real-IP"];
-                    if (!string.IsNullOrEmpty(xRealIp))
-                    {
-                        //get the real IP address of the requesting client from X-Real-IP header set in nginx proxy_pass block
-                        return new IPEndPoint(IPAddress.Parse(xRealIp), 0);
-                    }
+                    //get the real IP address of the requesting client from X-Real-IP header set in nginx proxy_pass block
+                    return new IPEndPoint(address, 0);
                 }
+
+                if (request.RemoteEndPoint == null)
+                    return new IPEndPoint(IPAddress.Any, 0);
 
                 return request.RemoteEndPoint;
             }
