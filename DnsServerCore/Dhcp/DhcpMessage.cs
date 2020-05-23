@@ -1,6 +1,6 @@
 ﻿/*
 Technitium DNS Server
-Copyright (C) 2019  Shreyas Zare (shreyas@technitium.com)
+Copyright (C) 2020  Shreyas Zare (shreyas@technitium.com)
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -91,25 +91,25 @@ namespace DnsServerCore.Dhcp
         public DhcpMessage(DhcpMessageOpCode op, byte[] xid, byte[] secs, DhcpMessageFlags flags, IPAddress ciaddr, IPAddress yiaddr, IPAddress siaddr, IPAddress giaddr, byte[] clientHardwareAddress, IReadOnlyCollection<DhcpOption> options)
         {
             if (ciaddr.AddressFamily != AddressFamily.InterNetwork)
-                throw new ArgumentException("Address family not supported.", "ciaddr");
+                throw new ArgumentException("Address family not supported.", nameof(ciaddr));
 
             if (yiaddr.AddressFamily != AddressFamily.InterNetwork)
-                throw new ArgumentException("Address family not supported.", "yiaddr");
+                throw new ArgumentException("Address family not supported.", nameof(yiaddr));
 
             if (siaddr.AddressFamily != AddressFamily.InterNetwork)
-                throw new ArgumentException("Address family not supported.", "siaddr");
+                throw new ArgumentException("Address family not supported.", nameof(siaddr));
 
             if (giaddr.AddressFamily != AddressFamily.InterNetwork)
-                throw new ArgumentException("Address family not supported.", "giaddr");
+                throw new ArgumentException("Address family not supported.", nameof(giaddr));
 
             if ((clientHardwareAddress != null) && (clientHardwareAddress.Length != 6))
                 throw new ArgumentException("Value must be 6 bytes long for a valid Ethernet hardware address.", "chaddr");
 
             if (xid.Length != 4)
-                throw new ArgumentException("Transaction ID must be 4 bytes.", "xid");
+                throw new ArgumentException("Transaction ID must be 4 bytes.", nameof(xid));
 
             if (secs.Length != 2)
-                throw new ArgumentException("Seconds elapsed must be 2 bytes.", "secs");
+                throw new ArgumentException("Seconds elapsed must be 2 bytes.", nameof(secs));
 
             _op = op;
             _htype = DhcpMessageHardwareAddressType.Ethernet;
