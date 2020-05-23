@@ -501,8 +501,7 @@ namespace DnsServerCore.Dns.Zones
         {
             byte[] bKey = ConvertToByteKey(domain);
 
-            Node closestNode = FindClosestNode(bKey);
-            NodeValue removedValue = closestNode.RemoveValue(bKey);
+            NodeValue removedValue = _root.RemoveValue(bKey, out Node closestNode);
             if (removedValue == null)
             {
                 value = default;
@@ -528,7 +527,7 @@ namespace DnsServerCore.Dns.Zones
                         T zone = v.Value;
                         if ((zone != null) && ((zone is SubDomainZone) || (zone is CacheZone)))
                         {
-                            current.RemoveValue(v.Key); //remove node value
+                            current.RemoveValue(v.Key, out _); //remove node value
                             current.CleanUp();
                         }
                     }
@@ -545,8 +544,8 @@ namespace DnsServerCore.Dns.Zones
             List<T> zones = new List<T>();
 
             byte[] bKey = ConvertToByteKey(domain);
-            Node closestNode = FindClosestNode(bKey);
-            NodeValue nodeValue = closestNode.GetValue(bKey);
+
+            NodeValue nodeValue = _root.FindNodeValue(bKey, out Node closestNode);
             if (nodeValue != null)
             {
                 T zone = nodeValue.Value;
@@ -589,7 +588,8 @@ namespace DnsServerCore.Dns.Zones
             List<string> zones = new List<string>();
 
             byte[] bKey = ConvertToByteKey(domain);
-            Node closestNode = FindClosestNode(bKey);
+
+            _ = _root.FindNodeValue(bKey, out Node closestNode);
             Node current = closestNode;
             NodeValue value;
 
