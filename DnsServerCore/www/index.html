@@ -448,7 +448,7 @@
                                                 <input type="text" class="form-control" style="width: inherit;" id="txtBlockZone" placeholder="example.com">
                                             </div>
                                             <div class="form-group">
-                                                <button id="btnCustomBlockZone" type="submit" class="btn btn-primary" data-loading-text="Block" onclick="return customBlockZone();">Block</button>
+                                                <button id="btnBlockZone" type="submit" class="btn btn-primary" data-loading-text="Block" onclick="return blockZone();">Block</button>
                                                 <button id="btnBrowseBlockZone" type="button" class="btn btn-default" data-loading-text="Browse" onclick="return refreshBlockedZonesList($('#txtBlockZone').val());">Browse</button>
                                             </div>
                                         </form>
@@ -463,9 +463,9 @@
                                             <div class="panel-heading" style="height: 36px; padding: 4px 6px;">
                                                 <div id="txtBlockedZoneViewerTitle" style="float: left; padding: 4px;">technitium.com</div>
                                                 <div style="float: right;">
-                                                    <button id="btnImportBlockedZone" type="button" class="btn btn-default" data-loading-text="Import" onclick="return resetImportCustomBlockedZonesModal();" data-toggle="modal" data-target="#modalImportCustomBlockedZones" style="font-size: 12px; padding: 4px 6px;">Import</button>
-                                                    <button id="btnExportBlockedZone" type="button" class="btn btn-default" data-loading-text="Export" onclick="return exportCustomBlockedZones();" style="font-size: 12px; padding: 4px 6px;">Export</button>
-                                                    <button id="btnDeleteCustomBlockedZone" type="button" class="btn btn-danger" data-loading-text="Delete" onclick="return deleteCustomBlockedZone();" style="font-size: 12px; padding: 4px 6px;">Delete</button>
+                                                    <button id="btnImportBlockedZone" type="button" class="btn btn-default" data-loading-text="Import" onclick="return resetImportBlockedZonesModal();" data-toggle="modal" data-target="#modalImportBlockedZones" style="font-size: 12px; padding: 4px 6px;">Import</button>
+                                                    <button id="btnExportBlockedZone" type="button" class="btn btn-default" data-loading-text="Export" onclick="return exportBlockedZones();" style="font-size: 12px; padding: 4px 6px;">Export</button>
+                                                    <button id="btnDeleteBlockedZone" type="button" class="btn btn-danger" data-loading-text="Delete" onclick="return deleteBlockedZone();" style="font-size: 12px; padding: 4px 6px;">Delete</button>
                                                 </div>
                                             </div>
 
@@ -516,11 +516,15 @@
                                                     <li><a href="#">Quad9 Secure HTTPS (https://dns.quad9.net/dns-query (9.9.9.9))</a></li>
                                                     <li><a href="#">Quad9 Unsecure (9.9.9.10)</a></li>
                                                     <li><a href="#">Quad9 Unsecure ([2620:fe::10])</a></li>
+                                                    <li><a href="#">Quad9 Unsecure TLS (dns10.quad9.net (9.9.9.10:853))</a></li>
+                                                    <li><a href="#">Quad9 Unsecure TLS (dns10.quad9.net ([2620:fe::10]:853))</a></li>
                                                     <li><a href="#">Quad9 Unsecure HTTPS (https://dns10.quad9.net/dns-query (9.9.9.10))</a></li>
                                                     <li><a href="#">OpenDNS (208.67.222.222)</a></li>
                                                     <li><a href="#">OpenDNS (208.67.220.220)</a></li>
                                                     <li><a href="#">OpenDNS ([2620:0:ccc::2])</a></li>
                                                     <li><a href="#">OpenDNS ([2620:0:ccd::2])</a></li>
+                                                    <li><a href="#">OpenDNS FamilyShield (208.67.222.123)</a></li>
+                                                    <li><a href="#">OpenDNS FamilyShield (208.67.220.123)</a></li>
                                                     <li><a href="#">Level3 (4.2.2.1)</a></li>
                                                     <li><a href="#">Level3 (4.2.2.2)</a></li>
                                                     <li><a href="#">Ultra (156.154.70.1)</a></li>
@@ -918,10 +922,20 @@
                                                             <option value="quad9-tls-ipv6">Quad9 Secure (DNS-over-TLS IPv6)</option>
                                                             <option value="quad9-https">Quad9 Secure (DNS-over-HTTPS)</option>
 
+                                                            <option value="quad9-unsecure-udp">Quad9 Unsecure (DNS-over-UDP)</option>
+                                                            <option value="quad9-unsecure-udp-ipv6">Quad9 Unsecure (DNS-over-UDP IPv6)</option>
+                                                            <option value="quad9-unsecure-tcp">Quad9 Unsecure (DNS-over-TCP)</option>
+                                                            <option value="quad9-unsecure-tcp-ipv6">Quad9 Unsecure (DNS-over-TCP IPv6)</option>
+                                                            <option value="quad9-unsecure-tls">Quad9 Unsecure (DNS-over-TLS)</option>
+                                                            <option value="quad9-unsecure-tls-ipv6">Quad9 Unsecure (DNS-over-TLS IPv6)</option>
+                                                            <option value="quad9-unsecure-https">Quad9 Unsecure (DNS-over-HTTPS)</option>
+
                                                             <option value="opendns-udp">OpenDNS (DNS-over-UDP)</option>
                                                             <option value="opendns-udp-ipv6">OpenDNS (DNS-over-UDP IPv6)</option>
                                                             <option value="opendns-tcp">OpenDNS (DNS-over-TCP)</option>
                                                             <option value="opendns-tcp-ipv6">OpenDNS (DNS-over-TCP IPv6)</option>
+
+                                                            <option value="opendns-fs-udp">OpenDNS FamilyShield (DNS-over-UDP)</option>
                                                         </select>
 
                                                         <div style="margin-top: 10px;">Enter forwarder DNS Server IP addresses or URLs one below another in above text field or use the Quick Select list to select desired forwarder.</div>
@@ -973,8 +987,6 @@
                                             <div class="form-group" style="margin-bottom: 0px;">
                                                 <button id="btnSaveDnsSettings" type="button" class="btn btn-primary" data-loading-text="Saving..." onclick="return saveDnsSettings();">Save Settings</button>
                                                 <button id="btnFlushDnsCache" type="button" class="btn btn-warning" data-loading-text="Flushing..." onclick="return flushDnsCache();" style="margin-left: 6px;">Flush Cache</button>
-                                                <button id="btnFlushAllowedZone" type="button" class="btn btn-warning" data-loading-text="Flushing..." onclick="return flushAllowedZone();" style="margin-left: 6px;">Flush Allowed Zone</button>
-                                                <button id="btnFlushCustomBlockedZone" type="button" class="btn btn-warning" data-loading-text="Flushing..." onclick="return flushCustomBlockedZone();" style="margin-left: 6px;">Flush Custom Blocked Zone</button>
                                             </div>
 
                                         </form>
@@ -1613,25 +1625,25 @@
         </div>
     </div>
 
-    <div id="modalImportCustomBlockedZones" class="modal fade" tabindex="-1" role="dialog">
+    <div id="modalImportBlockedZones" class="modal fade" tabindex="-1" role="dialog">
         <div class="modal-dialog" role="document">
             <div class="modal-content">
                 <div class="modal-header">
                     <button type="button" class="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button>
-                    <h4 class="modal-title">Import Custom Blocked Zones</h4>
+                    <h4 class="modal-title">Import Blocked Zones</h4>
                 </div>
                 <div class="modal-body">
-                    <div id="divImportCustomBlockedZonesAlert"></div>
+                    <div id="divImportBlockedZonesAlert"></div>
 
-                    <p>Enter domain names one below other to import into custom blocked zone:</p>
+                    <p>Enter domain names one below other to import into blocked zone:</p>
 
                     <div class="form-group">
-                        <label for="txtImportCustomBlockedZones" class="control-label">Blocked Zones</label>
-                        <textarea id="txtImportCustomBlockedZones" class="form-control" rows="15"></textarea>
+                        <label for="txtImportBlockedZones" class="control-label">Blocked Zones</label>
+                        <textarea id="txtImportBlockedZones" class="form-control" rows="15"></textarea>
                     </div>
                 </div>
                 <div class="modal-footer">
-                    <button id="btnImportCustomBlockedZones" type="submit" class="btn btn-primary" data-loading-text="Importing..." onclick="return importCustomBlockedZones();">Import</button>
+                    <button id="btnImportBlockedZones" type="submit" class="btn btn-primary" data-loading-text="Importing..." onclick="return importBlockedZones();">Import</button>
                     <button type="button" class="btn btn-default" data-dismiss="modal">Close</button>
                 </div>
             </div>

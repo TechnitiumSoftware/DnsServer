@@ -325,6 +325,42 @@ $(function () {
                 break;
 
 
+            case "quad9-unsecure-udp":
+                $("#txtForwarders").val("9.9.9.10");
+                $("#rdForwarderProtocolUdp").prop("checked", true);
+                break;
+
+            case "quad9-unsecure-udp-ipv6":
+                $("#txtForwarders").val("[2620:fe::10]");
+                $("#rdForwarderProtocolUdp").prop("checked", true);
+                break;
+
+            case "quad9-unsecure-tcp":
+                $("#txtForwarders").val("9.9.9.10");
+                $("#rdForwarderProtocolTcp").prop("checked", true);
+                break;
+
+            case "quad9-unsecure-tcp-ipv6":
+                $("#txtForwarders").val("[2620:fe::10]");
+                $("#rdForwarderProtocolTcp").prop("checked", true);
+                break;
+
+            case "quad9-unsecure-tls":
+                $("#txtForwarders").val("dns10.quad9.net (9.9.9.10:853)");
+                $("#rdForwarderProtocolTls").prop("checked", true);
+                break;
+
+            case "quad9-unsecure-tls-ipv6":
+                $("#txtForwarders").val("dns10.quad9.net ([2620:fe::10]:853)");
+                $("#rdForwarderProtocolTls").prop("checked", true);
+                break;
+
+            case "quad9-unsecure-https":
+                $("#txtForwarders").val("https://dns10.quad9.net/dns-query (9.9.9.10)");
+                $("#rdForwarderProtocolHttps").prop("checked", true);
+                break;
+
+
             case "opendns-udp":
                 $("#txtForwarders").val("208.67.222.222\r\n208.67.220.220");
                 $("#rdForwarderProtocolUdp").prop("checked", true);
@@ -343,6 +379,12 @@ $(function () {
             case "opendns-tcp-ipv6":
                 $("#txtForwarders").val("[2620:0:ccc::2]\r\n[2620:0:ccd::2]");
                 $("#rdForwarderProtocolTcp").prop("checked", true);
+                break;
+
+
+            case "opendns-fs-udp":
+                $("#txtForwarders").val("208.67.222.123\r\n208.67.220.123");
+                $("#rdForwarderProtocolUdp").prop("checked", true);
                 break;
 
 
@@ -1217,31 +1259,6 @@ function allowZone() {
     return false;
 }
 
-function flushAllowedZone() {
-
-    if (!confirm("Are you sure to flush the DNS Server allowed zone?"))
-        return false;
-
-    var btn = $("#btnFlushAllowedZone").button('loading');
-
-    HTTPRequest({
-        url: "/api/flushAllowedZone?token=" + token,
-        success: function (responseJSON) {
-            btn.button('reset');
-            showAlert("success", "Allowed Zone Flushed!", "DNS Server allowed zone was flushed successfully.");
-        },
-        error: function () {
-            btn.button('reset');
-        },
-        invalidToken: function () {
-            btn.button('reset');
-            showPageLogin();
-        }
-    });
-
-    return false;
-}
-
 function deleteAllowedZone() {
 
     var domain = $("#txtAllowedZoneViewerTitle").text();
@@ -1338,7 +1355,7 @@ function refreshAllowedZonesList(domain, direction) {
     return false;
 }
 
-function customBlockZone() {
+function blockZone() {
 
     var domain = $("#txtBlockZone").val();
 
@@ -1351,14 +1368,14 @@ function customBlockZone() {
     var btn = $("#btnBlockZone").button('loading');
 
     HTTPRequest({
-        url: "/api/customBlockZone?token=" + token + "&domain=" + domain,
+        url: "/api/blockZone?token=" + token + "&domain=" + domain,
         success: function (responseJSON) {
             refreshBlockedZonesList(domain);
 
             $("#txtBlockZone").val("");
             btn.button('reset');
 
-            showAlert("success", "Zone Blocked!", "Domain was added to Custom Blocked Zone successfully.");
+            showAlert("success", "Zone Blocked!", "Domain was added to Blocked Zone successfully.");
         },
         error: function () {
             btn.button('reset');
@@ -1372,47 +1389,22 @@ function customBlockZone() {
     return false;
 }
 
-function flushCustomBlockedZone() {
-
-    if (!confirm("Are you sure to flush the DNS Server blocked zone?"))
-        return false;
-
-    var btn = $("#btnFlushCustomBlockedZone").button('loading');
-
-    HTTPRequest({
-        url: "/api/flushCustomBlockedZone?token=" + token,
-        success: function (responseJSON) {
-            btn.button('reset');
-            showAlert("success", "Custom Blocked Zone Flushed!", "DNS Server custom blocked zone was flushed successfully.");
-        },
-        error: function () {
-            btn.button('reset');
-        },
-        invalidToken: function () {
-            btn.button('reset');
-            showPageLogin();
-        }
-    });
-
-    return false;
-}
-
-function deleteCustomBlockedZone() {
+function deleteBlockedZone() {
 
     var domain = $("#txtBlockedZoneViewerTitle").text();
 
     if (!confirm("Are you sure you want to delete the blocked zone '" + domain + "'?"))
         return false;
 
-    var btn = $("#btnDeleteCustomBlockedZone").button('loading');
+    var btn = $("#btnDeleteBlockedZone").button('loading');
 
     HTTPRequest({
-        url: "/api/deleteCustomBlockedZone?token=" + token + "&domain=" + domain,
+        url: "/api/deleteBlockedZone?token=" + token + "&domain=" + domain,
         success: function (responseJSON) {
             refreshBlockedZonesList(getParentDomain(domain), "up");
 
             btn.button('reset');
-            showAlert("success", "Custom Blocked Zone Deleted!", "Custom blocked zone was deleted successfully.");
+            showAlert("success", "Blocked Zone Deleted!", "Blocked zone was deleted successfully.");
         },
         error: function () {
             btn.button('reset');
@@ -1463,15 +1455,15 @@ function refreshBlockedZonesList(domain, direction) {
 
             if (newDomain == "") {
                 $("#txtBlockedZoneViewerTitle").text("<ROOT>");
-                $("#btnDeleteCustomBlockedZone").hide();
+                $("#btnDeleteBlockedZone").hide();
             }
             else {
                 $("#txtBlockedZoneViewerTitle").text(newDomain);
 
                 if ((newDomain == "root-servers.net") || newDomain.endsWith(".root-servers.net"))
-                    $("#btnDeleteCustomBlockedZone").hide();
+                    $("#btnDeleteBlockedZone").hide();
                 else
-                    $("#btnDeleteCustomBlockedZone").show();
+                    $("#btnDeleteBlockedZone").show();
             }
 
             if (responseJSON.response.records.length > 0) {
@@ -1752,34 +1744,34 @@ function exportAllowedZones() {
     return false;
 }
 
-function resetImportCustomBlockedZonesModal() {
+function resetImportBlockedZonesModal() {
 
-    $("#divImportCustomBlockedZonesAlert").html("");
-    $("#txtImportCustomBlockedZones").val("");
+    $("#divImportBlockedZonesAlert").html("");
+    $("#txtImportBlockedZones").val("");
 
     return false;
 }
 
-function importCustomBlockedZones() {
-    var divImportCustomBlockedZonesAlert = $("#divImportCustomBlockedZonesAlert");
-    var blockedZones = cleanTextList($("#txtImportCustomBlockedZones").val());
+function importBlockedZones() {
+    var divImportBlockedZonesAlert = $("#divImportBlockedZonesAlert");
+    var blockedZones = cleanTextList($("#txtImportBlockedZones").val());
 
     if ((blockedZones.length === 0) || (blockedZones === ",")) {
-        showAlert("warning", "Missing!", "Please enter custom blocked zones to import.", divImportCustomBlockedZonesAlert);
-        $("#txtImportCustomBlockedZones").focus();
+        showAlert("warning", "Missing!", "Please enter blocked zones to import.", divImportBlockedZonesAlert);
+        $("#txtImportBlockedZones").focus();
         return false;
     }
 
-    var btn = $("#btnImportCustomBlockedZones").button('loading');
+    var btn = $("#btnImportBlockedZones").button('loading');
 
     HTTPRequest({
-        url: "/api/importCustomBlockedZones?token=" + token,
+        url: "/api/importBlockedZones?token=" + token,
         data: "blockedZones=" + blockedZones,
         success: function (responseJSON) {
-            $("#modalImportCustomBlockedZones").modal("hide");
+            $("#modalImportBlockedZones").modal("hide");
             btn.button('reset');
 
-            showAlert("success", "Imported!", "Domain names were imported to custom blocked zone successfully.");
+            showAlert("success", "Imported!", "Domain names were imported to blocked zone successfully.");
         },
         error: function () {
             btn.button('reset');
@@ -1788,17 +1780,17 @@ function importCustomBlockedZones() {
             btn.button('reset');
             showPageLogin();
         },
-        objAlertPlaceholder: divImportCustomBlockedZonesAlert
+        objAlertPlaceholder: divImportBlockedZonesAlert
     });
 
     return false;
 }
 
-function exportCustomBlockedZones() {
+function exportBlockedZones() {
 
-    window.open("/api/exportCustomBlockedZones?token=" + token, "_blank");
+    window.open("/api/exportBlockedZones?token=" + token, "_blank");
 
-    showAlert("success", "Exported!", "Custom blocked zones were exported successfully.");
+    showAlert("success", "Exported!", "Blocked zones were exported successfully.");
 
     return false;
 }
