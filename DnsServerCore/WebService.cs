@@ -4308,6 +4308,7 @@ namespace DnsServerCore
             _defaultSoaRecord = new DnsSOARecord(_serverDomain, "hostmaster." + _serverDomain, 1, 14400, 3600, 604800, 900);
             _defaultNsRecord = new DnsNSRecord(_serverDomain);
             _dnsServer.BlockListZoneManager.ServerDomain = _serverDomain;
+            _dhcpServer.ServerDomain = _serverDomain;
         }
 
         #endregion
