@@ -1,6 +1,6 @@
 ﻿/*
 Technitium DNS Server
-Copyright (C) 2019  Shreyas Zare (shreyas@technitium.com)
+Copyright (C) 2020  Shreyas Zare (shreyas@technitium.com)
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -17,23 +17,25 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 */
 
+using DnsServerCore.Dns.Zones;
 using TechnitiumLibrary.Net.Dns;
 
 namespace DnsServerCore.Dns
 {
-    class ResolverPrefetchDnsCache : ResolverDnsCache
+    class ResolverPrefetchDnsCache : IDnsCache
     {
         #region variables
 
+        readonly CacheZoneManager _cacheZoneManager;
         readonly DnsQuestionRecord _prefetchQuery;
 
         #endregion
 
         #region constructor
 
-        public ResolverPrefetchDnsCache(Zone cacheZoneRoot, DnsQuestionRecord prefetchQuery)
-            : base(cacheZoneRoot)
+        public ResolverPrefetchDnsCache(CacheZoneManager cacheZoneManager, DnsQuestionRecord prefetchQuery)
         {
+            _cacheZoneManager = cacheZoneManager;
             _prefetchQuery = prefetchQuery;
         }
 
@@ -41,12 +43,20 @@ namespace DnsServerCore.Dns
 
         #region public
 
-        public override DnsDatagram Query(DnsDatagram request)
+        public DnsDatagram Query(DnsDatagram request, bool serveStale = false)
         {
             if (_prefetchQuery.Equals(request.Question[0]))
-                return _cacheZoneRoot.QueryCacheGetClosestNameServers(request); //return closest name servers so that the recursive resolver queries them to refreshes cache instead of returning response from cache
+            {
+                //return closest name servers so that the recursive resolver queries them to refreshes cache instead of returning response from cache
+                return _cacheZoneManager.QueryClosestDelegation(request);
+            }
 
-            return _cacheZoneRoot.Query(request);
+            return _cacheZoneManager.Query(request, serveStale);
+        }
+
+        public void CacheResponse(DnsDatagram response)
+        {
+            _cacheZoneManager.CacheResponse(response);
         }
 
         #endregion

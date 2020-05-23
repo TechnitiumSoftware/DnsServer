@@ -1,6 +1,6 @@
 ﻿/*
 Technitium DNS Server
-Copyright (C) 2019  Shreyas Zare (shreyas@technitium.com)
+Copyright (C) 2020  Shreyas Zare (shreyas@technitium.com)
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -17,39 +17,33 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 */
 
+using System.Threading;
 using TechnitiumLibrary.Net.Dns;
 
 namespace DnsServerCore.Dns
 {
-    class RecursiveQueryLock
+    class ResolverQueryHandle
     {
         #region variables
 
-        bool _complete;
         DnsDatagram _response;
+        readonly EventWaitHandle _waitHandle = new ManualResetEvent(false);
 
         #endregion
 
         #region public
 
-        public void SetComplete(DnsDatagram response)
+        public void Set(DnsDatagram response)
         {
-            if (!_complete)
-            {
-                _complete = true;
-                _response = response;
-            }
+            _response = response;
+            _waitHandle.Set();
         }
 
-        #endregion
-
-        #region properties
-
-        public bool Complete
-        { get { return _complete; } }
-
-        public DnsDatagram Response
-        { get { return _response; } }
+        public DnsDatagram WaitForResponse(int timeout)
+        {
+            _waitHandle.WaitOne(timeout);
+            return _response;
+        }
 
         #endregion
     }
