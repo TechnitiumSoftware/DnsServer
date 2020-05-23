@@ -18,7 +18,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
 using DnsServerCore.Dhcp.Options;
-using DnsServerCore.Dns;
+using DnsServerCore.Dns.Zones;
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
@@ -66,7 +66,8 @@ namespace DnsServerCore.Dhcp
 
         readonly ConcurrentDictionary<string, Scope> _scopes = new ConcurrentDictionary<string, Scope>();
 
-        Zone _authoritativeZoneRoot;
+        string _serverDomain = Environment.MachineName;
+        AuthZoneManager _authZoneManager;
         LogManager _log;
 
         int _activeScopeCount = 0;
@@ -609,7 +610,7 @@ namespace DnsServerCore.Dhcp
 
         private void UpdateDnsAuthZone(bool add, Scope scope, Lease lease)
         {
-            if (_authoritativeZoneRoot == null)
+            if (_authZoneManager == null)
                 return;
 
             if (string.IsNullOrWhiteSpace(scope.DomainName))
@@ -624,36 +625,20 @@ namespace DnsServerCore.Dhcp
             if (add)
             {
                 //update forward zone
-                {
-                    if (!_authoritativeZoneRoot.ZoneExists(scope.DomainName))
-                    {
-                        //create forward zone
-                        _authoritativeZoneRoot.SetRecords(scope.DomainName, DnsResourceRecordType.SOA, 14400, new DnsResourceRecordData[] { new DnsSOARecord(_authoritativeZoneRoot.ServerDomain, "hostmaster." + scope.DomainName, 1, 14400, 3600, 604800, 900) });
-                        _authoritativeZoneRoot.SetRecords(scope.DomainName, DnsResourceRecordType.NS, 14400, new DnsResourceRecordData[] { new DnsNSRecord(_authoritativeZoneRoot.ServerDomain) });
-                    }
-
-                    _authoritativeZoneRoot.SetRecords(lease.HostName, DnsResourceRecordType.A, scope.DnsTtl, new DnsResourceRecordData[] { new DnsARecord(lease.Address) });
-                }
+                _authZoneManager.CreatePrimaryZone(scope.DomainName, _serverDomain, false);
+                _authZoneManager.SetRecords(lease.HostName, DnsResourceRecordType.A, scope.DnsTtl, new DnsResourceRecordData[] { new DnsARecord(lease.Address) });
 
                 //update reverse zone
-                {
-                    if (!_authoritativeZoneRoot.ZoneExists(scope.ReverseZone))
-                    {
-                        //create reverse zone
-                        _authoritativeZoneRoot.SetRecords(scope.ReverseZone, DnsResourceRecordType.SOA, 14400, new DnsResourceRecordData[] { new DnsSOARecord(_authoritativeZoneRoot.ServerDomain, "hostmaster." + scope.ReverseZone, 1, 14400, 3600, 604800, 900) });
-                        _authoritativeZoneRoot.SetRecords(scope.ReverseZone, DnsResourceRecordType.NS, 14400, new DnsResourceRecordData[] { new DnsNSRecord(_authoritativeZoneRoot.ServerDomain) });
-                    }
-
-                    _authoritativeZoneRoot.SetRecords(Scope.GetReverseZone(lease.Address, 32), DnsResourceRecordType.PTR, scope.DnsTtl, new DnsResourceRecordData[] { new DnsPTRRecord(lease.HostName) });
-                }
+                _authZoneManager.CreatePrimaryZone(scope.ReverseZone, _serverDomain, false);
+                _authZoneManager.SetRecords(Scope.GetReverseZone(lease.Address, 32), DnsResourceRecordType.PTR, scope.DnsTtl, new DnsResourceRecordData[] { new DnsPTRRecord(lease.HostName) });
             }
             else
             {
                 //remove from forward zone
-                _authoritativeZoneRoot.DeleteRecords(lease.HostName, DnsResourceRecordType.A);
+                _authZoneManager.DeleteRecords(lease.HostName, DnsResourceRecordType.A);
 
                 //remove from reverse zone
-                _authoritativeZoneRoot.DeleteRecords(Scope.GetReverseZone(lease.Address, 32), DnsResourceRecordType.PTR);
+                _authZoneManager.DeleteRecords(Scope.GetReverseZone(lease.Address, 32), DnsResourceRecordType.PTR);
             }
         }
 
@@ -755,7 +740,7 @@ namespace DnsServerCore.Dhcp
                     _activeScopeCount++;
                 }
 
-                if (_authoritativeZoneRoot != null)
+                if (_authZoneManager != null)
                 {
                     //update valid leases into dns
                     DateTime utcNow = DateTime.UtcNow;
@@ -803,7 +788,7 @@ namespace DnsServerCore.Dhcp
                     }
                 }
 
-                if (_authoritativeZoneRoot != null)
+                if (_authZoneManager != null)
                 {
                     //remove all leases from dns
                     foreach (Lease lease in scope.Leases)
@@ -1127,10 +1112,16 @@ namespace DnsServerCore.Dhcp
         public ICollection<Scope> Scopes
         { get { return _scopes.Values; } }
 
-        public Zone AuthoritativeZoneRoot
+        public string ServerDomain
         {
-            get { return _authoritativeZoneRoot; }
-            set { _authoritativeZoneRoot = value; }
+            get { return _serverDomain; }
+            set { _serverDomain = value; }
+        }
+
+        public AuthZoneManager AuthZoneManager
+        {
+            get { return _authZoneManager; }
+            set { _authZoneManager = value; }
         }
 
         public LogManager LogManager
