@@ -1,0 +1,392 @@
+﻿using System;
+using System.Collections.Concurrent;
+using System.Collections.Generic;
+using System.IO;
+using System.Net;
+using System.Security.Cryptography;
+using System.Text;
+using TechnitiumLibrary.Net;
+using TechnitiumLibrary.Net.Dns;
+using TechnitiumLibrary.Net.Dns.ResourceRecords;
+using TechnitiumLibrary.Net.Proxy;
+
+namespace DnsServerCore.Dns.Zones
+{
+    public sealed class BlockListZoneManager
+    {
+        #region variables
+
+        LogManager _log;
+
+        readonly List<Uri> _blockListUrls = new List<Uri>();
+        ConcurrentDictionary<string, List<Uri>> _blockListZone = new ConcurrentDictionary<string, List<Uri>>();
+
+        DnsSOARecord _soaRecord;
+        DnsNSRecord _nsRecord;
+
+        readonly DnsARecord _aRecord = new DnsARecord(IPAddress.Any);
+        readonly DnsAAAARecord _aaaaRecord = new DnsAAAARecord(IPAddress.IPv6Any);
+
+        #endregion
+
+        #region constructor
+
+        public BlockListZoneManager()
+        {
+            UpdateServerDomain(Environment.MachineName);
+        }
+
+        #endregion
+
+        #region private
+
+        private void UpdateServerDomain(string serverDomain)
+        {
+            _soaRecord = new DnsSOARecord(serverDomain, "hostmaster." + serverDomain, 1, 14400, 3600, 604800, 900);
+            _nsRecord = new DnsNSRecord(serverDomain);
+        }
+
+        private static string GetBlockListFilePath(Uri blockListUrl, string localCacheFolder)
+        {
+            using (HashAlgorithm hash = SHA256.Create())
+            {
+                return Path.Combine(localCacheFolder, BitConverter.ToString(hash.ComputeHash(Encoding.UTF8.GetBytes(blockListUrl.AbsoluteUri))).Replace("-", "").ToLower());
+            }
+        }
+
+        private static string PopWord(ref string line)
+        {
+            if (line.Length == 0)
+                return line;
+
+            line = line.TrimStart(' ', '\t');
+
+            int i = line.IndexOfAny(new char[] { ' ', '\t' });
+            string word;
+
+            if (i < 0)
+            {
+                word = line;
+                line = "";
+            }
+            else
+            {
+                word = line.Substring(0, i);
+                line = line.Substring(i + 1);
+            }
+
+            return word;
+        }
+
+        private Queue<string> ReadBlockListFile(Uri blockListUrl, string localCacheFolder)
+        {
+            Queue<string> domains = new Queue<string>();
+
+            try
+            {
+                LogManager log = _log;
+                if (log != null)
+                    log.Write("DNS Server is reading block list from: " + blockListUrl.AbsoluteUri);
+
+                using (FileStream fS = new FileStream(GetBlockListFilePath(blockListUrl, localCacheFolder), FileMode.Open, FileAccess.Read))
+                {
+                    //parse hosts file and populate block zone
+                    StreamReader sR = new StreamReader(fS, true);
+                    string line;
+                    string firstWord;
+                    string secondWord;
+                    string hostname;
+
+                    while (true)
+                    {
+                        line = sR.ReadLine();
+                        if (line == null)
+                            break; //eof
+
+                        line = line.TrimStart(' ', '\t');
+
+                        if (line.Length == 0)
+                            continue; //skip empty line
+
+                        if (line.StartsWith("#"))
+                            continue; //skip comment line
+
+                        firstWord = PopWord(ref line);
+
+
+                        if (line.Length == 0)
+                        {
+                            hostname = firstWord;
+                        }
+                        else
+                        {
+                            secondWord = PopWord(ref line);
+
+                            if (secondWord.Length == 0)
+                                hostname = firstWord;
+                            else
+                                hostname = secondWord;
+                        }
+
+                        hostname = hostname.Trim('.').ToLower();
+
+                        switch (hostname)
+                        {
+                            case "":
+                            case "localhost":
+                            case "localhost.localdomain":
+                            case "local":
+                            case "broadcasthost":
+                            case "ip6-localhost":
+                            case "ip6-loopback":
+                            case "ip6-localnet":
+                            case "ip6-mcastprefix":
+                            case "ip6-allnodes":
+                            case "ip6-allrouters":
+                            case "ip6-allhosts":
+                                continue; //skip these hostnames
+                        }
+
+                        if (!DnsClient.IsDomainNameValid(hostname))
+                            continue;
+
+                        if (IPAddress.TryParse(hostname, out _))
+                            continue; //skip line when hostname is IP address
+
+                        domains.Enqueue(hostname);
+                    }
+                }
+
+                if (log != null)
+                    log.Write("DNS Server block list file was read (" + domains.Count + " domains) from: " + blockListUrl.AbsoluteUri);
+            }
+            catch (Exception ex)
+            {
+                LogManager log = _log;
+                if (log != null)
+                    log.Write("DNS Server failed to read block list from: " + blockListUrl.AbsoluteUri + "\r\n" + ex.ToString());
+            }
+
+            return domains;
+        }
+
+        private static string GetParentZone(string domain)
+        {
+            int i = domain.IndexOf('.');
+            if (i > -1)
+                return domain.Substring(i + 1);
+
+            return null;
+        }
+
+        private List<Uri> IsZoneBlocked(string domain)
+        {
+            while (domain != null)
+            {
+                if (_blockListZone.TryGetValue(domain, out List<Uri> blockLists))
+                    return blockLists; //found zone blocked
+
+                domain = GetParentZone(domain);
+            }
+
+            return null;
+        }
+
+        #endregion
+
+        #region public
+
+        public void Flush()
+        {
+            _blockListZone.Clear();
+        }
+
+        public bool UpdateBlockLists(string localCacheFolder, int maxRetries = 3, NetProxy proxy = null)
+        {
+            bool success = false;
+
+            foreach (Uri blockListUrl in _blockListUrls)
+            {
+                string blockListFilePath = GetBlockListFilePath(blockListUrl, localCacheFolder);
+                string blockListDownloadFilePath = blockListFilePath + ".downloading";
+
+                try
+                {
+                    int retries = 1;
+
+                    while (true)
+                    {
+                        if (File.Exists(blockListDownloadFilePath))
+                            File.Delete(blockListDownloadFilePath);
+
+                        using (WebClientEx wC = new WebClientEx())
+                        {
+                            wC.Proxy = proxy;
+                            wC.Timeout = 60000;
+
+                            if (File.Exists(blockListFilePath))
+                                wC.IfModifiedSince = File.GetLastWriteTimeUtc(blockListFilePath);
+
+                            try
+                            {
+                                wC.DownloadFile(blockListUrl, blockListDownloadFilePath);
+
+
+                                if (File.Exists(blockListFilePath))
+                                    File.Delete(blockListFilePath);
+
+                                File.Move(blockListDownloadFilePath, blockListFilePath);
+                                File.SetLastWriteTimeUtc(blockListFilePath, wC.Response.LastModified);
+
+                                success = true;
+
+                                LogManager log = _log;
+                                if (log != null)
+                                    log.Write("DNS Server successfully downloaded block list (" + WebUtilities.GetFormattedSize(new FileInfo(blockListFilePath).Length) + "): " + blockListUrl.AbsoluteUri);
+
+                                break;
+                            }
+                            catch (WebException ex)
+                            {
+                                if ((ex.Response as HttpWebResponse).StatusCode == HttpStatusCode.NotModified)
+                                {
+                                    LogManager log = _log;
+                                    if (log != null)
+                                        log.Write("DNS Server successfully checked for a new update of the block list: " + blockListUrl.AbsoluteUri);
+
+                                    break;
+                                }
+
+                                if (retries < maxRetries)
+                                {
+                                    retries++;
+                                    continue;
+                                }
+
+                                throw;
+                            }
+                        }
+
+                    }
+                }
+                catch (Exception ex)
+                {
+                    LogManager log = _log;
+                    if (log != null)
+                        log.Write("DNS Server failed to download block list and will use previously downloaded file (if available): " + blockListUrl.AbsoluteUri + "\r\n" + ex.ToString());
+                }
+            }
+
+            return success;
+        }
+
+        public void LoadBlockLists(string localCacheFolder)
+        {
+            //read all block lists in a queue
+            Dictionary<Uri, Queue<string>> blockListQueues = new Dictionary<Uri, Queue<string>>(_blockListUrls.Count);
+            int totalDomains = 0;
+
+            foreach (Uri blockListUrl in _blockListUrls)
+            {
+                Queue<string> blockListQueue = ReadBlockListFile(blockListUrl, localCacheFolder);
+                totalDomains += blockListQueue.Count;
+                blockListQueues.Add(blockListUrl, blockListQueue);
+            }
+
+            //load custom blocked zone into new block zone
+            ConcurrentDictionary<string, List<Uri>> blockListZone = new ConcurrentDictionary<string, List<Uri>>(Environment.ProcessorCount * 2, totalDomains);
+
+            foreach (KeyValuePair<Uri, Queue<string>> blockListQueue in blockListQueues)
+            {
+                Queue<string> queue = blockListQueue.Value;
+
+                while (queue.Count > 0)
+                {
+                    string domain = queue.Dequeue();
+
+                    List<Uri> blockLists = blockListZone.GetOrAdd(domain, delegate (string key)
+                    {
+                        return new List<Uri>(2);
+                    });
+
+                    blockLists.Add(blockListQueue.Key);
+                }
+            }
+
+            //set new blocked zone
+            _blockListZone = blockListZone;
+
+            LogManager log = _log;
+            if (log != null)
+                log.Write("DNS Server block list zone was loaded successfully.");
+        }
+
+        public DnsDatagram Query(DnsDatagram request)
+        {
+            List<Uri> blockLists = IsZoneBlocked(request.Question[0].Name.ToLower());
+
+            if (blockLists == null)
+            {
+                //zone not blocked
+                return null;
+            }
+
+            //zone is blocked
+            DnsResourceRecord[] answers = null;
+            DnsResourceRecord[] authority = null;
+
+            switch (request.Question[0].Type)
+            {
+                case DnsResourceRecordType.A:
+                    answers = new DnsResourceRecord[] { new DnsResourceRecord(request.Question[0].Name, DnsResourceRecordType.A, request.Question[0].Class, 60, _aRecord) };
+                    break;
+
+                case DnsResourceRecordType.AAAA:
+                    answers = new DnsResourceRecord[] { new DnsResourceRecord(request.Question[0].Name, DnsResourceRecordType.AAAA, request.Question[0].Class, 60, _aaaaRecord) };
+                    break;
+
+                case DnsResourceRecordType.NS:
+                    answers = new DnsResourceRecord[] { new DnsResourceRecord(request.Question[0].Name, DnsResourceRecordType.NS, request.Question[0].Class, 60, _nsRecord) };
+                    break;
+
+                case DnsResourceRecordType.TXT:
+                    answers = new DnsResourceRecord[blockLists.Count];
+
+                    for (int i = 0; i < answers.Length; i++)
+                        answers[i] = new DnsResourceRecord(request.Question[0].Name, DnsResourceRecordType.TXT, request.Question[0].Class, 60, new DnsTXTRecord("blockList=" + blockLists[i].AbsoluteUri));
+
+                    break;
+
+                default:
+                    authority = new DnsResourceRecord[] { new DnsResourceRecord(request.Question[0].Name, DnsResourceRecordType.SOA, request.Question[0].Class, 60, _soaRecord) };
+                    break;
+            }
+
+            return new DnsDatagram(request.Identifier, true, DnsOpcode.StandardQuery, true, false, request.RecursionDesired, true, false, false, DnsResponseCode.NoError, request.Question, answers, authority);
+        }
+
+        #endregion
+
+        #region properties
+
+        public LogManager LogManager
+        {
+            get { return _log; }
+            set { _log = value; }
+        }
+
+        public string ServerDomain
+        {
+            get { return _soaRecord.MasterNameServer; }
+            set { UpdateServerDomain(value); }
+        }
+
+        public List<Uri> BlockListUrls
+        { get { return _blockListUrls; } }
+
+        public int TotalZonesBlocked
+        { get { return _blockListZone != null ? _blockListZone.Count : 0; } }
+
+        #endregion
+    }
+}
