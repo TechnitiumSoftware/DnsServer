@@ -1,6 +1,6 @@
 ﻿/*
 Technitium DNS Server
-Copyright (C) 2019  Shreyas Zare (shreyas@technitium.com)
+Copyright (C) 2020  Shreyas Zare (shreyas@technitium.com)
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -18,8 +18,10 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
 using System;
+using System.Collections.Concurrent;
 using System.IO;
 using System.Net;
+using System.Threading;
 using TechnitiumLibrary.IO;
 using TechnitiumLibrary.Net.Dns;
 
@@ -35,6 +37,8 @@ namespace DnsServerCore
         StreamWriter _logOut;
         DateTime _logDate;
 
+        readonly ConcurrentQueue<LogQueueItem> _queue = new ConcurrentQueue<LogQueueItem>();
+        readonly Thread _consumerThread;
         readonly object _logFileLock = new object();
 
         #endregion
@@ -51,13 +55,39 @@ namespace DnsServerCore
             {
                 Write((Exception)e.ExceptionObject);
             };
+
+            //log consumer thread
+            _consumerThread = new Thread(delegate ()
+            {
+                while (true)
+                {
+                    lock (_logFileLock)
+                    {
+                        if (_disposed)
+                            break;
+
+                        while (_queue.TryDequeue(out LogQueueItem item))
+                        {
+                            if (item._dateTime.Date > _logDate.Date)
+                                StartNewLog();
+
+                            WriteLog(item._dateTime, item._message);
+                        }
+                    }
+
+                    Thread.Sleep(100);
+                }
+            });
+
+            _consumerThread.IsBackground = true;
+            _consumerThread.Start();
         }
 
         #endregion
 
         #region IDisposable
 
-        private bool _disposed = false;
+        bool _disposed;
 
         protected virtual void Dispose(bool disposing)
         {
@@ -70,7 +100,7 @@ namespace DnsServerCore
                 {
                     if (_logOut != null)
                     {
-                        Write("Logging stopped.");
+                        WriteLog(DateTime.UtcNow, "Logging stopped.");
                         _logOut.Dispose();
                     }
                 }
@@ -90,22 +120,22 @@ namespace DnsServerCore
 
         private void StartNewLog()
         {
-            DateTime now = DateTime.UtcNow;
+            DateTime utcNow = DateTime.UtcNow;
 
-            if ((_logOut != null) && (now.Date > _logDate.Date))
+            if ((_logOut != null) && (utcNow.Date > _logDate.Date))
             {
-                Write(now, "Logging stopped.");
+                WriteLog(utcNow, "Logging stopped.");
                 _logOut.Close();
             }
 
-            _logFile = Path.Combine(_logFolder, now.ToString("yyyy-MM-dd") + ".log");
+            _logFile = Path.Combine(_logFolder, utcNow.ToString("yyyy-MM-dd") + ".log");
             _logOut = new StreamWriter(new FileStream(_logFile, FileMode.Append, FileAccess.Write, FileShare.Read));
-            _logDate = now;
+            _logDate = utcNow;
 
-            Write(now, "Logging started.");
+            WriteLog(utcNow, "Logging started.");
         }
 
-        private void Write(DateTime dateTime, string message)
+        private void WriteLog(DateTime dateTime, string message)
         {
             _logOut.WriteLine("[" + dateTime.ToString("yyyy-MM-dd HH:mm:ss") + " UTC] " + message);
             _logOut.Flush();
@@ -177,7 +207,7 @@ namespace DnsServerCore
         {
             DnsQuestionRecord q = null;
 
-            if (request.Header.QDCOUNT > 0)
+            if (request.QDCOUNT > 0)
                 q = request.Question[0];
 
             string question;
@@ -197,7 +227,7 @@ namespace DnsServerCore
             {
                 string answer;
 
-                if (response.Header.ANCOUNT == 0)
+                if (response.ANCOUNT == 0)
                 {
                     answer = "[]";
                 }
@@ -205,7 +235,7 @@ namespace DnsServerCore
                 {
                     answer = "[";
 
-                    for (int i = 0; i < response.Answer.Length; i++)
+                    for (int i = 0; i < response.Answer.Count; i++)
                     {
                         if (i != 0)
                             answer += ", ";
@@ -216,7 +246,7 @@ namespace DnsServerCore
                     answer += "]";
                 }
 
-                responseInfo = " RCODE: " + response.Header.RCODE.ToString() + "; ANSWER: " + answer;
+                responseInfo = " RCODE: " + response.RCODE.ToString() + "; ANSWER: " + answer;
             }
 
             Write(ep, protocol, question + ";" + responseInfo);
@@ -238,20 +268,7 @@ namespace DnsServerCore
 
         public void Write(string message)
         {
-            try
-            {
-                lock (_logFileLock)
-                {
-                    DateTime now = DateTime.UtcNow;
-
-                    if (now.Date > _logDate.Date)
-                        StartNewLog();
-
-                    Write(now, message);
-                }
-            }
-            catch
-            { }
+            _queue.Enqueue(new LogQueueItem(message));
         }
 
         public void DeleteCurrentLogFile()
@@ -276,5 +293,25 @@ namespace DnsServerCore
         { get { return _logFile; } }
 
         #endregion
+
+        class LogQueueItem
+        {
+            #region variables
+
+            public readonly DateTime _dateTime;
+            public readonly string _message;
+
+            #endregion
+
+            #region constructor
+
+            public LogQueueItem(string message)
+            {
+                _dateTime = DateTime.UtcNow;
+                _message = message;
+            }
+
+            #endregion
+        }
     }
 }
