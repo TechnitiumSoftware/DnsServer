@@ -96,9 +96,6 @@ namespace DnsServerCore.Dns.Zones
 
         protected override byte[] ConvertToByteKey(string domain)
         {
-            if (domain == null)
-                throw new ArgumentNullException(nameof(domain));
-
             if (domain.Length == 0)
                 return Array.Empty<byte>();
 
@@ -516,11 +513,14 @@ namespace DnsServerCore.Dns.Zones
             return TryAdd(zone.Name, zone);
         }
 
-        public new bool TryRemove(string domain, out T value)
+        public override bool TryRemove(string domain, out T value)
         {
+            if (domain == null)
+                throw new ArgumentNullException(nameof(domain));
+
             byte[] bKey = ConvertToByteKey(domain);
 
-            NodeValue removedValue = _root.RemoveValue(bKey, out Node closestNode);
+            NodeValue removedValue = _root.RemoveNodeValue(bKey, out Node closestNode);
             if (removedValue == null)
             {
                 value = default;
@@ -546,20 +546,23 @@ namespace DnsServerCore.Dns.Zones
                         T zone = v.Value;
                         if ((zone != null) && ((zone is SubDomainZone) || (zone is CacheZone)))
                         {
-                            current.RemoveValue(v.Key, out _); //remove node value
-                            current.CleanUp();
+                            current.RemoveNodeValue(v.Key, out _); //remove node value
+                            current.CleanThisBranch();
                         }
                     }
                 }
             }
 
-            closestNode.CleanUp();
+            closestNode.CleanThisBranch();
 
             return true;
         }
 
         public List<T> GetZoneWithSubDomainZones(string domain)
         {
+            if (domain == null)
+                throw new ArgumentNullException(nameof(domain));
+
             List<T> zones = new List<T>();
 
             byte[] bKey = ConvertToByteKey(domain);
@@ -604,6 +607,9 @@ namespace DnsServerCore.Dns.Zones
 
         public List<string> ListSubDomains(string domain)
         {
+            if (domain == null)
+                throw new ArgumentNullException(nameof(domain));
+
             List<string> zones = new List<string>();
 
             byte[] bKey = ConvertToByteKey(domain);
@@ -634,6 +640,9 @@ namespace DnsServerCore.Dns.Zones
 
         public T FindZone(string domain, out T delegation, out T authority, out bool hasSubDomains)
         {
+            if (domain == null)
+                throw new ArgumentNullException(nameof(domain));
+
             byte[] key = ConvertToByteKey(domain);
 
             NodeValue nodeValue = FindNodeValue(key, out Node closestNode, out NodeValue closestDelegation, out NodeValue closestAuthority);
@@ -653,7 +662,7 @@ namespace DnsServerCore.Dns.Zones
                 //check if current node has sub domains
                 NodeValue value = closestNode.Value;
                 if (value == null)
-                    hasSubDomains = closestNode.Children != null;
+                    hasSubDomains = closestNode.HasChildren;
                 else
                     hasSubDomains = IsKeySubDomain(key, value.Key);
 
@@ -687,7 +696,7 @@ namespace DnsServerCore.Dns.Zones
             else
                 authority = null;
 
-            hasSubDomains = closestNode.Children != null;
+            hasSubDomains = closestNode.HasChildren;
             return zoneValue;
         }
 
