@@ -17,15 +17,40 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 */
 
+using DnsServerCore.Dns.ResourceRecords;
+using System.Collections.Generic;
+using TechnitiumLibrary.Net.Dns;
+
 namespace DnsServerCore.Dns.Zones
 {
-    public sealed class SubDomainZone : AuthZone
+    public abstract class SubDomainZone : AuthZone
     {
         #region constructor
 
-        public SubDomainZone(string name)
+        protected SubDomainZone(string name)
             : base(name)
         { }
+
+        #endregion
+
+        #region public
+
+        public void AutoUpdateState()
+        {
+            foreach (KeyValuePair<DnsResourceRecordType, IReadOnlyList<DnsResourceRecord>> entry in _entries)
+            {
+                foreach (DnsResourceRecord record in entry.Value)
+                {
+                    if (!record.IsDisabled())
+                    {
+                        _disabled = false;
+                        return;
+                    }
+                }
+            }
+
+            _disabled = true;
+        }
 
         #endregion
     }
