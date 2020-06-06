@@ -569,6 +569,7 @@
                                                 <option>CAA</option>
                                                 <option>ANY</option>
                                                 <option>AXFR</option>
+                                                <option>ANAME</option>
                                             </select>
                                         </div>
 
@@ -611,14 +612,14 @@
                                                 </div>
 
                                                 <div class="form-group">
-                                                    <label for="txtdnsServerLocalAddresses" class="col-sm-3 control-label">DNS Server Local Addresses</label>
+                                                    <label for="txtdnsServerLocalEndPoints" class="col-sm-3 control-label">DNS Server Local End Points</label>
                                                     <div class="col-sm-6">
-                                                        <textarea id="txtdnsServerLocalAddresses" class="form-control" rows="3"></textarea>
+                                                        <textarea id="txtdnsServerLocalEndPoints" class="form-control" rows="3"></textarea>
                                                     </div>
-                                                    <div class="col-sm-offset-3 col-sm-8" style="padding-top: 5px;">Local addresses are the network interface IP addresses you want the DNS Server to listen for requests.</div>
+                                                    <div class="col-sm-offset-3 col-sm-8" style="padding-top: 5px;">Local end points are the network interface IP addresses and ports you want the DNS Server to listen for requests. The default values work for most scenarios so, do not change these defaults unless you have a requirement for the DNS server to listen on specific networks or ports.</div>
                                                 </div>
 
-                                                <div>To apply DNS Server local address changes, you will need to manually restart the main service.</div>
+                                                <div>To apply DNS Server local end point changes, you will need to manually restart the main service.</div>
                                             </div>
 
                                             <div class="well well-sm form-horizontal">

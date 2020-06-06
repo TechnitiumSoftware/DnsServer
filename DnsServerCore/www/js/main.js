@@ -575,17 +575,17 @@ function loadDnsSettings() {
 
             $("#txtWebServicePort").val(responseJSON.response.webServicePort);
 
-            var dnsServerLocalAddresses = responseJSON.response.dnsServerLocalAddresses;
-            if (dnsServerLocalAddresses == null) {
-                $("#txtdnsServerLocalAddresses").val("0.0.0.0");
+            var dnsServerLocalEndPoints = responseJSON.response.dnsServerLocalEndPoints;
+            if (dnsServerLocalEndPoints == null) {
+                $("#txtdnsServerLocalEndPoints").val("0.0.0.0:53\r\n[::]:53");
             }
             else {
                 var value = "";
 
-                for (var i = 0; i < dnsServerLocalAddresses.length; i++)
-                    value += dnsServerLocalAddresses[i] + "\r\n";
+                for (var i = 0; i < dnsServerLocalEndPoints.length; i++)
+                    value += dnsServerLocalEndPoints[i] + "\r\n";
 
-                $("#txtdnsServerLocalAddresses").val(value);
+                $("#txtdnsServerLocalEndPoints").val(value);
             }
 
             $("#chkEnableDnsOverHttp").prop("checked", responseJSON.response.enableDnsOverHttp);
@@ -751,12 +751,12 @@ function saveDnsSettings() {
         return false;
     }
 
-    var dnsServerLocalAddresses = cleanTextList($("#txtdnsServerLocalAddresses").val());
+    var dnsServerLocalEndPoints = cleanTextList($("#txtdnsServerLocalEndPoints").val());
 
-    if ((dnsServerLocalAddresses.length === 0) || (dnsServerLocalAddresses === ","))
-        dnsServerLocalAddresses = "0.0.0.0,::";
+    if ((dnsServerLocalEndPoints.length === 0) || (dnsServerLocalEndPoints === ","))
+        dnsServerLocalEndPoints = "0.0.0.0:53,[::]:53";
     else
-        $("#txtdnsServerLocalAddresses").val(dnsServerLocalAddresses.replace(/,/g, "\n"));
+        $("#txtdnsServerLocalEndPoints").val(dnsServerLocalEndPoints.replace(/,/g, "\n"));
 
     var enableDnsOverHttp = $("#chkEnableDnsOverHttp").prop('checked');
     var enableDnsOverTls = $("#chkEnableDnsOverTls").prop('checked');
@@ -848,7 +848,7 @@ function saveDnsSettings() {
     var btn = $("#btnSaveDnsSettings").button('loading');
 
     HTTPRequest({
-        url: "/api/setDnsSettings?token=" + token + "&serverDomain=" + serverDomain + "&webServicePort=" + webServicePort + "&dnsServerLocalAddresses=" + encodeURIComponent(dnsServerLocalAddresses)
+        url: "/api/setDnsSettings?token=" + token + "&serverDomain=" + serverDomain + "&webServicePort=" + webServicePort + "&dnsServerLocalEndPoints=" + encodeURIComponent(dnsServerLocalEndPoints)
             + "&enableDnsOverHttp=" + enableDnsOverHttp + "&enableDnsOverTls=" + enableDnsOverTls + "&enableDnsOverHttps=" + enableDnsOverHttps + "&tlsCertificatePath=" + encodeURIComponent(tlsCertificatePath) + "&tlsCertificatePassword=" + encodeURIComponent(tlsCertificatePassword)
             + "&preferIPv6=" + preferIPv6 + "&logQueries=" + logQueries + "&allowRecursion=" + allowRecursion + "&allowRecursionOnlyForPrivateNetworks=" + allowRecursionOnlyForPrivateNetworks
             + "&cachePrefetchEligibility=" + cachePrefetchEligibility + "&cachePrefetchTrigger=" + cachePrefetchTrigger + "&cachePrefetchSampleIntervalInMinutes=" + cachePrefetchSampleIntervalInMinutes + "&cachePrefetchSampleEligibilityHitsPerHour=" + cachePrefetchSampleEligibilityHitsPerHour
@@ -926,9 +926,9 @@ function refreshDashboard(hideLoader) {
             $("#divDashboardStatsTotalNameError").text(responseJSON.response.stats.totalNameError.toLocaleString());
             $("#divDashboardStatsTotalRefused").text(responseJSON.response.stats.totalRefused.toLocaleString());
 
-            $("#divDashboardStatsTotalAuthHit").text(responseJSON.response.stats.totalAuthHit.toLocaleString());
-            $("#divDashboardStatsTotalRecursions").text(responseJSON.response.stats.totalRecursions.toLocaleString());
-            $("#divDashboardStatsTotalCacheHit").text(responseJSON.response.stats.totalCacheHit.toLocaleString());
+            $("#divDashboardStatsTotalAuthHit").text(responseJSON.response.stats.totalAuthoritative.toLocaleString());
+            $("#divDashboardStatsTotalRecursions").text(responseJSON.response.stats.totalRecursive.toLocaleString());
+            $("#divDashboardStatsTotalCacheHit").text(responseJSON.response.stats.totalCached.toLocaleString());
             $("#divDashboardStatsTotalBlocked").text(responseJSON.response.stats.totalBlocked.toLocaleString());
 
             $("#divDashboardStatsTotalClients").text(responseJSON.response.stats.totalClients.toLocaleString());
@@ -942,9 +942,9 @@ function refreshDashboard(hideLoader) {
                 $("#divDashboardStatsTotalNameErrorPercentage").text((responseJSON.response.stats.totalNameError * 100 / responseJSON.response.stats.totalQueries).toFixed(2) + "%");
                 $("#divDashboardStatsTotalRefusedPercentage").text((responseJSON.response.stats.totalRefused * 100 / responseJSON.response.stats.totalQueries).toFixed(2) + "%");
 
-                $("#divDashboardStatsTotalAuthHitPercentage").text((responseJSON.response.stats.totalAuthHit * 100 / responseJSON.response.stats.totalQueries).toFixed(2) + "%");
-                $("#divDashboardStatsTotalRecursionsPercentage").text((responseJSON.response.stats.totalRecursions * 100 / responseJSON.response.stats.totalQueries).toFixed(2) + "%");
-                $("#divDashboardStatsTotalCacheHitPercentage").text((responseJSON.response.stats.totalCacheHit * 100 / responseJSON.response.stats.totalQueries).toFixed(2) + "%");
+                $("#divDashboardStatsTotalAuthHitPercentage").text((responseJSON.response.stats.totalAuthoritative * 100 / responseJSON.response.stats.totalQueries).toFixed(2) + "%");
+                $("#divDashboardStatsTotalRecursionsPercentage").text((responseJSON.response.stats.totalRecursive * 100 / responseJSON.response.stats.totalQueries).toFixed(2) + "%");
+                $("#divDashboardStatsTotalCacheHitPercentage").text((responseJSON.response.stats.totalCached * 100 / responseJSON.response.stats.totalQueries).toFixed(2) + "%");
                 $("#divDashboardStatsTotalBlockedPercentage").text((responseJSON.response.stats.totalBlocked * 100 / responseJSON.response.stats.totalQueries).toFixed(2) + "%");
             }
             else {
