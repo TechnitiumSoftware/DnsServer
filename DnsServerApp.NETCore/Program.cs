@@ -1,6 +1,6 @@
 ﻿/*
 Technitium DNS Server
-Copyright (C) 2019  Shreyas Zare (shreyas@technitium.com)
+Copyright (C) 2020  Shreyas Zare (shreyas@technitium.com)
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -32,12 +32,26 @@ namespace DnsServerApp
             if (args.Length == 1)
                 configFolder = args[0];
 
+            EventWaitHandle waitHandle = new ManualResetEvent(false);
+            EventWaitHandle exitHandle = new ManualResetEvent(false);
             WebService service = null;
 
             try
             {
                 service = new WebService(configFolder, new Uri("https://go.technitium.com/?id=21"));
                 service.Start();
+
+                Console.CancelKeyPress += delegate (object sender, ConsoleCancelEventArgs e)
+                {
+                    e.Cancel = true;
+                    waitHandle.Set();
+                };
+
+                AppDomain.CurrentDomain.ProcessExit += delegate (object sender, EventArgs e)
+                {
+                    waitHandle.Set();
+                    exitHandle.WaitOne();
+                };
 
                 Console.WriteLine("Technitium DNS Server was started successfully.");
                 Console.WriteLine("Using config folder: " + service.ConfigFolder);
@@ -46,44 +60,22 @@ namespace DnsServerApp
                 Console.WriteLine("");
                 Console.WriteLine("Press [CTRL + C] to stop...");
 
-                Thread main = Thread.CurrentThread;
-
-                Console.CancelKeyPress += delegate (object sender, ConsoleCancelEventArgs e)
-                {
-                    e.Cancel = true;
-                    main.Interrupt();
-                };
-
-                AppDomain.CurrentDomain.ProcessExit += delegate (object sender, EventArgs e)
-                {
-                    if (service != null)
-                    {
-                        Console.WriteLine("");
-                        Console.WriteLine("Technitium DNS Server is stopping...");
-                        service.Dispose();
-                        service = null;
-                        Console.WriteLine("Technitium DNS Server was stopped successfully.");
-                    }
-                };
-
-                Thread.Sleep(Timeout.Infinite);
+                waitHandle.WaitOne();
             }
-            catch (ThreadInterruptedException)
-            { }
             catch (Exception ex)
             {
                 Console.WriteLine(ex.ToString());
             }
             finally
             {
+                Console.WriteLine("");
+                Console.WriteLine("Technitium DNS Server is stopping...");
+
                 if (service != null)
-                {
-                    Console.WriteLine("");
-                    Console.WriteLine("Technitium DNS Server is stopping...");
                     service.Dispose();
-                    service = null;
-                    Console.WriteLine("Technitium DNS Server was stopped successfully.");
-                }
+
+                Console.WriteLine("Technitium DNS Server was stopped successfully.");
+                exitHandle.Set();
             }
         }
     }
