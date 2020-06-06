@@ -17,7 +17,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 */
 
-using DnsServerCore.Dns.Zones;
+using DnsServerCore.Dns.ZoneManagers;
 using TechnitiumLibrary.Net.Dns;
 
 namespace DnsServerCore.Dns
