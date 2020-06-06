@@ -30,12 +30,20 @@ using TechnitiumLibrary.Net.Dns;
 
 namespace DnsServerCore.Dns
 {
-    public enum StatsResponseType
+    public enum StatsResponseCode
     {
         NoError = 1,
         ServerFailure = 2,
         NameError = 3,
         Refused = 4
+    }
+
+    public enum StatsResponseType
+    {
+        Authoritative = 1,
+        Recursive = 2,
+        Cached = 3,
+        Blocked = 4
     }
 
     public class StatsManager : IDisposable
@@ -96,7 +104,7 @@ namespace DnsServerCore.Dns
                         {
                             StatCounter statCounter = _lastHourStatCounters[item._dateTime.Minute];
                             if (statCounter != null)
-                                statCounter.Update(item._query, item._responseType, item._responseTag, item._clientIpAddress);
+                                statCounter.Update(item._query, item._responseCode, item._responseType, item._clientIpAddress);
                         }
 
                         Thread.Sleep(100);
@@ -374,36 +382,43 @@ namespace DnsServerCore.Dns
 
         public void Update(DnsDatagram response, IPAddress clientIpAddress)
         {
-            StatsResponseType responseType;
+            StatsResponseCode responseCode;
 
             switch (response.RCODE)
             {
                 case DnsResponseCode.NoError:
-                    responseType = StatsResponseType.NoError;
+                    responseCode = StatsResponseCode.NoError;
                     break;
 
                 case DnsResponseCode.ServerFailure:
-                    responseType = StatsResponseType.ServerFailure;
+                    responseCode = StatsResponseCode.ServerFailure;
                     break;
 
                 case DnsResponseCode.NameError:
-                    responseType = StatsResponseType.NameError;
+                    responseCode = StatsResponseCode.NameError;
                     break;
 
                 case DnsResponseCode.Refused:
-                    responseType = StatsResponseType.Refused;
+                    responseCode = StatsResponseCode.Refused;
                     break;
 
                 default:
                     return;
             }
 
+            StatsResponseType responseType;
+
+            if (response.Tag == null)
+                responseType = StatsResponseType.Recursive;
+            else
+                responseType = (StatsResponseType)response.Tag;
+
             StatsQueueItem item;
 
             if (response.QDCOUNT > 0)
-                item = new StatsQueueItem(response.Question[0], responseType, response.Tag as string, clientIpAddress);
+                item = new StatsQueueItem(response.Question[0], responseCode, responseType, clientIpAddress);
             else
-                item = new StatsQueueItem(new DnsQuestionRecord("", DnsResourceRecordType.ANY, DnsClass.IN), responseType, response.Tag as string, clientIpAddress);
+                item = new StatsQueueItem(new DnsQuestionRecord("", DnsResourceRecordType.ANY, DnsClass.IN), responseCode, responseType, clientIpAddress);
 
             _queue.Enqueue(item);
         }
@@ -445,9 +460,9 @@ namespace DnsServerCore.Dns
                     totalNameErrorPerInterval.Add(new KeyValuePair<string, int>(label, statCounter.TotalNameError));
                     totalRefusedPerInterval.Add(new KeyValuePair<string, int>(label, statCounter.TotalRefused));
 
-                    totalAuthHitPerInterval.Add(new KeyValuePair<string, int>(label, statCounter.TotalAuthHit));
-                    totalRecursionsPerInterval.Add(new KeyValuePair<string, int>(label, statCounter.TotalRecursions));
-                    totalCacheHitPerInterval.Add(new KeyValuePair<string, int>(label, statCounter.TotalCacheHit));
+                    totalAuthHitPerInterval.Add(new KeyValuePair<string, int>(label, statCounter.TotalAuthoritative));
+                    totalRecursionsPerInterval.Add(new KeyValuePair<string, int>(label, statCounter.TotalRecursive));
+                    totalCacheHitPerInterval.Add(new KeyValuePair<string, int>(label, statCounter.TotalCached));
                     totalBlockedPerInterval.Add(new KeyValuePair<string, int>(label, statCounter.TotalBlocked));
 
                     totalClientsPerInterval.Add(new KeyValuePair<string, int>(label, statCounter.TotalClients));
@@ -480,9 +495,9 @@ namespace DnsServerCore.Dns
                 stats.Add(new KeyValuePair<string, int>("totalNameError", totalStatCounter.TotalNameError));
                 stats.Add(new KeyValuePair<string, int>("totalRefused", totalStatCounter.TotalRefused));
 
-                stats.Add(new KeyValuePair<string, int>("totalAuthHit", totalStatCounter.TotalAuthHit));
-                stats.Add(new KeyValuePair<string, int>("totalRecursions", totalStatCounter.TotalRecursions));
-                stats.Add(new KeyValuePair<string, int>("totalCacheHit", totalStatCounter.TotalCacheHit));
+                stats.Add(new KeyValuePair<string, int>("totalAuthoritative", totalStatCounter.TotalAuthoritative));
+                stats.Add(new KeyValuePair<string, int>("totalRecursive", totalStatCounter.TotalRecursive));
+                stats.Add(new KeyValuePair<string, int>("totalCached", totalStatCounter.TotalCached));
                 stats.Add(new KeyValuePair<string, int>("totalBlocked", totalStatCounter.TotalBlocked));
 
                 stats.Add(new KeyValuePair<string, int>("totalClients", totalStatCounter.TotalClients));
@@ -548,9 +563,9 @@ namespace DnsServerCore.Dns
                 totalNameErrorPerInterval.Add(new KeyValuePair<string, int>(label, hourlyStatCounter.TotalNameError));
                 totalRefusedPerInterval.Add(new KeyValuePair<string, int>(label, hourlyStatCounter.TotalRefused));
 
-                totalAuthHitPerInterval.Add(new KeyValuePair<string, int>(label, hourlyStatCounter.TotalAuthHit));
-                totalRecursionsPerInterval.Add(new KeyValuePair<string, int>(label, hourlyStatCounter.TotalRecursions));
-                totalCacheHitPerInterval.Add(new KeyValuePair<string, int>(label, hourlyStatCounter.TotalCacheHit));
+                totalAuthHitPerInterval.Add(new KeyValuePair<string, int>(label, hourlyStatCounter.TotalAuthoritative));
+                totalRecursionsPerInterval.Add(new KeyValuePair<string, int>(label, hourlyStatCounter.TotalRecursive));
+                totalCacheHitPerInterval.Add(new KeyValuePair<string, int>(label, hourlyStatCounter.TotalCached));
                 totalBlockedPerInterval.Add(new KeyValuePair<string, int>(label, hourlyStatCounter.TotalBlocked));
 
                 totalClientsPerInterval.Add(new KeyValuePair<string, int>(label, hourlyStatCounter.TotalClients));
@@ -567,9 +582,9 @@ namespace DnsServerCore.Dns
                 stats.Add(new KeyValuePair<string, int>("totalNameError", totalStatCounter.TotalNameError));
                 stats.Add(new KeyValuePair<string, int>("totalRefused", totalStatCounter.TotalRefused));
 
-                stats.Add(new KeyValuePair<string, int>("totalAuthHit", totalStatCounter.TotalAuthHit));
-                stats.Add(new KeyValuePair<string, int>("totalRecursions", totalStatCounter.TotalRecursions));
-                stats.Add(new KeyValuePair<string, int>("totalCacheHit", totalStatCounter.TotalCacheHit));
+                stats.Add(new KeyValuePair<string, int>("totalAuthoritative", totalStatCounter.TotalAuthoritative));
+                stats.Add(new KeyValuePair<string, int>("totalRecursive", totalStatCounter.TotalRecursive));
+                stats.Add(new KeyValuePair<string, int>("totalCached", totalStatCounter.TotalCached));
                 stats.Add(new KeyValuePair<string, int>("totalBlocked", totalStatCounter.TotalBlocked));
 
                 stats.Add(new KeyValuePair<string, int>("totalClients", totalStatCounter.TotalClients));
@@ -633,9 +648,9 @@ namespace DnsServerCore.Dns
                 totalNameErrorPerInterval.Add(new KeyValuePair<string, int>(label, dailyStatCounter.TotalNameError));
                 totalRefusedPerInterval.Add(new KeyValuePair<string, int>(label, dailyStatCounter.TotalRefused));
 
-                totalAuthHitPerInterval.Add(new KeyValuePair<string, int>(label, dailyStatCounter.TotalAuthHit));
-                totalRecursionsPerInterval.Add(new KeyValuePair<string, int>(label, dailyStatCounter.TotalRecursions));
-                totalCacheHitPerInterval.Add(new KeyValuePair<string, int>(label, dailyStatCounter.TotalCacheHit));
+                totalAuthHitPerInterval.Add(new KeyValuePair<string, int>(label, dailyStatCounter.TotalAuthoritative));
+                totalRecursionsPerInterval.Add(new KeyValuePair<string, int>(label, dailyStatCounter.TotalRecursive));
+                totalCacheHitPerInterval.Add(new KeyValuePair<string, int>(label, dailyStatCounter.TotalCached));
                 totalBlockedPerInterval.Add(new KeyValuePair<string, int>(label, dailyStatCounter.TotalBlocked));
 
                 totalClientsPerInterval.Add(new KeyValuePair<string, int>(label, dailyStatCounter.TotalClients));
@@ -652,9 +667,9 @@ namespace DnsServerCore.Dns
                 stats.Add(new KeyValuePair<string, int>("totalNameError", totalStatCounter.TotalNameError));
                 stats.Add(new KeyValuePair<string, int>("totalRefused", totalStatCounter.TotalRefused));
 
-                stats.Add(new KeyValuePair<string, int>("totalAuthHit", totalStatCounter.TotalAuthHit));
-                stats.Add(new KeyValuePair<string, int>("totalRecursions", totalStatCounter.TotalRecursions));
-                stats.Add(new KeyValuePair<string, int>("totalCacheHit", totalStatCounter.TotalCacheHit));
+                stats.Add(new KeyValuePair<string, int>("totalAuthoritative", totalStatCounter.TotalAuthoritative));
+                stats.Add(new KeyValuePair<string, int>("totalRecursive", totalStatCounter.TotalRecursive));
+                stats.Add(new KeyValuePair<string, int>("totalCached", totalStatCounter.TotalCached));
                 stats.Add(new KeyValuePair<string, int>("totalBlocked", totalStatCounter.TotalBlocked));
 
                 stats.Add(new KeyValuePair<string, int>("totalClients", totalStatCounter.TotalClients));
@@ -718,9 +733,9 @@ namespace DnsServerCore.Dns
                 totalNameErrorPerInterval.Add(new KeyValuePair<string, int>(label, dailyStatCounter.TotalNameError));
                 totalRefusedPerInterval.Add(new KeyValuePair<string, int>(label, dailyStatCounter.TotalRefused));
 
-                totalAuthHitPerInterval.Add(new KeyValuePair<string, int>(label, dailyStatCounter.TotalAuthHit));
-                totalRecursionsPerInterval.Add(new KeyValuePair<string, int>(label, dailyStatCounter.TotalRecursions));
-                totalCacheHitPerInterval.Add(new KeyValuePair<string, int>(label, dailyStatCounter.TotalCacheHit));
+                totalAuthHitPerInterval.Add(new KeyValuePair<string, int>(label, dailyStatCounter.TotalAuthoritative));
+                totalRecursionsPerInterval.Add(new KeyValuePair<string, int>(label, dailyStatCounter.TotalRecursive));
+                totalCacheHitPerInterval.Add(new KeyValuePair<string, int>(label, dailyStatCounter.TotalCached));
                 totalBlockedPerInterval.Add(new KeyValuePair<string, int>(label, dailyStatCounter.TotalBlocked));
 
                 totalClientsPerInterval.Add(new KeyValuePair<string, int>(label, dailyStatCounter.TotalClients));
@@ -737,9 +752,9 @@ namespace DnsServerCore.Dns
                 stats.Add(new KeyValuePair<string, int>("totalNameError", totalStatCounter.TotalNameError));
                 stats.Add(new KeyValuePair<string, int>("totalRefused", totalStatCounter.TotalRefused));
 
-                stats.Add(new KeyValuePair<string, int>("totalAuthHit", totalStatCounter.TotalAuthHit));
-                stats.Add(new KeyValuePair<string, int>("totalRecursions", totalStatCounter.TotalRecursions));
-                stats.Add(new KeyValuePair<string, int>("totalCacheHit", totalStatCounter.TotalCacheHit));
+                stats.Add(new KeyValuePair<string, int>("totalAuthoritative", totalStatCounter.TotalAuthoritative));
+                stats.Add(new KeyValuePair<string, int>("totalRecursive", totalStatCounter.TotalRecursive));
+                stats.Add(new KeyValuePair<string, int>("totalCached", totalStatCounter.TotalCached));
                 stats.Add(new KeyValuePair<string, int>("totalBlocked", totalStatCounter.TotalBlocked));
 
                 stats.Add(new KeyValuePair<string, int>("totalClients", totalStatCounter.TotalClients));
@@ -813,9 +828,9 @@ namespace DnsServerCore.Dns
                 totalNameErrorPerInterval.Add(new KeyValuePair<string, int>(label, monthlyStatCounter.TotalNameError));
                 totalRefusedPerInterval.Add(new KeyValuePair<string, int>(label, monthlyStatCounter.TotalRefused));
 
-                totalAuthHitPerInterval.Add(new KeyValuePair<string, int>(label, monthlyStatCounter.TotalAuthHit));
-                totalRecursionsPerInterval.Add(new KeyValuePair<string, int>(label, monthlyStatCounter.TotalRecursions));
-                totalCacheHitPerInterval.Add(new KeyValuePair<string, int>(label, monthlyStatCounter.TotalCacheHit));
+                totalAuthHitPerInterval.Add(new KeyValuePair<string, int>(label, monthlyStatCounter.TotalAuthoritative));
+                totalRecursionsPerInterval.Add(new KeyValuePair<string, int>(label, monthlyStatCounter.TotalRecursive));
+                totalCacheHitPerInterval.Add(new KeyValuePair<string, int>(label, monthlyStatCounter.TotalCached));
                 totalBlockedPerInterval.Add(new KeyValuePair<string, int>(label, monthlyStatCounter.TotalBlocked));
 
                 totalClientsPerInterval.Add(new KeyValuePair<string, int>(label, monthlyStatCounter.TotalClients));
@@ -832,9 +847,9 @@ namespace DnsServerCore.Dns
                 stats.Add(new KeyValuePair<string, int>("totalNameError", totalStatCounter.TotalNameError));
                 stats.Add(new KeyValuePair<string, int>("totalRefused", totalStatCounter.TotalRefused));
 
-                stats.Add(new KeyValuePair<string, int>("totalAuthHit", totalStatCounter.TotalAuthHit));
-                stats.Add(new KeyValuePair<string, int>("totalRecursions", totalStatCounter.TotalRecursions));
-                stats.Add(new KeyValuePair<string, int>("totalCacheHit", totalStatCounter.TotalCacheHit));
+                stats.Add(new KeyValuePair<string, int>("totalAuthoritative", totalStatCounter.TotalAuthoritative));
+                stats.Add(new KeyValuePair<string, int>("totalRecursive", totalStatCounter.TotalRecursive));
+                stats.Add(new KeyValuePair<string, int>("totalCached", totalStatCounter.TotalCached));
                 stats.Add(new KeyValuePair<string, int>("totalBlocked", totalStatCounter.TotalBlocked));
 
                 stats.Add(new KeyValuePair<string, int>("totalClients", totalStatCounter.TotalClients));
@@ -984,9 +999,9 @@ namespace DnsServerCore.Dns
             int _totalNameError;
             int _totalRefused;
 
-            int _totalAuthHit;
-            int _totalRecursions;
-            int _totalCacheHit;
+            int _totalAuthoritative;
+            int _totalRecursive;
+            int _totalCached;
             int _totalBlocked;
 
             readonly ConcurrentDictionary<string, Counter> _queryDomains = new ConcurrentDictionary<string, Counter>();
@@ -1021,9 +1036,9 @@ namespace DnsServerCore.Dns
 
                         if (version >= 3)
                         {
-                            _totalAuthHit = bR.ReadInt32();
-                            _totalRecursions = bR.ReadInt32();
-                            _totalCacheHit = bR.ReadInt32();
+                            _totalAuthoritative = bR.ReadInt32();
+                            _totalRecursive = bR.ReadInt32();
+                            _totalCached = bR.ReadInt32();
                             _totalBlocked = bR.ReadInt32();
                         }
                         else
@@ -1031,7 +1046,7 @@ namespace DnsServerCore.Dns
                             _totalBlocked = bR.ReadInt32();
 
                             if (version >= 2)
-                                _totalCacheHit = bR.ReadInt32();
+                                _totalCached = bR.ReadInt32();
                         }
 
                         {
@@ -1097,7 +1112,7 @@ namespace DnsServerCore.Dns
                 _locked = true;
             }
 
-            public void Update(DnsQuestionRecord query, StatsResponseType responseType, string responseTag, IPAddress clientIpAddress)
+            public void Update(DnsQuestionRecord query, StatsResponseCode responseCode, StatsResponseType responseType, IPAddress clientIpAddress)
             {
                 if (_locked)
                     return;
@@ -1109,10 +1124,10 @@ namespace DnsServerCore.Dns
 
                 Interlocked.Increment(ref _totalQueries);
 
-                switch (responseType)
+                switch (responseCode)
                 {
-                    case StatsResponseType.NoError:
-                        if (!"blocked".Equals(responseTag)) //skip blocked domains
+                    case StatsResponseCode.NoError:
+                        if (responseType != StatsResponseType.Blocked) //skip blocked domains
                         {
                             _queryDomains.GetOrAdd(domain, GetNewCounter).Increment();
                             _queries.GetOrAdd(query, GetNewCounter).Increment();
@@ -1121,34 +1136,34 @@ namespace DnsServerCore.Dns
                         Interlocked.Increment(ref _totalNoError);
                         break;
 
-                    case StatsResponseType.ServerFailure:
+                    case StatsResponseCode.ServerFailure:
                         Interlocked.Increment(ref _totalServerFailure);
                         break;
 
-                    case StatsResponseType.NameError:
+                    case StatsResponseCode.NameError:
                         Interlocked.Increment(ref _totalNameError);
                         break;
 
-                    case StatsResponseType.Refused:
+                    case StatsResponseCode.Refused:
                         Interlocked.Increment(ref _totalRefused);
                         break;
                 }
 
-                switch (responseTag)
+                switch (responseType)
                 {
-                    case "authHit":
-                        Interlocked.Increment(ref _totalAuthHit);
+                    case StatsResponseType.Authoritative:
+                        Interlocked.Increment(ref _totalAuthoritative);
                         break;
 
-                    case null: //recursion
-                        Interlocked.Increment(ref _totalRecursions);
+                    case StatsResponseType.Recursive: //recursion
+                        Interlocked.Increment(ref _totalRecursive);
                         break;
 
-                    case "cacheHit":
-                        Interlocked.Increment(ref _totalCacheHit);
+                    case StatsResponseType.Cached:
+                        Interlocked.Increment(ref _totalCached);
                         break;
 
-                    case "blocked":
+                    case StatsResponseType.Blocked:
                         _queryBlockedDomains.GetOrAdd(domain, GetNewCounter).Increment();
                         Interlocked.Increment(ref _totalBlocked);
                         break;
@@ -1169,9 +1184,9 @@ namespace DnsServerCore.Dns
                 _totalNameError += statCounter._totalNameError;
                 _totalRefused += statCounter._totalRefused;
 
-                _totalAuthHit += statCounter._totalAuthHit;
-                _totalRecursions += statCounter._totalRecursions;
-                _totalCacheHit += statCounter._totalCacheHit;
+                _totalAuthoritative += statCounter._totalAuthoritative;
+                _totalRecursive += statCounter._totalRecursive;
+                _totalCached += statCounter._totalCached;
                 _totalBlocked += statCounter._totalBlocked;
 
                 foreach (KeyValuePair<string, Counter> queryDomain in statCounter._queryDomains)
@@ -1204,9 +1219,9 @@ namespace DnsServerCore.Dns
                 bW.Write(_totalNameError);
                 bW.Write(_totalRefused);
 
-                bW.Write(_totalAuthHit);
-                bW.Write(_totalRecursions);
-                bW.Write(_totalCacheHit);
+                bW.Write(_totalAuthoritative);
+                bW.Write(_totalRecursive);
+                bW.Write(_totalCached);
                 bW.Write(_totalBlocked);
 
                 {
@@ -1337,14 +1352,14 @@ namespace DnsServerCore.Dns
             public int TotalRefused
             { get { return _totalRefused; } }
 
-            public int TotalAuthHit
-            { get { return _totalAuthHit; } }
+            public int TotalAuthoritative
+            { get { return _totalAuthoritative; } }
 
-            public int TotalRecursions
-            { get { return _totalRecursions; } }
+            public int TotalRecursive
+            { get { return _totalRecursive; } }
 
-            public int TotalCacheHit
-            { get { return _totalCacheHit; } }
+            public int TotalCached
+            { get { return _totalCached; } }
 
             public int TotalBlocked
             { get { return _totalBlocked; } }
@@ -1403,20 +1418,20 @@ namespace DnsServerCore.Dns
 
             public readonly DateTime _dateTime;
             public readonly DnsQuestionRecord _query;
+            public readonly StatsResponseCode _responseCode;
             public readonly StatsResponseType _responseType;
-            public readonly string _responseTag;
             public readonly IPAddress _clientIpAddress;
 
             #endregion
 
             #region constructor
 
-            public StatsQueueItem(DnsQuestionRecord query, StatsResponseType responseType, string responseTag, IPAddress clientIpAddress)
+            public StatsQueueItem(DnsQuestionRecord query, StatsResponseCode responseCode, StatsResponseType responseType, IPAddress clientIpAddress)
             {
                 _dateTime = DateTime.UtcNow;
                 _query = query;
+                _responseCode = responseCode;
                 _responseType = responseType;
-                _responseTag = responseTag;
                 _clientIpAddress = clientIpAddress;
             }
 
