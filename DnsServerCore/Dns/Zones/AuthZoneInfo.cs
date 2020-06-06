@@ -30,7 +30,8 @@ namespace DnsServerCore.Dns.Zones
         Unknown = 0,
         Primary = 1,
         Secondary = 2,
-        Stub = 3
+        Stub = 3,
+        Forwarder = 4
     }
 
     public class AuthZoneInfo : IComparable<AuthZoneInfo>
@@ -40,6 +41,8 @@ namespace DnsServerCore.Dns.Zones
         readonly string _name;
         readonly AuthZoneType _type;
         readonly bool _disabled;
+
+        readonly DateTime _lastRefreshed;
 
         readonly AuthZone _zone;
 
@@ -62,6 +65,18 @@ namespace DnsServerCore.Dns.Zones
                     _name = bR.ReadShortString();
                     _type = (AuthZoneType)bR.ReadByte();
                     _disabled = bR.ReadBoolean();
+
+                    switch (_type)
+                    {
+                        case AuthZoneType.Secondary:
+                            _lastRefreshed = bR.ReadDate();
+                            break;
+
+                        case AuthZoneType.Stub:
+                            _lastRefreshed = bR.ReadDate();
+                            break;
+                    }
+
                     break;
 
                 default:
@@ -79,10 +94,23 @@ namespace DnsServerCore.Dns.Zones
                 _type = AuthZoneType.Secondary;
             else if (zone is StubZone)
                 _type = AuthZoneType.Stub;
+            else if (zone is ForwarderZone)
+                _type = AuthZoneType.Forwarder;
             else
                 _type = AuthZoneType.Unknown;
 
             _disabled = zone.Disabled;
+
+            switch (_type)
+            {
+                case AuthZoneType.Secondary:
+                    _lastRefreshed = (_zone as SecondaryZone).LastRefreshed;
+                    break;
+
+                case AuthZoneType.Stub:
+                    _lastRefreshed = (_zone as StubZone).LastRefreshed;
+                    break;
+            }
 
             _zone = zone;
         }
@@ -101,11 +129,25 @@ namespace DnsServerCore.Dns.Zones
 
         public void WriteTo(BinaryWriter bW)
         {
+            if (_zone == null)
+                throw new InvalidOperationException();
+
             bW.Write((byte)1); //version
 
             bW.WriteShortString(_name);
             bW.Write((byte)_type);
             bW.Write(_disabled);
+
+            switch (_type)
+            {
+                case AuthZoneType.Secondary:
+                    bW.Write(_lastRefreshed);
+                    break;
+
+                case AuthZoneType.Stub:
+                    bW.Write(_lastRefreshed);
+                    break;
+            }
         }
 
         public int CompareTo(AuthZoneInfo other)
@@ -137,6 +179,26 @@ namespace DnsServerCore.Dns.Zones
                     throw new InvalidOperationException();
 
                 _zone.Disabled = value;
+            }
+        }
+
+        public DateTime LastRefreshed
+        { get { return _lastRefreshed; } }
+
+        public bool IsExpired
+        {
+            get
+            {
+                if (_zone == null)
+                    throw new InvalidOperationException();
+
+                if (_zone is SecondaryZone)
+                    return (_zone as SecondaryZone).IsExpired;
+
+                if (_zone is StubZone)
+                    return (_zone as StubZone).IsExpired;
+
+                return false;
             }
         }
 
