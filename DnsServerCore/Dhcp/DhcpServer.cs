@@ -18,7 +18,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
 using DnsServerCore.Dhcp.Options;
-using DnsServerCore.Dns.Zones;
+using DnsServerCore.Dns.ZoneManagers;
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
@@ -59,14 +59,13 @@ namespace DnsServerCore.Dhcp
 
         #region variables
 
-        readonly string _configFolder;
+        readonly string _scopesFolder;
 
         readonly ConcurrentDictionary<IPAddress, Socket> _udpListeners = new ConcurrentDictionary<IPAddress, Socket>();
         readonly List<Thread> _listenerThreads = new List<Thread>();
 
         readonly ConcurrentDictionary<string, Scope> _scopes = new ConcurrentDictionary<string, Scope>();
 
-        string _serverDomain = Environment.MachineName;
         AuthZoneManager _authZoneManager;
         LogManager _log;
 
@@ -86,13 +85,13 @@ namespace DnsServerCore.Dhcp
 
         #region constructor
 
-        public DhcpServer(string configFolder)
+        public DhcpServer(string scopesFolder)
         {
-            _configFolder = configFolder;
+            _scopesFolder = scopesFolder;
 
-            if (!Directory.Exists(_configFolder))
+            if (!Directory.Exists(_scopesFolder))
             {
-                Directory.CreateDirectory(_configFolder);
+                Directory.CreateDirectory(_scopesFolder);
 
                 //create default scope
                 Scope scope = new Scope("Default", false, IPAddress.Parse("192.168.1.1"), IPAddress.Parse("192.168.1.254"), IPAddress.Parse("255.255.255.0"));
@@ -625,11 +624,11 @@ namespace DnsServerCore.Dhcp
             if (add)
             {
                 //update forward zone
-                _authZoneManager.CreatePrimaryZone(scope.DomainName, _serverDomain, false);
+                _authZoneManager.CreatePrimaryZone(scope.DomainName, _authZoneManager.ServerDomain, false);
                 _authZoneManager.SetRecords(lease.HostName, DnsResourceRecordType.A, scope.DnsTtl, new DnsResourceRecordData[] { new DnsARecord(lease.Address) });
 
                 //update reverse zone
-                _authZoneManager.CreatePrimaryZone(scope.ReverseZone, _serverDomain, false);
+                _authZoneManager.CreatePrimaryZone(scope.ReverseZone, _authZoneManager.ServerDomain, false);
                 _authZoneManager.SetRecords(Scope.GetReverseZone(lease.Address, 32), DnsResourceRecordType.PTR, scope.DnsTtl, new DnsResourceRecordData[] { new DnsPTRRecord(lease.HostName) });
             }
             else
@@ -848,7 +847,7 @@ namespace DnsServerCore.Dhcp
 
         private void LoadAllScopeFiles()
         {
-            string[] scopeFiles = Directory.GetFiles(_configFolder, "*.scope");
+            string[] scopeFiles = Directory.GetFiles(_scopesFolder, "*.scope");
 
             foreach (string scopeFile in scopeFiles)
                 LoadScopeFile(scopeFile);
@@ -879,7 +878,7 @@ namespace DnsServerCore.Dhcp
 
         private void SaveScopeFile(Scope scope)
         {
-            string scopeFile = Path.Combine(_configFolder, scope.Name + ".scope");
+            string scopeFile = Path.Combine(_scopesFolder, scope.Name + ".scope");
 
             try
             {
@@ -902,7 +901,7 @@ namespace DnsServerCore.Dhcp
 
         private void DeleteScopeFile(string scopeName)
         {
-            string scopeFile = Path.Combine(_configFolder, scopeName + ".scope");
+            string scopeFile = Path.Combine(_scopesFolder, scopeName + ".scope");
 
             try
             {
@@ -1111,12 +1110,6 @@ namespace DnsServerCore.Dhcp
 
         public ICollection<Scope> Scopes
         { get { return _scopes.Values; } }
-
-        public string ServerDomain
-        {
-            get { return _serverDomain; }
-            set { _serverDomain = value; }
-        }
 
         public AuthZoneManager AuthZoneManager
         {
