@@ -20,6 +20,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 using DnsServerCore.Dhcp;
 using DnsServerCore.Dhcp.Options;
 using DnsServerCore.Dns;
+using DnsServerCore.Dns.ResourceRecords;
 using DnsServerCore.Dns.Zones;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Converters;
@@ -29,6 +30,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Net;
 using System.Reflection;
+using System.Resources;
 using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
 using System.Text;
@@ -63,14 +65,9 @@ namespace DnsServerCore
         readonly Uri _updateCheckUri;
 
         readonly LogManager _log;
-        StatsManager _stats;
 
         DnsServer _dnsServer;
         DhcpServer _dhcpServer;
-
-        string _serverDomain;
-        DnsSOARecord _defaultSoaRecord;
-        DnsNSRecord _defaultNsRecord;
 
         int _webServicePort;
         HttpListener _webService;
@@ -99,9 +96,6 @@ namespace DnsServerCore
         const int BLOCK_LIST_UPDATE_TIMER_INITIAL_INTERVAL = 5000;
         const int BLOCK_LIST_UPDATE_TIMER_INTERVAL = 900000;
         const int BLOCK_LIST_UPDATE_RETRIES = 3;
-
-        int _totalZonesAllowed;
-        int _totalZonesBlocked;
 
         List<string> _configDisabledZones;
 
@@ -166,9 +160,6 @@ namespace DnsServerCore
 
                 if (_log != null)
                     _log.Dispose();
-
-                if (_stats != null)
-                    _stats.Dispose();
             }
 
             _disposed = true;
@@ -908,16 +899,16 @@ namespace DnsServerCore
             jsonWriter.WriteValue(GetCleanVersion(_currentVersion));
 
             jsonWriter.WritePropertyName("serverDomain");
-            jsonWriter.WriteValue(_serverDomain);
+            jsonWriter.WriteValue(_dnsServer.ServerDomain);
 
             jsonWriter.WritePropertyName("webServicePort");
             jsonWriter.WriteValue(_webServicePort);
 
-            jsonWriter.WritePropertyName("dnsServerLocalAddresses");
+            jsonWriter.WritePropertyName("dnsServerLocalEndPoints");
             jsonWriter.WriteStartArray();
 
-            foreach (IPAddress localAddress in _dnsServer.LocalAddresses)
-                jsonWriter.WriteValue(localAddress.ToString());
+            foreach (IPEndPoint localEP in _dnsServer.LocalEndPoints)
+                jsonWriter.WriteValue(localEP.ToString());
 
             jsonWriter.WriteEndArray();
 
@@ -1004,12 +995,16 @@ namespace DnsServerCore
 
             jsonWriter.WritePropertyName("forwarders");
 
+            DnsTransportProtocol forwarderProtocol = DnsTransportProtocol.Udp;
+
             if (_dnsServer.Forwarders == null)
             {
                 jsonWriter.WriteNull();
             }
             else
             {
+                forwarderProtocol = _dnsServer.Forwarders[0].Protocol;
+
                 jsonWriter.WriteStartArray();
 
                 foreach (NameServerAddress forwarder in _dnsServer.Forwarders)
@@ -1019,7 +1014,7 @@ namespace DnsServerCore
             }
 
             jsonWriter.WritePropertyName("forwarderProtocol");
-            jsonWriter.WriteValue(_dnsServer.ForwarderProtocol.ToString());
+            jsonWriter.WriteValue(forwarderProtocol.ToString());
 
 
             jsonWriter.WritePropertyName("blockListUrls");
@@ -1043,83 +1038,25 @@ namespace DnsServerCore
         {
             string strServerDomain = request.QueryString["serverDomain"];
             if (!string.IsNullOrEmpty(strServerDomain))
-            {
-                strServerDomain = strServerDomain.ToLower();
+                _dnsServer.ServerDomain = strServerDomain;
 
-                if (_serverDomain != strServerDomain)
+            string strDnsServerLocalEndPoints = request.QueryString["dnsServerLocalEndPoints"];
+            if (strDnsServerLocalEndPoints != null)
+            {
+                if (string.IsNullOrEmpty(strDnsServerLocalEndPoints))
+                    strDnsServerLocalEndPoints = "0.0.0.0:53,[::]:53";
+
+                string[] strLocalEndPoints = strDnsServerLocalEndPoints.Split(new char[] { ',' }, StringSplitOptions.RemoveEmptyEntries);
+                List<IPEndPoint> localEndPoints = new List<IPEndPoint>(strLocalEndPoints.Length);
+
+                for (int i = 0; i < strLocalEndPoints.Length; i++)
                 {
-                    string oldServerDomain = _serverDomain;
-
-                    UpdateServerDomain(strServerDomain);
-
-                    ThreadPool.QueueUserWorkItem(delegate (object state)
-                    {
-                        try
-                        {
-                            //update authoritative zone SOA and NS records
-                            List<AuthZoneInfo> zones = _dnsServer.AuthZoneManager.ListZones();
-
-                            foreach (AuthZoneInfo zone in zones)
-                            {
-                                IReadOnlyList<DnsResourceRecord> soaResourceRecords = zone.QueryRecords(DnsResourceRecordType.SOA);
-                                if (soaResourceRecords.Count > 0)
-                                {
-                                    DnsResourceRecord soaRecord = soaResourceRecords[0];
-                                    DnsSOARecord soaRecordData = soaRecord.RDATA as DnsSOARecord;
-
-                                    if (soaRecordData.MasterNameServer.Equals(oldServerDomain, StringComparison.OrdinalIgnoreCase))
-                                    {
-                                        string responsiblePerson = soaRecordData.ResponsiblePerson;
-                                        if (responsiblePerson.EndsWith(oldServerDomain))
-                                            responsiblePerson = responsiblePerson.Replace(oldServerDomain, strServerDomain);
-
-                                        _dnsServer.AuthZoneManager.SetRecords(soaRecord.Name, soaRecord.Type, soaRecord.TtlValue, new DnsResourceRecordData[] { new DnsSOARecord(strServerDomain, responsiblePerson, soaRecordData.Serial, soaRecordData.Refresh, soaRecordData.Retry, soaRecordData.Expire, soaRecordData.Minimum) });
-
-                                        //update NS records
-                                        IReadOnlyList<DnsResourceRecord> nsResourceRecords = zone.QueryRecords(DnsResourceRecordType.NS);
-
-                                        foreach (DnsResourceRecord nsResourceRecord in nsResourceRecords)
-                                        {
-                                            if ((nsResourceRecord.RDATA as DnsNSRecord).NSDomainName.Equals(oldServerDomain, StringComparison.OrdinalIgnoreCase))
-                                            {
-                                                _dnsServer.AuthZoneManager.UpdateRecord(nsResourceRecord, new DnsResourceRecord(nsResourceRecord.Name, nsResourceRecord.Type, nsResourceRecord.Class, nsResourceRecord.TtlValue, new DnsNSRecord(strServerDomain)));
-                                                break;
-                                            }
-                                        }
-
-                                        try
-                                        {
-                                            SaveZoneFile(zone.Name);
-                                        }
-                                        catch (Exception ex)
-                                        {
-                                            _log.Write(ex);
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                        catch (Exception ex)
-                        {
-                            _log.Write(ex);
-                        }
-                    });
+                    NameServerAddress nameServer = new NameServerAddress(strLocalEndPoints[i]);
+                    if (nameServer.IPEndPoint != null)
+                        localEndPoints.Add(nameServer.IPEndPoint);
                 }
-            }
 
-            string strDnsServerLocalAddresses = request.QueryString["dnsServerLocalAddresses"];
-            if (strDnsServerLocalAddresses != null)
-            {
-                if (string.IsNullOrEmpty(strDnsServerLocalAddresses))
-                    strDnsServerLocalAddresses = "0.0.0.0,::";
-
-                string[] strLocalAddresses = strDnsServerLocalAddresses.Split(new char[] { ',' }, StringSplitOptions.RemoveEmptyEntries);
-                IPAddress[] localAddresses = new IPAddress[strLocalAddresses.Length];
-
-                for (int i = 0; i < strLocalAddresses.Length; i++)
-                    localAddresses[i] = IPAddress.Parse(strLocalAddresses[i]);
-
-                _dnsServer.LocalAddresses = localAddresses;
+                _dnsServer.LocalEndPoints = localEndPoints;
             }
 
             int oldWebServicePort = _webServicePort;
@@ -1231,9 +1168,10 @@ namespace DnsServerCore
                 }
             }
 
+            DnsTransportProtocol forwarderProtocol = DnsTransportProtocol.Udp;
             string strForwarderProtocol = request.QueryString["forwarderProtocol"];
             if (!string.IsNullOrEmpty(strForwarderProtocol))
-                _dnsServer.ForwarderProtocol = (DnsTransportProtocol)Enum.Parse(typeof(DnsTransportProtocol), strForwarderProtocol, true);
+                forwarderProtocol = (DnsTransportProtocol)Enum.Parse(typeof(DnsTransportProtocol), strForwarderProtocol, true);
 
             string strForwarders = request.QueryString["forwarders"];
             if (!string.IsNullOrEmpty(strForwarders))
@@ -1249,10 +1187,10 @@ namespace DnsServerCore
 
                     for (int i = 0; i < strForwardersList.Length; i++)
                     {
-                        if ((_dnsServer.ForwarderProtocol == DnsTransportProtocol.Tls) && IPAddress.TryParse(strForwardersList[i], out _))
+                        if ((forwarderProtocol == DnsTransportProtocol.Tls) && IPAddress.TryParse(strForwardersList[i], out _))
                             strForwardersList[i] += ":853";
 
-                        forwarders[i] = new NameServerAddress(strForwardersList[i]);
+                        forwarders[i] = new NameServerAddress(strForwardersList[i], forwarderProtocol);
                     }
 
                     _dnsServer.Forwarders = forwarders;
@@ -1321,7 +1259,7 @@ namespace DnsServerCore
                 }
             }
 
-            _log.Write(GetRequestRemoteEndPoint(request), "[" + GetSession(request).Username + "] DNS Settings were updated {serverDomain: " + _serverDomain + "; dnsServerLocalAddresses: " + strDnsServerLocalAddresses + "; webServicePort: " + _webServicePort + "; enableDnsOverHttp: " + _dnsServer.EnableDnsOverHttp + "; enableDnsOverTls: " + _dnsServer.EnableDnsOverTls + "; enableDnsOverHttps: " + _dnsServer.EnableDnsOverHttps + "; tlsCertificatePath: " + _tlsCertificatePath + "; preferIPv6: " + _dnsServer.PreferIPv6 + "; logQueries: " + (_dnsServer.QueryLogManager != null) + "; allowRecursion: " + _dnsServer.AllowRecursion + "; allowRecursionOnlyForPrivateNetworks: " + _dnsServer.AllowRecursionOnlyForPrivateNetworks + "; proxyType: " + strProxyType + "; forwarders: " + strForwarders + "; forwarderProtocol: " + strForwarderProtocol + "; blockListUrl: " + strBlockListUrls + ";}");
+            _log.Write(GetRequestRemoteEndPoint(request), "[" + GetSession(request).Username + "] DNS Settings were updated {serverDomain: " + _dnsServer.ServerDomain + "; dnsServerLocalEndPoints: " + strDnsServerLocalEndPoints + "; webServicePort: " + _webServicePort + "; enableDnsOverHttp: " + _dnsServer.EnableDnsOverHttp + "; enableDnsOverTls: " + _dnsServer.EnableDnsOverTls + "; enableDnsOverHttps: " + _dnsServer.EnableDnsOverHttps + "; tlsCertificatePath: " + _tlsCertificatePath + "; preferIPv6: " + _dnsServer.PreferIPv6 + "; logQueries: " + (_dnsServer.QueryLogManager != null) + "; allowRecursion: " + _dnsServer.AllowRecursion + "; allowRecursionOnlyForPrivateNetworks: " + _dnsServer.AllowRecursionOnlyForPrivateNetworks + "; proxyType: " + strProxyType + "; forwarders: " + strForwarders + "; forwarderProtocol: " + strForwarderProtocol + "; blockListUrl: " + strBlockListUrls + ";}");
 
             SaveConfigFile();
 
@@ -1339,23 +1277,23 @@ namespace DnsServerCore
             switch (strType)
             {
                 case "lastHour":
-                    data = _stats.GetLastHourStats();
+                    data = _dnsServer.StatsManager.GetLastHourStats();
                     break;
 
                 case "lastDay":
-                    data = _stats.GetLastDayStats();
+                    data = _dnsServer.StatsManager.GetLastDayStats();
                     break;
 
                 case "lastWeek":
-                    data = _stats.GetLastWeekStats();
+                    data = _dnsServer.StatsManager.GetLastWeekStats();
                     break;
 
                 case "lastMonth":
-                    data = _stats.GetLastMonthStats();
+                    data = _dnsServer.StatsManager.GetLastMonthStats();
                     break;
 
                 case "lastYear":
-                    data = _stats.GetLastYearStats();
+                    data = _dnsServer.StatsManager.GetLastYearStats();
                     break;
 
                 default:
@@ -1376,10 +1314,10 @@ namespace DnsServerCore
                 }
 
                 jsonWriter.WritePropertyName("allowedZones");
-                jsonWriter.WriteValue(_totalZonesAllowed);
+                jsonWriter.WriteValue(_dnsServer.AllowedZoneManager.TotalZonesAllowed);
 
                 jsonWriter.WritePropertyName("blockedZones");
-                jsonWriter.WriteValue(_totalZonesBlocked + _dnsServer.BlockListZoneManager.TotalZonesBlocked);
+                jsonWriter.WriteValue(_dnsServer.BlockedZoneManager.TotalZonesBlocked + _dnsServer.BlockListZoneManager.TotalZonesBlocked);
 
                 jsonWriter.WriteEndObject();
             }
@@ -1442,15 +1380,15 @@ namespace DnsServerCore
                     {
                         switch (item.Key)
                         {
-                            case "totalAuthHit":
+                            case "totalAuthoritative":
                                 jsonWriter.WriteValue("Authoritative");
                                 break;
 
-                            case "totalRecursions":
+                            case "totalRecursive":
                                 jsonWriter.WriteValue("Recursive");
                                 break;
 
-                            case "totalCacheHit":
+                            case "totalCached":
                                 jsonWriter.WriteValue("Cached");
                                 break;
 
@@ -1477,9 +1415,9 @@ namespace DnsServerCore
                     {
                         switch (item.Key)
                         {
-                            case "totalAuthHit":
-                            case "totalRecursions":
-                            case "totalCacheHit":
+                            case "totalAuthoritative":
+                            case "totalRecursive":
+                            case "totalCached":
                             case "totalBlocked":
                                 jsonWriter.WriteValue(item.Value);
                                 break;
@@ -1845,10 +1783,10 @@ namespace DnsServerCore
                     string[] allowedZones = formPart.Substring(13).Split(',');
 
                     foreach (string allowedZone in allowedZones)
-                        _dnsServer.AllowedZoneManager.CreatePrimaryZone(allowedZone, _defaultSoaRecord, _defaultNsRecord, false);
+                        _dnsServer.AllowedZoneManager.AllowZone(allowedZone);
 
                     _log.Write(GetRequestRemoteEndPoint(request), "[" + GetSession(request).Username + "] Total " + allowedZones.Length + " zones were imported into allowed zone successfully.");
-                    SaveAllowedZoneFile();
+                    _dnsServer.AllowedZoneManager.SaveZoneFile();
                     return;
                 }
             }
@@ -1880,7 +1818,7 @@ namespace DnsServerCore
 
             _log.Write(GetRequestRemoteEndPoint(request), "[" + GetSession(request).Username + "] Allowed zone was deleted: " + domain);
 
-            SaveAllowedZoneFile();
+            _dnsServer.AllowedZoneManager.SaveZoneFile();
         }
 
         private void AllowZone(HttpListenerRequest request)
@@ -1892,10 +1830,10 @@ namespace DnsServerCore
             if (IPAddress.TryParse(domain, out IPAddress ipAddress))
                 domain = (new DnsQuestionRecord(ipAddress, DnsClass.IN)).Name;
 
-            _dnsServer.AllowedZoneManager.CreatePrimaryZone(domain, _defaultSoaRecord, _defaultNsRecord, false);
+            _dnsServer.AllowedZoneManager.AllowZone(domain);
 
             _log.Write(GetRequestRemoteEndPoint(request), "[" + GetSession(request).Username + "] Zone was allowed: " + domain);
-            SaveAllowedZoneFile();
+            _dnsServer.AllowedZoneManager.SaveZoneFile();
         }
 
         private void ListBlockedZones(HttpListenerRequest request, JsonTextWriter jsonWriter)
@@ -1980,10 +1918,10 @@ namespace DnsServerCore
                     string[] blockedZones = formPart.Substring(13).Split(',');
 
                     foreach (string blockedZone in blockedZones)
-                        _dnsServer.BlockedZoneManager.CreatePrimaryZone(blockedZone, _defaultSoaRecord, _defaultNsRecord, false);
+                        _dnsServer.BlockedZoneManager.BlockZone(blockedZone);
 
                     _log.Write(GetRequestRemoteEndPoint(request), "[" + GetSession(request).Username + "] Total " + blockedZones.Length + " zones were imported into blocked zone successfully.");
-                    SaveBlockedZoneFile();
+                    _dnsServer.BlockedZoneManager.SaveZoneFile();
                     return;
                 }
             }
@@ -2015,8 +1953,7 @@ namespace DnsServerCore
 
             _log.Write(GetRequestRemoteEndPoint(request), "[" + GetSession(request).Username + "] Blocked zone was deleted: " + domain);
 
-            SaveBlockedZoneFile();
-            _totalZonesBlocked--;
+            _dnsServer.BlockedZoneManager.SaveZoneFile();
         }
 
         private void BlockZone(HttpListenerRequest request)
@@ -2028,12 +1965,11 @@ namespace DnsServerCore
             if (IPAddress.TryParse(domain, out IPAddress ipAddress))
                 domain = (new DnsQuestionRecord(ipAddress, DnsClass.IN)).Name;
 
-            _dnsServer.BlockedZoneManager.CreatePrimaryZone(domain, _defaultSoaRecord, _defaultNsRecord, false);
+            _dnsServer.BlockedZoneManager.BlockZone(domain);
 
             _log.Write(GetRequestRemoteEndPoint(request), "[" + GetSession(request).Username + "] Domain was added to blocked zone: " + domain);
 
-            SaveBlockedZoneFile();
-            _totalZonesBlocked++;
+            _dnsServer.BlockedZoneManager.SaveZoneFile();
         }
 
         private void ListZones(JsonTextWriter jsonWriter)
@@ -2075,11 +2011,11 @@ namespace DnsServerCore
             else if (domain.EndsWith("."))
                 domain = domain.Substring(0, domain.Length - 1);
 
-            if (_dnsServer.AuthZoneManager.CreatePrimaryZone(domain, _serverDomain, false))
+            if (_dnsServer.AuthZoneManager.CreatePrimaryZone(domain, _dnsServer.ServerDomain, false) != null)
             {
                 _log.Write(GetRequestRemoteEndPoint(request), "[" + GetSession(request).Username + "] Authoritative zone was created: " + domain);
 
-                SaveZoneFile(domain);
+                _dnsServer.AuthZoneManager.SaveZoneFile(domain);
             }
 
             jsonWriter.WritePropertyName("domain");
@@ -2107,7 +2043,7 @@ namespace DnsServerCore
 
             _log.Write(GetRequestRemoteEndPoint(request), "[" + GetSession(request).Username + "] Authoritative zone was deleted: " + domain);
 
-            DeleteZoneFile(domain);
+            _dnsServer.AuthZoneManager.DeleteZoneFile(domain);
         }
 
         private void EnableZone(HttpListenerRequest request)
@@ -2130,7 +2066,7 @@ namespace DnsServerCore
 
             _log.Write(GetRequestRemoteEndPoint(request), "[" + GetSession(request).Username + "] Authoritative zone was enabled: " + domain);
 
-            SaveZoneFile(zoneInfo.Name);
+            _dnsServer.AuthZoneManager.SaveZoneFile(zoneInfo.Name);
         }
 
         private void DisableZone(HttpListenerRequest request)
@@ -2153,7 +2089,7 @@ namespace DnsServerCore
 
             _log.Write(GetRequestRemoteEndPoint(request), "[" + GetSession(request).Username + "] Authoritative zone was disabled: " + domain);
 
-            SaveZoneFile(zoneInfo.Name);
+            _dnsServer.AuthZoneManager.SaveZoneFile(zoneInfo.Name);
         }
 
         private void AddRecord(HttpListenerRequest request)
@@ -2263,7 +2199,7 @@ namespace DnsServerCore
 
             _log.Write(GetRequestRemoteEndPoint(request), "[" + GetSession(request).Username + "] New record was added to authoritative zone {domain: " + domain + "; type: " + type + "; value: " + value + "; ttl: " + ttl + ";}");
 
-            SaveZoneFile(zoneInfo.Name);
+            _dnsServer.AuthZoneManager.SaveZoneFile(zoneInfo.Name);
         }
 
         private void GetRecords(HttpListenerRequest request, JsonTextWriter jsonWriter)
@@ -2584,7 +2520,7 @@ namespace DnsServerCore
 
             _log.Write(GetRequestRemoteEndPoint(request), "[" + GetSession(request).Username + "] Record was deleted from authoritative zone {domain: " + domain + "; type: " + type + "; value: " + value + ";}");
 
-            SaveZoneFile(zoneInfo.Name);
+            _dnsServer.AuthZoneManager.SaveZoneFile(zoneInfo.Name);
         }
 
         private void UpdateRecord(HttpListenerRequest request)
@@ -2824,20 +2760,21 @@ namespace DnsServerCore
 
             _log.Write(GetRequestRemoteEndPoint(request), "[" + GetSession(request).Username + "] Record was updated for authoritative zone {oldDomain: " + domain + "; domain: " + newDomain + "; type: " + type + "; oldValue: " + value + "; value: " + newValue + "; ttl: " + ttl + "; disabled: " + disable + ";}");
 
-            SaveZoneFile(zoneInfo.Name);
+            _dnsServer.AuthZoneManager.SaveZoneFile(zoneInfo.Name);
         }
 
-        private IPAddress GetThisDnsServerAddress()
+        private IPEndPoint GetThisDnsServerEndPoint()
         {
-            if (_dnsServer.LocalAddresses.Length == 0)
-                return IPAddress.Loopback;
+            if (_dnsServer.LocalEndPoints.Count == 0)
+                return new IPEndPoint(IPAddress.Loopback, 53);
 
-            if (_dnsServer.LocalAddresses[0].Equals(IPAddress.Any))
-                return IPAddress.Loopback;
-            else if (_dnsServer.LocalAddresses[0].Equals(IPAddress.IPv6Any))
-                return IPAddress.IPv6Loopback;
-            else
-                return _dnsServer.LocalAddresses[0];
+            if (_dnsServer.LocalEndPoints[0].Address.Equals(IPAddress.Any))
+                return new IPEndPoint(IPAddress.Loopback, 53);
+
+            if (_dnsServer.LocalEndPoints[0].Equals(IPAddress.IPv6Any))
+                return new IPEndPoint(IPAddress.IPv6Loopback, 53);
+
+            return _dnsServer.LocalEndPoints[0];
         }
 
         private void ResolveQuery(HttpListenerRequest request, JsonTextWriter jsonWriter)
@@ -2895,7 +2832,7 @@ namespace DnsServerCore
 
                 if (server == "this-server")
                 {
-                    nameServer = new NameServerAddress(_serverDomain, GetThisDnsServerAddress());
+                    nameServer = new NameServerAddress(_dnsServer.ServerDomain, GetThisDnsServerEndPoint(), protocol);
                     proxy = null; //no proxy required for this server
 
                     switch (protocol)
@@ -2912,14 +2849,14 @@ namespace DnsServerCore
                 }
                 else
                 {
-                    nameServer = new NameServerAddress(server);
+                    nameServer = new NameServerAddress(server, protocol);
 
                     if (nameServer.IPEndPoint == null)
                     {
                         if (proxy == null)
                         {
                             if (_dnsServer.AllowRecursion)
-                                nameServer.ResolveIPAddress(new NameServerAddress[] { new NameServerAddress(GetThisDnsServerAddress()) }, proxy, preferIPv6, RETRIES, TIMEOUT);
+                                nameServer.ResolveIPAddress(new NameServerAddress[] { new NameServerAddress(GetThisDnsServerEndPoint()) }, proxy, preferIPv6, RETRIES, TIMEOUT);
                             else
                                 nameServer.RecursiveResolveIPAddress(_dnsServer.CacheZoneManager, proxy, preferIPv6, RETRIES, TIMEOUT);
                         }
@@ -2929,7 +2866,7 @@ namespace DnsServerCore
                         try
                         {
                             if (_dnsServer.AllowRecursion)
-                                nameServer.ResolveDomainName(new NameServerAddress[] { new NameServerAddress(GetThisDnsServerAddress()) }, proxy, preferIPv6, RETRIES, TIMEOUT);
+                                nameServer.ResolveDomainName(new NameServerAddress[] { new NameServerAddress(GetThisDnsServerEndPoint()) }, proxy, preferIPv6, RETRIES, TIMEOUT);
                             else
                                 nameServer.RecursiveResolveDomainName(_dnsServer.CacheZoneManager, proxy, preferIPv6, RETRIES, TIMEOUT);
                         }
@@ -2938,7 +2875,7 @@ namespace DnsServerCore
                     }
                 }
 
-                dnsResponse = (new DnsClient(nameServer) { Proxy = proxy, PreferIPv6 = preferIPv6, Protocol = protocol, Retries = RETRIES, Timeout = TIMEOUT }).Resolve(domain, type);
+                dnsResponse = (new DnsClient(nameServer) { Proxy = proxy, PreferIPv6 = preferIPv6, Retries = RETRIES, Timeout = TIMEOUT }).Resolve(domain, type);
             }
 
             if (importRecords)
@@ -2947,29 +2884,38 @@ namespace DnsServerCore
 
                 if (zoneInfo == null)
                 {
-                    _dnsServer.AuthZoneManager.CreatePrimaryZone(domain, _serverDomain, false);
+                    zoneInfo = _dnsServer.AuthZoneManager.CreatePrimaryZone(domain, _dnsServer.ServerDomain, false);
+                    if (zoneInfo == null)
+                        throw new DnsServerException("Cannot import records: failed to create primary zone.");
                 }
                 else if (zoneInfo.Type != AuthZoneType.Primary)
                 {
                     throw new DnsServerException("Cannot import records: import zone type must be primary.");
                 }
 
-                List<DnsResourceRecord> recordsToImport = new List<DnsResourceRecord>();
-
-                foreach (DnsResourceRecord record in dnsResponse.Answer)
+                if (type == DnsResourceRecordType.AXFR)
                 {
-                    if (record.Name.Equals(domain, StringComparison.OrdinalIgnoreCase))
-                    {
-                        record.RemoveExpiry();
-                        recordsToImport.Add(record);
-                    }
+                    _dnsServer.AuthZoneManager.SyncRecords(domain, dnsResponse.Answer);
                 }
+                else
+                {
+                    List<DnsResourceRecord> syncRecords = new List<DnsResourceRecord>();
 
-                _dnsServer.AuthZoneManager.SetRecords(recordsToImport);
+                    foreach (DnsResourceRecord record in dnsResponse.Answer)
+                    {
+                        if (record.Name.Equals(domain, StringComparison.OrdinalIgnoreCase))
+                        {
+                            record.RemoveExpiry();
+                            syncRecords.Add(record);
+                        }
+                    }
+
+                    _dnsServer.AuthZoneManager.SyncRecords(domain, syncRecords, null, true);
+                }
 
                 _log.Write(GetRequestRemoteEndPoint(request), "[" + GetSession(request).Username + "] DNS Client imported record(s) for authoritative zone {server: " + server + "; domain: " + domain + "; type: " + type + ";}");
 
-                SaveZoneFile(zoneInfo.Name);
+                _dnsServer.AuthZoneManager.SaveZoneFile(zoneInfo.Name);
             }
 
             jsonWriter.WritePropertyName("result");
@@ -3580,266 +3526,6 @@ namespace DnsServerCore
             }
         }
 
-        private void LoadZoneFiles()
-        {
-            string zonePath = Path.Combine(_configFolder, "zones");
-            if (!Directory.Exists(zonePath))
-                Directory.CreateDirectory(zonePath);
-
-            //move zone files to new folder
-            {
-                string[] oldZoneFiles = Directory.GetFiles(_configFolder, "*.zone");
-
-                foreach (string oldZoneFile in oldZoneFiles)
-                    File.Move(oldZoneFile, Path.Combine(zonePath, Path.GetFileName(oldZoneFile)));
-            }
-
-            //remove old internal zones
-            {
-                string[] oldZoneFiles = new string[] { "localhost.zone", "1.0.0.127.in-addr.arpa.zone", "1.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.ip6.arpa.zone" };
-
-                foreach (string oldZoneFile in oldZoneFiles)
-                {
-                    string filePath = Path.Combine(zonePath, oldZoneFile);
-
-                    if (File.Exists(filePath))
-                    {
-                        try
-                        {
-                            File.Delete(filePath);
-                        }
-                        catch
-                        { }
-                    }
-                }
-            }
-
-            //load system zones
-            {
-                {
-                    _dnsServer.AuthZoneManager.CreatePrimaryZone("localhost", _serverDomain, true);
-                    _dnsServer.AuthZoneManager.SetRecords("localhost", DnsResourceRecordType.A, 3600, new DnsResourceRecordData[] { new DnsARecord(IPAddress.Loopback) });
-                    _dnsServer.AuthZoneManager.SetRecords("localhost", DnsResourceRecordType.AAAA, 3600, new DnsResourceRecordData[] { new DnsAAAARecord(IPAddress.IPv6Loopback) });
-                }
-
-                {
-                    string prtDomain = "0.in-addr.arpa";
-
-                    _dnsServer.AuthZoneManager.CreatePrimaryZone(prtDomain, _serverDomain, true);
-                }
-
-                {
-                    string prtDomain = "255.in-addr.arpa";
-
-                    _dnsServer.AuthZoneManager.CreatePrimaryZone(prtDomain, _serverDomain, true);
-                }
-
-                {
-                    string prtDomain = "127.in-addr.arpa";
-
-                    _dnsServer.AuthZoneManager.CreatePrimaryZone(prtDomain, _serverDomain, true);
-                    _dnsServer.AuthZoneManager.SetRecords("1.0.0.127.in-addr.arpa", DnsResourceRecordType.PTR, 3600, new DnsResourceRecordData[] { new DnsPTRRecord("localhost") });
-                }
-
-                {
-                    string prtDomain = new DnsQuestionRecord(IPAddress.IPv6Loopback, DnsClass.IN).Name;
-
-                    _dnsServer.AuthZoneManager.CreatePrimaryZone(prtDomain, _serverDomain, true);
-                    _dnsServer.AuthZoneManager.SetRecords(prtDomain, DnsResourceRecordType.PTR, 3600, new DnsResourceRecordData[] { new DnsPTRRecord("localhost") });
-                }
-            }
-
-            //load zone files
-            string[] zoneFiles = Directory.GetFiles(zonePath, "*.zone");
-
-            foreach (string zoneFile in zoneFiles)
-            {
-                try
-                {
-                    using (FileStream fS = new FileStream(zoneFile, FileMode.Open, FileAccess.Read))
-                    {
-                        _dnsServer.AuthZoneManager.LoadZoneFrom(fS);
-                    }
-
-                    _log.Write("DNS Server successfully loaded zone file: " + zoneFile);
-                }
-                catch (Exception ex)
-                {
-                    _log.Write("DNS Server failed to load zone file: " + zoneFile + "\r\n" + ex.ToString());
-                }
-            }
-        }
-
-        private void SaveZoneFile(string domain)
-        {
-            domain = domain.ToLower();
-
-            using (MemoryStream mS = new MemoryStream())
-            {
-                //serialize zone
-                _dnsServer.AuthZoneManager.WriteZoneTo(domain, mS);
-
-                //write to zone file
-                mS.Position = 0;
-
-                using (FileStream fS = new FileStream(Path.Combine(_configFolder, "zones", domain + ".zone"), FileMode.Create, FileAccess.Write))
-                {
-                    mS.CopyTo(fS);
-                }
-            }
-
-            _log.Write("Saved zone file for domain: " + domain);
-        }
-
-        private void DeleteZoneFile(string domain)
-        {
-            domain = domain.ToLower();
-
-            File.Delete(Path.Combine(_configFolder, "zones", domain + ".zone"));
-
-            _log.Write("Deleted zone file for domain: " + domain);
-        }
-
-        private void LoadAllowedZoneFile()
-        {
-            string allowedZoneFile = Path.Combine(_configFolder, "allowed.config");
-
-            try
-            {
-                _log.Write("DNS Server is loading allowed zone file: " + allowedZoneFile);
-
-                using (FileStream fS = new FileStream(allowedZoneFile, FileMode.Open, FileAccess.Read))
-                {
-                    BinaryReader bR = new BinaryReader(fS);
-
-                    if (Encoding.ASCII.GetString(bR.ReadBytes(2)) != "AZ") //format
-                        throw new InvalidDataException("DnsServer allowed zone file format is invalid.");
-
-                    byte version = bR.ReadByte();
-                    switch (version)
-                    {
-                        case 1:
-                            int length = bR.ReadInt32();
-
-                            for (int i = 0; i < length; i++)
-                                _dnsServer.AllowedZoneManager.CreatePrimaryZone(bR.ReadShortString(), _defaultSoaRecord, _defaultNsRecord, false);
-
-                            _totalZonesAllowed = length;
-                            break;
-
-                        default:
-                            throw new InvalidDataException("DnsServer allowed zone file version not supported.");
-                    }
-                }
-
-                _log.Write("DNS Server allowed zone file was loaded: " + allowedZoneFile);
-            }
-            catch (FileNotFoundException)
-            { }
-            catch (Exception ex)
-            {
-                _log.Write("DNS Server encountered an error while loading allowed zone file: " + allowedZoneFile + "\r\n" + ex.ToString());
-            }
-        }
-
-        private void SaveAllowedZoneFile()
-        {
-            List<AuthZoneInfo> allowedZones = _dnsServer.AllowedZoneManager.ListZones();
-
-            _totalZonesAllowed = allowedZones.Count;
-
-            string allowedZoneFile = Path.Combine(_configFolder, "allowed.config");
-
-            using (FileStream fS = new FileStream(allowedZoneFile, FileMode.Create, FileAccess.Write))
-            {
-                BinaryWriter bW = new BinaryWriter(fS);
-
-                bW.Write(Encoding.ASCII.GetBytes("AZ")); //format
-                bW.Write((byte)1); //version
-
-                bW.Write(allowedZones.Count);
-
-                foreach (AuthZoneInfo zone in allowedZones)
-                    bW.WriteShortString(zone.Name);
-            }
-
-            _log.Write("DNS Server allowed zone file was saved: " + allowedZoneFile);
-        }
-
-        private void LoadBlockedZoneFile()
-        {
-            string blockedZoneFile;
-
-            string oldCustomBlockedZoneFile = Path.Combine(_configFolder, "custom-blocked.config");
-            string newBlockedZoneFile = Path.Combine(_configFolder, "blocked.config");
-
-            if (File.Exists(newBlockedZoneFile))
-                blockedZoneFile = newBlockedZoneFile;
-            else if (File.Exists(oldCustomBlockedZoneFile))
-                blockedZoneFile = oldCustomBlockedZoneFile;
-            else
-                blockedZoneFile = newBlockedZoneFile;
-
-            try
-            {
-                _log.Write("DNS Server is loading blocked zone file: " + blockedZoneFile);
-
-                using (FileStream fS = new FileStream(blockedZoneFile, FileMode.Open, FileAccess.Read))
-                {
-                    BinaryReader bR = new BinaryReader(fS);
-
-                    if (Encoding.ASCII.GetString(bR.ReadBytes(2)) != "BZ") //format
-                        throw new InvalidDataException("DnsServer blocked zone file format is invalid.");
-
-                    byte version = bR.ReadByte();
-                    switch (version)
-                    {
-                        case 1:
-                            int length = bR.ReadInt32();
-
-                            for (int i = 0; i < length; i++)
-                                _dnsServer.BlockedZoneManager.CreatePrimaryZone(bR.ReadShortString(), _defaultSoaRecord, _defaultNsRecord, false);
-
-                            _totalZonesBlocked = length;
-                            break;
-
-                        default:
-                            throw new InvalidDataException("DnsServer blocked zone file version not supported.");
-                    }
-                }
-
-                _log.Write("DNS Server blocked zone file was loaded: " + blockedZoneFile);
-            }
-            catch (FileNotFoundException)
-            { }
-            catch (Exception ex)
-            {
-                _log.Write("DNS Server encountered an error while loading blocked zone file: " + blockedZoneFile + "\r\n" + ex.ToString());
-            }
-        }
-
-        private void SaveBlockedZoneFile()
-        {
-            List<AuthZoneInfo> blockedZones = _dnsServer.BlockedZoneManager.ListZones();
-
-            string blockedZoneFile = Path.Combine(_configFolder, "blocked.config");
-
-            using (FileStream fS = new FileStream(blockedZoneFile, FileMode.Create, FileAccess.Write))
-            {
-                BinaryWriter bW = new BinaryWriter(fS);
-
-                bW.Write(Encoding.ASCII.GetBytes("BZ")); //format
-                bW.Write((byte)1); //version
-
-                bW.Write(blockedZones.Count);
-
-                foreach (AuthZoneInfo zone in blockedZones)
-                    bW.WriteShortString(zone.Name);
-            }
-
-            _log.Write("DNS Server blocked zone file was saved: " + blockedZoneFile);
-        }
-
         private void StartBlockListUpdateTimer()
         {
             if (_blockListUpdateTimer == null)
@@ -3850,19 +3536,12 @@ namespace DnsServerCore
                     {
                         if (DateTime.UtcNow > _blockListLastUpdatedOn.AddHours(BLOCK_LIST_UPDATE_AFTER_HOURS))
                         {
-                            string localCacheFolder = Path.Combine(_configFolder, "blocklists");
-
-                            if (_dnsServer.BlockListZoneManager.UpdateBlockLists(localCacheFolder, BLOCK_LIST_UPDATE_RETRIES, _dnsServer.Proxy))
+                            if (_dnsServer.BlockListZoneManager.UpdateBlockLists(BLOCK_LIST_UPDATE_RETRIES))
                             {
                                 //block lists were updated
                                 //save last updated on time
                                 _blockListLastUpdatedOn = DateTime.UtcNow;
                                 SaveConfigFile();
-
-                                _dnsServer.BlockListZoneManager.LoadBlockLists(localCacheFolder);
-
-                                //force GC collection to remove old zone data from memory quickly
-                                GC.Collect();
                             }
                         }
                     }
@@ -3976,7 +3655,8 @@ namespace DnsServerCore
                         case 8:
                         case 9:
                         case 10:
-                            UpdateServerDomain(bR.ReadShortString());
+                        case 11:
+                            _dnsServer.ServerDomain = bR.ReadShortString();
                             _webServicePort = bR.ReadInt32();
 
                             _dnsServer.PreferIPv6 = bR.ReadBoolean();
@@ -4038,7 +3718,25 @@ namespace DnsServerCore
                                 }
                             }
 
-                            _dnsServer.ForwarderProtocol = (DnsTransportProtocol)bR.ReadByte();
+                            if (version <= 10)
+                            {
+                                DnsTransportProtocol forwarderProtocol = (DnsTransportProtocol)bR.ReadByte();
+
+                                if (_dnsServer.Forwarders != null)
+                                {
+                                    List<NameServerAddress> forwarders = new List<NameServerAddress>();
+
+                                    foreach (NameServerAddress forwarder in _dnsServer.Forwarders)
+                                    {
+                                        if (forwarder.Protocol == forwarderProtocol)
+                                            forwarders.Add(forwarder);
+                                        else
+                                            forwarders.Add(new NameServerAddress(forwarder, forwarderProtocol));
+                                    }
+
+                                    _dnsServer.Forwarders = forwarders;
+                                }
+                            }
 
                             {
                                 int count = bR.ReadByte();
@@ -4083,17 +3781,31 @@ namespace DnsServerCore
                                     StartBlockListUpdateTimer();
                             }
 
-                            if (version >= 6)
+                            if (version >= 11)
                             {
                                 int count = bR.ReadByte();
-                                _dnsServer.LocalAddresses = new IPAddress[count];
+                                if (count > 0)
+                                {
+                                    IPEndPoint[] localEndPoints = new IPEndPoint[count];
 
-                                for (int i = 0; i < count; i++)
-                                    _dnsServer.LocalAddresses[i] = IPAddressExtension.Parse(bR);
+                                    for (int i = 0; i < count; i++)
+                                        localEndPoints[i] = (IPEndPoint)EndPointExtension.Parse(bR);
+
+                                    _dnsServer.LocalEndPoints = localEndPoints;
+                                }
                             }
-                            else
+                            else if (version >= 6)
                             {
-                                _dnsServer.LocalAddresses = new IPAddress[] { IPAddress.Any, IPAddress.IPv6Any };
+                                int count = bR.ReadByte();
+                                if (count > 0)
+                                {
+                                    IPEndPoint[] localEndPoints = new IPEndPoint[count];
+
+                                    for (int i = 0; i < count; i++)
+                                        localEndPoints[i] = new IPEndPoint(IPAddressExtension.Parse(bR), 53);
+
+                                    _dnsServer.LocalEndPoints = localEndPoints;
+                                }
                             }
 
                             if (version >= 8)
@@ -4154,10 +3866,7 @@ namespace DnsServerCore
                 _log.Write("DNS Server config file was not found: " + configFile);
                 _log.Write("DNS Server is restoring default config file.");
 
-                UpdateServerDomain(Environment.MachineName.ToLower());
-
                 _webServicePort = 5380;
-                _dnsServer.LocalAddresses = new IPAddress[] { IPAddress.Any, IPAddress.IPv6Any };
 
                 SetCredentials("admin", "admin");
 
@@ -4183,13 +3892,13 @@ namespace DnsServerCore
                 BinaryWriter bW = new BinaryWriter(mS);
 
                 bW.Write(Encoding.ASCII.GetBytes("DS")); //format
-                bW.Write((byte)10); //version
+                bW.Write((byte)11); //version
 
-                bW.WriteShortString(_serverDomain);
+                bW.WriteShortString(_dnsServer.ServerDomain);
                 bW.Write(_webServicePort);
 
                 bW.Write(_dnsServer.PreferIPv6);
-                bW.Write((_dnsServer.QueryLogManager != null)); //logQueries
+                bW.Write(_dnsServer.QueryLogManager != null); //logQueries
                 bW.Write(_dnsServer.AllowRecursion);
                 bW.Write(_dnsServer.AllowRecursionOnlyForPrivateNetworks);
 
@@ -4236,13 +3945,11 @@ namespace DnsServerCore
                 }
                 else
                 {
-                    bW.Write(Convert.ToByte(_dnsServer.Forwarders.Length));
+                    bW.Write(Convert.ToByte(_dnsServer.Forwarders.Count));
 
                     foreach (NameServerAddress forwarder in _dnsServer.Forwarders)
                         forwarder.WriteTo(bW);
                 }
-
-                bW.Write((byte)_dnsServer.ForwarderProtocol);
 
                 {
                     bW.Write(Convert.ToByte(_credentials.Count));
@@ -4264,16 +3971,12 @@ namespace DnsServerCore
                     bW.Write(_blockListLastUpdatedOn);
                 }
 
-                if (_dnsServer.LocalAddresses == null)
-                {
-                    bW.Write((byte)0);
-                }
-                else
-                {
-                    bW.Write(Convert.ToByte(_dnsServer.LocalAddresses.Length));
 
-                    foreach (IPAddress localAddress in _dnsServer.LocalAddresses)
-                        localAddress.WriteTo(bW);
+                {
+                    bW.Write(Convert.ToByte(_dnsServer.LocalEndPoints.Count));
+
+                    foreach (IPEndPoint localEP in _dnsServer.LocalEndPoints)
+                        localEP.WriteTo(bW);
                 }
 
                 bW.Write(_dnsServer.EnableDnsOverHttp);
@@ -4302,15 +4005,6 @@ namespace DnsServerCore
             _log.Write("DNS Server config file was saved: " + configFile);
         }
 
-        private void UpdateServerDomain(string serverDomain)
-        {
-            _serverDomain = serverDomain;
-            _defaultSoaRecord = new DnsSOARecord(_serverDomain, "hostmaster." + _serverDomain, 1, 14400, 3600, 604800, 900);
-            _defaultNsRecord = new DnsNSRecord(_serverDomain);
-            _dnsServer.BlockListZoneManager.ServerDomain = _serverDomain;
-            _dhcpServer.ServerDomain = _serverDomain;
-        }
-
         #endregion
 
         #region public
@@ -4327,45 +4021,32 @@ namespace DnsServerCore
 
             try
             {
-                //start dns server
-                if (_stats == null)
-                {
-                    string statsFolder = Path.Combine(_configFolder, "stats");
-
-                    if (!Directory.Exists(statsFolder))
-                        Directory.CreateDirectory(statsFolder);
-
-                    _stats = new StatsManager(statsFolder, _log);
-                }
-
-                _dnsServer = new DnsServer();
+                //init dns server
+                _dnsServer = new DnsServer(_configFolder);
                 _dnsServer.LogManager = _log;
-                _dnsServer.StatsManager = _stats;
+
+                //init dhcp server
+                _dhcpServer = new DhcpServer(Path.Combine(_configFolder, "scopes"));
+                _dhcpServer.AuthZoneManager = _dnsServer.AuthZoneManager;
+                _dhcpServer.LogManager = _log;
 
                 LoadConfigFile();
-                LoadZoneFiles();
 
                 if (_configDisabledZones != null)
                 {
                     foreach (string domain in _configDisabledZones)
                     {
-                        _dnsServer.AuthZoneManager.DisableZone(domain);
-                        SaveZoneFile(domain);
+                        AuthZoneInfo zoneInfo = _dnsServer.AuthZoneManager.GetZoneInfo(domain);
+                        if (zoneInfo != null)
+                        {
+                            zoneInfo.Disabled = true;
+                            _dnsServer.AuthZoneManager.SaveZoneFile(zoneInfo.Name);
+                        }
                     }
                 }
 
-                LoadAllowedZoneFile();
-                LoadBlockedZoneFile();
-                _dnsServer.BlockListZoneManager.LoadBlockLists(Path.Combine(_configFolder, "blocklists"));
-
+                //start dns and dhcp
                 _dnsServer.Start();
-
-                //start dhcp server
-                _dhcpServer = new DhcpServer(Path.Combine(_configFolder, "scopes"));
-                _dhcpServer.AuthZoneManager = _dnsServer.AuthZoneManager;
-                _dhcpServer.ServerDomain = _serverDomain;
-                _dhcpServer.LogManager = _log;
-
                 _dhcpServer.Start();
 
                 //start web service
@@ -4438,9 +4119,6 @@ namespace DnsServerCore
 
         public string ConfigFolder
         { get { return _configFolder; } }
-
-        public string ServerDomain
-        { get { return _serverDomain; } }
 
         public int WebServicePort
         { get { return _webServicePort; } }
