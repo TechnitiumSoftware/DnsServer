@@ -53,7 +53,10 @@ namespace DnsServerCore
 
             AppDomain.CurrentDomain.UnhandledException += delegate (object sender, UnhandledExceptionEventArgs e)
             {
-                Write((Exception)e.ExceptionObject);
+                lock (_logFileLock)
+                {
+                    WriteLog(DateTime.UtcNow, e.ExceptionObject.ToString());
+                }
             };
 
             //log consumer thread
