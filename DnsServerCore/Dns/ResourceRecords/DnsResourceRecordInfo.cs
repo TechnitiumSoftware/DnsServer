@@ -22,7 +22,7 @@ using System.Collections.Generic;
 using System.IO;
 using TechnitiumLibrary.Net.Dns;
 
-namespace DnsServerCore.Dns.Zones
+namespace DnsServerCore.Dns.ResourceRecords
 {
     public class DnsResourceRecordInfo
     {
@@ -49,12 +49,17 @@ namespace DnsServerCore.Dns.Zones
                 case 2:
                     _disabled = bR.ReadBoolean();
 
-                    DnsResourceRecord[] glueRecords = new DnsResourceRecord[bR.ReadByte()];
+                    int count = bR.ReadByte();
+                    if (count > 0)
+                    {
+                        DnsResourceRecord[] glueRecords = new DnsResourceRecord[count];
 
-                    for (int i = 0; i < glueRecords.Length; i++)
-                        glueRecords[i] = new DnsResourceRecord(bR.BaseStream);
+                        for (int i = 0; i < glueRecords.Length; i++)
+                            glueRecords[i] = new DnsResourceRecord(bR.BaseStream);
 
-                    _glueRecords = glueRecords;
+                        _glueRecords = glueRecords;
+                    }
+
                     break;
 
                 default:
