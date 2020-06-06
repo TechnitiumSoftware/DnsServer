@@ -27,15 +27,15 @@ using System.Text;
 using TechnitiumLibrary.Net;
 using TechnitiumLibrary.Net.Dns;
 using TechnitiumLibrary.Net.Dns.ResourceRecords;
-using TechnitiumLibrary.Net.Proxy;
 
-namespace DnsServerCore.Dns.Zones
+namespace DnsServerCore.Dns.ZoneManagers
 {
     public sealed class BlockListZoneManager
     {
         #region variables
 
-        LogManager _log;
+        readonly DnsServer _dnsServer;
+        readonly string _localCacheFolder;
 
         readonly List<Uri> _blockListUrls = new List<Uri>();
         ConcurrentDictionary<string, List<Uri>> _blockListZone = new ConcurrentDictionary<string, List<Uri>>();
@@ -50,9 +50,17 @@ namespace DnsServerCore.Dns.Zones
 
         #region constructor
 
-        public BlockListZoneManager()
+        public BlockListZoneManager(DnsServer dnsServer)
         {
-            UpdateServerDomain(Environment.MachineName);
+            _dnsServer = dnsServer;
+
+            _localCacheFolder = Path.Combine(_dnsServer.ConfigFolder, "blocklists");
+
+            if (!Directory.Exists(_localCacheFolder))
+                Directory.CreateDirectory(_localCacheFolder);
+
+            UpdateServerDomain(_dnsServer.ServerDomain);
+            LoadBlockLists();
         }
 
         #endregion
@@ -65,11 +73,11 @@ namespace DnsServerCore.Dns.Zones
             _nsRecord = new DnsNSRecord(serverDomain);
         }
 
-        private static string GetBlockListFilePath(Uri blockListUrl, string localCacheFolder)
+        private string GetBlockListFilePath(Uri blockListUrl)
         {
             using (HashAlgorithm hash = SHA256.Create())
             {
-                return Path.Combine(localCacheFolder, BitConverter.ToString(hash.ComputeHash(Encoding.UTF8.GetBytes(blockListUrl.AbsoluteUri))).Replace("-", "").ToLower());
+                return Path.Combine(_localCacheFolder, BitConverter.ToString(hash.ComputeHash(Encoding.UTF8.GetBytes(blockListUrl.AbsoluteUri))).Replace("-", "").ToLower());
             }
         }
 
@@ -97,17 +105,17 @@ namespace DnsServerCore.Dns.Zones
             return word;
         }
 
-        private Queue<string> ReadBlockListFile(Uri blockListUrl, string localCacheFolder)
+        private Queue<string> ReadBlockListFile(Uri blockListUrl)
         {
             Queue<string> domains = new Queue<string>();
 
             try
             {
-                LogManager log = _log;
+                LogManager log = _dnsServer.LogManager;
                 if (log != null)
                     log.Write("DNS Server is reading block list from: " + blockListUrl.AbsoluteUri);
 
-                using (FileStream fS = new FileStream(GetBlockListFilePath(blockListUrl, localCacheFolder), FileMode.Open, FileAccess.Read))
+                using (FileStream fS = new FileStream(GetBlockListFilePath(blockListUrl), FileMode.Open, FileAccess.Read))
                 {
                     //parse hosts file and populate block zone
                     StreamReader sR = new StreamReader(fS, true);
@@ -181,7 +189,7 @@ namespace DnsServerCore.Dns.Zones
             }
             catch (Exception ex)
             {
-                LogManager log = _log;
+                LogManager log = _dnsServer.LogManager;
                 if (log != null)
                     log.Write("DNS Server failed to read block list from: " + blockListUrl.AbsoluteUri + "\r\n" + ex.ToString());
             }
@@ -211,95 +219,7 @@ namespace DnsServerCore.Dns.Zones
             return null;
         }
 
-        #endregion
-
-        #region public
-
-        public void Flush()
-        {
-            _blockListZone.Clear();
-        }
-
-        public bool UpdateBlockLists(string localCacheFolder, int maxRetries = 3, NetProxy proxy = null)
-        {
-            bool success = false;
-
-            foreach (Uri blockListUrl in _blockListUrls)
-            {
-                string blockListFilePath = GetBlockListFilePath(blockListUrl, localCacheFolder);
-                string blockListDownloadFilePath = blockListFilePath + ".downloading";
-
-                try
-                {
-                    int retries = 1;
-
-                    while (true)
-                    {
-                        if (File.Exists(blockListDownloadFilePath))
-                            File.Delete(blockListDownloadFilePath);
-
-                        using (WebClientEx wC = new WebClientEx())
-                        {
-                            wC.Proxy = proxy;
-                            wC.Timeout = 60000;
-
-                            if (File.Exists(blockListFilePath))
-                                wC.IfModifiedSince = File.GetLastWriteTimeUtc(blockListFilePath);
-
-                            try
-                            {
-                                wC.DownloadFile(blockListUrl, blockListDownloadFilePath);
-
-
-                                if (File.Exists(blockListFilePath))
-                                    File.Delete(blockListFilePath);
-
-                                File.Move(blockListDownloadFilePath, blockListFilePath);
-                                File.SetLastWriteTimeUtc(blockListFilePath, wC.Response.LastModified);
-
-                                success = true;
-
-                                LogManager log = _log;
-                                if (log != null)
-                                    log.Write("DNS Server successfully downloaded block list (" + WebUtilities.GetFormattedSize(new FileInfo(blockListFilePath).Length) + "): " + blockListUrl.AbsoluteUri);
-
-                                break;
-                            }
-                            catch (WebException ex)
-                            {
-                                if ((ex.Response as HttpWebResponse).StatusCode == HttpStatusCode.NotModified)
-                                {
-                                    LogManager log = _log;
-                                    if (log != null)
-                                        log.Write("DNS Server successfully checked for a new update of the block list: " + blockListUrl.AbsoluteUri);
-
-                                    break;
-                                }
-
-                                if (retries < maxRetries)
-                                {
-                                    retries++;
-                                    continue;
-                                }
-
-                                throw;
-                            }
-                        }
-
-                    }
-                }
-                catch (Exception ex)
-                {
-                    LogManager log = _log;
-                    if (log != null)
-                        log.Write("DNS Server failed to download block list and will use previously downloaded file (if available): " + blockListUrl.AbsoluteUri + "\r\n" + ex.ToString());
-                }
-            }
-
-            return success;
-        }
-
-        public void LoadBlockLists(string localCacheFolder)
+        private void LoadBlockLists()
         {
             //read all block lists in a queue
             Dictionary<Uri, Queue<string>> blockListQueues = new Dictionary<Uri, Queue<string>>(_blockListUrls.Count);
@@ -307,7 +227,7 @@ namespace DnsServerCore.Dns.Zones
 
             foreach (Uri blockListUrl in _blockListUrls)
             {
-                Queue<string> blockListQueue = ReadBlockListFile(blockListUrl, localCacheFolder);
+                Queue<string> blockListQueue = ReadBlockListFile(blockListUrl);
                 totalDomains += blockListQueue.Count;
                 blockListQueues.Add(blockListUrl, blockListQueue);
             }
@@ -335,9 +255,105 @@ namespace DnsServerCore.Dns.Zones
             //set new blocked zone
             _blockListZone = blockListZone;
 
-            LogManager log = _log;
+            LogManager log = _dnsServer.LogManager;
             if (log != null)
                 log.Write("DNS Server block list zone was loaded successfully.");
+        }
+
+        #endregion
+
+        #region public
+
+        public void Flush()
+        {
+            _blockListZone.Clear();
+        }
+
+        public bool UpdateBlockLists(int maxRetries = 3)
+        {
+            bool success = false;
+
+            foreach (Uri blockListUrl in _blockListUrls)
+            {
+                string blockListFilePath = GetBlockListFilePath(blockListUrl);
+                string blockListDownloadFilePath = blockListFilePath + ".downloading";
+
+                try
+                {
+                    int retries = 1;
+
+                    while (true)
+                    {
+                        if (File.Exists(blockListDownloadFilePath))
+                            File.Delete(blockListDownloadFilePath);
+
+                        using (WebClientEx wC = new WebClientEx())
+                        {
+                            wC.Proxy = _dnsServer.Proxy;
+                            wC.Timeout = 60000;
+
+                            if (File.Exists(blockListFilePath))
+                                wC.IfModifiedSince = File.GetLastWriteTimeUtc(blockListFilePath);
+
+                            try
+                            {
+                                wC.DownloadFile(blockListUrl, blockListDownloadFilePath);
+
+
+                                if (File.Exists(blockListFilePath))
+                                    File.Delete(blockListFilePath);
+
+                                File.Move(blockListDownloadFilePath, blockListFilePath);
+                                File.SetLastWriteTimeUtc(blockListFilePath, wC.Response.LastModified);
+
+                                success = true;
+
+                                LogManager log = _dnsServer.LogManager;
+                                if (log != null)
+                                    log.Write("DNS Server successfully downloaded block list (" + WebUtilities.GetFormattedSize(new FileInfo(blockListFilePath).Length) + "): " + blockListUrl.AbsoluteUri);
+
+                                break;
+                            }
+                            catch (WebException ex)
+                            {
+                                if ((ex.Response as HttpWebResponse).StatusCode == HttpStatusCode.NotModified)
+                                {
+                                    LogManager log = _dnsServer.LogManager;
+                                    if (log != null)
+                                        log.Write("DNS Server successfully checked for a new update of the block list: " + blockListUrl.AbsoluteUri);
+
+                                    break;
+                                }
+
+                                if (retries < maxRetries)
+                                {
+                                    retries++;
+                                    continue;
+                                }
+
+                                throw;
+                            }
+                        }
+
+                    }
+                }
+                catch (Exception ex)
+                {
+                    LogManager log = _dnsServer.LogManager;
+                    if (log != null)
+                        log.Write("DNS Server failed to download block list and will use previously downloaded file (if available): " + blockListUrl.AbsoluteUri + "\r\n" + ex.ToString());
+                }
+            }
+
+            if (success)
+            {
+                LoadBlockLists();
+
+                //force GC collection to remove old zone data from memory quickly
+                GC.Collect();
+            }
+
+            return success;
         }
 
         public DnsDatagram Query(DnsDatagram request)
@@ -387,12 +403,6 @@ namespace DnsServerCore.Dns.Zones
         #endregion
 
         #region properties
-
-        public LogManager LogManager
-        {
-            get { return _log; }
-            set { _log = value; }
-        }
 
         public string ServerDomain
         {
