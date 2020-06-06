@@ -39,10 +39,16 @@ namespace DnsServerCore.Dns
             _waitHandle.Set();
         }
 
-        public DnsDatagram WaitForResponse(int timeout)
+        public bool WaitForResponse(int timeout, out DnsDatagram response)
         {
-            _waitHandle.WaitOne(timeout);
-            return _response;
+            if (_waitHandle.WaitOne(timeout))
+            {
+                response = _response;
+                return true;
+            }
+
+            response = null;
+            return false;
         }
 
         #endregion
