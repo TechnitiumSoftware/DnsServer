@@ -17,7 +17,6 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 */
 
-using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using TechnitiumLibrary.Net.Dns;
@@ -52,73 +51,6 @@ namespace DnsServerCore.Dns.Zones
                 records.AddRange(entry.Value);
 
             return records;
-        }
-
-        public virtual void SetRecords(DnsResourceRecordType type, IReadOnlyList<DnsResourceRecord> records)
-        {
-            _entries[type] = records;
-        }
-
-        public virtual void AddRecord(DnsResourceRecord record)
-        {
-            switch (record.Type)
-            {
-                case DnsResourceRecordType.CNAME:
-                case DnsResourceRecordType.PTR:
-                case DnsResourceRecordType.SOA:
-                    throw new InvalidOperationException("Cannot add record: use SetRecords() for " + record.Type.ToString() + " record");
-            }
-
-            _entries.AddOrUpdate(record.Type, delegate (DnsResourceRecordType key)
-            {
-                return new DnsResourceRecord[] { record };
-            },
-            delegate (DnsResourceRecordType key, IReadOnlyList<DnsResourceRecord> existingRecords)
-            {
-                foreach (DnsResourceRecord existingRecord in existingRecords)
-                {
-                    if (record.Equals(existingRecord.RDATA))
-                        return existingRecords;
-                }
-
-                List<DnsResourceRecord> updateRecords = new List<DnsResourceRecord>(existingRecords.Count + 1);
-
-                updateRecords.AddRange(existingRecords);
-                updateRecords.Add(record);
-
-                return updateRecords;
-            });
-        }
-
-        public virtual bool DeleteRecords(DnsResourceRecordType type)
-        {
-            return _entries.TryRemove(type, out _);
-        }
-
-        public virtual bool DeleteRecord(DnsResourceRecordType type, DnsResourceRecordData record)
-        {
-            if (_entries.TryGetValue(type, out IReadOnlyList<DnsResourceRecord> existingRecords))
-            {
-                if (existingRecords.Count == 1)
-                {
-                    if (record.Equals(existingRecords[0].RDATA))
-                        return _entries.TryRemove(type, out _);
-                }
-                else
-                {
-                    List<DnsResourceRecord> updateRecords = new List<DnsResourceRecord>(existingRecords.Count);
-
-                    for (int i = 0; i < existingRecords.Count; i++)
-                    {
-                        if (!record.Equals(existingRecords[i].RDATA))
-                            updateRecords.Add(existingRecords[i]);
-                    }
-
-                    return _entries.TryUpdate(type, updateRecords, existingRecords);
-                }
-            }
-
-            return false;
         }
 
         public abstract bool ContainsNameServerRecords();
