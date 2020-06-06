@@ -406,9 +406,9 @@ namespace DnsServerCore.Dns.Zones
                     {
                         if (zoneValue is AuthZone)
                         {
-                            if ((zoneValue is PrimaryZone) || (zoneValue is SecondaryZone) || (zoneValue is StubZone))
+                            if ((zoneValue is PrimaryZone) || (zoneValue is SecondaryZone) || (zoneValue is StubZone) || (zoneValue is ForwarderZone))
                             {
-                                //hosted primary/secondary/stub zone found
+                                //hosted primary/secondary/stub/forwarder zone found
                                 closestDelegation = null;
                                 closestAuthority = value;
                             }
@@ -573,7 +573,7 @@ namespace DnsServerCore.Dns.Zones
                 T zone = nodeValue.Value;
                 if (zone != null)
                 {
-                    if ((zone is PrimaryZone) || (zone is SecondaryZone))
+                    if ((zone is PrimaryZone) || (zone is SecondaryZone) || (zone is StubZone) || (zone is ForwarderZone))
                     {
                         zones.Add(zone);
 
@@ -594,10 +594,6 @@ namespace DnsServerCore.Dns.Zones
                             }
                         }
                         while (true);
-                    }
-                    else if (zone is StubZone)
-                    {
-                        zones.Add(zone);
                     }
                 }
             }
@@ -689,7 +685,7 @@ namespace DnsServerCore.Dns.Zones
             else
                 delegation = null;
 
-            if ((zoneValue is PrimaryZone) || (zoneValue is SecondaryZone) || (zoneValue is StubZone))
+            if ((zoneValue is PrimaryZone) || (zoneValue is SecondaryZone) || (zoneValue is StubZone) || (zoneValue is ForwarderZone))
                 authority = zoneValue;
             else if ((closestAuthority != null) && IsKeySubDomain(closestAuthority.Key, key))
                 authority = closestAuthority.Value;
