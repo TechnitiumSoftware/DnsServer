@@ -17,6 +17,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 */
 
+using DnsServerCore.Dns.ResourceRecords;
 using System;
 using System.Collections.Generic;
 using TechnitiumLibrary.IO;
@@ -25,7 +26,7 @@ using TechnitiumLibrary.Net.Dns.ResourceRecords;
 
 namespace DnsServerCore.Dns.Zones
 {
-    public abstract class AuthZone : Zone
+    public abstract class AuthZone : Zone, IDisposable
     {
         #region variables
 
@@ -51,6 +52,18 @@ namespace DnsServerCore.Dns.Zones
         {
             _entries[DnsResourceRecordType.SOA] = new DnsResourceRecord[] { new DnsResourceRecord(_name, DnsResourceRecordType.SOA, DnsClass.IN, soa.Refresh, soa) };
             _entries[DnsResourceRecordType.NS] = new DnsResourceRecord[] { new DnsResourceRecord(_name, DnsResourceRecordType.NS, DnsClass.IN, soa.Refresh, ns) };
+        }
+
+        #endregion
+
+        #region IDisposable
+
+        protected virtual void Dispose(bool disposing)
+        { }
+
+        public void Dispose()
+        {
+            Dispose(true);
         }
 
         #endregion
@@ -98,6 +111,95 @@ namespace DnsServerCore.Dns.Zones
 
         #region public
 
+        public void SyncRecords(Dictionary<DnsResourceRecordType, List<DnsResourceRecord>> newEntries, bool dontRemove)
+        {
+            if (!dontRemove)
+            {
+                //remove entires of type that do not exists in new entries
+                foreach (DnsResourceRecordType type in _entries.Keys)
+                {
+                    if (!newEntries.ContainsKey(type))
+                        _entries.TryRemove(type, out _);
+                }
+            }
+
+            //set new entries into zone
+            foreach (KeyValuePair<DnsResourceRecordType, List<DnsResourceRecord>> newEntry in newEntries)
+                _entries[newEntry.Key] = newEntry.Value;
+        }
+
+        public void LoadRecords(DnsResourceRecordType type, IReadOnlyList<DnsResourceRecord> records)
+        {
+            _entries[type] = records;
+        }
+
+        public virtual void SetRecords(DnsResourceRecordType type, IReadOnlyList<DnsResourceRecord> records)
+        {
+            _entries[type] = records;
+        }
+
+        public virtual void AddRecord(DnsResourceRecord record)
+        {
+            switch (record.Type)
+            {
+                case DnsResourceRecordType.CNAME:
+                case DnsResourceRecordType.PTR:
+                case DnsResourceRecordType.SOA:
+                    throw new InvalidOperationException("Cannot add record: use SetRecords() for " + record.Type.ToString() + " record");
+            }
+
+            _entries.AddOrUpdate(record.Type, delegate (DnsResourceRecordType key)
+            {
+                return new DnsResourceRecord[] { record };
+            },
+            delegate (DnsResourceRecordType key, IReadOnlyList<DnsResourceRecord> existingRecords)
+            {
+                foreach (DnsResourceRecord existingRecord in existingRecords)
+                {
+                    if (record.Equals(existingRecord.RDATA))
+                        return existingRecords;
+                }
+
+                List<DnsResourceRecord> updateRecords = new List<DnsResourceRecord>(existingRecords.Count + 1);
+
+                updateRecords.AddRange(existingRecords);
+                updateRecords.Add(record);
+
+                return updateRecords;
+            });
+        }
+
+        public virtual bool DeleteRecords(DnsResourceRecordType type)
+        {
+            return _entries.TryRemove(type, out _);
+        }
+
+        public virtual bool DeleteRecord(DnsResourceRecordType type, DnsResourceRecordData record)
+        {
+            if (_entries.TryGetValue(type, out IReadOnlyList<DnsResourceRecord> existingRecords))
+            {
+                if (existingRecords.Count == 1)
+                {
+                    if (record.Equals(existingRecords[0].RDATA))
+                        return _entries.TryRemove(type, out _);
+                }
+                else
+                {
+                    List<DnsResourceRecord> updateRecords = new List<DnsResourceRecord>(existingRecords.Count);
+
+                    for (int i = 0; i < existingRecords.Count; i++)
+                    {
+                        if (!record.Equals(existingRecords[i].RDATA))
+                            updateRecords.Add(existingRecords[i]);
+                    }
+
+                    return _entries.TryUpdate(type, updateRecords, existingRecords);
+                }
+            }
+
+            return false;
+        }
+
         public IReadOnlyList<DnsResourceRecord> QueryRecords(DnsResourceRecordType type)
         {
             //check for CNAME
@@ -122,7 +224,21 @@ namespace DnsServerCore.Dns.Zones
             }
 
             if (_entries.TryGetValue(type, out IReadOnlyList<DnsResourceRecord> existingRecords))
-                return FilterDisabledRecords(type, existingRecords);
+            {
+                IReadOnlyList<DnsResourceRecord> filteredRecords = FilterDisabledRecords(type, existingRecords);
+                if (filteredRecords.Count > 0)
+                    return existingRecords;
+            }
+
+            switch (type)
+            {
+                case DnsResourceRecordType.A:
+                case DnsResourceRecordType.AAAA:
+                    if (_entries.TryGetValue(DnsResourceRecordType.ANAME, out IReadOnlyList<DnsResourceRecord> anameRecords))
+                        return FilterDisabledRecords(type, anameRecords);
+
+                    break;
+            }
 
             return Array.Empty<DnsResourceRecord>();
         }
@@ -131,20 +247,6 @@ namespace DnsServerCore.Dns.Zones
         {
             IReadOnlyList<DnsResourceRecord> records = QueryRecords(DnsResourceRecordType.NS);
             return (records.Count > 0) && (records[0].Type == DnsResourceRecordType.NS);
-        }
-
-        public bool AreAllRecordsDisabled()
-        {
-            foreach (KeyValuePair<DnsResourceRecordType, IReadOnlyList<DnsResourceRecord>> entry in _entries)
-            {
-                foreach (DnsResourceRecord record in entry.Value)
-                {
-                    if (!record.IsDisabled())
-                        return false;
-                }
-            }
-
-            return true;
         }
 
         #endregion
