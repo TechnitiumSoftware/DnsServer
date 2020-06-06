@@ -17,17 +17,18 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 */
 
-using System;
+using DnsServerCore.Dns.Zones;
 using System.Collections.Generic;
 using TechnitiumLibrary.Net.Dns;
 using TechnitiumLibrary.Net.Dns.ResourceRecords;
 
-namespace DnsServerCore.Dns.Zones
+namespace DnsServerCore.Dns.ZoneManagers
 {
     public class CacheZoneManager : DnsCache
     {
         #region variables
 
+        const uint FAILURE_RECORD_TTL = 30u;
         const uint NEGATIVE_RECORD_TTL = 300u;
         const uint MINIMUM_RECORD_TTL = 10u;
         const uint SERVE_STALE_TTL = 7 * 24 * 60 * 60; //7 days serve stale ttl as per draft-ietf-dnsop-serve-stale-04
@@ -39,7 +40,7 @@ namespace DnsServerCore.Dns.Zones
         #region constructor
 
         public CacheZoneManager()
-            : base(NEGATIVE_RECORD_TTL, MINIMUM_RECORD_TTL, SERVE_STALE_TTL)
+            : base(FAILURE_RECORD_TTL, NEGATIVE_RECORD_TTL, MINIMUM_RECORD_TTL, SERVE_STALE_TTL)
         { }
 
         #endregion
