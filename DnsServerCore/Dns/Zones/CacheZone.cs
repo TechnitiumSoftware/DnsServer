@@ -80,7 +80,7 @@ namespace DnsServerCore.Dns.Zones
 
         #region public
 
-        public override void SetRecords(DnsResourceRecordType type, IReadOnlyList<DnsResourceRecord> records)
+        public void SetRecords(DnsResourceRecordType type, IReadOnlyList<DnsResourceRecord> records)
         {
             if ((records.Count > 0) && (records[0].RDATA is DnsCache.DnsFailureRecord))
             {
@@ -93,7 +93,7 @@ namespace DnsServerCore.Dns.Zones
             }
 
             //set records
-            base.SetRecords(type, records);
+            _entries[type] = records;
 
             switch (type)
             {
