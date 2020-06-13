@@ -83,8 +83,13 @@ namespace DnsServerCore.Dns.Zones
                 {
                     foreach (DnsResourceRecord record in nsResponse.Answer)
                     {
-                        if (record.Type == DnsResourceRecordType.NS)
-                            record.SetGlueRecords(nsResponse.Additional);
+                        switch(record.Type)
+                        {
+                            case DnsResourceRecordType.NS:
+                            case DnsResourceRecordType.SOA:
+                                record.SetGlueRecords(nsResponse.Additional);
+                                break;
+                        }
                     }
                 }
 
@@ -152,13 +157,13 @@ namespace DnsServerCore.Dns.Zones
                 //get all name server addresses
                 List<NameServerAddress> nameServers = new List<NameServerAddress>();
 
-                IReadOnlyList<DnsResourceRecord> records = _entries[DnsResourceRecordType.NS];
+                IReadOnlyList<DnsResourceRecord> nsRecords = _entries[DnsResourceRecordType.NS];
 
-                foreach (DnsResourceRecord record in records)
+                foreach (DnsResourceRecord nsRecord in nsRecords)
                 {
-                    string nsDomain = (record.RDATA as DnsNSRecord).NameServer;
+                    string nsDomain = (nsRecord.RDATA as DnsNSRecord).NameServer;
 
-                    IReadOnlyList<DnsResourceRecord> glueRecords = record.GetGlueRecords();
+                    IReadOnlyList<DnsResourceRecord> glueRecords = nsRecord.GetGlueRecords();
                     if (glueRecords.Count > 0)
                     {
                         foreach (DnsResourceRecord glueRecord in glueRecords)
@@ -208,8 +213,8 @@ namespace DnsServerCore.Dns.Zones
                         log.Write("DNS Server could not find any name server IP addresses for stub zone: " + _name);
 
                     //set timer for retry
-                    DnsSOARecord soaRecord1 = _entries[DnsResourceRecordType.SOA][0].RDATA as DnsSOARecord;
-                    _refreshTimer.Change(soaRecord1.Retry * 1000, Timeout.Infinite);
+                    DnsSOARecord soa1 = _entries[DnsResourceRecordType.SOA][0].RDATA as DnsSOARecord;
+                    _refreshTimer.Change(soa1.Retry * 1000, Timeout.Infinite);
                     return;
                 }
 
@@ -217,18 +222,18 @@ namespace DnsServerCore.Dns.Zones
                 if (RefreshZone(nameServers))
                 {
                     //zone refreshed; set timer for refresh
-                    DnsSOARecord latestSoaRecord = _entries[DnsResourceRecordType.SOA][0].RDATA as DnsSOARecord;
-                    _refreshTimer.Change(latestSoaRecord.Refresh * 1000, Timeout.Infinite);
+                    DnsSOARecord latestSoa = _entries[DnsResourceRecordType.SOA][0].RDATA as DnsSOARecord;
+                    _refreshTimer.Change(latestSoa.Refresh * 1000, Timeout.Infinite);
 
-                    _expiry = DateTime.UtcNow.AddSeconds(latestSoaRecord.Expire);
+                    _expiry = DateTime.UtcNow.AddSeconds(latestSoa.Expire);
                     _isExpired = false;
                     _dnsServer.AuthZoneManager.SaveZoneFile(_name);
                     return;
                 }
 
                 //no response from any of the name servers; set timer for retry
-                DnsSOARecord soaRecord = _entries[DnsResourceRecordType.SOA][0].RDATA as DnsSOARecord;
-                _refreshTimer.Change(soaRecord.Retry * 1000, Timeout.Infinite);
+                DnsSOARecord soa = _entries[DnsResourceRecordType.SOA][0].RDATA as DnsSOARecord;
+                _refreshTimer.Change(soa.Retry * 1000, Timeout.Infinite);
             }
             catch (Exception ex)
             {
@@ -237,8 +242,8 @@ namespace DnsServerCore.Dns.Zones
                     log.Write(ex);
 
                 //set timer for retry
-                DnsSOARecord soaRecord = _entries[DnsResourceRecordType.SOA][0].RDATA as DnsSOARecord;
-                _refreshTimer.Change(soaRecord.Retry * 1000, Timeout.Infinite);
+                DnsSOARecord soa = _entries[DnsResourceRecordType.SOA][0].RDATA as DnsSOARecord;
+                _refreshTimer.Change(soa.Retry * 1000, Timeout.Infinite);
             }
         }
 
