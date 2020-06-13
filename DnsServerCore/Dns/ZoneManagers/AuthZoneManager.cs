@@ -490,12 +490,21 @@ namespace DnsServerCore.Dns.ZoneManagers
                         switch (record.Type)
                         {
                             case DnsResourceRecordType.SOA:
-                                //skip
+                                foreach (DnsResourceRecord glueRecord in record.GetGlueRecords())
+                                {
+                                    if (!axfrRecords.Contains(glueRecord))
+                                        axfrRecords.Add(glueRecord);
+                                }
                                 break;
 
                             case DnsResourceRecordType.NS:
                                 axfrRecords.Add(record);
-                                axfrRecords.AddRange(record.GetGlueRecords());
+
+                                foreach (DnsResourceRecord glueRecord in record.GetGlueRecords())
+                                {
+                                    if (!axfrRecords.Contains(glueRecord))
+                                        axfrRecords.Add(glueRecord);
+                                }
                                 break;
 
                             default:
@@ -538,8 +547,13 @@ namespace DnsServerCore.Dns.ZoneManagers
             {
                 foreach (DnsResourceRecord record in newRecords)
                 {
-                    if (record.Type == DnsResourceRecordType.NS)
-                        record.SetGlueRecords(glueRecords);
+                    switch (record.Type)
+                    {
+                        case DnsResourceRecordType.NS:
+                        case DnsResourceRecordType.SOA:
+                            record.SetGlueRecords(glueRecords);
+                            break;
+                    }
                 }
             }
 
