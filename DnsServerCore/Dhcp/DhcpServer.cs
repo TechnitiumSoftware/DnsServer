@@ -19,6 +19,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 using DnsServerCore.Dhcp.Options;
 using DnsServerCore.Dns.ZoneManagers;
+using DnsServerCore.Dns.Zones;
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
@@ -60,6 +61,7 @@ namespace DnsServerCore.Dhcp
         #region variables
 
         readonly string _scopesFolder;
+        LogManager _log;
 
         readonly ConcurrentDictionary<IPAddress, Socket> _udpListeners = new ConcurrentDictionary<IPAddress, Socket>();
         readonly List<Thread> _listenerThreads = new List<Thread>();
@@ -67,7 +69,6 @@ namespace DnsServerCore.Dhcp
         readonly ConcurrentDictionary<string, Scope> _scopes = new ConcurrentDictionary<string, Scope>();
 
         AuthZoneManager _authZoneManager;
-        LogManager _log;
 
         int _activeScopeCount = 0;
         readonly object _activeScopeLock = new object();
@@ -85,9 +86,10 @@ namespace DnsServerCore.Dhcp
 
         #region constructor
 
-        public DhcpServer(string scopesFolder)
+        public DhcpServer(string scopesFolder, LogManager log = null)
         {
             _scopesFolder = scopesFolder;
+            _log = log;
 
             if (!Directory.Exists(_scopesFolder))
             {
@@ -629,7 +631,7 @@ namespace DnsServerCore.Dhcp
 
                 //update reverse zone
                 _authZoneManager.CreatePrimaryZone(scope.ReverseZone, _authZoneManager.ServerDomain, false);
-                _authZoneManager.SetRecords(Scope.GetReverseZone(lease.Address, 32), DnsResourceRecordType.PTR, scope.DnsTtl, new DnsResourceRecordData[] { new DnsPTRRecord(lease.HostName) });
+                _authZoneManager.SetRecords(Zone.GetReverseZone(lease.Address, 32), DnsResourceRecordType.PTR, scope.DnsTtl, new DnsResourceRecordData[] { new DnsPTRRecord(lease.HostName) });
             }
             else
             {
@@ -637,7 +639,7 @@ namespace DnsServerCore.Dhcp
                 _authZoneManager.DeleteRecords(lease.HostName, DnsResourceRecordType.A);
 
                 //remove from reverse zone
-                _authZoneManager.DeleteRecords(Scope.GetReverseZone(lease.Address, 32), DnsResourceRecordType.PTR);
+                _authZoneManager.DeleteRecords(Zone.GetReverseZone(lease.Address, 32), DnsResourceRecordType.PTR);
             }
         }
 
