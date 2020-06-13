@@ -17,6 +17,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 */
 
+using DnsServerCore.Dns.ResourceRecords;
 using DnsServerCore.Dns.ZoneManagers;
 using DnsServerCore.Dns.Zones;
 using Newtonsoft.Json;
@@ -981,63 +982,97 @@ namespace DnsServerCore.Dns
             if (axfrRecords.Count == 0)
                 return new DnsDatagram(request.Identifier, true, DnsOpcode.StandardQuery, false, false, request.RecursionDesired, false, false, false, DnsResponseCode.Refused, request.Question) { Tag = StatsResponseType.Authoritative };
 
-            bool isAxfrAllowed = false;
-            DnsResourceRecordType type;
-
-            switch (remoteEP.AddressFamily)
-            {
-                case AddressFamily.InterNetwork:
-                    type = DnsResourceRecordType.A;
-                    break;
-
-                case AddressFamily.InterNetworkV6:
-                    type = DnsResourceRecordType.AAAA;
-                    break;
-
-                default:
-                    throw new NotSupportedException("AddressFamily not supported.");
-            }
-
             IPAddress remoteAddress = (remoteEP as IPEndPoint).Address;
 
-            if (IPAddress.IsLoopback(remoteAddress))
+            bool isAxfrAllowed = IPAddress.IsLoopback(remoteAddress);
+
+            if (!isAxfrAllowed)
             {
-                isAxfrAllowed = true;
-            }
-            else
-            {
-                foreach (DnsResourceRecord rr in axfrRecords)
+                //check glue records
+                foreach (DnsResourceRecord nsRecord in axfrRecords)
                 {
-                    if (rr.Type == DnsResourceRecordType.NS)
+                    if (nsRecord.Type != DnsResourceRecordType.NS)
+                        continue;
+
+                    foreach (DnsResourceRecord glueRecord in nsRecord.GetGlueRecords())
                     {
-                        string nameServer = (rr.RDATA as DnsNSRecord).NameServer;
+                        IPAddress address;
 
-                        try
+                        switch (glueRecord.Type)
                         {
-                            DnsDatagram response = DirectQuery(new DnsQuestionRecord(nameServer, type, DnsClass.IN));
-                            if (response == null)
+                            case DnsResourceRecordType.A:
+                                address = (glueRecord.RDATA as DnsARecord).Address;
+                                break;
+
+                            case DnsResourceRecordType.AAAA:
+                                address = (glueRecord.RDATA as DnsAAAARecord).Address;
+                                break;
+
+                            default:
                                 continue;
+                        }
 
-                            IReadOnlyList<IPAddress> addresses;
+                        if (remoteAddress.Equals(address))
+                        {
+                            isAxfrAllowed = true;
+                            break;
+                        }
+                    }
 
-                            if (type == DnsResourceRecordType.A)
-                                addresses = DnsClient.ParseResponseA(response);
-                            else
-                                addresses = DnsClient.ParseResponseAAAA(response);
+                    if (isAxfrAllowed)
+                        break;
+                }
+            }
 
-                            foreach (IPAddress address in addresses)
+            if (!isAxfrAllowed)
+            {
+                //check resolved address
+                DnsResourceRecordType type;
+
+                switch (remoteEP.AddressFamily)
+                {
+                    case AddressFamily.InterNetwork:
+                        type = DnsResourceRecordType.A;
+                        break;
+
+                    case AddressFamily.InterNetworkV6:
+                        type = DnsResourceRecordType.AAAA;
+                        break;
+
+                    default:
+                        throw new NotSupportedException("AddressFamily not supported.");
+                }
+
+                foreach (DnsResourceRecord nsRecord in axfrRecords)
+                {
+                    if (nsRecord.Type != DnsResourceRecordType.NS)
+                        continue;
+
+                    try
+                    {
+                        DnsDatagram response = DirectQuery(new DnsQuestionRecord((nsRecord.RDATA as DnsNSRecord).NameServer, type, DnsClass.IN));
+                        if (response == null)
+                            continue;
+
+                        IReadOnlyList<IPAddress> addresses;
+
+                        if (type == DnsResourceRecordType.A)
+                            addresses = DnsClient.ParseResponseA(response);
+                        else
+                            addresses = DnsClient.ParseResponseAAAA(response);
+
+                        foreach (IPAddress address in addresses)
+                        {
+                            if (remoteAddress.Equals(address))
                             {
-                                if (remoteAddress.Equals(address))
-                                {
-                                    isAxfrAllowed = true;
-                                    break;
-                                }
+                                isAxfrAllowed = true;
+                                break;
                             }
                         }
-                        catch
-                        {
-                            //ignore error
-                        }
+                    }
+                    catch
+                    {
+                        //ignore error
                     }
 
                     if (isAxfrAllowed)
