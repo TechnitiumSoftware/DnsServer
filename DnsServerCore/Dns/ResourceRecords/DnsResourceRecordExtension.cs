@@ -52,7 +52,7 @@ namespace DnsServerCore.Dns.ResourceRecords
             switch (record.Type)
             {
                 case DnsResourceRecordType.NS:
-                    domain = (record.RDATA as DnsNSRecord).NSDomainName;
+                    domain = (record.RDATA as DnsNSRecord).NameServer;
                     break;
 
                 case DnsResourceRecordType.SOA:
@@ -96,7 +96,7 @@ namespace DnsServerCore.Dns.ResourceRecords
             switch (record.Type)
             {
                 case DnsResourceRecordType.NS:
-                    domain = (record.RDATA as DnsNSRecord).NSDomainName;
+                    domain = (record.RDATA as DnsNSRecord).NameServer;
                     break;
 
                 case DnsResourceRecordType.SOA:

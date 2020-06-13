@@ -89,7 +89,7 @@ namespace DnsServerCore.Dns.ZoneManagers
                 if (nsRecord.Type != DnsResourceRecordType.NS)
                     continue;
 
-                CacheZone cacheZone = _root.FindZone((nsRecord.RDATA as DnsNSRecord).NSDomainName, out _, out _, out _);
+                CacheZone cacheZone = _root.FindZone((nsRecord.RDATA as DnsNSRecord).NameServer, out _, out _, out _);
                 if (cacheZone != null)
                 {
                     {

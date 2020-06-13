@@ -156,7 +156,7 @@ namespace DnsServerCore.Dns.Zones
 
                 foreach (DnsResourceRecord record in records)
                 {
-                    string nsDomain = (record.RDATA as DnsNSRecord).NSDomainName;
+                    string nsDomain = (record.RDATA as DnsNSRecord).NameServer;
 
                     IReadOnlyList<DnsResourceRecord> glueRecords = record.GetGlueRecords();
                     if (glueRecords.Count > 0)

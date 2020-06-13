@@ -119,14 +119,14 @@ namespace DnsServerCore.Dns.ZoneManagers
 
                     foreach (DnsResourceRecord nsResourceRecord in nsResourceRecords)
                     {
-                        if ((nsResourceRecord.RDATA as DnsNSRecord).NSDomainName.Equals(_serverDomain, StringComparison.OrdinalIgnoreCase))
+                        if ((nsResourceRecord.RDATA as DnsNSRecord).NameServer.Equals(_serverDomain, StringComparison.OrdinalIgnoreCase))
                         {
                             UpdateRecord(nsResourceRecord, new DnsResourceRecord(nsResourceRecord.Name, nsResourceRecord.Type, nsResourceRecord.Class, nsResourceRecord.TtlValue, new DnsNSRecord(serverDomain)) { Tag = nsResourceRecord.Tag });
                             break;
                         }
                     }
 
-                    if (zone.IsInternal)
+                    if (zone.Internal)
                         continue; //dont save internal zones to disk
 
                     try
@@ -234,7 +234,7 @@ namespace DnsServerCore.Dns.ZoneManagers
                 if (nsRecord.Type != DnsResourceRecordType.NS)
                     continue;
 
-                AuthZone authZone = _root.FindZone((nsRecord.RDATA as DnsNSRecord).NSDomainName, out _, out _, out _);
+                AuthZone authZone = _root.FindZone((nsRecord.RDATA as DnsNSRecord).NameServer, out _, out _, out _);
                 if ((authZone != null) && authZone.IsActive)
                 {
                     {
@@ -951,7 +951,7 @@ namespace DnsServerCore.Dns.ZoneManagers
             //write zone info
             AuthZoneInfo zoneInfo = new AuthZoneInfo(zones[0]);
 
-            if (zoneInfo.IsInternal)
+            if (zoneInfo.Internal)
                 throw new InvalidOperationException("Cannot save zones marked as internal.");
 
             zoneInfo.WriteTo(bW);

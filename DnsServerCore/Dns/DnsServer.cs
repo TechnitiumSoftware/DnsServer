@@ -1010,7 +1010,7 @@ namespace DnsServerCore.Dns
                 {
                     if (rr.Type == DnsResourceRecordType.NS)
                     {
-                        string nameServer = (rr.RDATA as DnsNSRecord).NSDomainName;
+                        string nameServer = (rr.RDATA as DnsNSRecord).NameServer;
 
                         try
                         {
@@ -1074,7 +1074,7 @@ namespace DnsServerCore.Dns
                         int queryCount = 0;
                         do
                         {
-                            DnsDatagram newRequest = new DnsDatagram(0, false, DnsOpcode.StandardQuery, false, false, request.RecursionDesired, false, false, false, DnsResponseCode.NoError, new DnsQuestionRecord[] { new DnsQuestionRecord((lastRR.RDATA as DnsCNAMERecord).CNAMEDomainName, questionType, request.Question[0].Class) });
+                            DnsDatagram newRequest = new DnsDatagram(0, false, DnsOpcode.StandardQuery, false, false, request.RecursionDesired, false, false, false, DnsResponseCode.NoError, new DnsQuestionRecord[] { new DnsQuestionRecord((lastRR.RDATA as DnsCNAMERecord).Domain, questionType, request.Question[0].Class) });
 
                             //query authoritative zone first
                             lastResponse = _authZoneManager.Query(newRequest);
@@ -1165,7 +1165,7 @@ namespace DnsServerCore.Dns
 
             DnsDatagram lastResponse;
             DnsResourceRecord anameRR = response.Answer[response.Answer.Count - 1];
-            string lastDomain = (anameRR.RDATA as DnsANAMERecord).ANAMEDomainName;
+            string lastDomain = (anameRR.RDATA as DnsANAMERecord).Domain;
 
             int queryCount = 0;
             do
@@ -1207,9 +1207,9 @@ namespace DnsServerCore.Dns
                 DnsResourceRecord lastRR = lastResponse.Answer[lastResponse.Answer.Count - 1];
 
                 if (lastRR.Type == DnsResourceRecordType.ANAME)
-                    lastDomain = (lastRR.RDATA as DnsANAMERecord).ANAMEDomainName;
+                    lastDomain = (lastRR.RDATA as DnsANAMERecord).Domain;
                 else if (lastRR.Type == DnsResourceRecordType.CNAME)
-                    lastDomain = (lastRR.RDATA as DnsCNAMERecord).CNAMEDomainName;
+                    lastDomain = (lastRR.RDATA as DnsCNAMERecord).Domain;
                 else
                     break; //aname/cname was resolved
             }
@@ -1330,7 +1330,7 @@ namespace DnsServerCore.Dns
 
                         if (record.Type == DnsResourceRecordType.CNAME)
                         {
-                            DnsDatagram newRequest = new DnsDatagram(0, false, DnsOpcode.StandardQuery, false, false, true, false, false, false, DnsResponseCode.NoError, new DnsQuestionRecord[] { new DnsQuestionRecord((record.RDATA as DnsCNAMERecord).CNAMEDomainName, request.Question[0].Type, request.Question[0].Class) });
+                            DnsDatagram newRequest = new DnsDatagram(0, false, DnsOpcode.StandardQuery, false, false, true, false, false, false, DnsResponseCode.NoError, new DnsQuestionRecord[] { new DnsQuestionRecord((record.RDATA as DnsCNAMERecord).Domain, request.Question[0].Type, request.Question[0].Class) });
                             DnsDatagram lastResponse = ProcessBlockedQuery(newRequest);
                             if (lastResponse != null)
                             {
@@ -1366,7 +1366,7 @@ namespace DnsServerCore.Dns
 
                         do
                         {
-                            DnsDatagram newRequest = new DnsDatagram(0, false, DnsOpcode.StandardQuery, false, false, true, false, false, false, DnsResponseCode.NoError, new DnsQuestionRecord[] { new DnsQuestionRecord((lastRR.RDATA as DnsCNAMERecord).CNAMEDomainName, request.Question[0].Type, request.Question[0].Class) });
+                            DnsDatagram newRequest = new DnsDatagram(0, false, DnsOpcode.StandardQuery, false, false, true, false, false, false, DnsResponseCode.NoError, new DnsQuestionRecord[] { new DnsQuestionRecord((lastRR.RDATA as DnsCNAMERecord).Domain, request.Question[0].Type, request.Question[0].Class) });
 
                             if (checkForCnameCloaking)
                             {
@@ -1681,7 +1681,7 @@ namespace DnsServerCore.Dns
                     return null; //too many hops so ignore question
 
                 //follow CNAME chain to inspect TTL further
-                question = new DnsQuestionRecord((lastRR.RDATA as DnsCNAMERecord).CNAMEDomainName, question.Type, question.Class);
+                question = new DnsQuestionRecord((lastRR.RDATA as DnsCNAMERecord).Domain, question.Type, question.Class);
             }
         }
 

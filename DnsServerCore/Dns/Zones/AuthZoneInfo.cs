@@ -200,7 +200,7 @@ namespace DnsServerCore.Dns.Zones
             }
         }
 
-        public bool IsInternal
+        public bool Internal
         {
             get
             {
@@ -208,7 +208,7 @@ namespace DnsServerCore.Dns.Zones
                     throw new InvalidOperationException();
 
                 if (_zone is PrimaryZone)
-                    return (_zone as PrimaryZone).IsInternal;
+                    return (_zone as PrimaryZone).Internal;
 
                 return false;
             }

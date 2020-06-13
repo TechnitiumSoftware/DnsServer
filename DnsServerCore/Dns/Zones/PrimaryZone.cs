@@ -113,7 +113,7 @@ namespace DnsServerCore.Dns.Zones
 
                 foreach (DnsResourceRecord nsRecord in nsRecords)
                 {
-                    string nsDomain = (nsRecord.RDATA as DnsNSRecord).NSDomainName;
+                    string nsDomain = (nsRecord.RDATA as DnsNSRecord).NameServer;
 
                     if (soa.MasterNameServer.Equals(nsDomain, StringComparison.OrdinalIgnoreCase))
                         continue; //dont notify self
@@ -307,7 +307,7 @@ namespace DnsServerCore.Dns.Zones
 
         #region properties
 
-        public bool IsInternal
+        public bool Internal
         { get { return _internal; } }
 
         #endregion

@@ -2537,7 +2537,7 @@ namespace DnsServerCore
                                     if (rdata != null)
                                     {
                                         jsonWriter.WritePropertyName("value");
-                                        jsonWriter.WriteValue(rdata.PTRDomainName);
+                                        jsonWriter.WriteValue(rdata.Domain);
                                     }
                                 }
                                 break;
@@ -2562,7 +2562,7 @@ namespace DnsServerCore
                                     if (rdata != null)
                                     {
                                         jsonWriter.WritePropertyName("value");
-                                        jsonWriter.WriteValue(rdata.TXTData);
+                                        jsonWriter.WriteValue(rdata.Text);
                                     }
                                 }
                                 break;
@@ -2573,7 +2573,7 @@ namespace DnsServerCore
                                     if (rdata != null)
                                     {
                                         jsonWriter.WritePropertyName("value");
-                                        jsonWriter.WriteValue(rdata.NSDomainName);
+                                        jsonWriter.WriteValue(rdata.NameServer);
                                     }
 
                                     IReadOnlyList<DnsResourceRecord> glueRecords = resourceRecord.GetGlueRecords();
@@ -2601,7 +2601,7 @@ namespace DnsServerCore
                                     if (rdata != null)
                                     {
                                         jsonWriter.WritePropertyName("value");
-                                        jsonWriter.WriteValue(rdata.CNAMEDomainName);
+                                        jsonWriter.WriteValue(rdata.Domain);
                                     }
                                 }
                                 break;
@@ -2649,7 +2649,7 @@ namespace DnsServerCore
                                     if (rdata != null)
                                     {
                                         jsonWriter.WritePropertyName("value");
-                                        jsonWriter.WriteValue(rdata.ANAMEDomainName);
+                                        jsonWriter.WriteValue(rdata.Domain);
                                     }
                                 }
                                 break;
