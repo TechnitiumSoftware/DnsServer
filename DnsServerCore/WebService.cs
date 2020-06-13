@@ -3220,14 +3220,24 @@ namespace DnsServerCore
                     if (zoneInfo == null)
                         throw new DnsServerException("Cannot import records: failed to create primary zone.");
                 }
-                else if (zoneInfo.Type != AuthZoneType.Primary)
+                else
                 {
-                    throw new DnsServerException("Cannot import records: import zone type must be primary.");
+                    switch (zoneInfo.Type)
+                    {
+                        case AuthZoneType.Primary:
+                        case AuthZoneType.Forwarder:
+                            break;
+
+                        default:
+                            throw new DnsServerException("Cannot import records: import zone must be of primary or forwarder type.");
+                    }
                 }
 
                 if (type == DnsResourceRecordType.AXFR)
                 {
-                    _dnsServer.AuthZoneManager.SyncRecords(domain, dnsResponse.Answer);
+                    bool dontRemoveRecords = zoneInfo.Type == AuthZoneType.Forwarder;
+
+                    _dnsServer.AuthZoneManager.SyncRecords(domain, dnsResponse.Answer, null, dontRemoveRecords);
                 }
                 else
                 {
