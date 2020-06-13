@@ -246,7 +246,23 @@ namespace DnsServerCore.Dns.Zones
         public bool Disabled
         {
             get { return _disabled; }
-            set { _disabled = value; }
+            set
+            {
+                if (_disabled != value)
+                {
+                    _disabled = value;
+
+                    if(!_disabled)
+                    {
+                        if (this is PrimaryZone)
+                            (this as PrimaryZone).NotifyNameServers();
+                        else if (this is SecondaryZone)
+                            (this as SecondaryZone).RefreshZone();
+                        else if (this is StubZone)
+                            (this as StubZone).RefreshZone();
+                    }
+                }
+            }
         }
 
         public virtual bool IsActive
