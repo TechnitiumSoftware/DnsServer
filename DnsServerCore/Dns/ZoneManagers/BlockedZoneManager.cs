@@ -117,16 +117,26 @@ namespace DnsServerCore.Dns.ZoneManagers
 
         #region public
 
-        public void BlockZone(string domain)
+        public bool BlockZone(string domain)
         {
-            if (_zoneManager.CreatePrimaryZone(domain, _soaRecord, _nsRecord, false) != null)
+            if (_zoneManager.CreatePrimaryZone(domain, _soaRecord, _nsRecord) != null)
+            {
                 _totalZonesBlocked++;
+                return true;
+            }
+
+            return false;
         }
 
-        public void DeleteZone(string domain)
+        public bool DeleteZone(string domain)
         {
             if (_zoneManager.DeleteZone(domain))
+            {
                 _totalZonesBlocked--;
+                return true;
+            }
+
+            return false;
         }
 
         public List<AuthZoneInfo> ListZones()
