@@ -125,6 +125,22 @@ namespace DnsServerCore.Dns.Zones
             return _zone.GetRecords(type);
         }
 
+        public void NotifyNameServers()
+        {
+            if (_zone == null)
+                throw new InvalidOperationException();
+
+            switch (_type)
+            {
+                case AuthZoneType.Primary:
+                    (_zone as PrimaryZone).NotifyNameServers();
+                    break;
+
+                default:
+                    throw new InvalidOperationException();
+            }
+        }
+
         public void RefreshZone()
         {
             if (_zone == null)
