@@ -348,7 +348,7 @@ namespace DnsServerCore.Dhcp
 
         #region internal
 
-        internal void FindInterface()
+        internal bool FindInterface()
         {
             //find network with static ip address in scope range
             uint networkAddressNumber = _networkAddress.ConvertIpToNumber();
@@ -377,7 +377,7 @@ namespace DnsServerCore.Dhcp
 
                             _interfaceAddress = ip.Address;
                             _interfaceIndex = ipInterface.GetIPv4Properties().Index;
-                            return;
+                            return true;
                         }
                     }
                 }
@@ -402,14 +402,14 @@ namespace DnsServerCore.Dhcp
                             //using ANY ip address for this scope interface since we dont know the relay agent network 
                             _interfaceAddress = IPAddress.Any;
                             _interfaceIndex = -1;
-                            return;
+                            return true;
                         }
                     }
                 }
             }
 
             //server has no static ip address configured
-            throw new DhcpServerException("DHCP Server requires static IP address to work correctly but no network interface was found to have any static IP address configured.");
+            return false;
         }
 
         internal void FindThisDnsServerAddress()

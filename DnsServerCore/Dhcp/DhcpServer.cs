@@ -713,7 +713,17 @@ namespace DnsServerCore.Dhcp
                     scope.FindThisDnsServerAddress();
 
                 //find scope interface for binding socket
-                scope.FindInterface();
+                int tries = 0;
+                while (true)
+                {
+                    if (scope.FindInterface())
+                        break;
+
+                    if (tries++ < 10)
+                        Thread.Sleep(1000);
+                    else
+                        throw new DhcpServerException("DHCP Server requires static IP address to work correctly but no network interface was found to have any static IP address configured.");
+                }
 
                 IPAddress interfaceAddress = scope.InterfaceAddress;
                 dhcpEP = new IPEndPoint(interfaceAddress, 67);
@@ -859,23 +869,26 @@ namespace DnsServerCore.Dhcp
 
         private void LoadScopeFile(string scopeFile)
         {
-            try
+            ThreadPool.QueueUserWorkItem(delegate (object state)
             {
-                using (FileStream fS = new FileStream(scopeFile, FileMode.Open, FileAccess.Read))
+                try
                 {
-                    LoadScope(new Scope(new BinaryReader(fS)));
-                }
+                    using (FileStream fS = new FileStream(scopeFile, FileMode.Open, FileAccess.Read))
+                    {
+                        LoadScope(new Scope(new BinaryReader(fS)));
+                    }
 
-                LogManager log = _log;
-                if (log != null)
-                    log.Write("DHCP Server successfully loaded scope file: " + scopeFile);
-            }
-            catch (Exception ex)
-            {
-                LogManager log = _log;
-                if (log != null)
-                    log.Write("DHCP Server failed to load scope file: " + scopeFile + "\r\n" + ex.ToString());
-            }
+                    LogManager log = _log;
+                    if (log != null)
+                        log.Write("DHCP Server successfully loaded scope file: " + scopeFile);
+                }
+                catch (Exception ex)
+                {
+                    LogManager log = _log;
+                    if (log != null)
+                        log.Write("DHCP Server failed to load scope file: " + scopeFile + "\r\n" + ex.ToString());
+                }
+            });
         }
 
         private void SaveScopeFile(Scope scope)
