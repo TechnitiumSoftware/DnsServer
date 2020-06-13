@@ -17,8 +17,12 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 */
 
+using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.Net;
+using System.Net.Sockets;
+using TechnitiumLibrary.Net;
 using TechnitiumLibrary.Net.Dns;
 
 namespace DnsServerCore.Dns.Zones
@@ -37,6 +41,44 @@ namespace DnsServerCore.Dns.Zones
         protected Zone(string name)
         {
             _name = name;
+        }
+
+        #endregion
+
+        #region static
+
+        public static string GetReverseZone(IPAddress address, IPAddress subnetMask)
+        {
+            return GetReverseZone(address, subnetMask.GetSubnetMaskWidth());
+        }
+
+        public static string GetReverseZone(IPAddress address, int subnetMaskWidth)
+        {
+            int addressByteCount = Convert.ToInt32(Math.Ceiling(Convert.ToDecimal(subnetMaskWidth) / 8));
+            byte[] addressBytes = address.GetAddressBytes();
+            string reverseZone = "";
+
+            switch (address.AddressFamily)
+            {
+                case AddressFamily.InterNetwork:
+                    for (int i = 0; i < addressByteCount; i++)
+                        reverseZone = addressBytes[i] + "." + reverseZone;
+
+                    reverseZone += "in-addr.arpa";
+                    break;
+
+                case AddressFamily.InterNetworkV6:
+                    for (int i = 0; i < addressByteCount; i++)
+                        reverseZone = (addressBytes[i] & 0x0F).ToString("X") + "." + (addressBytes[i] >> 4).ToString("X") + "." + reverseZone;
+
+                    reverseZone += "ip6.arpa";
+                    break;
+
+                default:
+                    throw new NotSupportedException("AddressFamily not supported.");
+            }
+
+            return reverseZone;
         }
 
         #endregion
