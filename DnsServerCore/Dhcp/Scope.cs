@@ -18,6 +18,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
 using DnsServerCore.Dhcp.Options;
+using DnsServerCore.Dns.Zones;
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
@@ -487,25 +488,6 @@ namespace DnsServerCore.Dhcp
             _dnsServers = null;
         }
 
-        internal static string GetReverseZone(IPAddress address, IPAddress subnetMask)
-        {
-            return GetReverseZone(address, subnetMask.GetSubnetMaskWidth());
-        }
-
-        internal static string GetReverseZone(IPAddress address, int subnetMaskWidth)
-        {
-            int addressByteCount = Convert.ToInt32(Math.Ceiling(Convert.ToDecimal(subnetMaskWidth) / 8));
-            byte[] addressBytes = address.GetAddressBytes();
-            string reverseZone = "";
-
-            for (int i = 0; i < addressByteCount; i++)
-                reverseZone = addressBytes[i] + "." + reverseZone;
-
-            reverseZone += "in-addr.arpa";
-
-            return reverseZone;
-        }
-
         internal bool IsAddressInRange(IPAddress address)
         {
             return IsAddressInRange(address, _startingAddress, _endingAddress);
@@ -858,7 +840,7 @@ namespace DnsServerCore.Dhcp
 
             _networkAddress = IPAddressExtension.ConvertNumberToIp(networkAddressNumber);
             _broadcastAddress = IPAddressExtension.ConvertNumberToIp(broadcastAddressNumber);
-            _reverseZone = GetReverseZone(_networkAddress, _subnetMask);
+            _reverseZone = Zone.GetReverseZone(_networkAddress, _subnetMask);
 
             lock (_lastAddressOfferedLock)
             {
