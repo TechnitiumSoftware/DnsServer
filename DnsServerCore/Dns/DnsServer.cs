@@ -971,9 +971,114 @@ namespace DnsServerCore.Dns
                         return new DnsDatagram(request.Identifier, true, DnsOpcode.StandardQuery, false, false, request.RecursionDesired, isRecursionAllowed, false, false, DnsResponseCode.ServerFailure, request.Question);
                     }
 
+                case DnsOpcode.Notify:
+                    return ProcessNotifyQuery(request, remoteEP);
+
                 default:
                     return new DnsDatagram(request.Identifier, true, request.OPCODE, false, false, request.RecursionDesired, isRecursionAllowed, false, false, DnsResponseCode.NotImplemented, request.Question);
             }
+        }
+
+        private DnsDatagram ProcessNotifyQuery(DnsDatagram request, EndPoint remoteEP)
+        {
+            AuthZoneInfo authZoneInfo = _authZoneManager.GetAuthZoneInfo(request.Question[0].Name);
+            if ((authZoneInfo == null) || (authZoneInfo.Type != AuthZoneType.Secondary))
+                return new DnsDatagram(request.Identifier, true, DnsOpcode.Notify, false, false, request.RecursionDesired, false, false, false, DnsResponseCode.Refused, request.Question) { Tag = StatsResponseType.Authoritative };
+
+            IPAddress remoteAddress = (remoteEP as IPEndPoint).Address;
+            bool remoteVerified = false;
+
+            //check glue records
+            DnsResourceRecord soaRecord = authZoneInfo.GetRecords(DnsResourceRecordType.SOA)[0];
+
+            foreach (DnsResourceRecord glueRecord in soaRecord.GetGlueRecords())
+            {
+                IPAddress address;
+
+                switch (glueRecord.Type)
+                {
+                    case DnsResourceRecordType.A:
+                        address = (glueRecord.RDATA as DnsARecord).Address;
+                        break;
+
+                    case DnsResourceRecordType.AAAA:
+                        address = (glueRecord.RDATA as DnsAAAARecord).Address;
+                        break;
+
+                    default:
+                        continue;
+                }
+
+                if (remoteAddress.Equals(address))
+                {
+                    remoteVerified = true;
+                    break;
+                }
+            }
+
+            if (!remoteVerified)
+            {
+                //check resolved address
+                DnsResourceRecordType type;
+
+                switch (remoteEP.AddressFamily)
+                {
+                    case AddressFamily.InterNetwork:
+                        type = DnsResourceRecordType.A;
+                        break;
+
+                    case AddressFamily.InterNetworkV6:
+                        type = DnsResourceRecordType.AAAA;
+                        break;
+
+                    default:
+                        throw new NotSupportedException("AddressFamily not supported.");
+                }
+
+                try
+                {
+                    DnsDatagram response = DirectQuery(new DnsQuestionRecord((soaRecord.RDATA as DnsSOARecord).MasterNameServer, type, DnsClass.IN));
+                    if (response != null)
+                    {
+                        IReadOnlyList<IPAddress> addresses;
+
+                        if (type == DnsResourceRecordType.A)
+                            addresses = DnsClient.ParseResponseA(response);
+                        else
+                            addresses = DnsClient.ParseResponseAAAA(response);
+
+                        foreach (IPAddress address in addresses)
+                        {
+                            if (remoteAddress.Equals(address))
+                            {
+                                remoteVerified = true;
+                                break;
+                            }
+                        }
+                    }
+                }
+                catch
+                {
+                    //ignore error
+                }
+            }
+
+            if (!remoteVerified)
+                return new DnsDatagram(request.Identifier, true, DnsOpcode.Notify, false, false, request.RecursionDesired, false, false, false, DnsResponseCode.Refused, request.Question) { Tag = StatsResponseType.Authoritative };
+
+            if ((request.Answer.Count > 0) && (request.Answer[0].Type == DnsResourceRecordType.SOA))
+            {
+                IReadOnlyList<DnsResourceRecord> localSoaRecords = authZoneInfo.GetRecords(DnsResourceRecordType.SOA);
+
+                if (!DnsSOARecord.IsZoneUpdateAvailable((localSoaRecords[0].RDATA as DnsSOARecord).Serial, (request.Answer[0].RDATA as DnsSOARecord).Serial))
+                {
+                    //no update was available
+                    return new DnsDatagram(request.Identifier, true, DnsOpcode.Notify, false, false, request.RecursionDesired, false, false, false, DnsResponseCode.NoError, request.Question) { Tag = StatsResponseType.Authoritative };
+                }
+            }
+
+            authZoneInfo.RefreshZone();
+            return new DnsDatagram(request.Identifier, true, DnsOpcode.Notify, false, false, request.RecursionDesired, false, false, false, DnsResponseCode.NoError, request.Question) { Tag = StatsResponseType.Authoritative };
         }
 
         private DnsDatagram ProcessZoneTransferQuery(DnsDatagram request, EndPoint remoteEP)
