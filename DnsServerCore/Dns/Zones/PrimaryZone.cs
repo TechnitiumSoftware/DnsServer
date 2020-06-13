@@ -55,20 +55,27 @@ namespace DnsServerCore.Dns.Zones
             _notifyTimer = new Timer(NotifyTimerCallback, null, Timeout.Infinite, Timeout.Infinite);
         }
 
-        public PrimaryZone(DnsServer dnsServer, string name, DnsSOARecord soa, bool @internal)
-            : base(name, soa)
+        public PrimaryZone(DnsServer dnsServer, string name, string masterNameServer, bool @internal)
+            : base(name)
         {
             _dnsServer = dnsServer;
             _internal = @internal;
+
+            DnsSOARecord soa = new DnsSOARecord(masterNameServer, "hostmaster." + masterNameServer, 1, 14400, 3600, 604800, 900);
+
+            _entries[DnsResourceRecordType.SOA] = new DnsResourceRecord[] { new DnsResourceRecord(_name, DnsResourceRecordType.SOA, DnsClass.IN, soa.Refresh, soa) };
+            _entries[DnsResourceRecordType.NS] = new DnsResourceRecord[] { new DnsResourceRecord(_name, DnsResourceRecordType.NS, DnsClass.IN, soa.Refresh, new DnsNSRecord(soa.MasterNameServer)) };
 
             _notifyTimer = new Timer(NotifyTimerCallback, null, Timeout.Infinite, Timeout.Infinite);
         }
 
-        public PrimaryZone(DnsServer dnsServer, string name, DnsSOARecord soa, DnsNSRecord ns, bool @internal)
-            : base(name, soa, ns)
+        internal PrimaryZone(DnsServer dnsServer, string name, DnsSOARecord soa, DnsNSRecord ns)
+            : base(name)
         {
             _dnsServer = dnsServer;
-            _internal = @internal;
+
+            _entries[DnsResourceRecordType.SOA] = new DnsResourceRecord[] { new DnsResourceRecord(_name, DnsResourceRecordType.SOA, DnsClass.IN, soa.Refresh, soa) };
+            _entries[DnsResourceRecordType.NS] = new DnsResourceRecord[] { new DnsResourceRecord(_name, DnsResourceRecordType.NS, DnsClass.IN, soa.Refresh, ns) };
 
             _notifyTimer = new Timer(NotifyTimerCallback, null, Timeout.Infinite, Timeout.Infinite);
         }
@@ -236,7 +243,7 @@ namespace DnsServerCore.Dns.Zones
             else
                 serial = 0;
 
-            DnsResourceRecord newRecord = new DnsResourceRecord(record.Name, record.Type, record.Class, record.TtlValue, new DnsSOARecord(soa.MasterNameServer, soa.ResponsiblePerson, serial, soa.Refresh, soa.Retry, soa.Expire, soa.Minimum));
+            DnsResourceRecord newRecord = new DnsResourceRecord(record.Name, record.Type, record.Class, record.TtlValue, new DnsSOARecord(soa.MasterNameServer, soa.ResponsiblePerson, serial, soa.Refresh, soa.Retry, soa.Expire, soa.Minimum)) { Tag = record.Tag };
             _entries[DnsResourceRecordType.SOA] = new DnsResourceRecord[] { newRecord };
         }
 
@@ -300,7 +307,7 @@ namespace DnsServerCore.Dns.Zones
 
         #region properties
 
-        public bool Internal
+        public bool IsInternal
         { get { return _internal; } }
 
         #endregion
