@@ -295,6 +295,9 @@ function addZone() {
 }
 
 function showEditZone(domain) {
+    if (domain == null)
+        domain = $("#titleEditZone").text();
+
     var divViewZonesLoader = $("#divViewZonesLoader");
     var divViewZones = $("#divViewZones");
     var divEditZone = $("#divEditZone");
