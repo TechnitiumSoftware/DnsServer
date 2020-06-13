@@ -29,7 +29,7 @@ using TechnitiumLibrary.Net.Dns.ResourceRecords;
 
 namespace DnsServerCore.Dns.ZoneManagers
 {
-    public class AuthZoneManager
+    public class AuthZoneManager : IDisposable
     {
         #region variables
 
@@ -55,6 +55,42 @@ namespace DnsServerCore.Dns.ZoneManagers
 
         #endregion
 
+        #region IDisposable
+
+        bool _disposed;
+
+        protected virtual void Dispose(bool disposing)
+        {
+            if (_disposed)
+                return;
+
+            if (disposing)
+            {
+                foreach (AuthZone zone in _root)
+                {
+                    AuthZoneInfo zoneInfo = new AuthZoneInfo(zone);
+                    switch (zoneInfo.Type)
+                    {
+                        case AuthZoneType.Primary:
+                        case AuthZoneType.Secondary:
+                        case AuthZoneType.Stub:
+                        case AuthZoneType.Forwarder:
+                            zone.Dispose();
+                            break;
+                    }
+                }
+            }
+
+            _disposed = true;
+        }
+
+        public void Dispose()
+        {
+            Dispose(true);
+        }
+
+        #endregion
+
         #region private
 
         private void UpdateServerDomain(string serverDomain)
@@ -67,7 +103,7 @@ namespace DnsServerCore.Dns.ZoneManagers
                 if (zone.Type != AuthZoneType.Primary)
                     continue;
 
-                DnsResourceRecord record = zone.QueryRecords(DnsResourceRecordType.SOA)[0];
+                DnsResourceRecord record = zone.GetRecords(DnsResourceRecordType.SOA)[0];
                 DnsSOARecord soa = record.RDATA as DnsSOARecord;
 
                 if (soa.MasterNameServer.Equals(_serverDomain, StringComparison.OrdinalIgnoreCase))
@@ -79,7 +115,7 @@ namespace DnsServerCore.Dns.ZoneManagers
                     SetRecords(record.Name, record.Type, record.TtlValue, new DnsResourceRecordData[] { new DnsSOARecord(serverDomain, responsiblePerson, soa.Serial, soa.Refresh, soa.Retry, soa.Expire, soa.Minimum) });
 
                     //update NS records
-                    IReadOnlyList<DnsResourceRecord> nsResourceRecords = zone.QueryRecords(DnsResourceRecordType.NS);
+                    IReadOnlyList<DnsResourceRecord> nsResourceRecords = zone.GetRecords(DnsResourceRecordType.NS);
 
                     foreach (DnsResourceRecord nsResourceRecord in nsResourceRecords)
                     {
@@ -90,7 +126,7 @@ namespace DnsServerCore.Dns.ZoneManagers
                         }
                     }
 
-                    if (zone.Internal)
+                    if (zone.IsInternal)
                         continue; //dont save internal zones to disk
 
                     try
@@ -170,7 +206,7 @@ namespace DnsServerCore.Dns.ZoneManagers
             {
                 AuthZone authZone = GetAuthoritativeZone(domain);
                 if (authZone == null)
-                    throw new DnsServerException("Zone not found.");
+                    throw new DnsServerException("Zone was not found for domain: " + domain);
 
                 if (authZone is PrimaryZone)
                     return new PrimarySubDomainZone(authZone as PrimaryZone, domain);
@@ -199,7 +235,7 @@ namespace DnsServerCore.Dns.ZoneManagers
                     continue;
 
                 AuthZone authZone = _root.FindZone((nsRecord.RDATA as DnsNSRecord).NSDomainName, out _, out _, out _);
-                if ((authZone != null) && !authZone.Disabled)
+                if ((authZone != null) && authZone.IsActive)
                 {
                     {
                         IReadOnlyList<DnsResourceRecord> records = authZone.QueryRecords(DnsResourceRecordType.A);
@@ -314,7 +350,13 @@ namespace DnsServerCore.Dns.ZoneManagers
 
         private DnsDatagram GetReferralResponse(DnsDatagram request, AuthZone delegationZone)
         {
-            IReadOnlyList<DnsResourceRecord> authority = delegationZone.QueryRecords(DnsResourceRecordType.NS);
+            IReadOnlyList<DnsResourceRecord> authority;
+
+            if (delegationZone is StubZone)
+                authority = delegationZone.GetRecords(DnsResourceRecordType.NS); //stub zone has no authority so cant query
+            else
+                authority = delegationZone.QueryRecords(DnsResourceRecordType.NS);
+
             IReadOnlyList<DnsResourceRecord> additional = GetAdditionalRecords(authority);
 
             return new DnsDatagram(request.Identifier, true, DnsOpcode.StandardQuery, false, false, request.RecursionDesired, false, false, false, DnsResponseCode.NoError, request.Question, null, authority, additional);
@@ -333,7 +375,7 @@ namespace DnsServerCore.Dns.ZoneManagers
 
         public AuthZoneInfo CreatePrimaryZone(string domain, string masterNameServer, bool @internal)
         {
-            AuthZone authZone = new PrimaryZone(_dnsServer, domain, new DnsSOARecord(masterNameServer, "hostmaster." + masterNameServer, 1, 14400, 3600, 604800, 900), @internal);
+            AuthZone authZone = new PrimaryZone(_dnsServer, domain, masterNameServer, @internal);
 
             if (_root.TryAdd(authZone))
                 return new AuthZoneInfo(authZone);
@@ -341,9 +383,9 @@ namespace DnsServerCore.Dns.ZoneManagers
             return null;
         }
 
-        public AuthZoneInfo CreatePrimaryZone(string domain, DnsSOARecord soaRecord, DnsNSRecord ns, bool @internal)
+        internal AuthZoneInfo CreatePrimaryZone(string domain, DnsSOARecord soaRecord, DnsNSRecord ns)
         {
-            AuthZone authZone = new PrimaryZone(_dnsServer, domain, soaRecord, ns, @internal);
+            AuthZone authZone = new PrimaryZone(_dnsServer, domain, soaRecord, ns);
 
             if (_root.TryAdd(authZone))
                 return new AuthZoneInfo(authZone);
@@ -351,9 +393,9 @@ namespace DnsServerCore.Dns.ZoneManagers
             return null;
         }
 
-        public AuthZoneInfo CreateSecondaryZone(string domain, string masterNameServer)
+        public AuthZoneInfo CreateSecondaryZone(string domain, string masterNameServer = null, string glueAddresses = null)
         {
-            AuthZone authZone = new SecondaryZone(_dnsServer, domain, new DnsSOARecord(masterNameServer, "hostmaster." + masterNameServer, 1, 14400, 3600, 604800, 900));
+            AuthZone authZone = new SecondaryZone(_dnsServer, domain, masterNameServer, glueAddresses);
 
             if (_root.TryAdd(authZone))
             {
@@ -364,9 +406,9 @@ namespace DnsServerCore.Dns.ZoneManagers
             return null;
         }
 
-        public AuthZoneInfo CreateStubZone(string domain, string masterNameServer)
+        public AuthZoneInfo CreateStubZone(string domain, string masterNameServer = null, string glueAddresses = null)
         {
-            AuthZone authZone = new StubZone(_dnsServer, domain, new DnsSOARecord(masterNameServer, "hostmaster." + masterNameServer, 1, 14400, 3600, 604800, 900));
+            AuthZone authZone = new StubZone(_dnsServer, domain, masterNameServer, glueAddresses);
 
             if (_root.TryAdd(authZone))
             {
@@ -379,10 +421,7 @@ namespace DnsServerCore.Dns.ZoneManagers
 
         public AuthZoneInfo CreateForwarderZone(string domain, DnsTransportProtocol forwarderProtocol, string forwarder)
         {
-            AuthZone authZone = new ForwarderZone(domain);
-
-            DnsResourceRecord record = new DnsResourceRecord(domain, DnsResourceRecordType.FWD, DnsClass.IN, 0, new DnsForwarderRecord(forwarderProtocol, forwarder));
-            authZone.LoadRecords(DnsResourceRecordType.FWD, new DnsResourceRecord[] { record });
+            AuthZone authZone = new ForwarderZone(domain, forwarderProtocol, forwarder);
 
             if (_root.TryAdd(authZone))
                 return new AuthZoneInfo(authZone);
@@ -401,7 +440,7 @@ namespace DnsServerCore.Dns.ZoneManagers
             return false;
         }
 
-        public AuthZoneInfo GetZoneInfo(string domain)
+        public AuthZoneInfo GetAuthZoneInfo(string domain)
         {
             _ = _root.FindZone(domain, out _, out AuthZone authority, out _);
             if (authority == null)
@@ -434,7 +473,7 @@ namespace DnsServerCore.Dns.ZoneManagers
 
             List<AuthZone> zones = _root.GetZoneWithSubDomainZones(domain);
 
-            if ((zones.Count > 0) && (zones[0] is PrimaryZone) && !zones[0].Disabled)
+            if ((zones.Count > 0) && (zones[0] is PrimaryZone) && zones[0].IsActive)
             {
                 //only primary zones support zone transfer
                 DnsResourceRecord soaRecord = zones[0].QueryRecords(DnsResourceRecordType.SOA)[0];
@@ -542,11 +581,31 @@ namespace DnsServerCore.Dns.ZoneManagers
                 (zone as SubDomainZone).AutoUpdateState();
         }
 
+        public void SetRecord(DnsResourceRecord record)
+        {
+            AuthZone zone = GetOrAddZone(record.Name);
+
+            zone.SetRecords(record.Type, new DnsResourceRecord[] { record });
+
+            if (zone is SubDomainZone)
+                (zone as SubDomainZone).AutoUpdateState();
+        }
+
         public void AddRecord(string domain, DnsResourceRecordType type, uint ttl, DnsResourceRecordData record)
         {
             AuthZone zone = GetOrAddZone(domain);
 
             zone.AddRecord(new DnsResourceRecord(zone.Name, type, DnsClass.IN, ttl, record));
+
+            if (zone is SubDomainZone)
+                (zone as SubDomainZone).AutoUpdateState();
+        }
+
+        public void AddRecord(DnsResourceRecord record)
+        {
+            AuthZone zone = GetOrAddZone(record.Name);
+
+            zone.AddRecord(record);
 
             if (zone is SubDomainZone)
                 (zone as SubDomainZone).AutoUpdateState();
@@ -689,13 +748,13 @@ namespace DnsServerCore.Dns.ZoneManagers
         {
             AuthZone zone = _root.FindZone(request.Question[0].Name, out AuthZone delegation, out AuthZone authZone, out bool hasSubDomains);
 
-            if ((authZone == null) || authZone.Disabled) //no authority for requested zone
+            if ((authZone == null) || !authZone.IsActive) //no authority for requested zone
                 return new DnsDatagram(request.Identifier, true, DnsOpcode.StandardQuery, false, false, request.RecursionDesired, false, false, false, DnsResponseCode.Refused, request.Question);
 
-            if ((delegation != null) && !delegation.Disabled)
+            if ((delegation != null) && delegation.IsActive)
                 return GetReferralResponse(request, delegation);
 
-            if ((zone == null) || zone.Disabled)
+            if ((zone == null) || !zone.IsActive)
             {
                 //zone not found
                 if (authZone is StubZone)
@@ -891,6 +950,10 @@ namespace DnsServerCore.Dns.ZoneManagers
 
             //write zone info
             AuthZoneInfo zoneInfo = new AuthZoneInfo(zones[0]);
+
+            if (zoneInfo.IsInternal)
+                throw new InvalidOperationException("Cannot save zones marked as internal.");
+
             zoneInfo.WriteTo(bW);
 
             //write all zone records
