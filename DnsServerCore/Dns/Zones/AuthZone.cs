@@ -22,7 +22,6 @@ using System;
 using System.Collections.Generic;
 using TechnitiumLibrary.IO;
 using TechnitiumLibrary.Net.Dns;
-using TechnitiumLibrary.Net.Dns.ResourceRecords;
 
 namespace DnsServerCore.Dns.Zones
 {
@@ -39,20 +38,6 @@ namespace DnsServerCore.Dns.Zones
         protected AuthZone(string name)
             : base(name)
         { }
-
-        protected AuthZone(string name, DnsSOARecord soa)
-            : base(name)
-        {
-            _entries[DnsResourceRecordType.SOA] = new DnsResourceRecord[] { new DnsResourceRecord(_name, DnsResourceRecordType.SOA, DnsClass.IN, soa.Refresh, soa) };
-            _entries[DnsResourceRecordType.NS] = new DnsResourceRecord[] { new DnsResourceRecord(_name, DnsResourceRecordType.NS, DnsClass.IN, soa.Refresh, new DnsNSRecord(soa.MasterNameServer)) };
-        }
-
-        protected AuthZone(string name, DnsSOARecord soa, DnsNSRecord ns)
-            : base(name)
-        {
-            _entries[DnsResourceRecordType.SOA] = new DnsResourceRecord[] { new DnsResourceRecord(_name, DnsResourceRecordType.SOA, DnsClass.IN, soa.Refresh, soa) };
-            _entries[DnsResourceRecordType.NS] = new DnsResourceRecord[] { new DnsResourceRecord(_name, DnsResourceRecordType.NS, DnsClass.IN, soa.Refresh, ns) };
-        }
 
         #endregion
 
@@ -200,7 +185,7 @@ namespace DnsServerCore.Dns.Zones
             return false;
         }
 
-        public IReadOnlyList<DnsResourceRecord> QueryRecords(DnsResourceRecordType type)
+        public virtual IReadOnlyList<DnsResourceRecord> QueryRecords(DnsResourceRecordType type)
         {
             //check for CNAME
             if (_entries.TryGetValue(DnsResourceRecordType.CNAME, out IReadOnlyList<DnsResourceRecord> existingCNAMERecords))
@@ -243,6 +228,11 @@ namespace DnsServerCore.Dns.Zones
             return Array.Empty<DnsResourceRecord>();
         }
 
+        public IReadOnlyList<DnsResourceRecord> GetRecords(DnsResourceRecordType type)
+        {
+            return _entries[type];
+        }
+
         public override bool ContainsNameServerRecords()
         {
             IReadOnlyList<DnsResourceRecord> records = QueryRecords(DnsResourceRecordType.NS);
@@ -257,6 +247,11 @@ namespace DnsServerCore.Dns.Zones
         {
             get { return _disabled; }
             set { _disabled = value; }
+        }
+
+        public virtual bool IsActive
+        {
+            get { return !_disabled; }
         }
 
         #endregion
