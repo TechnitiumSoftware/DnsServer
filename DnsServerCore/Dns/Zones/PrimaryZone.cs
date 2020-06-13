@@ -35,7 +35,7 @@ namespace DnsServerCore.Dns.Zones
         readonly bool _internal;
 
         readonly Timer _notifyTimer;
-        const int NOTIFY_TIMER_INTERVAL = 30000;
+        const int NOTIFY_TIMER_INTERVAL = 10000;
         readonly List<NameServerAddress> _notifyList = new List<NameServerAddress>();
 
         const int NOTIFY_TIMEOUT = 60000;
@@ -184,7 +184,7 @@ namespace DnsServerCore.Dns.Zones
                     client.Timeout = NOTIFY_TIMEOUT;
                     client.Retries = NOTIFY_RETRIES;
 
-                    DnsDatagram notifyRequest = new DnsDatagram(0, false, DnsOpcode.Notify, true, false, false, false, false, false, DnsResponseCode.NoError, new DnsQuestionRecord[] { new DnsQuestionRecord(_name, DnsResourceRecordType.SOA, DnsClass.IN) });
+                    DnsDatagram notifyRequest = new DnsDatagram(0, false, DnsOpcode.Notify, true, false, false, false, false, false, DnsResponseCode.NoError, new DnsQuestionRecord[] { new DnsQuestionRecord(_name, DnsResourceRecordType.SOA, DnsClass.IN) }, _entries[DnsResourceRecordType.SOA]);
                     DnsDatagram response = client.Resolve(notifyRequest);
 
                     switch (response.RCODE)
