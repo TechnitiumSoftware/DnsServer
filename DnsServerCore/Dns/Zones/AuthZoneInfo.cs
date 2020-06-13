@@ -38,13 +38,12 @@ namespace DnsServerCore.Dns.Zones
     {
         #region variables
 
+        readonly AuthZone _zone;
+
         readonly string _name;
         readonly AuthZoneType _type;
         readonly bool _disabled;
-
-        readonly DateTime _lastRefreshed;
-
-        readonly AuthZone _zone;
+        readonly DateTime _expiry;
 
         #endregion
 
@@ -69,11 +68,11 @@ namespace DnsServerCore.Dns.Zones
                     switch (_type)
                     {
                         case AuthZoneType.Secondary:
-                            _lastRefreshed = bR.ReadDate();
+                            _expiry = bR.ReadDate();
                             break;
 
                         case AuthZoneType.Stub:
-                            _lastRefreshed = bR.ReadDate();
+                            _expiry = bR.ReadDate();
                             break;
                     }
 
@@ -86,45 +85,44 @@ namespace DnsServerCore.Dns.Zones
 
         public AuthZoneInfo(AuthZone zone)
         {
-            _name = zone.Name;
+            _zone = zone;
+            _name = _zone.Name;
 
-            if (zone is PrimaryZone)
+            if (_zone is PrimaryZone)
                 _type = AuthZoneType.Primary;
-            else if (zone is SecondaryZone)
+            else if (_zone is SecondaryZone)
                 _type = AuthZoneType.Secondary;
-            else if (zone is StubZone)
+            else if (_zone is StubZone)
                 _type = AuthZoneType.Stub;
-            else if (zone is ForwarderZone)
+            else if (_zone is ForwarderZone)
                 _type = AuthZoneType.Forwarder;
             else
                 _type = AuthZoneType.Unknown;
 
-            _disabled = zone.Disabled;
+            _disabled = _zone.Disabled;
 
             switch (_type)
             {
                 case AuthZoneType.Secondary:
-                    _lastRefreshed = (_zone as SecondaryZone).LastRefreshed;
+                    _expiry = (_zone as SecondaryZone).Expiry;
                     break;
 
                 case AuthZoneType.Stub:
-                    _lastRefreshed = (_zone as StubZone).LastRefreshed;
+                    _expiry = (_zone as StubZone).Expiry;
                     break;
             }
-
-            _zone = zone;
         }
 
         #endregion
 
         #region public
 
-        public IReadOnlyList<DnsResourceRecord> QueryRecords(DnsResourceRecordType type)
+        public IReadOnlyList<DnsResourceRecord> GetRecords(DnsResourceRecordType type)
         {
             if (_zone == null)
                 throw new InvalidOperationException();
 
-            return _zone.QueryRecords(type);
+            return _zone.GetRecords(type);
         }
 
         public void WriteTo(BinaryWriter bW)
@@ -141,11 +139,11 @@ namespace DnsServerCore.Dns.Zones
             switch (_type)
             {
                 case AuthZoneType.Secondary:
-                    bW.Write(_lastRefreshed);
+                    bW.Write(_expiry);
                     break;
 
                 case AuthZoneType.Stub:
-                    bW.Write(_lastRefreshed);
+                    bW.Write(_expiry);
                     break;
             }
         }
@@ -182,8 +180,8 @@ namespace DnsServerCore.Dns.Zones
             }
         }
 
-        public DateTime LastRefreshed
-        { get { return _lastRefreshed; } }
+        public DateTime Expiry
+        { get { return _expiry; } }
 
         public bool IsExpired
         {
@@ -202,7 +200,7 @@ namespace DnsServerCore.Dns.Zones
             }
         }
 
-        public bool Internal
+        public bool IsInternal
         {
             get
             {
@@ -210,7 +208,7 @@ namespace DnsServerCore.Dns.Zones
                     throw new InvalidOperationException();
 
                 if (_zone is PrimaryZone)
-                    return (_zone as PrimaryZone).Internal;
+                    return (_zone as PrimaryZone).IsInternal;
 
                 return false;
             }
