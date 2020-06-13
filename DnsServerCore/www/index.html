@@ -309,17 +309,23 @@
                                             <thead>
                                                 <tr>
                                                     <th>Zone</th>
+                                                    <th>Type</th>
+                                                    <th>Status</th>
+                                                    <th>Expiry</th>
                                                     <th></th>
                                                 </tr>
                                             </thead>
                                             <tbody id="tableZonesBody">
                                                 <tr>
                                                     <td>localhost</td>
+                                                    <td>Primary</td>
+                                                    <td>Expired</td>
+                                                    <td>Date</td>
                                                     <td>Edit Disable Delete</td>
                                                 </tr>
                                             </tbody>
                                             <tfoot id="tableZonesFooter">
-                                                <tr><td colspan="2"><b>Total Records: 1</b></td></tr>
+                                                <tr><td colspan="5"><b>Total Records: 1</b></td></tr>
                                             </tfoot>
                                         </table>
                                     </div>
@@ -332,9 +338,12 @@
                                         <div style="padding: 10px 0px;">
                                             <div style="float: left;">
                                                 <h3 id="titleEditZone" style="margin: 4px 0;">example.com</h3>
+                                                <span id="titleEditZoneType" class="label label-default">Primary</span>
+                                                <span id="titleEditZoneStatus" class="label label-success">Enabled</span>
+                                                <span id="titleEditZoneExpiry" style="font-size: 10px; font-weight: bold;">Expiry: 01 Jan 2020 00:00:00</span>
                                             </div>
                                             <div style="float: right; padding: 2px 0px;">
-                                                <button type="button" class="btn btn-primary" onclick="showAddRecordModal();">Add Record</button>
+                                                <button id="btnEditZoneAddRecord" type="button" class="btn btn-primary" onclick="showAddRecordModal();">Add Record</button>
                                             </div>
                                             <div style="clear: both;"></div>
                                         </div>
@@ -1412,9 +1421,99 @@
                         <div class="form-group">
                             <label for="txtAddZone" class="col-sm-4 control-label">Zone</label>
                             <div class="col-sm-7">
-                                <input id="txtAddZone" type="text" class="form-control" placeholder="example.com">
+                                <input id="txtAddZone" type="text" class="form-control" placeholder="example.com or 192.168.0.0/24 or 2001:db8::/64">
                             </div>
                         </div>
+
+                        <div class="form-group">
+                            <label class="col-sm-4 control-label">Type</label>
+                            <div class="col-sm-7">
+                                <div class="radio">
+                                    <label>
+                                        <input type="radio" name="rdAddZoneType" id="rdAddZoneTypePrimary" value="Primary" checked>
+                                        Primary Zone (default)
+                                    </label>
+                                </div>
+                                <div class="radio">
+                                    <label>
+                                        <input type="radio" name="rdAddZoneType" id="rdAddZoneTypeSecondary" value="Secondary">
+                                        Secondary Zone
+                                    </label>
+                                </div>
+                                <div class="radio">
+                                    <label>
+                                        <input type="radio" name="rdAddZoneType" id="rdAddZoneTypeStub" value="Stub">
+                                        Stub Zone
+                                    </label>
+                                </div>
+                                <div class="radio">
+                                    <label>
+                                        <input type="radio" name="rdAddZoneType" id="rdAddZoneTypeForwarder" value="Forwarder">
+                                        Conditional Forwarder Zone
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
+
+
+                        <div class="form-group" id="divAddZoneMasterNameServer">
+                            <label for="txtAddZoneMasterNameServer" class="col-sm-4 control-label">Master Name Server (Optional)</label>
+                            <div class="col-sm-7">
+                                <input id="txtAddZoneMasterNameServer" type="text" class="form-control" placeholder="ns1.example.com">
+                            </div>
+                        </div>
+
+                        <div class="form-group" id="divAddZoneGlueAddresses">
+                            <label for="txtAddZoneGlueAddresses" class="col-sm-4 control-label">Glue Addresses (Optional)</label>
+                            <div class="col-sm-7">
+                                <input id="txtAddZoneGlueAddresses" type="text" class="form-control" placeholder="192.168.1.1, 2001:db8::">
+                            </div>
+                        </div>
+
+
+                        <div class="form-group" id="divAddZoneForwarderProtocol">
+                            <label class="col-sm-4 control-label">Protocol</label>
+                            <div class="col-sm-7">
+                                <div class="radio">
+                                    <label>
+                                        <input type="radio" name="rdAddZoneForwarderProtocol" id="rdAddZoneForwarderProtocolUdp" value="Udp" checked>
+                                        DNS-over-UDP (default)
+                                    </label>
+                                </div>
+                                <div class="radio">
+                                    <label>
+                                        <input type="radio" name="rdAddZoneForwarderProtocol" value="Tcp">
+                                        DNS-over-TCP
+                                    </label>
+                                </div>
+                                <div class="radio">
+                                    <label>
+                                        <input type="radio" name="rdAddZoneForwarderProtocol" value="Tls">
+                                        DNS-over-TLS
+                                    </label>
+                                </div>
+                                <div class="radio">
+                                    <label>
+                                        <input type="radio" name="rdAddZoneForwarderProtocol" value="Https">
+                                        DNS-over-HTTPS
+                                    </label>
+                                </div>
+                                <div class="radio">
+                                    <label>
+                                        <input type="radio" name="rdAddZoneForwarderProtocol" value="HttpsJson">
+                                        DNS-over-HTTPS (JSON)
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="form-group" id="divAddZoneForwarder">
+                            <label for="txtAddZoneForwarder" class="col-sm-4 control-label">Forwarder</label>
+                            <div class="col-sm-7">
+                                <input id="txtAddZoneForwarder" type="text" class="form-control" placeholder="8.8.8.8">
+                            </div>
+                        </div>
+
                     </div>
                     <div class="modal-footer">
                         <button id="btnAddZone" type="submit" class="btn btn-primary" data-loading-text="Adding..." onclick="addZone(); return false;">Add</button>
@@ -1457,6 +1556,8 @@
                                     <option>AAAA</option>
                                     <option>SRV</option>
                                     <option>CAA</option>
+                                    <option>ANAME</option>
+                                    <option id="optEditRecordTypeFwd">FWD</option>
                                 </select>
                             </div>
                         </div>
@@ -1476,7 +1577,34 @@
                                     <input id="txtAddEditRecordDataValue" type="text" class="form-control">
                                 </div>
                             </div>
+
+                            <div id="divAddEditRecordDataPtr" class="form-group">
+                                <div class="col-sm-offset-4 col-sm-7">
+                                    <div class="checkbox">
+                                        <label>
+                                            <input id="chkAddEditRecordDataPtr" type="checkbox"> <span id="chkAddEditRecordDataPtrLabel">Add reverse (PTR) record</span>
+                                        </label>
+                                    </div>
+                                </div>
+                            </div>
                         </div>
+
+
+                        <div id="divAddEditRecordDataNs" style="display: none;">
+                            <div class="form-group">
+                                <label for="txtAddEditRecordDataNsNameServer" class="col-sm-4 control-label">Name Server</label>
+                                <div class="col-sm-7">
+                                    <input id="txtAddEditRecordDataNsNameServer" type="text" class="form-control">
+                                </div>
+                            </div>
+                            <div class="form-group">
+                                <label for="txtAddEditRecordDataNsGlue" class="col-sm-4 control-label">Glue Addresses</label>
+                                <div class="col-sm-7">
+                                    <input id="txtAddEditRecordDataNsGlue" type="text" class="form-control">
+                                </div>
+                            </div>
+                        </div>
+
 
                         <div id="divEditRecordDataSoa" style="display: none;">
                             <div class="form-group">
@@ -1519,6 +1647,12 @@
                                 <label for="txtEditRecordDataSoaMinimum" class="col-sm-4 control-label">Minimum</label>
                                 <div class="col-sm-7">
                                     <input id="txtEditRecordDataSoaMinimum" type="number" class="form-control" style="width: 100px;">
+                                </div>
+                            </div>
+                            <div class="form-group">
+                                <label for="txtEditRecordDataSoaGlue" class="col-sm-4 control-label">Glue Addresses</label>
+                                <div class="col-sm-7">
+                                    <input id="txtEditRecordDataSoaGlue" type="text" class="form-control">
                                 </div>
                             </div>
                         </div>
@@ -1585,6 +1719,51 @@
                                 <label for="txtAddEditRecordDataCaaValue" class="col-sm-4 control-label">Authority</label>
                                 <div class="col-sm-7">
                                     <input type="text" class="form-control" id="txtAddEditRecordDataCaaValue">
+                                </div>
+                            </div>
+                        </div>
+
+                        <div id="divAddEditRecordDataForwarder" style="display: none;">
+                            <div class="form-group">
+                                <label class="col-sm-4 control-label">Protocol</label>
+                                <div class="col-sm-7">
+                                    <div class="radio">
+                                        <label>
+                                            <input type="radio" name="rdAddEditRecordDataForwarderProtocol" id="rdAddEditRecordDataForwarderProtocolUdp" value="Udp" checked>
+                                            DNS-over-UDP (default)
+                                        </label>
+                                    </div>
+                                    <div class="radio">
+                                        <label>
+                                            <input type="radio" name="rdAddEditRecordDataForwarderProtocol" id="rdAddEditRecordDataForwarderProtocolTcp" value="Tcp">
+                                            DNS-over-TCP
+                                        </label>
+                                    </div>
+                                    <div class="radio">
+                                        <label>
+                                            <input type="radio" name="rdAddEditRecordDataForwarderProtocol" id="rdAddEditRecordDataForwarderProtocolTls" value="Tls">
+                                            DNS-over-TLS
+                                        </label>
+                                    </div>
+                                    <div class="radio">
+                                        <label>
+                                            <input type="radio" name="rdAddEditRecordDataForwarderProtocol" id="rdAddEditRecordDataForwarderProtocolHttps" value="Https">
+                                            DNS-over-HTTPS
+                                        </label>
+                                    </div>
+                                    <div class="radio">
+                                        <label>
+                                            <input type="radio" name="rdAddEditRecordDataForwarderProtocol" id="rdAddEditRecordDataForwarderProtocolHttpsJson" value="HttpsJson">
+                                            DNS-over-HTTPS (JSON)
+                                        </label>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="form-group">
+                                <label for="txtAddEditRecordDataForwarder" class="col-sm-4 control-label">Forwarder</label>
+                                <div class="col-sm-7">
+                                    <input id="txtAddEditRecordDataForwarder" type="text" class="form-control" placeholder="8.8.8.8">
                                 </div>
                             </div>
                         </div>

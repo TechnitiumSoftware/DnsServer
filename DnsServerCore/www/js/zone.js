@@ -1,6 +1,6 @@
 ﻿/*
 Technitium DNS Server
-Copyright (C) 2019  Shreyas Zare (shreyas@technitium.com)
+Copyright (C) 2020  Shreyas Zare (shreyas@technitium.com)
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -16,6 +16,37 @@ You should have received a copy of the GNU General Public License
 along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 */
+
+$(function () {
+
+    $("input[type=radio][name=rdAddZoneType]").change(function () {
+        var zoneType = $('input[name=rdAddZoneType]:checked').val();
+        switch (zoneType) {
+            case "Primary":
+                $("#divAddZoneMasterNameServer").hide();
+                $("#divAddZoneGlueAddresses").hide();
+                $("#divAddZoneForwarderProtocol").hide();
+                $("#divAddZoneForwarder").hide();
+                break;
+
+            case "Secondary":
+            case "Stub":
+                $("#divAddZoneMasterNameServer").show();
+                $("#divAddZoneGlueAddresses").show();
+                $("#divAddZoneForwarderProtocol").hide();
+                $("#divAddZoneForwarder").hide();
+                break;
+
+            case "Forwarder":
+                $("#divAddZoneMasterNameServer").hide();
+                $("#divAddZoneGlueAddresses").hide();
+                $("#divAddZoneForwarderProtocol").show();
+                $("#divAddZoneForwarder").show();
+                break;
+        }
+    });
+
+});
 
 function refreshZones(checkDisplay) {
     if (checkDisplay == null)
@@ -41,24 +72,47 @@ function refreshZones(checkDisplay) {
 
             for (var i = 0; i < zones.length; i++) {
                 var id = Math.floor(Math.random() * 10000);
-                var zoneName = zones[i].zoneName;
+                var name = zones[i].name;
 
-                if (zoneName === "")
-                    zoneName = ".";
+                if (name === "")
+                    name = ".";
 
-                tableHtmlRows += "<tr id=\"trZone" + id + "\"><td>" + htmlEncode(zoneName) + "</td>";
-                tableHtmlRows += "<td align=\"right\"><button type=\"button\" class=\"btn btn-primary\" style=\"font-size: 12px; padding: 2px 0px; width: 60px; margin: 0 6px 6px 0;\" onclick=\"showEditZone('" + zoneName + "');\">Edit</button>";
-                tableHtmlRows += "<button type=\"button\" data-id=\"" + id + "\" id=\"btnEnableZone" + id + "\" class=\"btn btn-default\" style=\"font-size: 12px; padding: 2px 0px; width: 60px; margin: 0 6px 6px 0;" + (zones[i].disabled ? "" : " display: none;") + "\" onclick=\"enableZone(this, '" + zoneName + "');\" data-loading-text=\"Enabling...\">Enable</button>";
-                tableHtmlRows += "<button type=\"button\" data-id=\"" + id + "\" id=\"btnDisableZone" + id + "\" class=\"btn btn-warning\" style=\"font-size: 12px; padding: 2px 0px; width: 60px; margin: 0 6px 6px 0;" + (!zones[i].disabled ? "" : " display: none;") + "\" onclick=\"disableZone(this, '" + zoneName + "');\" data-loading-text=\"Disabling...\">Disable</button>";
-                tableHtmlRows += "<button type=\"button\" data-id=\"" + id + "\" class=\"btn btn-danger\" style=\"font-size: 12px; padding: 2px 0px; width: 60px; margin: 0 6px 6px 0;\" onclick=\"deleteZone(this, '" + zoneName + "');\" data-loading-text=\"Deleting...\">Delete</button></td></tr>";
+                var type;
+                if (zones[i].internal)
+                    type = "Internal";
+                else
+                    type = zones[i].type;
+
+                var status;
+                if (zones[i].disabled)
+                    status = "<span id=\"tdStatus" + id + "\" class=\"label label-warning\">Disabled</span>";
+                else if (zones[i].isExpired)
+                    status = "<span id=\"tdStatus" + id + "\" class=\"label label-danger\">Expired</span>";
+                else
+                    status = "<span id=\"tdStatus" + id + "\" class=\"label label-success\">Enabled</span>";
+
+                var expiry = zones[i].expiry;
+                if (expiry == null)
+                    expiry = "&nbsp;";
+
+                var isReadOnlyZone = zones[i].internal || (zones[i].type === "Secondary");
+
+                tableHtmlRows += "<tr id=\"trZone" + id + "\"><td>" + htmlEncode(name) + "</td>";
+                tableHtmlRows += "<td><span class=\"label label-default\">" + type + "</span></td>";
+                tableHtmlRows += "<td>" + status + "</td>";
+                tableHtmlRows += "<td>" + expiry + "</td>";
+                tableHtmlRows += "<td align=\"right\"><button type=\"button\" class=\"btn btn-primary\" style=\"font-size: 12px; padding: 2px 0px; width: 60px; margin: 0 6px 6px 0;\" onclick=\"showEditZone('" + name + "');\">" + (isReadOnlyZone ? "View" : "Edit") + "</button>";
+                tableHtmlRows += "<button type=\"button\" data-id=\"" + id + "\" id=\"btnEnableZone" + id + "\" class=\"btn btn-default\" style=\"font-size: 12px; padding: 2px 0px; width: 60px; margin: 0 6px 6px 0;" + (zones[i].disabled ? "" : " display: none;") + "\" onclick=\"enableZone(this, '" + name + "');\" data-loading-text=\"Enabling...\"" + (zones[i].internal ? " disabled" : "") + ">Enable</button>";
+                tableHtmlRows += "<button type=\"button\" data-id=\"" + id + "\" id=\"btnDisableZone" + id + "\" class=\"btn btn-warning\" style=\"font-size: 12px; padding: 2px 0px; width: 60px; margin: 0 6px 6px 0;" + (!zones[i].disabled ? "" : " display: none;") + "\" onclick=\"disableZone(this, '" + name + "');\" data-loading-text=\"Disabling...\"" + (zones[i].internal ? " disabled" : "") + ">Disable</button>";
+                tableHtmlRows += "<button type=\"button\" data-id=\"" + id + "\" class=\"btn btn-danger\" style=\"font-size: 12px; padding: 2px 0px; width: 60px; margin: 0 6px 6px 0;\" onclick=\"deleteZone(this, '" + name + "');\" data-loading-text=\"Deleting...\"" + (zones[i].internal ? " disabled" : "") + ">Delete</button></td></tr>";
             }
 
             $("#tableZonesBody").html(tableHtmlRows);
 
             if (zones.length > 0)
-                $("#tableZonesFooter").html("<tr><td colspan=\"2\"><b>Total Zones: " + zones.length + "</b></td></tr>");
+                $("#tableZonesFooter").html("<tr><td colspan=\"5\"><b>Total Zones: " + zones.length + "</b></td></tr>");
             else
-                $("#tableZonesFooter").html("<tr><td colspan=\"2\" align=\"center\">No Zones Found</td></tr>");
+                $("#tableZonesFooter").html("<tr><td colspan=\"5\" align=\"center\">No Zones Found</td></tr>");
 
             divViewZonesLoader.hide();
             divViewZones.show();
@@ -87,6 +141,8 @@ function enableZone(objBtn, domain) {
 
             $("#btnEnableZone" + id).hide();
             $("#btnDisableZone" + id).show();
+            $("#tdStatus" + id).attr("class", "label label-success");
+            $("#tdStatus" + id).html("Enabled");
 
             showAlert("success", "Zone Enabled!", "Zone was enabled successfully.");
         },
@@ -115,6 +171,8 @@ function disableZone(objBtn, domain) {
 
             $("#btnEnableZone" + id).show();
             $("#btnDisableZone" + id).hide();
+            $("#tdStatus" + id).attr("class", "label label-warning");
+            $("#tdStatus" + id).html("Disabled");
 
             showAlert("success", "Zone Disabled!", "Zone was disabled successfully.");
         },
@@ -144,9 +202,9 @@ function deleteZone(objBtn, domain) {
             var totalZones = $('#tableZones >tbody >tr').length;
 
             if (totalZones > 0)
-                $("#tableZonesFooter").html("<tr><td colspan=\"2\"><b>Total Zones: " + totalZones + "</b></td></tr>");
+                $("#tableZonesFooter").html("<tr><td colspan=\"5\"><b>Total Zones: " + totalZones + "</b></td></tr>");
             else
-                $("#tableZonesFooter").html("<tr><td colspan=\"2\" align=\"center\">No Zones Found</td></tr>");
+                $("#tableZonesFooter").html("<tr><td colspan=\"5\" align=\"center\">No Zones Found</td></tr>");
 
             showAlert("success", "Zone Deleted!", "Zone was deleted successfully.");
         },
@@ -163,6 +221,17 @@ function showAddZoneModal() {
     $("#divAddZoneAlert").html("");
 
     $("#txtAddZone").val("");
+    $("#rdAddZoneTypePrimary").prop("checked", true);
+    $("#txtAddZoneMasterNameServer").val("");
+    $("#txtAddZoneGlueAddresses").val("");
+    $("#rdAddZoneForwarderProtocolUdp").prop("checked", true);
+    $("#txtAddZoneForwarder").val("");
+
+    $("#divAddZoneMasterNameServer").hide();
+    $("#divAddZoneGlueAddresses").hide();
+    $("#divAddZoneForwarderProtocol").hide();
+    $("#divAddZoneForwarder").hide();
+
     $("#btnAddZone").button('reset');
 
     $("#modalAddZone").modal("show");
@@ -178,13 +247,40 @@ function addZone() {
         return;
     }
 
+    var type = $('input[name=rdAddZoneType]:checked').val();
+
+    var parameters;
+
+    switch (type) {
+        case "Secondary":
+        case "Stub":
+            parameters = "&masterNameServer=" + $("#txtAddZoneMasterNameServer").val() + "&glueAddresses=" + $("#txtAddZoneGlueAddresses").val();
+            break;
+
+        case "Forwarder":
+            var forwarder = $("#txtAddZoneForwarder").val();
+
+            if ((forwarder === null) || (forwarder === "")) {
+                showAlert("warning", "Missing!", "Please enter a forwarder server name to add zone.", divAddZoneAlert);
+                $("#divAddZoneForwarder").focus();
+                return;
+            }
+
+            parameters = "&protocol=" + $('input[name=rdAddZoneForwarderProtocol]:checked').val() + "&forwarder=" + forwarder;
+            break;
+
+        default:
+            parameters = "";
+            break;
+    }
+
     var btn = $("#btnAddZone").button('loading');
 
     HTTPRequest({
-        url: "/api/createZone?token=" + token + "&domain=" + domain,
+        url: "/api/createZone?token=" + token + "&domain=" + domain + "&type=" + type + parameters,
         success: function (responseJSON) {
             $("#modalAddZone").modal("hide");
-            showEditZone(domain);
+            showEditZone(responseJSON.response.domain);
 
             showAlert("success", "Zone Added!", "Zone was added successfully.");
         },
@@ -210,6 +306,65 @@ function showEditZone(domain) {
     HTTPRequest({
         url: "/api/getRecords?token=" + token + "&domain=" + domain,
         success: function (responseJSON) {
+            var type;
+            if (responseJSON.response.zone.internal)
+                type = "Internal";
+            else
+                type = responseJSON.response.zone.type;
+
+            var status;
+            if (responseJSON.response.zone.disabled)
+                status = "Disabled";
+            else if (responseJSON.response.zone.isExpired)
+                status = "Expired";
+            else
+                status = "Enabled";
+
+            var expiry = responseJSON.response.zone.expiry;
+            if (expiry == null)
+                expiry = "&nbsp;";
+            else
+                expiry = "Expiry: " + expiry;
+
+            $("#titleEditZoneType").html(type);
+            $("#titleEditZoneStatus").html(status);
+            $("#titleEditZoneExpiry").html(expiry);
+
+            switch (status) {
+                case "Disabled":
+                    $("#titleEditZoneStatus").attr("class", "label label-warning");
+                    break;
+
+                case "Expired":
+                    $("#titleEditZoneStatus").attr("class", "label label-danger");
+                    break;
+
+                case "Enabled":
+                    $("#titleEditZoneStatus").attr("class", "label label-success");
+                    break;
+            }
+
+            var hideActionButtons = false;
+
+            switch (type) {
+                case "Internal":
+                case "Secondary":
+                    $("#btnEditZoneAddRecord").hide();
+                    $("#optEditRecordTypeFwd").hide();
+                    hideActionButtons = true;
+                    break;
+
+                case "Forwarder":
+                    $("#btnEditZoneAddRecord").show();
+                    $("#optEditRecordTypeFwd").show();
+                    break;
+
+                default:
+                    $("#btnEditZoneAddRecord").show();
+                    $("#optEditRecordTypeFwd").hide();
+                    break;
+            }
+
             var records = responseJSON.response.records;
             var tableHtmlRows = "";
 
@@ -233,12 +388,26 @@ function showEditZone(domain) {
 
                 switch (records[i].type.toUpperCase()) {
                     case "A":
-                    case "NS":
                     case "CNAME":
                     case "PTR":
                     case "TXT":
                     case "AAAA":
+                    case "ANAME":
                         tableHtmlRows += "<td style=\"overflow-wrap: anywhere;\">" + htmlEncode(records[i].rData.value) + "</td>";
+                        break;
+
+                    case "NS":
+                        tableHtmlRows += "<td style=\"overflow-wrap: anywhere;\"><b>Name Server:</b> " + htmlEncode(records[i].rData.value);
+
+                        if (records[i].rData.glue != null) {
+                            tableHtmlRows += "<br /><b>Glue Addresses:</b> " + records[i].rData.glue;
+
+                            additionalDataAttributes = "data-record-glue=\"" + htmlEncode(records[i].rData.glue) + "\" ";
+                        } else {
+                            additionalDataAttributes = "data-record-glue=\"\" ";
+                        }
+
+                        tableHtmlRows += "</td>";
                         break;
 
                     case "SOA":
@@ -248,9 +417,19 @@ function showEditZone(domain) {
                             "<br /><b>Refresh:</b> " + htmlEncode(records[i].rData.refresh) +
                             "<br /><b>Retry:</b> " + htmlEncode(records[i].rData.retry) +
                             "<br /><b>Expire:</b> " + htmlEncode(records[i].rData.expire) +
-                            "<br /><b>Minimum:</b> " + htmlEncode(records[i].rData.minimum) + "</td>";
+                            "<br /><b>Minimum:</b> " + htmlEncode(records[i].rData.minimum);
 
-                        additionalDataAttributes = "data-record-mname=\"" + htmlEncode(records[i].rData.masterNameServer) + "\" " +
+                        if (records[i].rData.glue != null) {
+                            tableHtmlRows += "<br /><b>Glue Addresses:</b> " + records[i].rData.glue;
+
+                            additionalDataAttributes = "data-record-glue=\"" + htmlEncode(records[i].rData.glue) + "\" ";
+                        } else {
+                            additionalDataAttributes = "data-record-glue=\"\" ";
+                        }
+
+                        tableHtmlRows += "</td>";
+
+                        additionalDataAttributes += "data-record-mname=\"" + htmlEncode(records[i].rData.masterNameServer) + "\" " +
                             "data-record-rperson=\"" + htmlEncode(records[i].rData.responsiblePerson) + "\" " +
                             "data-record-serial=\"" + htmlEncode(records[i].rData.serial) + "\" " +
                             "data-record-refresh=\"" + htmlEncode(records[i].rData.refresh) + "\" " +
@@ -286,17 +465,31 @@ function showEditZone(domain) {
                             "data-record-tag=\"" + htmlEncode(records[i].rData.tag) + "\" ";
                         break;
 
+                    case "FWD":
+                        tableHtmlRows += "<td style=\"overflow-wrap: anywhere;\"><b>Protocol: </b> " + htmlEncode(records[i].rData.protocol) +
+                            "<br /><b>Forwarder:</b> " + htmlEncode(records[i].rData.value) + "</td>";
+
+                        additionalDataAttributes = "data-record-protocol=\"" + htmlEncode(records[i].rData.protocol) + "\" ";
+                        break;
+
                     default:
                         tableHtmlRows += "<td style=\"overflow-wrap: anywhere;\"><b>RDATA:</b> " + htmlEncode(records[i].rData.value) + "</td>";
                         break;
                 }
 
-                tableHtmlRows += "<td align=\"right\">";
-                tableHtmlRows += "<div id=\"data" + id + "\" data-record-name=\"" + htmlEncode(records[i].name) + "\" data-record-type=\"" + records[i].type + "\" data-record-ttl=\"" + records[i].ttl + "\" data-record-value=\"" + htmlEncode(records[i].rData.value) + "\" " + additionalDataAttributes + " data-record-disabled=\"" + records[i].disabled + "\" style=\"display: none;\"></div>";
-                tableHtmlRows += "<button type=\"button\" class=\"btn btn-primary\" style=\"font-size: 12px; padding: 2px 0px; width: 60px; margin: 0 6px 6px 0;\" data-id=\"" + id + "\" onclick=\"showEditRecordModal(this);\">Edit</button>";
-                tableHtmlRows += "<button type=\"button\" class=\"btn btn-default\" id=\"btnEnableRecord" + id + "\" style=\"font-size: 12px; padding: 2px 0px; width: 60px; margin: 0 6px 6px 0;" + (records[i].disabled ? "" : " display: none;") + "\" data-id=\"" + id + "\" onclick=\"updateRecordState(this, false);\"" + (records[i].type.toUpperCase() === "SOA" ? " disabled" : "") + " data-loading-text=\"Enabling...\">Enable</button>";
-                tableHtmlRows += "<button type=\"button\" class=\"btn btn-warning\" id=\"btnDisableRecord" + id + "\" style=\"font-size: 12px; padding: 2px 0px; width: 60px; margin: 0 6px 6px 0;" + (!records[i].disabled ? "" : " display: none;") + "\" data-id=\"" + id + "\" onclick=\"updateRecordState(this, true);\"" + (records[i].type.toUpperCase() === "SOA" ? " disabled" : "") + " data-loading-text=\"Disabling...\">Disable</button>";
-                tableHtmlRows += "<button type=\"button\" class=\"btn btn-danger\" style=\"font-size: 12px; padding: 2px 0px; width: 60px; margin: 0 6px 6px 0;\" data-loading-text=\"Deleting...\" data-id=\"" + id + "\" onclick=\"deleteRecord(this);\"" + (records[i].type.toUpperCase() === "SOA" ? " disabled" : "") + ">Delete</button></td></tr>";
+                if (hideActionButtons) {
+                    tableHtmlRows += "<td align=\"right\">&nbsp;</td>";
+                }
+                else {
+                    tableHtmlRows += "<td align=\"right\">";
+                    tableHtmlRows += "<div id=\"data" + id + "\" data-record-name=\"" + htmlEncode(records[i].name) + "\" data-record-type=\"" + records[i].type + "\" data-record-ttl=\"" + records[i].ttl + "\" data-record-value=\"" + htmlEncode(records[i].rData.value) + "\" " + additionalDataAttributes + " data-record-disabled=\"" + records[i].disabled + "\" style=\"display: none;\"></div>";
+                    tableHtmlRows += "<button type=\"button\" class=\"btn btn-primary\" style=\"font-size: 12px; padding: 2px 0px; width: 60px; margin: 0 6px 6px 0;\" data-id=\"" + id + "\" onclick=\"showEditRecordModal(this);\">Edit</button>";
+                    tableHtmlRows += "<button type=\"button\" class=\"btn btn-default\" id=\"btnEnableRecord" + id + "\" style=\"font-size: 12px; padding: 2px 0px; width: 60px; margin: 0 6px 6px 0;" + (records[i].disabled ? "" : " display: none;") + "\" data-id=\"" + id + "\" onclick=\"updateRecordState(this, false);\"" + (records[i].type.toUpperCase() === "SOA" ? " disabled" : "") + " data-loading-text=\"Enabling...\">Enable</button>";
+                    tableHtmlRows += "<button type=\"button\" class=\"btn btn-warning\" id=\"btnDisableRecord" + id + "\" style=\"font-size: 12px; padding: 2px 0px; width: 60px; margin: 0 6px 6px 0;" + (!records[i].disabled ? "" : " display: none;") + "\" data-id=\"" + id + "\" onclick=\"updateRecordState(this, true);\"" + (records[i].type.toUpperCase() === "SOA" ? " disabled" : "") + " data-loading-text=\"Disabling...\">Disable</button>";
+                    tableHtmlRows += "<button type=\"button\" class=\"btn btn-danger\" style=\"font-size: 12px; padding: 2px 0px; width: 60px; margin: 0 6px 6px 0;\" data-loading-text=\"Deleting...\" data-id=\"" + id + "\" onclick=\"deleteRecord(this);\"" + (records[i].type.toUpperCase() === "SOA" ? " disabled" : "") + ">Delete</button></td>";
+                }
+
+                tableHtmlRows += "</tr>";
             }
 
             $("#titleEditZone").text(domain);
@@ -334,6 +527,13 @@ function clearAddEditForm() {
     $("#divAddEditRecordData").show();
     $("#lblAddEditRecordDataValue").text("IPv4 Address");
     $("#txtAddEditRecordDataValue").val("");
+    $("#divAddEditRecordDataPtr").show();
+    $("#chkAddEditRecordDataPtr").prop("checked", false);
+    $("#chkAddEditRecordDataPtrLabel").text("Add reverse (PTR) record");
+
+    $("#divAddEditRecordDataNs").hide();
+    $("#txtAddEditRecordDataNsNameServer").val("");
+    $("#txtAddEditRecordDataNsGlue").val("");
 
     $("#divEditRecordDataSoa").hide();
     $("#txtEditRecordDataSoaMasterNameServer").val("");
@@ -359,6 +559,11 @@ function clearAddEditForm() {
     $("#txtAddEditRecordDataCaaTag").val("");
     $("#txtAddEditRecordDataCaaValue").val("");
 
+    $("#divAddEditRecordDataForwarder").hide();
+    $("#rdAddEditRecordDataForwarderProtocolUdp").prop("checked", true);
+    $("input[name=rdAddEditRecordDataForwarderProtocol]:radio").attr('disabled', false);
+    $("#txtAddEditRecordDataForwarder").val("");
+
     $("#btnAddEditRecord").button("reset");
 }
 
@@ -379,25 +584,38 @@ function modifyAddRecordForm() {
 
     var type = $("#optAddEditRecordType").val();
 
+    $("#divAddEditRecordData").hide();
+    $("#divAddEditRecordDataPtr").hide();
+    $("#divAddEditRecordDataNs").hide();
+    $("#divEditRecordDataSoa").hide();
+    $("#divAddEditRecordDataMx").hide();
+    $("#divAddEditRecordDataSrv").hide();
+    $("#divAddEditRecordDataCaa").hide();
+    $("#divAddEditRecordDataForwarder").hide();
+
     switch (type) {
         case "A":
             $("#lblAddEditRecordDataValue").text("IPv4 Address");
             $("#txtAddEditRecordDataValue").val("");
+            $("#chkAddEditRecordDataPtr").prop("checked", false);
+            $("#chkAddEditRecordDataPtrLabel").text("Add reverse (PTR) record");
             $("#divAddEditRecordData").show();
-            $("#divEditRecordDataSoa").hide();
-            $("#divAddEditRecordDataMx").hide();
-            $("#divAddEditRecordDataSrv").hide();
-            $("#divAddEditRecordDataCaa").hide();
+            $("#divAddEditRecordDataPtr").show();
+            break;
+
+        case "AAAA":
+            $("#lblAddEditRecordDataValue").text("IPv6 Address");
+            $("#txtAddEditRecordDataValue").val("");
+            $("#chkAddEditRecordDataPtr").prop("checked", false);
+            $("#chkAddEditRecordDataPtrLabel").text("Add reverse (PTR) record");
+            $("#divAddEditRecordData").show();
+            $("#divAddEditRecordDataPtr").show();
             break;
 
         case "NS":
-            $("#lblAddEditRecordDataValue").text("Domain Name");
-            $("#txtAddEditRecordDataValue").val("");
-            $("#divAddEditRecordData").show();
-            $("#divEditRecordDataSoa").hide();
-            $("#divAddEditRecordDataMx").hide();
-            $("#divAddEditRecordDataSrv").hide();
-            $("#divAddEditRecordDataCaa").hide();
+            $("#txtAddEditRecordDataNsNameServer").val("");
+            $("#txtAddEditRecordDataNsGlue").val("");
+            $("#divAddEditRecordDataNs").show();
             break;
 
         case "SOA":
@@ -408,61 +626,28 @@ function modifyAddRecordForm() {
             $("#txtEditRecordDataSoaRetry").val("");
             $("#txtEditRecordDataSoaExpire").val("");
             $("#txtEditRecordDataSoaMinimum").val("");
-            $("#divAddEditRecordData").hide();
+            $("#txtEditRecordDataSoaGlue").val("");
             $("#divEditRecordDataSoa").show();
-            $("#divAddEditRecordDataMx").hide();
-            $("#divAddEditRecordDataSrv").hide();
-            $("#divAddEditRecordDataCaa").hide();
-            break;
-
-        case "CNAME":
-            $("#lblAddEditRecordDataValue").text("Domain Name");
-            $("#txtAddEditRecordDataValue").val("");
-            $("#divAddEditRecordData").show();
-            $("#divEditRecordDataSoa").hide();
-            $("#divAddEditRecordDataMx").hide();
-            $("#divAddEditRecordDataSrv").hide();
-            $("#divAddEditRecordDataCaa").hide();
             break;
 
         case "PTR":
+        case "CNAME":
+        case "ANAME":
             $("#lblAddEditRecordDataValue").text("Domain Name");
             $("#txtAddEditRecordDataValue").val("");
             $("#divAddEditRecordData").show();
-            $("#divEditRecordDataSoa").hide();
-            $("#divAddEditRecordDataMx").hide();
-            $("#divAddEditRecordDataSrv").hide();
-            $("#divAddEditRecordDataCaa").hide();
             break;
 
         case "MX":
             $("#txtAddEditRecordDataMxPreference").val("");
             $("#txtAddEditRecordDataMxExchange").val("");
-            $("#divAddEditRecordData").hide();
-            $("#divEditRecordDataSoa").hide();
             $("#divAddEditRecordDataMx").show();
-            $("#divAddEditRecordDataSrv").hide();
-            $("#divAddEditRecordDataCaa").hide();
             break;
 
         case "TXT":
             $("#lblAddEditRecordDataValue").text("Text Data");
             $("#txtAddEditRecordDataValue").val("");
             $("#divAddEditRecordData").show();
-            $("#divEditRecordDataSoa").hide();
-            $("#divAddEditRecordDataMx").hide();
-            $("#divAddEditRecordDataSrv").hide();
-            $("#divAddEditRecordDataCaa").hide();
-            break;
-
-        case "AAAA":
-            $("#lblAddEditRecordDataValue").text("IPv6 Address");
-            $("#txtAddEditRecordDataValue").val("");
-            $("#divAddEditRecordData").show();
-            $("#divEditRecordDataSoa").hide();
-            $("#divAddEditRecordDataMx").hide();
-            $("#divAddEditRecordDataSrv").hide();
-            $("#divAddEditRecordDataCaa").hide();
             break;
 
         case "SRV":
@@ -471,22 +656,20 @@ function modifyAddRecordForm() {
             $("#txtAddEditRecordDataSrvWeight").val("");
             $("#txtAddEditRecordDataSrvPort").val("");
             $("#txtAddEditRecordDataSrvTarget").val("");
-            $("#divAddEditRecordData").hide();
-            $("#divEditRecordDataSoa").hide();
-            $("#divAddEditRecordDataMx").hide();
             $("#divAddEditRecordDataSrv").show();
-            $("#divAddEditRecordDataCaa").hide();
             break;
 
         case "CAA":
             $("#txtAddEditRecordDataCaaFlags").val("");
             $("#txtAddEditRecordDataCaaTag").val("");
             $("#txtAddEditRecordDataCaaValue").val("");
-            $("#divAddEditRecordData").hide();
-            $("#divEditRecordDataSoa").hide();
-            $("#divAddEditRecordDataMx").hide();
-            $("#divAddEditRecordDataSrv").hide();
             $("#divAddEditRecordDataCaa").show();
+            break;
+
+        case "FWD":
+            $("#rdAddEditRecordDataForwarderProtocolUdp").prop("checked", true);
+            $("#txtAddEditRecordDataForwarder").val("");
+            $("#divAddEditRecordDataForwarder").show();
             break;
     }
 }
@@ -521,10 +704,20 @@ function addRecord() {
 
     switch (type) {
         case "A":
-        case "NS":
+        case "AAAA":
+            var value = $("#txtAddEditRecordDataValue").val();
+            if (value === "") {
+                showAlert("warning", "Missing!", "Please enter an IP address to add the record.", divAddEditRecordAlert);
+                $("#txtAddEditRecordDataValue").focus();
+                return;
+            }
+
+            apiUrl += "&value=" + encodeURIComponent(value) + "&ptr=" + $("#chkAddEditRecordDataPtr").prop('checked');
+            break;
+
         case "PTR":
         case "TXT":
-        case "AAAA":
+        case "ANAME":
             var value = $("#txtAddEditRecordDataValue").val();
             if (value === "") {
                 showAlert("warning", "Missing!", "Please enter a suitable value to add the record.", divAddEditRecordAlert);
@@ -545,12 +738,25 @@ function addRecord() {
 
             var value = $("#txtAddEditRecordDataValue").val();
             if (value === "") {
-                showAlert("warning", "Missing!", "Please enter a suitable value to add the record.", divAddEditRecordAlert);
+                showAlert("warning", "Missing!", "Please enter a domain name to add the record.", divAddEditRecordAlert);
                 $("#txtAddEditRecordDataValue").focus();
                 return;
             }
 
             apiUrl += "&value=" + encodeURIComponent(value);
+            break;
+
+        case "NS":
+            var value = $("#txtAddEditRecordDataNsNameServer").val();
+            if (value === "") {
+                showAlert("warning", "Missing!", "Please enter a name server to add the record.", divAddEditRecordAlert);
+                $("#txtAddEditRecordDataNsNameServer").focus();
+                return;
+            }
+
+            var glue = $("#txtAddEditRecordDataNsGlue").val();
+
+            apiUrl += "&value=" + encodeURIComponent(value) + "&glue=" + encodeURIComponent(glue);
             break;
 
         case "MX":
@@ -560,7 +766,7 @@ function addRecord() {
 
             var value = $("#txtAddEditRecordDataMxExchange").val();
             if (value === "") {
-                showAlert("warning", "Missing!", "Please enter an mail exchange domain name into the exchange field.", divAddEditRecordAlert);
+                showAlert("warning", "Missing!", "Please enter a mail exchange domain name to add the record.", divAddEditRecordAlert);
                 $("#txtAddEditRecordDataMxExchange").focus();
                 return;
             }
@@ -624,6 +830,17 @@ function addRecord() {
 
             apiUrl += "&flags=" + flags + "&tag=" + encodeURIComponent(tag) + "&value=" + encodeURIComponent(value);
             break;
+
+        case "FWD":
+            var value = $("#txtAddEditRecordDataForwarder").val();
+            if (value === "") {
+                showAlert("warning", "Missing!", "Please enter a domain name or IP address or URL as a forwarder to add the record.", divAddEditRecordAlert);
+                $("#txtAddEditRecordDataForwarder").focus();
+                return;
+            }
+
+            apiUrl += "&protocol=" + $('input[name=rdAddEditRecordDataForwarderProtocol]:checked').val() + "&value=" + value;
+            break;
     }
 
     btn.button("loading");
@@ -671,12 +888,22 @@ function showEditRecordModal(objBtn) {
 
     switch (type) {
         case "A":
-        case "NS":
+        case "AAAA":
+            $("#txtAddEditRecordDataValue").val(divData.attr("data-record-value"));
+            $("#chkAddEditRecordDataPtr").prop("checked", false);
+            $("#chkAddEditRecordDataPtrLabel").text("Update reverse (PTR) record");
+            break;
+
         case "CNAME":
         case "PTR":
         case "TXT":
-        case "AAAA":
+        case "ANAME":
             $("#txtAddEditRecordDataValue").val(divData.attr("data-record-value"));
+            break;
+
+        case "NS":
+            $("#txtAddEditRecordDataNsNameServer").val(divData.attr("data-record-value"));
+            $("#txtAddEditRecordDataNsGlue").val(divData.attr("data-record-glue"));
             break;
 
         case "SOA":
@@ -687,6 +914,7 @@ function showEditRecordModal(objBtn) {
             $("#txtEditRecordDataSoaRetry").val(divData.attr("data-record-retry"));
             $("#txtEditRecordDataSoaExpire").val(divData.attr("data-record-expire"));
             $("#txtEditRecordDataSoaMinimum").val(divData.attr("data-record-minimum"));
+            $("#txtEditRecordDataSoaGlue").val(divData.attr("data-record-glue"));
             break;
 
         case "MX":
@@ -705,6 +933,12 @@ function showEditRecordModal(objBtn) {
             $("#txtAddEditRecordDataCaaFlags").val(divData.attr("data-record-flags"));
             $("#txtAddEditRecordDataCaaTag").val(divData.attr("data-record-tag"));
             $("#txtAddEditRecordDataCaaValue").val(divData.attr("data-record-value"));
+            break;
+
+        case "FWD":
+            $("input[name=rdAddEditRecordDataForwarderProtocol]:radio").attr('disabled', true);
+            $("#rdAddEditRecordDataForwarderProtocol" + divData.attr("data-record-protocol")).prop("checked", true);
+            $("#txtAddEditRecordDataForwarder").val(divData.attr("data-record-value"));
             break;
 
         default:
@@ -760,10 +994,20 @@ function updateRecord() {
 
     switch (type) {
         case "A":
-        case "NS":
+        case "AAAA":
+            var newValue = $("#txtAddEditRecordDataValue").val();
+            if (newValue === "") {
+                showAlert("warning", "Missing!", "Please enter an IP address to add the record.", divAddEditRecordAlert);
+                $("#txtAddEditRecordDataValue").focus();
+                return;
+            }
+
+            apiUrl += "&newValue=" + encodeURIComponent(newValue) + "&ptr=" + $("#chkAddEditRecordDataPtr").prop('checked');
+            break;
+
         case "PTR":
         case "TXT":
-        case "AAAA":
+        case "ANAME":
             var newValue = $("#txtAddEditRecordDataValue").val();
             if (newValue === "") {
                 showAlert("warning", "Missing!", "Please enter a suitable value to add the record.", divAddEditRecordAlert);
@@ -784,12 +1028,25 @@ function updateRecord() {
 
             var newValue = $("#txtAddEditRecordDataValue").val();
             if (newValue === "") {
-                showAlert("warning", "Missing!", "Please enter a suitable value to add the record.", divAddEditRecordAlert);
+                showAlert("warning", "Missing!", "Please enter a domain name to add the record.", divAddEditRecordAlert);
                 $("#txtAddEditRecordDataValue").focus();
                 return;
             }
 
             apiUrl += "&newValue=" + encodeURIComponent(newValue);
+            break;
+
+        case "NS":
+            var newValue = $("#txtAddEditRecordDataNsNameServer").val();
+            if (newValue === "") {
+                showAlert("warning", "Missing!", "Please enter a name server to add the record.", divAddEditRecordAlert);
+                $("#txtAddEditRecordDataNsNameServer").focus();
+                return;
+            }
+
+            var glue = $("#txtAddEditRecordDataNsGlue").val();
+
+            apiUrl += "&newValue=" + encodeURIComponent(newValue) + "&glue=" + encodeURIComponent(glue);
             break;
 
         case "SOA":
@@ -842,13 +1099,16 @@ function updateRecord() {
                 return;
             }
 
+            var glue = $("#txtEditRecordDataSoaGlue").val();
+
             apiUrl += "&masterNameServer=" + encodeURIComponent(masterNameServer) +
                 "&responsiblePerson=" + encodeURIComponent(responsiblePerson) +
                 "&serial=" + encodeURIComponent(serial) +
                 "&refresh=" + encodeURIComponent(refresh) +
                 "&retry=" + encodeURIComponent(retry) +
                 "&expire=" + encodeURIComponent(expire) +
-                "&minimum=" + encodeURIComponent(minimum);
+                "&minimum=" + encodeURIComponent(minimum) +
+                "&glue=" + encodeURIComponent(glue);
             break;
 
         case "MX":
@@ -858,7 +1118,7 @@ function updateRecord() {
 
             var newValue = $("#txtAddEditRecordDataMxExchange").val();
             if (newValue === "") {
-                showAlert("warning", "Missing!", "Please enter an mail exchange domain name into the exchange field.", divAddEditRecordAlert);
+                showAlert("warning", "Missing!", "Please enter a mail exchange domain name to add the record.", divAddEditRecordAlert);
                 $("#txtAddEditRecordDataMxExchange").focus();
                 return;
             }
@@ -927,6 +1187,17 @@ function updateRecord() {
 
             apiUrl += "&flags=" + flags + "&tag=" + encodeURIComponent(tag) + "&newFlags=" + newFlags + "&newTag=" + encodeURIComponent(newTag) + "&newValue=" + encodeURIComponent(newValue);
             break;
+
+        case "FWD":
+            var newValue = $("#txtAddEditRecordDataForwarder").val();
+            if (newValue === "") {
+                showAlert("warning", "Missing!", "Please enter a domain name or IP address or URL as a forwarder to add the record.", divAddEditRecordAlert);
+                $("#txtAddEditRecordDataForwarder").focus();
+                return;
+            }
+
+            apiUrl += "&protocol=" + $('input[name=rdAddEditRecordDataForwarderProtocol]:checked').val() + "&newValue=" + newValue;
+            break;
     }
 
     btn.button('loading');
@@ -977,6 +1248,10 @@ function updateRecordState(objBtn, disable) {
 
         case "CAA":
             apiUrl += "&flags=" + divData.attr("data-record-flags") + "&tag=" + encodeURIComponent(divData.attr("data-record-tag"));
+            break;
+
+        case "FWD":
+            apiUrl += "&protocol=" + divData.attr("data-record-protocol");
             break;
     }
 
@@ -1033,6 +1308,10 @@ function deleteRecord(objBtn) {
 
         case "CAA":
             apiUrl += "&flags=" + divData.attr("data-record-flags") + "&tag=" + encodeURIComponent(divData.attr("data-record-tag"));
+            break;
+
+        case "FWD":
+            apiUrl += "&protocol=" + divData.attr("data-record-protocol");
             break;
     }
 
