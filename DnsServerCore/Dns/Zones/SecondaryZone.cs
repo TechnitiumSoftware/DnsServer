@@ -83,8 +83,13 @@ namespace DnsServerCore.Dns.Zones
                 {
                     foreach (DnsResourceRecord record in nsResponse.Answer)
                     {
-                        if (record.Type == DnsResourceRecordType.NS)
-                            record.SetGlueRecords(nsResponse.Additional);
+                        switch (record.Type)
+                        {
+                            case DnsResourceRecordType.NS:
+                            case DnsResourceRecordType.SOA:
+                                record.SetGlueRecords(nsResponse.Additional);
+                                break;
+                        }
                     }
                 }
 
@@ -141,18 +146,18 @@ namespace DnsServerCore.Dns.Zones
             if (_disabled)
                 return;
 
-            DnsResourceRecord record = _entries[DnsResourceRecordType.SOA][0];
-            DnsSOARecord soaRecord = record.RDATA as DnsSOARecord;
+            DnsResourceRecord soaRecord = _entries[DnsResourceRecordType.SOA][0];
+            DnsSOARecord soa = soaRecord.RDATA as DnsSOARecord;
 
             try
             {
                 _isExpired = DateTime.UtcNow > _expiry;
 
                 //get primary name server addresses
-                string primaryNameServer = soaRecord.MasterNameServer;
+                string primaryNameServer = soa.MasterNameServer;
                 List<NameServerAddress> primaryNameServers = new List<NameServerAddress>();
 
-                IReadOnlyList<DnsResourceRecord> glueRecords = record.GetGlueRecords();
+                IReadOnlyList<DnsResourceRecord> glueRecords = soaRecord.GetGlueRecords();
                 if (glueRecords.Count > 0)
                 {
                     foreach (DnsResourceRecord glueRecord in glueRecords)
@@ -201,7 +206,7 @@ namespace DnsServerCore.Dns.Zones
                         log.Write("DNS Server could not find primary name server IP addresses for secondary zone: " + _name);
 
                     //set timer for retry
-                    _refreshTimer.Change(soaRecord.Retry * 1000, Timeout.Infinite);
+                    _refreshTimer.Change(soa.Retry * 1000, Timeout.Infinite);
                     return;
                 }
 
@@ -219,7 +224,7 @@ namespace DnsServerCore.Dns.Zones
                 }
 
                 //no response from any of the name servers; set timer for retry
-                _refreshTimer.Change(soaRecord.Retry * 1000, Timeout.Infinite);
+                _refreshTimer.Change(soa.Retry * 1000, Timeout.Infinite);
             }
             catch (Exception ex)
             {
@@ -228,7 +233,7 @@ namespace DnsServerCore.Dns.Zones
                     log.Write(ex);
 
                 //set timer for retry
-                _refreshTimer.Change(soaRecord.Retry * 1000, Timeout.Infinite);
+                _refreshTimer.Change(soa.Retry * 1000, Timeout.Infinite);
             }
         }
 
