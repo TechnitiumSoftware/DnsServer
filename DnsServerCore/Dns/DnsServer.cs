@@ -1093,9 +1093,9 @@ namespace DnsServerCore.Dns
                                     break; //break since no recursion allowed/desired
                                 }
                             }
-                            else if ((lastResponse.Answer.Count > 0) && ((questionType == DnsResourceRecordType.A) || (questionType == DnsResourceRecordType.AAAA)) && (lastRR.Type == DnsResourceRecordType.ANAME))
+                            else if ((lastResponse.Answer.Count > 0) && (lastResponse.Answer[0].Type == DnsResourceRecordType.ANAME))
                             {
-                                lastResponse = ProcessANAME(request, response, isRecursionAllowed);
+                                lastResponse = ProcessANAME(request, lastResponse, isRecursionAllowed);
                             }
                             else if ((lastResponse.Answer.Count == 0) && (lastResponse.Authority.Count > 0))
                             {
@@ -1142,7 +1142,7 @@ namespace DnsServerCore.Dns
 
                         return new DnsDatagram(request.Identifier, true, DnsOpcode.StandardQuery, lastResponse.AuthoritativeAnswer, false, request.RecursionDesired, isRecursionAllowed, false, false, rcode, request.Question, responseAnswer, authority, additional) { Tag = response.Tag };
                     }
-                    else if (((questionType == DnsResourceRecordType.A) || (questionType == DnsResourceRecordType.AAAA)) && (lastRR.Type == DnsResourceRecordType.ANAME))
+                    else if (lastRR.Type == DnsResourceRecordType.ANAME)
                     {
                         return ProcessANAME(request, response, isRecursionAllowed);
                     }
@@ -1196,9 +1196,9 @@ namespace DnsServerCore.Dns
                     foreach (DnsResourceRecord answer in lastResponse.Answer)
                     {
                         if (anameRR.TtlValue < answer.TtlValue)
-                            responseAnswer.Add(new DnsResourceRecord(answer.Name, answer.Type, answer.Class, anameRR.TtlValue, answer.RDATA));
+                            responseAnswer.Add(new DnsResourceRecord(anameRR.Name, answer.Type, answer.Class, anameRR.TtlValue, answer.RDATA));
                         else
-                            responseAnswer.Add(answer);
+                            responseAnswer.Add(new DnsResourceRecord(anameRR.Name, answer.Type, answer.Class, answer.TtlValue, answer.RDATA));
                     }
 
                     break; //found final answer
@@ -1485,7 +1485,7 @@ namespace DnsServerCore.Dns
                 //wait timed out
                 //query cache zone to return stale answer (if available) as per draft-ietf-dnsop-serve-stale-04
                 DnsDatagram cacheResponse = QueryCache(request, true);
-                if (cacheResponse != null)
+                if ((cacheResponse != null) && (cacheResponse.RCODE == DnsResponseCode.NoError))
                     return cacheResponse;
 
                 //wait till full timeout before responding as ServerFailure
@@ -1598,7 +1598,7 @@ namespace DnsServerCore.Dns
                 DnsDatagram cacheResponse = QueryCache(request, true);
                 if ((cacheResponse == null) || ((cacheResponse.Answer.Count == 0) && (cacheResponse.Authority.Count == 0)))
                 {
-                    //no stale record found or found empty record; cache new empty record to avoid frequent retries by the resolver
+                    //no stale record or empty record found; cache new empty record to avoid frequent retries by the resolver
                     DnsResponseCode rcode;
 
                     if (cacheResponse == null)

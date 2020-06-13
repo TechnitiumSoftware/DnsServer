@@ -158,7 +158,7 @@ namespace DnsServerCore.Dns.ResourceRecords
             if (rrInfo == null)
                 return false;
 
-            else return rrInfo.Disabled;
+            return rrInfo.Disabled;
         }
 
         public static void Disable(this DnsResourceRecord record)

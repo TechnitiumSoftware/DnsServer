@@ -2436,36 +2436,36 @@ namespace DnsServerCore
             {
                 foreach (KeyValuePair<DnsResourceRecordType, List<DnsResourceRecord>> groupedRecords in groupedByTypeRecords.Value)
                 {
-                    foreach (DnsResourceRecord resourceRecord in groupedRecords.Value)
+                    foreach (DnsResourceRecord record in groupedRecords.Value)
                     {
                         jsonWriter.WriteStartObject();
 
                         if (authoritativeZoneRecords)
                         {
                             jsonWriter.WritePropertyName("disabled");
-                            jsonWriter.WriteValue(resourceRecord.IsDisabled());
+                            jsonWriter.WriteValue(record.IsDisabled());
                         }
 
                         jsonWriter.WritePropertyName("name");
-                        jsonWriter.WriteValue(resourceRecord.Name);
+                        jsonWriter.WriteValue(record.Name);
 
                         jsonWriter.WritePropertyName("type");
-                        jsonWriter.WriteValue(resourceRecord.Type.ToString());
+                        jsonWriter.WriteValue(record.Type.ToString());
 
                         jsonWriter.WritePropertyName("ttl");
                         if (authoritativeZoneRecords)
-                            jsonWriter.WriteValue(resourceRecord.TtlValue);
+                            jsonWriter.WriteValue(record.TtlValue);
                         else
-                            jsonWriter.WriteValue(resourceRecord.TTL);
+                            jsonWriter.WriteValue(record.TTL);
 
                         jsonWriter.WritePropertyName("rData");
                         jsonWriter.WriteStartObject();
 
-                        switch (resourceRecord.Type)
+                        switch (record.Type)
                         {
                             case DnsResourceRecordType.A:
                                 {
-                                    DnsARecord rdata = (resourceRecord.RDATA as DnsARecord);
+                                    DnsARecord rdata = (record.RDATA as DnsARecord);
                                     if (rdata != null)
                                     {
                                         jsonWriter.WritePropertyName("value");
@@ -2476,7 +2476,7 @@ namespace DnsServerCore
 
                             case DnsResourceRecordType.AAAA:
                                 {
-                                    DnsAAAARecord rdata = (resourceRecord.RDATA as DnsAAAARecord);
+                                    DnsAAAARecord rdata = (record.RDATA as DnsAAAARecord);
                                     if (rdata != null)
                                     {
                                         jsonWriter.WritePropertyName("value");
@@ -2487,7 +2487,7 @@ namespace DnsServerCore
 
                             case DnsResourceRecordType.SOA:
                                 {
-                                    DnsSOARecord rdata = resourceRecord.RDATA as DnsSOARecord;
+                                    DnsSOARecord rdata = record.RDATA as DnsSOARecord;
                                     if (rdata != null)
                                     {
                                         jsonWriter.WritePropertyName("masterNameServer");
@@ -2512,7 +2512,7 @@ namespace DnsServerCore
                                         jsonWriter.WriteValue(rdata.Minimum);
                                     }
 
-                                    IReadOnlyList<DnsResourceRecord> glueRecords = resourceRecord.GetGlueRecords();
+                                    IReadOnlyList<DnsResourceRecord> glueRecords = record.GetGlueRecords();
                                     if (glueRecords.Count > 0)
                                     {
                                         string glue = null;
@@ -2533,7 +2533,7 @@ namespace DnsServerCore
 
                             case DnsResourceRecordType.PTR:
                                 {
-                                    DnsPTRRecord rdata = resourceRecord.RDATA as DnsPTRRecord;
+                                    DnsPTRRecord rdata = record.RDATA as DnsPTRRecord;
                                     if (rdata != null)
                                     {
                                         jsonWriter.WritePropertyName("value");
@@ -2544,7 +2544,7 @@ namespace DnsServerCore
 
                             case DnsResourceRecordType.MX:
                                 {
-                                    DnsMXRecord rdata = resourceRecord.RDATA as DnsMXRecord;
+                                    DnsMXRecord rdata = record.RDATA as DnsMXRecord;
                                     if (rdata != null)
                                     {
                                         jsonWriter.WritePropertyName("preference");
@@ -2558,7 +2558,7 @@ namespace DnsServerCore
 
                             case DnsResourceRecordType.TXT:
                                 {
-                                    DnsTXTRecord rdata = resourceRecord.RDATA as DnsTXTRecord;
+                                    DnsTXTRecord rdata = record.RDATA as DnsTXTRecord;
                                     if (rdata != null)
                                     {
                                         jsonWriter.WritePropertyName("value");
@@ -2569,14 +2569,14 @@ namespace DnsServerCore
 
                             case DnsResourceRecordType.NS:
                                 {
-                                    DnsNSRecord rdata = resourceRecord.RDATA as DnsNSRecord;
+                                    DnsNSRecord rdata = record.RDATA as DnsNSRecord;
                                     if (rdata != null)
                                     {
                                         jsonWriter.WritePropertyName("value");
                                         jsonWriter.WriteValue(rdata.NameServer);
                                     }
 
-                                    IReadOnlyList<DnsResourceRecord> glueRecords = resourceRecord.GetGlueRecords();
+                                    IReadOnlyList<DnsResourceRecord> glueRecords = record.GetGlueRecords();
                                     if (glueRecords.Count > 0)
                                     {
                                         string glue = null;
@@ -2597,7 +2597,7 @@ namespace DnsServerCore
 
                             case DnsResourceRecordType.CNAME:
                                 {
-                                    DnsCNAMERecord rdata = resourceRecord.RDATA as DnsCNAMERecord;
+                                    DnsCNAMERecord rdata = record.RDATA as DnsCNAMERecord;
                                     if (rdata != null)
                                     {
                                         jsonWriter.WritePropertyName("value");
@@ -2608,7 +2608,7 @@ namespace DnsServerCore
 
                             case DnsResourceRecordType.SRV:
                                 {
-                                    DnsSRVRecord rdata = resourceRecord.RDATA as DnsSRVRecord;
+                                    DnsSRVRecord rdata = record.RDATA as DnsSRVRecord;
                                     if (rdata != null)
                                     {
                                         jsonWriter.WritePropertyName("priority");
@@ -2628,7 +2628,7 @@ namespace DnsServerCore
 
                             case DnsResourceRecordType.CAA:
                                 {
-                                    DnsCAARecord rdata = resourceRecord.RDATA as DnsCAARecord;
+                                    DnsCAARecord rdata = record.RDATA as DnsCAARecord;
                                     if (rdata != null)
                                     {
                                         jsonWriter.WritePropertyName("flags");
@@ -2645,7 +2645,7 @@ namespace DnsServerCore
 
                             case DnsResourceRecordType.ANAME:
                                 {
-                                    DnsANAMERecord rdata = resourceRecord.RDATA as DnsANAMERecord;
+                                    DnsANAMERecord rdata = record.RDATA as DnsANAMERecord;
                                     if (rdata != null)
                                     {
                                         jsonWriter.WritePropertyName("value");
@@ -2656,7 +2656,7 @@ namespace DnsServerCore
 
                             case DnsResourceRecordType.FWD:
                                 {
-                                    DnsForwarderRecord rdata = resourceRecord.RDATA as DnsForwarderRecord;
+                                    DnsForwarderRecord rdata = record.RDATA as DnsForwarderRecord;
                                     if (rdata != null)
                                     {
                                         jsonWriter.WritePropertyName("protocol");
@@ -2674,7 +2674,7 @@ namespace DnsServerCore
 
                                     using (MemoryStream mS = new MemoryStream())
                                     {
-                                        resourceRecord.RDATA.WriteTo(mS, new List<DnsDomainOffset>());
+                                        record.RDATA.WriteTo(mS, new List<DnsDomainOffset>());
 
                                         jsonWriter.WriteValue(Convert.ToBase64String(mS.ToArray()));
                                     }
