@@ -125,6 +125,26 @@ namespace DnsServerCore.Dns.Zones
             return _zone.GetRecords(type);
         }
 
+        public void RefreshZone()
+        {
+            if (_zone == null)
+                throw new InvalidOperationException();
+
+            switch (_type)
+            {
+                case AuthZoneType.Secondary:
+                    (_zone as SecondaryZone).RefreshZone();
+                    break;
+
+                case AuthZoneType.Stub:
+                    (_zone as StubZone).RefreshZone();
+                    break;
+
+                default:
+                    throw new InvalidOperationException();
+            }
+        }
+
         public void WriteTo(BinaryWriter bW)
         {
             if (_zone == null)
