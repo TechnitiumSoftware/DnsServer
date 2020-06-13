@@ -520,7 +520,7 @@ namespace DnsServerCore.Dns.ZoneManagers
             return axfrRecords;
         }
 
-        public void SyncRecords(string domain, IReadOnlyList<DnsResourceRecord> syncRecords, IReadOnlyList<DnsResourceRecord> additionalRecords = null, bool dontRemove = false)
+        public void SyncRecords(string domain, IReadOnlyList<DnsResourceRecord> syncRecords, IReadOnlyList<DnsResourceRecord> additionalRecords = null, bool dontRemoveRecords = false)
         {
             List<DnsResourceRecord> newRecords = new List<DnsResourceRecord>(syncRecords.Count);
             List<DnsResourceRecord> glueRecords = new List<DnsResourceRecord>();
@@ -562,7 +562,7 @@ namespace DnsServerCore.Dns.ZoneManagers
             Dictionary<string, Dictionary<DnsResourceRecordType, List<DnsResourceRecord>>> newRecordsGroupedByDomain = DnsResourceRecord.GroupRecords(newRecords);
             Dictionary<string, Dictionary<DnsResourceRecordType, List<DnsResourceRecord>>> oldRecordsGroupedByDomain = DnsResourceRecord.GroupRecords(oldRecords);
 
-            if (!dontRemove)
+            if (!dontRemoveRecords)
             {
                 //remove domains that do not exists in new records
                 foreach (string oldDomain in oldRecordsGroupedByDomain.Keys)
@@ -576,7 +576,7 @@ namespace DnsServerCore.Dns.ZoneManagers
             foreach (KeyValuePair<string, Dictionary<DnsResourceRecordType, List<DnsResourceRecord>>> newEntries in newRecordsGroupedByDomain)
             {
                 AuthZone zone = GetOrAddZone(newEntries.Key);
-                zone.SyncRecords(newEntries.Value, dontRemove);
+                zone.SyncRecords(newEntries.Value, dontRemoveRecords);
             }
         }
 

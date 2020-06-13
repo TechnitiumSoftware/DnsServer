@@ -96,9 +96,9 @@ namespace DnsServerCore.Dns.Zones
 
         #region public
 
-        public void SyncRecords(Dictionary<DnsResourceRecordType, List<DnsResourceRecord>> newEntries, bool dontRemove)
+        public void SyncRecords(Dictionary<DnsResourceRecordType, List<DnsResourceRecord>> newEntries, bool dontRemoveRecords)
         {
-            if (!dontRemove)
+            if (!dontRemoveRecords)
             {
                 //remove entires of type that do not exists in new entries
                 foreach (DnsResourceRecordType type in _entries.Keys)
