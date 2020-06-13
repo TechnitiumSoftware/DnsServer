@@ -21,7 +21,6 @@ using DnsServerCore.Dns.Zones;
 using System;
 using System.Collections.Generic;
 using System.IO;
-using System.Security.Cryptography;
 using System.Text;
 using TechnitiumLibrary.IO;
 using TechnitiumLibrary.Net.Dns;
@@ -114,16 +113,26 @@ namespace DnsServerCore.Dns.ZoneManagers
 
         #region public
 
-        public void AllowZone(string domain)
+        public bool AllowZone(string domain)
         {
-            if (_zoneManager.CreatePrimaryZone(domain, _soaRecord, _nsRecord, false) != null)
+            if (_zoneManager.CreatePrimaryZone(domain, _soaRecord, _nsRecord) != null)
+            {
                 _totalZonesAllowed++;
+                return true;
+            }
+
+            return false;
         }
 
-        public void DeleteZone(string domain)
+        public bool DeleteZone(string domain)
         {
             if (_zoneManager.DeleteZone(domain))
+            {
                 _totalZonesAllowed--;
+                return true;
+            }
+
+            return false;
         }
 
         public List<AuthZoneInfo> ListZones()
