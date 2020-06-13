@@ -17,6 +17,9 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 */
 
+using TechnitiumLibrary.Net.Dns;
+using TechnitiumLibrary.Net.Dns.ResourceRecords;
+
 namespace DnsServerCore.Dns.Zones
 {
     public sealed class ForwarderZone : AuthZone
@@ -29,9 +32,13 @@ namespace DnsServerCore.Dns.Zones
             _disabled = zoneInfo.Disabled;
         }
 
-        public ForwarderZone(string name)
+        public ForwarderZone(string name, DnsTransportProtocol forwarderProtocol, string forwarder)
             : base(name)
-        { }
+        {
+            DnsResourceRecord fwdRecord = new DnsResourceRecord(name, DnsResourceRecordType.FWD, DnsClass.IN, 0, new DnsForwarderRecord(forwarderProtocol, forwarder));
+
+            _entries[DnsResourceRecordType.FWD] = new DnsResourceRecord[] { fwdRecord };
+        }
 
         #endregion
     }
