@@ -144,7 +144,7 @@ function enableZone(objBtn, domain) {
             $("#tdStatus" + id).attr("class", "label label-success");
             $("#tdStatus" + id).html("Enabled");
 
-            showAlert("success", "Zone Enabled!", "Zone was enabled successfully.");
+            showAlert("success", "Zone Enabled!", "Zone '" + domain + "' was enabled successfully.");
         },
         error: function () {
             btn.button('reset');
@@ -174,7 +174,7 @@ function disableZone(objBtn, domain) {
             $("#tdStatus" + id).attr("class", "label label-warning");
             $("#tdStatus" + id).html("Disabled");
 
-            showAlert("success", "Zone Disabled!", "Zone was disabled successfully.");
+            showAlert("success", "Zone Disabled!", "Zone '" + domain + "' was disabled successfully.");
         },
         error: function () {
             btn.button('reset');
@@ -185,9 +185,12 @@ function disableZone(objBtn, domain) {
     });
 }
 
-function deleteZone(objBtn, domain) {
+function deleteZone(objBtn, domain, editZone) {
     if (!confirm("Are you sure you want to permanently delete the zone '" + domain + "' and all its records?"))
         return false;
+
+    if (editZone == null)
+        editZone = false;
 
     var btn = $(objBtn);
     var id = btn.attr("data-id");
@@ -197,16 +200,21 @@ function deleteZone(objBtn, domain) {
     HTTPRequest({
         url: "/api/deleteZone?token=" + token + "&domain=" + domain,
         success: function (responseJSON) {
-            $("#trZone" + id).remove();
+            if (editZone) {
+                refreshZones();
+            }
+            else {
+                $("#trZone" + id).remove();
 
-            var totalZones = $('#tableZones >tbody >tr').length;
+                var totalZones = $('#tableZones >tbody >tr').length;
 
-            if (totalZones > 0)
-                $("#tableZonesFooter").html("<tr><td colspan=\"5\"><b>Total Zones: " + totalZones + "</b></td></tr>");
-            else
-                $("#tableZonesFooter").html("<tr><td colspan=\"5\" align=\"center\">No Zones Found</td></tr>");
+                if (totalZones > 0)
+                    $("#tableZonesFooter").html("<tr><td colspan=\"5\"><b>Total Zones: " + totalZones + "</b></td></tr>");
+                else
+                    $("#tableZonesFooter").html("<tr><td colspan=\"5\" align=\"center\">No Zones Found</td></tr>");
+            }
 
-            showAlert("success", "Zone Deleted!", "Zone was deleted successfully.");
+            showAlert("success", "Zone Deleted!", "Zone '" + domain + "' was deleted successfully.");
         },
         error: function () {
             btn.button('reset');
@@ -295,9 +303,6 @@ function addZone() {
 }
 
 function showEditZone(domain) {
-    if (domain == null)
-        domain = $("#titleEditZone").text();
-
     var divViewZonesLoader = $("#divViewZonesLoader");
     var divViewZones = $("#divViewZones");
     var divEditZone = $("#divEditZone");
@@ -330,20 +335,20 @@ function showEditZone(domain) {
                 expiry = "Expiry: " + expiry;
 
             $("#titleEditZoneType").html(type);
-            $("#titleEditZoneStatus").html(status);
+            $("#tdStatusEditZone").html(status);
             $("#titleEditZoneExpiry").html(expiry);
 
             switch (status) {
                 case "Disabled":
-                    $("#titleEditZoneStatus").attr("class", "label label-warning");
+                    $("#tdStatusEditZone").attr("class", "label label-warning");
                     break;
 
                 case "Expired":
-                    $("#titleEditZoneStatus").attr("class", "label label-danger");
+                    $("#tdStatusEditZone").attr("class", "label label-danger");
                     break;
 
                 case "Enabled":
-                    $("#titleEditZoneStatus").attr("class", "label label-success");
+                    $("#tdStatusEditZone").attr("class", "label label-success");
                     break;
             }
 
@@ -366,6 +371,22 @@ function showEditZone(domain) {
                     $("#btnEditZoneAddRecord").show();
                     $("#optEditRecordTypeFwd").hide();
                     break;
+            }
+
+            if (responseJSON.response.zone.internal) {
+                $("#btnEnableZoneEditZone").hide();
+                $("#btnDisableZoneEditZone").hide();
+                $("#btnEditZoneDeleteZone").hide();
+            }
+            else if (responseJSON.response.zone.disabled) {
+                $("#btnEnableZoneEditZone").show();
+                $("#btnDisableZoneEditZone").hide();
+                $("#btnEditZoneDeleteZone").show();
+            }
+            else {
+                $("#btnEnableZoneEditZone").hide();
+                $("#btnDisableZoneEditZone").show();
+                $("#btnEditZoneDeleteZone").show();
             }
 
             var records = responseJSON.response.records;
