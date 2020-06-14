@@ -101,7 +101,7 @@ function refreshZones(checkDisplay) {
                 tableHtmlRows += "<td><span class=\"label label-default\">" + type + "</span></td>";
                 tableHtmlRows += "<td>" + status + "</td>";
                 tableHtmlRows += "<td>" + expiry + "</td>";
-                tableHtmlRows += "<td align=\"right\"><button type=\"button\" class=\"btn btn-primary\" style=\"font-size: 12px; padding: 2px 0px; width: 60px; margin: 0 6px 6px 0;\" onclick=\"showEditZone('" + name + "');\">" + (isReadOnlyZone ? "View" : "Edit") + "</button>";
+                tableHtmlRows += "<td align=\"right\" style=\"width: 220px;\"><button type=\"button\" class=\"btn btn-primary\" style=\"font-size: 12px; padding: 2px 0px; width: 60px; margin: 0 6px 6px 0;\" onclick=\"showEditZone('" + name + "');\">" + (isReadOnlyZone ? "View" : "Edit") + "</button>";
                 tableHtmlRows += "<button type=\"button\" data-id=\"" + id + "\" id=\"btnEnableZone" + id + "\" class=\"btn btn-default\" style=\"font-size: 12px; padding: 2px 0px; width: 60px; margin: 0 6px 6px 0;" + (zones[i].disabled ? "" : " display: none;") + "\" onclick=\"enableZone(this, '" + name + "');\" data-loading-text=\"Enabling...\"" + (zones[i].internal ? " disabled" : "") + ">Enable</button>";
                 tableHtmlRows += "<button type=\"button\" data-id=\"" + id + "\" id=\"btnDisableZone" + id + "\" class=\"btn btn-warning\" style=\"font-size: 12px; padding: 2px 0px; width: 60px; margin: 0 6px 6px 0;" + (!zones[i].disabled ? "" : " display: none;") + "\" onclick=\"disableZone(this, '" + name + "');\" data-loading-text=\"Disabling...\"" + (zones[i].internal ? " disabled" : "") + ">Disable</button>";
                 tableHtmlRows += "<button type=\"button\" data-id=\"" + id + "\" class=\"btn btn-danger\" style=\"font-size: 12px; padding: 2px 0px; width: 60px; margin: 0 6px 6px 0;\" onclick=\"deleteZone(this, '" + name + "');\" data-loading-text=\"Deleting...\"" + (zones[i].internal ? " disabled" : "") + ">Delete</button></td></tr>";
@@ -201,6 +201,7 @@ function deleteZone(objBtn, domain, editZone) {
         url: "/api/deleteZone?token=" + token + "&domain=" + domain,
         success: function (responseJSON) {
             if (editZone) {
+                btn.button('reset');
                 refreshZones();
             }
             else {
@@ -505,7 +506,7 @@ function showEditZone(domain) {
                     tableHtmlRows += "<td align=\"right\">&nbsp;</td>";
                 }
                 else {
-                    tableHtmlRows += "<td align=\"right\">";
+                    tableHtmlRows += "<td align=\"right\" style=\"min-width: 220px;\">";
                     tableHtmlRows += "<div id=\"data" + id + "\" data-record-name=\"" + htmlEncode(records[i].name) + "\" data-record-type=\"" + records[i].type + "\" data-record-ttl=\"" + records[i].ttl + "\" data-record-value=\"" + htmlEncode(records[i].rData.value) + "\" " + additionalDataAttributes + " data-record-disabled=\"" + records[i].disabled + "\" style=\"display: none;\"></div>";
                     tableHtmlRows += "<button type=\"button\" class=\"btn btn-primary\" style=\"font-size: 12px; padding: 2px 0px; width: 60px; margin: 0 6px 6px 0;\" data-id=\"" + id + "\" onclick=\"showEditRecordModal(this);\">Edit</button>";
                     tableHtmlRows += "<button type=\"button\" class=\"btn btn-default\" id=\"btnEnableRecord" + id + "\" style=\"font-size: 12px; padding: 2px 0px; width: 60px; margin: 0 6px 6px 0;" + (records[i].disabled ? "" : " display: none;") + "\" data-id=\"" + id + "\" onclick=\"updateRecordState(this, false);\"" + (records[i].type.toUpperCase() === "SOA" ? " disabled" : "") + " data-loading-text=\"Enabling...\">Enable</button>";
