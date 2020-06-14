@@ -58,12 +58,12 @@ namespace DnsServerCore.Dns.Zones
             _refreshTimer = new Timer(RefreshTimerCallback, null, Timeout.Infinite, Timeout.Infinite);
         }
 
-        public StubZone(DnsServer dnsServer, string name, string masterNameServer = null, string glueAddresses = null)
+        public StubZone(DnsServer dnsServer, string name, string primaryNameServer = null, string glueAddresses = null)
             : base(name)
         {
             _dnsServer = dnsServer;
 
-            if (masterNameServer == null)
+            if (primaryNameServer == null)
             {
                 DnsDatagram soaResponse = _dnsServer.DirectQuery(new DnsQuestionRecord(name, DnsResourceRecordType.SOA, DnsClass.IN));
                 if ((soaResponse == null) || (soaResponse.Answer.Count == 0) || (soaResponse.Answer[0].Type != DnsResourceRecordType.SOA))
@@ -101,10 +101,10 @@ namespace DnsServerCore.Dns.Zones
             }
             else
             {
-                DnsSOARecord soa = new DnsSOARecord(masterNameServer, "hostmaster." + masterNameServer, 1, 14400, 3600, 604800, 900);
+                DnsSOARecord soa = new DnsSOARecord(primaryNameServer, "hostadmin." + primaryNameServer, 1, 14400, 3600, 604800, 900);
 
                 DnsResourceRecord[] soaRR = new DnsResourceRecord[] { new DnsResourceRecord(_name, DnsResourceRecordType.SOA, DnsClass.IN, soa.Refresh, soa) };
-                DnsResourceRecord[] nsRR = new DnsResourceRecord[] { new DnsResourceRecord(_name, DnsResourceRecordType.NS, DnsClass.IN, soa.Refresh, new DnsNSRecord(soa.MasterNameServer)) }; ;
+                DnsResourceRecord[] nsRR = new DnsResourceRecord[] { new DnsResourceRecord(_name, DnsResourceRecordType.NS, DnsClass.IN, soa.Refresh, new DnsNSRecord(soa.PrimaryNameServer)) }; ;
 
                 if (glueAddresses != null)
                 {

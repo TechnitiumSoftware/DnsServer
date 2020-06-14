@@ -23,7 +23,7 @@ $(function () {
         var zoneType = $('input[name=rdAddZoneType]:checked').val();
         switch (zoneType) {
             case "Primary":
-                $("#divAddZoneMasterNameServer").hide();
+                $("#divAddZonePrimaryNameServer").hide();
                 $("#divAddZoneGlueAddresses").hide();
                 $("#divAddZoneForwarderProtocol").hide();
                 $("#divAddZoneForwarder").hide();
@@ -31,14 +31,14 @@ $(function () {
 
             case "Secondary":
             case "Stub":
-                $("#divAddZoneMasterNameServer").show();
+                $("#divAddZonePrimaryNameServer").show();
                 $("#divAddZoneGlueAddresses").show();
                 $("#divAddZoneForwarderProtocol").hide();
                 $("#divAddZoneForwarder").hide();
                 break;
 
             case "Forwarder":
-                $("#divAddZoneMasterNameServer").hide();
+                $("#divAddZonePrimaryNameServer").hide();
                 $("#divAddZoneGlueAddresses").hide();
                 $("#divAddZoneForwarderProtocol").show();
                 $("#divAddZoneForwarder").show();
@@ -222,12 +222,12 @@ function showAddZoneModal() {
 
     $("#txtAddZone").val("");
     $("#rdAddZoneTypePrimary").prop("checked", true);
-    $("#txtAddZoneMasterNameServer").val("");
+    $("#txtAddZonePrimaryNameServer").val("");
     $("#txtAddZoneGlueAddresses").val("");
     $("#rdAddZoneForwarderProtocolUdp").prop("checked", true);
     $("#txtAddZoneForwarder").val("");
 
-    $("#divAddZoneMasterNameServer").hide();
+    $("#divAddZonePrimaryNameServer").hide();
     $("#divAddZoneGlueAddresses").hide();
     $("#divAddZoneForwarderProtocol").hide();
     $("#divAddZoneForwarder").hide();
@@ -254,7 +254,7 @@ function addZone() {
     switch (type) {
         case "Secondary":
         case "Stub":
-            parameters = "&masterNameServer=" + $("#txtAddZoneMasterNameServer").val() + "&glueAddresses=" + $("#txtAddZoneGlueAddresses").val();
+            parameters = "&primaryNameServer=" + $("#txtAddZonePrimaryNameServer").val() + "&glueAddresses=" + $("#txtAddZoneGlueAddresses").val();
             break;
 
         case "Forwarder":
@@ -414,7 +414,7 @@ function showEditZone(domain) {
                         break;
 
                     case "SOA":
-                        tableHtmlRows += "<td style=\"overflow-wrap: anywhere;\"><b>Master Name Server:</b> " + htmlEncode(records[i].rData.masterNameServer) +
+                        tableHtmlRows += "<td style=\"overflow-wrap: anywhere;\"><b>Primary Name Server:</b> " + htmlEncode(records[i].rData.primaryNameServer) +
                             "<br /><b>Responsible Person:</b> " + htmlEncode(records[i].rData.responsiblePerson) +
                             "<br /><b>Serial:</b> " + htmlEncode(records[i].rData.serial) +
                             "<br /><b>Refresh:</b> " + htmlEncode(records[i].rData.refresh) +
@@ -432,7 +432,7 @@ function showEditZone(domain) {
 
                         tableHtmlRows += "</td>";
 
-                        additionalDataAttributes += "data-record-mname=\"" + htmlEncode(records[i].rData.masterNameServer) + "\" " +
+                        additionalDataAttributes += "data-record-mname=\"" + htmlEncode(records[i].rData.primaryNameServer) + "\" " +
                             "data-record-rperson=\"" + htmlEncode(records[i].rData.responsiblePerson) + "\" " +
                             "data-record-serial=\"" + htmlEncode(records[i].rData.serial) + "\" " +
                             "data-record-refresh=\"" + htmlEncode(records[i].rData.refresh) + "\" " +
@@ -539,7 +539,7 @@ function clearAddEditForm() {
     $("#txtAddEditRecordDataNsGlue").val("");
 
     $("#divEditRecordDataSoa").hide();
-    $("#txtEditRecordDataSoaMasterNameServer").val("");
+    $("#txtEditRecordDataSoaPrimaryNameServer").val("");
     $("#txtEditRecordDataSoaResponsiblePerson").val("");
     $("#txtEditRecordDataSoaSerial").val("");
     $("#txtEditRecordDataSoaRefresh").val("");
@@ -622,7 +622,7 @@ function modifyAddRecordForm() {
             break;
 
         case "SOA":
-            $("#txtEditRecordDataSoaMasterNameServer").val("");
+            $("#txtEditRecordDataSoaPrimaryNameServer").val("");
             $("#txtEditRecordDataSoaResponsiblePerson").val("");
             $("#txtEditRecordDataSoaSerial").val("");
             $("#txtEditRecordDataSoaRefresh").val("");
@@ -910,7 +910,7 @@ function showEditRecordModal(objBtn) {
             break;
 
         case "SOA":
-            $("#txtEditRecordDataSoaMasterNameServer").val(divData.attr("data-record-mname"));
+            $("#txtEditRecordDataSoaPrimaryNameServer").val(divData.attr("data-record-mname"));
             $("#txtEditRecordDataSoaResponsiblePerson").val(divData.attr("data-record-rperson"));
             $("#txtEditRecordDataSoaSerial").val(divData.attr("data-record-serial"));
             $("#txtEditRecordDataSoaRefresh").val(divData.attr("data-record-refresh"));
@@ -1053,10 +1053,10 @@ function updateRecord() {
             break;
 
         case "SOA":
-            var masterNameServer = $("#txtEditRecordDataSoaMasterNameServer").val();
-            if (masterNameServer === "") {
-                showAlert("warning", "Missing!", "Please enter a value for master name server.", divAddEditRecordAlert);
-                $("#txtEditRecordDataSoaMasterNameServer").focus();
+            var primaryNameServer = $("#txtEditRecordDataSoaPrimaryNameServer").val();
+            if (primaryNameServer === "") {
+                showAlert("warning", "Missing!", "Please enter a value for primary name server.", divAddEditRecordAlert);
+                $("#txtEditRecordDataSoaPrimaryNameServer").focus();
                 return;
             }
 
@@ -1104,7 +1104,7 @@ function updateRecord() {
 
             var glue = $("#txtEditRecordDataSoaGlue").val();
 
-            apiUrl += "&masterNameServer=" + encodeURIComponent(masterNameServer) +
+            apiUrl += "&primaryNameServer=" + encodeURIComponent(primaryNameServer) +
                 "&responsiblePerson=" + encodeURIComponent(responsiblePerson) +
                 "&serial=" + encodeURIComponent(serial) +
                 "&refresh=" + encodeURIComponent(refresh) +

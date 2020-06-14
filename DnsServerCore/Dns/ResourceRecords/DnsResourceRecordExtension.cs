@@ -56,7 +56,7 @@ namespace DnsServerCore.Dns.ResourceRecords
                     break;
 
                 case DnsResourceRecordType.SOA:
-                    domain = (record.RDATA as DnsSOARecord).MasterNameServer;
+                    domain = (record.RDATA as DnsSOARecord).PrimaryNameServer;
                     break;
 
                 default:
@@ -100,7 +100,7 @@ namespace DnsServerCore.Dns.ResourceRecords
                     break;
 
                 case DnsResourceRecordType.SOA:
-                    domain = (record.RDATA as DnsSOARecord).MasterNameServer;
+                    domain = (record.RDATA as DnsSOARecord).PrimaryNameServer;
                     break;
 
                 default:

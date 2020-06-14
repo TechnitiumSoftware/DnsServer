@@ -106,7 +106,7 @@ namespace DnsServerCore.Dns.ZoneManagers
                 DnsResourceRecord record = zone.GetRecords(DnsResourceRecordType.SOA)[0];
                 DnsSOARecord soa = record.RDATA as DnsSOARecord;
 
-                if (soa.MasterNameServer.Equals(_serverDomain, StringComparison.OrdinalIgnoreCase))
+                if (soa.PrimaryNameServer.Equals(_serverDomain, StringComparison.OrdinalIgnoreCase))
                 {
                     string responsiblePerson = soa.ResponsiblePerson;
                     if (responsiblePerson.EndsWith(_serverDomain))
@@ -373,9 +373,9 @@ namespace DnsServerCore.Dns.ZoneManagers
 
         #region public
 
-        public AuthZoneInfo CreatePrimaryZone(string domain, string masterNameServer, bool @internal)
+        public AuthZoneInfo CreatePrimaryZone(string domain, string primaryNameServer, bool @internal)
         {
-            AuthZone authZone = new PrimaryZone(_dnsServer, domain, masterNameServer, @internal);
+            AuthZone authZone = new PrimaryZone(_dnsServer, domain, primaryNameServer, @internal);
 
             if (_root.TryAdd(authZone))
                 return new AuthZoneInfo(authZone);
@@ -393,9 +393,9 @@ namespace DnsServerCore.Dns.ZoneManagers
             return null;
         }
 
-        public AuthZoneInfo CreateSecondaryZone(string domain, string masterNameServer = null, string glueAddresses = null)
+        public AuthZoneInfo CreateSecondaryZone(string domain, string primaryNameServer = null, string glueAddresses = null)
         {
-            AuthZone authZone = new SecondaryZone(_dnsServer, domain, masterNameServer, glueAddresses);
+            AuthZone authZone = new SecondaryZone(_dnsServer, domain, primaryNameServer, glueAddresses);
 
             if (_root.TryAdd(authZone))
             {
@@ -406,9 +406,9 @@ namespace DnsServerCore.Dns.ZoneManagers
             return null;
         }
 
-        public AuthZoneInfo CreateStubZone(string domain, string masterNameServer = null, string glueAddresses = null)
+        public AuthZoneInfo CreateStubZone(string domain, string primaryNameServer = null, string glueAddresses = null)
         {
-            AuthZone authZone = new StubZone(_dnsServer, domain, masterNameServer, glueAddresses);
+            AuthZone authZone = new StubZone(_dnsServer, domain, primaryNameServer, glueAddresses);
 
             if (_root.TryAdd(authZone))
             {

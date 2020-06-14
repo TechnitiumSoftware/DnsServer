@@ -1037,7 +1037,7 @@ namespace DnsServerCore.Dns
 
                 try
                 {
-                    DnsDatagram response = DirectQuery(new DnsQuestionRecord((soaRecord.RDATA as DnsSOARecord).MasterNameServer, type, DnsClass.IN));
+                    DnsDatagram response = DirectQuery(new DnsQuestionRecord((soaRecord.RDATA as DnsSOARecord).PrimaryNameServer, type, DnsClass.IN));
                     if (response != null)
                     {
                         IReadOnlyList<IPAddress> addresses;

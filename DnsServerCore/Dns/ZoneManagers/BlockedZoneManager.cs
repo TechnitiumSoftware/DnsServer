@@ -59,7 +59,7 @@ namespace DnsServerCore.Dns.ZoneManagers
 
         private void UpdateServerDomain(string serverDomain)
         {
-            _soaRecord = new DnsSOARecord(serverDomain, "hostmaster." + serverDomain, 1, 14400, 3600, 604800, 900);
+            _soaRecord = new DnsSOARecord(serverDomain, "hostadmin." + serverDomain, 1, 14400, 3600, 604800, 900);
             _nsRecord = new DnsNSRecord(serverDomain);
         }
 
@@ -189,7 +189,7 @@ namespace DnsServerCore.Dns.ZoneManagers
 
         public string ServerDomain
         {
-            get { return _soaRecord.MasterNameServer; }
+            get { return _soaRecord.PrimaryNameServer; }
             set { UpdateServerDomain(value); }
         }
 

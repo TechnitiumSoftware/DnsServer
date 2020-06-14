@@ -2071,15 +2071,15 @@ namespace DnsServerCore
 
                 case AuthZoneType.Secondary:
                     {
-                        string strMasterNameServer = request.QueryString["masterNameServer"];
-                        if (string.IsNullOrEmpty(strMasterNameServer))
-                            strMasterNameServer = null;
+                        string strPrimaryNameServer = request.QueryString["primaryNameServer"];
+                        if (string.IsNullOrEmpty(strPrimaryNameServer))
+                            strPrimaryNameServer = null;
 
                         string strGlueAddresses = request.QueryString["glueAddresses"];
                         if (string.IsNullOrEmpty(strGlueAddresses))
                             strGlueAddresses = null;
 
-                        if (_dnsServer.AuthZoneManager.CreateSecondaryZone(domain, strMasterNameServer, strGlueAddresses) != null)
+                        if (_dnsServer.AuthZoneManager.CreateSecondaryZone(domain, strPrimaryNameServer, strGlueAddresses) != null)
                         {
                             _log.Write(GetRequestRemoteEndPoint(request), "[" + GetSession(request).Username + "] Authoritative secondary zone was created: " + domain);
                             _dnsServer.AuthZoneManager.SaveZoneFile(domain);
@@ -2089,15 +2089,15 @@ namespace DnsServerCore
 
                 case AuthZoneType.Stub:
                     {
-                        string strMasterNameServer = request.QueryString["masterNameServer"];
-                        if (string.IsNullOrEmpty(strMasterNameServer))
-                            strMasterNameServer = null;
+                        string strPrimaryNameServer = request.QueryString["primaryNameServer"];
+                        if (string.IsNullOrEmpty(strPrimaryNameServer))
+                            strPrimaryNameServer = null;
 
                         string strGlueAddresses = request.QueryString["glueAddresses"];
                         if (string.IsNullOrEmpty(strGlueAddresses))
                             strGlueAddresses = null;
 
-                        if (_dnsServer.AuthZoneManager.CreateStubZone(domain, strMasterNameServer, strGlueAddresses) != null)
+                        if (_dnsServer.AuthZoneManager.CreateStubZone(domain, strPrimaryNameServer, strGlueAddresses) != null)
                         {
                             _log.Write(GetRequestRemoteEndPoint(request), "[" + GetSession(request).Username + "] Stub zone was created: " + domain);
                             _dnsServer.AuthZoneManager.SaveZoneFile(domain);
@@ -2490,8 +2490,8 @@ namespace DnsServerCore
                                     DnsSOARecord rdata = record.RDATA as DnsSOARecord;
                                     if (rdata != null)
                                     {
-                                        jsonWriter.WritePropertyName("masterNameServer");
-                                        jsonWriter.WriteValue(rdata.MasterNameServer);
+                                        jsonWriter.WritePropertyName("primaryNameServer");
+                                        jsonWriter.WriteValue(rdata.PrimaryNameServer);
 
                                         jsonWriter.WritePropertyName("responsiblePerson");
                                         jsonWriter.WriteValue(rdata.ResponsiblePerson);
@@ -2938,9 +2938,9 @@ namespace DnsServerCore
 
                 case DnsResourceRecordType.SOA:
                     {
-                        string masterNameServer = request.QueryString["masterNameServer"];
-                        if (string.IsNullOrEmpty(masterNameServer))
-                            throw new WebServiceException("Parameter 'masterNameServer' missing.");
+                        string primaryNameServer = request.QueryString["primaryNameServer"];
+                        if (string.IsNullOrEmpty(primaryNameServer))
+                            throw new WebServiceException("Parameter 'primaryNameServer' missing.");
 
                         string responsiblePerson = request.QueryString["responsiblePerson"];
                         if (string.IsNullOrEmpty(responsiblePerson))
@@ -2966,7 +2966,7 @@ namespace DnsServerCore
                         if (string.IsNullOrEmpty(minimum))
                             throw new WebServiceException("Parameter 'minimum' missing.");
 
-                        DnsResourceRecord soaRecord = new DnsResourceRecord(domain, type, DnsClass.IN, ttl, new DnsSOARecord(masterNameServer, responsiblePerson, uint.Parse(serial), uint.Parse(refresh), uint.Parse(retry), uint.Parse(expire), uint.Parse(minimum)));
+                        DnsResourceRecord soaRecord = new DnsResourceRecord(domain, type, DnsClass.IN, ttl, new DnsSOARecord(primaryNameServer, responsiblePerson, uint.Parse(serial), uint.Parse(refresh), uint.Parse(retry), uint.Parse(expire), uint.Parse(minimum)));
 
                         string glueAddresses = request.QueryString["glue"];
                         if (!string.IsNullOrEmpty(glueAddresses))
