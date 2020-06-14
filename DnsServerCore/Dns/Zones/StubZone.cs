@@ -378,7 +378,8 @@ namespace DnsServerCore.Dns.Zones
                     throw new InvalidOperationException("Cannot set NS records at stub zone root.");
 
                 case DnsResourceRecordType.SOA:
-                    throw new InvalidOperationException("Cannot set SOA record in stub zone.");
+                    _entries[DnsResourceRecordType.SOA][0].SetGlueRecords(records.GetGlueRecords());
+                    break;
 
                 default:
                     base.SetRecords(type, records);

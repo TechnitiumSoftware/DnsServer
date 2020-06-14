@@ -186,6 +186,21 @@ namespace DnsServerCore.Dns.Zones
             return false;
         }
 
+        public void UpdateGlueAddresses(DnsResourceRecord oldRecord, DnsResourceRecord newRecord)
+        {
+            if (_entries.TryGetValue(oldRecord.Type, out IReadOnlyList<DnsResourceRecord> existingRecords))
+            {
+                foreach (DnsResourceRecord existingRecord in existingRecords)
+                {
+                    if (newRecord.Equals(existingRecord))
+                    {
+                        existingRecord.SetGlueRecords(newRecord.GetGlueRecords());
+                        break;
+                    }
+                }
+            }
+        }
+
         public virtual IReadOnlyList<DnsResourceRecord> QueryRecords(DnsResourceRecordType type)
         {
             //check for CNAME

@@ -670,6 +670,17 @@ namespace DnsServerCore.Dns.ZoneManagers
                     break;
 
                 default:
+                    switch (oldRecord.Type)
+                    {
+                        case DnsResourceRecordType.NS:
+                            if ((zone is SecondaryZone) || (zone is StubZone))
+                            {
+                                zone.UpdateGlueAddresses(oldRecord, newRecord);
+                                return;
+                            }
+                            break;
+                    }
+
                     if (oldRecord.Name.Equals(newRecord.Name, StringComparison.OrdinalIgnoreCase))
                     {
                         zone.DeleteRecord(oldRecord.Type, oldRecord.RDATA);

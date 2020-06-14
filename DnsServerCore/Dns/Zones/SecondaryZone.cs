@@ -364,7 +364,15 @@ namespace DnsServerCore.Dns.Zones
 
         public override void SetRecords(DnsResourceRecordType type, IReadOnlyList<DnsResourceRecord> records)
         {
-            throw new InvalidOperationException("Cannot set records in secondary zone.");
+            switch (type)
+            {
+                case DnsResourceRecordType.SOA:
+                    _entries[DnsResourceRecordType.SOA][0].SetGlueRecords(records.GetGlueRecords());
+                    break;
+
+                default:
+                    throw new InvalidOperationException("Cannot set records in secondary zone.");
+            }
         }
 
         public override void AddRecord(DnsResourceRecord record)
