@@ -353,14 +353,10 @@ function showEditZone(domain) {
                     break;
             }
 
-            var hideActionButtons = false;
-
             switch (type) {
                 case "Internal":
                 case "Secondary":
                     $("#btnEditZoneAddRecord").hide();
-                    $("#optEditRecordTypeFwd").hide();
-                    hideActionButtons = true;
                     break;
 
                 case "Forwarder":
@@ -502,16 +498,58 @@ function showEditZone(domain) {
                         break;
                 }
 
+                var hideActionButtons = false;
+                var disableEditRecordModalFields = false;
+                var disableEnableDisableDeleteButtons = false;
+
+                switch (type) {
+                    case "Internal":
+                        hideActionButtons = true;
+                        break;
+
+                    case "Secondary":
+                        switch (records[i].type) {
+                            case "NS":
+                            case "SOA":
+                                disableEditRecordModalFields = true;
+                                disableEnableDisableDeleteButtons = true;
+                                break;
+
+                            default:
+                                hideActionButtons = true;
+                                break;
+                        }
+                        break;
+
+                    case "Stub":
+                        switch (records[i].type) {
+                            case "NS":
+                            case "SOA":
+                                disableEditRecordModalFields = true;
+                                disableEnableDisableDeleteButtons = true;
+                                break;
+                        }
+                        break;
+
+                    default:
+                        switch (records[i].type) {
+                            case "SOA":
+                                disableEnableDisableDeleteButtons = true;
+                                break;
+                        }
+                        break;
+                }
+
                 if (hideActionButtons) {
                     tableHtmlRows += "<td align=\"right\">&nbsp;</td>";
                 }
                 else {
                     tableHtmlRows += "<td align=\"right\" style=\"min-width: 220px;\">";
-                    tableHtmlRows += "<div id=\"data" + id + "\" data-record-name=\"" + htmlEncode(records[i].name) + "\" data-record-type=\"" + records[i].type + "\" data-record-ttl=\"" + records[i].ttl + "\" data-record-value=\"" + htmlEncode(records[i].rData.value) + "\" " + additionalDataAttributes + " data-record-disabled=\"" + records[i].disabled + "\" style=\"display: none;\"></div>";
+                    tableHtmlRows += "<div id=\"data" + id + "\" data-record-disable-modal-fields=\"" + disableEditRecordModalFields + "\" data-record-name=\"" + htmlEncode(records[i].name) + "\" data-record-type=\"" + records[i].type + "\" data-record-ttl=\"" + records[i].ttl + "\" data-record-value=\"" + htmlEncode(records[i].rData.value) + "\" " + additionalDataAttributes + " data-record-disabled=\"" + records[i].disabled + "\" style=\"display: none;\"></div>";
                     tableHtmlRows += "<button type=\"button\" class=\"btn btn-primary\" style=\"font-size: 12px; padding: 2px 0px; width: 60px; margin: 0 6px 6px 0;\" data-id=\"" + id + "\" onclick=\"showEditRecordModal(this);\">Edit</button>";
-                    tableHtmlRows += "<button type=\"button\" class=\"btn btn-default\" id=\"btnEnableRecord" + id + "\" style=\"font-size: 12px; padding: 2px 0px; width: 60px; margin: 0 6px 6px 0;" + (records[i].disabled ? "" : " display: none;") + "\" data-id=\"" + id + "\" onclick=\"updateRecordState(this, false);\"" + (records[i].type.toUpperCase() === "SOA" ? " disabled" : "") + " data-loading-text=\"Enabling...\">Enable</button>";
-                    tableHtmlRows += "<button type=\"button\" class=\"btn btn-warning\" id=\"btnDisableRecord" + id + "\" style=\"font-size: 12px; padding: 2px 0px; width: 60px; margin: 0 6px 6px 0;" + (!records[i].disabled ? "" : " display: none;") + "\" data-id=\"" + id + "\" onclick=\"updateRecordState(this, true);\"" + (records[i].type.toUpperCase() === "SOA" ? " disabled" : "") + " data-loading-text=\"Disabling...\">Disable</button>";
-                    tableHtmlRows += "<button type=\"button\" class=\"btn btn-danger\" style=\"font-size: 12px; padding: 2px 0px; width: 60px; margin: 0 6px 6px 0;\" data-loading-text=\"Deleting...\" data-id=\"" + id + "\" onclick=\"deleteRecord(this);\"" + (records[i].type.toUpperCase() === "SOA" ? " disabled" : "") + ">Delete</button></td>";
+                    tableHtmlRows += "<button type=\"button\" class=\"btn btn-default\" id=\"btnEnableRecord" + id + "\" style=\"font-size: 12px; padding: 2px 0px; width: 60px; margin: 0 6px 6px 0;" + (records[i].disabled ? "" : " display: none;") + "\" data-id=\"" + id + "\" onclick=\"updateRecordState(this, false);\"" + (disableEnableDisableDeleteButtons ? " disabled" : "") + " data-loading-text=\"Enabling...\">Enable</button>";
+                    tableHtmlRows += "<button type=\"button\" class=\"btn btn-warning\" id=\"btnDisableRecord" + id + "\" style=\"font-size: 12px; padding: 2px 0px; width: 60px; margin: 0 6px 6px 0;" + (!records[i].disabled ? "" : " display: none;") + "\" data-id=\"" + id + "\" onclick=\"updateRecordState(this, true);\"" + (disableEnableDisableDeleteButtons ? " disabled" : "") + " data-loading-text=\"Disabling...\">Disable</button>";
+                    tableHtmlRows += "<button type=\"button\" class=\"btn btn-danger\" style=\"font-size: 12px; padding: 2px 0px; width: 60px; margin: 0 6px 6px 0;\" data-loading-text=\"Deleting...\" data-id=\"" + id + "\" onclick=\"deleteRecord(this);\"" + (disableEnableDisableDeleteButtons ? " disabled" : "") + ">Delete</button></td>";
                 }
 
                 tableHtmlRows += "</tr>";
@@ -542,8 +580,9 @@ function showEditZone(domain) {
 function clearAddEditForm() {
     $("#divAddEditRecordAlert").html("");
 
-    $("#optAddEditRecordType").prop("disabled", false);
     $("#txtAddEditRecordName").prop("disabled", false);
+    $("#optAddEditRecordType").prop("disabled", false);
+    $("#txtAddEditRecordTtl").prop("disabled", false);
 
     $("#txtAddEditRecordName").val("");
     $("#optAddEditRecordType").val("A");
@@ -557,10 +596,18 @@ function clearAddEditForm() {
     $("#chkAddEditRecordDataPtrLabel").text("Add reverse (PTR) record");
 
     $("#divAddEditRecordDataNs").hide();
+    $("#txtAddEditRecordDataNsNameServer").prop("disabled", false);
     $("#txtAddEditRecordDataNsNameServer").val("");
     $("#txtAddEditRecordDataNsGlue").val("");
 
     $("#divEditRecordDataSoa").hide();
+    $("#txtEditRecordDataSoaPrimaryNameServer").prop("disabled", false);
+    $("#txtEditRecordDataSoaResponsiblePerson").prop("disabled", false);
+    $("#txtEditRecordDataSoaSerial").prop("disabled", false);
+    $("#txtEditRecordDataSoaRefresh").prop("disabled", false);
+    $("#txtEditRecordDataSoaRetry").prop("disabled", false);
+    $("#txtEditRecordDataSoaExpire").prop("disabled", false);
+    $("#txtEditRecordDataSoaMinimum").prop("disabled", false);
     $("#txtEditRecordDataSoaPrimaryNameServer").val("");
     $("#txtEditRecordDataSoaResponsiblePerson").val("");
     $("#txtEditRecordDataSoaSerial").val("");
@@ -911,6 +958,8 @@ function showEditRecordModal(objBtn) {
     $("#txtAddEditRecordName").val(name);
     $("#txtAddEditRecordTtl").val(ttl)
 
+    var disableEditRecordModalFields = divData.attr("data-record-disable-modal-fields") === "true";
+
     switch (type) {
         case "A":
         case "AAAA":
@@ -929,6 +978,13 @@ function showEditRecordModal(objBtn) {
         case "NS":
             $("#txtAddEditRecordDataNsNameServer").val(divData.attr("data-record-value"));
             $("#txtAddEditRecordDataNsGlue").val(divData.attr("data-record-glue"));
+
+            if (disableEditRecordModalFields) {
+                $("#txtAddEditRecordName").prop("disabled", true);
+                $("#txtAddEditRecordTtl").prop("disabled", true);
+
+                $("#txtAddEditRecordDataNsNameServer").prop("disabled", true);
+            }
             break;
 
         case "SOA":
@@ -940,6 +996,20 @@ function showEditRecordModal(objBtn) {
             $("#txtEditRecordDataSoaExpire").val(divData.attr("data-record-expire"));
             $("#txtEditRecordDataSoaMinimum").val(divData.attr("data-record-minimum"));
             $("#txtEditRecordDataSoaGlue").val(divData.attr("data-record-glue"));
+
+            $("#txtAddEditRecordName").prop("disabled", true);
+
+            if (disableEditRecordModalFields) {
+                $("#txtAddEditRecordTtl").prop("disabled", true);
+
+                $("#txtEditRecordDataSoaPrimaryNameServer").prop("disabled", true);
+                $("#txtEditRecordDataSoaResponsiblePerson").prop("disabled", true);
+                $("#txtEditRecordDataSoaSerial").prop("disabled", true);
+                $("#txtEditRecordDataSoaRefresh").prop("disabled", true);
+                $("#txtEditRecordDataSoaRetry").prop("disabled", true);
+                $("#txtEditRecordDataSoaExpire").prop("disabled", true);
+                $("#txtEditRecordDataSoaMinimum").prop("disabled", true);
+            }
             break;
 
         case "MX":
@@ -971,7 +1041,6 @@ function showEditRecordModal(objBtn) {
             return;
     }
 
-    $("#txtAddEditRecordName").prop("disabled", (type === "SOA"));
     $("#optAddEditRecordType").prop("disabled", true);
 
     $("#btnAddEditRecord").attr("data-id", id);
