@@ -2292,20 +2292,67 @@ namespace DnsServerCore.Dns
                 _cacheMaintenanceTimer = null;
             }
 
-            foreach (Socket udpListener in _udpListeners)
-                udpListener.Dispose();
+            if (Environment.OSVersion.Platform == PlatformID.Win32NT)
+            {
+                foreach (Socket udpListener in _udpListeners)
+                    udpListener.Dispose();
 
-            foreach (Socket tcpListener in _tcpListeners)
-                tcpListener.Dispose();
+                foreach (Socket tcpListener in _tcpListeners)
+                    tcpListener.Dispose();
 
-            foreach (Socket httpListener in _httpListeners)
-                httpListener.Dispose();
+                foreach (Socket httpListener in _httpListeners)
+                    httpListener.Dispose();
 
-            foreach (Socket tlsListener in _tlsListeners)
-                tlsListener.Dispose();
+                foreach (Socket tlsListener in _tlsListeners)
+                    tlsListener.Dispose();
 
-            foreach (Socket httpsListener in _httpsListeners)
-                httpsListener.Dispose();
+                foreach (Socket httpsListener in _httpsListeners)
+                    httpsListener.Dispose();
+            }
+            else
+            {
+                //issue: https://github.com/dotnet/runtime/issues/37873
+
+                foreach (Socket udpListener in _udpListeners)
+                {
+                    ThreadPool.QueueUserWorkItem(delegate (object state)
+                    {
+                        udpListener.Dispose();
+                    });
+                }
+
+                foreach (Socket tcpListener in _tcpListeners)
+                {
+                    ThreadPool.QueueUserWorkItem(delegate (object state)
+                    {
+                        tcpListener.Dispose();
+                    });
+                }
+
+                foreach (Socket httpListener in _httpListeners)
+                {
+                    ThreadPool.QueueUserWorkItem(delegate (object state)
+                    {
+                        httpListener.Dispose();
+                    });
+                }
+
+                foreach (Socket tlsListener in _tlsListeners)
+                {
+                    ThreadPool.QueueUserWorkItem(delegate (object state)
+                    {
+                        tlsListener.Dispose();
+                    });
+                }
+
+                foreach (Socket httpsListener in _httpsListeners)
+                {
+                    ThreadPool.QueueUserWorkItem(delegate (object state)
+                    {
+                        httpsListener.Dispose();
+                    });
+                }
+            }
 
             _listenerThreads.Clear();
             _udpListeners.Clear();

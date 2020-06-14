@@ -695,7 +695,7 @@ namespace DnsServerCore.Dhcp
         {
             if (_udpListeners.TryRemove(dhcpEP.Address, out Socket socket))
             {
-                socket.Dispose();
+                socket.CloseWorkAround();
                 return true;
             }
 
