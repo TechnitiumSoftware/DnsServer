@@ -83,7 +83,7 @@ namespace DnsServerCore.Dns.Zones
                 {
                     foreach (DnsResourceRecord record in nsResponse.Answer)
                     {
-                        switch(record.Type)
+                        switch (record.Type)
                         {
                             case DnsResourceRecordType.NS:
                             case DnsResourceRecordType.SOA:
@@ -341,7 +341,7 @@ namespace DnsServerCore.Dns.Zones
 
                     foreach (NameServerAddress nameServer in nameServers)
                     {
-                        if (nameServers == null)
+                        if (strNameServers == null)
                             strNameServers = nameServer.ToString();
                         else
                             strNameServers += ", " + nameServer.ToString();
@@ -451,6 +451,23 @@ namespace DnsServerCore.Dns.Zones
 
         public bool IsExpired
         { get { return _isExpired; } }
+
+        public override bool Disabled
+        {
+            get { return _disabled; }
+            set
+            {
+                if (_disabled != value)
+                {
+                    _disabled = value;
+
+                    if (_disabled)
+                        _refreshTimer.Change(Timeout.Infinite, Timeout.Infinite);
+                    else
+                        RefreshZone();
+                }
+            }
+        }
 
         public override bool IsActive
         {

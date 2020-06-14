@@ -310,6 +310,23 @@ namespace DnsServerCore.Dns.Zones
         public bool Internal
         { get { return _internal; } }
 
+        public override bool Disabled
+        {
+            get { return _disabled; }
+            set
+            {
+                if (_disabled != value)
+                {
+                    _disabled = value;
+
+                    if (_disabled)
+                        _notifyTimer.Change(Timeout.Infinite, Timeout.Infinite);
+                    else
+                        NotifyNameServers();
+                }
+            }
+        }
+
         #endregion
     }
 }
