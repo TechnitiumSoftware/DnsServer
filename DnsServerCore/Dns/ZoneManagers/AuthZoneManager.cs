@@ -639,6 +639,7 @@ namespace DnsServerCore.Dns.ZoneManagers
             switch (oldRecord.Type)
             {
                 case DnsResourceRecordType.CNAME:
+                case DnsResourceRecordType.ANAME:
                 case DnsResourceRecordType.PTR:
                     if (oldRecord.Name.Equals(newRecord.Name, StringComparison.OrdinalIgnoreCase))
                     {
