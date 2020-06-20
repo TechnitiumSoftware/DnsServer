@@ -44,7 +44,7 @@ namespace DnsServerCore.Dhcp
     //Client Fully Qualified Domain Name(FQDN) Option
     //https://tools.ietf.org/html/rfc4702
 
-    public class DhcpServer : IDisposable
+    public sealed class DhcpServer : IDisposable
     {
         #region enum
 
@@ -113,7 +113,7 @@ namespace DnsServerCore.Dhcp
 
         private bool _disposed = false;
 
-        protected virtual void Dispose(bool disposing)
+        private void Dispose(bool disposing)
         {
             if (_disposed)
                 return;
@@ -702,7 +702,7 @@ namespace DnsServerCore.Dhcp
             return false;
         }
 
-        private bool ActivateScope(Scope scope)
+        private bool ActivateScope(Scope scope, bool waitForInterface)
         {
             IPEndPoint dhcpEP = null;
 
@@ -713,15 +713,24 @@ namespace DnsServerCore.Dhcp
                     scope.FindThisDnsServerAddress();
 
                 //find scope interface for binding socket
-                int tries = 0;
-                while (true)
+                if (waitForInterface)
                 {
-                    if (scope.FindInterface())
-                        break;
+                    //retry for 30 seconds for interface to come up
+                    int tries = 0;
+                    while (true)
+                    {
+                        if (scope.FindInterface())
+                            break;
 
-                    if (tries++ < 10)
+                        if (++tries >= 30)
+                            throw new DhcpServerException("DHCP Server requires static IP address to work correctly but no network interface was found to have any static IP address configured.");
+
                         Thread.Sleep(1000);
-                    else
+                    }
+                }
+                else
+                {
+                    if (!scope.FindInterface())
                         throw new DhcpServerException("DHCP Server requires static IP address to work correctly but no network interface was found to have any static IP address configured.");
                 }
 
@@ -822,7 +831,7 @@ namespace DnsServerCore.Dhcp
             return false;
         }
 
-        private void LoadScope(Scope scope)
+        private void LoadScope(Scope scope, bool waitForInterface)
         {
             foreach (KeyValuePair<string, Scope> existingScope in _scopes)
             {
@@ -835,7 +844,7 @@ namespace DnsServerCore.Dhcp
 
             if (scope.Enabled)
             {
-                if (!ActivateScope(scope))
+                if (!ActivateScope(scope, waitForInterface))
                     scope.SetEnabled(false);
             }
 
@@ -844,9 +853,9 @@ namespace DnsServerCore.Dhcp
                 log.Write("DHCP Server successfully loaded scope: " + scope.Name);
         }
 
-        private void UnloadScope(Scope scope)
+        private void UnloadScope(Scope scope, bool stopping)
         {
-            if (scope.Enabled)
+            if (scope.Enabled && !stopping)
                 DeactivateScope(scope);
 
             if (_scopes.TryRemove(scope.Name, out _))
@@ -869,13 +878,14 @@ namespace DnsServerCore.Dhcp
 
         private void LoadScopeFile(string scopeFile)
         {
+            //load scope file async to allow waiting for interface to come up
             ThreadPool.QueueUserWorkItem(delegate (object state)
             {
                 try
                 {
                     using (FileStream fS = new FileStream(scopeFile, FileMode.Open, FileAccess.Read))
                     {
-                        LoadScope(new Scope(new BinaryReader(fS)));
+                        LoadScope(new Scope(new BinaryReader(fS)), true);
                     }
 
                     LogManager log = _log;
@@ -1019,7 +1029,7 @@ namespace DnsServerCore.Dhcp
             StopMaintenanceTimer();
 
             foreach (KeyValuePair<string, Scope> scope in _scopes)
-                UnloadScope(scope.Value);
+                UnloadScope(scope.Value, true);
 
             _listenerThreads.Clear();
             _udpListeners.Clear();
@@ -1029,7 +1039,7 @@ namespace DnsServerCore.Dhcp
 
         public void AddScope(Scope scope)
         {
-            LoadScope(scope);
+            LoadScope(scope, false);
             SaveScopeFile(scope);
         }
 
@@ -1060,7 +1070,7 @@ namespace DnsServerCore.Dhcp
         {
             if (_scopes.TryGetValue(name, out Scope scope))
             {
-                UnloadScope(scope);
+                UnloadScope(scope, false);
                 DeleteScopeFile(scope.Name);
             }
         }
@@ -1069,7 +1079,7 @@ namespace DnsServerCore.Dhcp
         {
             if (_scopes.TryGetValue(name, out Scope scope))
             {
-                if (!scope.Enabled && ActivateScope(scope))
+                if (!scope.Enabled && ActivateScope(scope, false))
                 {
                     scope.SetEnabled(true);
                     SaveScopeFile(scope);
