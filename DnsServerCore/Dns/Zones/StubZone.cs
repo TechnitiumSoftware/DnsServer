@@ -85,7 +85,6 @@ namespace DnsServerCore.Dns.Zones
                         switch (record.Type)
                         {
                             case DnsResourceRecordType.NS:
-                            case DnsResourceRecordType.SOA:
                                 record.SetGlueRecords(nsResponse.Additional);
                                 break;
                         }
