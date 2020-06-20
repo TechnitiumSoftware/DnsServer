@@ -20,8 +20,10 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 using DnsServerCore.Dns.ResourceRecords;
 using System;
 using System.Collections.Generic;
+using System.Net;
 using TechnitiumLibrary.IO;
 using TechnitiumLibrary.Net.Dns;
+using TechnitiumLibrary.Net.Dns.ResourceRecords;
 
 namespace DnsServerCore.Dns.Zones
 {
@@ -90,6 +92,108 @@ namespace DnsServerCore.Dns.Zones
             }
 
             return newRecords;
+        }
+
+        private IReadOnlyList<NameServerAddress> GetNameServerAddresses(DnsServer dnsServer, DnsResourceRecord record)
+        {
+            string nsDomain;
+
+            switch (record.Type)
+            {
+                case DnsResourceRecordType.NS:
+                    nsDomain = (record.RDATA as DnsNSRecord).NameServer;
+                    break;
+
+                case DnsResourceRecordType.SOA:
+                    nsDomain = (record.RDATA as DnsSOARecord).PrimaryNameServer;
+                    break;
+
+                default:
+                    throw new InvalidOperationException();
+            }
+
+            List<NameServerAddress> nameServers = new List<NameServerAddress>(2);
+
+            IReadOnlyList<DnsResourceRecord> glueRecords = record.GetGlueRecords();
+            if (glueRecords.Count > 0)
+            {
+                foreach (DnsResourceRecord glueRecord in glueRecords)
+                {
+                    switch (glueRecord.Type)
+                    {
+                        case DnsResourceRecordType.A:
+                            nameServers.Add(new NameServerAddress(nsDomain, (glueRecord.RDATA as DnsARecord).Address));
+                            break;
+
+                        case DnsResourceRecordType.AAAA:
+                            if (dnsServer.PreferIPv6)
+                                nameServers.Add(new NameServerAddress(nsDomain, (glueRecord.RDATA as DnsAAAARecord).Address));
+
+                            break;
+                    }
+                }
+            }
+            else
+            {
+                //resolve addresses
+                DnsDatagram response = dnsServer.DirectQuery(new DnsQuestionRecord(nsDomain, DnsResourceRecordType.A, DnsClass.IN));
+                if (response != null)
+                {
+                    IReadOnlyList<IPAddress> addresses = DnsClient.ParseResponseA(response);
+                    foreach (IPAddress address in addresses)
+                        nameServers.Add(new NameServerAddress(nsDomain, address));
+                }
+
+                if (dnsServer.PreferIPv6)
+                {
+                    response = dnsServer.DirectQuery(new DnsQuestionRecord(nsDomain, DnsResourceRecordType.AAAA, DnsClass.IN));
+                    if (response != null)
+                    {
+                        IReadOnlyList<IPAddress> addresses = DnsClient.ParseResponseAAAA(response);
+                        foreach (IPAddress address in addresses)
+                            nameServers.Add(new NameServerAddress(nsDomain, address));
+                    }
+                }
+            }
+
+            return nameServers;
+        }
+
+        #endregion
+
+        #region protected
+
+        protected IReadOnlyList<NameServerAddress> GetPrimaryNameServerAddresses(DnsServer dnsServer)
+        {
+            DnsResourceRecord soaRecord = _entries[DnsResourceRecordType.SOA][0];
+
+            return GetNameServerAddresses(dnsServer, soaRecord);
+        }
+
+        protected IReadOnlyList<NameServerAddress> GetAllNameServerAddresses(DnsServer dnsServer, bool skipPrimaryNameServer)
+        {
+            List<NameServerAddress> nameServers = new List<NameServerAddress>();
+
+            DnsSOARecord soa = null;
+            IReadOnlyList<DnsResourceRecord> nsRecords = QueryRecords(DnsResourceRecordType.NS);
+
+            foreach (DnsResourceRecord nsRecord in nsRecords)
+            {
+                if (skipPrimaryNameServer)
+                {
+                    string nsDomain = (nsRecord.RDATA as DnsNSRecord).NameServer;
+
+                    if (soa == null)
+                        soa = _entries[DnsResourceRecordType.SOA][0].RDATA as DnsSOARecord;
+
+                    if (soa.PrimaryNameServer.Equals(nsDomain, StringComparison.OrdinalIgnoreCase))
+                        continue; //skip primary name server
+                }
+
+                nameServers.AddRange(GetNameServerAddresses(dnsServer, nsRecord));
+            }
+
+            return nameServers;
         }
 
         #endregion
