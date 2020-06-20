@@ -17,10 +17,8 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 */
 
-using DnsServerCore.Dns.ResourceRecords;
 using System;
 using System.Collections.Generic;
-using System.Net;
 using System.Threading;
 using TechnitiumLibrary.Net.Dns;
 using TechnitiumLibrary.Net.Dns.ResourceRecords;
@@ -108,53 +106,10 @@ namespace DnsServerCore.Dns.Zones
         {
             try
             {
-                DnsSOARecord soa = _entries[DnsResourceRecordType.SOA][0].RDATA as DnsSOARecord;
-                IReadOnlyList<DnsResourceRecord> nsRecords = QueryRecords(DnsResourceRecordType.NS);
+                IReadOnlyList<NameServerAddress> secondaryNameServers = GetAllNameServerAddresses(_dnsServer, true);
 
-                foreach (DnsResourceRecord nsRecord in nsRecords)
-                {
-                    string nsDomain = (nsRecord.RDATA as DnsNSRecord).NameServer;
-
-                    if (soa.PrimaryNameServer.Equals(nsDomain, StringComparison.OrdinalIgnoreCase))
-                        continue; //dont notify self
-
-                    IReadOnlyList<DnsResourceRecord> glueRecords = nsRecord.GetGlueRecords();
-                    if (glueRecords.Count > 0)
-                    {
-                        foreach (DnsResourceRecord glueRecord in glueRecords)
-                        {
-                            switch (glueRecord.Type)
-                            {
-                                case DnsResourceRecordType.A:
-                                    NotifyNameServer(new NameServerAddress(nsDomain, (glueRecord.RDATA as DnsARecord).Address));
-                                    break;
-
-                                case DnsResourceRecordType.AAAA:
-                                    NotifyNameServer(new NameServerAddress(nsDomain, (glueRecord.RDATA as DnsAAAARecord).Address));
-                                    break;
-                            }
-                        }
-                    }
-                    else
-                    {
-                        //resolve addresses
-                        DnsDatagram response = _dnsServer.DirectQuery(new DnsQuestionRecord(nsDomain, DnsResourceRecordType.A, DnsClass.IN));
-                        if (response != null)
-                        {
-                            IReadOnlyList<IPAddress> addresses = DnsClient.ParseResponseA(response);
-                            foreach (IPAddress address in addresses)
-                                NotifyNameServer(new NameServerAddress(nsDomain, address));
-                        }
-
-                        response = _dnsServer.DirectQuery(new DnsQuestionRecord(nsDomain, DnsResourceRecordType.AAAA, DnsClass.IN));
-                        if (response != null)
-                        {
-                            IReadOnlyList<IPAddress> addresses = DnsClient.ParseResponseAAAA(response);
-                            foreach (IPAddress address in addresses)
-                                NotifyNameServer(new NameServerAddress(nsDomain, address));
-                        }
-                    }
-                }
+                foreach (NameServerAddress secondaryNameServer in secondaryNameServers)
+                    NotifyNameServer(secondaryNameServer);
             }
             catch (Exception ex)
             {
