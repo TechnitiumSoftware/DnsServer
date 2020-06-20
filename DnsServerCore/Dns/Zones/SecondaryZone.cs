@@ -20,14 +20,13 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 using DnsServerCore.Dns.ResourceRecords;
 using System;
 using System.Collections.Generic;
-using System.Net;
 using System.Threading;
 using TechnitiumLibrary.Net.Dns;
 using TechnitiumLibrary.Net.Dns.ResourceRecords;
 
 namespace DnsServerCore.Dns.Zones
 {
-    public sealed class SecondaryZone : AuthZone
+    class SecondaryZone : AuthZone
     {
         #region variables
 
@@ -36,7 +35,8 @@ namespace DnsServerCore.Dns.Zones
         readonly Timer _refreshTimer;
         const int REFRESH_TIMER_INTERVAL = 10000;
 
-        const int REFRESH_TIMEOUT = 60000;
+        const int REFRESH_SOA_TIMEOUT = 60000;
+        const int REFRESH_AXFR_TIMEOUT = 300000; //5 mins, 5 retries == 1 min per retry
         const int REFRESH_RETRIES = 5;
 
         DateTime _expiry;
@@ -154,50 +154,7 @@ namespace DnsServerCore.Dns.Zones
                 _isExpired = DateTime.UtcNow > _expiry;
 
                 //get primary name server addresses
-                string primaryNameServer = soa.PrimaryNameServer;
-                List<NameServerAddress> primaryNameServers = new List<NameServerAddress>();
-
-                IReadOnlyList<DnsResourceRecord> glueRecords = soaRecord.GetGlueRecords();
-                if (glueRecords.Count > 0)
-                {
-                    foreach (DnsResourceRecord glueRecord in glueRecords)
-                    {
-                        switch (glueRecord.Type)
-                        {
-                            case DnsResourceRecordType.A:
-                                primaryNameServers.Add(new NameServerAddress(primaryNameServer, (glueRecord.RDATA as DnsARecord).Address));
-                                break;
-
-                            case DnsResourceRecordType.AAAA:
-                                if (_dnsServer.PreferIPv6)
-                                    primaryNameServers.Add(new NameServerAddress(primaryNameServer, (glueRecord.RDATA as DnsAAAARecord).Address));
-
-                                break;
-                        }
-                    }
-                }
-                else
-                {
-                    //resolve addresses
-                    DnsDatagram response = _dnsServer.DirectQuery(new DnsQuestionRecord(primaryNameServer, DnsResourceRecordType.A, DnsClass.IN));
-                    if (response != null)
-                    {
-                        IReadOnlyList<IPAddress> addresses = DnsClient.ParseResponseA(response);
-                        foreach (IPAddress address in addresses)
-                            primaryNameServers.Add(new NameServerAddress(primaryNameServer, address));
-                    }
-
-                    if (_dnsServer.PreferIPv6)
-                    {
-                        response = _dnsServer.DirectQuery(new DnsQuestionRecord(primaryNameServer, DnsResourceRecordType.AAAA, DnsClass.IN));
-                        if (response != null)
-                        {
-                            IReadOnlyList<IPAddress> addresses = DnsClient.ParseResponseAAAA(response);
-                            foreach (IPAddress address in addresses)
-                                primaryNameServers.Add(new NameServerAddress(primaryNameServer, address));
-                        }
-                    }
-                }
+                IReadOnlyList<NameServerAddress> primaryNameServers = GetPrimaryNameServerAddresses(_dnsServer);
 
                 if (primaryNameServers.Count == 0)
                 {
@@ -237,12 +194,12 @@ namespace DnsServerCore.Dns.Zones
             }
         }
 
-        private bool RefreshZone(IReadOnlyList<NameServerAddress> primaryNameServers)
+        private bool RefreshZone(IReadOnlyList<NameServerAddress> nameServers)
         {
             try
             {
-                DnsClient client = new DnsClient(primaryNameServers);
-                client.Timeout = REFRESH_TIMEOUT;
+                DnsClient client = new DnsClient(nameServers);
+                client.Timeout = REFRESH_SOA_TIMEOUT;
                 client.Retries = REFRESH_RETRIES;
 
                 DnsDatagram soaRequest = new DnsDatagram(0, false, DnsOpcode.StandardQuery, false, false, false, false, false, false, DnsResponseCode.NoError, new DnsQuestionRecord[] { new DnsQuestionRecord(_name, DnsResourceRecordType.SOA, DnsClass.IN) });
@@ -274,15 +231,15 @@ namespace DnsServerCore.Dns.Zones
                 {
                     LogManager log = _dnsServer.LogManager;
                     if (log != null)
-                        log.Write("DNS Server successfully refreshed '" + _name + "' secondary zone from: " + soaResponse.Metadata.NameServerAddress.ToString());
+                        log.Write("DNS Server successfully checked for update to '" + _name + "' secondary zone from: " + soaResponse.Metadata.NameServerAddress.ToString());
 
                     return true;
                 }
 
                 //update available; do zone transfer with TCP transport
-                primaryNameServers = new NameServerAddress[] { new NameServerAddress(soaResponse.Metadata.NameServerAddress, DnsTransportProtocol.Tcp) };
-                client = new DnsClient(primaryNameServers);
-                client.Timeout = REFRESH_TIMEOUT;
+                nameServers = new NameServerAddress[] { new NameServerAddress(soaResponse.Metadata.NameServerAddress, DnsTransportProtocol.Tcp) };
+                client = new DnsClient(nameServers);
+                client.Timeout = REFRESH_AXFR_TIMEOUT;
                 client.Retries = REFRESH_RETRIES;
 
                 DnsDatagram axfrRequest = new DnsDatagram(0, false, DnsOpcode.StandardQuery, false, false, false, false, false, false, DnsResponseCode.NoError, new DnsQuestionRecord[] { new DnsQuestionRecord(_name, DnsResourceRecordType.AXFR, DnsClass.IN) });
@@ -317,12 +274,18 @@ namespace DnsServerCore.Dns.Zones
                 }
 
                 if (currentSoaRecord.IsZoneUpdateAvailable(axfrSoaRecord))
+                {
                     _dnsServer.AuthZoneManager.SyncRecords(_name, axfrResponse.Answer);
 
-                {
                     LogManager log = _dnsServer.LogManager;
                     if (log != null)
                         log.Write("DNS Server successfully refreshed '" + _name + "' secondary zone from: " + axfrResponse.Metadata.NameServerAddress.ToString());
+                }
+                else
+                {
+                    LogManager log = _dnsServer.LogManager;
+                    if (log != null)
+                        log.Write("DNS Server successfully checked for update to '" + _name + "' secondary zone from: " + soaResponse.Metadata.NameServerAddress.ToString());
                 }
 
                 return true;
@@ -334,7 +297,7 @@ namespace DnsServerCore.Dns.Zones
                 {
                     string strNameServers = null;
 
-                    foreach (NameServerAddress nameServer in primaryNameServers)
+                    foreach (NameServerAddress nameServer in nameServers)
                     {
                         if (strNameServers == null)
                             strNameServers = nameServer.ToString();
