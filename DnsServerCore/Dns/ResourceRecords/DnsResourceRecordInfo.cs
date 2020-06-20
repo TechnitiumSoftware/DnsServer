@@ -24,7 +24,7 @@ using TechnitiumLibrary.Net.Dns;
 
 namespace DnsServerCore.Dns.ResourceRecords
 {
-    public class DnsResourceRecordInfo
+    class DnsResourceRecordInfo
     {
         #region variables
 

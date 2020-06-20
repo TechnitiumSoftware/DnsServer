@@ -22,7 +22,7 @@ using TechnitiumLibrary.Net.Dns;
 
 namespace DnsServerCore.Dns.Zones
 {
-    public class PrimarySubDomainZone : SubDomainZone
+    class PrimarySubDomainZone : SubDomainZone
     {
         #region variables
 

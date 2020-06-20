@@ -23,7 +23,7 @@ using TechnitiumLibrary.Net.Dns;
 
 namespace DnsServerCore.Dns.Zones
 {
-    public class SecondarySubDomainZone : SubDomainZone
+    class SecondarySubDomainZone : SubDomainZone
     {
         #region constructor
 

@@ -24,7 +24,7 @@ using TechnitiumLibrary.Net.Dns;
 
 namespace DnsServerCore.Dns.Zones
 {
-    public sealed class CacheZone : Zone
+    class CacheZone : Zone
     {
         #region constructor
 

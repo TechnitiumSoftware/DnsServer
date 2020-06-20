@@ -34,7 +34,7 @@ namespace DnsServerCore.Dns.Zones
         Forwarder = 4
     }
 
-    public class AuthZoneInfo : IComparable<AuthZoneInfo>
+    public sealed class AuthZoneInfo : IComparable<AuthZoneInfo>
     {
         #region variables
 
@@ -83,7 +83,7 @@ namespace DnsServerCore.Dns.Zones
             }
         }
 
-        public AuthZoneInfo(AuthZone zone)
+        internal AuthZoneInfo(AuthZone zone)
         {
             _zone = zone;
             _name = _zone.Name;

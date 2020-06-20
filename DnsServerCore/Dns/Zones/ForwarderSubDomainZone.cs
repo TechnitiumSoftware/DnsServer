@@ -19,7 +19,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 namespace DnsServerCore.Dns.Zones
 {
-    public class ForwarderSubDomainZone : SubDomainZone
+    class ForwarderSubDomainZone : SubDomainZone
     {
         #region constructor
 

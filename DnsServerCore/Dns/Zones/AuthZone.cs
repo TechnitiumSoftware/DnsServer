@@ -25,7 +25,7 @@ using TechnitiumLibrary.Net.Dns;
 
 namespace DnsServerCore.Dns.Zones
 {
-    public abstract class AuthZone : Zone, IDisposable
+    abstract class AuthZone : Zone, IDisposable
     {
         #region variables
 

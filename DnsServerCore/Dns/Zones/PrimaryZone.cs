@@ -27,7 +27,7 @@ using TechnitiumLibrary.Net.Dns.ResourceRecords;
 
 namespace DnsServerCore.Dns.Zones
 {
-    public sealed class PrimaryZone : AuthZone
+    class PrimaryZone : AuthZone
     {
         #region variables
 

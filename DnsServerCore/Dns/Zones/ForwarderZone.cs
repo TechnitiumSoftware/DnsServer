@@ -22,7 +22,7 @@ using TechnitiumLibrary.Net.Dns.ResourceRecords;
 
 namespace DnsServerCore.Dns.Zones
 {
-    public sealed class ForwarderZone : AuthZone
+    class ForwarderZone : AuthZone
     {
         #region constructor
 

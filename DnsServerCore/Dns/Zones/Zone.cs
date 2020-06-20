@@ -27,7 +27,7 @@ using TechnitiumLibrary.Net.Dns;
 
 namespace DnsServerCore.Dns.Zones
 {
-    public abstract class Zone
+    abstract class Zone
     {
         #region variables
 
