@@ -285,7 +285,7 @@ function addZone() {
     switch (type) {
         case "Secondary":
         case "Stub":
-            parameters = "&primaryNameServer=" + $("#txtAddZonePrimaryNameServer").val() + "&glueAddresses=" + $("#txtAddZoneGlueAddresses").val();
+            parameters = "&primaryNameServer=" + $("#txtAddZonePrimaryNameServer").val() + "&glueAddresses=" + cleanTextList($("#txtAddZoneGlueAddresses").val());
             break;
 
         case "Forwarder":
@@ -854,7 +854,7 @@ function addRecord() {
                 return;
             }
 
-            var glue = $("#txtAddEditRecordDataNsGlue").val();
+            var glue = cleanTextList($("#txtAddEditRecordDataNsGlue").val());
 
             apiUrl += "&value=" + encodeURIComponent(value) + "&glue=" + encodeURIComponent(glue);
             break;
@@ -1024,7 +1024,7 @@ function showEditRecordModal(objBtn) {
 
         case "NS":
             $("#txtAddEditRecordDataNsNameServer").val(divData.attr("data-record-value"));
-            $("#txtAddEditRecordDataNsGlue").val(divData.attr("data-record-glue"));
+            $("#txtAddEditRecordDataNsGlue").val(divData.attr("data-record-glue").replace(/, /g, "\n"));
 
             if (disableEditRecordModalFields) {
                 $("#txtAddEditRecordName").prop("disabled", true);
@@ -1042,7 +1042,7 @@ function showEditRecordModal(objBtn) {
             $("#txtEditRecordDataSoaRetry").val(divData.attr("data-record-retry"));
             $("#txtEditRecordDataSoaExpire").val(divData.attr("data-record-expire"));
             $("#txtEditRecordDataSoaMinimum").val(divData.attr("data-record-minimum"));
-            $("#txtEditRecordDataSoaGlue").val(divData.attr("data-record-glue"));
+            $("#txtEditRecordDataSoaGlue").val(divData.attr("data-record-glue").replace(/, /g, "\n"));
 
             $("#txtAddEditRecordName").prop("disabled", true);
 
@@ -1186,7 +1186,7 @@ function updateRecord() {
                 return;
             }
 
-            var glue = $("#txtAddEditRecordDataNsGlue").val();
+            var glue = cleanTextList($("#txtAddEditRecordDataNsGlue").val());
 
             apiUrl += "&newValue=" + encodeURIComponent(newValue) + "&glue=" + encodeURIComponent(glue);
             break;
@@ -1241,7 +1241,7 @@ function updateRecord() {
                 return;
             }
 
-            var glue = $("#txtEditRecordDataSoaGlue").val();
+            var glue = cleanTextList($("#txtEditRecordDataSoaGlue").val());
 
             apiUrl += "&primaryNameServer=" + encodeURIComponent(primaryNameServer) +
                 "&responsiblePerson=" + encodeURIComponent(responsiblePerson) +
