@@ -2129,7 +2129,7 @@ namespace DnsServerCore
             }
 
             jsonWriter.WritePropertyName("domain");
-            jsonWriter.WriteValue(domain);
+            jsonWriter.WriteValue(string.IsNullOrEmpty(domain) ? "." : domain);
         }
 
         private void DeleteZone(HttpListenerRequest request)
@@ -3147,8 +3147,11 @@ namespace DnsServerCore
 
             DnsDatagram dnsResponse;
 
-            if (server == "recursive-resolver")
+            if (server.Equals("recursive-resolver", StringComparison.OrdinalIgnoreCase))
             {
+                if (type == DnsResourceRecordType.AXFR)
+                    throw new DnsServerException("Cannot do zone transfer (AXFR) for 'recursive-resolver'.");
+
                 DnsQuestionRecord question;
 
                 if ((type == DnsResourceRecordType.PTR) && IPAddress.TryParse(domain, out IPAddress address))
@@ -3160,9 +3163,12 @@ namespace DnsServerCore
             }
             else
             {
+                if (type == DnsResourceRecordType.AXFR)
+                    protocol = DnsTransportProtocol.Tcp;
+
                 NameServerAddress nameServer;
 
-                if (server == "this-server")
+                if (server.Equals("this-server", StringComparison.OrdinalIgnoreCase))
                 {
                     nameServer = new NameServerAddress(_dnsServer.ServerDomain, GetThisDnsServerEndPoint(), protocol);
                     proxy = null; //no proxy required for this server
@@ -3170,13 +3176,13 @@ namespace DnsServerCore
                     switch (protocol)
                     {
                         case DnsTransportProtocol.Tls:
-                            throw new DnsServerException("Cannot use DNS-over-TLS protocol for \"This Server\". Please use the TLS certificate domain name as the server.");
+                            throw new DnsServerException("Cannot use DNS-over-TLS protocol for 'this-server'. Please use the TLS certificate domain name as the server.");
 
                         case DnsTransportProtocol.Https:
-                            throw new DnsServerException("Cannot use DNS-over-HTTPS protocol for \"This Server\". Please use the TLS certificate domain name with a url as the server.");
+                            throw new DnsServerException("Cannot use DNS-over-HTTPS protocol for 'this-server'. Please use the TLS certificate domain name with a url as the server.");
 
                         case DnsTransportProtocol.HttpsJson:
-                            throw new DnsServerException("Cannot use DNS-over-HTTPS (JSON) protocol for \"This Server\". Please use the TLS certificate domain name with a url as the server.");
+                            throw new DnsServerException("Cannot use DNS-over-HTTPS (JSON) protocol for 'this-server'. Please use the TLS certificate domain name with a url as the server.");
                     }
                 }
                 else
@@ -4118,9 +4124,6 @@ namespace DnsServerCore
                                     _dnsServer.BlockListZoneManager.BlockListUrls.Add(new Uri(bR.ReadShortString()));
 
                                 _blockListLastUpdatedOn = bR.ReadDate();
-
-                                if (count > 0)
-                                    StartBlockListUpdateTimer();
                             }
 
                             if (version >= 11)
@@ -4371,8 +4374,13 @@ namespace DnsServerCore
                 _dhcpServer = new DhcpServer(Path.Combine(_configFolder, "scopes"), _log);
                 _dhcpServer.AuthZoneManager = _dnsServer.AuthZoneManager;
 
+                //load config
                 LoadConfigFile();
 
+                //load all zones files
+                _dnsServer.AuthZoneManager.LoadAllZoneFiles();
+
+                //disable zones from old config format
                 if (_configDisabledZones != null)
                 {
                     foreach (string domain in _configDisabledZones)
@@ -4384,6 +4392,27 @@ namespace DnsServerCore
                             _dnsServer.AuthZoneManager.SaveZoneFile(zoneInfo.Name);
                         }
                     }
+                }
+
+                //load allowed zone and blocked zone
+                _dnsServer.AllowedZoneManager.LoadAllowedZoneFile();
+                _dnsServer.BlockedZoneManager.LoadBlockedZoneFile();
+
+                //load block list zone async
+                if (_dnsServer.BlockListZoneManager.BlockListUrls.Count > 0)
+                {
+                    ThreadPool.QueueUserWorkItem(delegate (object state)
+                    {
+                        try
+                        {
+                            _dnsServer.BlockListZoneManager.LoadBlockLists();
+                            StartBlockListUpdateTimer();
+                        }
+                        catch (Exception ex)
+                        {
+                            _log.Write(ex);
+                        }
+                    });
                 }
 
                 //start dns and dhcp
