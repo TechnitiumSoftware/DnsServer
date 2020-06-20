@@ -1,6 +1,6 @@
 ﻿/*
 Technitium DNS Server
-Copyright (C) 2019  Shreyas Zare (shreyas@technitium.com)
+Copyright (C) 2020  Shreyas Zare (shreyas@technitium.com)
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -42,7 +42,7 @@ function refreshDhcpLeases() {
             var tableHtmlRows = "";
 
             for (var i = 0; i < dhcpLeases.length; i++)
-                tableHtmlRows += "<tr><td>" + htmlEncode(dhcpLeases[i].scope) + "</td><td>" + dhcpLeases[i].hardwareAddress + "</td><td>" + dhcpLeases[i].address + "</td><td><span class=\"label label-default\">" + dhcpLeases[i].type + "</span></td><td>" + htmlEncode(dhcpLeases[i].hostName) + "</td><td>" + dhcpLeases[i].leaseObtained + "</td><td>" + dhcpLeases[i].leaseExpires + "</td></tr>";
+                tableHtmlRows += "<tr><td>" + htmlEncode(dhcpLeases[i].scope) + "</td><td>" + dhcpLeases[i].hardwareAddress + "</td><td>" + dhcpLeases[i].address + "</td><td><span class=\"label label-" + (dhcpLeases[i].type === "Reserved" ? "default" : "primary") + "\">" + dhcpLeases[i].type + "</span></td><td>" + htmlEncode(dhcpLeases[i].hostName) + "</td><td>" + dhcpLeases[i].leaseObtained + "</td><td>" + dhcpLeases[i].leaseExpires + "</td></tr>";
 
             $("#tableDhcpLeasesBody").html(tableHtmlRows);
 

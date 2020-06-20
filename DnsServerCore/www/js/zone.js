@@ -46,6 +46,27 @@ $(function () {
         }
     });
 
+    $("input[type=radio][name=rdAddZoneForwarderProtocol]").change(function () {
+        var protocol = $('input[name=rdAddZoneForwarderProtocol]:checked').val();
+        switch (protocol) {
+            case "Udp":
+            case "Tcp":
+                $("#txtAddZoneForwarder").attr("placeholder", "8.8.8.8 or [2620:fe::10]")
+                break;
+
+            case "Tls":
+                $("#txtAddZoneForwarder").attr("placeholder", "dns.quad9.net (9.9.9.9:853)")
+                break;
+
+            case "Https":
+            case "HttpsJson":
+                $("#txtAddZoneForwarder").attr("placeholder", "https://cloudflare-dns.com/dns-query (1.1.1.1)")
+                break;
+        }
+    });
+
+    $("input[type=radio][name=rdAddEditRecordDataForwarderProtocol]").change(updateAddEditFormForwarderPlaceholder);
+
 });
 
 function refreshZones(checkDisplay) {
@@ -79,9 +100,9 @@ function refreshZones(checkDisplay) {
 
                 var type;
                 if (zones[i].internal)
-                    type = "Internal";
+                    type = "<span class=\"label label-default\">Internal</span>";
                 else
-                    type = zones[i].type;
+                    type = "<span class=\"label label-primary\">" + zones[i].type + "</span>";
 
                 var status;
                 if (zones[i].disabled)
@@ -98,7 +119,7 @@ function refreshZones(checkDisplay) {
                 var isReadOnlyZone = zones[i].internal || (zones[i].type === "Secondary");
 
                 tableHtmlRows += "<tr id=\"trZone" + id + "\"><td>" + htmlEncode(name) + "</td>";
-                tableHtmlRows += "<td><span class=\"label label-default\">" + type + "</span></td>";
+                tableHtmlRows += "<td>" + type + "</td>";
                 tableHtmlRows += "<td>" + status + "</td>";
                 tableHtmlRows += "<td>" + expiry + "</td>";
                 tableHtmlRows += "<td align=\"right\" style=\"width: 220px;\"><button type=\"button\" class=\"btn btn-primary\" style=\"font-size: 12px; padding: 2px 0px; width: 60px; margin: 0 6px 6px 0;\" onclick=\"showEditZone('" + name + "');\">" + (isReadOnlyZone ? "View" : "Edit") + "</button>";
@@ -234,6 +255,7 @@ function showAddZoneModal() {
     $("#txtAddZonePrimaryNameServer").val("");
     $("#txtAddZoneGlueAddresses").val("");
     $("#rdAddZoneForwarderProtocolUdp").prop("checked", true);
+    $("#txtAddZoneForwarder").attr("placeholder", "8.8.8.8 or [2620:fe::10]")
     $("#txtAddZoneForwarder").val("");
 
     $("#divAddZonePrimaryNameServer").hide();
@@ -338,6 +360,11 @@ function showEditZone(domain) {
             $("#titleEditZoneType").html(type);
             $("#tdStatusEditZone").html(status);
             $("#titleEditZoneExpiry").html(expiry);
+
+            if (responseJSON.response.zone.internal)
+                $("#titleEditZoneType").attr("class", "label label-default");
+            else
+                $("#titleEditZoneType").attr("class", "label label-primary");
 
             switch (status) {
                 case "Disabled":
@@ -634,6 +661,7 @@ function clearAddEditForm() {
     $("#divAddEditRecordDataForwarder").hide();
     $("#rdAddEditRecordDataForwarderProtocolUdp").prop("checked", true);
     $("input[name=rdAddEditRecordDataForwarderProtocol]:radio").attr('disabled', false);
+    $("#txtAddEditRecordDataForwarder").attr("placeholder", "8.8.8.8 or [2620:fe::10]")
     $("#txtAddEditRecordDataForwarder").val("");
 
     $("#btnAddEditRecord").button("reset");
@@ -934,6 +962,25 @@ function addRecord() {
     });
 }
 
+function updateAddEditFormForwarderPlaceholder() {
+    var protocol = $('input[name=rdAddEditRecordDataForwarderProtocol]:checked').val();
+    switch (protocol) {
+        case "Udp":
+        case "Tcp":
+            $("#txtAddEditRecordDataForwarder").attr("placeholder", "8.8.8.8 or [2620:fe::10]")
+            break;
+
+        case "Tls":
+            $("#txtAddEditRecordDataForwarder").attr("placeholder", "dns.quad9.net (9.9.9.9:853)")
+            break;
+
+        case "Https":
+        case "HttpsJson":
+            $("#txtAddEditRecordDataForwarder").attr("placeholder", "https://cloudflare-dns.com/dns-query (1.1.1.1)")
+            break;
+    }
+}
+
 function showEditRecordModal(objBtn) {
     var btn = $(objBtn);
     var id = btn.attr("data-id");
@@ -1034,6 +1081,7 @@ function showEditRecordModal(objBtn) {
             $("input[name=rdAddEditRecordDataForwarderProtocol]:radio").attr('disabled', true);
             $("#rdAddEditRecordDataForwarderProtocol" + divData.attr("data-record-protocol")).prop("checked", true);
             $("#txtAddEditRecordDataForwarder").val(divData.attr("data-record-value"));
+            updateAddEditFormForwarderPlaceholder();
             break;
 
         default:
