@@ -492,7 +492,7 @@ namespace DnsServerCore.Dns.ZoneManagers
 
             List<AuthZone> zones = _root.GetZoneWithSubDomainZones(domain);
 
-            if ((zones.Count > 0) && (zones[0] is PrimaryZone) && zones[0].IsActive)
+            if ((zones.Count > 0) && zones[0].IsActive)
             {
                 //only primary zones support zone transfer
                 DnsResourceRecord soaRecord = zones[0].QueryRecords(DnsResourceRecordType.SOA)[0];
@@ -558,14 +558,39 @@ namespace DnsServerCore.Dns.ZoneManagers
             if (syncRecords[0].Type == DnsResourceRecordType.SOA)
                 i = 1; //skip first SOA in AXFR
 
-            for (; i < syncRecords.Count; i++)
+            if (domain.Length == 0)
             {
-                DnsResourceRecord record = syncRecords[i];
+                //root zone case
+                for (; i < syncRecords.Count; i++)
+                {
+                    DnsResourceRecord record = syncRecords[i];
 
-                if (record.Name.EndsWith(domain, StringComparison.OrdinalIgnoreCase))
-                    newRecords.Add(record);
-                else if (!glueRecords.Contains(record))
-                    glueRecords.Add(record);
+                    switch (record.Type)
+                    {
+                        case DnsResourceRecordType.A:
+                        case DnsResourceRecordType.AAAA:
+                            if (!glueRecords.Contains(record))
+                                glueRecords.Add(record);
+
+                            break;
+
+                        default:
+                            newRecords.Add(record);
+                            break;
+                    }
+                }
+            }
+            else
+            {
+                for (; i < syncRecords.Count; i++)
+                {
+                    DnsResourceRecord record = syncRecords[i];
+
+                    if (record.Name.EndsWith(domain, StringComparison.OrdinalIgnoreCase))
+                        newRecords.Add(record);
+                    else if (!glueRecords.Contains(record))
+                        glueRecords.Add(record);
+                }
             }
 
             if (glueRecords.Count > 0)
@@ -575,7 +600,6 @@ namespace DnsServerCore.Dns.ZoneManagers
                     switch (record.Type)
                     {
                         case DnsResourceRecordType.NS:
-                        case DnsResourceRecordType.SOA:
                             record.SetGlueRecords(glueRecords);
                             break;
                     }
