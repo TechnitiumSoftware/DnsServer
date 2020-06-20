@@ -24,7 +24,7 @@ using TechnitiumLibrary.Net.Dns.ResourceRecords;
 
 namespace DnsServerCore.Dns.ZoneManagers
 {
-    public class CacheZoneManager : DnsCache
+    public sealed class CacheZoneManager : DnsCache
     {
         #region variables
 
@@ -33,7 +33,7 @@ namespace DnsServerCore.Dns.ZoneManagers
         const uint MINIMUM_RECORD_TTL = 10u;
         const uint SERVE_STALE_TTL = 7 * 24 * 60 * 60; //7 days serve stale ttl as per draft-ietf-dnsop-serve-stale-04
 
-        readonly protected ZoneTree<CacheZone> _root = new ZoneTree<CacheZone>();
+        readonly ZoneTree<CacheZone> _root = new ZoneTree<CacheZone>();
 
         #endregion
 
