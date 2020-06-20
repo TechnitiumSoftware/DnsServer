@@ -28,13 +28,13 @@ using TechnitiumLibrary.Net.Dns.ResourceRecords;
 
 namespace DnsServerCore.Dns.ZoneManagers
 {
-    public class BlockedZoneManager
+    public sealed class BlockedZoneManager
     {
         #region variables
 
         readonly DnsServer _dnsServer;
 
-        readonly AuthZoneManager _zoneManager = new AuthZoneManager(null);
+        readonly AuthZoneManager _zoneManager;
 
         DnsSOARecord _soaRecord;
         DnsNSRecord _nsRecord;
@@ -49,8 +49,9 @@ namespace DnsServerCore.Dns.ZoneManagers
         {
             _dnsServer = dnsServer;
 
+            _zoneManager = new AuthZoneManager(_dnsServer);
+
             UpdateServerDomain(_dnsServer.ServerDomain);
-            LoadZoneFile();
         }
 
         #endregion
@@ -61,9 +62,15 @@ namespace DnsServerCore.Dns.ZoneManagers
         {
             _soaRecord = new DnsSOARecord(serverDomain, "hostadmin." + serverDomain, 1, 14400, 3600, 604800, 900);
             _nsRecord = new DnsNSRecord(serverDomain);
+
+            _zoneManager.ServerDomain = serverDomain;
         }
 
-        private void LoadZoneFile()
+        #endregion
+
+        #region public
+
+        public void LoadBlockedZoneFile()
         {
             string blockedZoneFile = Path.Combine(_dnsServer.ConfigFolder, "blocked.config");
 
@@ -112,10 +119,6 @@ namespace DnsServerCore.Dns.ZoneManagers
                     log.Write("DNS Server encountered an error while loading blocked zone file: " + blockedZoneFile + "\r\n" + ex.ToString());
             }
         }
-
-        #endregion
-
-        #region public
 
         public bool BlockZone(string domain)
         {
