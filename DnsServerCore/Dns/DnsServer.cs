@@ -32,7 +32,6 @@ using System.Net.Sockets;
 using System.Security.Cryptography.X509Certificates;
 using System.Text;
 using System.Threading;
-using TechnitiumLibrary.IO;
 using TechnitiumLibrary.Net;
 using TechnitiumLibrary.Net.Dns;
 using TechnitiumLibrary.Net.Dns.ResourceRecords;
@@ -40,7 +39,7 @@ using TechnitiumLibrary.Net.Proxy;
 
 namespace DnsServerCore.Dns
 {
-    public class DnsServer : IDisposable
+    public sealed class DnsServer : IDisposable
     {
         #region enum
 
@@ -179,7 +178,7 @@ namespace DnsServerCore.Dns
 
         bool _disposed;
 
-        protected virtual void Dispose(bool disposing)
+        private void Dispose(bool disposing)
         {
             if (_disposed)
                 return;
@@ -247,7 +246,7 @@ namespace DnsServerCore.Dns
                     {
                         try
                         {
-                            ThreadPool.QueueUserWorkItem(ProcessUdpRequestAsync, new object[] { udpListener, remoteEP, new DnsDatagram(new MemoryStream(recvBuffer, 0, bytesRecv, false)) });
+                            ThreadPool.QueueUserWorkItem(ProcessUdpRequestAsync, new object[] { udpListener, remoteEP, new DnsDatagram(new MemoryStream(recvBuffer, 0, bytesRecv, false), false) });
                         }
                         catch (Exception ex)
                         {
@@ -306,14 +305,14 @@ namespace DnsServerCore.Dns
 
                     try
                     {
-                        response.WriteTo(sendBufferStream);
+                        response.WriteTo(sendBufferStream, false);
                     }
                     catch (NotSupportedException)
                     {
                         response = new DnsDatagram(response.Identifier, true, response.OPCODE, response.AuthoritativeAnswer, true, response.RecursionDesired, response.RecursionAvailable, response.AuthenticData, response.CheckingDisabled, response.RCODE, response.Question);
 
                         sendBufferStream.Position = 0;
-                        response.WriteTo(sendBufferStream);
+                        response.WriteTo(sendBufferStream, false);
                     }
 
                     //send dns datagram
@@ -447,28 +446,23 @@ namespace DnsServerCore.Dns
 
             try
             {
-                OffsetStream recvDatagramStream = new OffsetStream(stream, 0, 0);
-                Stream writeBufferedStream = new WriteBufferedStream(stream, 2048);
+                MemoryStream readBuffer = new MemoryStream(64);
                 MemoryStream writeBuffer = new MemoryStream(64);
-                byte[] lengthBuffer = new byte[2];
-                ushort length;
 
                 while (true)
                 {
                     request = null;
 
-                    //read dns datagram length
-                    stream.ReadBytes(lengthBuffer, 0, 2);
-                    Array.Reverse(lengthBuffer, 0, 2);
-                    length = BitConverter.ToUInt16(lengthBuffer, 0);
-
                     //read dns datagram
-                    recvDatagramStream.Reset(0, length, 0);
-                    request = new DnsDatagram(recvDatagramStream);
+                    request = new DnsDatagram(stream, true, readBuffer);
 
                     //process request async
-                    ThreadPool.QueueUserWorkItem(ProcessStreamRequestAsync, new object[] { writeBufferedStream, writeBuffer, remoteEP, request, protocol });
+                    ThreadPool.QueueUserWorkItem(ProcessStreamRequestAsync, new object[] { stream, writeBuffer, remoteEP, request, protocol });
                 }
+            }
+            catch (ObjectDisposedException)
+            {
+                //ignore
             }
             catch (IOException)
             {
@@ -520,19 +514,8 @@ namespace DnsServerCore.Dns
                 {
                     lock (stream)
                     {
-                        //write dns datagram
-                        writeBuffer.Position = 0;
-                        response.WriteTo(writeBuffer);
-
-                        //write dns datagram length
-                        ushort length = Convert.ToUInt16(writeBuffer.Position);
-                        byte[] lengthBuffer = BitConverter.GetBytes(length);
-                        Array.Reverse(lengthBuffer, 0, 2);
-                        stream.Write(lengthBuffer);
-
                         //send dns datagram
-                        writeBuffer.Position = 0;
-                        writeBuffer.CopyTo(stream, 512, length);
+                        response.WriteTo(stream, true, writeBuffer);
 
                         stream.Flush();
                     }
@@ -720,7 +703,7 @@ namespace DnsServerCore.Dns
                                                 if (x > 0)
                                                     strRequest = strRequest.PadRight(strRequest.Length - x + 4, '=');
 
-                                                dnsRequest = new DnsDatagram(new MemoryStream(Convert.FromBase64String(strRequest)));
+                                                dnsRequest = new DnsDatagram(new MemoryStream(Convert.FromBase64String(strRequest)), false);
                                                 break;
 
                                             case "POST":
@@ -728,7 +711,7 @@ namespace DnsServerCore.Dns
                                                 if (strContentType != "application/dns-message")
                                                     throw new NotSupportedException("DNS request type not supported: " + strContentType);
 
-                                                dnsRequest = new DnsDatagram(stream);
+                                                dnsRequest = new DnsDatagram(stream, false);
                                                 break;
 
                                             default:
@@ -756,7 +739,7 @@ namespace DnsServerCore.Dns
                                         {
                                             using (MemoryStream mS = new MemoryStream())
                                             {
-                                                dnsResponse.WriteTo(mS);
+                                                dnsResponse.WriteTo(mS, false);
 
                                                 byte[] buffer = mS.ToArray();
                                                 SendContent(stream, "application/dns-message", buffer);
