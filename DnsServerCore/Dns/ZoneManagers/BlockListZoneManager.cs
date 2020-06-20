@@ -315,7 +315,7 @@ namespace DnsServerCore.Dns.ZoneManagers
                             }
                             catch (WebException ex)
                             {
-                                if ((ex.Response as HttpWebResponse).StatusCode == HttpStatusCode.NotModified)
+                                if ((ex.Response != null) && (ex.Response as HttpWebResponse).StatusCode == HttpStatusCode.NotModified)
                                 {
                                     LogManager log = _dnsServer.LogManager;
                                     if (log != null)
