@@ -1066,22 +1066,22 @@ namespace DnsServerCore.Dns
 
         private DnsDatagram ProcessZoneTransferQuery(DnsDatagram request, EndPoint remoteEP)
         {
-            IReadOnlyList<DnsResourceRecord> axfrRecords = _authZoneManager.QueryZoneTransferRecords(request.Question[0].Name);
-            if (axfrRecords.Count == 0)
+            AuthZoneInfo authZoneInfo = _authZoneManager.GetAuthZoneInfo(request.Question[0].Name);
+            if ((authZoneInfo == null) || (authZoneInfo.Type != AuthZoneType.Primary))
                 return new DnsDatagram(request.Identifier, true, DnsOpcode.StandardQuery, false, false, request.RecursionDesired, false, false, false, DnsResponseCode.Refused, request.Question) { Tag = StatsResponseType.Authoritative };
 
             IPAddress remoteAddress = (remoteEP as IPEndPoint).Address;
-
             bool isAxfrAllowed = IPAddress.IsLoopback(remoteAddress);
+
+            IReadOnlyList<DnsResourceRecord> nsRecords = null;
 
             if (!isAxfrAllowed)
             {
                 //check glue records
-                foreach (DnsResourceRecord nsRecord in axfrRecords)
-                {
-                    if (nsRecord.Type != DnsResourceRecordType.NS)
-                        continue;
+                nsRecords = authZoneInfo.GetRecords(DnsResourceRecordType.NS);
 
+                foreach (DnsResourceRecord nsRecord in nsRecords)
+                {
                     foreach (DnsResourceRecord glueRecord in nsRecord.GetGlueRecords())
                     {
                         IPAddress address;
@@ -1131,11 +1131,8 @@ namespace DnsServerCore.Dns
                         throw new NotSupportedException("AddressFamily not supported.");
                 }
 
-                foreach (DnsResourceRecord nsRecord in axfrRecords)
+                foreach (DnsResourceRecord nsRecord in nsRecords)
                 {
-                    if (nsRecord.Type != DnsResourceRecordType.NS)
-                        continue;
-
                     try
                     {
                         DnsDatagram response = DirectQuery(new DnsQuestionRecord((nsRecord.RDATA as DnsNSRecord).NameServer, type, DnsClass.IN));
@@ -1170,6 +1167,8 @@ namespace DnsServerCore.Dns
 
             if (!isAxfrAllowed)
                 return new DnsDatagram(request.Identifier, true, DnsOpcode.StandardQuery, false, false, request.RecursionDesired, false, false, false, DnsResponseCode.Refused, request.Question) { Tag = StatsResponseType.Authoritative };
+
+            IReadOnlyList<DnsResourceRecord> axfrRecords = _authZoneManager.QueryZoneTransferRecords(request.Question[0].Name);
 
             return new DnsDatagram(request.Identifier, true, DnsOpcode.StandardQuery, true, false, request.RecursionDesired, false, false, false, DnsResponseCode.NoError, request.Question, axfrRecords) { Tag = StatsResponseType.Authoritative };
         }
