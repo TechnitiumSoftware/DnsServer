@@ -26,7 +26,7 @@ using TechnitiumLibrary.Net.Dns;
 
 namespace DnsServerCore.Dns.Zones
 {
-    public class ZoneTree<T> : ByteTree<string, T> where T : Zone
+    class ZoneTree<T> : ByteTree<string, T> where T : Zone
     {
         #region variables
 
@@ -202,8 +202,18 @@ namespace DnsServerCore.Dns.Zones
                             if (value != null)
                             {
                                 T zone = value.Value;
-                                if ((zone != null) && (zone is SubDomainZone))
-                                    return child; //child has value so return it
+                                if (zone != null)
+                                {
+                                    if (zone is SubDomainZone)
+                                        return child; //child has value so return it
+
+                                    if ((zone is PrimaryZone) || (zone is SecondaryZone) || (zone is StubZone) || (zone is ForwarderZone))
+                                    {
+                                        //skip to next child to avoid listing this auth zone's sub domains
+                                        child = null; //set null to avoid child being set as current after the loop
+                                        continue;
+                                    }
+                                }
                             }
 
                             if (child.Children != null)
@@ -228,7 +238,7 @@ namespace DnsServerCore.Dns.Zones
             return null;
         }
 
-        private Node GetNextSubDomainNode(Node current, int baseDepth)
+        private Node GetNextChildZoneNode(Node current, int baseDepth)
         {
             int k = 0;
 
@@ -395,7 +405,7 @@ namespace DnsServerCore.Dns.Zones
             Node wildcard = null;
             int i = 0;
 
-            while (i < key.Length)
+            while (i <= key.Length)
             {
                 //find authority zone
                 NodeValue value = closestNode.Value;
@@ -424,6 +434,9 @@ namespace DnsServerCore.Dns.Zones
                         }
                     }
                 }
+
+                if (i == key.Length)
+                    break;
 
                 Node[] children = closestNode.Children;
                 if (children == null)
@@ -502,6 +515,22 @@ namespace DnsServerCore.Dns.Zones
 
             //value not found
             return null;
+        }
+
+        private bool SubDomainExists(byte[] key, Node closestNode)
+        {
+            if (!closestNode.HasChildren)
+                return false;
+
+            Node nextSubDomain = GetNextSubDomainZoneNode(closestNode, closestNode.Depth);
+            if (nextSubDomain == null)
+                return false;
+
+            NodeValue value = nextSubDomain.Value;
+            if (value == null)
+                return false;
+
+            return IsKeySubDomain(key, value.Key);
         }
 
         #endregion
@@ -627,7 +656,7 @@ namespace DnsServerCore.Dns.Zones
                     zones.Add(ConvertKeyToLabel(GetNodeKey(current), bKey.Length));
                 }
 
-                current = GetNextSubDomainNode(current, closestNode.Depth);
+                current = GetNextChildZoneNode(current, closestNode.Depth);
             }
             while (current != null);
 
@@ -658,7 +687,7 @@ namespace DnsServerCore.Dns.Zones
                 //check if current node has sub domains
                 NodeValue value = closestNode.Value;
                 if (value == null)
-                    hasSubDomains = closestNode.HasChildren;
+                    hasSubDomains = SubDomainExists(key, closestNode);
                 else
                     hasSubDomains = IsKeySubDomain(key, value.Key);
 
@@ -692,7 +721,7 @@ namespace DnsServerCore.Dns.Zones
             else
                 authority = null;
 
-            hasSubDomains = closestNode.HasChildren;
+            hasSubDomains = SubDomainExists(key, closestNode);
             return zoneValue;
         }
 
