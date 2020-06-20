@@ -418,19 +418,28 @@ namespace DnsServerCore.Dns.Zones
                         {
                             if ((zoneValue is PrimaryZone) || (zoneValue is SecondaryZone) || (zoneValue is StubZone) || (zoneValue is ForwarderZone))
                             {
-                                //hosted primary/secondary/stub/forwarder zone found
-                                closestDelegation = null;
-                                closestAuthority = value;
+                                if (IsKeySubDomain(value.Key, key))
+                                {
+                                    //hosted primary/secondary/stub/forwarder zone found
+                                    closestDelegation = null;
+                                    closestAuthority = value;
+                                }
                             }
                             else if ((zoneValue is SubDomainZone) && (closestDelegation == null) && zoneValue.ContainsNameServerRecords())
                             {
-                                //delegated sub domain found
-                                closestDelegation = value;
+                                if (IsKeySubDomain(value.Key, key))
+                                {
+                                    //delegated sub domain found
+                                    closestDelegation = value;
+                                }
                             }
                         }
                         else if ((zoneValue is CacheZone) && zoneValue.ContainsNameServerRecords())
                         {
-                            closestDelegation = value;
+                            if (IsKeySubDomain(value.Key, key))
+                            {
+                                closestDelegation = value;
+                            }
                         }
                     }
                 }
@@ -674,12 +683,12 @@ namespace DnsServerCore.Dns.Zones
             if (nodeValue == null)
             {
                 //zone not found
-                if ((closestDelegation != null) && IsKeySubDomain(closestDelegation.Key, key))
+                if (closestDelegation != null)
                     delegation = closestDelegation.Value;
                 else
                     delegation = null;
 
-                if ((closestAuthority != null) && IsKeySubDomain(closestAuthority.Key, key))
+                if (closestAuthority != null)
                     authority = closestAuthority.Value;
                 else
                     authority = null;
@@ -709,14 +718,14 @@ namespace DnsServerCore.Dns.Zones
                 delegation = zoneValue;
             else if ((zoneValue is CacheZone) && zoneValue.ContainsNameServerRecords())
                 delegation = zoneValue;
-            else if ((closestDelegation != null) && IsKeySubDomain(closestDelegation.Key, key))
+            else if (closestDelegation != null)
                 delegation = closestDelegation.Value;
             else
                 delegation = null;
 
             if ((zoneValue is PrimaryZone) || (zoneValue is SecondaryZone) || (zoneValue is StubZone) || (zoneValue is ForwarderZone))
                 authority = zoneValue;
-            else if ((closestAuthority != null) && IsKeySubDomain(closestAuthority.Key, key))
+            else if (closestAuthority != null)
                 authority = closestAuthority.Value;
             else
                 authority = null;
