@@ -18,7 +18,6 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
 using System;
-using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.IO;
 using System.Net;
@@ -38,7 +37,7 @@ namespace DnsServerCore.Dns.ZoneManagers
         readonly string _localCacheFolder;
 
         readonly List<Uri> _blockListUrls = new List<Uri>();
-        ConcurrentDictionary<string, List<Uri>> _blockListZone = new ConcurrentDictionary<string, List<Uri>>();
+        IReadOnlyDictionary<string, List<Uri>> _blockListZone = new Dictionary<string, List<Uri>>();
 
         DnsSOARecord _soaRecord;
         DnsNSRecord _nsRecord;
@@ -60,7 +59,6 @@ namespace DnsServerCore.Dns.ZoneManagers
                 Directory.CreateDirectory(_localCacheFolder);
 
             UpdateServerDomain(_dnsServer.ServerDomain);
-            LoadBlockLists();
         }
 
         #endregion
@@ -219,7 +217,11 @@ namespace DnsServerCore.Dns.ZoneManagers
             return null;
         }
 
-        private void LoadBlockLists()
+        #endregion
+
+        #region public
+
+        public void LoadBlockLists()
         {
             //read all block lists in a queue
             Dictionary<Uri, Queue<string>> blockListQueues = new Dictionary<Uri, Queue<string>>(_blockListUrls.Count);
@@ -233,7 +235,7 @@ namespace DnsServerCore.Dns.ZoneManagers
             }
 
             //load custom blocked zone into new block zone
-            ConcurrentDictionary<string, List<Uri>> blockListZone = new ConcurrentDictionary<string, List<Uri>>(Environment.ProcessorCount * 2, totalDomains);
+            Dictionary<string, List<Uri>> blockListZone = new Dictionary<string, List<Uri>>(totalDomains);
 
             foreach (KeyValuePair<Uri, Queue<string>> blockListQueue in blockListQueues)
             {
@@ -243,10 +245,11 @@ namespace DnsServerCore.Dns.ZoneManagers
                 {
                     string domain = queue.Dequeue();
 
-                    List<Uri> blockLists = blockListZone.GetOrAdd(domain, delegate (string key)
+                    if (!blockListZone.TryGetValue(domain, out List<Uri> blockLists))
                     {
-                        return new List<Uri>(2);
-                    });
+                        blockLists = new List<Uri>(2);
+                        blockListZone.Add(domain, blockLists);
+                    }
 
                     blockLists.Add(blockListQueue.Key);
                 }
@@ -260,13 +263,9 @@ namespace DnsServerCore.Dns.ZoneManagers
                 log.Write("DNS Server block list zone was loaded successfully.");
         }
 
-        #endregion
-
-        #region public
-
         public void Flush()
         {
-            _blockListZone.Clear();
+            _blockListZone = new Dictionary<string, List<Uri>>();
         }
 
         public bool UpdateBlockLists(int maxRetries = 3)
@@ -414,7 +413,7 @@ namespace DnsServerCore.Dns.ZoneManagers
         { get { return _blockListUrls; } }
 
         public int TotalZonesBlocked
-        { get { return _blockListZone != null ? _blockListZone.Count : 0; } }
+        { get { return _blockListZone.Count; } }
 
         #endregion
     }
