@@ -36,7 +36,7 @@ namespace DnsServerCore.Dns.Zones
         const int REFRESH_TIMER_INTERVAL = 10000;
 
         const int REFRESH_SOA_TIMEOUT = 60000;
-        const int REFRESH_AXFR_TIMEOUT = 300000; //5 mins, 5 retries == 1 min per retry
+        const int REFRESH_AXFR_TIMEOUT = 1500000; //5 mins per 5 retries
         const int REFRESH_RETRIES = 5;
 
         DateTime _expiry;
@@ -98,7 +98,7 @@ namespace DnsServerCore.Dns.Zones
             }
             else
             {
-                DnsSOARecord soa = new DnsSOARecord(primaryNameServer, "hostadmin." + primaryNameServer, 1, 14400, 3600, 604800, 900);
+                DnsSOARecord soa = new DnsSOARecord(primaryNameServer, "hostadmin." + primaryNameServer, 1, 600, 300, 604800, 900);
 
                 DnsResourceRecord[] soaRR = new DnsResourceRecord[] { new DnsResourceRecord(_name, DnsResourceRecordType.SOA, DnsClass.IN, soa.Refresh, soa) };
                 DnsResourceRecord[] nsRR = new DnsResourceRecord[] { new DnsResourceRecord(_name, DnsResourceRecordType.NS, DnsClass.IN, soa.Refresh, new DnsNSRecord(soa.PrimaryNameServer)) }; ;
@@ -237,7 +237,12 @@ namespace DnsServerCore.Dns.Zones
                 }
 
                 //update available; do zone transfer with TCP transport
-                primaryNameServers = new NameServerAddress[] { new NameServerAddress(soaResponse.Metadata.NameServerAddress, DnsTransportProtocol.Tcp) };
+                List<NameServerAddress> tcpNameServers = new List<NameServerAddress>();
+
+                foreach (NameServerAddress nameServer in primaryNameServers)
+                    tcpNameServers.Add(new NameServerAddress(nameServer, DnsTransportProtocol.Tcp));
+
+                primaryNameServers = tcpNameServers;
                 client = new DnsClient(primaryNameServers);
                 client.Timeout = REFRESH_AXFR_TIMEOUT;
                 client.Retries = REFRESH_RETRIES;
