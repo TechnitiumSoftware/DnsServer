@@ -99,7 +99,7 @@ namespace DnsServerCore.Dns.Zones
             }
             else
             {
-                DnsSOARecord soa = new DnsSOARecord(primaryNameServer, "hostadmin." + primaryNameServer, 1, 14400, 3600, 604800, 900);
+                DnsSOARecord soa = new DnsSOARecord(primaryNameServer, "hostadmin." + primaryNameServer, 1, 600, 300, 604800, 900);
 
                 DnsResourceRecord[] soaRR = new DnsResourceRecord[] { new DnsResourceRecord(_name, DnsResourceRecordType.SOA, DnsClass.IN, soa.Refresh, soa) };
                 DnsResourceRecord[] nsRR = new DnsResourceRecord[] { new DnsResourceRecord(_name, DnsResourceRecordType.NS, DnsClass.IN, soa.Refresh, new DnsNSRecord(soa.PrimaryNameServer)) }; ;
@@ -240,11 +240,6 @@ namespace DnsServerCore.Dns.Zones
                 }
 
                 //update available; do zone sync
-                primaryNameServers = new NameServerAddress[] { soaResponse.Metadata.NameServerAddress };
-                client = new DnsClient(primaryNameServers);
-                client.Timeout = REFRESH_TIMEOUT;
-                client.Retries = REFRESH_RETRIES;
-
                 DnsDatagram nsRequest = new DnsDatagram(0, false, DnsOpcode.StandardQuery, false, false, false, false, false, false, DnsResponseCode.NoError, new DnsQuestionRecord[] { new DnsQuestionRecord(_name, DnsResourceRecordType.NS, DnsClass.IN) });
                 DnsDatagram nsResponse = client.Resolve(nsRequest);
 
