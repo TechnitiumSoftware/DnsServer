@@ -547,7 +547,7 @@ namespace DnsServerCore
         {
             try
             {
-                string statusString = statusCode + " " + DnsServer.GetStatusString((HttpStatusCode)statusCode);
+                string statusString = statusCode + " " + DnsServer.GetHttpStatusString((HttpStatusCode)statusCode);
                 byte[] buffer = Encoding.UTF8.GetBytes("<html><head><title>" + statusString + "</title></head><body><h1>" + statusString + "</h1>" + (message == null ? "" : "<p>" + message + "</p>") + "</body></html>");
 
                 response.StatusCode = statusCode;
@@ -3196,7 +3196,7 @@ namespace DnsServerCore
                             if (_dnsServer.AllowRecursion)
                                 nameServer.ResolveIPAddress(new NameServerAddress[] { new NameServerAddress(GetThisDnsServerEndPoint()) }, proxy, preferIPv6, RETRIES, TIMEOUT);
                             else
-                                nameServer.RecursiveResolveIPAddress(_dnsServer.CacheZoneManager, proxy, preferIPv6, RETRIES, TIMEOUT);
+                                nameServer.RecursiveResolveIPAddress(_dnsServer.DnsCache, proxy, preferIPv6, RETRIES, TIMEOUT);
                         }
                     }
                     else if (protocol != DnsTransportProtocol.Tls)
@@ -3206,7 +3206,7 @@ namespace DnsServerCore
                             if (_dnsServer.AllowRecursion)
                                 nameServer.ResolveDomainName(new NameServerAddress[] { new NameServerAddress(GetThisDnsServerEndPoint()) }, proxy, preferIPv6, RETRIES, TIMEOUT);
                             else
-                                nameServer.RecursiveResolveDomainName(_dnsServer.CacheZoneManager, proxy, preferIPv6, RETRIES, TIMEOUT);
+                                nameServer.RecursiveResolveDomainName(_dnsServer.DnsCache, proxy, preferIPv6, RETRIES, TIMEOUT);
                         }
                         catch
                         { }
