@@ -508,14 +508,6 @@ namespace DnsServerCore.Dns.ZoneManagers
 
                         switch (record.Type)
                         {
-                            case DnsResourceRecordType.SOA:
-                                foreach (DnsResourceRecord glueRecord in record.GetGlueRecords())
-                                {
-                                    if (!axfrRecords.Contains(glueRecord))
-                                        axfrRecords.Add(glueRecord);
-                                }
-                                break;
-
                             case DnsResourceRecordType.NS:
                                 axfrRecords.Add(record);
 
@@ -569,7 +561,9 @@ namespace DnsServerCore.Dns.ZoneManagers
                     {
                         case DnsResourceRecordType.A:
                         case DnsResourceRecordType.AAAA:
-                            if (!glueRecords.Contains(record))
+                            if (record.Name.EndsWith(".root-servers.net", StringComparison.OrdinalIgnoreCase))
+                                newRecords.Add(record);
+                            else if (!glueRecords.Contains(record))
                                 glueRecords.Add(record);
 
                             break;
@@ -586,7 +580,7 @@ namespace DnsServerCore.Dns.ZoneManagers
                 {
                     DnsResourceRecord record = syncRecords[i];
 
-                    if (record.Name.EndsWith(domain, StringComparison.OrdinalIgnoreCase))
+                    if (record.Name.Equals(domain, StringComparison.OrdinalIgnoreCase) || record.Name.EndsWith("." + domain, StringComparison.OrdinalIgnoreCase))
                         newRecords.Add(record);
                     else if (!glueRecords.Contains(record))
                         glueRecords.Add(record);
@@ -719,17 +713,6 @@ namespace DnsServerCore.Dns.ZoneManagers
                     break;
 
                 default:
-                    switch (oldRecord.Type)
-                    {
-                        case DnsResourceRecordType.NS:
-                            if ((zone is SecondaryZone) || (zone is StubZone))
-                            {
-                                zone.UpdateGlueAddresses(oldRecord, newRecord);
-                                return;
-                            }
-                            break;
-                    }
-
                     if (oldRecord.Name.Equals(newRecord.Name, StringComparison.OrdinalIgnoreCase))
                     {
                         zone.DeleteRecord(oldRecord.Type, oldRecord.RDATA);
@@ -826,12 +809,12 @@ namespace DnsServerCore.Dns.ZoneManagers
             if ((authZone == null) || !authZone.IsActive) //no authority for requested zone
                 return new DnsDatagram(request.Identifier, true, DnsOpcode.StandardQuery, false, false, request.RecursionDesired, false, false, false, DnsResponseCode.Refused, request.Question);
 
-            if ((delegation != null) && delegation.IsActive)
-                return GetReferralResponse(request, delegation);
-
             if ((zone == null) || !zone.IsActive)
             {
                 //zone not found
+                if ((delegation != null) && delegation.IsActive)
+                    return GetReferralResponse(request, delegation);
+
                 if (authZone is StubZone)
                     return GetReferralResponse(request, authZone);
                 else if (authZone is ForwarderZone)
@@ -852,6 +835,9 @@ namespace DnsServerCore.Dns.ZoneManagers
                 if (answers.Count == 0)
                 {
                     //record type not found
+                    if ((delegation != null) && delegation.IsActive)
+                        return GetReferralResponse(request, delegation);
+
                     if (authZone is StubZone)
                         return GetReferralResponse(request, authZone);
                     else if (authZone is ForwarderZone)
@@ -936,8 +922,16 @@ namespace DnsServerCore.Dns.ZoneManagers
                             //create zone
                             Zone authZone = CreateEmptyZone(zoneInfo);
 
-                            //load records
-                            LoadRecords(records);
+                            try
+                            {
+                                //load records
+                                LoadRecords(records);
+                            }
+                            catch
+                            {
+                                DeleteZone(zoneInfo.Name);
+                                throw;
+                            }
 
                             //init zone
                             switch (zoneInfo.Type)
@@ -982,8 +976,16 @@ namespace DnsServerCore.Dns.ZoneManagers
                             //create zone
                             Zone authZone = CreateEmptyZone(zoneInfo);
 
-                            //load records
-                            LoadRecords(records);
+                            try
+                            {
+                                //load records
+                                LoadRecords(records);
+                            }
+                            catch
+                            {
+                                DeleteZone(zoneInfo.Name);
+                                throw;
+                            }
 
                             //init zone
                             switch (zoneInfo.Type)
@@ -1014,8 +1016,16 @@ namespace DnsServerCore.Dns.ZoneManagers
                                 records[i].Tag = new DnsResourceRecordInfo(bR);
                             }
 
-                            //load records
-                            LoadRecords(records);
+                            try
+                            {
+                                //load records
+                                LoadRecords(records);
+                            }
+                            catch
+                            {
+                                DeleteZone(zoneInfo.Name);
+                                throw;
+                            }
 
                             //init zone
                             switch (zoneInfo.Type)
