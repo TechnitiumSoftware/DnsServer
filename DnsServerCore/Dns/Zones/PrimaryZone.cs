@@ -106,7 +106,7 @@ namespace DnsServerCore.Dns.Zones
         {
             try
             {
-                IReadOnlyList<NameServerAddress> secondaryNameServers = GetAllNameServerAddresses(_dnsServer, true);
+                IReadOnlyList<NameServerAddress> secondaryNameServers = GetSecondaryNameServerAddresses(_dnsServer);
 
                 foreach (NameServerAddress secondaryNameServer in secondaryNameServers)
                     NotifyNameServer(secondaryNameServer);
@@ -209,8 +209,19 @@ namespace DnsServerCore.Dns.Zones
 
         public override void SetRecords(DnsResourceRecordType type, IReadOnlyList<DnsResourceRecord> records)
         {
-            if (type == DnsResourceRecordType.CNAME)
-                throw new InvalidOperationException("Cannot set CNAME record to zone root.");
+            switch (type)
+            {
+                case DnsResourceRecordType.CNAME:
+                    throw new InvalidOperationException("Cannot set CNAME record to zone root.");
+
+                case DnsResourceRecordType.SOA:
+                    if ((records.Count != 1) || !records[0].Name.Equals(_name, StringComparison.OrdinalIgnoreCase))
+                        throw new InvalidOperationException("Invalid SOA record.");
+
+                    //remove any resource record info
+                    records[0].Tag = null;
+                    break;
+            }
 
             base.SetRecords(type, records);
 
