@@ -22,20 +22,19 @@ using TechnitiumLibrary.Net.Dns;
 
 namespace DnsServerCore.Dns
 {
-    class ResolverPrefetchDnsCache : IDnsCache
+    class ResolverPrefetchDnsCache : ResolverDnsCache
     {
         #region variables
 
-        readonly CacheZoneManager _cacheZoneManager;
         readonly DnsQuestionRecord _prefetchQuery;
 
         #endregion
 
         #region constructor
 
-        public ResolverPrefetchDnsCache(CacheZoneManager cacheZoneManager, DnsQuestionRecord prefetchQuery)
+        public ResolverPrefetchDnsCache(AuthZoneManager authZoneManager, CacheZoneManager cacheZoneManager, DnsQuestionRecord prefetchQuery)
+            : base(authZoneManager, cacheZoneManager)
         {
-            _cacheZoneManager = cacheZoneManager;
             _prefetchQuery = prefetchQuery;
         }
 
@@ -43,7 +42,7 @@ namespace DnsServerCore.Dns
 
         #region public
 
-        public DnsDatagram Query(DnsDatagram request, bool serveStale = false)
+        public override DnsDatagram Query(DnsDatagram request, bool serveStale = false)
         {
             if (_prefetchQuery.Equals(request.Question[0]))
             {
@@ -51,12 +50,7 @@ namespace DnsServerCore.Dns
                 return _cacheZoneManager.QueryClosestDelegation(request);
             }
 
-            return _cacheZoneManager.Query(request, serveStale);
-        }
-
-        public void CacheResponse(DnsDatagram response)
-        {
-            _cacheZoneManager.CacheResponse(response);
+            return base.Query(request, serveStale);
         }
 
         #endregion
