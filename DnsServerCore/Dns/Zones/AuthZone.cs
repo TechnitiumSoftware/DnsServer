@@ -170,25 +170,19 @@ namespace DnsServerCore.Dns.Zones
             return GetNameServerAddresses(dnsServer, soaRecord);
         }
 
-        protected IReadOnlyList<NameServerAddress> GetAllNameServerAddresses(DnsServer dnsServer, bool skipPrimaryNameServer)
+        protected IReadOnlyList<NameServerAddress> GetSecondaryNameServerAddresses(DnsServer dnsServer)
         {
             List<NameServerAddress> nameServers = new List<NameServerAddress>();
 
-            DnsSOARecord soa = null;
+            DnsSOARecord soa = _entries[DnsResourceRecordType.SOA][0].RDATA as DnsSOARecord;
             IReadOnlyList<DnsResourceRecord> nsRecords = QueryRecords(DnsResourceRecordType.NS);
 
             foreach (DnsResourceRecord nsRecord in nsRecords)
             {
-                if (skipPrimaryNameServer)
-                {
-                    string nsDomain = (nsRecord.RDATA as DnsNSRecord).NameServer;
+                string nsDomain = (nsRecord.RDATA as DnsNSRecord).NameServer;
 
-                    if (soa == null)
-                        soa = _entries[DnsResourceRecordType.SOA][0].RDATA as DnsSOARecord;
-
-                    if (soa.PrimaryNameServer.Equals(nsDomain, StringComparison.OrdinalIgnoreCase))
-                        continue; //skip primary name server
-                }
+                if (soa.PrimaryNameServer.Equals(nsDomain, StringComparison.OrdinalIgnoreCase))
+                    continue; //skip primary name server
 
                 nameServers.AddRange(GetNameServerAddresses(dnsServer, nsRecord));
             }
@@ -213,8 +207,42 @@ namespace DnsServerCore.Dns.Zones
             }
 
             //set new entries into zone
-            foreach (KeyValuePair<DnsResourceRecordType, List<DnsResourceRecord>> newEntry in newEntries)
-                _entries[newEntry.Key] = newEntry.Value;
+            if (this is ForwarderZone)
+            {
+                //skip NS and SOA records from being added to ForwarderZone
+                foreach (KeyValuePair<DnsResourceRecordType, List<DnsResourceRecord>> newEntry in newEntries)
+                {
+                    switch (newEntry.Key)
+                    {
+                        case DnsResourceRecordType.NS:
+                        case DnsResourceRecordType.SOA:
+                            break;
+
+                        default:
+                            _entries[newEntry.Key] = newEntry.Value;
+                            break;
+                    }
+                }
+            }
+            else
+            {
+                foreach (KeyValuePair<DnsResourceRecordType, List<DnsResourceRecord>> newEntry in newEntries)
+                {
+                    if (newEntry.Key == DnsResourceRecordType.SOA)
+                    {
+                        if (newEntry.Value.Count != 1)
+                            continue; //skip invalid SOA record
+
+                        if ((this is SecondaryZone) || (this is StubZone))
+                        {
+                            //copy existing SOA record's glue addresses to new SOA record
+                            newEntry.Value[0].SetGlueRecords(_entries[DnsResourceRecordType.SOA][0].GetGlueRecords());
+                        }
+                    }
+
+                    _entries[newEntry.Key] = newEntry.Value;
+                }
+            }
         }
 
         public void LoadRecords(DnsResourceRecordType type, IReadOnlyList<DnsResourceRecord> records)
@@ -290,21 +318,6 @@ namespace DnsServerCore.Dns.Zones
             return false;
         }
 
-        public void UpdateGlueAddresses(DnsResourceRecord oldRecord, DnsResourceRecord newRecord)
-        {
-            if (_entries.TryGetValue(oldRecord.Type, out IReadOnlyList<DnsResourceRecord> existingRecords))
-            {
-                foreach (DnsResourceRecord existingRecord in existingRecords)
-                {
-                    if (newRecord.Equals(existingRecord))
-                    {
-                        existingRecord.SetGlueRecords(newRecord.GetGlueRecords());
-                        break;
-                    }
-                }
-            }
-        }
-
         public virtual IReadOnlyList<DnsResourceRecord> QueryRecords(DnsResourceRecordType type)
         {
             //check for CNAME
@@ -312,7 +325,7 @@ namespace DnsServerCore.Dns.Zones
             {
                 IReadOnlyList<DnsResourceRecord> filteredRecords = FilterDisabledRecords(type, existingCNAMERecords);
                 if (filteredRecords.Count > 0)
-                    return existingCNAMERecords;
+                    return filteredRecords;
             }
 
             if (type == DnsResourceRecordType.ANY)
@@ -332,7 +345,7 @@ namespace DnsServerCore.Dns.Zones
             {
                 IReadOnlyList<DnsResourceRecord> filteredRecords = FilterDisabledRecords(type, existingRecords);
                 if (filteredRecords.Count > 0)
-                    return existingRecords;
+                    return filteredRecords;
             }
 
             switch (type)
