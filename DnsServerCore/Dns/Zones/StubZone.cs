@@ -152,14 +152,14 @@ namespace DnsServerCore.Dns.Zones
             {
                 _isExpired = DateTime.UtcNow > _expiry;
 
-                //get all name server addresses
-                IReadOnlyList<NameServerAddress> nameServers = GetAllNameServerAddresses(_dnsServer, false);
+                //get primary name server addresses
+                IReadOnlyList<NameServerAddress> primaryNameServers = GetPrimaryNameServerAddresses(_dnsServer);
 
-                if (nameServers.Count == 0)
+                if (primaryNameServers.Count == 0)
                 {
                     LogManager log = _dnsServer.LogManager;
                     if (log != null)
-                        log.Write("DNS Server could not find any name server IP addresses for stub zone: " + _name);
+                        log.Write("DNS Server could not find primary name server IP addresses for stub zone: " + _name);
 
                     //set timer for retry
                     DnsSOARecord soa1 = _entries[DnsResourceRecordType.SOA][0].RDATA as DnsSOARecord;
@@ -168,7 +168,7 @@ namespace DnsServerCore.Dns.Zones
                 }
 
                 //refresh zone
-                if (RefreshZone(nameServers))
+                if (RefreshZone(primaryNameServers))
                 {
                     //zone refreshed; set timer for refresh
                     DnsSOARecord latestSoa = _entries[DnsResourceRecordType.SOA][0].RDATA as DnsSOARecord;
@@ -196,11 +196,11 @@ namespace DnsServerCore.Dns.Zones
             }
         }
 
-        private bool RefreshZone(IReadOnlyList<NameServerAddress> nameServers)
+        private bool RefreshZone(IReadOnlyList<NameServerAddress> primaryNameServers)
         {
             try
             {
-                DnsClient client = new DnsClient(nameServers);
+                DnsClient client = new DnsClient(primaryNameServers);
 
                 client.Timeout = REFRESH_TIMEOUT;
                 client.Retries = REFRESH_RETRIES;
@@ -240,8 +240,8 @@ namespace DnsServerCore.Dns.Zones
                 }
 
                 //update available; do zone sync
-                nameServers = new NameServerAddress[] { soaResponse.Metadata.NameServerAddress };
-                client = new DnsClient(nameServers);
+                primaryNameServers = new NameServerAddress[] { soaResponse.Metadata.NameServerAddress };
+                client = new DnsClient(primaryNameServers);
                 client.Timeout = REFRESH_TIMEOUT;
                 client.Retries = REFRESH_RETRIES;
 
@@ -288,7 +288,7 @@ namespace DnsServerCore.Dns.Zones
                 {
                     string strNameServers = null;
 
-                    foreach (NameServerAddress nameServer in nameServers)
+                    foreach (NameServerAddress nameServer in primaryNameServers)
                     {
                         if (strNameServers == null)
                             strNameServers = nameServer.ToString();
@@ -327,6 +327,9 @@ namespace DnsServerCore.Dns.Zones
                     throw new InvalidOperationException("Cannot set NS records at stub zone root.");
 
                 case DnsResourceRecordType.SOA:
+                    if ((records.Count != 1) || !records[0].Name.Equals(_name, StringComparison.OrdinalIgnoreCase))
+                        throw new InvalidOperationException("Invalid SOA record.");
+
                     _entries[DnsResourceRecordType.SOA][0].SetGlueRecords(records.GetGlueRecords());
                     break;
 
