@@ -19,167 +19,13 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 using System;
 using System.Collections.Generic;
-using System.Text;
 using System.Threading;
-using TechnitiumLibrary.ByteTree;
-using TechnitiumLibrary.Net.Dns;
 
 namespace DnsServerCore.Dns.Zones
 {
-    class ZoneTree<T> : ByteTree<string, T> where T : Zone
+    class ZoneTree<T> : DomainTree<T> where T : Zone
     {
-        #region variables
-
-        readonly static byte[] _keyMap;
-        readonly static byte[] _reverseKeyMap;
-
-        #endregion
-
-        #region constructor
-
-        static ZoneTree()
-        {
-            _keyMap = new byte[256];
-            _reverseKeyMap = new byte[40];
-
-            for (int i = 0; i < _keyMap.Length; i++)
-            {
-                if ((i >= 97) && (i <= 122)) //[a-z]
-                {
-                    _keyMap[i] = (byte)(i - 97);
-                    _reverseKeyMap[_keyMap[i]] = (byte)i;
-                }
-                else if ((i >= 65) && (i <= 90)) //[a-z]
-                {
-                    _keyMap[i] = (byte)(i - 65);
-                    _reverseKeyMap[_keyMap[i]] = (byte)i;
-                }
-                else if ((i >= 48) && (i <= 57)) //[0-9]
-                {
-                    _keyMap[i] = (byte)(26 + i - 48);
-                    _reverseKeyMap[_keyMap[i]] = (byte)i;
-                }
-                else if (i == 45) //[-]
-                {
-                    _keyMap[i] = 36;
-                    _reverseKeyMap[36] = 45;
-                }
-                else if (i == 95) //[_]
-                {
-                    _keyMap[i] = 37;
-                    _reverseKeyMap[37] = 95;
-                }
-                else if (i == 42) //[*]
-                {
-                    _keyMap[i] = 0xff; //skipped value 38 for optimization
-                    _reverseKeyMap[38] = 42;
-                }
-                else if (i == 46) //[.]
-                {
-                    _keyMap[i] = 39;
-                    _reverseKeyMap[39] = 46;
-                }
-                else
-                {
-                    _keyMap[i] = 0xff;
-                }
-            }
-        }
-
-        public ZoneTree()
-            : base(40)
-        { }
-
-        #endregion
-
-        #region protected
-
-        protected override byte[] ConvertToByteKey(string domain)
-        {
-            if (domain.Length == 0)
-                return Array.Empty<byte>();
-
-            if (domain.Length > 255)
-                throw new DnsClientException("Invalid domain name [" + domain + "]: length cannot exceed 255 bytes.");
-
-            byte[] key = new byte[domain.Length + 1];
-            int keyOffset = 0;
-            int labelStart;
-            int labelEnd = domain.Length - 1;
-            int labelLength;
-            int labelChar;
-            byte labelKeyCode;
-            int i;
-
-            do
-            {
-                if (labelEnd < 0)
-                    labelEnd = 0;
-
-                labelStart = domain.LastIndexOf('.', labelEnd);
-                labelLength = labelEnd - labelStart;
-
-                if (labelLength == 0)
-                    throw new DnsClientException("Invalid domain name [" + domain + "]: label length cannot be 0 byte.");
-
-                if (labelLength > 63)
-                    throw new DnsClientException("Invalid domain name [" + domain + "]: label length cannot exceed 63 bytes.");
-
-                if (domain[labelStart + 1] == '-')
-                    throw new DnsClientException("Invalid domain name [" + domain + "]: label cannot start with hyphen.");
-
-                if (domain[labelEnd] == '-')
-                    throw new DnsClientException("Invalid domain name [" + domain + "]: label cannot end with hyphen.");
-
-                if ((labelLength == 1) && (domain[labelStart + 1] == '*'))
-                {
-                    key[keyOffset++] = 38;
-                }
-                else
-                {
-                    for (i = labelStart + 1; i <= labelEnd; i++)
-                    {
-                        labelChar = domain[i];
-                        if (labelChar >= _keyMap.Length)
-                            throw new DnsClientException("Invalid domain name [" + domain + "]: invalid character [" + labelChar + "] was found.");
-
-                        labelKeyCode = _keyMap[labelChar];
-                        if (labelKeyCode == 0xff)
-                            throw new DnsClientException("Invalid domain name [" + domain + "]: invalid character [" + labelChar + "] was found.");
-
-                        key[keyOffset++] = labelKeyCode;
-                    }
-                }
-
-                key[keyOffset++] = 39;
-                labelEnd = labelStart - 1;
-            }
-            while (labelStart > -1);
-
-            return key;
-        }
-
-        #endregion
-
         #region private
-
-        private static string ConvertKeyToLabel(byte[] key, int startIndex)
-        {
-            byte[] domain = new byte[key.Length - startIndex];
-            int i;
-            int k;
-
-            for (i = 0; i < domain.Length; i++)
-            {
-                k = key[i + startIndex];
-                if (k == 39)
-                    break;
-
-                domain[i] = _reverseKeyMap[k];
-            }
-
-            return Encoding.ASCII.GetString(domain, 0, i);
-        }
 
         private Node GetNextSubDomainZoneNode(Node current, int baseDepth)
         {
@@ -553,47 +399,37 @@ namespace DnsServerCore.Dns.Zones
 
         public override bool TryRemove(string domain, out T value)
         {
-            if (domain == null)
-                throw new ArgumentNullException(nameof(domain));
-
-            byte[] bKey = ConvertToByteKey(domain);
-
-            NodeValue removedValue = _root.RemoveNodeValue(bKey, out Node closestNode);
-            if (removedValue == null)
+            if (TryRemove(domain, out value, out Node closestNode))
             {
-                value = default;
-                return false;
-            }
-
-            value = removedValue.Value;
-
-            if ((value != null) && !(value is SubDomainZone))
-            {
-                //remove all sub domain or cache zones
-                Node current = closestNode;
-
-                while (true)
+                if ((value != null) && !(value is SubDomainZone))
                 {
-                    current = current.GetNextNodeWithValue(closestNode.Depth);
-                    if (current == null)
-                        break;
+                    //remove all sub domain or cache zones
+                    Node current = closestNode;
 
-                    NodeValue v = current.Value;
-                    if (v != null)
+                    while (true)
                     {
-                        T zone = v.Value;
-                        if ((zone != null) && ((zone is SubDomainZone) || (zone is CacheZone)))
+                        current = current.GetNextNodeWithValue(closestNode.Depth);
+                        if (current == null)
+                            break;
+
+                        NodeValue v = current.Value;
+                        if (v != null)
                         {
-                            current.RemoveNodeValue(v.Key, out _); //remove node value
-                            current.CleanThisBranch();
+                            T zone = v.Value;
+                            if ((zone != null) && ((zone is SubDomainZone) || (zone is CacheZone)))
+                            {
+                                current.RemoveNodeValue(v.Key, out _); //remove node value
+                                current.CleanThisBranch();
+                            }
                         }
                     }
                 }
+
+                closestNode.CleanThisBranch();
+                return true;
             }
 
-            closestNode.CleanThisBranch();
-
-            return true;
+            return false;
         }
 
         public List<T> GetZoneWithSubDomainZones(string domain)
