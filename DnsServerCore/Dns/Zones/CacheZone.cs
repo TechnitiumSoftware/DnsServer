@@ -156,7 +156,7 @@ namespace DnsServerCore.Dns.Zones
             {
                 IReadOnlyList<DnsResourceRecord> filteredRecords = FilterExpiredRecords(type, existingCNAMERecords, serveStale);
                 if (filteredRecords.Count > 0)
-                    return existingCNAMERecords;
+                    return filteredRecords;
             }
 
             if (_entries.TryGetValue(type, out IReadOnlyList<DnsResourceRecord> existingRecords))
