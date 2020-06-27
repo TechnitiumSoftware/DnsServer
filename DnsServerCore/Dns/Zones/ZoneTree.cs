@@ -693,12 +693,20 @@ namespace DnsServerCore.Dns.Zones
                 else
                     authority = null;
 
-                //check if current node has sub domains
-                NodeValue value = closestNode.Value;
-                if (value == null)
-                    hasSubDomains = SubDomainExists(key, closestNode);
+                if (authority == null)
+                {
+                    //no authority so no subdomains
+                    hasSubDomains = false;
+                }
                 else
-                    hasSubDomains = IsKeySubDomain(key, value.Key);
+                {
+                    //check if current node has sub domains
+                    NodeValue value = closestNode.Value;
+                    if (value == null)
+                        hasSubDomains = SubDomainExists(key, closestNode);
+                    else
+                        hasSubDomains = IsKeySubDomain(key, value.Key);
+                }
 
                 return null;
             }
@@ -714,23 +722,47 @@ namespace DnsServerCore.Dns.Zones
             }
 
             //zone found
-            if ((zoneValue is SubDomainZone) && zoneValue.ContainsNameServerRecords())
-                delegation = zoneValue;
-            else if ((zoneValue is CacheZone) && zoneValue.ContainsNameServerRecords())
-                delegation = zoneValue;
-            else if (closestDelegation != null)
-                delegation = closestDelegation.Value;
-            else
-                delegation = null;
+            if (zoneValue is AuthZone)
+            {
+                if ((zoneValue is PrimaryZone) || (zoneValue is SecondaryZone) || (zoneValue is StubZone) || (zoneValue is ForwarderZone))
+                {
+                    delegation = null;
+                    authority = zoneValue;
+                }
+                else
+                {
+                    if (closestDelegation != null)
+                        delegation = closestDelegation.Value;
+                    else if ((zoneValue is SubDomainZone) && zoneValue.ContainsNameServerRecords())
+                        delegation = zoneValue;
+                    else
+                        delegation = null;
 
-            if ((zoneValue is PrimaryZone) || (zoneValue is SecondaryZone) || (zoneValue is StubZone) || (zoneValue is ForwarderZone))
-                authority = zoneValue;
-            else if (closestAuthority != null)
-                authority = closestAuthority.Value;
-            else
-                authority = null;
+                    if (closestAuthority != null)
+                        authority = closestAuthority.Value;
+                    else
+                        authority = null;
+                }
 
-            hasSubDomains = SubDomainExists(key, closestNode);
+                hasSubDomains = SubDomainExists(key, closestNode);
+            }
+            else if (zoneValue is CacheZone)
+            {
+                if (zoneValue.ContainsNameServerRecords())
+                    delegation = zoneValue;
+                else if (closestDelegation != null)
+                    delegation = closestDelegation.Value;
+                else
+                    delegation = null;
+
+                authority = null; //cache does not use this value
+                hasSubDomains = false; //cache does not use this value
+            }
+            else
+            {
+                throw new InvalidOperationException();
+            }
+
             return zoneValue;
         }
 
