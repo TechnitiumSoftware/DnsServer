@@ -22,7 +22,6 @@ using DnsServerCore.Dns.ZoneManagers;
 using DnsServerCore.Dns.Zones;
 using Newtonsoft.Json;
 using System;
-using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Collections.Specialized;
 using System.IO;
@@ -119,7 +118,7 @@ namespace DnsServerCore.Dns
         const int CACHE_MAINTENANCE_TIMER_INITIAL_INTEVAL = 60 * 60 * 1000;
         const int CACHE_MAINTENANCE_TIMER_PERIODIC_INTERVAL = 60 * 60 * 1000;
 
-        readonly ConcurrentDictionary<DnsQuestionRecord, ResolverQueryHandle> _resolverQueryHandles = new ConcurrentDictionary<DnsQuestionRecord, ResolverQueryHandle>();
+        readonly DomainTree<ResolverQueryHandle> _resolverQueryHandles = new DomainTree<ResolverQueryHandle>();
 
         volatile ServiceState _state = ServiceState.Stopped;
 
@@ -1604,7 +1603,7 @@ namespace DnsServerCore.Dns
 
             //recursion with locking
             ResolverQueryHandle newQueryHandle = new ResolverQueryHandle();
-            ResolverQueryHandle queryHandle = _resolverQueryHandles.GetOrAdd(request.Question[0], newQueryHandle);
+            ResolverQueryHandle queryHandle = _resolverQueryHandles.GetOrAdd(request.Question[0].Name + "." + request.Question[0].Type + "." + request.Question[0].Class, newQueryHandle);
 
             if (queryHandle.Equals(newQueryHandle))
             {
@@ -1762,7 +1761,7 @@ namespace DnsServerCore.Dns
             }
             finally
             {
-                _resolverQueryHandles.TryRemove(request.Question[0], out _);
+                _resolverQueryHandles.TryRemove(request.Question[0].Name + "." + request.Question[0].Type + "." + request.Question[0].Class, out _);
             }
         }
 
