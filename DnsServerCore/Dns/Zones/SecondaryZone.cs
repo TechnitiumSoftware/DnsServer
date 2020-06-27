@@ -146,9 +146,6 @@ namespace DnsServerCore.Dns.Zones
             if (_disabled)
                 return;
 
-            DnsResourceRecord soaRecord = _entries[DnsResourceRecordType.SOA][0];
-            DnsSOARecord soa = soaRecord.RDATA as DnsSOARecord;
-
             try
             {
                 _isExpired = DateTime.UtcNow > _expiry;
@@ -163,7 +160,8 @@ namespace DnsServerCore.Dns.Zones
                         log.Write("DNS Server could not find primary name server IP addresses for secondary zone: " + _name);
 
                     //set timer for retry
-                    _refreshTimer.Change(soa.Retry * 1000, Timeout.Infinite);
+                    DnsSOARecord soa1 = _entries[DnsResourceRecordType.SOA][0].RDATA as DnsSOARecord;
+                    _refreshTimer.Change(soa1.Retry * 1000, Timeout.Infinite);
                     return;
                 }
 
@@ -171,16 +169,17 @@ namespace DnsServerCore.Dns.Zones
                 if (RefreshZone(primaryNameServers))
                 {
                     //zone refreshed; set timer for refresh
-                    DnsSOARecord latestSoaRecord = _entries[DnsResourceRecordType.SOA][0].RDATA as DnsSOARecord;
-                    _refreshTimer.Change(latestSoaRecord.Refresh * 1000, Timeout.Infinite);
+                    DnsSOARecord latestSoa = _entries[DnsResourceRecordType.SOA][0].RDATA as DnsSOARecord;
+                    _refreshTimer.Change(latestSoa.Refresh * 1000, Timeout.Infinite);
 
-                    _expiry = DateTime.UtcNow.AddSeconds(latestSoaRecord.Expire);
+                    _expiry = DateTime.UtcNow.AddSeconds(latestSoa.Expire);
                     _isExpired = false;
                     _dnsServer.AuthZoneManager.SaveZoneFile(_name);
                     return;
                 }
 
                 //no response from any of the name servers; set timer for retry
+                DnsSOARecord soa = _entries[DnsResourceRecordType.SOA][0].RDATA as DnsSOARecord;
                 _refreshTimer.Change(soa.Retry * 1000, Timeout.Infinite);
             }
             catch (Exception ex)
@@ -190,15 +189,16 @@ namespace DnsServerCore.Dns.Zones
                     log.Write(ex);
 
                 //set timer for retry
+                DnsSOARecord soa = _entries[DnsResourceRecordType.SOA][0].RDATA as DnsSOARecord;
                 _refreshTimer.Change(soa.Retry * 1000, Timeout.Infinite);
             }
         }
 
-        private bool RefreshZone(IReadOnlyList<NameServerAddress> nameServers)
+        private bool RefreshZone(IReadOnlyList<NameServerAddress> primaryNameServers)
         {
             try
             {
-                DnsClient client = new DnsClient(nameServers);
+                DnsClient client = new DnsClient(primaryNameServers);
                 client.Timeout = REFRESH_SOA_TIMEOUT;
                 client.Retries = REFRESH_RETRIES;
 
@@ -237,8 +237,8 @@ namespace DnsServerCore.Dns.Zones
                 }
 
                 //update available; do zone transfer with TCP transport
-                nameServers = new NameServerAddress[] { new NameServerAddress(soaResponse.Metadata.NameServerAddress, DnsTransportProtocol.Tcp) };
-                client = new DnsClient(nameServers);
+                primaryNameServers = new NameServerAddress[] { new NameServerAddress(soaResponse.Metadata.NameServerAddress, DnsTransportProtocol.Tcp) };
+                client = new DnsClient(primaryNameServers);
                 client.Timeout = REFRESH_AXFR_TIMEOUT;
                 client.Retries = REFRESH_RETRIES;
 
@@ -297,7 +297,7 @@ namespace DnsServerCore.Dns.Zones
                 {
                     string strNameServers = null;
 
-                    foreach (NameServerAddress nameServer in nameServers)
+                    foreach (NameServerAddress nameServer in primaryNameServers)
                     {
                         if (strNameServers == null)
                             strNameServers = nameServer.ToString();
@@ -330,6 +330,9 @@ namespace DnsServerCore.Dns.Zones
             switch (type)
             {
                 case DnsResourceRecordType.SOA:
+                    if ((records.Count != 1) || !records[0].Name.Equals(_name, StringComparison.OrdinalIgnoreCase))
+                        throw new InvalidOperationException("Invalid SOA record.");
+
                     _entries[DnsResourceRecordType.SOA][0].SetGlueRecords(records.GetGlueRecords());
                     break;
 
