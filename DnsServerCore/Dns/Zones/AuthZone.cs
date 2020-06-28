@@ -136,23 +136,33 @@ namespace DnsServerCore.Dns.Zones
             else
             {
                 //resolve addresses
-                DnsDatagram response = dnsServer.DirectQuery(new DnsQuestionRecord(nsDomain, DnsResourceRecordType.A, DnsClass.IN));
-                if (response != null)
+                try
                 {
-                    IReadOnlyList<IPAddress> addresses = DnsClient.ParseResponseA(response);
-                    foreach (IPAddress address in addresses)
-                        nameServers.Add(new NameServerAddress(nsDomain, address));
-                }
-
-                if (dnsServer.PreferIPv6)
-                {
-                    response = dnsServer.DirectQuery(new DnsQuestionRecord(nsDomain, DnsResourceRecordType.AAAA, DnsClass.IN));
-                    if (response != null)
+                    DnsDatagram response = dnsServer.DirectQuery(new DnsQuestionRecord(nsDomain, DnsResourceRecordType.A, DnsClass.IN));
+                    if ((response != null) && (response.Answer.Count > 0))
                     {
-                        IReadOnlyList<IPAddress> addresses = DnsClient.ParseResponseAAAA(response);
+                        IReadOnlyList<IPAddress> addresses = DnsClient.ParseResponseA(response);
                         foreach (IPAddress address in addresses)
                             nameServers.Add(new NameServerAddress(nsDomain, address));
                     }
+                }
+                catch
+                { }
+
+                if (dnsServer.PreferIPv6)
+                {
+                    try
+                    {
+                        DnsDatagram response = dnsServer.DirectQuery(new DnsQuestionRecord(nsDomain, DnsResourceRecordType.AAAA, DnsClass.IN));
+                        if ((response != null) && (response.Answer.Count > 0))
+                        {
+                            IReadOnlyList<IPAddress> addresses = DnsClient.ParseResponseAAAA(response);
+                            foreach (IPAddress address in addresses)
+                                nameServers.Add(new NameServerAddress(nsDomain, address));
+                        }
+                    }
+                    catch
+                    { }
                 }
             }
 
@@ -161,24 +171,52 @@ namespace DnsServerCore.Dns.Zones
 
         #endregion
 
-        #region protected
+        #region public
 
-        protected IReadOnlyList<NameServerAddress> GetPrimaryNameServerAddresses(DnsServer dnsServer)
+        public IReadOnlyList<NameServerAddress> GetPrimaryNameServerAddresses(DnsServer dnsServer)
         {
-            DnsResourceRecord soaRecord = _entries[DnsResourceRecordType.SOA][0];
+            List<NameServerAddress> nameServers = new List<NameServerAddress>();
 
-            return GetNameServerAddresses(dnsServer, soaRecord);
+            DnsResourceRecord soaRecord = _entries[DnsResourceRecordType.SOA][0];
+            DnsSOARecord soa = soaRecord.RDATA as DnsSOARecord;
+            IReadOnlyList<DnsResourceRecord> nsRecords = GetRecords(DnsResourceRecordType.NS); //stub zone has no authority so cant use QueryRecords
+
+            foreach (DnsResourceRecord nsRecord in nsRecords)
+            {
+                if (nsRecord.IsDisabled())
+                    continue;
+
+                string nsDomain = (nsRecord.RDATA as DnsNSRecord).NameServer;
+
+                if (soa.PrimaryNameServer.Equals(nsDomain, StringComparison.OrdinalIgnoreCase))
+                {
+                    //found primary NS
+                    nameServers.AddRange(GetNameServerAddresses(dnsServer, nsRecord));
+                    break;
+                }
+            }
+
+            foreach (NameServerAddress nameServer in GetNameServerAddresses(dnsServer, soaRecord))
+            {
+                if (!nameServers.Contains(nameServer))
+                    nameServers.Add(nameServer);
+            }
+
+            return nameServers;
         }
 
-        protected IReadOnlyList<NameServerAddress> GetSecondaryNameServerAddresses(DnsServer dnsServer)
+        public IReadOnlyList<NameServerAddress> GetSecondaryNameServerAddresses(DnsServer dnsServer)
         {
             List<NameServerAddress> nameServers = new List<NameServerAddress>();
 
             DnsSOARecord soa = _entries[DnsResourceRecordType.SOA][0].RDATA as DnsSOARecord;
-            IReadOnlyList<DnsResourceRecord> nsRecords = QueryRecords(DnsResourceRecordType.NS);
+            IReadOnlyList<DnsResourceRecord> nsRecords = GetRecords(DnsResourceRecordType.NS); //stub zone has no authority so cant use QueryRecords
 
             foreach (DnsResourceRecord nsRecord in nsRecords)
             {
+                if (nsRecord.IsDisabled())
+                    continue;
+
                 string nsDomain = (nsRecord.RDATA as DnsNSRecord).NameServer;
 
                 if (soa.PrimaryNameServer.Equals(nsDomain, StringComparison.OrdinalIgnoreCase))
@@ -189,10 +227,6 @@ namespace DnsServerCore.Dns.Zones
 
             return nameServers;
         }
-
-        #endregion
-
-        #region public
 
         public void SyncRecords(Dictionary<DnsResourceRecordType, List<DnsResourceRecord>> newEntries, bool dontRemoveRecords)
         {
@@ -236,7 +270,7 @@ namespace DnsServerCore.Dns.Zones
                         if ((this is SecondaryZone) || (this is StubZone))
                         {
                             //copy existing SOA record's glue addresses to new SOA record
-                            newEntry.Value[0].SetGlueRecords(_entries[DnsResourceRecordType.SOA][0].GetGlueRecords());
+                            newEntry.Value[0].SyncGlueRecords(_entries[DnsResourceRecordType.SOA][0].GetGlueRecords());
                         }
                     }
 
@@ -363,13 +397,26 @@ namespace DnsServerCore.Dns.Zones
 
         public IReadOnlyList<DnsResourceRecord> GetRecords(DnsResourceRecordType type)
         {
-            return _entries[type];
+            if (_entries.TryGetValue(type, out IReadOnlyList<DnsResourceRecord> records))
+                return records;
+
+            return Array.Empty<DnsResourceRecord>();
         }
 
         public override bool ContainsNameServerRecords()
         {
-            IReadOnlyList<DnsResourceRecord> records = QueryRecords(DnsResourceRecordType.NS);
-            return (records.Count > 0) && (records[0].Type == DnsResourceRecordType.NS);
+            if (!_entries.TryGetValue(DnsResourceRecordType.NS, out IReadOnlyList<DnsResourceRecord> records))
+                return false;
+
+            foreach (DnsResourceRecord record in records)
+            {
+                if (record.IsDisabled())
+                    continue;
+
+                return true;
+            }
+
+            return false;
         }
 
         #endregion
