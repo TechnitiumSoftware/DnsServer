@@ -161,6 +161,22 @@ namespace DnsServerCore.Dns.Zones
             }
         }
 
+        public IReadOnlyList<NameServerAddress> GetPrimaryNameServerAddresses(DnsServer dnsServer)
+        {
+            if (_zone == null)
+                throw new InvalidOperationException();
+
+            return _zone.GetPrimaryNameServerAddresses(dnsServer);
+        }
+
+        public IReadOnlyList<NameServerAddress> GetSecondaryNameServerAddresses(DnsServer dnsServer)
+        {
+            if (_zone == null)
+                throw new InvalidOperationException();
+
+            return _zone.GetSecondaryNameServerAddresses(dnsServer);
+        }
+
         public void WriteTo(BinaryWriter bW)
         {
             if (_zone == null)
