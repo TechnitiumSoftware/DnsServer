@@ -35,7 +35,7 @@ namespace DnsServerCore.Dns.Zones
         readonly Timer _refreshTimer;
         const int REFRESH_TIMER_INTERVAL = 10000;
 
-        const int REFRESH_TIMEOUT = 60000;
+        const int REFRESH_TIMEOUT = 10000;
         const int REFRESH_RETRIES = 5;
 
         DateTime _expiry;

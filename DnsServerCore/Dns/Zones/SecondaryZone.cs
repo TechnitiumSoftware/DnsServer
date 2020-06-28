@@ -35,8 +35,8 @@ namespace DnsServerCore.Dns.Zones
         readonly Timer _refreshTimer;
         const int REFRESH_TIMER_INTERVAL = 10000;
 
-        const int REFRESH_SOA_TIMEOUT = 60000;
-        const int REFRESH_AXFR_TIMEOUT = 1500000; //5 mins per 5 retries
+        const int REFRESH_SOA_TIMEOUT = 10000;
+        const int REFRESH_AXFR_TIMEOUT = 300000;
         const int REFRESH_RETRIES = 5;
 
         DateTime _expiry;

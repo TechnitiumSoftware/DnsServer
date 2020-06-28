@@ -36,7 +36,7 @@ namespace DnsServerCore.Dns.Zones
         const int NOTIFY_TIMER_INTERVAL = 10000;
         readonly List<NameServerAddress> _notifyList = new List<NameServerAddress>();
 
-        const int NOTIFY_TIMEOUT = 60000;
+        const int NOTIFY_TIMEOUT = 10000;
         const int NOTIFY_RETRIES = 5;
 
         #endregion
