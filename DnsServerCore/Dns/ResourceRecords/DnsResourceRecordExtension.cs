@@ -28,6 +28,18 @@ namespace DnsServerCore.Dns.ResourceRecords
 {
     static class DnsResourceRecordExtension
     {
+        public static void SetGlueRecords(this DnsResourceRecord record, IReadOnlyList<DnsResourceRecord> glueRecords)
+        {
+            DnsResourceRecordInfo rrInfo = record.Tag as DnsResourceRecordInfo;
+            if (rrInfo == null)
+            {
+                rrInfo = new DnsResourceRecordInfo();
+                record.Tag = rrInfo;
+            }
+
+            rrInfo.GlueRecords = glueRecords;
+        }
+
         public static void SetGlueRecords(this DnsResourceRecord record, string glueAddresses)
         {
             List<IPAddress> addresses = new List<IPAddress>();
@@ -40,13 +52,6 @@ namespace DnsServerCore.Dns.ResourceRecords
 
         public static void SetGlueRecords(this DnsResourceRecord record, IReadOnlyList<IPAddress> glueAddresses)
         {
-            DnsResourceRecordInfo rrInfo = record.Tag as DnsResourceRecordInfo;
-            if (rrInfo == null)
-            {
-                rrInfo = new DnsResourceRecordInfo();
-                record.Tag = rrInfo;
-            }
-
             string domain;
 
             switch (record.Type)
@@ -79,18 +84,11 @@ namespace DnsServerCore.Dns.ResourceRecords
                 }
             }
 
-            rrInfo.GlueRecords = glueRecords;
+            SetGlueRecords(record, glueRecords);
         }
 
-        public static void SetGlueRecords(this DnsResourceRecord record, IReadOnlyList<DnsResourceRecord> glueRecords)
+        public static void SyncGlueRecords(this DnsResourceRecord record, IReadOnlyList<DnsResourceRecord> glueRecords)
         {
-            DnsResourceRecordInfo rrInfo = record.Tag as DnsResourceRecordInfo;
-            if (rrInfo == null)
-            {
-                rrInfo = new DnsResourceRecordInfo();
-                record.Tag = rrInfo;
-            }
-
             string domain;
 
             switch (record.Type)
@@ -123,7 +121,7 @@ namespace DnsServerCore.Dns.ResourceRecords
             }
 
             if (foundGlueRecords.Count > 0)
-                rrInfo.GlueRecords = foundGlueRecords;
+                SetGlueRecords(record, foundGlueRecords);
         }
 
         public static IReadOnlyList<DnsResourceRecord> GetGlueRecords(this DnsResourceRecord record)
