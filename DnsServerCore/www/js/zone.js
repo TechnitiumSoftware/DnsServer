@@ -1416,6 +1416,10 @@ function updateRecordState(objBtn, disable) {
     var apiUrl = "/api/updateRecord?token=" + token + "&type=" + type + "&domain=" + encodeURIComponent(domain) + "&ttl=" + ttl + "&value=" + encodeURIComponent(value) + "&disable=" + disable;
 
     switch (type) {
+        case "NS":
+            apiUrl += "&glue=" + encodeURIComponent(divData.attr("data-record-glue"));
+            break;
+
         case "MX":
             apiUrl += "&preference=" + divData.attr("data-record-preference");
             break;
