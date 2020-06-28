@@ -508,6 +508,9 @@ namespace DnsServerCore.Dns.ZoneManagers
 
                         switch (record.Type)
                         {
+                            case DnsResourceRecordType.SOA:
+                                break; //skip record
+
                             case DnsResourceRecordType.NS:
                                 axfrRecords.Add(record);
 
@@ -561,9 +564,7 @@ namespace DnsServerCore.Dns.ZoneManagers
                     {
                         case DnsResourceRecordType.A:
                         case DnsResourceRecordType.AAAA:
-                            if (record.Name.EndsWith(".root-servers.net", StringComparison.OrdinalIgnoreCase))
-                                newRecords.Add(record);
-                            else if (!glueRecords.Contains(record))
+                            if (!glueRecords.Contains(record))
                                 glueRecords.Add(record);
 
                             break;
@@ -809,12 +810,12 @@ namespace DnsServerCore.Dns.ZoneManagers
             if ((authZone == null) || !authZone.IsActive) //no authority for requested zone
                 return new DnsDatagram(request.Identifier, true, DnsOpcode.StandardQuery, false, false, request.RecursionDesired, false, false, false, DnsResponseCode.Refused, request.Question);
 
+            if ((delegation != null) && delegation.IsActive)
+                return GetReferralResponse(request, delegation);
+
             if ((zone == null) || !zone.IsActive)
             {
-                //zone not found
-                if ((delegation != null) && delegation.IsActive)
-                    return GetReferralResponse(request, delegation);
-
+                //zone not found                
                 if (authZone is StubZone)
                     return GetReferralResponse(request, authZone);
                 else if (authZone is ForwarderZone)
@@ -835,9 +836,6 @@ namespace DnsServerCore.Dns.ZoneManagers
                 if (answers.Count == 0)
                 {
                     //record type not found
-                    if ((delegation != null) && delegation.IsActive)
-                        return GetReferralResponse(request, delegation);
-
                     if (authZone is StubZone)
                         return GetReferralResponse(request, authZone);
                     else if (authZone is ForwarderZone)
