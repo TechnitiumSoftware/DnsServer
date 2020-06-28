@@ -167,8 +167,21 @@ namespace DnsServerCore.Dns.Zones
 
         public override bool ContainsNameServerRecords()
         {
-            IReadOnlyList<DnsResourceRecord> records = QueryRecords(DnsResourceRecordType.NS, false);
-            return (records.Count > 0) && (records[0].Type == DnsResourceRecordType.NS);
+            if (!_entries.TryGetValue(DnsResourceRecordType.NS, out IReadOnlyList<DnsResourceRecord> records))
+                return false;
+
+            foreach (DnsResourceRecord record in records)
+            {
+                if (record.IsStale)
+                    continue;
+
+                if (record.TtlValue < 1u)
+                    continue;
+
+                return true;
+            }
+
+            return false;
         }
 
         #endregion
