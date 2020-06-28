@@ -204,20 +204,11 @@ namespace DnsServerCore.Dns.ZoneManagers
             }
         }
 
-        private AuthZone GetAuthoritativeZone(string domain)
-        {
-            _ = _root.FindZone(domain, out _, out AuthZone authority, out _);
-            if (authority == null)
-                return null;
-
-            return authority;
-        }
-
         private AuthZone GetOrAddZone(string domain)
         {
             return _root.GetOrAdd(domain, delegate (string key)
             {
-                AuthZone authZone = GetAuthoritativeZone(domain);
+                _ = _root.FindZone(domain, out _, out AuthZone authZone, out _);
                 if (authZone == null)
                     throw new DnsServerException("Zone was not found for domain: " + domain);
 
@@ -412,9 +403,9 @@ namespace DnsServerCore.Dns.ZoneManagers
             return null;
         }
 
-        public AuthZoneInfo CreateSecondaryZone(string domain, string primaryNameServer = null, string glueAddresses = null)
+        public AuthZoneInfo CreateSecondaryZone(string domain, string primaryNameServerAddresses = null)
         {
-            AuthZone authZone = new SecondaryZone(_dnsServer, domain, primaryNameServer, glueAddresses);
+            AuthZone authZone = new SecondaryZone(_dnsServer, domain, primaryNameServerAddresses);
 
             if (_root.TryAdd(authZone))
             {
@@ -425,9 +416,9 @@ namespace DnsServerCore.Dns.ZoneManagers
             return null;
         }
 
-        public AuthZoneInfo CreateStubZone(string domain, string primaryNameServer = null, string glueAddresses = null)
+        public AuthZoneInfo CreateStubZone(string domain, string primaryNameServerAddresses = null)
         {
-            AuthZone authZone = new StubZone(_dnsServer, domain, primaryNameServer, glueAddresses);
+            AuthZone authZone = new StubZone(_dnsServer, domain, primaryNameServerAddresses);
 
             if (_root.TryAdd(authZone))
             {
@@ -495,7 +486,7 @@ namespace DnsServerCore.Dns.ZoneManagers
             if ((zones.Count > 0) && zones[0].IsActive)
             {
                 //only primary zones support zone transfer
-                DnsResourceRecord soaRecord = zones[0].QueryRecords(DnsResourceRecordType.SOA)[0];
+                DnsResourceRecord soaRecord = zones[0].GetRecords(DnsResourceRecordType.SOA)[0];
 
                 axfrRecords.Add(soaRecord);
 
@@ -595,7 +586,7 @@ namespace DnsServerCore.Dns.ZoneManagers
                     switch (record.Type)
                     {
                         case DnsResourceRecordType.NS:
-                            record.SetGlueRecords(glueRecords);
+                            record.SyncGlueRecords(glueRecords);
                             break;
                     }
                 }
@@ -822,7 +813,7 @@ namespace DnsServerCore.Dns.ZoneManagers
                     return GetForwarderResponse(request, null, authZone);
 
                 DnsResponseCode rCode = hasSubDomains ? DnsResponseCode.NoError : DnsResponseCode.NameError;
-                IReadOnlyList<DnsResourceRecord> authority = authZone.QueryRecords(DnsResourceRecordType.SOA);
+                IReadOnlyList<DnsResourceRecord> authority = authZone.GetRecords(DnsResourceRecordType.SOA);
 
                 return new DnsDatagram(request.Identifier, true, DnsOpcode.StandardQuery, true, false, request.RecursionDesired, false, false, false, rCode, request.Question, null, authority);
             }
@@ -841,7 +832,7 @@ namespace DnsServerCore.Dns.ZoneManagers
                     else if (authZone is ForwarderZone)
                         return GetForwarderResponse(request, zone, authZone);
 
-                    authority = authZone.QueryRecords(DnsResourceRecordType.SOA);
+                    authority = authZone.GetRecords(DnsResourceRecordType.SOA);
                     additional = null;
                 }
                 else
