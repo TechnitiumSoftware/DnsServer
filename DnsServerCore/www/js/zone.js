@@ -23,23 +23,20 @@ $(function () {
         var zoneType = $('input[name=rdAddZoneType]:checked').val();
         switch (zoneType) {
             case "Primary":
-                $("#divAddZonePrimaryNameServer").hide();
-                $("#divAddZoneGlueAddresses").hide();
+                $("#divAddZonePrimaryNameServerAddresses").hide();
                 $("#divAddZoneForwarderProtocol").hide();
                 $("#divAddZoneForwarder").hide();
                 break;
 
             case "Secondary":
             case "Stub":
-                $("#divAddZonePrimaryNameServer").show();
-                $("#divAddZoneGlueAddresses").show();
+                $("#divAddZonePrimaryNameServerAddresses").show();
                 $("#divAddZoneForwarderProtocol").hide();
                 $("#divAddZoneForwarder").hide();
                 break;
 
             case "Forwarder":
-                $("#divAddZonePrimaryNameServer").hide();
-                $("#divAddZoneGlueAddresses").hide();
+                $("#divAddZonePrimaryNameServerAddresses").hide();
                 $("#divAddZoneForwarderProtocol").show();
                 $("#divAddZoneForwarder").show();
                 break;
@@ -252,14 +249,12 @@ function showAddZoneModal() {
 
     $("#txtAddZone").val("");
     $("#rdAddZoneTypePrimary").prop("checked", true);
-    $("#txtAddZonePrimaryNameServer").val("");
-    $("#txtAddZoneGlueAddresses").val("");
+    $("#txtAddZonePrimaryNameServerAddresses").val("");
     $("#rdAddZoneForwarderProtocolUdp").prop("checked", true);
     $("#txtAddZoneForwarder").attr("placeholder", "8.8.8.8 or [2620:fe::10]")
     $("#txtAddZoneForwarder").val("");
 
-    $("#divAddZonePrimaryNameServer").hide();
-    $("#divAddZoneGlueAddresses").hide();
+    $("#divAddZonePrimaryNameServerAddresses").hide();
     $("#divAddZoneForwarderProtocol").hide();
     $("#divAddZoneForwarder").hide();
 
@@ -285,7 +280,7 @@ function addZone() {
     switch (type) {
         case "Secondary":
         case "Stub":
-            parameters = "&primaryNameServer=" + $("#txtAddZonePrimaryNameServer").val() + "&glueAddresses=" + cleanTextList($("#txtAddZoneGlueAddresses").val());
+            parameters = "&primaryNameServerAddresses=" + cleanTextList($("#txtAddZonePrimaryNameServerAddresses").val());
             break;
 
         case "Forwarder":
