@@ -1521,7 +1521,7 @@ namespace DnsServerCore
                             try
                             {
                                 DnsDatagram ptrResponse = _dnsServer.DirectQuery(new DnsQuestionRecord(address, DnsClass.IN), 200);
-                                if (ptrResponse != null)
+                                if ((ptrResponse != null) && (ptrResponse.Answer.Count > 0))
                                 {
                                     string ptrDomain = DnsClient.ParseResponsePTR(ptrResponse);
 
@@ -2071,15 +2071,11 @@ namespace DnsServerCore
 
                 case AuthZoneType.Secondary:
                     {
-                        string strPrimaryNameServer = request.QueryString["primaryNameServer"];
-                        if (string.IsNullOrEmpty(strPrimaryNameServer))
-                            strPrimaryNameServer = null;
+                        string strPrimaryNameServerAddresses = request.QueryString["primaryNameServerAddresses"];
+                        if (string.IsNullOrEmpty(strPrimaryNameServerAddresses))
+                            strPrimaryNameServerAddresses = null;
 
-                        string strGlueAddresses = request.QueryString["glueAddresses"];
-                        if (string.IsNullOrEmpty(strGlueAddresses))
-                            strGlueAddresses = null;
-
-                        if (_dnsServer.AuthZoneManager.CreateSecondaryZone(domain, strPrimaryNameServer, strGlueAddresses) != null)
+                        if (_dnsServer.AuthZoneManager.CreateSecondaryZone(domain, strPrimaryNameServerAddresses) != null)
                         {
                             _log.Write(GetRequestRemoteEndPoint(request), "[" + GetSession(request).Username + "] Authoritative secondary zone was created: " + domain);
                             _dnsServer.AuthZoneManager.SaveZoneFile(domain);
@@ -2089,15 +2085,11 @@ namespace DnsServerCore
 
                 case AuthZoneType.Stub:
                     {
-                        string strPrimaryNameServer = request.QueryString["primaryNameServer"];
-                        if (string.IsNullOrEmpty(strPrimaryNameServer))
-                            strPrimaryNameServer = null;
+                        string strPrimaryNameServerAddresses = request.QueryString["primaryNameServerAddresses"];
+                        if (string.IsNullOrEmpty(strPrimaryNameServerAddresses))
+                            strPrimaryNameServerAddresses = null;
 
-                        string strGlueAddresses = request.QueryString["glueAddresses"];
-                        if (string.IsNullOrEmpty(strGlueAddresses))
-                            strGlueAddresses = null;
-
-                        if (_dnsServer.AuthZoneManager.CreateStubZone(domain, strPrimaryNameServer, strGlueAddresses) != null)
+                        if (_dnsServer.AuthZoneManager.CreateStubZone(domain, strPrimaryNameServerAddresses) != null)
                         {
                             _log.Write(GetRequestRemoteEndPoint(request), "[" + GetSession(request).Username + "] Stub zone was created: " + domain);
                             _dnsServer.AuthZoneManager.SaveZoneFile(domain);
