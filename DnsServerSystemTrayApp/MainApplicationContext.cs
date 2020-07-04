@@ -263,7 +263,7 @@ namespace DnsServerSystemTrayApp
             {
                 _dnsProviders.Clear();
                 _dnsProviders.AddRange(DnsProvider.GetDefaultProviders());
-                SaveConfig();
+                _dnsProviders.Sort();
             }
             catch (Exception ex)
             {
