@@ -34,7 +34,7 @@ namespace DnsServerCore.Dns.Zones
 
         readonly object _refreshTimerLock = new object();
         Timer _refreshTimer;
-        const int REFRESH_TIMER_INTERVAL = 10000;
+        const int REFRESH_TIMER_INTERVAL = 5000;
 
         const int REFRESH_SOA_TIMEOUT = 10000;
         const int REFRESH_AXFR_TIMEOUT = 300000;
@@ -193,6 +193,12 @@ namespace DnsServerCore.Dns.Zones
         {
             try
             {
+                {
+                    LogManager log = _dnsServer.LogManager;
+                    if (log != null)
+                        log.Write("DNS Server has started zone refresh for secondary zone: " + _name);
+                }
+
                 DnsClient client = new DnsClient(primaryNameServers);
                 client.Timeout = REFRESH_SOA_TIMEOUT;
                 client.Retries = REFRESH_RETRIES;
