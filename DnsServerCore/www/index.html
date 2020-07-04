@@ -690,7 +690,11 @@
                                                     <div class="col-sm-offset-3 col-sm-8" style="padding-top: 5px;">Enter the certificate (.pfx) password, if any.</div>
                                                 </div>
 
-                                                <div>To enable or disable these protocols, you will need to manually restart the main service. For DNS-over-HTTP, use <i>http://<span id="lblDoHHost">localhost:8053</span>/dns-query</i> with a TLS terminating reverse proxy like nginx. For DNS-over-TLS, use <i>tls-certificate-domain:853</i> and for DNS-over-HTTPS use <i>https://tls-certificate-domain/dns-query</i> to configure supported DNS clients.</div>
+                                                <div>
+                                                    <p>To enable or disable these protocols, you will need to manually restart the main service. For DNS-over-HTTP, use <i>http://<span id="lblDoHHost">localhost:8053</span>/dns-query</i> with a TLS terminating reverse proxy like nginx. For DNS-over-TLS, use <i>tls-certificate-domain:853</i> and for DNS-over-HTTPS use <i>https://tls-certificate-domain/dns-query</i> to configure supported DNS clients.</p>
+                                                    <p>Use the following openssl command to convert your TLS certificate that is in PEM format to PKCS #12 certificate (.pfx) format:</p>
+                                                    <pre style="margin-bottom: 0px;">openssl pkcs12 -export -out "example.com.pfx" -inkey "private.key" -in "certificate.crt" -certfile "ca_bundle.crt"</pre>
+                                                </div>
                                             </div>
 
                                             <div class="well well-sm form-horizontal">
@@ -1317,7 +1321,10 @@
                                             Copyright (C) 2020  Shreyas Zare (shreyas@technitium.com)<br />
                                             This program comes with ABSOLUTELY NO WARRANTY. This is free software, and you are welcome to redistribute it under certain conditions.<br />
                                         </p>
-                                        <p>Source code available under <a href="https://github.com/TechnitiumSoftware/DnsServer/blob/master/LICENSE" target="_blank">GNU General Public License v3.0</a> on <a href="https://github.com/TechnitiumSoftware/DnsServer" target="_blank"><i class="fa fa-github"></i>&nbsp;GitHub</a></p>
+                                        <p>Source code available under <a href="https://go.technitium.com/?id=24" target="_blank">GNU General Public License v3.0</a> on <a href="https://github.com/TechnitiumSoftware/DnsServer" target="_blank"><i class="fa fa-github"></i>&nbsp;GitHub</a></p>
+
+                                        <h3 style="margin-top: 40px;"><a style="color: rgb(51,51,51) !important;" href="https://go.technitium.com/?id=23" target="_blank">Whats New?</a></h3>
+                                        <p>Read the <a href="https://go.technitium.com/?id=23" target="_blank">change log</a> to know whats new in this release.</p>
 
                                         <h3 style="margin-top: 40px;"><a style="color: rgb(51,51,51) !important;" href="https://go.technitium.com/?id=25" target="_blank">Help Topics</a></h3>
                                         <p>Read the latest <a href="https://go.technitium.com/?id=25" target="_blank">online help topics</a> which contains the DNS Server user manual and covers frequently asked questions.</p>
@@ -1329,10 +1336,10 @@
                                             Checkout <a href="https://blog.technitium.com/" target="_blank">Technitium Blog</a>.
                                         </p>
 
-                                        <h3 style="margin-top: 40px;"><a style="color: rgb(51,51,51) !important;" href="https://www.patreon.com/technitium" target="_blank">Become A Patron</a></h3>
+                                        <h3 style="margin-top: 40px;"><a style="color: rgb(51,51,51) !important;" href="https://go.technitium.com/?id=35" target="_blank">Become A Patron</a></h3>
                                         <p>Make contribution to Technitium by becoming a Patron and help making new software, updates, and features possible.</p>
                                         <p>
-                                            <a href="https://www.patreon.com/technitium" target="_blank">Become A Patron Now!</a>
+                                            <a href="https://go.technitium.com/?id=35" target="_blank">Become A Patron Now!</a>
                                         </p>
                                     </div>
 
@@ -1463,7 +1470,7 @@
 
 
                         <div class="form-group" id="divAddZonePrimaryNameServerAddresses">
-                            <label for="txtAddZonePrimaryNameServerAddresses" class="col-sm-4 control-label">Primary Name Servers (Optional)</label>
+                            <label for="txtAddZonePrimaryNameServerAddresses" class="col-sm-4 control-label">Primary Name Server Addresses (Optional)</label>
                             <div class="col-sm-7">
                                 <textarea id="txtAddZonePrimaryNameServerAddresses" class="form-control" rows="3" placeholder="192.168.1.1
 2001:db8::"></textarea>
@@ -1510,6 +1517,12 @@
                         <div class="form-group" id="divAddZoneForwarder">
                             <label for="txtAddZoneForwarder" class="col-sm-4 control-label">Forwarder</label>
                             <div class="col-sm-7">
+                                <div class="checkbox" style="margin-bottom: 6px;">
+                                    <label>
+                                        <input id="chkAddZoneForwarderThisServer" type="checkbox" onclick="updateAddZoneFormForwarderThisServer();"> Use This DNS Server
+                                    </label>
+                                </div>
+
                                 <input id="txtAddZoneForwarder" type="text" class="form-control" placeholder="8.8.8.8">
                             </div>
                         </div>
@@ -1562,7 +1575,7 @@
                             </div>
                         </div>
 
-                        <div class="form-group">
+                        <div class="form-group" id="divAddEditRecordTtl">
                             <label for="txtAddEditRecordTtl" class="col-sm-4 control-label">TTL</label>
                             <div class="col-sm-7">
                                 <input id="txtAddEditRecordTtl" type="number" class="form-control" placeholder="3600" style="width: 100px;">
@@ -1650,10 +1663,10 @@
                                     <input id="txtEditRecordDataSoaMinimum" type="number" class="form-control" style="width: 100px;">
                                 </div>
                             </div>
-                            <div class="form-group" id="divEditRecordDataSoaGlue">
-                                <label for="txtEditRecordDataSoaGlue" class="col-sm-4 control-label">Glue Addresses</label>
+                            <div class="form-group" id="divEditRecordDataSoaPrimaryAddresses">
+                                <label for="txtEditRecordDataSoaPrimaryAddresses" class="col-sm-4 control-label">Primary Name Server Addresses</label>
                                 <div class="col-sm-7">
-                                    <textarea id="txtEditRecordDataSoaGlue" class="form-control" rows="3" placeholder="192.168.1.1
+                                    <textarea id="txtEditRecordDataSoaPrimaryAddresses" class="form-control" rows="3" placeholder="192.168.1.1
 2001:db8::"></textarea>
                                 </div>
                             </div>
@@ -1766,6 +1779,12 @@
                             <div class="form-group">
                                 <label for="txtAddEditRecordDataForwarder" class="col-sm-4 control-label">Forwarder</label>
                                 <div class="col-sm-7">
+                                    <div class="checkbox" style="margin-bottom: 6px;">
+                                        <label>
+                                            <input id="chkAddEditRecordDataForwarderThisServer" type="checkbox" onclick="updateAddEditFormForwarderThisServer();"> Use This DNS Server
+                                        </label>
+                                    </div>
+
                                     <input id="txtAddEditRecordDataForwarder" type="text" class="form-control" placeholder="8.8.8.8">
                                 </div>
                             </div>
