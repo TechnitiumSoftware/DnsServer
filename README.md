@@ -27,6 +27,10 @@ Applications of using a locally hosted DNS server is limited only by the user's 
 - Use public DNS resolvers like Cloudflare, Google & Quad9 with [DNS-over-TLS](https://en.wikipedia.org/wiki/DNS_over_TLS) and [DNS-over-HTTPS](https://en.wikipedia.org/wiki/DNS_over_HTTPS) protocols as forwarders.
 - Advance caching with features like serve stale, prefetching and auto prefetching.
 - Supports working as an authoritative as well as a recursive DNS server.
+- CNAME cloaking feature to block domain names that resolve to CNAME which are blocked.
+- QNAME minimization support in recursive resolver [draft-ietf-dnsop-rfc7816bis-04](https://tools.ietf.org/html/draft-ietf-dnsop-rfc7816bis-04).
+- ANAME propriety record support to allow using CNAME like feature at zone root.
+- Primary, Secondary, Stub and Conditional Forwarder zone support.
 - Host domain names on your own DNS server.
 - Wildcard sub domain support.
 - Enable/disable zones and records to allow testing with ease.
