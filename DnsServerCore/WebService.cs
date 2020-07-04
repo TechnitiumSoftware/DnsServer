@@ -2143,7 +2143,7 @@ namespace DnsServerCore
             if (!_dnsServer.AuthZoneManager.DeleteZone(domain))
                 throw new WebServiceException("Zone '" + domain + "' was not found.");
 
-            _log.Write(GetRequestRemoteEndPoint(request), "[" + GetSession(request).Username + "] Authoritative zone was deleted: " + domain);
+            _log.Write(GetRequestRemoteEndPoint(request), "[" + GetSession(request).Username + "] " + zoneInfo.Type.ToString() + " zone was deleted: " + domain);
 
             _dnsServer.AuthZoneManager.DeleteZoneFile(domain);
         }
@@ -2166,7 +2166,7 @@ namespace DnsServerCore
 
             zoneInfo.Disabled = false;
 
-            _log.Write(GetRequestRemoteEndPoint(request), "[" + GetSession(request).Username + "] Authoritative zone was enabled: " + domain);
+            _log.Write(GetRequestRemoteEndPoint(request), "[" + GetSession(request).Username + "] " + zoneInfo.Type.ToString() + " zone was enabled: " + domain);
 
             _dnsServer.AuthZoneManager.SaveZoneFile(zoneInfo.Name);
         }
@@ -2189,7 +2189,7 @@ namespace DnsServerCore
 
             zoneInfo.Disabled = true;
 
-            _log.Write(GetRequestRemoteEndPoint(request), "[" + GetSession(request).Username + "] Authoritative zone was disabled: " + domain);
+            _log.Write(GetRequestRemoteEndPoint(request), "[" + GetSession(request).Username + "] " + zoneInfo.Type.ToString() + " zone was disabled: " + domain);
 
             _dnsServer.AuthZoneManager.SaveZoneFile(zoneInfo.Name);
         }
@@ -2342,7 +2342,7 @@ namespace DnsServerCore
                         if (string.IsNullOrEmpty(protocol))
                             protocol = "Udp";
 
-                        _dnsServer.AuthZoneManager.AddRecord(domain, type, ttl, new DnsForwarderRecord((DnsTransportProtocol)Enum.Parse(typeof(DnsTransportProtocol), protocol, true), value));
+                        _dnsServer.AuthZoneManager.AddRecord(domain, type, 0, new DnsForwarderRecord((DnsTransportProtocol)Enum.Parse(typeof(DnsTransportProtocol), protocol, true), value));
                     }
                     break;
 
@@ -2364,44 +2364,42 @@ namespace DnsServerCore
             if (domain.EndsWith("."))
                 domain = domain.Substring(0, domain.Length - 1);
 
-            List<DnsResourceRecord> records = _dnsServer.AuthZoneManager.ListAllRecords(domain);
-            if (records.Count == 0)
+            AuthZoneInfo zoneInfo = _dnsServer.AuthZoneManager.GetAuthZoneInfo(domain);
+            if (zoneInfo == null)
                 throw new WebServiceException("Zone '" + domain + "' was not found.");
 
-            AuthZoneInfo zone = _dnsServer.AuthZoneManager.GetAuthZoneInfo(domain);
-            if (zone != null)
+            jsonWriter.WritePropertyName("zone");
+            jsonWriter.WriteStartObject();
+
+            jsonWriter.WritePropertyName("name");
+            jsonWriter.WriteValue(zoneInfo.Name);
+
+            jsonWriter.WritePropertyName("type");
+            jsonWriter.WriteValue(zoneInfo.Type.ToString());
+
+            switch (zoneInfo.Type)
             {
-                jsonWriter.WritePropertyName("zone");
-                jsonWriter.WriteStartObject();
+                case AuthZoneType.Primary:
+                    jsonWriter.WritePropertyName("internal");
+                    jsonWriter.WriteValue(zoneInfo.Internal);
+                    break;
 
-                jsonWriter.WritePropertyName("name");
-                jsonWriter.WriteValue(zone.Name);
+                case AuthZoneType.Secondary:
+                case AuthZoneType.Stub:
+                    jsonWriter.WritePropertyName("expiry");
+                    jsonWriter.WriteValue(zoneInfo.Expiry.ToLocalTime().ToString("dd MMM yyyy HH:mm:ss"));
 
-                jsonWriter.WritePropertyName("type");
-                jsonWriter.WriteValue(zone.Type.ToString());
-
-                switch (zone.Type)
-                {
-                    case AuthZoneType.Primary:
-                        jsonWriter.WritePropertyName("internal");
-                        jsonWriter.WriteValue(zone.Internal);
-                        break;
-
-                    case AuthZoneType.Secondary:
-                    case AuthZoneType.Stub:
-                        jsonWriter.WritePropertyName("expiry");
-                        jsonWriter.WriteValue(zone.Expiry.ToLocalTime().ToString("dd MMM yyyy HH:mm:ss"));
-
-                        jsonWriter.WritePropertyName("isExpired");
-                        jsonWriter.WriteValue(zone.IsExpired);
-                        break;
-                }
-
-                jsonWriter.WritePropertyName("disabled");
-                jsonWriter.WriteValue(zone.Disabled);
-
-                jsonWriter.WriteEndObject();
+                    jsonWriter.WritePropertyName("isExpired");
+                    jsonWriter.WriteValue(zoneInfo.IsExpired);
+                    break;
             }
+
+            jsonWriter.WritePropertyName("disabled");
+            jsonWriter.WriteValue(zoneInfo.Disabled);
+
+            jsonWriter.WriteEndObject();
+
+            List<DnsResourceRecord> records = _dnsServer.AuthZoneManager.ListAllRecords(domain);
 
             WriteRecordsAsJson(records, jsonWriter, true);
         }
@@ -2507,18 +2505,18 @@ namespace DnsServerCore
                                     IReadOnlyList<DnsResourceRecord> glueRecords = record.GetGlueRecords();
                                     if (glueRecords.Count > 0)
                                     {
-                                        string glue = null;
+                                        string primaryAddresses = null;
 
                                         foreach (DnsResourceRecord glueRecord in glueRecords)
                                         {
-                                            if (glue == null)
-                                                glue = glueRecord.RDATA.ToString();
+                                            if (primaryAddresses == null)
+                                                primaryAddresses = glueRecord.RDATA.ToString();
                                             else
-                                                glue = glue + ", " + glueRecord.RDATA.ToString();
+                                                primaryAddresses = primaryAddresses + ", " + glueRecord.RDATA.ToString();
                                         }
 
-                                        jsonWriter.WritePropertyName("glue");
-                                        jsonWriter.WriteValue(glue);
+                                        jsonWriter.WritePropertyName("primaryAddresses");
+                                        jsonWriter.WriteValue(primaryAddresses);
                                     }
                                 }
                                 break;
@@ -2960,9 +2958,9 @@ namespace DnsServerCore
 
                         DnsResourceRecord soaRecord = new DnsResourceRecord(domain, type, DnsClass.IN, ttl, new DnsSOARecord(primaryNameServer, responsiblePerson, uint.Parse(serial), uint.Parse(refresh), uint.Parse(retry), uint.Parse(expire), uint.Parse(minimum)));
 
-                        string glueAddresses = request.QueryString["glue"];
-                        if (!string.IsNullOrEmpty(glueAddresses))
-                            soaRecord.SetGlueRecords(glueAddresses);
+                        string primaryAddresses = request.QueryString["primaryAddresses"];
+                        if (!string.IsNullOrEmpty(primaryAddresses))
+                            soaRecord.SetGlueRecords(primaryAddresses);
 
                         _dnsServer.AuthZoneManager.SetRecord(soaRecord);
                     }
@@ -3087,20 +3085,6 @@ namespace DnsServerCore
             _dnsServer.AuthZoneManager.SaveZoneFile(zoneInfo.Name);
         }
 
-        private IPEndPoint GetThisDnsServerEndPoint()
-        {
-            if (_dnsServer.LocalEndPoints.Count == 0)
-                return new IPEndPoint(IPAddress.Loopback, 53);
-
-            if (_dnsServer.LocalEndPoints[0].Address.Equals(IPAddress.Any))
-                return new IPEndPoint(IPAddress.Loopback, 53);
-
-            if (_dnsServer.LocalEndPoints[0].Equals(IPAddress.IPv6Any))
-                return new IPEndPoint(IPAddress.IPv6Loopback, 53);
-
-            return _dnsServer.LocalEndPoints[0];
-        }
-
         private void ResolveQuery(HttpListenerRequest request, JsonTextWriter jsonWriter)
         {
             string server = request.QueryString["server"];
@@ -3162,11 +3146,16 @@ namespace DnsServerCore
 
                 if (server.Equals("this-server", StringComparison.OrdinalIgnoreCase))
                 {
-                    nameServer = new NameServerAddress(_dnsServer.ServerDomain, GetThisDnsServerEndPoint(), protocol);
-                    proxy = null; //no proxy required for this server
-
                     switch (protocol)
                     {
+                        case DnsTransportProtocol.Udp:
+                            nameServer = _dnsServer.ThisServer;
+                            break;
+
+                        case DnsTransportProtocol.Tcp:
+                            nameServer = new NameServerAddress(_dnsServer.ThisServer, DnsTransportProtocol.Tcp);
+                            break;
+
                         case DnsTransportProtocol.Tls:
                             throw new DnsServerException("Cannot use DNS-over-TLS protocol for 'this-server'. Please use the TLS certificate domain name as the server.");
 
@@ -3175,7 +3164,12 @@ namespace DnsServerCore
 
                         case DnsTransportProtocol.HttpsJson:
                             throw new DnsServerException("Cannot use DNS-over-HTTPS (JSON) protocol for 'this-server'. Please use the TLS certificate domain name with a url as the server.");
+
+                        default:
+                            throw new InvalidOperationException();
                     }
+
+                    proxy = null; //no proxy required for this server
                 }
                 else
                 {
@@ -3186,7 +3180,7 @@ namespace DnsServerCore
                         if (proxy == null)
                         {
                             if (_dnsServer.AllowRecursion)
-                                nameServer.ResolveIPAddress(new NameServerAddress[] { new NameServerAddress(GetThisDnsServerEndPoint()) }, proxy, preferIPv6, RETRIES, TIMEOUT);
+                                nameServer.ResolveIPAddress(new NameServerAddress[] { _dnsServer.ThisServer }, proxy, preferIPv6, RETRIES, TIMEOUT);
                             else
                                 nameServer.RecursiveResolveIPAddress(_dnsServer.DnsCache, proxy, preferIPv6, RETRIES, TIMEOUT);
                         }
@@ -3196,7 +3190,7 @@ namespace DnsServerCore
                         try
                         {
                             if (_dnsServer.AllowRecursion)
-                                nameServer.ResolveDomainName(new NameServerAddress[] { new NameServerAddress(GetThisDnsServerEndPoint()) }, proxy, preferIPv6, RETRIES, TIMEOUT);
+                                nameServer.ResolveDomainName(new NameServerAddress[] { _dnsServer.ThisServer }, proxy, preferIPv6, RETRIES, TIMEOUT);
                             else
                                 nameServer.RecursiveResolveDomainName(_dnsServer.DnsCache, proxy, preferIPv6, RETRIES, TIMEOUT);
                         }
