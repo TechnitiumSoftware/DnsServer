@@ -250,7 +250,10 @@ function showAddZoneModal() {
     $("#txtAddZone").val("");
     $("#rdAddZoneTypePrimary").prop("checked", true);
     $("#txtAddZonePrimaryNameServerAddresses").val("");
+    $("input[name=rdAddZoneForwarderProtocol]:radio").attr("disabled", false);
     $("#rdAddZoneForwarderProtocolUdp").prop("checked", true);
+    $("#chkAddZoneForwarderThisServer").prop('checked', false);
+    $("#txtAddZoneForwarder").prop("disabled", false);
     $("#txtAddZoneForwarder").attr("placeholder", "8.8.8.8 or [2620:fe::10]")
     $("#txtAddZoneForwarder").val("");
 
@@ -261,6 +264,25 @@ function showAddZoneModal() {
     $("#btnAddZone").button('reset');
 
     $("#modalAddZone").modal("show");
+}
+
+function updateAddZoneFormForwarderThisServer() {
+    var useThisServer = $("#chkAddZoneForwarderThisServer").prop('checked');
+
+    if (useThisServer) {
+        $("input[name=rdAddZoneForwarderProtocol]:radio").attr("disabled", true);
+        $("#rdAddZoneForwarderProtocolUdp").prop("checked", true);
+        $("#txtAddZoneForwarder").attr("placeholder", "8.8.8.8 or [2620:fe::10]")
+
+        $("#txtAddZoneForwarder").prop("disabled", true);
+        $("#txtAddZoneForwarder").val("this-server");
+    }
+    else {
+        $("input[name=rdAddZoneForwarderProtocol]:radio").attr("disabled", false);
+
+        $("#txtAddZoneForwarder").prop("disabled", false);
+        $("#txtAddZoneForwarder").val("");
+    }
 }
 
 function addZone() {
@@ -462,17 +484,17 @@ function showEditZone(domain) {
                             "<br /><b>Expire:</b> " + htmlEncode(records[i].rData.expire) +
                             "<br /><b>Minimum:</b> " + htmlEncode(records[i].rData.minimum);
 
-                        if (records[i].rData.glue != null) {
-                            tableHtmlRows += "<br /><b>Glue Addresses:</b> " + records[i].rData.glue;
+                        if (records[i].rData.primaryAddresses != null) {
+                            tableHtmlRows += "<br /><b>Primary Name Server Addresses:</b> " + records[i].rData.primaryAddresses;
 
-                            additionalDataAttributes = "data-record-glue=\"" + htmlEncode(records[i].rData.glue) + "\" ";
+                            additionalDataAttributes = "data-record-paddresses=\"" + htmlEncode(records[i].rData.primaryAddresses) + "\" ";
                         } else {
-                            additionalDataAttributes = "data-record-glue=\"\" ";
+                            additionalDataAttributes = "data-record-paddresses=\"\" ";
                         }
 
                         tableHtmlRows += "</td>";
 
-                        additionalDataAttributes += "data-record-mname=\"" + htmlEncode(records[i].rData.primaryNameServer) + "\" " +
+                        additionalDataAttributes += "data-record-pname=\"" + htmlEncode(records[i].rData.primaryNameServer) + "\" " +
                             "data-record-rperson=\"" + htmlEncode(records[i].rData.responsiblePerson) + "\" " +
                             "data-record-serial=\"" + htmlEncode(records[i].rData.serial) + "\" " +
                             "data-record-refresh=\"" + htmlEncode(records[i].rData.refresh) + "\" " +
@@ -606,6 +628,7 @@ function clearAddEditForm() {
     $("#txtAddEditRecordName").prop("disabled", false);
     $("#optAddEditRecordType").prop("disabled", false);
     $("#txtAddEditRecordTtl").prop("disabled", false);
+    $("#divAddEditRecordTtl").show();
 
     $("#txtAddEditRecordName").val("");
     $("#optAddEditRecordType").val("A");
@@ -657,6 +680,9 @@ function clearAddEditForm() {
     $("#divAddEditRecordDataForwarder").hide();
     $("#rdAddEditRecordDataForwarderProtocolUdp").prop("checked", true);
     $("input[name=rdAddEditRecordDataForwarderProtocol]:radio").attr('disabled', false);
+    $("#chkAddEditRecordDataForwarderThisServer").prop("disabled", false);
+    $("#chkAddEditRecordDataForwarderThisServer").prop("checked", false);
+    $('#txtAddEditRecordDataForwarder').prop('disabled', false);
     $("#txtAddEditRecordDataForwarder").attr("placeholder", "8.8.8.8 or [2620:fe::10]")
     $("#txtAddEditRecordDataForwarder").val("");
 
@@ -677,6 +703,7 @@ function modifyAddRecordForm() {
     $("#divAddEditRecordAlert").html("");
 
     $("#txtAddEditRecordName").prop("placeholder", "@");
+    $("#divAddEditRecordTtl").show();
 
     var type = $("#optAddEditRecordType").val();
 
@@ -722,7 +749,7 @@ function modifyAddRecordForm() {
             $("#txtEditRecordDataSoaRetry").val("");
             $("#txtEditRecordDataSoaExpire").val("");
             $("#txtEditRecordDataSoaMinimum").val("");
-            $("#txtEditRecordDataSoaGlue").val("");
+            $("#txtEditRecordDataSoaPrimaryAddresses").val("");
             $("#divEditRecordDataSoa").show();
             break;
 
@@ -763,7 +790,12 @@ function modifyAddRecordForm() {
             break;
 
         case "FWD":
+            $("#divAddEditRecordTtl").hide();
+            $("input[name=rdAddEditRecordDataForwarderProtocol]:radio").attr("disabled", false);
             $("#rdAddEditRecordDataForwarderProtocolUdp").prop("checked", true);
+            $("#chkAddEditRecordDataForwarderThisServer").prop("disabled", false);
+            $("#chkAddEditRecordDataForwarderThisServer").prop("checked", false);
+            $('#txtAddEditRecordDataForwarder').prop('disabled', false);
             $("#txtAddEditRecordDataForwarder").val("");
             $("#divAddEditRecordDataForwarder").show();
             break;
@@ -977,6 +1009,29 @@ function updateAddEditFormForwarderPlaceholder() {
     }
 }
 
+function updateAddEditFormForwarderThisServer() {
+    var useThisServer = $("#chkAddEditRecordDataForwarderThisServer").prop('checked');
+    var isEditMode = $("#optAddEditRecordType").prop("disabled");
+
+    if (useThisServer) {
+        if (!isEditMode) {
+            $("input[name=rdAddEditRecordDataForwarderProtocol]:radio").attr("disabled", true);
+            $("#rdAddEditRecordDataForwarderProtocolUdp").prop("checked", true);
+            $("#txtAddEditRecordDataForwarder").attr("placeholder", "8.8.8.8 or [2620:fe::10]")
+        }
+
+        $("#txtAddEditRecordDataForwarder").prop("disabled", true);
+        $("#txtAddEditRecordDataForwarder").val("this-server");
+    }
+    else {
+        if (!isEditMode)
+            $("input[name=rdAddEditRecordDataForwarderProtocol]:radio").attr("disabled", false);
+
+        $("#txtAddEditRecordDataForwarder").prop("disabled", false);
+        $("#txtAddEditRecordDataForwarder").val("");
+    }
+}
+
 function showEditRecordModal(objBtn) {
     var btn = $(objBtn);
     var id = btn.attr("data-id");
@@ -1002,14 +1057,14 @@ function showEditRecordModal(objBtn) {
     $("#txtAddEditRecordTtl").val(ttl)
 
     var disableEditRecordModalFields = false;
-    var hideEditRecordGlueField = false;
+    var hideSoaRecordPrimaryAddressesField = false;
 
     var zoneType = $("#titleEditZoneType").text();
     switch (zoneType) {
         case "Primary":
             switch (type) {
                 case "SOA":
-                    hideEditRecordGlueField = true;
+                    hideSoaRecordPrimaryAddressesField = true;
                     break;
             }
             break;
@@ -1059,14 +1114,14 @@ function showEditRecordModal(objBtn) {
             break;
 
         case "SOA":
-            $("#txtEditRecordDataSoaPrimaryNameServer").val(divData.attr("data-record-mname"));
+            $("#txtEditRecordDataSoaPrimaryNameServer").val(divData.attr("data-record-pname"));
             $("#txtEditRecordDataSoaResponsiblePerson").val(divData.attr("data-record-rperson"));
             $("#txtEditRecordDataSoaSerial").val(divData.attr("data-record-serial"));
             $("#txtEditRecordDataSoaRefresh").val(divData.attr("data-record-refresh"));
             $("#txtEditRecordDataSoaRetry").val(divData.attr("data-record-retry"));
             $("#txtEditRecordDataSoaExpire").val(divData.attr("data-record-expire"));
             $("#txtEditRecordDataSoaMinimum").val(divData.attr("data-record-minimum"));
-            $("#txtEditRecordDataSoaGlue").val(divData.attr("data-record-glue").replace(/, /g, "\n"));
+            $("#txtEditRecordDataSoaPrimaryAddresses").val(divData.attr("data-record-paddresses").replace(/, /g, "\n"));
 
             $("#txtAddEditRecordName").prop("disabled", true);
 
@@ -1082,10 +1137,10 @@ function showEditRecordModal(objBtn) {
                 $("#txtEditRecordDataSoaMinimum").prop("disabled", true);
             }
 
-            if (hideEditRecordGlueField) {
-                $("#divEditRecordDataSoaGlue").hide();
+            if (hideSoaRecordPrimaryAddressesField) {
+                $("#divEditRecordDataSoaPrimaryAddresses").hide();
             } else {
-                $("#divEditRecordDataSoaGlue").show();
+                $("#divEditRecordDataSoaPrimaryAddresses").show();
             }
 
             break;
@@ -1109,9 +1164,17 @@ function showEditRecordModal(objBtn) {
             break;
 
         case "FWD":
+            $("#divAddEditRecordTtl").hide();
             $("input[name=rdAddEditRecordDataForwarderProtocol]:radio").attr('disabled', true);
             $("#rdAddEditRecordDataForwarderProtocol" + divData.attr("data-record-protocol")).prop("checked", true);
-            $("#txtAddEditRecordDataForwarder").val(divData.attr("data-record-value"));
+
+            var forwarder = divData.attr("data-record-value");
+
+            $("#chkAddEditRecordDataForwarderThisServer").prop("disabled", !$("#rdAddEditRecordDataForwarderProtocolUdp").prop("checked"));
+            $("#chkAddEditRecordDataForwarderThisServer").prop("checked", (forwarder == "this-server"));
+            $("#txtAddEditRecordDataForwarder").prop("disabled", (forwarder == "this-server"));
+            $("#txtAddEditRecordDataForwarder").val(forwarder);
+
             updateAddEditFormForwarderPlaceholder();
             break;
 
@@ -1272,7 +1335,7 @@ function updateRecord() {
                 return;
             }
 
-            var glue = cleanTextList($("#txtEditRecordDataSoaGlue").val());
+            var primaryAddresses = cleanTextList($("#txtEditRecordDataSoaPrimaryAddresses").val());
 
             apiUrl += "&primaryNameServer=" + encodeURIComponent(primaryNameServer) +
                 "&responsiblePerson=" + encodeURIComponent(responsiblePerson) +
@@ -1281,7 +1344,7 @@ function updateRecord() {
                 "&retry=" + encodeURIComponent(retry) +
                 "&expire=" + encodeURIComponent(expire) +
                 "&minimum=" + encodeURIComponent(minimum) +
-                "&glue=" + encodeURIComponent(glue);
+                "&primaryAddresses=" + encodeURIComponent(primaryAddresses);
             break;
 
         case "MX":
