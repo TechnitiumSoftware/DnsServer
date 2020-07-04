@@ -528,14 +528,14 @@ namespace DnsServerCore.Dns.ZoneManagers
         public void SyncRecords(string domain, IReadOnlyList<DnsResourceRecord> syncRecords, IReadOnlyList<DnsResourceRecord> additionalRecords = null, bool dontRemoveRecords = false)
         {
             List<DnsResourceRecord> newRecords = new List<DnsResourceRecord>(syncRecords.Count);
-            List<DnsResourceRecord> glueRecords = new List<DnsResourceRecord>();
+            List<DnsResourceRecord> allGlueRecords = new List<DnsResourceRecord>();
 
             if (additionalRecords != null)
             {
                 foreach (DnsResourceRecord additionalRecord in additionalRecords)
                 {
-                    if (!glueRecords.Contains(additionalRecord))
-                        glueRecords.Add(additionalRecord);
+                    if (!allGlueRecords.Contains(additionalRecord))
+                        allGlueRecords.Add(additionalRecord);
                 }
             }
 
@@ -555,8 +555,8 @@ namespace DnsServerCore.Dns.ZoneManagers
                     {
                         case DnsResourceRecordType.A:
                         case DnsResourceRecordType.AAAA:
-                            if (!glueRecords.Contains(record))
-                                glueRecords.Add(record);
+                            if (!allGlueRecords.Contains(record))
+                                allGlueRecords.Add(record);
 
                             break;
 
@@ -574,19 +574,19 @@ namespace DnsServerCore.Dns.ZoneManagers
 
                     if (record.Name.Equals(domain, StringComparison.OrdinalIgnoreCase) || record.Name.EndsWith("." + domain, StringComparison.OrdinalIgnoreCase))
                         newRecords.Add(record);
-                    else if (!glueRecords.Contains(record))
-                        glueRecords.Add(record);
+                    else if (!allGlueRecords.Contains(record))
+                        allGlueRecords.Add(record);
                 }
             }
 
-            if (glueRecords.Count > 0)
+            if (allGlueRecords.Count > 0)
             {
                 foreach (DnsResourceRecord record in newRecords)
                 {
                     switch (record.Type)
                     {
                         case DnsResourceRecordType.NS:
-                            record.SyncGlueRecords(glueRecords);
+                            record.SyncGlueRecords(allGlueRecords);
                             break;
                     }
                 }
