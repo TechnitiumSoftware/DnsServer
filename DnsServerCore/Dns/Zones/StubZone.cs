@@ -34,7 +34,7 @@ namespace DnsServerCore.Dns.Zones
 
         readonly object _refreshTimerLock = new object();
         Timer _refreshTimer;
-        const int REFRESH_TIMER_INTERVAL = 10000;
+        const int REFRESH_TIMER_INTERVAL = 5000;
 
         const int REFRESH_TIMEOUT = 10000;
         const int REFRESH_RETRIES = 5;
@@ -192,8 +192,13 @@ namespace DnsServerCore.Dns.Zones
         {
             try
             {
-                DnsClient client = new DnsClient(primaryNameServers);
+                {
+                    LogManager log = _dnsServer.LogManager;
+                    if (log != null)
+                        log.Write("DNS Server has started zone refresh for stub zone: " + _name);
+                }
 
+                DnsClient client = new DnsClient(primaryNameServers);
                 client.Timeout = REFRESH_TIMEOUT;
                 client.Retries = REFRESH_RETRIES;
 
@@ -231,7 +236,17 @@ namespace DnsServerCore.Dns.Zones
                     return true;
                 }
 
-                //update available; do zone sync
+                //update available; do zone sync with TCP transport
+                List<NameServerAddress> tcpNameServers = new List<NameServerAddress>();
+
+                foreach (NameServerAddress nameServer in primaryNameServers)
+                    tcpNameServers.Add(new NameServerAddress(nameServer, DnsTransportProtocol.Tcp));
+
+                primaryNameServers = tcpNameServers;
+                client = new DnsClient(primaryNameServers);
+                client.Timeout = REFRESH_TIMEOUT;
+                client.Retries = REFRESH_RETRIES;
+
                 DnsDatagram nsRequest = new DnsDatagram(0, false, DnsOpcode.StandardQuery, false, false, false, false, false, false, DnsResponseCode.NoError, new DnsQuestionRecord[] { new DnsQuestionRecord(_name, DnsResourceRecordType.NS, DnsClass.IN) });
                 DnsDatagram nsResponse = client.Resolve(nsRequest);
 
