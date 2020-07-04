@@ -399,37 +399,73 @@ namespace DnsServerCore.Dns.Zones
 
         public override bool TryRemove(string domain, out T value)
         {
-            if (TryRemove(domain, out value, out Node closestNode))
+            if (typeof(T) == typeof(CacheZone))
             {
-                if ((value != null) && !(value is SubDomainZone))
+                bool removed = TryRemove(domain, out value, out Node closestNode);
+
+                //remove all cache zones under current zone
+                Node current = closestNode;
+
+                do
                 {
-                    //remove all sub domain or cache zones
-                    Node current = closestNode;
+                    current = current.GetNextNodeWithValue(closestNode.Depth);
+                    if (current == null)
+                        break;
 
-                    while (true)
+                    NodeValue v = current.Value;
+                    if (v != null)
                     {
-                        current = current.GetNextNodeWithValue(closestNode.Depth);
-                        if (current == null)
-                            break;
-
-                        NodeValue v = current.Value;
-                        if (v != null)
+                        T zone = v.Value;
+                        if (zone != null)
                         {
-                            T zone = v.Value;
-                            if ((zone != null) && ((zone is SubDomainZone) || (zone is CacheZone)))
-                            {
-                                current.RemoveNodeValue(v.Key, out _); //remove node value
-                                current.CleanThisBranch();
-                            }
+                            current.RemoveNodeValue(v.Key, out _); //remove node value
+                            current.CleanThisBranch();
+                            removed = true;
                         }
                     }
                 }
+                while (true);
 
-                closestNode.CleanThisBranch();
-                return true;
+                if (removed)
+                    closestNode.CleanThisBranch();
+
+                return removed;
             }
+            else
+            {
+                if (TryRemove(domain, out value, out Node closestNode))
+                {
+                    if ((value != null) && ((value is PrimaryZone) || (value is SecondaryZone) || (value is StubZone) || (value is ForwarderZone)))
+                    {
+                        //remove all sub domains under current zone
+                        Node current = closestNode;
 
-            return false;
+                        do
+                        {
+                            current = GetNextSubDomainZoneNode(current, closestNode.Depth);
+                            if (current == null)
+                                break;
+
+                            NodeValue v = current.Value;
+                            if (v != null)
+                            {
+                                T zone = v.Value;
+                                if (zone != null)
+                                {
+                                    current.RemoveNodeValue(v.Key, out _); //remove node value
+                                    current.CleanThisBranch();
+                                }
+                            }
+                        }
+                        while (true);
+                    }
+
+                    closestNode.CleanThisBranch();
+                    return true;
+                }
+
+                return false;
+            }
         }
 
         public List<T> GetZoneWithSubDomainZones(string domain)
