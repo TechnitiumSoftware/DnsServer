@@ -61,6 +61,8 @@ namespace DnsServerCore.Dns
         IReadOnlyList<IPEndPoint> _localEndPoints;
         LogManager _log;
 
+        NameServerAddress _thisServer;
+
         readonly List<Socket> _udpListeners = new List<Socket>();
         readonly List<Socket> _tcpListeners = new List<Socket>();
         readonly List<Socket> _httpListeners = new List<Socket>();
@@ -988,6 +990,10 @@ namespace DnsServerCore.Dns
             if (!remoteVerified)
                 return new DnsDatagram(request.Identifier, true, DnsOpcode.Notify, false, false, request.RecursionDesired, false, false, false, DnsResponseCode.Refused, request.Question) { Tag = StatsResponseType.Authoritative };
 
+            LogManager log = _log;
+            if (log != null)
+                log.Write(remoteEP as IPEndPoint, "DNS Server received NOTIFY for zone: " + authZoneInfo.Name);
+
             if ((request.Answer.Count > 0) && (request.Answer[0].Type == DnsResourceRecordType.SOA))
             {
                 IReadOnlyList<DnsResourceRecord> localSoaRecords = authZoneInfo.GetRecords(DnsResourceRecordType.SOA);
@@ -1028,6 +1034,10 @@ namespace DnsServerCore.Dns
 
             if (!isAxfrAllowed)
                 return new DnsDatagram(request.Identifier, true, DnsOpcode.StandardQuery, false, false, request.RecursionDesired, false, false, false, DnsResponseCode.Refused, request.Question) { Tag = StatsResponseType.Authoritative };
+
+            LogManager log = _log;
+            if (log != null)
+                log.Write(remoteEP as IPEndPoint, "DNS Server received zone transfer request for zone: " + authZoneInfo.Name);
 
             IReadOnlyList<DnsResourceRecord> axfrRecords = _authZoneManager.QueryZoneTransferRecords(request.Question[0].Name);
 
@@ -1074,7 +1084,7 @@ namespace DnsServerCore.Dns
                             break;
 
                         case DnsResourceRecordType.FWD:
-                            if ((response.Authority.Count == 1) && (response.Authority[0].RDATA as DnsForwarderRecord).Forwarder.Equals("this-server", StringComparison.OrdinalIgnoreCase))
+                            if ((response.Authority.Count == 1) && (response.Authority[0].Type == DnsResourceRecordType.FWD) && (response.Authority[0].RDATA as DnsForwarderRecord).Forwarder.Equals("this-server", StringComparison.OrdinalIgnoreCase))
                             {
                                 //do conditional forwarding via "this-server" 
                                 return ProcessRecursiveQuery(request, null, null, false, false);
@@ -1087,7 +1097,12 @@ namespace DnsServerCore.Dns
                                 foreach (DnsResourceRecord rr in response.Authority)
                                 {
                                     if (rr.Type == DnsResourceRecordType.FWD)
-                                        forwarders.Add((rr.RDATA as DnsForwarderRecord).NameServer);
+                                    {
+                                        DnsForwarderRecord fwd = rr.RDATA as DnsForwarderRecord;
+
+                                        if (!fwd.Forwarder.Equals("this-server", StringComparison.OrdinalIgnoreCase))
+                                            forwarders.Add(fwd.NameServer);
+                                    }
                                 }
 
                                 return ProcessRecursiveQuery(request, null, forwarders, false, false);
@@ -1167,7 +1182,12 @@ namespace DnsServerCore.Dns
                                 foreach (DnsResourceRecord rr in lastResponse.Authority)
                                 {
                                     if (rr.Type == DnsResourceRecordType.FWD)
-                                        forwarders.Add((rr.RDATA as DnsForwarderRecord).NameServer);
+                                    {
+                                        DnsForwarderRecord fwd = rr.RDATA as DnsForwarderRecord;
+
+                                        if (!fwd.Forwarder.Equals("this-server", StringComparison.OrdinalIgnoreCase))
+                                            forwarders.Add(fwd.NameServer);
+                                    }
                                 }
 
                                 lastResponse = RecursiveResolve(newRequest, null, forwarders, false, false);
@@ -1270,7 +1290,12 @@ namespace DnsServerCore.Dns
                                 foreach (DnsResourceRecord rr in lastResponse.Authority)
                                 {
                                     if (rr.Type == DnsResourceRecordType.FWD)
-                                        forwarders.Add((rr.RDATA as DnsForwarderRecord).NameServer);
+                                    {
+                                        DnsForwarderRecord fwd = rr.RDATA as DnsForwarderRecord;
+
+                                        if (!fwd.Forwarder.Equals("this-server", StringComparison.OrdinalIgnoreCase))
+                                            forwarders.Add(fwd.NameServer);
+                                    }
                                 }
 
                                 lastResponse = RecursiveResolve(newRequest, null, forwarders, false, false);
@@ -1460,7 +1485,7 @@ namespace DnsServerCore.Dns
 
             //recursion with locking
             ResolverQueryHandle newQueryHandle = new ResolverQueryHandle();
-            ResolverQueryHandle queryHandle = _resolverQueryHandles.GetOrAdd(request.Question[0].Name + "." + request.Question[0].Type + "." + request.Question[0].Class, newQueryHandle);
+            ResolverQueryHandle queryHandle = _resolverQueryHandles.GetOrAdd(GetResolverQueryKey(request.Question[0]), newQueryHandle);
 
             if (queryHandle.Equals(newQueryHandle))
             {
@@ -1618,8 +1643,16 @@ namespace DnsServerCore.Dns
             }
             finally
             {
-                _resolverQueryHandles.TryRemove(request.Question[0].Name + "." + request.Question[0].Type + "." + request.Question[0].Class, out _);
+                _resolverQueryHandles.TryRemove(GetResolverQueryKey(request.Question[0]), out _);
             }
+        }
+
+        private static string GetResolverQueryKey(DnsQuestionRecord question)
+        {
+            if (string.IsNullOrEmpty(question.Name))
+                return question.Type + "." + question.Class;
+
+            return question.Name + "." + question.Type + "." + question.Class;
         }
 
         private DnsDatagram QueryCache(DnsDatagram request, bool serveStale)
@@ -1876,6 +1909,25 @@ namespace DnsServerCore.Dns
 
         }
 
+        private void UpdateThisServer()
+        {
+            if (_thisServer == null)
+            {
+                if ((_localEndPoints == null) || (_localEndPoints.Count == 0))
+                    _thisServer = new NameServerAddress(_serverDomain, IPAddress.Loopback);
+                else if (_localEndPoints[0].Address.Equals(IPAddress.Any))
+                    _thisServer = new NameServerAddress(_serverDomain, IPAddress.Loopback);
+                else if (_localEndPoints[0].Equals(IPAddress.IPv6Any))
+                    _thisServer = new NameServerAddress(_serverDomain, IPAddress.IPv6Loopback);
+                else
+                    _thisServer = new NameServerAddress(_serverDomain, _localEndPoints[0]);
+            }
+            else
+            {
+                _thisServer = new NameServerAddress(_serverDomain, _thisServer.IPEndPoint);
+            }
+        }
+
         #endregion
 
         #region public
@@ -2114,6 +2166,7 @@ namespace DnsServerCore.Dns
 
             _state = ServiceState.Running;
 
+            UpdateThisServer();
             ResetPrefetchTimers();
         }
 
@@ -2262,6 +2315,8 @@ namespace DnsServerCore.Dns
                     _allowedZoneManager.ServerDomain = _serverDomain;
                     _blockedZoneManager.ServerDomain = _serverDomain;
                     _blockListZoneManager.ServerDomain = _serverDomain;
+
+                    UpdateThisServer();
                 }
             }
         }
@@ -2274,6 +2329,9 @@ namespace DnsServerCore.Dns
             get { return _localEndPoints; }
             set { _localEndPoints = value; }
         }
+
+        public NameServerAddress ThisServer
+        { get { return _thisServer; } }
 
         public bool EnableDnsOverHttp
         {
