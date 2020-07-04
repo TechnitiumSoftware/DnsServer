@@ -270,7 +270,7 @@ namespace DnsServerCore.Dns.Zones
                         if ((this is SecondaryZone) || (this is StubZone))
                         {
                             //copy existing SOA record's glue addresses to new SOA record
-                            newEntry.Value[0].SyncGlueRecords(_entries[DnsResourceRecordType.SOA][0].GetGlueRecords());
+                            newEntry.Value[0].SetGlueRecords(_entries[DnsResourceRecordType.SOA][0].GetGlueRecords());
                         }
                     }
 
