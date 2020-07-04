@@ -87,7 +87,7 @@ namespace DnsServerCore.Dns.ResourceRecords
             SetGlueRecords(record, glueRecords);
         }
 
-        public static void SyncGlueRecords(this DnsResourceRecord record, IReadOnlyList<DnsResourceRecord> glueRecords)
+        public static void SyncGlueRecords(this DnsResourceRecord record, IReadOnlyList<DnsResourceRecord> allGlueRecords)
         {
             string domain;
 
@@ -105,9 +105,9 @@ namespace DnsServerCore.Dns.ResourceRecords
                     throw new NotSupportedException();
             }
 
-            List<DnsResourceRecord> foundGlueRecords = new List<DnsResourceRecord>();
+            List<DnsResourceRecord> foundGlueRecords = new List<DnsResourceRecord>(2);
 
-            foreach (DnsResourceRecord glueRecord in glueRecords)
+            foreach (DnsResourceRecord glueRecord in allGlueRecords)
             {
                 switch (glueRecord.Type)
                 {
