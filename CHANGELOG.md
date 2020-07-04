@@ -1,7 +1,7 @@
 # Technitium DNS Server Change Log
 
 ## Version 5.0
-Release Date: 5 July 2020
+Release Date: 4 July 2020
 
 - DNS Server local end points support to allow specifying alternate ports for UDP and TCP protocols.
 - DNS Server performance issues caused by thread contention fixed.
