@@ -507,6 +507,12 @@
         }
         "Entry"
         {
+        "MsmKey" = "8:_48D35E76D0F15C4F3B77AFA094F295B3"
+        "OwnerKey" = "8:_1A8572E5BA364EBCA52AF667CA5A2B29"
+        "MsmSig" = "8:_UNDEFINED"
+        }
+        "Entry"
+        {
         "MsmKey" = "8:_4B00693E48596F1185BE4333397D39EB"
         "OwnerKey" = "8:_981B0AC0BD4C31EDFA7D1A12884569F7"
         "MsmSig" = "8:_UNDEFINED"
@@ -761,6 +767,12 @@
         {
         "MsmKey" = "8:_6D3EC427D6415AC296F674A138E65864"
         "OwnerKey" = "8:_8B10F9E249A0AE128E599DE6F0311A2C"
+        "MsmSig" = "8:_UNDEFINED"
+        }
+        "Entry"
+        {
+        "MsmKey" = "8:_6D3EC427D6415AC296F674A138E65864"
+        "OwnerKey" = "8:_BEC30B6658A7923A569BCB640618571E"
         "MsmSig" = "8:_UNDEFINED"
         }
         "Entry"
@@ -1941,6 +1953,18 @@
         }
         "Entry"
         {
+        "MsmKey" = "8:_BEC30B6658A7923A569BCB640618571E"
+        "OwnerKey" = "8:_4744230694CEBFA14C02D34630CBE800"
+        "MsmSig" = "8:_UNDEFINED"
+        }
+        "Entry"
+        {
+        "MsmKey" = "8:_BEC30B6658A7923A569BCB640618571E"
+        "OwnerKey" = "8:_1A8572E5BA364EBCA52AF667CA5A2B29"
+        "MsmSig" = "8:_UNDEFINED"
+        }
+        "Entry"
+        {
         "MsmKey" = "8:_C0382C14209146C0B0EF649A6C7FFD8A"
         "OwnerKey" = "8:_UNDEFINED"
         "MsmSig" = "8:_UNDEFINED"
@@ -2410,7 +2434,7 @@
         "Entry"
         {
         "MsmKey" = "8:_UNDEFINED"
-        "OwnerKey" = "8:_9E2B74BD683FB4419D3D83F8077F2EB9"
+        "OwnerKey" = "8:_48D35E76D0F15C4F3B77AFA094F295B3"
         "MsmSig" = "8:_UNDEFINED"
         }
         "Entry"
@@ -2423,6 +2447,12 @@
         {
         "MsmKey" = "8:_UNDEFINED"
         "OwnerKey" = "8:_27F3D2BCF051477581E8F61BCD6485B4"
+        "MsmSig" = "8:_UNDEFINED"
+        }
+        "Entry"
+        {
+        "MsmKey" = "8:_UNDEFINED"
+        "OwnerKey" = "8:_9E2B74BD683FB4419D3D83F8077F2EB9"
         "MsmSig" = "8:_UNDEFINED"
         }
         "Entry"
@@ -4326,7 +4356,7 @@
             {
             "AssemblyRegister" = "3:1"
             "AssemblyIsInGAC" = "11:FALSE"
-            "AssemblyAsmDisplayName" = "8:DnsServerCore, Version=4.0.0.0, Culture=neutral, processorArchitecture=MSIL"
+            "AssemblyAsmDisplayName" = "8:DnsServerCore, Version=5.0.0.0, Culture=neutral, processorArchitecture=MSIL"
                 "ScatterAssemblies"
                 {
                     "_4744230694CEBFA14C02D34630CBE800"
@@ -4460,6 +4490,37 @@
                     }
                 }
             "SourcePath" = "8:System.AppContext.dll"
+            "TargetName" = "8:"
+            "Tag" = "8:"
+            "Folder" = "8:_92D8D371EEF34E8A92831042A33F621E"
+            "Condition" = "8:"
+            "Transitive" = "11:FALSE"
+            "Vital" = "11:TRUE"
+            "ReadOnly" = "11:FALSE"
+            "Hidden" = "11:FALSE"
+            "System" = "11:FALSE"
+            "Permanent" = "11:FALSE"
+            "SharedLegacy" = "11:FALSE"
+            "PackageAs" = "3:1"
+            "Register" = "3:1"
+            "Exclude" = "11:FALSE"
+            "IsDependency" = "11:TRUE"
+            "IsolateTo" = "8:"
+            }
+            "{9F6F8455-1EF1-4B85-886A-4223BCC8E7F7}:_48D35E76D0F15C4F3B77AFA094F295B3"
+            {
+            "AssemblyRegister" = "3:1"
+            "AssemblyIsInGAC" = "11:FALSE"
+            "AssemblyAsmDisplayName" = "8:TechnitiumLibrary.Net.Firewall, Version=1.1.0.1, Culture=neutral, processorArchitecture=MSIL"
+                "ScatterAssemblies"
+                {
+                    "_48D35E76D0F15C4F3B77AFA094F295B3"
+                    {
+                    "Name" = "8:TechnitiumLibrary.Net.Firewall.dll"
+                    "Attributes" = "3:512"
+                    }
+                }
+            "SourcePath" = "8:TechnitiumLibrary.Net.Firewall.dll"
             "TargetName" = "8:"
             "Tag" = "8:"
             "Folder" = "8:_92D8D371EEF34E8A92831042A33F621E"
@@ -5090,7 +5151,7 @@
             {
             "AssemblyRegister" = "3:1"
             "AssemblyIsInGAC" = "11:FALSE"
-            "AssemblyAsmDisplayName" = "8:TechnitiumLibrary.IO, Version=2.5.4.0, Culture=neutral, processorArchitecture=MSIL"
+            "AssemblyAsmDisplayName" = "8:TechnitiumLibrary.IO, Version=2.6.0.0, Culture=neutral, processorArchitecture=MSIL"
                 "ScatterAssemblies"
                 {
                     "_6CC2E6E1F5D380251082B18D85E994CC"
@@ -5801,7 +5862,7 @@
             {
             "AssemblyRegister" = "3:1"
             "AssemblyIsInGAC" = "11:FALSE"
-            "AssemblyAsmDisplayName" = "8:TechnitiumLibrary.IO, Version=2.5.4.0, Culture=neutral, processorArchitecture=MSIL"
+            "AssemblyAsmDisplayName" = "8:TechnitiumLibrary.IO, Version=2.6.0.0, Culture=neutral, processorArchitecture=MSIL"
                 "ScatterAssemblies"
                 {
                     "_8B10F9E249A0AE128E599DE6F0311A2C"
@@ -6151,7 +6212,7 @@
             {
             "AssemblyRegister" = "3:1"
             "AssemblyIsInGAC" = "11:FALSE"
-            "AssemblyAsmDisplayName" = "8:TechnitiumLibrary.Net, Version=3.5.0.0, Culture=neutral, processorArchitecture=MSIL"
+            "AssemblyAsmDisplayName" = "8:TechnitiumLibrary.Net, Version=3.6.0.0, Culture=neutral, processorArchitecture=MSIL"
                 "ScatterAssemblies"
                 {
                     "_9E2B74BD683FB4419D3D83F8077F2EB9"
@@ -6811,7 +6872,7 @@
             {
             "AssemblyRegister" = "3:1"
             "AssemblyIsInGAC" = "11:FALSE"
-            "AssemblyAsmDisplayName" = "8:TechnitiumLibrary.Net, Version=3.5.0.0, Culture=neutral, processorArchitecture=MSIL"
+            "AssemblyAsmDisplayName" = "8:TechnitiumLibrary.Net, Version=3.6.0.0, Culture=neutral, processorArchitecture=MSIL"
                 "ScatterAssemblies"
                 {
                     "_BB60BA89D1895F2892DFDF8733540B69"
@@ -7089,6 +7150,37 @@
                     }
                 }
             "SourcePath" = "8:System.Runtime.dll"
+            "TargetName" = "8:"
+            "Tag" = "8:"
+            "Folder" = "8:_92D8D371EEF34E8A92831042A33F621E"
+            "Condition" = "8:"
+            "Transitive" = "11:FALSE"
+            "Vital" = "11:TRUE"
+            "ReadOnly" = "11:FALSE"
+            "Hidden" = "11:FALSE"
+            "System" = "11:FALSE"
+            "Permanent" = "11:FALSE"
+            "SharedLegacy" = "11:FALSE"
+            "PackageAs" = "3:1"
+            "Register" = "3:1"
+            "Exclude" = "11:FALSE"
+            "IsDependency" = "11:TRUE"
+            "IsolateTo" = "8:"
+            }
+            "{9F6F8455-1EF1-4B85-886A-4223BCC8E7F7}:_BEC30B6658A7923A569BCB640618571E"
+            {
+            "AssemblyRegister" = "3:1"
+            "AssemblyIsInGAC" = "11:FALSE"
+            "AssemblyAsmDisplayName" = "8:TechnitiumLibrary.ByteTree, Version=1.0.0.0, Culture=neutral, processorArchitecture=MSIL"
+                "ScatterAssemblies"
+                {
+                    "_BEC30B6658A7923A569BCB640618571E"
+                    {
+                    "Name" = "8:TechnitiumLibrary.ByteTree.dll"
+                    "Attributes" = "3:512"
+                    }
+                }
+            "SourcePath" = "8:TechnitiumLibrary.ByteTree.dll"
             "TargetName" = "8:"
             "Tag" = "8:"
             "Folder" = "8:_92D8D371EEF34E8A92831042A33F621E"
@@ -8637,15 +8729,15 @@
         {
         "Name" = "8:Microsoft Visual Studio"
         "ProductName" = "8:DNS Server"
-        "ProductCode" = "8:{D032BC3A-3E1D-4CB8-AADC-112BD77CCEBD}"
-        "PackageCode" = "8:{BFFA7712-3C7C-4AF1-8421-ED1DD273B2B0}"
+        "ProductCode" = "8:{089F1E42-8A03-4AA2-979D-6F0E6FD9BB64}"
+        "PackageCode" = "8:{328792CE-0D09-4683-AB0B-EF517FF91BF3}"
         "UpgradeCode" = "8:{ED5F64A5-EFD9-4A95-AA7C-4B8447343BD4}"
         "AspNetVersion" = "8:4.0.30319.0"
         "RestartWWWService" = "11:FALSE"
         "RemovePreviousVersions" = "11:TRUE"
         "DetectNewerInstalledVersion" = "11:TRUE"
         "InstallAllUsers" = "11:FALSE"
-        "ProductVersion" = "8:4.1"
+        "ProductVersion" = "8:5.0"
         "Manufacturer" = "8:Technitium"
         "ARPHELPTELEPHONE" = "8:"
         "ARPHELPLINK" = "8:https://technitium.com/dns/"
@@ -9187,7 +9279,7 @@
         {
             "{5259A561-127C-4D43-A0A1-72F10C7B3BF8}:_1A8572E5BA364EBCA52AF667CA5A2B29"
             {
-            "SourcePath" = "8:..\\DnsService\\obj\\Debug\\DnsService.exe"
+            "SourcePath" = "8:..\\DnsService\\obj\\Release\\DnsService.exe"
             "TargetName" = "8:"
             "Tag" = "8:"
             "Folder" = "8:_92D8D371EEF34E8A92831042A33F621E"
@@ -9215,7 +9307,7 @@
             }
             "{5259A561-127C-4D43-A0A1-72F10C7B3BF8}:_27F3D2BCF051477581E8F61BCD6485B4"
             {
-            "SourcePath" = "8:..\\DnsServerSystemTrayApp\\obj\\Debug\\DnsServerSystemTrayApp.exe"
+            "SourcePath" = "8:..\\DnsServerSystemTrayApp\\obj\\Release\\DnsServerSystemTrayApp.exe"
             "TargetName" = "8:"
             "Tag" = "8:"
             "Folder" = "8:_92D8D371EEF34E8A92831042A33F621E"

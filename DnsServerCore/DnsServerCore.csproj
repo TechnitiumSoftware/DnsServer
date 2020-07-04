@@ -132,10 +132,13 @@
   </ItemGroup>
 
   <ItemGroup>
-    <PackageReference Include="Newtonsoft.Json" Version="12.0.2" />
+    <PackageReference Include="Newtonsoft.Json" Version="12.0.3" />
   </ItemGroup>
 
   <ItemGroup>
+    <Reference Include="TechnitiumLibrary.ByteTree">
+      <HintPath>..\..\TechnitiumLibrary\bin\TechnitiumLibrary.ByteTree.dll</HintPath>
+    </Reference>
     <Reference Include="TechnitiumLibrary.IO">
       <HintPath>..\..\TechnitiumLibrary\bin\TechnitiumLibrary.IO.dll</HintPath>
     </Reference>
@@ -161,9 +164,9 @@
     <RepositoryType></RepositoryType>
     <Description>.NET Standard 2.0</Description>
     <PackageId>DnsServer</PackageId>
-    <AssemblyVersion>4.1.0.0</AssemblyVersion>
-    <FileVersion>4.1.0.0</FileVersion>
-    <Version>4.1</Version>
+    <AssemblyVersion>5.0.0.0</AssemblyVersion>
+    <FileVersion>5.0.0.0</FileVersion>
+    <Version>5.0</Version>
   </PropertyGroup>
 
 </Project>
