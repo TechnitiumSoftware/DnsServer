@@ -30,6 +30,7 @@ using System.Net.Sockets;
 using System.Security.Cryptography.X509Certificates;
 using System.Text;
 using System.Threading;
+using TechnitiumLibrary.IO;
 using TechnitiumLibrary.Net;
 using TechnitiumLibrary.Net.Dns;
 using TechnitiumLibrary.Net.Dns.ResourceRecords;
@@ -712,10 +713,26 @@ namespace DnsServerCore.Dns
 
                                             case "POST":
                                                 string strContentType = requestHeaders[HttpRequestHeader.ContentType];
+                                                if (string.IsNullOrEmpty(strContentType))
+                                                    throw new DnsServerException("Missing Content-Type header.");
+
                                                 if (strContentType != "application/dns-message")
                                                     throw new NotSupportedException("DNS request type not supported: " + strContentType);
 
-                                                dnsRequest = new DnsDatagram(stream, false);
+                                                string strContentLength = requestHeaders[HttpRequestHeader.ContentLength];
+                                                if (string.IsNullOrEmpty(strContentLength))
+                                                    throw new DnsServerException("Missing Content-Length header.");
+
+                                                int contentLength = int.Parse(strContentLength);
+
+                                                using (MemoryStream mS = new MemoryStream())
+                                                {
+                                                    stream.CopyTo(mS, 512, contentLength);
+
+                                                    mS.Position = 0;
+                                                    dnsRequest = new DnsDatagram(mS, false);
+                                                }
+
                                                 break;
 
                                             default:
