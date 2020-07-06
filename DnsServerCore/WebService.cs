@@ -426,11 +426,11 @@ namespace DnsServerCore
                         }
                         catch (Exception ex)
                         {
+                            _log.Write(GetRequestRemoteEndPoint(request), ex);
+
                             mS.SetLength(0);
                             JsonTextWriter jsonWriter = new JsonTextWriter(new StreamWriter(mS));
                             jsonWriter.WriteStartObject();
-
-                            _log.Write(GetRequestRemoteEndPoint(request), ex);
 
                             jsonWriter.WritePropertyName("status");
                             jsonWriter.WriteValue("error");
