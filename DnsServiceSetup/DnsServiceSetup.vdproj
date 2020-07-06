@@ -453,6 +453,12 @@
         }
         "Entry"
         {
+        "MsmKey" = "8:_45DD210EAFF8F7BF1EB143A29E746376"
+        "OwnerKey" = "8:_1A8572E5BA364EBCA52AF667CA5A2B29"
+        "MsmSig" = "8:_UNDEFINED"
+        }
+        "Entry"
+        {
         "MsmKey" = "8:_4719420AF6935BC5C5EA393ADB23FF20"
         "OwnerKey" = "8:_1A8572E5BA364EBCA52AF667CA5A2B29"
         "MsmSig" = "8:_UNDEFINED"
@@ -461,12 +467,6 @@
         {
         "MsmKey" = "8:_4719420AF6935BC5C5EA393ADB23FF20"
         "OwnerKey" = "8:_27F3D2BCF051477581E8F61BCD6485B4"
-        "MsmSig" = "8:_UNDEFINED"
-        }
-        "Entry"
-        {
-        "MsmKey" = "8:_4744230694CEBFA14C02D34630CBE800"
-        "OwnerKey" = "8:_1A8572E5BA364EBCA52AF667CA5A2B29"
         "MsmSig" = "8:_UNDEFINED"
         }
         "Entry"
@@ -503,6 +503,48 @@
         {
         "MsmKey" = "8:_48381432CF46929569CF88BC830F39FB"
         "OwnerKey" = "8:_27F3D2BCF051477581E8F61BCD6485B4"
+        "MsmSig" = "8:_UNDEFINED"
+        }
+        "Entry"
+        {
+        "MsmKey" = "8:_485D68BB84478F1A4A2FEE1613C4D833"
+        "OwnerKey" = "8:_45DD210EAFF8F7BF1EB143A29E746376"
+        "MsmSig" = "8:_UNDEFINED"
+        }
+        "Entry"
+        {
+        "MsmKey" = "8:_485D68BB84478F1A4A2FEE1613C4D833"
+        "OwnerKey" = "8:_1A8572E5BA364EBCA52AF667CA5A2B29"
+        "MsmSig" = "8:_UNDEFINED"
+        }
+        "Entry"
+        {
+        "MsmKey" = "8:_48AC206A6928424003A8AA65481A25FD"
+        "OwnerKey" = "8:_45DD210EAFF8F7BF1EB143A29E746376"
+        "MsmSig" = "8:_UNDEFINED"
+        }
+        "Entry"
+        {
+        "MsmKey" = "8:_48AC206A6928424003A8AA65481A25FD"
+        "OwnerKey" = "8:_BB60BA89D1895F2892DFDF8733540B69"
+        "MsmSig" = "8:_UNDEFINED"
+        }
+        "Entry"
+        {
+        "MsmKey" = "8:_48AC206A6928424003A8AA65481A25FD"
+        "OwnerKey" = "8:_27F3D2BCF051477581E8F61BCD6485B4"
+        "MsmSig" = "8:_UNDEFINED"
+        }
+        "Entry"
+        {
+        "MsmKey" = "8:_48AC206A6928424003A8AA65481A25FD"
+        "OwnerKey" = "8:_1A8572E5BA364EBCA52AF667CA5A2B29"
+        "MsmSig" = "8:_UNDEFINED"
+        }
+        "Entry"
+        {
+        "MsmKey" = "8:_48AC206A6928424003A8AA65481A25FD"
+        "OwnerKey" = "8:_485D68BB84478F1A4A2FEE1613C4D833"
         "MsmSig" = "8:_UNDEFINED"
         }
         "Entry"
@@ -760,31 +802,31 @@
         "Entry"
         {
         "MsmKey" = "8:_6D3EC427D6415AC296F674A138E65864"
-        "OwnerKey" = "8:_9E2B74BD683FB4419D3D83F8077F2EB9"
+        "OwnerKey" = "8:_485D68BB84478F1A4A2FEE1613C4D833"
         "MsmSig" = "8:_UNDEFINED"
         }
         "Entry"
         {
         "MsmKey" = "8:_6D3EC427D6415AC296F674A138E65864"
-        "OwnerKey" = "8:_8B10F9E249A0AE128E599DE6F0311A2C"
+        "OwnerKey" = "8:_87B1B336016C5957BCE4EBC8D5DB694E"
         "MsmSig" = "8:_UNDEFINED"
         }
         "Entry"
         {
         "MsmKey" = "8:_6D3EC427D6415AC296F674A138E65864"
-        "OwnerKey" = "8:_BEC30B6658A7923A569BCB640618571E"
+        "OwnerKey" = "8:_E7C7D0CB85C611EFF886B1D0BABD4EA1"
         "MsmSig" = "8:_UNDEFINED"
         }
         "Entry"
         {
         "MsmKey" = "8:_6D3EC427D6415AC296F674A138E65864"
-        "OwnerKey" = "8:_F6AAEAEE0D97E2E4385ED1051A108C76"
+        "OwnerKey" = "8:_48AC206A6928424003A8AA65481A25FD"
         "MsmSig" = "8:_UNDEFINED"
         }
         "Entry"
         {
         "MsmKey" = "8:_6D3EC427D6415AC296F674A138E65864"
-        "OwnerKey" = "8:_4744230694CEBFA14C02D34630CBE800"
+        "OwnerKey" = "8:_45DD210EAFF8F7BF1EB143A29E746376"
         "MsmSig" = "8:_UNDEFINED"
         }
         "Entry"
@@ -1449,6 +1491,30 @@
         }
         "Entry"
         {
+        "MsmKey" = "8:_87B1B336016C5957BCE4EBC8D5DB694E"
+        "OwnerKey" = "8:_45DD210EAFF8F7BF1EB143A29E746376"
+        "MsmSig" = "8:_UNDEFINED"
+        }
+        "Entry"
+        {
+        "MsmKey" = "8:_87B1B336016C5957BCE4EBC8D5DB694E"
+        "OwnerKey" = "8:_BB60BA89D1895F2892DFDF8733540B69"
+        "MsmSig" = "8:_UNDEFINED"
+        }
+        "Entry"
+        {
+        "MsmKey" = "8:_87B1B336016C5957BCE4EBC8D5DB694E"
+        "OwnerKey" = "8:_1A8572E5BA364EBCA52AF667CA5A2B29"
+        "MsmSig" = "8:_UNDEFINED"
+        }
+        "Entry"
+        {
+        "MsmKey" = "8:_87B1B336016C5957BCE4EBC8D5DB694E"
+        "OwnerKey" = "8:_485D68BB84478F1A4A2FEE1613C4D833"
+        "MsmSig" = "8:_UNDEFINED"
+        }
+        "Entry"
+        {
         "MsmKey" = "8:_87C5F5518C74C2FC344CEF7A27DDFDD1"
         "OwnerKey" = "8:_1A8572E5BA364EBCA52AF667CA5A2B29"
         "MsmSig" = "8:_UNDEFINED"
@@ -1469,30 +1535,6 @@
         {
         "MsmKey" = "8:_8A275F23E6C446059B39CE663801B4F2"
         "OwnerKey" = "8:_UNDEFINED"
-        "MsmSig" = "8:_UNDEFINED"
-        }
-        "Entry"
-        {
-        "MsmKey" = "8:_8B10F9E249A0AE128E599DE6F0311A2C"
-        "OwnerKey" = "8:_4744230694CEBFA14C02D34630CBE800"
-        "MsmSig" = "8:_UNDEFINED"
-        }
-        "Entry"
-        {
-        "MsmKey" = "8:_8B10F9E249A0AE128E599DE6F0311A2C"
-        "OwnerKey" = "8:_BB60BA89D1895F2892DFDF8733540B69"
-        "MsmSig" = "8:_UNDEFINED"
-        }
-        "Entry"
-        {
-        "MsmKey" = "8:_8B10F9E249A0AE128E599DE6F0311A2C"
-        "OwnerKey" = "8:_1A8572E5BA364EBCA52AF667CA5A2B29"
-        "MsmSig" = "8:_UNDEFINED"
-        }
-        "Entry"
-        {
-        "MsmKey" = "8:_8B10F9E249A0AE128E599DE6F0311A2C"
-        "OwnerKey" = "8:_9E2B74BD683FB4419D3D83F8077F2EB9"
         "MsmSig" = "8:_UNDEFINED"
         }
         "Entry"
@@ -1607,18 +1649,6 @@
         {
         "MsmKey" = "8:_9D449315747A0D1CE7EF01497861CDF7"
         "OwnerKey" = "8:_27F3D2BCF051477581E8F61BCD6485B4"
-        "MsmSig" = "8:_UNDEFINED"
-        }
-        "Entry"
-        {
-        "MsmKey" = "8:_9E2B74BD683FB4419D3D83F8077F2EB9"
-        "OwnerKey" = "8:_4744230694CEBFA14C02D34630CBE800"
-        "MsmSig" = "8:_UNDEFINED"
-        }
-        "Entry"
-        {
-        "MsmKey" = "8:_9E2B74BD683FB4419D3D83F8077F2EB9"
-        "OwnerKey" = "8:_1A8572E5BA364EBCA52AF667CA5A2B29"
         "MsmSig" = "8:_UNDEFINED"
         }
         "Entry"
@@ -1953,18 +1983,6 @@
         }
         "Entry"
         {
-        "MsmKey" = "8:_BEC30B6658A7923A569BCB640618571E"
-        "OwnerKey" = "8:_4744230694CEBFA14C02D34630CBE800"
-        "MsmSig" = "8:_UNDEFINED"
-        }
-        "Entry"
-        {
-        "MsmKey" = "8:_BEC30B6658A7923A569BCB640618571E"
-        "OwnerKey" = "8:_1A8572E5BA364EBCA52AF667CA5A2B29"
-        "MsmSig" = "8:_UNDEFINED"
-        }
-        "Entry"
-        {
         "MsmKey" = "8:_C0382C14209146C0B0EF649A6C7FFD8A"
         "OwnerKey" = "8:_UNDEFINED"
         "MsmSig" = "8:_UNDEFINED"
@@ -2223,6 +2241,18 @@
         }
         "Entry"
         {
+        "MsmKey" = "8:_E7C7D0CB85C611EFF886B1D0BABD4EA1"
+        "OwnerKey" = "8:_45DD210EAFF8F7BF1EB143A29E746376"
+        "MsmSig" = "8:_UNDEFINED"
+        }
+        "Entry"
+        {
+        "MsmKey" = "8:_E7C7D0CB85C611EFF886B1D0BABD4EA1"
+        "OwnerKey" = "8:_1A8572E5BA364EBCA52AF667CA5A2B29"
+        "MsmSig" = "8:_UNDEFINED"
+        }
+        "Entry"
+        {
         "MsmKey" = "8:_E86A68C1858030812FF11B831531C3CA"
         "OwnerKey" = "8:_1A8572E5BA364EBCA52AF667CA5A2B29"
         "MsmSig" = "8:_UNDEFINED"
@@ -2367,36 +2397,6 @@
         }
         "Entry"
         {
-        "MsmKey" = "8:_F6AAEAEE0D97E2E4385ED1051A108C76"
-        "OwnerKey" = "8:_4744230694CEBFA14C02D34630CBE800"
-        "MsmSig" = "8:_UNDEFINED"
-        }
-        "Entry"
-        {
-        "MsmKey" = "8:_F6AAEAEE0D97E2E4385ED1051A108C76"
-        "OwnerKey" = "8:_BB60BA89D1895F2892DFDF8733540B69"
-        "MsmSig" = "8:_UNDEFINED"
-        }
-        "Entry"
-        {
-        "MsmKey" = "8:_F6AAEAEE0D97E2E4385ED1051A108C76"
-        "OwnerKey" = "8:_27F3D2BCF051477581E8F61BCD6485B4"
-        "MsmSig" = "8:_UNDEFINED"
-        }
-        "Entry"
-        {
-        "MsmKey" = "8:_F6AAEAEE0D97E2E4385ED1051A108C76"
-        "OwnerKey" = "8:_1A8572E5BA364EBCA52AF667CA5A2B29"
-        "MsmSig" = "8:_UNDEFINED"
-        }
-        "Entry"
-        {
-        "MsmKey" = "8:_F6AAEAEE0D97E2E4385ED1051A108C76"
-        "OwnerKey" = "8:_9E2B74BD683FB4419D3D83F8077F2EB9"
-        "MsmSig" = "8:_UNDEFINED"
-        }
-        "Entry"
-        {
         "MsmKey" = "8:_F9E35FC4C54BCF297F4AD3D4AC35C4E5"
         "OwnerKey" = "8:_1A8572E5BA364EBCA52AF667CA5A2B29"
         "MsmSig" = "8:_UNDEFINED"
@@ -2452,7 +2452,7 @@
         "Entry"
         {
         "MsmKey" = "8:_UNDEFINED"
-        "OwnerKey" = "8:_9E2B74BD683FB4419D3D83F8077F2EB9"
+        "OwnerKey" = "8:_485D68BB84478F1A4A2FEE1613C4D833"
         "MsmSig" = "8:_UNDEFINED"
         }
         "Entry"
@@ -4321,20 +4321,20 @@
             "IsDependency" = "11:TRUE"
             "IsolateTo" = "8:"
             }
-            "{9F6F8455-1EF1-4B85-886A-4223BCC8E7F7}:_4719420AF6935BC5C5EA393ADB23FF20"
+            "{9F6F8455-1EF1-4B85-886A-4223BCC8E7F7}:_45DD210EAFF8F7BF1EB143A29E746376"
             {
             "AssemblyRegister" = "3:1"
             "AssemblyIsInGAC" = "11:FALSE"
-            "AssemblyAsmDisplayName" = "8:System.Dynamic.Runtime, Version=4.0.11.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a, processorArchitecture=MSIL"
+            "AssemblyAsmDisplayName" = "8:DnsServerCore, Version=5.0.0.0, Culture=neutral, processorArchitecture=MSIL"
                 "ScatterAssemblies"
                 {
-                    "_4719420AF6935BC5C5EA393ADB23FF20"
+                    "_45DD210EAFF8F7BF1EB143A29E746376"
                     {
-                    "Name" = "8:System.Dynamic.Runtime.dll"
+                    "Name" = "8:DnsServerCore.dll"
                     "Attributes" = "3:512"
                     }
                 }
-            "SourcePath" = "8:System.Dynamic.Runtime.dll"
+            "SourcePath" = "8:DnsServerCore.dll"
             "TargetName" = "8:"
             "Tag" = "8:"
             "Folder" = "8:_92D8D371EEF34E8A92831042A33F621E"
@@ -4352,20 +4352,20 @@
             "IsDependency" = "11:TRUE"
             "IsolateTo" = "8:"
             }
-            "{9F6F8455-1EF1-4B85-886A-4223BCC8E7F7}:_4744230694CEBFA14C02D34630CBE800"
+            "{9F6F8455-1EF1-4B85-886A-4223BCC8E7F7}:_4719420AF6935BC5C5EA393ADB23FF20"
             {
             "AssemblyRegister" = "3:1"
             "AssemblyIsInGAC" = "11:FALSE"
-            "AssemblyAsmDisplayName" = "8:DnsServerCore, Version=5.0.0.0, Culture=neutral, processorArchitecture=MSIL"
+            "AssemblyAsmDisplayName" = "8:System.Dynamic.Runtime, Version=4.0.11.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a, processorArchitecture=MSIL"
                 "ScatterAssemblies"
                 {
-                    "_4744230694CEBFA14C02D34630CBE800"
+                    "_4719420AF6935BC5C5EA393ADB23FF20"
                     {
-                    "Name" = "8:DnsServerCore.dll"
+                    "Name" = "8:System.Dynamic.Runtime.dll"
                     "Attributes" = "3:512"
                     }
                 }
-            "SourcePath" = "8:DnsServerCore.dll"
+            "SourcePath" = "8:System.Dynamic.Runtime.dll"
             "TargetName" = "8:"
             "Tag" = "8:"
             "Folder" = "8:_92D8D371EEF34E8A92831042A33F621E"
@@ -4490,6 +4490,68 @@
                     }
                 }
             "SourcePath" = "8:System.AppContext.dll"
+            "TargetName" = "8:"
+            "Tag" = "8:"
+            "Folder" = "8:_92D8D371EEF34E8A92831042A33F621E"
+            "Condition" = "8:"
+            "Transitive" = "11:FALSE"
+            "Vital" = "11:TRUE"
+            "ReadOnly" = "11:FALSE"
+            "Hidden" = "11:FALSE"
+            "System" = "11:FALSE"
+            "Permanent" = "11:FALSE"
+            "SharedLegacy" = "11:FALSE"
+            "PackageAs" = "3:1"
+            "Register" = "3:1"
+            "Exclude" = "11:FALSE"
+            "IsDependency" = "11:TRUE"
+            "IsolateTo" = "8:"
+            }
+            "{9F6F8455-1EF1-4B85-886A-4223BCC8E7F7}:_485D68BB84478F1A4A2FEE1613C4D833"
+            {
+            "AssemblyRegister" = "3:1"
+            "AssemblyIsInGAC" = "11:FALSE"
+            "AssemblyAsmDisplayName" = "8:TechnitiumLibrary.Net, Version=3.6.2.0, Culture=neutral, processorArchitecture=MSIL"
+                "ScatterAssemblies"
+                {
+                    "_485D68BB84478F1A4A2FEE1613C4D833"
+                    {
+                    "Name" = "8:TechnitiumLibrary.Net.dll"
+                    "Attributes" = "3:512"
+                    }
+                }
+            "SourcePath" = "8:TechnitiumLibrary.Net.dll"
+            "TargetName" = "8:"
+            "Tag" = "8:"
+            "Folder" = "8:_92D8D371EEF34E8A92831042A33F621E"
+            "Condition" = "8:"
+            "Transitive" = "11:FALSE"
+            "Vital" = "11:TRUE"
+            "ReadOnly" = "11:FALSE"
+            "Hidden" = "11:FALSE"
+            "System" = "11:FALSE"
+            "Permanent" = "11:FALSE"
+            "SharedLegacy" = "11:FALSE"
+            "PackageAs" = "3:1"
+            "Register" = "3:1"
+            "Exclude" = "11:FALSE"
+            "IsDependency" = "11:TRUE"
+            "IsolateTo" = "8:"
+            }
+            "{9F6F8455-1EF1-4B85-886A-4223BCC8E7F7}:_48AC206A6928424003A8AA65481A25FD"
+            {
+            "AssemblyRegister" = "3:1"
+            "AssemblyIsInGAC" = "11:FALSE"
+            "AssemblyAsmDisplayName" = "8:Newtonsoft.Json, Version=12.0.0.0, Culture=neutral, PublicKeyToken=30ad4fe6b2a6aeed, processorArchitecture=MSIL"
+                "ScatterAssemblies"
+                {
+                    "_48AC206A6928424003A8AA65481A25FD"
+                    {
+                    "Name" = "8:Newtonsoft.Json.dll"
+                    "Attributes" = "3:512"
+                    }
+                }
+            "SourcePath" = "8:Newtonsoft.Json.dll"
             "TargetName" = "8:"
             "Tag" = "8:"
             "Folder" = "8:_92D8D371EEF34E8A92831042A33F621E"
@@ -5776,6 +5838,37 @@
             "IsDependency" = "11:FALSE"
             "IsolateTo" = "8:"
             }
+            "{9F6F8455-1EF1-4B85-886A-4223BCC8E7F7}:_87B1B336016C5957BCE4EBC8D5DB694E"
+            {
+            "AssemblyRegister" = "3:1"
+            "AssemblyIsInGAC" = "11:FALSE"
+            "AssemblyAsmDisplayName" = "8:TechnitiumLibrary.IO, Version=2.6.0.0, Culture=neutral, processorArchitecture=MSIL"
+                "ScatterAssemblies"
+                {
+                    "_87B1B336016C5957BCE4EBC8D5DB694E"
+                    {
+                    "Name" = "8:TechnitiumLibrary.IO.dll"
+                    "Attributes" = "3:512"
+                    }
+                }
+            "SourcePath" = "8:TechnitiumLibrary.IO.dll"
+            "TargetName" = "8:"
+            "Tag" = "8:"
+            "Folder" = "8:_92D8D371EEF34E8A92831042A33F621E"
+            "Condition" = "8:"
+            "Transitive" = "11:FALSE"
+            "Vital" = "11:TRUE"
+            "ReadOnly" = "11:FALSE"
+            "Hidden" = "11:FALSE"
+            "System" = "11:FALSE"
+            "Permanent" = "11:FALSE"
+            "SharedLegacy" = "11:FALSE"
+            "PackageAs" = "3:1"
+            "Register" = "3:1"
+            "Exclude" = "11:FALSE"
+            "IsDependency" = "11:TRUE"
+            "IsolateTo" = "8:"
+            }
             "{9F6F8455-1EF1-4B85-886A-4223BCC8E7F7}:_87C5F5518C74C2FC344CEF7A27DDFDD1"
             {
             "AssemblyRegister" = "3:1"
@@ -5856,37 +5949,6 @@
             "Register" = "3:1"
             "Exclude" = "11:FALSE"
             "IsDependency" = "11:FALSE"
-            "IsolateTo" = "8:"
-            }
-            "{9F6F8455-1EF1-4B85-886A-4223BCC8E7F7}:_8B10F9E249A0AE128E599DE6F0311A2C"
-            {
-            "AssemblyRegister" = "3:1"
-            "AssemblyIsInGAC" = "11:FALSE"
-            "AssemblyAsmDisplayName" = "8:TechnitiumLibrary.IO, Version=2.6.0.0, Culture=neutral, processorArchitecture=MSIL"
-                "ScatterAssemblies"
-                {
-                    "_8B10F9E249A0AE128E599DE6F0311A2C"
-                    {
-                    "Name" = "8:TechnitiumLibrary.IO.dll"
-                    "Attributes" = "3:512"
-                    }
-                }
-            "SourcePath" = "8:TechnitiumLibrary.IO.dll"
-            "TargetName" = "8:"
-            "Tag" = "8:"
-            "Folder" = "8:_92D8D371EEF34E8A92831042A33F621E"
-            "Condition" = "8:"
-            "Transitive" = "11:FALSE"
-            "Vital" = "11:TRUE"
-            "ReadOnly" = "11:FALSE"
-            "Hidden" = "11:FALSE"
-            "System" = "11:FALSE"
-            "Permanent" = "11:FALSE"
-            "SharedLegacy" = "11:FALSE"
-            "PackageAs" = "3:1"
-            "Register" = "3:1"
-            "Exclude" = "11:FALSE"
-            "IsDependency" = "11:TRUE"
             "IsolateTo" = "8:"
             }
             "{1FB2D0AE-D3B9-43D4-B9DD-F88EC61E35DE}:_8BD8DD21C6A64BAF81BAD868C96B2E35"
@@ -6191,37 +6253,6 @@
                     }
                 }
             "SourcePath" = "8:System.Resources.ResourceManager.dll"
-            "TargetName" = "8:"
-            "Tag" = "8:"
-            "Folder" = "8:_92D8D371EEF34E8A92831042A33F621E"
-            "Condition" = "8:"
-            "Transitive" = "11:FALSE"
-            "Vital" = "11:TRUE"
-            "ReadOnly" = "11:FALSE"
-            "Hidden" = "11:FALSE"
-            "System" = "11:FALSE"
-            "Permanent" = "11:FALSE"
-            "SharedLegacy" = "11:FALSE"
-            "PackageAs" = "3:1"
-            "Register" = "3:1"
-            "Exclude" = "11:FALSE"
-            "IsDependency" = "11:TRUE"
-            "IsolateTo" = "8:"
-            }
-            "{9F6F8455-1EF1-4B85-886A-4223BCC8E7F7}:_9E2B74BD683FB4419D3D83F8077F2EB9"
-            {
-            "AssemblyRegister" = "3:1"
-            "AssemblyIsInGAC" = "11:FALSE"
-            "AssemblyAsmDisplayName" = "8:TechnitiumLibrary.Net, Version=3.6.0.0, Culture=neutral, processorArchitecture=MSIL"
-                "ScatterAssemblies"
-                {
-                    "_9E2B74BD683FB4419D3D83F8077F2EB9"
-                    {
-                    "Name" = "8:TechnitiumLibrary.Net.dll"
-                    "Attributes" = "3:512"
-                    }
-                }
-            "SourcePath" = "8:TechnitiumLibrary.Net.dll"
             "TargetName" = "8:"
             "Tag" = "8:"
             "Folder" = "8:_92D8D371EEF34E8A92831042A33F621E"
@@ -6872,7 +6903,7 @@
             {
             "AssemblyRegister" = "3:1"
             "AssemblyIsInGAC" = "11:FALSE"
-            "AssemblyAsmDisplayName" = "8:TechnitiumLibrary.Net, Version=3.6.0.0, Culture=neutral, processorArchitecture=MSIL"
+            "AssemblyAsmDisplayName" = "8:TechnitiumLibrary.Net, Version=3.6.2.0, Culture=neutral, processorArchitecture=MSIL"
                 "ScatterAssemblies"
                 {
                     "_BB60BA89D1895F2892DFDF8733540B69"
@@ -7150,37 +7181,6 @@
                     }
                 }
             "SourcePath" = "8:System.Runtime.dll"
-            "TargetName" = "8:"
-            "Tag" = "8:"
-            "Folder" = "8:_92D8D371EEF34E8A92831042A33F621E"
-            "Condition" = "8:"
-            "Transitive" = "11:FALSE"
-            "Vital" = "11:TRUE"
-            "ReadOnly" = "11:FALSE"
-            "Hidden" = "11:FALSE"
-            "System" = "11:FALSE"
-            "Permanent" = "11:FALSE"
-            "SharedLegacy" = "11:FALSE"
-            "PackageAs" = "3:1"
-            "Register" = "3:1"
-            "Exclude" = "11:FALSE"
-            "IsDependency" = "11:TRUE"
-            "IsolateTo" = "8:"
-            }
-            "{9F6F8455-1EF1-4B85-886A-4223BCC8E7F7}:_BEC30B6658A7923A569BCB640618571E"
-            {
-            "AssemblyRegister" = "3:1"
-            "AssemblyIsInGAC" = "11:FALSE"
-            "AssemblyAsmDisplayName" = "8:TechnitiumLibrary.ByteTree, Version=1.0.0.0, Culture=neutral, processorArchitecture=MSIL"
-                "ScatterAssemblies"
-                {
-                    "_BEC30B6658A7923A569BCB640618571E"
-                    {
-                    "Name" = "8:TechnitiumLibrary.ByteTree.dll"
-                    "Attributes" = "3:512"
-                    }
-                }
-            "SourcePath" = "8:TechnitiumLibrary.ByteTree.dll"
             "TargetName" = "8:"
             "Tag" = "8:"
             "Folder" = "8:_92D8D371EEF34E8A92831042A33F621E"
@@ -8020,6 +8020,37 @@
             "IsDependency" = "11:TRUE"
             "IsolateTo" = "8:"
             }
+            "{9F6F8455-1EF1-4B85-886A-4223BCC8E7F7}:_E7C7D0CB85C611EFF886B1D0BABD4EA1"
+            {
+            "AssemblyRegister" = "3:1"
+            "AssemblyIsInGAC" = "11:FALSE"
+            "AssemblyAsmDisplayName" = "8:TechnitiumLibrary.ByteTree, Version=1.0.0.0, Culture=neutral, processorArchitecture=MSIL"
+                "ScatterAssemblies"
+                {
+                    "_E7C7D0CB85C611EFF886B1D0BABD4EA1"
+                    {
+                    "Name" = "8:TechnitiumLibrary.ByteTree.dll"
+                    "Attributes" = "3:512"
+                    }
+                }
+            "SourcePath" = "8:TechnitiumLibrary.ByteTree.dll"
+            "TargetName" = "8:"
+            "Tag" = "8:"
+            "Folder" = "8:_92D8D371EEF34E8A92831042A33F621E"
+            "Condition" = "8:"
+            "Transitive" = "11:FALSE"
+            "Vital" = "11:TRUE"
+            "ReadOnly" = "11:FALSE"
+            "Hidden" = "11:FALSE"
+            "System" = "11:FALSE"
+            "Permanent" = "11:FALSE"
+            "SharedLegacy" = "11:FALSE"
+            "PackageAs" = "3:1"
+            "Register" = "3:1"
+            "Exclude" = "11:FALSE"
+            "IsDependency" = "11:TRUE"
+            "IsolateTo" = "8:"
+            }
             "{9F6F8455-1EF1-4B85-886A-4223BCC8E7F7}:_E86A68C1858030812FF11B831531C3CA"
             {
             "AssemblyRegister" = "3:1"
@@ -8483,37 +8514,6 @@
             "IsDependency" = "11:FALSE"
             "IsolateTo" = "8:"
             }
-            "{9F6F8455-1EF1-4B85-886A-4223BCC8E7F7}:_F6AAEAEE0D97E2E4385ED1051A108C76"
-            {
-            "AssemblyRegister" = "3:1"
-            "AssemblyIsInGAC" = "11:FALSE"
-            "AssemblyAsmDisplayName" = "8:Newtonsoft.Json, Version=12.0.0.0, Culture=neutral, PublicKeyToken=30ad4fe6b2a6aeed, processorArchitecture=MSIL"
-                "ScatterAssemblies"
-                {
-                    "_F6AAEAEE0D97E2E4385ED1051A108C76"
-                    {
-                    "Name" = "8:Newtonsoft.Json.dll"
-                    "Attributes" = "3:512"
-                    }
-                }
-            "SourcePath" = "8:Newtonsoft.Json.dll"
-            "TargetName" = "8:"
-            "Tag" = "8:"
-            "Folder" = "8:_92D8D371EEF34E8A92831042A33F621E"
-            "Condition" = "8:"
-            "Transitive" = "11:FALSE"
-            "Vital" = "11:TRUE"
-            "ReadOnly" = "11:FALSE"
-            "Hidden" = "11:FALSE"
-            "System" = "11:FALSE"
-            "Permanent" = "11:FALSE"
-            "SharedLegacy" = "11:FALSE"
-            "PackageAs" = "3:1"
-            "Register" = "3:1"
-            "Exclude" = "11:FALSE"
-            "IsDependency" = "11:TRUE"
-            "IsolateTo" = "8:"
-            }
             "{9F6F8455-1EF1-4B85-886A-4223BCC8E7F7}:_F9E35FC4C54BCF297F4AD3D4AC35C4E5"
             {
             "AssemblyRegister" = "3:1"
@@ -8729,15 +8729,15 @@
         {
         "Name" = "8:Microsoft Visual Studio"
         "ProductName" = "8:DNS Server"
-        "ProductCode" = "8:{089F1E42-8A03-4AA2-979D-6F0E6FD9BB64}"
-        "PackageCode" = "8:{328792CE-0D09-4683-AB0B-EF517FF91BF3}"
+        "ProductCode" = "8:{EB8E3FF3-B48A-45FB-9C6D-3D2D31723E41}"
+        "PackageCode" = "8:{E5C4C040-EAEC-4626-BE4B-711E2E34A768}"
         "UpgradeCode" = "8:{ED5F64A5-EFD9-4A95-AA7C-4B8447343BD4}"
         "AspNetVersion" = "8:4.0.30319.0"
         "RestartWWWService" = "11:FALSE"
         "RemovePreviousVersions" = "11:TRUE"
         "DetectNewerInstalledVersion" = "11:TRUE"
         "InstallAllUsers" = "11:FALSE"
-        "ProductVersion" = "8:5.0"
+        "ProductVersion" = "8:5.0.1"
         "Manufacturer" = "8:Technitium"
         "ARPHELPTELEPHONE" = "8:"
         "ARPHELPLINK" = "8:https://technitium.com/dns/"

@@ -13,8 +13,8 @@
     <AssemblyName>DnsServerApp</AssemblyName>
     <RootNamespace>DnsServerApp</RootNamespace>
     <StartupObject>DnsServerApp.Program</StartupObject>
-    <AssemblyVersion>5.0.0.0</AssemblyVersion>
-    <FileVersion>5.0.0.0</FileVersion>
+    <AssemblyVersion>5.0.1.0</AssemblyVersion>
+    <FileVersion>5.0.1.0</FileVersion>
     <PackageProjectUrl>https://technitium.com/dns/</PackageProjectUrl>
     <RepositoryUrl>https://github.com/TechnitiumSoftware/DnsServer</RepositoryUrl>
   </PropertyGroup>
