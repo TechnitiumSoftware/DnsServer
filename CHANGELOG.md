@@ -1,5 +1,13 @@
 # Technitium DNS Server Change Log
 
+## Version 5.0.1
+Release Date: 6 July 2020
+
+- Fixed serialization bug for TXT records.
+- Fixed issue with reading DnsDatagram for DoH POST requests.
+- Fixed bug in json serialization of DnsDatagram for DoH json format.
+- Fixed bug in RTT calculation for DoH json Connection.
+
 ## Version 5.0
 Release Date: 4 July 2020
 
