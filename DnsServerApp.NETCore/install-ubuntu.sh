@@ -58,7 +58,14 @@ then
 			echo "Configuring systemd service..."
 			cp $dnsDir/systemd.service /etc/systemd/system/dns.service
 			systemctl enable dns.service >> $installLog 2>&1
+			
+			systemctl disable systemd-resolved >> $installLog 2>&1
+			systemctl stop systemd-resolved >> $installLog 2>&1
+			
 			systemctl start dns.service >> $installLog 2>&1
+			
+			rm /etc/resolv.conf
+			echo "nameserver 127.0.0.1" > /etc/resolv.conf
 		fi
 	else
 		if [ -f "/etc/supervisor/conf.d/dns.conf" ]
