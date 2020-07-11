@@ -3173,6 +3173,9 @@ namespace DnsServerCore
                 }
                 else
                 {
+                    if ((protocol == DnsTransportProtocol.Tls) && !server.Contains(":853"))
+                        server += ":853";
+
                     nameServer = new NameServerAddress(server, protocol);
 
                     if (nameServer.IPEndPoint == null)
