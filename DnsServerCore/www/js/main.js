@@ -1501,9 +1501,9 @@ function resolveQuery(importRecords) {
     var protocol = $("#optDnsClientProtocol").val();
 
     {
-        var i = server.indexOf("(");
+        var i = server.indexOf("{");
         if (i > -1) {
-            var j = server.lastIndexOf(")");
+            var j = server.lastIndexOf("}");
             server = server.substring(i + 1, j);
         }
     }
