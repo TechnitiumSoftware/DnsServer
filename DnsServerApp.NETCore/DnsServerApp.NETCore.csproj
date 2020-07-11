@@ -45,13 +45,4 @@
     <ProjectReference Include="..\DnsServerCore\DnsServerCore.csproj" />
   </ItemGroup>
 
-  <ItemGroup>
-    <None Update="install-raspi.sh">
-      <CopyToOutputDirectory>Never</CopyToOutputDirectory>
-    </None>
-    <None Update="install-ubuntu.sh">
-      <CopyToOutputDirectory>Never</CopyToOutputDirectory>
-    </None>
-  </ItemGroup>
-
 </Project>
