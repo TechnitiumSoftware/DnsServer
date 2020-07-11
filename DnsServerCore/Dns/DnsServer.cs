@@ -1933,9 +1933,9 @@ namespace DnsServerCore.Dns
                 if ((_localEndPoints == null) || (_localEndPoints.Count == 0))
                     _thisServer = new NameServerAddress(_serverDomain, IPAddress.Loopback);
                 else if (_localEndPoints[0].Address.Equals(IPAddress.Any))
-                    _thisServer = new NameServerAddress(_serverDomain, IPAddress.Loopback);
+                    _thisServer = new NameServerAddress(_serverDomain, new IPEndPoint(IPAddress.Loopback, _localEndPoints[0].Port));
                 else if (_localEndPoints[0].Equals(IPAddress.IPv6Any))
-                    _thisServer = new NameServerAddress(_serverDomain, IPAddress.IPv6Loopback);
+                    _thisServer = new NameServerAddress(_serverDomain, new IPEndPoint(IPAddress.IPv6Loopback, _localEndPoints[0].Port));
                 else
                     _thisServer = new NameServerAddress(_serverDomain, _localEndPoints[0]);
             }
