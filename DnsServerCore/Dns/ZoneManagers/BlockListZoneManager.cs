@@ -387,7 +387,7 @@ namespace DnsServerCore.Dns.ZoneManagers
                     answers = new DnsResourceRecord[blockLists.Count];
 
                     for (int i = 0; i < answers.Length; i++)
-                        answers[i] = new DnsResourceRecord(request.Question[0].Name, DnsResourceRecordType.TXT, request.Question[0].Class, 60, new DnsTXTRecord("blockList=" + blockLists[i].AbsoluteUri));
+                        answers[i] = new DnsResourceRecord(request.Question[0].Name, DnsResourceRecordType.TXT, request.Question[0].Class, 60, new DnsTXTRecord("blockList=" + blockLists[i].AbsoluteUri + "; domain=" + request.Question[0].Name));
 
                     break;
 
