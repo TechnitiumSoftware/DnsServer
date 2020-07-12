@@ -87,7 +87,6 @@ namespace DnsServerCore.Dns
 
         readonly DnsARecord _aRecord = new DnsARecord(IPAddress.Any);
         readonly DnsAAAARecord _aaaaRecord = new DnsAAAARecord(IPAddress.IPv6Any);
-        readonly DnsTXTRecord _txtRecord = new DnsTXTRecord("blockList=custom");
 
         bool _allowRecursion = false;
         bool _allowRecursionOnlyForPrivateNetworks = false;
@@ -132,8 +131,8 @@ namespace DnsServerCore.Dns
         {
             //set min threads since the default value is too small
             {
-                int minWorker = Environment.ProcessorCount * 64;
-                int minIOC = Environment.ProcessorCount * 64;
+                int minWorker = Environment.ProcessorCount * 256;
+                int minIOC = Environment.ProcessorCount * 256;
 
                 ThreadPool.SetMinThreads(minWorker, minIOC);
             }
@@ -958,7 +957,7 @@ namespace DnsServerCore.Dns
                                 }
 
                                 //query authoritative zone
-                                response = ProcessAuthoritativeQuery(request, isRecursionAllowed);
+                                response = ProcessAuthoritativeQuery(request, inAllowedZone, isRecursionAllowed);
 
                                 if ((response.RCODE != DnsResponseCode.Refused) || !request.RecursionDesired || !isRecursionAllowed)
                                     return response;
@@ -1061,7 +1060,7 @@ namespace DnsServerCore.Dns
             return new DnsDatagram(request.Identifier, true, DnsOpcode.StandardQuery, true, false, request.RecursionDesired, false, false, false, DnsResponseCode.NoError, request.Question, axfrRecords) { Tag = StatsResponseType.Authoritative };
         }
 
-        private DnsDatagram ProcessAuthoritativeQuery(DnsDatagram request, bool isRecursionAllowed)
+        private DnsDatagram ProcessAuthoritativeQuery(DnsDatagram request, bool inAllowedZone, bool isRecursionAllowed)
         {
             DnsDatagram response = _authZoneManager.Query(request);
             response.Tag = StatsResponseType.Authoritative;
@@ -1095,7 +1094,7 @@ namespace DnsServerCore.Dns
                                 //do recursive resolution using response authority name servers
                                 List<NameServerAddress> nameServers = NameServerAddress.GetNameServersFromResponse(response, _preferIPv6, false);
 
-                                return ProcessRecursiveQuery(request, nameServers, null, false, false);
+                                return ProcessRecursiveQuery(request, nameServers, null, !inAllowedZone, false);
                             }
 
                             break;
@@ -1104,7 +1103,7 @@ namespace DnsServerCore.Dns
                             if ((response.Authority.Count == 1) && (response.Authority[0].Type == DnsResourceRecordType.FWD) && (response.Authority[0].RDATA as DnsForwarderRecord).Forwarder.Equals("this-server", StringComparison.OrdinalIgnoreCase))
                             {
                                 //do conditional forwarding via "this-server" 
-                                return ProcessRecursiveQuery(request, null, null, false, false);
+                                return ProcessRecursiveQuery(request, null, null, !inAllowedZone, false);
                             }
                             else
                             {
@@ -1122,7 +1121,7 @@ namespace DnsServerCore.Dns
                                     }
                                 }
 
-                                return ProcessRecursiveQuery(request, null, forwarders, false, false);
+                                return ProcessRecursiveQuery(request, null, forwarders, !inAllowedZone, false);
                             }
                     }
                 }
@@ -1389,7 +1388,7 @@ namespace DnsServerCore.Dns
                         break;
 
                     case DnsResourceRecordType.TXT:
-                        answer = new DnsResourceRecord[] { new DnsResourceRecord(response.Question[0].Name, DnsResourceRecordType.TXT, response.Question[0].Class, 60, _txtRecord) };
+                        answer = new DnsResourceRecord[] { new DnsResourceRecord(response.Question[0].Name, DnsResourceRecordType.TXT, response.Question[0].Class, 60, new DnsTXTRecord("blockList=custom; domain=" + response.Question[0].Name)) };
                         break;
 
                     default:
@@ -1416,7 +1415,7 @@ namespace DnsServerCore.Dns
                 if ((lastRR.Type != questionType) && (lastRR.Type == DnsResourceRecordType.CNAME) && (questionType != DnsResourceRecordType.ANY))
                     response = ProcessCNAME(request, response, true, cacheRefreshOperation);
 
-                if (checkForCnameCloaking && (response.Answer.Count > 1))
+                if (checkForCnameCloaking)
                 {
                     for (int i = 0; i < response.Answer.Count; i++)
                     {
@@ -1432,9 +1431,9 @@ namespace DnsServerCore.Dns
                             //found cname cloaking
                             List<DnsResourceRecord> answer = new List<DnsResourceRecord>();
 
-                            //copy previous CNAME records
-                            for (int j = 0; j < i; j++)
-                                answer.Add(record);
+                            //copy current and previous CNAME records
+                            for (int j = 0; j <= i; j++)
+                                answer.Add(response.Answer[j]);
 
                             //copy last response answers
                             answer.AddRange(lastResponse.Answer);
@@ -1830,20 +1829,15 @@ namespace DnsServerCore.Dns
                                 DnsDatagram response = ProcessRecursiveQuery(request, null, null, false, true);
 
                                 bool removeFromSampleList = true;
+                                DateTime utcNow = DateTime.UtcNow;
 
-                                if (response.Tag == null)
+                                foreach (DnsResourceRecord answer in response.Answer)
                                 {
-                                    //response received from resursion and not from blocked zone
-                                    DateTime utcNow = DateTime.UtcNow;
-
-                                    foreach (DnsResourceRecord answer in response.Answer)
+                                    if ((answer.OriginalTtlValue > _cachePrefetchEligibility) && (utcNow.AddSeconds(answer.TtlValue) < _cachePrefetchSamplingTimerTriggersOn))
                                     {
-                                        if ((answer.OriginalTtlValue > _cachePrefetchEligibility) && (utcNow.AddSeconds(answer.TtlValue) < _cachePrefetchSamplingTimerTriggersOn))
-                                        {
-                                            //answer expires before next sampling so dont remove from list to allow refreshing it
-                                            removeFromSampleList = false;
-                                            break;
-                                        }
+                                        //answer expires before next sampling so dont remove from list to allow refreshing it
+                                        removeFromSampleList = false;
+                                        break;
                                     }
                                 }
 
