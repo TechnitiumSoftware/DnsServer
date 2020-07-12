@@ -58,7 +58,7 @@ function showPageMain(username) {
     $("#divViewZones").show();
     $("#divEditZone").hide();
 
-    $("#txtDnsClientNameServer").val("This Server (this-server)");
+    $("#txtDnsClientNameServer").val("This Server {this-server}");
     $("#txtDnsClientDomain").val("");
     $("#optDnsClientType").val("A");
     $("#optDnsClientProtocol").val("UDP");
