@@ -1,5 +1,14 @@
 # Technitium DNS Server Change Log
 
+## Version 5.0.2
+Release Date: 18 July 2020
+
+- Fixed issue of missing port for "This Server" in DNS Client.
+- Added domain name that was blocked in the TXT record.
+- Fixed bugs in CNAME cloaking implementation.
+- Upgraded .NET Framework version to v4.8.
+- Multiple other minor bug fixes and improvements.
+
 ## Version 5.0.1
 Release Date: 6 July 2020
 
