@@ -695,7 +695,20 @@ namespace DnsServerCore.Dhcp
         {
             if (_udpListeners.TryRemove(dhcpEP.Address, out Socket socket))
             {
-                socket.CloseWorkAround();
+                //issue: https://github.com/dotnet/runtime/issues/37873
+
+                if (Environment.OSVersion.Platform == PlatformID.Win32NT)
+                {
+                    socket.Dispose();
+                }
+                else
+                {
+                    ThreadPool.QueueUserWorkItem(delegate (object state)
+                    {
+                        socket.Dispose();
+                    });
+                }
+
                 return true;
             }
 
@@ -853,9 +866,9 @@ namespace DnsServerCore.Dhcp
                 log.Write("DHCP Server successfully loaded scope: " + scope.Name);
         }
 
-        private void UnloadScope(Scope scope, bool stopping)
+        private void UnloadScope(Scope scope)
         {
-            if (scope.Enabled && !stopping)
+            if (scope.Enabled)
                 DeactivateScope(scope);
 
             if (_scopes.TryRemove(scope.Name, out _))
@@ -1029,7 +1042,7 @@ namespace DnsServerCore.Dhcp
             StopMaintenanceTimer();
 
             foreach (KeyValuePair<string, Scope> scope in _scopes)
-                UnloadScope(scope.Value, true);
+                UnloadScope(scope.Value);
 
             _listenerThreads.Clear();
             _udpListeners.Clear();
@@ -1070,7 +1083,7 @@ namespace DnsServerCore.Dhcp
         {
             if (_scopes.TryGetValue(name, out Scope scope))
             {
-                UnloadScope(scope, false);
+                UnloadScope(scope);
                 DeleteScopeFile(scope.Name);
             }
         }
