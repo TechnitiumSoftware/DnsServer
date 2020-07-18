@@ -60,6 +60,7 @@ Make contribution to Technitium by becoming a Patron and help making new softwar
 [Become a Patron now!](https://www.patreon.com/technitium)
 
 # Blog Posts
+- [Technitium Blog: How To Enforce Google Safe Search And YouTube Restricted Mode On Your Network](https://blog.technitium.com/2020/07/how-to-enforce-google-safe-search-and.html) (Jul 2020)
 - [Technitium Blog: Technitium DNS Server v5 Released!](https://blog.technitium.com/2020/07/technitium-dns-server-v5-released.html) (Jul 2020)
 - [Brian Wojtczak: Keep It Encrypted, Keep It Safe: Working with ESNI, DoH, and DoT](https://www.toptal.com/web/encrypted-safe-with-esni-doh-dot) (Jan 2020)
 - [phra's blog: Exfiltrate Like a Pro: Using DNS over HTTPS as a C2 Channel](https://iwantmore.pizza/posts/dnscat2-over-doh.html) (Aug 2019)
