@@ -20,7 +20,6 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 using System;
 using System.Text;
 using TechnitiumLibrary.ByteTree;
-using TechnitiumLibrary.Net.Dns;
 
 namespace DnsServerCore.Dns.Zones
 {
@@ -98,7 +97,7 @@ namespace DnsServerCore.Dns.Zones
                 return Array.Empty<byte>();
 
             if (domain.Length > 255)
-                throw new DnsClientException("Invalid domain name [" + domain + "]: length cannot exceed 255 bytes.");
+                throw new DnsServerException("Invalid domain name [" + domain + "]: length cannot exceed 255 bytes.");
 
             byte[] key = new byte[domain.Length + 1];
             int keyOffset = 0;
@@ -118,16 +117,16 @@ namespace DnsServerCore.Dns.Zones
                 labelLength = labelEnd - labelStart;
 
                 if (labelLength == 0)
-                    throw new DnsClientException("Invalid domain name [" + domain + "]: label length cannot be 0 byte.");
+                    throw new DnsServerException("Invalid domain name [" + domain + "]: label length cannot be 0 byte.");
 
                 if (labelLength > 63)
-                    throw new DnsClientException("Invalid domain name [" + domain + "]: label length cannot exceed 63 bytes.");
+                    throw new DnsServerException("Invalid domain name [" + domain + "]: label length cannot exceed 63 bytes.");
 
                 if (domain[labelStart + 1] == '-')
-                    throw new DnsClientException("Invalid domain name [" + domain + "]: label cannot start with hyphen.");
+                    throw new DnsServerException("Invalid domain name [" + domain + "]: label cannot start with hyphen.");
 
                 if (domain[labelEnd] == '-')
-                    throw new DnsClientException("Invalid domain name [" + domain + "]: label cannot end with hyphen.");
+                    throw new DnsServerException("Invalid domain name [" + domain + "]: label cannot end with hyphen.");
 
                 if ((labelLength == 1) && (domain[labelStart + 1] == '*'))
                 {
@@ -139,11 +138,11 @@ namespace DnsServerCore.Dns.Zones
                     {
                         labelChar = domain[i];
                         if (labelChar >= _keyMap.Length)
-                            throw new DnsClientException("Invalid domain name [" + domain + "]: invalid character [" + labelChar + "] was found.");
+                            throw new DnsServerException("Invalid domain name [" + domain + "]: invalid character [" + labelChar + "] was found.");
 
                         labelKeyCode = _keyMap[labelChar];
                         if (labelKeyCode == 0xff)
-                            throw new DnsClientException("Invalid domain name [" + domain + "]: invalid character [" + labelChar + "] was found.");
+                            throw new DnsServerException("Invalid domain name [" + domain + "]: invalid character [" + labelChar + "] was found.");
 
                         key[keyOffset++] = labelKeyCode;
                     }
