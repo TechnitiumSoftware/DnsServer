@@ -5,6 +5,7 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <None Remove="named.root" />
     <None Remove="www\blocklist.txt" />
     <None Remove="www\css\bootstrap-theme.min.css" />
     <None Remove="www\css\bootstrap-theme.min.css.map" />
@@ -39,16 +40,13 @@
   </ItemGroup>
 
   <ItemGroup>
+    <Content Include="named.root">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
     <Content Include="www\blocklist.txt">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </Content>
     <Content Include="www\favicon.ico">
-      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-    </Content>
-    <Content Include="www\css\bootstrap-theme.min.css">
-      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-    </Content>
-    <Content Include="www\css\bootstrap-theme.min.css.map">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </Content>
     <Content Include="www\css\bootstrap.min.css">
@@ -164,8 +162,8 @@
     <RepositoryType></RepositoryType>
     <Description>.NET Standard 2.0</Description>
     <PackageId>DnsServer</PackageId>
-    <AssemblyVersion>5.0.1.0</AssemblyVersion>
-    <FileVersion>5.0.1.0</FileVersion>
+    <AssemblyVersion>5.0.2.0</AssemblyVersion>
+    <FileVersion>5.0.2.0</FileVersion>
     <Version>5.0</Version>
   </PropertyGroup>
 
