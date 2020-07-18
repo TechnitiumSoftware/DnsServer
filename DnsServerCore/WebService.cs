@@ -3839,20 +3839,14 @@ namespace DnsServerCore
             username = username.ToLower();
             string passwordHash = GetPasswordHash(username, password);
 
-            _credentials.AddOrUpdate(username, passwordHash, delegate (string key, string oldValue)
-            {
-                return passwordHash;
-            });
+            _credentials[username] = passwordHash;
         }
 
         private void LoadCredentials(string username, string passwordHash)
         {
             username = username.ToLower();
 
-            _credentials.AddOrUpdate(username, passwordHash, delegate (string key, string oldValue)
-            {
-                return passwordHash;
-            });
+            _credentials[username] = passwordHash;
         }
 
         private static string GetPasswordHash(string username, string password)
