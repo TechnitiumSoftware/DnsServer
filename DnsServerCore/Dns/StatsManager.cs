@@ -59,8 +59,8 @@ namespace DnsServerCore.Dns
         readonly ConcurrentDictionary<DateTime, StatCounter> _dailyStatsCache = new ConcurrentDictionary<DateTime, StatCounter>();
 
         readonly Timer _maintenanceTimer;
-        const int MAINTENANCE_TIMER_INITIAL_INTERVAL = 60000;
-        const int MAINTENANCE_TIMER_INTERVAL = 60000;
+        const int MAINTENANCE_TIMER_INITIAL_INTERVAL = 10000;
+        const int MAINTENANCE_TIMER_INTERVAL = 10000;
 
         readonly ConcurrentQueue<StatsQueueItem> _queue = new ConcurrentQueue<StatsQueueItem>();
         readonly Thread _consumerThread;
