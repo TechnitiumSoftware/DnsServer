@@ -290,6 +290,23 @@ namespace DnsServerCore.Dhcp
             return true;
         }
 
+        private bool IsAddressAlreadyAllocated(Lease reservedLease)
+        {
+            foreach (KeyValuePair<ClientIdentifierOption, Lease> lease in _leases)
+            {
+                if (reservedLease.Address.Equals(lease.Value.Address))
+                    return !lease.Key.Equals(reservedLease.ClientIdentifier);
+            }
+
+            foreach (KeyValuePair<ClientIdentifierOption, Lease> offer in _offers)
+            {
+                if (reservedLease.Address.Equals(offer.Value.Address))
+                    return !offer.Key.Equals(reservedLease.ClientIdentifier);
+            }
+
+            return false;
+        }
+
         private ClientFullyQualifiedDomainNameOption GetClientFullyQualifiedDomainNameOption(DhcpMessage request)
         {
             ClientFullyQualifiedDomainNameFlags responseFlags = ClientFullyQualifiedDomainNameFlags.None;
@@ -509,17 +526,11 @@ namespace DnsServerCore.Dhcp
                     if (reservedLease.ClientIdentifier.Equals(clientIdentifierKey))
                     {
                         //reserved address exists
-                        IPAddress reservedLeaseAddress = reservedLease.Address;
-
-                        if (!IsAddressAvailable(ref reservedLeaseAddress))
+                        if (IsAddressAlreadyAllocated(reservedLease))
                             break; //reserved lease address is already allocated so ignore reserved lease
 
                         Lease reservedOffer = new Lease(LeaseType.Reserved, request.ClientIdentifier, request.HostName?.HostName, request.ClientHardwareAddress, reservedLease.Address, null, GetLeaseTime());
-
-                        return _offers.AddOrUpdate(request.ClientIdentifier, reservedOffer, delegate (ClientIdentifierOption key, Lease existingValue)
-                        {
-                            return reservedOffer;
-                        });
+                        return _offers[request.ClientIdentifier] = reservedOffer;
                     }
                 }
             }
@@ -587,11 +598,7 @@ namespace DnsServerCore.Dhcp
             }
 
             Lease offerLease = new Lease(LeaseType.Dynamic, request.ClientIdentifier, request.HostName?.HostName, request.ClientHardwareAddress, offerAddress, null, GetLeaseTime());
-
-            return _offers.AddOrUpdate(request.ClientIdentifier, offerLease, delegate (ClientIdentifierOption key, Lease existingValue)
-            {
-                return offerLease;
-            });
+            return _offers[request.ClientIdentifier] = offerLease;
         }
 
         internal Lease GetExistingLeaseOrOffer(DhcpMessage request)
@@ -730,10 +737,8 @@ namespace DnsServerCore.Dhcp
         {
             lease.ExtendLease(GetLeaseTime());
 
-            _leases.AddOrUpdate(lease.ClientIdentifier, lease, delegate (ClientIdentifierOption key, Lease existingValue)
-            {
-                return lease;
-            });
+            _leases[lease.ClientIdentifier] = lease;
+            _offers.TryRemove(lease.ClientIdentifier, out _);
 
             _lastModified = DateTime.UtcNow;
         }
