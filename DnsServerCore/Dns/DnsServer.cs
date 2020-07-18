@@ -131,8 +131,15 @@ namespace DnsServerCore.Dns
         {
             //set min threads since the default value is too small
             {
-                int minWorker = Environment.ProcessorCount * 256;
-                int minIOC = Environment.ProcessorCount * 256;
+                ThreadPool.GetMinThreads(out int minWorker, out int minIOC);
+
+                int minThreads = Environment.ProcessorCount * 256;
+
+                if (minWorker < minThreads)
+                    minWorker = minThreads;
+
+                if (minIOC < minThreads)
+                    minIOC = minThreads;
 
                 ThreadPool.SetMinThreads(minWorker, minIOC);
             }
