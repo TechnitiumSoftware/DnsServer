@@ -1,0 +1,35 @@
+name: build
+
+on:
+  push:
+    branches:
+      - master
+
+jobs:
+  build:
+    strategy:
+      matrix:
+        os:
+          - windows
+          - macos
+          - ubuntu
+
+    runs-on: ${{ matrix.os }}-latest
+
+    steps:
+      - uses: actions/checkout@v2
+
+      - uses: actions/setup-dotnet@v1
+        with:
+          dotnet-version: '3.1.x'
+
+      - run: ./DnsServerApp.NETCore/build.ps1 -OutputFolder ./bin
+        shell: pwsh
+
+      - run: chmod +x ./bin/DnsServerApp
+        if: matrix.os != 'windows'
+
+      - uses: actions/upload-artifact@v2
+        with:
+          name: DnsServerApp-${{ matrix.os }}
+          path: ./bin
