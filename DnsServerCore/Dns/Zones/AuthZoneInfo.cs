@@ -20,6 +20,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Threading.Tasks;
 using TechnitiumLibrary.IO;
 using TechnitiumLibrary.Net.Dns;
 
@@ -161,20 +162,20 @@ namespace DnsServerCore.Dns.Zones
             }
         }
 
-        public IReadOnlyList<NameServerAddress> GetPrimaryNameServerAddresses(DnsServer dnsServer)
+        public Task<IReadOnlyList<NameServerAddress>> GetPrimaryNameServerAddressesAsync(DnsServer dnsServer)
         {
             if (_zone == null)
                 throw new InvalidOperationException();
 
-            return _zone.GetPrimaryNameServerAddresses(dnsServer);
+            return _zone.GetPrimaryNameServerAddressesAsync(dnsServer);
         }
 
-        public IReadOnlyList<NameServerAddress> GetSecondaryNameServerAddresses(DnsServer dnsServer)
+        public Task<IReadOnlyList<NameServerAddress>> GetSecondaryNameServerAddressesAsync(DnsServer dnsServer)
         {
             if (_zone == null)
                 throw new InvalidOperationException();
 
-            return _zone.GetSecondaryNameServerAddresses(dnsServer);
+            return _zone.GetSecondaryNameServerAddressesAsync(dnsServer);
         }
 
         public void WriteTo(BinaryWriter bW)
