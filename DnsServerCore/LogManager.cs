@@ -37,9 +37,12 @@ namespace DnsServerCore
         StreamWriter _logOut;
         DateTime _logDate;
 
-        readonly ConcurrentQueue<LogQueueItem> _queue = new ConcurrentQueue<LogQueueItem>();
+        readonly BlockingCollection<LogQueueItem> _queue = new BlockingCollection<LogQueueItem>();
         readonly Thread _consumerThread;
         readonly object _logFileLock = new object();
+        readonly object _queueLock = new object();
+        readonly EventWaitHandle _queueWait = new AutoResetEvent(true);
+        CancellationTokenSource _queueCancellationTokenSource = new CancellationTokenSource();
 
         #endregion
 
@@ -53,9 +56,21 @@ namespace DnsServerCore
 
             AppDomain.CurrentDomain.UnhandledException += delegate (object sender, UnhandledExceptionEventArgs e)
             {
-                lock (_logFileLock)
+                lock (_queueLock)
                 {
-                    WriteLog(DateTime.UtcNow, e.ExceptionObject.ToString());
+                    try
+                    {
+                        _queueCancellationTokenSource.Cancel();
+
+                        lock (_logFileLock)
+                        {
+                            WriteLog(DateTime.UtcNow, e.ExceptionObject.ToString());
+                        }
+                    }
+                    finally
+                    {
+                        _queueWait.Set();
+                    }
                 }
             };
 
@@ -64,12 +79,15 @@ namespace DnsServerCore
             {
                 while (true)
                 {
-                    lock (_logFileLock)
+                    _queueWait.WaitOne();
+
+                    Monitor.Enter(_logFileLock);
+                    try
                     {
                         if (_disposed)
                             break;
 
-                        while (_queue.TryDequeue(out LogQueueItem item))
+                        foreach (LogQueueItem item in _queue.GetConsumingEnumerable(_queueCancellationTokenSource.Token))
                         {
                             if (item._dateTime.Date > _logDate.Date)
                                 StartNewLog();
@@ -77,11 +95,18 @@ namespace DnsServerCore
                             WriteLog(item._dateTime, item._message);
                         }
                     }
+                    catch (OperationCanceledException)
+                    { }
+                    finally
+                    {
+                        Monitor.Exit(_logFileLock);
+                    }
 
-                    Thread.Sleep(100);
+                    _queueCancellationTokenSource = new CancellationTokenSource();
                 }
             });
 
+            _consumerThread.Name = "Log";
             _consumerThread.IsBackground = true;
             _consumerThread.Start();
         }
@@ -94,21 +119,33 @@ namespace DnsServerCore
 
         protected virtual void Dispose(bool disposing)
         {
-            lock (_logFileLock)
+            lock (_queueLock)
             {
-                if (_disposed)
-                    return;
-
-                if (disposing)
+                try
                 {
-                    if (_logOut != null)
+                    _queueCancellationTokenSource.Cancel();
+
+                    lock (_logFileLock)
                     {
-                        WriteLog(DateTime.UtcNow, "Logging stopped.");
-                        _logOut.Dispose();
+                        if (_disposed)
+                            return;
+
+                        if (disposing)
+                        {
+                            if (_logOut != null)
+                            {
+                                WriteLog(DateTime.UtcNow, "Logging stopped.");
+                                _logOut.Dispose();
+                            }
+                        }
+
+                        _disposed = true;
                     }
                 }
-
-                _disposed = true;
+                finally
+                {
+                    _queueWait.Set();
+                }
             }
         }
 
@@ -271,17 +308,29 @@ namespace DnsServerCore
 
         public void Write(string message)
         {
-            _queue.Enqueue(new LogQueueItem(message));
+            _queue.Add(new LogQueueItem(message));
         }
 
         public void DeleteCurrentLogFile()
         {
-            lock (_logFileLock)
+            lock (_queueLock)
             {
-                _logOut.Close();
-                File.Delete(_logFile);
+                try
+                {
+                    _queueCancellationTokenSource.Cancel();
 
-                StartNewLog();
+                    lock (_logFileLock)
+                    {
+                        _logOut.Close();
+                        File.Delete(_logFile);
+
+                        StartNewLog();
+                    }
+                }
+                finally
+                {
+                    _queueWait.Set();
+                }
             }
         }
 
