@@ -1,5 +1,14 @@
 # Technitium DNS Server Change Log
 
+## Version 5.1
+Release Date: 29 August 2020
+
+- Implemented async IO to allow the DNS server handle much higher concurrent loads.
+- Implemented independent thread pools for DNS web service and recursive resolver.
+- Fixed bug in block list downloader that caused 0 byte file downloads.
+- Fixed bug in DHCP server in creating reverse zone.
+- Multiple other minor bug fixes and improvements.
+
 ## Version 5.0.2
 Release Date: 18 July 2020
 
