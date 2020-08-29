@@ -62,7 +62,7 @@ namespace DnsServerCore.Dns
         const int MAINTENANCE_TIMER_INITIAL_INTERVAL = 10000;
         const int MAINTENANCE_TIMER_INTERVAL = 10000;
 
-        readonly ConcurrentQueue<StatsQueueItem> _queue = new ConcurrentQueue<StatsQueueItem>();
+        readonly BlockingCollection<StatsQueueItem> _queue = new BlockingCollection<StatsQueueItem>();
         readonly Thread _consumerThread;
 
         #endregion
@@ -98,16 +98,11 @@ namespace DnsServerCore.Dns
             {
                 try
                 {
-                    while (!_disposed)
+                    foreach (StatsQueueItem item in _queue.GetConsumingEnumerable())
                     {
-                        while (_queue.TryDequeue(out StatsQueueItem item))
-                        {
-                            StatCounter statCounter = _lastHourStatCounters[item._dateTime.Minute];
-                            if (statCounter != null)
-                                statCounter.Update(item._query, item._responseCode, item._responseType, item._clientIpAddress);
-                        }
-
-                        Thread.Sleep(100);
+                        StatCounter statCounter = _lastHourStatCounters[item._dateTime.Minute];
+                        if (statCounter != null)
+                            statCounter.Update(item._query, item._responseCode, item._responseType, item._clientIpAddress);
                     }
                 }
                 catch (Exception ex)
@@ -116,6 +111,7 @@ namespace DnsServerCore.Dns
                 }
             });
 
+            _consumerThread.Name = "Stats";
             _consumerThread.IsBackground = true;
             _consumerThread.Start();
         }
@@ -420,7 +416,7 @@ namespace DnsServerCore.Dns
             else
                 item = new StatsQueueItem(new DnsQuestionRecord("", DnsResourceRecordType.ANY, DnsClass.IN), responseCode, responseType, clientIpAddress);
 
-            _queue.Enqueue(item);
+            _queue.Add(item);
         }
 
         public Dictionary<string, List<KeyValuePair<string, int>>> GetLastHourStats()
