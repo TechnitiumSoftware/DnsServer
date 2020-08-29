@@ -20,6 +20,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 using System;
 using System.Collections.Generic;
 using System.Threading;
+using System.Threading.Tasks;
 using TechnitiumLibrary.Net.Dns;
 using TechnitiumLibrary.Net.Dns.ResourceRecords;
 
@@ -102,11 +103,11 @@ namespace DnsServerCore.Dns.Zones
 
         #region private
 
-        private void NotifyTimerCallback(object state)
+        private async void NotifyTimerCallback(object state)
         {
             try
             {
-                IReadOnlyList<NameServerAddress> secondaryNameServers = GetSecondaryNameServerAddresses(_dnsServer);
+                IReadOnlyList<NameServerAddress> secondaryNameServers = await GetSecondaryNameServerAddressesAsync(_dnsServer);
 
                 foreach (NameServerAddress secondaryNameServer in secondaryNameServers)
                     NotifyNameServer(secondaryNameServer);
@@ -130,57 +131,59 @@ namespace DnsServerCore.Dns.Zones
                 _notifyList.Add(nameServer);
             }
 
-            ThreadPool.QueueUserWorkItem(delegate (object state)
+            _ = NotifyNameServerAsync(nameServer);
+        }
+
+        private async Task NotifyNameServerAsync(NameServerAddress nameServer)
+        {
+            try
             {
-                try
+                DnsClient client = new DnsClient(nameServer);
+
+                client.Timeout = NOTIFY_TIMEOUT;
+                client.Retries = NOTIFY_RETRIES;
+
+                DnsDatagram notifyRequest = new DnsDatagram(0, false, DnsOpcode.Notify, true, false, false, false, false, false, DnsResponseCode.NoError, new DnsQuestionRecord[] { new DnsQuestionRecord(_name, DnsResourceRecordType.SOA, DnsClass.IN) }, _entries[DnsResourceRecordType.SOA]);
+                DnsDatagram response = await client.ResolveAsync(notifyRequest);
+
+                switch (response.RCODE)
                 {
-                    DnsClient client = new DnsClient(nameServer);
+                    case DnsResponseCode.NoError:
+                    case DnsResponseCode.NotImplemented:
+                        {
+                            //transaction complete
+                            LogManager log = _dnsServer.LogManager;
+                            if (log != null)
+                                log.Write("DNS Server successfully notified name server for '" + _name + "' zone changes: " + nameServer.ToString());
+                        }
+                        break;
 
-                    client.Timeout = NOTIFY_TIMEOUT;
-                    client.Retries = NOTIFY_RETRIES;
-
-                    DnsDatagram notifyRequest = new DnsDatagram(0, false, DnsOpcode.Notify, true, false, false, false, false, false, DnsResponseCode.NoError, new DnsQuestionRecord[] { new DnsQuestionRecord(_name, DnsResourceRecordType.SOA, DnsClass.IN) }, _entries[DnsResourceRecordType.SOA]);
-                    DnsDatagram response = client.Resolve(notifyRequest);
-
-                    switch (response.RCODE)
-                    {
-                        case DnsResponseCode.NoError:
-                        case DnsResponseCode.NotImplemented:
-                            {
-                                //transaction complete
-                                LogManager log = _dnsServer.LogManager;
-                                if (log != null)
-                                    log.Write("DNS Server successfully notified name server for '" + _name + "' zone changes: " + nameServer.ToString());
-                            }
-                            break;
-
-                        default:
-                            {
-                                //transaction failed
-                                LogManager log = _dnsServer.LogManager;
-                                if (log != null)
-                                    log.Write("DNS Server received RCODE=" + response.RCODE.ToString() + " from name server for '" + _name + "' zone notification: " + nameServer.ToString());
-                            }
-                            break;
-                    }
+                    default:
+                        {
+                            //transaction failed
+                            LogManager log = _dnsServer.LogManager;
+                            if (log != null)
+                                log.Write("DNS Server received RCODE=" + response.RCODE.ToString() + " from name server for '" + _name + "' zone notification: " + nameServer.ToString());
+                        }
+                        break;
                 }
-                catch (Exception ex)
+            }
+            catch (Exception ex)
+            {
+                LogManager log = _dnsServer.LogManager;
+                if (log != null)
                 {
-                    LogManager log = _dnsServer.LogManager;
-                    if (log != null)
-                    {
-                        log.Write("DNS Server failed to notify name server for '" + _name + "' zone changes: " + nameServer.ToString());
-                        log.Write(ex);
-                    }
+                    log.Write("DNS Server failed to notify name server for '" + _name + "' zone changes: " + nameServer.ToString());
+                    log.Write(ex);
                 }
-                finally
+            }
+            finally
+            {
+                lock (_notifyList)
                 {
-                    lock (_notifyList)
-                    {
-                        _notifyList.Remove(nameServer);
-                    }
+                    _notifyList.Remove(nameServer);
                 }
-            });
+            }
         }
 
         #endregion
