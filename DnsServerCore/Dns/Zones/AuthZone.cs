@@ -21,6 +21,7 @@ using DnsServerCore.Dns.ResourceRecords;
 using System;
 using System.Collections.Generic;
 using System.Net;
+using System.Threading.Tasks;
 using TechnitiumLibrary.IO;
 using TechnitiumLibrary.Net.Dns;
 using TechnitiumLibrary.Net.Dns.ResourceRecords;
@@ -94,7 +95,7 @@ namespace DnsServerCore.Dns.Zones
             return newRecords;
         }
 
-        private IReadOnlyList<NameServerAddress> GetNameServerAddresses(DnsServer dnsServer, DnsResourceRecord record)
+        private async Task<IReadOnlyList<NameServerAddress>> GetNameServerAddressesAsync(DnsServer dnsServer, DnsResourceRecord record)
         {
             string nsDomain;
 
@@ -138,7 +139,7 @@ namespace DnsServerCore.Dns.Zones
                 //resolve addresses
                 try
                 {
-                    DnsDatagram response = dnsServer.DirectQuery(new DnsQuestionRecord(nsDomain, DnsResourceRecordType.A, DnsClass.IN));
+                    DnsDatagram response = await dnsServer.DirectQueryAsync(new DnsQuestionRecord(nsDomain, DnsResourceRecordType.A, DnsClass.IN));
                     if ((response != null) && (response.Answer.Count > 0))
                     {
                         IReadOnlyList<IPAddress> addresses = DnsClient.ParseResponseA(response);
@@ -153,7 +154,7 @@ namespace DnsServerCore.Dns.Zones
                 {
                     try
                     {
-                        DnsDatagram response = dnsServer.DirectQuery(new DnsQuestionRecord(nsDomain, DnsResourceRecordType.AAAA, DnsClass.IN));
+                        DnsDatagram response = await dnsServer.DirectQueryAsync(new DnsQuestionRecord(nsDomain, DnsResourceRecordType.AAAA, DnsClass.IN));
                         if ((response != null) && (response.Answer.Count > 0))
                         {
                             IReadOnlyList<IPAddress> addresses = DnsClient.ParseResponseAAAA(response);
@@ -173,7 +174,7 @@ namespace DnsServerCore.Dns.Zones
 
         #region public
 
-        public IReadOnlyList<NameServerAddress> GetPrimaryNameServerAddresses(DnsServer dnsServer)
+        public async Task<IReadOnlyList<NameServerAddress>> GetPrimaryNameServerAddressesAsync(DnsServer dnsServer)
         {
             List<NameServerAddress> nameServers = new List<NameServerAddress>();
 
@@ -191,12 +192,12 @@ namespace DnsServerCore.Dns.Zones
                 if (soa.PrimaryNameServer.Equals(nsDomain, StringComparison.OrdinalIgnoreCase))
                 {
                     //found primary NS
-                    nameServers.AddRange(GetNameServerAddresses(dnsServer, nsRecord));
+                    nameServers.AddRange(await GetNameServerAddressesAsync(dnsServer, nsRecord));
                     break;
                 }
             }
 
-            foreach (NameServerAddress nameServer in GetNameServerAddresses(dnsServer, soaRecord))
+            foreach (NameServerAddress nameServer in await GetNameServerAddressesAsync(dnsServer, soaRecord))
             {
                 if (!nameServers.Contains(nameServer))
                     nameServers.Add(nameServer);
@@ -205,7 +206,7 @@ namespace DnsServerCore.Dns.Zones
             return nameServers;
         }
 
-        public IReadOnlyList<NameServerAddress> GetSecondaryNameServerAddresses(DnsServer dnsServer)
+        public async Task<IReadOnlyList<NameServerAddress>> GetSecondaryNameServerAddressesAsync(DnsServer dnsServer)
         {
             List<NameServerAddress> nameServers = new List<NameServerAddress>();
 
@@ -222,7 +223,7 @@ namespace DnsServerCore.Dns.Zones
                 if (soa.PrimaryNameServer.Equals(nsDomain, StringComparison.OrdinalIgnoreCase))
                     continue; //skip primary name server
 
-                nameServers.AddRange(GetNameServerAddresses(dnsServer, nsRecord));
+                nameServers.AddRange(await GetNameServerAddressesAsync(dnsServer, nsRecord));
             }
 
             return nameServers;
