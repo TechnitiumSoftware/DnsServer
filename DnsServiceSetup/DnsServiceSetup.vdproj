@@ -519,7 +519,7 @@
             {
             "AssemblyRegister" = "3:1"
             "AssemblyIsInGAC" = "11:FALSE"
-            "AssemblyAsmDisplayName" = "8:TechnitiumLibrary.Net.Firewall, Version=1.1.0.1, Culture=neutral, processorArchitecture=MSIL"
+            "AssemblyAsmDisplayName" = "8:TechnitiumLibrary.Net.Firewall, Version=1.1.0.2, Culture=neutral, processorArchitecture=MSIL"
                 "ScatterAssemblies"
                 {
                     "_48D35E76D0F15C4F3B77AFA094F295B3"
@@ -550,7 +550,7 @@
             {
             "AssemblyRegister" = "3:1"
             "AssemblyIsInGAC" = "11:FALSE"
-            "AssemblyAsmDisplayName" = "8:TechnitiumLibrary.IO, Version=2.6.0.0, Culture=neutral, processorArchitecture=MSIL"
+            "AssemblyAsmDisplayName" = "8:TechnitiumLibrary.IO, Version=2.7.0.0, Culture=neutral, processorArchitecture=MSIL"
                 "ScatterAssemblies"
                 {
                     "_6CC2E6E1F5D380251082B18D85E994CC"
@@ -581,7 +581,7 @@
             {
             "AssemblyRegister" = "3:1"
             "AssemblyIsInGAC" = "11:FALSE"
-            "AssemblyAsmDisplayName" = "8:TechnitiumLibrary.IO, Version=2.6.0.0, Culture=neutral, processorArchitecture=MSIL"
+            "AssemblyAsmDisplayName" = "8:TechnitiumLibrary.IO, Version=2.7.0.0, Culture=neutral, processorArchitecture=MSIL"
                 "ScatterAssemblies"
                 {
                     "_8B10F9E249A0AE128E599DE6F0311A2C"
@@ -612,7 +612,7 @@
             {
             "AssemblyRegister" = "3:1"
             "AssemblyIsInGAC" = "11:FALSE"
-            "AssemblyAsmDisplayName" = "8:TechnitiumLibrary.Net, Version=3.6.2.0, Culture=neutral, processorArchitecture=MSIL"
+            "AssemblyAsmDisplayName" = "8:TechnitiumLibrary.Net, Version=4.0.0.0, Culture=neutral, processorArchitecture=MSIL"
                 "ScatterAssemblies"
                 {
                     "_9E2B74BD683FB4419D3D83F8077F2EB9"
@@ -674,7 +674,7 @@
             {
             "AssemblyRegister" = "3:1"
             "AssemblyIsInGAC" = "11:FALSE"
-            "AssemblyAsmDisplayName" = "8:TechnitiumLibrary.Net, Version=3.6.2.0, Culture=neutral, processorArchitecture=MSIL"
+            "AssemblyAsmDisplayName" = "8:TechnitiumLibrary.Net, Version=4.0.0.0, Culture=neutral, processorArchitecture=MSIL"
                 "ScatterAssemblies"
                 {
                     "_BB60BA89D1895F2892DFDF8733540B69"
@@ -892,15 +892,15 @@
         {
         "Name" = "8:Microsoft Visual Studio"
         "ProductName" = "8:DNS Server"
-        "ProductCode" = "8:{3426DF58-C15D-4E0C-BA98-A151226CC347}"
-        "PackageCode" = "8:{08FBC9A8-D0FF-442E-9260-CD9920642DC1}"
+        "ProductCode" = "8:{1F032CBC-002D-4618-85AC-64FE53089CDA}"
+        "PackageCode" = "8:{73C1C01F-838D-4B45-87E1-A8D54D026F12}"
         "UpgradeCode" = "8:{ED5F64A5-EFD9-4A95-AA7C-4B8447343BD4}"
         "AspNetVersion" = "8:4.0.30319.0"
         "RestartWWWService" = "11:FALSE"
         "RemovePreviousVersions" = "11:TRUE"
         "DetectNewerInstalledVersion" = "11:TRUE"
         "InstallAllUsers" = "11:FALSE"
-        "ProductVersion" = "8:5.0.2"
+        "ProductVersion" = "8:5.1"
         "Manufacturer" = "8:Technitium"
         "ARPHELPTELEPHONE" = "8:"
         "ARPHELPLINK" = "8:https://technitium.com/dns/"
@@ -1442,7 +1442,7 @@
         {
             "{5259A561-127C-4D43-A0A1-72F10C7B3BF8}:_46335E05914C4608B60971B5A4045C8C"
             {
-            "SourcePath" = "8:..\\DnsService\\obj\\Debug\\DnsService.exe"
+            "SourcePath" = "8:..\\DnsService\\obj\\Release\\DnsService.exe"
             "TargetName" = "8:"
             "Tag" = "8:"
             "Folder" = "8:_92D8D371EEF34E8A92831042A33F621E"
@@ -1498,7 +1498,7 @@
             }
             "{5259A561-127C-4D43-A0A1-72F10C7B3BF8}:_EDFDAFBF89F14D60A736CCCB40035B18"
             {
-            "SourcePath" = "8:..\\DnsServerSystemTrayApp\\obj\\Debug\\DnsServerSystemTrayApp.exe"
+            "SourcePath" = "8:..\\DnsServerSystemTrayApp\\obj\\Release\\DnsServerSystemTrayApp.exe"
             "TargetName" = "8:"
             "Tag" = "8:"
             "Folder" = "8:_92D8D371EEF34E8A92831042A33F621E"
