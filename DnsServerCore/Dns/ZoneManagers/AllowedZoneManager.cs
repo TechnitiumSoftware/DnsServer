@@ -118,7 +118,7 @@ namespace DnsServerCore.Dns.ZoneManagers
 
         public bool AllowZone(string domain)
         {
-            if (_zoneManager.CreatePrimaryZone(domain, _soaRecord, _nsRecord) != null)
+            if (_zoneManager.InternalCreatePrimaryZone(domain, _soaRecord, _nsRecord) != null)
             {
                 _totalZonesAllowed++;
                 return true;
