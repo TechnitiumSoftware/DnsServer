@@ -29,11 +29,13 @@ using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.IO;
 using System.Net;
+using System.Net.Http;
 using System.Reflection;
 using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
 using System.Text;
 using System.Threading;
+using System.Threading.Tasks;
 using TechnitiumLibrary.IO;
 using TechnitiumLibrary.Net;
 using TechnitiumLibrary.Net.Dns;
@@ -58,7 +60,7 @@ namespace DnsServerCore
 
         #region variables
 
-        readonly string _currentVersion;
+        readonly Version _currentVersion;
         readonly string _appFolder;
         readonly string _configFolder;
         readonly Uri _updateCheckUri;
@@ -71,6 +73,7 @@ namespace DnsServerCore
         int _webServicePort;
         HttpListener _webService;
         Thread _webServiceThread;
+        readonly IndependentTaskScheduler _webServiceTaskScheduler = new IndependentTaskScheduler(ThreadPriority.AboveNormal);
         string _webServiceHostname;
 
         string _tlsCertificatePath;
@@ -94,7 +97,6 @@ namespace DnsServerCore
         const int BLOCK_LIST_UPDATE_AFTER_HOURS = 24;
         const int BLOCK_LIST_UPDATE_TIMER_INITIAL_INTERVAL = 5000;
         const int BLOCK_LIST_UPDATE_TIMER_INTERVAL = 900000;
-        const int BLOCK_LIST_UPDATE_RETRIES = 3;
 
         List<string> _configDisabledZones;
 
@@ -104,10 +106,10 @@ namespace DnsServerCore
 
         public WebService(string configFolder = null, Uri updateCheckUri = null)
         {
-            Assembly assembly = Assembly.GetEntryAssembly();
+            Assembly assembly = Assembly.GetExecutingAssembly();
             AssemblyName assemblyName = assembly.GetName();
 
-            _currentVersion = assemblyName.Version.ToString();
+            _currentVersion = assemblyName.Version;
             _appFolder = Path.GetDirectoryName(assembly.Location);
 
             if (configFolder == null)
@@ -180,7 +182,11 @@ namespace DnsServerCore
                 while (true)
                 {
                     HttpListenerContext context = _webService.GetContext();
-                    ThreadPool.QueueUserWorkItem(ProcessRequestAsync, new object[] { context.Request, context.Response });
+
+                    _ = Task.Factory.StartNew(delegate ()
+                    {
+                        return ProcessRequestAsync(context.Request, context.Response);
+                    }, CancellationToken.None, TaskCreationOptions.DenyChildAttach, _webServiceTaskScheduler);
                 }
             }
             catch (Exception ex)
@@ -193,12 +199,8 @@ namespace DnsServerCore
             }
         }
 
-        private void ProcessRequestAsync(object state)
+        private async Task ProcessRequestAsync(HttpListenerRequest request, HttpListenerResponse response)
         {
-            object[] parameters = state as object[];
-            HttpListenerRequest request = parameters[0] as HttpListenerRequest;
-            HttpListenerResponse response = parameters[1] as HttpListenerResponse;
-
             response.AddHeader("Server", "");
             response.AddHeader("X-Robots-Tag", "noindex, nofollow");
 
@@ -248,7 +250,7 @@ namespace DnsServerCore
                                                 break;
 
                                             case "/api/checkForUpdate":
-                                                CheckForUpdate(request, jsonWriter);
+                                                await CheckForUpdateAsync(request, jsonWriter);
                                                 break;
 
                                             case "/api/getDnsSettings":
@@ -260,7 +262,7 @@ namespace DnsServerCore
                                                 break;
 
                                             case "/api/getStats":
-                                                GetStats(request, jsonWriter);
+                                                await GetStats(request, jsonWriter);
                                                 break;
 
                                             case "/api/flushDnsCache":
@@ -320,7 +322,7 @@ namespace DnsServerCore
                                                 break;
 
                                             case "/api/createZone":
-                                                CreateZone(request, jsonWriter);
+                                                await CreateZoneAsync(request, jsonWriter);
                                                 break;
 
                                             case "/api/deleteZone":
@@ -352,7 +354,7 @@ namespace DnsServerCore
                                                 break;
 
                                             case "/api/resolveQuery":
-                                                ResolveQuery(request, jsonWriter);
+                                                await ResolveQuery(request, jsonWriter);
                                                 break;
 
                                             case "/api/listLogs":
@@ -781,9 +783,9 @@ namespace DnsServerCore
             bW.WriteShortString(downloadLink);
         }
 
-        private void CheckForUpdate(HttpListenerRequest request, JsonTextWriter jsonWriter)
+        private async Task CheckForUpdateAsync(HttpListenerRequest request, JsonTextWriter jsonWriter)
         {
-            string updateVersion = null;
+            Version updateVersion = null;
             string displayText = null;
             string downloadLink = null;
 
@@ -793,11 +795,12 @@ namespace DnsServerCore
             {
                 try
                 {
-                    using (WebClientEx wc = new WebClientEx())
-                    {
-                        wc.Proxy = _dnsServer.Proxy;
+                    HttpClientHandler handler = new HttpClientHandler();
+                    handler.Proxy = _dnsServer.Proxy;
 
-                        byte[] response = wc.DownloadData(_updateCheckUri);
+                    using (HttpClient http = new HttpClient(handler))
+                    {
+                        byte[] response = await http.GetByteArrayAsync(_updateCheckUri);
 
                         using (MemoryStream mS = new MemoryStream(response, false))
                         {
@@ -809,7 +812,7 @@ namespace DnsServerCore
                             switch (bR.ReadByte()) //version
                             {
                                 case 2:
-                                    updateVersion = bR.ReadShortString();
+                                    updateVersion = new Version(bR.ReadShortString());
                                     displayText = bR.ReadShortString();
                                     downloadLink = bR.ReadShortString();
                                     break;
@@ -818,7 +821,7 @@ namespace DnsServerCore
                                     throw new InvalidDataException("DNS Server update info version not supported.");
                             }
 
-                            updateAvailable = IsUpdateAvailable(_currentVersion, updateVersion);
+                            updateAvailable = updateVersion > _currentVersion;
                         }
                     }
 
@@ -846,46 +849,17 @@ namespace DnsServerCore
             }
         }
 
-        private static bool IsUpdateAvailable(string currentVersion, string updateVersion)
+        private static string GetCleanVersion(Version version)
         {
-            if (updateVersion == null)
-                return false;
+            string strVersion = version.Major + "." + version.Minor;
 
-            string[] uVer = updateVersion.Split(new char[] { '.' });
-            string[] cVer = currentVersion.Split(new char[] { '.' });
+            if (version.Build > 0)
+                strVersion += "." + version.Build;
 
-            int x = uVer.Length;
-            if (x > cVer.Length)
-                x = cVer.Length;
+            if (version.Revision > 0)
+                strVersion += "." + version.Revision;
 
-            for (int i = 0; i < x; i++)
-            {
-                if (Convert.ToInt32(uVer[i]) > Convert.ToInt32(cVer[i]))
-                    return true;
-                else if (Convert.ToInt32(uVer[i]) < Convert.ToInt32(cVer[i]))
-                    return false;
-            }
-
-            if (uVer.Length > cVer.Length)
-            {
-                for (int i = x; i < uVer.Length; i++)
-                {
-                    if (Convert.ToInt32(uVer[i]) > 0)
-                        return true;
-                }
-            }
-
-            return false;
-        }
-
-        private static string GetCleanVersion(string version)
-        {
-            while (version.EndsWith(".0"))
-            {
-                version = version.Substring(0, version.Length - 2);
-            }
-
-            return version;
+            return strVersion;
         }
 
         private void GetDnsSettings(JsonTextWriter jsonWriter)
@@ -1245,7 +1219,12 @@ namespace DnsServerCore
                         _dnsServer.BlockListZoneManager.BlockListUrls.Clear();
 
                         foreach (string strBlockListUrl in strBlockListUrlList)
-                            _dnsServer.BlockListZoneManager.BlockListUrls.Add(new Uri(strBlockListUrl));
+                        {
+                            Uri blockListUrl = new Uri(strBlockListUrl);
+
+                            if (!_dnsServer.BlockListZoneManager.BlockListUrls.Contains(blockListUrl))
+                                _dnsServer.BlockListZoneManager.BlockListUrls.Add(blockListUrl);
+                        }
 
                         _blockListLastUpdatedOn = new DateTime();
 
@@ -1262,7 +1241,7 @@ namespace DnsServerCore
             GetDnsSettings(jsonWriter);
         }
 
-        private void GetStats(HttpListenerRequest request, JsonTextWriter jsonWriter)
+        private async Task GetStats(HttpListenerRequest request, JsonTextWriter jsonWriter)
         {
             string strType = request.QueryString["type"];
             if (string.IsNullOrEmpty(strType))
@@ -1520,7 +1499,7 @@ namespace DnsServerCore
                         {
                             try
                             {
-                                DnsDatagram ptrResponse = _dnsServer.DirectQuery(new DnsQuestionRecord(address, DnsClass.IN), 200);
+                                DnsDatagram ptrResponse = await _dnsServer.DirectQueryAsync(new DnsQuestionRecord(address, DnsClass.IN), 200);
                                 if ((ptrResponse != null) && (ptrResponse.Answer.Count > 0))
                                 {
                                     string ptrDomain = DnsClient.ParseResponsePTR(ptrResponse);
@@ -2030,7 +2009,7 @@ namespace DnsServerCore
             jsonWriter.WriteEndArray();
         }
 
-        private void CreateZone(HttpListenerRequest request, JsonTextWriter jsonWriter)
+        private async Task CreateZoneAsync(HttpListenerRequest request, JsonTextWriter jsonWriter)
         {
             string domain = request.QueryString["domain"];
             if (string.IsNullOrEmpty(domain))
@@ -2062,11 +2041,11 @@ namespace DnsServerCore
             switch (type)
             {
                 case AuthZoneType.Primary:
-                    if (_dnsServer.AuthZoneManager.CreatePrimaryZone(domain, _dnsServer.ServerDomain, false) != null)
-                    {
-                        _log.Write(GetRequestRemoteEndPoint(request), "[" + GetSession(request).Username + "] Authoritative primary zone was created: " + domain);
-                        _dnsServer.AuthZoneManager.SaveZoneFile(domain);
-                    }
+                    if (_dnsServer.AuthZoneManager.CreatePrimaryZone(domain, _dnsServer.ServerDomain, false) == null)
+                        throw new WebServiceException("Zone already exists: " + domain);
+
+                    _log.Write(GetRequestRemoteEndPoint(request), "[" + GetSession(request).Username + "] Authoritative primary zone was created: " + domain);
+                    _dnsServer.AuthZoneManager.SaveZoneFile(domain);
                     break;
 
                 case AuthZoneType.Secondary:
@@ -2075,11 +2054,11 @@ namespace DnsServerCore
                         if (string.IsNullOrEmpty(strPrimaryNameServerAddresses))
                             strPrimaryNameServerAddresses = null;
 
-                        if (_dnsServer.AuthZoneManager.CreateSecondaryZone(domain, strPrimaryNameServerAddresses) != null)
-                        {
-                            _log.Write(GetRequestRemoteEndPoint(request), "[" + GetSession(request).Username + "] Authoritative secondary zone was created: " + domain);
-                            _dnsServer.AuthZoneManager.SaveZoneFile(domain);
-                        }
+                        if (await _dnsServer.AuthZoneManager.CreateSecondaryZoneAsync(domain, strPrimaryNameServerAddresses) == null)
+                            throw new WebServiceException("Zone already exists: " + domain);
+
+                        _log.Write(GetRequestRemoteEndPoint(request), "[" + GetSession(request).Username + "] Authoritative secondary zone was created: " + domain);
+                        _dnsServer.AuthZoneManager.SaveZoneFile(domain);
                     }
                     break;
 
@@ -2089,11 +2068,11 @@ namespace DnsServerCore
                         if (string.IsNullOrEmpty(strPrimaryNameServerAddresses))
                             strPrimaryNameServerAddresses = null;
 
-                        if (_dnsServer.AuthZoneManager.CreateStubZone(domain, strPrimaryNameServerAddresses) != null)
-                        {
-                            _log.Write(GetRequestRemoteEndPoint(request), "[" + GetSession(request).Username + "] Stub zone was created: " + domain);
-                            _dnsServer.AuthZoneManager.SaveZoneFile(domain);
-                        }
+                        if (await _dnsServer.AuthZoneManager.CreateStubZoneAsync(domain, strPrimaryNameServerAddresses) == null)
+                            throw new WebServiceException("Zone already exists: " + domain);
+
+                        _log.Write(GetRequestRemoteEndPoint(request), "[" + GetSession(request).Username + "] Stub zone was created: " + domain);
+                        _dnsServer.AuthZoneManager.SaveZoneFile(domain);
                     }
                     break;
 
@@ -2108,11 +2087,11 @@ namespace DnsServerCore
                         if (string.IsNullOrEmpty(strForwarder))
                             throw new WebServiceException("Parameter 'forwarder' missing.");
 
-                        if (_dnsServer.AuthZoneManager.CreateForwarderZone(domain, forwarderProtocol, strForwarder) != null)
-                        {
-                            _log.Write(GetRequestRemoteEndPoint(request), "[" + GetSession(request).Username + "] Forwarder zone was created: " + domain);
-                            _dnsServer.AuthZoneManager.SaveZoneFile(domain);
-                        }
+                        if (_dnsServer.AuthZoneManager.CreateForwarderZone(domain, forwarderProtocol, strForwarder) == null)
+                            throw new WebServiceException("Zone already exists: " + domain);
+
+                        _log.Write(GetRequestRemoteEndPoint(request), "[" + GetSession(request).Username + "] Forwarder zone was created: " + domain);
+                        _dnsServer.AuthZoneManager.SaveZoneFile(domain);
                     }
                     break;
 
@@ -3085,7 +3064,7 @@ namespace DnsServerCore
             _dnsServer.AuthZoneManager.SaveZoneFile(zoneInfo.Name);
         }
 
-        private void ResolveQuery(HttpListenerRequest request, JsonTextWriter jsonWriter)
+        private async Task ResolveQuery(HttpListenerRequest request, JsonTextWriter jsonWriter)
         {
             string server = request.QueryString["server"];
             if (string.IsNullOrEmpty(server))
@@ -3135,7 +3114,7 @@ namespace DnsServerCore
                 else
                     question = new DnsQuestionRecord(domain, type, DnsClass.IN);
 
-                dnsResponse = DnsClient.RecursiveResolve(question, null, null, proxy, preferIPv6, RETRIES, TIMEOUT);
+                dnsResponse = await DnsClient.RecursiveResolveAsync(question, null, null, proxy, preferIPv6, RETRIES, TIMEOUT);
             }
             else
             {
@@ -3183,9 +3162,9 @@ namespace DnsServerCore
                         if (proxy == null)
                         {
                             if (_dnsServer.AllowRecursion)
-                                nameServer.ResolveIPAddress(new NameServerAddress[] { _dnsServer.ThisServer }, proxy, preferIPv6, RETRIES, TIMEOUT);
+                                await nameServer.ResolveIPAddressAsync(new NameServerAddress[] { _dnsServer.ThisServer }, proxy, preferIPv6, RETRIES, TIMEOUT);
                             else
-                                nameServer.RecursiveResolveIPAddress(_dnsServer.DnsCache, proxy, preferIPv6, RETRIES, TIMEOUT);
+                                await nameServer.RecursiveResolveIPAddressAsync(_dnsServer.DnsCache, proxy, preferIPv6, RETRIES, TIMEOUT);
                         }
                     }
                     else if (protocol != DnsTransportProtocol.Tls)
@@ -3193,16 +3172,16 @@ namespace DnsServerCore
                         try
                         {
                             if (_dnsServer.AllowRecursion)
-                                nameServer.ResolveDomainName(new NameServerAddress[] { _dnsServer.ThisServer }, proxy, preferIPv6, RETRIES, TIMEOUT);
+                                await nameServer.ResolveDomainNameAsync(new NameServerAddress[] { _dnsServer.ThisServer }, proxy, preferIPv6, RETRIES, TIMEOUT);
                             else
-                                nameServer.RecursiveResolveDomainName(_dnsServer.DnsCache, proxy, preferIPv6, RETRIES, TIMEOUT);
+                                await nameServer.RecursiveResolveDomainNameAsync(_dnsServer.DnsCache, proxy, preferIPv6, RETRIES, TIMEOUT);
                         }
                         catch
                         { }
                     }
                 }
 
-                dnsResponse = (new DnsClient(nameServer) { Proxy = proxy, PreferIPv6 = preferIPv6, Retries = RETRIES, Timeout = TIMEOUT }).Resolve(domain, type);
+                dnsResponse = await new DnsClient(nameServer) { Proxy = proxy, PreferIPv6 = preferIPv6, Retries = RETRIES, Timeout = TIMEOUT }.ResolveAsync(domain, type);
             }
 
             if (importRecords)
@@ -3861,13 +3840,13 @@ namespace DnsServerCore
         {
             if (_blockListUpdateTimer == null)
             {
-                _blockListUpdateTimer = new Timer(delegate (object state)
+                _blockListUpdateTimer = new Timer(async delegate (object state)
                 {
                     try
                     {
                         if (DateTime.UtcNow > _blockListLastUpdatedOn.AddHours(BLOCK_LIST_UPDATE_AFTER_HOURS))
                         {
-                            if (_dnsServer.BlockListZoneManager.UpdateBlockLists(BLOCK_LIST_UPDATE_RETRIES))
+                            if (await _dnsServer.BlockListZoneManager.UpdateBlockListsAsync())
                             {
                                 //block lists were updated
                                 //save last updated on time
@@ -4425,16 +4404,17 @@ namespace DnsServerCore
                 _webService.IgnoreWriteExceptions = true;
 
                 _webServiceThread = new Thread(AcceptWebRequestAsync);
+                _webServiceThread.Name = "WebService";
                 _webServiceThread.IsBackground = true;
                 _webServiceThread.Start();
 
                 _state = ServiceState.Running;
 
-                _log.Write(new IPEndPoint(IPAddress.Any, _webServicePort), "Web Service (v" + _currentVersion + ") was started successfully.");
+                _log.Write(new IPEndPoint(IPAddress.Any, _webServicePort), "Web Service (v" + _currentVersion.ToString() + ") was started successfully.");
             }
             catch (Exception ex)
             {
-                _log.Write("Failed to start Web Service (v" + _currentVersion + ")\r\n" + ex.ToString());
+                _log.Write("Failed to start Web Service (v" + _currentVersion.ToString() + ")\r\n" + ex.ToString());
                 throw;
             }
         }
@@ -4457,11 +4437,11 @@ namespace DnsServerCore
 
                 _state = ServiceState.Stopped;
 
-                _log.Write(new IPEndPoint(IPAddress.Loopback, _webServicePort), "Web Service (v" + _currentVersion + ") was stopped successfully.");
+                _log.Write(new IPEndPoint(IPAddress.Loopback, _webServicePort), "Web Service (v" + _currentVersion.ToString() + ") was stopped successfully.");
             }
             catch (Exception ex)
             {
-                _log.Write("Failed to stop Web Service (v" + _currentVersion + ")\r\n" + ex.ToString());
+                _log.Write("Failed to stop Web Service (v" + _currentVersion.ToString() + ")\r\n" + ex.ToString());
                 throw;
             }
         }
