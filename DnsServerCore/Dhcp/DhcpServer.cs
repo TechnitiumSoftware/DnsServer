@@ -64,7 +64,6 @@ namespace DnsServerCore.Dhcp
         LogManager _log;
 
         readonly ConcurrentDictionary<IPAddress, Socket> _udpListeners = new ConcurrentDictionary<IPAddress, Socket>();
-        readonly List<Thread> _listenerThreads = new List<Thread>();
 
         readonly ConcurrentDictionary<string, Scope> _scopes = new ConcurrentDictionary<string, Scope>();
 
@@ -187,10 +186,47 @@ namespace DnsServerCore.Dhcp
                             case 68:
                                 try
                                 {
-                                    ThreadPool.QueueUserWorkItem(ProcessUdpRequestAsync, new object[] { udpListener, remoteEP, ipPacketInformation, new DhcpMessage(new MemoryStream(recvBuffer, 0, bytesRecv, false)) });
+                                    DhcpMessage request = new DhcpMessage(new MemoryStream(recvBuffer, 0, bytesRecv, false));
+                                    DhcpMessage response = ProcessDhcpMessage(request, remoteEP as IPEndPoint, ipPacketInformation);
+
+                                    //send response
+                                    if (response != null)
+                                    {
+                                        byte[] sendBuffer = new byte[1024];
+                                        MemoryStream sendBufferStream = new MemoryStream(sendBuffer);
+
+                                        response.WriteTo(sendBufferStream);
+
+                                        //send dns datagram
+                                        if (!request.RelayAgentIpAddress.Equals(IPAddress.Any))
+                                        {
+                                            //received request via relay agent so send unicast response to relay agent on port 67
+                                            udpListener.SendTo(sendBuffer, 0, (int)sendBufferStream.Position, SocketFlags.None, new IPEndPoint(request.RelayAgentIpAddress, 67));
+                                        }
+                                        else if (!request.ClientIpAddress.Equals(IPAddress.Any))
+                                        {
+                                            //client is already configured and renewing lease so send unicast response on port 68
+                                            udpListener.SendTo(sendBuffer, 0, (int)sendBufferStream.Position, SocketFlags.None, new IPEndPoint(request.ClientIpAddress, 68));
+                                        }
+                                        else
+                                        {
+                                            //send response as broadcast on port 68 on appropriate interface bound socket
+                                            if (!_udpListeners.TryGetValue(response.NextServerIpAddress, out Socket udpSocket))
+                                                udpSocket = udpListener; //no appropriate socket found so use default socket
+
+                                            udpSocket.SendTo(sendBuffer, 0, (int)sendBufferStream.Position, SocketFlags.DontRoute, new IPEndPoint(IPAddress.Broadcast, 68)); //no routing for broadcast
+                                        }
+                                    }
+                                }
+                                catch (ObjectDisposedException)
+                                {
+                                    //socket disposed
                                 }
                                 catch (Exception ex)
                                 {
+                                    if ((_state == ServiceState.Stopping) || (_state == ServiceState.Stopped))
+                                        return; //server stopping
+
                                     LogManager log = _log;
                                     if (log != null)
                                         log.Write(remoteEP as IPEndPoint, ex);
@@ -233,63 +269,6 @@ namespace DnsServerCore.Dhcp
             }
         }
 
-        private void ProcessUdpRequestAsync(object parameter)
-        {
-            object[] parameters = parameter as object[];
-
-            Socket udpListener = parameters[0] as Socket;
-            EndPoint remoteEP = parameters[1] as EndPoint;
-            IPPacketInformation ipPacketInformation = (IPPacketInformation)parameters[2];
-            DhcpMessage request = parameters[3] as DhcpMessage;
-
-            try
-            {
-                DhcpMessage response = ProcessDhcpMessage(request, remoteEP as IPEndPoint, ipPacketInformation);
-
-                //send response
-                if (response != null)
-                {
-                    byte[] sendBuffer = new byte[1024];
-                    MemoryStream sendBufferStream = new MemoryStream(sendBuffer);
-
-                    response.WriteTo(sendBufferStream);
-
-                    //send dns datagram
-                    if (!request.RelayAgentIpAddress.Equals(IPAddress.Any))
-                    {
-                        //received request via relay agent so send unicast response to relay agent on port 67
-                        udpListener.SendTo(sendBuffer, 0, (int)sendBufferStream.Position, SocketFlags.None, new IPEndPoint(request.RelayAgentIpAddress, 67));
-                    }
-                    else if (!request.ClientIpAddress.Equals(IPAddress.Any))
-                    {
-                        //client is already configured and renewing lease so send unicast response on port 68
-                        udpListener.SendTo(sendBuffer, 0, (int)sendBufferStream.Position, SocketFlags.None, new IPEndPoint(request.ClientIpAddress, 68));
-                    }
-                    else
-                    {
-                        //send response as broadcast on port 68 on appropriate interface bound socket
-                        if (!_udpListeners.TryGetValue(response.NextServerIpAddress, out Socket udpSocket))
-                            udpSocket = udpListener; //no appropriate socket found so use default socket
-
-                        udpSocket.SendTo(sendBuffer, 0, (int)sendBufferStream.Position, SocketFlags.DontRoute, new IPEndPoint(IPAddress.Broadcast, 68)); //no routing for broadcast
-                    }
-                }
-            }
-            catch (ObjectDisposedException)
-            {
-                //socket disposed
-            }
-            catch (Exception ex)
-            {
-                if ((_state == ServiceState.Stopping) || (_state == ServiceState.Stopped))
-                    return; //server stopping
-
-                LogManager log = _log;
-                if (log != null)
-                    log.Write(remoteEP as IPEndPoint, ex);
-            }
-        }
-
         private DhcpMessage ProcessDhcpMessage(DhcpMessage request, IPEndPoint remoteEP, IPPacketInformation ipPacketInformation)
         {
             if (request.OpCode != DhcpMessageOpCode.BootRequest)
@@ -317,7 +296,7 @@ namespace DnsServerCore.Dhcp
                         //log ip offer
                         LogManager log = _log;
                         if (log != null)
-                            log.Write(remoteEP as IPEndPoint, "DHCP Server offered IP address [" + offer.Address.ToString() + "] to " + request.GetClientFullIdentifier() + ".");
+                            log.Write(remoteEP, "DHCP Server offered IP address [" + offer.Address.ToString() + "] to " + request.GetClientFullIdentifier() + ".");
 
                         return new DhcpMessage(request, offer.Address, scope.InterfaceAddress, options);
                     }
@@ -410,7 +389,7 @@ namespace DnsServerCore.Dhcp
                         //log ip lease
                         LogManager log = _log;
                         if (log != null)
-                            log.Write(remoteEP as IPEndPoint, "DHCP Server leased IP address [" + leaseOffer.Address.ToString() + "] to " + request.GetClientFullIdentifier() + ".");
+                            log.Write(remoteEP, "DHCP Server leased IP address [" + leaseOffer.Address.ToString() + "] to " + request.GetClientFullIdentifier() + ".");
 
                         //update hostname in reserved leases
                         if ((request.HostName != null) && (scope.ReservedLeases != null))
@@ -487,7 +466,7 @@ namespace DnsServerCore.Dhcp
                         //log issue
                         LogManager log = _log;
                         if (log != null)
-                            log.Write(remoteEP as IPEndPoint, "DHCP Server received DECLINE message: " + lease.GetClientFullIdentifier() + " detected that IP address [" + lease.Address + "] is already in use.");
+                            log.Write(remoteEP, "DHCP Server received DECLINE message: " + lease.GetClientFullIdentifier() + " detected that IP address [" + lease.Address + "] is already in use.");
 
                         //update dns
                         UpdateDnsAuthZone(false, scope, lease);
@@ -523,7 +502,7 @@ namespace DnsServerCore.Dhcp
                         //log ip lease release
                         LogManager log = _log;
                         if (log != null)
-                            log.Write(remoteEP as IPEndPoint, "DHCP Server released IP address [" + lease.Address.ToString() + "] that was leased to " + lease.GetClientFullIdentifier() + ".");
+                            log.Write(remoteEP, "DHCP Server released IP address [" + lease.Address.ToString() + "] that was leased to " + lease.GetClientFullIdentifier() + ".");
 
                         //update dns
                         UpdateDnsAuthZone(false, scope, lease);
@@ -540,14 +519,38 @@ namespace DnsServerCore.Dhcp
                         if (scope == null)
                             return null; //no scope available; do nothing
 
+                        //log inform
+                        LogManager log = _log;
+                        if (log != null)
+                            log.Write(remoteEP, "DHCP Server received INFORM message from " + request.GetClientFullIdentifier() + ".");
+
                         List<DhcpOption> options = scope.GetOptions(request, scope.InterfaceAddress);
                         if (options == null)
                             return null;
 
-                        //log inform
-                        LogManager log = _log;
-                        if (log != null)
-                            log.Write(remoteEP as IPEndPoint, "DHCP Server received INFORM message from " + request.GetClientFullIdentifier() + ".");
+                        if (!string.IsNullOrWhiteSpace(scope.DomainName))
+                        {
+                            //update dns
+                            string clientDomainName = null;
+
+                            foreach (DhcpOption option in options)
+                            {
+                                if (option.Code == DhcpOptionCode.ClientFullyQualifiedDomainName)
+                                {
+                                    clientDomainName = (option as ClientFullyQualifiedDomainNameOption).DomainName;
+                                    break;
+                                }
+                            }
+
+                            if (string.IsNullOrWhiteSpace(clientDomainName))
+                            {
+                                if (request.HostName != null)
+                                    clientDomainName = request.HostName.HostName.Replace(' ', '-') + "." + scope.DomainName;
+                            }
+
+                            if (!string.IsNullOrWhiteSpace(clientDomainName))
+                                UpdateDnsAuthZone(true, scope, clientDomainName, request.ClientIpAddress);
+                        }
 
                         return new DhcpMessage(request, IPAddress.Any, scope.InterfaceAddress, options);
                     }
@@ -611,35 +614,40 @@ namespace DnsServerCore.Dhcp
 
         private void UpdateDnsAuthZone(bool add, Scope scope, Lease lease)
         {
+            UpdateDnsAuthZone(add, scope, lease.HostName, lease.Address);
+        }
+
+        private void UpdateDnsAuthZone(bool add, Scope scope, string domain, IPAddress address)
+        {
             if (_authZoneManager == null)
                 return;
 
             if (string.IsNullOrWhiteSpace(scope.DomainName))
                 return;
 
-            if (string.IsNullOrWhiteSpace(lease.HostName))
+            if (string.IsNullOrWhiteSpace(domain))
                 return;
 
-            if (!DnsClient.IsDomainNameValid(lease.HostName))
+            if (!DnsClient.IsDomainNameValid(domain))
                 return;
 
             if (add)
             {
                 //update forward zone
                 _authZoneManager.CreatePrimaryZone(scope.DomainName, _authZoneManager.ServerDomain, false);
-                _authZoneManager.SetRecords(lease.HostName, DnsResourceRecordType.A, scope.DnsTtl, new DnsResourceRecordData[] { new DnsARecord(lease.Address) });
+                _authZoneManager.SetRecords(domain, DnsResourceRecordType.A, scope.DnsTtl, new DnsResourceRecordData[] { new DnsARecord(address) });
 
                 //update reverse zone
-                _authZoneManager.CreatePrimaryZone(scope.ReverseZone, _authZoneManager.ServerDomain, false);
-                _authZoneManager.SetRecords(Zone.GetReverseZone(lease.Address, 32), DnsResourceRecordType.PTR, scope.DnsTtl, new DnsResourceRecordData[] { new DnsPTRRecord(lease.HostName) });
+                _authZoneManager.CreatePrimaryZone(Zone.GetReverseZone(address, scope.SubnetMask), _authZoneManager.ServerDomain, false);
+                _authZoneManager.SetRecords(Zone.GetReverseZone(address, 32), DnsResourceRecordType.PTR, scope.DnsTtl, new DnsResourceRecordData[] { new DnsPTRRecord(domain) });
             }
             else
             {
                 //remove from forward zone
-                _authZoneManager.DeleteRecords(lease.HostName, DnsResourceRecordType.A);
+                _authZoneManager.DeleteRecords(domain, DnsResourceRecordType.A);
 
                 //remove from reverse zone
-                _authZoneManager.DeleteRecords(Zone.GetReverseZone(lease.Address, 32), DnsResourceRecordType.PTR);
+                _authZoneManager.DeleteRecords(Zone.GetReverseZone(address, 32), DnsResourceRecordType.PTR);
             }
         }
 
@@ -675,14 +683,10 @@ namespace DnsServerCore.Dhcp
                     throw new DhcpServerException("Udp listener already exists for IP address: " + dhcpEP.Address);
 
                 //start reading dhcp packets
-                Thread listenerThread = new Thread(ReadUdpRequestAsync);
-                listenerThread.IsBackground = true;
-                listenerThread.Start(udpListener);
-
-                lock (_listenerThreads)
-                {
-                    _listenerThreads.Add(listenerThread);
-                }
+                Thread thread = new Thread(ReadUdpRequestAsync);
+                thread.Name = "DHCP Read Request: " + dhcpEP.ToString();
+                thread.IsBackground = true;
+                thread.Start(udpListener);
             }
             catch
             {
@@ -1044,7 +1048,6 @@ namespace DnsServerCore.Dhcp
             foreach (KeyValuePair<string, Scope> scope in _scopes)
                 UnloadScope(scope.Value);
 
-            _listenerThreads.Clear();
             _udpListeners.Clear();
 
             _state = ServiceState.Stopped;
