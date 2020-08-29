@@ -70,7 +70,6 @@ namespace DnsServerCore.Dhcp
         //internal computed parameters
         IPAddress _networkAddress;
         IPAddress _broadcastAddress;
-        string _reverseZone;
 
         //internal parameters
         const int OFFER_EXPIRY_SECONDS = 60; //1 mins offer expiry
@@ -845,7 +844,6 @@ namespace DnsServerCore.Dhcp
 
             _networkAddress = IPAddressExtension.ConvertNumberToIp(networkAddressNumber);
             _broadcastAddress = IPAddressExtension.ConvertNumberToIp(broadcastAddressNumber);
-            _reverseZone = Zone.GetReverseZone(_networkAddress, _subnetMask);
 
             lock (_lastAddressOfferedLock)
             {
@@ -1204,9 +1202,6 @@ namespace DnsServerCore.Dhcp
 
         public IPAddress BroadcastAddress
         { get { return _broadcastAddress; } }
-
-        public string ReverseZone
-        { get { return _reverseZone; } }
 
         public IPAddress InterfaceAddress
         { get { return _interfaceAddress; } }
