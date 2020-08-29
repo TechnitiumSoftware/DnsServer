@@ -21,6 +21,7 @@ using DnsServerCore.Dns.ResourceRecords;
 using System;
 using System.Collections.Generic;
 using System.Threading;
+using System.Threading.Tasks;
 using TechnitiumLibrary.Net.Dns;
 using TechnitiumLibrary.Net.Dns.ResourceRecords;
 
@@ -30,7 +31,7 @@ namespace DnsServerCore.Dns.Zones
     {
         #region variables
 
-        readonly DnsServer _dnsServer;
+        DnsServer _dnsServer;
 
         readonly object _refreshTimerLock = new object();
         Timer _refreshTimer;
@@ -46,6 +47,10 @@ namespace DnsServerCore.Dns.Zones
 
         #region constructor
 
+        private StubZone(string name)
+            : base(name)
+        { }
+
         public StubZone(DnsServer dnsServer, AuthZoneInfo zoneInfo)
             : base(zoneInfo.Name)
         {
@@ -58,28 +63,31 @@ namespace DnsServerCore.Dns.Zones
             _refreshTimer = new Timer(RefreshTimerCallback, null, Timeout.Infinite, Timeout.Infinite);
         }
 
-        public StubZone(DnsServer dnsServer, string name, string primaryNameServerAddresses = null)
-            : base(name)
+        #endregion
+
+        #region static
+
+        public static async Task<StubZone> CreateAsync(DnsServer dnsServer, string name, string primaryNameServerAddresses = null)
         {
-            _dnsServer = dnsServer;
+            StubZone stubZone = new StubZone(name);
+
+            stubZone._dnsServer = dnsServer;
 
             DnsQuestionRecord soaQuestion = new DnsQuestionRecord(name, DnsResourceRecordType.SOA, DnsClass.IN);
             DnsDatagram soaResponse = null;
 
             if (primaryNameServerAddresses == null)
             {
-                soaResponse = _dnsServer.DirectQuery(soaQuestion);
+                soaResponse = await stubZone._dnsServer.DirectQueryAsync(soaQuestion);
             }
             else
             {
                 DnsClient dnsClient = new DnsClient(primaryNameServerAddresses);
 
-                dnsClient.Proxy = _dnsServer.Proxy;
-                dnsClient.PreferIPv6 = _dnsServer.PreferIPv6;
-                dnsClient.Retries = _dnsServer.Retries;
-                dnsClient.Timeout = _dnsServer.Timeout;
+                dnsClient.Proxy = stubZone._dnsServer.Proxy;
+                dnsClient.PreferIPv6 = stubZone._dnsServer.PreferIPv6;
 
-                soaResponse = dnsClient.Resolve(soaQuestion);
+                soaResponse = await dnsClient.ResolveAsync(soaQuestion);
             }
 
             if ((soaResponse == null) || (soaResponse.Answer.Count == 0) || (soaResponse.Answer[0].Type != DnsResourceRecordType.SOA))
@@ -88,15 +96,17 @@ namespace DnsServerCore.Dns.Zones
             DnsSOARecord receivedSoa = soaResponse.Answer[0].RDATA as DnsSOARecord;
 
             DnsSOARecord soa = new DnsSOARecord(receivedSoa.PrimaryNameServer, receivedSoa.ResponsiblePerson, receivedSoa.Serial - 1, receivedSoa.Refresh, receivedSoa.Retry, receivedSoa.Expire, receivedSoa.Minimum);
-            DnsResourceRecord[] soaRR = new DnsResourceRecord[] { new DnsResourceRecord(_name, DnsResourceRecordType.SOA, DnsClass.IN, soa.Refresh, soa) };
+            DnsResourceRecord[] soaRR = new DnsResourceRecord[] { new DnsResourceRecord(stubZone._name, DnsResourceRecordType.SOA, DnsClass.IN, soa.Refresh, soa) };
 
             if (!string.IsNullOrEmpty(primaryNameServerAddresses))
                 soaRR[0].SetGlueRecords(primaryNameServerAddresses);
 
-            _entries[DnsResourceRecordType.SOA] = soaRR;
+            stubZone._entries[DnsResourceRecordType.SOA] = soaRR;
 
-            _isExpired = true; //new stub zone is considered expired till it refreshes
-            _refreshTimer = new Timer(RefreshTimerCallback, null, Timeout.Infinite, Timeout.Infinite);
+            stubZone._isExpired = true; //new stub zone is considered expired till it refreshes
+            stubZone._refreshTimer = new Timer(stubZone.RefreshTimerCallback, null, Timeout.Infinite, Timeout.Infinite);
+
+            return stubZone;
         }
 
         #endregion
@@ -129,7 +139,7 @@ namespace DnsServerCore.Dns.Zones
 
         #region private
 
-        private void RefreshTimerCallback(object state)
+        private async void RefreshTimerCallback(object state)
         {
             if (_disabled)
                 return;
@@ -139,7 +149,7 @@ namespace DnsServerCore.Dns.Zones
                 _isExpired = DateTime.UtcNow > _expiry;
 
                 //get primary name server addresses
-                IReadOnlyList<NameServerAddress> primaryNameServers = GetPrimaryNameServerAddresses(_dnsServer);
+                IReadOnlyList<NameServerAddress> primaryNameServers = await GetPrimaryNameServerAddressesAsync(_dnsServer);
 
                 if (primaryNameServers.Count == 0)
                 {
@@ -154,7 +164,7 @@ namespace DnsServerCore.Dns.Zones
                 }
 
                 //refresh zone
-                if (RefreshZone(primaryNameServers))
+                if (await RefreshZoneAsync(primaryNameServers))
                 {
                     //zone refreshed; set timer for refresh
                     DnsSOARecord latestSoa = _entries[DnsResourceRecordType.SOA][0].RDATA as DnsSOARecord;
@@ -188,7 +198,7 @@ namespace DnsServerCore.Dns.Zones
             }
         }
 
-        private bool RefreshZone(IReadOnlyList<NameServerAddress> primaryNameServers)
+        private async Task<bool> RefreshZoneAsync(IReadOnlyList<NameServerAddress> primaryNameServers)
         {
             try
             {
@@ -203,7 +213,7 @@ namespace DnsServerCore.Dns.Zones
                 client.Retries = REFRESH_RETRIES;
 
                 DnsDatagram soaRequest = new DnsDatagram(0, false, DnsOpcode.StandardQuery, false, false, false, false, false, false, DnsResponseCode.NoError, new DnsQuestionRecord[] { new DnsQuestionRecord(_name, DnsResourceRecordType.SOA, DnsClass.IN) });
-                DnsDatagram soaResponse = client.Resolve(soaRequest);
+                DnsDatagram soaResponse = await client.ResolveAsync(soaRequest);
 
                 if (soaResponse.RCODE != DnsResponseCode.NoError)
                 {
@@ -248,7 +258,7 @@ namespace DnsServerCore.Dns.Zones
                 client.Retries = REFRESH_RETRIES;
 
                 DnsDatagram nsRequest = new DnsDatagram(0, false, DnsOpcode.StandardQuery, false, false, false, false, false, false, DnsResponseCode.NoError, new DnsQuestionRecord[] { new DnsQuestionRecord(_name, DnsResourceRecordType.NS, DnsClass.IN) });
-                DnsDatagram nsResponse = client.Resolve(nsRequest);
+                DnsDatagram nsResponse = await client.ResolveAsync(nsRequest);
 
                 if (nsResponse.RCODE != DnsResponseCode.NoError)
                 {
