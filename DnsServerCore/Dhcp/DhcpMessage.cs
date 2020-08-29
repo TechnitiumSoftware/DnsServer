@@ -88,7 +88,7 @@ namespace DnsServerCore.Dhcp
 
         #region constructor
 
-        public DhcpMessage(DhcpMessageOpCode op, byte[] xid, byte[] secs, DhcpMessageFlags flags, IPAddress ciaddr, IPAddress yiaddr, IPAddress siaddr, IPAddress giaddr, byte[] clientHardwareAddress, IReadOnlyCollection<DhcpOption> options)
+        public DhcpMessage(DhcpMessageOpCode op, DhcpMessageHardwareAddressType hardwareAddressType, byte[] xid, byte[] secs, DhcpMessageFlags flags, IPAddress ciaddr, IPAddress yiaddr, IPAddress siaddr, IPAddress giaddr, byte[] clientHardwareAddress, IReadOnlyCollection<DhcpOption> options)
         {
             if (ciaddr.AddressFamily != AddressFamily.InterNetwork)
                 throw new ArgumentException("Address family not supported.", nameof(ciaddr));
@@ -102,8 +102,11 @@ namespace DnsServerCore.Dhcp
             if (giaddr.AddressFamily != AddressFamily.InterNetwork)
                 throw new ArgumentException("Address family not supported.", nameof(giaddr));
 
-            if ((clientHardwareAddress != null) && (clientHardwareAddress.Length != 6))
-                throw new ArgumentException("Value must be 6 bytes long for a valid Ethernet hardware address.", "chaddr");
+            if (clientHardwareAddress == null)
+                throw new ArgumentNullException(nameof(clientHardwareAddress));
+
+            if (clientHardwareAddress.Length > 16)
+                throw new ArgumentException("Client hardware address cannot exceed 16 bytes.", "chaddr");
 
             if (xid.Length != 4)
                 throw new ArgumentException("Transaction ID must be 4 bytes.", nameof(xid));
@@ -112,8 +115,8 @@ namespace DnsServerCore.Dhcp
                 throw new ArgumentException("Seconds elapsed must be 2 bytes.", nameof(secs));
 
             _op = op;
-            _htype = DhcpMessageHardwareAddressType.Ethernet;
-            _hlen = 6;
+            _htype = hardwareAddressType;
+            _hlen = Convert.ToByte(clientHardwareAddress.Length);
             _hops = 0;
 
             _xid = xid;
@@ -128,7 +131,7 @@ namespace DnsServerCore.Dhcp
 
             _clientHardwareAddress = clientHardwareAddress;
             _chaddr = new byte[16];
-            Buffer.BlockCopy(_clientHardwareAddress, 0, _chaddr, 0, 6);
+            Buffer.BlockCopy(_clientHardwareAddress, 0, _chaddr, 0, _clientHardwareAddress.Length);
 
             _sname = new byte[64];
             _file = new byte[128];
@@ -137,7 +140,7 @@ namespace DnsServerCore.Dhcp
         }
 
         public DhcpMessage(DhcpMessage request, IPAddress yiaddr, IPAddress siaddr, IReadOnlyCollection<DhcpOption> options)
-            : this(DhcpMessageOpCode.BootReply, request.TransactionId, request.SecondsElapsed, request.Flags, request.ClientIpAddress, yiaddr, siaddr, request.RelayAgentIpAddress, request.ClientHardwareAddress, options)
+            : this(DhcpMessageOpCode.BootReply,request.HardwareAddressType, request.TransactionId, request.SecondsElapsed, request.Flags, request.ClientIpAddress, yiaddr, siaddr, request.RelayAgentIpAddress, request.ClientHardwareAddress, options)
         { }
 
         public DhcpMessage(Stream s)
