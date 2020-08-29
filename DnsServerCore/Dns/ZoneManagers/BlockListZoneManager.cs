@@ -21,8 +21,10 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Net;
+using System.Net.Http;
 using System.Security.Cryptography;
 using System.Text;
+using System.Threading.Tasks;
 using TechnitiumLibrary.Net;
 using TechnitiumLibrary.Net.Dns;
 using TechnitiumLibrary.Net.Dns.ResourceRecords;
@@ -229,9 +231,12 @@ namespace DnsServerCore.Dns.ZoneManagers
 
             foreach (Uri blockListUrl in _blockListUrls)
             {
-                Queue<string> blockListQueue = ReadBlockListFile(blockListUrl);
-                totalDomains += blockListQueue.Count;
-                blockListQueues.Add(blockListUrl, blockListQueue);
+                if (!blockListQueues.ContainsKey(blockListUrl))
+                {
+                    Queue<string> blockListQueue = ReadBlockListFile(blockListUrl);
+                    totalDomains += blockListQueue.Count;
+                    blockListQueues.Add(blockListUrl, blockListQueue);
+                }
             }
 
             //load custom blocked zone into new block zone
@@ -268,9 +273,10 @@ namespace DnsServerCore.Dns.ZoneManagers
             _blockListZone = new Dictionary<string, List<Uri>>();
         }
 
-        public bool UpdateBlockLists(int maxRetries = 3)
+        public async Task<bool> UpdateBlockListsAsync()
         {
-            bool success = false;
+            bool downloaded = false;
+            bool notmodified = false;
 
             foreach (Uri blockListUrl in _blockListUrls)
             {
@@ -279,61 +285,57 @@ namespace DnsServerCore.Dns.ZoneManagers
 
                 try
                 {
-                    int retries = 1;
+                    if (File.Exists(blockListDownloadFilePath))
+                        File.Delete(blockListDownloadFilePath);
 
-                    while (true)
+                    HttpClientHandler handler = new HttpClientHandler();
+                    handler.Proxy = _dnsServer.Proxy;
+
+                    using (HttpClient http = new HttpClient(handler))
                     {
-                        if (File.Exists(blockListDownloadFilePath))
-                            File.Delete(blockListDownloadFilePath);
+                        if (File.Exists(blockListFilePath))
+                            http.DefaultRequestHeaders.IfModifiedSince = File.GetLastWriteTimeUtc(blockListFilePath);
 
-                        using (WebClientEx wC = new WebClientEx())
+                        HttpResponseMessage httpResponse = await http.GetAsync(blockListUrl);
+                        switch (httpResponse.StatusCode)
                         {
-                            wC.Proxy = _dnsServer.Proxy;
-                            wC.Timeout = 60000;
-
-                            if (File.Exists(blockListFilePath))
-                                wC.IfModifiedSince = File.GetLastWriteTimeUtc(blockListFilePath);
-
-                            try
-                            {
-                                wC.DownloadFile(blockListUrl, blockListDownloadFilePath);
-
-
-                                if (File.Exists(blockListFilePath))
-                                    File.Delete(blockListFilePath);
-
-                                File.Move(blockListDownloadFilePath, blockListFilePath);
-                                File.SetLastWriteTimeUtc(blockListFilePath, wC.Response.LastModified);
-
-                                success = true;
-
-                                LogManager log = _dnsServer.LogManager;
-                                if (log != null)
-                                    log.Write("DNS Server successfully downloaded block list (" + WebUtilities.GetFormattedSize(new FileInfo(blockListFilePath).Length) + "): " + blockListUrl.AbsoluteUri);
-
-                                break;
-                            }
-                            catch (WebException ex)
-                            {
-                                if ((ex.Response != null) && (ex.Response as HttpWebResponse).StatusCode == HttpStatusCode.NotModified)
+                            case HttpStatusCode.OK:
                                 {
+                                    using (FileStream fS = new FileStream(blockListDownloadFilePath, FileMode.Create, FileAccess.Write))
+                                    {
+                                        Stream httpStream = await httpResponse.Content.ReadAsStreamAsync();
+                                        await httpStream.CopyToAsync(fS);
+                                    }
+
+                                    if (File.Exists(blockListFilePath))
+                                        File.Delete(blockListFilePath);
+
+                                    File.Move(blockListDownloadFilePath, blockListFilePath);
+
+                                    if (httpResponse.Content.Headers.LastModified != null)
+                                        File.SetLastWriteTimeUtc(blockListFilePath, httpResponse.Content.Headers.LastModified.Value.UtcDateTime);
+
+                                    downloaded = true;
+
+                                    LogManager log = _dnsServer.LogManager;
+                                    if (log != null)
+                                        log.Write("DNS Server successfully downloaded block list (" + WebUtilities.GetFormattedSize(new FileInfo(blockListFilePath).Length) + "): " + blockListUrl.AbsoluteUri);
+                                }
+                                break;
+
+                            case HttpStatusCode.NotModified:
+                                {
+                                    notmodified = true;
+
                                     LogManager log = _dnsServer.LogManager;
                                     if (log != null)
                                         log.Write("DNS Server successfully checked for a new update of the block list: " + blockListUrl.AbsoluteUri);
-
-                                    break;
                                 }
+                                break;
 
-                                if (retries < maxRetries)
-                                {
-                                    retries++;
-                                    continue;
-                                }
-
-                                throw;
-                            }
+                            default:
+                                throw new HttpRequestException((int)httpResponse.StatusCode + " " + httpResponse.ReasonPhrase);
                         }
-
                     }
                 }
                 catch (Exception ex)
@@ -344,7 +346,7 @@ namespace DnsServerCore.Dns.ZoneManagers
                 }
             }
 
-            if (success)
+            if (downloaded)
             {
                 LoadBlockLists();
 
@@ -352,7 +354,7 @@ namespace DnsServerCore.Dns.ZoneManagers
                 GC.Collect();
             }
 
-            return success;
+            return downloaded || notmodified;
         }
 
         public DnsDatagram Query(DnsDatagram request)
