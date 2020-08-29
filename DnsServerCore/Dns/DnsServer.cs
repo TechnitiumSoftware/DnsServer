@@ -1929,6 +1929,9 @@ namespace DnsServerCore.Dns
 
                     #endregion
 
+                    udpListener.ReceiveBufferSize = 64 * 1024;
+                    udpListener.SendBufferSize = 64 * 1024;
+
                     udpListener.Bind(localEP);
 
                     _udpListeners.Add(udpListener);
