@@ -74,9 +74,23 @@ namespace DnsServerCore.Dns.ZoneManagers
         {
             string blockedZoneFile = Path.Combine(_dnsServer.ConfigFolder, "blocked.config");
 
-            string oldCustomBlockedZoneFile = Path.Combine(_dnsServer.ConfigFolder, "custom-blocked.config");
-            if (File.Exists(oldCustomBlockedZoneFile))
-                File.Move(oldCustomBlockedZoneFile, blockedZoneFile);
+            try
+            {
+                string oldCustomBlockedZoneFile = Path.Combine(_dnsServer.ConfigFolder, "custom-blocked.config");
+                if (File.Exists(oldCustomBlockedZoneFile))
+                {
+                    if (File.Exists(blockedZoneFile))
+                        File.Delete(blockedZoneFile);
+
+                    File.Move(oldCustomBlockedZoneFile, blockedZoneFile);
+                }
+            }
+            catch (Exception ex)
+            {
+                LogManager log = _dnsServer.LogManager;
+                if (log != null)
+                    log.Write(ex);
+            }
 
             try
             {
@@ -122,7 +136,7 @@ namespace DnsServerCore.Dns.ZoneManagers
 
         public bool BlockZone(string domain)
         {
-            if (_zoneManager.CreatePrimaryZone(domain, _soaRecord, _nsRecord) != null)
+            if (_zoneManager.InternalCreatePrimaryZone(domain, _soaRecord, _nsRecord) != null)
             {
                 _totalZonesBlocked++;
                 return true;
