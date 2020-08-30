@@ -54,7 +54,7 @@ then
 			systemctl start dns.service >> $installLog 2>&1
 			
 			rm /etc/resolv.conf >> $installLog 2>&1
-			echo "nameserver 127.0.0.1" > /etc/resolv.conf >> $installLog 2>&1
+			echo "nameserver 127.0.0.1" > /etc/resolv.conf 2>> $installLog
 			
 			if [ -f "/etc/NetworkManager/NetworkManager.conf" ]
 			then
