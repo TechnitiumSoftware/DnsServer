@@ -399,7 +399,7 @@ namespace DnsServerCore.Dns.ZoneManagers
             }
         }
 
-        internal AuthZoneInfo InternalCreatePrimaryZone(string domain, DnsSOARecord soaRecord, DnsNSRecord ns)
+        internal AuthZoneInfo CreateInternalPrimaryZone(string domain, DnsSOARecord soaRecord, DnsNSRecord ns)
         {
             AuthZone authZone = new PrimaryZone(_dnsServer, domain, soaRecord, ns);
 

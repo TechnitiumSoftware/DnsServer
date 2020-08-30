@@ -136,7 +136,7 @@ namespace DnsServerCore.Dns.ZoneManagers
 
         public bool BlockZone(string domain)
         {
-            if (_zoneManager.InternalCreatePrimaryZone(domain, _soaRecord, _nsRecord) != null)
+            if (_zoneManager.CreateInternalPrimaryZone(domain, _soaRecord, _nsRecord) != null)
             {
                 _totalZonesBlocked++;
                 return true;

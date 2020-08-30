@@ -72,6 +72,7 @@ namespace DnsServerCore.Dns.Zones
             : base(name)
         {
             _dnsServer = dnsServer;
+            _internal = true;
 
             _entries[DnsResourceRecordType.SOA] = new DnsResourceRecord[] { new DnsResourceRecord(_name, DnsResourceRecordType.SOA, DnsClass.IN, soa.Refresh, soa) };
             _entries[DnsResourceRecordType.NS] = new DnsResourceRecord[] { new DnsResourceRecord(_name, DnsResourceRecordType.NS, DnsClass.IN, soa.Refresh, ns) };
