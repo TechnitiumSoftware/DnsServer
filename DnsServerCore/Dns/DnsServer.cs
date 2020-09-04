@@ -153,7 +153,7 @@ namespace DnsServerCore.Dns
         { }
 
         public DnsServer(string serverDomain, string configFolder, LogManager log = null)
-            : this(serverDomain, configFolder, new IPEndPoint[] { new IPEndPoint(IPAddress.Any, 53), new IPEndPoint(IPAddress.IPv6Any, 53) }, log)
+            : this(serverDomain, configFolder, new IPEndPoint[] { new IPEndPoint(IPAddress.Any, 6666), new IPEndPoint(IPAddress.IPv6Any, 6666) }, log)
         { }
 
         public DnsServer(string serverDomain, string configFolder, IPEndPoint localEndPoint, LogManager log = null)
