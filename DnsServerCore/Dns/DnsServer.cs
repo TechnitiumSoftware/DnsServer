@@ -56,6 +56,7 @@ namespace DnsServerCore.Dns
         #region variables
 
         const int MAX_CNAME_HOPS = 16;
+        const int SERVE_STALE_WAIT_TIME = 1800;
 
         string _serverDomain;
         readonly string _configFolder;
@@ -70,9 +71,9 @@ namespace DnsServerCore.Dns
         readonly List<Socket> _tlsListeners = new List<Socket>();
         readonly List<Socket> _httpsListeners = new List<Socket>();
 
-        bool _enableDnsOverHttp = false;
-        bool _enableDnsOverTls = false;
-        bool _enableDnsOverHttps = false;
+        bool _enableDnsOverHttp;
+        bool _enableDnsOverTls;
+        bool _enableDnsOverHttps;
         bool _isDnsOverHttpsEnabled;
         X509Certificate2 _certificate;
 
@@ -87,11 +88,11 @@ namespace DnsServerCore.Dns
         readonly DnsARecord _aRecord = new DnsARecord(IPAddress.Any);
         readonly DnsAAAARecord _aaaaRecord = new DnsAAAARecord(IPAddress.IPv6Any);
 
-        bool _allowRecursion = false;
-        bool _allowRecursionOnlyForPrivateNetworks = false;
+        bool _allowRecursion;
+        bool _allowRecursionOnlyForPrivateNetworks;
         NetProxy _proxy;
         IReadOnlyList<NameServerAddress> _forwarders;
-        bool _preferIPv6 = false;
+        bool _preferIPv6;
         int _forwarderRetries = 3;
         int _resolverRetries = 5;
         int _forwarderTimeout = 4000;
@@ -123,7 +124,7 @@ namespace DnsServerCore.Dns
         const int CACHE_MAINTENANCE_TIMER_PERIODIC_INTERVAL = 60 * 60 * 1000;
 
         readonly IndependentTaskScheduler _resolverTaskScheduler = new IndependentTaskScheduler(ThreadPriority.AboveNormal);
-        readonly DomainTree<ResolverTask> _resolverTasks = new DomainTree<ResolverTask>();
+        readonly DomainTree<Task<DnsDatagram>> _resolverTasks = new DomainTree<Task<DnsDatagram>>();
 
         volatile ServiceState _state = ServiceState.Stopped;
 
@@ -1423,15 +1424,15 @@ namespace DnsServerCore.Dns
             }
 
             //recursion with locking
-            ResolverTask newResolverTask = new ResolverTask();
-            ResolverTask resolverTask = _resolverTasks.GetOrAdd(GetResolverQueryKey(request.Question[0]), newResolverTask);
+            TaskCompletionSource<DnsDatagram> resolverTaskCompletionSource = new TaskCompletionSource<DnsDatagram>();
+            Task<DnsDatagram> resolverTask = _resolverTasks.GetOrAdd(GetResolverQueryKey(request.Question[0]), resolverTaskCompletionSource.Task);
 
-            if (resolverTask.Equals(newResolverTask))
+            if (resolverTask.Equals(resolverTaskCompletionSource.Task))
             {
                 //got new resolver task added so question is not being resolved; do recursive resolution in another task on resolver thread pool
                 _ = Task.Factory.StartNew(delegate ()
                 {
-                    return RecursiveResolveAsync(request, viaNameServers, viaForwarders, cachePrefetchOperation, cacheRefreshOperation, newResolverTask.TaskCompletionSource);
+                    return RecursiveResolveAsync(request, viaNameServers, viaForwarders, cachePrefetchOperation, cacheRefreshOperation, resolverTaskCompletionSource);
                 }, CancellationToken.None, TaskCreationOptions.DenyChildAttach, _resolverTaskScheduler);
             }
 
@@ -1440,24 +1441,13 @@ namespace DnsServerCore.Dns
             if (cachePrefetchOperation)
                 return null; //return null as prefetch worker thread does not need valid response and thus does not need to wait
 
-            if (resolverTask.IsStuck(_resolverTimeout))
-            {
-                //resolver task is taking a long time to complete
-                //query cache zone to return stale answer (if available)
-                DnsDatagram staleResponse = QueryCache(request, true);
-                if (staleResponse != null)
-                    return staleResponse;
-
-                //no stale response available; wait for resolver task
-            }
-
             DateTime resolverWaitStartTime = DateTime.UtcNow;
 
             //wait till short timeout for response
-            if (await Task.WhenAny(resolverTask.TaskCompletionSource.Task, Task.Delay(1800)) == resolverTask.TaskCompletionSource.Task) //1.8 sec wait as per draft-ietf-dnsop-serve-stale-04
+            if (await Task.WhenAny(resolverTask, Task.Delay(SERVE_STALE_WAIT_TIME)) == resolverTask) //1.8 sec wait as per draft-ietf-dnsop-serve-stale-04
             {
                 //resolver signaled
-                DnsDatagram response = await resolverTask.TaskCompletionSource.Task;
+                DnsDatagram response = await resolverTask;
 
                 if (response != null)
                     return response;
@@ -1472,23 +1462,20 @@ namespace DnsServerCore.Dns
                 if (staleResponse != null)
                     return staleResponse;
 
-                if ((DateTime.UtcNow - resolverWaitStartTime).TotalMilliseconds < _clientTimeout) //check if there is any point in waiting further due to execution delay
+                //wait till full timeout before responding as ServerFailure
+                int timeout = Convert.ToInt32(_clientTimeout - (DateTime.UtcNow - resolverWaitStartTime).TotalMilliseconds);
+                if (timeout > 0)
                 {
-                    //wait till full timeout before responding as ServerFailure
-                    int timeout = _clientTimeout - 1800;
-                    if (timeout > 0)
+                    if (await Task.WhenAny(resolverTask, Task.Delay(timeout)) == resolverTask)
                     {
-                        if (await Task.WhenAny(resolverTask.TaskCompletionSource.Task, Task.Delay(timeout)) == resolverTask.TaskCompletionSource.Task)
-                        {
-                            //resolver signaled
-                            DnsDatagram response = await resolverTask.TaskCompletionSource.Task;
+                        //resolver signaled
+                        DnsDatagram response = await resolverTask;
 
-                            if (response != null)
-                                return response;
-                        }
-
-                        //no response available from resolver or resolver had exception and no stale record was found
+                        if (response != null)
+                            return response;
                     }
+
+                    //no response available from resolver or resolver had exception and no stale record was found
                 }
             }
 
