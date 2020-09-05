@@ -87,6 +87,7 @@ namespace DnsServerCore.Dns.Zones
                 {
                     case DnsResourceRecordType.A:
                     case DnsResourceRecordType.AAAA:
+                    case DnsResourceRecordType.NS:
                         newRecords.Shuffle(); //shuffle records to allow load balancing
                         break;
                 }
