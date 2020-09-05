@@ -47,6 +47,7 @@ namespace DnsService
             };
             ServiceBase.Run(ServicesToRun);
         }
+
         #region private
 
         private static bool WindowsFirewallEntryExists(string appPath)
