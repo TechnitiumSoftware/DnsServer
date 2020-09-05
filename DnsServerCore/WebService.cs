@@ -211,7 +211,7 @@ namespace DnsServerCore
 
                 if (!path.StartsWith("/") || path.Contains("/../") || path.Contains("/.../"))
                 {
-                    SendError(response, 404);
+                    await SendErrorAsync(response, 404);
                     return;
                 }
 
@@ -394,7 +394,7 @@ namespace DnsServerCore
                                                 break;
 
                                             default:
-                                                SendError(response, 404);
+                                                await SendErrorAsync(response, 404);
                                                 return;
                                         }
                                     }
@@ -467,7 +467,7 @@ namespace DnsServerCore
                 {
                     if (!IsSessionValid(request))
                     {
-                        SendError(response, 403, "Invalid token or session expired.");
+                        await SendErrorAsync(response, 403, "Invalid token or session expired.");
                         return;
                     }
 
@@ -491,7 +491,7 @@ namespace DnsServerCore
                     }
                     else if ((path == "/blocklist.txt") && !IPAddress.IsLoopback(GetRequestRemoteEndPoint(request).Address))
                     {
-                        SendError(response, 403);
+                        await SendErrorAsync(response, 403);
                         return;
                     }
 
@@ -500,11 +500,11 @@ namespace DnsServerCore
 
                     if (!path.StartsWith(wwwroot) || !File.Exists(path))
                     {
-                        SendError(response, 404);
+                        await SendErrorAsync(response, 404);
                         return;
                     }
 
-                    SendFile(response, path);
+                    await SendFileAsync(response, path);
                 }
             }
             catch (Exception ex)
@@ -514,7 +514,7 @@ namespace DnsServerCore
 
                 _log.Write(GetRequestRemoteEndPoint(request), ex);
 
-                SendError(response, ex);
+                await SendError(response, ex);
             }
         }
 
@@ -540,12 +540,12 @@ namespace DnsServerCore
             }
         }
 
-        private static void SendError(HttpListenerResponse response, Exception ex)
+        private static Task SendError(HttpListenerResponse response, Exception ex)
         {
-            SendError(response, 500, ex.ToString());
+            return SendErrorAsync(response, 500, ex.ToString());
         }
 
-        private static void SendError(HttpListenerResponse response, int statusCode, string message = null)
+        private static async Task SendErrorAsync(HttpListenerResponse response, int statusCode, string message = null)
         {
             try
             {
@@ -558,18 +558,18 @@ namespace DnsServerCore
 
                 using (Stream stream = response.OutputStream)
                 {
-                    stream.Write(buffer, 0, buffer.Length);
+                    await stream.WriteAsync(buffer, 0, buffer.Length);
                 }
             }
             catch
             { }
         }
 
-        private static void SendFile(HttpListenerResponse response, string path)
+        private static async Task SendFileAsync(HttpListenerResponse response, string filePath)
         {
-            using (FileStream fS = new FileStream(path, FileMode.Open, FileAccess.Read))
+            using (FileStream fS = new FileStream(filePath, FileMode.Open, FileAccess.Read))
             {
-                response.ContentType = WebUtilities.GetContentType(path).MediaType;
+                response.ContentType = WebUtilities.GetContentType(filePath).MediaType;
                 response.ContentLength64 = fS.Length;
                 response.AddHeader("Cache-Control", "private, max-age=300");
 
@@ -577,7 +577,7 @@ namespace DnsServerCore
                 {
                     try
                     {
-                        fS.CopyTo(stream);
+                        await fS.CopyToAsync(stream);
                     }
                     catch (HttpListenerException)
                     {
@@ -4330,7 +4330,7 @@ namespace DnsServerCore
             try
             {
                 //init dns server
-                _dnsServer = new DnsServer(_configFolder, _log);
+                _dnsServer = new DnsServer(_configFolder, Path.Combine(_appFolder, "dohwww"), _log);
 
                 //init dhcp server
                 _dhcpServer = new DhcpServer(Path.Combine(_configFolder, "scopes"), _log);
