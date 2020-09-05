@@ -294,6 +294,11 @@ namespace DnsServerCore
 
         public void Write(IPEndPoint ep, DnsTransportProtocol protocol, string message)
         {
+            Write(ep, protocol.ToString(), message);
+        }
+
+        public void Write(IPEndPoint ep, string protocol, string message)
+        {
             string ipInfo;
 
             if (ep == null)
@@ -303,7 +308,7 @@ namespace DnsServerCore
             else
                 ipInfo = "[" + ep.ToString() + "] ";
 
-            Write(ipInfo + "[" + protocol.ToString().ToUpper() + "] " + message);
+            Write(ipInfo + "[" + protocol.ToUpper() + "] " + message);
         }
 
         public void Write(string message)
