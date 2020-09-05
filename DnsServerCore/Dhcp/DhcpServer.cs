@@ -27,6 +27,8 @@ using System.IO;
 using System.Net;
 using System.Net.Sockets;
 using System.Threading;
+using System.Threading.Tasks;
+using TechnitiumLibrary.Net;
 using TechnitiumLibrary.Net.Dns;
 using TechnitiumLibrary.Net.Dns.ResourceRecords;
 
@@ -187,46 +189,10 @@ namespace DnsServerCore.Dhcp
                                 try
                                 {
                                     DhcpMessage request = new DhcpMessage(new MemoryStream(recvBuffer, 0, bytesRecv, false));
-                                    DhcpMessage response = ProcessDhcpMessage(request, remoteEP as IPEndPoint, ipPacketInformation);
-
-                                    //send response
-                                    if (response != null)
-                                    {
-                                        byte[] sendBuffer = new byte[1024];
-                                        MemoryStream sendBufferStream = new MemoryStream(sendBuffer);
-
-                                        response.WriteTo(sendBufferStream);
-
-                                        //send dns datagram
-                                        if (!request.RelayAgentIpAddress.Equals(IPAddress.Any))
-                                        {
-                                            //received request via relay agent so send unicast response to relay agent on port 67
-                                            udpListener.SendTo(sendBuffer, 0, (int)sendBufferStream.Position, SocketFlags.None, new IPEndPoint(request.RelayAgentIpAddress, 67));
-                                        }
-                                        else if (!request.ClientIpAddress.Equals(IPAddress.Any))
-                                        {
-                                            //client is already configured and renewing lease so send unicast response on port 68
-                                            udpListener.SendTo(sendBuffer, 0, (int)sendBufferStream.Position, SocketFlags.None, new IPEndPoint(request.ClientIpAddress, 68));
-                                        }
-                                        else
-                                        {
-                                            //send response as broadcast on port 68 on appropriate interface bound socket
-                                            if (!_udpListeners.TryGetValue(response.NextServerIpAddress, out Socket udpSocket))
-                                                udpSocket = udpListener; //no appropriate socket found so use default socket
-
-                                            udpSocket.SendTo(sendBuffer, 0, (int)sendBufferStream.Position, SocketFlags.DontRoute, new IPEndPoint(IPAddress.Broadcast, 68)); //no routing for broadcast
-                                        }
-                                    }
-                                }
-                                catch (ObjectDisposedException)
-                                {
-                                    //socket disposed
+                                    _ = ProcessDhcpRequestAsync(request, remoteEP as IPEndPoint, ipPacketInformation, udpListener);
                                 }
                                 catch (Exception ex)
                                 {
-                                    if ((_state == ServiceState.Stopping) || (_state == ServiceState.Stopped))
-                                        return; //server stopping
-
                                     LogManager log = _log;
                                     if (log != null)
                                         log.Write(remoteEP as IPEndPoint, ex);
@@ -269,7 +235,57 @@ namespace DnsServerCore.Dhcp
             }
         }
 
-        private DhcpMessage ProcessDhcpMessage(DhcpMessage request, IPEndPoint remoteEP, IPPacketInformation ipPacketInformation)
+        private async Task ProcessDhcpRequestAsync(DhcpMessage request, IPEndPoint remoteEP, IPPacketInformation ipPacketInformation, Socket udpListener)
+        {
+            try
+            {
+                DhcpMessage response = await ProcessDhcpMessageAsync(request, remoteEP, ipPacketInformation);
+
+                //send response
+                if (response != null)
+                {
+                    byte[] sendBuffer = new byte[1024];
+                    MemoryStream sendBufferStream = new MemoryStream(sendBuffer);
+
+                    response.WriteTo(sendBufferStream);
+
+                    //send dns datagram
+                    if (!request.RelayAgentIpAddress.Equals(IPAddress.Any))
+                    {
+                        //received request via relay agent so send unicast response to relay agent on port 67
+                        await udpListener.SendToAsync(sendBuffer, 0, (int)sendBufferStream.Position, new IPEndPoint(request.RelayAgentIpAddress, 67));
+                    }
+                    else if (!request.ClientIpAddress.Equals(IPAddress.Any))
+                    {
+                        //client is already configured and renewing lease so send unicast response on port 68
+                        await udpListener.SendToAsync(sendBuffer, 0, (int)sendBufferStream.Position, new IPEndPoint(request.ClientIpAddress, 68));
+                    }
+                    else
+                    {
+                        //send response as broadcast on port 68 on appropriate interface bound socket
+                        if (!_udpListeners.TryGetValue(response.NextServerIpAddress, out Socket udpSocket))
+                            udpSocket = udpListener; //no appropriate socket found so use default socket
+
+                        await udpSocket.SendToAsync(sendBuffer, 0, (int)sendBufferStream.Position, new IPEndPoint(IPAddress.Broadcast, 68), SocketFlags.DontRoute); //no routing for broadcast
+                    }
+                }
+            }
+            catch (ObjectDisposedException)
+            {
+                //socket disposed
+            }
+            catch (Exception ex)
+            {
+                if ((_state == ServiceState.Stopping) || (_state == ServiceState.Stopped))
+                    return; //server stopping
+
+                LogManager log = _log;
+                if (log != null)
+                    log.Write(remoteEP, ex);
+            }
+        }
+
+        private async Task<DhcpMessage> ProcessDhcpMessageAsync(DhcpMessage request, IPEndPoint remoteEP, IPPacketInformation ipPacketInformation)
         {
             if (request.OpCode != DhcpMessageOpCode.BootRequest)
                 return null;
@@ -283,7 +299,7 @@ namespace DnsServerCore.Dhcp
                             return null; //no scope available; do nothing
 
                         if (scope.OfferDelayTime > 0)
-                            Thread.Sleep(scope.OfferDelayTime); //delay sending offer
+                            await Task.Delay(scope.OfferDelayTime); //delay sending offer
 
                         Lease offer = scope.GetOffer(request);
                         if (offer == null)
@@ -719,7 +735,7 @@ namespace DnsServerCore.Dhcp
             return false;
         }
 
-        private bool ActivateScope(Scope scope, bool waitForInterface)
+        private async Task<bool> ActivateScopeAsync(Scope scope, bool waitForInterface)
         {
             IPEndPoint dhcpEP = null;
 
@@ -742,7 +758,7 @@ namespace DnsServerCore.Dhcp
                         if (++tries >= 30)
                             throw new DhcpServerException("DHCP Server requires static IP address to work correctly but no network interface was found to have any static IP address configured.");
 
-                        Thread.Sleep(1000);
+                        await Task.Delay(1000);
                     }
                 }
                 else
@@ -848,7 +864,7 @@ namespace DnsServerCore.Dhcp
             return false;
         }
 
-        private void LoadScope(Scope scope, bool waitForInterface)
+        private async Task LoadScopeAsync(Scope scope, bool waitForInterface)
         {
             foreach (KeyValuePair<string, Scope> existingScope in _scopes)
             {
@@ -861,7 +877,7 @@ namespace DnsServerCore.Dhcp
 
             if (scope.Enabled)
             {
-                if (!ActivateScope(scope, waitForInterface))
+                if (!await ActivateScopeAsync(scope, waitForInterface))
                     scope.SetEnabled(false);
             }
 
@@ -888,34 +904,31 @@ namespace DnsServerCore.Dhcp
             string[] scopeFiles = Directory.GetFiles(_scopesFolder, "*.scope");
 
             foreach (string scopeFile in scopeFiles)
-                LoadScopeFile(scopeFile);
+                _ = LoadScopeFileAsync(scopeFile);
 
             _lastModifiedScopesSavedOn = DateTime.UtcNow;
         }
 
-        private void LoadScopeFile(string scopeFile)
+        private async Task LoadScopeFileAsync(string scopeFile)
         {
             //load scope file async to allow waiting for interface to come up
-            ThreadPool.QueueUserWorkItem(delegate (object state)
+            try
             {
-                try
+                using (FileStream fS = new FileStream(scopeFile, FileMode.Open, FileAccess.Read))
                 {
-                    using (FileStream fS = new FileStream(scopeFile, FileMode.Open, FileAccess.Read))
-                    {
-                        LoadScope(new Scope(new BinaryReader(fS)), true);
-                    }
+                    await LoadScopeAsync(new Scope(new BinaryReader(fS)), true);
+                }
 
-                    LogManager log = _log;
-                    if (log != null)
-                        log.Write("DHCP Server successfully loaded scope file: " + scopeFile);
-                }
-                catch (Exception ex)
-                {
-                    LogManager log = _log;
-                    if (log != null)
-                        log.Write("DHCP Server failed to load scope file: " + scopeFile + "\r\n" + ex.ToString());
-                }
-            });
+                LogManager log = _log;
+                if (log != null)
+                    log.Write("DHCP Server successfully loaded scope file: " + scopeFile);
+            }
+            catch (Exception ex)
+            {
+                LogManager log = _log;
+                if (log != null)
+                    log.Write("DHCP Server failed to load scope file: " + scopeFile + "\r\n" + ex.ToString());
+            }
         }
 
         private void SaveScopeFile(Scope scope)
@@ -1053,9 +1066,9 @@ namespace DnsServerCore.Dhcp
             _state = ServiceState.Stopped;
         }
 
-        public void AddScope(Scope scope)
+        public async Task AddScopeAsync(Scope scope)
         {
-            LoadScope(scope, false);
+            await LoadScopeAsync(scope, false);
             SaveScopeFile(scope);
         }
 
@@ -1091,11 +1104,11 @@ namespace DnsServerCore.Dhcp
             }
         }
 
-        public bool EnableScope(string name)
+        public async Task<bool> EnableScopeAsync(string name)
         {
             if (_scopes.TryGetValue(name, out Scope scope))
             {
-                if (!scope.Enabled && ActivateScope(scope, false))
+                if (!scope.Enabled && await ActivateScopeAsync(scope, false))
                 {
                     scope.SetEnabled(true);
                     SaveScopeFile(scope);
