@@ -227,7 +227,7 @@ namespace DnsServerCore
                             switch (path)
                             {
                                 case "/api/login":
-                                    Login(request, jsonWriter);
+                                    await LoginAsync(request, jsonWriter);
                                     break;
 
                                 case "/api/logout":
@@ -378,11 +378,11 @@ namespace DnsServerCore
                                                 break;
 
                                             case "/api/setDhcpScope":
-                                                SetDhcpScope(request);
+                                                await SetDhcpScopeAsync(request);
                                                 break;
 
                                             case "/api/enableDhcpScope":
-                                                EnableDhcpScope(request);
+                                                await EnableDhcpScopeAsync(request);
                                                 break;
 
                                             case "/api/disableDhcpScope":
@@ -680,7 +680,7 @@ namespace DnsServerCore
             _blockedAddresses.TryRemove(address, out _);
         }
 
-        private void Login(HttpListenerRequest request, JsonTextWriter jsonWriter)
+        private async Task LoginAsync(HttpListenerRequest request, JsonTextWriter jsonWriter)
         {
             string strUsername = request.QueryString["user"];
             if (string.IsNullOrEmpty(strUsername))
@@ -707,7 +707,7 @@ namespace DnsServerCore
                     if (LoginAttemptsExceedLimit(remoteEP.Address, MAX_LOGIN_ATTEMPTS))
                         BlockAddress(remoteEP.Address, BLOCK_ADDRESS_INTERVAL);
 
-                    Thread.Sleep(1000);
+                    await Task.Delay(1000);
                 }
 
                 throw new WebServiceException("Invalid username or password: " + strUsername);
@@ -3543,7 +3543,7 @@ namespace DnsServerCore
             jsonWriter.WriteValue(scope.AllowOnlyReservedLeases);
         }
 
-        private void SetDhcpScope(HttpListenerRequest request)
+        private async Task SetDhcpScopeAsync(HttpListenerRequest request)
         {
             string scopeName = request.QueryString["name"];
             if (string.IsNullOrEmpty(scopeName))
@@ -3772,19 +3772,19 @@ namespace DnsServerCore
             }
             else
             {
-                _dhcpServer.AddScope(scope);
+                await _dhcpServer.AddScopeAsync(scope);
 
                 _log.Write(GetRequestRemoteEndPoint(request), "[" + GetSession(request).Username + "] DHCP scope was added successfully: " + scopeName);
             }
         }
 
-        private void EnableDhcpScope(HttpListenerRequest request)
+        private async Task EnableDhcpScopeAsync(HttpListenerRequest request)
         {
             string scopeName = request.QueryString["name"];
             if (string.IsNullOrEmpty(scopeName))
                 throw new WebServiceException("Parameter 'name' missing.");
 
-            if (!_dhcpServer.EnableScope(scopeName))
+            if (!await _dhcpServer.EnableScopeAsync(scopeName))
                 throw new WebServiceException("Failed to enable DHCP scope, please check logs for details: " + scopeName);
 
             _log.Write(GetRequestRemoteEndPoint(request), "[" + GetSession(request).Username + "] DHCP scope was enabled successfully: " + scopeName);
