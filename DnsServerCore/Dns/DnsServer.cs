@@ -60,6 +60,7 @@ namespace DnsServerCore.Dns
 
         string _serverDomain;
         readonly string _configFolder;
+        readonly string _dohwwwFolder;
         IReadOnlyList<IPEndPoint> _localEndPoints;
         LogManager _log;
 
@@ -153,22 +154,23 @@ namespace DnsServerCore.Dns
                 ServicePointManager.DefaultConnectionLimit = 10; //concurrent http request limit required when using DNS-over-HTTPS forwarders
         }
 
-        public DnsServer(string configFolder, LogManager log = null)
-            : this(Environment.MachineName.ToLower(), configFolder, log)
+        public DnsServer(string configFolder, string dohwwwFolder, LogManager log = null)
+            : this(Environment.MachineName.ToLower(), configFolder, dohwwwFolder, log)
         { }
 
-        public DnsServer(string serverDomain, string configFolder, LogManager log = null)
-            : this(serverDomain, configFolder, new IPEndPoint[] { new IPEndPoint(IPAddress.Any, 53), new IPEndPoint(IPAddress.IPv6Any, 53) }, log)
+        public DnsServer(string serverDomain, string configFolder, string dohwwwFolder, LogManager log = null)
+            : this(serverDomain, configFolder, dohwwwFolder, new IPEndPoint[] { new IPEndPoint(IPAddress.Any, 53), new IPEndPoint(IPAddress.IPv6Any, 53) }, log)
         { }
 
-        public DnsServer(string serverDomain, string configFolder, IPEndPoint localEndPoint, LogManager log = null)
-            : this(serverDomain, configFolder, new IPEndPoint[] { localEndPoint }, log)
+        public DnsServer(string serverDomain, string configFolder, string dohwwwFolder, IPEndPoint localEndPoint, LogManager log = null)
+            : this(serverDomain, configFolder, dohwwwFolder, new IPEndPoint[] { localEndPoint }, log)
         { }
 
-        public DnsServer(string serverDomain, string configFolder, IReadOnlyList<IPEndPoint> localEndPoints, LogManager log = null)
+        public DnsServer(string serverDomain, string configFolder, string dohwwwFolder, IReadOnlyList<IPEndPoint> localEndPoints, LogManager log = null)
         {
             _serverDomain = serverDomain;
             _configFolder = configFolder;
+            _dohwwwFolder = dohwwwFolder;
             _localEndPoints = localEndPoints;
             _log = log;
 
@@ -264,7 +266,7 @@ namespace DnsServerCore.Dns
                         {
                             DnsDatagram request = DnsDatagram.ReadFromUdp(new MemoryStream(recvBuffer, 0, bytesRecv, false));
 
-                            _ = ProcessUdpRequestAsync(udpListener, remoteEP, request);
+                            _ = ProcessUdpRequestAsync(udpListener, remoteEP as IPEndPoint, request);
                         }
                         catch (Exception ex)
                         {
@@ -288,7 +290,7 @@ namespace DnsServerCore.Dns
             }
         }
 
-        private async Task ProcessUdpRequestAsync(Socket udpListener, EndPoint remoteEP, DnsDatagram request)
+        private async Task ProcessUdpRequestAsync(Socket udpListener, IPEndPoint remoteEP, DnsDatagram request)
         {
             try
             {
@@ -303,7 +305,7 @@ namespace DnsServerCore.Dns
                     //format error
                     LogManager log = _log;
                     if (log != null)
-                        log.Write(remoteEP as IPEndPoint, DnsTransportProtocol.Udp, request.ParsingException);
+                        log.Write(remoteEP, DnsTransportProtocol.Udp, request.ParsingException);
 
                     //format error response
                     response = new DnsDatagram(request.Identifier, true, request.OPCODE, false, false, request.RecursionDesired, IsRecursionAllowed(remoteEP), false, false, DnsResponseCode.FormatError, request.Question);
@@ -332,11 +334,11 @@ namespace DnsServerCore.Dns
 
                     LogManager queryLog = _queryLog;
                     if (queryLog != null)
-                        queryLog.Write(remoteEP as IPEndPoint, DnsTransportProtocol.Udp, request, response);
+                        queryLog.Write(remoteEP, DnsTransportProtocol.Udp, request, response);
 
                     StatsManager stats = _stats;
                     if (stats != null)
-                        stats.Update(response, (remoteEP as IPEndPoint).Address);
+                        stats.Update(response, remoteEP.Address);
                 }
             }
             catch (Exception ex)
@@ -346,11 +348,11 @@ namespace DnsServerCore.Dns
 
                 LogManager queryLog = _queryLog;
                 if (queryLog != null)
-                    queryLog.Write(remoteEP as IPEndPoint, DnsTransportProtocol.Udp, request, null);
+                    queryLog.Write(remoteEP, DnsTransportProtocol.Udp, request, null);
 
                 LogManager log = _log;
                 if (log != null)
-                    log.Write(remoteEP as IPEndPoint, DnsTransportProtocol.Udp, ex);
+                    log.Write(remoteEP, DnsTransportProtocol.Udp, ex);
             }
         }
 
@@ -397,11 +399,11 @@ namespace DnsServerCore.Dns
 
         private async Task ProcessConnectionAsync(Socket socket, DnsTransportProtocol protocol, bool usingHttps)
         {
-            EndPoint remoteEP = null;
+            IPEndPoint remoteEP = null;
 
             try
             {
-                remoteEP = socket.RemoteEndPoint;
+                remoteEP = socket.RemoteEndPoint as IPEndPoint;
 
                 switch (protocol)
                 {
@@ -426,14 +428,8 @@ namespace DnsServerCore.Dns
 
                             stream = httpsStream;
                         }
-                        else if (!NetUtilities.IsPrivateIP((remoteEP as IPEndPoint).Address))
-                        {
-                            //intentionally blocking public IP addresses from using DNS-over-HTTP (without TLS)
-                            //this feature is intended to be used with an SSL terminated reverse proxy like nginx on private network
-                            return;
-                        }
 
-                        await ProcessDoHRequestAsync(stream, _tcpReceiveTimeout, remoteEP, !usingHttps);
+                        await ProcessDoHRequestAsync(stream, _tcpReceiveTimeout, remoteEP, usingHttps);
                         break;
                 }
             }
@@ -445,7 +441,7 @@ namespace DnsServerCore.Dns
             {
                 LogManager log = _log;
                 if (log != null)
-                    log.Write(remoteEP as IPEndPoint, protocol, ex);
+                    log.Write(remoteEP, protocol, ex);
             }
             finally
             {
@@ -454,7 +450,7 @@ namespace DnsServerCore.Dns
             }
         }
 
-        private async Task ReadStreamRequestAsync(Stream stream, int receiveTimeout, EndPoint remoteEP, DnsTransportProtocol protocol)
+        private async Task ReadStreamRequestAsync(Stream stream, int receiveTimeout, IPEndPoint remoteEP, DnsTransportProtocol protocol)
         {
             try
             {
@@ -499,11 +495,11 @@ namespace DnsServerCore.Dns
             {
                 LogManager log = _log;
                 if (log != null)
-                    log.Write(remoteEP as IPEndPoint, protocol, ex);
+                    log.Write(remoteEP, protocol, ex);
             }
         }
 
-        private async Task ProcessStreamRequestAsync(Stream stream, MemoryStream writeBuffer, SemaphoreSlim writeSemaphore, EndPoint remoteEP, DnsDatagram request, DnsTransportProtocol protocol)
+        private async Task ProcessStreamRequestAsync(Stream stream, MemoryStream writeBuffer, SemaphoreSlim writeSemaphore, IPEndPoint remoteEP, DnsDatagram request, DnsTransportProtocol protocol)
         {
             try
             {
@@ -520,11 +516,11 @@ namespace DnsServerCore.Dns
 
                     LogManager queryLog = _queryLog;
                     if (queryLog != null)
-                        queryLog.Write(remoteEP as IPEndPoint, protocol, request, response);
+                        queryLog.Write(remoteEP, protocol, request, response);
 
                     LogManager log = _log;
                     if (log != null)
-                        log.Write(remoteEP as IPEndPoint, protocol, request.ParsingException);
+                        log.Write(remoteEP, protocol, request.ParsingException);
                 }
 
                 //send response
@@ -544,11 +540,11 @@ namespace DnsServerCore.Dns
 
                     LogManager queryLog = _queryLog;
                     if (queryLog != null)
-                        queryLog.Write(remoteEP as IPEndPoint, protocol, request, response);
+                        queryLog.Write(remoteEP, protocol, request, response);
 
                     StatsManager stats = _stats;
                     if (stats != null)
-                        stats.Update(response, (remoteEP as IPEndPoint).Address);
+                        stats.Update(response, remoteEP.Address);
                 }
             }
             catch (IOException)
@@ -559,15 +555,15 @@ namespace DnsServerCore.Dns
             {
                 LogManager queryLog = _queryLog;
                 if ((queryLog != null) && (request != null))
-                    queryLog.Write(remoteEP as IPEndPoint, protocol, request, null);
+                    queryLog.Write(remoteEP, protocol, request, null);
 
                 LogManager log = _log;
                 if (log != null)
-                    log.Write(remoteEP as IPEndPoint, protocol, ex);
+                    log.Write(remoteEP, protocol, ex);
             }
         }
 
-        private async Task ProcessDoHRequestAsync(Stream stream, int receiveTimeout, EndPoint remoteEP, bool usingReverseProxy)
+        private async Task ProcessDoHRequestAsync(Stream stream, int receiveTimeout, IPEndPoint remoteEP, bool usingHttps)
         {
             DnsDatagram dnsRequest = null;
             DnsTransportProtocol dnsProtocol = DnsTransportProtocol.Https;
@@ -580,7 +576,9 @@ namespace DnsServerCore.Dns
                     if (httpRequest == null)
                         return; //connection closed gracefully by client
 
-                    if (usingReverseProxy)
+                    IPEndPoint socketRemoteEP = remoteEP;
+
+                    if (!usingHttps && NetUtilities.IsPrivateIP(socketRemoteEP.Address))
                     {
                         string xRealIp = httpRequest.Headers["X-Real-IP"];
                         if (IPAddress.TryParse(xRealIp, out IPAddress address))
@@ -597,6 +595,14 @@ namespace DnsServerCore.Dns
                     switch (httpRequest.RequestPath)
                     {
                         case "/dns-query":
+                            if (!usingHttps && !NetUtilities.IsPrivateIP(socketRemoteEP.Address))
+                            {
+                                //intentionally blocking public IP addresses from using DNS-over-HTTP (without TLS)
+                                //this feature is intended to be used with an SSL terminated reverse proxy like nginx on private network
+                                await SendErrorAsync(stream, 403, "DNS-over-HTTPS (DoH) queries are supported only on HTTPS.");
+                                return;
+                            }
+
                             DnsTransportProtocol protocol = DnsTransportProtocol.Udp;
 
                             string strRequestAcceptTypes = httpRequest.Headers[HttpRequestHeader.Accept];
@@ -675,7 +681,7 @@ namespace DnsServerCore.Dns
                                             //format error
                                             LogManager log = _log;
                                             if (log != null)
-                                                log.Write(remoteEP as IPEndPoint, protocol, dnsRequest.ParsingException);
+                                                log.Write(remoteEP, protocol, dnsRequest.ParsingException);
 
                                             //format error response
                                             dnsResponse = new DnsDatagram(dnsRequest.Identifier, true, dnsRequest.OPCODE, false, false, dnsRequest.RecursionDesired, IsRecursionAllowed(remoteEP), false, false, DnsResponseCode.FormatError, dnsRequest.Question);
@@ -693,11 +699,11 @@ namespace DnsServerCore.Dns
 
                                             LogManager queryLog = _queryLog;
                                             if (queryLog != null)
-                                                queryLog.Write(remoteEP as IPEndPoint, protocol, dnsRequest, dnsResponse);
+                                                queryLog.Write(remoteEP, protocol, dnsRequest, dnsResponse);
 
                                             StatsManager stats = _stats;
                                             if (stats != null)
-                                                stats.Update(dnsResponse, (remoteEP as IPEndPoint).Address);
+                                                stats.Update(dnsResponse, remoteEP.Address);
                                         }
                                     }
                                     #endregion
@@ -731,11 +737,11 @@ namespace DnsServerCore.Dns
 
                                             LogManager queryLog = _queryLog;
                                             if (queryLog != null)
-                                                queryLog.Write(remoteEP as IPEndPoint, protocol, dnsRequest, dnsResponse);
+                                                queryLog.Write(remoteEP, protocol, dnsRequest, dnsResponse);
 
                                             StatsManager stats = _stats;
                                             if (stats != null)
-                                                stats.Update(dnsResponse, (remoteEP as IPEndPoint).Address);
+                                                stats.Update(dnsResponse, remoteEP.Address);
                                         }
                                     }
                                     #endregion
@@ -752,7 +758,26 @@ namespace DnsServerCore.Dns
                             break;
 
                         default:
-                            await SendErrorAsync(stream, 404);
+                            string path = httpRequest.RequestPath;
+
+                            if (!path.StartsWith("/") || path.Contains("/../") || path.Contains("/.../"))
+                            {
+                                await SendErrorAsync(stream, 404);
+                                break;
+                            }
+
+                            if (path == "/")
+                                path = "/index.html";
+
+                            path = Path.GetFullPath(_dohwwwFolder + path.Replace('/', Path.DirectorySeparatorChar));
+
+                            if (!path.StartsWith(_dohwwwFolder) || !File.Exists(path))
+                            {
+                                await SendErrorAsync(stream, 404);
+                                break;
+                            }
+
+                            await SendFileAsync(stream, path);
                             break;
                     }
                 }
@@ -769,11 +794,11 @@ namespace DnsServerCore.Dns
             {
                 LogManager queryLog = _queryLog;
                 if ((queryLog != null) && (dnsRequest != null))
-                    queryLog.Write(remoteEP as IPEndPoint, dnsProtocol, dnsRequest, null);
+                    queryLog.Write(remoteEP, dnsProtocol, dnsRequest, null);
 
                 LogManager log = _log;
                 if (log != null)
-                    log.Write(remoteEP as IPEndPoint, dnsProtocol, ex);
+                    log.Write(remoteEP, dnsProtocol, ex);
 
                 await SendErrorAsync(stream, ex);
             }
@@ -809,6 +834,18 @@ namespace DnsServerCore.Dns
             { }
         }
 
+        private static async Task SendFileAsync(Stream outputStream, string filePath)
+        {
+            using (FileStream fS = new FileStream(filePath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite))
+            {
+                byte[] bufferHeader = Encoding.UTF8.GetBytes("HTTP/1.1 200 OK\r\nDate: " + DateTime.UtcNow.ToString("r") + "\r\nContent-Type: " + WebUtilities.GetContentType(filePath).MediaType + "\r\nContent-Length: " + fS.Length + "\r\nCache-Control: private, max-age=300\r\nX-Robots-Tag: noindex, nofollow\r\n\r\n");
+
+                await outputStream.WriteAsync(bufferHeader, 0, bufferHeader.Length);
+                await fS.CopyToAsync(outputStream);
+                await outputStream.FlushAsync();
+            }
+        }
+
         internal static string GetHttpStatusString(HttpStatusCode statusCode)
         {
             StringBuilder sb = new StringBuilder();
@@ -824,7 +861,7 @@ namespace DnsServerCore.Dns
             return sb.ToString();
         }
 
-        private bool IsRecursionAllowed(EndPoint remoteEP)
+        private bool IsRecursionAllowed(IPEndPoint remoteEP)
         {
             if (!_allowRecursion)
                 return false;
@@ -835,7 +872,7 @@ namespace DnsServerCore.Dns
                 {
                     case AddressFamily.InterNetwork:
                     case AddressFamily.InterNetworkV6:
-                        return NetUtilities.IsPrivateIP((remoteEP as IPEndPoint).Address);
+                        return NetUtilities.IsPrivateIP(remoteEP.Address);
 
                     default:
                         return false;
@@ -845,7 +882,7 @@ namespace DnsServerCore.Dns
             return true;
         }
 
-        private async Task<DnsDatagram> ProcessQueryAsync(DnsDatagram request, EndPoint remoteEP, bool isRecursionAllowed, DnsTransportProtocol protocol)
+        private async Task<DnsDatagram> ProcessQueryAsync(DnsDatagram request, IPEndPoint remoteEP, bool isRecursionAllowed, DnsTransportProtocol protocol)
         {
             if (request.IsResponse)
                 return null;
@@ -900,7 +937,7 @@ namespace DnsServerCore.Dns
                     {
                         LogManager log = _log;
                         if (log != null)
-                            log.Write(remoteEP as IPEndPoint, protocol, ex);
+                            log.Write(remoteEP, protocol, ex);
 
                         return new DnsDatagram(request.Identifier, true, DnsOpcode.StandardQuery, false, false, request.RecursionDesired, isRecursionAllowed, false, false, DnsResponseCode.ServerFailure, request.Question);
                     }
@@ -913,13 +950,13 @@ namespace DnsServerCore.Dns
             }
         }
 
-        private async Task<DnsDatagram> ProcessNotifyQueryAsync(DnsDatagram request, EndPoint remoteEP)
+        private async Task<DnsDatagram> ProcessNotifyQueryAsync(DnsDatagram request, IPEndPoint remoteEP)
         {
             AuthZoneInfo authZoneInfo = _authZoneManager.GetAuthZoneInfo(request.Question[0].Name);
             if ((authZoneInfo == null) || (authZoneInfo.Type != AuthZoneType.Secondary))
                 return new DnsDatagram(request.Identifier, true, DnsOpcode.Notify, false, false, request.RecursionDesired, false, false, false, DnsResponseCode.Refused, request.Question) { Tag = StatsResponseType.Authoritative };
 
-            IPAddress remoteAddress = (remoteEP as IPEndPoint).Address;
+            IPAddress remoteAddress = remoteEP.Address;
             bool remoteVerified = false;
 
             IReadOnlyList<NameServerAddress> primaryNameServers = await authZoneInfo.GetPrimaryNameServerAddressesAsync(this);
@@ -938,7 +975,7 @@ namespace DnsServerCore.Dns
 
             LogManager log = _log;
             if (log != null)
-                log.Write(remoteEP as IPEndPoint, "DNS Server received NOTIFY for zone: " + authZoneInfo.Name);
+                log.Write(remoteEP, "DNS Server received NOTIFY for zone: " + authZoneInfo.Name);
 
             if ((request.Answer.Count > 0) && (request.Answer[0].Type == DnsResourceRecordType.SOA))
             {
@@ -955,13 +992,13 @@ namespace DnsServerCore.Dns
             return new DnsDatagram(request.Identifier, true, DnsOpcode.Notify, false, false, request.RecursionDesired, false, false, false, DnsResponseCode.NoError, request.Question) { Tag = StatsResponseType.Authoritative };
         }
 
-        private async Task<DnsDatagram> ProcessZoneTransferQueryAsync(DnsDatagram request, EndPoint remoteEP)
+        private async Task<DnsDatagram> ProcessZoneTransferQueryAsync(DnsDatagram request, IPEndPoint remoteEP)
         {
             AuthZoneInfo authZoneInfo = _authZoneManager.GetAuthZoneInfo(request.Question[0].Name);
             if ((authZoneInfo == null) || (authZoneInfo.Type != AuthZoneType.Primary))
                 return new DnsDatagram(request.Identifier, true, DnsOpcode.StandardQuery, false, false, request.RecursionDesired, false, false, false, DnsResponseCode.Refused, request.Question) { Tag = StatsResponseType.Authoritative };
 
-            IPAddress remoteAddress = (remoteEP as IPEndPoint).Address;
+            IPAddress remoteAddress = remoteEP.Address;
             bool isAxfrAllowed = IPAddress.IsLoopback(remoteAddress);
 
             if (!isAxfrAllowed)
@@ -983,7 +1020,7 @@ namespace DnsServerCore.Dns
 
             LogManager log = _log;
             if (log != null)
-                log.Write(remoteEP as IPEndPoint, "DNS Server received zone transfer request for zone: " + authZoneInfo.Name);
+                log.Write(remoteEP, "DNS Server received zone transfer request for zone: " + authZoneInfo.Name);
 
             IReadOnlyList<DnsResourceRecord> axfrRecords = _authZoneManager.QueryZoneTransferRecords(request.Question[0].Name);
 
@@ -1980,13 +2017,13 @@ namespace DnsServerCore.Dns
 
                         LogManager log = _log;
                         if (log != null)
-                            log.Write(httpEP, DnsTransportProtocol.Https, "DNS Server was bound successfully.");
+                            log.Write(httpEP, "Http", "DNS Server was bound successfully.");
                     }
                     catch (Exception ex)
                     {
                         LogManager log = _log;
                         if (log != null)
-                            log.Write(httpEP, DnsTransportProtocol.Https, "DNS Server failed to bind.\r\n" + ex.ToString());
+                            log.Write(httpEP, "Http", "DNS Server failed to bind.\r\n" + ex.ToString());
 
                         if (httpListener != null)
                             httpListener.Dispose();
@@ -2022,34 +2059,67 @@ namespace DnsServerCore.Dns
                     }
                 }
 
-                if (_enableDnsOverHttps && (_certificate != null))
+                if (_enableDnsOverHttps)
                 {
-                    IPEndPoint httpsEP = new IPEndPoint(localEP.Address, 443);
-                    Socket httpsListener = null;
-
-                    try
+                    //bind to http port 80 for certbot webroot support
                     {
-                        httpsListener = new Socket(httpsEP.AddressFamily, SocketType.Stream, ProtocolType.Tcp);
+                        IPEndPoint httpEP = new IPEndPoint(localEP.Address, 80);
+                        Socket httpListener = null;
 
-                        httpsListener.Bind(httpsEP);
-                        httpsListener.Listen(100);
+                        try
+                        {
+                            httpListener = new Socket(httpEP.AddressFamily, SocketType.Stream, ProtocolType.Tcp);
 
-                        _httpsListeners.Add(httpsListener);
+                            httpListener.Bind(httpEP);
+                            httpListener.Listen(100);
 
-                        _isDnsOverHttpsEnabled = true;
+                            _httpListeners.Add(httpListener);
 
-                        LogManager log = _log;
-                        if (log != null)
-                            log.Write(httpsEP, DnsTransportProtocol.Https, "DNS Server was bound successfully.");
+                            LogManager log = _log;
+                            if (log != null)
+                                log.Write(httpEP, "Http", "DNS Server was bound successfully.");
+                        }
+                        catch (Exception ex)
+                        {
+                            LogManager log = _log;
+                            if (log != null)
+                                log.Write(httpEP, "Http", "DNS Server failed to bind.\r\n" + ex.ToString());
+
+                            if (httpListener != null)
+                                httpListener.Dispose();
+                        }
                     }
-                    catch (Exception ex)
-                    {
-                        LogManager log = _log;
-                        if (log != null)
-                            log.Write(httpsEP, DnsTransportProtocol.Https, "DNS Server failed to bind.\r\n" + ex.ToString());
 
-                        if (httpsListener != null)
-                            httpsListener.Dispose();
+                    //bind to https port 443
+                    if (_certificate != null)
+                    {
+                        IPEndPoint httpsEP = new IPEndPoint(localEP.Address, 443);
+                        Socket httpsListener = null;
+
+                        try
+                        {
+                            httpsListener = new Socket(httpsEP.AddressFamily, SocketType.Stream, ProtocolType.Tcp);
+
+                            httpsListener.Bind(httpsEP);
+                            httpsListener.Listen(100);
+
+                            _httpsListeners.Add(httpsListener);
+
+                            _isDnsOverHttpsEnabled = true;
+
+                            LogManager log = _log;
+                            if (log != null)
+                                log.Write(httpsEP, DnsTransportProtocol.Https, "DNS Server was bound successfully.");
+                        }
+                        catch (Exception ex)
+                        {
+                            LogManager log = _log;
+                            if (log != null)
+                                log.Write(httpsEP, DnsTransportProtocol.Https, "DNS Server failed to bind.\r\n" + ex.ToString());
+
+                            if (httpsListener != null)
+                                httpsListener.Dispose();
+                        }
                     }
                 }
             }
