@@ -1,5 +1,14 @@
 # Technitium DNS Server Change Log
 
+## Version 5.2
+Release Date: 6 September 2020
+
+- Added feature to allow using `certbot` to renew TLS certificates automatically when using DNS-over-HTTPS and DNS-over-TLS.
+- Fixed issue in DHCP server that caused thread to block by implementing async methods.
+- Fixed bug in DNS client that caused QTYPE mismatch due to QNAME minimization.
+- Fixed issues in DNS-over-HTTPS client related to retries and http error handling.
+- Multiple other minor bug fixes and improvements.
+
 ## Version 5.1
 Release Date: 29 August 2020
 
