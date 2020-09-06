@@ -567,7 +567,7 @@ namespace DnsServerCore
 
         private static async Task SendFileAsync(HttpListenerResponse response, string filePath)
         {
-            using (FileStream fS = new FileStream(filePath, FileMode.Open, FileAccess.Read))
+            using (FileStream fS = new FileStream(filePath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite))
             {
                 response.ContentType = WebUtilities.GetContentType(filePath).MediaType;
                 response.ContentLength64 = fS.Length;
