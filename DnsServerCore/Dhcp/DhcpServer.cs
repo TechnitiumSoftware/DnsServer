@@ -647,23 +647,32 @@ namespace DnsServerCore.Dhcp
             if (!DnsClient.IsDomainNameValid(domain))
                 return;
 
-            if (add)
+            try
             {
-                //update forward zone
-                _authZoneManager.CreatePrimaryZone(scope.DomainName, _authZoneManager.ServerDomain, false);
-                _authZoneManager.SetRecords(domain, DnsResourceRecordType.A, scope.DnsTtl, new DnsResourceRecordData[] { new DnsARecord(address) });
+                if (add)
+                {
+                    //update forward zone
+                    _authZoneManager.CreatePrimaryZone(scope.DomainName, _authZoneManager.ServerDomain, false);
+                    _authZoneManager.SetRecords(domain, DnsResourceRecordType.A, scope.DnsTtl, new DnsResourceRecordData[] { new DnsARecord(address) });
 
-                //update reverse zone
-                _authZoneManager.CreatePrimaryZone(Zone.GetReverseZone(address, scope.SubnetMask), _authZoneManager.ServerDomain, false);
-                _authZoneManager.SetRecords(Zone.GetReverseZone(address, 32), DnsResourceRecordType.PTR, scope.DnsTtl, new DnsResourceRecordData[] { new DnsPTRRecord(domain) });
+                    //update reverse zone
+                    _authZoneManager.CreatePrimaryZone(Zone.GetReverseZone(address, scope.SubnetMask), _authZoneManager.ServerDomain, false);
+                    _authZoneManager.SetRecords(Zone.GetReverseZone(address, 32), DnsResourceRecordType.PTR, scope.DnsTtl, new DnsResourceRecordData[] { new DnsPTRRecord(domain) });
+                }
+                else
+                {
+                    //remove from forward zone
+                    _authZoneManager.DeleteRecords(domain, DnsResourceRecordType.A);
+
+                    //remove from reverse zone
+                    _authZoneManager.DeleteRecords(Zone.GetReverseZone(address, 32), DnsResourceRecordType.PTR);
+                }
             }
-            else
+            catch (Exception ex)
             {
-                //remove from forward zone
-                _authZoneManager.DeleteRecords(domain, DnsResourceRecordType.A);
-
-                //remove from reverse zone
-                _authZoneManager.DeleteRecords(Zone.GetReverseZone(address, 32), DnsResourceRecordType.PTR);
+                LogManager log = _log;
+                if (log != null)
+                    log.Write(ex);
             }
         }
 
