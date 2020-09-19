@@ -522,15 +522,18 @@ namespace DnsServerCore
         {
             try
             {
-                string xRealIp = request.Headers["X-Real-IP"];
-                if (IPAddress.TryParse(xRealIp, out IPAddress address))
-                {
-                    //get the real IP address of the requesting client from X-Real-IP header set in nginx proxy_pass block
-                    return new IPEndPoint(address, 0);
-                }
-
                 if (request.RemoteEndPoint == null)
                     return new IPEndPoint(IPAddress.Any, 0);
+
+                if (NetUtilities.IsPrivateIP(request.RemoteEndPoint.Address))
+                {
+                    string xRealIp = request.Headers["X-Real-IP"];
+                    if (IPAddress.TryParse(xRealIp, out IPAddress address))
+                    {
+                        //get the real IP address of the requesting client from X-Real-IP header set in nginx proxy_pass block
+                        return new IPEndPoint(address, 0);
+                    }
+                }
 
                 return request.RemoteEndPoint;
             }
@@ -1502,10 +1505,12 @@ namespace DnsServerCore
                                 DnsDatagram ptrResponse = await _dnsServer.DirectQueryAsync(new DnsQuestionRecord(address, DnsClass.IN), 200);
                                 if ((ptrResponse != null) && (ptrResponse.Answer.Count > 0))
                                 {
-                                    string ptrDomain = DnsClient.ParseResponsePTR(ptrResponse);
-
-                                    jsonWriter.WritePropertyName("domain");
-                                    jsonWriter.WriteValue(ptrDomain);
+                                    IReadOnlyList<string> ptrDomains = DnsClient.ParseResponsePTR(ptrResponse);
+                                    if (ptrDomains != null)
+                                    {
+                                        jsonWriter.WritePropertyName("domain");
+                                        jsonWriter.WriteValue(ptrDomains[0]);
+                                    }
                                 }
                             }
                             catch
