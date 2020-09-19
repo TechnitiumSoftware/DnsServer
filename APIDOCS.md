@@ -1,6 +1,6 @@
 # Technitium DNS Server API Documentation
 
-Technitium DNS Server provides an HTTP API which is used by the web console to perform all actions. Thus any action that the web console does can be performed using this API from your own applications.
+Technitium DNS Server provides a HTTP API which is used by the web console to perform all actions. Thus any action that the web console does can be performed using this API from your own applications.
 
 The URL in the documentation uses `localhost` and port `5380`. You should use the hostname/IP address and port that is specific to your DNS server instance.
 
@@ -31,6 +31,17 @@ In case of errors, the response will look as shown below. The `errorMessage` pro
 	"innerErrorMessage": "inner exception message"
 }
 ```
+
+## Name Server Address Format
+
+The DNS server uses a specific text format to define the name server address to allow specifying multiple parameters like the domain name, IP address, port or URL. This format is used in the web console as well as in this API. It is used to specify forwarder address in DNS settings, conditional forwarder zone's FWD record, or the server address in DNS Client resolve query API calls.
+
+- A name server address with just an IP address is specified just as its string literal with optional port number is as shown: `1.1.1.1` or `8.8.8.8:53`. When port is not specified, the default port number for the selected DNS transport protocol is used.
+- A name server address with just a domain name is specified similarly as its string literal with optional port number is as shown: `dns.quad9.net:853` or `cloudflare-dns.com`. When port is not specified, the default port number for the selected DNS transport protocol is used.
+- A combination of domain name and IP address together with optional port number is as shown: `cloudflare-dns.com (1.1.1.1)`, `dns.quad9.net (9.9.9.9:853)` or `dns.quad9.net:853 (9.9.9.9)`. Here, the domain name (with optional port number) is specified and the IP address (with optional port number) is specified in a round bracket. When port is not specified, the default port number for the selected DNS transport protocol is used. This allows the DNS server to use the specified IP address instead of trying to resolve it separately.
+- A name server address that specifies a DNS-over-HTTPS URL is specified just as its string literal is as shown: `https://cloudflare-dns.com/dns-query`
+- A combination of DNS-over-HTTPS URL and IP address together is as shown: `https://cloudflare-dns.com/dns-query (1.1.1.1)`. Here, the IP address of the domain name in the URL is specified in the round brackets. This allows the DNS server to use the specified IP address instead of trying to resolve it separately.
+- IPv6 addresses must always be enclosed in square brackets as shown: `cloudflare-dns.com ([2606:4700:4700::1111]:853)` or `[2606:4700:4700::1111]`
 
 ## Authentication API Calls
 
@@ -209,14 +220,14 @@ WHERE:
 - `cachePrefetchTrigger` (optional): A record with TTL value less than trigger value will initiate prefetch operation immediately for itself.
 - `cachePrefetchSampleIntervalInMinutes` (optional): The interval to sample eligible domain names from last hour stats for auto prefetch.
 - `cachePrefetchSampleEligibilityHitsPerHour` (optional): Minimum required hits per hour for a domain name to be eligible for auto prefetch.
-- `proxyType` (optional): The type of proxy protocol to be used. Valid values are [None, Http, Socks5].
+- `proxyType` (optional): The type of proxy protocol to be used. Valid values are [`None`, `Http`, `Socks5`].
 - `proxyAddress` (optional): The proxy server hostname or IP address.
 - `proxyPort` (optional): The proxy server port.
 - `proxyUsername` (optional): The proxy server username.
 - `proxyPassword` (optional): The proxy server password.
 - `proxyBypass` (optional): A comma separated bypass list consisting of IP addresses, network addresses in CIDR format, or host/domain names to never use proxy for.
 - `forwarders` (optional): A comma separated list of forwarders to be used by this DNS server. Set this parameter to empty string to remove existing forwarders so that the DNS server does recursive resolution by itself.
-- `forwarderProtocol` (optional): The forwarder DNS transport protocol to be used. Valid values are [Udp, Tcp, Tls, HTTPS].
+- `forwarderProtocol` (optional): The forwarder DNS transport protocol to be used. Valid values are [`Udp`, `Tcp`, `Tls`, `Https`].
 - `blockListUrls` (optional): A comma separated list of block list URLs that this server must automatically download and use with the block lists zone. DNS Server will use the data returned by the block list URLs to update the block list zone automatically every 24 hours. The expected file format is standard hosts file format or plain text file containing list of domains to block.
 
 RESPONSE:
@@ -1191,6 +1202,8 @@ RESPONSE:
 }
 ```
 
+## DNS Cache API Calls
+
 ### Flush DNS Cache
 
 This call clears all the DNS cache from the server forcing the DNS server to make recursive queries again to populate the cache.
@@ -1207,8 +1220,6 @@ RESPONSE:
 	"status": "ok"
 }
 ```
-
-## DNS Cache API Calls
 
 ### List Cached Zones
 
@@ -1581,7 +1592,7 @@ WHERE:
 - `domain`: The domain name for creating new zone. The value can be valid domain name, an IP address, or an network address in CIDR format. When value is IP address or network address, a reverse zone is created.
 - `type`: The type of zone to be created. Valid values are [`primary`, `secondary`, `stub`, `forwarder`].
 - `primaryNameServerAddresses` (optional): List of comma separated IP addresses of the primary name server. This optional parameter is used only with Secondary and Stub zones. If this parameter is not used, the DNS server will try to recursively resolve the primary name server addresses automatically.
-- `protocol` (optional): The DNS transport protocol to be used by the conditional forwarder zone. This optional parameter is used with Conditional Forwarder zones. Default UDP protocol is used when this parameter is missing.
+- `protocol` (optional): The DNS transport protocol to be used by the conditional forwarder zone. This optional parameter is used with Conditional Forwarder zones. Valid values are [`Udp`, `Tcp`, `Tls`, `Https`]. Default UDP protocol is used when this parameter is missing.
 - `forwarder` (optional): The address of the DNS server to be used as a forwarder. This optional parameter is requred to be used with Conditional Forwarder zones.
 
 RESPONSE:
@@ -1661,7 +1672,7 @@ URL:
 WHERE:
 - `token`: The session token generated by the `login` call.
 - `domain`: The domain name of the zone to add record.
-- `type`: The DNS resource record type. Example A, AAAA, TXT, MX, etc.
+- `type`: The DNS resource record type. Supported record types are [`A`, `AAAA`, `MX`, `TXT`, `NS`, `PTR`, `CNAME`, `SRV, `CAA`] and proprietory types [`ANAME`, `FWD`].
 - `value`: The value for the resource record. This parameter is shared among different types of resource records and thus will mean different values as per the type of record. Example, for type A and AAAA record, the value will be an IP address while for type MX, the value will be the exchange domain name and for type TXT the value will be the text data.
 - `ttl`: The DNS resource record TTL value. This is the value in seconds that the DNS resolvers can cache the record for.
 - `preference` (optional): This is the preference value for MX record type. This option is required for adding MX record.
@@ -1671,7 +1682,7 @@ WHERE:
 - `port` (optional): This parameter is required for adding the SRV record.
 - `flags` (optional): This parameter is required for adding the CAA record.
 - `tag` (optional): This parameter is required for adding the CAA record.
-- `protocol` (optional): This parameter is required for adding the FWD record.
+- `protocol` (optional): This parameter is required for adding the FWD record. Valid values are [`Udp`, `Tcp`, `Tls`, `Https`].
 
 RESPONSE:
 ```
@@ -1802,7 +1813,7 @@ WHERE:
 - `port` (optional): This is the port parameter in the SRV record. This parameter is required when deleting the SRV record.
 - `flags` (optional): This is the flags parameter in the CAA record. This parameter is required when deleting the CAA record.
 - `tag` (optional): This is the tag parameter in the CAA record. This parameter is required when deleting the CAA record.
-- `protocol` (optional): This is the protocol parameter in the FWD record. This parameter is optional and default value `Udp` will be used when deleting the FWD record.
+- `protocol` (optional): This is the protocol parameter in the FWD record. Valid values are [`Udp`, `Tcp`, `Tls`, `Https`]. This parameter is optional and default value `Udp` will be used when deleting the FWD record.
 
 RESPONSE:
 ```
@@ -1824,7 +1835,7 @@ WHERE:
 - `domain`: The domain name of the zone to update the record.
 - `type`: The type of the resource record to update.
 - `newDomain` (optional): The new domain name to be set for the record. To be used to rename sub domain name of the record.
-- `ttl` (optional): The TTL value of the resource record. Default value of 3600 is used when parameter is missing.
+- `ttl` (optional): The TTL value of the resource record. Default value of `3600` is used when parameter is missing.
 - `value`: The value in the record to be updated. This is the same value that was read in the Get Record call.
 - `newValue` (optional): The new value to be updated into the record. When this parameter is missing, the value in the `value` parameter is used.
 - `disable` (optional): Specifies if the record should be disabled. The default value is `false` when this parameter is missing.
@@ -1847,7 +1858,7 @@ WHERE:
 - `tag` (optional): This is the tag parameter in the CAA record. This parameter is required when updating the CAA record.
 - `newFlags` (optional): This is the new value of the flags parameter in the CAA record. This parameter is used to update the flags parameter in the CAA record.
 - `newTag` (optional): This is the new value of the tag parameter in the CAA record. This parameter is used to update the tag parameter in the CAA record.
-- `protocol` (optional): This is the protocol parameter in the FWD record. This parameter is optional and default value `Udp` will be used when updating the FWD record.
+- `protocol` (optional): This is the protocol parameter in the FWD record. Valid values are [`Udp`, `Tcp`, `Tls`, `Https`]. This parameter is optional and default value `Udp` will be used when updating the FWD record.
 
 RESPONSE:
 ```
@@ -1869,7 +1880,7 @@ WHERE:
 - `server`: The name server to query using the DNS client.
 - `domain`: The domain name to query.
 - `type`: The type of the query.
-- `protocol` (optional): The DNS transport protocol to be used to query. The default value of `Udp` is used when the parameter is missing.
+- `protocol` (optional): The DNS transport protocol to be used to query. Valid values are [`Udp`, `Tcp`, `Tls`, `Https`]. The default value of `Udp` is used when the parameter is missing.
 - `import` (optional): This parameter when set to `true` indicates that the response of the DNS query should be imported in the an authoritative zone on this DNS server. Default value is `false` when this parameter is missing. If a zone does not exists, a primary zone for the `domain` name is created and the records from the response are set into the zone. Import can be done only for primary and forwarder type of zones. When `type` is set to AXFR, then the import feature will work as if a zone transfer was requested and the complete zone will be updated as per the zone transfer response. Note that any existing record type for the given `type` will be overwritten when syncing the records. It is recommended to use `recursive-resolver` or the actual name server address for the `server` parameter when importing records.
 
 RESPONSE:
