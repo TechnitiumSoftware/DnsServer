@@ -18,12 +18,10 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
 using DnsServerCore.Dhcp.Options;
-using DnsServerCore.Dns.Zones;
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.IO;
-using System.Linq;
 using System.Net;
 using System.Net.NetworkInformation;
 using System.Net.Sockets;
@@ -54,14 +52,14 @@ namespace DnsServerCore.Dhcp
         uint _dnsTtl = 900;
         IPAddress _routerAddress;
         bool _useThisDnsServer;
-        IPAddress[] _dnsServers;
-        IPAddress[] _winsServers;
-        IPAddress[] _ntpServers;
-        ClasslessStaticRouteOption.Route[] _staticRoutes;
+        ICollection<IPAddress> _dnsServers;
+        ICollection<IPAddress> _winsServers;
+        ICollection<IPAddress> _ntpServers;
+        ICollection<ClasslessStaticRouteOption.Route> _staticRoutes;
 
         //advanced options
-        Exclusion[] _exclusions;
-        Lease[] _reservedLeases;
+        ICollection<Exclusion> _exclusions;
+        readonly ConcurrentDictionary<ClientIdentifierOption, Lease> _reservedLeases = new ConcurrentDictionary<ClientIdentifierOption, Lease>();
         bool _allowOnlyReservedLeases;
 
         //leases
@@ -132,10 +130,12 @@ namespace DnsServerCore.Dhcp
                             }
                             else
                             {
-                                _dnsServers = new IPAddress[count];
+                                IPAddress[] dnsServers = new IPAddress[count];
 
                                 for (int i = 0; i < count; i++)
-                                    _dnsServers[i] = IPAddressExtension.Parse(bR);
+                                    dnsServers[i] = IPAddressExtension.Parse(bR);
+
+                                _dnsServers = dnsServers;
                             }
                         }
                     }
@@ -144,10 +144,12 @@ namespace DnsServerCore.Dhcp
                         int count = bR.ReadByte();
                         if (count > 0)
                         {
-                            _winsServers = new IPAddress[count];
+                            IPAddress[] winsServers = new IPAddress[count];
 
                             for (int i = 0; i < count; i++)
-                                _winsServers[i] = IPAddressExtension.Parse(bR);
+                                winsServers[i] = IPAddressExtension.Parse(bR);
+
+                            _winsServers = winsServers;
                         }
                     }
 
@@ -155,10 +157,12 @@ namespace DnsServerCore.Dhcp
                         int count = bR.ReadByte();
                         if (count > 0)
                         {
-                            _ntpServers = new IPAddress[count];
+                            IPAddress[] ntpServers = new IPAddress[count];
 
                             for (int i = 0; i < count; i++)
-                                _ntpServers[i] = IPAddressExtension.Parse(bR);
+                                ntpServers[i] = IPAddressExtension.Parse(bR);
+
+                            _ntpServers = ntpServers;
                         }
                     }
 
@@ -166,10 +170,12 @@ namespace DnsServerCore.Dhcp
                         int count = bR.ReadByte();
                         if (count > 0)
                         {
-                            _staticRoutes = new ClasslessStaticRouteOption.Route[count];
+                            ClasslessStaticRouteOption.Route[] staticRoutes = new ClasslessStaticRouteOption.Route[count];
 
                             for (int i = 0; i < count; i++)
-                                _staticRoutes[i] = new ClasslessStaticRouteOption.Route(bR.BaseStream);
+                                staticRoutes[i] = new ClasslessStaticRouteOption.Route(bR.BaseStream);
+
+                            _staticRoutes = staticRoutes;
                         }
                     }
 
@@ -177,10 +183,12 @@ namespace DnsServerCore.Dhcp
                         int count = bR.ReadByte();
                         if (count > 0)
                         {
-                            _exclusions = new Exclusion[count];
+                            Exclusion[] exclusions = new Exclusion[count];
 
                             for (int i = 0; i < count; i++)
-                                _exclusions[i] = new Exclusion(IPAddressExtension.Parse(bR), IPAddressExtension.Parse(bR));
+                                exclusions[i] = new Exclusion(IPAddressExtension.Parse(bR), IPAddressExtension.Parse(bR));
+
+                            _exclusions = exclusions;
                         }
                     }
 
@@ -188,10 +196,11 @@ namespace DnsServerCore.Dhcp
                         int count = bR.ReadInt32();
                         if (count > 0)
                         {
-                            _reservedLeases = new Lease[count];
-
                             for (int i = 0; i < count; i++)
-                                _reservedLeases[i] = new Lease(bR);
+                            {
+                                Lease reservedLease = new Lease(bR);
+                                _reservedLeases.TryAdd(reservedLease.ClientIdentifier, reservedLease);
+                            }
                         }
 
                         _allowOnlyReservedLeases = bR.ReadBoolean();
@@ -265,13 +274,10 @@ namespace DnsServerCore.Dhcp
                 }
             }
 
-            if (_reservedLeases != null)
+            foreach (Lease reservedLease in _reservedLeases.Values)
             {
-                foreach (Lease reservedLease in _reservedLeases)
-                {
-                    if (address.Equals(reservedLease.Address))
-                        return false;
-                }
+                if (address.Equals(reservedLease.Address))
+                    return false;
             }
 
             foreach (KeyValuePair<ClientIdentifierOption, Lease> lease in _leases)
@@ -509,6 +515,25 @@ namespace DnsServerCore.Dhcp
             return IsAddressInRange(address, _startingAddress, _endingAddress);
         }
 
+        internal Lease GetReservedLease(DhcpMessage request)
+        {
+            return GetReservedLease(new ClientIdentifierOption((byte)request.HardwareAddressType, request.ClientHardwareAddress));
+        }
+
+        internal Lease GetReservedLease(ClientIdentifierOption clientIdentifier)
+        {
+            if (_reservedLeases.TryGetValue(clientIdentifier, out Lease reservedLease))
+            {
+                //reserved address exists
+                if (IsAddressAlreadyAllocated(reservedLease))
+                    return null; //reserved lease address is already allocated so ignore reserved lease
+
+                return reservedLease;
+            }
+
+            return null;
+        }
+
         internal Lease GetOffer(DhcpMessage request)
         {
             if (_leases.TryGetValue(request.ClientIdentifier, out Lease existingLease))
@@ -517,21 +542,12 @@ namespace DnsServerCore.Dhcp
                 return existingLease;
             }
 
-            if (_reservedLeases != null)
+            Lease reservedLease = GetReservedLease(request);
+            if (reservedLease != null)
             {
-                ClientIdentifierOption clientIdentifierKey = new ClientIdentifierOption(1, request.ClientHardwareAddress);
-                foreach (Lease reservedLease in _reservedLeases)
-                {
-                    if (reservedLease.ClientIdentifier.Equals(clientIdentifierKey))
-                    {
-                        //reserved address exists
-                        if (IsAddressAlreadyAllocated(reservedLease))
-                            break; //reserved lease address is already allocated so ignore reserved lease
-
-                        Lease reservedOffer = new Lease(LeaseType.Reserved, request.ClientIdentifier, request.HostName?.HostName, request.ClientHardwareAddress, reservedLease.Address, null, GetLeaseTime());
-                        return _offers[request.ClientIdentifier] = reservedOffer;
-                    }
-                }
+                Lease reservedOffer = new Lease(LeaseType.Reserved, request.ClientIdentifier, request.HostName?.HostName, request.ClientHardwareAddress, reservedLease.Address, null, GetLeaseTime());
+                _offers[request.ClientIdentifier] = reservedOffer;
+                return reservedOffer;
             }
 
             if (_allowOnlyReservedLeases)
@@ -888,7 +904,7 @@ namespace DnsServerCore.Dhcp
             }
             else
             {
-                bW.Write(Convert.ToByte(_dnsServers.Length));
+                bW.Write(Convert.ToByte(_dnsServers.Count));
 
                 foreach (IPAddress dnsServer in _dnsServers)
                     dnsServer.WriteTo(bW);
@@ -900,7 +916,7 @@ namespace DnsServerCore.Dhcp
             }
             else
             {
-                bW.Write(Convert.ToByte(_winsServers.Length));
+                bW.Write(Convert.ToByte(_winsServers.Count));
 
                 foreach (IPAddress winsServer in _winsServers)
                     winsServer.WriteTo(bW);
@@ -912,7 +928,7 @@ namespace DnsServerCore.Dhcp
             }
             else
             {
-                bW.Write(Convert.ToByte(_ntpServers.Length));
+                bW.Write(Convert.ToByte(_ntpServers.Count));
 
                 foreach (IPAddress ntpServer in _ntpServers)
                     ntpServer.WriteTo(bW);
@@ -924,7 +940,7 @@ namespace DnsServerCore.Dhcp
             }
             else
             {
-                bW.Write(Convert.ToByte(_staticRoutes.Length));
+                bW.Write(Convert.ToByte(_staticRoutes.Count));
 
                 foreach (ClasslessStaticRouteOption.Route route in _staticRoutes)
                     route.WriteTo(bW.BaseStream);
@@ -936,7 +952,7 @@ namespace DnsServerCore.Dhcp
             }
             else
             {
-                bW.Write(Convert.ToByte(_exclusions.Length));
+                bW.Write(Convert.ToByte(_exclusions.Count));
 
                 foreach (Exclusion exclusion in _exclusions)
                 {
@@ -945,17 +961,10 @@ namespace DnsServerCore.Dhcp
                 }
             }
 
-            if (_reservedLeases == null)
-            {
-                bW.Write(0);
-            }
-            else
-            {
-                bW.Write(_reservedLeases.Length);
+            bW.Write(_reservedLeases.Count);
 
-                foreach (Lease reservedLease in _reservedLeases)
-                    reservedLease.WriteTo(bW);
-            }
+            foreach (Lease reservedLease in _reservedLeases.Values)
+                reservedLease.WriteTo(bW);
 
             bW.Write(_allowOnlyReservedLeases);
 
@@ -1111,37 +1120,37 @@ namespace DnsServerCore.Dhcp
             }
         }
 
-        public IPAddress[] DnsServers
+        public ICollection<IPAddress> DnsServers
         {
             get { return _dnsServers; }
             set
             {
                 _dnsServers = value;
 
-                if ((_dnsServers != null) && _dnsServers.Length > 0)
+                if ((_dnsServers != null) && _dnsServers.Count > 0)
                     _useThisDnsServer = false;
             }
         }
 
-        public IPAddress[] WinsServers
+        public ICollection<IPAddress> WinsServers
         {
             get { return _winsServers; }
             set { _winsServers = value; }
         }
 
-        public IPAddress[] NtpServers
+        public ICollection<IPAddress> NtpServers
         {
             get { return _ntpServers; }
             set { _ntpServers = value; }
         }
 
-        public ClasslessStaticRouteOption.Route[] StaticRoutes
+        public ICollection<ClasslessStaticRouteOption.Route> StaticRoutes
         {
             get { return _staticRoutes; }
             set { _staticRoutes = value; }
         }
 
-        public Exclusion[] Exclusions
+        public ICollection<Exclusion> Exclusions
         {
             get { return _exclusions; }
             set
@@ -1166,14 +1175,14 @@ namespace DnsServerCore.Dhcp
             }
         }
 
-        public Lease[] ReservedLeases
+        public ICollection<Lease> ReservedLeases
         {
-            get { return _reservedLeases; }
+            get { return _reservedLeases.Values; }
             set
             {
                 if (value == null)
                 {
-                    _reservedLeases = null;
+                    _reservedLeases.Clear();
                 }
                 else
                 {
@@ -1183,7 +1192,10 @@ namespace DnsServerCore.Dhcp
                             throw new ArgumentOutOfRangeException("Reserved address must be in scope range.");
                     }
 
-                    _reservedLeases = value;
+                    _reservedLeases.Clear();
+
+                    foreach (Lease reservedLease in value)
+                        _reservedLeases.TryAdd(reservedLease.ClientIdentifier, reservedLease);
                 }
             }
         }
