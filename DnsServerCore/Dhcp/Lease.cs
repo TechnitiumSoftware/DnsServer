@@ -1,6 +1,6 @@
 ﻿/*
 Technitium DNS Server
-Copyright (C) 2019  Shreyas Zare (shreyas@technitium.com)
+Copyright (C) 2020  Shreyas Zare (shreyas@technitium.com)
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -65,7 +65,7 @@ namespace DnsServerCore.Dhcp
         }
 
         internal Lease(LeaseType type, string hostName, byte[] hardwareAddress, IPAddress address, string comments)
-            : this(type, new ClientIdentifierOption(1, hardwareAddress), hostName, hardwareAddress, address, comments, 0)
+            : this(type, new ClientIdentifierOption((byte)DhcpMessageHardwareAddressType.Ethernet, hardwareAddress), hostName, hardwareAddress, address, comments, 0)
         { }
 
         internal Lease(LeaseType type, string hostName, string hardwareAddress, IPAddress address, string comments)
