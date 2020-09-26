@@ -578,8 +578,6 @@ namespace DnsServerCore.Dhcp
 
         private Scope FindScope(DhcpMessage request, IPAddress remoteAddress, IPPacketInformation ipPacketInformation)
         {
-            bool broadcast;
-
             if (request.RelayAgentIpAddress.Equals(IPAddress.Any))
             {
                 //no relay agent
@@ -588,39 +586,32 @@ namespace DnsServerCore.Dhcp
                     if (!ipPacketInformation.Address.Equals(IPAddress.Broadcast))
                         return null; //message destination address must be broadcast address
 
-                    broadcast = true; //broadcast request
+                    //broadcast request
+                    foreach (KeyValuePair<string, Scope> scope in _scopes)
+                    {
+                        if (scope.Value.Enabled && (scope.Value.InterfaceIndex == ipPacketInformation.Interface))
+                            return scope.Value;
+                    }
                 }
                 else
                 {
                     if (!remoteAddress.Equals(request.ClientIpAddress))
                         return null; //client ip must match udp src addr
 
-                    broadcast = false; //unicast request
+                    //unicast request
+                    foreach (KeyValuePair<string, Scope> scope in _scopes)
+                    {
+                        if (scope.Value.Enabled && (scope.Value.IsAddressInRange(remoteAddress)))
+                            return scope.Value;
+                    }
                 }
             }
             else
             {
                 //relay agent unicast
-
-                if (!remoteAddress.Equals(request.RelayAgentIpAddress))
-                    return null; //relay ip must match udp src addr
-
-                broadcast = false; //unicast request
-            }
-
-            if (broadcast)
-            {
                 foreach (KeyValuePair<string, Scope> scope in _scopes)
                 {
-                    if (scope.Value.Enabled && (scope.Value.InterfaceIndex == ipPacketInformation.Interface))
-                        return scope.Value;
-                }
-            }
-            else
-            {
-                foreach (KeyValuePair<string, Scope> scope in _scopes)
-                {
-                    if (scope.Value.Enabled && (scope.Value.IsAddressInRange(remoteAddress)))
+                    if (scope.Value.Enabled && (scope.Value.IsAddressInRange(request.RelayAgentIpAddress)))
                         return scope.Value;
                 }
             }
