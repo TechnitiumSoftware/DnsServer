@@ -3590,8 +3590,11 @@ namespace DnsServerCore
                 //validate scope address
                 foreach (Scope existingScope in _dhcpServer.Scopes)
                 {
+                    if (existingScope.Equals(scope))
+                        continue;
+
                     if (existingScope.IsAddressInRange(startingAddress) || existingScope.IsAddressInRange(endingAddress))
-                        throw new DhcpServerException("Scope with overlapping range already exists.");
+                        throw new DhcpServerException("Scope with overlapping range already exists: " + existingScope.StartingAddress.ToString() + "-" + existingScope.EndingAddress.ToString());
                 }
 
                 scope.ChangeNetwork(startingAddress, endingAddress, IPAddress.Parse(strSubnetMask));

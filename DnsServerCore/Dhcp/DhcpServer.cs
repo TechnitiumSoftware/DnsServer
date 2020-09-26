@@ -882,7 +882,7 @@ namespace DnsServerCore.Dhcp
             foreach (Scope existingScope in _scopes.Values)
             {
                 if (existingScope.IsAddressInRange(scope.StartingAddress) || existingScope.IsAddressInRange(scope.EndingAddress))
-                    throw new DhcpServerException("Scope with overlapping range already exists.");
+                    throw new DhcpServerException("Scope with overlapping range already exists: " + existingScope.StartingAddress.ToString() + "-" + existingScope.EndingAddress.ToString());
             }
 
             if (!_scopes.TryAdd(scope.Name, scope))
