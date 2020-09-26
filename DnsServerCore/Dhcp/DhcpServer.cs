@@ -65,14 +65,11 @@ namespace DnsServerCore.Dhcp
         readonly string _scopesFolder;
         LogManager _log;
 
-        readonly ConcurrentDictionary<IPAddress, Socket> _udpListeners = new ConcurrentDictionary<IPAddress, Socket>();
+        readonly ConcurrentDictionary<IPAddress, UdpListener> _udpListeners = new ConcurrentDictionary<IPAddress, UdpListener>();
 
         readonly ConcurrentDictionary<string, Scope> _scopes = new ConcurrentDictionary<string, Scope>();
 
         AuthZoneManager _authZoneManager;
-
-        int _activeScopeCount = 0;
-        readonly object _activeScopeLock = new object();
 
         volatile ServiceState _state = ServiceState.Stopped;
 
@@ -262,8 +259,12 @@ namespace DnsServerCore.Dhcp
                     }
                     else
                     {
+                        Socket udpSocket;
+
                         //send response as broadcast on port 68 on appropriate interface bound socket
-                        if (!_udpListeners.TryGetValue(response.NextServerIpAddress, out Socket udpSocket))
+                        if (_udpListeners.TryGetValue(response.NextServerIpAddress, out UdpListener listener))
+                            udpSocket = listener.Socket; //found scope specific socket
+                        else
                             udpSocket = udpListener; //no appropriate socket found so use default socket
 
                         await udpSocket.SendToAsync(sendBuffer, 0, (int)sendBufferStream.Position, new IPEndPoint(IPAddress.Broadcast, 68), SocketFlags.DontRoute); //no routing for broadcast
@@ -408,16 +409,11 @@ namespace DnsServerCore.Dhcp
                             log.Write(remoteEP, "DHCP Server leased IP address [" + leaseOffer.Address.ToString() + "] to " + request.GetClientFullIdentifier() + ".");
 
                         //update hostname in reserved leases
-                        if ((request.HostName != null) && (scope.ReservedLeases != null))
+                        if (request.HostName != null)
                         {
-                            foreach (Lease reservedLease in scope.ReservedLeases)
-                            {
-                                if (reservedLease.ClientIdentifier.Equals(leaseOffer.ClientIdentifier))
-                                {
-                                    reservedLease.SetHostName(request.HostName.HostName);
-                                    break;
-                                }
-                            }
+                            Lease reservedLease = scope.GetReservedLease(leaseOffer.ClientIdentifier);
+                            if (reservedLease != null)
+                                reservedLease.SetHostName(request.HostName.HostName);
                         }
 
                         if (string.IsNullOrWhiteSpace(scope.DomainName))
@@ -587,11 +583,21 @@ namespace DnsServerCore.Dhcp
                         return null; //message destination address must be broadcast address
 
                     //broadcast request
-                    foreach (KeyValuePair<string, Scope> scope in _scopes)
+                    Scope foundScope = null;
+
+                    foreach (Scope scope in _scopes.Values)
                     {
-                        if (scope.Value.Enabled && (scope.Value.InterfaceIndex == ipPacketInformation.Interface))
-                            return scope.Value;
+                        if (scope.Enabled && (scope.InterfaceIndex == ipPacketInformation.Interface))
+                        {
+                            if (scope.GetReservedLease(request) != null)
+                                return scope; //found reserved lease on this scope
+
+                            if ((foundScope == null) && !scope.AllowOnlyReservedLeases)
+                                foundScope = scope;
+                        }
                     }
+
+                    return foundScope;
                 }
                 else
                 {
@@ -599,24 +605,36 @@ namespace DnsServerCore.Dhcp
                         return null; //client ip must match udp src addr
 
                     //unicast request
-                    foreach (KeyValuePair<string, Scope> scope in _scopes)
+                    foreach (Scope scope in _scopes.Values)
                     {
-                        if (scope.Value.Enabled && (scope.Value.IsAddressInRange(remoteAddress)))
-                            return scope.Value;
+                        if (scope.Enabled && scope.IsAddressInRange(remoteAddress))
+                            return scope;
                     }
+
+                    return null;
                 }
             }
             else
             {
                 //relay agent unicast
-                foreach (KeyValuePair<string, Scope> scope in _scopes)
-                {
-                    if (scope.Value.Enabled && (scope.Value.IsAddressInRange(request.RelayAgentIpAddress)))
-                        return scope.Value;
-                }
-            }
+                Scope foundScope = null;
 
-            return null;
+                foreach (Scope scope in _scopes.Values)
+                {
+                    if (scope.Enabled && scope.InterfaceAddress.Equals(IPAddress.Any))
+                    {
+                        if (scope.GetReservedLease(request) != null)
+                            return scope; //found reserved lease on this scope
+
+                        if (!request.ClientIpAddress.Equals(IPAddress.Any) && scope.IsAddressInRange(request.ClientIpAddress))
+                            foundScope = scope; //client IP address is in scope range
+                        else if ((foundScope == null) && scope.IsAddressInRange(request.RelayAgentIpAddress))
+                            foundScope = scope; //relay agent IP address is in scope range
+                    }
+                }
+
+                return foundScope;
+            }
         }
 
         private void UpdateDnsAuthZone(bool add, Scope scope, Lease lease)
@@ -669,67 +687,79 @@ namespace DnsServerCore.Dhcp
 
         private void BindUdpListener(IPEndPoint dhcpEP)
         {
-            Socket udpListener = new Socket(AddressFamily.InterNetwork, SocketType.Dgram, ProtocolType.Udp);
-
-            try
+            UdpListener listener = _udpListeners.GetOrAdd(dhcpEP.Address, delegate (IPAddress key)
             {
-                #region this code ignores ICMP port unreachable responses which creates SocketException in ReceiveFrom()
+                Socket udpSocket = new Socket(AddressFamily.InterNetwork, SocketType.Dgram, ProtocolType.Udp);
 
-                if (Environment.OSVersion.Platform == PlatformID.Win32NT)
+                try
                 {
-                    const uint IOC_IN = 0x80000000;
-                    const uint IOC_VENDOR = 0x18000000;
-                    const uint SIO_UDP_CONNRESET = IOC_IN | IOC_VENDOR | 12;
+                    #region this code ignores ICMP port unreachable responses which creates SocketException in ReceiveFrom()
 
-                    udpListener.IOControl((IOControlCode)SIO_UDP_CONNRESET, new byte[] { Convert.ToByte(false) }, null);
+                    if (Environment.OSVersion.Platform == PlatformID.Win32NT)
+                    {
+                        const uint IOC_IN = 0x80000000;
+                        const uint IOC_VENDOR = 0x18000000;
+                        const uint SIO_UDP_CONNRESET = IOC_IN | IOC_VENDOR | 12;
+
+                        udpSocket.IOControl((IOControlCode)SIO_UDP_CONNRESET, new byte[] { Convert.ToByte(false) }, null);
+                    }
+
+                    #endregion
+
+                    //bind to interface address
+                    if (Environment.OSVersion.Platform == PlatformID.Unix)
+                        udpSocket.SetSocketOption(SocketOptionLevel.Socket, SocketOptionName.ReuseAddress, 1); //to allow binding to same port with different addresses
+
+                    udpSocket.EnableBroadcast = true;
+                    udpSocket.ExclusiveAddressUse = false;
+
+                    udpSocket.Bind(dhcpEP);
+
+                    //start reading dhcp packets
+                    Thread thread = new Thread(ReadUdpRequestAsync);
+                    thread.Name = "DHCP Read Request: " + dhcpEP.ToString();
+                    thread.IsBackground = true;
+                    thread.Start(udpSocket);
+
+                    return new UdpListener(udpSocket);
                 }
+                catch
+                {
+                    udpSocket.Dispose();
+                    throw;
+                }
+            });
 
-                #endregion
-
-                //bind to interface address
-                if (Environment.OSVersion.Platform == PlatformID.Unix)
-                    udpListener.SetSocketOption(SocketOptionLevel.Socket, SocketOptionName.ReuseAddress, 1); //to allow binding to same port with different addresses
-
-                udpListener.EnableBroadcast = true;
-                udpListener.ExclusiveAddressUse = false;
-
-                udpListener.Bind(dhcpEP);
-
-                if (!_udpListeners.TryAdd(dhcpEP.Address, udpListener))
-                    throw new DhcpServerException("Udp listener already exists for IP address: " + dhcpEP.Address);
-
-                //start reading dhcp packets
-                Thread thread = new Thread(ReadUdpRequestAsync);
-                thread.Name = "DHCP Read Request: " + dhcpEP.ToString();
-                thread.IsBackground = true;
-                thread.Start(udpListener);
-            }
-            catch
-            {
-                udpListener.Dispose();
-                throw;
-            }
+            listener.IncrementScopeCount();
         }
 
         private bool UnbindUdpListener(IPEndPoint dhcpEP)
         {
-            if (_udpListeners.TryRemove(dhcpEP.Address, out Socket socket))
+            if (_udpListeners.TryGetValue(dhcpEP.Address, out UdpListener listener))
             {
-                //issue: https://github.com/dotnet/runtime/issues/37873
+                listener.DecrementScopeCount();
 
-                if (Environment.OSVersion.Platform == PlatformID.Win32NT)
+                if (listener.ScopeCount < 1)
                 {
-                    socket.Dispose();
-                }
-                else
-                {
-                    ThreadPool.QueueUserWorkItem(delegate (object state)
+                    if (_udpListeners.TryRemove(dhcpEP.Address, out _))
                     {
-                        socket.Dispose();
-                    });
-                }
+                        //issue: https://github.com/dotnet/runtime/issues/37873
 
-                return true;
+                        if (Environment.OSVersion.Platform == PlatformID.Win32NT)
+                        {
+                            listener.Socket.Dispose();
+                        }
+                        else
+                        {
+                            ThreadPool.QueueUserWorkItem(delegate (object state)
+                            {
+                                listener.Socket.Dispose();
+                            });
+                        }
+
+                        return true;
+                    }
+                }
             }
 
             return false;
@@ -773,24 +803,16 @@ namespace DnsServerCore.Dhcp
                 if (!interfaceAddress.Equals(IPAddress.Any))
                     BindUdpListener(dhcpEP);
 
-                lock (_activeScopeLock)
+                try
                 {
-                    if (_activeScopeCount < 1)
-                    {
-                        try
-                        {
-                            BindUdpListener(_dhcpDefaultEP);
-                        }
-                        catch
-                        {
-                            if (!interfaceAddress.Equals(IPAddress.Any))
-                                UnbindUdpListener(dhcpEP);
+                    BindUdpListener(_dhcpDefaultEP);
+                }
+                catch
+                {
+                    if (!interfaceAddress.Equals(IPAddress.Any))
+                        UnbindUdpListener(dhcpEP);
 
-                            throw;
-                        }
-                    }
-
-                    _activeScopeCount++;
+                    throw;
                 }
 
                 if (_authZoneManager != null)
@@ -830,16 +852,7 @@ namespace DnsServerCore.Dhcp
                 if (!interfaceAddress.Equals(IPAddress.Any))
                     UnbindUdpListener(dhcpEP);
 
-                lock (_activeScopeLock)
-                {
-                    _activeScopeCount--;
-
-                    if (_activeScopeCount < 1)
-                    {
-                        _activeScopeCount = 0;
-                        UnbindUdpListener(_dhcpDefaultEP);
-                    }
-                }
+                UnbindUdpListener(_dhcpDefaultEP);
 
                 if (_authZoneManager != null)
                 {
@@ -866,10 +879,10 @@ namespace DnsServerCore.Dhcp
 
         private async Task LoadScopeAsync(Scope scope, bool waitForInterface)
         {
-            foreach (KeyValuePair<string, Scope> existingScope in _scopes)
+            foreach (Scope existingScope in _scopes.Values)
             {
-                if (existingScope.Value.Equals(scope))
-                    throw new DhcpServerException("Scope with same range already exists.");
+                if (existingScope.IsAddressInRange(scope.StartingAddress) || existingScope.IsAddressInRange(scope.EndingAddress))
+                    throw new DhcpServerException("Scope with overlapping range already exists.");
             }
 
             if (!_scopes.TryAdd(scope.Name, scope))
@@ -1178,5 +1191,48 @@ namespace DnsServerCore.Dhcp
         }
 
         #endregion
+
+        class UdpListener
+        {
+            #region private
+
+            readonly Socket _socket;
+            volatile int _scopeCount;
+
+            #endregion
+
+            #region constructor
+
+            public UdpListener(Socket socket)
+            {
+                _socket = socket;
+            }
+
+            #endregion
+
+            #region public
+
+            public void IncrementScopeCount()
+            {
+                Interlocked.Increment(ref _scopeCount);
+            }
+
+            public void DecrementScopeCount()
+            {
+                Interlocked.Decrement(ref _scopeCount);
+            }
+
+            #endregion
+
+            #region properties
+
+            public Socket Socket
+            { get { return _socket; } }
+
+            public int ScopeCount
+            { get { return _scopeCount; } }
+
+            #endregion
+        }
     }
 }
