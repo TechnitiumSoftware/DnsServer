@@ -3517,32 +3517,29 @@ namespace DnsServerCore
                 jsonWriter.WriteEndArray();
             }
 
-            if (scope.ReservedLeases != null)
+            jsonWriter.WritePropertyName("reservedLeases");
+            jsonWriter.WriteStartArray();
+
+            foreach (Lease reservedLease in scope.ReservedLeases)
             {
-                jsonWriter.WritePropertyName("reservedLeases");
-                jsonWriter.WriteStartArray();
+                jsonWriter.WriteStartObject();
 
-                foreach (Lease reservedLease in scope.ReservedLeases)
-                {
-                    jsonWriter.WriteStartObject();
+                jsonWriter.WritePropertyName("hostName");
+                jsonWriter.WriteValue(reservedLease.HostName);
 
-                    jsonWriter.WritePropertyName("hostName");
-                    jsonWriter.WriteValue(reservedLease.HostName);
+                jsonWriter.WritePropertyName("hardwareAddress");
+                jsonWriter.WriteValue(BitConverter.ToString(reservedLease.HardwareAddress));
 
-                    jsonWriter.WritePropertyName("hardwareAddress");
-                    jsonWriter.WriteValue(BitConverter.ToString(reservedLease.HardwareAddress));
+                jsonWriter.WritePropertyName("address");
+                jsonWriter.WriteValue(reservedLease.Address.ToString());
 
-                    jsonWriter.WritePropertyName("address");
-                    jsonWriter.WriteValue(reservedLease.Address.ToString());
+                jsonWriter.WritePropertyName("comments");
+                jsonWriter.WriteValue(reservedLease.Comments);
 
-                    jsonWriter.WritePropertyName("comments");
-                    jsonWriter.WriteValue(reservedLease.Comments);
-
-                    jsonWriter.WriteEndObject();
-                }
-
-                jsonWriter.WriteEndArray();
+                jsonWriter.WriteEndObject();
             }
+
+            jsonWriter.WriteEndArray();
 
             jsonWriter.WritePropertyName("allowOnlyReservedLeases");
             jsonWriter.WriteValue(scope.AllowOnlyReservedLeases);
@@ -3587,7 +3584,17 @@ namespace DnsServerCore
             else
             {
                 scopeExists = true;
-                scope.ChangeNetwork(IPAddress.Parse(strStartingAddress), IPAddress.Parse(strEndingAddress), IPAddress.Parse(strSubnetMask));
+                IPAddress startingAddress = IPAddress.Parse(strStartingAddress);
+                IPAddress endingAddress = IPAddress.Parse(strEndingAddress);
+
+                //validate scope address
+                foreach (Scope existingScope in _dhcpServer.Scopes)
+                {
+                    if (existingScope.IsAddressInRange(startingAddress) || existingScope.IsAddressInRange(endingAddress))
+                        throw new DhcpServerException("Scope with overlapping range already exists.");
+                }
+
+                scope.ChangeNetwork(startingAddress, endingAddress, IPAddress.Parse(strSubnetMask));
             }
 
             string strLeaseTimeDays = request.QueryString["leaseTimeDays"];
@@ -3743,22 +3750,13 @@ namespace DnsServerCore
                     for (int i = 0; i < strReservedLeaseParts.Length; i++)
                     {
                         string[] leaseParts = strReservedLeaseParts[i].Split(';');
-                        string hostname = null;
+                        Lease reservedLease = new Lease(LeaseType.Reserved, null, leaseParts[0], IPAddress.Parse(leaseParts[1]), leaseParts[2]);
 
-                        if (scope.ReservedLeases != null)
-                        {
-                            //search for current hostname
-                            foreach (Lease lease in scope.ReservedLeases)
-                            {
-                                if (BitConverter.ToString(lease.HardwareAddress) == leaseParts[0])
-                                {
-                                    hostname = lease.HostName;
-                                    break;
-                                }
-                            }
-                        }
+                        Lease existingReservedLease = scope.GetReservedLease(reservedLease.ClientIdentifier);
+                        if (existingReservedLease != null)
+                            reservedLease.SetHostName(existingReservedLease.HostName);
 
-                        reservedLeases[i] = new Lease(LeaseType.Reserved, hostname, leaseParts[0], IPAddress.Parse(leaseParts[1]), leaseParts[2]);
+                        reservedLeases[i] = reservedLease;
                     }
 
                     scope.ReservedLeases = reservedLeases;
