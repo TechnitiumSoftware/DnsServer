@@ -338,14 +338,14 @@ namespace DnsServerCore.Dhcp
                                 {
                                     //no existing lease or offer available for client
                                     //send nak
-                                    return new DhcpMessage(request, IPAddress.Any, serverIdentifierAddress, new DhcpOption[] { new DhcpMessageTypeOption(DhcpMessageType.Nak), new ServerIdentifierOption(scope.InterfaceAddress), DhcpOption.CreateEndOption() });
+                                    return new DhcpMessage(request, IPAddress.Any, IPAddress.Any, new DhcpOption[] { new DhcpMessageTypeOption(DhcpMessageType.Nak), new ServerIdentifierOption(scope.InterfaceAddress), DhcpOption.CreateEndOption() });
                                 }
 
                                 if (!request.ClientIpAddress.Equals(leaseOffer.Address))
                                 {
                                     //client ip is incorrect
                                     //send nak
-                                    return new DhcpMessage(request, IPAddress.Any, serverIdentifierAddress, new DhcpOption[] { new DhcpMessageTypeOption(DhcpMessageType.Nak), new ServerIdentifierOption(scope.InterfaceAddress), DhcpOption.CreateEndOption() });
+                                    return new DhcpMessage(request, IPAddress.Any, IPAddress.Any, new DhcpOption[] { new DhcpMessageTypeOption(DhcpMessageType.Nak), new ServerIdentifierOption(scope.InterfaceAddress), DhcpOption.CreateEndOption() });
                                 }
                             }
                             else
@@ -357,14 +357,14 @@ namespace DnsServerCore.Dhcp
                                 {
                                     //no existing lease or offer available for client
                                     //send nak
-                                    return new DhcpMessage(request, IPAddress.Any, serverIdentifierAddress, new DhcpOption[] { new DhcpMessageTypeOption(DhcpMessageType.Nak), new ServerIdentifierOption(scope.InterfaceAddress), DhcpOption.CreateEndOption() });
+                                    return new DhcpMessage(request, IPAddress.Any, IPAddress.Any, new DhcpOption[] { new DhcpMessageTypeOption(DhcpMessageType.Nak), new ServerIdentifierOption(scope.InterfaceAddress), DhcpOption.CreateEndOption() });
                                 }
 
                                 if (!request.RequestedIpAddress.Address.Equals(leaseOffer.Address))
                                 {
                                     //the client's notion of its IP address is not correct - RFC 2131
                                     //send nak
-                                    return new DhcpMessage(request, IPAddress.Any, serverIdentifierAddress, new DhcpOption[] { new DhcpMessageTypeOption(DhcpMessageType.Nak), new ServerIdentifierOption(scope.InterfaceAddress), DhcpOption.CreateEndOption() });
+                                    return new DhcpMessage(request, IPAddress.Any, IPAddress.Any, new DhcpOption[] { new DhcpMessageTypeOption(DhcpMessageType.Nak), new ServerIdentifierOption(scope.InterfaceAddress), DhcpOption.CreateEndOption() });
                                 }
                             }
                         }
@@ -383,14 +383,14 @@ namespace DnsServerCore.Dhcp
                             {
                                 //no existing lease or offer available for client
                                 //send nak
-                                return new DhcpMessage(request, IPAddress.Any, serverIdentifierAddress, new DhcpOption[] { new DhcpMessageTypeOption(DhcpMessageType.Nak), new ServerIdentifierOption(scope.InterfaceAddress), DhcpOption.CreateEndOption() });
+                                return new DhcpMessage(request, IPAddress.Any, IPAddress.Any, new DhcpOption[] { new DhcpMessageTypeOption(DhcpMessageType.Nak), new ServerIdentifierOption(scope.InterfaceAddress), DhcpOption.CreateEndOption() });
                             }
 
                             if (!request.RequestedIpAddress.Address.Equals(leaseOffer.Address))
                             {
                                 //requested ip is incorrect
                                 //send nak
-                                return new DhcpMessage(request, IPAddress.Any, serverIdentifierAddress, new DhcpOption[] { new DhcpMessageTypeOption(DhcpMessageType.Nak), new ServerIdentifierOption(scope.InterfaceAddress), DhcpOption.CreateEndOption() });
+                                return new DhcpMessage(request, IPAddress.Any, IPAddress.Any, new DhcpOption[] { new DhcpMessageTypeOption(DhcpMessageType.Nak), new ServerIdentifierOption(scope.InterfaceAddress), DhcpOption.CreateEndOption() });
                             }
                         }
 
