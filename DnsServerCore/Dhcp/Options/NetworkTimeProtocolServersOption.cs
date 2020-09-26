@@ -1,6 +1,6 @@
 ﻿/*
 Technitium DNS Server
-Copyright (C) 2019  Shreyas Zare (shreyas@technitium.com)
+Copyright (C) 2020  Shreyas Zare (shreyas@technitium.com)
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -17,6 +17,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 */
 
+using System.Collections.Generic;
 using System.IO;
 using System.Net;
 using TechnitiumLibrary.IO;
@@ -27,13 +28,13 @@ namespace DnsServerCore.Dhcp.Options
     {
         #region variables
 
-        IPAddress[] _addresses;
+        ICollection<IPAddress> _addresses;
 
         #endregion
 
         #region constructor
 
-        public NetworkTimeProtocolServersOption(IPAddress[] addresses)
+        public NetworkTimeProtocolServersOption(ICollection<IPAddress> addresses)
             : base(DhcpOptionCode.NetworkTimeProtocolServers)
         {
             _addresses = addresses;
@@ -52,10 +53,12 @@ namespace DnsServerCore.Dhcp.Options
             if ((s.Length % 4 != 0) || (s.Length < 4))
                 throw new InvalidDataException();
 
-            _addresses = new IPAddress[s.Length / 4];
+            IPAddress[] addresses = new IPAddress[s.Length / 4];
 
-            for (int i = 0; i < _addresses.Length; i++)
-                _addresses[i] = new IPAddress(s.ReadBytes(4));
+            for (int i = 0; i < addresses.Length; i++)
+                addresses[i] = new IPAddress(s.ReadBytes(4));
+
+            _addresses = addresses;
         }
 
         protected override void WriteOptionValue(Stream s)
@@ -68,7 +71,7 @@ namespace DnsServerCore.Dhcp.Options
 
         #region properties
 
-        public IPAddress[] Addresses
+        public ICollection<IPAddress> Addresses
         { get { return _addresses; } }
 
         #endregion
