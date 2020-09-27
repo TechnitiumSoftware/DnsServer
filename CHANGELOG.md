@@ -1,5 +1,12 @@
 # Technitium DNS Server Change Log
 
+## Version 5.3
+Release Date: 26 September 2020
+
+- Fixed issues with DHCP server that caused it to not work correctly with relay agents.
+- Updated DHCP server to support multiple scopes to work on a single network interface allowing it to provide different options for groups of devices.
+- Multiple other minor bug fixes and improvements.
+
 ## Version 5.2
 Release Date: 6 September 2020
 
