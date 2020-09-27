@@ -488,7 +488,7 @@
             {
             "AssemblyRegister" = "3:1"
             "AssemblyIsInGAC" = "11:FALSE"
-            "AssemblyAsmDisplayName" = "8:DnsServerCore, Version=5.1.1.0, Culture=neutral, processorArchitecture=MSIL"
+            "AssemblyAsmDisplayName" = "8:DnsServerCore, Version=5.2.0.0, Culture=neutral, processorArchitecture=MSIL"
                 "ScatterAssemblies"
                 {
                     "_4744230694CEBFA14C02D34630CBE800"
@@ -612,7 +612,7 @@
             {
             "AssemblyRegister" = "3:1"
             "AssemblyIsInGAC" = "11:FALSE"
-            "AssemblyAsmDisplayName" = "8:TechnitiumLibrary.Net, Version=4.0.2.0, Culture=neutral, processorArchitecture=MSIL"
+            "AssemblyAsmDisplayName" = "8:TechnitiumLibrary.Net, Version=4.1.0.0, Culture=neutral, processorArchitecture=MSIL"
                 "ScatterAssemblies"
                 {
                     "_9E2B74BD683FB4419D3D83F8077F2EB9"
@@ -674,7 +674,7 @@
             {
             "AssemblyRegister" = "3:1"
             "AssemblyIsInGAC" = "11:FALSE"
-            "AssemblyAsmDisplayName" = "8:TechnitiumLibrary.Net, Version=4.0.2.0, Culture=neutral, processorArchitecture=MSIL"
+            "AssemblyAsmDisplayName" = "8:TechnitiumLibrary.Net, Version=4.1.0.0, Culture=neutral, processorArchitecture=MSIL"
                 "ScatterAssemblies"
                 {
                     "_BB60BA89D1895F2892DFDF8733540B69"
@@ -892,15 +892,15 @@
         {
         "Name" = "8:Microsoft Visual Studio"
         "ProductName" = "8:DNS Server"
-        "ProductCode" = "8:{E9A50C36-D04E-48EB-8B83-C6896C49B4F7}"
-        "PackageCode" = "8:{4B7E4AC1-8663-4A43-A842-9CE8909FCCA5}"
+        "ProductCode" = "8:{5C42C860-871F-42CE-BD73-7B7541842532}"
+        "PackageCode" = "8:{DFBAD2F9-B56A-4C8A-A411-F94ADCC0512D}"
         "UpgradeCode" = "8:{ED5F64A5-EFD9-4A95-AA7C-4B8447343BD4}"
         "AspNetVersion" = "8:4.0.30319.0"
         "RestartWWWService" = "11:FALSE"
         "RemovePreviousVersions" = "11:TRUE"
         "DetectNewerInstalledVersion" = "11:TRUE"
         "InstallAllUsers" = "11:FALSE"
-        "ProductVersion" = "8:5.2"
+        "ProductVersion" = "8:5.3"
         "Manufacturer" = "8:Technitium"
         "ARPHELPTELEPHONE" = "8:"
         "ARPHELPLINK" = "8:https://technitium.com/dns/"
@@ -1442,7 +1442,7 @@
         {
             "{5259A561-127C-4D43-A0A1-72F10C7B3BF8}:_46335E05914C4608B60971B5A4045C8C"
             {
-            "SourcePath" = "8:..\\DnsService\\obj\\Debug\\DnsService.exe"
+            "SourcePath" = "8:..\\DnsService\\obj\\Release\\DnsService.exe"
             "TargetName" = "8:"
             "Tag" = "8:"
             "Folder" = "8:_92D8D371EEF34E8A92831042A33F621E"
@@ -1498,7 +1498,7 @@
             }
             "{5259A561-127C-4D43-A0A1-72F10C7B3BF8}:_EDFDAFBF89F14D60A736CCCB40035B18"
             {
-            "SourcePath" = "8:..\\DnsServerSystemTrayApp\\obj\\Debug\\DnsServerSystemTrayApp.exe"
+            "SourcePath" = "8:..\\DnsServerSystemTrayApp\\obj\\Release\\DnsServerSystemTrayApp.exe"
             "TargetName" = "8:"
             "Tag" = "8:"
             "Folder" = "8:_92D8D371EEF34E8A92831042A33F621E"

@@ -6,15 +6,15 @@
     <OutputType>Exe</OutputType>
     <TargetFramework>netcoreapp3.1</TargetFramework>
     <ApplicationIcon>logo2.ico</ApplicationIcon>
-    <Version>5.2</Version>
+    <Version>5.3</Version>
     <Company>Technitium</Company>
     <Product>Technitium DNS Server</Product>
     <Authors>Shreyas Zare</Authors>
     <AssemblyName>DnsServerApp</AssemblyName>
     <RootNamespace>DnsServerApp</RootNamespace>
     <StartupObject>DnsServerApp.Program</StartupObject>
-    <AssemblyVersion>5.2.0.0</AssemblyVersion>
-    <FileVersion>5.2.0.0</FileVersion>
+    <AssemblyVersion>5.3.0.0</AssemblyVersion>
+    <FileVersion>5.3.0.0</FileVersion>
     <PackageProjectUrl>https://technitium.com/dns/</PackageProjectUrl>
     <RepositoryUrl>https://github.com/TechnitiumSoftware/DnsServer</RepositoryUrl>
   </PropertyGroup>
