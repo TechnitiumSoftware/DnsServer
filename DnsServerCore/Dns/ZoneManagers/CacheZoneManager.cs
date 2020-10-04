@@ -124,7 +124,7 @@ namespace DnsServerCore.Dns.ZoneManagers
             }
         }
 
-        public void Flush()
+        public override void Flush()
         {
             _root.Clear();
         }
