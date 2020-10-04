@@ -610,7 +610,7 @@ namespace DnsServerCore.Dhcp
                     //unicast request
                     foreach (Scope scope in _scopes.Values)
                     {
-                        if (scope.Enabled && scope.IsAddressInRange(remoteAddress))
+                        if (scope.Enabled && scope.IsAddressInRange(request.ClientIpAddress))
                             return scope;
                     }
 
@@ -624,15 +624,16 @@ namespace DnsServerCore.Dhcp
 
                 foreach (Scope scope in _scopes.Values)
                 {
-                    if (scope.Enabled && scope.InterfaceAddress.Equals(IPAddress.Any))
+                    if (scope.Enabled && scope.InterfaceAddress.Equals(IPAddress.Any) && scope.IsAddressInNetwork(request.RelayAgentIpAddress))
                     {
                         if (scope.GetReservedLease(request) != null)
                             return scope; //found reserved lease on this scope
 
                         if (!request.ClientIpAddress.Equals(IPAddress.Any) && scope.IsAddressInRange(request.ClientIpAddress))
-                            foundScope = scope; //client IP address is in scope range
-                        else if ((foundScope == null) && scope.IsAddressInRange(request.RelayAgentIpAddress))
-                            foundScope = scope; //relay agent IP address is in scope range
+                            return scope; //client IP address is in scope range
+
+                        if ((foundScope == null) && !scope.AllowOnlyReservedLeases)
+                            foundScope = scope;
                     }
                 }
 
