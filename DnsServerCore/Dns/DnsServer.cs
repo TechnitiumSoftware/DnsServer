@@ -94,6 +94,7 @@ namespace DnsServerCore.Dns
         NetProxy _proxy;
         IReadOnlyList<NameServerAddress> _forwarders;
         bool _preferIPv6;
+        bool _randomizeName;
         int _forwarderRetries = 3;
         int _resolverRetries = 5;
         int _forwarderTimeout = 4000;
@@ -1537,7 +1538,7 @@ namespace DnsServerCore.Dns
                         foreach (NameServerAddress nameServerAddress in forwarders)
                         {
                             if (nameServerAddress.IsIPEndPointStale) //refresh forwarder IPEndPoint if stale
-                                await nameServerAddress.RecursiveResolveIPAddressAsync(_dnsCache, null, _preferIPv6, _resolverRetries, _resolverTimeout);
+                                await nameServerAddress.RecursiveResolveIPAddressAsync(_dnsCache, null, _preferIPv6, _randomizeName, _resolverRetries, _resolverTimeout);
                         }
                     }
 
@@ -1546,6 +1547,7 @@ namespace DnsServerCore.Dns
 
                     dnsClient.Proxy = _proxy;
                     dnsClient.PreferIPv6 = _preferIPv6;
+                    dnsClient.RandomizeName = _randomizeName;
                     dnsClient.Retries = _forwarderRetries;
                     dnsClient.Timeout = _forwarderTimeout;
                     dnsClient.Concurrency = _forwarderConcurrency;
@@ -1566,7 +1568,7 @@ namespace DnsServerCore.Dns
                     else
                         dnsCache = _dnsCache;
 
-                    DnsDatagram response = await DnsClient.RecursiveResolveAsync(request.Question[0], viaNameServers, dnsCache, _proxy, _preferIPv6, _resolverRetries, _resolverTimeout, _resolverMaxStackCount);
+                    DnsDatagram response = await DnsClient.RecursiveResolveAsync(request.Question[0], viaNameServers, dnsCache, _proxy, _preferIPv6, _randomizeName, _resolverRetries, _resolverTimeout, _resolverMaxStackCount);
                     taskCompletionSource.SetResult(response);
                 }
             }
@@ -2434,6 +2436,12 @@ namespace DnsServerCore.Dns
         {
             get { return _preferIPv6; }
             set { _preferIPv6 = value; }
+        }
+
+        public bool RandomizeName
+        {
+            get { return _randomizeName; }
+            set { _randomizeName = value; }
         }
 
         public int ForwarderRetries
