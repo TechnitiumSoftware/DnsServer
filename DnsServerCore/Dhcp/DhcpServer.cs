@@ -347,6 +347,26 @@ namespace DnsServerCore.Dhcp
                                     //send nak
                                     return new DhcpMessage(request, IPAddress.Any, IPAddress.Any, new DhcpOption[] { new DhcpMessageTypeOption(DhcpMessageType.Nak), new ServerIdentifierOption(scope.InterfaceAddress), DhcpOption.CreateEndOption() });
                                 }
+
+                                Lease reservedLease = scope.GetReservedLease(request);
+                                if (reservedLease == null)
+                                {
+                                    if (leaseOffer.Type == LeaseType.Reserved)
+                                    {
+                                        //client's reserved has been removed so release the current lease and send NAK to allow it to get new allocation
+                                        scope.ReleaseLease(leaseOffer);
+                                        return new DhcpMessage(request, IPAddress.Any, IPAddress.Any, new DhcpOption[] { new DhcpMessageTypeOption(DhcpMessageType.Nak), new ServerIdentifierOption(scope.InterfaceAddress), DhcpOption.CreateEndOption() });
+                                    }
+                                }
+                                else
+                                {
+                                    if (!reservedLease.Address.Equals(leaseOffer.Address))
+                                    {
+                                        //client has a new reserved lease so release the current lease and send NAK to allow it to get new allocation
+                                        scope.ReleaseLease(leaseOffer);
+                                        return new DhcpMessage(request, IPAddress.Any, IPAddress.Any, new DhcpOption[] { new DhcpMessageTypeOption(DhcpMessageType.Nak), new ServerIdentifierOption(scope.InterfaceAddress), DhcpOption.CreateEndOption() });
+                                    }
+                                }
                             }
                             else
                             {
