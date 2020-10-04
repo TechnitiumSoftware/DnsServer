@@ -50,6 +50,7 @@ namespace DnsServerCore.Dhcp
         //dhcp options
         string _domainName;
         uint _dnsTtl = 900;
+        IPAddress _nextServerAddress;
         IPAddress _routerAddress;
         bool _useThisDnsServer;
         ICollection<IPAddress> _dnsServers;
@@ -95,9 +96,11 @@ namespace DnsServerCore.Dhcp
             if (Encoding.ASCII.GetString(bR.ReadBytes(2)) != "SC")
                 throw new InvalidDataException("DhcpServer scope file format is invalid.");
 
-            switch (bR.ReadByte())
+            byte version = bR.ReadByte();
+            switch (version)
             {
                 case 1:
+                case 2:
                     _name = bR.ReadShortString();
                     _enabled = bR.ReadBoolean();
 
@@ -114,6 +117,13 @@ namespace DnsServerCore.Dhcp
                         _domainName = null;
 
                     _dnsTtl = bR.ReadUInt32();
+
+                    if (version > 1)
+                    {
+                        _nextServerAddress = IPAddressExtension.Parse(bR);
+                        if (_nextServerAddress.Equals(IPAddress.Any))
+                            _nextServerAddress = null;
+                    }
 
                     _routerAddress = IPAddressExtension.Parse(bR);
                     if (_routerAddress.Equals(IPAddress.Any))
@@ -879,7 +889,7 @@ namespace DnsServerCore.Dhcp
         public void WriteTo(BinaryWriter bW)
         {
             bW.Write(Encoding.ASCII.GetBytes("SC"));
-            bW.Write((byte)1); //version
+            bW.Write((byte)2); //version
 
             bW.WriteShortString(_name);
             bW.Write(_enabled);
@@ -897,6 +907,11 @@ namespace DnsServerCore.Dhcp
                 bW.WriteShortString(_domainName);
 
             bW.Write(_dnsTtl);
+
+            if (_nextServerAddress == null)
+                IPAddress.Any.WriteTo(bW);
+            else
+                _nextServerAddress.WriteTo(bW);
 
             if (_routerAddress == null)
                 IPAddress.Any.WriteTo(bW);
@@ -1109,6 +1124,12 @@ namespace DnsServerCore.Dhcp
         {
             get { return _dnsTtl; }
             set { _dnsTtl = value; }
+        }
+
+        public IPAddress NextServerAddress
+        {
+            get { return _nextServerAddress; }
+            set { _nextServerAddress = value; }
         }
 
         public IPAddress RouterAddress

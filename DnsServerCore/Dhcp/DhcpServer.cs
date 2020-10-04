@@ -255,7 +255,7 @@ namespace DnsServerCore.Dhcp
                         Socket udpSocket;
 
                         //send response as broadcast on port 68 on appropriate interface bound socket
-                        if (_udpListeners.TryGetValue(response.NextServerIpAddress, out UdpListener listener))
+                        if (_udpListeners.TryGetValue(response.ServerIdentifier.Address, out UdpListener listener))
                             udpSocket = listener.Socket; //found scope specific socket
                         else
                             udpSocket = udpListener; //no appropriate socket found so use default socket
@@ -310,7 +310,7 @@ namespace DnsServerCore.Dhcp
                         if (log != null)
                             log.Write(remoteEP, "DHCP Server offered IP address [" + offer.Address.ToString() + "] to " + request.GetClientFullIdentifier() + ".");
 
-                        return new DhcpMessage(request, offer.Address, serverIdentifierAddress, options);
+                        return new DhcpMessage(request, offer.Address, scope.NextServerAddress ?? serverIdentifierAddress, options);
                     }
 
                 case DhcpMessageType.Request:
@@ -465,7 +465,7 @@ namespace DnsServerCore.Dhcp
                             }
                         }
 
-                        return new DhcpMessage(request, leaseOffer.Address, serverIdentifierAddress, options);
+                        return new DhcpMessage(request, leaseOffer.Address, scope.NextServerAddress ?? serverIdentifierAddress, options);
                     }
 
                 case DhcpMessageType.Decline:
@@ -587,7 +587,7 @@ namespace DnsServerCore.Dhcp
                                 UpdateDnsAuthZone(true, scope, clientDomainName, request.ClientIpAddress);
                         }
 
-                        return new DhcpMessage(request, IPAddress.Any, serverIdentifierAddress, options);
+                        return new DhcpMessage(request, IPAddress.Any, scope.NextServerAddress ?? serverIdentifierAddress, options);
                     }
 
                 default:

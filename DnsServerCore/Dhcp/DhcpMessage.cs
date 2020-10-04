@@ -137,10 +137,19 @@ namespace DnsServerCore.Dhcp
             _file = new byte[128];
 
             _options = options;
+
+            foreach (DhcpOption option in _options)
+            {
+                if (option.Code == DhcpOptionCode.ServerIdentifier)
+                {
+                    _serverIdentifier = option as ServerIdentifierOption;
+                    break;
+                }
+            }
         }
 
         public DhcpMessage(DhcpMessage request, IPAddress yiaddr, IPAddress siaddr, IReadOnlyCollection<DhcpOption> options)
-            : this(DhcpMessageOpCode.BootReply,request.HardwareAddressType, request.TransactionId, request.SecondsElapsed, request.Flags, request.ClientIpAddress, yiaddr, siaddr, request.RelayAgentIpAddress, request.ClientHardwareAddress, options)
+            : this(DhcpMessageOpCode.BootReply, request.HardwareAddressType, request.TransactionId, request.SecondsElapsed, request.Flags, request.ClientIpAddress, yiaddr, siaddr, request.RelayAgentIpAddress, request.ClientHardwareAddress, options)
         { }
 
         public DhcpMessage(Stream s)
