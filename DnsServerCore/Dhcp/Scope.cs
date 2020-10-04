@@ -1186,7 +1186,12 @@ namespace DnsServerCore.Dhcp
 
         public ICollection<Lease> ReservedLeases
         {
-            get { return _reservedLeases.Values; }
+            get
+            {
+                List<Lease> leases = new List<Lease>(_reservedLeases.Values);
+                leases.Sort();
+                return leases;
+            }
             set
             {
                 if (value == null)
