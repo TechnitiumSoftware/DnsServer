@@ -515,6 +515,15 @@ namespace DnsServerCore.Dhcp
             return IsAddressInRange(address, _startingAddress, _endingAddress);
         }
 
+        internal bool IsAddressInNetwork(IPAddress address)
+        {
+            uint addressNumber = address.ConvertIpToNumber();
+            uint networkAddressNumber = _networkAddress.ConvertIpToNumber();
+            uint broadcastAddressNumber = _broadcastAddress.ConvertIpToNumber();
+
+            return (networkAddressNumber < addressNumber) && (addressNumber < broadcastAddressNumber);
+        }
+
         internal Lease GetReservedLease(DhcpMessage request)
         {
             return GetReservedLease(new ClientIdentifierOption((byte)request.HardwareAddressType, request.ClientHardwareAddress));
