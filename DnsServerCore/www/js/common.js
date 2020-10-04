@@ -1,6 +1,6 @@
 ﻿/*
 Technitium DNS Server
-Copyright (C) 2019  Shreyas Zare (shreyas@technitium.com)
+Copyright (C) 2020  Shreyas Zare (shreyas@technitium.com)
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -284,13 +284,13 @@ function sortTable(tableId, n) {
             /* Check if the two rows should switch place,
             based on the direction, asc or desc: */
             if (dir == "asc") {
-                if (x.innerHTML.toLowerCase() > y.innerHTML.toLowerCase()) {
+                if (x.innerText.toLowerCase() > y.innerText.toLowerCase()) {
                     // If so, mark as a switch and break the loop:
                     shouldSwitch = true;
                     break;
                 }
             } else if (dir == "desc") {
-                if (x.innerHTML.toLowerCase() < y.innerHTML.toLowerCase()) {
+                if (x.innerText.toLowerCase() < y.innerText.toLowerCase()) {
                     // If so, mark as a switch and break the loop:
                     shouldSwitch = true;
                     break;
