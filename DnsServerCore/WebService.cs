@@ -911,6 +911,9 @@ namespace DnsServerCore
             jsonWriter.WritePropertyName("allowRecursionOnlyForPrivateNetworks");
             jsonWriter.WriteValue(_dnsServer.AllowRecursionOnlyForPrivateNetworks);
 
+            jsonWriter.WritePropertyName("randomizeName");
+            jsonWriter.WriteValue(_dnsServer.RandomizeName);
+
             jsonWriter.WritePropertyName("cachePrefetchEligibility");
             jsonWriter.WriteValue(_dnsServer.CachePrefetchEligibility);
 
@@ -1093,6 +1096,10 @@ namespace DnsServerCore
             string strAllowRecursionOnlyForPrivateNetworks = request.QueryString["allowRecursionOnlyForPrivateNetworks"];
             if (!string.IsNullOrEmpty(strAllowRecursionOnlyForPrivateNetworks))
                 _dnsServer.AllowRecursionOnlyForPrivateNetworks = bool.Parse(strAllowRecursionOnlyForPrivateNetworks);
+
+            string strRandomizeName = request.QueryString["randomizeName"];
+            if (!string.IsNullOrEmpty(strRandomizeName))
+                _dnsServer.RandomizeName = bool.Parse(strRandomizeName);
 
             string strCachePrefetchEligibility = request.QueryString["cachePrefetchEligibility"];
             if (!string.IsNullOrEmpty(strCachePrefetchEligibility))
@@ -3101,6 +3108,7 @@ namespace DnsServerCore
 
             NetProxy proxy = _dnsServer.Proxy;
             bool preferIPv6 = _dnsServer.PreferIPv6;
+            bool randomizeName = _dnsServer.RandomizeName;
             DnsTransportProtocol protocol = (DnsTransportProtocol)Enum.Parse(typeof(DnsTransportProtocol), strProtocol, true);
             const int RETRIES = 1;
             const int TIMEOUT = 10000;
@@ -3119,7 +3127,7 @@ namespace DnsServerCore
                 else
                     question = new DnsQuestionRecord(domain, type, DnsClass.IN);
 
-                dnsResponse = await DnsClient.RecursiveResolveAsync(question, null, null, proxy, preferIPv6, RETRIES, TIMEOUT);
+                dnsResponse = await DnsClient.RecursiveResolveAsync(question, null, null, proxy, preferIPv6, randomizeName, RETRIES, TIMEOUT);
             }
             else
             {
@@ -3167,9 +3175,9 @@ namespace DnsServerCore
                         if (proxy == null)
                         {
                             if (_dnsServer.AllowRecursion)
-                                await nameServer.ResolveIPAddressAsync(new NameServerAddress[] { _dnsServer.ThisServer }, proxy, preferIPv6, RETRIES, TIMEOUT);
+                                await nameServer.ResolveIPAddressAsync(new NameServerAddress[] { _dnsServer.ThisServer }, proxy, preferIPv6, randomizeName, RETRIES, TIMEOUT);
                             else
-                                await nameServer.RecursiveResolveIPAddressAsync(_dnsServer.DnsCache, proxy, preferIPv6, RETRIES, TIMEOUT);
+                                await nameServer.RecursiveResolveIPAddressAsync(_dnsServer.DnsCache, proxy, preferIPv6, randomizeName, RETRIES, TIMEOUT);
                         }
                     }
                     else if (protocol != DnsTransportProtocol.Tls)
@@ -3177,16 +3185,16 @@ namespace DnsServerCore
                         try
                         {
                             if (_dnsServer.AllowRecursion)
-                                await nameServer.ResolveDomainNameAsync(new NameServerAddress[] { _dnsServer.ThisServer }, proxy, preferIPv6, RETRIES, TIMEOUT);
+                                await nameServer.ResolveDomainNameAsync(new NameServerAddress[] { _dnsServer.ThisServer }, proxy, preferIPv6, randomizeName, RETRIES, TIMEOUT);
                             else
-                                await nameServer.RecursiveResolveDomainNameAsync(_dnsServer.DnsCache, proxy, preferIPv6, RETRIES, TIMEOUT);
+                                await nameServer.RecursiveResolveDomainNameAsync(_dnsServer.DnsCache, proxy, preferIPv6, randomizeName, RETRIES, TIMEOUT);
                         }
                         catch
                         { }
                     }
                 }
 
-                dnsResponse = await new DnsClient(nameServer) { Proxy = proxy, PreferIPv6 = preferIPv6, Retries = RETRIES, Timeout = TIMEOUT }.ResolveAsync(domain, type);
+                dnsResponse = await new DnsClient(nameServer) { Proxy = proxy, PreferIPv6 = preferIPv6, RandomizeName = randomizeName, Retries = RETRIES, Timeout = TIMEOUT }.ResolveAsync(domain, type);
             }
 
             if (importRecords)
@@ -3430,6 +3438,12 @@ namespace DnsServerCore
             jsonWriter.WritePropertyName("dnsTtl");
             jsonWriter.WriteValue(scope.DnsTtl);
 
+            if (scope.NextServerAddress != null)
+            {
+                jsonWriter.WritePropertyName("nextServerAddress");
+                jsonWriter.WriteValue(scope.NextServerAddress.ToString());
+            }
+
             if (scope.RouterAddress != null)
             {
                 jsonWriter.WritePropertyName("routerAddress");
@@ -3623,6 +3637,10 @@ namespace DnsServerCore
             string strDnsTtl = request.QueryString["dnsTtl"];
             if (!string.IsNullOrEmpty(strDnsTtl))
                 scope.DnsTtl = uint.Parse(strDnsTtl);
+
+            string strNextServerAddress = request.QueryString["nextServerAddress"];
+            if (strNextServerAddress != null)
+                scope.NextServerAddress = strNextServerAddress.Length == 0 ? null : IPAddress.Parse(strNextServerAddress);
 
             string strRouterAddress = request.QueryString["routerAddress"];
             if (strRouterAddress != null)
@@ -3972,6 +3990,7 @@ namespace DnsServerCore
                         case 9:
                         case 10:
                         case 11:
+                        case 12:
                             _dnsServer.ServerDomain = bR.ReadShortString();
                             _webServicePort = bR.ReadInt32();
 
@@ -3986,6 +4005,11 @@ namespace DnsServerCore
                                 _dnsServer.AllowRecursionOnlyForPrivateNetworks = bR.ReadBoolean();
                             else
                                 _dnsServer.AllowRecursionOnlyForPrivateNetworks = true; //default true for security reasons
+
+                            if (version >= 12)
+                                _dnsServer.RandomizeName = bR.ReadBoolean();
+                            else
+                                _dnsServer.RandomizeName = true; //default true to enable security feature
 
                             if (version >= 9)
                             {
@@ -4206,15 +4230,18 @@ namespace DnsServerCore
                 BinaryWriter bW = new BinaryWriter(mS);
 
                 bW.Write(Encoding.ASCII.GetBytes("DS")); //format
-                bW.Write((byte)11); //version
+                bW.Write((byte)12); //version
 
                 bW.WriteShortString(_dnsServer.ServerDomain);
                 bW.Write(_webServicePort);
 
                 bW.Write(_dnsServer.PreferIPv6);
+
                 bW.Write(_dnsServer.QueryLogManager != null); //logQueries
+
                 bW.Write(_dnsServer.AllowRecursion);
                 bW.Write(_dnsServer.AllowRecursionOnlyForPrivateNetworks);
+                bW.Write(_dnsServer.RandomizeName);
 
                 bW.Write(_dnsServer.CachePrefetchEligibility);
                 bW.Write(_dnsServer.CachePrefetchTrigger);
