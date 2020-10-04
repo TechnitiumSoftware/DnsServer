@@ -247,6 +247,9 @@ function showEditDhcpScope(scopeName) {
 
             $("#txtDhcpScopeDnsTtl").val(responseJSON.response.dnsTtl);
 
+            if (responseJSON.response.nextServerAddress != null)
+                $("#txtDhcpScopeNextServerAddress").val(responseJSON.response.nextServerAddress);
+
             if (responseJSON.response.routerAddress != null)
                 $("#txtDhcpScopeRouterAddress").val(responseJSON.response.routerAddress);
 
@@ -315,6 +318,7 @@ function saveDhcpScope() {
     var domainName = $("#txtDhcpScopeDomainName").val();
     var dnsTtl = $("#txtDhcpScopeDnsTtl").val();
 
+    var nextServerAddress = $("#txtDhcpScopeNextServerAddress").val();
     var routerAddress = $("#txtDhcpScopeRouterAddress").val();
 
     var useThisDnsServer = $("#chkUseThisDnsServer").prop('checked');
@@ -340,7 +344,7 @@ function saveDhcpScope() {
 
     HTTPRequest({
         url: "/api/setDhcpScope?token=" + token + "&name=" + encodeURIComponent(name) + (newName == null ? "" : "&newName=" + encodeURIComponent(newName)) + "&startingAddress=" + encodeURIComponent(startingAddress) + "&endingAddress=" + encodeURIComponent(endingAddress) + "&subnetMask=" + encodeURIComponent(subnetMask) +
-            "&leaseTimeDays=" + leaseTimeDays + "&leaseTimeHours=" + leaseTimeHours + "&leaseTimeMinutes=" + leaseTimeMinutes + "&offerDelayTime=" + offerDelayTime + "&domainName=" + encodeURIComponent(domainName) + "&dnsTtl=" + dnsTtl + "&routerAddress=" + encodeURIComponent(routerAddress) +
+            "&leaseTimeDays=" + leaseTimeDays + "&leaseTimeHours=" + leaseTimeHours + "&leaseTimeMinutes=" + leaseTimeMinutes + "&offerDelayTime=" + offerDelayTime + "&domainName=" + encodeURIComponent(domainName) + "&dnsTtl=" + dnsTtl + "&nextServerAddress=" + encodeURIComponent(nextServerAddress) + "&routerAddress=" + encodeURIComponent(routerAddress) +
             "&useThisDnsServer=" + useThisDnsServer + (useThisDnsServer ? "" : "&dnsServers=" + encodeURIComponent(dnsServers)) + "&winsServers=" + encodeURIComponent(winsServers) + "&ntpServers=" + encodeURIComponent(ntpServers) +
             "&staticRoutes=" + encodeURIComponent(staticRoutes) + "&exclusions=" + encodeURIComponent(exclusions) + "&reservedLeases=" + encodeURIComponent(reservedLeases) + "&allowOnlyReservedLeases=" + allowOnlyReservedLeases,
         success: function (responseJSON) {
