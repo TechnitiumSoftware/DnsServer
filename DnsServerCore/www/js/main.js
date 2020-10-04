@@ -604,6 +604,7 @@ function loadDnsSettings() {
             $("#chkAllowRecursion").prop("checked", responseJSON.response.allowRecursion);
             $("#chkAllowRecursionOnlyForPrivateNetworks").prop('disabled', !responseJSON.response.allowRecursion);
             $("#chkAllowRecursionOnlyForPrivateNetworks").prop("checked", responseJSON.response.allowRecursionOnlyForPrivateNetworks);
+            $("#chkRandomizeName").prop("checked", responseJSON.response.randomizeName);
 
             $("#txtCachePrefetchEligibility").val(responseJSON.response.cachePrefetchEligibility);
             $("#txtCachePrefetchTrigger").val(responseJSON.response.cachePrefetchTrigger);
@@ -769,6 +770,7 @@ function saveDnsSettings() {
     var logQueries = $("#chkLogQueries").prop('checked');
     var allowRecursion = $("#chkAllowRecursion").prop('checked');
     var allowRecursionOnlyForPrivateNetworks = $("#chkAllowRecursionOnlyForPrivateNetworks").prop('checked');
+    var randomizeName = $("#chkRandomizeName").prop('checked');
 
     var cachePrefetchEligibility = $("#txtCachePrefetchEligibility").val();
     if ((cachePrefetchEligibility === null) || (cachePrefetchEligibility === "")) {
@@ -851,7 +853,7 @@ function saveDnsSettings() {
     HTTPRequest({
         url: "/api/setDnsSettings?token=" + token + "&serverDomain=" + serverDomain + "&webServicePort=" + webServicePort + "&dnsServerLocalEndPoints=" + encodeURIComponent(dnsServerLocalEndPoints)
             + "&enableDnsOverHttp=" + enableDnsOverHttp + "&enableDnsOverTls=" + enableDnsOverTls + "&enableDnsOverHttps=" + enableDnsOverHttps + "&tlsCertificatePath=" + encodeURIComponent(tlsCertificatePath) + "&tlsCertificatePassword=" + encodeURIComponent(tlsCertificatePassword)
-            + "&preferIPv6=" + preferIPv6 + "&logQueries=" + logQueries + "&allowRecursion=" + allowRecursion + "&allowRecursionOnlyForPrivateNetworks=" + allowRecursionOnlyForPrivateNetworks
+            + "&preferIPv6=" + preferIPv6 + "&logQueries=" + logQueries + "&allowRecursion=" + allowRecursion + "&allowRecursionOnlyForPrivateNetworks=" + allowRecursionOnlyForPrivateNetworks + "&randomizeName=" + randomizeName
             + "&cachePrefetchEligibility=" + cachePrefetchEligibility + "&cachePrefetchTrigger=" + cachePrefetchTrigger + "&cachePrefetchSampleIntervalInMinutes=" + cachePrefetchSampleIntervalInMinutes + "&cachePrefetchSampleEligibilityHitsPerHour=" + cachePrefetchSampleEligibilityHitsPerHour
             + proxy + "&forwarders=" + encodeURIComponent(forwarders) + "&forwarderProtocol=" + forwarderProtocol + "&blockListUrls=" + encodeURIComponent(blockListUrls),
         success: function (responseJSON) {
