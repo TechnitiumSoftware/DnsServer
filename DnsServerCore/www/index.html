@@ -307,10 +307,10 @@
                                         <table id="tableZones" class="table table-hover">
                                             <thead>
                                                 <tr>
-                                                    <th>Zone</th>
-                                                    <th>Type</th>
-                                                    <th>Status</th>
-                                                    <th>Expiry</th>
+                                                    <th onclick="sortTable('tableZonesBody', 0);">Zone</th>
+                                                    <th onclick="sortTable('tableZonesBody', 1);">Type</th>
+                                                    <th onclick="sortTable('tableZonesBody', 2);">Status</th>
+                                                    <th onclick="sortTable('tableZonesBody', 3);">Expiry</th>
                                                     <th></th>
                                                 </tr>
                                             </thead>
@@ -1030,13 +1030,13 @@
                                                 <table class="table table-hover">
                                                     <thead>
                                                         <tr>
-                                                            <th>Scope</th>
-                                                            <th>MAC Address</th>
-                                                            <th>IP Address</th>
-                                                            <th></th>
-                                                            <th>Host Name</th>
-                                                            <th>Lease Obtained</th>
-                                                            <th>Lease Expires</th>
+                                                            <th onclick="sortTable('tableDhcpLeasesBody', 0);">Scope</th>
+                                                            <th onclick="sortTable('tableDhcpLeasesBody', 1);">MAC Address</th>
+                                                            <th onclick="sortTable('tableDhcpLeasesBody', 2);">IP Address</th>
+                                                            <th onclick="sortTable('tableDhcpLeasesBody', 3);"></th>
+                                                            <th onclick="sortTable('tableDhcpLeasesBody', 4);">Host Name</th>
+                                                            <th onclick="sortTable('tableDhcpLeasesBody', 5);">Lease Obtained</th>
+                                                            <th onclick="sortTable('tableDhcpLeasesBody', 6);">Lease Expires</th>
                                                         </tr>
                                                     </thead>
                                                     <tbody id="tableDhcpLeasesBody">
@@ -1070,10 +1070,10 @@
                                                 <table class="table table-hover">
                                                     <thead>
                                                         <tr>
-                                                            <th>Name</th>
-                                                            <th>Scope Range/Subnet Mask</th>
-                                                            <th>Network/Broadcast</th>
-                                                            <th>Interface</th>
+                                                            <th onclick="sortTable('tableDhcpScopesBody', 0);">Name</th>
+                                                            <th onclick="sortTable('tableDhcpScopesBody', 1);">Scope Range/Subnet Mask</th>
+                                                            <th onclick="sortTable('tableDhcpScopesBody', 2);">Network/Broadcast</th>
+                                                            <th onclick="sortTable('tableDhcpScopesBody', 3);">Interface</th>
                                                             <th></th>
                                                         </tr>
                                                     </thead>
