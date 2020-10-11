@@ -3108,7 +3108,7 @@ namespace DnsServerCore
 
             NetProxy proxy = _dnsServer.Proxy;
             bool preferIPv6 = _dnsServer.PreferIPv6;
-            bool randomizeName = _dnsServer.RandomizeName;
+            bool randomizeName = false;
             DnsTransportProtocol protocol = (DnsTransportProtocol)Enum.Parse(typeof(DnsTransportProtocol), strProtocol, true);
             const int RETRIES = 1;
             const int TIMEOUT = 10000;
