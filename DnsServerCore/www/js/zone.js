@@ -639,6 +639,7 @@ function clearAddEditForm() {
     $("#txtAddEditRecordDataValue").val("");
     $("#divAddEditRecordDataPtr").show();
     $("#chkAddEditRecordDataPtr").prop("checked", false);
+    $("#chkAddEditRecordDataCreatePtrZone").prop("checked", false);
     $("#chkAddEditRecordDataPtrLabel").text("Add reverse (PTR) record");
 
     $("#divAddEditRecordDataNs").hide();
@@ -724,6 +725,7 @@ function modifyAddRecordForm() {
             $("#lblAddEditRecordDataValue").text("IPv4 Address");
             $("#txtAddEditRecordDataValue").val("");
             $("#chkAddEditRecordDataPtr").prop("checked", false);
+            $("#chkAddEditRecordDataCreatePtrZone").prop("checked", false);
             $("#chkAddEditRecordDataPtrLabel").text("Add reverse (PTR) record");
             $("#divAddEditRecordData").show();
             $("#divAddEditRecordDataPtr").show();
@@ -733,6 +735,7 @@ function modifyAddRecordForm() {
             $("#lblAddEditRecordDataValue").text("IPv6 Address");
             $("#txtAddEditRecordDataValue").val("");
             $("#chkAddEditRecordDataPtr").prop("checked", false);
+            $("#chkAddEditRecordDataCreatePtrZone").prop("checked", false);
             $("#chkAddEditRecordDataPtrLabel").text("Add reverse (PTR) record");
             $("#divAddEditRecordData").show();
             $("#divAddEditRecordDataPtr").show();
@@ -843,7 +846,7 @@ function addRecord() {
                 return;
             }
 
-            apiUrl += "&value=" + encodeURIComponent(value) + "&ptr=" + $("#chkAddEditRecordDataPtr").prop('checked');
+            apiUrl += "&value=" + encodeURIComponent(value) + "&ptr=" + $("#chkAddEditRecordDataPtr").prop('checked') + "&createPtrZone=" + $("#chkAddEditRecordDataCreatePtrZone").prop('checked');
             break;
 
         case "PTR":
@@ -1095,6 +1098,7 @@ function showEditRecordModal(objBtn) {
         case "AAAA":
             $("#txtAddEditRecordDataValue").val(divData.attr("data-record-value"));
             $("#chkAddEditRecordDataPtr").prop("checked", false);
+            $("#chkAddEditRecordDataCreatePtrZone").prop("checked", false);
             $("#chkAddEditRecordDataPtrLabel").text("Update reverse (PTR) record");
             break;
 
@@ -1242,7 +1246,7 @@ function updateRecord() {
                 return;
             }
 
-            apiUrl += "&newValue=" + encodeURIComponent(newValue) + "&ptr=" + $("#chkAddEditRecordDataPtr").prop('checked');
+            apiUrl += "&newValue=" + encodeURIComponent(newValue) + "&ptr=" + $("#chkAddEditRecordDataPtr").prop('checked') + "&createPtrZone=" + $("#chkAddEditRecordDataCreatePtrZone").prop('checked');
             break;
 
         case "PTR":
