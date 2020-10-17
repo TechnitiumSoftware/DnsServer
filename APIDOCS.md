@@ -1677,14 +1677,16 @@ WHERE:
 - `type`: The DNS resource record type. Supported record types are [`A`, `AAAA`, `MX`, `TXT`, `NS`, `PTR`, `CNAME`, `SRV`, `CAA`] and proprietory types [`ANAME`, `FWD`].
 - `value`: The value for the resource record. This parameter is shared among different types of resource records and thus will mean different values as per the type of record. Example, for type A and AAAA record, the value will be an IP address while for type MX, the value will be the exchange domain name and for type TXT the value will be the text data.
 - `ttl`: The DNS resource record TTL value. This is the value in seconds that the DNS resolvers can cache the record for.
-- `preference` (optional): This is the preference value for MX record type. This option is required for adding MX record.
-- `glue` (optional): This is the glue address for the name server in the NS record. This optional parameter is used for adding NS record.
-- `priority` (optional): This parameter is required for adding the SRV record.
-- `weight` (optional): This parameter is required for adding the SRV record.
-- `port` (optional): This parameter is required for adding the SRV record.
-- `flags` (optional): This parameter is required for adding the CAA record.
-- `tag` (optional): This parameter is required for adding the CAA record.
-- `protocol` (optional): This parameter is required for adding the FWD record. Valid values are [`Udp`, `Tcp`, `Tls`, `Https`].
+- `ptr` (optional): Add a reverse PTR record for the IP address in the `A` or `AAAA` record. This option is used only for `A` and `AAAA` records.
+- `createPtrZone` (optional): Create a reverse zone for PTR record. This option is used for `A` and `AAAA` records.
+- `preference` (optional): This is the preference value for MX record type. This option is required for adding `MX` record.
+- `glue` (optional): This is the glue address for the name server in the `NS` record. This optional parameter is used for adding `NS` record.
+- `priority` (optional): This parameter is required for adding the `SRV` record.
+- `weight` (optional): This parameter is required for adding the `SRV` record.
+- `port` (optional): This parameter is required for adding the `SRV` record.
+- `flags` (optional): This parameter is required for adding the `CAA` record.
+- `tag` (optional): This parameter is required for adding the `CAA` record.
+- `protocol` (optional): This parameter is required for adding the `FWD` record. Valid values are [`Udp`, `Tcp`, `Tls`, `Https`].
 
 RESPONSE:
 ```
@@ -1841,7 +1843,8 @@ WHERE:
 - `value`: The value in the record to be updated. This is the same value that was read in the Get Record call.
 - `newValue` (optional): The new value to be updated into the record. When this parameter is missing, the value in the `value` parameter is used.
 - `disable` (optional): Specifies if the record should be disabled. The default value is `false` when this parameter is missing.
-- `ptr` (optional): Specifies if the PTR record associated with the A or AAAA record must also be updated. This parameter is applicable only when updating A or AAAA record.
+- `ptr` (optional): Specifies if the PTR record associated with the `A` or `AAAA` record must also be updated. This option is used only for `A` and `AAAA` records.
+- `createPtrZone` (optional): Create a reverse zone for PTR record. This option is used only for `A` and `AAAA` records.
 - `preference` (optional): The preference value in an MX record. This parameter when missing will default to `1` value. This parameter is used only when updating MX record.
 - `glue` (optional): The comma separated list of IP addresses set as glue for the NS record. This parameter is used only when updating NS record.
 - `primaryNameServer` (optional): This is the primary name server parameter in the SOA record. This parameter is required when updating the SOA record.
