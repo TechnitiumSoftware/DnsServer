@@ -2235,7 +2235,21 @@ namespace DnsServerCore
 
                         AuthZoneInfo reverseZoneInfo = _dnsServer.AuthZoneManager.GetAuthZoneInfo(ptrDomain);
                         if (reverseZoneInfo == null)
-                            throw new DnsServerException("No reverse zone available to add PTR record.");
+                        {
+                            bool createPtrZone = false;
+                            string strCreatePtrZone = request.QueryString["createPtrZone"];
+                            if (!string.IsNullOrEmpty(strCreatePtrZone))
+                                createPtrZone = bool.Parse(strCreatePtrZone);
+
+                            if (!createPtrZone)
+                                throw new DnsServerException("No reverse zone available to add PTR record.");
+
+                            string ptrZone = Zone.GetReverseZone(ipAddress, 24);
+
+                            reverseZoneInfo = _dnsServer.AuthZoneManager.CreatePrimaryZone(ptrZone, _dnsServer.ServerDomain, false);
+                            if (reverseZoneInfo == null)
+                                throw new DnsServerException("Failed to create reverse zone to add PTR record: " + ptrZone);
+                        }
 
                         if (reverseZoneInfo.Internal)
                             throw new DnsServerException("Reverse zone '" + reverseZoneInfo.Name + "' is an internal zone.");
@@ -2832,15 +2846,25 @@ namespace DnsServerCore
 
                         if (ptr)
                         {
-                            //delete old PTR record if any
-                            _dnsServer.AuthZoneManager.DeleteRecords(Zone.GetReverseZone(oldIpAddress, 32), DnsResourceRecordType.PTR);
-
-                            //add new PTR record
                             string ptrDomain = Zone.GetReverseZone(newIpAddress, 32);
 
                             AuthZoneInfo reverseZoneInfo = _dnsServer.AuthZoneManager.GetAuthZoneInfo(ptrDomain);
                             if (reverseZoneInfo == null)
-                                throw new DnsServerException("No reverse zone available to add PTR record.");
+                            {
+                                bool createPtrZone = false;
+                                string strCreatePtrZone = request.QueryString["createPtrZone"];
+                                if (!string.IsNullOrEmpty(strCreatePtrZone))
+                                    createPtrZone = bool.Parse(strCreatePtrZone);
+
+                                if (!createPtrZone)
+                                    throw new DnsServerException("No reverse zone available to add PTR record.");
+
+                                string ptrZone = Zone.GetReverseZone(newIpAddress, 24);
+
+                                reverseZoneInfo = _dnsServer.AuthZoneManager.CreatePrimaryZone(ptrZone, _dnsServer.ServerDomain, false);
+                                if (reverseZoneInfo == null)
+                                    throw new DnsServerException("Failed to create reverse zone to add PTR record: " + ptrZone);
+                            }
 
                             if (reverseZoneInfo.Internal)
                                 throw new DnsServerException("Reverse zone '" + reverseZoneInfo.Name + "' is an internal zone.");
@@ -2848,6 +2872,18 @@ namespace DnsServerCore
                             if (reverseZoneInfo.Type != AuthZoneType.Primary)
                                 throw new DnsServerException("Reverse zone '" + reverseZoneInfo.Name + "' is not a primary zone.");
 
+
+                            string oldPtrDomain = Zone.GetReverseZone(oldIpAddress, 32);
+
+                            AuthZoneInfo oldReverseZoneInfo = _dnsServer.AuthZoneManager.GetAuthZoneInfo(oldPtrDomain);
+                            if ((oldReverseZoneInfo != null) && !oldReverseZoneInfo.Internal && (oldReverseZoneInfo.Type == AuthZoneType.Primary))
+                            {
+                                //delete old PTR record if any and save old reverse zone
+                                _dnsServer.AuthZoneManager.DeleteRecords(oldPtrDomain, DnsResourceRecordType.PTR);
+                                _dnsServer.AuthZoneManager.SaveZoneFile(oldReverseZoneInfo.Name);
+                            }
+
+                            //add new PTR record and save reverse zone
                             _dnsServer.AuthZoneManager.SetRecords(ptrDomain, DnsResourceRecordType.PTR, ttl, new DnsPTRRecord[] { new DnsPTRRecord(domain) });
                             _dnsServer.AuthZoneManager.SaveZoneFile(reverseZoneInfo.Name);
                         }
