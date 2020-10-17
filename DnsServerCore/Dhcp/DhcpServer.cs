@@ -795,10 +795,6 @@ namespace DnsServerCore.Dhcp
 
             try
             {
-                //find this dns server address in case the network config has changed
-                if (scope.UseThisDnsServer)
-                    scope.FindThisDnsServerAddress();
-
                 //find scope interface for binding socket
                 if (waitForInterface)
                 {
@@ -820,6 +816,10 @@ namespace DnsServerCore.Dhcp
                     if (!scope.FindInterface())
                         throw new DhcpServerException("DHCP Server requires static IP address to work correctly but no network interface was found to have any static IP address configured.");
                 }
+
+                //find this dns server address in case the network config has changed
+                if (scope.UseThisDnsServer)
+                    scope.FindThisDnsServerAddress();
 
                 IPAddress interfaceAddress = scope.InterfaceAddress;
                 dhcpEP = new IPEndPoint(interfaceAddress, 67);

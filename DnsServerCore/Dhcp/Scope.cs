@@ -448,7 +448,7 @@ namespace DnsServerCore.Dhcp
         {
             NetworkInterface[] networkInterfaces = NetworkInterface.GetAllNetworkInterfaces();
 
-            //find interface in current scope range
+            //find interface in current scope network range
             uint networkAddressNumber = _networkAddress.ConvertIpToNumber();
             uint subnetMaskNumber = _subnetMask.ConvertIpToNumber();
 
