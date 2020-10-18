@@ -4245,6 +4245,7 @@ namespace DnsServerCore
 
                 _dnsServer.AllowRecursion = true;
                 _dnsServer.AllowRecursionOnlyForPrivateNetworks = true; //default true for security reasons
+                _dnsServer.RandomizeName = true; //default true to enable security feature
 
                 SaveConfigFile();
             }
