@@ -1,5 +1,17 @@
 # Technitium DNS Server Change Log
 
+## Version 5.4
+Release Date: 18 October 2020
+
+- Implemented QNAME randomization feature [draft-vixie-dnsext-dns0x20](https://tools.ietf.org/html/draft-vixie-dnsext-dns0x20-00).
+- Fixed bug causing infinite loop in certain conditions when using UDP as transport.
+- Fixed bug in DNS cache querying which caused the server to make unneeded queries when performing recursive resolution.
+- Added Create PTR Zone option when adding A or AAAA records.
+- Fixed issues with DHCP scope selection when using relay agent.
+- Implemented changes to allow changing DHCP scope IP allocation from dynamic to reserved and vice versa.
+- Updated DHCP scope to allow specifying Next Server Address for use with TFTP for booting.
+- Multiple other minor bug fixes and improvements.
+
 ## Version 5.3
 Release Date: 26 September 2020
 
