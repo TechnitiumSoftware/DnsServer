@@ -23,6 +23,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Net;
 using System.Net.Sockets;
+using System.Text;
 using TechnitiumLibrary.IO;
 
 namespace DnsServerCore.Dhcp
@@ -72,6 +73,8 @@ namespace DnsServerCore.Dhcp
         readonly IReadOnlyCollection<DhcpOption> _options;
 
         readonly byte[] _clientHardwareAddress;
+        readonly string _serverHostName;
+        readonly string _bootFileName;
 
         OptionOverloadOption _optionOverload;
 
@@ -88,7 +91,7 @@ namespace DnsServerCore.Dhcp
 
         #region constructor
 
-        public DhcpMessage(DhcpMessageOpCode op, DhcpMessageHardwareAddressType hardwareAddressType, byte[] xid, byte[] secs, DhcpMessageFlags flags, IPAddress ciaddr, IPAddress yiaddr, IPAddress siaddr, IPAddress giaddr, byte[] clientHardwareAddress, IReadOnlyCollection<DhcpOption> options)
+        public DhcpMessage(DhcpMessageOpCode op, DhcpMessageHardwareAddressType hardwareAddressType, byte[] xid, byte[] secs, DhcpMessageFlags flags, IPAddress ciaddr, IPAddress yiaddr, IPAddress siaddr, IPAddress giaddr, byte[] clientHardwareAddress, string sname, string file, IReadOnlyCollection<DhcpOption> options)
         {
             if (ciaddr.AddressFamily != AddressFamily.InterNetwork)
                 throw new ArgumentException("Address family not supported.", nameof(ciaddr));
@@ -106,7 +109,7 @@ namespace DnsServerCore.Dhcp
                 throw new ArgumentNullException(nameof(clientHardwareAddress));
 
             if (clientHardwareAddress.Length > 16)
-                throw new ArgumentException("Client hardware address cannot exceed 16 bytes.", "chaddr");
+                throw new ArgumentException("Client hardware address cannot exceed 16 bytes.", nameof(clientHardwareAddress));
 
             if (xid.Length != 4)
                 throw new ArgumentException("Transaction ID must be 4 bytes.", nameof(xid));
@@ -134,7 +137,28 @@ namespace DnsServerCore.Dhcp
             Buffer.BlockCopy(_clientHardwareAddress, 0, _chaddr, 0, _clientHardwareAddress.Length);
 
             _sname = new byte[64];
+            if (sname != null)
+            {
+                _serverHostName = sname;
+
+                byte[] buffer = Encoding.ASCII.GetBytes(sname);
+                if (buffer.Length >= 64)
+                    throw new ArgumentException("Server host name cannot exceed 63 bytes.", nameof(sname));
+
+                Buffer.BlockCopy(buffer, 0, _sname, 0, buffer.Length);
+            }
+
             _file = new byte[128];
+            if (file != null)
+            {
+                _bootFileName = file;
+
+                byte[] buffer = Encoding.ASCII.GetBytes(file);
+                if (buffer.Length >= 128)
+                    throw new ArgumentException("Boot file name cannot exceed 127 bytes.", nameof(file));
+
+                Buffer.BlockCopy(buffer, 0, _file, 0, buffer.Length);
+            }
 
             _options = options;
 
@@ -147,10 +171,6 @@ namespace DnsServerCore.Dhcp
                 }
             }
         }
-
-        public DhcpMessage(DhcpMessage request, IPAddress yiaddr, IPAddress siaddr, IReadOnlyCollection<DhcpOption> options)
-            : this(DhcpMessageOpCode.BootReply, request.HardwareAddressType, request.TransactionId, request.SecondsElapsed, request.Flags, request.ClientIpAddress, yiaddr, siaddr, request.RelayAgentIpAddress, request.ClientHardwareAddress, options)
-        { }
 
         public DhcpMessage(Stream s)
         {
@@ -200,21 +220,46 @@ namespace DnsServerCore.Dhcp
             {
                 ParseOptions(s, options);
 
-                if (_optionOverload != null)
+                if ((_optionOverload != null) && _optionOverload.Value.HasFlag(OptionOverloadValue.FileFieldUsed))
                 {
-                    if (_optionOverload.Value.HasFlag(OptionOverloadValue.FileFieldUsed))
+                    using (MemoryStream mS = new MemoryStream(_file))
                     {
-                        using (MemoryStream mS = new MemoryStream(_file))
+                        ParseOptions(mS, options);
+                    }
+                }
+                else
+                {
+                    for (int i = 0; i < _file.Length; i++)
+                    {
+                        if (_file[i] == 0)
                         {
-                            ParseOptions(mS, options);
+                            if (i == 0)
+                                break;
+
+                            _bootFileName = Encoding.ASCII.GetString(_file, 0, i);
+                            break;
                         }
                     }
+                }
 
-                    if (_optionOverload.Value.HasFlag(OptionOverloadValue.SnameFieldUsed))
+                if ((_optionOverload != null) && _optionOverload.Value.HasFlag(OptionOverloadValue.SnameFieldUsed))
+                {
+                    using (MemoryStream mS = new MemoryStream(_sname))
                     {
-                        using (MemoryStream mS = new MemoryStream(_sname))
+                        ParseOptions(mS, options);
+                    }
+                }
+                else
+                {
+                    for (int i = 0; i < _sname.Length; i++)
+                    {
+                        if (_sname[i] == 0)
                         {
-                            ParseOptions(mS, options);
+                            if (i == 0)
+                                break;
+
+                            _serverHostName = Encoding.ASCII.GetString(_sname, 0, i);
+                            break;
                         }
                     }
                 }
@@ -229,6 +274,15 @@ namespace DnsServerCore.Dhcp
 
             if (_maximumDhcpMessageSize != null)
                 _maximumDhcpMessageSize = new MaximumDhcpMessageSizeOption(576);
+        }
+
+        #endregion
+
+        #region static
+
+        public static DhcpMessage CreateReply(DhcpMessage request, IPAddress yiaddr, IPAddress siaddr, string sname, string file, IReadOnlyCollection<DhcpOption> options)
+        {
+            return new DhcpMessage(DhcpMessageOpCode.BootReply, request.HardwareAddressType, request.TransactionId, request.SecondsElapsed, request.Flags, request.ClientIpAddress, yiaddr, siaddr, request.RelayAgentIpAddress, request.ClientHardwareAddress, sname, file, options);
         }
 
         #endregion
@@ -393,11 +447,11 @@ namespace DnsServerCore.Dhcp
         public byte[] ClientHardwareAddress
         { get { return _clientHardwareAddress; } }
 
-        public byte[] ServerHostName
-        { get { return _sname; } }
+        public string ServerHostName
+        { get { return _serverHostName; } }
 
-        public byte[] BootFileName
-        { get { return _file; } }
+        public string BootFileName
+        { get { return _bootFileName; } }
 
         public IReadOnlyCollection<DhcpOption> Options
         { get { return _options; } }
