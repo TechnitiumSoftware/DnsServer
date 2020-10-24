@@ -3474,10 +3474,22 @@ namespace DnsServerCore
             jsonWriter.WritePropertyName("dnsTtl");
             jsonWriter.WriteValue(scope.DnsTtl);
 
-            if (scope.NextServerAddress != null)
+            if (scope.ServerAddress != null)
             {
-                jsonWriter.WritePropertyName("nextServerAddress");
-                jsonWriter.WriteValue(scope.NextServerAddress.ToString());
+                jsonWriter.WritePropertyName("serverAddress");
+                jsonWriter.WriteValue(scope.ServerAddress.ToString());
+            }
+
+            if (scope.ServerHostName != null)
+            {
+                jsonWriter.WritePropertyName("serverHostName");
+                jsonWriter.WriteValue(scope.ServerHostName);
+            }
+
+            if (scope.BootFileName != null)
+            {
+                jsonWriter.WritePropertyName("bootFileName");
+                jsonWriter.WriteValue(scope.BootFileName);
             }
 
             if (scope.RouterAddress != null)
@@ -3674,9 +3686,17 @@ namespace DnsServerCore
             if (!string.IsNullOrEmpty(strDnsTtl))
                 scope.DnsTtl = uint.Parse(strDnsTtl);
 
-            string strNextServerAddress = request.QueryString["nextServerAddress"];
-            if (strNextServerAddress != null)
-                scope.NextServerAddress = strNextServerAddress.Length == 0 ? null : IPAddress.Parse(strNextServerAddress);
+            string strServerAddress = request.QueryString["serverAddress"];
+            if (strServerAddress != null)
+                scope.ServerAddress = strServerAddress.Length == 0 ? null : IPAddress.Parse(strServerAddress);
+
+            string strServerHostName = request.QueryString["serverHostName"];
+            if (strServerHostName != null)
+                scope.ServerHostName = strServerHostName.Length == 0 ? null : strServerHostName;
+
+            string strBootFileName = request.QueryString["bootFileName"];
+            if (strBootFileName != null)
+                scope.BootFileName = strBootFileName.Length == 0 ? null : strBootFileName;
 
             string strRouterAddress = request.QueryString["routerAddress"];
             if (strRouterAddress != null)
