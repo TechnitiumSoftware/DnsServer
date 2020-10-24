@@ -548,6 +548,20 @@ namespace DnsServerCore.Dhcp
             return (networkAddressNumber < addressNumber) && (addressNumber < broadcastAddressNumber);
         }
 
+        internal bool IsAddressExcluded(IPAddress address)
+        {
+            if (_exclusions != null)
+            {
+                foreach (Exclusion exclusion in _exclusions)
+                {
+                    if (IsAddressInRange(address, exclusion.StartingAddress, exclusion.EndingAddress))
+                        return true;
+                }
+            }
+
+            return false;
+        }
+
         internal Lease GetReservedLease(DhcpMessage request)
         {
             return GetReservedLease(new ClientIdentifierOption((byte)request.HardwareAddressType, request.ClientHardwareAddress));
@@ -572,7 +586,11 @@ namespace DnsServerCore.Dhcp
             if (_leases.TryGetValue(request.ClientIdentifier, out Lease existingLease))
             {
                 //lease already exists
-                return existingLease;
+                if ((existingLease.Type == LeaseType.Reserved) || !IsAddressExcluded(existingLease.Address))
+                    return existingLease; //existing lease is reserved or dynamic allocation is not excluded
+
+                //remove existing dynamic lease
+                ReleaseLease(existingLease);
             }
 
             Lease reservedLease = GetReservedLease(request);
