@@ -191,6 +191,9 @@ function clearDhcpScopeForm() {
     $("#txtDhcpScopeOfferDelayTime").val("0");
     $("#txtDhcpScopeDomainName").val("");
     $("#txtDhcpScopeDnsTtl").val("900");
+    $("#txtDhcpScopeServerAddress").val("");
+    $("#txtDhcpScopeServerHostName").val("");
+    $("#txtDhcpScopeBootFileName").val("");
     $("#txtDhcpScopeRouterAddress").val("");
     $("#chkUseThisDnsServer").prop("checked", false);
     $('#txtDhcpScopeDnsServers').prop('disabled', false);
@@ -247,8 +250,14 @@ function showEditDhcpScope(scopeName) {
 
             $("#txtDhcpScopeDnsTtl").val(responseJSON.response.dnsTtl);
 
-            if (responseJSON.response.nextServerAddress != null)
-                $("#txtDhcpScopeNextServerAddress").val(responseJSON.response.nextServerAddress);
+            if (responseJSON.response.serverAddress != null)
+                $("#txtDhcpScopeServerAddress").val(responseJSON.response.serverAddress);
+
+            if (responseJSON.response.serverHostName != null)
+                $("#txtDhcpScopeServerHostName").val(responseJSON.response.serverHostName);
+
+            if (responseJSON.response.bootFileName != null)
+                $("#txtDhcpScopeBootFileName").val(responseJSON.response.bootFileName);
 
             if (responseJSON.response.routerAddress != null)
                 $("#txtDhcpScopeRouterAddress").val(responseJSON.response.routerAddress);
@@ -318,7 +327,9 @@ function saveDhcpScope() {
     var domainName = $("#txtDhcpScopeDomainName").val();
     var dnsTtl = $("#txtDhcpScopeDnsTtl").val();
 
-    var nextServerAddress = $("#txtDhcpScopeNextServerAddress").val();
+    var serverAddress = $("#txtDhcpScopeServerAddress").val();
+    var serverHostName = $("#txtDhcpScopeServerHostName").val();
+    var bootFileName = $("#txtDhcpScopeBootFileName").val();
     var routerAddress = $("#txtDhcpScopeRouterAddress").val();
 
     var useThisDnsServer = $("#chkUseThisDnsServer").prop('checked');
@@ -344,8 +355,8 @@ function saveDhcpScope() {
 
     HTTPRequest({
         url: "/api/setDhcpScope?token=" + token + "&name=" + encodeURIComponent(name) + (newName == null ? "" : "&newName=" + encodeURIComponent(newName)) + "&startingAddress=" + encodeURIComponent(startingAddress) + "&endingAddress=" + encodeURIComponent(endingAddress) + "&subnetMask=" + encodeURIComponent(subnetMask) +
-            "&leaseTimeDays=" + leaseTimeDays + "&leaseTimeHours=" + leaseTimeHours + "&leaseTimeMinutes=" + leaseTimeMinutes + "&offerDelayTime=" + offerDelayTime + "&domainName=" + encodeURIComponent(domainName) + "&dnsTtl=" + dnsTtl + "&nextServerAddress=" + encodeURIComponent(nextServerAddress) + "&routerAddress=" + encodeURIComponent(routerAddress) +
-            "&useThisDnsServer=" + useThisDnsServer + (useThisDnsServer ? "" : "&dnsServers=" + encodeURIComponent(dnsServers)) + "&winsServers=" + encodeURIComponent(winsServers) + "&ntpServers=" + encodeURIComponent(ntpServers) +
+            "&leaseTimeDays=" + leaseTimeDays + "&leaseTimeHours=" + leaseTimeHours + "&leaseTimeMinutes=" + leaseTimeMinutes + "&offerDelayTime=" + offerDelayTime + "&domainName=" + encodeURIComponent(domainName) + "&dnsTtl=" + dnsTtl + "&serverAddress=" + encodeURIComponent(serverAddress) + "&serverHostName=" + encodeURIComponent(serverHostName) + "&bootFileName=" + encodeURIComponent(bootFileName) +
+            "&routerAddress=" + encodeURIComponent(routerAddress) + "&useThisDnsServer=" + useThisDnsServer + (useThisDnsServer ? "" : "&dnsServers=" + encodeURIComponent(dnsServers)) + "&winsServers=" + encodeURIComponent(winsServers) + "&ntpServers=" + encodeURIComponent(ntpServers) +
             "&staticRoutes=" + encodeURIComponent(staticRoutes) + "&exclusions=" + encodeURIComponent(exclusions) + "&reservedLeases=" + encodeURIComponent(reservedLeases) + "&allowOnlyReservedLeases=" + allowOnlyReservedLeases,
         success: function (responseJSON) {
             refreshDhcpScopes();

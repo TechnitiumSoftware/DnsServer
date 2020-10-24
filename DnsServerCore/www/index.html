@@ -1180,11 +1180,27 @@
                                                         </div>
 
                                                         <div class="form-group">
-                                                            <label for="txtDhcpScopeNextServerAddress" class="col-sm-3 control-label">Next Server Address</label>
+                                                            <label for="txtDhcpScopeServerAddress" class="col-sm-3 control-label">Bootstrap Server Address</label>
                                                             <div class="col-sm-3">
-                                                                <input type="text" class="form-control" id="txtDhcpScopeNextServerAddress" placeholder="Next Server Address">
+                                                                <input type="text" class="form-control" id="txtDhcpScopeServerAddress" placeholder="Bootstrap Server Address">
                                                             </div>
-                                                            <div class="col-sm-offset-3 col-sm-8" style="padding-top: 5px;">The next bootstrap server IP address to be used by the clients. If not specified, the DHCP server's IP address is used.</div>
+                                                            <div class="col-sm-offset-3 col-sm-8" style="padding-top: 5px;">The bootstrap TFTP server IP address to be used by the clients. If not specified, the DHCP server's IP address is used.</div>
+                                                        </div>
+
+                                                        <div class="form-group">
+                                                            <label for="txtDhcpScopeServerHostName" class="col-sm-3 control-label">Bootstrap Server Host Name</label>
+                                                            <div class="col-sm-3">
+                                                                <input type="text" class="form-control" id="txtDhcpScopeServerHostName" placeholder="Bootstrap Server Host Name">
+                                                            </div>
+                                                            <div class="col-sm-offset-3 col-sm-8" style="padding-top: 5px;">The optional bootstrap TFTP server host name to be used by the clients to identify the TFTP server.</div>
+                                                        </div>
+
+                                                        <div class="form-group">
+                                                            <label for="txtDhcpScopeBootFileName" class="col-sm-3 control-label">Boot File Name</label>
+                                                            <div class="col-sm-3">
+                                                                <input type="text" class="form-control" id="txtDhcpScopeBootFileName" placeholder="Bootstrap File Name">
+                                                            </div>
+                                                            <div class="col-sm-offset-3 col-sm-8" style="padding-top: 5px;">The boot file name stored on the bootstrap TFTP server to be used by the clients.</div>
                                                         </div>
 
                                                         <div class="form-group">
