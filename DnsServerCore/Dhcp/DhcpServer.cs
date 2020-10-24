@@ -292,6 +292,12 @@ namespace DnsServerCore.Dhcp
                         if (scope == null)
                             return null; //no scope available; do nothing
 
+                        if ((request.ServerHostName != null) && (request.ServerHostName != scope.ServerHostName))
+                            return null; //discard request; since this request is for another server with the specified server host name
+
+                        if ((request.BootFileName != null) && (request.BootFileName != scope.BootFileName))
+                            return null; //discard request; since this request wants boot file not available on this server
+
                         if (scope.OfferDelayTime > 0)
                             await Task.Delay(scope.OfferDelayTime); //delay sending offer
 
@@ -310,7 +316,7 @@ namespace DnsServerCore.Dhcp
                         if (log != null)
                             log.Write(remoteEP, "DHCP Server offered IP address [" + offer.Address.ToString() + "] to " + request.GetClientFullIdentifier() + ".");
 
-                        return new DhcpMessage(request, offer.Address, scope.NextServerAddress ?? serverIdentifierAddress, options);
+                        return DhcpMessage.CreateReply(request, offer.Address, scope.ServerAddress ?? serverIdentifierAddress, scope.ServerHostName, scope.BootFileName, options);
                     }
 
                 case DhcpMessageType.Request:
@@ -338,14 +344,14 @@ namespace DnsServerCore.Dhcp
                                 {
                                     //no existing lease or offer available for client
                                     //send nak
-                                    return new DhcpMessage(request, IPAddress.Any, IPAddress.Any, new DhcpOption[] { new DhcpMessageTypeOption(DhcpMessageType.Nak), new ServerIdentifierOption(scope.InterfaceAddress), DhcpOption.CreateEndOption() });
+                                    return DhcpMessage.CreateReply(request, IPAddress.Any, IPAddress.Any, null, null, new DhcpOption[] { new DhcpMessageTypeOption(DhcpMessageType.Nak), new ServerIdentifierOption(scope.InterfaceAddress), DhcpOption.CreateEndOption() });
                                 }
 
                                 if (!request.ClientIpAddress.Equals(leaseOffer.Address))
                                 {
                                     //client ip is incorrect
                                     //send nak
-                                    return new DhcpMessage(request, IPAddress.Any, IPAddress.Any, new DhcpOption[] { new DhcpMessageTypeOption(DhcpMessageType.Nak), new ServerIdentifierOption(scope.InterfaceAddress), DhcpOption.CreateEndOption() });
+                                    return DhcpMessage.CreateReply(request, IPAddress.Any, IPAddress.Any, null, null, new DhcpOption[] { new DhcpMessageTypeOption(DhcpMessageType.Nak), new ServerIdentifierOption(scope.InterfaceAddress), DhcpOption.CreateEndOption() });
                                 }
 
                                 Lease reservedLease = scope.GetReservedLease(request);
@@ -355,7 +361,7 @@ namespace DnsServerCore.Dhcp
                                     {
                                         //client's reserved has been removed so release the current lease and send NAK to allow it to get new allocation
                                         scope.ReleaseLease(leaseOffer);
-                                        return new DhcpMessage(request, IPAddress.Any, IPAddress.Any, new DhcpOption[] { new DhcpMessageTypeOption(DhcpMessageType.Nak), new ServerIdentifierOption(scope.InterfaceAddress), DhcpOption.CreateEndOption() });
+                                        return DhcpMessage.CreateReply(request, IPAddress.Any, IPAddress.Any, null, null, new DhcpOption[] { new DhcpMessageTypeOption(DhcpMessageType.Nak), new ServerIdentifierOption(scope.InterfaceAddress), DhcpOption.CreateEndOption() });
                                     }
                                 }
                                 else
@@ -364,7 +370,7 @@ namespace DnsServerCore.Dhcp
                                     {
                                         //client has a new reserved lease so release the current lease and send NAK to allow it to get new allocation
                                         scope.ReleaseLease(leaseOffer);
-                                        return new DhcpMessage(request, IPAddress.Any, IPAddress.Any, new DhcpOption[] { new DhcpMessageTypeOption(DhcpMessageType.Nak), new ServerIdentifierOption(scope.InterfaceAddress), DhcpOption.CreateEndOption() });
+                                        return DhcpMessage.CreateReply(request, IPAddress.Any, IPAddress.Any, null, null, new DhcpOption[] { new DhcpMessageTypeOption(DhcpMessageType.Nak), new ServerIdentifierOption(scope.InterfaceAddress), DhcpOption.CreateEndOption() });
                                     }
                                 }
                             }
@@ -377,14 +383,14 @@ namespace DnsServerCore.Dhcp
                                 {
                                     //no existing lease or offer available for client
                                     //send nak
-                                    return new DhcpMessage(request, IPAddress.Any, IPAddress.Any, new DhcpOption[] { new DhcpMessageTypeOption(DhcpMessageType.Nak), new ServerIdentifierOption(scope.InterfaceAddress), DhcpOption.CreateEndOption() });
+                                    return DhcpMessage.CreateReply(request, IPAddress.Any, IPAddress.Any, null, null, new DhcpOption[] { new DhcpMessageTypeOption(DhcpMessageType.Nak), new ServerIdentifierOption(scope.InterfaceAddress), DhcpOption.CreateEndOption() });
                                 }
 
                                 if (!request.RequestedIpAddress.Address.Equals(leaseOffer.Address))
                                 {
                                     //the client's notion of its IP address is not correct - RFC 2131
                                     //send nak
-                                    return new DhcpMessage(request, IPAddress.Any, IPAddress.Any, new DhcpOption[] { new DhcpMessageTypeOption(DhcpMessageType.Nak), new ServerIdentifierOption(scope.InterfaceAddress), DhcpOption.CreateEndOption() });
+                                    return DhcpMessage.CreateReply(request, IPAddress.Any, IPAddress.Any, null, null, new DhcpOption[] { new DhcpMessageTypeOption(DhcpMessageType.Nak), new ServerIdentifierOption(scope.InterfaceAddress), DhcpOption.CreateEndOption() });
                                 }
                             }
                         }
@@ -403,14 +409,14 @@ namespace DnsServerCore.Dhcp
                             {
                                 //no existing lease or offer available for client
                                 //send nak
-                                return new DhcpMessage(request, IPAddress.Any, IPAddress.Any, new DhcpOption[] { new DhcpMessageTypeOption(DhcpMessageType.Nak), new ServerIdentifierOption(scope.InterfaceAddress), DhcpOption.CreateEndOption() });
+                                return DhcpMessage.CreateReply(request, IPAddress.Any, IPAddress.Any, null, null, new DhcpOption[] { new DhcpMessageTypeOption(DhcpMessageType.Nak), new ServerIdentifierOption(scope.InterfaceAddress), DhcpOption.CreateEndOption() });
                             }
 
                             if (!request.RequestedIpAddress.Address.Equals(leaseOffer.Address))
                             {
                                 //requested ip is incorrect
                                 //send nak
-                                return new DhcpMessage(request, IPAddress.Any, IPAddress.Any, new DhcpOption[] { new DhcpMessageTypeOption(DhcpMessageType.Nak), new ServerIdentifierOption(scope.InterfaceAddress), DhcpOption.CreateEndOption() });
+                                return DhcpMessage.CreateReply(request, IPAddress.Any, IPAddress.Any, null, null, new DhcpOption[] { new DhcpMessageTypeOption(DhcpMessageType.Nak), new ServerIdentifierOption(scope.InterfaceAddress), DhcpOption.CreateEndOption() });
                             }
                         }
 
@@ -465,7 +471,7 @@ namespace DnsServerCore.Dhcp
                             }
                         }
 
-                        return new DhcpMessage(request, leaseOffer.Address, scope.NextServerAddress ?? serverIdentifierAddress, options);
+                        return DhcpMessage.CreateReply(request, leaseOffer.Address, scope.ServerAddress ?? serverIdentifierAddress, scope.ServerHostName, scope.BootFileName, options);
                     }
 
                 case DhcpMessageType.Decline:
@@ -587,7 +593,7 @@ namespace DnsServerCore.Dhcp
                                 UpdateDnsAuthZone(true, scope, clientDomainName, request.ClientIpAddress);
                         }
 
-                        return new DhcpMessage(request, IPAddress.Any, scope.NextServerAddress ?? serverIdentifierAddress, options);
+                        return DhcpMessage.CreateReply(request, IPAddress.Any, scope.ServerAddress ?? serverIdentifierAddress, null, null, options);
                     }
 
                 default:
