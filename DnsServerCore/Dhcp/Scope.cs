@@ -50,7 +50,9 @@ namespace DnsServerCore.Dhcp
         //dhcp options
         string _domainName;
         uint _dnsTtl = 900;
-        IPAddress _nextServerAddress;
+        IPAddress _serverAddress;
+        string _serverHostName;
+        string _bootFileName;
         IPAddress _routerAddress;
         bool _useThisDnsServer;
         ICollection<IPAddress> _dnsServers;
@@ -101,6 +103,7 @@ namespace DnsServerCore.Dhcp
             {
                 case 1:
                 case 2:
+                case 3:
                     _name = bR.ReadShortString();
                     _enabled = bR.ReadBoolean();
 
@@ -118,11 +121,22 @@ namespace DnsServerCore.Dhcp
 
                     _dnsTtl = bR.ReadUInt32();
 
-                    if (version > 1)
+                    if (version >= 2)
                     {
-                        _nextServerAddress = IPAddressExtension.Parse(bR);
-                        if (_nextServerAddress.Equals(IPAddress.Any))
-                            _nextServerAddress = null;
+                        _serverAddress = IPAddressExtension.Parse(bR);
+                        if (_serverAddress.Equals(IPAddress.Any))
+                            _serverAddress = null;
+                    }
+
+                    if (version >= 3)
+                    {
+                        _serverHostName = bR.ReadShortString();
+                        if (string.IsNullOrEmpty(_serverHostName))
+                            _serverHostName = null;
+
+                        _bootFileName = bR.ReadShortString();
+                        if (string.IsNullOrEmpty(_bootFileName))
+                            _bootFileName = null;
                     }
 
                     _routerAddress = IPAddressExtension.Parse(bR);
@@ -889,7 +903,7 @@ namespace DnsServerCore.Dhcp
         public void WriteTo(BinaryWriter bW)
         {
             bW.Write(Encoding.ASCII.GetBytes("SC"));
-            bW.Write((byte)2); //version
+            bW.Write((byte)3); //version
 
             bW.WriteShortString(_name);
             bW.Write(_enabled);
@@ -908,10 +922,20 @@ namespace DnsServerCore.Dhcp
 
             bW.Write(_dnsTtl);
 
-            if (_nextServerAddress == null)
+            if (_serverAddress == null)
                 IPAddress.Any.WriteTo(bW);
             else
-                _nextServerAddress.WriteTo(bW);
+                _serverAddress.WriteTo(bW);
+
+            if (string.IsNullOrEmpty(_serverHostName))
+                bW.Write((byte)0);
+            else
+                bW.WriteShortString(_serverHostName);
+
+            if (string.IsNullOrEmpty(_bootFileName))
+                bW.Write((byte)0);
+            else
+                bW.WriteShortString(_bootFileName);
 
             if (_routerAddress == null)
                 IPAddress.Any.WriteTo(bW);
@@ -1126,10 +1150,34 @@ namespace DnsServerCore.Dhcp
             set { _dnsTtl = value; }
         }
 
-        public IPAddress NextServerAddress
+        public IPAddress ServerAddress
         {
-            get { return _nextServerAddress; }
-            set { _nextServerAddress = value; }
+            get { return _serverAddress; }
+            set { _serverAddress = value; }
+        }
+
+        public string ServerHostName
+        {
+            get { return _serverHostName; }
+            set
+            {
+                if ((value != null) && (value.Length >= 64))
+                    throw new ArgumentException("Server host name cannot exceed 63 bytes.");
+
+                _serverHostName = value;
+            }
+        }
+
+        public string BootFileName
+        {
+            get { return _bootFileName; }
+            set
+            {
+                if ((value != null) && (value.Length >= 128))
+                    throw new ArgumentException("Boot file name cannot exceed 127 bytes.");
+
+                _bootFileName = value;
+            }
         }
 
         public IPAddress RouterAddress
