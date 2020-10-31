@@ -155,10 +155,6 @@ namespace DnsServerCore.Dns
                 ServicePointManager.DefaultConnectionLimit = 10; //concurrent http request limit required when using DNS-over-HTTPS forwarders
         }
 
-        public DnsServer(string configFolder, string dohwwwFolder, LogManager log = null)
-            : this(Environment.MachineName.ToLower(), configFolder, dohwwwFolder, log)
-        { }
-
         public DnsServer(string serverDomain, string configFolder, string dohwwwFolder, LogManager log = null)
             : this(serverDomain, configFolder, dohwwwFolder, new IPEndPoint[] { new IPEndPoint(IPAddress.Any, 53), new IPEndPoint(IPAddress.IPv6Any, 53) }, log)
         { }
@@ -1217,7 +1213,20 @@ namespace DnsServerCore.Dns
                 else
                 {
                     if ((lastResponse.Authority.Count > 0) && (lastResponse.Authority[0].Type == DnsResourceRecordType.SOA))
+                    {
                         authority = lastResponse.Authority;
+                    }
+                    else
+                    {
+                        switch (request.Question[0].Type)
+                        {
+                            case DnsResourceRecordType.NS:
+                            case DnsResourceRecordType.MX:
+                            case DnsResourceRecordType.SRV:
+                                additional = lastResponse.Additional;
+                                break;
+                        }
+                    }
                 }
             }
 
@@ -1414,11 +1423,25 @@ namespace DnsServerCore.Dns
                             answer.AddRange(lastResponse.Answer);
 
                             IReadOnlyList<DnsResourceRecord> authority = null;
+                            IReadOnlyList<DnsResourceRecord> additional = null;
 
                             if ((lastResponse.Authority.Count > 0) && (lastResponse.Authority[0].Type == DnsResourceRecordType.SOA))
+                            {
                                 authority = lastResponse.Authority;
+                            }
+                            else
+                            {
+                                switch (questionType)
+                                {
+                                    case DnsResourceRecordType.NS:
+                                    case DnsResourceRecordType.MX:
+                                    case DnsResourceRecordType.SRV:
+                                        additional = lastResponse.Additional;
+                                        break;
+                                }
+                            }
 
-                            return new DnsDatagram(request.Identifier, true, DnsOpcode.StandardQuery, false, false, true, true, false, false, DnsResponseCode.NoError, request.Question, answer, authority) { Tag = lastResponse.Tag };
+                            return new DnsDatagram(request.Identifier, true, DnsOpcode.StandardQuery, false, false, true, true, false, false, DnsResponseCode.NoError, request.Question, answer, authority, additional) { Tag = lastResponse.Tag };
                         }
                     }
                 }
@@ -1427,11 +1450,25 @@ namespace DnsServerCore.Dns
             //return response
             {
                 IReadOnlyList<DnsResourceRecord> authority = null;
+                IReadOnlyList<DnsResourceRecord> additional = null;
 
-                if ((authority == null) && (response.Authority.Count > 0) && (response.Authority[0].Type == DnsResourceRecordType.SOA))
+                if ((response.Authority.Count > 0) && (response.Authority[0].Type == DnsResourceRecordType.SOA))
+                {
                     authority = response.Authority;
+                }
+                else
+                {
+                    switch (request.Question[0].Type)
+                    {
+                        case DnsResourceRecordType.NS:
+                        case DnsResourceRecordType.MX:
+                        case DnsResourceRecordType.SRV:
+                            additional = response.Additional;
+                            break;
+                    }
+                }
 
-                return new DnsDatagram(request.Identifier, true, DnsOpcode.StandardQuery, false, false, true, true, false, false, response.RCODE, request.Question, response.Answer, authority) { Tag = response.Tag };
+                return new DnsDatagram(request.Identifier, true, DnsOpcode.StandardQuery, false, false, true, true, false, false, response.RCODE, request.Question, response.Answer, authority, additional) { Tag = response.Tag };
             }
         }
 
