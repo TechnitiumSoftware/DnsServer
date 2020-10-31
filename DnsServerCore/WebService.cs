@@ -4443,8 +4443,13 @@ namespace DnsServerCore
 
             try
             {
+                //get initial server domain
+                string serverDomain = Environment.MachineName.ToLower();
+                if (!DnsClient.IsDomainNameValid(serverDomain))
+                    serverDomain = "dns-server-1"; //use this name instead since machine name is not a valid domain name
+
                 //init dns server
-                _dnsServer = new DnsServer(_configFolder, Path.Combine(_appFolder, "dohwww"), _log);
+                _dnsServer = new DnsServer(serverDomain, _configFolder, Path.Combine(_appFolder, "dohwww"), _log);
 
                 //init dhcp server
                 _dhcpServer = new DhcpServer(Path.Combine(_configFolder, "scopes"), _log);
