@@ -241,37 +241,56 @@ namespace DnsServerCore.Dns.ZoneManagers
             });
         }
 
-        private IReadOnlyList<DnsResourceRecord> GetAdditionalRecords(IReadOnlyList<DnsResourceRecord> nsRecords)
+        private IReadOnlyList<DnsResourceRecord> GetAdditionalRecords(IReadOnlyList<DnsResourceRecord> refRecords)
         {
-            IReadOnlyList<DnsResourceRecord> glueRecords = nsRecords.GetGlueRecords();
-            if (glueRecords.Count > 0)
-                return glueRecords;
-
             List<DnsResourceRecord> additionalRecords = new List<DnsResourceRecord>();
 
-            foreach (DnsResourceRecord nsRecord in nsRecords)
+            foreach (DnsResourceRecord refRecord in refRecords)
             {
-                if (nsRecord.Type != DnsResourceRecordType.NS)
-                    continue;
-
-                AuthZone authZone = _root.FindZone((nsRecord.RDATA as DnsNSRecord).NameServer, out _, out _, out _);
-                if ((authZone != null) && authZone.IsActive)
+                switch (refRecord.Type)
                 {
-                    {
-                        IReadOnlyList<DnsResourceRecord> records = authZone.QueryRecords(DnsResourceRecordType.A);
-                        if ((records.Count > 0) && (records[0].RDATA is DnsARecord))
-                            additionalRecords.AddRange(records);
-                    }
+                    case DnsResourceRecordType.NS:
+                        IReadOnlyList<DnsResourceRecord> glueRecords = refRecord.GetGlueRecords();
+                        if (glueRecords.Count > 0)
+                        {
+                            additionalRecords.AddRange(glueRecords);
+                        }
+                        else
+                        {
+                            ResolveAdditionalRecords((refRecord.RDATA as DnsNSRecord).NameServer, additionalRecords);
+                        }
+                        break;
 
-                    {
-                        IReadOnlyList<DnsResourceRecord> records = authZone.QueryRecords(DnsResourceRecordType.AAAA);
-                        if ((records.Count > 0) && (records[0].RDATA is DnsAAAARecord))
-                            additionalRecords.AddRange(records);
-                    }
+                    case DnsResourceRecordType.MX:
+                        ResolveAdditionalRecords((refRecord.RDATA as DnsMXRecord).Exchange, additionalRecords);
+                        break;
+
+                    case DnsResourceRecordType.SRV:
+                        ResolveAdditionalRecords((refRecord.RDATA as DnsSRVRecord).Target, additionalRecords);
+                        break;
                 }
             }
 
             return additionalRecords;
+        }
+
+        private void ResolveAdditionalRecords(string domain, List<DnsResourceRecord> additionalRecords)
+        {
+            AuthZone authZone = _root.FindZone(domain, out _, out _, out _);
+            if ((authZone != null) && authZone.IsActive)
+            {
+                {
+                    IReadOnlyList<DnsResourceRecord> records = authZone.QueryRecords(DnsResourceRecordType.A);
+                    if ((records.Count > 0) && (records[0].RDATA is DnsARecord))
+                        additionalRecords.AddRange(records);
+                }
+
+                {
+                    IReadOnlyList<DnsResourceRecord> records = authZone.QueryRecords(DnsResourceRecordType.AAAA);
+                    if ((records.Count > 0) && (records[0].RDATA is DnsAAAARecord))
+                        additionalRecords.AddRange(records);
+                }
+            }
         }
 
         private DnsDatagram GetReferralResponse(DnsDatagram request, AuthZone delegationZone)
@@ -898,6 +917,8 @@ namespace DnsServerCore.Dns.ZoneManagers
                     switch (request.Question[0].Type)
                     {
                         case DnsResourceRecordType.NS:
+                        case DnsResourceRecordType.MX:
+                        case DnsResourceRecordType.SRV:
                             authority = null;
                             additional = GetAdditionalRecords(answers);
                             break;
