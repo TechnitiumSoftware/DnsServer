@@ -79,6 +79,7 @@ namespace DnsServerCore.Dhcp
         OptionOverloadOption _optionOverload;
 
         DhcpMessageTypeOption _dhcpMessageType;
+        VendorClassIdentifierOption _vendorClassIdentifier;
         ClientIdentifierOption _clientIdentifier;
         HostNameOption _hostName;
         ClientFullyQualifiedDomainNameOption _clientFullyQualifiedDomainName;
@@ -325,6 +326,10 @@ namespace DnsServerCore.Dhcp
                         _dhcpMessageType = option as DhcpMessageTypeOption;
                         break;
 
+                    case DhcpOptionCode.VendorClassIdentifier:
+                        _vendorClassIdentifier = option as VendorClassIdentifierOption;
+                        break;
+
                     case DhcpOptionCode.ClientIdentifier:
                         _clientIdentifier = option as ClientIdentifierOption;
                         break;
@@ -458,6 +463,9 @@ namespace DnsServerCore.Dhcp
 
         public DhcpMessageTypeOption DhcpMessageType
         { get { return _dhcpMessageType; } }
+
+        public VendorClassIdentifierOption VendorClassIdentifier
+        { get { return _vendorClassIdentifier; } }
 
         public ClientIdentifierOption ClientIdentifier
         { get { return _clientIdentifier; } }
