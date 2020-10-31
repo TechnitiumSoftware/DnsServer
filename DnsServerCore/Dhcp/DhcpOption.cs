@@ -170,6 +170,9 @@ namespace DnsServerCore.Dhcp
                 case DhcpOptionCode.BroadcastAddress:
                     return new BroadcastAddressOption(s);
 
+                case DhcpOptionCode.VendorSpecificInformation:
+                    return new VendorSpecificInformationOption(s);
+
                 case DhcpOptionCode.NetBiosOverTcpIpNameServer:
                     return new NetBiosNameServerOption(s);
 
@@ -199,6 +202,9 @@ namespace DnsServerCore.Dhcp
 
                 case DhcpOptionCode.RebindingTimeValue:
                     return new RebindingTimeValueOption(s);
+
+                case DhcpOptionCode.VendorClassIdentifier:
+                    return new VendorClassIdentifierOption(s);
 
                 case DhcpOptionCode.ClientIdentifier:
                     return new ClientIdentifierOption(s);
