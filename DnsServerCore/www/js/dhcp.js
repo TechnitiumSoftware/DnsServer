@@ -117,20 +117,31 @@ function addDhcpScopeStaticRouteRow(destination, subnetMask, router) {
 
     var id = Math.floor(Math.random() * 10000);
 
-    var tableHtmlRows = "<tr id=\"tableDhcpScopeStaticRoutesRow" + id + "\"><td><input type=\"text\" class=\"form-control\" value=\"" + destination + "\"></td>";
-    tableHtmlRows += "<td><input type=\"text\" class=\"form-control\" value=\"" + subnetMask + "\"></td>";
-    tableHtmlRows += "<td><input type=\"text\" class=\"form-control\" value=\"" + router + "\"></td>";
+    var tableHtmlRows = "<tr id=\"tableDhcpScopeStaticRoutesRow" + id + "\"><td><input type=\"text\" class=\"form-control\" value=\"" + htmlEncode(destination) + "\"></td>";
+    tableHtmlRows += "<td><input type=\"text\" class=\"form-control\" value=\"" + htmlEncode(subnetMask) + "\"></td>";
+    tableHtmlRows += "<td><input type=\"text\" class=\"form-control\" value=\"" + htmlEncode(router) + "\"></td>";
     tableHtmlRows += "<td><button type=\"button\" class=\"btn btn-danger\" onclick=\"$('#tableDhcpScopeStaticRoutesRow" + id + "').remove();\">Delete</button></td></tr>";
 
     $("#tableDhcpScopeStaticRoutes").append(tableHtmlRows);
+}
+
+function addDhcpScopeVendorInfoRow(identifier, information) {
+
+    var id = Math.floor(Math.random() * 10000);
+
+    var tableHtmlRows = "<tr id=\"tableDhcpScopeVendorInfoRow" + id + "\"><td><input type=\"text\" class=\"form-control\" value='" + htmlEncode(identifier) + "' data-optional=\"true\"></td>";
+    tableHtmlRows += "<td><input type=\"text\" class=\"form-control\" value='" + htmlEncode(information) + "'></td>";
+    tableHtmlRows += "<td><button type=\"button\" class=\"btn btn-danger\" onclick=\"$('#tableDhcpScopeVendorInfoRow" + id + "').remove();\">Delete</button></td></tr>";
+
+    $("#tableDhcpScopeVendorInfo").append(tableHtmlRows);
 }
 
 function addDhcpScopeExclusionRow(startingAddress, endingAddress) {
 
     var id = Math.floor(Math.random() * 10000);
 
-    var tableHtmlRows = "<tr id=\"tableDhcpScopeExclusionRow" + id + "\"><td><input type=\"text\" class=\"form-control\" value=\"" + startingAddress + "\"></td>";
-    tableHtmlRows += "<td><input type=\"text\" class=\"form-control\" value=\"" + endingAddress + "\"></td>";
+    var tableHtmlRows = "<tr id=\"tableDhcpScopeExclusionRow" + id + "\"><td><input type=\"text\" class=\"form-control\" value=\"" + htmlEncode(startingAddress) + "\"></td>";
+    tableHtmlRows += "<td><input type=\"text\" class=\"form-control\" value=\"" + htmlEncode(endingAddress) + "\"></td>";
     tableHtmlRows += "<td><button type=\"button\" class=\"btn btn-danger\" onclick=\"$('#tableDhcpScopeExclusionRow" + id + "').remove();\">Delete</button></td></tr>";
 
     $("#tableDhcpScopeExclusions").append(tableHtmlRows);
@@ -141,26 +152,26 @@ function addDhcpScopeReservedLeaseRow(hostName, hardwareAddress, address, commen
     var id = Math.floor(Math.random() * 10000);
 
     var tableHtmlRows = "<tr id=\"tableDhcpScopeReservedLeaseRow" + id + "\"><td style=\"padding: 14px 0px;\">" + (hostName == null ? "" : htmlEncode(hostName)) + "</td>";
-    tableHtmlRows += "<td><input type=\"text\" class=\"form-control\" value=\"" + hardwareAddress + "\"></td>";
-    tableHtmlRows += "<td><input type=\"text\" class=\"form-control\" value=\"" + address + "\"></td>";
+    tableHtmlRows += "<td><input type=\"text\" class=\"form-control\" value=\"" + htmlEncode(hardwareAddress) + "\"></td>";
+    tableHtmlRows += "<td><input type=\"text\" class=\"form-control\" value=\"" + htmlEncode(address) + "\"></td>";
     tableHtmlRows += "<td><input type=\"text\" class=\"form-control\" value=\"" + (comments == null ? "" : htmlEncode(comments)) + "\" data-optional=\"true\"></td>";
     tableHtmlRows += "<td><button type=\"button\" class=\"btn btn-danger\" onclick=\"$('#tableDhcpScopeReservedLeaseRow" + id + "').remove();\">Delete</button></td></tr>";
 
     $("#tableDhcpScopeReservedLeases").append(tableHtmlRows);
 }
 
-function getTableCsv(table, columns) {
+function serializeTableData(table, columns) {
 
     var data = table.find('input:text');
-    var csv = "";
+    var output = "";
 
     for (var i = 0; i < data.length; i += columns) {
         if (i > 0)
-            csv += ",";
+            output += "|";
 
         for (var j = 0; j < columns; j++) {
             if (j > 0)
-                csv += ";";
+                output += "|";
 
             var cell = $(data[i + j]);
             var cellValue = cell.val();
@@ -172,11 +183,11 @@ function getTableCsv(table, columns) {
                 return false;
             }
 
-            csv += htmlDecode(cellValue);
+            output += htmlDecode(cellValue);
         }
     }
 
-    return csv;
+    return output;
 }
 
 function clearDhcpScopeForm() {
@@ -201,6 +212,7 @@ function clearDhcpScopeForm() {
     $("#txtDhcpScopeWinsServers").val("");
     $("#txtDhcpScopeNtpServers").val("");
     $("#tableDhcpScopeStaticRoutes").html("");
+    $("#tableDhcpScopeVendorInfo").html("");
     $("#tableDhcpScopeExclusions").html("");
     $("#tableDhcpScopeReservedLeases").html("");
     $("#chkAllowOnlyReservedLeases").prop("checked", false);
@@ -280,6 +292,12 @@ function showEditDhcpScope(scopeName) {
                 }
             }
 
+            if (responseJSON.response.vendorInfo != null) {
+                for (var i = 0; i < responseJSON.response.vendorInfo.length; i++) {
+                    addDhcpScopeVendorInfoRow(responseJSON.response.vendorInfo[i].identifier, responseJSON.response.vendorInfo[i].information)
+                }
+            }
+
             if (responseJSON.response.exclusions != null) {
                 for (var i = 0; i < responseJSON.response.exclusions.length; i++) {
                     addDhcpScopeExclusionRow(responseJSON.response.exclusions[i].startingAddress, responseJSON.response.exclusions[i].endingAddress);
@@ -337,15 +355,19 @@ function saveDhcpScope() {
     var winsServers = cleanTextList($("#txtDhcpScopeWinsServers").val());
     var ntpServers = cleanTextList($("#txtDhcpScopeNtpServers").val());
 
-    var staticRoutes = getTableCsv($("#tableDhcpScopeStaticRoutes"), 3);
+    var staticRoutes = serializeTableData($("#tableDhcpScopeStaticRoutes"), 3);
     if (staticRoutes === false)
         return;
 
-    var exclusions = getTableCsv($("#tableDhcpScopeExclusions"), 2);
+    var vendorInfo = serializeTableData($("#tableDhcpScopeVendorInfo"), 2);
+    if (vendorInfo === false)
+        return;
+
+    var exclusions = serializeTableData($("#tableDhcpScopeExclusions"), 2);
     if (exclusions === false)
         return;
 
-    var reservedLeases = getTableCsv($("#tableDhcpScopeReservedLeases"), 3);
+    var reservedLeases = serializeTableData($("#tableDhcpScopeReservedLeases"), 3);
     if (reservedLeases === false)
         return;
 
@@ -357,7 +379,7 @@ function saveDhcpScope() {
         url: "/api/setDhcpScope?token=" + token + "&name=" + encodeURIComponent(name) + (newName == null ? "" : "&newName=" + encodeURIComponent(newName)) + "&startingAddress=" + encodeURIComponent(startingAddress) + "&endingAddress=" + encodeURIComponent(endingAddress) + "&subnetMask=" + encodeURIComponent(subnetMask) +
             "&leaseTimeDays=" + leaseTimeDays + "&leaseTimeHours=" + leaseTimeHours + "&leaseTimeMinutes=" + leaseTimeMinutes + "&offerDelayTime=" + offerDelayTime + "&domainName=" + encodeURIComponent(domainName) + "&dnsTtl=" + dnsTtl + "&serverAddress=" + encodeURIComponent(serverAddress) + "&serverHostName=" + encodeURIComponent(serverHostName) + "&bootFileName=" + encodeURIComponent(bootFileName) +
             "&routerAddress=" + encodeURIComponent(routerAddress) + "&useThisDnsServer=" + useThisDnsServer + (useThisDnsServer ? "" : "&dnsServers=" + encodeURIComponent(dnsServers)) + "&winsServers=" + encodeURIComponent(winsServers) + "&ntpServers=" + encodeURIComponent(ntpServers) +
-            "&staticRoutes=" + encodeURIComponent(staticRoutes) + "&exclusions=" + encodeURIComponent(exclusions) + "&reservedLeases=" + encodeURIComponent(reservedLeases) + "&allowOnlyReservedLeases=" + allowOnlyReservedLeases,
+            "&staticRoutes=" + encodeURIComponent(staticRoutes) + "&vendorInfo=" + encodeURIComponent(vendorInfo) + "&exclusions=" + encodeURIComponent(exclusions) + "&reservedLeases=" + encodeURIComponent(reservedLeases) + "&allowOnlyReservedLeases=" + allowOnlyReservedLeases,
         success: function (responseJSON) {
             refreshDhcpScopes();
             btn.button('reset');
