@@ -118,7 +118,7 @@ function refreshZones(checkDisplay) {
                 if (expiry == null)
                     expiry = "&nbsp;";
 
-                var isReadOnlyZone = zones[i].internal || (zones[i].type === "Secondary");
+                var isReadOnlyZone = zones[i].internal;
 
                 tableHtmlRows += "<tr id=\"trZone" + id + "\"><td>" + htmlEncode(name) + "</td>";
                 tableHtmlRows += "<td>" + type + "</td>";
@@ -405,6 +405,7 @@ function showEditZone(domain) {
             switch (type) {
                 case "Internal":
                 case "Secondary":
+                case "Stub":
                     $("#btnEditZoneAddRecord").hide();
                     break;
 
