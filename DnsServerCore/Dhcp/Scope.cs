@@ -59,6 +59,7 @@ namespace DnsServerCore.Dhcp
         ICollection<IPAddress> _winsServers;
         ICollection<IPAddress> _ntpServers;
         ICollection<ClasslessStaticRouteOption.Route> _staticRoutes;
+        IReadOnlyDictionary<string, VendorSpecificInformationOption> _vendorInfo;
 
         //advanced options
         ICollection<Exclusion> _exclusions;
@@ -104,6 +105,7 @@ namespace DnsServerCore.Dhcp
                 case 1:
                 case 2:
                 case 3:
+                case 4:
                     _name = bR.ReadShortString();
                     _enabled = bR.ReadBoolean();
 
@@ -200,6 +202,25 @@ namespace DnsServerCore.Dhcp
                                 staticRoutes[i] = new ClasslessStaticRouteOption.Route(bR.BaseStream);
 
                             _staticRoutes = staticRoutes;
+                        }
+                    }
+
+                    if (version >= 4)
+                    {
+                        int count = bR.ReadByte();
+                        if (count > 0)
+                        {
+                            Dictionary<string, VendorSpecificInformationOption> vendorInfo = new Dictionary<string, VendorSpecificInformationOption>(count);
+
+                            for (int i = 0; i < count; i++)
+                            {
+                                string vendorClassIdentifier = bR.ReadShortString();
+                                VendorSpecificInformationOption vendorSpecificInformation = new VendorSpecificInformationOption(bR.ReadBuffer());
+
+                                vendorInfo.Add(vendorClassIdentifier, vendorSpecificInformation);
+                            }
+
+                            _vendorInfo = vendorInfo;
                         }
                     }
 
@@ -794,6 +815,57 @@ namespace DnsServerCore.Dhcp
                 }
             }
 
+            if ((_vendorInfo != null) && (request.VendorClassIdentifier != null))
+            {
+                VendorSpecificInformationOption vendorSpecificInformationOption;
+
+                if (_vendorInfo.TryGetValue(request.VendorClassIdentifier.Identifier, out vendorSpecificInformationOption) || _vendorInfo.TryGetValue("", out vendorSpecificInformationOption))
+                {
+                    options.Add(new VendorClassIdentifierOption(request.VendorClassIdentifier.Identifier));
+                    options.Add(vendorSpecificInformationOption);
+                }
+                else
+                {
+                    string match = "substring(vendor-class-identifier,";
+
+                    foreach (KeyValuePair<string, VendorSpecificInformationOption> entry in _vendorInfo)
+                    {
+                        if (entry.Key.StartsWith(match))
+                        {
+                            int i = entry.Key.IndexOf(')', match.Length);
+                            if (i < match.Length)
+                                continue;
+
+                            string[] parts = entry.Key.Substring(match.Length, i - match.Length).Split(',');
+
+                            if (parts.Length != 2)
+                                continue;
+
+                            if (!int.TryParse(parts[0], out int startIndex))
+                                continue;
+
+                            if (!int.TryParse(parts[1], out int length))
+                                continue;
+
+                            int j = entry.Key.IndexOf("==", i);
+                            if (j < i)
+                                continue;
+
+                            string value = entry.Key.Substring(j + 2);
+                            value = value.Trim();
+                            value = value.Trim('"');
+
+                            if (request.VendorClassIdentifier.Identifier.Substring(startIndex, length).Equals(value))
+                            {
+                                options.Add(new VendorClassIdentifierOption(value));
+                                options.Add(entry.Value);
+                                break;
+                            }
+                        }
+                    }
+                }
+            }
+
             options.Add(DhcpOption.CreateEndOption());
 
             return options;
@@ -921,7 +993,7 @@ namespace DnsServerCore.Dhcp
         public void WriteTo(BinaryWriter bW)
         {
             bW.Write(Encoding.ASCII.GetBytes("SC"));
-            bW.Write((byte)3); //version
+            bW.Write((byte)4); //version
 
             bW.WriteShortString(_name);
             bW.Write(_enabled);
@@ -1010,6 +1082,21 @@ namespace DnsServerCore.Dhcp
 
                 foreach (ClasslessStaticRouteOption.Route route in _staticRoutes)
                     route.WriteTo(bW.BaseStream);
+            }
+
+            if (_vendorInfo == null)
+            {
+                bW.Write((byte)0);
+            }
+            else
+            {
+                bW.Write(Convert.ToByte(_vendorInfo.Count));
+
+                foreach (KeyValuePair<string, VendorSpecificInformationOption> entry in _vendorInfo)
+                {
+                    bW.WriteShortString(entry.Key);
+                    bW.WriteBuffer(entry.Value.Information);
+                }
             }
 
             if (_exclusions == null)
@@ -1244,6 +1331,12 @@ namespace DnsServerCore.Dhcp
         {
             get { return _staticRoutes; }
             set { _staticRoutes = value; }
+        }
+
+        public IReadOnlyDictionary<string, VendorSpecificInformationOption> VendorInfo
+        {
+            get { return _vendorInfo; }
+            set { _vendorInfo = value; }
         }
 
         public ICollection<Exclusion> Exclusions
