@@ -3582,6 +3582,27 @@ namespace DnsServerCore
                 jsonWriter.WriteEndArray();
             }
 
+            if (scope.VendorInfo != null)
+            {
+                jsonWriter.WritePropertyName("vendorInfo");
+                jsonWriter.WriteStartArray();
+
+                foreach (KeyValuePair<string, VendorSpecificInformationOption> entry in scope.VendorInfo)
+                {
+                    jsonWriter.WriteStartObject();
+
+                    jsonWriter.WritePropertyName("identifier");
+                    jsonWriter.WriteValue(entry.Key);
+
+                    jsonWriter.WritePropertyName("information");
+                    jsonWriter.WriteValue(entry.Value.ToString());
+
+                    jsonWriter.WriteEndObject();
+                }
+
+                jsonWriter.WriteEndArray();
+            }
+
             if (scope.Exclusions != null)
             {
                 jsonWriter.WritePropertyName("exclusions");
@@ -3799,17 +3820,36 @@ namespace DnsServerCore
                 }
                 else
                 {
-                    string[] strStaticRoutesParts = strStaticRoutes.Split(new char[] { ',' }, StringSplitOptions.RemoveEmptyEntries);
-                    ClasslessStaticRouteOption.Route[] staticRoutes = new ClasslessStaticRouteOption.Route[strStaticRoutesParts.Length];
+                    string[] strStaticRoutesParts = strStaticRoutes.Split('|');
+                    List<ClasslessStaticRouteOption.Route> staticRoutes = new List<ClasslessStaticRouteOption.Route>();
 
-                    for (int i = 0; i < strStaticRoutesParts.Length; i++)
+                    for (int i = 0; i < strStaticRoutesParts.Length; i += 3)
                     {
-                        string[] routeParts = strStaticRoutesParts[i].Split(';');
-
-                        staticRoutes[i] = new ClasslessStaticRouteOption.Route(IPAddress.Parse(routeParts[0]), IPAddress.Parse(routeParts[1]), IPAddress.Parse(routeParts[2]));
+                        staticRoutes.Add(new ClasslessStaticRouteOption.Route(IPAddress.Parse(strStaticRoutesParts[i + 0]), IPAddress.Parse(strStaticRoutesParts[i + 1]), IPAddress.Parse(strStaticRoutesParts[i + 2])));
                     }
 
                     scope.StaticRoutes = staticRoutes;
+                }
+            }
+
+            string strVendorInfo = request.QueryString["vendorInfo"];
+            if (strVendorInfo != null)
+            {
+                if (strVendorInfo.Length == 0)
+                {
+                    scope.VendorInfo = null;
+                }
+                else
+                {
+                    string[] strVendorInfoParts = strVendorInfo.Split('|');
+                    Dictionary<string, VendorSpecificInformationOption> vendorInfo = new Dictionary<string, VendorSpecificInformationOption>();
+
+                    for (int i = 0; i < strVendorInfoParts.Length; i += 2)
+                    {
+                        vendorInfo.Add(strVendorInfoParts[i + 0], new VendorSpecificInformationOption(strVendorInfoParts[i + 1]));
+                    }
+
+                    scope.VendorInfo = vendorInfo;
                 }
             }
 
@@ -3822,14 +3862,12 @@ namespace DnsServerCore
                 }
                 else
                 {
-                    string[] strExclusionsParts = strExclusions.Split(new char[] { ',' }, StringSplitOptions.RemoveEmptyEntries);
-                    Exclusion[] exclusions = new Exclusion[strExclusionsParts.Length];
+                    string[] strExclusionsParts = strExclusions.Split('|');
+                    List<Exclusion> exclusions = new List<Exclusion>();
 
-                    for (int i = 0; i < strExclusionsParts.Length; i++)
+                    for (int i = 0; i < strExclusionsParts.Length; i += 2)
                     {
-                        string[] rangeParts = strExclusionsParts[i].Split(';');
-
-                        exclusions[i] = new Exclusion(IPAddress.Parse(rangeParts[0]), IPAddress.Parse(rangeParts[1]));
+                        exclusions.Add(new Exclusion(IPAddress.Parse(strExclusionsParts[i + 0]), IPAddress.Parse(strExclusionsParts[i + 1])));
                     }
 
                     scope.Exclusions = exclusions;
@@ -3845,19 +3883,18 @@ namespace DnsServerCore
                 }
                 else
                 {
-                    string[] strReservedLeaseParts = strReservedLeases.Split(new char[] { ',' }, StringSplitOptions.RemoveEmptyEntries);
-                    Lease[] reservedLeases = new Lease[strReservedLeaseParts.Length];
+                    string[] strReservedLeaseParts = strReservedLeases.Split('|');
+                    List<Lease> reservedLeases = new List<Lease>();
 
-                    for (int i = 0; i < strReservedLeaseParts.Length; i++)
+                    for (int i = 0; i < strReservedLeaseParts.Length; i += 3)
                     {
-                        string[] leaseParts = strReservedLeaseParts[i].Split(';');
-                        Lease reservedLease = new Lease(LeaseType.Reserved, null, leaseParts[0], IPAddress.Parse(leaseParts[1]), leaseParts[2]);
+                        Lease reservedLease = new Lease(LeaseType.Reserved, null, strReservedLeaseParts[i + 0], IPAddress.Parse(strReservedLeaseParts[i + 1]), strReservedLeaseParts[i + 2]);
 
                         Lease existingReservedLease = scope.GetReservedLease(reservedLease.ClientIdentifier);
                         if (existingReservedLease != null)
                             reservedLease.SetHostName(existingReservedLease.HostName);
 
-                        reservedLeases[i] = reservedLease;
+                        reservedLeases.Add(reservedLease);
                     }
 
                     scope.ReservedLeases = reservedLeases;
