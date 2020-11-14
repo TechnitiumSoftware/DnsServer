@@ -54,6 +54,8 @@ function showPageMain(username) {
     $("#mainPanelTabPaneDashboard").addClass("active");
     $("#dhcpTabListLeases").addClass("active");
     $("#dhcpTabPaneLeases").addClass("active");
+    $("#divDhcpViewScopes").show();
+    $("#divDhcpEditScope").hide();
 
     $("#divViewZones").show();
     $("#divEditZone").hide();
