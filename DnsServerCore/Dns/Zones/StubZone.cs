@@ -332,12 +332,6 @@ namespace DnsServerCore.Dns.Zones
         {
             switch (type)
             {
-                case DnsResourceRecordType.CNAME:
-                    throw new InvalidOperationException("Cannot set CNAME record to zone root.");
-
-                case DnsResourceRecordType.NS:
-                    throw new InvalidOperationException("Cannot set NS records at stub zone root.");
-
                 case DnsResourceRecordType.SOA:
                     if ((records.Count != 1) || !records[0].Name.Equals(_name, StringComparison.OrdinalIgnoreCase))
                         throw new InvalidOperationException("Invalid SOA record.");
@@ -346,65 +340,28 @@ namespace DnsServerCore.Dns.Zones
                     break;
 
                 default:
-                    base.SetRecords(type, records);
-                    break;
+                    throw new InvalidOperationException("Cannot set records in stub zone.");
             }
         }
 
         public override void AddRecord(DnsResourceRecord record)
         {
-            switch (record.Type)
-            {
-                case DnsResourceRecordType.NS:
-                    throw new InvalidOperationException("Cannot add NS record at stub zone root.");
-
-                default:
-                    base.AddRecord(record);
-                    break;
-            }
+            throw new InvalidOperationException("Cannot add record in stub zone.");
         }
 
         public override bool DeleteRecords(DnsResourceRecordType type)
         {
-            switch (type)
-            {
-                case DnsResourceRecordType.NS:
-                    throw new InvalidOperationException("Cannot delete NS records in stub zone root.");
-
-                case DnsResourceRecordType.SOA:
-                    throw new InvalidOperationException("Cannot delete SOA record.");
-
-                default:
-                    return base.DeleteRecords(type);
-            }
+            throw new InvalidOperationException("Cannot delete record in stub zone.");
         }
 
         public override bool DeleteRecord(DnsResourceRecordType type, DnsResourceRecordData record)
         {
-            switch (type)
-            {
-                case DnsResourceRecordType.NS:
-                    throw new InvalidOperationException("Cannot delete NS record in stub zone root.");
-
-                case DnsResourceRecordType.SOA:
-                    throw new InvalidOperationException("Cannot delete SOA record.");
-
-                default:
-                    return base.DeleteRecord(type, record);
-            }
+            throw new InvalidOperationException("Cannot delete records in stub zone.");
         }
 
         public override IReadOnlyList<DnsResourceRecord> QueryRecords(DnsResourceRecordType type)
         {
-            switch (type)
-            {
-                case DnsResourceRecordType.SOA:
-                case DnsResourceRecordType.NS:
-                    return Array.Empty<DnsResourceRecord>(); //stub zone has no authority so cant return NS or SOA records as query response
-
-                default:
-                    return base.QueryRecords(type);
-            }
+            return Array.Empty<DnsResourceRecord>(); //stub zone has no authority so cant return any records as query response to allow generating referral response
         }
 
         #endregion

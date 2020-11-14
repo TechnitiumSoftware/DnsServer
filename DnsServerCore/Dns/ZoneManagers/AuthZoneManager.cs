@@ -232,8 +232,6 @@ namespace DnsServerCore.Dns.ZoneManagers
                     return new PrimarySubDomainZone(authZone as PrimaryZone, domain);
                 else if (authZone is SecondaryZone)
                     return new SecondarySubDomainZone(domain);
-                else if (authZone is StubZone)
-                    return new StubSubDomainZone(domain);
                 else if (authZone is ForwarderZone)
                     return new ForwarderSubDomainZone(domain);
 
