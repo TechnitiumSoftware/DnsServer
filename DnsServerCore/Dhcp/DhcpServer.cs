@@ -442,11 +442,10 @@ namespace DnsServerCore.Dhcp
                             log.Write(remoteEP, "DHCP Server leased IP address [" + leaseOffer.Address.ToString() + "] to " + request.GetClientFullIdentifier() + ".");
 
                         //update hostname in reserved leases
-                        if (request.HostName != null)
                         {
                             Lease reservedLease = scope.GetReservedLease(leaseOffer.ClientIdentifier);
                             if (reservedLease != null)
-                                reservedLease.SetHostName(request.HostName.HostName);
+                                reservedLease.SetHostName(request.HostName?.HostName);
                         }
 
                         if (string.IsNullOrWhiteSpace(scope.DomainName))
