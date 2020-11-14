@@ -57,14 +57,14 @@
         }
         "Entry"
         {
-        "MsmKey" = "8:_8B10F9E249A0AE128E599DE6F0311A2C"
-        "OwnerKey" = "8:_4744230694CEBFA14C02D34630CBE800"
+        "MsmKey" = "8:_6CC2E6E1F5D380251082B18D85E994CC"
+        "OwnerKey" = "8:_BB60BA89D1895F2892DFDF8733540B69"
         "MsmSig" = "8:_UNDEFINED"
         }
         "Entry"
         {
         "MsmKey" = "8:_8B10F9E249A0AE128E599DE6F0311A2C"
-        "OwnerKey" = "8:_BB60BA89D1895F2892DFDF8733540B69"
+        "OwnerKey" = "8:_4744230694CEBFA14C02D34630CBE800"
         "MsmSig" = "8:_UNDEFINED"
         }
         "Entry"
@@ -550,7 +550,7 @@
             {
             "AssemblyRegister" = "3:1"
             "AssemblyIsInGAC" = "11:FALSE"
-            "AssemblyAsmDisplayName" = "8:TechnitiumLibrary.IO, Version=2.7.0.0, Culture=neutral, processorArchitecture=MSIL"
+            "AssemblyAsmDisplayName" = "8:TechnitiumLibrary.IO, Version=2.7.1.0, Culture=neutral, processorArchitecture=MSIL"
                 "ScatterAssemblies"
                 {
                     "_6CC2E6E1F5D380251082B18D85E994CC"
@@ -581,7 +581,7 @@
             {
             "AssemblyRegister" = "3:1"
             "AssemblyIsInGAC" = "11:FALSE"
-            "AssemblyAsmDisplayName" = "8:TechnitiumLibrary.IO, Version=2.7.0.0, Culture=neutral, processorArchitecture=MSIL"
+            "AssemblyAsmDisplayName" = "8:TechnitiumLibrary.IO, Version=2.7.1.0, Culture=neutral, processorArchitecture=MSIL"
                 "ScatterAssemblies"
                 {
                     "_8B10F9E249A0AE128E599DE6F0311A2C"
@@ -892,15 +892,15 @@
         {
         "Name" = "8:Microsoft Visual Studio"
         "ProductName" = "8:DNS Server"
-        "ProductCode" = "8:{E986D81C-21C3-47F1-844E-E7768A1BCD4B}"
-        "PackageCode" = "8:{ADCBFCF7-8E32-43BC-841C-683CA3AED938}"
+        "ProductCode" = "8:{B8639D0F-A2D5-4085-ADB2-C8A4EA6D7C1E}"
+        "PackageCode" = "8:{B77CA9BE-CE19-4057-B35E-F5E93AF0647F}"
         "UpgradeCode" = "8:{ED5F64A5-EFD9-4A95-AA7C-4B8447343BD4}"
         "AspNetVersion" = "8:4.0.30319.0"
         "RestartWWWService" = "11:FALSE"
         "RemovePreviousVersions" = "11:TRUE"
         "DetectNewerInstalledVersion" = "11:TRUE"
         "InstallAllUsers" = "11:FALSE"
-        "ProductVersion" = "8:5.4"
+        "ProductVersion" = "8:5.5"
         "Manufacturer" = "8:Technitium"
         "ARPHELPTELEPHONE" = "8:"
         "ARPHELPLINK" = "8:https://technitium.com/dns/"
