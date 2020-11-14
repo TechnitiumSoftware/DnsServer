@@ -652,21 +652,21 @@
                                                     <div class="col-sm-8">
                                                         <div class="checkbox">
                                                             <label>
-                                                                <input id="chkEnableDnsOverHttp" type="checkbox"> Enable DNS-over-HTTP
+                                                                <input id="chkEnableDnsOverHttp" type="checkbox"> Enable DNS-over-HTTP <code>(TCP Port 8053)</code>
                                                             </label>
                                                         </div>
                                                         <div style="padding-top: 5px;">Enable this option to accept DNS-over-HTTP requests for both wire and json response formats. It must be used with a TLS terminating reverse proxy like nginx and will work only on private networks.</div>
 
                                                         <div class="checkbox">
                                                             <label>
-                                                                <input id="chkEnableDnsOverTls" type="checkbox"> Enable DNS-over-TLS
+                                                                <input id="chkEnableDnsOverTls" type="checkbox"> Enable DNS-over-TLS <code>(TCP Port 853)</code>
                                                             </label>
                                                         </div>
                                                         <div style="padding-top: 5px;">Enable this option to accept DNS-over-TLS requests.</div>
 
                                                         <div class="checkbox">
                                                             <label>
-                                                                <input id="chkEnableDnsOverHttps" type="checkbox"> Enable DNS-over-HTTPS
+                                                                <input id="chkEnableDnsOverHttps" type="checkbox"> Enable DNS-over-HTTPS <code>(TCP Port 80 &amp; 443)</code>
                                                             </label>
                                                         </div>
                                                         <div style="padding-top: 5px;">Enable this option to accept DNS-over-HTTPS requests for both wire and json response formats.</div>
@@ -692,7 +692,7 @@
                                                 <div>
                                                     <p>NOTE! These optional DNS server protocols are used to host these as a service. You do not need to enable these optional protocols to use them with Forwarders or Conditional Forwarder Zones.</p>
                                                     <p>To enable or disable these protocols, you will need to manually restart the main service. These optional protocols will be enabled only when a TLS certificate is configured.</p>
-                                                    <p>For DNS-over-HTTP, use <i>http://<span id="lblDoHHost">localhost:8053</span>/dns-query</i> with a TLS terminating reverse proxy like nginx. For DNS-over-TLS, use <i>tls-certificate-domain:853</i> and for DNS-over-HTTPS use <i>https://tls-certificate-domain/dns-query</i> to configure supported DNS clients.</p>
+                                                    <p>For DNS-over-HTTP, use <code>http://<span id="lblDoHHost">localhost:8053</span>/dns-query</code> with a TLS terminating reverse proxy like nginx. For DNS-over-TLS, use <code>tls-certificate-domain:853</code> and for DNS-over-HTTPS use <code>https://tls-certificate-domain/dns-query</code> to configure supported DNS clients.</p>
                                                     <p>Use the following openssl command to convert your TLS certificate that is in PEM format to PKCS #12 certificate (.pfx) format:</p>
                                                     <pre>openssl pkcs12 -export -out "example.com.pfx" -inkey "private.key" -in "certificate.crt" -certfile "ca_bundle.crt"</pre>
                                                 </div>
@@ -846,7 +846,7 @@
                                                     </div>
                                                 </div>
 
-                                                <div style="margin-top: 10px;">DNS Server will use the data returned by the block list URLs to update the blocked zone automatically every 24 hours. The expected file format is standard <i>hosts</i> file format or plain text file containing list of domains to block.</div>
+                                                <div style="margin-top: 10px;">DNS Server will use the data returned by the block list URLs to update the blocked zone automatically every 24 hours. The expected file format is standard <code>hosts</code> file format or plain text file containing list of domains to block.</div>
                                                 <div style="margin-top: 10px;"><a href="https://blog.technitium.com/2018/10/blocking-internet-ads-using-dns-sinkhole.html" target="_blank">Help: Blocking Internet Ads Using DNS Sinkhole</a></div>
                                             </div>
 
@@ -1178,7 +1178,9 @@
                                                             </div>
                                                             <div class="col-sm-offset-3 col-sm-8" style="padding-top: 5px;">The TTL value of the DNS records updated for the above provided domain name.</div>
                                                         </div>
+                                                    </div>
 
+                                                    <div class="well well-sm form-horizontal">
                                                         <div class="form-group">
                                                             <label for="txtDhcpScopeServerAddress" class="col-sm-3 control-label">Bootstrap Server Address</label>
                                                             <div class="col-sm-3">
@@ -1202,7 +1204,9 @@
                                                             </div>
                                                             <div class="col-sm-offset-3 col-sm-8" style="padding-top: 5px;">The boot file name stored on the bootstrap TFTP server to be used by the clients.</div>
                                                         </div>
+                                                    </div>
 
+                                                    <div class="well well-sm form-horizontal">
                                                         <div class="form-group">
                                                             <label for="txtDhcpScopeRouterAddress" class="col-sm-3 control-label">Router Address</label>
                                                             <div class="col-sm-3">
@@ -1242,7 +1246,9 @@
                                                             </div>
                                                             <div class="col-sm-offset-3 col-sm-8" style="padding-top: 5px;">The Network Time Protocol (NTP) server IP addresses to be used by the clients.</div>
                                                         </div>
+                                                    </div>
 
+                                                    <div class="well well-sm form-horizontal">
                                                         <div class="form-group" style="margin-bottom: 0px;">
                                                             <label for="tableDhcpScopeStaticRoutes" class="col-sm-3 control-label">Static Routes</label>
                                                             <div class="col-sm-7">
@@ -1263,6 +1269,25 @@
                                                     </div>
 
                                                     <div class="well well-sm form-horizontal">
+                                                        <div class="form-group" style="margin-bottom: 0px;">
+                                                            <label for="tableDhcpScopeVendorInfo" class="col-sm-3 control-label">Vendor Specific Information</label>
+                                                            <div class="col-sm-9">
+                                                                <table class="table table-hover" style="margin-bottom: 0px;">
+                                                                    <thead>
+                                                                        <tr>
+                                                                            <th>Vendor Class Identifier</th>
+                                                                            <th>Vendor Specific Information</th>
+                                                                            <th><button type="button" class="btn btn-default" style="padding: 0px 20px;" onclick="addDhcpScopeVendorInfoRow('', '');">Add</button></th>
+                                                                        </tr>
+                                                                    </thead>
+                                                                    <tbody id="tableDhcpScopeVendorInfo"></tbody>
+                                                                </table>
+                                                            </div>
+                                                            <div class="col-sm-offset-3 col-sm-8" style="padding-top: 5px;">The vendor specific information option (43) to be sent to the clients that match the vendor class identifier option (60) in the request. The vendor class identifier can be empty string to match any identifier, or matched exactly, or match a substring, for example <code>substring(vendor-class-identifier,0,9)=="PXEClient"</code>. The vendor specific information must be a colon (:) separated hex string, for example <code>06:01:03:0A:04:00:50:58:45:09:14:00:00:11:52:61:73:70:62:65:72:72:79:20:50:69:20:42:6F:6F:74:FF</code>.</div>
+                                                        </div>
+                                                    </div>
+
+                                                    <div class="well well-sm form-horizontal">
                                                         <div class="form-group">
                                                             <label for="tableDhcpScopeExclusions" class="col-sm-3 control-label">Exclusions</label>
                                                             <div class="col-sm-6">
@@ -1279,7 +1304,9 @@
                                                             </div>
                                                             <div class="col-sm-offset-3 col-sm-8" style="padding-top: 5px;">The IP address range that must be excluded or not assigned dynamically to any client by the DHCP server.</div>
                                                         </div>
+                                                    </div>
 
+                                                    <div class="well well-sm form-horizontal">
                                                         <div class="form-group" style="margin-bottom: 0px;">
                                                             <label for="tableDhcpScopeReservedLeases" class="col-sm-3 control-label">Reserved Leases</label>
                                                             <div class="col-sm-6">
