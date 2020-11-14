@@ -2144,6 +2144,12 @@ RESPONSE:
 				"router": "192.168.1.2"
 			}
 		],
+		"vendorInfo": [
+			{
+				"identifier": "substring(vendor-class-identifier,0,9)==\"PXEClient\"",
+				"information": "06:01:03:0A:04:00:50:58:45:09:14:00:00:11:52:61:73:70:62:65:72:72:79:20:50:69:20:42:6F:6F:74:FF"
+			}
+		],
 		"exclusions": [
 			{
 				"startingAddress": "192.168.1.1",
@@ -2192,9 +2198,10 @@ WHERE:
 - `dnsServers` (optional): A comma separated list of DNS server IP addresses to be used by the clients. This parameter is ignored when `useThisDnsServer` is set to `true`.
 - `winsServers` (optional): A comma separated list of NBNS/WINS server IP addresses to be used by the clients.
 - `ntpServers` (optional): A comma separated list of Network Time Protocol (NTP) server IP addresses to be used by the clients.
-- `staticRoutes` (optional): A comma separated list of static routes in format `{destination network address};{subnet mask};{router/gateway address}` to be used by the clients for accessing specified destination networks.
-- `exclusions` (optional): A comma separated list of IP address range in format `{starting address};{ending address}` that must be excluded or not assigned dynamically to any client by the DHCP server.
-- `reservedLeases` (optional): A comma separated list of reserved IP addresses in format `{MAC address};{reserved IP address};{comments}` to be assigned to specific clients based on their MAC address.
+- `staticRoutes` (optional): A `|` separated list of static routes in format `{destination network address}|{subnet mask}|{router/gateway address}` to be used by the clients for accessing specified destination networks.
+- `vendorInfo` (optional): A `|` separated list of vendor information in format `{vendor class identifier}|{vendor specific information}` where `{vendor specific information}` is a colon separated hex string.
+- `exclusions` (optional): A `|` separated list of IP address range in format `{starting address}|{ending address}` that must be excluded or not assigned dynamically to any client by the DHCP server.
+- `reservedLeases` (optional): A `|` separated list of reserved IP addresses in format `{MAC address}|{reserved IP address}|{comments}` to be assigned to specific clients based on their MAC address.
 - `allowOnlyReservedLeases` (optional): Set this parameter to `true` to stop dynamic IP address allocation and allocate only reserved IP addresses.
 
 RESPONSE:
