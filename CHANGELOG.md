@@ -1,5 +1,15 @@
 # Technitium DNS Server Change Log
 
+## Version 5.5
+Release Date: 14 November 2020
+
+- Added option to specify bootfile name for PXE booting.
+- Implemented DHCP vendor specific information option.
+- Implemented strict enforcing of exclusion list.
+- Fixed bug in DNS initial server name that was caused due to invalid characters in the computer name.
+- Added support for additional record processing for SRV records and fixed issues for NS and MX records processing.
+- Multiple other minor bug fixes and improvements.
+
 ## Version 5.4
 Release Date: 18 October 2020
 
