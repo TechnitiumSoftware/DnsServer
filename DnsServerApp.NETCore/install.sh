@@ -16,7 +16,7 @@ echo "==============================="
 echo ""
 echo "Installing .NET Core Runtime..."
 
-curl -sSL https://dot.net/v1/dotnet-install.sh | bash /dev/stdin -c Current --runtime dotnet --no-path --install-dir $dotnetDir --verbose >> $installLog 2>&1
+curl -sSL https://dot.net/v1/dotnet-install.sh | bash /dev/stdin -c 3.1 --runtime dotnet --no-path --install-dir $dotnetDir --verbose >> $installLog 2>&1
 
 if [ ! -f "/usr/bin/dotnet" ]
 then
