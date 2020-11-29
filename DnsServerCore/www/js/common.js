@@ -18,7 +18,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
 function htmlEncode(value) {
-    return $('<div/>').text(value).html();
+    return $('<div/>').text(value).html().replace(/"/g, "&quot;");
 }
 
 function htmlDecode(value) {
