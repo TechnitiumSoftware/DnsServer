@@ -475,6 +475,9 @@ namespace DnsServerCore.Dhcp
 
                             if (!string.IsNullOrWhiteSpace(clientDomainName))
                             {
+                                if ((leaseOffer.HostName != null) && !leaseOffer.HostName.Equals(clientDomainName, StringComparison.OrdinalIgnoreCase))
+                                    UpdateDnsAuthZone(false, scope, leaseOffer); //hostname changed! delete old hostname entry from DNS
+
                                 leaseOffer.SetHostName(clientDomainName.ToLower());
                                 UpdateDnsAuthZone(true, scope, leaseOffer);
                             }
