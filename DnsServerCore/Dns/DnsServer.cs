@@ -17,6 +17,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 */
 
+using DnsServerCore.Dns.ResourceRecords;
 using DnsServerCore.Dns.ZoneManagers;
 using DnsServerCore.Dns.Zones;
 using Newtonsoft.Json;
@@ -119,7 +120,7 @@ namespace DnsServerCore.Dns
         readonly object _cachePrefetchRefreshTimerLock = new object();
         const int CACHE_PREFETCH_REFRESH_TIMER_INITIAL_INTEVAL = 60000;
         DateTime _cachePrefetchSamplingTimerTriggersOn;
-        IList<DnsQuestionRecord> _cachePrefetchSampleList;
+        IList<CacheRefreshSample> _cacheRefreshSampleList;
 
         Timer _cacheMaintenanceTimer;
         const int CACHE_MAINTENANCE_TIMER_INITIAL_INTEVAL = 60 * 60 * 1000;
@@ -1705,13 +1706,13 @@ namespace DnsServerCore.Dns
             }
         }
 
-        private async Task RefreshCacheAsync(IList<DnsQuestionRecord> cacheRefreshSampleList, DnsQuestionRecord sampleQuestion, int sampleQuestionIndex)
+        private async Task RefreshCacheAsync(IList<CacheRefreshSample> cacheRefreshSampleList, CacheRefreshSample sample, int sampleQuestionIndex)
         {
             try
             {
                 //refresh cache
-                DnsDatagram request = new DnsDatagram(0, false, DnsOpcode.StandardQuery, false, false, true, false, false, false, DnsResponseCode.NoError, new DnsQuestionRecord[] { sampleQuestion });
-                DnsDatagram response = await ProcessRecursiveQueryAsync(request, null, null, false, true);
+                DnsDatagram request = new DnsDatagram(0, false, DnsOpcode.StandardQuery, false, false, true, false, false, false, DnsResponseCode.NoError, new DnsQuestionRecord[] { sample.SampleQuestion });
+                DnsDatagram response = await ProcessRecursiveQueryAsync(request, sample.ViaNameServers, sample.ViaForwarders, false, true);
 
                 bool removeFromSampleList = true;
                 DateTime utcNow = DateTime.UtcNow;
@@ -1801,22 +1802,77 @@ namespace DnsServerCore.Dns
                 if (stats != null)
                 {
                     List<KeyValuePair<DnsQuestionRecord, int>> eligibleQueries = stats.GetLastHourEligibleQueries(_cachePrefetchSampleEligibilityHitsPerHour);
-                    List<DnsQuestionRecord> cacheRefreshSampleList = new List<DnsQuestionRecord>(eligibleQueries.Count);
+                    List<CacheRefreshSample> cacheRefreshSampleList = new List<CacheRefreshSample>(eligibleQueries.Count);
                     int cacheRefreshTrigger = (_cachePrefetchSampleIntervalInMinutes + 1) * 60;
 
                     foreach (KeyValuePair<DnsQuestionRecord, int> query in eligibleQueries)
                     {
+                        IReadOnlyList<NameServerAddress> viaNameServers = null;
+                        IReadOnlyList<NameServerAddress> viaForwarders = null;
+
                         AuthZoneInfo zoneInfo = _authZoneManager.GetAuthZoneInfo(query.Key.Name);
-                        if (zoneInfo != null)
+                        if ((zoneInfo != null) && !zoneInfo.Disabled)
                         {
                             switch (zoneInfo.Type)
                             {
                                 case AuthZoneType.Primary:
                                 case AuthZoneType.Secondary:
                                     //zone is hosted
-                                    if (!zoneInfo.Disabled)
-                                        continue; //no cache refresh for zone that is hosted and enabled
+                                    continue; //no cache refresh for hosted zones
 
+                                case AuthZoneType.Stub: //stub zone refresh via its name servers
+                                    {
+                                        IReadOnlyList<DnsResourceRecord> nsRecords = zoneInfo.GetRecords(DnsResourceRecordType.NS);
+
+                                        List<NameServerAddress> nameServers = new List<NameServerAddress>();
+
+                                        foreach (DnsResourceRecord nsRecord in nsRecords)
+                                        {
+                                            string nsDomain = (nsRecord.RDATA as DnsNSRecord).NameServer;
+
+                                            IReadOnlyList<DnsResourceRecord> glueRecords = nsRecord.GetGlueRecords();
+                                            if (glueRecords.Count > 0)
+                                            {
+                                                foreach (DnsResourceRecord glueRecord in glueRecords)
+                                                {
+                                                    switch (glueRecord.Type)
+                                                    {
+                                                        case DnsResourceRecordType.A:
+                                                            nameServers.Add(new NameServerAddress(nsDomain, (glueRecord.RDATA as DnsARecord).Address));
+                                                            break;
+
+                                                        case DnsResourceRecordType.AAAA:
+                                                            if (_preferIPv6)
+                                                                nameServers.Add(new NameServerAddress(nsDomain, (glueRecord.RDATA as DnsAAAARecord).Address));
+
+                                                            break;
+                                                    }
+                                                }
+                                            }
+                                            else
+                                            {
+                                                nameServers.Add(new NameServerAddress(nsDomain));
+                                            }
+                                        }
+
+                                        viaNameServers = nameServers;
+                                    }
+                                    break;
+
+                                case AuthZoneType.Forwarder: //forwarder zone refresh via its forwarders
+                                    {
+                                        IReadOnlyList<DnsResourceRecord> fwdRecords = zoneInfo.GetRecords(DnsResourceRecordType.FWD);
+
+                                        List<NameServerAddress> forwarders = new List<NameServerAddress>();
+
+                                        foreach (DnsResourceRecord fwdRecord in fwdRecords)
+                                        {
+                                            if (!fwdRecord.IsDisabled())
+                                                forwarders.Add((fwdRecord.RDATA as DnsForwarderRecord).NameServer);
+                                        }
+
+                                        viaForwarders = forwarders;
+                                    }
                                     break;
                             }
                         }
@@ -1826,10 +1882,19 @@ namespace DnsServerCore.Dns
 
                         DnsQuestionRecord refreshQuery = GetCacheRefreshNeededQuery(query.Key, cacheRefreshTrigger);
                         if (refreshQuery != null)
-                            cacheRefreshSampleList.Add(refreshQuery);
+                        {
+                            if ((viaNameServers != null) && !refreshQuery.Name.Equals(query.Key.Name, StringComparison.OrdinalIgnoreCase))
+                            {
+                                //stub zone case where refresh query is a CNAME of the original query
+                                if (!refreshQuery.Name.Equals(zoneInfo.Name, StringComparison.OrdinalIgnoreCase) && !refreshQuery.Name.EndsWith("." + zoneInfo.Name, StringComparison.OrdinalIgnoreCase))
+                                    viaNameServers = null; //refresh query is a CNAME that is outside of the stub zone so do usual recursive resolution
+                            }
+
+                            cacheRefreshSampleList.Add(new CacheRefreshSample(refreshQuery, viaNameServers, viaForwarders));
+                        }
                     }
 
-                    _cachePrefetchSampleList = cacheRefreshSampleList;
+                    _cacheRefreshSampleList = cacheRefreshSampleList;
                 }
             }
             catch (Exception ex)
@@ -1844,7 +1909,7 @@ namespace DnsServerCore.Dns
                 {
                     if (_cachePrefetchSamplingTimer != null)
                     {
-                        _cachePrefetchSamplingTimer.Change(_cachePrefetchSampleIntervalInMinutes * 60 * 1000, System.Threading.Timeout.Infinite);
+                        _cachePrefetchSamplingTimer.Change(_cachePrefetchSampleIntervalInMinutes * 60 * 1000, Timeout.Infinite);
                         _cachePrefetchSamplingTimerTriggersOn = DateTime.UtcNow.AddMinutes(_cachePrefetchSampleIntervalInMinutes);
                     }
                 }
@@ -1855,19 +1920,19 @@ namespace DnsServerCore.Dns
         {
             try
             {
-                IList<DnsQuestionRecord> cacheRefreshSampleList = _cachePrefetchSampleList;
+                IList<CacheRefreshSample> cacheRefreshSampleList = _cacheRefreshSampleList;
                 if (cacheRefreshSampleList != null)
                 {
                     for (int i = 0; i < cacheRefreshSampleList.Count; i++)
                     {
-                        DnsQuestionRecord sampleQuestion = cacheRefreshSampleList[i];
-                        if (sampleQuestion == null)
+                        CacheRefreshSample sample = cacheRefreshSampleList[i];
+                        if (sample == null)
                             continue;
 
-                        if (!IsCacheRefreshNeeded(sampleQuestion, _cachePrefetchTrigger + 2))
+                        if (!IsCacheRefreshNeeded(sample.SampleQuestion, _cachePrefetchTrigger + 2))
                             continue;
 
-                        _ = RefreshCacheAsync(cacheRefreshSampleList, sampleQuestion, i);
+                        _ = RefreshCacheAsync(cacheRefreshSampleList, sample, i);
                     }
                 }
             }
@@ -1908,13 +1973,13 @@ namespace DnsServerCore.Dns
                 lock (_cachePrefetchSamplingTimerLock)
                 {
                     if (_cachePrefetchSamplingTimer != null)
-                        _cachePrefetchSamplingTimer.Change(System.Threading.Timeout.Infinite, System.Threading.Timeout.Infinite);
+                        _cachePrefetchSamplingTimer.Change(Timeout.Infinite, Timeout.Infinite);
                 }
 
                 lock (_cachePrefetchRefreshTimerLock)
                 {
                     if (_cachePrefetchRefreshTimer != null)
-                        _cachePrefetchRefreshTimer.Change(System.Threading.Timeout.Infinite, System.Threading.Timeout.Infinite);
+                        _cachePrefetchRefreshTimer.Change(Timeout.Infinite, Timeout.Infinite);
                 }
             }
             else if (_state == ServiceState.Running)
@@ -1923,7 +1988,7 @@ namespace DnsServerCore.Dns
                 {
                     if (_cachePrefetchSamplingTimer != null)
                     {
-                        _cachePrefetchSamplingTimer.Change(_cachePrefetchSampleIntervalInMinutes * 60 * 1000, System.Threading.Timeout.Infinite);
+                        _cachePrefetchSamplingTimer.Change(_cachePrefetchSampleIntervalInMinutes * 60 * 1000, Timeout.Infinite);
                         _cachePrefetchSamplingTimerTriggersOn = DateTime.UtcNow.AddMinutes(_cachePrefetchSampleIntervalInMinutes);
                     }
                 }
@@ -1931,10 +1996,9 @@ namespace DnsServerCore.Dns
                 lock (_cachePrefetchRefreshTimerLock)
                 {
                     if (_cachePrefetchRefreshTimer != null)
-                        _cachePrefetchRefreshTimer.Change(CACHE_PREFETCH_REFRESH_TIMER_INITIAL_INTEVAL, System.Threading.Timeout.Infinite);
+                        _cachePrefetchRefreshTimer.Change(CACHE_PREFETCH_REFRESH_TIMER_INITIAL_INTEVAL, Timeout.Infinite);
                 }
             }
-
         }
 
         private void UpdateThisServer()
@@ -2627,5 +2691,19 @@ namespace DnsServerCore.Dns
         }
 
         #endregion
+
+        class CacheRefreshSample
+        {
+            public CacheRefreshSample(DnsQuestionRecord sampleQuestion, IReadOnlyList<NameServerAddress> viaNameServers, IReadOnlyList<NameServerAddress> viaForwarders)
+            {
+                SampleQuestion = sampleQuestion;
+                ViaNameServers = viaNameServers;
+                ViaForwarders = viaForwarders;
+            }
+
+            public DnsQuestionRecord SampleQuestion { get; }
+            public IReadOnlyList<NameServerAddress> ViaNameServers { get; }
+            public IReadOnlyList<NameServerAddress> ViaForwarders { get; }
+        }
     }
 }
