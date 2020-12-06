@@ -39,8 +39,8 @@
             // 
             // serviceInstaller1
             // 
-            this.serviceInstaller1.Description = "Technitium DNS Service";
-            this.serviceInstaller1.DisplayName = "Technitium DNS Service";
+            this.serviceInstaller1.Description = "Technitium DNS Server";
+            this.serviceInstaller1.DisplayName = "Technitium DNS Server";
             this.serviceInstaller1.ServiceName = "DnsService";
             this.serviceInstaller1.StartType = System.ServiceProcess.ServiceStartMode.Automatic;
             // 
