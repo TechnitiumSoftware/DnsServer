@@ -50,8 +50,8 @@ namespace DnsServerCore.Dns
     {
         #region variables
 
+        readonly DnsServer _dnsServer;
         readonly string _statsFolder;
-        readonly LogManager _log;
 
         readonly StatCounter[] _lastHourStatCounters = new StatCounter[60];
         readonly StatCounter[] _lastHourStatCountersCopy = new StatCounter[60];
@@ -69,10 +69,13 @@ namespace DnsServerCore.Dns
 
         #region constructor
 
-        public StatsManager(string statsFolder, LogManager log)
+        public StatsManager(DnsServer dnsServer)
         {
-            _statsFolder = statsFolder;
-            _log = log;
+            _dnsServer = dnsServer;
+            _statsFolder = Path.Combine(dnsServer.ConfigFolder, "stats");
+
+            if (!Directory.Exists(_statsFolder))
+                Directory.CreateDirectory(_statsFolder);
 
             //load stats
             LoadLastHourStats();
@@ -89,7 +92,9 @@ namespace DnsServerCore.Dns
                 }
                 catch (Exception ex)
                 {
-                    _log.Write(ex);
+                    LogManager log = dnsServer.LogManager;
+                    if (log != null)
+                        log.Write(ex);
                 }
             }, null, MAINTENANCE_TIMER_INITIAL_INTERVAL, MAINTENANCE_TIMER_INTERVAL);
 
@@ -107,7 +112,9 @@ namespace DnsServerCore.Dns
                 }
                 catch (Exception ex)
                 {
-                    _log.Write(ex);
+                    LogManager log = dnsServer.LogManager;
+                    if (log != null)
+                        log.Write(ex);
                 }
             });
 
@@ -271,7 +278,10 @@ namespace DnsServerCore.Dns
                     }
                     catch (Exception ex)
                     {
-                        _log.Write(ex);
+                        LogManager log = _dnsServer.LogManager;
+                        if (log != null)
+                            log.Write(ex);
+
                         hourlyStats = new HourlyStats();
                     }
                 }
@@ -309,7 +319,9 @@ namespace DnsServerCore.Dns
                     }
                     catch (Exception ex)
                     {
-                        _log.Write(ex);
+                        LogManager log = _dnsServer.LogManager;
+                        if (log != null)
+                            log.Write(ex);
                     }
                 }
 
@@ -351,7 +363,9 @@ namespace DnsServerCore.Dns
             }
             catch (Exception ex)
             {
-                _log.Write(ex);
+                LogManager log = _dnsServer.LogManager;
+                if (log != null)
+                    log.Write(ex);
             }
         }
 
@@ -368,7 +382,9 @@ namespace DnsServerCore.Dns
             }
             catch (Exception ex)
             {
-                _log.Write(ex);
+                LogManager log = _dnsServer.LogManager;
+                if (log != null)
+                    log.Write(ex);
             }
         }
 

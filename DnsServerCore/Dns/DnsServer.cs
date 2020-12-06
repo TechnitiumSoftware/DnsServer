@@ -180,12 +180,7 @@ namespace DnsServerCore.Dns
             _dnsCache = new ResolverDnsCache(_authZoneManager, _cacheZoneManager);
 
             //init stats
-            string statsFolder = Path.Combine(_configFolder, "stats");
-
-            if (!Directory.Exists(statsFolder))
-                Directory.CreateDirectory(statsFolder);
-
-            _stats = new StatsManager(statsFolder, _log);
+            _stats = new StatsManager(this);
         }
 
         #endregion
