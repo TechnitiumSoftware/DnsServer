@@ -71,6 +71,10 @@ namespace DnsServerCore.Dhcp
 
         AuthZoneManager _authZoneManager;
 
+        ConcurrentDictionary<string, object> _modifiedDnsAuthZones = new ConcurrentDictionary<string, object>();
+        readonly Timer _saveModifiedDnsAuthZonesTimer;
+        const int SAVE_MODIFIED_DNS_AUTH_ZONES_INTERVAL = 10000;
+
         volatile ServiceState _state = ServiceState.Stopped;
 
         readonly IPEndPoint _dhcpDefaultEP = new IPEndPoint(IPAddress.Any, 67);
@@ -103,6 +107,11 @@ namespace DnsServerCore.Dhcp
 
                 SaveScopeFile(scope);
             }
+
+            _saveModifiedDnsAuthZonesTimer = new Timer(delegate (object state)
+            {
+                SaveModifiedDnsAuthZones();
+            }, null, Timeout.Infinite, Timeout.Infinite);
         }
 
         #endregion
@@ -120,10 +129,14 @@ namespace DnsServerCore.Dhcp
             {
                 Stop();
 
+                if (_saveModifiedDnsAuthZonesTimer != null)
+                    _saveModifiedDnsAuthZonesTimer.Dispose();
+
                 if (_maintenanceTimer != null)
                     _maintenanceTimer.Dispose();
 
                 SaveModifiedScopes();
+                SaveModifiedDnsAuthZones();
             }
 
             _disposed = true;
@@ -700,30 +713,105 @@ namespace DnsServerCore.Dhcp
 
             try
             {
+                string zoneName = null;
+                string reverseDomain = Zone.GetReverseZone(address, 32);
+                string reverseZoneName = null;
+
                 if (add)
                 {
                     //update forward zone
-                    _authZoneManager.CreatePrimaryZone(scope.DomainName, _authZoneManager.ServerDomain, false);
+                    AuthZoneInfo zoneInfo = _authZoneManager.GetAuthZoneInfo(scope.DomainName);
+                    if (zoneInfo == null)
+                    {
+                        //zone does not exists; create new primary zone
+                        _authZoneManager.CreatePrimaryZone(scope.DomainName, _authZoneManager.ServerDomain, false);
+                    }
+                    else if (zoneInfo.Type != AuthZoneType.Primary)
+                    {
+                        throw new DhcpServerException("Cannot update DNS zone '" + zoneInfo.Name + "': not a primary zone.");
+                    }
+
+                    zoneName = zoneInfo.Name;
                     _authZoneManager.SetRecords(domain, DnsResourceRecordType.A, scope.DnsTtl, new DnsResourceRecordData[] { new DnsARecord(address) });
 
                     //update reverse zone
-                    _authZoneManager.CreatePrimaryZone(Zone.GetReverseZone(address, scope.SubnetMask), _authZoneManager.ServerDomain, false);
-                    _authZoneManager.SetRecords(Zone.GetReverseZone(address, 32), DnsResourceRecordType.PTR, scope.DnsTtl, new DnsResourceRecordData[] { new DnsPTRRecord(domain) });
+                    AuthZoneInfo reverseZoneInfo = _authZoneManager.GetAuthZoneInfo(reverseDomain);
+                    if (reverseZoneInfo == null)
+                    {
+                        //reverse zone does not exists; create new primary zone
+                        reverseZoneInfo = _authZoneManager.CreatePrimaryZone(Zone.GetReverseZone(address, scope.SubnetMask), _authZoneManager.ServerDomain, false);
+                    }
+                    else if (reverseZoneInfo.Type != AuthZoneType.Primary)
+                    {
+                        throw new DhcpServerException("Cannot update reverse DNS zone '" + reverseZoneInfo.Name + "': not a primary zone.");
+                    }
+
+                    reverseZoneName = reverseZoneInfo.Name;
+                    _authZoneManager.SetRecords(reverseDomain, DnsResourceRecordType.PTR, scope.DnsTtl, new DnsResourceRecordData[] { new DnsPTRRecord(domain) });
                 }
                 else
                 {
                     //remove from forward zone
-                    _authZoneManager.DeleteRecords(domain, DnsResourceRecordType.A);
+                    AuthZoneInfo zoneInfo = _authZoneManager.GetAuthZoneInfo(domain);
+                    if ((zoneInfo != null) && (zoneInfo.Type == AuthZoneType.Primary))
+                    {
+                        //primary zone exists
+                        zoneName = zoneInfo.Name;
+                        _authZoneManager.DeleteRecords(domain, DnsResourceRecordType.A);
+                    }
 
                     //remove from reverse zone
-                    _authZoneManager.DeleteRecords(Zone.GetReverseZone(address, 32), DnsResourceRecordType.PTR);
+                    AuthZoneInfo reverseZoneInfo = _authZoneManager.GetAuthZoneInfo(reverseDomain);
+                    if ((reverseZoneInfo != null) && (reverseZoneInfo.Type == AuthZoneType.Primary))
+                    {
+                        //primary reverse zone exists
+                        reverseZoneName = reverseZoneInfo.Name;
+                        _authZoneManager.DeleteRecords(reverseDomain, DnsResourceRecordType.PTR);
+                    }
                 }
+
+                //save auth zone file
+                if (zoneName != null)
+                    SaveDnsAuthZone(zoneName);
+
+                //save reverse auth zone file
+                if (reverseZoneName != null)
+                    SaveDnsAuthZone(reverseZoneName);
             }
             catch (Exception ex)
             {
                 LogManager log = _log;
                 if (log != null)
                     log.Write(ex);
+            }
+        }
+
+        private void SaveDnsAuthZone(string authZone)
+        {
+            if (_modifiedDnsAuthZones.TryAdd(authZone, null))
+                _saveModifiedDnsAuthZonesTimer.Change(SAVE_MODIFIED_DNS_AUTH_ZONES_INTERVAL, Timeout.Infinite); //save dns auth zone files per interval
+        }
+
+        private void SaveModifiedDnsAuthZones()
+        {
+            if (_authZoneManager == null)
+                return;
+
+            ConcurrentDictionary<string, object> modifiedDnsAuthZones = _modifiedDnsAuthZones;
+            _modifiedDnsAuthZones = new ConcurrentDictionary<string, object>();
+
+            foreach (string authZone in modifiedDnsAuthZones.Keys)
+            {
+                try
+                {
+                    _authZoneManager.SaveZoneFile(authZone);
+                }
+                catch (Exception ex)
+                {
+                    LogManager log = _log;
+                    if (log != null)
+                        log.Write(ex);
+                }
             }
         }
 
