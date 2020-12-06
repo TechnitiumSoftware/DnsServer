@@ -873,20 +873,7 @@ namespace DnsServerCore.Dhcp
                 {
                     if (_udpListeners.TryRemove(dhcpEP.Address, out _))
                     {
-                        //issue: https://github.com/dotnet/runtime/issues/37873
-
-                        if (Environment.OSVersion.Platform == PlatformID.Win32NT)
-                        {
-                            listener.Socket.Dispose();
-                        }
-                        else
-                        {
-                            ThreadPool.QueueUserWorkItem(delegate (object state)
-                            {
-                                listener.Socket.Dispose();
-                            });
-                        }
-
+                        listener.Socket.Dispose();
                         return true;
                     }
                 }
