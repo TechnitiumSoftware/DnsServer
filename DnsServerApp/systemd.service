@@ -1,5 +1,5 @@
 [Unit]
-Description=Technitium DNS Service
+Description=Technitium DNS Server
 
 [Service]
 WorkingDirectory=/etc/dns
@@ -8,7 +8,7 @@ Restart=always
 # Restart service after 10 seconds if the dotnet service crashes:
 RestartSec=10
 KillSignal=SIGINT
-SyslogIdentifier=dns-service
+SyslogIdentifier=dns-server
 
 [Install]
 WantedBy=multi-user.target
