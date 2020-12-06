@@ -3,15 +3,13 @@ Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio Version 16
 VisualStudioVersion = 16.0.28803.452
 MinimumVisualStudioVersion = 10.0.40219.1
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "DnsServerApp", "DnsServerApp\DnsServerApp.csproj", "{ADE80805-9FA7-4F66-8A18-57B98F8C0B0F}"
+EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DnsService", "DnsService\DnsService.csproj", "{7873B2B8-01BA-48BC-B4B0-0857FFD873C9}"
 EndProject
 Project("{54435603-DBB4-11D2-8724-00A0C9A8B90C}") = "DnsServiceSetup", "DnsServiceSetup\DnsServiceSetup.vdproj", "{7A6C95A1-FBB7-43CD-9AF5-87CD05DF7CDE}"
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "DnsServerCore", "DnsServerCore\DnsServerCore.csproj", "{4494B79B-588C-41F2-95AD-0897123AF154}"
-EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DnsServerApp", "DnsServerApp\DnsServerApp.csproj", "{C166A19B-B533-45F8-813F-861DAB6D1865}"
-EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "DnsServerApp.NETCore", "DnsServerApp.NETCore\DnsServerApp.NETCore.csproj", "{ADE80805-9FA7-4F66-8A18-57B98F8C0B0F}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DnsServerSystemTrayApp", "DnsServerSystemTrayApp\DnsServerSystemTrayApp.csproj", "{2F91BD07-2CEE-47FA-8486-457B54612B4C}"
 EndProject
@@ -31,10 +29,6 @@ Global
 		{4494B79B-588C-41F2-95AD-0897123AF154}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{4494B79B-588C-41F2-95AD-0897123AF154}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{4494B79B-588C-41F2-95AD-0897123AF154}.Release|Any CPU.Build.0 = Release|Any CPU
-		{C166A19B-B533-45F8-813F-861DAB6D1865}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{C166A19B-B533-45F8-813F-861DAB6D1865}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{C166A19B-B533-45F8-813F-861DAB6D1865}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{C166A19B-B533-45F8-813F-861DAB6D1865}.Release|Any CPU.Build.0 = Release|Any CPU
 		{ADE80805-9FA7-4F66-8A18-57B98F8C0B0F}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
 		{ADE80805-9FA7-4F66-8A18-57B98F8C0B0F}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{ADE80805-9FA7-4F66-8A18-57B98F8C0B0F}.Release|Any CPU.ActiveCfg = Release|Any CPU
