@@ -456,7 +456,7 @@ namespace DnsServerCore.Dhcp
 
                         //update hostname in reserved leases
                         {
-                            Lease reservedLease = scope.GetReservedLease(leaseOffer.ClientIdentifier);
+                            Lease reservedLease = scope.GetReservedLease(request);
                             if (reservedLease != null)
                                 reservedLease.SetHostName(request.HostName?.HostName);
                         }

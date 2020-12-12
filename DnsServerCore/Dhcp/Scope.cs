@@ -588,7 +588,12 @@ namespace DnsServerCore.Dhcp
             return GetReservedLease(new ClientIdentifierOption((byte)request.HardwareAddressType, request.ClientHardwareAddress));
         }
 
-        internal Lease GetReservedLease(ClientIdentifierOption clientIdentifier)
+        internal Lease GetReservedLease(DhcpMessageHardwareAddressType hardwareAddressType, byte[] identifier)
+        {
+            return GetReservedLease(new ClientIdentifierOption((byte)hardwareAddressType, identifier));
+        }
+
+        private Lease GetReservedLease(ClientIdentifierOption clientIdentifier)
         {
             if (_reservedLeases.TryGetValue(clientIdentifier, out Lease reservedLease))
             {
