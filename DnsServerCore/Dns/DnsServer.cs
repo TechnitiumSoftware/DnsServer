@@ -926,6 +926,11 @@ namespace DnsServerCore.Dns
                                 return await ProcessRecursiveQueryAsync(request, null, null, !inAllowedZone, false);
                         }
                     }
+                    catch (InvalidDomainNameException)
+                    {
+                        //format error response
+                        return new DnsDatagram(request.Identifier, true, request.OPCODE, false, false, request.RecursionDesired, IsRecursionAllowed(remoteEP), false, false, DnsResponseCode.FormatError, request.Question);
+                    }
                     catch (Exception ex)
                     {
                         LogManager log = _log;
@@ -1086,6 +1091,9 @@ namespace DnsServerCore.Dns
                     }
                 }
             }
+
+            if (response.RecursionAvailable != isRecursionAllowed)
+                response = new DnsDatagram(response.Identifier, response.IsResponse, response.OPCODE, response.AuthoritativeAnswer, response.Truncation, response.RecursionDesired, isRecursionAllowed, response.AuthenticData, response.CheckingDisabled, response.RCODE, response.Question, response.Answer, response.Authority, response.Additional);
 
             return Task.FromResult(response);
         }
