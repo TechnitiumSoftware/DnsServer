@@ -64,12 +64,12 @@ namespace DnsServerCore.Dhcp
             ExtendLease(leaseTime);
         }
 
-        internal Lease(LeaseType type, string hostName, byte[] hardwareAddress, IPAddress address, string comments)
-            : this(type, new ClientIdentifierOption((byte)DhcpMessageHardwareAddressType.Ethernet, hardwareAddress), hostName, hardwareAddress, address, comments, 0)
+        internal Lease(LeaseType type, string hostName, DhcpMessageHardwareAddressType hardwareAddressType, byte[] hardwareAddress, IPAddress address, string comments)
+            : this(type, new ClientIdentifierOption((byte)hardwareAddressType, hardwareAddress), hostName, hardwareAddress, address, comments, 0)
         { }
 
-        internal Lease(LeaseType type, string hostName, string hardwareAddress, IPAddress address, string comments)
-            : this(type, hostName, ParseHardwareAddress(hardwareAddress), address, comments)
+        internal Lease(LeaseType type, string hostName, DhcpMessageHardwareAddressType hardwareAddressType, string hardwareAddress, IPAddress address, string comments)
+            : this(type, hostName, hardwareAddressType, ParseHardwareAddress(hardwareAddress), address, comments)
         { }
 
         internal Lease(BinaryReader bR)
