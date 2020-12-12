@@ -3888,9 +3888,9 @@ namespace DnsServerCore
 
                     for (int i = 0; i < strReservedLeaseParts.Length; i += 3)
                     {
-                        Lease reservedLease = new Lease(LeaseType.Reserved, null, strReservedLeaseParts[i + 0], IPAddress.Parse(strReservedLeaseParts[i + 1]), strReservedLeaseParts[i + 2]);
+                        Lease reservedLease = new Lease(LeaseType.Reserved, null, DhcpMessageHardwareAddressType.Ethernet, strReservedLeaseParts[i + 0], IPAddress.Parse(strReservedLeaseParts[i + 1]), strReservedLeaseParts[i + 2]);
 
-                        Lease existingReservedLease = scope.GetReservedLease(reservedLease.ClientIdentifier);
+                        Lease existingReservedLease = scope.GetReservedLease(DhcpMessageHardwareAddressType.Ethernet, reservedLease.HardwareAddress);
                         if (existingReservedLease != null)
                             reservedLease.SetHostName(existingReservedLease.HostName);
 
