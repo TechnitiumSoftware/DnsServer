@@ -716,6 +716,7 @@ namespace DnsServerCore.Dhcp
                 string zoneName = null;
                 string reverseDomain = Zone.GetReverseZone(address, 32);
                 string reverseZoneName = null;
+                LogManager log = _log;
 
                 if (add)
                 {
@@ -725,6 +726,7 @@ namespace DnsServerCore.Dhcp
                     {
                         //zone does not exists; create new primary zone
                         _authZoneManager.CreatePrimaryZone(scope.DomainName, _authZoneManager.ServerDomain, false);
+                        log?.Write("DHCP Server create DNS primary zone '" + scope.DomainName + "'.");
                     }
                     else if (zoneInfo.Type != AuthZoneType.Primary)
                     {
@@ -733,13 +735,17 @@ namespace DnsServerCore.Dhcp
 
                     zoneName = zoneInfo.Name;
                     _authZoneManager.SetRecords(domain, DnsResourceRecordType.A, scope.DnsTtl, new DnsResourceRecordData[] { new DnsARecord(address) });
+                    log?.Write("DHCP Server updated DNS A record '" + domain + "' with IP address [" + address.ToString() + "].");
 
                     //update reverse zone
                     AuthZoneInfo reverseZoneInfo = _authZoneManager.GetAuthZoneInfo(reverseDomain);
                     if (reverseZoneInfo == null)
                     {
                         //reverse zone does not exists; create new primary zone
-                        reverseZoneInfo = _authZoneManager.CreatePrimaryZone(Zone.GetReverseZone(address, scope.SubnetMask), _authZoneManager.ServerDomain, false);
+                        string reverseZone = Zone.GetReverseZone(address, scope.SubnetMask);
+
+                        reverseZoneInfo = _authZoneManager.CreatePrimaryZone(reverseZone, _authZoneManager.ServerDomain, false);
+                        log?.Write("DHCP Server create DNS primary zone '" + reverseZone + "'.");
                     }
                     else if (reverseZoneInfo.Type != AuthZoneType.Primary)
                     {
@@ -748,6 +754,7 @@ namespace DnsServerCore.Dhcp
 
                     reverseZoneName = reverseZoneInfo.Name;
                     _authZoneManager.SetRecords(reverseDomain, DnsResourceRecordType.PTR, scope.DnsTtl, new DnsResourceRecordData[] { new DnsPTRRecord(domain) });
+                    log?.Write("DHCP Server updated DNS PTR record '" + reverseDomain + "' with domain name '" + domain + "'.");
                 }
                 else
                 {
@@ -757,7 +764,8 @@ namespace DnsServerCore.Dhcp
                     {
                         //primary zone exists
                         zoneName = zoneInfo.Name;
-                        _authZoneManager.DeleteRecords(domain, DnsResourceRecordType.A);
+                        _authZoneManager.DeleteRecord(domain, DnsResourceRecordType.A, new DnsARecord(address));
+                        log?.Write("DHCP Server deleted DNS A record '" + domain + "' with address [" + address.ToString() + "].");
                     }
 
                     //remove from reverse zone
@@ -766,7 +774,8 @@ namespace DnsServerCore.Dhcp
                     {
                         //primary reverse zone exists
                         reverseZoneName = reverseZoneInfo.Name;
-                        _authZoneManager.DeleteRecords(reverseDomain, DnsResourceRecordType.PTR);
+                        _authZoneManager.DeleteRecord(reverseDomain, DnsResourceRecordType.PTR, new DnsPTRRecord(domain));
+                        log?.Write("DHCP Server deleted DNS PTR record '" + reverseDomain + "' with domain '" + domain + "'.");
                     }
                 }
 
@@ -1130,9 +1139,15 @@ namespace DnsServerCore.Dhcp
                             scope.Value.RemoveExpiredOffers();
 
                             List<Lease> expiredLeases = scope.Value.RemoveExpiredLeases();
+                            if (expiredLeases.Count > 0)
+                            {
+                                LogManager log = _log;
+                                if (log != null)
+                                    log.Write("DHCP Server removed " + expiredLeases.Count + " lease(s) from scope: " + scope.Value.Name);
 
-                            foreach (Lease expiredLease in expiredLeases)
-                                UpdateDnsAuthZone(false, scope.Value, expiredLease);
+                                foreach (Lease expiredLease in expiredLeases)
+                                    UpdateDnsAuthZone(false, scope.Value, expiredLease);
+                            }
                         }
 
                         SaveModifiedScopes();
