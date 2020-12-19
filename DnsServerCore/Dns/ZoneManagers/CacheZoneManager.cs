@@ -31,7 +31,7 @@ namespace DnsServerCore.Dns.ZoneManagers
         const uint FAILURE_RECORD_TTL = 30u;
         const uint NEGATIVE_RECORD_TTL = 300u;
         const uint MINIMUM_RECORD_TTL = 10u;
-        const uint SERVE_STALE_TTL = 7 * 24 * 60 * 60; //7 days serve stale ttl as per draft-ietf-dnsop-serve-stale-04
+        const uint SERVE_STALE_TTL = 3 * 24 * 60 * 60; //3 days serve stale ttl as per https://www.rfc-editor.org/rfc/rfc8767.html suggestion
 
         readonly ZoneTree<CacheZone> _root = new ZoneTree<CacheZone>();
 
