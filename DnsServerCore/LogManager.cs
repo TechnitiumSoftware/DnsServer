@@ -19,9 +19,12 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 using System;
 using System.Collections.Concurrent;
+using System.Globalization;
 using System.IO;
 using System.Net;
+using System.Text;
 using System.Threading;
+using System.Threading.Tasks;
 using TechnitiumLibrary.IO;
 using TechnitiumLibrary.Net.Dns;
 
@@ -31,31 +34,47 @@ namespace DnsServerCore
     {
         #region variables
 
-        readonly string _logFolder;
+        readonly string _configFolder;
+
+        bool _enableLogging;
+        string _logFolder;
+        int _maxLogFileDays;
+        bool _useLocalTime;
+
+        const string LOG_ENTRY_DATE_TIME_FORMAT = "yyyy-MM-dd HH:mm:ss";
+        const string LOG_FILE_DATE_TIME_FORMAT = "yyyy-MM-dd";
 
         string _logFile;
         StreamWriter _logOut;
         DateTime _logDate;
 
         readonly BlockingCollection<LogQueueItem> _queue = new BlockingCollection<LogQueueItem>();
-        readonly Thread _consumerThread;
+        Thread _consumerThread;
         readonly object _logFileLock = new object();
         readonly object _queueLock = new object();
-        readonly EventWaitHandle _queueWait = new AutoResetEvent(true);
+        readonly EventWaitHandle _queueWait = new AutoResetEvent(false);
         CancellationTokenSource _queueCancellationTokenSource = new CancellationTokenSource();
+
+        readonly Timer _logCleanupTimer;
+        const int LOG_CLEANUP_TIMER_INITIAL_INTERVAL = 60 * 1000;
+        const int LOG_CLEANUP_TIMER_PERIODIC_INTERVAL = 60 * 60 * 1000;
 
         #endregion
 
         #region constructor
 
-        public LogManager(string logFolder)
+        public LogManager(string configFolder)
         {
-            _logFolder = logFolder;
-
-            StartNewLog();
+            _configFolder = configFolder;
 
             AppDomain.CurrentDomain.UnhandledException += delegate (object sender, UnhandledExceptionEventArgs e)
             {
+                if (!_enableLogging)
+                {
+                    Console.WriteLine(e.ExceptionObject.ToString());
+                    return;
+                }
+
                 lock (_queueLock)
                 {
                     try
@@ -67,6 +86,11 @@ namespace DnsServerCore
                             WriteLog(DateTime.UtcNow, e.ExceptionObject.ToString());
                         }
                     }
+                    catch (Exception ex)
+                    {
+                        Console.WriteLine(e.ExceptionObject.ToString());
+                        Console.WriteLine(ex.ToString());
+                    }
                     finally
                     {
                         _queueWait.Set();
@@ -74,41 +98,51 @@ namespace DnsServerCore
                 }
             };
 
-            //log consumer thread
-            _consumerThread = new Thread(delegate ()
+            LoadConfig();
+
+            if (_enableLogging)
+                StartLogging();
+
+            _logCleanupTimer = new Timer(delegate (object state)
             {
-                while (true)
+                try
                 {
-                    _queueWait.WaitOne();
+                    DateTime cutoffDate = DateTime.UtcNow.AddDays(_maxLogFileDays * -1).Date;
+                    DateTimeStyles dateTimeStyles;
 
-                    Monitor.Enter(_logFileLock);
-                    try
+                    if (_useLocalTime)
+                        dateTimeStyles = DateTimeStyles.AssumeLocal | DateTimeStyles.AdjustToUniversal;
+                    else
+                        dateTimeStyles = DateTimeStyles.AssumeUniversal | DateTimeStyles.AdjustToUniversal;
+
+                    foreach (string logFile in ListLogFiles())
                     {
-                        if (_disposed)
-                            break;
+                        string logFileName = Path.GetFileNameWithoutExtension(logFile);
 
-                        foreach (LogQueueItem item in _queue.GetConsumingEnumerable(_queueCancellationTokenSource.Token))
+                        if (!DateTime.TryParseExact(logFileName, LOG_FILE_DATE_TIME_FORMAT, CultureInfo.InvariantCulture, dateTimeStyles, out DateTime logFileDate))
+                            continue;
+
+                        if (logFileDate < cutoffDate)
                         {
-                            if (item._dateTime.Date > _logDate.Date)
-                                StartNewLog();
-
-                            WriteLog(item._dateTime, item._message);
+                            try
+                            {
+                                File.Delete(logFile);
+                                Write("LogManager cleanup deleted the log file: " + logFile);
+                            }
+                            catch (Exception ex)
+                            {
+                                Write(ex);
+                            }
                         }
                     }
-                    catch (OperationCanceledException)
-                    { }
-                    finally
-                    {
-                        Monitor.Exit(_logFileLock);
-                    }
-
-                    _queueCancellationTokenSource = new CancellationTokenSource();
+                }
+                catch (Exception ex)
+                {
+                    Write(ex);
                 }
             });
 
-            _consumerThread.Name = "Log";
-            _consumerThread.IsBackground = true;
-            _consumerThread.Start();
+            _logCleanupTimer.Change(LOG_CLEANUP_TIMER_INITIAL_INTERVAL, LOG_CLEANUP_TIMER_PERIODIC_INTERVAL);
         }
 
         #endregion
@@ -137,6 +171,8 @@ namespace DnsServerCore
                                 WriteLog(DateTime.UtcNow, "Logging stopped.");
                                 _logOut.Dispose();
                             }
+
+                            _logCleanupTimer.Dispose();
                         }
 
                         _disposed = true;
@@ -158,61 +194,256 @@ namespace DnsServerCore
 
         #region private
 
+        private void StartLogging()
+        {
+            StartNewLog();
+
+            _queueWait.Set();
+
+            //start consumer thread
+            _consumerThread = new Thread(delegate ()
+            {
+                while (true)
+                {
+                    _queueWait.WaitOne();
+
+                    Monitor.Enter(_logFileLock);
+                    try
+                    {
+                        if (_disposed || (_logOut == null))
+                            break;
+
+                        foreach (LogQueueItem item in _queue.GetConsumingEnumerable(_queueCancellationTokenSource.Token))
+                        {
+                            if (item._dateTime.Date > _logDate.Date)
+                            {
+                                WriteLog(DateTime.UtcNow, "Logging stopped.");
+                                StartNewLog();
+                            }
+
+                            WriteLog(item._dateTime, item._message);
+                        }
+                    }
+                    catch (OperationCanceledException)
+                    { }
+                    finally
+                    {
+                        Monitor.Exit(_logFileLock);
+                    }
+
+                    _queueCancellationTokenSource = new CancellationTokenSource();
+                }
+            });
+
+            _consumerThread.Name = "Log";
+            _consumerThread.IsBackground = true;
+            _consumerThread.Start();
+        }
+
+        private void StopLogging()
+        {
+            lock (_queueLock)
+            {
+                try
+                {
+                    _queueCancellationTokenSource.Cancel();
+
+                    lock (_logFileLock)
+                    {
+                        if (_logOut != null)
+                        {
+                            WriteLog(DateTime.UtcNow, "Logging stopped.");
+                            _logOut.Dispose();
+                            _logOut = null; //to stop consumer thread
+                        }
+                    }
+                }
+                finally
+                {
+                    _queueWait.Set();
+                }
+            }
+        }
+
+        private void LoadConfig()
+        {
+            string logConfigFile = Path.Combine(_configFolder, "log.config");
+
+            try
+            {
+                using (FileStream fS = new FileStream(logConfigFile, FileMode.Open, FileAccess.Read))
+                {
+                    BinaryReader bR = new BinaryReader(fS);
+
+                    if (Encoding.ASCII.GetString(bR.ReadBytes(2)) != "LS") //format
+                        throw new InvalidDataException("DnsServer log config file format is invalid.");
+
+                    byte version = bR.ReadByte();
+                    switch (version)
+                    {
+                        case 1:
+                            _enableLogging = bR.ReadBoolean();
+                            _logFolder = bR.ReadShortString();
+                            _maxLogFileDays = bR.ReadInt32();
+                            _useLocalTime = bR.ReadBoolean();
+                            break;
+
+                        default:
+                            throw new InvalidDataException("DnsServer log config version not supported.");
+                    }
+                }
+            }
+            catch (FileNotFoundException)
+            {
+                _enableLogging = true;
+                _logFolder = "logs";
+                _maxLogFileDays = 365;
+                _useLocalTime = false;
+
+                SaveConfig();
+            }
+            catch (Exception ex)
+            {
+                Console.Write(ex.ToString());
+                SaveConfig();
+            }
+        }
+
+        private string ConvertToRelativePath(string path)
+        {
+            if (path.StartsWith(_configFolder, StringComparison.OrdinalIgnoreCase))
+                path = path.Substring(_configFolder.Length).TrimStart(Path.DirectorySeparatorChar);
+
+            return path;
+        }
+
+        private string ConvertToAbsolutePath(string path)
+        {
+            if (Path.IsPathRooted(path))
+                return path;
+
+            return Path.Combine(_configFolder, path);
+        }
+
+        private void SaveConfig()
+        {
+            string logConfigFile = Path.Combine(_configFolder, "log.config");
+
+            using (MemoryStream mS = new MemoryStream())
+            {
+                //serialize config
+                BinaryWriter bW = new BinaryWriter(mS);
+
+                bW.Write(Encoding.ASCII.GetBytes("LS")); //format
+                bW.Write((byte)1); //version
+
+                bW.Write(_enableLogging);
+                bW.WriteShortString(_logFolder);
+                bW.Write(_maxLogFileDays);
+                bW.Write(_useLocalTime);
+
+                //write config
+                mS.Position = 0;
+
+                using (FileStream fS = new FileStream(logConfigFile, FileMode.Create, FileAccess.Write))
+                {
+                    mS.CopyTo(fS);
+                }
+            }
+        }
+
         private void StartNewLog()
         {
-            DateTime utcNow = DateTime.UtcNow;
+            if (_logOut != null)
+                _logOut.Dispose();
 
-            if ((_logOut != null) && (utcNow.Date > _logDate.Date))
-            {
-                WriteLog(utcNow, "Logging stopped.");
-                _logOut.Close();
-            }
+            string logFolder = ConvertToAbsolutePath(_logFolder);
 
-            _logFile = Path.Combine(_logFolder, utcNow.ToString("yyyy-MM-dd") + ".log");
+            if (!Directory.Exists(logFolder))
+                Directory.CreateDirectory(logFolder);
+
+            DateTime logDate;
+
+            if (_useLocalTime)
+                logDate = DateTime.Now;
+            else
+                logDate = DateTime.UtcNow;
+
+            _logFile = Path.Combine(logFolder, logDate.ToString(LOG_FILE_DATE_TIME_FORMAT) + ".log");
             _logOut = new StreamWriter(new FileStream(_logFile, FileMode.Append, FileAccess.Write, FileShare.Read));
-            _logDate = utcNow;
+            _logDate = logDate;
 
-            WriteLog(utcNow, "Logging started.");
+            WriteLog(logDate, "Logging started.");
         }
 
         private void WriteLog(DateTime dateTime, string message)
         {
-            _logOut.WriteLine("[" + dateTime.ToString("yyyy-MM-dd HH:mm:ss") + " UTC] " + message);
+            if (_useLocalTime)
+                _logOut.WriteLine("[" + dateTime.ToLocalTime().ToString(LOG_ENTRY_DATE_TIME_FORMAT) + " Local] " + message);
+            else
+                _logOut.WriteLine("[" + dateTime.ToString(LOG_ENTRY_DATE_TIME_FORMAT) + " UTC] " + message);
+
             _logOut.Flush();
         }
 
         #endregion
 
-        #region static
+        #region public
 
-        public static void DownloadLog(HttpListenerResponse response, string logFile, long limit)
+        public string[] ListLogFiles()
         {
-            using (FileStream fS = new FileStream(logFile, FileMode.Open, FileAccess.Read, FileShare.ReadWrite))
+            return Directory.GetFiles(ConvertToAbsolutePath(_logFolder), "*.log", SearchOption.TopDirectoryOnly);
+        }
+
+        public async Task DownloadLogAsync(HttpListenerRequest request, HttpListenerResponse response, string logName, long limit)
+        {
+            string logFileName = logName + ".log";
+
+            using (FileStream fS = new FileStream(Path.Combine(ConvertToAbsolutePath(_logFolder), logFileName), FileMode.Open, FileAccess.Read, FileShare.ReadWrite))
             {
                 response.ContentType = "text/plain";
-                response.AddHeader("Content-Disposition", "attachment;filename=" + Path.GetFileName(logFile));
+                response.AddHeader("Content-Disposition", "attachment;filename=" + logFileName);
 
                 if ((limit > fS.Length) || (limit < 1))
                     limit = fS.Length;
 
                 OffsetStream oFS = new OffsetStream(fS, 0, limit);
 
-                using (Stream s = response.OutputStream)
+                using (Stream s = WebService.GetOutputStream(request, response))
                 {
-                    oFS.CopyTo(s);
+                    await oFS.CopyToAsync(s);
 
                     if (fS.Length > limit)
                     {
-                        byte[] buffer = System.Text.Encoding.UTF8.GetBytes("####___TRUNCATED___####");
+                        byte[] buffer = Encoding.UTF8.GetBytes("####___TRUNCATED___####");
                         s.Write(buffer, 0, buffer.Length);
                     }
                 }
             }
         }
 
-        #endregion
+        public void DeleteLog(string logName)
+        {
+            string logFile = Path.Combine(ConvertToAbsolutePath(_logFolder), logName + ".log");
 
-        #region public
+            if (logFile.Equals(_logFile, StringComparison.OrdinalIgnoreCase))
+                DeleteCurrentLogFile();
+            else
+                File.Delete(logFile);
+        }
+
+        public void DeleteAllLogs()
+        {
+            string[] logFiles = ListLogFiles();
+
+            foreach (string logFile in logFiles)
+            {
+                if (logFile.Equals(_logFile, StringComparison.OrdinalIgnoreCase))
+                    DeleteCurrentLogFile();
+                else
+                    File.Delete(logFile);
+            }
+        }
 
         public void Write(Exception ex)
         {
@@ -313,7 +544,8 @@ namespace DnsServerCore
 
         public void Write(string message)
         {
-            _queue.Add(new LogQueueItem(message));
+            if (_enableLogging)
+                _queue.Add(new LogQueueItem(message));
         }
 
         public void DeleteCurrentLogFile()
@@ -326,10 +558,13 @@ namespace DnsServerCore
 
                     lock (_logFileLock)
                     {
-                        _logOut.Close();
+                        if (_logOut != null)
+                            _logOut.Dispose();
+
                         File.Delete(_logFile);
 
-                        StartNewLog();
+                        if (_enableLogging)
+                            StartNewLog();
                     }
                 }
                 finally
@@ -339,12 +574,71 @@ namespace DnsServerCore
             }
         }
 
+        public void Save()
+        {
+            SaveConfig();
+
+            if (_logOut == null)
+            {
+                //stopped
+                if (_enableLogging)
+                    StartLogging();
+            }
+            else
+            {
+                //running
+                if (!_enableLogging)
+                {
+                    StopLogging();
+                }
+                else if (!_logFile.StartsWith(ConvertToAbsolutePath(_logFolder)))
+                {
+                    //log folder changed; restart logging to new folder
+                    StopLogging();
+                    StartLogging();
+                }
+            }
+        }
+
         #endregion
 
         #region properties
 
+        public bool EnableLogging
+        {
+            get { return _enableLogging; }
+            set { _enableLogging = value; }
+        }
+
         public string LogFolder
-        { get { return _logFolder; } }
+        {
+            get { return _logFolder; }
+            set
+            {
+                string logFolder;
+
+                if (string.IsNullOrEmpty(value))
+                    logFolder = "logs";
+                else
+                    logFolder = value;
+
+                Directory.CreateDirectory(ConvertToAbsolutePath(logFolder));
+
+                _logFolder = ConvertToRelativePath(logFolder);
+            }
+        }
+
+        public int MaxLogFileDays
+        {
+            get { return _maxLogFileDays; }
+            set { _maxLogFileDays = value; }
+        }
+
+        public bool UseLocalTime
+        {
+            get { return _useLocalTime; }
+            set { _useLocalTime = value; }
+        }
 
         public string CurrentLogFile
         { get { return _logFile; } }
