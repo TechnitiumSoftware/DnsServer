@@ -103,6 +103,7 @@ namespace DnsServerCore.Dns
         int _clientTimeout = 4000;
         int _forwarderConcurrency = 2;
         int _resolverMaxStackCount = 10;
+        bool _serveStale = true;
         int _cachePrefetchEligibility = 2;
         int _cachePrefetchTrigger = 9;
         int _cachePrefetchSampleIntervalInMinutes = 5;
@@ -1521,10 +1522,14 @@ namespace DnsServerCore.Dns
             else
             {
                 //wait timed out
-                //query cache zone to return stale answer (if available) as per draft-ietf-dnsop-serve-stale-04
-                DnsDatagram staleResponse = QueryCache(request, true);
-                if (staleResponse != null)
-                    return staleResponse;
+
+                if (_serveStale)
+                {
+                    //query cache zone to return stale answer (if available) as per draft-ietf-dnsop-serve-stale-04
+                    DnsDatagram staleResponse = QueryCache(request, true);
+                    if (staleResponse != null)
+                        return staleResponse;
+                }
 
                 //wait till full timeout before responding as ServerFailure
                 int timeout = Convert.ToInt32(_clientTimeout - (DateTime.UtcNow - resolverWaitStartTime).TotalMilliseconds);
@@ -1629,24 +1634,32 @@ namespace DnsServerCore.Dns
                     log.Write("DNS Server recursive resolution failed for QNAME: " + request.Question[0].Name + "; QTYPE: " + request.Question[0].Type.ToString() + "; QCLASS: " + request.Question[0].Class.ToString() + (nameServers == null ? "" : "; Name Servers: " + nameServers) + ";\r\n" + ex.ToString());
                 }
 
-                //fetch stale record
-                DnsDatagram staleResponse = QueryCache(request, true);
-                if (staleResponse == null)
+                if (_serveStale)
                 {
-                    //no stale record was found; signal null response to release waiting tasks
-                    taskCompletionSource.SetResult(null);
+                    //fetch stale record
+                    DnsDatagram staleResponse = QueryCache(request, true);
+                    if (staleResponse == null)
+                    {
+                        //no stale record was found; signal null response to release waiting tasks
+                        taskCompletionSource.SetResult(null);
+                    }
+                    else
+                    {
+                        //reset expiry for stale records
+                        foreach (DnsResourceRecord record in staleResponse.Answer)
+                        {
+                            if (record.IsStale)
+                                record.ResetExpiry(30); //reset expiry by 30 seconds so that resolver tries again only after 30 seconds as per draft-ietf-dnsop-serve-stale-04
+                        }
+
+                        //signal stale response
+                        taskCompletionSource.SetResult(staleResponse);
+                    }
                 }
                 else
                 {
-                    //reset expiry for stale records
-                    foreach (DnsResourceRecord record in staleResponse.Answer)
-                    {
-                        if (record.IsStale)
-                            record.ResetExpiry(30); //reset expiry by 30 seconds so that resolver tries again only after 30 seconds as per draft-ietf-dnsop-serve-stale-04
-                    }
-
-                    //signal stale response
-                    taskCompletionSource.SetResult(staleResponse);
+                    //signal null response to release waiting tasks
+                    taskCompletionSource.SetResult(null);
                 }
             }
             finally
@@ -2521,6 +2534,12 @@ namespace DnsServerCore.Dns
         {
             get { return _resolverMaxStackCount; }
             set { _resolverMaxStackCount = value; }
+        }
+
+        public bool ServeStale
+        {
+            get { return _serveStale; }
+            set { _serveStale = value; }
         }
 
         public int CachePrefetchEligibility
