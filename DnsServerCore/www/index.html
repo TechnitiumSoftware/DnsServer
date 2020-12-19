@@ -722,14 +722,47 @@
                                                     <div class="col-sm-8">
                                                         <div class="checkbox">
                                                             <label>
+                                                                <input id="chkEnableLogging" type="checkbox"> Enable Logging
+                                                            </label>
+                                                        </div>
+                                                        <div style="padding-top: 5px;">Enable this option to log error and audit logs into the log file.</div>
+
+                                                        <div class="checkbox">
+                                                            <label>
                                                                 <input id="chkLogQueries" type="checkbox"> Log All Queries
                                                             </label>
                                                         </div>
                                                         <div style="padding-top: 5px;">Enable this option to log every query received by this DNS Server and the corresponding response answers into the log file.</div>
+
+                                                        <div class="checkbox">
+                                                            <label>
+                                                                <input id="chkUseLocalTime" type="checkbox"> Use Local Time
+                                                            </label>
+                                                        </div>
+                                                        <div style="padding-top: 5px;">Enable this option to use local time instead of UTC for logging.</div>
                                                     </div>
                                                 </div>
 
-                                                <div>Enabling query logging will significantly increase the log file size. Error and audit logs are enabled by default.</div>
+                                                <div class="form-group">
+                                                    <label for="txtLogFolderPath" class="col-sm-3 control-label">Log Folder Path</label>
+                                                    <div class="col-sm-6">
+                                                        <input type="text" class="form-control" id="txtLogFolderPath" placeholder="Log Folder Path On Server">
+                                                    </div>
+
+                                                    <div class="col-sm-offset-3 col-sm-8" style="padding-top: 5px;">The folder path on the server where the log files should be saved. The path can be relative to the DNS server config folder.</div>
+                                                </div>
+
+                                                <div class="form-group">
+                                                    <label for="txtMaxLogFileDays" class="col-sm-3 control-label">Max Log File Days</label>
+                                                    <div class="col-sm-6">
+                                                        <input type="number" class="form-control" id="txtMaxLogFileDays" placeholder="Max Days" style="width: 100px; display: inline;">
+                                                        <span>days (default 365, must be greater than 1)</span>
+                                                    </div>
+
+                                                    <div class="col-sm-offset-3 col-sm-8" style="padding-top: 5px;">Max number of days to keep the log files. Log files older than the specified number of days will be deleted automatically.</div>
+                                                </div>
+
+                                                <div>Warning: Enabling query logging will significantly increase the log file size.</div>
                                             </div>
 
                                             <div class="well well-sm form-horizontal">
@@ -760,6 +793,29 @@
                                                 </div>
 
                                                 <div>Disable recursion if you wish this server to act only as authoritative name server for the configured zones.</div>
+                                            </div>
+
+                                            <div class="well well-sm form-horizontal">
+                                                <div class="form-group">
+                                                    <label class="col-sm-3 control-label">Cache</label>
+                                                    <div class="col-sm-8">
+                                                        <div class="checkbox">
+                                                            <label>
+                                                                <input id="chkServeStale" type="checkbox"> Serve Stale
+                                                            </label>
+                                                        </div>
+                                                        <div style="padding-top: 5px;">Enable the serve stale feature to improve resiliency by using expired or stale records in cache when the DNS server is unable to reach the upstream or authoritative name servers.</div>
+                                                    </div>
+                                                </div>
+
+                                                <div class="form-group">
+                                                    <label for="txtServeStaleTtl" class="col-sm-3 control-label">Serve Stale TTL</label>
+                                                    <div class="col-sm-6">
+                                                        <input type="number" class="form-control" id="txtServeStaleTtl" placeholder="seconds" style="width: 100px; display: inline;">
+                                                        <span>(recommended 259200 seconds i.e. 3 days)</span>
+                                                    </div>
+                                                    <div class="col-sm-offset-3 col-sm-8" style="padding-top: 5px;">The TTL value in seconds which should be used for cached records that are expired. When the serve stale TTL too expires for a stale record, it gets removed from the cache. Recommended value is between 1-3 days and maximum supported value is 7 days.</div>
+                                                </div>
                                             </div>
 
                                             <div class="well well-sm form-horizontal">
@@ -833,9 +889,6 @@
                                                             <option value="https://raw.githubusercontent.com/StevenBlack/hosts/master/alternates/gambling-porn-social/hosts">Steven Black [adware + malware + gambling + porn + social] (https://raw.githubusercontent.com/StevenBlack/hosts/master/alternates/gambling-porn-social/hosts)</option>
                                                             <option value="https://raw.githubusercontent.com/StevenBlack/hosts/master/alternates/fakenews-gambling-porn-social/hosts">Steven Black [adware + malware + fakenews + gambling + porn + social] (https://raw.githubusercontent.com/StevenBlack/hosts/master/alternates/fakenews-gambling-porn-social/hosts)</option>
 
-                                                            <option value="https://mirror1.malwaredomains.com/files/justdomains">Malware Domains (https://mirror1.malwaredomains.com/files/justdomains)</option>
-
-
                                                             <option value="https://s3.amazonaws.com/lists.disconnect.me/simple_tracking.txt">Disconnect.me [tracking] (https://s3.amazonaws.com/lists.disconnect.me/simple_tracking.txt)</option>
                                                             <option value="https://s3.amazonaws.com/lists.disconnect.me/simple_ad.txt">Disconnect.me [ads] (https://s3.amazonaws.com/lists.disconnect.me/simple_ad.txt)</option>
 
@@ -846,7 +899,25 @@
                                                     </div>
                                                 </div>
 
-                                                <div style="margin-top: 10px;">DNS Server will use the data returned by the block list URLs to update the blocked zone automatically every 24 hours. The expected file format is standard <code>hosts</code> file format or plain text file containing list of domains to block.</div>
+                                                <div class="form-group">
+                                                    <label for="txtBlockListUpdateIntervalHours" class="col-sm-3 control-label">Block List Update Interval</label>
+                                                    <div class="col-sm-6">
+                                                        <input type="number" class="form-control" id="txtBlockListUpdateIntervalHours" placeholder="hours" style="width: 100px; display: inline;">
+                                                        <span>hours (default 24, valid range 1-168)</span>
+                                                    </div>
+                                                    <div class="col-sm-offset-3 col-sm-8" style="padding-top: 5px;">The interval in hours to automatically download and update the block lists.</div>
+                                                </div>
+
+                                                <div class="form-group">
+                                                    <label for="lblBlockListNextUpdatedOn" class="col-sm-3 control-label">Block List Next Update On</label>
+                                                    <div class="col-sm-6">
+                                                        <span id="lblBlockListNextUpdatedOn" style="margin-right: 15px;"></span>
+                                                        <button id="btnUpdateBlockListsNow" type="button" class="btn btn-default" style="padding: 2px 0; width: 100px;" data-loading-text="Updating..." onclick="return forceUpdateBlockLists();">Update Now</button>
+                                                    </div>
+                                                    <div class="col-sm-offset-3 col-sm-8" style="padding-top: 5px;">Click the 'Update Now' button to reset the next update schedule and force download and update of the block lists.</div>
+                                                </div>
+
+                                                <div style="margin-top: 10px;">DNS Server will use the data returned by the block list URLs to update the block list zone automatically. The expected file format is standard <code>hosts</code> file format or plain text file containing list of domains to block.</div>
                                                 <div style="margin-top: 10px;"><a href="https://blog.technitium.com/2018/10/blocking-internet-ads-using-dns-sinkhole.html" target="_blank">Help: Blocking Internet Ads Using DNS Sinkhole</a></div>
                                             </div>
 
@@ -1182,32 +1253,6 @@
 
                                                     <div class="well well-sm form-horizontal">
                                                         <div class="form-group">
-                                                            <label for="txtDhcpScopeServerAddress" class="col-sm-3 control-label">Bootstrap Server Address</label>
-                                                            <div class="col-sm-3">
-                                                                <input type="text" class="form-control" id="txtDhcpScopeServerAddress" placeholder="Bootstrap Server Address">
-                                                            </div>
-                                                            <div class="col-sm-offset-3 col-sm-8" style="padding-top: 5px;">The bootstrap TFTP server IP address to be used by the clients. If not specified, the DHCP server's IP address is used.</div>
-                                                        </div>
-
-                                                        <div class="form-group">
-                                                            <label for="txtDhcpScopeServerHostName" class="col-sm-3 control-label">Bootstrap Server Host Name</label>
-                                                            <div class="col-sm-3">
-                                                                <input type="text" class="form-control" id="txtDhcpScopeServerHostName" placeholder="Bootstrap Server Host Name">
-                                                            </div>
-                                                            <div class="col-sm-offset-3 col-sm-8" style="padding-top: 5px;">The optional bootstrap TFTP server host name to be used by the clients to identify the TFTP server.</div>
-                                                        </div>
-
-                                                        <div class="form-group">
-                                                            <label for="txtDhcpScopeBootFileName" class="col-sm-3 control-label">Boot File Name</label>
-                                                            <div class="col-sm-3">
-                                                                <input type="text" class="form-control" id="txtDhcpScopeBootFileName" placeholder="Bootstrap File Name">
-                                                            </div>
-                                                            <div class="col-sm-offset-3 col-sm-8" style="padding-top: 5px;">The boot file name stored on the bootstrap TFTP server to be used by the clients.</div>
-                                                        </div>
-                                                    </div>
-
-                                                    <div class="well well-sm form-horizontal">
-                                                        <div class="form-group">
                                                             <label for="txtDhcpScopeRouterAddress" class="col-sm-3 control-label">Router Address</label>
                                                             <div class="col-sm-3">
                                                                 <input type="text" class="form-control" id="txtDhcpScopeRouterAddress" placeholder="Router Address">
@@ -1265,6 +1310,32 @@
                                                                 </table>
                                                             </div>
                                                             <div class="col-sm-offset-3 col-sm-8" style="padding-top: 5px;">The static routes to be used by the clients for accessing specified destination networks.</div>
+                                                        </div>
+                                                    </div>
+
+                                                    <div class="well well-sm form-horizontal">
+                                                        <div class="form-group">
+                                                            <label for="txtDhcpScopeServerAddress" class="col-sm-3 control-label">Bootstrap Server Address</label>
+                                                            <div class="col-sm-3">
+                                                                <input type="text" class="form-control" id="txtDhcpScopeServerAddress" placeholder="Bootstrap Server Address">
+                                                            </div>
+                                                            <div class="col-sm-offset-3 col-sm-8" style="padding-top: 5px;">The bootstrap TFTP server IP address to be used by the clients. If not specified, the DHCP server's IP address is used.</div>
+                                                        </div>
+
+                                                        <div class="form-group">
+                                                            <label for="txtDhcpScopeServerHostName" class="col-sm-3 control-label">Bootstrap Server Host Name</label>
+                                                            <div class="col-sm-3">
+                                                                <input type="text" class="form-control" id="txtDhcpScopeServerHostName" placeholder="Bootstrap Server Host Name">
+                                                            </div>
+                                                            <div class="col-sm-offset-3 col-sm-8" style="padding-top: 5px;">The optional bootstrap TFTP server host name to be used by the clients to identify the TFTP server.</div>
+                                                        </div>
+
+                                                        <div class="form-group">
+                                                            <label for="txtDhcpScopeBootFileName" class="col-sm-3 control-label">Boot File Name</label>
+                                                            <div class="col-sm-3">
+                                                                <input type="text" class="form-control" id="txtDhcpScopeBootFileName" placeholder="Bootstrap File Name">
+                                                            </div>
+                                                            <div class="col-sm-offset-3 col-sm-8" style="padding-top: 5px;">The boot file name stored on the bootstrap TFTP server to be used by the clients.</div>
                                                         </div>
                                                     </div>
 

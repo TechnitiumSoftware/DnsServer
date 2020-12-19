@@ -141,6 +141,11 @@ $(function () {
         $("#chkAllowRecursionOnlyForPrivateNetworks").prop('disabled', !allowRecursion);
     });
 
+    $("#chkServeStale").click(function () {
+        var serveStale = $("#chkServeStale").prop("checked");
+        $("#txtServeStaleTtl").prop("disabled", !serveStale);
+    });
+
     $("#optQuickBlockList").change(function () {
 
         var selectedOption = $("#optQuickBlockList").val();
@@ -157,7 +162,6 @@ $(function () {
                 var defaultList = "";
 
                 defaultList += "https://raw.githubusercontent.com/StevenBlack/hosts/master/hosts" + "\n";
-                defaultList += "https://mirror1.malwaredomains.com/files/justdomains" + "\n";
                 defaultList += "https://s3.amazonaws.com/lists.disconnect.me/simple_tracking.txt" + "\n";
                 defaultList += "https://s3.amazonaws.com/lists.disconnect.me/simple_ad.txt" + "\n";
 
@@ -602,11 +606,21 @@ function loadDnsSettings() {
                 $("#txtTlsCertificatePassword").val(responseJSON.response.tlsCertificatePassword);
 
             $("#chkPreferIPv6").prop("checked", responseJSON.response.preferIPv6);
+
+            $("#chkEnableLogging").prop("checked", responseJSON.response.enableLogging);
             $("#chkLogQueries").prop("checked", responseJSON.response.logQueries);
+            $("#chkUseLocalTime").prop("checked", responseJSON.response.useLocalTime);
+            $("#txtLogFolderPath").val(responseJSON.response.logFolder);
+            $("#txtMaxLogFileDays").val(responseJSON.response.maxLogFileDays);
+
             $("#chkAllowRecursion").prop("checked", responseJSON.response.allowRecursion);
             $("#chkAllowRecursionOnlyForPrivateNetworks").prop('disabled', !responseJSON.response.allowRecursion);
             $("#chkAllowRecursionOnlyForPrivateNetworks").prop("checked", responseJSON.response.allowRecursionOnlyForPrivateNetworks);
             $("#chkRandomizeName").prop("checked", responseJSON.response.randomizeName);
+
+            $("#chkServeStale").prop("checked", responseJSON.response.serveStale);
+            $("#txtServeStaleTtl").prop("disabled", !responseJSON.response.serveStale);
+            $("#txtServeStaleTtl").val(responseJSON.response.serveStaleTtl);
 
             $("#txtCachePrefetchEligibility").val(responseJSON.response.cachePrefetchEligibility);
             $("#txtCachePrefetchTrigger").val(responseJSON.response.cachePrefetchTrigger);
@@ -725,6 +739,9 @@ function loadDnsSettings() {
                 optCustomLocalBlockList.text("Custom Local Block List (http://localhost:" + responseJSON.response.webServicePort + "/blocklist.txt)");
             }
 
+            $("#txtBlockListUpdateIntervalHours").val(responseJSON.response.blockListUpdateIntervalHours);
+            $("#lblBlockListNextUpdatedOn").text(responseJSON.response.blockListNextUpdatedOn);
+
             divDnsSettingsLoader.hide();
             divDnsSettings.show();
         },
@@ -769,10 +786,19 @@ function saveDnsSettings() {
     var tlsCertificatePassword = $("#txtTlsCertificatePassword").val();
 
     var preferIPv6 = $("#chkPreferIPv6").prop('checked');
+
+    var enableLogging = $("#chkEnableLogging").prop('checked');
     var logQueries = $("#chkLogQueries").prop('checked');
+    var useLocalTime = $("#chkUseLocalTime").prop('checked');
+    var logFolder = $("#txtLogFolderPath").val();
+    var maxLogFileDays = $("#txtMaxLogFileDays").val();
+
     var allowRecursion = $("#chkAllowRecursion").prop('checked');
     var allowRecursionOnlyForPrivateNetworks = $("#chkAllowRecursionOnlyForPrivateNetworks").prop('checked');
     var randomizeName = $("#chkRandomizeName").prop('checked');
+
+    var serveStale = $("#chkServeStale").prop("checked");
+    var serveStaleTtl = $("#txtServeStaleTtl").val();
 
     var cachePrefetchEligibility = $("#txtCachePrefetchEligibility").val();
     if ((cachePrefetchEligibility === null) || (cachePrefetchEligibility === "")) {
@@ -850,14 +876,17 @@ function saveDnsSettings() {
     else
         $("#txtBlockListUrls").val(blockListUrls.replace(/,/g, "\n") + "\n");
 
+    var blockListUpdateIntervalHours = $("#txtBlockListUpdateIntervalHours").val();
+
     var btn = $("#btnSaveDnsSettings").button('loading');
 
     HTTPRequest({
         url: "/api/setDnsSettings?token=" + token + "&serverDomain=" + serverDomain + "&webServicePort=" + webServicePort + "&dnsServerLocalEndPoints=" + encodeURIComponent(dnsServerLocalEndPoints)
             + "&enableDnsOverHttp=" + enableDnsOverHttp + "&enableDnsOverTls=" + enableDnsOverTls + "&enableDnsOverHttps=" + enableDnsOverHttps + "&tlsCertificatePath=" + encodeURIComponent(tlsCertificatePath) + "&tlsCertificatePassword=" + encodeURIComponent(tlsCertificatePassword)
-            + "&preferIPv6=" + preferIPv6 + "&logQueries=" + logQueries + "&allowRecursion=" + allowRecursion + "&allowRecursionOnlyForPrivateNetworks=" + allowRecursionOnlyForPrivateNetworks + "&randomizeName=" + randomizeName
-            + "&cachePrefetchEligibility=" + cachePrefetchEligibility + "&cachePrefetchTrigger=" + cachePrefetchTrigger + "&cachePrefetchSampleIntervalInMinutes=" + cachePrefetchSampleIntervalInMinutes + "&cachePrefetchSampleEligibilityHitsPerHour=" + cachePrefetchSampleEligibilityHitsPerHour
-            + proxy + "&forwarders=" + encodeURIComponent(forwarders) + "&forwarderProtocol=" + forwarderProtocol + "&blockListUrls=" + encodeURIComponent(blockListUrls),
+            + "&preferIPv6=" + preferIPv6 + "&enableLogging=" + enableLogging + "&logQueries=" + logQueries + "&useLocalTime=" + useLocalTime + "&logFolder=" + encodeURIComponent(logFolder) + "&maxLogFileDays=" + maxLogFileDays
+            + "&allowRecursion=" + allowRecursion + "&allowRecursionOnlyForPrivateNetworks=" + allowRecursionOnlyForPrivateNetworks + "&randomizeName=" + randomizeName
+            + "&serveStale=" + serveStale + "&serveStaleTtl=" + serveStaleTtl + "&cachePrefetchEligibility=" + cachePrefetchEligibility + "&cachePrefetchTrigger=" + cachePrefetchTrigger + "&cachePrefetchSampleIntervalInMinutes=" + cachePrefetchSampleIntervalInMinutes + "&cachePrefetchSampleEligibilityHitsPerHour=" + cachePrefetchSampleEligibilityHitsPerHour
+            + proxy + "&forwarders=" + encodeURIComponent(forwarders) + "&forwarderProtocol=" + forwarderProtocol + "&blockListUrls=" + encodeURIComponent(blockListUrls) + "&blockListUpdateIntervalHours=" + blockListUpdateIntervalHours,
         success: function (responseJSON) {
             document.title = "Technitium DNS Server " + responseJSON.response.version + " - " + responseJSON.response.serverDomain;
             $("#lblServerDomain").text(" - " + responseJSON.response.serverDomain);
@@ -873,6 +902,30 @@ function saveDnsSettings() {
 
             btn.button('reset');
             showAlert("success", "Settings Saved!", "DNS Server settings were saved successfully.");
+        },
+        error: function () {
+            btn.button('reset');
+        },
+        invalidToken: function () {
+            btn.button('reset');
+            showPageLogin();
+        }
+    });
+
+    return false;
+}
+
+function forceUpdateBlockLists() {
+    if (!confirm("Are you sure to force download and update the block lists?"))
+        return false;
+
+    var btn = $("#btnUpdateBlockListsNow").button('loading');
+
+    HTTPRequest({
+        url: "/api/forceUpdateBlockLists?token=" + token,
+        success: function (responseJSON) {
+            btn.button('reset');
+            showAlert("success", "Updating Block List!", "Block list update was triggered successfully.");
         },
         error: function () {
             btn.button('reset');
@@ -1611,12 +1664,19 @@ function refreshLogFilesList() {
         success: function (responseJSON) {
             var logFiles = responseJSON.response.logFiles;
 
-            var list = "";
+            var list = "<div class=\"log\" style=\"font-size: 14px; padding-bottom: 6px;\"><a href=\"#\" onclick=\"return deleteAllStats();\"><b>[delete all stats]</b></a></div>";
 
-            for (var i = 0; i < logFiles.length; i++) {
-                var logFile = logFiles[i];
+            if (logFiles.length == 0) {
+                list += "<div class=\"log\">No Log Was Found</div>";
+            }
+            else {
+                list += "<div class=\"log\" style=\"font-size: 14px; padding-bottom: 6px;\"><a href=\"#\" onclick=\"return deleteAllLogs();\"><b>[delete all logs]</b></a></div>";
 
-                list += "<div class=\"log\"><a href=\"#\" onclick=\"return viewLog('" + logFile.fileName + "');\">" + logFile.fileName + " [" + logFile.size + "]</a></div>"
+                for (var i = 0; i < logFiles.length; i++) {
+                    var logFile = logFiles[i];
+
+                    list += "<div class=\"log\"><a href=\"#\" onclick=\"return viewLog('" + logFile.fileName + "');\">" + logFile.fileName + " [" + logFile.size + "]</a></div>"
+                }
             }
 
             lstLogFiles.html(list);
@@ -1691,6 +1751,46 @@ function deleteLog() {
         },
         invalidToken: function () {
             btn.button('reset');
+            showPageLogin();
+        }
+    });
+
+    return false;
+}
+
+function deleteAllLogs() {
+
+    if (!confirm("Are you sure you want to permanently delete all log files?"))
+        return false;
+
+    HTTPRequest({
+        url: "/api/deleteAllLogs?token=" + token,
+        success: function (responseJSON) {
+            refreshLogFilesList();
+
+            $("#divLogViewer").hide();
+
+            showAlert("success", "Logs Deleted!", "All log files were deleted successfully.");
+        },
+        invalidToken: function () {
+            showPageLogin();
+        }
+    });
+
+    return false;
+}
+
+function deleteAllStats() {
+
+    if (!confirm("Are you sure you want to permanently delete all stats files?"))
+        return false;
+
+    HTTPRequest({
+        url: "/api/deleteAllStats?token=" + token,
+        success: function (responseJSON) {
+            showAlert("success", "Stats Deleted!", "All stats files were deleted successfully.");
+        },
+        invalidToken: function () {
             showPageLogin();
         }
     });
