@@ -28,6 +28,7 @@ using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.IO;
+using System.IO.Compression;
 using System.Net;
 using System.Net.Http;
 using System.Reflection;
@@ -94,7 +95,7 @@ namespace DnsServerCore
 
         Timer _blockListUpdateTimer;
         DateTime _blockListLastUpdatedOn;
-        const int BLOCK_LIST_UPDATE_AFTER_HOURS = 24;
+        int _blockListUpdateIntervalHours = 24;
         const int BLOCK_LIST_UPDATE_TIMER_INITIAL_INTERVAL = 5000;
         const int BLOCK_LIST_UPDATE_TIMER_INTERVAL = 900000;
 
@@ -122,12 +123,7 @@ namespace DnsServerCore
 
             _updateCheckUri = updateCheckUri;
 
-            string logFolder = Path.Combine(_configFolder, "logs");
-
-            if (!Directory.Exists(logFolder))
-                Directory.CreateDirectory(logFolder);
-
-            _log = new LogManager(logFolder);
+            _log = new LogManager(_configFolder);
 
             string blockListsFolder = Path.Combine(_configFolder, "blocklists");
 
@@ -261,6 +257,10 @@ namespace DnsServerCore
                                                 SetDnsSettings(request, jsonWriter);
                                                 break;
 
+                                            case "/api/forceUpdateBlockLists":
+                                                ForceUpdateBlockLists(request);
+                                                break;
+
                                             case "/api/getStats":
                                                 await GetStats(request, jsonWriter);
                                                 break;
@@ -363,6 +363,14 @@ namespace DnsServerCore
 
                                             case "/api/deleteLog":
                                                 DeleteLog(request);
+                                                break;
+
+                                            case "/api/deleteAllLogs":
+                                                DeleteAllLogs(request);
+                                                break;
+
+                                            case "/api/deleteAllStats":
+                                                DeleteAllStats(request);
                                                 break;
 
                                             case "/api/listDhcpScopes":
@@ -472,16 +480,14 @@ namespace DnsServerCore
                     }
 
                     string[] pathParts = path.Split('/');
-
                     string logFileName = pathParts[2];
-                    string logFile = Path.Combine(_log.LogFolder, logFileName + ".log");
 
                     int limit = 0;
                     string strLimit = request.QueryString["limit"];
                     if (!string.IsNullOrEmpty(strLimit))
                         limit = int.Parse(strLimit);
 
-                    LogManager.DownloadLog(response, logFile, limit * 1024 * 1024);
+                    await _log.DownloadLogAsync(request, response, logFileName, limit * 1024 * 1024);
                 }
                 else
                 {
@@ -504,7 +510,7 @@ namespace DnsServerCore
                         return;
                     }
 
-                    await SendFileAsync(response, path);
+                    await SendFileAsync(request, response, path);
                 }
             }
             catch (Exception ex)
@@ -543,6 +549,32 @@ namespace DnsServerCore
             }
         }
 
+        public static Stream GetOutputStream(HttpListenerRequest request, HttpListenerResponse response)
+        {
+            string strAcceptEncoding = request.Headers["Accept-Encoding"];
+            if (string.IsNullOrEmpty(strAcceptEncoding))
+            {
+                return response.OutputStream;
+            }
+            else
+            {
+                if (strAcceptEncoding.Contains("gzip"))
+                {
+                    response.AddHeader("Content-Encoding", "gzip");
+                    return new GZipStream(response.OutputStream, CompressionMode.Compress);
+                }
+                else if (strAcceptEncoding.Contains("deflate"))
+                {
+                    response.AddHeader("Content-Encoding", "deflate");
+                    return new DeflateStream(response.OutputStream, CompressionMode.Compress);
+                }
+                else
+                {
+                    return response.OutputStream;
+                }
+            }
+        }
+
         private static Task SendError(HttpListenerResponse response, Exception ex)
         {
             return SendErrorAsync(response, 500, ex.ToString());
@@ -568,15 +600,14 @@ namespace DnsServerCore
             { }
         }
 
-        private static async Task SendFileAsync(HttpListenerResponse response, string filePath)
+        private static async Task SendFileAsync(HttpListenerRequest request, HttpListenerResponse response, string filePath)
         {
             using (FileStream fS = new FileStream(filePath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite))
             {
                 response.ContentType = WebUtilities.GetContentType(filePath).MediaType;
-                response.ContentLength64 = fS.Length;
                 response.AddHeader("Cache-Control", "private, max-age=300");
 
-                using (Stream stream = response.OutputStream)
+                using (Stream stream = GetOutputStream(request, response))
                 {
                     try
                     {
@@ -902,8 +933,20 @@ namespace DnsServerCore
             jsonWriter.WritePropertyName("preferIPv6");
             jsonWriter.WriteValue(_dnsServer.PreferIPv6);
 
+            jsonWriter.WritePropertyName("enableLogging");
+            jsonWriter.WriteValue(_log.EnableLogging);
+
             jsonWriter.WritePropertyName("logQueries");
             jsonWriter.WriteValue(_dnsServer.QueryLogManager != null);
+
+            jsonWriter.WritePropertyName("useLocalTime");
+            jsonWriter.WriteValue(_log.UseLocalTime);
+
+            jsonWriter.WritePropertyName("logFolder");
+            jsonWriter.WriteValue(_log.LogFolder);
+
+            jsonWriter.WritePropertyName("maxLogFileDays");
+            jsonWriter.WriteValue(_log.MaxLogFileDays);
 
             jsonWriter.WritePropertyName("allowRecursion");
             jsonWriter.WriteValue(_dnsServer.AllowRecursion);
@@ -913,6 +956,12 @@ namespace DnsServerCore
 
             jsonWriter.WritePropertyName("randomizeName");
             jsonWriter.WriteValue(_dnsServer.RandomizeName);
+
+            jsonWriter.WritePropertyName("serveStale");
+            jsonWriter.WriteValue(_dnsServer.ServeStale);
+
+            jsonWriter.WritePropertyName("serveStaleTtl");
+            jsonWriter.WriteValue(_dnsServer.CacheZoneManager.ServeStaleTtl);
 
             jsonWriter.WritePropertyName("cachePrefetchEligibility");
             jsonWriter.WriteValue(_dnsServer.CachePrefetchEligibility);
@@ -1007,6 +1056,12 @@ namespace DnsServerCore
 
                 jsonWriter.WriteEndArray();
             }
+
+            jsonWriter.WritePropertyName("blockListUpdateIntervalHours");
+            jsonWriter.WriteValue(_blockListUpdateIntervalHours);
+
+            jsonWriter.WritePropertyName("blockListNextUpdatedOn");
+            jsonWriter.WriteValue(_blockListLastUpdatedOn.AddHours(_blockListUpdateIntervalHours).ToLocalTime().ToString());
         }
 
         private void SetDnsSettings(HttpListenerRequest request, JsonTextWriter jsonWriter)
@@ -1080,6 +1135,10 @@ namespace DnsServerCore
             if (!string.IsNullOrEmpty(strPreferIPv6))
                 _dnsServer.PreferIPv6 = bool.Parse(strPreferIPv6);
 
+            string strEnableLogging = request.QueryString["enableLogging"];
+            if (!string.IsNullOrEmpty(strEnableLogging))
+                _log.EnableLogging = bool.Parse(strEnableLogging);
+
             string strLogQueries = request.QueryString["logQueries"];
             if (!string.IsNullOrEmpty(strLogQueries))
             {
@@ -1087,6 +1146,24 @@ namespace DnsServerCore
                     _dnsServer.QueryLogManager = _log;
                 else
                     _dnsServer.QueryLogManager = null;
+            }
+
+            string strUseLocalTime = request.QueryString["useLocalTime"];
+            if (!string.IsNullOrEmpty(strUseLocalTime))
+                _log.UseLocalTime = bool.Parse(strUseLocalTime);
+
+            string strLogFolder = request.QueryString["logFolder"];
+            if (!string.IsNullOrEmpty(strLogFolder))
+                _log.LogFolder = strLogFolder;
+
+            string strMaxLogFileDays = request.QueryString["maxLogFileDays"];
+            if (!string.IsNullOrEmpty(strMaxLogFileDays))
+            {
+                int maxLogFileDays = int.Parse(strMaxLogFileDays);
+                if (maxLogFileDays < 1)
+                    throw new ArgumentOutOfRangeException("Parameter 'maxLogFileDays' must be greater than 1.");
+
+                _log.MaxLogFileDays = maxLogFileDays;
             }
 
             string strAllowRecursion = request.QueryString["allowRecursion"];
@@ -1100,6 +1177,14 @@ namespace DnsServerCore
             string strRandomizeName = request.QueryString["randomizeName"];
             if (!string.IsNullOrEmpty(strRandomizeName))
                 _dnsServer.RandomizeName = bool.Parse(strRandomizeName);
+
+            string strServeStale = request.QueryString["serveStale"];
+            if (!string.IsNullOrEmpty(strServeStale))
+                _dnsServer.ServeStale = bool.Parse(strServeStale);
+
+            string strServeStaleTtl = request.QueryString["serveStaleTtl"];
+            if (!string.IsNullOrEmpty(strServeStaleTtl))
+                _dnsServer.CacheZoneManager.ServeStaleTtl = uint.Parse(strServeStaleTtl);
 
             string strCachePrefetchEligibility = request.QueryString["cachePrefetchEligibility"];
             if (!string.IsNullOrEmpty(strCachePrefetchEligibility))
@@ -1236,19 +1321,35 @@ namespace DnsServerCore
                                 _dnsServer.BlockListZoneManager.BlockListUrls.Add(blockListUrl);
                         }
 
-                        _blockListLastUpdatedOn = new DateTime();
-
-                        StopBlockListUpdateTimer();
-                        StartBlockListUpdateTimer();
+                        ForceUpdateBlockLists();
                     }
                 }
+            }
+
+            string strBlockListUpdateIntervalHours = request.QueryString["blockListUpdateIntervalHours"];
+            if (!string.IsNullOrEmpty(strBlockListUpdateIntervalHours))
+            {
+                int blockListUpdateIntervalHours = int.Parse(strBlockListUpdateIntervalHours);
+
+                if ((blockListUpdateIntervalHours < 1) || (blockListUpdateIntervalHours > 168))
+                    throw new ArgumentOutOfRangeException("Parameter `blockListUpdateIntervalHours` must be between 1 hour and 168 hours (7 days).");
+
+                _blockListUpdateIntervalHours = blockListUpdateIntervalHours;
             }
 
             _log.Write(GetRequestRemoteEndPoint(request), "[" + GetSession(request).Username + "] DNS Settings were updated {serverDomain: " + _dnsServer.ServerDomain + "; dnsServerLocalEndPoints: " + strDnsServerLocalEndPoints + "; webServicePort: " + _webServicePort + "; enableDnsOverHttp: " + _dnsServer.EnableDnsOverHttp + "; enableDnsOverTls: " + _dnsServer.EnableDnsOverTls + "; enableDnsOverHttps: " + _dnsServer.EnableDnsOverHttps + "; tlsCertificatePath: " + _tlsCertificatePath + "; preferIPv6: " + _dnsServer.PreferIPv6 + "; logQueries: " + (_dnsServer.QueryLogManager != null) + "; allowRecursion: " + _dnsServer.AllowRecursion + "; allowRecursionOnlyForPrivateNetworks: " + _dnsServer.AllowRecursionOnlyForPrivateNetworks + "; proxyType: " + strProxyType + "; forwarders: " + strForwarders + "; forwarderProtocol: " + strForwarderProtocol + "; blockListUrl: " + strBlockListUrls + ";}");
 
             SaveConfigFile();
+            _log.Save();
 
             GetDnsSettings(jsonWriter);
+        }
+
+        private void ForceUpdateBlockLists(HttpListenerRequest request)
+        {
+            ForceUpdateBlockLists();
+
+            _log.Write(GetRequestRemoteEndPoint(request), "[" + GetSession(request).Username + "] Block list update was triggered.");
         }
 
         private async Task GetStats(HttpListenerRequest request, JsonTextWriter jsonWriter)
@@ -3313,7 +3414,7 @@ namespace DnsServerCore
 
         private void ListLogs(JsonTextWriter jsonWriter)
         {
-            string[] logFiles = Directory.GetFiles(_log.LogFolder, "*.log");
+            string[] logFiles = _log.ListLogFiles();
 
             Array.Sort(logFiles);
             Array.Reverse(logFiles);
@@ -3343,14 +3444,23 @@ namespace DnsServerCore
             if (string.IsNullOrEmpty(log))
                 throw new WebServiceException("Parameter 'log' missing.");
 
-            string logFile = Path.Combine(_log.LogFolder, log + ".log");
-
-            if (_log.CurrentLogFile.Equals(logFile, StringComparison.OrdinalIgnoreCase))
-                _log.DeleteCurrentLogFile();
-            else
-                File.Delete(logFile);
+            _log.DeleteLog(log);
 
             _log.Write(GetRequestRemoteEndPoint(request), "[" + GetSession(request).Username + "] Log file was deleted: " + log);
+        }
+
+        private void DeleteAllLogs(HttpListenerRequest request)
+        {
+            _log.DeleteAllLogs();
+
+            _log.Write(GetRequestRemoteEndPoint(request), "[" + GetSession(request).Username + "] All log files were deleted.");
+        }
+
+        private void DeleteAllStats(HttpListenerRequest request)
+        {
+            _dnsServer.StatsManager.DeleteAllStats();
+
+            _log.Write(GetRequestRemoteEndPoint(request), "[" + GetSession(request).Username + "] All stats files were deleted.");
         }
 
         private void ListDhcpLeases(JsonTextWriter jsonWriter)
@@ -3977,6 +4087,14 @@ namespace DnsServerCore
             }
         }
 
+        private void ForceUpdateBlockLists()
+        {
+            _blockListLastUpdatedOn = new DateTime();
+
+            StopBlockListUpdateTimer();
+            StartBlockListUpdateTimer();
+        }
+
         private void StartBlockListUpdateTimer()
         {
             if (_blockListUpdateTimer == null)
@@ -3985,7 +4103,7 @@ namespace DnsServerCore
                 {
                     try
                     {
-                        if (DateTime.UtcNow > _blockListLastUpdatedOn.AddHours(BLOCK_LIST_UPDATE_AFTER_HOURS))
+                        if (DateTime.UtcNow > _blockListLastUpdatedOn.AddHours(_blockListUpdateIntervalHours))
                         {
                             if (await _dnsServer.BlockListZoneManager.UpdateBlockListsAsync())
                             {
@@ -4108,6 +4226,7 @@ namespace DnsServerCore
                         case 10:
                         case 11:
                         case 12:
+                        case 13:
                             _dnsServer.ServerDomain = bR.ReadShortString();
                             _webServicePort = bR.ReadInt32();
 
@@ -4127,6 +4246,12 @@ namespace DnsServerCore
                                 _dnsServer.RandomizeName = bR.ReadBoolean();
                             else
                                 _dnsServer.RandomizeName = true; //default true to enable security feature
+
+                            if (version >= 13)
+                            {
+                                _dnsServer.ServeStale = bR.ReadBoolean();
+                                _dnsServer.CacheZoneManager.ServeStaleTtl = bR.ReadUInt32();
+                            }
 
                             if (version >= 9)
                             {
@@ -4233,6 +4358,9 @@ namespace DnsServerCore
                                     _dnsServer.BlockListZoneManager.BlockListUrls.Add(new Uri(bR.ReadShortString()));
 
                                 _blockListLastUpdatedOn = bR.ReadDate();
+
+                                if (version >= 13)
+                                    _blockListUpdateIntervalHours = bR.ReadInt32();
                             }
 
                             if (version >= 11)
@@ -4348,7 +4476,7 @@ namespace DnsServerCore
                 BinaryWriter bW = new BinaryWriter(mS);
 
                 bW.Write(Encoding.ASCII.GetBytes("DS")); //format
-                bW.Write((byte)12); //version
+                bW.Write((byte)13); //version
 
                 bW.WriteShortString(_dnsServer.ServerDomain);
                 bW.Write(_webServicePort);
@@ -4360,6 +4488,9 @@ namespace DnsServerCore
                 bW.Write(_dnsServer.AllowRecursion);
                 bW.Write(_dnsServer.AllowRecursionOnlyForPrivateNetworks);
                 bW.Write(_dnsServer.RandomizeName);
+
+                bW.Write(_dnsServer.ServeStale);
+                bW.Write(_dnsServer.CacheZoneManager.ServeStaleTtl);
 
                 bW.Write(_dnsServer.CachePrefetchEligibility);
                 bW.Write(_dnsServer.CachePrefetchTrigger);
@@ -4428,6 +4559,7 @@ namespace DnsServerCore
                         bW.WriteShortString(blockListUrl.AbsoluteUri);
 
                     bW.Write(_blockListLastUpdatedOn);
+                    bW.Write(_blockListUpdateIntervalHours);
                 }
 
 
