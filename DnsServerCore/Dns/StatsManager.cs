@@ -20,6 +20,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.Globalization;
 using System.IO;
 using System.Net;
 using System.Text;
@@ -64,6 +65,10 @@ namespace DnsServerCore.Dns
 
         readonly BlockingCollection<StatsQueueItem> _queue = new BlockingCollection<StatsQueueItem>();
         readonly Thread _consumerThread;
+
+        readonly Timer _statsCleanupTimer;
+        const int STATS_CLEANUP_TIMER_INITIAL_INTERVAL = 60 * 1000;
+        const int STATS_CLEANUP_TIMER_PERIODIC_INTERVAL = 60 * 60 * 1000;
 
         #endregion
 
@@ -121,6 +126,79 @@ namespace DnsServerCore.Dns
             _consumerThread.Name = "Stats";
             _consumerThread.IsBackground = true;
             _consumerThread.Start();
+
+            _statsCleanupTimer = new Timer(delegate (object state)
+            {
+                try
+                {
+                    DateTime cutoffDate = DateTime.UtcNow.AddDays(365 * -1).Date;
+                    LogManager log = dnsServer.LogManager;
+
+                    //delete hourly logs
+                    {
+                        string[] hourlyStatsFiles = Directory.GetFiles(Path.Combine(_dnsServer.ConfigFolder, "stats"), "*.stat");
+
+                        foreach (string hourlyStatsFile in hourlyStatsFiles)
+                        {
+                            string hourlyStatsFileName = Path.GetFileNameWithoutExtension(hourlyStatsFile);
+
+                            if (!DateTime.TryParseExact(hourlyStatsFileName, "yyyyMMddHH", CultureInfo.InvariantCulture, DateTimeStyles.AssumeUniversal | DateTimeStyles.AdjustToUniversal, out DateTime hourlyStatsFileDate))
+                                continue;
+
+                            if (hourlyStatsFileDate < cutoffDate)
+                            {
+                                try
+                                {
+                                    File.Delete(hourlyStatsFile);
+                                    if (log != null)
+                                        log.Write("StatsManager cleanup deleted the hourly stats file: " + hourlyStatsFile);
+                                }
+                                catch (Exception ex)
+                                {
+                                    if (log != null)
+                                        log.Write(ex);
+                                }
+                            }
+                        }
+                    }
+
+                    //delete daily logs
+                    {
+                        string[] dailyStatsFiles = Directory.GetFiles(Path.Combine(_dnsServer.ConfigFolder, "stats"), "*.dstat");
+
+                        foreach (string dailyStatsFile in dailyStatsFiles)
+                        {
+                            string dailyStatsFileName = Path.GetFileNameWithoutExtension(dailyStatsFile);
+
+                            if (!DateTime.TryParseExact(dailyStatsFileName, "yyyyMMdd", CultureInfo.InvariantCulture, DateTimeStyles.AssumeUniversal | DateTimeStyles.AdjustToUniversal, out DateTime dailyStatsFileDate))
+                                continue;
+
+                            if (dailyStatsFileDate < cutoffDate)
+                            {
+                                try
+                                {
+                                    File.Delete(dailyStatsFile);
+                                    if (log != null)
+                                        log.Write("StatsManager cleanup deleted the daily stats file: " + dailyStatsFile);
+                                }
+                                catch (Exception ex)
+                                {
+                                    if (log != null)
+                                        log.Write(ex);
+                                }
+                            }
+                        }
+                    }
+                }
+                catch (Exception ex)
+                {
+                    LogManager log = dnsServer.LogManager;
+                    if (log != null)
+                        log.Write(ex);
+                }
+            });
+
+            _statsCleanupTimer.Change(STATS_CLEANUP_TIMER_INITIAL_INTERVAL, STATS_CLEANUP_TIMER_PERIODIC_INTERVAL);
         }
 
         #endregion
@@ -391,6 +469,25 @@ namespace DnsServerCore.Dns
         #endregion
 
         #region public
+
+        public void DeleteAllStats()
+        {
+            foreach (string hourlyStatsFile in Directory.GetFiles(Path.Combine(_dnsServer.ConfigFolder, "stats"), "*.stat", SearchOption.TopDirectoryOnly))
+            {
+                File.Delete(hourlyStatsFile);
+            }
+
+            foreach (string dailyStatsFile in Directory.GetFiles(Path.Combine(_dnsServer.ConfigFolder, "stats"), "*.dstat", SearchOption.TopDirectoryOnly))
+            {
+                File.Delete(dailyStatsFile);
+            }
+
+            for (int i = 0; i < _lastHourStatCountersCopy.Length; i++)
+                _lastHourStatCountersCopy[i] = null;
+
+            _hourlyStatsCache.Clear();
+            _dailyStatsCache.Clear();
+        }
 
         public void Update(DnsDatagram response, IPAddress clientIpAddress)
         {
