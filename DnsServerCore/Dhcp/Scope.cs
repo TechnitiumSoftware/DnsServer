@@ -438,9 +438,12 @@ namespace DnsServerCore.Dhcp
                         {
                             //found interface for this scope range
 
-                            //check if address is static
-                            if (ipInterface.DhcpServerAddresses.Count > 0)
-                                throw new DhcpServerException("DHCP Server requires static IP address to work correctly but the network interface was found to have DHCP configured.");
+                            //check if interface has dynamic ipv4 address assigned via dhcp
+                            foreach (IPAddress dhcpServerAddress in ipInterface.DhcpServerAddresses)
+                            {
+                                if (dhcpServerAddress.AddressFamily == AddressFamily.InterNetwork)
+                                    throw new DhcpServerException("DHCP Server requires static IP address to work correctly but the network interface was found to have a dynamic IP address [" + ip.Address.ToString() + "] assigned by another DHCP server: " + dhcpServerAddress.ToString());
+                            }
 
                             _interfaceAddress = ip.Address;
                             _interfaceIndex = ipInterface.GetIPv4Properties().Index;
