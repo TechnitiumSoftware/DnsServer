@@ -290,6 +290,7 @@ namespace DnsServerCore.Dns.ZoneManagers
 
                     HttpClientHandler handler = new HttpClientHandler();
                     handler.Proxy = _dnsServer.Proxy;
+                    handler.AutomaticDecompression = DecompressionMethods.GZip | DecompressionMethods.Deflate;
 
                     using (HttpClient http = new HttpClient(handler))
                     {
