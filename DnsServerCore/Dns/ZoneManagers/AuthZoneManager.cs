@@ -318,12 +318,19 @@ namespace DnsServerCore.Dns.ZoneManagers
             return new DnsDatagram(request.Identifier, true, DnsOpcode.StandardQuery, false, false, request.RecursionDesired, false, false, false, DnsResponseCode.NoError, request.Question, null, authority);
         }
 
+        internal void Flush()
+        {
+            _root.Clear();
+        }
+
         #endregion
 
         #region public
 
         public void LoadAllZoneFiles()
         {
+            _root.Clear();
+
             string zonesFolder = Path.Combine(_dnsServer.ConfigFolder, "zones");
             if (!Directory.Exists(zonesFolder))
                 Directory.CreateDirectory(zonesFolder);
