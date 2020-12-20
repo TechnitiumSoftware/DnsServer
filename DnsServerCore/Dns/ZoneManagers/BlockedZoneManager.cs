@@ -72,6 +72,8 @@ namespace DnsServerCore.Dns.ZoneManagers
 
         public void LoadBlockedZoneFile()
         {
+            _zoneManager.Flush();
+
             string blockedZoneFile = Path.Combine(_dnsServer.ConfigFolder, "blocked.config");
 
             try
