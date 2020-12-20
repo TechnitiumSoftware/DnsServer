@@ -466,9 +466,25 @@ namespace DnsServerCore.Dns
             }
         }
 
+        private void Flush()
+        {
+            //clear in memory stats
+            for (int i = 0; i < _lastHourStatCountersCopy.Length; i++)
+                _lastHourStatCountersCopy[i] = null;
+
+            _hourlyStatsCache.Clear();
+            _dailyStatsCache.Clear();
+        }
+
         #endregion
 
         #region public
+
+        public void ReloadStats()
+        {
+            Flush();
+            LoadLastHourStats();
+        }
 
         public void DeleteAllStats()
         {
@@ -482,11 +498,7 @@ namespace DnsServerCore.Dns
                 File.Delete(dailyStatsFile);
             }
 
-            for (int i = 0; i < _lastHourStatCountersCopy.Length; i++)
-                _lastHourStatCountersCopy[i] = null;
-
-            _hourlyStatsCache.Clear();
-            _dailyStatsCache.Clear();
+            Flush();
         }
 
         public void Update(DnsDatagram response, IPAddress clientIpAddress)
