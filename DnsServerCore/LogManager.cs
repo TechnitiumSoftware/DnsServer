@@ -194,7 +194,7 @@ namespace DnsServerCore
 
         #region private
 
-        private void StartLogging()
+        internal void StartLogging()
         {
             StartNewLog();
 
@@ -240,7 +240,7 @@ namespace DnsServerCore
             _consumerThread.Start();
         }
 
-        private void StopLogging()
+        internal void StopLogging()
         {
             lock (_queueLock)
             {
@@ -265,7 +265,7 @@ namespace DnsServerCore
             }
         }
 
-        private void LoadConfig()
+        internal void LoadConfig()
         {
             string logConfigFile = Path.Combine(_configFolder, "log.config");
 
@@ -642,6 +642,9 @@ namespace DnsServerCore
 
         public string CurrentLogFile
         { get { return _logFile; } }
+
+        public string LogFolderAbsolutePath
+        { get { return ConvertToAbsolutePath(_logFolder); } }
 
         #endregion
 
