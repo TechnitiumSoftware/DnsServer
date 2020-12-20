@@ -261,6 +261,14 @@ namespace DnsServerCore
                                                 ForceUpdateBlockLists(request);
                                                 break;
 
+                                            case "/api/backupSettings":
+                                                await BackupSettingsAsync(request, response);
+                                                return;
+
+                                            case "/api/restoreSettings":
+                                                await RestoreSettingsAsync(request);
+                                                break;
+
                                             case "/api/getStats":
                                                 await GetStats(request, jsonWriter);
                                                 break;
@@ -1345,6 +1353,447 @@ namespace DnsServerCore
             GetDnsSettings(jsonWriter);
         }
 
+        private async Task BackupSettingsAsync(HttpListenerRequest request, HttpListenerResponse response)
+        {
+            bool blockLists = false;
+            bool logs = false;
+            bool scopes = false;
+            bool stats = false;
+            bool zones = false;
+            bool allowedZones = false;
+            bool blockedZones = false;
+            bool dnsSettings = false;
+            bool logSettings = false;
+
+            string strBlockLists = request.QueryString["blockLists"];
+            if (!string.IsNullOrEmpty(strBlockLists))
+                blockLists = bool.Parse(strBlockLists);
+
+            string strLogs = request.QueryString["logs"];
+            if (!string.IsNullOrEmpty(strLogs))
+                logs = bool.Parse(strLogs);
+
+            string strScopes = request.QueryString["scopes"];
+            if (!string.IsNullOrEmpty(strScopes))
+                scopes = bool.Parse(strScopes);
+
+            string strStats = request.QueryString["stats"];
+            if (!string.IsNullOrEmpty(strStats))
+                stats = bool.Parse(strStats);
+
+            string strZones = request.QueryString["zones"];
+            if (!string.IsNullOrEmpty(strZones))
+                zones = bool.Parse(strZones);
+
+            string strAllowedZones = request.QueryString["allowedZones"];
+            if (!string.IsNullOrEmpty(strAllowedZones))
+                allowedZones = bool.Parse(strAllowedZones);
+
+            string strBlockedZones = request.QueryString["blockedZones"];
+            if (!string.IsNullOrEmpty(strBlockedZones))
+                blockedZones = bool.Parse(strBlockedZones);
+
+            string strDnsSettings = request.QueryString["dnsSettings"];
+            if (!string.IsNullOrEmpty(strDnsSettings))
+                dnsSettings = bool.Parse(strDnsSettings);
+
+            string strLogSettings = request.QueryString["logSettings"];
+            if (!string.IsNullOrEmpty(strLogSettings))
+                logSettings = bool.Parse(strLogSettings);
+
+            string tmpFile = Path.GetTempFileName();
+            try
+            {
+                using (FileStream backupZipStream = new FileStream(tmpFile, FileMode.Create, FileAccess.ReadWrite))
+                {
+                    //create backup zip
+                    using (ZipArchive backupZip = new ZipArchive(backupZipStream, ZipArchiveMode.Create, true, Encoding.UTF8))
+                    {
+                        if (blockLists)
+                        {
+                            string[] blockListFiles = Directory.GetFiles(Path.Combine(_configFolder, "blocklists"), "*", SearchOption.TopDirectoryOnly);
+                            foreach (string blockListFile in blockListFiles)
+                            {
+                                string entryName = "blocklists/" + Path.GetFileName(blockListFile);
+                                backupZip.CreateEntryFromFile(blockListFile, entryName);
+                            }
+                        }
+
+                        if (logs)
+                        {
+                            string[] logFiles = Directory.GetFiles(_log.LogFolderAbsolutePath, "*.log", SearchOption.TopDirectoryOnly);
+                            foreach (string logFile in logFiles)
+                            {
+                                string entryName = "logs/" + Path.GetFileName(logFile);
+
+                                if (logFile.Equals(_log.CurrentLogFile, StringComparison.OrdinalIgnoreCase))
+                                {
+                                    using (FileStream fS = new FileStream(logFile, FileMode.Open, FileAccess.Read, FileShare.ReadWrite))
+                                    {
+                                        ZipArchiveEntry entry = backupZip.CreateEntry(entryName);
+
+                                        using (Stream s = entry.Open())
+                                        {
+                                            await fS.CopyToAsync(s);
+                                        }
+                                    }
+                                }
+                                else
+                                {
+                                    backupZip.CreateEntryFromFile(logFile, entryName);
+                                }
+                            }
+                        }
+
+                        if (scopes)
+                        {
+                            string[] scopFiles = Directory.GetFiles(Path.Combine(_configFolder, "scopes"), "*.scope", SearchOption.TopDirectoryOnly);
+                            foreach (string scopFile in scopFiles)
+                            {
+                                string entryName = "scopes/" + Path.GetFileName(scopFile);
+                                backupZip.CreateEntryFromFile(scopFile, entryName);
+                            }
+                        }
+
+                        if (stats)
+                        {
+                            string[] hourlyStatsFiles = Directory.GetFiles(Path.Combine(_configFolder, "stats"), "*.stat", SearchOption.TopDirectoryOnly);
+                            foreach (string hourlyStatsFile in hourlyStatsFiles)
+                            {
+                                string entryName = "stats/" + Path.GetFileName(hourlyStatsFile);
+                                backupZip.CreateEntryFromFile(hourlyStatsFile, entryName);
+                            }
+
+                            string[] dailyStatsFiles = Directory.GetFiles(Path.Combine(_configFolder, "stats"), "*.dstat", SearchOption.TopDirectoryOnly);
+                            foreach (string dailyStatsFile in dailyStatsFiles)
+                            {
+                                string entryName = "stats/" + Path.GetFileName(dailyStatsFile);
+                                backupZip.CreateEntryFromFile(dailyStatsFile, entryName);
+                            }
+                        }
+
+                        if (zones)
+                        {
+                            string[] zoneFiles = Directory.GetFiles(Path.Combine(_configFolder, "zones"), "*.zone", SearchOption.TopDirectoryOnly);
+                            foreach (string zoneFile in zoneFiles)
+                            {
+                                string entryName = "zones/" + Path.GetFileName(zoneFile);
+                                backupZip.CreateEntryFromFile(zoneFile, entryName);
+                            }
+                        }
+
+                        if (allowedZones)
+                        {
+                            string allowedZonesFile = Path.Combine(_configFolder, "allowed.config");
+
+                            if (File.Exists(allowedZonesFile))
+                                backupZip.CreateEntryFromFile(allowedZonesFile, "allowed.config");
+                        }
+
+                        if (blockedZones)
+                        {
+                            string blockedZonesFile = Path.Combine(_configFolder, "blocked.config");
+
+                            if (File.Exists(blockedZonesFile))
+                                backupZip.CreateEntryFromFile(blockedZonesFile, "blocked.config");
+                        }
+
+                        if (dnsSettings)
+                        {
+                            string dnsSettingsFile = Path.Combine(_configFolder, "dns.config");
+
+                            if (File.Exists(dnsSettingsFile))
+                                backupZip.CreateEntryFromFile(dnsSettingsFile, "dns.config");
+                        }
+
+                        if (logSettings)
+                        {
+                            string logSettingsFile = Path.Combine(_configFolder, "log.config");
+
+                            if (File.Exists(logSettingsFile))
+                                backupZip.CreateEntryFromFile(logSettingsFile, "log.config");
+                        }
+                    }
+
+                    //send zip file
+                    backupZipStream.Position = 0;
+
+                    response.ContentType = "application/zip";
+                    response.ContentLength64 = backupZipStream.Length;
+                    response.AddHeader("Content-Disposition", "attachment;filename=DnsServerBackup.zip");
+
+                    using (Stream output = response.OutputStream)
+                    {
+                        await backupZipStream.CopyToAsync(output);
+                    }
+                }
+            }
+            finally
+            {
+                try
+                {
+                    File.Delete(tmpFile);
+                }
+                catch
+                { }
+            }
+
+            _log.Write(GetRequestRemoteEndPoint(request), "[" + GetSession(request).Username + "] Settings backup zip file was exported.");
+        }
+
+        private async Task RestoreSettingsAsync(HttpListenerRequest request)
+        {
+            bool blockLists = false;
+            bool logs = false;
+            bool scopes = false;
+            bool stats = false;
+            bool zones = false;
+            bool allowedZones = false;
+            bool blockedZones = false;
+            bool dnsSettings = false;
+            bool logSettings = false;
+
+            string strBlockLists = request.QueryString["blockLists"];
+            if (!string.IsNullOrEmpty(strBlockLists))
+                blockLists = bool.Parse(strBlockLists);
+
+            string strLogs = request.QueryString["logs"];
+            if (!string.IsNullOrEmpty(strLogs))
+                logs = bool.Parse(strLogs);
+
+            string strScopes = request.QueryString["scopes"];
+            if (!string.IsNullOrEmpty(strScopes))
+                scopes = bool.Parse(strScopes);
+
+            string strStats = request.QueryString["stats"];
+            if (!string.IsNullOrEmpty(strStats))
+                stats = bool.Parse(strStats);
+
+            string strZones = request.QueryString["zones"];
+            if (!string.IsNullOrEmpty(strZones))
+                zones = bool.Parse(strZones);
+
+            string strAllowedZones = request.QueryString["allowedZones"];
+            if (!string.IsNullOrEmpty(strAllowedZones))
+                allowedZones = bool.Parse(strAllowedZones);
+
+            string strBlockedZones = request.QueryString["blockedZones"];
+            if (!string.IsNullOrEmpty(strBlockedZones))
+                blockedZones = bool.Parse(strBlockedZones);
+
+            string strDnsSettings = request.QueryString["dnsSettings"];
+            if (!string.IsNullOrEmpty(strDnsSettings))
+                dnsSettings = bool.Parse(strDnsSettings);
+
+            string strLogSettings = request.QueryString["logSettings"];
+            if (!string.IsNullOrEmpty(strLogSettings))
+                logSettings = bool.Parse(strLogSettings);
+
+            #region skip to content
+
+            int crlfCount = 0;
+            int byteRead;
+
+            while (crlfCount != 4)
+            {
+                byteRead = request.InputStream.ReadByte();
+                switch (byteRead)
+                {
+                    case -1:
+                        throw new EndOfStreamException();
+
+                    case 13: //CR
+                    case 10: //LF
+                        crlfCount++;
+                        break;
+
+                    default:
+                        crlfCount = 0;
+                        break;
+                }
+            }
+
+            #endregion
+
+            //write to temp file
+            string tmpFile = Path.GetTempFileName();
+            try
+            {
+                using (FileStream fS = new FileStream(tmpFile, FileMode.Create, FileAccess.ReadWrite))
+                {
+                    await request.InputStream.CopyToAsync(fS);
+
+                    fS.Position = 0;
+                    using (ZipArchive backupZip = new ZipArchive(fS, ZipArchiveMode.Read, false, Encoding.UTF8))
+                    {
+                        if (logSettings || logs)
+                        {
+                            //stop logging
+                            _log.StopLogging();
+                        }
+
+                        try
+                        {
+                            if (logSettings)
+                            {
+                                ZipArchiveEntry entry = backupZip.GetEntry("log.config");
+                                if (entry != null)
+                                    entry.ExtractToFile(Path.Combine(_configFolder, entry.Name), true);
+
+                                //reload config
+                                _log.LoadConfig();
+                            }
+
+                            if (logs)
+                            {
+                                //extract log files from backup
+                                foreach (ZipArchiveEntry entry in backupZip.Entries)
+                                {
+                                    if (entry.FullName.StartsWith("logs/"))
+                                        entry.ExtractToFile(Path.Combine(_log.LogFolderAbsolutePath, entry.Name), true);
+                                }
+                            }
+                        }
+                        finally
+                        {
+                            if (logSettings || logs)
+                            {
+                                //start logging
+                                if (_log.EnableLogging)
+                                    _log.StartLogging();
+                            }
+                        }
+
+                        if (blockLists)
+                        {
+                            //extract block list files from backup
+                            foreach (ZipArchiveEntry entry in backupZip.Entries)
+                            {
+                                if (entry.FullName.StartsWith("blocklists/"))
+                                    entry.ExtractToFile(Path.Combine(_configFolder, "blocklists", entry.Name), true);
+                            }
+                        }
+
+                        if (scopes)
+                        {
+                            //stop dhcp server
+                            _dhcpServer.Stop();
+
+                            try
+                            {
+                                //delete existing scope files
+                                string[] scopeFiles = Directory.GetFiles(Path.Combine(_configFolder, "scopes"), "*.scope", SearchOption.TopDirectoryOnly);
+                                foreach (string scopeFile in scopeFiles)
+                                {
+                                    File.Delete(scopeFile);
+                                }
+
+                                //extract scope files from backup
+                                foreach (ZipArchiveEntry entry in backupZip.Entries)
+                                {
+                                    if (entry.FullName.StartsWith("scopes/"))
+                                        entry.ExtractToFile(Path.Combine(_configFolder, "scopes", entry.Name), true);
+                                }
+                            }
+                            finally
+                            {
+                                //start dhcp server
+                                _dhcpServer.Start();
+                            }
+                        }
+
+                        if (stats)
+                        {
+                            //delete existing stats files
+                            string[] hourlyStatsFiles = Directory.GetFiles(Path.Combine(_configFolder, "stats"), "*.stat", SearchOption.TopDirectoryOnly);
+                            foreach (string hourlyStatsFile in hourlyStatsFiles)
+                            {
+                                File.Delete(hourlyStatsFile);
+                            }
+
+                            string[] dailyStatsFiles = Directory.GetFiles(Path.Combine(_configFolder, "stats"), "*.dstat", SearchOption.TopDirectoryOnly);
+                            foreach (string dailyStatsFile in dailyStatsFiles)
+                            {
+                                File.Delete(dailyStatsFile);
+                            }
+
+                            //extract stats files from backup
+                            foreach (ZipArchiveEntry entry in backupZip.Entries)
+                            {
+                                if (entry.FullName.StartsWith("stats/"))
+                                    entry.ExtractToFile(Path.Combine(_configFolder, "stats", entry.Name), true);
+                            }
+
+                            //reload stats
+                            _dnsServer.StatsManager.ReloadStats();
+                        }
+
+                        if (zones)
+                        {
+                            //delete existing zone files
+                            string[] zoneFiles = Directory.GetFiles(Path.Combine(_configFolder, "zones"), "*.zone", SearchOption.TopDirectoryOnly);
+                            foreach (string zoneFile in zoneFiles)
+                            {
+                                File.Delete(zoneFile);
+                            }
+
+                            //extract zone files from backup
+                            foreach (ZipArchiveEntry entry in backupZip.Entries)
+                            {
+                                if (entry.FullName.StartsWith("zones/"))
+                                    entry.ExtractToFile(Path.Combine(_configFolder, "zones", entry.Name), true);
+                            }
+
+                            //reload zones
+                            _dnsServer.AuthZoneManager.LoadAllZoneFiles();
+                        }
+
+                        if (allowedZones)
+                        {
+                            ZipArchiveEntry entry = backupZip.GetEntry("allowed.config");
+                            if (entry != null)
+                                entry.ExtractToFile(Path.Combine(_configFolder, entry.Name), true);
+
+                            //reload
+                            _dnsServer.AllowedZoneManager.LoadAllowedZoneFile();
+                        }
+
+                        if (blockedZones)
+                        {
+                            ZipArchiveEntry entry = backupZip.GetEntry("blocked.config");
+                            if (entry != null)
+                                entry.ExtractToFile(Path.Combine(_configFolder, entry.Name), true);
+
+                            //reload
+                            _dnsServer.BlockedZoneManager.LoadBlockedZoneFile();
+                        }
+
+                        if (dnsSettings)
+                        {
+                            ZipArchiveEntry entry = backupZip.GetEntry("dns.config");
+                            if (entry != null)
+                                entry.ExtractToFile(Path.Combine(_configFolder, entry.Name), true);
+
+                            //reload settings and block list zone
+                            LoadConfigFile();
+                            _dnsServer.BlockListZoneManager.LoadBlockLists();
+                        }
+
+                        _log.Write(GetRequestRemoteEndPoint(request), "[" + GetSession(request).Username + "] Settings backup zip file was restored.");
+                    }
+                }
+            }
+            finally
+            {
+                try
+                {
+                    File.Delete(tmpFile);
+                }
+                catch
+                { }
+            }
+        }
+
         private void ForceUpdateBlockLists(HttpListenerRequest request)
         {
             ForceUpdateBlockLists();
@@ -2211,6 +2660,9 @@ namespace DnsServerCore
                 default:
                     throw new NotSupportedException("Zone type not supported.");
             }
+
+            //delete cache for this zone to allow rebuilding cache data as needed by stub or forwarder zones
+            _dnsServer.CacheZoneManager.DeleteZone(domain);
 
             jsonWriter.WritePropertyName("domain");
             jsonWriter.WriteValue(string.IsNullOrEmpty(domain) ? "." : domain);
