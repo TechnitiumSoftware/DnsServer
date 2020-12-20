@@ -72,6 +72,8 @@ namespace DnsServerCore.Dns.ZoneManagers
 
         public void LoadAllowedZoneFile()
         {
+            _zoneManager.Flush();
+
             string allowedZoneFile = Path.Combine(_dnsServer.ConfigFolder, "allowed.config");
 
             try
