@@ -435,8 +435,8 @@
                                             <div class="panel-heading" style="height: 36px; padding: 4px 6px;">
                                                 <div id="txtAllowedZoneViewerTitle" style="float: left; padding: 4px;">technitium.com</div>
                                                 <div style="float: right;">
-                                                    <button id="btnImportAllowedZone" type="button" class="btn btn-default" data-loading-text="Import" onclick="return resetImportAllowedZonesModal();" data-toggle="modal" data-target="#modalImportAllowedZones" style="font-size: 12px; padding: 4px 6px;">Import</button>
-                                                    <button id="btnExportAllowedZone" type="button" class="btn btn-default" data-loading-text="Export" onclick="return exportAllowedZones();" style="font-size: 12px; padding: 4px 6px;">Export</button>
+                                                    <button type="button" class="btn btn-default" data-loading-text="Import" onclick="return resetImportAllowedZonesModal();" data-toggle="modal" data-target="#modalImportAllowedZones" style="font-size: 12px; padding: 4px 6px;">Import</button>
+                                                    <button type="button" class="btn btn-default" data-loading-text="Export" onclick="return exportAllowedZones();" style="font-size: 12px; padding: 4px 6px;">Export</button>
                                                     <button id="btnDeleteAllowedZone" type="button" class="btn btn-danger" data-loading-text="Delete" onclick="return deleteAllowedZone();" style="font-size: 12px; padding: 4px 6px;">Delete</button>
                                                 </div>
                                             </div>
@@ -1086,8 +1086,15 @@
                                             </div>
 
                                             <div class="form-group" style="margin-bottom: 0px;">
-                                                <button id="btnSaveDnsSettings" type="button" class="btn btn-primary" data-loading-text="Saving..." onclick="return saveDnsSettings();">Save Settings</button>
-                                                <button id="btnFlushDnsCache" type="button" class="btn btn-warning" data-loading-text="Flushing..." onclick="return flushDnsCache();" style="margin-left: 6px;">Flush Cache</button>
+                                                <div class="pull-left">
+                                                    <button id="btnSaveDnsSettings" type="button" class="btn btn-primary" data-loading-text="Saving..." onclick="return saveDnsSettings();">Save Settings</button>
+                                                    <button id="btnFlushDnsCache" type="button" class="btn btn-warning" data-loading-text="Flushing..." onclick="return flushDnsCache();" style="margin-left: 6px;">Flush Cache</button>
+                                                </div>
+                                                <div class="pull-right">
+                                                    <button type="button" class="btn btn-success" onclick="return resetBackupSettingsModal();" data-toggle="modal" data-target="#modalBackupSettings">Backup Settings</button>
+                                                    <button type="button" class="btn btn-warning" onclick="return resetRestoreSettingsModal();" data-toggle="modal" data-target="#modalRestoreSettings">Restore Settings</button>
+                                                </div>
+                                                <div class="clearfix"></div>
                                             </div>
 
                                         </form>
@@ -1987,6 +1994,177 @@
                 </div>
                 <div class="modal-footer">
                     <button id="btnImportBlockedZones" type="submit" class="btn btn-primary" data-loading-text="Importing..." onclick="return importBlockedZones();">Import</button>
+                    <button type="button" class="btn btn-default" data-dismiss="modal">Close</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+
+    <div id="modalBackupSettings" class="modal fade" tabindex="-1" role="dialog">
+        <div class="modal-dialog" role="document">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <button type="button" class="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button>
+                    <h4 class="modal-title">Backup Settings</h4>
+                </div>
+                <div class="modal-body">
+                    <div id="divBackupSettingsAlert"></div>
+
+                    <p>The backup process will create a zip file for the items selected below:</p>
+
+                    <div class="form-horizontal">
+                        <div class="form-group">
+                            <div style="padding-left: 40px;">
+                                <div class="checkbox">
+                                    <label>
+                                        <input id="chkBackupDnsSettings" type="checkbox" checked> DNS Settings File (dns.config)
+                                    </label>
+                                </div>
+
+                                <div class="checkbox">
+                                    <label>
+                                        <input id="chkBackupLogSettings" type="checkbox" checked> Log Settings File (log.config)
+                                    </label>
+                                </div>
+
+                                <div class="checkbox">
+                                    <label>
+                                        <input id="chkBackupZones" type="checkbox" checked> DNS Zone Files (*.zone)
+                                    </label>
+                                </div>
+
+                                <div class="checkbox">
+                                    <label>
+                                        <input id="chkBackupAllowedZones" type="checkbox" checked> Allowed Zones File (allowed.config)
+                                    </label>
+                                </div>
+
+                                <div class="checkbox">
+                                    <label>
+                                        <input id="chkBackupBlockedZones" type="checkbox" checked> Blocked Zones File (blocked.config)
+                                    </label>
+                                </div>
+
+                                <div class="checkbox">
+                                    <label>
+                                        <input id="chkBackupScopes" type="checkbox" checked> DHCP Scope Files (*.scope)
+                                    </label>
+                                </div>
+
+                                <div class="checkbox">
+                                    <label>
+                                        <input id="chkBackupStats" type="checkbox" checked> Dashboard Stats Files (*.stat, *.dstat)
+                                    </label>
+                                </div>
+
+                                <div class="checkbox">
+                                    <label>
+                                        <input id="chkBackupLogs" type="checkbox" checked> Log Files (*.log)
+                                    </label>
+                                </div>
+
+                                <div class="checkbox">
+                                    <label>
+                                        <input id="chkBackupBlockLists" type="checkbox" checked> Block List Cache Files
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                </div>
+                <div class="modal-footer">
+                    <button type="submit" class="btn btn-primary" data-loading-text="Backup" onclick="return backupSettings();">Backup</button>
+                    <button type="button" class="btn btn-default" data-dismiss="modal">Close</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="modalRestoreSettings" class="modal fade" tabindex="-1" role="dialog">
+        <div class="modal-dialog" role="document">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <button type="button" class="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button>
+                    <h4 class="modal-title">Restore Settings</h4>
+                </div>
+                <div class="modal-body">
+                    <div id="divRestoreSettingsAlert"></div>
+
+                    <div class="form-horizontal">
+                        <div class="form-group">
+                            <label for="fileBackupZip" class="col-sm-3 control-label">Backup Zip File</label>
+                            <div class="col-sm-6">
+                                <input type="file" class="form-control" id="fileBackupZip">
+                            </div>
+                        </div>
+
+                        <p>The restore process will restore all the selected items from the backup zip file:</p>
+
+                        <div class="form-group">
+                            <div style="padding-left: 40px;">
+                                <div class="checkbox">
+                                    <label>
+                                        <input id="chkRestoreDnsSettings" type="checkbox" checked> DNS Settings File (dns.config)
+                                    </label>
+                                </div>
+
+                                <div class="checkbox">
+                                    <label>
+                                        <input id="chkRestoreLogSettings" type="checkbox" checked> Log Settings File (log.config)
+                                    </label>
+                                </div>
+
+                                <div class="checkbox">
+                                    <label>
+                                        <input id="chkRestoreZones" type="checkbox" checked> DNS Zone Files (*.zone)
+                                    </label>
+                                </div>
+
+                                <div class="checkbox">
+                                    <label>
+                                        <input id="chkRestoreAllowedZones" type="checkbox" checked> Allowed Zones File (allowed.config)
+                                    </label>
+                                </div>
+
+                                <div class="checkbox">
+                                    <label>
+                                        <input id="chkRestoreBlockedZones" type="checkbox" checked> Blocked Zones File (blocked.config)
+                                    </label>
+                                </div>
+
+                                <div class="checkbox">
+                                    <label>
+                                        <input id="chkRestoreScopes" type="checkbox" checked> DHCP Scope Files (*.scope)
+                                    </label>
+                                </div>
+
+                                <div class="checkbox">
+                                    <label>
+                                        <input id="chkRestoreStats" type="checkbox" checked> Dashboard Stats Files (*.stat, *.dstat)
+                                    </label>
+                                </div>
+
+                                <div class="checkbox">
+                                    <label>
+                                        <input id="chkRestoreLogs" type="checkbox" checked> Log Files (*.log)
+                                    </label>
+                                </div>
+
+                                <div class="checkbox">
+                                    <label>
+                                        <input id="chkRestoreBlockLists" type="checkbox" checked> Block List Cache Files
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <p>WARNING! The restore process will overwrite existing config files on disk for above selected items and reload new settings including passwords. If you do not remember the password used while creating the backup, you should reset the admin password immediately after restoring the backup. Failing to do so will require you to follow the password reset process.</p>
+                </div>
+                <div class="modal-footer">
+                    <button id="btnRestoreSettings" type="submit" class="btn btn-primary" data-loading-text="Restoring..." onclick="return restoreSettings();">Restore</button>
                     <button type="button" class="btn btn-default" data-dismiss="modal">Close</button>
                 </div>
             </div>

@@ -1899,3 +1899,117 @@ function exportBlockedZones() {
 
     return false;
 }
+
+function resetBackupSettingsModal() {
+    $("#divBackupSettingsAlert").html("");
+
+    $("#chkBackupDnsSettings").prop("checked", true);
+    $("#chkBackupLogSettings").prop("checked", true);
+    $("#chkBackupZones").prop("checked", true);
+    $("#chkBackupAllowedZones").prop("checked", true);
+    $("#chkBackupBlockedZones").prop("checked", true);
+    $("#chkBackupScopes").prop("checked", true);
+    $("#chkBackupStats").prop("checked", true);
+    $("#chkBackupLogs").prop("checked", true);
+    $("#chkBackupBlockLists").prop("checked", true);
+
+    return false;
+}
+
+function backupSettings() {
+    var divBackupSettingsAlert = $("#divBackupSettingsAlert");
+
+    var blockLists = $("#chkBackupBlockLists").prop('checked');
+    var logs = $("#chkBackupLogs").prop('checked');
+    var scopes = $("#chkBackupScopes").prop('checked');
+    var stats = $("#chkBackupStats").prop('checked');
+    var zones = $("#chkBackupZones").prop('checked');
+    var allowedZones = $("#chkBackupAllowedZones").prop('checked');
+    var blockedZones = $("#chkBackupBlockedZones").prop('checked');
+    var dnsSettings = $("#chkBackupDnsSettings").prop('checked');
+    var logSettings = $("#chkBackupLogSettings").prop('checked');
+
+    if (!blockLists && !logs && !scopes && !stats && !zones && !allowedZones && !blockedZones && !dnsSettings && !logSettings) {
+        showAlert("warning", "Missing!", "Please select at least one item to backup.", divBackupSettingsAlert);
+        return false;
+    }
+
+    window.open("/api/backupSettings?token=" + token + "&blockLists=" + blockLists + "&logs=" + logs + "&scopes=" + scopes + "&stats=" + stats + "&zones=" + zones + "&allowedZones=" + allowedZones + "&blockedZones=" + blockedZones + "&dnsSettings=" + dnsSettings + "&logSettings=" + logSettings + "&ts=" + (new Date().getTime()), "_blank");
+
+    $("#modalBackupSettings").modal("hide");
+    showAlert("success", "Backed Up!", "Settings were backed up successfully.");
+
+    return false;
+}
+
+function resetRestoreSettingsModal() {
+    $("#divRestoreSettingsAlert").html("");
+
+    $("#fileBackupZip").val("");
+
+    $("#chkRestoreDnsSettings").prop("checked", true);
+    $("#chkRestoreLogSettings").prop("checked", true);
+    $("#chkRestoreZones").prop("checked", true);
+    $("#chkRestoreAllowedZones").prop("checked", true);
+    $("#chkRestoreBlockedZones").prop("checked", true);
+    $("#chkRestoreScopes").prop("checked", true);
+    $("#chkRestoreStats").prop("checked", true);
+    $("#chkRestoreLogs").prop("checked", true);
+    $("#chkRestoreBlockLists").prop("checked", true);
+
+    return false;
+}
+
+function restoreSettings() {
+    var divRestoreSettingsAlert = $("#divRestoreSettingsAlert");
+
+    var fileBackupZip = $("#fileBackupZip");
+
+    if (fileBackupZip[0].files.length === 0) {
+        showAlert("warning", "Missing!", "Please select a backup zip file to restore.", divRestoreSettingsAlert);
+        fileBackupZip.focus();
+        return false;
+    }
+
+    var blockLists = $("#chkRestoreBlockLists").prop('checked');
+    var logs = $("#chkRestoreLogs").prop('checked');
+    var scopes = $("#chkRestoreScopes").prop('checked');
+    var stats = $("#chkRestoreStats").prop('checked');
+    var zones = $("#chkRestoreZones").prop('checked');
+    var allowedZones = $("#chkRestoreAllowedZones").prop('checked');
+    var blockedZones = $("#chkRestoreBlockedZones").prop('checked');
+    var dnsSettings = $("#chkRestoreDnsSettings").prop('checked');
+    var logSettings = $("#chkRestoreLogSettings").prop('checked');
+
+    if (!blockLists && !logs && !scopes && !stats && !zones && !allowedZones && !blockedZones && !dnsSettings && !logSettings) {
+        showAlert("warning", "Missing!", "Please select at least one item to restore.", divRestoreSettingsAlert);
+        return false;
+    }
+
+    var formData = new FormData();
+    formData.append("fileBackupZip", $("#fileBackupZip")[0].files[0]);
+
+    var btn = $("#btnRestoreSettings").button('loading');
+
+    HTTPRequest({
+        url: "/api/restoreSettings?token=" + token + "&blockLists=" + blockLists + "&logs=" + logs + "&scopes=" + scopes + "&stats=" + stats + "&zones=" + zones + "&allowedZones=" + allowedZones + "&blockedZones=" + blockedZones + "&dnsSettings=" + dnsSettings + "&logSettings=" + logSettings,
+        data: formData,
+        dataIsFormData: true,
+        success: function (responseJSON) {
+            $("#modalRestoreSettings").modal("hide");
+            btn.button('reset');
+
+            showAlert("success", "Restored!", "Settings were restored successfully.");
+        },
+        error: function () {
+            btn.button('reset');
+        },
+        invalidToken: function () {
+            btn.button('reset');
+            showPageLogin();
+        },
+        objAlertPlaceholder: divRestoreSettingsAlert
+    });
+
+    return false;
+}
