@@ -134,9 +134,6 @@ namespace DnsServerCore.Dhcp
 
                 if (_maintenanceTimer != null)
                     _maintenanceTimer.Dispose();
-
-                SaveModifiedScopes();
-                SaveModifiedDnsAuthZones();
             }
 
             _disposed = true;
@@ -1202,6 +1199,9 @@ namespace DnsServerCore.Dhcp
             _state = ServiceState.Stopping;
 
             StopMaintenanceTimer();
+
+            SaveModifiedScopes();
+            SaveModifiedDnsAuthZones();
 
             foreach (KeyValuePair<string, Scope> scope in _scopes)
                 UnloadScope(scope.Value);
