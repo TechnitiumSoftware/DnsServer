@@ -148,25 +148,21 @@ namespace DnsServerCore.Dhcp
 
         #region private
 
-        private void ReadUdpRequestAsync(object parameter)
+        private async Task ReadUdpRequestAsync(Socket udpListener)
         {
-            Socket udpListener = parameter as Socket;
-            EndPoint remoteEP = new IPEndPoint(IPAddress.Any, 0);
             byte[] recvBuffer = new byte[576];
-            int bytesRecv;
 
             try
             {
                 bool processOnlyUnicastMessages = !(udpListener.LocalEndPoint as IPEndPoint).Address.Equals(IPAddress.Any); //only 0.0.0.0 ip should process broadcast to avoid duplicate offers on Windows
 
+                UdpReceiveMessageFromResult result;
+
                 while (true)
                 {
-                    SocketFlags flags = SocketFlags.None;
-                    IPPacketInformation ipPacketInformation;
-
                     try
                     {
-                        bytesRecv = udpListener.ReceiveMessageFrom(recvBuffer, 0, recvBuffer.Length, ref flags, ref remoteEP, out ipPacketInformation);
+                        result = await udpListener.ReceiveMessageFromAsync(recvBuffer, 0, recvBuffer.Length);
                     }
                     catch (SocketException ex)
                     {
@@ -176,7 +172,7 @@ namespace DnsServerCore.Dhcp
                             case SocketError.HostUnreachable:
                             case SocketError.MessageSize:
                             case SocketError.NetworkReset:
-                                bytesRecv = 0;
+                                result = null;
                                 break;
 
                             default:
@@ -184,21 +180,22 @@ namespace DnsServerCore.Dhcp
                         }
                     }
 
-                    if (bytesRecv > 0)
+                    if ((result != null) && (result.BytesReceived > 0))
                     {
-                        if (processOnlyUnicastMessages && ipPacketInformation.Address.Equals(IPAddress.Broadcast))
+                        if (processOnlyUnicastMessages && result.IPPacketInformation.Address.Equals(IPAddress.Broadcast))
                             continue;
 
                         try
                         {
-                            DhcpMessage request = new DhcpMessage(new MemoryStream(recvBuffer, 0, bytesRecv, false));
-                            _ = ProcessDhcpRequestAsync(request, remoteEP as IPEndPoint, ipPacketInformation, udpListener);
+                            DhcpMessage request = new DhcpMessage(new MemoryStream(recvBuffer, 0, result.BytesReceived, false));
+
+                            _ = ProcessDhcpRequestAsync(request, result.RemoteEndPoint as IPEndPoint, result.IPPacketInformation, udpListener);
                         }
                         catch (Exception ex)
                         {
                             LogManager log = _log;
                             if (log != null)
-                                log.Write(remoteEP as IPEndPoint, ex);
+                                log.Write(result.RemoteEndPoint as IPEndPoint, ex);
                         }
                     }
                 }
@@ -217,7 +214,7 @@ namespace DnsServerCore.Dhcp
                     default:
                         LogManager log = _log;
                         if (log != null)
-                            log.Write(remoteEP as IPEndPoint, ex);
+                            log.Write(ex);
 
                         throw;
                 }
@@ -229,7 +226,7 @@ namespace DnsServerCore.Dhcp
 
                 LogManager log = _log;
                 if (log != null)
-                    log.Write(remoteEP as IPEndPoint, ex);
+                    log.Write(ex);
 
                 throw;
             }
@@ -722,7 +719,7 @@ namespace DnsServerCore.Dhcp
                     if (zoneInfo == null)
                     {
                         //zone does not exists; create new primary zone
-                        _authZoneManager.CreatePrimaryZone(scope.DomainName, _authZoneManager.ServerDomain, false);
+                        zoneInfo = _authZoneManager.CreatePrimaryZone(scope.DomainName, _authZoneManager.ServerDomain, false);
                         log?.Write("DHCP Server create DNS primary zone '" + scope.DomainName + "'.");
                     }
                     else if (zoneInfo.Type != AuthZoneType.Primary)
@@ -852,10 +849,10 @@ namespace DnsServerCore.Dhcp
                     udpSocket.Bind(dhcpEP);
 
                     //start reading dhcp packets
-                    Thread thread = new Thread(ReadUdpRequestAsync);
-                    thread.Name = "DHCP Read Request: " + dhcpEP.ToString();
-                    thread.IsBackground = true;
-                    thread.Start(udpSocket);
+                    _ = Task.Factory.StartNew(delegate ()
+                    {
+                        return ReadUdpRequestAsync(udpSocket);
+                    }, CancellationToken.None, TaskCreationOptions.DenyChildAttach, TaskScheduler.Current);
 
                     return new UdpListener(udpSocket);
                 }
