@@ -50,9 +50,9 @@ namespace DnsServerCore.Dns
     public enum TopStatsType
     {
         Unknown = 0,
-        TopDomains = 1,
-        TopBlockedDomains = 2,
-        TopClients = 3
+        TopClients = 1,
+        TopDomains = 2,
+        TopBlockedDomains = 3
     }
 
     public class StatsManager : IDisposable
