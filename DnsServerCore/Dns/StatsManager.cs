@@ -47,6 +47,14 @@ namespace DnsServerCore.Dns
         Blocked = 4
     }
 
+    public enum TopStatsType
+    {
+        Unknown = 0,
+        TopDomains = 1,
+        TopBlockedDomains = 2,
+        TopClients = 3
+    }
+
     public class StatsManager : IDisposable
     {
         #region variables
@@ -997,6 +1005,180 @@ namespace DnsServerCore.Dns
             data.Add("queryTypes", totalStatCounter.GetTopQueryTypes(5));
 
             return data;
+        }
+
+        public List<KeyValuePair<string, int>> GetLastHourTopStats(TopStatsType type, int limit)
+        {
+            StatCounter totalStatCounter = new StatCounter();
+            totalStatCounter.Lock();
+
+            DateTime lastHourDateTime = DateTime.UtcNow.AddMinutes(-60);
+            lastHourDateTime = new DateTime(lastHourDateTime.Year, lastHourDateTime.Month, lastHourDateTime.Day, lastHourDateTime.Hour, lastHourDateTime.Minute, 0, DateTimeKind.Utc);
+
+            for (int minute = 0; minute < 60; minute++)
+            {
+                DateTime lastDateTime = lastHourDateTime.AddMinutes(minute);
+
+                StatCounter statCounter = _lastHourStatCountersCopy[lastDateTime.Minute];
+                if ((statCounter != null) && statCounter.IsLocked)
+                    totalStatCounter.Merge(statCounter);
+            }
+
+            switch (type)
+            {
+                case TopStatsType.TopDomains:
+                    return totalStatCounter.GetTopDomains(limit);
+
+                case TopStatsType.TopBlockedDomains:
+                    return totalStatCounter.GetTopBlockedDomains(limit);
+
+                case TopStatsType.TopClients:
+                    return totalStatCounter.GetTopClients(limit);
+
+                default:
+                    throw new NotSupportedException();
+            }
+        }
+
+        public List<KeyValuePair<string, int>> GetLastDayTopStats(TopStatsType type, int limit)
+        {
+            StatCounter totalStatCounter = new StatCounter();
+            totalStatCounter.Lock();
+
+            DateTime lastDayDateTime = DateTime.UtcNow.AddHours(-24);
+            lastDayDateTime = new DateTime(lastDayDateTime.Year, lastDayDateTime.Month, lastDayDateTime.Day, lastDayDateTime.Hour, 0, 0, DateTimeKind.Utc);
+
+            for (int hour = 0; hour < 24; hour++)
+            {
+                DateTime lastDateTime = lastDayDateTime.AddHours(hour);
+
+                HourlyStats hourlyStats = LoadHourlyStats(lastDateTime);
+                StatCounter hourlyStatCounter = hourlyStats.HourStat;
+
+                totalStatCounter.Merge(hourlyStatCounter);
+            }
+
+            switch (type)
+            {
+                case TopStatsType.TopDomains:
+                    return totalStatCounter.GetTopDomains(limit);
+
+                case TopStatsType.TopBlockedDomains:
+                    return totalStatCounter.GetTopBlockedDomains(limit);
+
+                case TopStatsType.TopClients:
+                    return totalStatCounter.GetTopClients(limit);
+
+                default:
+                    throw new NotSupportedException();
+            }
+        }
+
+        public List<KeyValuePair<string, int>> GetLastWeekTopStats(TopStatsType type, int limit)
+        {
+            StatCounter totalStatCounter = new StatCounter();
+            totalStatCounter.Lock();
+
+            DateTime lastWeekDateTime = DateTime.UtcNow.AddDays(-7);
+            lastWeekDateTime = new DateTime(lastWeekDateTime.Year, lastWeekDateTime.Month, lastWeekDateTime.Day, 0, 0, 0, DateTimeKind.Utc);
+
+            for (int day = 0; day < 7; day++) //days
+            {
+                DateTime lastDayDateTime = lastWeekDateTime.AddDays(day);
+
+                StatCounter dailyStatCounter = LoadDailyStats(lastDayDateTime);
+                totalStatCounter.Merge(dailyStatCounter);
+            }
+
+            switch (type)
+            {
+                case TopStatsType.TopDomains:
+                    return totalStatCounter.GetTopDomains(limit);
+
+                case TopStatsType.TopBlockedDomains:
+                    return totalStatCounter.GetTopBlockedDomains(limit);
+
+                case TopStatsType.TopClients:
+                    return totalStatCounter.GetTopClients(limit);
+
+                default:
+                    throw new NotSupportedException();
+            }
+        }
+
+        public List<KeyValuePair<string, int>> GetLastMonthTopStats(TopStatsType type, int limit)
+        {
+            StatCounter totalStatCounter = new StatCounter();
+            totalStatCounter.Lock();
+
+            DateTime lastMonthDateTime = DateTime.UtcNow.AddDays(-31);
+            lastMonthDateTime = new DateTime(lastMonthDateTime.Year, lastMonthDateTime.Month, lastMonthDateTime.Day, 0, 0, 0, DateTimeKind.Utc);
+
+            for (int day = 0; day < 31; day++) //days
+            {
+                DateTime lastDayDateTime = lastMonthDateTime.AddDays(day);
+
+                StatCounter dailyStatCounter = LoadDailyStats(lastDayDateTime);
+                totalStatCounter.Merge(dailyStatCounter);
+            }
+
+            switch (type)
+            {
+                case TopStatsType.TopDomains:
+                    return totalStatCounter.GetTopDomains(limit);
+
+                case TopStatsType.TopBlockedDomains:
+                    return totalStatCounter.GetTopBlockedDomains(limit);
+
+                case TopStatsType.TopClients:
+                    return totalStatCounter.GetTopClients(limit);
+
+                default:
+                    throw new NotSupportedException();
+            }
+        }
+
+        public List<KeyValuePair<string, int>> GetLastYearTopStats(TopStatsType type, int limit)
+        {
+            StatCounter totalStatCounter = new StatCounter();
+            totalStatCounter.Lock();
+
+            DateTime lastYearDateTime = DateTime.UtcNow.AddMonths(-12);
+            lastYearDateTime = new DateTime(lastYearDateTime.Year, lastYearDateTime.Month, 1, 0, 0, 0, DateTimeKind.Utc);
+
+            for (int month = 0; month < 12; month++) //months
+            {
+                StatCounter monthlyStatCounter = new StatCounter();
+                monthlyStatCounter.Lock();
+
+                DateTime lastMonthDateTime = lastYearDateTime.AddMonths(month);
+                string label = lastMonthDateTime.ToLocalTime().ToString("MM/yyyy");
+
+                int days = DateTime.DaysInMonth(lastMonthDateTime.Year, lastMonthDateTime.Month);
+
+                for (int day = 0; day < days; day++) //days
+                {
+                    StatCounter dailyStatCounter = LoadDailyStats(lastMonthDateTime.AddDays(day));
+                    monthlyStatCounter.Merge(dailyStatCounter);
+                }
+
+                totalStatCounter.Merge(monthlyStatCounter);
+            }
+
+            switch (type)
+            {
+                case TopStatsType.TopDomains:
+                    return totalStatCounter.GetTopDomains(limit);
+
+                case TopStatsType.TopBlockedDomains:
+                    return totalStatCounter.GetTopBlockedDomains(limit);
+
+                case TopStatsType.TopClients:
+                    return totalStatCounter.GetTopClients(limit);
+
+                default:
+                    throw new NotSupportedException();
+            }
         }
 
         public List<KeyValuePair<DnsQuestionRecord, int>> GetLastHourEligibleQueries(int minimumHitsPerHour)
