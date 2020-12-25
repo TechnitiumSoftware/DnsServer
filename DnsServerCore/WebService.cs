@@ -217,6 +217,10 @@ namespace DnsServerCore
 
                 _log.Write(ex);
             }
+            catch (ObjectDisposedException)
+            {
+                //web service stopped
+            }
             catch (Exception ex)
             {
                 if ((_state == ServiceState.Stopping) || (_state == ServiceState.Stopped))
@@ -243,6 +247,10 @@ namespace DnsServerCore
                     return; //web service stopping
 
                 _log.Write(ex);
+            }
+            catch (ObjectDisposedException)
+            {
+                //web service stopped
             }
             catch (Exception ex)
             {

@@ -202,7 +202,7 @@ namespace DnsServerCore.Dhcp
             }
             catch (ObjectDisposedException)
             {
-                //socket disposed
+                //server stopped
             }
             catch (SocketException ex)
             {

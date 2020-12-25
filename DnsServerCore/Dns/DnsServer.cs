@@ -374,6 +374,10 @@ namespace DnsServerCore.Dns
                 if (log != null)
                     log.Write(localEP, protocol, ex);
             }
+            catch (ObjectDisposedException)
+            {
+                //server stopped
+            }
             catch (Exception ex)
             {
                 if ((_state == ServiceState.Stopping) || (_state == ServiceState.Stopped))
