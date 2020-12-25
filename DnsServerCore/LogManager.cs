@@ -98,15 +98,13 @@ namespace DnsServerCore
                 }
             };
 
-            LoadConfig();
-
-            if (_enableLogging)
-                StartLogging();
-
             _logCleanupTimer = new Timer(delegate (object state)
             {
                 try
                 {
+                    if (_maxLogFileDays < 1)
+                        return;
+
                     DateTime cutoffDate = DateTime.UtcNow.AddDays(_maxLogFileDays * -1).Date;
                     DateTimeStyles dateTimeStyles;
 
@@ -142,7 +140,10 @@ namespace DnsServerCore
                 }
             });
 
-            _logCleanupTimer.Change(LOG_CLEANUP_TIMER_INITIAL_INTERVAL, LOG_CLEANUP_TIMER_PERIODIC_INTERVAL);
+            LoadConfig();
+
+            if (_enableLogging)
+                StartLogging();
         }
 
         #endregion
@@ -297,7 +298,7 @@ namespace DnsServerCore
             {
                 _enableLogging = true;
                 _logFolder = "logs";
-                _maxLogFileDays = 365;
+                _maxLogFileDays = 0;
                 _useLocalTime = false;
 
                 SaveConfig();
@@ -307,6 +308,11 @@ namespace DnsServerCore
                 Console.Write(ex.ToString());
                 SaveConfig();
             }
+
+            if (_maxLogFileDays == 0)
+                _logCleanupTimer.Change(Timeout.Infinite, Timeout.Infinite);
+            else
+                _logCleanupTimer.Change(LOG_CLEANUP_TIMER_INITIAL_INTERVAL, LOG_CLEANUP_TIMER_PERIODIC_INTERVAL);
         }
 
         private string ConvertToRelativePath(string path)
@@ -631,7 +637,18 @@ namespace DnsServerCore
         public int MaxLogFileDays
         {
             get { return _maxLogFileDays; }
-            set { _maxLogFileDays = value; }
+            set
+            {
+                if (value < 0)
+                    throw new ArgumentOutOfRangeException("MaxLogFileDays must be greater than or equal to 0.");
+
+                _maxLogFileDays = value;
+
+                if (_maxLogFileDays == 0)
+                    _logCleanupTimer.Change(Timeout.Infinite, Timeout.Infinite);
+                else
+                    _logCleanupTimer.Change(LOG_CLEANUP_TIMER_INITIAL_INTERVAL, LOG_CLEANUP_TIMER_PERIODIC_INTERVAL);
+            }
         }
 
         public bool UseLocalTime
