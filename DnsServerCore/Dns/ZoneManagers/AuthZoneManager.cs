@@ -41,6 +41,8 @@ namespace DnsServerCore.Dns.ZoneManagers
 
         readonly ZoneTree<AuthZone> _root = new ZoneTree<AuthZone>();
 
+        int _totalZones;
+
         #endregion
 
         #region constructor
@@ -184,11 +186,15 @@ namespace DnsServerCore.Dns.ZoneManagers
             }
 
             if (_root.TryAdd(zone))
+            {
+                _totalZones++;
                 return zone;
+            }
 
             if (_root.TryGet(zoneInfo.Name, out AuthZone existingZone) && (existingZone is SubDomainZone))
             {
                 _root[zoneInfo.Name] = zone;
+                _totalZones++;
                 return zone;
             }
 
@@ -208,7 +214,7 @@ namespace DnsServerCore.Dns.ZoneManagers
                 }
                 else
                 {
-                    AuthZone zone = GetOrAddZone(groupedByTypeRecords.Key);
+                    AuthZone zone = GetOrAddSubDomainZone(groupedByTypeRecords.Key);
                     if (zone is SubDomainZone)
                     {
                         foreach (KeyValuePair<DnsResourceRecordType, List<DnsResourceRecord>> groupedRecords in groupedByTypeRecords.Value)
@@ -220,7 +226,7 @@ namespace DnsServerCore.Dns.ZoneManagers
             }
         }
 
-        private AuthZone GetOrAddZone(string domain)
+        private AuthZone GetOrAddSubDomainZone(string domain)
         {
             return _root.GetOrAdd(domain, delegate (string key)
             {
@@ -428,7 +434,10 @@ namespace DnsServerCore.Dns.ZoneManagers
             AuthZone authZone = new PrimaryZone(_dnsServer, domain, soaRecord, ns);
 
             if (_root.TryAdd(authZone))
+            {
+                _totalZones++;
                 return new AuthZoneInfo(authZone);
+            }
 
             return null;
         }
@@ -438,11 +447,15 @@ namespace DnsServerCore.Dns.ZoneManagers
             AuthZone authZone = new PrimaryZone(_dnsServer, domain, primaryNameServer, @internal);
 
             if (_root.TryAdd(authZone))
+            {
+                _totalZones++;
                 return new AuthZoneInfo(authZone);
+            }
 
             if (_root.TryGet(domain, out AuthZone existingZone) && (existingZone is SubDomainZone))
             {
                 _root[domain] = authZone;
+                _totalZones++;
                 return new AuthZoneInfo(authZone);
             }
 
@@ -456,6 +469,7 @@ namespace DnsServerCore.Dns.ZoneManagers
             if (_root.TryAdd(authZone))
             {
                 (authZone as SecondaryZone).RefreshZone();
+                _totalZones++;
                 return new AuthZoneInfo(authZone);
             }
 
@@ -463,6 +477,7 @@ namespace DnsServerCore.Dns.ZoneManagers
             {
                 _root[domain] = authZone;
                 (authZone as SecondaryZone).RefreshZone();
+                _totalZones++;
                 return new AuthZoneInfo(authZone);
             }
 
@@ -476,6 +491,7 @@ namespace DnsServerCore.Dns.ZoneManagers
             if (_root.TryAdd(authZone))
             {
                 (authZone as StubZone).RefreshZone();
+                _totalZones++;
                 return new AuthZoneInfo(authZone);
             }
 
@@ -483,6 +499,7 @@ namespace DnsServerCore.Dns.ZoneManagers
             {
                 _root[domain] = authZone;
                 (authZone as StubZone).RefreshZone();
+                _totalZones++;
                 return new AuthZoneInfo(authZone);
             }
 
@@ -494,11 +511,15 @@ namespace DnsServerCore.Dns.ZoneManagers
             AuthZone authZone = new ForwarderZone(domain, forwarderProtocol, forwarder);
 
             if (_root.TryAdd(authZone))
+            {
+                _totalZones++;
                 return new AuthZoneInfo(authZone);
+            }
 
             if (_root.TryGet(domain, out AuthZone existingZone) && (existingZone is SubDomainZone))
             {
                 _root[domain] = authZone;
+                _totalZones++;
                 return new AuthZoneInfo(authZone);
             }
 
@@ -510,6 +531,10 @@ namespace DnsServerCore.Dns.ZoneManagers
             if (_root.TryRemove(domain, out AuthZone authZone))
             {
                 authZone.Dispose();
+
+                if (!(authZone is SubDomainZone))
+                    _totalZones--;
+
                 return true;
             }
 
@@ -676,7 +701,7 @@ namespace DnsServerCore.Dns.ZoneManagers
             //sync new records
             foreach (KeyValuePair<string, Dictionary<DnsResourceRecordType, List<DnsResourceRecord>>> newEntries in newRecordsGroupedByDomain)
             {
-                AuthZone zone = GetOrAddZone(newEntries.Key);
+                AuthZone zone = GetOrAddSubDomainZone(newEntries.Key);
 
                 if (zone.Name.Equals(domain, StringComparison.OrdinalIgnoreCase))
                     zone.SyncRecords(newEntries.Value, dontRemoveRecords);
@@ -692,7 +717,7 @@ namespace DnsServerCore.Dns.ZoneManagers
             for (int i = 0; i < records.Length; i++)
                 resourceRecords[i] = new DnsResourceRecord(domain, type, DnsClass.IN, ttl, records[i]);
 
-            AuthZone zone = GetOrAddZone(domain);
+            AuthZone zone = GetOrAddSubDomainZone(domain);
 
             zone.SetRecords(type, resourceRecords);
 
@@ -702,7 +727,7 @@ namespace DnsServerCore.Dns.ZoneManagers
 
         public void SetRecord(DnsResourceRecord record)
         {
-            AuthZone zone = GetOrAddZone(record.Name);
+            AuthZone zone = GetOrAddSubDomainZone(record.Name);
 
             zone.SetRecords(record.Type, new DnsResourceRecord[] { record });
 
@@ -712,7 +737,7 @@ namespace DnsServerCore.Dns.ZoneManagers
 
         public void AddRecord(string domain, DnsResourceRecordType type, uint ttl, DnsResourceRecordData record)
         {
-            AuthZone zone = GetOrAddZone(domain);
+            AuthZone zone = GetOrAddSubDomainZone(domain);
 
             zone.AddRecord(new DnsResourceRecord(zone.Name, type, DnsClass.IN, ttl, record));
 
@@ -722,7 +747,7 @@ namespace DnsServerCore.Dns.ZoneManagers
 
         public void AddRecord(DnsResourceRecord record)
         {
-            AuthZone zone = GetOrAddZone(record.Name);
+            AuthZone zone = GetOrAddSubDomainZone(record.Name);
 
             zone.AddRecord(record);
 
@@ -765,7 +790,7 @@ namespace DnsServerCore.Dns.ZoneManagers
                                 (zone as SubDomainZone).AutoUpdateState();
                         }
 
-                        AuthZone newZone = GetOrAddZone(newRecord.Name);
+                        AuthZone newZone = GetOrAddSubDomainZone(newRecord.Name);
 
                         newZone.SetRecords(newRecord.Type, new DnsResourceRecord[] { newRecord });
 
@@ -795,7 +820,7 @@ namespace DnsServerCore.Dns.ZoneManagers
                                 (zone as SubDomainZone).AutoUpdateState();
                         }
 
-                        AuthZone newZone = GetOrAddZone(newRecord.Name);
+                        AuthZone newZone = GetOrAddSubDomainZone(newRecord.Name);
 
                         newZone.AddRecord(newRecord);
 
@@ -855,6 +880,8 @@ namespace DnsServerCore.Dns.ZoneManagers
                         break;
                 }
             }
+
+            _totalZones = zones.Count;
 
             return zones;
         }
@@ -1195,6 +1222,9 @@ namespace DnsServerCore.Dns.ZoneManagers
             get { return _serverDomain; }
             set { UpdateServerDomain(value); }
         }
+
+        public int TotalZones
+        { get { return _totalZones; } }
 
         #endregion
     }
