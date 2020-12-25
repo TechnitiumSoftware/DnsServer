@@ -39,8 +39,6 @@ namespace DnsServerCore.Dns.ZoneManagers
         DnsSOARecord _soaRecord;
         DnsNSRecord _nsRecord;
 
-        int _totalZonesAllowed;
-
         #endregion
 
         #region constructor
@@ -121,10 +119,7 @@ namespace DnsServerCore.Dns.ZoneManagers
         public bool AllowZone(string domain)
         {
             if (_zoneManager.CreateInternalPrimaryZone(domain, _soaRecord, _nsRecord) != null)
-            {
-                _totalZonesAllowed++;
                 return true;
-            }
 
             return false;
         }
@@ -132,10 +127,7 @@ namespace DnsServerCore.Dns.ZoneManagers
         public bool DeleteZone(string domain)
         {
             if (_zoneManager.DeleteZone(domain))
-            {
-                _totalZonesAllowed--;
                 return true;
-            }
 
             return false;
         }
@@ -158,8 +150,6 @@ namespace DnsServerCore.Dns.ZoneManagers
         public void SaveZoneFile()
         {
             List<AuthZoneInfo> allowedZones = _dnsServer.AllowedZoneManager.ListZones();
-
-            _totalZonesAllowed = allowedZones.Count;
 
             string allowedZoneFile = Path.Combine(_dnsServer.ConfigFolder, "allowed.config");
 
@@ -197,7 +187,7 @@ namespace DnsServerCore.Dns.ZoneManagers
         }
 
         public int TotalZonesAllowed
-        { get { return _totalZonesAllowed; } }
+        { get { return _zoneManager.TotalZones; } }
 
         #endregion
     }

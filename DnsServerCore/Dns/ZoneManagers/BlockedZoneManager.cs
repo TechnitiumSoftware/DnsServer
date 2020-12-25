@@ -39,8 +39,6 @@ namespace DnsServerCore.Dns.ZoneManagers
         DnsSOARecord _soaRecord;
         DnsNSRecord _nsRecord;
 
-        int _totalZonesBlocked;
-
         #endregion
 
         #region constructor
@@ -139,10 +137,7 @@ namespace DnsServerCore.Dns.ZoneManagers
         public bool BlockZone(string domain)
         {
             if (_zoneManager.CreateInternalPrimaryZone(domain, _soaRecord, _nsRecord) != null)
-            {
-                _totalZonesBlocked++;
                 return true;
-            }
 
             return false;
         }
@@ -150,10 +145,7 @@ namespace DnsServerCore.Dns.ZoneManagers
         public bool DeleteZone(string domain)
         {
             if (_zoneManager.DeleteZone(domain))
-            {
-                _totalZonesBlocked--;
                 return true;
-            }
 
             return false;
         }
@@ -213,7 +205,7 @@ namespace DnsServerCore.Dns.ZoneManagers
         }
 
         public int TotalZonesBlocked
-        { get { return _totalZonesBlocked; } }
+        { get { return _zoneManager.TotalZones; } }
 
         #endregion
     }
