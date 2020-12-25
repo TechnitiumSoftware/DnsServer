@@ -265,6 +265,10 @@ namespace DnsServerCore.Dns
                     }
                 }
             }
+            catch (ObjectDisposedException)
+            {
+                //server stopping
+            }
             catch (Exception ex)
             {
                 if ((_state == ServiceState.Stopping) || (_state == ServiceState.Stopped))
@@ -273,8 +277,6 @@ namespace DnsServerCore.Dns
                 LogManager log = _log;
                 if (log != null)
                     log.Write(ex);
-
-                throw;
             }
         }
 
@@ -363,6 +365,15 @@ namespace DnsServerCore.Dns
                     _ = ProcessConnectionAsync(socket, protocol, usingHttps);
                 }
             }
+            catch (SocketException ex)
+            {
+                if (ex.SocketErrorCode == SocketError.OperationAborted)
+                    return; //server stopping
+
+                LogManager log = _log;
+                if (log != null)
+                    log.Write(localEP, protocol, ex);
+            }
             catch (Exception ex)
             {
                 if ((_state == ServiceState.Stopping) || (_state == ServiceState.Stopped))
@@ -371,8 +382,6 @@ namespace DnsServerCore.Dns
                 LogManager log = _log;
                 if (log != null)
                     log.Write(localEP, protocol, ex);
-
-                throw;
             }
         }
 
@@ -2234,31 +2243,56 @@ namespace DnsServerCore.Dns
             foreach (Socket udpListener in _udpListeners)
             {
                 for (int i = 0; i < listenerTaskCount; i++)
-                    _ = ReadUdpRequestAsync(udpListener);
+                {
+                    _ = Task.Factory.StartNew(delegate ()
+                    {
+                        return ReadUdpRequestAsync(udpListener);
+                    }, CancellationToken.None, TaskCreationOptions.DenyChildAttach, TaskScheduler.Current);
+                }
             }
 
             foreach (Socket tcpListener in _tcpListeners)
             {
                 for (int i = 0; i < listenerTaskCount; i++)
-                    _ = AcceptConnectionAsync(tcpListener, DnsTransportProtocol.Tcp, false);
+                {
+                    _ = Task.Factory.StartNew(delegate ()
+                    {
+                        return AcceptConnectionAsync(tcpListener, DnsTransportProtocol.Tcp, false);
+                    }, CancellationToken.None, TaskCreationOptions.DenyChildAttach, TaskScheduler.Current);
+                }
             }
 
             foreach (Socket httpListener in _httpListeners)
             {
                 for (int i = 0; i < listenerTaskCount; i++)
-                    _ = AcceptConnectionAsync(httpListener, DnsTransportProtocol.Https, false);
+                {
+                    _ = Task.Factory.StartNew(delegate ()
+                    {
+                        return AcceptConnectionAsync(httpListener, DnsTransportProtocol.Https, false);
+                    }, CancellationToken.None, TaskCreationOptions.DenyChildAttach, TaskScheduler.Current);
+                }
             }
 
             foreach (Socket tlsListener in _tlsListeners)
             {
                 for (int i = 0; i < listenerTaskCount; i++)
-                    _ = AcceptConnectionAsync(tlsListener, DnsTransportProtocol.Tls, false);
+                {
+                    _ = Task.Factory.StartNew(delegate ()
+                    {
+                        return AcceptConnectionAsync(tlsListener, DnsTransportProtocol.Tls, false);
+                    }, CancellationToken.None, TaskCreationOptions.DenyChildAttach, TaskScheduler.Current);
+                }
             }
 
             foreach (Socket httpsListener in _httpsListeners)
             {
                 for (int i = 0; i < listenerTaskCount; i++)
-                    _ = AcceptConnectionAsync(httpsListener, DnsTransportProtocol.Https, true);
+                {
+                    _ = Task.Factory.StartNew(delegate ()
+                    {
+                        return AcceptConnectionAsync(httpsListener, DnsTransportProtocol.Https, true);
+                    }, CancellationToken.None, TaskCreationOptions.DenyChildAttach, TaskScheduler.Current);
+                }
             }
 
             _cachePrefetchSamplingTimer = new Timer(CachePrefetchSamplingTimerCallback, null, Timeout.Infinite, Timeout.Infinite);
