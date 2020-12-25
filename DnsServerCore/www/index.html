@@ -80,7 +80,7 @@
                 <div class="panel panel-default">
                     <div class="panel-heading" style="height: 38px;">
                         <div style="float: left;">
-                            <h3 class="panel-title">DNS Server<span id="lblServerDomain"></span></h3>
+                            <h3 class="panel-title">DNS Server<span id="lblDnsServerDomain"></span></h3>
                         </div>
                         <div style="float: right;">
                             <a href="" target="_blank" id="lnkNewVersionAvailable" style="display: none; color: red !important;">New Version Available!</a>
@@ -198,14 +198,24 @@
                                                 <div id="divPieCharts" class="panel panel-default" style="margin-bottom: 0px;">
                                                     <div class="panel-body">
                                                         <div class="zone-stats-panel">
+                                                            <div class="stats-item zones">
+                                                                <div class="number" id="divDashboardStatsZones">10</div>
+                                                                <div class="title">Zones</div>
+                                                            </div>
+
                                                             <div class="stats-item allowed-zones">
                                                                 <div class="number" id="divDashboardStatsAllowedZones">10</div>
-                                                                <div class="title">Zones Allowed</div>
+                                                                <div class="title">Allowed Zones</div>
                                                             </div>
 
                                                             <div class="stats-item blocked-zones">
                                                                 <div class="number" id="divDashboardStatsBlockedZones">10</div>
-                                                                <div class="title">Zones Blocked</div>
+                                                                <div class="title">Blocked Zones</div>
+                                                            </div>
+
+                                                            <div class="stats-item block-list-zones">
+                                                                <div class="number" id="divDashboardStatsBlockListZones">10</div>
+                                                                <div class="title">Block List Zones</div>
                                                             </div>
                                                         </div>
 
@@ -221,8 +231,12 @@
                                             </div>
 
                                             <div style="float: right; width: 50%; padding-left: 7px;">
-                                                <div id="divTopClients" class="panel panel-default" style="margin-bottom: 0px;">
-                                                    <div class="panel-heading">Top Clients</div>
+                                                <div class="panel panel-default" style="margin-bottom: 0px;">
+                                                    <div class="panel-heading">
+                                                        <div class="pull-left">Top Clients</div>
+                                                        <div class="pull-right"><a href="#" onclick="return showTopStats('TopClients', 1000);">[more]</a></div>
+                                                        <div class="clearfix"></div>
+                                                    </div>
                                                     <table class="table table-hover">
                                                         <thead>
                                                             <tr>
@@ -250,7 +264,11 @@
                                         <div style="margin-top: 15px;">
                                             <div style="float: left; width: 50%; padding-right: 7px;">
                                                 <div class="panel panel-default" style="margin-bottom: 0px;">
-                                                    <div class="panel-heading">Top Domains</div>
+                                                    <div class="panel-heading">
+                                                        <div class="pull-left">Top Domains</div>
+                                                        <div class="pull-right"><a href="#" onclick="return showTopStats('TopDomains', 1000);">[more]</a></div>
+                                                        <div class="clearfix"></div>
+                                                    </div>
                                                     <table class="table table-hover">
                                                         <thead>
                                                             <tr>
@@ -270,7 +288,11 @@
 
                                             <div style="float: right; width: 50%; padding-left: 7px;">
                                                 <div class="panel panel-default" style="margin-bottom: 0px;">
-                                                    <div class="panel-heading">Top Blocked Domains</div>
+                                                    <div class="panel-heading">
+                                                        <div class="pull-left">Top Blocked Domains</div>
+                                                        <div class="pull-right"><a href="#" onclick="return showTopStats('TopBlockedDomains', 1000);">[more]</a></div>
+                                                        <div class="clearfix"></div>
+                                                    </div>
                                                     <table class="table table-hover">
                                                         <thead>
                                                             <tr>
@@ -616,34 +638,88 @@
 
                                             <div class="well well-sm form-horizontal">
                                                 <div class="form-group">
-                                                    <label for="txtServerDomain" class="col-sm-3 control-label">DNS Server Domain</label>
+                                                    <label for="txtDnsServerDomain" class="col-sm-3 control-label">DNS Server Domain</label>
                                                     <div class="col-sm-6">
-                                                        <input type="text" class="form-control" id="txtServerDomain" placeholder="Domain Name">
+                                                        <input type="text" class="form-control" id="txtDnsServerDomain" placeholder="Domain Name">
                                                     </div>
                                                     <div class="col-sm-offset-3 col-sm-8" style="padding-top: 5px;">The primary domain name used by this DNS Server to identify itself.</div>
                                                 </div>
 
                                                 <div class="form-group">
-                                                    <label for="txtdnsServerLocalEndPoints" class="col-sm-3 control-label">DNS Server Local End Points</label>
+                                                    <label for="txtDnsServerLocalEndPoints" class="col-sm-3 control-label">DNS Server Local End Points</label>
                                                     <div class="col-sm-6">
-                                                        <textarea id="txtdnsServerLocalEndPoints" class="form-control" rows="3"></textarea>
+                                                        <textarea id="txtDnsServerLocalEndPoints" class="form-control" rows="3"></textarea>
                                                     </div>
                                                     <div class="col-sm-offset-3 col-sm-8" style="padding-top: 5px;">Local end points are the network interface IP addresses and ports you want the DNS Server to listen for requests. The default values work for most scenarios so, do not change these defaults unless you have a requirement for the DNS server to listen on specific networks or ports.</div>
                                                 </div>
 
-                                                <div>To apply DNS Server local end point changes, you will need to manually restart the main service.</div>
+                                                <div>Note! The DNS Server local end point changes will be automatically applied and so you do not need to manually restart the main service.</div>
                                             </div>
 
                                             <div class="well well-sm form-horizontal">
                                                 <div class="form-group">
-                                                    <label for="txtWebServicePort" class="col-sm-3 control-label">Web Service Port</label>
+                                                    <label for="txtWebServiceLocalAddresses" class="col-sm-3 control-label">Web Service Local Addresses</label>
                                                     <div class="col-sm-6">
-                                                        <input type="number" class="form-control" id="txtWebServicePort" placeholder="Web Service Port" style="width: 100px;">
+                                                        <textarea id="txtWebServiceLocalAddresses" class="form-control" rows="3"></textarea>
                                                     </div>
-                                                    <div class="col-sm-offset-3 col-sm-8" style="padding-top: 5px;">Specify the TCP port number for this web console.</div>
+                                                    <div class="col-sm-offset-3 col-sm-8" style="padding-top: 5px;">Local addresses are the network interface IP addresses you want the web service to listen for requests. The default values work for most scenarios so, do not change these defaults unless you have a requirement for the web service to listen on specific networks.</div>
                                                 </div>
 
-                                                <div>To apply web service port changes, you will need to manually restart the main service.</div>
+                                                <div class="form-group">
+                                                    <label for="txtWebServiceHttpPort" class="col-sm-3 control-label">Web Service HTTP Port</label>
+                                                    <div class="col-sm-6">
+                                                        <input type="number" class="form-control" id="txtWebServiceHttpPort" placeholder="HTTP Port" style="width: 100px;">
+                                                    </div>
+                                                    <div class="col-sm-offset-3 col-sm-8" style="padding-top: 5px;">Specify the TCP port number for this web console over HTTP protocol.</div>
+                                                </div>
+
+                                                <div class="form-group">
+                                                    <label class="col-sm-3 control-label">HTTPS Options</label>
+                                                    <div class="col-sm-8">
+                                                        <div class="checkbox">
+                                                            <label>
+                                                                <input id="chkWebServiceEnableTls" type="checkbox"> Enable HTTPS
+                                                            </label>
+                                                        </div>
+
+                                                        <div class="checkbox">
+                                                            <label>
+                                                                <input id="chkWebServiceHttpToTlsRedirect" type="checkbox"> Enable HTTP to HTTPS Redirection
+                                                            </label>
+                                                        </div>
+                                                    </div>
+                                                </div>
+
+                                                <div class="form-group">
+                                                    <label for="txtWebServiceTlsPort" class="col-sm-3 control-label">Web Service HTTPS Port</label>
+                                                    <div class="col-sm-6">
+                                                        <input type="number" class="form-control" id="txtWebServiceTlsPort" placeholder="TLS Port" style="width: 100px;">
+                                                    </div>
+                                                    <div class="col-sm-offset-3 col-sm-8" style="padding-top: 5px;">Specify the TCP port number for this web console over TLS protocol.</div>
+                                                </div>
+
+                                                <div class="form-group">
+                                                    <label for="txtWebServiceTlsCertificatePath" class="col-sm-3 control-label">TLS Certificate File Path</label>
+                                                    <div class="col-sm-6">
+                                                        <input type="text" class="form-control" id="txtWebServiceTlsCertificatePath" placeholder="Web Service TLS Certificate File Path On Server">
+                                                    </div>
+                                                    <div class="col-sm-offset-3 col-sm-8" style="padding-top: 5px;">Specify a PKCS #12 certificate (.pfx) file path on the server. The certificate must contain private key.</div>
+                                                </div>
+
+                                                <div class="form-group">
+                                                    <label for="txtWebServiceTlsCertificatePassword" class="col-sm-3 control-label">TLS Certificate Password</label>
+                                                    <div class="col-sm-6">
+                                                        <input type="password" class="form-control" id="txtWebServiceTlsCertificatePassword" placeholder="Web Service TLS Certificate Password">
+                                                    </div>
+                                                    <div class="col-sm-offset-3 col-sm-8" style="padding-top: 5px;">Enter the certificate (.pfx) password, if any.</div>
+                                                </div>
+
+                                                <div>
+                                                    <p>Note! The web service port changes will be automatically applied and so you do not need to manually restart the main service. This web page will be automatically redirected to the new web console URL after saving settings. The HTTPS protocol will be enabled only when a TLS certificate is configured.</p>
+
+                                                    <p>Use the following openssl command to convert your TLS certificate that is in PEM format to PKCS #12 certificate (.pfx) format:</p>
+                                                    <pre>openssl pkcs12 -export -out "example.com.pfx" -inkey "private.key" -in "certificate.crt" -certfile "ca_bundle.crt"</pre>
+                                                </div>
                                             </div>
 
                                             <div class="well well-sm form-horizontal">
@@ -674,24 +750,24 @@
                                                 </div>
 
                                                 <div class="form-group">
-                                                    <label for="txtTlsCertificatePath" class="col-sm-3 control-label">TLS Certificate File Path</label>
+                                                    <label for="txtDnsTlsCertificatePath" class="col-sm-3 control-label">TLS Certificate File Path</label>
                                                     <div class="col-sm-6">
-                                                        <input type="text" class="form-control" id="txtTlsCertificatePath" placeholder="TLS Certificate File Path On Server">
+                                                        <input type="text" class="form-control" id="txtDnsTlsCertificatePath" placeholder="DNS Service TLS Certificate File Path On Server">
                                                     </div>
                                                     <div class="col-sm-offset-3 col-sm-8" style="padding-top: 5px;">Specify a PKCS #12 certificate (.pfx) file path on the server. The certificate must contain private key.</div>
                                                 </div>
 
                                                 <div class="form-group">
-                                                    <label for="txtTlsCertificatePassword" class="col-sm-3 control-label">TLS Certificate Password</label>
+                                                    <label for="txtDnsTlsCertificatePassword" class="col-sm-3 control-label">TLS Certificate Password</label>
                                                     <div class="col-sm-6">
-                                                        <input type="password" class="form-control" id="txtTlsCertificatePassword" placeholder="TLS Certificate Password">
+                                                        <input type="password" class="form-control" id="txtDnsTlsCertificatePassword" placeholder="DNS Service TLS Certificate Password">
                                                     </div>
                                                     <div class="col-sm-offset-3 col-sm-8" style="padding-top: 5px;">Enter the certificate (.pfx) password, if any.</div>
                                                 </div>
 
                                                 <div>
-                                                    <p>NOTE! These optional DNS server protocols are used to host these as a service. You do not need to enable these optional protocols to use them with Forwarders or Conditional Forwarder Zones.</p>
-                                                    <p>To enable or disable these protocols, you will need to manually restart the main service. These optional protocols will be enabled only when a TLS certificate is configured.</p>
+                                                    <p>Note! These optional DNS server protocol changes will be automatically applied and so you do not need to manually restart the main service. The DNS-over-TLS and DNS-over-HTTPS protocols will be enabled only when a TLS certificate is configured.</p>
+                                                    <p>These optional DNS server protocols are used to host these as a service. You do not need to enable these optional protocols to use them with Forwarders or Conditional Forwarder Zones.</p>
                                                     <p>For DNS-over-HTTP, use <code>http://<span id="lblDoHHost">localhost:8053</span>/dns-query</code> with a TLS terminating reverse proxy like nginx. For DNS-over-TLS, use <code>tls-certificate-domain:853</code> and for DNS-over-HTTPS use <code>https://tls-certificate-domain/dns-query</code> to configure supported DNS clients.</p>
                                                     <p>Use the following openssl command to convert your TLS certificate that is in PEM format to PKCS #12 certificate (.pfx) format:</p>
                                                     <pre>openssl pkcs12 -export -out "example.com.pfx" -inkey "private.key" -in "certificate.crt" -certfile "ca_bundle.crt"</pre>
@@ -756,13 +832,13 @@
                                                     <label for="txtMaxLogFileDays" class="col-sm-3 control-label">Max Log File Days</label>
                                                     <div class="col-sm-6">
                                                         <input type="number" class="form-control" id="txtMaxLogFileDays" placeholder="Max Days" style="width: 100px; display: inline;">
-                                                        <span>days (default 365, must be greater than 1)</span>
+                                                        <span>days (recommended 365, set 0 to disable auto delete)</span>
                                                     </div>
 
                                                     <div class="col-sm-offset-3 col-sm-8" style="padding-top: 5px;">Max number of days to keep the log files. Log files older than the specified number of days will be deleted automatically.</div>
                                                 </div>
 
-                                                <div>Warning: Enabling query logging will significantly increase the log file size.</div>
+                                                <div>Warning! Enabling query logging will significantly increase the log file size and use up disk space.</div>
                                             </div>
 
                                             <div class="well well-sm form-horizontal">
@@ -797,7 +873,7 @@
 
                                             <div class="well well-sm form-horizontal">
                                                 <div class="form-group">
-                                                    <label class="col-sm-3 control-label">Cache</label>
+                                                    <label class="col-sm-3 control-label">DNS Cache</label>
                                                     <div class="col-sm-8">
                                                         <div class="checkbox">
                                                             <label>
@@ -2060,7 +2136,7 @@
 
                                 <div class="checkbox">
                                     <label>
-                                        <input id="chkBackupLogs" type="checkbox" checked> Log Files (*.log)
+                                        <input id="chkBackupLogs" type="checkbox"> Log Files (*.log)
                                     </label>
                                 </div>
 
@@ -2072,6 +2148,8 @@
                             </div>
                         </div>
                     </div>
+
+                    <p>Note! It may take several minutes to generate the backup zip file if log files are selected to be backed up which will depend on the size of the log files on the disk.</p>
 
                 </div>
                 <div class="modal-footer">
@@ -2148,7 +2226,7 @@
 
                                 <div class="checkbox">
                                     <label>
-                                        <input id="chkRestoreLogs" type="checkbox" checked> Log Files (*.log)
+                                        <input id="chkRestoreLogs" type="checkbox"> Log Files (*.log)
                                     </label>
                                 </div>
 
@@ -2161,10 +2239,82 @@
                         </div>
                     </div>
 
-                    <p>WARNING! The restore process will overwrite existing config files on disk for above selected items and reload new settings including passwords. If you do not remember the password used while creating the backup, you should reset the admin password immediately after restoring the backup. Failing to do so will require you to follow the password reset process.</p>
+                    <p>Warning! The restore process will delete the existing files on disk for above selected items and reload new settings including passwords. If you do not remember the password used while creating the backup, you should reset the admin password immediately after restoring the backup. Failing to do so will require you to follow the password reset process.</p>
                 </div>
                 <div class="modal-footer">
                     <button id="btnRestoreSettings" type="submit" class="btn btn-primary" data-loading-text="Restoring..." onclick="return restoreSettings();">Restore</button>
+                    <button type="button" class="btn btn-default" data-dismiss="modal">Close</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+
+    <div id="modalTopStats" class="modal fade" tabindex="-1" role="dialog">
+        <div class="modal-dialog" role="document">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <button type="button" class="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button>
+                    <h4 id="lblTopStatsTitle" class="modal-title">Top Stats</h4>
+                </div>
+                <div class="modal-body">
+                    <div id="divTopStatsAlert"></div>
+
+                    <div id="divTopStatsLoader" style="height: 500px;"></div>
+
+                    <div id="divTopStatsData" style="max-height: 500px; overflow-y: auto;">
+                        <table id="tableTopStatsClients" class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th>Client</th>
+                                    <th>Queries</th>
+                                </tr>
+                            </thead>
+                            <tbody id="tbodyTopStatsClients">
+                                <tr>
+                                    <td>127.0.0.1</td>
+                                    <td>100</td>
+                                </tr>
+                                <tr>
+                                    <td>::1</td>
+                                    <td>10</td>
+                                </tr>
+                            </tbody>
+                        </table>
+
+                        <table id="tableTopStatsDomains" class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th>Domain</th>
+                                    <th>Hits</th>
+                                </tr>
+                            </thead>
+                            <tbody id="tbodyTopStatsDomains">
+                                <tr>
+                                    <td>example.com</td>
+                                    <td>10</td>
+                                </tr>
+                            </tbody>
+                        </table>
+
+                        <table id="tableTopStatsBlockedDomains" class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th>Domain</th>
+                                    <th>Hits</th>
+                                </tr>
+                            </thead>
+                            <tbody id="tbodyTopStatsBlockedDomains">
+                                <tr>
+                                    <td>blocked.example.com</td>
+                                    <td>10</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+
+                </div>
+                <div class="modal-footer">
                     <button type="button" class="btn btn-default" data-dismiss="modal">Close</button>
                 </div>
             </div>

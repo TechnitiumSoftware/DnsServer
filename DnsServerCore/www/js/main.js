@@ -141,6 +141,37 @@ $(function () {
         $("#chkAllowRecursionOnlyForPrivateNetworks").prop('disabled', !allowRecursion);
     });
 
+    $("#chkWebServiceEnableTls").click(function () {
+        var webServiceEnableTls = $("#chkWebServiceEnableTls").prop("checked");
+        $("#chkWebServiceHttpToTlsRedirect").prop("disabled", !webServiceEnableTls);
+        $("#txtWebServiceTlsPort").prop("disabled", !webServiceEnableTls);
+        $("#txtWebServiceTlsCertificatePath").prop("disabled", !webServiceEnableTls);
+        $("#txtWebServiceTlsCertificatePassword").prop("disabled", !webServiceEnableTls);
+    });
+
+    $("#chkEnableDnsOverTls").click(function () {
+        var enableDnsOverTls = $("#chkEnableDnsOverTls").prop("checked");
+        var enableDnsOverHttps = $("#chkEnableDnsOverHttps").prop("checked");
+
+        $("#txtDnsTlsCertificatePath").prop("disabled", !enableDnsOverTls && !enableDnsOverHttps);
+        $("#txtDnsTlsCertificatePassword").prop("disabled", !enableDnsOverTls && !enableDnsOverHttps);
+    });
+
+    $("#chkEnableDnsOverHttps").click(function () {
+        var enableDnsOverTls = $("#chkEnableDnsOverTls").prop("checked");
+        var enableDnsOverHttps = $("#chkEnableDnsOverHttps").prop("checked");
+
+        $("#txtDnsTlsCertificatePath").prop("disabled", !enableDnsOverTls && !enableDnsOverHttps);
+        $("#txtDnsTlsCertificatePassword").prop("disabled", !enableDnsOverTls && !enableDnsOverHttps);
+    });
+
+    $("#chkEnableLogging").click(function () {
+        var enableLogging = $("#chkEnableLogging").prop("checked");
+        $("#chkLogQueries").prop("disabled", !enableLogging);
+        $("#chkUseLocalTime").prop("disabled", !enableLogging);
+        $("#txtLogFolderPath").prop("disabled", !enableLogging);
+    });
+
     $("#chkServeStale").click(function () {
         var serveStale = $("#chkServeStale").prop("checked");
         $("#txtServeStaleTtl").prop("disabled", !serveStale);
@@ -577,14 +608,12 @@ function loadDnsSettings() {
             document.title = "Technitium DNS Server v" + responseJSON.response.version + " - " + responseJSON.response.serverDomain;
             $("#lblAboutVersion").text(responseJSON.response.version);
 
-            $("#txtServerDomain").val(responseJSON.response.serverDomain);
-            $("#lblServerDomain").text(" - " + responseJSON.response.serverDomain);
-
-            $("#txtWebServicePort").val(responseJSON.response.webServicePort);
+            $("#txtDnsServerDomain").val(responseJSON.response.dnsServerDomain);
+            $("#lblDnsServerDomain").text(" - " + responseJSON.response.dnsServerDomain);
 
             var dnsServerLocalEndPoints = responseJSON.response.dnsServerLocalEndPoints;
             if (dnsServerLocalEndPoints == null) {
-                $("#txtdnsServerLocalEndPoints").val("0.0.0.0:53\r\n[::]:53");
+                $("#txtDnsServerLocalEndPoints").val("0.0.0.0:53\r\n[::]:53");
             }
             else {
                 var value = "";
@@ -592,22 +621,59 @@ function loadDnsSettings() {
                 for (var i = 0; i < dnsServerLocalEndPoints.length; i++)
                     value += dnsServerLocalEndPoints[i] + "\r\n";
 
-                $("#txtdnsServerLocalEndPoints").val(value);
+                $("#txtDnsServerLocalEndPoints").val(value);
             }
+
+            var webServiceLocalAddresses = responseJSON.response.webServiceLocalAddresses;
+            if (webServiceLocalAddresses == null) {
+                $("#txtWebServiceLocalAddresses").val("0.0.0.0\r\n[::]");
+            }
+            else {
+                var value = "";
+
+                for (var i = 0; i < webServiceLocalAddresses.length; i++)
+                    value += webServiceLocalAddresses[i] + "\r\n";
+
+                $("#txtWebServiceLocalAddresses").val(value);
+            }
+
+            $("#txtWebServiceHttpPort").val(responseJSON.response.webServiceHttpPort);
+
+            $("#chkWebServiceEnableTls").prop("checked", responseJSON.response.webServiceEnableTls);
+            $("#chkWebServiceHttpToTlsRedirect").prop("disabled", !responseJSON.response.webServiceEnableTls);
+            $("#txtWebServiceTlsPort").prop("disabled", !responseJSON.response.webServiceEnableTls);
+            $("#txtWebServiceTlsCertificatePath").prop("disabled", !responseJSON.response.webServiceEnableTls);
+            $("#txtWebServiceTlsCertificatePassword").prop("disabled", !responseJSON.response.webServiceEnableTls);
+
+            $("#chkWebServiceHttpToTlsRedirect").prop("checked", responseJSON.response.webServiceHttpToTlsRedirect);
+            $("#txtWebServiceTlsPort").val(responseJSON.response.webServiceTlsPort);
+            $("#txtWebServiceTlsCertificatePath").val(responseJSON.response.webServiceTlsCertificatePath);
+
+            if (responseJSON.response.webServiceTlsCertificatePath == null)
+                $("#txtWebServiceTlsCertificatePassword").val("");
+            else
+                $("#txtWebServiceTlsCertificatePassword").val(responseJSON.response.webServiceTlsCertificatePassword);
 
             $("#chkEnableDnsOverHttp").prop("checked", responseJSON.response.enableDnsOverHttp);
             $("#chkEnableDnsOverTls").prop("checked", responseJSON.response.enableDnsOverTls);
             $("#chkEnableDnsOverHttps").prop("checked", responseJSON.response.enableDnsOverHttps);
-            $("#txtTlsCertificatePath").val(responseJSON.response.tlsCertificatePath);
 
-            if (responseJSON.response.tlsCertificatePath == null)
-                $("#txtTlsCertificatePassword").val("");
+            $("#txtDnsTlsCertificatePath").prop("disabled", !responseJSON.response.enableDnsOverTls && !responseJSON.response.enableDnsOverHttps);
+            $("#txtDnsTlsCertificatePassword").prop("disabled", !responseJSON.response.enableDnsOverTls && !responseJSON.response.enableDnsOverHttps);
+
+            $("#txtDnsTlsCertificatePath").val(responseJSON.response.dnsTlsCertificatePath);
+
+            if (responseJSON.response.dnsTlsCertificatePath == null)
+                $("#txtDnsTlsCertificatePassword").val("");
             else
-                $("#txtTlsCertificatePassword").val(responseJSON.response.tlsCertificatePassword);
+                $("#txtDnsTlsCertificatePassword").val(responseJSON.response.dnsTlsCertificatePassword);
 
             $("#chkPreferIPv6").prop("checked", responseJSON.response.preferIPv6);
 
             $("#chkEnableLogging").prop("checked", responseJSON.response.enableLogging);
+            $("#chkLogQueries").prop("disabled", !responseJSON.response.enableLogging);
+            $("#chkUseLocalTime").prop("disabled", !responseJSON.response.enableLogging);
+            $("#txtLogFolderPath").prop("disabled", !responseJSON.response.enableLogging);
             $("#chkLogQueries").prop("checked", responseJSON.response.logQueries);
             $("#chkUseLocalTime").prop("checked", responseJSON.response.useLocalTime);
             $("#txtLogFolderPath").val(responseJSON.response.logFolder);
@@ -735,8 +801,8 @@ function loadDnsSettings() {
             {
                 var optCustomLocalBlockList = $("#optCustomLocalBlockList");
 
-                optCustomLocalBlockList.attr("value", "http://localhost:" + responseJSON.response.webServicePort + "/blocklist.txt");
-                optCustomLocalBlockList.text("Custom Local Block List (http://localhost:" + responseJSON.response.webServicePort + "/blocklist.txt)");
+                optCustomLocalBlockList.attr("value", "http://localhost:" + responseJSON.response.webServiceHttpPort + "/blocklist.txt");
+                optCustomLocalBlockList.text("Custom Local Block List (http://localhost:" + responseJSON.response.webServiceHttpPort + "/blocklist.txt)");
             }
 
             $("#txtBlockListUpdateIntervalHours").val(responseJSON.response.blockListUpdateIntervalHours);
@@ -756,34 +822,44 @@ function loadDnsSettings() {
 
 function saveDnsSettings() {
 
-    var serverDomain = $("#txtServerDomain").val();
+    var dnsServerDomain = $("#txtDnsServerDomain").val();
 
-    if ((serverDomain === null) || (serverDomain === "")) {
+    if ((dnsServerDomain === null) || (dnsServerDomain === "")) {
         showAlert("warning", "Missing!", "Please enter server domain name.");
-        $("#txtServerDomain").focus();
+        $("#txtDnsServerDomain").focus();
         return false;
     }
 
-    var webServicePort = $("#txtWebServicePort").val();
-
-    if ((webServicePort === null) || (webServicePort === "")) {
-        showAlert("warning", "Missing!", "Please enter web service port.");
-        $("#txtWebServicePort").focus();
-        return false;
-    }
-
-    var dnsServerLocalEndPoints = cleanTextList($("#txtdnsServerLocalEndPoints").val());
+    var dnsServerLocalEndPoints = cleanTextList($("#txtDnsServerLocalEndPoints").val());
 
     if ((dnsServerLocalEndPoints.length === 0) || (dnsServerLocalEndPoints === ","))
         dnsServerLocalEndPoints = "0.0.0.0:53,[::]:53";
     else
-        $("#txtdnsServerLocalEndPoints").val(dnsServerLocalEndPoints.replace(/,/g, "\n"));
+        $("#txtDnsServerLocalEndPoints").val(dnsServerLocalEndPoints.replace(/,/g, "\n"));
+
+    var webServiceLocalAddresses = cleanTextList($("#txtWebServiceLocalAddresses").val());
+
+    if ((webServiceLocalAddresses.length === 0) || (webServiceLocalAddresses === ","))
+        webServiceLocalAddresses = "0.0.0.0,[::]";
+    else
+        $("#txtWebServiceLocalAddresses").val(webServiceLocalAddresses.replace(/,/g, "\n"));
+
+    var webServiceHttpPort = $("#txtWebServiceHttpPort").val();
+
+    if ((webServiceHttpPort === null) || (webServiceHttpPort === ""))
+        webServiceHttpPort = 5380;
+
+    var webServiceEnableTls = $("#chkWebServiceEnableTls").prop("checked");
+    var webServiceHttpToTlsRedirect = $("#chkWebServiceHttpToTlsRedirect").prop("checked");
+    var webServiceTlsPort = $("#txtWebServiceTlsPort").val();
+    var webServiceTlsCertificatePath = $("#txtWebServiceTlsCertificatePath").val();
+    var webServiceTlsCertificatePassword = $("#txtWebServiceTlsCertificatePassword").val();
 
     var enableDnsOverHttp = $("#chkEnableDnsOverHttp").prop('checked');
     var enableDnsOverTls = $("#chkEnableDnsOverTls").prop('checked');
     var enableDnsOverHttps = $("#chkEnableDnsOverHttps").prop('checked');
-    var tlsCertificatePath = $("#txtTlsCertificatePath").val();
-    var tlsCertificatePassword = $("#txtTlsCertificatePassword").val();
+    var dnsTlsCertificatePath = $("#txtDnsTlsCertificatePath").val();
+    var dnsTlsCertificatePassword = $("#txtDnsTlsCertificatePassword").val();
 
     var preferIPv6 = $("#chkPreferIPv6").prop('checked');
 
@@ -881,27 +957,30 @@ function saveDnsSettings() {
     var btn = $("#btnSaveDnsSettings").button('loading');
 
     HTTPRequest({
-        url: "/api/setDnsSettings?token=" + token + "&serverDomain=" + serverDomain + "&webServicePort=" + webServicePort + "&dnsServerLocalEndPoints=" + encodeURIComponent(dnsServerLocalEndPoints)
-            + "&enableDnsOverHttp=" + enableDnsOverHttp + "&enableDnsOverTls=" + enableDnsOverTls + "&enableDnsOverHttps=" + enableDnsOverHttps + "&tlsCertificatePath=" + encodeURIComponent(tlsCertificatePath) + "&tlsCertificatePassword=" + encodeURIComponent(tlsCertificatePassword)
+        url: "/api/setDnsSettings?token=" + token + "&dnsServerDomain=" + dnsServerDomain + "&dnsServerLocalEndPoints=" + encodeURIComponent(dnsServerLocalEndPoints)
+            + "&webServiceLocalAddresses=" + encodeURIComponent(webServiceLocalAddresses) + "&webServiceHttpPort=" + webServiceHttpPort + "&webServiceEnableTls=" + webServiceEnableTls + "&webServiceHttpToTlsRedirect=" + webServiceHttpToTlsRedirect + "&webServiceTlsPort=" + webServiceTlsPort + "&webServiceTlsCertificatePath=" + encodeURIComponent(webServiceTlsCertificatePath) + "&webServiceTlsCertificatePassword=" + encodeURIComponent(webServiceTlsCertificatePassword)
+            + "&enableDnsOverHttp=" + enableDnsOverHttp + "&enableDnsOverTls=" + enableDnsOverTls + "&enableDnsOverHttps=" + enableDnsOverHttps + "&dnsTlsCertificatePath=" + encodeURIComponent(dnsTlsCertificatePath) + "&dnsTlsCertificatePassword=" + encodeURIComponent(dnsTlsCertificatePassword)
             + "&preferIPv6=" + preferIPv6 + "&enableLogging=" + enableLogging + "&logQueries=" + logQueries + "&useLocalTime=" + useLocalTime + "&logFolder=" + encodeURIComponent(logFolder) + "&maxLogFileDays=" + maxLogFileDays
             + "&allowRecursion=" + allowRecursion + "&allowRecursionOnlyForPrivateNetworks=" + allowRecursionOnlyForPrivateNetworks + "&randomizeName=" + randomizeName
             + "&serveStale=" + serveStale + "&serveStaleTtl=" + serveStaleTtl + "&cachePrefetchEligibility=" + cachePrefetchEligibility + "&cachePrefetchTrigger=" + cachePrefetchTrigger + "&cachePrefetchSampleIntervalInMinutes=" + cachePrefetchSampleIntervalInMinutes + "&cachePrefetchSampleEligibilityHitsPerHour=" + cachePrefetchSampleEligibilityHitsPerHour
             + proxy + "&forwarders=" + encodeURIComponent(forwarders) + "&forwarderProtocol=" + forwarderProtocol + "&blockListUrls=" + encodeURIComponent(blockListUrls) + "&blockListUpdateIntervalHours=" + blockListUpdateIntervalHours,
         success: function (responseJSON) {
-            document.title = "Technitium DNS Server " + responseJSON.response.version + " - " + responseJSON.response.serverDomain;
-            $("#lblServerDomain").text(" - " + responseJSON.response.serverDomain);
-            $("#txtServerDomain").val(responseJSON.response.serverDomain);
+            document.title = "Technitium DNS Server " + responseJSON.response.version + " - " + responseJSON.response.dnsServerDomain;
+            $("#lblDnsServerDomain").text(" - " + responseJSON.response.dnsServerDomain);
+            $("#txtDnsServerDomain").val(responseJSON.response.dnsServerDomain);
 
             //fix custom block list url in case port changes
             {
                 var optCustomLocalBlockList = $("#optCustomLocalBlockList");
 
-                optCustomLocalBlockList.attr("value", "http://localhost:" + responseJSON.response.webServicePort + "/blocklist.txt");
-                optCustomLocalBlockList.text("Custom Local Block List (http://localhost:" + responseJSON.response.webServicePort + "/blocklist.txt)");
+                optCustomLocalBlockList.attr("value", "http://localhost:" + responseJSON.response.webServiceHttpPort + "/blocklist.txt");
+                optCustomLocalBlockList.text("Custom Local Block List (http://localhost:" + responseJSON.response.webServiceHttpPort + "/blocklist.txt)");
             }
 
             btn.button('reset');
             showAlert("success", "Settings Saved!", "DNS Server settings were saved successfully.");
+
+            checkForWebConsoleRedirection(responseJSON);
         },
         error: function () {
             btn.button('reset');
@@ -913,6 +992,24 @@ function saveDnsSettings() {
     });
 
     return false;
+}
+
+function checkForWebConsoleRedirection(responseJSON) {
+    var hostname = window.location.hostname;
+
+    var webServiceLocalAddresses = responseJSON.response.webServiceLocalAddresses;
+    if (webServiceLocalAddresses != null) {
+        for (var i = 0; i < webServiceLocalAddresses.length; i++) {
+            if ((webServiceLocalAddresses[i] === "0.0.0.0") || (webServiceLocalAddresses[i] === "[::]") || (webServiceLocalAddresses[i] === window.location.hostname))
+                break;
+
+            hostname = webServiceLocalAddresses[i];
+        }
+    }
+
+    if ((window.location.hostname != hostname) || ((window.location.port != responseJSON.response.webServiceHttpPort) && (window.location.port != responseJSON.response.webServiceTlsPort))) {
+        window.open("http://" + hostname + ":" + responseJSON.response.webServiceHttpPort, "_self");
+    }
 }
 
 function forceUpdateBlockLists() {
@@ -991,8 +1088,10 @@ function refreshDashboard(hideLoader) {
 
             $("#divDashboardStatsTotalClients").text(responseJSON.response.stats.totalClients.toLocaleString());
 
+            $("#divDashboardStatsZones").text(responseJSON.response.stats.zones.toLocaleString());
             $("#divDashboardStatsAllowedZones").text(responseJSON.response.stats.allowedZones.toLocaleString());
             $("#divDashboardStatsBlockedZones").text(responseJSON.response.stats.blockedZones.toLocaleString());
+            $("#divDashboardStatsBlockListZones").text(responseJSON.response.stats.blockListZones.toLocaleString());
 
             if (responseJSON.response.stats.totalQueries > 0) {
                 $("#divDashboardStatsTotalNoErrorPercentage").text((responseJSON.response.stats.totalNoError * 100 / responseJSON.response.stats.totalQueries).toFixed(2) + "%");
@@ -1140,6 +1239,105 @@ function refreshDashboard(hideLoader) {
         },
         objLoaderPlaceholder: divDashboardLoader,
         dontHideAlert: hideLoader
+    });
+
+    return false;
+}
+
+function showTopStats(statsType, limit) {
+    var divTopStatsAlert = $("#divTopStatsAlert");
+    var divTopStatsLoader = $("#divTopStatsLoader");
+
+    $("#tableTopStatsClients").hide();
+    $("#tableTopStatsDomains").hide();
+    $("#tableTopStatsBlockedDomains").hide();
+    divTopStatsLoader.show();
+
+    switch (statsType) {
+        case "TopClients":
+            $("#lblTopStatsTitle").text("Top Clients");
+            break;
+
+        case "TopDomains":
+            $("#lblTopStatsTitle").text("Top Domains");
+            break;
+
+        case "TopBlockedDomains":
+            $("#lblTopStatsTitle").text("Top Blocked Clients");
+            break;
+    }
+
+    $("#modalTopStats").modal("show");
+
+    var type = $('input[name=rdStatType]:checked').val();
+
+    HTTPRequest({
+        url: "/api/getTopStats?token=" + token + "&type=" + type + "&statsType=" + statsType + "&limit=" + limit,
+        success: function (responseJSON) {
+            divTopStatsLoader.hide();
+
+            if (responseJSON.response.topClients != null) {
+                var tableHtmlRows;
+                var topClients = responseJSON.response.topClients;
+
+                if (topClients.length < 1) {
+                    tableHtmlRows = "<tr><td colspan=\"2\" align=\"center\">No Data</td></tr>";
+                }
+                else {
+                    tableHtmlRows = "";
+
+                    for (var i = 0; i < topClients.length; i++) {
+                        tableHtmlRows += "<tr><td>" + htmlEncode(topClients[i].name) + "<br />" + htmlEncode(topClients[i].domain) + "</td><td>" + topClients[i].hits + "</td></tr>";
+                    }
+                }
+
+                $("#tbodyTopStatsClients").html(tableHtmlRows);
+                $("#tableTopStatsClients").show();
+            }
+            else if (responseJSON.response.topDomains != null) {
+                var tableHtmlRows;
+                var topDomains = responseJSON.response.topDomains;
+
+                if (topDomains.length < 1) {
+                    tableHtmlRows = "<tr><td colspan=\"2\" align=\"center\">No Data</td></tr>";
+                }
+                else {
+                    tableHtmlRows = "";
+
+                    for (var i = 0; i < topDomains.length; i++) {
+                        tableHtmlRows += "<tr><td>" + topDomains[i].name + "</td><td>" + topDomains[i].hits + "</td></tr>";
+                    }
+                }
+
+                $("#tbodyTopStatsDomains").html(tableHtmlRows);
+                $("#tableTopStatsDomains").show();
+            }
+            else if (responseJSON.response.topBlockedDomains != null) {
+                var tableHtmlRows;
+                var topBlockedDomains = responseJSON.response.topBlockedDomains;
+
+                if (topBlockedDomains.length < 1) {
+                    tableHtmlRows = "<tr><td colspan=\"2\" align=\"center\">No Data</td></tr>";
+                }
+                else {
+                    tableHtmlRows = "";
+
+                    for (var i = 0; i < topBlockedDomains.length; i++) {
+                        tableHtmlRows += "<tr><td>" + topBlockedDomains[i].name + "</td><td>" + topBlockedDomains[i].hits + "</td></tr>";
+                    }
+                }
+
+                $("#tbodyTopStatsBlockedDomains").html(tableHtmlRows);
+                $("#tableTopStatsBlockedDomains").show();
+            }
+
+            $("#divTopStatsData").animate({ scrollTop: 0 }, "fast");
+        },
+        invalidToken: function () {
+            showPageLogin();
+        },
+        objLoaderPlaceholder: divTopStatsLoader,
+        objAlertPlaceholder: divTopStatsAlert
     });
 
     return false;
@@ -1910,7 +2108,7 @@ function resetBackupSettingsModal() {
     $("#chkBackupBlockedZones").prop("checked", true);
     $("#chkBackupScopes").prop("checked", true);
     $("#chkBackupStats").prop("checked", true);
-    $("#chkBackupLogs").prop("checked", true);
+    $("#chkBackupLogs").prop("checked", false);
     $("#chkBackupBlockLists").prop("checked", true);
 
     return false;
@@ -1954,7 +2152,7 @@ function resetRestoreSettingsModal() {
     $("#chkRestoreBlockedZones").prop("checked", true);
     $("#chkRestoreScopes").prop("checked", true);
     $("#chkRestoreStats").prop("checked", true);
-    $("#chkRestoreLogs").prop("checked", true);
+    $("#chkRestoreLogs").prop("checked", false);
     $("#chkRestoreBlockLists").prop("checked", true);
 
     return false;
@@ -1996,10 +2194,16 @@ function restoreSettings() {
         data: formData,
         dataIsFormData: true,
         success: function (responseJSON) {
+            document.title = "Technitium DNS Server " + responseJSON.response.version + " - " + responseJSON.response.dnsServerDomain;
+            $("#lblDnsServerDomain").text(" - " + responseJSON.response.dnsServerDomain);
+            $("#txtDnsServerDomain").val(responseJSON.response.dnsServerDomain);
+
             $("#modalRestoreSettings").modal("hide");
             btn.button('reset');
 
             showAlert("success", "Restored!", "Settings were restored successfully.");
+
+            checkForWebConsoleRedirection(responseJSON);
         },
         error: function () {
             btn.button('reset');

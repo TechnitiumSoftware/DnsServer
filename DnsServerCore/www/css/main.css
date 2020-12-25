@@ -279,6 +279,11 @@ a {
     margin-bottom: 10px;
 }
 
+    .zone-stats-panel .zones {
+        background-color: rgba(51, 122, 183, 0.7);
+        color: #ffffff;
+    }
+
     .zone-stats-panel .allowed-zones {
         background-color: rgba(51, 122, 183, 0.7);
         color: #ffffff;
@@ -289,8 +294,13 @@ a {
         color: #ffffff;
     }
 
+    .zone-stats-panel .block-list-zones {
+        background-color: rgba(51, 122, 183, 0.7);
+        color: #ffffff;
+    }
+
     .zone-stats-panel .stats-item {
-        width: 49%;
+        width: 24%;
         float: left;
         padding: 6px 10px;
         margin-right: 1%;
