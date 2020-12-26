@@ -38,7 +38,20 @@ namespace DnsServerApp
 
             try
             {
-                service = new WebService(configFolder, new Uri("https://go.technitium.com/?id=21"));
+                Uri updateCheckUri;
+
+                switch (Environment.OSVersion.Platform)
+                {
+                    case PlatformID.Win32NT:
+                        updateCheckUri = new Uri("https://go.technitium.com/?id=20");
+                        break;
+
+                    default:
+                        updateCheckUri = new Uri("https://go.technitium.com/?id=21");
+                        break;
+                }
+
+                service = new WebService(configFolder, updateCheckUri);
                 service.Start();
 
                 Console.CancelKeyPress += delegate (object sender, ConsoleCancelEventArgs e)
@@ -56,7 +69,7 @@ namespace DnsServerApp
                 Console.WriteLine("Technitium DNS Server was started successfully.");
                 Console.WriteLine("Using config folder: " + service.ConfigFolder);
                 Console.WriteLine("");
-                Console.WriteLine("Note: Open http://" + service.WebServiceHostname + ":" + service.WebServicePort + "/ in web browser to access web console.");
+                Console.WriteLine("Note: Open http://" + service.WebServiceHostname + ":" + service.WebServiceHttpPort + "/ in web browser to access web console.");
                 Console.WriteLine("");
                 Console.WriteLine("Press [CTRL + C] to stop...");
 
