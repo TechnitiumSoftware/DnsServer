@@ -1263,7 +1263,7 @@ function showTopStats(statsType, limit) {
             break;
 
         case "TopBlockedDomains":
-            $("#lblTopStatsTitle").text("Top Blocked Clients");
+            $("#lblTopStatsTitle").text("Top Blocked Domains");
             break;
     }
 
