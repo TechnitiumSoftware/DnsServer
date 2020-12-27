@@ -2380,7 +2380,7 @@ namespace DnsServerCore
             {
                 List<KeyValuePair<string, int>> topClients = data["topClients"];
 
-                IDictionary<string, string> clientIpMap = _dhcpServer.GetAddressClientMap();
+                IDictionary<string, string> clientIpMap = await ResolvePtrTopClientsAsync(topClients);
 
                 jsonWriter.WritePropertyName("topClients");
                 jsonWriter.WriteStartArray();
@@ -2392,38 +2392,10 @@ namespace DnsServerCore
                     jsonWriter.WritePropertyName("name");
                     jsonWriter.WriteValue(item.Key);
 
-                    if (clientIpMap.TryGetValue(item.Key, out string clientDomain))
+                    if (clientIpMap.TryGetValue(item.Key, out string clientDomain) && !string.IsNullOrEmpty(clientDomain))
                     {
                         jsonWriter.WritePropertyName("domain");
                         jsonWriter.WriteValue(clientDomain);
-                    }
-                    else
-                    {
-                        IPAddress address = IPAddress.Parse(item.Key);
-
-                        if (IPAddress.IsLoopback(address))
-                        {
-                            jsonWriter.WritePropertyName("domain");
-                            jsonWriter.WriteValue("localhost");
-                        }
-                        else
-                        {
-                            try
-                            {
-                                DnsDatagram ptrResponse = await _dnsServer.DirectQueryAsync(new DnsQuestionRecord(address, DnsClass.IN), 200);
-                                if ((ptrResponse != null) && (ptrResponse.Answer.Count > 0))
-                                {
-                                    IReadOnlyList<string> ptrDomains = DnsClient.ParseResponsePTR(ptrResponse);
-                                    if (ptrDomains != null)
-                                    {
-                                        jsonWriter.WritePropertyName("domain");
-                                        jsonWriter.WriteValue(ptrDomains[0]);
-                                    }
-                                }
-                            }
-                            catch
-                            { }
-                        }
                     }
 
                     jsonWriter.WritePropertyName("hits");
@@ -2559,7 +2531,7 @@ namespace DnsServerCore
             {
                 case TopStatsType.TopClients:
                     {
-                        IDictionary<string, string> clientIpMap = _dhcpServer.GetAddressClientMap();
+                        IDictionary<string, string> clientIpMap = await ResolvePtrTopClientsAsync(topStatsData);
 
                         jsonWriter.WritePropertyName("topClients");
                         jsonWriter.WriteStartArray();
@@ -2571,38 +2543,10 @@ namespace DnsServerCore
                             jsonWriter.WritePropertyName("name");
                             jsonWriter.WriteValue(item.Key);
 
-                            if (clientIpMap.TryGetValue(item.Key, out string clientDomain))
+                            if (clientIpMap.TryGetValue(item.Key, out string clientDomain) && !string.IsNullOrEmpty(clientDomain))
                             {
                                 jsonWriter.WritePropertyName("domain");
                                 jsonWriter.WriteValue(clientDomain);
-                            }
-                            else
-                            {
-                                IPAddress address = IPAddress.Parse(item.Key);
-
-                                if (IPAddress.IsLoopback(address))
-                                {
-                                    jsonWriter.WritePropertyName("domain");
-                                    jsonWriter.WriteValue("localhost");
-                                }
-                                else
-                                {
-                                    try
-                                    {
-                                        DnsDatagram ptrResponse = await _dnsServer.DirectQueryAsync(new DnsQuestionRecord(address, DnsClass.IN), 200);
-                                        if ((ptrResponse != null) && (ptrResponse.Answer.Count > 0))
-                                        {
-                                            IReadOnlyList<string> ptrDomains = DnsClient.ParseResponsePTR(ptrResponse);
-                                            if (ptrDomains != null)
-                                            {
-                                                jsonWriter.WritePropertyName("domain");
-                                                jsonWriter.WriteValue(ptrDomains[0]);
-                                            }
-                                        }
-                                    }
-                                    catch
-                                    { }
-                                }
                             }
 
                             jsonWriter.WritePropertyName("hits");
@@ -2662,6 +2606,56 @@ namespace DnsServerCore
                 default:
                     throw new NotSupportedException();
             }
+        }
+
+        private async Task<IDictionary<string, string>> ResolvePtrTopClientsAsync(List<KeyValuePair<string, int>> topClients)
+        {
+            IDictionary<string, string> dhcpClientIpMap = _dhcpServer.GetAddressClientMap();
+
+            async Task<KeyValuePair<string, string>> ResolvePtrAsync(string ip)
+            {
+                if (dhcpClientIpMap.TryGetValue(ip, out string dhcpDomain))
+                    return new KeyValuePair<string, string>(ip, dhcpDomain);
+
+                IPAddress address = IPAddress.Parse(ip);
+
+                if (IPAddress.IsLoopback(address))
+                    return new KeyValuePair<string, string>(ip, "localhost");
+
+                DnsDatagram ptrResponse = await _dnsServer.DirectQueryAsync(new DnsQuestionRecord(address, DnsClass.IN), 500);
+                if ((ptrResponse != null) && (ptrResponse.Answer.Count > 0))
+                {
+                    IReadOnlyList<string> ptrDomains = DnsClient.ParseResponsePTR(ptrResponse);
+                    if (ptrDomains != null)
+                        return new KeyValuePair<string, string>(ip, ptrDomains[0]);
+                }
+
+                return new KeyValuePair<string, string>(ip, null);
+            }
+
+            List<Task<KeyValuePair<string, string>>> resolverTasks = new List<Task<KeyValuePair<string, string>>>();
+
+            foreach (KeyValuePair<string, int> item in topClients)
+            {
+                resolverTasks.Add(ResolvePtrAsync(item.Key));
+            }
+
+            await Task.WhenAll(resolverTasks);
+
+            Dictionary<string, string> result = new Dictionary<string, string>();
+
+            foreach (Task<KeyValuePair<string, string>> resolverTask in resolverTasks)
+            {
+                try
+                {
+                    KeyValuePair<string, string> ptrResult = await resolverTask;
+                    result[ptrResult.Key] = ptrResult.Value;
+                }
+                catch
+                { }
+            }
+
+            return result;
         }
 
         private void FlushCache(HttpListenerRequest request)
