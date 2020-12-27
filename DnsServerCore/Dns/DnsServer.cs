@@ -354,8 +354,6 @@ namespace DnsServerCore.Dns
             {
                 tcpListener.SendTimeout = _tcpSendTimeout;
                 tcpListener.ReceiveTimeout = _tcpReceiveTimeout;
-                tcpListener.SendBufferSize = 2048;
-                tcpListener.ReceiveBufferSize = 512;
                 tcpListener.NoDelay = true;
 
                 while (true)
