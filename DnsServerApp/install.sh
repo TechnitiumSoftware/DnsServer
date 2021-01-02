@@ -14,7 +14,7 @@ echo "==============================="
 echo "Technitium DNS Server Installer"
 echo "==============================="
 echo ""
-echo "Installing .NET Core Runtime..."
+echo "Installing .NET 5 Runtime..."
 
 curl -sSL https://dot.net/v1/dotnet-install.sh | bash /dev/stdin -c 5.0 --runtime dotnet --no-path --install-dir $dotnetDir --verbose >> $installLog 2>&1
 
@@ -62,29 +62,14 @@ then
 				echo "dns=default" >> /etc/NetworkManager/NetworkManager.conf
 			fi
 		fi
-	else
-		if [ -f "/etc/supervisor/conf.d/dns.conf" ]
-		then
-			echo "Restarting supervisor service..."
-			service supervisor restart >> $installLog 2>&1
-		else
-			echo "Installing supervisor..."
-			
-			until apt-get -y install supervisor >> $installLog 2>&1
-			do
-				echo "Trying again.."
-				sleep 2
-			done
-			
-			echo "Configuring supervisor service..."
-			cp $dnsDir/supervisor.conf /etc/supervisor/conf.d/dns.conf
-			service supervisor restart >> $installLog 2>&1
-		fi
-	fi
 	
-	echo ""
-	echo "Technitium DNS Server was installed succesfully!"
-	echo "Open http://$(hostname):5380/ to access the web console."
+		echo ""
+		echo "Technitium DNS Server was installed succesfully!"
+		echo "Open http://$(hostname):5380/ to access the web console."
+	else
+		echo ""
+		echo "Failed to install Technitium DNS Server: systemd was not detected."
+	fi
 else
 	echo ""
 	echo "Failed to download Technitium DNS Server from: $dnsUrl"
