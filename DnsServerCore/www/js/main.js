@@ -605,7 +605,7 @@ function loadDnsSettings() {
     HTTPRequest({
         url: "/api/getDnsSettings?token=" + token,
         success: function (responseJSON) {
-            document.title = "Technitium DNS Server v" + responseJSON.response.version + " - " + responseJSON.response.serverDomain;
+            document.title = "Technitium DNS Server v" + responseJSON.response.version + " - " + responseJSON.response.dnsServerDomain;
             $("#lblAboutVersion").text(responseJSON.response.version);
 
             $("#txtDnsServerDomain").val(responseJSON.response.dnsServerDomain);
@@ -1255,15 +1255,15 @@ function showTopStats(statsType, limit) {
 
     switch (statsType) {
         case "TopClients":
-            $("#lblTopStatsTitle").text("Top Clients");
+            $("#lblTopStatsTitle").text("Top " + limit + " Clients");
             break;
 
         case "TopDomains":
-            $("#lblTopStatsTitle").text("Top Domains");
+            $("#lblTopStatsTitle").text("Top " + limit + " Domains");
             break;
 
         case "TopBlockedDomains":
-            $("#lblTopStatsTitle").text("Top Blocked Domains");
+            $("#lblTopStatsTitle").text("Top " + limit + " Blocked Domains");
             break;
     }
 
