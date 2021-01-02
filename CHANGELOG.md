@@ -1,5 +1,29 @@
 # Technitium DNS Server Change Log
 
+## Version 5.6
+Release Date: 2 January 2021
+
+- Updated standalone console app to work on .NET 5 and removing standalone .NET Framework app support. .NET 5 update will boost performance of the DNS server on all platforms.
+- Updated DNS and DHCP listener code to use async IO to improve performance.
+- Added HTTPS support for web service that provides the web console access.
+- Added support to change the web service local addresses.
+- Updated the server to allow changing DNS server end points, the web service end points, or enabling DoH or DoT services instantly without need to manually restart the main service. Basically, you do not need to restart the DNS server app at all for applying any kind of settings as all the changes are applied dynamically.
+- Added HTTP compression support in the main web service.
+- Added HTTP compression for downloading block lists.
+- Added option to clear and delete all dashboard stats and auto clean up old stats files from disk
+- Added option to delete all log files and auto clean up old log files from disk.
+- Added configurable option to disable logging, allow logging in local time, and to change log folder path.
+- Added option in settings to define the refresh interval for block lists with a manual option to force refresh all block lists.
+- Added support for exporting backup zip file containing selected items like config files, logs, stats, etc. and allow restoring the backup zip file without restarting the main service.
+- Fixed multiple issues in DHCP server's DNS record management.
+- Fixed bug in DNS server cache prefetching for stub and conditional forwarder zones causing the cached data to be overwritten by the prefetched output from recursive resolution.
+- Fixed html encoding issue in web app.
+- Added option in web app to list top 1000 clients, top domains and top blocked domains.
+- DNS cache serve stale feature made configurable with default serve stale TTL set to 3 days instead of 7 days.
+- Fixed issue in recursive resolver to avoid querying root servers when one of the parent zone's name servers exists in DNS cache.
+- Breaking changes in the `getDnsSettings` and `setDnsSettings` API calls will require API clients to update the code before updating the DNS server.
+- Multiple other minor bug fixes and improvements.
+
 ## Version 5.5
 Release Date: 14 November 2020
 
