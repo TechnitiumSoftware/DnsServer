@@ -2640,8 +2640,6 @@ namespace DnsServerCore
                 resolverTasks.Add(ResolvePtrAsync(item.Key));
             }
 
-            await Task.WhenAll(resolverTasks);
-
             Dictionary<string, string> result = new Dictionary<string, string>();
 
             foreach (Task<KeyValuePair<string, string>> resolverTask in resolverTasks)
