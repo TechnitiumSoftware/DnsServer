@@ -1,6 +1,6 @@
 ﻿/*
 Technitium DNS Server
-Copyright (C) 2019  Shreyas Zare (shreyas@technitium.com)
+Copyright (C) 2021  Shreyas Zare (shreyas@technitium.com)
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -17,7 +17,9 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 */
 
+using System;
 using System.Net;
+using TechnitiumLibrary.Net;
 
 namespace DnsServerCore.Dhcp
 {
@@ -34,6 +36,9 @@ namespace DnsServerCore.Dhcp
 
         public Exclusion(IPAddress startingAddress, IPAddress endingAddress)
         {
+            if (startingAddress.ConvertIpToNumber() >= endingAddress.ConvertIpToNumber())
+                throw new ArgumentException("Exclusion ending address must be greater than starting address.");
+
             _startingAddress = startingAddress;
             _endingAddress = endingAddress;
         }
