@@ -1,6 +1,6 @@
 ﻿/*
 Technitium DNS Server
-Copyright (C) 2020  Shreyas Zare (shreyas@technitium.com)
+Copyright (C) 2021  Shreyas Zare (shreyas@technitium.com)
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -516,7 +516,7 @@ namespace DnsServerCore.Dns.Zones
             if (domain == null)
                 throw new ArgumentNullException(nameof(domain));
 
-            List<string> zones = new List<string>();
+            List<string> subDomains = new List<string>();
 
             byte[] bKey = ConvertToByteKey(domain);
 
@@ -530,18 +530,24 @@ namespace DnsServerCore.Dns.Zones
                 if (value != null)
                 {
                     if (bKey.Length < value.Key.Length)
-                        zones.Add(ConvertKeyToLabel(value.Key, bKey.Length));
+                    {
+                        string label = ConvertKeyToLabel(value.Key, bKey.Length);
+                        if (label != null)
+                            subDomains.Add(label);
+                    }
                 }
                 else if ((current.K == 39) && (current.Depth > closestNode.Depth))
                 {
-                    zones.Add(ConvertKeyToLabel(GetNodeKey(current), bKey.Length));
+                    string label = ConvertKeyToLabel(GetNodeKey(current), bKey.Length);
+                    if (label != null)
+                        subDomains.Add(label);
                 }
 
                 current = GetNextChildZoneNode(current, closestNode.Depth);
             }
             while (current != null);
 
-            return zones;
+            return subDomains;
         }
 
         public T FindZone(string domain, out T delegation, out T authority, out bool hasSubDomains)
