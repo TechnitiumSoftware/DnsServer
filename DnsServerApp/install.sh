@@ -13,14 +13,29 @@ echo ""
 echo "==============================="
 echo "Technitium DNS Server Installer"
 echo "==============================="
-echo ""
-echo "Installing .NET 5 Runtime..."
 
-curl -sSL https://dot.net/v1/dotnet-install.sh | bash /dev/stdin -c 5.0 --runtime dotnet --no-path --install-dir $dotnetDir --verbose >> $installLog 2>&1
-
-if [ ! -f "/usr/bin/dotnet" ]
+if dotnet --list-runtimes 2> /dev/null | grep -q "Microsoft.NETCore.App 5.0."; 
 then
-	ln -s $dotnetDir/dotnet /usr/bin >> $installLog 2>&1
+	echo ""
+	echo ".NET 5 Runtime is already installed."
+else
+	echo ""
+	echo "Installing .NET 5 Runtime..."
+
+	curl -sSL https://dot.net/v1/dotnet-install.sh | bash /dev/stdin -c 5.0 --runtime dotnet --no-path --install-dir $dotnetDir --verbose >> $installLog 2>&1
+
+	if [ ! -f "/usr/bin/dotnet" ]
+	then
+		ln -s $dotnetDir/dotnet /usr/bin >> $installLog 2>&1
+	fi
+
+	if dotnet --list-runtimes 2> /dev/null | grep -q "Microsoft.NETCore.App 5.0."; 
+	then
+		echo ".NET 5 Runtime was installed succesfully!"
+	else
+		echo "Failed to install .NET 5 Runtime. Please try again."
+		exit 1
+	fi
 fi
 
 echo ""
@@ -69,6 +84,7 @@ then
 	else
 		echo ""
 		echo "Failed to install Technitium DNS Server: systemd was not detected."
+		exit 1
 	fi
 else
 	echo ""
