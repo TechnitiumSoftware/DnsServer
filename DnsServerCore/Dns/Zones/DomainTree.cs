@@ -1,6 +1,6 @@
 ﻿/*
 Technitium DNS Server
-Copyright (C) 2020  Shreyas Zare (shreyas@technitium.com)
+Copyright (C) 2021  Shreyas Zare (shreyas@technitium.com)
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -158,7 +158,11 @@ namespace DnsServerCore.Dns.Zones
 
         protected static string ConvertKeyToLabel(byte[] key, int startIndex)
         {
-            byte[] domain = new byte[key.Length - startIndex];
+            int length = key.Length - startIndex;
+            if (length < 1)
+                return null;
+
+            byte[] domain = new byte[length];
             int i;
             int k;
 
