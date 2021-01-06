@@ -5,6 +5,7 @@
 #define TITLE "Technitium DNS Server"
 #define FILES_LOCATION "..\..\DnsService\bin\Release"
 #define TRAYAPP_LOCATION "..\..\DnsServerSystemTrayApp\obj\Release"
+#define TRAYAPP_FILENAME "DnsServerSystemTrayApp.exe"
 
 [Setup]
 PrivilegesRequired=admin
@@ -18,10 +19,13 @@ AppCopyright=Copyright (c) 2021 {#COMPANY}
 AppPublisher={#COMPANY}
 OutputDir=..\Release
 OutputBaseFilename=DnsServiceSetup
+CloseApplications=no
 Compression=lzma2/max
+SetupIconFile=logo.ico
+WizardSmallImageFile=logo.bmp
 
 [Files]
-Source: "{#TRAYAPP_LOCATION}\DnsServerSystemTrayApp.exe"; DestDir: "{app}";
+Source: "{#TRAYAPP_LOCATION}\{#TRAYAPP_FILENAME}"; DestDir: "{app}"; BeforeInstall: KillTrayApp;
 Source: "{#FILES_LOCATION}\*.*"; Excludes: "*.pdb,DnsService.exe"; DestDir: "{app}"; Flags: recursesubdirs;
 Source: "{#FILES_LOCATION}\DnsService.exe"; DestDir: "{app}"; Flags: recursesubdirs; BeforeInstall: DoRemoveService; AfterInstall: DoInstallService;
 

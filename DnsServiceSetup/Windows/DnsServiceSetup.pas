@@ -25,6 +25,18 @@ begin
   Result := true;
 end;
 
+procedure TaskKill(fileName: String);
+var
+    ResultCode: Integer;
+begin
+    Exec(ExpandConstant('taskkill.exe'), '/f /im ' + '"' + fileName + '"', '', SW_HIDE, ewWaitUntilTerminated, ResultCode);
+end;
+
+procedure KillTrayApp; //Kill the tray app. Inno Setup cannot seem to close it through the "Close Applications" dialog.
+begin
+  TaskKill('{#TRAYAPP_FILENAME}');
+end;
+
 procedure DoRemoveService(); //Removes the dns service from the scm
 begin
   if IsServiceInstalled(ExpandConstant('{cm:ServiceName}')) then begin
@@ -32,11 +44,12 @@ begin
     if IsServiceRunning(ExpandConstant('{cm:ServiceName}')) then begin
       Log('Service: Already running');
       StopService(ExpandConstant('{cm:ServiceName}'));
-      Sleep(5000);
+      Sleep(3000);
     end;
 
     Log('Service: Remove');
-    RemoveService(ExpandConstant('{cm:ServiceName}')) 
+    RemoveService(ExpandConstant('{cm:ServiceName}'));
+    Sleep(3000);
   end;
 end;
 
@@ -61,6 +74,7 @@ procedure CurUninstallStepChanged(CurUninstallStep: TUninstallStep);
 begin
   if CurUninstallStep = usUninstall then
   begin
+    KillTrayApp();
     DoRemoveService();
   end;
 end;
