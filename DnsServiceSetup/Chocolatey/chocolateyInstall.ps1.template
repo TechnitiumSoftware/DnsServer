@@ -7,7 +7,7 @@ $packageArgs = @{
 
   file          = $file
 
-  silentArgs    = '/VERYSILENT /SUPPRESSMSGBOXES /NORESTART /SP- /skipnet=true'
+  silentArgs    = "/VERYSILENT /SUPPRESSMSGBOXES /NORESTART /SP- /LOG=`"$($env:TEMP)\$($env:chocolateyPackageName).$($env:chocolateyPackageVersion).Install.log`" /skipnet=true"
   validExitCodes= @(0)
 }
 
