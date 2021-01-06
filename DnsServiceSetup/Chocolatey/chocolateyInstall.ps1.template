@@ -1,0 +1,14 @@
+$toolsDir   = "$(Split-Path -parent $MyInvocation.MyCommand.Definition)"
+$file       =  "$toolsDir/%installfile%"
+
+$packageArgs = @{
+  packageName   = $env:ChocolateyPackageName
+  fileType      = 'EXE' 
+
+  file          = $file
+
+  silentArgs    = '/VERYSILENT /SUPPRESSMSGBOXES /NORESTART /SP- /skipnet=true'
+  validExitCodes= @(0)
+}
+
+Install-ChocolateyInstallPackage @packageArgs
