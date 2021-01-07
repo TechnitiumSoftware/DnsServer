@@ -3,9 +3,15 @@
 #define PRODUCT_VERSION "5.6"
 #define COMPANY "Technitium"
 #define TITLE "Technitium DNS Server"
+
 #define FILES_LOCATION "..\..\DnsService\bin\Release"
 #define TRAYAPP_LOCATION "..\..\DnsServerSystemTrayApp\obj\Release"
 #define TRAYAPP_FILENAME "DnsServerSystemTrayApp.exe"
+
+#define SERVICE_NAME "DnsService"
+#define SERVICE_DISPLAY_NAME "Technitium DNS Server"
+#define SERVICE_DESCRIPTION "Technitium DNS Server"
+#define CONFIG_FOLDER "{app}\config"
 
 [Setup]
 PrivilegesRequired=admin
@@ -33,8 +39,8 @@ Source: "{#FILES_LOCATION}\DnsService.exe"; DestDir: "{app}"; Flags: recursesubd
 Name: "desktopicon"; Description: "Create an icon on the &desktop";
 
 [CustomMessages]
-ServiceName=DnsService
-ServiceDisplayName=Technitium DNS Server
+RemoveConfig=Do you want to remove the configuration files?%n%nClick No to keep your settings.
+RemoveConfigFail=Some configuration files could not be automatically removed.
 ServiceInstallFailure=The DNS Service could not be installed. %1
 ServiceManagerUnavailable=The Service Manager is not available!
 DependenciesDir=.
@@ -47,9 +53,11 @@ Root: HKCU; Subkey: "Software\{#COMPANY}"; Flags: uninsdeletekeyifempty
 Name: "{userprograms}\Technitium DNS Server"; Comment: "DNS Server Tray App"; Filename: "{app}\DnsServerSystemTrayApp.exe"; WorkingDir: "{app}\"; Flags: createonlyiffileexists
 Name: "{userdesktop}\Technitium DNS Server"; Filename: "{app}\DnsServerSystemTrayApp.exe"; WorkingDir: "{app}\"; Flags: createonlyiffileexists; Tasks: desktopicon
 
+;Include the dependency code 
 #include "depend\lang\english.iss"
 #include "depend\products.iss"
 #include "depend\products\dotnet5.iss"
 
 [Code]
+//Include the setup code
 #include "DnsServiceSetup.pas"
