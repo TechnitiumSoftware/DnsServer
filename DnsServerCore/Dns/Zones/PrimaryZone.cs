@@ -60,7 +60,7 @@ namespace DnsServerCore.Dns.Zones
             _dnsServer = dnsServer;
             _internal = @internal;
 
-            DnsSOARecord soa = new DnsSOARecord(primaryNameServer, "hostadmin." + name, 1, 14400, 3600, 604800, 900);
+            DnsSOARecord soa = new DnsSOARecord(primaryNameServer, _name.Length == 0 ? "hostadmin" : "hostadmin." + _name, 1, 14400, 3600, 604800, 900);
 
             _entries[DnsResourceRecordType.SOA] = new DnsResourceRecord[] { new DnsResourceRecord(_name, DnsResourceRecordType.SOA, DnsClass.IN, soa.Refresh, soa) };
             _entries[DnsResourceRecordType.NS] = new DnsResourceRecord[] { new DnsResourceRecord(_name, DnsResourceRecordType.NS, DnsClass.IN, soa.Refresh, new DnsNSRecord(soa.PrimaryNameServer)) };
