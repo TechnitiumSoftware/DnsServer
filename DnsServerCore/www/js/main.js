@@ -1,6 +1,6 @@
 ﻿/*
 Technitium DNS Server
-Copyright (C) 2020  Shreyas Zare (shreyas@technitium.com)
+Copyright (C) 2021  Shreyas Zare (shreyas@technitium.com)
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -605,7 +605,7 @@ function loadDnsSettings() {
     HTTPRequest({
         url: "/api/getDnsSettings?token=" + token,
         success: function (responseJSON) {
-            document.title = "Technitium DNS Server v" + responseJSON.response.version + " - " + responseJSON.response.dnsServerDomain;
+            document.title = responseJSON.response.dnsServerDomain + " - " + "Technitium DNS Server v" + responseJSON.response.version;
             $("#lblAboutVersion").text(responseJSON.response.version);
 
             $("#txtDnsServerDomain").val(responseJSON.response.dnsServerDomain);
@@ -965,7 +965,7 @@ function saveDnsSettings() {
             + "&serveStale=" + serveStale + "&serveStaleTtl=" + serveStaleTtl + "&cachePrefetchEligibility=" + cachePrefetchEligibility + "&cachePrefetchTrigger=" + cachePrefetchTrigger + "&cachePrefetchSampleIntervalInMinutes=" + cachePrefetchSampleIntervalInMinutes + "&cachePrefetchSampleEligibilityHitsPerHour=" + cachePrefetchSampleEligibilityHitsPerHour
             + proxy + "&forwarders=" + encodeURIComponent(forwarders) + "&forwarderProtocol=" + forwarderProtocol + "&blockListUrls=" + encodeURIComponent(blockListUrls) + "&blockListUpdateIntervalHours=" + blockListUpdateIntervalHours,
         success: function (responseJSON) {
-            document.title = "Technitium DNS Server " + responseJSON.response.version + " - " + responseJSON.response.dnsServerDomain;
+            document.title = responseJSON.response.dnsServerDomain + " - " + "Technitium DNS Server v" + responseJSON.response.version;
             $("#lblDnsServerDomain").text(" - " + responseJSON.response.dnsServerDomain);
             $("#txtDnsServerDomain").val(responseJSON.response.dnsServerDomain);
 
@@ -2194,7 +2194,7 @@ function restoreSettings() {
         data: formData,
         dataIsFormData: true,
         success: function (responseJSON) {
-            document.title = "Technitium DNS Server " + responseJSON.response.version + " - " + responseJSON.response.dnsServerDomain;
+            document.title = responseJSON.response.dnsServerDomain + " - " + "Technitium DNS Server v" + responseJSON.response.version;
             $("#lblDnsServerDomain").text(" - " + responseJSON.response.dnsServerDomain);
             $("#txtDnsServerDomain").val(responseJSON.response.dnsServerDomain);
 
