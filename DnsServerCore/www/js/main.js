@@ -1455,11 +1455,7 @@ function refreshCachedZonesList(domain, direction) {
             }
             else {
                 $("#txtCachedZoneViewerTitle").text(newDomain);
-
-                if ((newDomain == "root-servers.net") || newDomain.endsWith(".root-servers.net"))
-                    $("#btnDeleteCachedZone").hide();
-                else
-                    $("#btnDeleteCachedZone").show();
+                $("#btnDeleteCachedZone").show();
             }
 
             if (responseJSON.response.records.length > 0) {
@@ -1585,11 +1581,7 @@ function refreshAllowedZonesList(domain, direction) {
             }
             else {
                 $("#txtAllowedZoneViewerTitle").text(newDomain);
-
-                if ((newDomain == "root-servers.net") || newDomain.endsWith(".root-servers.net"))
-                    $("#btnDeleteAllowedZone").hide();
-                else
-                    $("#btnDeleteAllowedZone").show();
+                $("#btnDeleteAllowedZone").show();
             }
 
             if (responseJSON.response.records.length > 0) {
@@ -1715,11 +1707,7 @@ function refreshBlockedZonesList(domain, direction) {
             }
             else {
                 $("#txtBlockedZoneViewerTitle").text(newDomain);
-
-                if ((newDomain == "root-servers.net") || newDomain.endsWith(".root-servers.net"))
-                    $("#btnDeleteBlockedZone").hide();
-                else
-                    $("#btnDeleteBlockedZone").show();
+                $("#btnDeleteBlockedZone").show();
             }
 
             if (responseJSON.response.records.length > 0) {
