@@ -81,6 +81,9 @@ then
 		echo ""
 		echo "Technitium DNS Server was installed succesfully!"
 		echo "Open http://$(hostname):5380/ to access the web console."
+		echo ""
+		echo "Donate! Make a contribution by becoming a Patron: https://www.patreon.com/technitium"
+		echo ""
 	else
 		echo ""
 		echo "Failed to install Technitium DNS Server: systemd was not detected."
