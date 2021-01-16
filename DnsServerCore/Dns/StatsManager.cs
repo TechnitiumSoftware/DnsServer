@@ -1,6 +1,6 @@
 ﻿/*
 Technitium DNS Server
-Copyright (C) 2020  Shreyas Zare (shreyas@technitium.com)
+Copyright (C) 2021  Shreyas Zare (shreyas@technitium.com)
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -259,7 +259,7 @@ namespace DnsServerCore.Dns
 
                 if ((lastHourlyStats == null) || (lastDateTime.Hour != lastHourlyStatsDateTime.Hour))
                 {
-                    lastHourlyStats = LoadHourlyStats(lastDateTime);
+                    lastHourlyStats = LoadHourlyStats(lastDateTime, true);
                     lastHourlyStatsDateTime = lastDateTime;
                 }
 
@@ -293,7 +293,7 @@ namespace DnsServerCore.Dns
                 if ((lastStatCounter != null) && !lastStatCounter.IsLocked)
                 {
                     //load hourly stats data
-                    HourlyStats hourlyStats = LoadHourlyStats(lastDateTime);
+                    HourlyStats hourlyStats = LoadHourlyStats(lastDateTime, true);
 
                     //update hourly stats file
                     lastStatCounter.Lock();
@@ -345,7 +345,7 @@ namespace DnsServerCore.Dns
             }
         }
 
-        private HourlyStats LoadHourlyStats(DateTime dateTime)
+        private HourlyStats LoadHourlyStats(DateTime dateTime, bool loadQueryStats)
         {
             DateTime hourlyDateTime = new DateTime(dateTime.Year, dateTime.Month, dateTime.Day, dateTime.Hour, 0, 0, 0, DateTimeKind.Utc);
 
@@ -359,7 +359,7 @@ namespace DnsServerCore.Dns
                     {
                         using (FileStream fS = new FileStream(hourlyStatsFile, FileMode.Open, FileAccess.Read))
                         {
-                            hourlyStats = new HourlyStats(new BinaryReader(fS));
+                            hourlyStats = new HourlyStats(new BinaryReader(fS), loadQueryStats);
                         }
                     }
                     catch (Exception ex)
@@ -400,7 +400,7 @@ namespace DnsServerCore.Dns
                     {
                         using (FileStream fS = new FileStream(dailyStatsFile, FileMode.Open, FileAccess.Read))
                         {
-                            dailyStats = new StatCounter(new BinaryReader(fS));
+                            dailyStats = new StatCounter(new BinaryReader(fS), false);
                         }
                     }
                     catch (Exception ex)
@@ -418,7 +418,7 @@ namespace DnsServerCore.Dns
 
                     for (int hour = 0; hour < 24; hour++) //hours
                     {
-                        HourlyStats hourlyStats = LoadHourlyStats(dailyDateTime.AddHours(hour));
+                        HourlyStats hourlyStats = LoadHourlyStats(dailyDateTime.AddHours(hour), false);
                         dailyStats.Merge(hourlyStats.HourStat);
                     }
 
@@ -681,7 +681,7 @@ namespace DnsServerCore.Dns
                 DateTime lastDateTime = lastDayDateTime.AddHours(hour);
                 string label = lastDateTime.ToLocalTime().ToString("MM/dd HH") + ":00";
 
-                HourlyStats hourlyStats = LoadHourlyStats(lastDateTime);
+                HourlyStats hourlyStats = LoadHourlyStats(lastDateTime, false);
                 StatCounter hourlyStatCounter = hourlyStats.HourStat;
 
                 totalStatCounter.Merge(hourlyStatCounter);
@@ -1052,7 +1052,7 @@ namespace DnsServerCore.Dns
             {
                 DateTime lastDateTime = lastDayDateTime.AddHours(hour);
 
-                HourlyStats hourlyStats = LoadHourlyStats(lastDateTime);
+                HourlyStats hourlyStats = LoadHourlyStats(lastDateTime, false);
                 StatCounter hourlyStatCounter = hourlyStats.HourStat;
 
                 totalStatCounter.Merge(hourlyStatCounter);
@@ -1220,7 +1220,7 @@ namespace DnsServerCore.Dns
                 _hourStat.Lock();
             }
 
-            public HourlyStats(BinaryReader bR)
+            public HourlyStats(BinaryReader bR, bool loadQueryStats)
             {
                 if (Encoding.ASCII.GetString(bR.ReadBytes(2)) != "HS") //format
                     throw new InvalidDataException("HourlyStats format is invalid.");
@@ -1234,7 +1234,7 @@ namespace DnsServerCore.Dns
 
                         for (int i = 0; i < _minuteStats.Length; i++)
                         {
-                            _minuteStats[i] = new StatCounter(bR);
+                            _minuteStats[i] = new StatCounter(bR, loadQueryStats);
                             _hourStat.Merge(_minuteStats[i]);
                         }
 
@@ -1320,7 +1320,7 @@ namespace DnsServerCore.Dns
             public StatCounter()
             { }
 
-            public StatCounter(BinaryReader bR)
+            public StatCounter(BinaryReader bR, bool loadQueryStats)
             {
                 if (Encoding.ASCII.GetString(bR.ReadBytes(2)) != "SC") //format
                     throw new InvalidDataException("StatCounter format is invalid.");
@@ -1331,6 +1331,7 @@ namespace DnsServerCore.Dns
                     case 1:
                     case 2:
                     case 3:
+                    case 4:
                         _totalQueries = bR.ReadInt32();
                         _totalNoError = bR.ReadInt32();
                         _totalServerFailure = bR.ReadInt32();
@@ -1374,6 +1375,16 @@ namespace DnsServerCore.Dns
                             int count = bR.ReadInt32();
                             for (int i = 0; i < count; i++)
                                 _clientIpAddresses.TryAdd(IPAddressExtension.Parse(bR), new Counter(bR.ReadInt32()));
+                        }
+
+                        if (version >= 4)
+                        {
+                            if (loadQueryStats)
+                            {
+                                int count = bR.ReadInt32();
+                                for (int i = 0; i < count; i++)
+                                    _queries.TryAdd(new DnsQuestionRecord(bR.BaseStream), new Counter(bR.ReadInt32()));
+                            }
                         }
                         break;
 
@@ -1514,7 +1525,7 @@ namespace DnsServerCore.Dns
                     throw new DnsServerException("StatCounter must be locked.");
 
                 bW.Write(Encoding.ASCII.GetBytes("SC")); //format
-                bW.Write((byte)3); //version
+                bW.Write((byte)4); //version
 
                 bW.Write(_totalQueries);
                 bW.Write(_totalNoError);
@@ -1560,6 +1571,15 @@ namespace DnsServerCore.Dns
                     {
                         clientIpAddress.Key.WriteTo(bW);
                         bW.Write(clientIpAddress.Value.Count);
+                    }
+                }
+
+                {
+                    bW.Write(_queries.Count);
+                    foreach (KeyValuePair<DnsQuestionRecord, Counter> query in _queries)
+                    {
+                        query.Key.WriteTo(bW.BaseStream, null);
+                        bW.Write(query.Value.Count);
                     }
                 }
             }
