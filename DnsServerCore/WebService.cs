@@ -1884,6 +1884,8 @@ namespace DnsServerCore
             bool dnsSettings = false;
             bool logSettings = false;
 
+            bool deleteExistingFiles = false;
+
             string strBlockLists = request.QueryString["blockLists"];
             if (!string.IsNullOrEmpty(strBlockLists))
                 blockLists = bool.Parse(strBlockLists);
@@ -1919,6 +1921,10 @@ namespace DnsServerCore
             string strLogSettings = request.QueryString["logSettings"];
             if (!string.IsNullOrEmpty(strLogSettings))
                 logSettings = bool.Parse(strLogSettings);
+
+            string strDeleteExistingFiles = request.QueryString["deleteExistingFiles"];
+            if (!string.IsNullOrEmpty(strDeleteExistingFiles))
+                deleteExistingFiles = bool.Parse(strDeleteExistingFiles);
 
             #region skip to content
 
@@ -1977,11 +1983,14 @@ namespace DnsServerCore
 
                             if (logs)
                             {
-                                //delete existing log files
-                                string[] logFiles = Directory.GetFiles(_log.LogFolderAbsolutePath, "*.log", SearchOption.TopDirectoryOnly);
-                                foreach (string logFile in logFiles)
+                                if (deleteExistingFiles)
                                 {
-                                    File.Delete(logFile);
+                                    //delete existing log files
+                                    string[] logFiles = Directory.GetFiles(_log.LogFolderAbsolutePath, "*.log", SearchOption.TopDirectoryOnly);
+                                    foreach (string logFile in logFiles)
+                                    {
+                                        File.Delete(logFile);
+                                    }
                                 }
 
                                 //extract log files from backup
@@ -2004,11 +2013,14 @@ namespace DnsServerCore
 
                         if (blockLists)
                         {
-                            //delete existing block list files
-                            string[] blockListFiles = Directory.GetFiles(Path.Combine(_configFolder, "blocklists"), "*", SearchOption.TopDirectoryOnly);
-                            foreach (string blockListFile in blockListFiles)
+                            if (deleteExistingFiles)
                             {
-                                File.Delete(blockListFile);
+                                //delete existing block list files
+                                string[] blockListFiles = Directory.GetFiles(Path.Combine(_configFolder, "blocklists"), "*", SearchOption.TopDirectoryOnly);
+                                foreach (string blockListFile in blockListFiles)
+                                {
+                                    File.Delete(blockListFile);
+                                }
                             }
 
                             //extract block list files from backup
@@ -2026,11 +2038,14 @@ namespace DnsServerCore
 
                             try
                             {
-                                //delete existing scope files
-                                string[] scopeFiles = Directory.GetFiles(Path.Combine(_configFolder, "scopes"), "*.scope", SearchOption.TopDirectoryOnly);
-                                foreach (string scopeFile in scopeFiles)
+                                if (deleteExistingFiles)
                                 {
-                                    File.Delete(scopeFile);
+                                    //delete existing scope files
+                                    string[] scopeFiles = Directory.GetFiles(Path.Combine(_configFolder, "scopes"), "*.scope", SearchOption.TopDirectoryOnly);
+                                    foreach (string scopeFile in scopeFiles)
+                                    {
+                                        File.Delete(scopeFile);
+                                    }
                                 }
 
                                 //extract scope files from backup
@@ -2049,17 +2064,20 @@ namespace DnsServerCore
 
                         if (stats)
                         {
-                            //delete existing stats files
-                            string[] hourlyStatsFiles = Directory.GetFiles(Path.Combine(_configFolder, "stats"), "*.stat", SearchOption.TopDirectoryOnly);
-                            foreach (string hourlyStatsFile in hourlyStatsFiles)
+                            if (deleteExistingFiles)
                             {
-                                File.Delete(hourlyStatsFile);
-                            }
+                                //delete existing stats files
+                                string[] hourlyStatsFiles = Directory.GetFiles(Path.Combine(_configFolder, "stats"), "*.stat", SearchOption.TopDirectoryOnly);
+                                foreach (string hourlyStatsFile in hourlyStatsFiles)
+                                {
+                                    File.Delete(hourlyStatsFile);
+                                }
 
-                            string[] dailyStatsFiles = Directory.GetFiles(Path.Combine(_configFolder, "stats"), "*.dstat", SearchOption.TopDirectoryOnly);
-                            foreach (string dailyStatsFile in dailyStatsFiles)
-                            {
-                                File.Delete(dailyStatsFile);
+                                string[] dailyStatsFiles = Directory.GetFiles(Path.Combine(_configFolder, "stats"), "*.dstat", SearchOption.TopDirectoryOnly);
+                                foreach (string dailyStatsFile in dailyStatsFiles)
+                                {
+                                    File.Delete(dailyStatsFile);
+                                }
                             }
 
                             //extract stats files from backup
@@ -2075,11 +2093,14 @@ namespace DnsServerCore
 
                         if (zones)
                         {
-                            //delete existing zone files
-                            string[] zoneFiles = Directory.GetFiles(Path.Combine(_configFolder, "zones"), "*.zone", SearchOption.TopDirectoryOnly);
-                            foreach (string zoneFile in zoneFiles)
+                            if (deleteExistingFiles)
                             {
-                                File.Delete(zoneFile);
+                                //delete existing zone files
+                                string[] zoneFiles = Directory.GetFiles(Path.Combine(_configFolder, "zones"), "*.zone", SearchOption.TopDirectoryOnly);
+                                foreach (string zoneFile in zoneFiles)
+                                {
+                                    File.Delete(zoneFile);
+                                }
                             }
 
                             //extract zone files from backup
