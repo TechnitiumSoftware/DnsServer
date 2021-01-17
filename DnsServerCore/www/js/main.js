@@ -2144,6 +2144,7 @@ function resetRestoreSettingsModal() {
     $("#chkRestoreStats").prop("checked", true);
     $("#chkRestoreLogs").prop("checked", false);
     $("#chkRestoreBlockLists").prop("checked", true);
+    $("#chkDeleteExistingFiles").prop("checked", true);
 
     return false;
 }
@@ -2169,6 +2170,8 @@ function restoreSettings() {
     var dnsSettings = $("#chkRestoreDnsSettings").prop('checked');
     var logSettings = $("#chkRestoreLogSettings").prop('checked');
 
+    var deleteExistingFiles = $("#chkDeleteExistingFiles").prop('checked');
+
     if (!blockLists && !logs && !scopes && !stats && !zones && !allowedZones && !blockedZones && !dnsSettings && !logSettings) {
         showAlert("warning", "Missing!", "Please select at least one item to restore.", divRestoreSettingsAlert);
         return false;
@@ -2180,7 +2183,7 @@ function restoreSettings() {
     var btn = $("#btnRestoreSettings").button('loading');
 
     HTTPRequest({
-        url: "/api/restoreSettings?token=" + token + "&blockLists=" + blockLists + "&logs=" + logs + "&scopes=" + scopes + "&stats=" + stats + "&zones=" + zones + "&allowedZones=" + allowedZones + "&blockedZones=" + blockedZones + "&dnsSettings=" + dnsSettings + "&logSettings=" + logSettings,
+        url: "/api/restoreSettings?token=" + token + "&blockLists=" + blockLists + "&logs=" + logs + "&scopes=" + scopes + "&stats=" + stats + "&zones=" + zones + "&allowedZones=" + allowedZones + "&blockedZones=" + blockedZones + "&dnsSettings=" + dnsSettings + "&logSettings=" + logSettings + "&deleteExistingFiles=" + deleteExistingFiles,
         data: formData,
         dataIsFormData: true,
         success: function (responseJSON) {
