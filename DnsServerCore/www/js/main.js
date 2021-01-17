@@ -1054,6 +1054,86 @@ function cleanTextList(text) {
     return text;
 }
 
+function updateChart(chart, data, filterChanged) {
+    if (!filterChanged || chart.data.labels.length == data.labels.length) {
+        chart.data.datasets.forEach(function(each, index) {
+            each.data = data.datasets[index].data;
+        });
+    } else { //If filter changed or labels differ then reload dataset
+        chart.data = data;
+        chart.update();
+        loadChartLegendSettings(chart); //Reload the chart legend
+    }
+    chart.update();
+}
+
+function loadChartLegendSettings(chart) {
+    var labelFilters = localStorage.getItem("chart_" + chart.id +"_legend");
+    if (labelFilters != null) {
+        labelFilters = JSON.parse(labelFilters);
+        if (chart.config.type == "doughnut" || chart.config.type == "pie") {
+            chart.data.labels.forEach((label, index) => {
+                let labelFilter = labelFilters.filter(function (f) {
+                    return f.title == this.toString();
+                }, label);
+                if (labelFilter.length > 0) {
+                    chart.getDatasetMeta(0).data[index].hidden = labelFilter[0].hidden;
+                }
+            });
+        } else {
+            chart.data.datasets.forEach((data, index) => {
+                let labelFilter = labelFilters.filter(function (f) {
+                    return f.title == this.toString();
+                }, data.label);
+                if (labelFilter.length > 0) {
+                    chart.getDatasetMeta(index).hidden = labelFilter[0].hidden;
+                }
+            });
+        }
+		chart.update();
+    }
+}
+
+function saveChartLegendSettings(chart) {
+    var labelFilters = [];
+    if (chart.config.type == "doughnut" || chart.config.type == "pie") {
+        chart.data.labels.forEach((label, index) => {
+            var hidden = chart.getDatasetMeta(0).data[index].hidden;
+            labelFilters.push(
+                {
+                    title: label,
+                    hidden: hidden
+                }
+            );
+        });
+        
+    } else {
+        chart.data.datasets.forEach((data, index) => {
+            var hidden = chart.getDatasetMeta(index).hidden;
+            labelFilters.push(
+                {
+                    title: data.label,
+                    hidden: hidden
+                }
+            );
+        });
+    }
+    localStorage.setItem("chart_" + chart.id + "_legend", JSON.stringify(labelFilters));
+}
+
+var chartLegendOnClick = function (e, legendItem) {
+	var chartType = this.chart.config.type;
+	if (chartType == "doughnut") {
+		Chart.defaults.doughnut.legend.onClick.call(this, e, legendItem);
+	} else if (chartType == "pie") {
+		Chart.defaults.pie.legend.onClick.call(this, e, legendItem);
+	} else {
+		Chart.defaults.global.legend.onClick.call(this, e, legendItem);
+	}
+	saveChartLegendSettings(this.chart);
+}
+
+var lastStatType = "";
 function refreshDashboard(hideLoader) {
 
     if (!$("#mainPanelTabPaneDashboard").hasClass("active"))
@@ -1071,6 +1151,8 @@ function refreshDashboard(hideLoader) {
     }
 
     var type = $('input[name=rdStatType]:checked').val();
+
+    var filterChanged = type != lastStatType;
 
     HTTPRequest({
         url: "/api/getStats?token=" + token + "&type=" + type,
@@ -1137,13 +1219,17 @@ function refreshDashboard(hideLoader) {
                                     beginAtZero: true
                                 }
                             }]
-                        }
+                        },
+						legend: {
+							onClick: chartLegendOnClick
+						}
                     }
                 });
+
+                loadChartLegendSettings(window.chartDashboardMain);
             }
             else {
-                window.chartDashboardMain.data = responseJSON.response.mainChartData;
-                window.chartDashboardMain.update();
+                updateChart(window.chartDashboardMain, responseJSON.response.mainChartData, filterChanged);
             }
 
             //query response chart
@@ -1152,12 +1238,18 @@ function refreshDashboard(hideLoader) {
 
                 window.chartDashboardPie = new Chart(contextDashboardPie, {
                     type: 'doughnut',
-                    data: responseJSON.response.queryResponseChartData
+                    data: responseJSON.response.queryResponseChartData,
+					options: {
+						legend: {
+							onClick: chartLegendOnClick
+						}
+					}
                 });
+
+                loadChartLegendSettings(window.chartDashboardPie);
             }
             else {
-                window.chartDashboardPie.data = responseJSON.response.queryResponseChartData;
-                window.chartDashboardPie.update();
+                updateChart(window.chartDashboardPie, responseJSON.response.queryResponseChartData, filterChanged);
             }
 
             //query type chart
@@ -1166,12 +1258,18 @@ function refreshDashboard(hideLoader) {
 
                 window.chartDashboardPie2 = new Chart(contextDashboardPie2, {
                     type: 'doughnut',
-                    data: responseJSON.response.queryTypeChartData
+                    data: responseJSON.response.queryTypeChartData,
+					options: {
+						legend: {
+							onClick: chartLegendOnClick
+						}
+					}
                 });
+
+                loadChartLegendSettings(window.chartDashboardPie2);
             }
             else {
-                window.chartDashboardPie2.data = responseJSON.response.queryTypeChartData;
-                window.chartDashboardPie2.update();
+                updateChart(window.chartDashboardPie2, responseJSON.response.queryTypeChartData, filterChanged);
             }
 
             //top clients
@@ -1242,6 +1340,8 @@ function refreshDashboard(hideLoader) {
         objLoaderPlaceholder: divDashboardLoader,
         dontHideAlert: hideLoader
     });
+
+    lastStatType = type;
 
     return false;
 }
