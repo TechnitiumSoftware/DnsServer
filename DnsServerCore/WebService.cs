@@ -1,6 +1,6 @@
 ﻿/*
 Technitium DNS Server
-Copyright (C) 2020  Shreyas Zare (shreyas@technitium.com)
+Copyright (C) 2021  Shreyas Zare (shreyas@technitium.com)
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -1098,6 +1098,9 @@ namespace DnsServerCore
             jsonWriter.WritePropertyName("maxLogFileDays");
             jsonWriter.WriteValue(_log.MaxLogFileDays);
 
+            jsonWriter.WritePropertyName("maxStatFileDays");
+            jsonWriter.WriteValue(_dnsServer.StatsManager.MaxStatFileDays);
+
             jsonWriter.WritePropertyName("allowRecursion");
             jsonWriter.WriteValue(_dnsServer.AllowRecursion);
 
@@ -1443,6 +1446,10 @@ namespace DnsServerCore
             string strMaxLogFileDays = request.QueryString["maxLogFileDays"];
             if (!string.IsNullOrEmpty(strMaxLogFileDays))
                 _log.MaxLogFileDays = int.Parse(strMaxLogFileDays);
+
+            string strMaxStatFileDays = request.QueryString["maxStatFileDays"];
+            if (!string.IsNullOrEmpty(strMaxStatFileDays))
+                _dnsServer.StatsManager.MaxStatFileDays = int.Parse(strMaxStatFileDays);
 
             string strAllowRecursion = request.QueryString["allowRecursion"];
             if (!string.IsNullOrEmpty(strAllowRecursion))
@@ -5218,6 +5225,7 @@ namespace DnsServerCore
                         case 11:
                         case 12:
                         case 13:
+                        case 14:
                             _dnsServer.ServerDomain = bR.ReadShortString();
                             _webServiceHttpPort = bR.ReadInt32();
 
@@ -5264,6 +5272,9 @@ namespace DnsServerCore
 
                             if (bR.ReadBoolean()) //logQueries
                                 _dnsServer.QueryLogManager = _log;
+
+                            if (version >= 14)
+                                _dnsServer.StatsManager.MaxStatFileDays = bR.ReadInt32();
 
                             _dnsServer.AllowRecursion = bR.ReadBoolean();
 
@@ -5504,7 +5515,7 @@ namespace DnsServerCore
                 BinaryWriter bW = new BinaryWriter(mS);
 
                 bW.Write(Encoding.ASCII.GetBytes("DS")); //format
-                bW.Write((byte)13); //version
+                bW.Write((byte)14); //version
 
                 bW.WriteShortString(_dnsServer.ServerDomain);
                 bW.Write(_webServiceHttpPort);
@@ -5533,6 +5544,7 @@ namespace DnsServerCore
                 bW.Write(_dnsServer.PreferIPv6);
 
                 bW.Write(_dnsServer.QueryLogManager != null); //logQueries
+                bW.Write(_dnsServer.StatsManager.MaxStatFileDays);
 
                 bW.Write(_dnsServer.AllowRecursion);
                 bW.Write(_dnsServer.AllowRecursionOnlyForPrivateNetworks);
