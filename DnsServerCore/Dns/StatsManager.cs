@@ -75,6 +75,7 @@ namespace DnsServerCore.Dns
         readonly Thread _consumerThread;
 
         readonly Timer _statsCleanupTimer;
+        int _maxStatFileDays = 0;
         const int STATS_CLEANUP_TIMER_INITIAL_INTERVAL = 60 * 1000;
         const int STATS_CLEANUP_TIMER_PERIODIC_INTERVAL = 60 * 60 * 1000;
 
@@ -139,7 +140,10 @@ namespace DnsServerCore.Dns
             {
                 try
                 {
-                    DateTime cutoffDate = DateTime.UtcNow.AddDays(365 * -1).Date;
+                    if (_maxStatFileDays < 1)
+                        return;
+
+                    DateTime cutoffDate = DateTime.UtcNow.AddDays(_maxStatFileDays * -1).Date;
                     LogManager log = dnsServer.LogManager;
 
                     //delete hourly logs
@@ -259,7 +263,7 @@ namespace DnsServerCore.Dns
 
                 if ((lastHourlyStats == null) || (lastDateTime.Hour != lastHourlyStatsDateTime.Hour))
                 {
-                    lastHourlyStats = LoadHourlyStats(lastDateTime, true);
+                    lastHourlyStats = LoadHourlyStats(lastDateTime);
                     lastHourlyStatsDateTime = lastDateTime;
                 }
 
@@ -293,7 +297,7 @@ namespace DnsServerCore.Dns
                 if ((lastStatCounter != null) && !lastStatCounter.IsLocked)
                 {
                     //load hourly stats data
-                    HourlyStats hourlyStats = LoadHourlyStats(lastDateTime, true);
+                    HourlyStats hourlyStats = LoadHourlyStats(lastDateTime);
 
                     //update hourly stats file
                     lastStatCounter.Lock();
@@ -345,7 +349,7 @@ namespace DnsServerCore.Dns
             }
         }
 
-        private HourlyStats LoadHourlyStats(DateTime dateTime, bool loadQueryStats)
+        private HourlyStats LoadHourlyStats(DateTime dateTime)
         {
             DateTime hourlyDateTime = new DateTime(dateTime.Year, dateTime.Month, dateTime.Day, dateTime.Hour, 0, 0, 0, DateTimeKind.Utc);
 
@@ -359,7 +363,7 @@ namespace DnsServerCore.Dns
                     {
                         using (FileStream fS = new FileStream(hourlyStatsFile, FileMode.Open, FileAccess.Read))
                         {
-                            hourlyStats = new HourlyStats(new BinaryReader(fS), loadQueryStats);
+                            hourlyStats = new HourlyStats(new BinaryReader(fS));
                         }
                     }
                     catch (Exception ex)
@@ -400,7 +404,7 @@ namespace DnsServerCore.Dns
                     {
                         using (FileStream fS = new FileStream(dailyStatsFile, FileMode.Open, FileAccess.Read))
                         {
-                            dailyStats = new StatCounter(new BinaryReader(fS), false);
+                            dailyStats = new StatCounter(new BinaryReader(fS));
                         }
                     }
                     catch (Exception ex)
@@ -418,7 +422,7 @@ namespace DnsServerCore.Dns
 
                     for (int hour = 0; hour < 24; hour++) //hours
                     {
-                        HourlyStats hourlyStats = LoadHourlyStats(dailyDateTime.AddHours(hour), false);
+                        HourlyStats hourlyStats = LoadHourlyStats(dailyDateTime.AddHours(hour));
                         dailyStats.Merge(hourlyStats.HourStat);
                     }
 
@@ -681,7 +685,7 @@ namespace DnsServerCore.Dns
                 DateTime lastDateTime = lastDayDateTime.AddHours(hour);
                 string label = lastDateTime.ToLocalTime().ToString("MM/dd HH") + ":00";
 
-                HourlyStats hourlyStats = LoadHourlyStats(lastDateTime, false);
+                HourlyStats hourlyStats = LoadHourlyStats(lastDateTime);
                 StatCounter hourlyStatCounter = hourlyStats.HourStat;
 
                 totalStatCounter.Merge(hourlyStatCounter);
@@ -1052,7 +1056,7 @@ namespace DnsServerCore.Dns
             {
                 DateTime lastDateTime = lastDayDateTime.AddHours(hour);
 
-                HourlyStats hourlyStats = LoadHourlyStats(lastDateTime, false);
+                HourlyStats hourlyStats = LoadHourlyStats(lastDateTime);
                 StatCounter hourlyStatCounter = hourlyStats.HourStat;
 
                 totalStatCounter.Merge(hourlyStatCounter);
@@ -1203,6 +1207,16 @@ namespace DnsServerCore.Dns
 
         #endregion
 
+        #region properties
+
+        public int MaxStatFileDays
+        {
+            get { return _maxStatFileDays; }
+            set { _maxStatFileDays = value; }
+        }
+
+        #endregion
+
         class HourlyStats
         {
             #region variables
@@ -1220,7 +1234,7 @@ namespace DnsServerCore.Dns
                 _hourStat.Lock();
             }
 
-            public HourlyStats(BinaryReader bR, bool loadQueryStats)
+            public HourlyStats(BinaryReader bR)
             {
                 if (Encoding.ASCII.GetString(bR.ReadBytes(2)) != "HS") //format
                     throw new InvalidDataException("HourlyStats format is invalid.");
@@ -1234,7 +1248,7 @@ namespace DnsServerCore.Dns
 
                         for (int i = 0; i < _minuteStats.Length; i++)
                         {
-                            _minuteStats[i] = new StatCounter(bR, loadQueryStats);
+                            _minuteStats[i] = new StatCounter(bR);
                             _hourStat.Merge(_minuteStats[i]);
                         }
 
@@ -1320,7 +1334,7 @@ namespace DnsServerCore.Dns
             public StatCounter()
             { }
 
-            public StatCounter(BinaryReader bR, bool loadQueryStats)
+            public StatCounter(BinaryReader bR)
             {
                 if (Encoding.ASCII.GetString(bR.ReadBytes(2)) != "SC") //format
                     throw new InvalidDataException("StatCounter format is invalid.");
@@ -1379,12 +1393,9 @@ namespace DnsServerCore.Dns
 
                         if (version >= 4)
                         {
-                            if (loadQueryStats)
-                            {
-                                int count = bR.ReadInt32();
-                                for (int i = 0; i < count; i++)
-                                    _queries.TryAdd(new DnsQuestionRecord(bR.BaseStream), new Counter(bR.ReadInt32()));
-                            }
+                            int count = bR.ReadInt32();
+                            for (int i = 0; i < count; i++)
+                                _queries.TryAdd(new DnsQuestionRecord(bR.BaseStream), new Counter(bR.ReadInt32()));
                         }
                         break;
 
