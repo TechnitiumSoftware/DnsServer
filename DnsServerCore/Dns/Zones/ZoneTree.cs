@@ -529,7 +529,7 @@ namespace DnsServerCore.Dns.Zones
                 value = current.Value;
                 if (value != null)
                 {
-                    if (bKey.Length < value.Key.Length)
+                    if (IsKeySubDomain(bKey, value.Key))
                     {
                         string label = ConvertKeyToLabel(value.Key, bKey.Length);
                         if (label != null)
@@ -538,9 +538,13 @@ namespace DnsServerCore.Dns.Zones
                 }
                 else if ((current.K == 39) && (current.Depth > closestNode.Depth))
                 {
-                    string label = ConvertKeyToLabel(GetNodeKey(current), bKey.Length);
-                    if (label != null)
-                        subDomains.Add(label);
+                    byte[] nodeKey = GetNodeKey(current);
+                    if (IsKeySubDomain(bKey, nodeKey))
+                    {
+                        string label = ConvertKeyToLabel(nodeKey, bKey.Length);
+                        if (label != null)
+                            subDomains.Add(label);
+                    }
                 }
 
                 current = GetNextChildZoneNode(current, closestNode.Depth);
