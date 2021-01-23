@@ -592,9 +592,10 @@ namespace DnsServerCore
                         response.ContentEncoding = Encoding.UTF8;
                         response.ContentLength64 = mS.Length;
 
+                        mS.Position = 0;
                         using (Stream stream = response.OutputStream)
                         {
-                            mS.WriteTo(response.OutputStream);
+                            await mS.CopyToAsync(stream);
                         }
                     }
                 }
