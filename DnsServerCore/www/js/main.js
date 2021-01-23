@@ -1056,7 +1056,7 @@ function cleanTextList(text) {
 
 function updateChart(chart, data, filterChanged) {
     if (!filterChanged || chart.data.labels.length == data.labels.length) {
-        chart.data.datasets.forEach(function(each, index) {
+        chart.data.datasets.forEach(function (each, index) {
             each.data = data.datasets[index].data;
         });
     } else { //If filter changed or labels differ then reload dataset
@@ -1068,7 +1068,7 @@ function updateChart(chart, data, filterChanged) {
 }
 
 function loadChartLegendSettings(chart) {
-    var labelFilters = localStorage.getItem("chart_" + chart.id +"_legend");
+    var labelFilters = localStorage.getItem("chart_" + chart.id + "_legend");
     if (labelFilters != null) {
         labelFilters = JSON.parse(labelFilters);
         if (chart.config.type == "doughnut" || chart.config.type == "pie") {
@@ -1090,7 +1090,7 @@ function loadChartLegendSettings(chart) {
                 }
             });
         }
-		chart.update();
+        chart.update();
     }
 }
 
@@ -1106,7 +1106,7 @@ function saveChartLegendSettings(chart) {
                 }
             );
         });
-        
+
     } else {
         chart.data.datasets.forEach((data, index) => {
             var hidden = chart.getDatasetMeta(index).hidden;
@@ -1122,15 +1122,15 @@ function saveChartLegendSettings(chart) {
 }
 
 var chartLegendOnClick = function (e, legendItem) {
-	var chartType = this.chart.config.type;
-	if (chartType == "doughnut") {
-		Chart.defaults.doughnut.legend.onClick.call(this, e, legendItem);
-	} else if (chartType == "pie") {
-		Chart.defaults.pie.legend.onClick.call(this, e, legendItem);
-	} else {
-		Chart.defaults.global.legend.onClick.call(this, e, legendItem);
-	}
-	saveChartLegendSettings(this.chart);
+    var chartType = this.chart.config.type;
+    if (chartType == "doughnut") {
+        Chart.defaults.doughnut.legend.onClick.call(this, e, legendItem);
+    } else if (chartType == "pie") {
+        Chart.defaults.pie.legend.onClick.call(this, e, legendItem);
+    } else {
+        Chart.defaults.global.legend.onClick.call(this, e, legendItem);
+    }
+    saveChartLegendSettings(this.chart);
 }
 
 var lastStatType = "";
@@ -1220,9 +1220,9 @@ function refreshDashboard(hideLoader) {
                                 }
                             }]
                         },
-						legend: {
-							onClick: chartLegendOnClick
-						}
+                        legend: {
+                            onClick: chartLegendOnClick
+                        }
                     }
                 });
 
@@ -1239,11 +1239,11 @@ function refreshDashboard(hideLoader) {
                 window.chartDashboardPie = new Chart(contextDashboardPie, {
                     type: 'doughnut',
                     data: responseJSON.response.queryResponseChartData,
-					options: {
-						legend: {
-							onClick: chartLegendOnClick
-						}
-					}
+                    options: {
+                        legend: {
+                            onClick: chartLegendOnClick
+                        }
+                    }
                 });
 
                 loadChartLegendSettings(window.chartDashboardPie);
@@ -1259,11 +1259,11 @@ function refreshDashboard(hideLoader) {
                 window.chartDashboardPie2 = new Chart(contextDashboardPie2, {
                     type: 'doughnut',
                     data: responseJSON.response.queryTypeChartData,
-					options: {
-						legend: {
-							onClick: chartLegendOnClick
-						}
-					}
+                    options: {
+                        legend: {
+                            onClick: chartLegendOnClick
+                        }
+                    }
                 });
 
                 loadChartLegendSettings(window.chartDashboardPie2);
