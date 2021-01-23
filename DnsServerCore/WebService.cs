@@ -5174,9 +5174,6 @@ namespace DnsServerCore
 
             X509Certificate2 certificate = new X509Certificate2(tlsCertificatePath, tlsCertificatePassword);
 
-            if (!certificate.Verify())
-                throw new ArgumentException("Web Service TLS certificate is invalid.");
-
             _webServiceTlsCertificate = certificate;
             _webServiceTlsCertificateLastModifiedOn = fileInfo.LastWriteTimeUtc;
 
@@ -5194,9 +5191,6 @@ namespace DnsServerCore
                 throw new ArgumentException("DNS Server TLS certificate file must be PKCS #12 formatted with .pfx extension: " + tlsCertificatePath);
 
             X509Certificate2 certificate = new X509Certificate2(tlsCertificatePath, tlsCertificatePassword);
-
-            if (!certificate.Verify())
-                throw new ArgumentException("DNS Server TLS certificate is invalid.");
 
             _dnsServer.Certificate = certificate;
             _dnsTlsCertificateLastModifiedOn = fileInfo.LastWriteTimeUtc;
