@@ -9,6 +9,7 @@
 #define TRAYAPP_FILENAME "DnsServerSystemTrayApp.exe"
 
 #define SERVICE_NAME "DnsService"
+#define SERVICE_FILE "DnsService.exe"
 #define SERVICE_DISPLAY_NAME "Technitium DNS Server"
 #define SERVICE_DESCRIPTION "Technitium DNS Server"
 #define CONFIG_FOLDER "{app}\config"
@@ -31,9 +32,8 @@ SetupIconFile=logo.ico
 WizardSmallImageFile=logo.bmp
 
 [Files]
-Source: "{#TRAYAPP_LOCATION}\{#TRAYAPP_FILENAME}"; DestDir: "{app}"; BeforeInstall: KillTrayApp;
-Source: "{#FILES_LOCATION}\*.*"; Excludes: "*.pdb,DnsService.exe"; DestDir: "{app}"; Flags: recursesubdirs;
-Source: "{#FILES_LOCATION}\DnsService.exe"; DestDir: "{app}"; Flags: recursesubdirs; BeforeInstall: DoRemoveService; AfterInstall: DoInstallService;
+Source: "{#TRAYAPP_LOCATION}\{#TRAYAPP_FILENAME}"; DestDir: "{app}";
+Source: "{#FILES_LOCATION}\*.*"; Excludes: "*.pdb"; DestDir: "{app}"; Flags: recursesubdirs;
 
 [Tasks]
 Name: "desktopicon"; Description: "Create an icon on the &desktop";
@@ -52,6 +52,9 @@ Root: HKCU; Subkey: "Software\{#COMPANY}"; Flags: uninsdeletekeyifempty
 [Icons]
 Name: "{userprograms}\Technitium DNS Server"; Comment: "DNS Server Tray App"; Filename: "{app}\DnsServerSystemTrayApp.exe"; WorkingDir: "{app}\"; Flags: createonlyiffileexists
 Name: "{userdesktop}\Technitium DNS Server"; Filename: "{app}\DnsServerSystemTrayApp.exe"; WorkingDir: "{app}\"; Flags: createonlyiffileexists; Tasks: desktopicon
+
+[Run]
+Filename: "{app}\DnsServerSystemTrayApp.exe"; Description: "Run the Tray App"; Flags: postinstall nowait
 
 ;Include the dependency code 
 #include "depend\lang\english.iss"
