@@ -1,6 +1,6 @@
 ﻿/*
 Technitium DNS Server
-Copyright (C) 2020  Shreyas Zare (shreyas@technitium.com)
+Copyright (C) 2021  Shreyas Zare (shreyas@technitium.com)
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -17,6 +17,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 */
 
+using DnsServerCore.Dns.ResourceRecords;
 using DnsServerCore.Dns.Zones;
 using System.Collections.Generic;
 using TechnitiumLibrary.Net.Dns;
@@ -49,6 +50,14 @@ namespace DnsServerCore.Dns.ZoneManagers
 
         protected override void CacheRecords(IReadOnlyList<DnsResourceRecord> resourceRecords)
         {
+            //read and set glue records from base class
+            foreach (DnsResourceRecord resourceRecord in resourceRecords)
+            {
+                IReadOnlyList<DnsResourceRecord> glueRecords = GetGlueRecordsFrom(resourceRecord);
+                if (glueRecords.Count > 0)
+                    resourceRecord.SetGlueRecords(glueRecords);
+            }
+
             if (resourceRecords.Count == 1)
             {
                 CacheZone zone = _root.GetOrAdd(resourceRecords[0].Name, delegate (string key)
@@ -89,15 +98,15 @@ namespace DnsServerCore.Dns.ZoneManagers
                 switch (refRecord.Type)
                 {
                     case DnsResourceRecordType.NS:
-                        ResolveAdditionalRecords((refRecord.RDATA as DnsNSRecord).NameServer, serveStale, additionalRecords);
+                        ResolveAdditionalRecords(refRecord, (refRecord.RDATA as DnsNSRecord).NameServer, serveStale, additionalRecords);
                         break;
 
                     case DnsResourceRecordType.MX:
-                        ResolveAdditionalRecords((refRecord.RDATA as DnsMXRecord).Exchange, serveStale, additionalRecords);
+                        ResolveAdditionalRecords(refRecord, (refRecord.RDATA as DnsMXRecord).Exchange, serveStale, additionalRecords);
                         break;
 
                     case DnsResourceRecordType.SRV:
-                        ResolveAdditionalRecords((refRecord.RDATA as DnsSRVRecord).Target, serveStale, additionalRecords);
+                        ResolveAdditionalRecords(refRecord, (refRecord.RDATA as DnsSRVRecord).Target, serveStale, additionalRecords);
                         break;
                 }
             }
@@ -105,8 +114,26 @@ namespace DnsServerCore.Dns.ZoneManagers
             return additionalRecords;
         }
 
-        private void ResolveAdditionalRecords(string domain, bool serveStale, List<DnsResourceRecord> additionalRecords)
+        private void ResolveAdditionalRecords(DnsResourceRecord refRecord, string domain, bool serveStale, List<DnsResourceRecord> additionalRecords)
         {
+            IReadOnlyList<DnsResourceRecord> glueRecords = refRecord.GetGlueRecords();
+            if (glueRecords.Count > 0)
+            {
+                bool added = false;
+
+                foreach (DnsResourceRecord glueRecord in glueRecords)
+                {
+                    if (!glueRecord.IsStale)
+                    {
+                        added = true;
+                        additionalRecords.Add(glueRecord);
+                    }
+                }
+
+                if (added)
+                    return;
+            }
+
             CacheZone cacheZone = _root.FindZone(domain, out _, out _, out _);
             if (cacheZone != null)
             {
