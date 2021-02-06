@@ -528,6 +528,14 @@ namespace DnsServerCore
                                                 DeleteDhcpScope(request);
                                                 break;
 
+                                            case "/api/convertToReservedLease":
+                                                ConvertToReservedLease(request);
+                                                break;
+
+                                            case "/api/convertToDynamicLease":
+                                                ConvertToDynamicLease(request);
+                                                break;
+
                                             default:
                                                 await SendErrorAsync(response, 404);
                                                 return;
@@ -2639,7 +2647,7 @@ namespace DnsServerCore
 
         private async Task<IDictionary<string, string>> ResolvePtrTopClientsAsync(List<KeyValuePair<string, int>> topClients)
         {
-            IDictionary<string, string> dhcpClientIpMap = _dhcpServer.GetAddressClientMap();
+            IDictionary<string, string> dhcpClientIpMap = _dhcpServer.GetAddressHostNameMap();
 
             async Task<KeyValuePair<string, string>> ResolvePtrAsync(string ip)
             {
@@ -4764,11 +4772,11 @@ namespace DnsServerCore
                 throw new WebServiceException("Parameter 'startingAddress' missing.");
 
             string strEndingAddress = request.QueryString["endingAddress"];
-            if (string.IsNullOrEmpty(strStartingAddress))
+            if (string.IsNullOrEmpty(strEndingAddress))
                 throw new WebServiceException("Parameter 'endingAddress' missing.");
 
             string strSubnetMask = request.QueryString["subnetMask"];
-            if (string.IsNullOrEmpty(strStartingAddress))
+            if (string.IsNullOrEmpty(strSubnetMask))
                 throw new WebServiceException("Parameter 'subnetMask' missing.");
 
             bool scopeExists;
@@ -4977,15 +4985,9 @@ namespace DnsServerCore
                     string[] strReservedLeaseParts = strReservedLeases.Split('|');
                     List<Lease> reservedLeases = new List<Lease>();
 
-                    for (int i = 0; i < strReservedLeaseParts.Length; i += 3)
+                    for (int i = 0; i < strReservedLeaseParts.Length; i += 4)
                     {
-                        Lease reservedLease = new Lease(LeaseType.Reserved, null, DhcpMessageHardwareAddressType.Ethernet, strReservedLeaseParts[i + 0], IPAddress.Parse(strReservedLeaseParts[i + 1]), strReservedLeaseParts[i + 2]);
-
-                        Lease existingReservedLease = scope.GetReservedLease(DhcpMessageHardwareAddressType.Ethernet, reservedLease.HardwareAddress);
-                        if (existingReservedLease != null)
-                            reservedLease.SetHostName(existingReservedLease.HostName);
-
-                        reservedLeases.Add(reservedLease);
+                        reservedLeases.Add(new Lease(LeaseType.Reserved, strReservedLeaseParts[i + 0], DhcpMessageHardwareAddressType.Ethernet, strReservedLeaseParts[i + 1], IPAddress.Parse(strReservedLeaseParts[i + 2]), strReservedLeaseParts[i + 3]));
                     }
 
                     scope.ReservedLeases = reservedLeases;
@@ -5043,6 +5045,48 @@ namespace DnsServerCore
             _dhcpServer.DeleteScope(scopeName);
 
             _log.Write(GetRequestRemoteEndPoint(request), "[" + GetSession(request).Username + "] DHCP scope was deleted successfully: " + scopeName);
+        }
+
+        private void ConvertToReservedLease(HttpListenerRequest request)
+        {
+            string scopeName = request.QueryString["name"];
+            if (string.IsNullOrEmpty(scopeName))
+                throw new WebServiceException("Parameter 'name' missing.");
+
+            Scope scope = _dhcpServer.GetScope(scopeName);
+            if (scope == null)
+                throw new WebServiceException("DHCP scope does not exists: " + scopeName);
+
+            string strHardwareAddress = request.QueryString["hardwareAddress"];
+            if (string.IsNullOrEmpty(strHardwareAddress))
+                throw new WebServiceException("Parameter 'hardwareAddress' missing.");
+
+            scope.ConvertToReservedLease(strHardwareAddress);
+
+            _dhcpServer.SaveScope(scopeName);
+
+            _log.Write(GetRequestRemoteEndPoint(request), "[" + GetSession(request).Username + "] DHCP scope was updated successfully: " + scopeName);
+        }
+
+        private void ConvertToDynamicLease(HttpListenerRequest request)
+        {
+            string scopeName = request.QueryString["name"];
+            if (string.IsNullOrEmpty(scopeName))
+                throw new WebServiceException("Parameter 'name' missing.");
+
+            Scope scope = _dhcpServer.GetScope(scopeName);
+            if (scope == null)
+                throw new WebServiceException("DHCP scope does not exists: " + scopeName);
+
+            string strHardwareAddress = request.QueryString["hardwareAddress"];
+            if (string.IsNullOrEmpty(strHardwareAddress))
+                throw new WebServiceException("Parameter 'hardwareAddress' missing.");
+
+            scope.ConvertToDynamicLease(strHardwareAddress);
+
+            _dhcpServer.SaveScope(scopeName);
+
+            _log.Write(GetRequestRemoteEndPoint(request), "[" + GetSession(request).Username + "] DHCP scope was updated successfully: " + scopeName);
         }
 
         private void SetCredentials(string username, string password)
