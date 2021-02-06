@@ -1,6 +1,6 @@
 ﻿/*
 Technitium DNS Server
-Copyright (C) 2020  Shreyas Zare (shreyas@technitium.com)
+Copyright (C) 2021  Shreyas Zare (shreyas@technitium.com)
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -313,8 +313,20 @@ namespace DnsServerCore.Dhcp
                             return null; //no offer available, do nothing
 
                         IPAddress serverIdentifierAddress = scope.InterfaceAddress.Equals(IPAddress.Any) ? ipPacketInformation.Address : scope.InterfaceAddress;
+                        string overrideClientDomainName = null;
 
-                        List<DhcpOption> options = scope.GetOptions(request, serverIdentifierAddress);
+                        if (!string.IsNullOrWhiteSpace(scope.DomainName))
+                        {
+                            //get override host name from reserved lease
+                            Lease reservedLease = scope.GetReservedLease(request);
+                            if (reservedLease != null)
+                            {
+                                if (!string.IsNullOrWhiteSpace(reservedLease.HostName))
+                                    overrideClientDomainName = reservedLease.HostName + "." + scope.DomainName;
+                            }
+                        }
+
+                        List<DhcpOption> options = scope.GetOptions(request, serverIdentifierAddress, overrideClientDomainName);
                         if (options == null)
                             return null;
 
@@ -437,7 +449,20 @@ namespace DnsServerCore.Dhcp
                             }
                         }
 
-                        List<DhcpOption> options = scope.GetOptions(request, serverIdentifierAddress);
+                        string overrideClientDomainName = null;
+
+                        if (!string.IsNullOrWhiteSpace(scope.DomainName))
+                        {
+                            //get override host name from reserved lease
+                            Lease reservedLease = scope.GetReservedLease(request);
+                            if (reservedLease != null)
+                            {
+                                if (!string.IsNullOrWhiteSpace(reservedLease.HostName))
+                                    overrideClientDomainName = reservedLease.HostName + "." + scope.DomainName;
+                            }
+                        }
+
+                        List<DhcpOption> options = scope.GetOptions(request, serverIdentifierAddress, overrideClientDomainName);
                         if (options == null)
                             return null;
 
@@ -448,13 +473,6 @@ namespace DnsServerCore.Dhcp
                         if (log != null)
                             log.Write(remoteEP, "DHCP Server leased IP address [" + leaseOffer.Address.ToString() + "] to " + request.GetClientFullIdentifier() + ".");
 
-                        //update hostname in reserved leases
-                        {
-                            Lease reservedLease = scope.GetReservedLease(request);
-                            if (reservedLease != null)
-                                reservedLease.SetHostName(request.HostName?.HostName);
-                        }
-
                         if (string.IsNullOrWhiteSpace(scope.DomainName))
                         {
                             //update lease hostname
@@ -463,26 +481,29 @@ namespace DnsServerCore.Dhcp
                         else
                         {
                             //update dns
-                            string clientDomainName = null;
+                            string clientDomainName = overrideClientDomainName;
 
-                            foreach (DhcpOption option in options)
+                            if (string.IsNullOrWhiteSpace(clientDomainName))
                             {
-                                if (option.Code == DhcpOptionCode.ClientFullyQualifiedDomainName)
+                                foreach (DhcpOption option in options)
                                 {
-                                    clientDomainName = (option as ClientFullyQualifiedDomainNameOption).DomainName;
-                                    break;
+                                    if (option.Code == DhcpOptionCode.ClientFullyQualifiedDomainName)
+                                    {
+                                        clientDomainName = (option as ClientFullyQualifiedDomainNameOption).DomainName;
+                                        break;
+                                    }
                                 }
                             }
 
                             if (string.IsNullOrWhiteSpace(clientDomainName))
                             {
-                                if (request.HostName != null)
+                                if ((request.HostName != null) && !string.IsNullOrWhiteSpace(request.HostName.HostName))
                                     clientDomainName = request.HostName.HostName.Replace(' ', '-') + "." + scope.DomainName;
                             }
 
                             if (!string.IsNullOrWhiteSpace(clientDomainName))
                             {
-                                if ((leaseOffer.HostName != null) && !leaseOffer.HostName.Equals(clientDomainName, StringComparison.OrdinalIgnoreCase))
+                                if (!clientDomainName.Equals(leaseOffer.HostName, StringComparison.OrdinalIgnoreCase))
                                     UpdateDnsAuthZone(false, scope, leaseOffer); //hostname changed! delete old hostname entry from DNS
 
                                 leaseOffer.SetHostName(clientDomainName.ToLower());
@@ -584,7 +605,7 @@ namespace DnsServerCore.Dhcp
                         if (log != null)
                             log.Write(remoteEP, "DHCP Server received INFORM message from " + request.GetClientFullIdentifier() + ".");
 
-                        List<DhcpOption> options = scope.GetOptions(request, serverIdentifierAddress);
+                        List<DhcpOption> options = scope.GetOptions(request, serverIdentifierAddress, null);
                         if (options == null)
                             return null;
 
@@ -704,6 +725,9 @@ namespace DnsServerCore.Dhcp
 
             if (!DnsClient.IsDomainNameValid(domain))
                 return;
+
+            if (!domain.EndsWith("." + scope.DomainName, StringComparison.OrdinalIgnoreCase))
+                return; //domain does not end with scope domain name
 
             try
             {
@@ -899,10 +923,18 @@ namespace DnsServerCore.Dhcp
                     while (true)
                     {
                         if (scope.FindInterface())
-                            break;
+                        {
+                            if (!scope.InterfaceAddress.Equals(IPAddress.Any))
+                                break; //break only when specific interface address is found
+                        }
 
                         if (++tries >= 30)
-                            throw new DhcpServerException("DHCP Server requires static IP address to work correctly but no network interface was found to have any static IP address configured.");
+                        {
+                            if (scope.InterfaceAddress == null)
+                                throw new DhcpServerException("DHCP Server requires static IP address to work correctly but no network interface was found to have any static IP address configured.");
+
+                            break; //use the available ANY interface address
+                        }
 
                         await Task.Delay(1000);
                     }
@@ -917,10 +949,9 @@ namespace DnsServerCore.Dhcp
                 if (scope.UseThisDnsServer)
                     scope.FindThisDnsServerAddress();
 
-                IPAddress interfaceAddress = scope.InterfaceAddress;
-                dhcpEP = new IPEndPoint(interfaceAddress, 67);
+                dhcpEP = new IPEndPoint(scope.InterfaceAddress, 67);
 
-                if (!interfaceAddress.Equals(IPAddress.Any))
+                if (!dhcpEP.Address.Equals(IPAddress.Any))
                     BindUdpListener(dhcpEP);
 
                 try
@@ -929,7 +960,7 @@ namespace DnsServerCore.Dhcp
                 }
                 catch
                 {
-                    if (!interfaceAddress.Equals(IPAddress.Any))
+                    if (!dhcpEP.Address.Equals(IPAddress.Any))
                         UnbindUdpListener(dhcpEP);
 
                     throw;
@@ -1284,7 +1315,7 @@ namespace DnsServerCore.Dhcp
                 SaveScopeFile(scope);
         }
 
-        public IDictionary<string, string> GetAddressClientMap()
+        public IDictionary<string, string> GetAddressHostNameMap()
         {
             Dictionary<string, string> map = new Dictionary<string, string>();
 
