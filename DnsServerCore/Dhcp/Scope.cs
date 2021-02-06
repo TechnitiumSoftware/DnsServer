@@ -1,6 +1,6 @@
 ﻿/*
 Technitium DNS Server
-Copyright (C) 2020  Shreyas Zare (shreyas@technitium.com)
+Copyright (C) 2021  Shreyas Zare (shreyas@technitium.com)
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -22,6 +22,7 @@ using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Net;
 using System.Net.NetworkInformation;
 using System.Net.Sockets;
@@ -55,14 +56,14 @@ namespace DnsServerCore.Dhcp
         string _bootFileName;
         IPAddress _routerAddress;
         bool _useThisDnsServer;
-        ICollection<IPAddress> _dnsServers;
-        ICollection<IPAddress> _winsServers;
-        ICollection<IPAddress> _ntpServers;
-        ICollection<ClasslessStaticRouteOption.Route> _staticRoutes;
+        IReadOnlyCollection<IPAddress> _dnsServers;
+        IReadOnlyCollection<IPAddress> _winsServers;
+        IReadOnlyCollection<IPAddress> _ntpServers;
+        IReadOnlyCollection<ClasslessStaticRouteOption.Route> _staticRoutes;
         IReadOnlyDictionary<string, VendorSpecificInformationOption> _vendorInfo;
 
         //advanced options
-        ICollection<Exclusion> _exclusions;
+        IReadOnlyCollection<Exclusion> _exclusions;
         readonly ConcurrentDictionary<ClientIdentifierOption, Lease> _reservedLeases = new ConcurrentDictionary<ClientIdentifierOption, Lease>();
         bool _allowOnlyReservedLeases;
 
@@ -357,7 +358,7 @@ namespace DnsServerCore.Dhcp
             return false;
         }
 
-        private ClientFullyQualifiedDomainNameOption GetClientFullyQualifiedDomainNameOption(DhcpMessage request)
+        private ClientFullyQualifiedDomainNameOption GetClientFullyQualifiedDomainNameOption(DhcpMessage request, string overrideClientDomainName)
         {
             ClientFullyQualifiedDomainNameFlags responseFlags = ClientFullyQualifiedDomainNameFlags.None;
 
@@ -381,7 +382,12 @@ namespace DnsServerCore.Dhcp
 
             string clientDomainName;
 
-            if (string.IsNullOrWhiteSpace(request.ClientFullyQualifiedDomainName.DomainName))
+            if (!string.IsNullOrWhiteSpace(overrideClientDomainName))
+            {
+                //domain name override by server
+                clientDomainName = overrideClientDomainName;
+            }
+            else if (string.IsNullOrWhiteSpace(request.ClientFullyQualifiedDomainName.DomainName))
             {
                 //client domain empty and expects server for a fqdn domain name
                 if (request.HostName == null)
@@ -625,7 +631,7 @@ namespace DnsServerCore.Dhcp
             Lease reservedLease = GetReservedLease(request);
             if (reservedLease != null)
             {
-                Lease reservedOffer = new Lease(LeaseType.Reserved, request.ClientIdentifier, request.HostName?.HostName, request.ClientHardwareAddress, reservedLease.Address, null, GetLeaseTime());
+                Lease reservedOffer = new Lease(LeaseType.Reserved, request.ClientIdentifier, null, request.ClientHardwareAddress, reservedLease.Address, null, GetLeaseTime());
                 _offers[request.ClientIdentifier] = reservedOffer;
                 return reservedOffer;
             }
@@ -692,7 +698,7 @@ namespace DnsServerCore.Dhcp
                 }
             }
 
-            Lease offerLease = new Lease(LeaseType.Dynamic, request.ClientIdentifier, request.HostName?.HostName, request.ClientHardwareAddress, offerAddress, null, GetLeaseTime());
+            Lease offerLease = new Lease(LeaseType.Dynamic, request.ClientIdentifier, null, request.ClientHardwareAddress, offerAddress, null, GetLeaseTime());
             return _offers[request.ClientIdentifier] = offerLease;
         }
 
@@ -707,7 +713,7 @@ namespace DnsServerCore.Dhcp
             return null;
         }
 
-        internal List<DhcpOption> GetOptions(DhcpMessage request, IPAddress serverIdentifierAddress)
+        internal List<DhcpOption> GetOptions(DhcpMessage request, IPAddress serverIdentifierAddress, string overrideClientDomainName)
         {
             List<DhcpOption> options = new List<DhcpOption>();
 
@@ -750,7 +756,7 @@ namespace DnsServerCore.Dhcp
                     options.Add(new DomainNameOption(_domainName));
 
                     if (request.ClientFullyQualifiedDomainName != null)
-                        options.Add(GetClientFullyQualifiedDomainNameOption(request));
+                        options.Add(GetClientFullyQualifiedDomainNameOption(request, overrideClientDomainName));
                 }
 
                 if (_routerAddress != null)
@@ -785,7 +791,7 @@ namespace DnsServerCore.Dhcp
                                 options.Add(new DomainNameOption(_domainName));
 
                                 if (request.ClientFullyQualifiedDomainName != null)
-                                    options.Add(GetClientFullyQualifiedDomainNameOption(request));
+                                    options.Add(GetClientFullyQualifiedDomainNameOption(request, overrideClientDomainName));
                             }
 
                             break;
@@ -995,6 +1001,90 @@ namespace DnsServerCore.Dhcp
             lock (_lastAddressOfferedLock)
             {
                 _lastAddressOffered = IPAddressExtension.ConvertNumberToIp(startingAddressNumber - 1u);
+            }
+        }
+
+        public void ConvertToReservedLease(string hardwareAddress)
+        {
+            byte[] hardwareAddressBytes = Lease.ParseHardwareAddress(hardwareAddress);
+
+            foreach (Lease lease in _leases.Values)
+            {
+                if ((lease.Type == LeaseType.Dynamic) && BinaryNumber.Equals(lease.HardwareAddress, hardwareAddressBytes))
+                {
+                    //convert dynamic to reserved lease
+                    lease.ConvertToReserved();
+
+                    //add reserved lease
+                    Lease reservedLease = new Lease(LeaseType.Reserved, null, DhcpMessageHardwareAddressType.Ethernet, lease.HardwareAddress, lease.Address, null);
+                    _reservedLeases[reservedLease.ClientIdentifier] = reservedLease;
+
+                    //add exclusion if required
+                    if (!IsAddressExcluded(lease.Address))
+                    {
+                        List<Exclusion> exclusions = new List<Exclusion>();
+
+                        if (_exclusions != null)
+                            exclusions.AddRange(_exclusions);
+
+                        exclusions.Add(new Exclusion(lease.Address, lease.Address));
+                        _exclusions = exclusions;
+                    }
+
+                    return;
+                }
+            }
+
+            throw new DhcpServerException("No dynamic lease was found for hardware address: " + hardwareAddress);
+        }
+
+        public void ConvertToDynamicLease(string hardwareAddress)
+        {
+            byte[] hardwareAddressBytes = Lease.ParseHardwareAddress(hardwareAddress);
+
+            foreach (Lease lease in _leases.Values)
+            {
+                if ((lease.Type == LeaseType.Reserved) && BinaryNumber.Equals(lease.HardwareAddress, hardwareAddressBytes))
+                {
+                    //convert reserved to dynamic lease
+                    lease.ConvertToDynamic();
+
+                    //remove reserved lease
+                    Lease reservedLease = new Lease(LeaseType.Reserved, null, DhcpMessageHardwareAddressType.Ethernet, lease.HardwareAddress, lease.Address, null);
+                    _reservedLeases.TryRemove(reservedLease.ClientIdentifier, out _);
+
+                    //remove exclusion
+                    if (_exclusions != null)
+                    {
+                        foreach (Exclusion exclusion in _exclusions)
+                        {
+                            if (exclusion.StartingAddress.Equals(lease.Address) && exclusion.EndingAddress.Equals(lease.Address))
+                            {
+                                //remove single address exclusion entry
+                                if (_exclusions.Count == 1)
+                                {
+                                    _exclusions = null;
+                                }
+                                else
+                                {
+                                    List<Exclusion> exclusions = new List<Exclusion>();
+
+                                    foreach (Exclusion exc in _exclusions)
+                                    {
+                                        if (exc.Equals(exclusion))
+                                            continue;
+
+                                        exclusions.Add(exc);
+                                    }
+
+                                    _exclusions = exclusions;
+                                }
+
+                                break;
+                            }
+                        }
+                    }
+                }
             }
         }
 
@@ -1311,7 +1401,7 @@ namespace DnsServerCore.Dhcp
             }
         }
 
-        public ICollection<IPAddress> DnsServers
+        public IReadOnlyCollection<IPAddress> DnsServers
         {
             get { return _dnsServers; }
             set
@@ -1323,19 +1413,19 @@ namespace DnsServerCore.Dhcp
             }
         }
 
-        public ICollection<IPAddress> WinsServers
+        public IReadOnlyCollection<IPAddress> WinsServers
         {
             get { return _winsServers; }
             set { _winsServers = value; }
         }
 
-        public ICollection<IPAddress> NtpServers
+        public IReadOnlyCollection<IPAddress> NtpServers
         {
             get { return _ntpServers; }
             set { _ntpServers = value; }
         }
 
-        public ICollection<ClasslessStaticRouteOption.Route> StaticRoutes
+        public IReadOnlyCollection<ClasslessStaticRouteOption.Route> StaticRoutes
         {
             get { return _staticRoutes; }
             set { _staticRoutes = value; }
@@ -1347,7 +1437,7 @@ namespace DnsServerCore.Dhcp
             set { _vendorInfo = value; }
         }
 
-        public ICollection<Exclusion> Exclusions
+        public IReadOnlyCollection<Exclusion> Exclusions
         {
             get { return _exclusions; }
             set
