@@ -36,8 +36,8 @@ namespace DnsServerCore.Dhcp
 
         public Exclusion(IPAddress startingAddress, IPAddress endingAddress)
         {
-            if (startingAddress.ConvertIpToNumber() >= endingAddress.ConvertIpToNumber())
-                throw new ArgumentException("Exclusion ending address must be greater than starting address.");
+            if (startingAddress.ConvertIpToNumber() > endingAddress.ConvertIpToNumber())
+                throw new ArgumentException("Exclusion ending address must be greater than or equal to starting address.");
 
             _startingAddress = startingAddress;
             _endingAddress = endingAddress;
