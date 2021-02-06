@@ -1,6 +1,6 @@
 ﻿/*
 Technitium DNS Server
-Copyright (C) 2020  Shreyas Zare (shreyas@technitium.com)
+Copyright (C) 2021  Shreyas Zare (shreyas@technitium.com)
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -41,15 +41,24 @@ function refreshDhcpLeases() {
             var dhcpLeases = responseJSON.response.leases;
             var tableHtmlRows = "";
 
-            for (var i = 0; i < dhcpLeases.length; i++)
-                tableHtmlRows += "<tr><td>" + htmlEncode(dhcpLeases[i].scope) + "</td><td>" + dhcpLeases[i].hardwareAddress + "</td><td>" + dhcpLeases[i].address + "</td><td><span class=\"label label-" + (dhcpLeases[i].type === "Reserved" ? "default" : "primary") + "\">" + dhcpLeases[i].type + "</span></td><td>" + htmlEncode(dhcpLeases[i].hostName) + "</td><td>" + dhcpLeases[i].leaseObtained + "</td><td>" + dhcpLeases[i].leaseExpires + "</td></tr>";
+            for (var i = 0; i < dhcpLeases.length; i++) {
+                tableHtmlRows += "<tr><td>" + htmlEncode(dhcpLeases[i].scope) + "</td><td>" +
+                    dhcpLeases[i].hardwareAddress + "</td><td>" +
+                    dhcpLeases[i].address + "</td><td><span id=\"spanDhcpLeaseType" + i + "\" class=\"label label-" +
+                    (dhcpLeases[i].type === "Reserved" ? "default" : "primary") + "\">" + dhcpLeases[i].type + "</span></td><td>" +
+                    htmlEncode(dhcpLeases[i].hostName) + "</td><td>" +
+                    dhcpLeases[i].leaseObtained + "</td><td>" +
+                    dhcpLeases[i].leaseExpires +
+                    "</td><td><button id=\"btnDhcpLeaseReserve" + i + "\" type=\"button\" class=\"btn btn-default\" style=\"" + (dhcpLeases[i].type === "Dynamic" ? "" : "display: none;") + "font-size: 12px; padding: 2px 0px; width: 70px;\" data-loading-text=\"Working...\" onclick=\"convertToReservedLease(this, " + i + ", '" + dhcpLeases[i].scope + "', '" + dhcpLeases[i].hardwareAddress + "');\">Reserve</button>" +
+                    "<button id=\"btnDhcpLeaseUnreserve" + i + "\" type=\"button\" class=\"btn btn-default\" style=\"" + (dhcpLeases[i].type === "Dynamic" ? "display: none;" : "") + "font-size: 12px; padding: 2px 0px; width: 70px;\" data-loading-text=\"Working...\" onclick=\"convertToDynamicLease(this, " + i + ", '" + dhcpLeases[i].scope + "', '" + dhcpLeases[i].hardwareAddress + "');\">Unreserve</button></td></tr>";
+            }
 
             $("#tableDhcpLeasesBody").html(tableHtmlRows);
 
             if (dhcpLeases.length > 0)
-                $("#tableDhcpLeasesFooter").html("<tr><td colspan=\"7\"><b>Total Leases: " + dhcpLeases.length + "</b></td></tr>");
+                $("#tableDhcpLeasesFooter").html("<tr><td colspan=\"8\"><b>Total Leases: " + dhcpLeases.length + "</b></td></tr>");
             else
-                $("#tableDhcpLeasesFooter").html("<tr><td colspan=\"7\" align=\"center\">No Lease Found</td></tr>");
+                $("#tableDhcpLeasesFooter").html("<tr><td colspan=\"8\" align=\"center\">No Lease Found</td></tr>");
 
             divDhcpLeasesLoader.hide();
             divDhcpLeases.show();
@@ -58,6 +67,68 @@ function refreshDhcpLeases() {
             showPageLogin();
         },
         objLoaderPlaceholder: divDhcpLeasesLoader
+    });
+}
+
+function convertToReservedLease(objBtn, index, scopeName, hardwareAddress) {
+
+    if (!confirm("Are you sure you want to convert the dynamic lease to reserved lease?"))
+        return false;
+
+    var btn = $(objBtn);
+    btn.button('loading');
+
+    HTTPRequest({
+        url: "/api/convertToReservedLease?token=" + token + "&name=" + encodeURIComponent(scopeName) + "&hardwareAddress=" + encodeURIComponent(hardwareAddress),
+        success: function (responseJSON) {
+            btn.button('reset');
+            btn.hide();
+
+            $("#btnDhcpLeaseUnreserve" + index).show();
+
+            var spanDhcpLeaseType = $("#spanDhcpLeaseType" + index);
+            spanDhcpLeaseType.html("Reserved");
+            spanDhcpLeaseType.attr("class", "label label-default");
+
+            showAlert("success", "Reserved!", "The dynamic lease was converted to reserved lease successfully.");
+        },
+        error: function () {
+            btn.button('reset');
+        },
+        invalidToken: function () {
+            showPageLogin();
+        }
+    });
+}
+
+function convertToDynamicLease(objBtn, index, scopeName, hardwareAddress) {
+
+    if (!confirm("Are you sure you want to convert the reserved lease to dynamic lease?"))
+        return false;
+
+    var btn = $(objBtn);
+    btn.button('loading');
+
+    HTTPRequest({
+        url: "/api/convertToDynamicLease?token=" + token + "&name=" + encodeURIComponent(scopeName) + "&hardwareAddress=" + encodeURIComponent(hardwareAddress),
+        success: function (responseJSON) {
+            btn.button('reset');
+            btn.hide();
+
+            $("#btnDhcpLeaseReserve" + index).show();
+
+            var spanDhcpLeaseType = $("#spanDhcpLeaseType" + index);
+            spanDhcpLeaseType.html("Dynamic");
+            spanDhcpLeaseType.attr("class", "label label-primary");
+
+            showAlert("success", "Unreserved!", "The reserved lease was converted to dynamic lease successfully.");
+        },
+        error: function () {
+            btn.button('reset');
+        },
+        invalidToken: function () {
+            showPageLogin();
+        }
     });
 }
 
@@ -151,7 +222,8 @@ function addDhcpScopeReservedLeaseRow(hostName, hardwareAddress, address, commen
 
     var id = Math.floor(Math.random() * 10000);
 
-    var tableHtmlRows = "<tr id=\"tableDhcpScopeReservedLeaseRow" + id + "\"><td style=\"padding: 14px 0px;\">" + (hostName == null ? "" : htmlEncode(hostName)) + "</td>";
+    var tableHtmlRows = "<tr id=\"tableDhcpScopeReservedLeaseRow" + id + "\">";
+    tableHtmlRows += "<td><input type=\"text\" class=\"form-control\" value=\"" + (hostName == null ? "" : htmlEncode(hostName)) + "\" data-optional=\"true\"></td>";
     tableHtmlRows += "<td><input type=\"text\" class=\"form-control\" value=\"" + htmlEncode(hardwareAddress) + "\"></td>";
     tableHtmlRows += "<td><input type=\"text\" class=\"form-control\" value=\"" + htmlEncode(address) + "\"></td>";
     tableHtmlRows += "<td><input type=\"text\" class=\"form-control\" value=\"" + (comments == null ? "" : htmlEncode(comments)) + "\" data-optional=\"true\"></td>";
@@ -367,7 +439,7 @@ function saveDhcpScope() {
     if (exclusions === false)
         return;
 
-    var reservedLeases = serializeTableData($("#tableDhcpScopeReservedLeases"), 3);
+    var reservedLeases = serializeTableData($("#tableDhcpScopeReservedLeases"), 4);
     if (reservedLeases === false)
         return;
 
