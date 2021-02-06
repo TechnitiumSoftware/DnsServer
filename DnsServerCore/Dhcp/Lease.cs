@@ -1,6 +1,6 @@
 ﻿/*
 Technitium DNS Server
-Copyright (C) 2020  Shreyas Zare (shreyas@technitium.com)
+Copyright (C) 2021  Shreyas Zare (shreyas@technitium.com)
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -38,7 +38,7 @@ namespace DnsServerCore.Dhcp
     {
         #region variables
 
-        readonly LeaseType _type;
+        LeaseType _type;
         readonly ClientIdentifierOption _clientIdentifier;
         string _hostName;
         readonly byte[] _hardwareAddress;
@@ -108,9 +108,9 @@ namespace DnsServerCore.Dhcp
 
         #endregion
 
-        #region private
+        #region internal
 
-        private static byte[] ParseHardwareAddress(string hardwareAddress)
+        internal static byte[] ParseHardwareAddress(string hardwareAddress)
         {
             string[] parts = hardwareAddress.Split(new char[] { '-', ':' });
             byte[] address = new byte[parts.Length];
@@ -119,6 +119,16 @@ namespace DnsServerCore.Dhcp
                 address[i] = byte.Parse(parts[i], NumberStyles.HexNumber, CultureInfo.InvariantCulture);
 
             return address;
+        }
+
+        internal void ConvertToReserved()
+        {
+            _type = LeaseType.Reserved;
+        }
+
+        internal void ConvertToDynamic()
+        {
+            _type = LeaseType.Dynamic;
         }
 
         internal void SetHostName(string hostName)
