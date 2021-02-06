@@ -1,6 +1,6 @@
 ﻿/*
 Technitium DNS Server
-Copyright (C) 2019  Shreyas Zare (shreyas@technitium.com)
+Copyright (C) 2021  Shreyas Zare (shreyas@technitium.com)
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -30,13 +30,13 @@ namespace DnsServerCore.Dhcp.Options
     {
         #region variables
 
-        ICollection<Route> _routes;
+        IReadOnlyCollection<Route> _routes;
 
         #endregion
 
         #region constructor
 
-        public ClasslessStaticRouteOption(ICollection<Route> routes)
+        public ClasslessStaticRouteOption(IReadOnlyCollection<Route> routes)
             : base(DhcpOptionCode.ClasslessStaticRoute)
         {
             _routes = routes;
@@ -55,12 +55,14 @@ namespace DnsServerCore.Dhcp.Options
             if (s.Length < 5)
                 throw new InvalidDataException();
 
-            _routes = new List<Route>();
+            List<Route> routes = new List<Route>();
 
             while (s.Position < s.Length)
             {
-                _routes.Add(new Route(s));
+                routes.Add(new Route(s));
             }
+
+            _routes = routes;
         }
 
         protected override void WriteOptionValue(Stream s)
@@ -73,7 +75,7 @@ namespace DnsServerCore.Dhcp.Options
 
         #region properties
 
-        public ICollection<Route> Routes
+        public IReadOnlyCollection<Route> Routes
         { get { return _routes; } }
 
         #endregion

@@ -1,6 +1,6 @@
 ﻿/*
 Technitium DNS Server
-Copyright (C) 2020  Shreyas Zare (shreyas@technitium.com)
+Copyright (C) 2021  Shreyas Zare (shreyas@technitium.com)
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -28,13 +28,13 @@ namespace DnsServerCore.Dhcp.Options
     {
         #region variables
 
-        ICollection<IPAddress> _addresses;
+        IReadOnlyCollection<IPAddress> _addresses;
 
         #endregion
 
         #region constructor
 
-        public DomainNameServerOption(ICollection<IPAddress> addresses)
+        public DomainNameServerOption(IReadOnlyCollection<IPAddress> addresses)
             : base(DhcpOptionCode.DomainNameServer)
         {
             _addresses = addresses;
@@ -71,7 +71,7 @@ namespace DnsServerCore.Dhcp.Options
 
         #region properties
 
-        public ICollection<IPAddress> Addresses
+        public IReadOnlyCollection<IPAddress> Addresses
         { get { return _addresses; } }
 
         #endregion
