@@ -16,11 +16,26 @@ echo "==============================="
 
 if dotnet --list-runtimes 2> /dev/null | grep -q "Microsoft.NETCore.App 5.0."; 
 then
+	dotnetFound="yes"
+else
+	dotnetFound="no"
+fi
+
+if [ ! -d $dotnetDir ] && [ "$dotnetFound" = "yes" ]
+then
 	echo ""
 	echo ".NET 5 Runtime is already installed."
 else
 	echo ""
-	echo "Installing .NET 5 Runtime..."
+
+	if [ -d $dotnetDir ]
+	then
+	    dotnetUpdate="yes"
+		echo "Updating .NET 5 Runtime..."
+	else
+		dotnetUpdate="no"
+		echo "Installing .NET 5 Runtime..."
+	fi
 
 	curl -sSL https://dot.net/v1/dotnet-install.sh | bash /dev/stdin -c 5.0 --runtime dotnet --no-path --install-dir $dotnetDir --verbose >> $installLog 2>&1
 
@@ -31,7 +46,12 @@ else
 
 	if dotnet --list-runtimes 2> /dev/null | grep -q "Microsoft.NETCore.App 5.0."; 
 	then
-		echo ".NET 5 Runtime was installed succesfully!"
+		if [ "$dotnetUpdate" = "yes" ]
+		then
+			echo ".NET 5 Runtime was updated succesfully!"
+		else
+			echo ".NET 5 Runtime was installed succesfully!"
+		fi
 	else
 		echo "Failed to install .NET 5 Runtime. Please try again."
 		exit 1
@@ -43,7 +63,7 @@ echo "Downloading Technitium DNS Server..."
 
 if curl -o $dnsTar --fail $dnsUrl >> $installLog 2>&1
 then
-	if [ -d "/etc/dns/" ]
+	if [ -d $dnsDir ]
 	then
 		echo "Updating Technitium DNS Server..."
 	else
