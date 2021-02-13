@@ -1518,10 +1518,12 @@ namespace DnsServerCore
                     if (!string.IsNullOrEmpty(strProxyBypass))
                     {
                         string[] strBypassList = strProxyBypass.Split(new char[] { ',' }, StringSplitOptions.RemoveEmptyEntries);
-                        _dnsServer.Proxy.BypassList.Clear();
+                        List<NetProxyBypassItem> bypassList = new List<NetProxyBypassItem>(strBypassList.Length);
 
                         for (int i = 0; i < strBypassList.Length; i++)
-                            _dnsServer.Proxy.BypassList.Add(new NetProxyBypassItem(strBypassList[i]));
+                            bypassList.Add(new NetProxyBypassItem(strBypassList[i]));
+
+                        _dnsServer.Proxy.BypassList = bypassList;
                     }
                 }
             }
@@ -5377,10 +5379,12 @@ namespace DnsServerCore
                                 if (version >= 10)
                                 {
                                     int count = bR.ReadByte();
-                                    _dnsServer.Proxy.BypassList.Clear();
+                                    List<NetProxyBypassItem> bypassList = new List<NetProxyBypassItem>(count);
 
                                     for (int i = 0; i < count; i++)
-                                        _dnsServer.Proxy.BypassList.Add(new NetProxyBypassItem(bR.ReadShortString()));
+                                        bypassList.Add(new NetProxyBypassItem(bR.ReadShortString()));
+
+                                    _dnsServer.Proxy.BypassList = bypassList;
                                 }
                             }
                             else
