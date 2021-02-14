@@ -9,11 +9,11 @@ body {
 }
 
 a {
-    color: #6699ff !important;
+    color: #6699ff;
 }
 
     a:hover {
-        color: #6699ff !important;
+        color: #6699ff;
     }
 
 #header {
@@ -118,7 +118,7 @@ a {
     }
 
         #footer .content a {
-            color: rgb(119,119,119);
+            color: #6699ff;
             text-decoration: none;
         }
 
