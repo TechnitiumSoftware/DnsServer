@@ -556,7 +556,7 @@ namespace DnsServerCore.Dns
             _queue.Add(item);
         }
 
-        public Dictionary<string, List<KeyValuePair<string, int>>> GetLastHourStats()
+        public Dictionary<string, List<KeyValuePair<string, int>>> GetLastHourMinuteWiseStats()
         {
             StatCounter totalStatCounter = new StatCounter();
             totalStatCounter.Lock();
@@ -659,264 +659,22 @@ namespace DnsServerCore.Dns
             return data;
         }
 
-        public Dictionary<string, List<KeyValuePair<string, int>>> GetLastDayStats()
+        public Dictionary<string, List<KeyValuePair<string, int>>> GetLastDayHourWiseStats()
         {
-            StatCounter totalStatCounter = new StatCounter();
-            totalStatCounter.Lock();
-
-            List<KeyValuePair<string, int>> totalQueriesPerInterval = new List<KeyValuePair<string, int>>();
-            List<KeyValuePair<string, int>> totalNoErrorPerInterval = new List<KeyValuePair<string, int>>();
-            List<KeyValuePair<string, int>> totalServerFailurePerInterval = new List<KeyValuePair<string, int>>();
-            List<KeyValuePair<string, int>> totalNameErrorPerInterval = new List<KeyValuePair<string, int>>();
-            List<KeyValuePair<string, int>> totalRefusedPerInterval = new List<KeyValuePair<string, int>>();
-
-            List<KeyValuePair<string, int>> totalAuthHitPerInterval = new List<KeyValuePair<string, int>>();
-            List<KeyValuePair<string, int>> totalRecursionsPerInterval = new List<KeyValuePair<string, int>>();
-            List<KeyValuePair<string, int>> totalCacheHitPerInterval = new List<KeyValuePair<string, int>>();
-            List<KeyValuePair<string, int>> totalBlockedPerInterval = new List<KeyValuePair<string, int>>();
-
-            List<KeyValuePair<string, int>> totalClientsPerInterval = new List<KeyValuePair<string, int>>();
-
-            DateTime lastDayDateTime = DateTime.UtcNow.AddHours(-24);
-            lastDayDateTime = new DateTime(lastDayDateTime.Year, lastDayDateTime.Month, lastDayDateTime.Day, lastDayDateTime.Hour, 0, 0, DateTimeKind.Utc);
-
-            for (int hour = 0; hour < 24; hour++)
-            {
-                DateTime lastDateTime = lastDayDateTime.AddHours(hour);
-                string label = lastDateTime.ToLocalTime().ToString("MM/dd HH") + ":00";
-
-                HourlyStats hourlyStats = LoadHourlyStats(lastDateTime);
-                StatCounter hourlyStatCounter = hourlyStats.HourStat;
-
-                totalStatCounter.Merge(hourlyStatCounter);
-
-                totalQueriesPerInterval.Add(new KeyValuePair<string, int>(label, hourlyStatCounter.TotalQueries));
-                totalNoErrorPerInterval.Add(new KeyValuePair<string, int>(label, hourlyStatCounter.TotalNoError));
-                totalServerFailurePerInterval.Add(new KeyValuePair<string, int>(label, hourlyStatCounter.TotalServerFailure));
-                totalNameErrorPerInterval.Add(new KeyValuePair<string, int>(label, hourlyStatCounter.TotalNameError));
-                totalRefusedPerInterval.Add(new KeyValuePair<string, int>(label, hourlyStatCounter.TotalRefused));
-
-                totalAuthHitPerInterval.Add(new KeyValuePair<string, int>(label, hourlyStatCounter.TotalAuthoritative));
-                totalRecursionsPerInterval.Add(new KeyValuePair<string, int>(label, hourlyStatCounter.TotalRecursive));
-                totalCacheHitPerInterval.Add(new KeyValuePair<string, int>(label, hourlyStatCounter.TotalCached));
-                totalBlockedPerInterval.Add(new KeyValuePair<string, int>(label, hourlyStatCounter.TotalBlocked));
-
-                totalClientsPerInterval.Add(new KeyValuePair<string, int>(label, hourlyStatCounter.TotalClients));
-            }
-
-            Dictionary<string, List<KeyValuePair<string, int>>> data = new Dictionary<string, List<KeyValuePair<string, int>>>();
-
-            {
-                List<KeyValuePair<string, int>> stats = new List<KeyValuePair<string, int>>(6);
-
-                stats.Add(new KeyValuePair<string, int>("totalQueries", totalStatCounter.TotalQueries));
-                stats.Add(new KeyValuePair<string, int>("totalNoError", totalStatCounter.TotalNoError));
-                stats.Add(new KeyValuePair<string, int>("totalServerFailure", totalStatCounter.TotalServerFailure));
-                stats.Add(new KeyValuePair<string, int>("totalNameError", totalStatCounter.TotalNameError));
-                stats.Add(new KeyValuePair<string, int>("totalRefused", totalStatCounter.TotalRefused));
-
-                stats.Add(new KeyValuePair<string, int>("totalAuthoritative", totalStatCounter.TotalAuthoritative));
-                stats.Add(new KeyValuePair<string, int>("totalRecursive", totalStatCounter.TotalRecursive));
-                stats.Add(new KeyValuePair<string, int>("totalCached", totalStatCounter.TotalCached));
-                stats.Add(new KeyValuePair<string, int>("totalBlocked", totalStatCounter.TotalBlocked));
-
-                stats.Add(new KeyValuePair<string, int>("totalClients", totalStatCounter.TotalClients));
-
-                data.Add("stats", stats);
-            }
-
-            data.Add("totalQueriesPerInterval", totalQueriesPerInterval);
-            data.Add("totalNoErrorPerInterval", totalNoErrorPerInterval);
-            data.Add("totalServerFailurePerInterval", totalServerFailurePerInterval);
-            data.Add("totalNameErrorPerInterval", totalNameErrorPerInterval);
-            data.Add("totalRefusedPerInterval", totalRefusedPerInterval);
-
-            data.Add("totalAuthHitPerInterval", totalAuthHitPerInterval);
-            data.Add("totalRecursionsPerInterval", totalRecursionsPerInterval);
-            data.Add("totalCacheHitPerInterval", totalCacheHitPerInterval);
-            data.Add("totalBlockedPerInterval", totalBlockedPerInterval);
-
-            data.Add("totalClientsPerInterval", totalClientsPerInterval);
-
-            data.Add("topDomains", totalStatCounter.GetTopDomains(10));
-            data.Add("topBlockedDomains", totalStatCounter.GetTopBlockedDomains(10));
-            data.Add("topClients", totalStatCounter.GetTopClients(10));
-            data.Add("queryTypes", totalStatCounter.GetTopQueryTypes(5));
-
-            return data;
+            return GetHourWiseStats(DateTime.UtcNow.AddHours(-24), 24);
         }
 
-        public Dictionary<string, List<KeyValuePair<string, int>>> GetLastWeekStats()
+        public Dictionary<string, List<KeyValuePair<string, int>>> GetLastWeekDayWiseStats()
         {
-            StatCounter totalStatCounter = new StatCounter();
-            totalStatCounter.Lock();
-
-            List<KeyValuePair<string, int>> totalQueriesPerInterval = new List<KeyValuePair<string, int>>();
-            List<KeyValuePair<string, int>> totalNoErrorPerInterval = new List<KeyValuePair<string, int>>();
-            List<KeyValuePair<string, int>> totalServerFailurePerInterval = new List<KeyValuePair<string, int>>();
-            List<KeyValuePair<string, int>> totalNameErrorPerInterval = new List<KeyValuePair<string, int>>();
-            List<KeyValuePair<string, int>> totalRefusedPerInterval = new List<KeyValuePair<string, int>>();
-
-            List<KeyValuePair<string, int>> totalAuthHitPerInterval = new List<KeyValuePair<string, int>>();
-            List<KeyValuePair<string, int>> totalRecursionsPerInterval = new List<KeyValuePair<string, int>>();
-            List<KeyValuePair<string, int>> totalCacheHitPerInterval = new List<KeyValuePair<string, int>>();
-            List<KeyValuePair<string, int>> totalBlockedPerInterval = new List<KeyValuePair<string, int>>();
-
-            List<KeyValuePair<string, int>> totalClientsPerInterval = new List<KeyValuePair<string, int>>();
-
-            DateTime lastWeekDateTime = DateTime.UtcNow.AddDays(-7);
-            lastWeekDateTime = new DateTime(lastWeekDateTime.Year, lastWeekDateTime.Month, lastWeekDateTime.Day, 0, 0, 0, DateTimeKind.Utc);
-
-            for (int day = 0; day < 7; day++) //days
-            {
-                DateTime lastDayDateTime = lastWeekDateTime.AddDays(day);
-                string label = lastDayDateTime.ToLocalTime().ToString("MM/dd");
-
-                StatCounter dailyStatCounter = LoadDailyStats(lastDayDateTime);
-                totalStatCounter.Merge(dailyStatCounter);
-
-                totalQueriesPerInterval.Add(new KeyValuePair<string, int>(label, dailyStatCounter.TotalQueries));
-                totalNoErrorPerInterval.Add(new KeyValuePair<string, int>(label, dailyStatCounter.TotalNoError));
-                totalServerFailurePerInterval.Add(new KeyValuePair<string, int>(label, dailyStatCounter.TotalServerFailure));
-                totalNameErrorPerInterval.Add(new KeyValuePair<string, int>(label, dailyStatCounter.TotalNameError));
-                totalRefusedPerInterval.Add(new KeyValuePair<string, int>(label, dailyStatCounter.TotalRefused));
-
-                totalAuthHitPerInterval.Add(new KeyValuePair<string, int>(label, dailyStatCounter.TotalAuthoritative));
-                totalRecursionsPerInterval.Add(new KeyValuePair<string, int>(label, dailyStatCounter.TotalRecursive));
-                totalCacheHitPerInterval.Add(new KeyValuePair<string, int>(label, dailyStatCounter.TotalCached));
-                totalBlockedPerInterval.Add(new KeyValuePair<string, int>(label, dailyStatCounter.TotalBlocked));
-
-                totalClientsPerInterval.Add(new KeyValuePair<string, int>(label, dailyStatCounter.TotalClients));
-            }
-
-            Dictionary<string, List<KeyValuePair<string, int>>> data = new Dictionary<string, List<KeyValuePair<string, int>>>();
-
-            {
-                List<KeyValuePair<string, int>> stats = new List<KeyValuePair<string, int>>(6);
-
-                stats.Add(new KeyValuePair<string, int>("totalQueries", totalStatCounter.TotalQueries));
-                stats.Add(new KeyValuePair<string, int>("totalNoError", totalStatCounter.TotalNoError));
-                stats.Add(new KeyValuePair<string, int>("totalServerFailure", totalStatCounter.TotalServerFailure));
-                stats.Add(new KeyValuePair<string, int>("totalNameError", totalStatCounter.TotalNameError));
-                stats.Add(new KeyValuePair<string, int>("totalRefused", totalStatCounter.TotalRefused));
-
-                stats.Add(new KeyValuePair<string, int>("totalAuthoritative", totalStatCounter.TotalAuthoritative));
-                stats.Add(new KeyValuePair<string, int>("totalRecursive", totalStatCounter.TotalRecursive));
-                stats.Add(new KeyValuePair<string, int>("totalCached", totalStatCounter.TotalCached));
-                stats.Add(new KeyValuePair<string, int>("totalBlocked", totalStatCounter.TotalBlocked));
-
-                stats.Add(new KeyValuePair<string, int>("totalClients", totalStatCounter.TotalClients));
-
-                data.Add("stats", stats);
-            }
-
-            data.Add("totalQueriesPerInterval", totalQueriesPerInterval);
-            data.Add("totalNoErrorPerInterval", totalNoErrorPerInterval);
-            data.Add("totalServerFailurePerInterval", totalServerFailurePerInterval);
-            data.Add("totalNameErrorPerInterval", totalNameErrorPerInterval);
-            data.Add("totalRefusedPerInterval", totalRefusedPerInterval);
-
-            data.Add("totalAuthHitPerInterval", totalAuthHitPerInterval);
-            data.Add("totalRecursionsPerInterval", totalRecursionsPerInterval);
-            data.Add("totalCacheHitPerInterval", totalCacheHitPerInterval);
-            data.Add("totalBlockedPerInterval", totalBlockedPerInterval);
-
-            data.Add("totalClientsPerInterval", totalClientsPerInterval);
-
-            data.Add("topDomains", totalStatCounter.GetTopDomains(10));
-            data.Add("topBlockedDomains", totalStatCounter.GetTopBlockedDomains(10));
-            data.Add("topClients", totalStatCounter.GetTopClients(10));
-            data.Add("queryTypes", totalStatCounter.GetTopQueryTypes(5));
-
-            return data;
+            return GetDayWiseStats(DateTime.UtcNow.AddDays(-7).Date, 7);
         }
 
-        public Dictionary<string, List<KeyValuePair<string, int>>> GetLastMonthStats()
+        public Dictionary<string, List<KeyValuePair<string, int>>> GetLastMonthDayWiseStats()
         {
-            StatCounter totalStatCounter = new StatCounter();
-            totalStatCounter.Lock();
-
-            List<KeyValuePair<string, int>> totalQueriesPerInterval = new List<KeyValuePair<string, int>>();
-            List<KeyValuePair<string, int>> totalNoErrorPerInterval = new List<KeyValuePair<string, int>>();
-            List<KeyValuePair<string, int>> totalServerFailurePerInterval = new List<KeyValuePair<string, int>>();
-            List<KeyValuePair<string, int>> totalNameErrorPerInterval = new List<KeyValuePair<string, int>>();
-            List<KeyValuePair<string, int>> totalRefusedPerInterval = new List<KeyValuePair<string, int>>();
-
-            List<KeyValuePair<string, int>> totalAuthHitPerInterval = new List<KeyValuePair<string, int>>();
-            List<KeyValuePair<string, int>> totalRecursionsPerInterval = new List<KeyValuePair<string, int>>();
-            List<KeyValuePair<string, int>> totalCacheHitPerInterval = new List<KeyValuePair<string, int>>();
-            List<KeyValuePair<string, int>> totalBlockedPerInterval = new List<KeyValuePair<string, int>>();
-
-            List<KeyValuePair<string, int>> totalClientsPerInterval = new List<KeyValuePair<string, int>>();
-
-            DateTime lastMonthDateTime = DateTime.UtcNow.AddDays(-31);
-            lastMonthDateTime = new DateTime(lastMonthDateTime.Year, lastMonthDateTime.Month, lastMonthDateTime.Day, 0, 0, 0, DateTimeKind.Utc);
-
-            for (int day = 0; day < 31; day++) //days
-            {
-                DateTime lastDayDateTime = lastMonthDateTime.AddDays(day);
-                string label = lastDayDateTime.ToLocalTime().ToString("MM/dd");
-
-                StatCounter dailyStatCounter = LoadDailyStats(lastDayDateTime);
-                totalStatCounter.Merge(dailyStatCounter);
-
-                totalQueriesPerInterval.Add(new KeyValuePair<string, int>(label, dailyStatCounter.TotalQueries));
-                totalNoErrorPerInterval.Add(new KeyValuePair<string, int>(label, dailyStatCounter.TotalNoError));
-                totalServerFailurePerInterval.Add(new KeyValuePair<string, int>(label, dailyStatCounter.TotalServerFailure));
-                totalNameErrorPerInterval.Add(new KeyValuePair<string, int>(label, dailyStatCounter.TotalNameError));
-                totalRefusedPerInterval.Add(new KeyValuePair<string, int>(label, dailyStatCounter.TotalRefused));
-
-                totalAuthHitPerInterval.Add(new KeyValuePair<string, int>(label, dailyStatCounter.TotalAuthoritative));
-                totalRecursionsPerInterval.Add(new KeyValuePair<string, int>(label, dailyStatCounter.TotalRecursive));
-                totalCacheHitPerInterval.Add(new KeyValuePair<string, int>(label, dailyStatCounter.TotalCached));
-                totalBlockedPerInterval.Add(new KeyValuePair<string, int>(label, dailyStatCounter.TotalBlocked));
-
-                totalClientsPerInterval.Add(new KeyValuePair<string, int>(label, dailyStatCounter.TotalClients));
-            }
-
-            Dictionary<string, List<KeyValuePair<string, int>>> data = new Dictionary<string, List<KeyValuePair<string, int>>>();
-
-            {
-                List<KeyValuePair<string, int>> stats = new List<KeyValuePair<string, int>>(6);
-
-                stats.Add(new KeyValuePair<string, int>("totalQueries", totalStatCounter.TotalQueries));
-                stats.Add(new KeyValuePair<string, int>("totalNoError", totalStatCounter.TotalNoError));
-                stats.Add(new KeyValuePair<string, int>("totalServerFailure", totalStatCounter.TotalServerFailure));
-                stats.Add(new KeyValuePair<string, int>("totalNameError", totalStatCounter.TotalNameError));
-                stats.Add(new KeyValuePair<string, int>("totalRefused", totalStatCounter.TotalRefused));
-
-                stats.Add(new KeyValuePair<string, int>("totalAuthoritative", totalStatCounter.TotalAuthoritative));
-                stats.Add(new KeyValuePair<string, int>("totalRecursive", totalStatCounter.TotalRecursive));
-                stats.Add(new KeyValuePair<string, int>("totalCached", totalStatCounter.TotalCached));
-                stats.Add(new KeyValuePair<string, int>("totalBlocked", totalStatCounter.TotalBlocked));
-
-                stats.Add(new KeyValuePair<string, int>("totalClients", totalStatCounter.TotalClients));
-
-                data.Add("stats", stats);
-            }
-
-            data.Add("totalQueriesPerInterval", totalQueriesPerInterval);
-            data.Add("totalNoErrorPerInterval", totalNoErrorPerInterval);
-            data.Add("totalServerFailurePerInterval", totalServerFailurePerInterval);
-            data.Add("totalNameErrorPerInterval", totalNameErrorPerInterval);
-            data.Add("totalRefusedPerInterval", totalRefusedPerInterval);
-
-            data.Add("totalAuthHitPerInterval", totalAuthHitPerInterval);
-            data.Add("totalRecursionsPerInterval", totalRecursionsPerInterval);
-            data.Add("totalCacheHitPerInterval", totalCacheHitPerInterval);
-            data.Add("totalBlockedPerInterval", totalBlockedPerInterval);
-
-            data.Add("totalClientsPerInterval", totalClientsPerInterval);
-
-            data.Add("topDomains", totalStatCounter.GetTopDomains(10));
-            data.Add("topBlockedDomains", totalStatCounter.GetTopBlockedDomains(10));
-            data.Add("topClients", totalStatCounter.GetTopClients(10));
-            data.Add("queryTypes", totalStatCounter.GetTopQueryTypes(5));
-
-            return data;
+            return GetDayWiseStats(DateTime.UtcNow.AddDays(-31).Date, 31);
         }
 
-        public Dictionary<string, List<KeyValuePair<string, int>>> GetLastYearStats()
+        public Dictionary<string, List<KeyValuePair<string, int>>> GetLastYearMonthWiseStats()
         {
             StatCounter totalStatCounter = new StatCounter();
             totalStatCounter.Lock();
@@ -1011,6 +769,182 @@ namespace DnsServerCore.Dns
             return data;
         }
 
+        public Dictionary<string, List<KeyValuePair<string, int>>> GetHourWiseStats(DateTime startDate, DateTime endDate)
+        {
+            return GetHourWiseStats(startDate, Convert.ToInt32((endDate - startDate).TotalHours) + 1);
+        }
+
+        public Dictionary<string, List<KeyValuePair<string, int>>> GetHourWiseStats(DateTime startDate, int hours)
+        {
+            StatCounter totalStatCounter = new StatCounter();
+            totalStatCounter.Lock();
+
+            List<KeyValuePair<string, int>> totalQueriesPerInterval = new List<KeyValuePair<string, int>>();
+            List<KeyValuePair<string, int>> totalNoErrorPerInterval = new List<KeyValuePair<string, int>>();
+            List<KeyValuePair<string, int>> totalServerFailurePerInterval = new List<KeyValuePair<string, int>>();
+            List<KeyValuePair<string, int>> totalNameErrorPerInterval = new List<KeyValuePair<string, int>>();
+            List<KeyValuePair<string, int>> totalRefusedPerInterval = new List<KeyValuePair<string, int>>();
+
+            List<KeyValuePair<string, int>> totalAuthHitPerInterval = new List<KeyValuePair<string, int>>();
+            List<KeyValuePair<string, int>> totalRecursionsPerInterval = new List<KeyValuePair<string, int>>();
+            List<KeyValuePair<string, int>> totalCacheHitPerInterval = new List<KeyValuePair<string, int>>();
+            List<KeyValuePair<string, int>> totalBlockedPerInterval = new List<KeyValuePair<string, int>>();
+
+            List<KeyValuePair<string, int>> totalClientsPerInterval = new List<KeyValuePair<string, int>>();
+
+            for (int hour = 0; hour < hours; hour++)
+            {
+                DateTime lastDateTime = startDate.AddHours(hour);
+                string label = lastDateTime.ToLocalTime().ToString("MM/dd HH") + ":00";
+
+                HourlyStats hourlyStats = LoadHourlyStats(lastDateTime);
+                StatCounter hourlyStatCounter = hourlyStats.HourStat;
+
+                totalStatCounter.Merge(hourlyStatCounter);
+
+                totalQueriesPerInterval.Add(new KeyValuePair<string, int>(label, hourlyStatCounter.TotalQueries));
+                totalNoErrorPerInterval.Add(new KeyValuePair<string, int>(label, hourlyStatCounter.TotalNoError));
+                totalServerFailurePerInterval.Add(new KeyValuePair<string, int>(label, hourlyStatCounter.TotalServerFailure));
+                totalNameErrorPerInterval.Add(new KeyValuePair<string, int>(label, hourlyStatCounter.TotalNameError));
+                totalRefusedPerInterval.Add(new KeyValuePair<string, int>(label, hourlyStatCounter.TotalRefused));
+
+                totalAuthHitPerInterval.Add(new KeyValuePair<string, int>(label, hourlyStatCounter.TotalAuthoritative));
+                totalRecursionsPerInterval.Add(new KeyValuePair<string, int>(label, hourlyStatCounter.TotalRecursive));
+                totalCacheHitPerInterval.Add(new KeyValuePair<string, int>(label, hourlyStatCounter.TotalCached));
+                totalBlockedPerInterval.Add(new KeyValuePair<string, int>(label, hourlyStatCounter.TotalBlocked));
+
+                totalClientsPerInterval.Add(new KeyValuePair<string, int>(label, hourlyStatCounter.TotalClients));
+            }
+
+            Dictionary<string, List<KeyValuePair<string, int>>> data = new Dictionary<string, List<KeyValuePair<string, int>>>();
+
+            {
+                List<KeyValuePair<string, int>> stats = new List<KeyValuePair<string, int>>(6);
+
+                stats.Add(new KeyValuePair<string, int>("totalQueries", totalStatCounter.TotalQueries));
+                stats.Add(new KeyValuePair<string, int>("totalNoError", totalStatCounter.TotalNoError));
+                stats.Add(new KeyValuePair<string, int>("totalServerFailure", totalStatCounter.TotalServerFailure));
+                stats.Add(new KeyValuePair<string, int>("totalNameError", totalStatCounter.TotalNameError));
+                stats.Add(new KeyValuePair<string, int>("totalRefused", totalStatCounter.TotalRefused));
+
+                stats.Add(new KeyValuePair<string, int>("totalAuthoritative", totalStatCounter.TotalAuthoritative));
+                stats.Add(new KeyValuePair<string, int>("totalRecursive", totalStatCounter.TotalRecursive));
+                stats.Add(new KeyValuePair<string, int>("totalCached", totalStatCounter.TotalCached));
+                stats.Add(new KeyValuePair<string, int>("totalBlocked", totalStatCounter.TotalBlocked));
+
+                stats.Add(new KeyValuePair<string, int>("totalClients", totalStatCounter.TotalClients));
+
+                data.Add("stats", stats);
+            }
+
+            data.Add("totalQueriesPerInterval", totalQueriesPerInterval);
+            data.Add("totalNoErrorPerInterval", totalNoErrorPerInterval);
+            data.Add("totalServerFailurePerInterval", totalServerFailurePerInterval);
+            data.Add("totalNameErrorPerInterval", totalNameErrorPerInterval);
+            data.Add("totalRefusedPerInterval", totalRefusedPerInterval);
+
+            data.Add("totalAuthHitPerInterval", totalAuthHitPerInterval);
+            data.Add("totalRecursionsPerInterval", totalRecursionsPerInterval);
+            data.Add("totalCacheHitPerInterval", totalCacheHitPerInterval);
+            data.Add("totalBlockedPerInterval", totalBlockedPerInterval);
+
+            data.Add("totalClientsPerInterval", totalClientsPerInterval);
+
+            data.Add("topDomains", totalStatCounter.GetTopDomains(10));
+            data.Add("topBlockedDomains", totalStatCounter.GetTopBlockedDomains(10));
+            data.Add("topClients", totalStatCounter.GetTopClients(10));
+            data.Add("queryTypes", totalStatCounter.GetTopQueryTypes(5));
+
+            return data;
+        }
+
+        public Dictionary<string, List<KeyValuePair<string, int>>> GetDayWiseStats(DateTime startDate, DateTime endDate)
+        {
+            return GetDayWiseStats(startDate, Convert.ToInt32((endDate - startDate).TotalDays) + 1);
+        }
+
+        public Dictionary<string, List<KeyValuePair<string, int>>> GetDayWiseStats(DateTime startDate, int days)
+        {
+            StatCounter totalStatCounter = new StatCounter();
+            totalStatCounter.Lock();
+
+            List<KeyValuePair<string, int>> totalQueriesPerInterval = new List<KeyValuePair<string, int>>();
+            List<KeyValuePair<string, int>> totalNoErrorPerInterval = new List<KeyValuePair<string, int>>();
+            List<KeyValuePair<string, int>> totalServerFailurePerInterval = new List<KeyValuePair<string, int>>();
+            List<KeyValuePair<string, int>> totalNameErrorPerInterval = new List<KeyValuePair<string, int>>();
+            List<KeyValuePair<string, int>> totalRefusedPerInterval = new List<KeyValuePair<string, int>>();
+
+            List<KeyValuePair<string, int>> totalAuthHitPerInterval = new List<KeyValuePair<string, int>>();
+            List<KeyValuePair<string, int>> totalRecursionsPerInterval = new List<KeyValuePair<string, int>>();
+            List<KeyValuePair<string, int>> totalCacheHitPerInterval = new List<KeyValuePair<string, int>>();
+            List<KeyValuePair<string, int>> totalBlockedPerInterval = new List<KeyValuePair<string, int>>();
+
+            List<KeyValuePair<string, int>> totalClientsPerInterval = new List<KeyValuePair<string, int>>();
+
+            for (int day = 0; day < days; day++) //days
+            {
+                DateTime lastDayDateTime = startDate.AddDays(day);
+                string label = lastDayDateTime.ToLocalTime().ToString("MM/dd");
+
+                StatCounter dailyStatCounter = LoadDailyStats(lastDayDateTime);
+                totalStatCounter.Merge(dailyStatCounter);
+
+                totalQueriesPerInterval.Add(new KeyValuePair<string, int>(label, dailyStatCounter.TotalQueries));
+                totalNoErrorPerInterval.Add(new KeyValuePair<string, int>(label, dailyStatCounter.TotalNoError));
+                totalServerFailurePerInterval.Add(new KeyValuePair<string, int>(label, dailyStatCounter.TotalServerFailure));
+                totalNameErrorPerInterval.Add(new KeyValuePair<string, int>(label, dailyStatCounter.TotalNameError));
+                totalRefusedPerInterval.Add(new KeyValuePair<string, int>(label, dailyStatCounter.TotalRefused));
+
+                totalAuthHitPerInterval.Add(new KeyValuePair<string, int>(label, dailyStatCounter.TotalAuthoritative));
+                totalRecursionsPerInterval.Add(new KeyValuePair<string, int>(label, dailyStatCounter.TotalRecursive));
+                totalCacheHitPerInterval.Add(new KeyValuePair<string, int>(label, dailyStatCounter.TotalCached));
+                totalBlockedPerInterval.Add(new KeyValuePair<string, int>(label, dailyStatCounter.TotalBlocked));
+
+                totalClientsPerInterval.Add(new KeyValuePair<string, int>(label, dailyStatCounter.TotalClients));
+            }
+
+            Dictionary<string, List<KeyValuePair<string, int>>> data = new Dictionary<string, List<KeyValuePair<string, int>>>();
+
+            {
+                List<KeyValuePair<string, int>> stats = new List<KeyValuePair<string, int>>(6);
+
+                stats.Add(new KeyValuePair<string, int>("totalQueries", totalStatCounter.TotalQueries));
+                stats.Add(new KeyValuePair<string, int>("totalNoError", totalStatCounter.TotalNoError));
+                stats.Add(new KeyValuePair<string, int>("totalServerFailure", totalStatCounter.TotalServerFailure));
+                stats.Add(new KeyValuePair<string, int>("totalNameError", totalStatCounter.TotalNameError));
+                stats.Add(new KeyValuePair<string, int>("totalRefused", totalStatCounter.TotalRefused));
+
+                stats.Add(new KeyValuePair<string, int>("totalAuthoritative", totalStatCounter.TotalAuthoritative));
+                stats.Add(new KeyValuePair<string, int>("totalRecursive", totalStatCounter.TotalRecursive));
+                stats.Add(new KeyValuePair<string, int>("totalCached", totalStatCounter.TotalCached));
+                stats.Add(new KeyValuePair<string, int>("totalBlocked", totalStatCounter.TotalBlocked));
+
+                stats.Add(new KeyValuePair<string, int>("totalClients", totalStatCounter.TotalClients));
+
+                data.Add("stats", stats);
+            }
+
+            data.Add("totalQueriesPerInterval", totalQueriesPerInterval);
+            data.Add("totalNoErrorPerInterval", totalNoErrorPerInterval);
+            data.Add("totalServerFailurePerInterval", totalServerFailurePerInterval);
+            data.Add("totalNameErrorPerInterval", totalNameErrorPerInterval);
+            data.Add("totalRefusedPerInterval", totalRefusedPerInterval);
+
+            data.Add("totalAuthHitPerInterval", totalAuthHitPerInterval);
+            data.Add("totalRecursionsPerInterval", totalRecursionsPerInterval);
+            data.Add("totalCacheHitPerInterval", totalCacheHitPerInterval);
+            data.Add("totalBlockedPerInterval", totalBlockedPerInterval);
+
+            data.Add("totalClientsPerInterval", totalClientsPerInterval);
+
+            data.Add("topDomains", totalStatCounter.GetTopDomains(10));
+            data.Add("topBlockedDomains", totalStatCounter.GetTopBlockedDomains(10));
+            data.Add("topClients", totalStatCounter.GetTopClients(10));
+            data.Add("queryTypes", totalStatCounter.GetTopQueryTypes(5));
+
+            return data;
+        }
+
         public List<KeyValuePair<string, int>> GetLastHourTopStats(TopStatsType type, int limit)
         {
             StatCounter totalStatCounter = new StatCounter();
@@ -1046,15 +980,74 @@ namespace DnsServerCore.Dns
 
         public List<KeyValuePair<string, int>> GetLastDayTopStats(TopStatsType type, int limit)
         {
+            return GetHourWiseTopStats(DateTime.UtcNow.AddHours(-24), 24, type, limit);
+        }
+
+        public List<KeyValuePair<string, int>> GetLastWeekTopStats(TopStatsType type, int limit)
+        {
+            return GetDayWiseTopStats(DateTime.UtcNow.AddDays(-7).Date, 7, type, limit);
+        }
+
+        public List<KeyValuePair<string, int>> GetLastMonthTopStats(TopStatsType type, int limit)
+        {
+            return GetDayWiseTopStats(DateTime.UtcNow.AddDays(-31).Date, 31, type, limit);
+        }
+
+        public List<KeyValuePair<string, int>> GetLastYearTopStats(TopStatsType type, int limit)
+        {
             StatCounter totalStatCounter = new StatCounter();
             totalStatCounter.Lock();
 
-            DateTime lastDayDateTime = DateTime.UtcNow.AddHours(-24);
-            lastDayDateTime = new DateTime(lastDayDateTime.Year, lastDayDateTime.Month, lastDayDateTime.Day, lastDayDateTime.Hour, 0, 0, DateTimeKind.Utc);
+            DateTime lastYearDateTime = DateTime.UtcNow.AddMonths(-12);
+            lastYearDateTime = new DateTime(lastYearDateTime.Year, lastYearDateTime.Month, 1, 0, 0, 0, DateTimeKind.Utc);
 
-            for (int hour = 0; hour < 24; hour++)
+            for (int month = 0; month < 12; month++) //months
             {
-                DateTime lastDateTime = lastDayDateTime.AddHours(hour);
+                StatCounter monthlyStatCounter = new StatCounter();
+                monthlyStatCounter.Lock();
+
+                DateTime lastMonthDateTime = lastYearDateTime.AddMonths(month);
+
+                int days = DateTime.DaysInMonth(lastMonthDateTime.Year, lastMonthDateTime.Month);
+
+                for (int day = 0; day < days; day++) //days
+                {
+                    StatCounter dailyStatCounter = LoadDailyStats(lastMonthDateTime.AddDays(day));
+                    monthlyStatCounter.Merge(dailyStatCounter);
+                }
+
+                totalStatCounter.Merge(monthlyStatCounter);
+            }
+
+            switch (type)
+            {
+                case TopStatsType.TopDomains:
+                    return totalStatCounter.GetTopDomains(limit);
+
+                case TopStatsType.TopBlockedDomains:
+                    return totalStatCounter.GetTopBlockedDomains(limit);
+
+                case TopStatsType.TopClients:
+                    return totalStatCounter.GetTopClients(limit);
+
+                default:
+                    throw new NotSupportedException();
+            }
+        }
+
+        public List<KeyValuePair<string, int>> GetHourWiseTopStats(DateTime startDate, DateTime endDate, TopStatsType type, int limit)
+        {
+            return GetHourWiseTopStats(startDate, Convert.ToInt32((endDate - startDate).TotalHours) + 1, type, limit);
+        }
+
+        public List<KeyValuePair<string, int>> GetHourWiseTopStats(DateTime startDate, int hours, TopStatsType type, int limit)
+        {
+            StatCounter totalStatCounter = new StatCounter();
+            totalStatCounter.Lock();
+
+            for (int hour = 0; hour < hours; hour++)
+            {
+                DateTime lastDateTime = startDate.AddHours(hour);
 
                 HourlyStats hourlyStats = LoadHourlyStats(lastDateTime);
                 StatCounter hourlyStatCounter = hourlyStats.HourStat;
@@ -1078,95 +1071,22 @@ namespace DnsServerCore.Dns
             }
         }
 
-        public List<KeyValuePair<string, int>> GetLastWeekTopStats(TopStatsType type, int limit)
+        public List<KeyValuePair<string, int>> GetDayWiseTopStats(DateTime startDate, DateTime endDate, TopStatsType type, int limit)
+        {
+            return GetDayWiseTopStats(startDate, Convert.ToInt32((endDate - startDate).TotalDays) + 1, type, limit);
+        }
+
+        public List<KeyValuePair<string, int>> GetDayWiseTopStats(DateTime startDate, int days, TopStatsType type, int limit)
         {
             StatCounter totalStatCounter = new StatCounter();
             totalStatCounter.Lock();
 
-            DateTime lastWeekDateTime = DateTime.UtcNow.AddDays(-7);
-            lastWeekDateTime = new DateTime(lastWeekDateTime.Year, lastWeekDateTime.Month, lastWeekDateTime.Day, 0, 0, 0, DateTimeKind.Utc);
-
-            for (int day = 0; day < 7; day++) //days
+            for (int day = 0; day < days; day++) //days
             {
-                DateTime lastDayDateTime = lastWeekDateTime.AddDays(day);
+                DateTime lastDayDateTime = startDate.AddDays(day);
 
                 StatCounter dailyStatCounter = LoadDailyStats(lastDayDateTime);
                 totalStatCounter.Merge(dailyStatCounter);
-            }
-
-            switch (type)
-            {
-                case TopStatsType.TopDomains:
-                    return totalStatCounter.GetTopDomains(limit);
-
-                case TopStatsType.TopBlockedDomains:
-                    return totalStatCounter.GetTopBlockedDomains(limit);
-
-                case TopStatsType.TopClients:
-                    return totalStatCounter.GetTopClients(limit);
-
-                default:
-                    throw new NotSupportedException();
-            }
-        }
-
-        public List<KeyValuePair<string, int>> GetLastMonthTopStats(TopStatsType type, int limit)
-        {
-            StatCounter totalStatCounter = new StatCounter();
-            totalStatCounter.Lock();
-
-            DateTime lastMonthDateTime = DateTime.UtcNow.AddDays(-31);
-            lastMonthDateTime = new DateTime(lastMonthDateTime.Year, lastMonthDateTime.Month, lastMonthDateTime.Day, 0, 0, 0, DateTimeKind.Utc);
-
-            for (int day = 0; day < 31; day++) //days
-            {
-                DateTime lastDayDateTime = lastMonthDateTime.AddDays(day);
-
-                StatCounter dailyStatCounter = LoadDailyStats(lastDayDateTime);
-                totalStatCounter.Merge(dailyStatCounter);
-            }
-
-            switch (type)
-            {
-                case TopStatsType.TopDomains:
-                    return totalStatCounter.GetTopDomains(limit);
-
-                case TopStatsType.TopBlockedDomains:
-                    return totalStatCounter.GetTopBlockedDomains(limit);
-
-                case TopStatsType.TopClients:
-                    return totalStatCounter.GetTopClients(limit);
-
-                default:
-                    throw new NotSupportedException();
-            }
-        }
-
-        public List<KeyValuePair<string, int>> GetLastYearTopStats(TopStatsType type, int limit)
-        {
-            StatCounter totalStatCounter = new StatCounter();
-            totalStatCounter.Lock();
-
-            DateTime lastYearDateTime = DateTime.UtcNow.AddMonths(-12);
-            lastYearDateTime = new DateTime(lastYearDateTime.Year, lastYearDateTime.Month, 1, 0, 0, 0, DateTimeKind.Utc);
-
-            for (int month = 0; month < 12; month++) //months
-            {
-                StatCounter monthlyStatCounter = new StatCounter();
-                monthlyStatCounter.Lock();
-
-                DateTime lastMonthDateTime = lastYearDateTime.AddMonths(month);
-                string label = lastMonthDateTime.ToLocalTime().ToString("MM/yyyy");
-
-                int days = DateTime.DaysInMonth(lastMonthDateTime.Year, lastMonthDateTime.Month);
-
-                for (int day = 0; day < days; day++) //days
-                {
-                    StatCounter dailyStatCounter = LoadDailyStats(lastMonthDateTime.AddDays(day));
-                    monthlyStatCounter.Merge(dailyStatCounter);
-                }
-
-                totalStatCounter.Merge(monthlyStatCounter);
             }
 
             switch (type)
