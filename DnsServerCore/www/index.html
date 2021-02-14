@@ -15,6 +15,9 @@
 
     <link href="/css/font-awesome.min.css" rel="stylesheet" />
 
+    <link href="/css/jquery-ui.min.css" rel="stylesheet">
+    <script src="/js/jquery-ui.min.js"></script>
+
     <link href="/css/main.css" rel="stylesheet" />
     <script src="/js/common.js"></script>
     <script src="/js/main.js"></script>
@@ -106,22 +109,37 @@
                             <div class="tab-content">
 
                                 <div id="mainPanelTabPaneDashboard" role="tabpanel" class="tab-pane active" style="padding: 10px 0 0 0;">
-                                    <div class="btn-group" data-toggle="buttons">
-                                        <label class="btn btn-default active">
-                                            <input type="radio" name="rdStatType" value="lastHour" autocomplete="off" checked> Last Hour
-                                        </label>
-                                        <label class="btn btn-default">
-                                            <input type="radio" name="rdStatType" value="lastDay" autocomplete="off"> Last Day
-                                        </label>
-                                        <label class="btn btn-default">
-                                            <input type="radio" name="rdStatType" value="lastWeek" autocomplete="off"> Last Week
-                                        </label>
-                                        <label class="btn btn-default">
-                                            <input type="radio" name="rdStatType" value="lastMonth" autocomplete="off"> Last Month
-                                        </label>
-                                        <label class="btn btn-default">
-                                            <input type="radio" name="rdStatType" value="lastYear" autocomplete="off"> Last Year
-                                        </label>
+                                    <div>
+                                        <div class="pull-left">
+                                            <div class="btn-group" data-toggle="buttons">
+                                                <label class="btn btn-default active">
+                                                    <input type="radio" name="rdStatType" value="lastHour" autocomplete="off" checked> Last Hour
+                                                </label>
+                                                <label class="btn btn-default">
+                                                    <input type="radio" name="rdStatType" value="lastDay" autocomplete="off"> Last Day
+                                                </label>
+                                                <label class="btn btn-default">
+                                                    <input type="radio" name="rdStatType" value="lastWeek" autocomplete="off"> Last Week
+                                                </label>
+                                                <label class="btn btn-default">
+                                                    <input type="radio" name="rdStatType" value="lastMonth" autocomplete="off"> Last Month
+                                                </label>
+                                                <label class="btn btn-default">
+                                                    <input type="radio" name="rdStatType" value="lastYear" autocomplete="off"> Last Year
+                                                </label>
+                                                <label class="btn btn-default">
+                                                    <input type="radio" name="rdStatType" value="custom" autocomplete="off"> Custom
+                                                </label>
+                                            </div>
+                                        </div>
+
+                                        <div id="divCustomDayWise" class="pull-left" style="padding: 4px 0px 4px 10px; display: none;">
+                                            <span style="margin-right: 6px;">Start <input type="text" id="dpCustomDayWiseStart" size="10"></span>
+                                            <span style="margin-right: 6px;">End <input type="text" id="dpCustomDayWiseEnd" size="10"></span>
+                                            <button id="btnCustomDayWise" class="btn btn-default" type="button" style="font-size: 12px; padding: 3px 0px; width: 60px; vertical-align: top;">Show</button>
+                                        </div>
+
+                                        <div class="clearfix"></div>
                                     </div>
 
                                     <div id="divDashboardLoader" style="margin-top: 10px; height: 400px;"></div>
