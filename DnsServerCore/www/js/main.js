@@ -1072,21 +1072,15 @@ function cleanTextList(text) {
     return text;
 }
 
-function updateChart(chart, data, filterChanged) {
-    if (!filterChanged || chart.data.labels.length == data.labels.length) {
-        chart.data.datasets.forEach(function (each, index) {
-            each.data = data.datasets[index].data;
-        });
-    } else { //If filter changed or labels differ then reload dataset
-        chart.data = data;
-        chart.update();
-        loadChartLegendSettings(chart); //Reload the chart legend
-    }
+function updateChart(chart, data) {
+    chart.data = data;
     chart.update();
+    loadChartLegendSettings(chart); //Reload the chart legend
 }
 
 function loadChartLegendSettings(chart) {
     var labelFilters = localStorage.getItem("chart_" + chart.id + "_legend");
+
     if (labelFilters != null) {
         labelFilters = JSON.parse(labelFilters);
         if (chart.config.type == "doughnut" || chart.config.type == "pie") {
@@ -1098,7 +1092,8 @@ function loadChartLegendSettings(chart) {
                     chart.getDatasetMeta(0).data[index].hidden = labelFilter[0].hidden;
                 }
             });
-        } else {
+        }
+        else {
             chart.data.datasets.forEach((data, index) => {
                 let labelFilter = labelFilters.filter(function (f) {
                     return f.title == this.toString();
@@ -1108,12 +1103,14 @@ function loadChartLegendSettings(chart) {
                 }
             });
         }
+
         chart.update();
     }
 }
 
 function saveChartLegendSettings(chart) {
     var labelFilters = [];
+
     if (chart.config.type == "doughnut" || chart.config.type == "pie") {
         chart.data.labels.forEach((label, index) => {
             var hidden = chart.getDatasetMeta(0).data[index].hidden;
@@ -1124,8 +1121,8 @@ function saveChartLegendSettings(chart) {
                 }
             );
         });
-
-    } else {
+    }
+    else {
         chart.data.datasets.forEach((data, index) => {
             var hidden = chart.getDatasetMeta(index).hidden;
             labelFilters.push(
@@ -1136,11 +1133,13 @@ function saveChartLegendSettings(chart) {
             );
         });
     }
+
     localStorage.setItem("chart_" + chart.id + "_legend", JSON.stringify(labelFilters));
 }
 
 var chartLegendOnClick = function (e, legendItem) {
     var chartType = this.chart.config.type;
+
     if (chartType == "doughnut") {
         Chart.defaults.doughnut.legend.onClick.call(this, e, legendItem);
     } else if (chartType == "pie") {
@@ -1148,10 +1147,10 @@ var chartLegendOnClick = function (e, legendItem) {
     } else {
         Chart.defaults.global.legend.onClick.call(this, e, legendItem);
     }
+
     saveChartLegendSettings(this.chart);
 }
 
-var lastStatType = "";
 function refreshDashboard(hideLoader) {
 
     if (!$("#mainPanelTabPaneDashboard").hasClass("active"))
@@ -1169,7 +1168,6 @@ function refreshDashboard(hideLoader) {
     }
 
     var type = $('input[name=rdStatType]:checked').val();
-    var filterChanged = type != lastStatType;
     var custom = "";
 
     if (type === "custom") {
@@ -1188,7 +1186,6 @@ function refreshDashboard(hideLoader) {
         }
 
         custom = "&start=" + start + "&end=" + end;
-        filterChanged = true; //to allow refreshing custom data again correctly
     }
 
     HTTPRequest({
@@ -1266,7 +1263,7 @@ function refreshDashboard(hideLoader) {
                 loadChartLegendSettings(window.chartDashboardMain);
             }
             else {
-                updateChart(window.chartDashboardMain, responseJSON.response.mainChartData, filterChanged);
+                updateChart(window.chartDashboardMain, responseJSON.response.mainChartData);
             }
 
             //query response chart
@@ -1286,7 +1283,7 @@ function refreshDashboard(hideLoader) {
                 loadChartLegendSettings(window.chartDashboardPie);
             }
             else {
-                updateChart(window.chartDashboardPie, responseJSON.response.queryResponseChartData, filterChanged);
+                updateChart(window.chartDashboardPie, responseJSON.response.queryResponseChartData);
             }
 
             //query type chart
@@ -1306,7 +1303,7 @@ function refreshDashboard(hideLoader) {
                 loadChartLegendSettings(window.chartDashboardPie2);
             }
             else {
-                updateChart(window.chartDashboardPie2, responseJSON.response.queryTypeChartData, filterChanged);
+                updateChart(window.chartDashboardPie2, responseJSON.response.queryTypeChartData);
             }
 
             //top clients
@@ -1377,8 +1374,6 @@ function refreshDashboard(hideLoader) {
         objLoaderPlaceholder: divDashboardLoader,
         dontHideAlert: hideLoader
     });
-
-    lastStatType = type;
 
     return false;
 }
