@@ -433,7 +433,25 @@ $(function () {
         }
     });
 
+    $("#dpCustomDayWiseStart").datepicker();
+    $("#dpCustomDayWiseStart").datepicker("option", "dateFormat", "yy-m-d");
+
+    $("#dpCustomDayWiseEnd").datepicker();
+    $("#dpCustomDayWiseEnd").datepicker("option", "dateFormat", "yy-m-d");
+
     $("input[type=radio][name=rdStatType]").change(function () {
+        var type = $('input[name=rdStatType]:checked').val();
+        if (type === "custom") {
+            $("#divCustomDayWise").show();
+        }
+        else {
+            $("#divCustomDayWise").hide();
+
+            refreshDashboard();
+        }
+    });
+
+    $("#btnCustomDayWise").click(function () {
         refreshDashboard();
     });
 
@@ -1151,11 +1169,30 @@ function refreshDashboard(hideLoader) {
     }
 
     var type = $('input[name=rdStatType]:checked').val();
-
     var filterChanged = type != lastStatType;
+    var custom = "";
+
+    if (type === "custom") {
+        var start = $("#dpCustomDayWiseStart").val();
+        if (start === null || (start === "")) {
+            showAlert("warning", "Missing!", "Please select a start date.");
+            $("#dpCustomDayWiseStart").focus();
+            return false;
+        }
+
+        var end = $("#dpCustomDayWiseEnd").val();
+        if (end === null || (end === "")) {
+            showAlert("warning", "Missing!", "Please select an end date.");
+            $("#dpCustomDayWiseEnd").focus();
+            return false;
+        }
+
+        custom = "&start=" + start + "&end=" + end;
+        filterChanged = true; //to allow refreshing custom data again correctly
+    }
 
     HTTPRequest({
-        url: "/api/getStats?token=" + token + "&type=" + type,
+        url: "/api/getStats?token=" + token + "&type=" + type + custom,
         success: function (responseJSON) {
 
             //stats
@@ -1372,9 +1409,28 @@ function showTopStats(statsType, limit) {
     $("#modalTopStats").modal("show");
 
     var type = $('input[name=rdStatType]:checked').val();
+    var custom = "";
+
+    if (type === "custom") {
+        var start = $("#dpCustomDayWiseStart").val();
+        if (start === null || (start === "")) {
+            showAlert("warning", "Missing!", "Please select a start date.");
+            $("#dpCustomDayWiseStart").focus();
+            return false;
+        }
+
+        var end = $("#dpCustomDayWiseEnd").val();
+        if (end === null || (end === "")) {
+            showAlert("warning", "Missing!", "Please select an end date.");
+            $("#dpCustomDayWiseEnd").focus();
+            return false;
+        }
+
+        custom = "&start=" + start + "&end=" + end;
+    }
 
     HTTPRequest({
-        url: "/api/getTopStats?token=" + token + "&type=" + type + "&statsType=" + statsType + "&limit=" + limit,
+        url: "/api/getTopStats?token=" + token + "&type=" + type + custom + "&statsType=" + statsType + "&limit=" + limit,
         success: function (responseJSON) {
             divTopStatsLoader.hide();
 
