@@ -12,6 +12,13 @@
     <None Remove="www\css\bootstrap.min.css" />
     <None Remove="www\css\bootstrap.min.css.map" />
     <None Remove="www\css\font-awesome.min.css" />
+    <None Remove="www\css\images\ui-icons_444444_256x240.png" />
+    <None Remove="www\css\images\ui-icons_555555_256x240.png" />
+    <None Remove="www\css\images\ui-icons_777620_256x240.png" />
+    <None Remove="www\css\images\ui-icons_777777_256x240.png" />
+    <None Remove="www\css\images\ui-icons_cc0000_256x240.png" />
+    <None Remove="www\css\images\ui-icons_ffffff_256x240.png" />
+    <None Remove="www\css\jquery-ui.min.css" />
     <None Remove="www\css\main.css" />
     <None Remove="www\favicon.ico" />
     <None Remove="www\fonts\fontawesome-webfont.eot" />
@@ -33,6 +40,7 @@
     <None Remove="www\js\Chart.min.js" />
     <None Remove="www\js\common.js" />
     <None Remove="www\js\dhcp.js" />
+    <None Remove="www\js\jquery-ui.min.js" />
     <None Remove="www\js\jquery.min.js" />
     <None Remove="www\js\main.js" />
     <None Remove="www\js\zone.js" />
@@ -44,6 +52,27 @@
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
     <Content Include="www\blocklist.txt">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="www\css\images\ui-icons_444444_256x240.png">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="www\css\images\ui-icons_555555_256x240.png">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="www\css\images\ui-icons_777620_256x240.png">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="www\css\images\ui-icons_777777_256x240.png">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="www\css\images\ui-icons_cc0000_256x240.png">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="www\css\images\ui-icons_ffffff_256x240.png">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="www\css\jquery-ui.min.css">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
     <Content Include="www\favicon.ico">
@@ -113,6 +142,9 @@
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
     <Content Include="www\js\common.js">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="www\js\jquery-ui.min.js">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
     <Content Include="www\js\jquery.min.js">
