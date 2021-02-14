@@ -27,6 +27,7 @@ using Newtonsoft.Json.Converters;
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.Globalization;
 using System.IO;
 using System.IO.Compression;
 using System.Net;
@@ -2196,23 +2197,48 @@ namespace DnsServerCore
             switch (strType)
             {
                 case "lastHour":
-                    data = _dnsServer.StatsManager.GetLastHourStats();
+                    data = _dnsServer.StatsManager.GetLastHourMinuteWiseStats();
                     break;
 
                 case "lastDay":
-                    data = _dnsServer.StatsManager.GetLastDayStats();
+                    data = _dnsServer.StatsManager.GetLastDayHourWiseStats();
                     break;
 
                 case "lastWeek":
-                    data = _dnsServer.StatsManager.GetLastWeekStats();
+                    data = _dnsServer.StatsManager.GetLastWeekDayWiseStats();
                     break;
 
                 case "lastMonth":
-                    data = _dnsServer.StatsManager.GetLastMonthStats();
+                    data = _dnsServer.StatsManager.GetLastMonthDayWiseStats();
                     break;
 
                 case "lastYear":
-                    data = _dnsServer.StatsManager.GetLastYearStats();
+                    data = _dnsServer.StatsManager.GetLastYearMonthWiseStats();
+                    break;
+
+                case "custom":
+                    string strStartDate = request.QueryString["start"];
+                    if (string.IsNullOrEmpty(strStartDate))
+                        throw new WebServiceException("Parameter 'start' missing.");
+
+                    string strEndDate = request.QueryString["end"];
+                    if (string.IsNullOrEmpty(strEndDate))
+                        throw new WebServiceException("Parameter 'end' missing.");
+
+                    if (!DateTime.TryParseExact(strStartDate, "yyyy-M-d", CultureInfo.InvariantCulture, DateTimeStyles.AssumeUniversal | DateTimeStyles.AdjustToUniversal, out DateTime startDate))
+                        throw new WebServiceException("Invalid start date format.");
+
+                    if (!DateTime.TryParseExact(strEndDate, "yyyy-M-d", CultureInfo.InvariantCulture, DateTimeStyles.AssumeUniversal | DateTimeStyles.AdjustToUniversal, out DateTime endDate))
+                        throw new WebServiceException("Invalid end date format.");
+
+                    if (startDate > endDate)
+                        throw new WebServiceException("Start date must be less than or equal to end date.");
+
+                    if ((Convert.ToInt32((endDate - startDate).TotalDays) + 1) > 7)
+                        data = _dnsServer.StatsManager.GetDayWiseStats(startDate, endDate);
+                    else
+                        data = _dnsServer.StatsManager.GetHourWiseStats(startDate, endDate);
+
                     break;
 
                 default:
@@ -2560,6 +2586,31 @@ namespace DnsServerCore
 
                 case "lastYear":
                     topStatsData = _dnsServer.StatsManager.GetLastYearTopStats(statsType, limit);
+                    break;
+
+                case "custom":
+                    string strStartDate = request.QueryString["start"];
+                    if (string.IsNullOrEmpty(strStartDate))
+                        throw new WebServiceException("Parameter 'start' missing.");
+
+                    string strEndDate = request.QueryString["end"];
+                    if (string.IsNullOrEmpty(strEndDate))
+                        throw new WebServiceException("Parameter 'end' missing.");
+
+                    if (!DateTime.TryParseExact(strStartDate, "yyyy-M-d", CultureInfo.InvariantCulture, DateTimeStyles.AssumeUniversal | DateTimeStyles.AdjustToUniversal, out DateTime startDate))
+                        throw new WebServiceException("Invalid start date format.");
+
+                    if (!DateTime.TryParseExact(strEndDate, "yyyy-M-d", CultureInfo.InvariantCulture, DateTimeStyles.AssumeUniversal | DateTimeStyles.AdjustToUniversal, out DateTime endDate))
+                        throw new WebServiceException("Invalid end date format.");
+
+                    if (startDate > endDate)
+                        throw new WebServiceException("Start date must be less than or equal to end date.");
+
+                    if ((Convert.ToInt32((endDate - startDate).TotalDays) + 1) > 7)
+                        topStatsData = _dnsServer.StatsManager.GetDayWiseTopStats(startDate, endDate, statsType, limit);
+                    else
+                        topStatsData = _dnsServer.StatsManager.GetHourWiseTopStats(startDate, endDate, statsType, limit);
+
                     break;
 
                 default:
