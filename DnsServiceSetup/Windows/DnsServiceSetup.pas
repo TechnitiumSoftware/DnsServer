@@ -1,35 +1,11 @@
 //Include the sc functionality
 #include "service.pas"
+#include "helper.pas"
+#include "legacy.pas"
 
-function IsUpgrade: Boolean; //Check to see if the install is an upgrade
-var
-    Value: string;
-    UninstallKey: string;
-begin
-    UninstallKey := 'Software\Microsoft\Windows\CurrentVersion\Uninstall\' +
-        ExpandConstant('{#SetupSetting("AppId")}') + '_is1';
-    Result := (RegQueryStringValue(HKLM, UninstallKey, 'UninstallString', Value) or
-        RegQueryStringValue(HKCU, UninstallKey, 'UninstallString', Value)) and (Value <> '');
-end;
-
-function IsLegacyInstallerInstalled: Boolean;
-var
-  Value: string;
-  UninstallKey: string;
-begin
-  UninstallKey := 'Software\Microsoft\Windows\CurrentVersion\Uninstall\{#LEGACY_INSTALLER_APPID}';
-  Result := (RegQueryStringValue(HKLM, UninstallKey, 'UninstallString', Value) or
-    RegQueryStringValue(HKCU, UninstallKey, 'UninstallString', Value)) and (Value <> '');
-end;
-
-function IsLegacyConfigAvailable: Boolean;
-var
-  Value: string;
-begin
-  Result := DirExists(ExpandConstant('{#LEGACY_INSTALLER_CONFIG_PATH}'));
-end;
-
-//Skips the Task selection screen if an upgrade install
+{
+  Skips the tasks page if it is an upgrade install
+}
 function ShouldSkipPage(PageID: Integer): Boolean;
 begin
   Result := (PageID = wpSelectTasks) and IsUpgrade;
@@ -51,27 +27,18 @@ begin
   Result := true;
 end;
 
-procedure TaskKill(fileName: String); //Kills an app by its filename
-var
-    ResultCode: Integer;
-begin
-    Exec(ExpandConstant('taskkill.exe'), '/f /im ' + '"' + fileName + '"', '', SW_HIDE, ewWaitUntilTerminated, ResultCode);
-end;
-
-function MsiExecUnins(appId: String): Integer;
-var 
-  ResultCode: Integer;
-begin
-  ShellExec('', 'msiexec.exe', '/x ' + appId + ' /qn', '', SW_HIDE, ewWaitUntilTerminated, ResultCode);
-  Result := ResultCode;
-end;
-
-procedure KillTrayApp; //Kill the tray app. Inno Setup cannot seem to close it through the "Close Applications" dialog.
+{
+  Kills the tray app
+}
+procedure KillTrayApp;
 begin
   TaskKill('{#TRAYAPP_FILENAME}');
 end;
 
-procedure DoStopService(); //Stops the dns service in the scm to allow it to update
+{
+  Stops the service
+}
+procedure DoStopService();
 var
   stopCounter: Integer;
   serviceStopped: Boolean;
@@ -101,7 +68,10 @@ begin
   end;
 end;
 
-procedure DoRemoveService(); //Removes the dns service from the scm
+{
+  Removes the service from the computer
+}
+procedure DoRemoveService();
 var
   stopCounter: Integer;
 begin
@@ -144,7 +114,10 @@ begin
   end;
 end;
 
-procedure DoInstallService(); //Adds the dns service to the scm if not already installed
+{
+  Installs the service onto the computer
+}
+procedure DoInstallService();
 var
   InstallSuccess: Boolean;
   StartServiceSuccess: Boolean;
@@ -181,18 +154,10 @@ begin
   end;
 end;
 
-procedure UninstallLegacyInstaller;
-var
-  ResultCode: Integer;
-begin
-  if IsLegacyInstallerInstalled then begin
-    Log('Uninstall MSI installer item');
-    ResultCode := MsiExecUnins('{#LEGACY_INSTALLER_APPID}');
-    Log('Result code ' + IntToStr(ResultCode));
-  end;
-end;
-
-procedure RemoveConfiguration(); //Removes the configuration left by the DNS Server
+{
+  Removes the generated configuration
+}
+procedure RemoveConfiguration();
 var 
   DeleteSuccess: Boolean;
 begin
@@ -205,86 +170,11 @@ begin
     end;
 end;
 
-procedure DirectoryCopy(SourcePath, DestPath: string);
-var
-  FindRec: TFindRec;
-  SourceFilePath: string;
-  DestFilePath: string;
-begin
-  if FindFirst(SourcePath + '\*', FindRec) then
-  begin
-    try
-      repeat
-        if (FindRec.Name <> '.') and (FindRec.Name <> '..') then
-        begin
-          SourceFilePath := SourcePath + '\' + FindRec.Name;
-          DestFilePath := DestPath + '\' + FindRec.Name;
-          if FindRec.Attributes and FILE_ATTRIBUTE_DIRECTORY = 0 then
-          begin
-            if FileCopy(SourceFilePath, DestFilePath, False) then
-            begin
-              Log(Format('Copied %s to %s', [SourceFilePath, DestFilePath]));
-            end
-              else
-            begin
-              Log(Format('Failed to copy %s to %s', [SourceFilePath, DestFilePath]));
-            end;
-          end
-            else
-          begin
-            if DirExists(DestFilePath) or CreateDir(DestFilePath) then
-            begin
-              Log(Format('Created %s', [DestFilePath]));
-              DirectoryCopy(SourceFilePath, DestFilePath);
-            end
-              else
-            begin
-              Log(Format('Failed to create %s', [DestFilePath]));
-            end;
-          end;
-        end;
-      until not FindNext(FindRec);
-    finally
-      FindClose(FindRec);
-    end;
-  end
-    else
-  begin
-    Log(Format('Failed to list %s', [SourcePath]));
-  end;
-end;
-
-procedure MigrateConfiguration();
-var
-  ConfigDirExists : Boolean;
-begin
-
-  if IsLegacyConfigAvailable then begin 
-    Log('Begin Configuration Migration');
-
-    ConfigDirExists := DirExists(ExpandConstant('{#CONFIG_FOLDER_COMPANY}'));
-
-    if not ConfigDirExists then begin
-      Log('Create config folder company');
-      CreateDir(ExpandConstant('{#CONFIG_FOLDER_COMPANY}'));
-    end;
-
-      ConfigDirExists := DirExists(ExpandConstant('{#CONFIG_FOLDER_FULL}'));
-
-    if not ConfigDirExists then begin
-      Log('Create config folder program');
-      CreateDir(ExpandConstant('{#CONFIG_FOLDER_FULL}'));
-    end;
-
-    DirectoryCopy(ExpandConstant('{#LEGACY_INSTALLER_CONFIG_PATH}'), ExpandConstant('{#CONFIG_FOLDER_FULL}'));
-
-    DelTree(ExpandConstant('{#LEGACY_INSTALLER_CONFIG_PATH}'), true, true, true);
-
-    Log('Complete Configuration Migration');
-  end;
-end;
-
-procedure PromptRemoveConfiguration(); //Asks users if they want their config removed. On unattended installs, will keep config unless /removeconfig=true is supplied
+{
+  Prompts to remove the configuration
+  On unattended installs, will keep config unless /removeconfig=true is supplied
+}
+procedure PromptRemoveConfiguration();
 begin
   case ExpandConstant('{param:removeconfig|prompt}') of
   'prompt': 
