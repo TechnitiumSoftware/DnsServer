@@ -18,6 +18,7 @@ var
 	products: array of TProduct;
 	delayedReboot, isForcedX86: boolean;
 	DependencyPage: TOutputProgressWizardPage;
+	AdditionalMemo: string;
 
 procedure AddProduct(filename, parameters, title, size, url: string; forceSuccess, installClean, mustRebootAfter : boolean);
 {
@@ -227,6 +228,8 @@ begin
 		s := s + MemoGroupInfo + NewLine + NewLine;
 	if MemoTasksInfo <> '' then
 		s := s + MemoTasksInfo;
+
+	s := s + AdditionalMemo;
 
 	Result := s
 end;
