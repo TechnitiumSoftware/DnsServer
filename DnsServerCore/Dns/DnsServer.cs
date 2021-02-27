@@ -1105,7 +1105,7 @@ namespace DnsServerCore.Dns
                                         AuthZoneInfo zoneInfo = _authZoneManager.GetAuthZoneInfo(appResourceRecord.Name);
                                         IDnsServer dnsServer = new DnsServerInternal(this, package.PackagePath);
 
-                                        DnsDatagram appResponse = await dnsApplication.ProcessQueryAsync(request, remoteEP, zoneInfo.Name, appRecord.Data, isRecursionAllowed, dnsServer);
+                                        DnsDatagram appResponse = await dnsApplication.ProcessQueryAsync(request, remoteEP, zoneInfo.Name, appResourceRecord.TtlValue, appRecord.Data, isRecursionAllowed, dnsServer);
                                         if (appResponse != null)
                                         {
                                             if (appResponse.AuthoritativeAnswer)
