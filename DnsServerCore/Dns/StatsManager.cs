@@ -771,7 +771,11 @@ namespace DnsServerCore.Dns
 
         public Dictionary<string, List<KeyValuePair<string, int>>> GetHourWiseStats(DateTime startDate, DateTime endDate)
         {
-            return GetHourWiseStats(startDate, Convert.ToInt32((endDate - startDate).TotalHours) + 1);
+            int hours = Convert.ToInt32((endDate - startDate).TotalHours) + 1;
+            if (hours < 24)
+                hours = 24;
+
+            return GetHourWiseStats(startDate, hours);
         }
 
         public Dictionary<string, List<KeyValuePair<string, int>>> GetHourWiseStats(DateTime startDate, int hours)
@@ -1037,7 +1041,11 @@ namespace DnsServerCore.Dns
 
         public List<KeyValuePair<string, int>> GetHourWiseTopStats(DateTime startDate, DateTime endDate, TopStatsType type, int limit)
         {
-            return GetHourWiseTopStats(startDate, Convert.ToInt32((endDate - startDate).TotalHours) + 1, type, limit);
+            int hours = Convert.ToInt32((endDate - startDate).TotalHours) + 1;
+            if (hours < 24)
+                hours = 24;
+
+            return GetHourWiseTopStats(startDate, hours, type, limit);
         }
 
         public List<KeyValuePair<string, int>> GetHourWiseTopStats(DateTime startDate, int hours, TopStatsType type, int limit)
