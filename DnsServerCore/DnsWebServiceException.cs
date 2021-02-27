@@ -1,6 +1,6 @@
 ﻿/*
 Technitium DNS Server
-Copyright (C) 2019  Shreyas Zare (shreyas@technitium.com)
+Copyright (C) 2021  Shreyas Zare (shreyas@technitium.com)
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -21,23 +21,23 @@ using System;
 
 namespace DnsServerCore
 {
-    public class WebServiceException : Exception
+    public class DnsWebServiceException : Exception
     {
         #region constructors
 
-        public WebServiceException()
+        public DnsWebServiceException()
             : base()
         { }
 
-        public WebServiceException(string message)
+        public DnsWebServiceException(string message)
             : base(message)
         { }
 
-        public WebServiceException(string message, Exception innerException)
+        public DnsWebServiceException(string message, Exception innerException)
             : base(message, innerException)
         { }
 
-        protected WebServiceException(System.Runtime.Serialization.SerializationInfo info, System.Runtime.Serialization.StreamingContext context)
+        protected DnsWebServiceException(System.Runtime.Serialization.SerializationInfo info, System.Runtime.Serialization.StreamingContext context)
             : base(info, context)
         { }
 
