@@ -1,6 +1,6 @@
 ﻿/*
 Technitium DNS Server
-Copyright (C) 2020  Shreyas Zare (shreyas@technitium.com)
+Copyright (C) 2021  Shreyas Zare (shreyas@technitium.com)
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -243,9 +243,9 @@ namespace DnsServerCore.Dns.Zones
             }
 
             //set new entries into zone
-            if (this is ForwarderZone)
+            if ((this is ForwarderZone) || (this is ApplicationZone))
             {
-                //skip NS and SOA records from being added to ForwarderZone
+                //skip NS and SOA records from being added to ForwarderZone or ApplicationZone
                 foreach (KeyValuePair<DnsResourceRecordType, List<DnsResourceRecord>> newEntry in newEntries)
                 {
                     switch (newEntry.Key)
