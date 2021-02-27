@@ -53,7 +53,7 @@ namespace DnsServerCore.Dns.Zones
                                     if (zone is SubDomainZone)
                                         return child; //child has value so return it
 
-                                    if ((zone is PrimaryZone) || (zone is SecondaryZone) || (zone is StubZone) || (zone is ForwarderZone))
+                                    if ((zone is PrimaryZone) || (zone is SecondaryZone) || (zone is StubZone) || (zone is ForwarderZone) || (zone is ApplicationZone))
                                     {
                                         //skip to next child to avoid listing this auth zone's sub domains
                                         child = null; //set null to avoid child being set as current after the loop
@@ -262,7 +262,7 @@ namespace DnsServerCore.Dns.Zones
                     {
                         if (zoneValue is AuthZone)
                         {
-                            if ((zoneValue is PrimaryZone) || (zoneValue is SecondaryZone) || (zoneValue is StubZone) || (zoneValue is ForwarderZone))
+                            if ((zoneValue is PrimaryZone) || (zoneValue is SecondaryZone) || (zoneValue is StubZone) || (zoneValue is ForwarderZone) || (zoneValue is ApplicationZone))
                             {
                                 if (IsKeySubDomain(value.Key, key))
                                 {
@@ -435,7 +435,7 @@ namespace DnsServerCore.Dns.Zones
             {
                 if (TryRemove(domain, out value, out Node closestNode))
                 {
-                    if ((value != null) && ((value is PrimaryZone) || (value is SecondaryZone) || (value is StubZone) || (value is ForwarderZone)))
+                    if ((value != null) && ((value is PrimaryZone) || (value is SecondaryZone) || (value is StubZone) || (value is ForwarderZone) || (value is ApplicationZone)))
                     {
                         //remove all sub domains under current zone
                         Node current = closestNode;
@@ -483,7 +483,7 @@ namespace DnsServerCore.Dns.Zones
                 T zone = nodeValue.Value;
                 if (zone != null)
                 {
-                    if ((zone is PrimaryZone) || (zone is SecondaryZone) || (zone is StubZone) || (zone is ForwarderZone))
+                    if ((zone is PrimaryZone) || (zone is SecondaryZone) || (zone is StubZone) || (zone is ForwarderZone) || (zone is ApplicationZone))
                     {
                         zones.Add(zone);
 
@@ -606,7 +606,7 @@ namespace DnsServerCore.Dns.Zones
             //zone found
             if (zoneValue is AuthZone)
             {
-                if ((zoneValue is PrimaryZone) || (zoneValue is SecondaryZone) || (zoneValue is StubZone) || (zoneValue is ForwarderZone))
+                if ((zoneValue is PrimaryZone) || (zoneValue is SecondaryZone) || (zoneValue is StubZone) || (zoneValue is ForwarderZone) || (zoneValue is ApplicationZone))
                 {
                     delegation = null;
                     authority = zoneValue;
