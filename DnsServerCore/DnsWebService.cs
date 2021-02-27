@@ -48,7 +48,7 @@ using TechnitiumLibrary.Net.Proxy;
 
 namespace DnsServerCore
 {
-    public class WebService : IDisposable
+    public sealed class DnsWebService : IDisposable
     {
         #region enum
 
@@ -118,7 +118,7 @@ namespace DnsServerCore
 
         #region constructor
 
-        public WebService(string configFolder = null, Uri updateCheckUri = null)
+        public DnsWebService(string configFolder = null, Uri updateCheckUri = null)
         {
             Assembly assembly = Assembly.GetExecutingAssembly();
             AssemblyName assemblyName = assembly.GetName();
@@ -150,7 +150,7 @@ namespace DnsServerCore
 
         private bool _disposed;
 
-        protected virtual void Dispose(bool disposing)
+        private void Dispose(bool disposing)
         {
             if (_disposed)
                 return;
@@ -183,6 +183,8 @@ namespace DnsServerCore
         #endregion
 
         #region private
+
+        #region web service
 
         private async Task AcceptWebRequestAsync()
         {
@@ -481,6 +483,18 @@ namespace DnsServerCore
                                                 UpdateRecord(request);
                                                 break;
 
+                                            case "/api/apps/installPackage":
+                                                break;
+
+                                            case "/api/apps/uninstallPackage":
+                                                break;
+
+                                            case "/api/apps/getConfig":
+                                                break;
+
+                                            case "/api/apps/setConfig":
+                                                break;
+
                                             case "/api/resolveQuery":
                                                 await ResolveQuery(request, jsonWriter);
                                                 break;
@@ -758,12 +772,16 @@ namespace DnsServerCore
             }
         }
 
+        #endregion
+
+        #region user session
+
         private string CreateSession(string username)
         {
             string token = BinaryNumber.GenerateRandomNumber256().ToString();
 
             if (!_sessions.TryAdd(token, new UserSession(username)))
-                throw new WebServiceException("Error while creating session. Please try again.");
+                throw new DnsWebServiceException("Error while creating session. Please try again.");
 
             return token;
         }
@@ -780,7 +798,7 @@ namespace DnsServerCore
         {
             string strToken = request.QueryString["token"];
             if (string.IsNullOrEmpty(strToken))
-                throw new WebServiceException("Parameter 'token' missing.");
+                throw new DnsWebServiceException("Parameter 'token' missing.");
 
             return GetSession(strToken);
         }
@@ -797,7 +815,7 @@ namespace DnsServerCore
         {
             string strToken = request.QueryString["token"];
             if (string.IsNullOrEmpty(strToken))
-                throw new WebServiceException("Parameter 'token' missing.");
+                throw new DnsWebServiceException("Parameter 'token' missing.");
 
             return DeleteSession(strToken);
         }
@@ -851,20 +869,24 @@ namespace DnsServerCore
             _blockedAddresses.TryRemove(address, out _);
         }
 
+        #endregion
+
+        #region auth api
+
         private async Task LoginAsync(HttpListenerRequest request, JsonTextWriter jsonWriter)
         {
             string strUsername = request.QueryString["user"];
             if (string.IsNullOrEmpty(strUsername))
-                throw new WebServiceException("Parameter 'user' missing.");
+                throw new DnsWebServiceException("Parameter 'user' missing.");
 
             string strPassword = request.QueryString["pass"];
             if (string.IsNullOrEmpty(strPassword))
-                throw new WebServiceException("Parameter 'pass' missing.");
+                throw new DnsWebServiceException("Parameter 'pass' missing.");
 
             IPEndPoint remoteEP = GetRequestRemoteEndPoint(request);
 
             if (IsAddressBlocked(remoteEP.Address))
-                throw new WebServiceException("Max limit of " + MAX_LOGIN_ATTEMPTS + " attempts exceeded. Access blocked for " + (BLOCK_ADDRESS_INTERVAL / 1000) + " seconds.");
+                throw new DnsWebServiceException("Max limit of " + MAX_LOGIN_ATTEMPTS + " attempts exceeded. Access blocked for " + (BLOCK_ADDRESS_INTERVAL / 1000) + " seconds.");
 
             strUsername = strUsername.ToLower();
             string strPasswordHash = GetPasswordHash(strUsername, strPassword);
@@ -881,7 +903,7 @@ namespace DnsServerCore
                     await Task.Delay(1000);
                 }
 
-                throw new WebServiceException("Invalid username or password: " + strUsername);
+                throw new DnsWebServiceException("Invalid username or password: " + strUsername);
             }
 
             ResetFailedLoginAttempt(remoteEP.Address);
@@ -914,15 +936,15 @@ namespace DnsServerCore
         {
             string strToken = request.QueryString["token"];
             if (string.IsNullOrEmpty(strToken))
-                throw new WebServiceException("Parameter 'token' missing.");
+                throw new DnsWebServiceException("Parameter 'token' missing.");
 
             string strPassword = request.QueryString["pass"];
             if (string.IsNullOrEmpty(strPassword))
-                throw new WebServiceException("Parameter 'pass' missing.");
+                throw new DnsWebServiceException("Parameter 'pass' missing.");
 
             UserSession session = GetSession(strToken);
             if (session == null)
-                throw new WebServiceException("User session does not exists.");
+                throw new DnsWebServiceException("User session does not exists.");
 
             SetCredentials(session.Username, strPassword);
             SaveConfigFile();
@@ -934,13 +956,17 @@ namespace DnsServerCore
         {
             string strToken = request.QueryString["token"];
             if (string.IsNullOrEmpty(strToken))
-                throw new WebServiceException("Parameter 'token' missing.");
+                throw new DnsWebServiceException("Parameter 'token' missing.");
 
             UserSession session = DeleteSession(strToken);
 
             if (session != null)
                 _log.Write(GetRequestRemoteEndPoint(request), "[" + session.Username + "] User logged out.");
         }
+
+        #endregion
+
+        #region update api
 
         public static void CreateUpdateInfo(Stream s, string version, string displayText, string downloadLink)
         {
@@ -1033,6 +1059,10 @@ namespace DnsServerCore
             return strVersion;
         }
 
+        #endregion
+
+        #region settings api
+
         private void GetDnsSettings(JsonTextWriter jsonWriter)
         {
             jsonWriter.WritePropertyName("version");
@@ -1119,6 +1149,9 @@ namespace DnsServerCore
 
             jsonWriter.WritePropertyName("randomizeName");
             jsonWriter.WriteValue(_dnsServer.RandomizeName);
+
+            jsonWriter.WritePropertyName("qnameMinimization");
+            jsonWriter.WriteValue(_dnsServer.QnameMinimization);
 
             jsonWriter.WritePropertyName("serveStale");
             jsonWriter.WriteValue(_dnsServer.ServeStale);
@@ -1473,6 +1506,10 @@ namespace DnsServerCore
             if (!string.IsNullOrEmpty(strRandomizeName))
                 _dnsServer.RandomizeName = bool.Parse(strRandomizeName);
 
+            string strQnameMinimization = request.QueryString["qnameMinimization"];
+            if (!string.IsNullOrEmpty(strQnameMinimization))
+                _dnsServer.QnameMinimization = bool.Parse(strQnameMinimization);
+
             string strServeStale = request.QueryString["serveStale"];
             if (!string.IsNullOrEmpty(strServeStale))
                 _dnsServer.ServeStale = bool.Parse(strServeStale);
@@ -1680,8 +1717,8 @@ namespace DnsServerCore
 
                     try
                     {
-                        StopWebService();
-                        StartWebService();
+                        StopDnsWebService();
+                        StartDnsWebService();
 
                         _log.Write("Web service was restarted successfully.");
                     }
@@ -2186,6 +2223,10 @@ namespace DnsServerCore
             _log.Write(GetRequestRemoteEndPoint(request), "[" + GetSession(request).Username + "] Block list update was triggered.");
         }
 
+        #endregion
+
+        #region dashboard
+
         private async Task GetStats(HttpListenerRequest request, JsonTextWriter jsonWriter)
         {
             string strType = request.QueryString["type"];
@@ -2219,20 +2260,20 @@ namespace DnsServerCore
                 case "custom":
                     string strStartDate = request.QueryString["start"];
                     if (string.IsNullOrEmpty(strStartDate))
-                        throw new WebServiceException("Parameter 'start' missing.");
+                        throw new DnsWebServiceException("Parameter 'start' missing.");
 
                     string strEndDate = request.QueryString["end"];
                     if (string.IsNullOrEmpty(strEndDate))
-                        throw new WebServiceException("Parameter 'end' missing.");
+                        throw new DnsWebServiceException("Parameter 'end' missing.");
 
                     if (!DateTime.TryParseExact(strStartDate, "yyyy-M-d", CultureInfo.InvariantCulture, DateTimeStyles.AssumeUniversal | DateTimeStyles.AdjustToUniversal, out DateTime startDate))
-                        throw new WebServiceException("Invalid start date format.");
+                        throw new DnsWebServiceException("Invalid start date format.");
 
                     if (!DateTime.TryParseExact(strEndDate, "yyyy-M-d", CultureInfo.InvariantCulture, DateTimeStyles.AssumeUniversal | DateTimeStyles.AdjustToUniversal, out DateTime endDate))
-                        throw new WebServiceException("Invalid end date format.");
+                        throw new DnsWebServiceException("Invalid end date format.");
 
                     if (startDate > endDate)
-                        throw new WebServiceException("Start date must be less than or equal to end date.");
+                        throw new DnsWebServiceException("Start date must be less than or equal to end date.");
 
                     if ((Convert.ToInt32((endDate - startDate).TotalDays) + 1) > 7)
                         data = _dnsServer.StatsManager.GetDayWiseStats(startDate, endDate);
@@ -2242,7 +2283,7 @@ namespace DnsServerCore
                     break;
 
                 default:
-                    throw new WebServiceException("Unknown stats type requested: " + strType);
+                    throw new DnsWebServiceException("Unknown stats type requested: " + strType);
             }
 
             //stats
@@ -2555,7 +2596,7 @@ namespace DnsServerCore
 
             string strStatsType = request.QueryString["statsType"];
             if (string.IsNullOrEmpty(strStatsType))
-                throw new WebServiceException("Parameter 'statsType' missing.");
+                throw new DnsWebServiceException("Parameter 'statsType' missing.");
 
             string strLimit = request.QueryString["limit"];
             if (string.IsNullOrEmpty(strLimit))
@@ -2591,20 +2632,20 @@ namespace DnsServerCore
                 case "custom":
                     string strStartDate = request.QueryString["start"];
                     if (string.IsNullOrEmpty(strStartDate))
-                        throw new WebServiceException("Parameter 'start' missing.");
+                        throw new DnsWebServiceException("Parameter 'start' missing.");
 
                     string strEndDate = request.QueryString["end"];
                     if (string.IsNullOrEmpty(strEndDate))
-                        throw new WebServiceException("Parameter 'end' missing.");
+                        throw new DnsWebServiceException("Parameter 'end' missing.");
 
                     if (!DateTime.TryParseExact(strStartDate, "yyyy-M-d", CultureInfo.InvariantCulture, DateTimeStyles.AssumeUniversal | DateTimeStyles.AdjustToUniversal, out DateTime startDate))
-                        throw new WebServiceException("Invalid start date format.");
+                        throw new DnsWebServiceException("Invalid start date format.");
 
                     if (!DateTime.TryParseExact(strEndDate, "yyyy-M-d", CultureInfo.InvariantCulture, DateTimeStyles.AssumeUniversal | DateTimeStyles.AdjustToUniversal, out DateTime endDate))
-                        throw new WebServiceException("Invalid end date format.");
+                        throw new DnsWebServiceException("Invalid end date format.");
 
                     if (startDate > endDate)
-                        throw new WebServiceException("Start date must be less than or equal to end date.");
+                        throw new DnsWebServiceException("Start date must be less than or equal to end date.");
 
                     if ((Convert.ToInt32((endDate - startDate).TotalDays) + 1) > 7)
                         topStatsData = _dnsServer.StatsManager.GetDayWiseTopStats(startDate, endDate, statsType, limit);
@@ -2614,7 +2655,7 @@ namespace DnsServerCore
                     break;
 
                 default:
-                    throw new WebServiceException("Unknown stats type requested: " + strType);
+                    throw new DnsWebServiceException("Unknown stats type requested: " + strType);
             }
 
             switch (statsType)
@@ -2746,6 +2787,10 @@ namespace DnsServerCore
             return result;
         }
 
+        #endregion
+
+        #region cache api
+
         private void FlushCache(HttpListenerRequest request)
         {
             _dnsServer.CacheZoneManager.Flush();
@@ -2819,11 +2864,15 @@ namespace DnsServerCore
         {
             string domain = request.QueryString["domain"];
             if (string.IsNullOrEmpty(domain))
-                throw new WebServiceException("Parameter 'domain' missing.");
+                throw new DnsWebServiceException("Parameter 'domain' missing.");
 
             if (_dnsServer.CacheZoneManager.DeleteZone(domain))
                 _log.Write(GetRequestRemoteEndPoint(request), "[" + GetSession(request).Username + "] Cached zone was deleted: " + domain);
         }
+
+        #endregion
+
+        #region allowed zones api
 
         private void ListAllowedZones(HttpListenerRequest request, JsonTextWriter jsonWriter)
         {
@@ -2890,7 +2939,7 @@ namespace DnsServerCore
         private void ImportAllowedZones(HttpListenerRequest request)
         {
             if (!request.ContentType.StartsWith("application/x-www-form-urlencoded"))
-                throw new WebServiceException("Invalid content type. Expected application/x-www-form-urlencoded.");
+                throw new DnsWebServiceException("Invalid content type. Expected application/x-www-form-urlencoded.");
 
             string formRequest;
             using (StreamReader sR = new StreamReader(request.InputStream, request.ContentEncoding))
@@ -2923,7 +2972,7 @@ namespace DnsServerCore
                 }
             }
 
-            throw new WebServiceException("Parameter 'allowedZones' missing.");
+            throw new DnsWebServiceException("Parameter 'allowedZones' missing.");
         }
 
         private void ExportAllowedZones(HttpListenerResponse response)
@@ -2944,7 +2993,7 @@ namespace DnsServerCore
         {
             string domain = request.QueryString["domain"];
             if (string.IsNullOrEmpty(domain))
-                throw new WebServiceException("Parameter 'domain' missing.");
+                throw new DnsWebServiceException("Parameter 'domain' missing.");
 
             if (_dnsServer.AllowedZoneManager.DeleteZone(domain))
             {
@@ -2957,7 +3006,7 @@ namespace DnsServerCore
         {
             string domain = request.QueryString["domain"];
             if (string.IsNullOrEmpty(domain))
-                throw new WebServiceException("Parameter 'domain' missing.");
+                throw new DnsWebServiceException("Parameter 'domain' missing.");
 
             if (IPAddress.TryParse(domain, out IPAddress ipAddress))
                 domain = (new DnsQuestionRecord(ipAddress, DnsClass.IN)).Name;
@@ -2968,6 +3017,10 @@ namespace DnsServerCore
                 _dnsServer.AllowedZoneManager.SaveZoneFile();
             }
         }
+
+        #endregion
+
+        #region blocked zones api
 
         private void ListBlockedZones(HttpListenerRequest request, JsonTextWriter jsonWriter)
         {
@@ -3034,7 +3087,7 @@ namespace DnsServerCore
         private void ImportBlockedZones(HttpListenerRequest request)
         {
             if (!request.ContentType.StartsWith("application/x-www-form-urlencoded"))
-                throw new WebServiceException("Invalid content type. Expected application/x-www-form-urlencoded.");
+                throw new DnsWebServiceException("Invalid content type. Expected application/x-www-form-urlencoded.");
 
             string formRequest;
             using (StreamReader sR = new StreamReader(request.InputStream, request.ContentEncoding))
@@ -3067,7 +3120,7 @@ namespace DnsServerCore
                 }
             }
 
-            throw new WebServiceException("Parameter 'blockedZones' missing.");
+            throw new DnsWebServiceException("Parameter 'blockedZones' missing.");
         }
 
         private void ExportBlockedZones(HttpListenerResponse response)
@@ -3088,7 +3141,7 @@ namespace DnsServerCore
         {
             string domain = request.QueryString["domain"];
             if (string.IsNullOrEmpty(domain))
-                throw new WebServiceException("Parameter 'domain' missing.");
+                throw new DnsWebServiceException("Parameter 'domain' missing.");
 
             if (_dnsServer.BlockedZoneManager.DeleteZone(domain))
             {
@@ -3101,7 +3154,7 @@ namespace DnsServerCore
         {
             string domain = request.QueryString["domain"];
             if (string.IsNullOrEmpty(domain))
-                throw new WebServiceException("Parameter 'domain' missing.");
+                throw new DnsWebServiceException("Parameter 'domain' missing.");
 
             if (IPAddress.TryParse(domain, out IPAddress ipAddress))
                 domain = (new DnsQuestionRecord(ipAddress, DnsClass.IN)).Name;
@@ -3112,6 +3165,10 @@ namespace DnsServerCore
                 _dnsServer.BlockedZoneManager.SaveZoneFile();
             }
         }
+
+        #endregion
+
+        #region zones api
 
         private void ListZones(JsonTextWriter jsonWriter)
         {
@@ -3162,10 +3219,10 @@ namespace DnsServerCore
         {
             string domain = request.QueryString["domain"];
             if (string.IsNullOrEmpty(domain))
-                throw new WebServiceException("Parameter 'domain' missing.");
+                throw new DnsWebServiceException("Parameter 'domain' missing.");
 
             if (domain.Contains("*"))
-                throw new WebServiceException("Domain name for a zone cannot contain wildcard character.");
+                throw new DnsWebServiceException("Domain name for a zone cannot contain wildcard character.");
 
             if (IPAddress.TryParse(domain, out IPAddress ipAddress))
             {
@@ -3191,7 +3248,7 @@ namespace DnsServerCore
             {
                 case AuthZoneType.Primary:
                     if (_dnsServer.AuthZoneManager.CreatePrimaryZone(domain, _dnsServer.ServerDomain, false) == null)
-                        throw new WebServiceException("Zone already exists: " + domain);
+                        throw new DnsWebServiceException("Zone already exists: " + domain);
 
                     _log.Write(GetRequestRemoteEndPoint(request), "[" + GetSession(request).Username + "] Authoritative primary zone was created: " + domain);
                     _dnsServer.AuthZoneManager.SaveZoneFile(domain);
@@ -3204,7 +3261,7 @@ namespace DnsServerCore
                             strPrimaryNameServerAddresses = null;
 
                         if (await _dnsServer.AuthZoneManager.CreateSecondaryZoneAsync(domain, strPrimaryNameServerAddresses) == null)
-                            throw new WebServiceException("Zone already exists: " + domain);
+                            throw new DnsWebServiceException("Zone already exists: " + domain);
 
                         _log.Write(GetRequestRemoteEndPoint(request), "[" + GetSession(request).Username + "] Authoritative secondary zone was created: " + domain);
                         _dnsServer.AuthZoneManager.SaveZoneFile(domain);
@@ -3218,7 +3275,7 @@ namespace DnsServerCore
                             strPrimaryNameServerAddresses = null;
 
                         if (await _dnsServer.AuthZoneManager.CreateStubZoneAsync(domain, strPrimaryNameServerAddresses) == null)
-                            throw new WebServiceException("Zone already exists: " + domain);
+                            throw new DnsWebServiceException("Zone already exists: " + domain);
 
                         _log.Write(GetRequestRemoteEndPoint(request), "[" + GetSession(request).Username + "] Stub zone was created: " + domain);
                         _dnsServer.AuthZoneManager.SaveZoneFile(domain);
@@ -3234,10 +3291,10 @@ namespace DnsServerCore
 
                         string strForwarder = request.QueryString["forwarder"];
                         if (string.IsNullOrEmpty(strForwarder))
-                            throw new WebServiceException("Parameter 'forwarder' missing.");
+                            throw new DnsWebServiceException("Parameter 'forwarder' missing.");
 
                         if (_dnsServer.AuthZoneManager.CreateForwarderZone(domain, forwarderProtocol, strForwarder) == null)
-                            throw new WebServiceException("Zone already exists: " + domain);
+                            throw new DnsWebServiceException("Zone already exists: " + domain);
 
                         _log.Write(GetRequestRemoteEndPoint(request), "[" + GetSession(request).Username + "] Forwarder zone was created: " + domain);
                         _dnsServer.AuthZoneManager.SaveZoneFile(domain);
@@ -3259,20 +3316,20 @@ namespace DnsServerCore
         {
             string domain = request.QueryString["domain"];
             if (string.IsNullOrEmpty(domain))
-                throw new WebServiceException("Parameter 'domain' missing.");
+                throw new DnsWebServiceException("Parameter 'domain' missing.");
 
             if (domain.EndsWith("."))
                 domain = domain.Substring(0, domain.Length - 1);
 
             AuthZoneInfo zoneInfo = _dnsServer.AuthZoneManager.GetAuthZoneInfo(domain);
             if (zoneInfo == null)
-                throw new WebServiceException("Zone '" + domain + "' was not found.");
+                throw new DnsWebServiceException("Zone '" + domain + "' was not found.");
 
             if (zoneInfo.Internal)
-                throw new WebServiceException("Access was denied to manage internal DNS Server zone.");
+                throw new DnsWebServiceException("Access was denied to manage internal DNS Server zone.");
 
             if (!_dnsServer.AuthZoneManager.DeleteZone(domain))
-                throw new WebServiceException("Zone '" + domain + "' was not found.");
+                throw new DnsWebServiceException("Zone '" + domain + "' was not found.");
 
             _log.Write(GetRequestRemoteEndPoint(request), "[" + GetSession(request).Username + "] " + zoneInfo.Type.ToString() + " zone was deleted: " + domain);
 
@@ -3283,17 +3340,17 @@ namespace DnsServerCore
         {
             string domain = request.QueryString["domain"];
             if (string.IsNullOrEmpty(domain))
-                throw new WebServiceException("Parameter 'domain' missing.");
+                throw new DnsWebServiceException("Parameter 'domain' missing.");
 
             if (domain.EndsWith("."))
                 domain = domain.Substring(0, domain.Length - 1);
 
             AuthZoneInfo zoneInfo = _dnsServer.AuthZoneManager.GetAuthZoneInfo(domain);
             if (zoneInfo == null)
-                throw new WebServiceException("Zone '" + domain + "' was not found.");
+                throw new DnsWebServiceException("Zone '" + domain + "' was not found.");
 
             if (zoneInfo.Internal)
-                throw new WebServiceException("Access was denied to manage internal DNS Server zone.");
+                throw new DnsWebServiceException("Access was denied to manage internal DNS Server zone.");
 
             zoneInfo.Disabled = false;
 
@@ -3309,17 +3366,17 @@ namespace DnsServerCore
         {
             string domain = request.QueryString["domain"];
             if (string.IsNullOrEmpty(domain))
-                throw new WebServiceException("Parameter 'domain' missing.");
+                throw new DnsWebServiceException("Parameter 'domain' missing.");
 
             if (domain.EndsWith("."))
                 domain = domain.Substring(0, domain.Length - 1);
 
             AuthZoneInfo zoneInfo = _dnsServer.AuthZoneManager.GetAuthZoneInfo(domain);
             if (zoneInfo == null)
-                throw new WebServiceException("Zone '" + domain + "' was not found.");
+                throw new DnsWebServiceException("Zone '" + domain + "' was not found.");
 
             if (zoneInfo.Internal)
-                throw new WebServiceException("Access was denied to manage internal DNS Server zone.");
+                throw new DnsWebServiceException("Access was denied to manage internal DNS Server zone.");
 
             zoneInfo.Disabled = true;
 
@@ -3332,27 +3389,27 @@ namespace DnsServerCore
         {
             string domain = request.QueryString["domain"];
             if (string.IsNullOrEmpty(domain))
-                throw new WebServiceException("Parameter 'domain' missing.");
+                throw new DnsWebServiceException("Parameter 'domain' missing.");
 
             if (domain.EndsWith("."))
                 domain = domain.Substring(0, domain.Length - 1);
 
             AuthZoneInfo zoneInfo = _dnsServer.AuthZoneManager.GetAuthZoneInfo(domain);
             if (zoneInfo == null)
-                throw new WebServiceException("Zone '" + domain + "' was not found.");
+                throw new DnsWebServiceException("Zone '" + domain + "' was not found.");
 
             if (zoneInfo.Internal)
-                throw new WebServiceException("Access was denied to manage internal DNS Server zone.");
+                throw new DnsWebServiceException("Access was denied to manage internal DNS Server zone.");
 
             string strType = request.QueryString["type"];
             if (string.IsNullOrEmpty(strType))
-                throw new WebServiceException("Parameter 'type' missing.");
+                throw new DnsWebServiceException("Parameter 'type' missing.");
 
             DnsResourceRecordType type = (DnsResourceRecordType)Enum.Parse(typeof(DnsResourceRecordType), strType);
 
             string value = request.QueryString["value"];
             if (string.IsNullOrEmpty(value))
-                throw new WebServiceException("Parameter 'value' missing.");
+                throw new DnsWebServiceException("Parameter 'value' missing.");
 
             uint ttl;
             string strTtl = request.QueryString["ttl"];
@@ -3415,7 +3472,7 @@ namespace DnsServerCore
                     {
                         string preference = request.QueryString["preference"];
                         if (string.IsNullOrEmpty(preference))
-                            throw new WebServiceException("Parameter 'preference' missing.");
+                            throw new DnsWebServiceException("Parameter 'preference' missing.");
 
                         _dnsServer.AuthZoneManager.AddRecord(domain, type, ttl, new DnsMXRecord(ushort.Parse(preference), value));
                     }
@@ -3452,15 +3509,15 @@ namespace DnsServerCore
                     {
                         string priority = request.QueryString["priority"];
                         if (string.IsNullOrEmpty(priority))
-                            throw new WebServiceException("Parameter 'priority' missing.");
+                            throw new DnsWebServiceException("Parameter 'priority' missing.");
 
                         string weight = request.QueryString["weight"];
                         if (string.IsNullOrEmpty(weight))
-                            throw new WebServiceException("Parameter 'weight' missing.");
+                            throw new DnsWebServiceException("Parameter 'weight' missing.");
 
                         string port = request.QueryString["port"];
                         if (string.IsNullOrEmpty(port))
-                            throw new WebServiceException("Parameter 'port' missing.");
+                            throw new DnsWebServiceException("Parameter 'port' missing.");
 
                         _dnsServer.AuthZoneManager.AddRecord(domain, type, ttl, new DnsSRVRecord(ushort.Parse(priority), ushort.Parse(weight), ushort.Parse(port), value));
                     }
@@ -3470,11 +3527,11 @@ namespace DnsServerCore
                     {
                         string flags = request.QueryString["flags"];
                         if (string.IsNullOrEmpty(flags))
-                            throw new WebServiceException("Parameter 'flags' missing.");
+                            throw new DnsWebServiceException("Parameter 'flags' missing.");
 
                         string tag = request.QueryString["tag"];
                         if (string.IsNullOrEmpty(tag))
-                            throw new WebServiceException("Parameter 'tag' missing.");
+                            throw new DnsWebServiceException("Parameter 'tag' missing.");
 
                         _dnsServer.AuthZoneManager.AddRecord(domain, type, ttl, new DnsCAARecord(byte.Parse(flags), tag, value));
                     }
@@ -3495,7 +3552,7 @@ namespace DnsServerCore
                     break;
 
                 default:
-                    throw new WebServiceException("Type not supported for AddRecords().");
+                    throw new DnsWebServiceException("Type not supported for AddRecords().");
             }
 
             _log.Write(GetRequestRemoteEndPoint(request), "[" + GetSession(request).Username + "] New record was added to authoritative zone {domain: " + domain + "; type: " + type + "; value: " + value + "; ttl: " + ttl + ";}");
@@ -3507,14 +3564,14 @@ namespace DnsServerCore
         {
             string domain = request.QueryString["domain"];
             if (string.IsNullOrEmpty(domain))
-                throw new WebServiceException("Parameter 'domain' missing.");
+                throw new DnsWebServiceException("Parameter 'domain' missing.");
 
             if (domain.EndsWith("."))
                 domain = domain.Substring(0, domain.Length - 1);
 
             AuthZoneInfo zoneInfo = _dnsServer.AuthZoneManager.GetAuthZoneInfo(domain);
             if (zoneInfo == null)
-                throw new WebServiceException("Zone '" + domain + "' was not found.");
+                throw new DnsWebServiceException("Zone '" + domain + "' was not found.");
 
             jsonWriter.WritePropertyName("zone");
             jsonWriter.WriteStartObject();
@@ -3834,27 +3891,27 @@ namespace DnsServerCore
         {
             string domain = request.QueryString["domain"];
             if (string.IsNullOrEmpty(domain))
-                throw new WebServiceException("Parameter 'domain' missing.");
+                throw new DnsWebServiceException("Parameter 'domain' missing.");
 
             if (domain.EndsWith("."))
                 domain = domain.Substring(0, domain.Length - 1);
 
             AuthZoneInfo zoneInfo = _dnsServer.AuthZoneManager.GetAuthZoneInfo(domain);
             if (zoneInfo == null)
-                throw new WebServiceException("Zone '" + domain + "' was not found.");
+                throw new DnsWebServiceException("Zone '" + domain + "' was not found.");
 
             if (zoneInfo.Internal)
-                throw new WebServiceException("Access was denied to manage internal DNS Server zone.");
+                throw new DnsWebServiceException("Access was denied to manage internal DNS Server zone.");
 
             string strType = request.QueryString["type"];
             if (string.IsNullOrEmpty(strType))
-                throw new WebServiceException("Parameter 'type' missing.");
+                throw new DnsWebServiceException("Parameter 'type' missing.");
 
             DnsResourceRecordType type = (DnsResourceRecordType)Enum.Parse(typeof(DnsResourceRecordType), strType);
 
             string value = request.QueryString["value"];
             if (string.IsNullOrEmpty(value))
-                throw new WebServiceException("Parameter 'value' missing.");
+                throw new DnsWebServiceException("Parameter 'value' missing.");
 
             switch (type)
             {
@@ -3912,7 +3969,7 @@ namespace DnsServerCore
                     {
                         string port = request.QueryString["port"];
                         if (string.IsNullOrEmpty(port))
-                            throw new WebServiceException("Parameter 'port' missing.");
+                            throw new DnsWebServiceException("Parameter 'port' missing.");
 
                         _dnsServer.AuthZoneManager.DeleteRecord(domain, type, new DnsSRVRecord(0, 0, ushort.Parse(port), value));
                     }
@@ -3922,11 +3979,11 @@ namespace DnsServerCore
                     {
                         string flags = request.QueryString["flags"];
                         if (string.IsNullOrEmpty(flags))
-                            throw new WebServiceException("Parameter 'flags' missing.");
+                            throw new DnsWebServiceException("Parameter 'flags' missing.");
 
                         string tag = request.QueryString["tag"];
                         if (string.IsNullOrEmpty(tag))
-                            throw new WebServiceException("Parameter 'tag' missing.");
+                            throw new DnsWebServiceException("Parameter 'tag' missing.");
 
                         _dnsServer.AuthZoneManager.DeleteRecord(domain, type, new DnsCAARecord(byte.Parse(flags), tag, value));
                     }
@@ -3943,7 +4000,7 @@ namespace DnsServerCore
                     break;
 
                 default:
-                    throw new WebServiceException("Type not supported for DeleteRecord().");
+                    throw new DnsWebServiceException("Type not supported for DeleteRecord().");
             }
 
             _log.Write(GetRequestRemoteEndPoint(request), "[" + GetSession(request).Username + "] Record was deleted from authoritative zone {domain: " + domain + "; type: " + type + "; value: " + value + ";}");
@@ -3955,23 +4012,23 @@ namespace DnsServerCore
         {
             string strType = request.QueryString["type"];
             if (string.IsNullOrEmpty(strType))
-                throw new WebServiceException("Parameter 'type' missing.");
+                throw new DnsWebServiceException("Parameter 'type' missing.");
 
             DnsResourceRecordType type = (DnsResourceRecordType)Enum.Parse(typeof(DnsResourceRecordType), strType);
 
             string domain = request.QueryString["domain"];
             if (string.IsNullOrEmpty(domain))
-                throw new WebServiceException("Parameter 'domain' missing.");
+                throw new DnsWebServiceException("Parameter 'domain' missing.");
 
             if (domain.EndsWith("."))
                 domain = domain.Substring(0, domain.Length - 1);
 
             AuthZoneInfo zoneInfo = _dnsServer.AuthZoneManager.GetAuthZoneInfo(domain);
             if (zoneInfo == null)
-                throw new WebServiceException("Zone '" + domain + "' was not found.");
+                throw new DnsWebServiceException("Zone '" + domain + "' was not found.");
 
             if (zoneInfo.Internal)
-                throw new WebServiceException("Access was denied to manage internal DNS Server zone.");
+                throw new DnsWebServiceException("Access was denied to manage internal DNS Server zone.");
 
             string newDomain = request.QueryString["newDomain"];
             if (string.IsNullOrEmpty(newDomain))
@@ -4124,31 +4181,31 @@ namespace DnsServerCore
                     {
                         string primaryNameServer = request.QueryString["primaryNameServer"];
                         if (string.IsNullOrEmpty(primaryNameServer))
-                            throw new WebServiceException("Parameter 'primaryNameServer' missing.");
+                            throw new DnsWebServiceException("Parameter 'primaryNameServer' missing.");
 
                         string responsiblePerson = request.QueryString["responsiblePerson"];
                         if (string.IsNullOrEmpty(responsiblePerson))
-                            throw new WebServiceException("Parameter 'responsiblePerson' missing.");
+                            throw new DnsWebServiceException("Parameter 'responsiblePerson' missing.");
 
                         string serial = request.QueryString["serial"];
                         if (string.IsNullOrEmpty(serial))
-                            throw new WebServiceException("Parameter 'serial' missing.");
+                            throw new DnsWebServiceException("Parameter 'serial' missing.");
 
                         string refresh = request.QueryString["refresh"];
                         if (string.IsNullOrEmpty(refresh))
-                            throw new WebServiceException("Parameter 'refresh' missing.");
+                            throw new DnsWebServiceException("Parameter 'refresh' missing.");
 
                         string retry = request.QueryString["retry"];
                         if (string.IsNullOrEmpty(retry))
-                            throw new WebServiceException("Parameter 'retry' missing.");
+                            throw new DnsWebServiceException("Parameter 'retry' missing.");
 
                         string expire = request.QueryString["expire"];
                         if (string.IsNullOrEmpty(expire))
-                            throw new WebServiceException("Parameter 'expire' missing.");
+                            throw new DnsWebServiceException("Parameter 'expire' missing.");
 
                         string minimum = request.QueryString["minimum"];
                         if (string.IsNullOrEmpty(minimum))
-                            throw new WebServiceException("Parameter 'minimum' missing.");
+                            throw new DnsWebServiceException("Parameter 'minimum' missing.");
 
                         DnsResourceRecord soaRecord = new DnsResourceRecord(domain, type, DnsClass.IN, ttl, new DnsSOARecord(primaryNameServer, responsiblePerson, uint.Parse(serial), uint.Parse(refresh), uint.Parse(retry), uint.Parse(expire), uint.Parse(minimum)));
 
@@ -4188,15 +4245,15 @@ namespace DnsServerCore
                     {
                         string port = request.QueryString["port"];
                         if (string.IsNullOrEmpty(port))
-                            throw new WebServiceException("Parameter 'port' missing.");
+                            throw new DnsWebServiceException("Parameter 'port' missing.");
 
                         string priority = request.QueryString["priority"];
                         if (string.IsNullOrEmpty(priority))
-                            throw new WebServiceException("Parameter 'priority' missing.");
+                            throw new DnsWebServiceException("Parameter 'priority' missing.");
 
                         string weight = request.QueryString["weight"];
                         if (string.IsNullOrEmpty(weight))
-                            throw new WebServiceException("Parameter 'weight' missing.");
+                            throw new DnsWebServiceException("Parameter 'weight' missing.");
 
                         string newPort = request.QueryString["newPort"];
                         if (string.IsNullOrEmpty(newPort))
@@ -4216,11 +4273,11 @@ namespace DnsServerCore
                     {
                         string flags = request.QueryString["flags"];
                         if (string.IsNullOrEmpty(flags))
-                            throw new WebServiceException("Parameter 'flags' missing.");
+                            throw new DnsWebServiceException("Parameter 'flags' missing.");
 
                         string tag = request.QueryString["tag"];
                         if (string.IsNullOrEmpty(tag))
-                            throw new WebServiceException("Parameter 'tag' missing.");
+                            throw new DnsWebServiceException("Parameter 'tag' missing.");
 
                         string newFlags = request.QueryString["newFlags"];
                         if (string.IsNullOrEmpty(newFlags))
@@ -4271,7 +4328,7 @@ namespace DnsServerCore
                     break;
 
                 default:
-                    throw new WebServiceException("Type not supported for UpdateRecords().");
+                    throw new DnsWebServiceException("Type not supported for UpdateRecords().");
             }
 
             _log.Write(GetRequestRemoteEndPoint(request), "[" + GetSession(request).Username + "] Record was updated for authoritative zone {oldDomain: " + domain + "; domain: " + newDomain + "; type: " + type + "; oldValue: " + value + "; value: " + newValue + "; ttl: " + ttl + "; disabled: " + disable + ";}");
@@ -4279,15 +4336,25 @@ namespace DnsServerCore
             _dnsServer.AuthZoneManager.SaveZoneFile(zoneInfo.Name);
         }
 
+        #endregion
+
+        #region dns apps api
+
+
+
+        #endregion
+
+        #region dns client api
+
         private async Task ResolveQuery(HttpListenerRequest request, JsonTextWriter jsonWriter)
         {
             string server = request.QueryString["server"];
             if (string.IsNullOrEmpty(server))
-                throw new WebServiceException("Parameter 'server' missing.");
+                throw new DnsWebServiceException("Parameter 'server' missing.");
 
             string domain = request.QueryString["domain"];
             if (string.IsNullOrEmpty(domain))
-                throw new WebServiceException("Parameter 'domain' missing.");
+                throw new DnsWebServiceException("Parameter 'domain' missing.");
 
             domain = domain.Trim();
 
@@ -4296,7 +4363,7 @@ namespace DnsServerCore
 
             string strType = request.QueryString["type"];
             if (string.IsNullOrEmpty(strType))
-                throw new WebServiceException("Parameter 'type' missing.");
+                throw new DnsWebServiceException("Parameter 'type' missing.");
 
             DnsResourceRecordType type = (DnsResourceRecordType)Enum.Parse(typeof(DnsResourceRecordType), strType);
 
@@ -4312,6 +4379,7 @@ namespace DnsServerCore
             NetProxy proxy = _dnsServer.Proxy;
             bool preferIPv6 = _dnsServer.PreferIPv6;
             bool randomizeName = false;
+            bool qnameMinimization = _dnsServer.QnameMinimization;
             DnsTransportProtocol protocol = (DnsTransportProtocol)Enum.Parse(typeof(DnsTransportProtocol), strProtocol, true);
             const int RETRIES = 1;
             const int TIMEOUT = 10000;
@@ -4330,7 +4398,7 @@ namespace DnsServerCore
                 else
                     question = new DnsQuestionRecord(domain, type, DnsClass.IN);
 
-                dnsResponse = await DnsClient.RecursiveResolveAsync(question, null, null, proxy, preferIPv6, randomizeName, RETRIES, TIMEOUT);
+                dnsResponse = await DnsClient.RecursiveResolveAsync(question, null, proxy, preferIPv6, randomizeName, qnameMinimization, RETRIES, TIMEOUT);
             }
             else
             {
@@ -4380,7 +4448,7 @@ namespace DnsServerCore
                             if (_dnsServer.AllowRecursion)
                                 await nameServer.ResolveIPAddressAsync(new NameServerAddress[] { _dnsServer.ThisServer }, proxy, preferIPv6, randomizeName, RETRIES, TIMEOUT);
                             else
-                                await nameServer.RecursiveResolveIPAddressAsync(_dnsServer.DnsCache, proxy, preferIPv6, randomizeName, RETRIES, TIMEOUT);
+                                await nameServer.RecursiveResolveIPAddressAsync(_dnsServer.DnsCache, proxy, preferIPv6, randomizeName, qnameMinimization, RETRIES, TIMEOUT);
                         }
                     }
                     else if (protocol != DnsTransportProtocol.Tls)
@@ -4390,7 +4458,7 @@ namespace DnsServerCore
                             if (_dnsServer.AllowRecursion)
                                 await nameServer.ResolveDomainNameAsync(new NameServerAddress[] { _dnsServer.ThisServer }, proxy, preferIPv6, randomizeName, RETRIES, TIMEOUT);
                             else
-                                await nameServer.RecursiveResolveDomainNameAsync(_dnsServer.DnsCache, proxy, preferIPv6, randomizeName, RETRIES, TIMEOUT);
+                                await nameServer.RecursiveResolveDomainNameAsync(_dnsServer.DnsCache, proxy, preferIPv6, randomizeName, qnameMinimization, RETRIES, TIMEOUT);
                         }
                         catch
                         { }
@@ -4454,6 +4522,10 @@ namespace DnsServerCore
             jsonWriter.WriteRawValue(JsonConvert.SerializeObject(dnsResponse, new StringEnumConverter()));
         }
 
+        #endregion
+
+        #region logs api
+
         private void ListLogs(JsonTextWriter jsonWriter)
         {
             string[] logFiles = _log.ListLogFiles();
@@ -4484,7 +4556,7 @@ namespace DnsServerCore
         {
             string log = request.QueryString["log"];
             if (string.IsNullOrEmpty(log))
-                throw new WebServiceException("Parameter 'log' missing.");
+                throw new DnsWebServiceException("Parameter 'log' missing.");
 
             _log.DeleteLog(log);
 
@@ -4504,6 +4576,10 @@ namespace DnsServerCore
 
             _log.Write(GetRequestRemoteEndPoint(request), "[" + GetSession(request).Username + "] All stats files were deleted.");
         }
+
+        #endregion
+
+        #region dhcp api
 
         private void ListDhcpLeases(JsonTextWriter jsonWriter)
         {
@@ -4611,11 +4687,11 @@ namespace DnsServerCore
         {
             string scopeName = request.QueryString["name"];
             if (string.IsNullOrEmpty(scopeName))
-                throw new WebServiceException("Parameter 'name' missing.");
+                throw new DnsWebServiceException("Parameter 'name' missing.");
 
             Scope scope = _dhcpServer.GetScope(scopeName);
             if (scope == null)
-                throw new WebServiceException("DHCP scope was not found: " + scopeName);
+                throw new DnsWebServiceException("DHCP scope was not found: " + scopeName);
 
             jsonWriter.WritePropertyName("name");
             jsonWriter.WriteValue(scope.Name);
@@ -4808,7 +4884,7 @@ namespace DnsServerCore
         {
             string scopeName = request.QueryString["name"];
             if (string.IsNullOrEmpty(scopeName))
-                throw new WebServiceException("Parameter 'name' missing.");
+                throw new DnsWebServiceException("Parameter 'name' missing.");
 
             string newName = request.QueryString["newName"];
             if (!string.IsNullOrEmpty(newName) && !newName.Equals(scopeName))
@@ -4822,15 +4898,15 @@ namespace DnsServerCore
 
             string strStartingAddress = request.QueryString["startingAddress"];
             if (string.IsNullOrEmpty(strStartingAddress))
-                throw new WebServiceException("Parameter 'startingAddress' missing.");
+                throw new DnsWebServiceException("Parameter 'startingAddress' missing.");
 
             string strEndingAddress = request.QueryString["endingAddress"];
             if (string.IsNullOrEmpty(strEndingAddress))
-                throw new WebServiceException("Parameter 'endingAddress' missing.");
+                throw new DnsWebServiceException("Parameter 'endingAddress' missing.");
 
             string strSubnetMask = request.QueryString["subnetMask"];
             if (string.IsNullOrEmpty(strSubnetMask))
-                throw new WebServiceException("Parameter 'subnetMask' missing.");
+                throw new DnsWebServiceException("Parameter 'subnetMask' missing.");
 
             bool scopeExists;
             Scope scope = _dhcpServer.GetScope(scopeName);
@@ -5069,10 +5145,10 @@ namespace DnsServerCore
         {
             string scopeName = request.QueryString["name"];
             if (string.IsNullOrEmpty(scopeName))
-                throw new WebServiceException("Parameter 'name' missing.");
+                throw new DnsWebServiceException("Parameter 'name' missing.");
 
             if (!await _dhcpServer.EnableScopeAsync(scopeName))
-                throw new WebServiceException("Failed to enable DHCP scope, please check logs for details: " + scopeName);
+                throw new DnsWebServiceException("Failed to enable DHCP scope, please check logs for details: " + scopeName);
 
             _log.Write(GetRequestRemoteEndPoint(request), "[" + GetSession(request).Username + "] DHCP scope was enabled successfully: " + scopeName);
         }
@@ -5081,10 +5157,10 @@ namespace DnsServerCore
         {
             string scopeName = request.QueryString["name"];
             if (string.IsNullOrEmpty(scopeName))
-                throw new WebServiceException("Parameter 'name' missing.");
+                throw new DnsWebServiceException("Parameter 'name' missing.");
 
             if (!_dhcpServer.DisableScope(scopeName))
-                throw new WebServiceException("Failed to disable DHCP scope, please check logs for details: " + scopeName);
+                throw new DnsWebServiceException("Failed to disable DHCP scope, please check logs for details: " + scopeName);
 
             _log.Write(GetRequestRemoteEndPoint(request), "[" + GetSession(request).Username + "] DHCP scope was disabled successfully: " + scopeName);
         }
@@ -5093,7 +5169,7 @@ namespace DnsServerCore
         {
             string scopeName = request.QueryString["name"];
             if (string.IsNullOrEmpty(scopeName))
-                throw new WebServiceException("Parameter 'name' missing.");
+                throw new DnsWebServiceException("Parameter 'name' missing.");
 
             _dhcpServer.DeleteScope(scopeName);
 
@@ -5104,15 +5180,15 @@ namespace DnsServerCore
         {
             string scopeName = request.QueryString["name"];
             if (string.IsNullOrEmpty(scopeName))
-                throw new WebServiceException("Parameter 'name' missing.");
+                throw new DnsWebServiceException("Parameter 'name' missing.");
 
             Scope scope = _dhcpServer.GetScope(scopeName);
             if (scope == null)
-                throw new WebServiceException("DHCP scope does not exists: " + scopeName);
+                throw new DnsWebServiceException("DHCP scope does not exists: " + scopeName);
 
             string strHardwareAddress = request.QueryString["hardwareAddress"];
             if (string.IsNullOrEmpty(strHardwareAddress))
-                throw new WebServiceException("Parameter 'hardwareAddress' missing.");
+                throw new DnsWebServiceException("Parameter 'hardwareAddress' missing.");
 
             scope.ConvertToReservedLease(strHardwareAddress);
 
@@ -5125,15 +5201,15 @@ namespace DnsServerCore
         {
             string scopeName = request.QueryString["name"];
             if (string.IsNullOrEmpty(scopeName))
-                throw new WebServiceException("Parameter 'name' missing.");
+                throw new DnsWebServiceException("Parameter 'name' missing.");
 
             Scope scope = _dhcpServer.GetScope(scopeName);
             if (scope == null)
-                throw new WebServiceException("DHCP scope does not exists: " + scopeName);
+                throw new DnsWebServiceException("DHCP scope does not exists: " + scopeName);
 
             string strHardwareAddress = request.QueryString["hardwareAddress"];
             if (string.IsNullOrEmpty(strHardwareAddress))
-                throw new WebServiceException("Parameter 'hardwareAddress' missing.");
+                throw new DnsWebServiceException("Parameter 'hardwareAddress' missing.");
 
             scope.ConvertToDynamicLease(strHardwareAddress);
 
@@ -5141,6 +5217,10 @@ namespace DnsServerCore
 
             _log.Write(GetRequestRemoteEndPoint(request), "[" + GetSession(request).Username + "] DHCP scope was updated successfully: " + scopeName);
         }
+
+        #endregion
+
+        #region auth
 
         private void SetCredentials(string username, string password)
         {
@@ -5164,6 +5244,10 @@ namespace DnsServerCore
                 return BitConverter.ToString(hmac.ComputeHash(Encoding.UTF8.GetBytes(username))).Replace("-", "").ToLower();
             }
         }
+
+        #endregion
+
+        #region block list
 
         private void ForceUpdateBlockLists()
         {
@@ -5209,6 +5293,10 @@ namespace DnsServerCore
                 _blockListUpdateTimer = null;
             }
         }
+
+        #endregion
+
+        #region tls
 
         private void StartTlsCertificateUpdateTimer()
         {
@@ -5295,6 +5383,10 @@ namespace DnsServerCore
             _log.Write("DNS Server TLS certificate was loaded: " + tlsCertificatePath);
         }
 
+        #endregion
+
+        #region config
+
         private void LoadConfigFile()
         {
             string configFile = Path.Combine(_configFolder, "dns.config");
@@ -5339,6 +5431,7 @@ namespace DnsServerCore
                         case 12:
                         case 13:
                         case 14:
+                        case 15:
                             _dnsServer.ServerDomain = bR.ReadShortString();
                             _webServiceHttpPort = bR.ReadInt32();
 
@@ -5400,6 +5493,11 @@ namespace DnsServerCore
                                 _dnsServer.RandomizeName = bR.ReadBoolean();
                             else
                                 _dnsServer.RandomizeName = true; //default true to enable security feature
+
+                            if (version >= 15)
+                                _dnsServer.QnameMinimization = bR.ReadBoolean();
+                            else
+                                _dnsServer.QnameMinimization = true; //default true to enable privacy feature
 
                             if (version >= 13)
                             {
@@ -5609,6 +5707,7 @@ namespace DnsServerCore
                 _dnsServer.AllowRecursion = true;
                 _dnsServer.AllowRecursionOnlyForPrivateNetworks = true; //default true for security reasons
                 _dnsServer.RandomizeName = true; //default true to enable security feature
+                _dnsServer.QnameMinimization = true; //default true to enable privacy feature
 
                 SaveConfigFile();
             }
@@ -5630,7 +5729,7 @@ namespace DnsServerCore
                 BinaryWriter bW = new BinaryWriter(mS);
 
                 bW.Write(Encoding.ASCII.GetBytes("DS")); //format
-                bW.Write((byte)14); //version
+                bW.Write((byte)15); //version
 
                 bW.WriteShortString(_dnsServer.ServerDomain);
                 bW.Write(_webServiceHttpPort);
@@ -5664,6 +5763,7 @@ namespace DnsServerCore
                 bW.Write(_dnsServer.AllowRecursion);
                 bW.Write(_dnsServer.AllowRecursionOnlyForPrivateNetworks);
                 bW.Write(_dnsServer.RandomizeName);
+                bW.Write(_dnsServer.QnameMinimization);
 
                 bW.Write(_dnsServer.ServeStale);
                 bW.Write(_dnsServer.CacheZoneManager.ServeStaleTtl);
@@ -5772,7 +5872,11 @@ namespace DnsServerCore
             _log.Write("DNS Server config file was saved: " + configFile);
         }
 
-        private void StartWebService()
+        #endregion
+
+        #region web service start stop
+
+        private void StartDnsWebService()
         {
             //HTTP service
             try
@@ -5866,7 +5970,7 @@ namespace DnsServerCore
             }
         }
 
-        private void StopWebService()
+        private void StopDnsWebService()
         {
             _webService.Stop();
 
@@ -5878,6 +5982,8 @@ namespace DnsServerCore
                 _webServiceTlsListeners = null;
             }
         }
+
+        #endregion
 
         #endregion
 
@@ -5909,6 +6015,9 @@ namespace DnsServerCore
 
                 //load config
                 LoadConfigFile();
+
+                //load dns application packages
+                _dnsServer.DnsApplicationManager.LoadAllPackages();
 
                 //load all zones files
                 _dnsServer.AuthZoneManager.LoadAllZoneFiles();
@@ -5953,7 +6062,7 @@ namespace DnsServerCore
                 _dhcpServer.Start();
 
                 //start web service
-                StartWebService();
+                StartDnsWebService();
 
                 _state = ServiceState.Running;
 
@@ -5975,9 +6084,9 @@ namespace DnsServerCore
 
             try
             {
-                StopWebService();
-                _dnsServer.Stop();
-                _dhcpServer.Stop();
+                StopDnsWebService();
+                _dnsServer.Dispose();
+                _dhcpServer.Dispose();
 
                 StopBlockListUpdateTimer();
                 StopTlsCertificateUpdateTimer();
