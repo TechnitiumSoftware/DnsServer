@@ -1,6 +1,6 @@
 ﻿/*
 Technitium DNS Server
-Copyright (C) 2020  Shreyas Zare (shreyas@technitium.com)
+Copyright (C) 2021  Shreyas Zare (shreyas@technitium.com)
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -181,6 +181,10 @@ namespace DnsServerCore.Dns.ZoneManagers
                     zone = new ForwarderZone(zoneInfo);
                     break;
 
+                case AuthZoneType.Application:
+                    zone = new ApplicationZone(zoneInfo);
+                    break;
+
                 default:
                     throw new InvalidDataException("DNS zone type not supported.");
             }
@@ -240,6 +244,8 @@ namespace DnsServerCore.Dns.ZoneManagers
                     return new SecondarySubDomainZone(domain);
                 else if (authZone is ForwarderZone)
                     return new ForwarderSubDomainZone(domain);
+                else if (authZone is ApplicationZone)
+                    return new ApplicationSubDomainZone(domain);
 
                 throw new DnsServerException("Zone cannot have sub domains.");
             });
@@ -311,7 +317,7 @@ namespace DnsServerCore.Dns.ZoneManagers
             return new DnsDatagram(request.Identifier, true, DnsOpcode.StandardQuery, false, false, request.RecursionDesired, false, false, false, DnsResponseCode.NoError, request.Question, null, authority, additional);
         }
 
-        private DnsDatagram GetForwarderResponse(DnsDatagram request, AuthZone zone, AuthZone forwarderZone)
+        private static DnsDatagram GetForwarderResponse(DnsDatagram request, AuthZone zone, AuthZone forwarderZone)
         {
             IReadOnlyList<DnsResourceRecord> authority = null;
 
@@ -320,6 +326,19 @@ namespace DnsServerCore.Dns.ZoneManagers
 
             if ((authority == null) || (authority.Count == 0))
                 authority = forwarderZone.QueryRecords(DnsResourceRecordType.FWD);
+
+            return new DnsDatagram(request.Identifier, true, DnsOpcode.StandardQuery, false, false, request.RecursionDesired, false, false, false, DnsResponseCode.NoError, request.Question, null, authority);
+        }
+
+        private static DnsDatagram GetApplicationResponse(DnsDatagram request, AuthZone zone, AuthZone applicationZone)
+        {
+            IReadOnlyList<DnsResourceRecord> authority = null;
+
+            if (zone != null)
+                authority = zone.QueryRecords(DnsResourceRecordType.APP);
+
+            if ((authority == null) || (authority.Count == 0))
+                authority = applicationZone.QueryRecords(DnsResourceRecordType.APP);
 
             return new DnsDatagram(request.Identifier, true, DnsOpcode.StandardQuery, false, false, request.RecursionDesired, false, false, false, DnsResponseCode.NoError, request.Question, null, authority);
         }
@@ -509,6 +528,26 @@ namespace DnsServerCore.Dns.ZoneManagers
         public AuthZoneInfo CreateForwarderZone(string domain, DnsTransportProtocol forwarderProtocol, string forwarder)
         {
             AuthZone authZone = new ForwarderZone(domain, forwarderProtocol, forwarder);
+
+            if (_root.TryAdd(authZone))
+            {
+                _totalZones++;
+                return new AuthZoneInfo(authZone);
+            }
+
+            if (_root.TryGet(domain, out AuthZone existingZone) && (existingZone is SubDomainZone))
+            {
+                _root[domain] = authZone;
+                _totalZones++;
+                return new AuthZoneInfo(authZone);
+            }
+
+            return null;
+        }
+
+        public AuthZoneInfo CreateApplicationZone(string domain, string package, string classPath, string data)
+        {
+            AuthZone authZone = new ApplicationZone(domain, package, classPath, data);
 
             if (_root.TryAdd(authZone))
             {
@@ -908,6 +947,8 @@ namespace DnsServerCore.Dns.ZoneManagers
                     return GetReferralResponse(request, authZone);
                 else if (authZone is ForwarderZone)
                     return GetForwarderResponse(request, null, authZone);
+                else if (authZone is ApplicationZone)
+                    return GetApplicationResponse(request, null, authZone);
 
                 DnsResponseCode rCode = hasSubDomains ? DnsResponseCode.NoError : DnsResponseCode.NameError;
                 IReadOnlyList<DnsResourceRecord> authority = authZone.GetRecords(DnsResourceRecordType.SOA);
@@ -928,6 +969,8 @@ namespace DnsServerCore.Dns.ZoneManagers
                         return GetReferralResponse(request, authZone);
                     else if (authZone is ForwarderZone)
                         return GetForwarderResponse(request, zone, authZone);
+                    else if (authZone is ApplicationZone)
+                        return GetApplicationResponse(request, zone, authZone);
 
                     authority = authZone.GetRecords(DnsResourceRecordType.SOA);
                     additional = null;
