@@ -138,13 +138,13 @@ namespace DnsServerCore.Dns.ZoneManagers
             if (cacheZone != null)
             {
                 {
-                    IReadOnlyList<DnsResourceRecord> records = cacheZone.QueryRecords(DnsResourceRecordType.A, serveStale);
+                    IReadOnlyList<DnsResourceRecord> records = cacheZone.QueryRecords(DnsResourceRecordType.A, serveStale, true);
                     if ((records.Count > 0) && (records[0].RDATA is DnsARecord))
                         additionalRecords.AddRange(records);
                 }
 
                 {
-                    IReadOnlyList<DnsResourceRecord> records = cacheZone.QueryRecords(DnsResourceRecordType.AAAA, serveStale);
+                    IReadOnlyList<DnsResourceRecord> records = cacheZone.QueryRecords(DnsResourceRecordType.AAAA, serveStale, true);
                     if ((records.Count > 0) && (records[0].RDATA is DnsAAAARecord))
                         additionalRecords.AddRange(records);
                 }
@@ -199,7 +199,7 @@ namespace DnsServerCore.Dns.ZoneManagers
             }
 
             //return closest name servers in delegation
-            IReadOnlyList<DnsResourceRecord> authority = delegation.QueryRecords(DnsResourceRecordType.NS, false);
+            IReadOnlyList<DnsResourceRecord> authority = delegation.QueryRecords(DnsResourceRecordType.NS, false, true);
             List<DnsResourceRecord> additional = GetAdditionalRecords(authority, false);
 
             return new DnsDatagram(request.Identifier, true, DnsOpcode.StandardQuery, false, false, request.RecursionDesired, true, false, false, DnsResponseCode.NoError, request.Question, null, authority, additional);
@@ -218,14 +218,14 @@ namespace DnsServerCore.Dns.ZoneManagers
                 }
 
                 //return closest name servers in delegation
-                IReadOnlyList<DnsResourceRecord> authority = delegation.QueryRecords(DnsResourceRecordType.NS, serveStale);
+                IReadOnlyList<DnsResourceRecord> authority = delegation.QueryRecords(DnsResourceRecordType.NS, serveStale, true);
                 List<DnsResourceRecord> additional = GetAdditionalRecords(authority, serveStale);
 
                 return new DnsDatagram(request.Identifier, true, DnsOpcode.StandardQuery, false, false, request.RecursionDesired, true, false, false, DnsResponseCode.NoError, request.Question, null, authority, additional);
             }
 
             //zone found
-            IReadOnlyList<DnsResourceRecord> answers = zone.QueryRecords(request.Question[0].Type, serveStale);
+            IReadOnlyList<DnsResourceRecord> answers = zone.QueryRecords(request.Question[0].Type, serveStale, false);
             if (answers.Count > 0)
             {
                 //answer found in cache
@@ -281,7 +281,7 @@ namespace DnsServerCore.Dns.ZoneManagers
                 }
 
                 //return closest name servers in delegation
-                IReadOnlyList<DnsResourceRecord> authority = delegation.QueryRecords(DnsResourceRecordType.NS, false);
+                IReadOnlyList<DnsResourceRecord> authority = delegation.QueryRecords(DnsResourceRecordType.NS, false, true);
                 List<DnsResourceRecord> additional = GetAdditionalRecords(authority, false);
 
                 return new DnsDatagram(request.Identifier, true, DnsOpcode.StandardQuery, false, false, request.RecursionDesired, true, false, false, DnsResponseCode.NoError, request.Question, null, authority, additional);
