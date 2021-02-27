@@ -443,6 +443,18 @@ $(function () {
         var type = $('input[name=rdStatType]:checked').val();
         if (type === "custom") {
             $("#divCustomDayWise").show();
+
+            if ($("#dpCustomDayWiseStart").val() === "") {
+                $("#dpCustomDayWiseStart").focus();
+                return;
+            }
+
+            if ($("#dpCustomDayWiseEnd").val() === "") {
+                $("#dpCustomDayWiseEnd").focus();
+                return;
+            }
+
+            refreshDashboard();
         }
         else {
             $("#divCustomDayWise").hide();
@@ -702,6 +714,7 @@ function loadDnsSettings() {
             $("#chkAllowRecursionOnlyForPrivateNetworks").prop('disabled', !responseJSON.response.allowRecursion);
             $("#chkAllowRecursionOnlyForPrivateNetworks").prop("checked", responseJSON.response.allowRecursionOnlyForPrivateNetworks);
             $("#chkRandomizeName").prop("checked", responseJSON.response.randomizeName);
+            $("#chkQnameMinimization").prop("checked", responseJSON.response.qnameMinimization);
 
             $("#chkServeStale").prop("checked", responseJSON.response.serveStale);
             $("#txtServeStaleTtl").prop("disabled", !responseJSON.response.serveStale);
@@ -892,6 +905,7 @@ function saveDnsSettings() {
     var allowRecursion = $("#chkAllowRecursion").prop('checked');
     var allowRecursionOnlyForPrivateNetworks = $("#chkAllowRecursionOnlyForPrivateNetworks").prop('checked');
     var randomizeName = $("#chkRandomizeName").prop('checked');
+    var qnameMinimization = $("#chkQnameMinimization").prop('checked');
 
     var serveStale = $("#chkServeStale").prop("checked");
     var serveStaleTtl = $("#txtServeStaleTtl").val();
@@ -981,7 +995,7 @@ function saveDnsSettings() {
             + "&webServiceLocalAddresses=" + encodeURIComponent(webServiceLocalAddresses) + "&webServiceHttpPort=" + webServiceHttpPort + "&webServiceEnableTls=" + webServiceEnableTls + "&webServiceHttpToTlsRedirect=" + webServiceHttpToTlsRedirect + "&webServiceTlsPort=" + webServiceTlsPort + "&webServiceTlsCertificatePath=" + encodeURIComponent(webServiceTlsCertificatePath) + "&webServiceTlsCertificatePassword=" + encodeURIComponent(webServiceTlsCertificatePassword)
             + "&enableDnsOverHttp=" + enableDnsOverHttp + "&enableDnsOverTls=" + enableDnsOverTls + "&enableDnsOverHttps=" + enableDnsOverHttps + "&dnsTlsCertificatePath=" + encodeURIComponent(dnsTlsCertificatePath) + "&dnsTlsCertificatePassword=" + encodeURIComponent(dnsTlsCertificatePassword)
             + "&preferIPv6=" + preferIPv6 + "&enableLogging=" + enableLogging + "&logQueries=" + logQueries + "&useLocalTime=" + useLocalTime + "&logFolder=" + encodeURIComponent(logFolder) + "&maxLogFileDays=" + maxLogFileDays + "&maxStatFileDays=" + maxStatFileDays
-            + "&allowRecursion=" + allowRecursion + "&allowRecursionOnlyForPrivateNetworks=" + allowRecursionOnlyForPrivateNetworks + "&randomizeName=" + randomizeName
+            + "&allowRecursion=" + allowRecursion + "&allowRecursionOnlyForPrivateNetworks=" + allowRecursionOnlyForPrivateNetworks + "&randomizeName=" + randomizeName + "&qnameMinimization=" + qnameMinimization
             + "&serveStale=" + serveStale + "&serveStaleTtl=" + serveStaleTtl + "&cachePrefetchEligibility=" + cachePrefetchEligibility + "&cachePrefetchTrigger=" + cachePrefetchTrigger + "&cachePrefetchSampleIntervalInMinutes=" + cachePrefetchSampleIntervalInMinutes + "&cachePrefetchSampleEligibilityHitsPerHour=" + cachePrefetchSampleEligibilityHitsPerHour
             + proxy + "&forwarders=" + encodeURIComponent(forwarders) + "&forwarderProtocol=" + forwarderProtocol + "&blockListUrls=" + encodeURIComponent(blockListUrls) + "&blockListUpdateIntervalHours=" + blockListUpdateIntervalHours,
         success: function (responseJSON) {
@@ -1162,11 +1176,6 @@ function refreshDashboard(hideLoader) {
     var divDashboardLoader = $("#divDashboardLoader");
     var divDashboard = $("#divDashboard");
 
-    if (!hideLoader) {
-        divDashboard.hide();
-        divDashboardLoader.show();
-    }
-
     var type = $('input[name=rdStatType]:checked').val();
     var custom = "";
 
@@ -1186,6 +1195,11 @@ function refreshDashboard(hideLoader) {
         }
 
         custom = "&start=" + start + "&end=" + end;
+    }
+
+    if (!hideLoader) {
+        divDashboard.hide();
+        divDashboardLoader.show();
     }
 
     HTTPRequest({
