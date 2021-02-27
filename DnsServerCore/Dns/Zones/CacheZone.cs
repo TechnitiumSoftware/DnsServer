@@ -1,6 +1,6 @@
 ﻿/*
 Technitium DNS Server
-Copyright (C) 2020  Shreyas Zare (shreyas@technitium.com)
+Copyright (C) 2021  Shreyas Zare (shreyas@technitium.com)
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -36,15 +36,23 @@ namespace DnsServerCore.Dns.Zones
 
         #region private
 
-        private static IReadOnlyList<DnsResourceRecord> FilterExpiredRecords(DnsResourceRecordType type, IReadOnlyList<DnsResourceRecord> records, bool serveStale)
+        private static IReadOnlyList<DnsResourceRecord> FilterExpiredRecords(DnsResourceRecordType type, IReadOnlyList<DnsResourceRecord> records, bool serveStale, bool filterSpecialCacheRecords)
         {
             if (records.Count == 1)
             {
-                if (!serveStale && records[0].IsStale)
+                DnsResourceRecord record = records[0];
+
+                if (!serveStale && record.IsStale)
                     return Array.Empty<DnsResourceRecord>(); //record is stale
 
-                if (records[0].TtlValue < 1u)
+                if (record.TtlValue < 1u)
                     return Array.Empty<DnsResourceRecord>(); //ttl expired
+
+                if (filterSpecialCacheRecords)
+                {
+                    if ((record.RDATA is DnsCache.DnsNXRecord) || (record.RDATA is DnsCache.DnsEmptyRecord) || (record.RDATA is DnsCache.DnsANYRecord) || (record.RDATA is DnsCache.DnsFailureRecord))
+                        return Array.Empty<DnsResourceRecord>(); //special cache record
+                }
 
                 return records;
             }
@@ -58,6 +66,12 @@ namespace DnsServerCore.Dns.Zones
 
                 if (record.TtlValue < 1u)
                     continue; //ttl expired
+
+                if (filterSpecialCacheRecords)
+                {
+                    if ((record.RDATA is DnsCache.DnsNXRecord) || (record.RDATA is DnsCache.DnsEmptyRecord) || (record.RDATA is DnsCache.DnsANYRecord) || (record.RDATA is DnsCache.DnsFailureRecord))
+                        continue; //special cache record
+                }
 
                 newRecords.Add(record);
             }
@@ -149,18 +163,18 @@ namespace DnsServerCore.Dns.Zones
             }
         }
 
-        public IReadOnlyList<DnsResourceRecord> QueryRecords(DnsResourceRecordType type, bool serveStale)
+        public IReadOnlyList<DnsResourceRecord> QueryRecords(DnsResourceRecordType type, bool serveStale, bool filterSpecialCacheRecords)
         {
             //check for CNAME
             if (_entries.TryGetValue(DnsResourceRecordType.CNAME, out IReadOnlyList<DnsResourceRecord> existingCNAMERecords))
             {
-                IReadOnlyList<DnsResourceRecord> filteredRecords = FilterExpiredRecords(type, existingCNAMERecords, serveStale);
+                IReadOnlyList<DnsResourceRecord> filteredRecords = FilterExpiredRecords(type, existingCNAMERecords, serveStale, filterSpecialCacheRecords);
                 if (filteredRecords.Count > 0)
                     return filteredRecords;
             }
 
             if (_entries.TryGetValue(type, out IReadOnlyList<DnsResourceRecord> existingRecords))
-                return FilterExpiredRecords(type, existingRecords, serveStale);
+                return FilterExpiredRecords(type, existingRecords, serveStale, filterSpecialCacheRecords);
 
             return Array.Empty<DnsResourceRecord>();
         }
