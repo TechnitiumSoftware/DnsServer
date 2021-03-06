@@ -34,7 +34,7 @@ namespace DnsServerApp
 
             EventWaitHandle waitHandle = new ManualResetEvent(false);
             EventWaitHandle exitHandle = new ManualResetEvent(false);
-            WebService service = null;
+            DnsWebService service = null;
 
             try
             {
@@ -51,7 +51,7 @@ namespace DnsServerApp
                         break;
                 }
 
-                service = new WebService(configFolder, updateCheckUri);
+                service = new DnsWebService(configFolder, updateCheckUri);
                 service.Start();
 
                 Console.CancelKeyPress += delegate (object sender, ConsoleCancelEventArgs e)
