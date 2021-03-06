@@ -17,15 +17,68 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 */
 
+using System.Collections.Generic;
+using TechnitiumLibrary.Net.Dns;
+
 namespace DnsServerCore.Dns.Zones
 {
     class ApplicationSubDomainZone : SubDomainZone
     {
+        #region variables
+
+        readonly ApplicationZone _applicationZone;
+
+        #endregion
+
         #region constructor
 
-        public ApplicationSubDomainZone(string name)
+        public ApplicationSubDomainZone(ApplicationZone applicationZone, string name)
             : base(name)
-        { }
+        {
+            _applicationZone = applicationZone;
+        }
+
+        #endregion
+
+        #region public
+
+        public override void SetRecords(DnsResourceRecordType type, IReadOnlyList<DnsResourceRecord> records)
+        {
+            base.SetRecords(type, records);
+
+            _applicationZone.IncrementSoaSerial();
+        }
+
+        public override void AddRecord(DnsResourceRecord record)
+        {
+            base.AddRecord(record);
+
+            _applicationZone.IncrementSoaSerial();
+        }
+
+        public override bool DeleteRecords(DnsResourceRecordType type)
+        {
+            if (base.DeleteRecords(type))
+            {
+                _applicationZone.IncrementSoaSerial();
+
+                return true;
+            }
+
+            return false;
+        }
+
+        public override bool DeleteRecord(DnsResourceRecordType type, DnsResourceRecordData record)
+        {
+            if (base.DeleteRecord(type, record))
+            {
+                _applicationZone.IncrementSoaSerial();
+
+                return true;
+            }
+
+            return false;
+        }
 
         #endregion
     }
