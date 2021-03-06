@@ -20,25 +20,33 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 $(function () {
 
     $("input[type=radio][name=rdAddZoneType]").change(function () {
+
+        $("#divAddZonePrimaryNameServerAddresses").hide();
+        $("#divAddZoneForwarderProtocol").hide();
+        $("#divAddZoneForwarder").hide();
+        $("#divAddZoneAppName").hide();
+        $("#divAddZoneAppClassPath").hide();
+        $("#divAddZoneAppRecordData").hide();
+
         var zoneType = $('input[name=rdAddZoneType]:checked').val();
         switch (zoneType) {
             case "Primary":
-                $("#divAddZonePrimaryNameServerAddresses").hide();
-                $("#divAddZoneForwarderProtocol").hide();
-                $("#divAddZoneForwarder").hide();
                 break;
 
             case "Secondary":
             case "Stub":
                 $("#divAddZonePrimaryNameServerAddresses").show();
-                $("#divAddZoneForwarderProtocol").hide();
-                $("#divAddZoneForwarder").hide();
                 break;
 
             case "Forwarder":
-                $("#divAddZonePrimaryNameServerAddresses").hide();
                 $("#divAddZoneForwarderProtocol").show();
                 $("#divAddZoneForwarder").show();
+                break;
+
+            case "Application":
+                $("#divAddZoneAppName").show();
+                $("#divAddZoneAppClassPath").show();
+                $("#divAddZoneAppRecordData").show();
                 break;
         }
     });
@@ -69,6 +77,85 @@ $(function () {
 
     $("input[type=radio][name=rdAddEditRecordDataForwarderProtocol]").change(updateAddEditFormForwarderPlaceholder);
 
+    $("#optAddZoneAppName").change(function () {
+        if (dataApps == null)
+            return;
+
+        var appName = $("#optAddZoneAppName").val();
+        var optClassPaths = "<option></option>";
+
+        for (var i = 0; i < dataApps.length; i++) {
+            if (dataApps[i].name == appName) {
+                for (var j = 0; j < dataApps[i].details.length; j++) {
+                    optClassPaths += "<option>" + dataApps[i].details[j].classPath + "</option>";
+                }
+            }
+        }
+
+        $("#optAddZoneAppClassPath").html(optClassPaths);
+        $("#txtAddZoneAppRecordData").val("");
+    });
+
+    $("#optAddZoneAppClassPath").change(function () {
+        if (dataApps == null)
+            return;
+
+        var appName = $("#optAddZoneAppName").val();
+        var classPath = $("#optAddZoneAppClassPath").val();
+
+        for (var i = 0; i < dataApps.length; i++) {
+            if (dataApps[i].name == appName) {
+                for (var j = 0; j < dataApps[i].details.length; j++) {
+                    if (dataApps[i].details[j].classPath == classPath) {
+                        $("#txtAddZoneAppRecordData").val(dataApps[i].details[j].dataTemplate);
+                        return;
+                    }
+                }
+            }
+        }
+
+        $("#txtAddZoneAppRecordData").val("");
+    });
+
+    $("#optAddEditRecordDataAppName").change(function () {
+        if (dataApps == null)
+            return;
+
+        var appName = $("#optAddEditRecordDataAppName").val();
+        var optClassPaths = "<option></option>";
+
+        for (var i = 0; i < dataApps.length; i++) {
+            if (dataApps[i].name == appName) {
+                for (var j = 0; j < dataApps[i].details.length; j++) {
+                    optClassPaths += "<option>" + dataApps[i].details[j].classPath + "</option>";
+                }
+            }
+        }
+
+        $("#optAddEditRecordDataClassPath").html(optClassPaths);
+        $("#txtAddEditRecordDataData").val("");
+    });
+
+    $("#optAddEditRecordDataClassPath").change(function () {
+        if (dataApps == null)
+            return;
+
+        var appName = $("#optAddEditRecordDataAppName").val();
+        var classPath = $("#optAddEditRecordDataClassPath").val();
+
+        for (var i = 0; i < dataApps.length; i++) {
+            if (dataApps[i].name == appName) {
+                for (var j = 0; j < dataApps[i].details.length; j++) {
+                    if (dataApps[i].details[j].classPath == classPath) {
+                        $("#txtAddEditRecordDataData").val(dataApps[i].details[j].dataTemplate);
+                        return;
+                    }
+                }
+            }
+        }
+
+        $("#txtAddEditRecordDataData").val("");
+    });
 });
 
 function refreshZones(checkDisplay) {
@@ -249,26 +336,60 @@ function deleteZone(objBtn, domain, editZone) {
     });
 }
 
-function showAddZoneModal() {
-    $("#divAddZoneAlert").html("");
+function showAddZoneModal(objBtn) {
+    var btn = $(objBtn);
 
-    $("#txtAddZone").val("");
-    $("#rdAddZoneTypePrimary").prop("checked", true);
-    $("#txtAddZonePrimaryNameServerAddresses").val("");
-    $("input[name=rdAddZoneForwarderProtocol]:radio").attr("disabled", false);
-    $("#rdAddZoneForwarderProtocolUdp").prop("checked", true);
-    $("#chkAddZoneForwarderThisServer").prop('checked', false);
-    $("#txtAddZoneForwarder").prop("disabled", false);
-    $("#txtAddZoneForwarder").attr("placeholder", "8.8.8.8 or [2620:fe::10]")
-    $("#txtAddZoneForwarder").val("");
+    btn.button('loading');
 
-    $("#divAddZonePrimaryNameServerAddresses").hide();
-    $("#divAddZoneForwarderProtocol").hide();
-    $("#divAddZoneForwarder").hide();
+    HTTPRequest({
+        url: "/api/apps/list?token=" + token,
+        success: function (responseJSON) {
+            btn.button('reset');
 
-    $("#btnAddZone").button('reset');
+            $("#divAddZoneAlert").html("");
 
-    $("#modalAddZone").modal("show");
+            $("#txtAddZone").val("");
+            $("#rdAddZoneTypePrimary").prop("checked", true);
+            $("#txtAddZonePrimaryNameServerAddresses").val("");
+            $("input[name=rdAddZoneForwarderProtocol]:radio").attr("disabled", false);
+            $("#rdAddZoneForwarderProtocolUdp").prop("checked", true);
+            $("#chkAddZoneForwarderThisServer").prop('checked', false);
+            $("#txtAddZoneForwarder").prop("disabled", false);
+            $("#txtAddZoneForwarder").attr("placeholder", "8.8.8.8 or [2620:fe::10]")
+            $("#txtAddZoneForwarder").val("");
+
+            dataApps = responseJSON.response.apps;
+            var apps = responseJSON.response.apps;
+            var optApps = "<option></option>";
+            var optClassPaths = "<option></option>";
+
+            for (var i = 0; i < apps.length; i++) {
+                optApps += "<option>" + apps[i].name + "</option>";
+            }
+
+            $("#optAddZoneAppName").html(optApps);
+            $("#optAddZoneAppClassPath").html(optClassPaths);
+            $("#txtAddZoneAppRecordData").val("");
+
+            $("#divAddZonePrimaryNameServerAddresses").hide();
+            $("#divAddZoneForwarderProtocol").hide();
+            $("#divAddZoneForwarder").hide();
+
+            $("#divAddZoneAppName").hide();
+            $("#divAddZoneAppClassPath").hide();
+            $("#divAddZoneAppRecordData").hide();
+
+            $("#btnAddZone").button('reset');
+
+            $("#modalAddZone").modal("show");
+        },
+        error: function () {
+            btn.button('reset');
+        },
+        invalidToken: function () {
+            showPageLogin();
+        }
+    });
 }
 
 function updateAddZoneFormForwarderThisServer() {
@@ -320,6 +441,28 @@ function addZone() {
             }
 
             parameters = "&protocol=" + $('input[name=rdAddZoneForwarderProtocol]:checked').val() + "&forwarder=" + forwarder;
+            break;
+
+        case "Application":
+            var appName = $("#optAddZoneAppName").val();
+
+            if ((appName === null) || (appName === "")) {
+                showAlert("warning", "Missing!", "Please select an application name to add zone.", divAddZoneAlert);
+                $("#optAddZoneAppName").focus();
+                return;
+            }
+
+            var classPath = $("#optAddZoneAppClassPath").val();
+
+            if ((classPath === null) || (classPath === "")) {
+                showAlert("warning", "Missing!", "Please select a class path to add zone.", divAddZoneAlert);
+                $("#optAddZoneAppClassPath").focus();
+                return;
+            }
+
+            var recordData = $("#txtAddZoneAppRecordData").val();
+
+            parameters = "&appName=" + encodeURIComponent(appName) + "&classPath=" + encodeURIComponent(classPath) + "&recordData=" + encodeURIComponent(recordData);
             break;
 
         default:
@@ -412,11 +555,19 @@ function showEditZone(domain) {
                 case "Forwarder":
                     $("#btnEditZoneAddRecord").show();
                     $("#optEditRecordTypeFwd").show();
+                    $("#optEditRecordTypeApp").hide();
+                    break;
+
+                case "Application":
+                    $("#btnEditZoneAddRecord").show();
+                    $("#optEditRecordTypeFwd").hide();
+                    $("#optEditRecordTypeApp").show();
                     break;
 
                 default:
                     $("#btnEditZoneAddRecord").show();
                     $("#optEditRecordTypeFwd").hide();
+                    $("#optEditRecordTypeApp").hide();
                     break;
             }
 
@@ -543,6 +694,15 @@ function showEditZone(domain) {
                         additionalDataAttributes = "data-record-protocol=\"" + htmlEncode(records[i].rData.protocol) + "\" ";
                         break;
 
+                    case "APP":
+                        tableHtmlRows += "<td style=\"overflow-wrap: anywhere;\"><b>App Name: </b> " + htmlEncode(records[i].rData.value) +
+                            "<br /><b>Class Path:</b> " + htmlEncode(records[i].rData.classPath) +
+                            "<br /><b>Record Data:</b> " + (records[i].rData.data == "" ? "" : "<pre>" + htmlEncode(records[i].rData.data) + "</pre>") + "</td>";
+
+                        additionalDataAttributes = "data-record-classpath=\"" + htmlEncode(records[i].rData.classPath) + "\" " +
+                            "data-record-data=\"" + htmlEncode(records[i].rData.data) + "\"";
+                        break;
+
                     default:
                         tableHtmlRows += "<td style=\"overflow-wrap: anywhere;\"><b>RDATA:</b> " + htmlEncode(records[i].rData.value) + "</td>";
                         break;
@@ -597,10 +757,10 @@ function showEditZone(domain) {
                 else {
                     tableHtmlRows += "<td align=\"right\" style=\"min-width: 220px;\">";
                     tableHtmlRows += "<div id=\"data" + id + "\" data-record-name=\"" + htmlEncode(records[i].name) + "\" data-record-type=\"" + records[i].type + "\" data-record-ttl=\"" + records[i].ttl + "\" data-record-value=\"" + htmlEncode(records[i].rData.value) + "\" " + additionalDataAttributes + " data-record-disabled=\"" + records[i].disabled + "\" style=\"display: none;\"></div>";
-                    tableHtmlRows += "<button type=\"button\" class=\"btn btn-primary\" style=\"font-size: 12px; padding: 2px 0px; width: 60px; margin: 0 6px 6px 0;\" data-id=\"" + id + "\" onclick=\"showEditRecordModal(this);\">Edit</button>";
-                    tableHtmlRows += "<button type=\"button\" class=\"btn btn-default\" id=\"btnEnableRecord" + id + "\" style=\"font-size: 12px; padding: 2px 0px; width: 60px; margin: 0 6px 6px 0;" + (records[i].disabled ? "" : " display: none;") + "\" data-id=\"" + id + "\" onclick=\"updateRecordState(this, false);\"" + (disableEnableDisableDeleteButtons ? " disabled" : "") + " data-loading-text=\"Enabling...\">Enable</button>";
-                    tableHtmlRows += "<button type=\"button\" class=\"btn btn-warning\" id=\"btnDisableRecord" + id + "\" style=\"font-size: 12px; padding: 2px 0px; width: 60px; margin: 0 6px 6px 0;" + (!records[i].disabled ? "" : " display: none;") + "\" data-id=\"" + id + "\" onclick=\"updateRecordState(this, true);\"" + (disableEnableDisableDeleteButtons ? " disabled" : "") + " data-loading-text=\"Disabling...\">Disable</button>";
-                    tableHtmlRows += "<button type=\"button\" class=\"btn btn-danger\" style=\"font-size: 12px; padding: 2px 0px; width: 60px; margin: 0 6px 6px 0;\" data-loading-text=\"Deleting...\" data-id=\"" + id + "\" onclick=\"deleteRecord(this);\"" + (disableEnableDisableDeleteButtons ? " disabled" : "") + ">Delete</button></td>";
+                    tableHtmlRows += "<button type=\"button\" class=\"btn btn-primary\" style=\"font-size: 12px; padding: 2px 0px; width: 60px; margin: 0 6px 0 0;\" data-id=\"" + id + "\" onclick=\"showEditRecordModal(this);\">Edit</button>";
+                    tableHtmlRows += "<button type=\"button\" class=\"btn btn-default\" id=\"btnEnableRecord" + id + "\" style=\"font-size: 12px; padding: 2px 0px; width: 60px; margin: 0 6px 0 0;" + (records[i].disabled ? "" : " display: none;") + "\" data-id=\"" + id + "\" onclick=\"updateRecordState(this, false);\"" + (disableEnableDisableDeleteButtons ? " disabled" : "") + " data-loading-text=\"Enabling...\">Enable</button>";
+                    tableHtmlRows += "<button type=\"button\" class=\"btn btn-warning\" id=\"btnDisableRecord" + id + "\" style=\"font-size: 12px; padding: 2px 0px; width: 60px; margin: 0 6px 0 0;" + (!records[i].disabled ? "" : " display: none;") + "\" data-id=\"" + id + "\" onclick=\"updateRecordState(this, true);\"" + (disableEnableDisableDeleteButtons ? " disabled" : "") + " data-loading-text=\"Disabling...\">Disable</button>";
+                    tableHtmlRows += "<button type=\"button\" class=\"btn btn-danger\" style=\"font-size: 12px; padding: 2px 0px; width: 60px; margin: 0 6px 0 0;\" data-loading-text=\"Deleting...\" data-id=\"" + id + "\" onclick=\"deleteRecord(this);\"" + (disableEnableDisableDeleteButtons ? " disabled" : "") + ">Delete</button></td>";
                 }
 
                 tableHtmlRows += "</tr>";
@@ -694,10 +854,46 @@ function clearAddEditForm() {
     $("#txtAddEditRecordDataForwarder").attr("placeholder", "8.8.8.8 or [2620:fe::10]")
     $("#txtAddEditRecordDataForwarder").val("");
 
+    $("#divAddEditRecordDataApplication").hide();
+    $("#optAddEditRecordDataAppName").html("");
+    $("#optAddEditRecordDataAppName").attr('disabled', false);
+    $("#optAddEditRecordDataClassPath").html("");
+    $("#optAddEditRecordDataClassPath").attr('disabled', false);
+    $("#txtAddEditRecordDataData").val("");
+
     $("#btnAddEditRecord").button("reset");
 }
 
-function showAddRecordModal() {
+function showAddRecordModal(objBtn) {
+    var zoneType = $("#titleEditZoneType").text();
+    if (zoneType === "Application") {
+        var btn = $(objBtn);
+
+        btn.button('loading');
+
+        HTTPRequest({
+            url: "/api/apps/list?token=" + token,
+            success: function (responseJSON) {
+                btn.button('reset');
+
+                showAddRecordModalNow(responseJSON.response.apps);
+            },
+            error: function () {
+                btn.button('reset');
+            },
+            invalidToken: function () {
+                showPageLogin();
+            }
+        });
+    }
+    else {
+        showAddRecordModalNow(null);
+    }
+}
+
+var dataApps;
+
+function showAddRecordModalNow(apps) {
     var zone = $("#titleEditZone").text();
 
     clearAddEditForm();
@@ -706,6 +902,20 @@ function showAddRecordModal() {
     $("#lblAddEditRecordZoneName").text(zone);
     $("#optEditRecordTypeSoa").hide();
     $("#btnAddEditRecord").attr("onclick", "addRecord(); return false;");
+
+    dataApps = apps;
+    if (apps != null) {
+        var optApps = "<option></option>";
+        var optClassPaths = "<option></option>";
+
+        for (var i = 0; i < apps.length; i++) {
+            optApps += "<option>" + apps[i].name + "</option>";
+        }
+
+        $("#optAddEditRecordDataAppName").html(optApps);
+        $("#optAddEditRecordDataClassPath").html(optClassPaths);
+        $("#txtAddEditRecordDataData").val("");
+    }
 
     $("#modalAddEditRecord").modal("show");
 }
@@ -726,6 +936,7 @@ function modifyAddRecordForm() {
     $("#divAddEditRecordDataSrv").hide();
     $("#divAddEditRecordDataCaa").hide();
     $("#divAddEditRecordDataForwarder").hide();
+    $("#divAddEditRecordDataApplication").hide();
 
     switch (type) {
         case "A":
@@ -813,6 +1024,13 @@ function modifyAddRecordForm() {
             $('#txtAddEditRecordDataForwarder').prop('disabled', false);
             $("#txtAddEditRecordDataForwarder").val("");
             $("#divAddEditRecordDataForwarder").show();
+            break;
+
+        case "APP":
+            $("#optAddEditRecordDataAppName").val("");
+            $("#optAddEditRecordDataClassPath").val("");
+            $("#txtAddEditRecordDataData").val("");
+            $("#divAddEditRecordDataApplication").show();
             break;
     }
 }
@@ -984,6 +1202,28 @@ function addRecord() {
 
             apiUrl += "&protocol=" + $('input[name=rdAddEditRecordDataForwarderProtocol]:checked').val() + "&value=" + value;
             break;
+
+        case "APP":
+            var appName = $("#optAddEditRecordDataAppName").val();
+
+            if ((appName === null) || (appName === "")) {
+                showAlert("warning", "Missing!", "Please select an application name to add record.", divAddEditRecordAlert);
+                $("#optAddEditRecordDataAppName").focus();
+                return;
+            }
+
+            var classPath = $("#optAddEditRecordDataClassPath").val();
+
+            if ((classPath === null) || (classPath === "")) {
+                showAlert("warning", "Missing!", "Please select a class path to add record.", divAddEditRecordAlert);
+                $("#optAddEditRecordDataClassPath").focus();
+                return;
+            }
+
+            var recordData = $("#txtAddEditRecordDataData").val();
+
+            apiUrl += "&value=" + encodeURIComponent(appName) + "&classPath=" + encodeURIComponent(classPath) + "&recordData=" + encodeURIComponent(recordData);
+            break;
     }
 
     btn.button("loading");
@@ -1078,6 +1318,7 @@ function showEditRecordModal(objBtn) {
     var zoneType = $("#titleEditZoneType").text();
     switch (zoneType) {
         case "Primary":
+        case "Application":
             switch (type) {
                 case "SOA":
                     hideSoaRecordPrimaryAddressesField = true;
@@ -1196,6 +1437,19 @@ function showEditRecordModal(objBtn) {
             updateAddEditFormForwarderPlaceholder();
             break;
 
+        case "APP":
+            $("#optAddEditRecordDataAppName").attr("disabled", true);
+            $("#optAddEditRecordDataClassPath").attr("disabled", true);
+
+            $("#optAddEditRecordDataAppName").html("<option>" + divData.attr("data-record-value") + "</option>")
+            $("#optAddEditRecordDataAppName").val(divData.attr("data-record-value"))
+
+            $("#optAddEditRecordDataClassPath").html("<option>" + divData.attr("data-record-classpath") + "</option>")
+            $("#optAddEditRecordDataClassPath").val(divData.attr("data-record-classpath"))
+
+            $("#txtAddEditRecordDataData").val(divData.attr("data-record-data"))
+            break;
+
         default:
             showAlert("warning", "Not Supported!", "Record type not supported for edit.");
             return;
@@ -1251,7 +1505,7 @@ function updateRecord() {
         case "AAAA":
             var newValue = $("#txtAddEditRecordDataValue").val();
             if (newValue === "") {
-                showAlert("warning", "Missing!", "Please enter an IP address to add the record.", divAddEditRecordAlert);
+                showAlert("warning", "Missing!", "Please enter an IP address to update the record.", divAddEditRecordAlert);
                 $("#txtAddEditRecordDataValue").focus();
                 return;
             }
@@ -1264,7 +1518,7 @@ function updateRecord() {
         case "ANAME":
             var newValue = $("#txtAddEditRecordDataValue").val();
             if (newValue === "") {
-                showAlert("warning", "Missing!", "Please enter a suitable value to add the record.", divAddEditRecordAlert);
+                showAlert("warning", "Missing!", "Please enter a suitable value to update the record.", divAddEditRecordAlert);
                 $("#txtAddEditRecordDataValue").focus();
                 return;
             }
@@ -1282,7 +1536,7 @@ function updateRecord() {
 
             var newValue = $("#txtAddEditRecordDataValue").val();
             if (newValue === "") {
-                showAlert("warning", "Missing!", "Please enter a domain name to add the record.", divAddEditRecordAlert);
+                showAlert("warning", "Missing!", "Please enter a domain name to update the record.", divAddEditRecordAlert);
                 $("#txtAddEditRecordDataValue").focus();
                 return;
             }
@@ -1293,7 +1547,7 @@ function updateRecord() {
         case "NS":
             var newValue = $("#txtAddEditRecordDataNsNameServer").val();
             if (newValue === "") {
-                showAlert("warning", "Missing!", "Please enter a name server to add the record.", divAddEditRecordAlert);
+                showAlert("warning", "Missing!", "Please enter a name server to update the record.", divAddEditRecordAlert);
                 $("#txtAddEditRecordDataNsNameServer").focus();
                 return;
             }
@@ -1372,7 +1626,7 @@ function updateRecord() {
 
             var newValue = $("#txtAddEditRecordDataMxExchange").val();
             if (newValue === "") {
-                showAlert("warning", "Missing!", "Please enter a mail exchange domain name to add the record.", divAddEditRecordAlert);
+                showAlert("warning", "Missing!", "Please enter a mail exchange domain name to update the record.", divAddEditRecordAlert);
                 $("#txtAddEditRecordDataMxExchange").focus();
                 return;
             }
@@ -1445,12 +1699,16 @@ function updateRecord() {
         case "FWD":
             var newValue = $("#txtAddEditRecordDataForwarder").val();
             if (newValue === "") {
-                showAlert("warning", "Missing!", "Please enter a domain name or IP address or URL as a forwarder to add the record.", divAddEditRecordAlert);
+                showAlert("warning", "Missing!", "Please enter a domain name or IP address or URL as a forwarder to update the record.", divAddEditRecordAlert);
                 $("#txtAddEditRecordDataForwarder").focus();
                 return;
             }
 
             apiUrl += "&protocol=" + $('input[name=rdAddEditRecordDataForwarderProtocol]:checked').val() + "&newValue=" + newValue;
+            break;
+
+        case "APP":
+            apiUrl += "&classPath=" + encodeURIComponent($("#optAddEditRecordDataClassPath").val()) + "&recordData=" + encodeURIComponent($("#txtAddEditRecordDataData").val());
             break;
     }
 
@@ -1510,6 +1768,10 @@ function updateRecordState(objBtn, disable) {
 
         case "FWD":
             apiUrl += "&protocol=" + divData.attr("data-record-protocol");
+            break;
+
+        case "APP":
+            apiUrl += "&classPath=" + encodeURIComponent(divData.attr("data-record-classpath")) + "&recordData=" + encodeURIComponent(divData.attr("data-record-data"));
             break;
     }
 
