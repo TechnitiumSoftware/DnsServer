@@ -17,6 +17,8 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 */
 
+using DnsApplicationCommon;
+using System;
 using System.Threading.Tasks;
 using TechnitiumLibrary.Net.Dns;
 using TechnitiumLibrary.Net.Proxy;
@@ -28,16 +30,18 @@ namespace DnsServerCore.Dns.Applications
         #region variables
 
         readonly DnsServer _dnsServer;
-        readonly string _packagePath;
+        readonly string _appName;
+        readonly string _applicationFolder;
 
         #endregion
 
         #region constructor
 
-        public DnsServerInternal(DnsServer dnsServer, string packagePath)
+        public DnsServerInternal(DnsServer dnsServer, string appName, string applicationFolder)
         {
             _dnsServer = dnsServer;
-            _packagePath = packagePath;
+            _appName = appName;
+            _applicationFolder = applicationFolder;
         }
 
         #endregion
@@ -47,11 +51,25 @@ namespace DnsServerCore.Dns.Applications
             return _dnsServer.DirectQueryAsync(question, timeout);
         }
 
+        public void WriteLog(string message)
+        {
+            LogManager log = _dnsServer.LogManager;
+            if (log != null)
+                log.Write("DNS App [" + _appName + "]: " + message);
+        }
+
+        public void WriteLog(Exception ex)
+        {
+            LogManager log = _dnsServer.LogManager;
+            if (log != null)
+                log.Write("DNS App [" + _appName + "]: " + ex.ToString());
+        }
+
         public string ServerDomain
         { get { return _dnsServer.ServerDomain; } }
 
-        public string PackageFolder
-        { get { return _packagePath; } }
+        public string ApplicationFolder
+        { get { return _applicationFolder; } }
 
         public IDnsCache DnsCache
         { get { return _dnsServer.DnsCache; } }
