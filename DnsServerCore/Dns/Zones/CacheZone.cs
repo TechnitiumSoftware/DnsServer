@@ -21,6 +21,7 @@ using System;
 using System.Collections.Generic;
 using TechnitiumLibrary.IO;
 using TechnitiumLibrary.Net.Dns;
+using TechnitiumLibrary.Net.Dns.ResourceRecords;
 
 namespace DnsServerCore.Dns.Zones
 {
@@ -120,7 +121,15 @@ namespace DnsServerCore.Dns.Zones
                 default:
                     //remove old CNAME entry since current new entry type overlaps any existing CNAME entry in cache
                     //keeping both entries will create issue with serve stale implementation since stale CNAME entry will be always returned
-                    _entries.TryRemove(DnsResourceRecordType.CNAME, out _);
+
+                    if (_entries.TryGetValue(DnsResourceRecordType.CNAME, out IReadOnlyList<DnsResourceRecord> cnameRecords))
+                    {
+                        if ((cnameRecords.Count > 0) && (cnameRecords[0].RDATA is DnsCNAMERecord))
+                        {
+                            //delete CNAME entry only when it contains DnsCNAMERecord RDATA and not special cache records
+                            _entries.TryRemove(DnsResourceRecordType.CNAME, out _);
+                        }
+                    }
                     break;
             }
         }
@@ -170,7 +179,10 @@ namespace DnsServerCore.Dns.Zones
             {
                 IReadOnlyList<DnsResourceRecord> filteredRecords = FilterExpiredRecords(type, existingCNAMERecords, serveStale, filterSpecialCacheRecords);
                 if (filteredRecords.Count > 0)
-                    return filteredRecords;
+                {
+                    if ((type == DnsResourceRecordType.CNAME) || (filteredRecords[0].RDATA is DnsCNAMERecord))
+                        return filteredRecords;
+                }
             }
 
             if (_entries.TryGetValue(type, out IReadOnlyList<DnsResourceRecord> existingRecords))
