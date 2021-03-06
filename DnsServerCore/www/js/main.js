@@ -2275,6 +2275,7 @@ function backupSettings() {
     var blockLists = $("#chkBackupBlockLists").prop('checked');
     var logs = $("#chkBackupLogs").prop('checked');
     var scopes = $("#chkBackupScopes").prop('checked');
+    var apps = $("#chkBackupApps").prop('checked');
     var stats = $("#chkBackupStats").prop('checked');
     var zones = $("#chkBackupZones").prop('checked');
     var allowedZones = $("#chkBackupAllowedZones").prop('checked');
@@ -2282,12 +2283,12 @@ function backupSettings() {
     var dnsSettings = $("#chkBackupDnsSettings").prop('checked');
     var logSettings = $("#chkBackupLogSettings").prop('checked');
 
-    if (!blockLists && !logs && !scopes && !stats && !zones && !allowedZones && !blockedZones && !dnsSettings && !logSettings) {
+    if (!blockLists && !logs && !scopes && !apps && !stats && !zones && !allowedZones && !blockedZones && !dnsSettings && !logSettings) {
         showAlert("warning", "Missing!", "Please select at least one item to backup.", divBackupSettingsAlert);
         return false;
     }
 
-    window.open("/api/backupSettings?token=" + token + "&blockLists=" + blockLists + "&logs=" + logs + "&scopes=" + scopes + "&stats=" + stats + "&zones=" + zones + "&allowedZones=" + allowedZones + "&blockedZones=" + blockedZones + "&dnsSettings=" + dnsSettings + "&logSettings=" + logSettings + "&ts=" + (new Date().getTime()), "_blank");
+    window.open("/api/backupSettings?token=" + token + "&blockLists=" + blockLists + "&logs=" + logs + "&scopes=" + scopes + "&apps=" + apps + "&stats=" + stats + "&zones=" + zones + "&allowedZones=" + allowedZones + "&blockedZones=" + blockedZones + "&dnsSettings=" + dnsSettings + "&logSettings=" + logSettings + "&ts=" + (new Date().getTime()), "_blank");
 
     $("#modalBackupSettings").modal("hide");
     showAlert("success", "Backed Up!", "Settings were backed up successfully.");
@@ -2328,6 +2329,7 @@ function restoreSettings() {
     var blockLists = $("#chkRestoreBlockLists").prop('checked');
     var logs = $("#chkRestoreLogs").prop('checked');
     var scopes = $("#chkRestoreScopes").prop('checked');
+    var apps = $("#chkRestoreApps").prop('checked');
     var stats = $("#chkRestoreStats").prop('checked');
     var zones = $("#chkRestoreZones").prop('checked');
     var allowedZones = $("#chkRestoreAllowedZones").prop('checked');
@@ -2337,7 +2339,7 @@ function restoreSettings() {
 
     var deleteExistingFiles = $("#chkDeleteExistingFiles").prop('checked');
 
-    if (!blockLists && !logs && !scopes && !stats && !zones && !allowedZones && !blockedZones && !dnsSettings && !logSettings) {
+    if (!blockLists && !logs && !scopes && !apps && !stats && !zones && !allowedZones && !blockedZones && !dnsSettings && !logSettings) {
         showAlert("warning", "Missing!", "Please select at least one item to restore.", divRestoreSettingsAlert);
         return false;
     }
@@ -2348,7 +2350,7 @@ function restoreSettings() {
     var btn = $("#btnRestoreSettings").button('loading');
 
     HTTPRequest({
-        url: "/api/restoreSettings?token=" + token + "&blockLists=" + blockLists + "&logs=" + logs + "&scopes=" + scopes + "&stats=" + stats + "&zones=" + zones + "&allowedZones=" + allowedZones + "&blockedZones=" + blockedZones + "&dnsSettings=" + dnsSettings + "&logSettings=" + logSettings + "&deleteExistingFiles=" + deleteExistingFiles,
+        url: "/api/restoreSettings?token=" + token + "&blockLists=" + blockLists + "&logs=" + logs + "&scopes=" + scopes + "&apps=" + apps + "&stats=" + stats + "&zones=" + zones + "&allowedZones=" + allowedZones + "&blockedZones=" + blockedZones + "&dnsSettings=" + dnsSettings + "&logSettings=" + logSettings + "&deleteExistingFiles=" + deleteExistingFiles,
         data: formData,
         dataIsFormData: true,
         success: function (responseJSON) {
