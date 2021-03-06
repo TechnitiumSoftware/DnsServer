@@ -17,9 +17,11 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 */
 
+using DnsApplicationCommon;
 using DnsServerCore.Dhcp;
 using DnsServerCore.Dhcp.Options;
 using DnsServerCore.Dns;
+using DnsServerCore.Dns.Applications;
 using DnsServerCore.Dns.ResourceRecords;
 using DnsServerCore.Dns.Zones;
 using Newtonsoft.Json;
@@ -483,16 +485,24 @@ namespace DnsServerCore
                                                 UpdateRecord(request);
                                                 break;
 
-                                            case "/api/apps/installPackage":
+                                            case "/api/apps/list":
+                                                ListApps(jsonWriter);
                                                 break;
 
-                                            case "/api/apps/uninstallPackage":
+                                            case "/api/apps/install":
+                                                await InstallAppAsync(request);
+                                                break;
+
+                                            case "/api/apps/uninstall":
+                                                UninstallApp(request);
                                                 break;
 
                                             case "/api/apps/getConfig":
+                                                await GetAppConfigAsync(request, jsonWriter);
                                                 break;
 
                                             case "/api/apps/setConfig":
+                                                await SetAppConfigAsync(request);
                                                 break;
 
                                             case "/api/resolveQuery":
@@ -1736,6 +1746,7 @@ namespace DnsServerCore
             bool blockLists = false;
             bool logs = false;
             bool scopes = false;
+            bool apps = false;
             bool stats = false;
             bool zones = false;
             bool allowedZones = false;
@@ -1754,6 +1765,10 @@ namespace DnsServerCore
             string strScopes = request.QueryString["scopes"];
             if (!string.IsNullOrEmpty(strScopes))
                 scopes = bool.Parse(strScopes);
+
+            string strApps = request.QueryString["apps"];
+            if (!string.IsNullOrEmpty(strApps))
+                apps = bool.Parse(strApps);
 
             string strStats = request.QueryString["stats"];
             if (!string.IsNullOrEmpty(strStats))
@@ -1825,11 +1840,27 @@ namespace DnsServerCore
 
                         if (scopes)
                         {
-                            string[] scopFiles = Directory.GetFiles(Path.Combine(_configFolder, "scopes"), "*.scope", SearchOption.TopDirectoryOnly);
-                            foreach (string scopFile in scopFiles)
+                            string[] scopeFiles = Directory.GetFiles(Path.Combine(_configFolder, "scopes"), "*.scope", SearchOption.TopDirectoryOnly);
+                            foreach (string scopeFile in scopeFiles)
                             {
-                                string entryName = "scopes/" + Path.GetFileName(scopFile);
-                                backupZip.CreateEntryFromFile(scopFile, entryName);
+                                string entryName = "scopes/" + Path.GetFileName(scopeFile);
+                                backupZip.CreateEntryFromFile(scopeFile, entryName);
+                            }
+                        }
+
+                        if (apps)
+                        {
+                            string[] appFiles = Directory.GetFiles(Path.Combine(_configFolder, "apps"), "*", SearchOption.AllDirectories);
+                            foreach (string appFile in appFiles)
+                            {
+                                string entryName = appFile.Substring(_configFolder.Length);
+
+                                if (Path.DirectorySeparatorChar != '/')
+                                    entryName = entryName.Replace(Path.DirectorySeparatorChar, '/');
+
+                                entryName = entryName.TrimStart('/');
+
+                                backupZip.CreateEntryFromFile(appFile, entryName);
                             }
                         }
 
@@ -1926,6 +1957,7 @@ namespace DnsServerCore
             bool blockLists = false;
             bool logs = false;
             bool scopes = false;
+            bool apps = false;
             bool stats = false;
             bool zones = false;
             bool allowedZones = false;
@@ -1946,6 +1978,10 @@ namespace DnsServerCore
             string strScopes = request.QueryString["scopes"];
             if (!string.IsNullOrEmpty(strScopes))
                 scopes = bool.Parse(strScopes);
+
+            string strApps = request.QueryString["apps"];
+            if (!string.IsNullOrEmpty(strApps))
+                apps = bool.Parse(strApps);
 
             string strStats = request.QueryString["stats"];
             if (!string.IsNullOrEmpty(strStats))
@@ -2111,6 +2147,41 @@ namespace DnsServerCore
                             }
                         }
 
+                        if (apps)
+                        {
+                            //unload apps
+                            _dnsServer.DnsApplicationManager.UnloadAllApplications();
+
+                            if (deleteExistingFiles)
+                            {
+                                //delete existing apps
+                                string appFolder = Path.Combine(_configFolder, "apps");
+                                if (Directory.Exists(appFolder))
+                                    Directory.Delete(appFolder, true);
+                            }
+
+                            //extract apps files from backup
+                            foreach (ZipArchiveEntry entry in backupZip.Entries)
+                            {
+                                if (entry.FullName.StartsWith("apps/"))
+                                {
+                                    string entryPath = entry.FullName;
+
+                                    if (Path.DirectorySeparatorChar != '/')
+                                        entryPath = entryPath.Replace('/', '\\');
+
+                                    string filePath = Path.Combine(_configFolder, entryPath);
+
+                                    Directory.CreateDirectory(Path.GetDirectoryName(filePath));
+
+                                    entry.ExtractToFile(filePath, true);
+                                }
+                            }
+
+                            //reload apps
+                            _dnsServer.DnsApplicationManager.LoadAllApplications();
+                        }
+
                         if (stats)
                         {
                             if (deleteExistingFiles)
@@ -2166,8 +2237,16 @@ namespace DnsServerCore
                         if (allowedZones)
                         {
                             ZipArchiveEntry entry = backupZip.GetEntry("allowed.config");
-                            if (entry != null)
+                            if (entry == null)
+                            {
+                                string fileName = Path.Combine(_configFolder, "allowed.config");
+                                if (File.Exists(fileName))
+                                    File.Delete(fileName);
+                            }
+                            else
+                            {
                                 entry.ExtractToFile(Path.Combine(_configFolder, entry.Name), true);
+                            }
 
                             //reload
                             _dnsServer.AllowedZoneManager.LoadAllowedZoneFile();
@@ -2176,8 +2255,16 @@ namespace DnsServerCore
                         if (blockedZones)
                         {
                             ZipArchiveEntry entry = backupZip.GetEntry("blocked.config");
-                            if (entry != null)
+                            if (entry == null)
+                            {
+                                string fileName = Path.Combine(_configFolder, "allowed.config");
+                                if (File.Exists(fileName))
+                                    File.Delete(fileName);
+                            }
+                            else
+                            {
                                 entry.ExtractToFile(Path.Combine(_configFolder, entry.Name), true);
+                            }
 
                             //reload
                             _dnsServer.BlockedZoneManager.LoadBlockedZoneFile();
@@ -3301,6 +3388,28 @@ namespace DnsServerCore
                     }
                     break;
 
+                case AuthZoneType.Application:
+                    {
+                        string strAppName = request.QueryString["appName"];
+                        if (string.IsNullOrEmpty(strAppName))
+                            throw new DnsWebServiceException("Parameter 'appName' missing.");
+
+                        string strClassPath = request.QueryString["classPath"];
+                        if (string.IsNullOrEmpty(strClassPath))
+                            throw new DnsWebServiceException("Parameter 'classPath' missing.");
+
+                        string strRecordData = request.QueryString["recordData"];
+                        if (string.IsNullOrEmpty(strRecordData))
+                            strRecordData = "";
+
+                        if (_dnsServer.AuthZoneManager.CreateApplicationZone(domain, _dnsServer.ServerDomain, strAppName, strClassPath, strRecordData) == null)
+                            throw new DnsWebServiceException("Zone already exists: " + domain);
+
+                        _log.Write(GetRequestRemoteEndPoint(request), "[" + GetSession(request).Username + "] Application zone was created: " + domain);
+                        _dnsServer.AuthZoneManager.SaveZoneFile(domain);
+                    }
+                    break;
+
                 default:
                     throw new NotSupportedException("Zone type not supported.");
             }
@@ -3548,6 +3657,20 @@ namespace DnsServerCore
                             protocol = "Udp";
 
                         _dnsServer.AuthZoneManager.AddRecord(domain, type, 0, new DnsForwarderRecord((DnsTransportProtocol)Enum.Parse(typeof(DnsTransportProtocol), protocol, true), value));
+                    }
+                    break;
+
+                case DnsResourceRecordType.APP:
+                    {
+                        string classPath = request.QueryString["classPath"];
+                        if (string.IsNullOrEmpty(classPath))
+                            throw new DnsWebServiceException("Parameter 'classPath' missing.");
+
+                        string recordData = request.QueryString["recordData"];
+                        if (string.IsNullOrEmpty(recordData))
+                            recordData = "";
+
+                        _dnsServer.AuthZoneManager.SetRecords(domain, type, ttl, new DnsResourceRecordData[] { new DnsApplicationRecord(value, classPath, recordData) });
                     }
                     break;
 
@@ -3863,6 +3986,23 @@ namespace DnsServerCore
                                 }
                                 break;
 
+                            case DnsResourceRecordType.APP:
+                                {
+                                    DnsApplicationRecord rdata = record.RDATA as DnsApplicationRecord;
+                                    if (rdata != null)
+                                    {
+                                        jsonWriter.WritePropertyName("value");
+                                        jsonWriter.WriteValue(rdata.AppName);
+
+                                        jsonWriter.WritePropertyName("classPath");
+                                        jsonWriter.WriteValue(rdata.ClassPath);
+
+                                        jsonWriter.WritePropertyName("data");
+                                        jsonWriter.WriteValue(rdata.Data);
+                                    }
+                                }
+                                break;
+
                             default:
                                 {
                                     jsonWriter.WritePropertyName("value");
@@ -3962,6 +4102,7 @@ namespace DnsServerCore
                 case DnsResourceRecordType.CNAME:
                 case DnsResourceRecordType.PTR:
                 case DnsResourceRecordType.ANAME:
+                case DnsResourceRecordType.APP:
                     _dnsServer.AuthZoneManager.DeleteRecords(domain, type);
                     break;
 
@@ -4327,6 +4468,26 @@ namespace DnsServerCore
                     }
                     break;
 
+                case DnsResourceRecordType.APP:
+                    {
+                        string classPath = request.QueryString["classPath"];
+                        if (string.IsNullOrEmpty(classPath))
+                            throw new DnsWebServiceException("Parameter 'classPath' missing.");
+
+                        string recordData = request.QueryString["recordData"];
+                        if (string.IsNullOrEmpty(recordData))
+                            recordData = "";
+
+                        DnsResourceRecord oldRecord = new DnsResourceRecord(domain, type, DnsClass.IN, 0, new DnsApplicationRecord(value, classPath, recordData));
+                        DnsResourceRecord newRecord = new DnsResourceRecord(newDomain, type, DnsClass.IN, ttl, new DnsApplicationRecord(newValue, classPath, recordData));
+
+                        if (disable)
+                            newRecord.Disable();
+
+                        _dnsServer.AuthZoneManager.UpdateRecord(oldRecord, newRecord);
+                    }
+                    break;
+
                 default:
                     throw new DnsWebServiceException("Type not supported for UpdateRecords().");
             }
@@ -4340,7 +4501,167 @@ namespace DnsServerCore
 
         #region dns apps api
 
+        private void ListApps(JsonTextWriter jsonWriter)
+        {
+            List<string> apps = new List<string>(_dnsServer.DnsApplicationManager.Applications.Keys);
 
+            apps.Sort();
+
+            jsonWriter.WritePropertyName("apps");
+            jsonWriter.WriteStartArray();
+
+            foreach (string app in apps)
+            {
+                if (_dnsServer.DnsApplicationManager.Applications.TryGetValue(app, out DnsApplication application))
+                {
+                    jsonWriter.WriteStartObject();
+
+                    jsonWriter.WritePropertyName("name");
+                    jsonWriter.WriteValue(application.AppName);
+
+                    jsonWriter.WritePropertyName("details");
+                    jsonWriter.WriteStartArray();
+
+                    foreach (KeyValuePair<string, IDnsApplicationRequestHandler> handler in application.DnsRequestHandlers)
+                    {
+                        jsonWriter.WriteStartObject();
+
+                        jsonWriter.WritePropertyName("classPath");
+                        jsonWriter.WriteValue(handler.Key);
+
+                        jsonWriter.WritePropertyName("description");
+                        jsonWriter.WriteValue(handler.Value.Description);
+
+                        jsonWriter.WritePropertyName("dataTemplate");
+                        jsonWriter.WriteValue(handler.Value.ApplicationRecordDataTemplate);
+
+                        jsonWriter.WriteEndObject();
+                    }
+
+                    jsonWriter.WriteEndArray();
+
+                    jsonWriter.WriteEndObject();
+                }
+            }
+
+            jsonWriter.WriteEndArray();
+        }
+
+        private async Task InstallAppAsync(HttpListenerRequest request)
+        {
+            string name = request.QueryString["name"];
+            if (string.IsNullOrEmpty(name))
+                throw new DnsWebServiceException("Parameter 'name' missing.");
+
+            #region skip to content
+
+            int crlfCount = 0;
+            int byteRead;
+
+            while (crlfCount != 4)
+            {
+                byteRead = request.InputStream.ReadByte();
+                switch (byteRead)
+                {
+                    case -1:
+                        throw new EndOfStreamException();
+
+                    case 13: //CR
+                    case 10: //LF
+                        crlfCount++;
+                        break;
+
+                    default:
+                        crlfCount = 0;
+                        break;
+                }
+            }
+
+            #endregion
+
+            //write to temp file
+            string tmpFile = Path.GetTempFileName();
+            try
+            {
+                using (FileStream fS = new FileStream(tmpFile, FileMode.Create, FileAccess.ReadWrite))
+                {
+                    await request.InputStream.CopyToAsync(fS);
+
+                    fS.Position = 0;
+                    await _dnsServer.DnsApplicationManager.InstallApplicationAsync(name, fS);
+
+                    _log.Write(GetRequestRemoteEndPoint(request), "[" + GetSession(request).Username + "] DNS application was installed successfully: " + name);
+                }
+            }
+            finally
+            {
+                try
+                {
+                    File.Delete(tmpFile);
+                }
+                catch (Exception ex)
+                {
+                    _log.Write(ex);
+                }
+            }
+        }
+
+        private void UninstallApp(HttpListenerRequest request)
+        {
+            string name = request.QueryString["name"];
+            if (string.IsNullOrEmpty(name))
+                throw new DnsWebServiceException("Parameter 'name' missing.");
+
+            _dnsServer.DnsApplicationManager.UninstallApplication(name);
+            _log.Write(GetRequestRemoteEndPoint(request), "[" + GetSession(request).Username + "] DNS application was uninstalled successfully: " + name);
+        }
+
+        private async Task GetAppConfigAsync(HttpListenerRequest request, JsonTextWriter jsonWriter)
+        {
+            string name = request.QueryString["name"];
+            if (string.IsNullOrEmpty(name))
+                throw new DnsWebServiceException("Parameter 'name' missing.");
+
+            if (!_dnsServer.DnsApplicationManager.Applications.TryGetValue(name, out DnsApplication application))
+                throw new DnsWebServiceException("DNS application was not found: " + name);
+
+            string config = await application.GetConfigAsync();
+
+            jsonWriter.WritePropertyName("config");
+            jsonWriter.WriteValue(config);
+        }
+
+        private async Task SetAppConfigAsync(HttpListenerRequest request)
+        {
+            string name = request.QueryString["name"];
+            if (string.IsNullOrEmpty(name))
+                throw new DnsWebServiceException("Parameter 'name' missing.");
+
+            if (!_dnsServer.DnsApplicationManager.Applications.TryGetValue(name, out DnsApplication application))
+                throw new DnsWebServiceException("DNS application was not found: " + name);
+
+            string formRequest;
+            using (StreamReader sR = new StreamReader(request.InputStream, request.ContentEncoding))
+            {
+                formRequest = sR.ReadToEnd();
+            }
+
+            string[] formParts = formRequest.Split('&');
+
+            foreach (string formPart in formParts)
+            {
+                if (formPart.StartsWith("config="))
+                {
+                    string config = formPart.Substring(7);
+
+                    if (config.Length == 0)
+                        config = null;
+
+                    await application.SetConfigAsync(config);
+                    break;
+                }
+            }
+        }
 
         #endregion
 
@@ -6016,8 +6337,8 @@ namespace DnsServerCore
                 //load config
                 LoadConfigFile();
 
-                //load dns application packages
-                _dnsServer.DnsApplicationManager.LoadAllPackages();
+                //load all dns applications
+                _dnsServer.DnsApplicationManager.LoadAllApplications();
 
                 //load all zones files
                 _dnsServer.AuthZoneManager.LoadAllZoneFiles();
