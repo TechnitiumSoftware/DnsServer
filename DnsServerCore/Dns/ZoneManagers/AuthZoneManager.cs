@@ -245,7 +245,7 @@ namespace DnsServerCore.Dns.ZoneManagers
                 else if (authZone is ForwarderZone)
                     return new ForwarderSubDomainZone(domain);
                 else if (authZone is ApplicationZone)
-                    return new ApplicationSubDomainZone(domain);
+                    return new ApplicationSubDomainZone(authZone as ApplicationZone, domain);
 
                 throw new DnsServerException("Zone cannot have sub domains.");
             });
@@ -340,7 +340,10 @@ namespace DnsServerCore.Dns.ZoneManagers
             if ((authority == null) || (authority.Count == 0))
                 authority = applicationZone.QueryRecords(DnsResourceRecordType.APP);
 
-            return new DnsDatagram(request.Identifier, true, DnsOpcode.StandardQuery, false, false, request.RecursionDesired, false, false, false, DnsResponseCode.NoError, request.Question, null, authority);
+            if ((authority == null) || (authority.Count == 0))
+                authority = applicationZone.QueryRecords(DnsResourceRecordType.SOA);
+
+            return new DnsDatagram(request.Identifier, true, DnsOpcode.StandardQuery, true, false, request.RecursionDesired, false, false, false, DnsResponseCode.NoError, request.Question, null, authority);
         }
 
         internal void Flush()
@@ -545,9 +548,9 @@ namespace DnsServerCore.Dns.ZoneManagers
             return null;
         }
 
-        public AuthZoneInfo CreateApplicationZone(string domain, string package, string classPath, string data)
+        public AuthZoneInfo CreateApplicationZone(string domain, string primaryNameServer, string appName, string classPath, string data)
         {
-            AuthZone authZone = new ApplicationZone(domain, package, classPath, data);
+            AuthZone authZone = new ApplicationZone(domain, primaryNameServer, appName, classPath, data);
 
             if (_root.TryAdd(authZone))
             {
@@ -810,6 +813,7 @@ namespace DnsServerCore.Dns.ZoneManagers
                 case DnsResourceRecordType.CNAME:
                 case DnsResourceRecordType.ANAME:
                 case DnsResourceRecordType.PTR:
+                case DnsResourceRecordType.APP:
                     if (oldRecord.Name.Equals(newRecord.Name, StringComparison.OrdinalIgnoreCase))
                     {
                         zone.SetRecords(newRecord.Type, new DnsResourceRecord[] { newRecord });
@@ -915,6 +919,7 @@ namespace DnsServerCore.Dns.ZoneManagers
                     case AuthZoneType.Secondary:
                     case AuthZoneType.Stub:
                     case AuthZoneType.Forwarder:
+                    case AuthZoneType.Application:
                         zones.Add(zoneInfo);
                         break;
                 }
