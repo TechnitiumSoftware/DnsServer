@@ -17,14 +17,29 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 */
 
-using System.Net;
+using System;
 using System.Threading.Tasks;
 using TechnitiumLibrary.Net.Dns;
+using TechnitiumLibrary.Net.Proxy;
 
-namespace DnsServerCore.Dns
+namespace DnsApplicationCommon
 {
-    public interface IDnsApplication
+    public interface IDnsServer
     {
-        Task<DnsDatagram> ProcessQueryAsync(DnsDatagram request, IPEndPoint remoteEP, string zoneName, uint appRecordTtl, string appRecordData, bool isRecursionAllowed, IDnsServer dnsServer);
+        Task<DnsDatagram> DirectQueryAsync(DnsQuestionRecord question, int timeout = 2000);
+
+        void WriteLog(string message);
+
+        void WriteLog(Exception ex);
+
+        string ServerDomain { get; }
+
+        string ApplicationFolder { get; }
+
+        IDnsCache DnsCache { get; }
+
+        NetProxy Proxy { get; }
+
+        bool PreferIPv6 { get; }
     }
 }
