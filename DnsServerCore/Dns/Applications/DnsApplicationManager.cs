@@ -23,6 +23,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.IO.Compression;
 using System.Text;
+using System.Threading.Tasks;
 
 namespace DnsServerCore.Dns.Applications
 {
@@ -30,20 +31,24 @@ namespace DnsServerCore.Dns.Applications
     {
         #region variables
 
-        readonly string _packagesPath;
+        readonly DnsServer _dnsServer;
 
-        readonly ConcurrentDictionary<string, DnsApplicationPackage> _packages = new ConcurrentDictionary<string, DnsApplicationPackage>();
+        readonly string _appsPath;
+
+        readonly ConcurrentDictionary<string, DnsApplication> _applications = new ConcurrentDictionary<string, DnsApplication>();
 
         #endregion
 
         #region constructor
 
-        public DnsApplicationManager(string configFolder)
+        public DnsApplicationManager(DnsServer dnsServer)
         {
-            _packagesPath = Path.Combine(configFolder, "apps");
+            _dnsServer = dnsServer;
 
-            if (!Directory.Exists(_packagesPath))
-                Directory.CreateDirectory(_packagesPath);
+            _appsPath = Path.Combine(_dnsServer.ConfigFolder, "apps");
+
+            if (!Directory.Exists(_appsPath))
+                Directory.CreateDirectory(_appsPath);
         }
 
         #endregion
@@ -59,13 +64,8 @@ namespace DnsServerCore.Dns.Applications
 
             if (disposing)
             {
-                if (_packages != null)
-                {
-                    foreach (DnsApplicationPackage package in _packages.Values)
-                        package.Dispose();
-
-                    _packages.Clear();
-                }
+                if (_applications != null)
+                    UnloadAllApplications();
             }
 
             _disposed = true;
@@ -80,56 +80,107 @@ namespace DnsServerCore.Dns.Applications
 
         #region private
 
-        private void LoadPackage(string packagePath)
+        private async Task LoadApplicationAsync(string applicationFolder)
         {
-            DnsApplicationPackage package = new DnsApplicationPackage(packagePath);
+            string appName = Path.GetFileName(applicationFolder);
 
-            if (!_packages.TryAdd(package.Name, package))
-                package.Dispose();
+            DnsApplication application = new DnsApplication(new DnsServerInternal(_dnsServer, appName, applicationFolder), appName);
+
+            try
+            {
+                await application.InitializeAsync();
+
+                if (!_applications.TryAdd(application.AppName, application))
+                    throw new DnsServerException("DNS application already exists: " + application.AppName);
+            }
+            catch
+            {
+                application.Dispose();
+                throw;
+            }
         }
 
         #endregion
 
         #region public
 
-        public void LoadAllPackages()
+        public void UnloadAllApplications()
         {
-            foreach (string packagePath in Directory.GetDirectories(_packagesPath))
+            foreach (DnsApplication _application in _applications.Values)
+                _application.Dispose();
+
+            _applications.Clear();
+        }
+
+        public void LoadAllApplications()
+        {
+            UnloadAllApplications();
+
+            foreach (string applicationFolder in Directory.GetDirectories(_appsPath))
             {
-                LoadPackage(packagePath);
+                Task.Run(async delegate ()
+                {
+                    try
+                    {
+                        await LoadApplicationAsync(applicationFolder);
+
+                        LogManager log = _dnsServer.LogManager;
+                        if (log != null)
+                            log.Write("DNS Server successfully loaded DNS application: " + Path.GetFileName(applicationFolder));
+                    }
+                    catch (Exception ex)
+                    {
+                        LogManager log = _dnsServer.LogManager;
+                        if (log != null)
+                            log.Write("DNS Server failed to load DNS application: " + Path.GetFileName(applicationFolder) + "\r\n" + ex.ToString());
+                    }
+                });
             }
         }
 
-        public void InstallPackage(string packageName, Stream package)
+        public async Task InstallApplicationAsync(string appName, Stream appStream)
         {
-            if (_packages.ContainsKey(packageName))
-                throw new DnsServerException("Package already exists: " + packageName);
+            if (_applications.ContainsKey(appName))
+                throw new DnsServerException("DNS application already exists: " + appName);
 
-            using (ZipArchive packageZip = new ZipArchive(package, ZipArchiveMode.Read, false, Encoding.UTF8))
+            using (ZipArchive appZip = new ZipArchive(appStream, ZipArchiveMode.Read, false, Encoding.UTF8))
             {
-                string packagePath = Path.Combine(_packagesPath, packageName);
+                string applicationFolder = Path.Combine(_appsPath, appName);
 
-                packageZip.ExtractToDirectory(packagePath, true);
+                if (Directory.Exists(applicationFolder))
+                    Directory.Delete(applicationFolder, true);
 
-                LoadPackage(packagePath);
+                try
+                {
+                    appZip.ExtractToDirectory(applicationFolder, true);
+
+                    await LoadApplicationAsync(applicationFolder);
+                }
+                catch
+                {
+                    if (Directory.Exists(applicationFolder))
+                        Directory.Delete(applicationFolder, true);
+
+                    throw;
+                }
             }
         }
 
-        public void UninstallPackage(string packageName)
+        public void UninstallApplication(string appName)
         {
-            if (_packages.TryRemove(packageName, out DnsApplicationPackage package))
-                package.Dispose();
+            if (_applications.TryRemove(appName, out DnsApplication app))
+                app.Dispose();
 
-            if (Directory.Exists(package.PackagePath))
-                Directory.Delete(package.PackagePath, true);
+            if (Directory.Exists(app.DnsServer.ApplicationFolder))
+                Directory.Delete(app.DnsServer.ApplicationFolder, true);
         }
 
         #endregion
 
         #region properties
 
-        public IReadOnlyDictionary<string, DnsApplicationPackage> Packages
-        { get { return _packages; } }
+        public IReadOnlyDictionary<string, DnsApplication> Applications
+        { get { return _applications; } }
 
         #endregion
     }
