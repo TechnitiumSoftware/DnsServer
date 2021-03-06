@@ -22,6 +22,7 @@
     <script src="/js/common.js"></script>
     <script src="/js/main.js"></script>
     <script src="/js/zone.js"></script>
+    <script src="/js/apps.js"></script>
     <script src="/js/dhcp.js"></script>
 </head>
 <body>
@@ -91,14 +92,14 @@
                     </div>
 
                     <div class="panel-body" style="min-height: 500px;">
-
                         <div>
                             <ul class="nav nav-tabs" role="tablist">
                                 <li id="mainPanelTabListDashboard" role="presentation" class="active"><a href="#mainPanelTabPaneDashboard" aria-controls="mainPanelTabPaneDashboard" role="tab" data-toggle="tab" onclick="refreshDashboard();">Dashboard</a></li>
                                 <li id="mainPanelTabListZones" role="presentation"><a href="#mainPanelTabPaneZones" aria-controls="mainPanelTabPaneZones" role="tab" data-toggle="tab" onclick="refreshZones(true);">Zones</a></li>
                                 <li id="mainPanelTabListCachedZones" role="presentation"><a href="#mainPanelTabPaneCachedZones" aria-controls="mainPanelTabPaneCachedZones" role="tab" data-toggle="tab">Cache</a></li>
-                                <li id="mainPanelTabListAllowedZones" role="presentation"><a href="#mainPanelTabPaneAllowedZones" aria-controls="mainPanelTabPaneAllowedZones" role="tab" data-toggle="tab">Allowed Zones</a></li>
-                                <li id="mainPanelTabListBlockedZones" role="presentation"><a href="#mainPanelTabPaneBlockedZones" aria-controls="mainPanelTabPaneBlockedZones" role="tab" data-toggle="tab">Blocked Zones</a></li>
+                                <li id="mainPanelTabListAllowedZones" role="presentation"><a href="#mainPanelTabPaneAllowedZones" aria-controls="mainPanelTabPaneAllowedZones" role="tab" data-toggle="tab">Allowed</a></li>
+                                <li id="mainPanelTabListBlockedZones" role="presentation"><a href="#mainPanelTabPaneBlockedZones" aria-controls="mainPanelTabPaneBlockedZones" role="tab" data-toggle="tab">Blocked</a></li>
+                                <li id="mainPanelTabListApps" role="presentation"><a href="#mainPanelTabPaneApps" aria-controls="mainPanelTabPaneApps" role="tab" data-toggle="tab" onclick="refreshApps();">Apps</a></li>
                                 <li id="mainPanelTabListDnsClient" role="presentation"><a href="#mainPanelTabPaneDnsClient" aria-controls="mainPanelTabPaneDnsClient" role="tab" data-toggle="tab">DNS Client</a></li>
                                 <li id="mainPanelTabListSettings" role="presentation"><a href="#mainPanelTabPaneSettings" aria-controls="mainPanelTabPaneSettings" role="tab" data-toggle="tab" onclick="loadDnsSettings();">Settings</a></li>
                                 <li id="mainPanelTabListDhcp" role="presentation"><a href="#mainPanelTabPaneDhcp" aria-controls="mainPanelTabPaneDhcp" role="tab" data-toggle="tab" onclick="refreshDhcpTab();">DHCP</a></li>
@@ -107,7 +108,6 @@
                             </ul>
 
                             <div class="tab-content">
-
                                 <div id="mainPanelTabPaneDashboard" role="tabpanel" class="tab-pane active" style="padding: 10px 0 0 0;">
                                     <div>
                                         <div class="pull-left">
@@ -134,8 +134,8 @@
                                         </div>
 
                                         <div id="divCustomDayWise" class="pull-left" style="padding: 4px 0px 4px 10px; display: none;">
-                                            <span style="margin-right: 6px;">Start <input type="text" id="dpCustomDayWiseStart" size="10"></span>
-                                            <span style="margin-right: 6px;">End <input type="text" id="dpCustomDayWiseEnd" size="10"></span>
+                                            <span style="margin-right: 6px;"><label for="dpCustomDayWiseStart">Start</label> <input type="text" id="dpCustomDayWiseStart" size="10"></span>
+                                            <span style="margin-right: 6px;"><label for="dpCustomDayWiseEnd">End</label> <input type="text" id="dpCustomDayWiseEnd" size="10"></span>
                                             <button id="btnCustomDayWise" class="btn btn-default" type="button" style="font-size: 12px; padding: 3px 0px; width: 60px; vertical-align: top;">Show</button>
                                         </div>
 
@@ -339,7 +339,7 @@
                                     <div id="divViewZones" style="margin-top: 10px;">
                                         <div>
                                             <div style="float: right;">
-                                                <button type="button" class="btn btn-primary" style="padding: 2px 0px; width: 100px;" onclick="showAddZoneModal();">Add Zone</button>
+                                                <button type="button" class="btn btn-primary" style="padding: 2px 0px; width: 100px;" onclick="showAddZoneModal(this);" data-loading-text="Loading...">Add Zone</button>
                                             </div>
                                             <div style="clear: both;"></div>
                                         </div>
@@ -382,7 +382,7 @@
                                                 <span id="titleEditZoneExpiry" style="font-size: 10px; font-weight: bold;">Expiry: 01 Jan 2020 00:00:00</span>
                                             </div>
                                             <div style="float: right; padding: 2px 0px;">
-                                                <button id="btnEditZoneAddRecord" type="button" class="btn btn-primary" style="padding: 2px 0px; width: 100px;" onclick="showAddRecordModal();">Add Record</button>
+                                                <button id="btnEditZoneAddRecord" type="button" class="btn btn-primary" style="padding: 2px 0px; width: 100px;" onclick="showAddRecordModal(this);" data-loading-text="Loading...">Add Record</button>
                                                 <button id="btnEnableZoneEditZone" data-id="EditZone" type="button" class="btn btn-default" style="padding: 2px 0px; width: 100px;" onclick="enableZone(this, $('#titleEditZone').text());">Enable Zone</button>
                                                 <button id="btnDisableZoneEditZone" data-id="EditZone" type="button" class="btn btn-warning" style="padding: 2px 0px; width: 100px;" onclick="disableZone(this, $('#titleEditZone').text());">Disable Zone</button>
                                                 <button id="btnEditZoneDeleteZone" type="button" class="btn btn-danger" style="padding: 2px 0px; width: 100px;" onclick="deleteZone(this, $('#titleEditZone').text(), true);">Delete Zone</button>
@@ -530,6 +530,39 @@
 
                                 </div>
 
+                                <div id="mainPanelTabPaneApps" role="tabpanel" class="tab-pane" style="padding: 10px 0 0 0;">
+                                    <div id="divViewAppsLoader" style=" display: none; margin-top: 10px; height: 400px;"></div>
+
+                                    <div id="divViewApps" style="margin-top: 10px;">
+                                        <div>
+                                            <div style="float: right;">
+                                                <button type="button" class="btn btn-primary" style="padding: 2px 0px; width: 100px;" onclick="showInstallAppModal();">Install</button>
+                                            </div>
+                                            <div style="clear: both;"></div>
+                                        </div>
+
+                                        <table id="tableApps" class="table table-hover">
+                                            <thead>
+                                                <tr>
+                                                    <th style="min-width: 100px;" onclick="sortTable('tableAppsBody', 0);">App</th>
+                                                    <th>Details</th>
+                                                    <th></th>
+                                                </tr>
+                                            </thead>
+                                            <tbody id="tableAppsBody">
+                                                <tr>
+                                                    <td>Built-in</td>
+                                                    <td>ClassPaths</td>
+                                                    <td>Config Uninstall</td>
+                                                </tr>
+                                            </tbody>
+                                            <tfoot id="tableAppsFooter">
+                                                <tr><td colspan="3"><b>Total Apps: 1</b></td></tr>
+                                            </tfoot>
+                                        </table>
+                                    </div>
+                                </div>
+
                                 <div id="mainPanelTabPaneDnsClient" role="tabpanel" class="tab-pane" style="padding: 10px 0 0 0;">
 
                                     <form class="form-inline well" style="padding-bottom: 6px;">
@@ -621,7 +654,6 @@
                                                 <option>ANY</option>
                                                 <option>AXFR</option>
                                                 <option>ANAME</option>
-                                                <option>FWD</option>
                                             </select>
                                         </div>
 
@@ -892,7 +924,14 @@
                                                                 <input id="chkRandomizeName" type="checkbox"> Randomize Name
                                                             </label>
                                                         </div>
-                                                        <div style="padding-top: 5px;">Enables <a href="https://tools.ietf.org/html/draft-vixie-dnsext-dns0x20-00" target="_blank">QNAME randomization</a> when using UDP as the transport protocol.</div>
+                                                        <div style="padding-top: 5px;">Enables <a href="https://tools.ietf.org/html/draft-vixie-dnsext-dns0x20-00" target="_blank">QNAME randomization</a> when using UDP as the transport protocol to improve security.</div>
+
+                                                        <div class="checkbox">
+                                                            <label>
+                                                                <input id="chkQnameMinimization" type="checkbox"> QNAME Minimization
+                                                            </label>
+                                                        </div>
+                                                        <div style="padding-top: 5px;">Enables <a href="https://tools.ietf.org/html/draft-ietf-dnsop-rfc7816bis-04" target="_blank">QNAME minimization</a> for recursive resolution to improve privacy.</div>
                                                     </div>
                                                 </div>
 
@@ -969,7 +1008,7 @@
                                                         <textarea id="txtBlockListUrls" class="form-control" rows="7"></textarea>
 
                                                         <label for="optQuickBlockList" class="control-label">Quick Add</label>
-                                                        <select id="optQuickBlockList" style="width: 100%;">
+                                                        <select id="optQuickBlockList" class="form-control" style="width: 100%;">
                                                             <option value="blank" selected></option>
                                                             <option value="none">None</option>
                                                             <option value="default">Default</option>
@@ -1096,7 +1135,7 @@
                                                         <textarea id="txtForwarders" class="form-control" rows="3"></textarea>
 
                                                         <label for="optQuickForwarders" class="control-label">Quick Select</label>
-                                                        <select id="optQuickForwarders" style="width: 100%;">
+                                                        <select id="optQuickForwarders" class="form-control" style="width: 100%;">
                                                             <option value="blank" selected></option>
                                                             <option value="none">None</option>
 
@@ -1196,7 +1235,7 @@
                                                 </div>
                                                 <div class="pull-right">
                                                     <button type="button" class="btn btn-success" onclick="return resetBackupSettingsModal();" data-toggle="modal" data-target="#modalBackupSettings">Backup Settings</button>
-                                                    <button type="button" class="btn btn-warning" onclick="return resetRestoreSettingsModal();" data-toggle="modal" data-target="#modalRestoreSettings">Restore Settings</button>
+                                                    <button type="button" class="btn btn-warning" onclick="return resetRestoreSettingsModal();" data-toggle="modal" data-target="#modalRestoreSettings" style="margin-left: 6px;">Restore Settings</button>
                                                 </div>
                                                 <div class="clearfix"></div>
                                             </div>
@@ -1515,7 +1554,7 @@
                                                                     <tbody id="tableDhcpScopeReservedLeases"></tbody>
                                                                 </table>
                                                             </div>
-                                                            <div class="col-sm-offset-3 col-sm-8" style="padding-top: 5px;">The reserved IP addresses to be assigned to specific clients based on their MAC address.</div>
+                                                            <div class="col-sm-offset-3 col-sm-8" style="padding-top: 5px;">The reserved IP addresses to be assigned to specific clients based on their MAC address. Set a hostname to override the client's hostname.</div>
                                                         </div>
                                                     </div>
 
@@ -1713,6 +1752,12 @@
                                         Conditional Forwarder Zone
                                     </label>
                                 </div>
+                                <div class="radio">
+                                    <label>
+                                        <input type="radio" name="rdAddZoneType" id="rdAddZoneTypeApplication" value="Application">
+                                        Application Zone
+                                    </label>
+                                </div>
                             </div>
                         </div>
 
@@ -1775,6 +1820,28 @@
                             </div>
                         </div>
 
+
+                        <div class="form-group" id="divAddZoneAppName">
+                            <label for="optAddZoneAppName" class="col-sm-4 control-label">App Name</label>
+                            <div class="col-sm-7">
+                                <select id="optAddZoneAppName" class="form-control"></select>
+                            </div>
+                        </div>
+
+                        <div class="form-group" id="divAddZoneAppClassPath">
+                            <label for="optAddZoneAppClassPath" class="col-sm-4 control-label">Class Path</label>
+                            <div class="col-sm-7">
+                                <select id="optAddZoneAppClassPath" class="form-control"></select>
+                            </div>
+                        </div>
+
+                        <div class="form-group" id="divAddZoneAppRecordData">
+                            <label for="txtAddZoneAppRecordData" class="col-sm-4 control-label">Record Data (if any)</label>
+                            <div class="col-sm-7">
+                                <textarea id="txtAddZoneAppRecordData" class="form-control" rows="6"></textarea>
+                            </div>
+                        </div>
+
                     </div>
                     <div class="modal-footer">
                         <button id="btnAddZone" type="submit" class="btn btn-primary" data-loading-text="Adding..." onclick="addZone(); return false;">Add</button>
@@ -1820,6 +1887,7 @@
                                     <option>CAA</option>
                                     <option>ANAME</option>
                                     <option id="optEditRecordTypeFwd">FWD</option>
+                                    <option id="optEditRecordTypeApp">APP</option>
                                 </select>
                             </div>
                         </div>
@@ -2045,6 +2113,30 @@
                             </div>
                         </div>
 
+
+                        <div id="divAddEditRecordDataApplication" style="display: none;">
+                            <div class="form-group">
+                                <label for="optAddEditRecordDataAppName" class="col-sm-4 control-label">App Name</label>
+                                <div class="col-sm-7">
+                                    <select id="optAddEditRecordDataAppName" class="form-control"></select>
+                                </div>
+                            </div>
+
+                            <div class="form-group">
+                                <label for="optAddEditRecordDataClassPath" class="col-sm-4 control-label">Class Path</label>
+                                <div class="col-sm-7">
+                                    <select id="optAddEditRecordDataClassPath" class="form-control"></select>
+                                </div>
+                            </div>
+
+                            <div class="form-group">
+                                <label for="txtAddEditRecordDataData" class="col-sm-4 control-label">Record Data (if any)</label>
+                                <div class="col-sm-7">
+                                    <textarea id="txtAddEditRecordDataData" class="form-control" rows="6"></textarea>
+                                </div>
+                            </div>
+                        </div>
+
                     </div>
                     <div class="modal-footer">
                         <button type="submit" class="btn btn-primary" id="btnAddEditRecord" data-loading-text="Saving...">Save</button>
@@ -2107,6 +2199,67 @@
     </div>
 
 
+    <div id="modalInstallApp" class="modal fade" tabindex="-1" role="dialog">
+        <form class="form-horizontal">
+            <div class="modal-dialog" role="document">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <button type="button" class="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button>
+                        <h4 class="modal-title">Install App</h4>
+                    </div>
+                    <div class="modal-body">
+                        <div id="divInstallAppAlert"></div>
+
+                        <div class="form-group">
+                            <label for="txtInstallApp" class="col-sm-4 control-label">App Name</label>
+                            <div class="col-sm-7">
+                                <input id="txtInstallApp" type="text" class="form-control">
+                            </div>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="fileAppZip" class="col-sm-4 control-label">App Zip File</label>
+                            <div class="col-sm-7">
+                                <input type="file" class="form-control" id="fileAppZip">
+                            </div>
+                        </div>
+
+                    </div>
+                    <div class="modal-footer">
+                        <button id="btnInstallApp" type="submit" class="btn btn-primary" data-loading-text="Installing..." onclick="installApp(); return false;">Install</button>
+                        <button type="button" class="btn btn-default" data-dismiss="modal">Close</button>
+                    </div>
+                </div>
+            </div>
+        </form>
+    </div>
+
+    <div id="modalAppConfig" class="modal fade" tabindex="-1" role="dialog">
+        <div class="modal-dialog" role="document" style="width: 780px;">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <button type="button" class="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button>
+                    <h4 class="modal-title">App Config</h4>
+                </div>
+                <div class="modal-body">
+                    <div id="divAppConfigAlert"></div>
+
+                    <p>Enter the custom config below as required by the DNS application: <span id="lblAppConfigName"></span></p>
+
+                    <div class="form-group">
+                        <label for="txtAppConfig" class="control-label">App Config</label>
+                        <textarea id="txtAppConfig" class="form-control" rows="15"></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button id="btnAppConfig" type="submit" class="btn btn-primary" data-loading-text="Saving..." onclick="return saveAppConfig();">Save</button>
+                    <button type="button" class="btn btn-default" data-dismiss="modal">Close</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+
     <div id="modalBackupSettings" class="modal fade" tabindex="-1" role="dialog">
         <div class="modal-dialog" role="document">
             <div class="modal-content">
@@ -2155,6 +2308,12 @@
                                 <div class="checkbox">
                                     <label>
                                         <input id="chkBackupScopes" type="checkbox" checked> DHCP Scope Files (*.scope)
+                                    </label>
+                                </div>
+
+                                <div class="checkbox">
+                                    <label>
+                                        <input id="chkBackupApps" type="checkbox" checked> DNS Apps
                                     </label>
                                 </div>
 
@@ -2250,6 +2409,12 @@
 
                                 <div class="checkbox">
                                     <label>
+                                        <input id="chkRestoreApps" type="checkbox" checked> DNS Apps
+                                    </label>
+                                </div>
+
+                                <div class="checkbox">
+                                    <label>
                                         <input id="chkRestoreStats" type="checkbox" checked> Dashboard Stats Files (*.stat, *.dstat)
                                     </label>
                                 </div>
@@ -2274,7 +2439,7 @@
                             <div style="padding-left: 40px;">
                                 <div class="checkbox">
                                     <label>
-                                        <input id="chkDeleteExistingFiles" type="checkbox" checked> Delete Existing Files
+                                        <input id="chkDeleteExistingFiles" type="checkbox" checked> Delete Existing Files For Selected Items
                                     </label>
                                 </div>
                             </div>
