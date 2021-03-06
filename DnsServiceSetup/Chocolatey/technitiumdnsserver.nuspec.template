@@ -1,0 +1,50 @@
+<?xml version="1.0" encoding="utf-8"?>
+<package xmlns="http://schemas.microsoft.com/packaging/2015/06/nuspec.xsd">
+  <metadata>
+    <id>technitiumdnsserver</id>
+    <version>%fileversion%</version>
+    <owners>Shreyas Zare</owners>
+    <title>Technitium DNS Server</title>
+    <authors>Shreyas Zare, Contributors</authors>
+    <projectUrl>https://technitium.com/dns/</projectUrl>
+    <projectSourceUrl>https://github.com/TechnitiumSoftware/DnsServer</projectSourceUrl>
+    <bugTrackerUrl>https://github.com/TechnitiumSoftware/DnsServer/issues</bugTrackerUrl>
+    <copyright>Shreyas Zare</copyright>
+    <tags>dns dhcp</tags>
+    <iconUrl>https://technitium.com/img/logo25x25.png</iconUrl>
+    <dependencies>
+      <dependency id="dotnet-5.0-desktopruntime" version="5.0.0" />
+    </dependencies>
+    <summary>Open Source DNS and DHCP Server.</summary>
+    <description>
+Technitium DNS Server is an open source tool that can be used for self hosting a local DNS server for privacy &amp; security or, used for experimentation/testing by software developers on their computer. It works out-of-the-box with no or minimal configuration and provides a user friendly web console accessible using any web browser.
+
+Features:
+* Works on Windows, Linux, macOS and Raspberry Pi.
+* Installs in just a minute and works out-of-the-box with zero configuration.
+* Block Ads using one or more block list URLs.
+* Run [DNS-over-TLS](https://en.wikipedia.org/wiki/DNS_over_TLS) and [DNS-over-HTTPS](https://en.wikipedia.org/wiki/DNS_over_HTTPS) DNS service on your network.
+* Use public DNS resolvers like Cloudflare, Google &amp; Quad9 with DNS-over-TLS and DNS-over-HTTPS protocols as forwarders.
+* Advance caching with features like serve stale, prefetching and auto prefetching.
+* Supports working as an authoritative as well as a recursive DNS server.
+* CNAME cloaking feature to block domain names that resolve to CNAME which are blocked.
+* QNAME minimization support in recursive resolver [draft-ietf-dnsop-rfc7816bis-04](https://tools.ietf.org/html/draft-ietf-dnsop-rfc7816bis-04).
+* QNAME randomization support for UDP transport protocol [draft-vixie-dnsext-dns0x20-00](https://tools.ietf.org/html/draft-vixie-dnsext-dns0x20-00).
+* ANAME propriety record support to allow using CNAME like feature at zone root.
+* Primary, Secondary, Stub and Conditional Forwarder zone support.
+* Host domain names on your own DNS server.
+* Wildcard sub domain support.
+* Enable/disable zones and records to allow testing with ease.
+* Built-in DNS Client with option to import responses to local zone.
+* Supports out-of-order DNS request processing for DNS-over-TCP and DNS-over-TLS protocols.
+* Built-in DHCP Server that can work for multiple networks.
+* IPv6 support in DNS server core.
+* HTTP &amp; SOCKS5 proxy support which can be configured to route DNS over Tor Network or use Cloudflare's hidden DNS resolver.
+* Web console portal for easy configuration using any web browser.
+* Built-in system logging and query logging.
+    </description>
+  </metadata>
+  <files>
+    <file src="tools\**" target="tools" />
+  </files>
+</package>

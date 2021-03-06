@@ -34,8 +34,23 @@ namespace DnsService
 
         protected override void OnStart(string[] args)
         {
-            _service = new WebService(null, new Uri("https://go.technitium.com/?id=22"));
+            _service = new WebService(getConfigFolder(), new Uri("https://go.technitium.com/?id=22"));
             _service.Start();
+        }
+
+        /// <summary>
+        /// If the service file path has the configuration files, use it, otherwise use the localapppath folder.
+        /// </summary>
+        /// <returns>The configuration path.</returns>
+        private string getConfigFolder()
+        {
+            string userConfigFolder = String.Concat(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), @"\Technitium\DNSServer");
+
+            if (System.IO.Directory.Exists(Environment.CurrentDirectory))
+            {
+                return Environment.CurrentDirectory;
+            }
+            return userConfigFolder;
         }
 
         protected override void OnStop()
