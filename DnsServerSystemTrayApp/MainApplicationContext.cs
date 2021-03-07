@@ -1,6 +1,6 @@
 ﻿/*
 Technitium DNS Server
-Copyright (C) 2020  Shreyas Zare (shreyas@technitium.com)
+Copyright (C) 2021  Shreyas Zare (shreyas@technitium.com)
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -551,7 +551,12 @@ namespace DnsServerSystemTrayApp
             catch
             { }
 
-            Process.Start("http://localhost:" + port.ToString());
+            ProcessStartInfo processInfo = new ProcessStartInfo("http://localhost:" + port.ToString());
+
+            processInfo.UseShellExecute = true;
+            processInfo.Verb = "open";
+
+            Process.Start(processInfo);
         }
 
         private void DefaultNetworkDnsMenuItem_Click(object sender, EventArgs e)
