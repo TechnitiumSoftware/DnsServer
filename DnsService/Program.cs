@@ -1,6 +1,6 @@
 ﻿/*
 Technitium DNS Server
-Copyright (C) 2020  Shreyas Zare (shreyas@technitium.com)
+Copyright (C) 2021  Shreyas Zare (shreyas@technitium.com)
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -17,35 +17,41 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 */
 
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
 using System;
 using System.Reflection;
-using System.ServiceProcess;
 using TechnitiumLibrary.Net.Firewall;
 
 namespace DnsService
 {
     static class Program
     {
-        /// <summary>
-        /// The main entry point for the application.
-        /// </summary>
-        static void Main()
+        public static void Main(string[] args)
         {
             #region check windows firewall entry
 
             string appPath = Assembly.GetEntryAssembly().Location;
+
+            if (appPath.EndsWith(".dll", StringComparison.OrdinalIgnoreCase))
+                appPath = appPath.Substring(0, appPath.Length - 4) + ".exe";
 
             if (!WindowsFirewallEntryExists(appPath))
                 AddWindowsFirewallEntry(appPath);
 
             #endregion
 
-            ServiceBase[] ServicesToRun;
-            ServicesToRun = new ServiceBase[]
-            {
-                new DnsService()
-            };
-            ServiceBase.Run(ServicesToRun);
+            CreateHostBuilder(args).Build().Run();
+        }
+
+        public static IHostBuilder CreateHostBuilder(string[] args)
+        {
+            return Host.CreateDefaultBuilder(args)
+                .ConfigureServices((hostContext, services) =>
+                {
+                    services.AddHostedService<DnsServiceWorker>();
+                })
+                .UseWindowsService();
         }
 
         #region private
