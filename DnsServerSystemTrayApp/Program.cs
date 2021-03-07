@@ -1,6 +1,6 @@
 ﻿/*
 Technitium DNS Server
-Copyright (C) 2019  Shreyas Zare (shreyas@technitium.com)
+Copyright (C) 2021  Shreyas Zare (shreyas@technitium.com)
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -18,7 +18,6 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
 using System;
-using System.ComponentModel;
 using System.Diagnostics;
 using System.IO;
 using System.Reflection;
@@ -34,7 +33,7 @@ namespace DnsServerSystemTrayApp
 
         const string MUTEX_NAME = "TechnitiumDnsServerSystemTrayApp";
 
-        static readonly string _appPath = Assembly.GetEntryAssembly().Location;
+        static string _appPath = Assembly.GetEntryAssembly().Location;
         static readonly bool _isAdmin = (new WindowsPrincipal(WindowsIdentity.GetCurrent())).IsInRole(WindowsBuiltInRole.Administrator);
         static Mutex _app;
 
@@ -45,6 +44,9 @@ namespace DnsServerSystemTrayApp
         [STAThread]
         public static void Main(string[] args)
         {
+            if (_appPath.EndsWith(".dll", StringComparison.OrdinalIgnoreCase))
+                _appPath = _appPath.Substring(0, _appPath.Length - 4) + ".exe";
+
             Application.EnableVisualStyles();
             Application.SetCompatibleTextRenderingDefault(false);
 
@@ -82,15 +84,13 @@ namespace DnsServerSystemTrayApp
                 Application.Exit();
                 return;
             }
-            catch (Win32Exception)
-            { }
             catch (Exception ex)
             {
                 MessageBox.Show("Error! " + ex.Message, "Error!", MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
 
             //user cancels UAC or exception occurred
-            _app = new Mutex(true, MUTEX_NAME, out bool createdNewMutex);
+            _app = new Mutex(true, MUTEX_NAME, out _);
         }
 
         #endregion
