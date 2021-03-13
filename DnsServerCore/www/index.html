@@ -255,10 +255,10 @@
                                                         <div class="pull-right"><a href="#" onclick="return showTopStats('TopClients', 1000);">[more]</a></div>
                                                         <div class="clearfix"></div>
                                                     </div>
-                                                    <table class="table table-hover">
+                                                    <table class="table table-hover" style="word-break: break-all;">
                                                         <thead>
                                                             <tr>
-                                                                <th>Client</th>
+                                                                <th style="width: 450px;">Client</th>
                                                                 <th>Queries</th>
                                                             </tr>
                                                         </thead>
@@ -287,10 +287,10 @@
                                                         <div class="pull-right"><a href="#" onclick="return showTopStats('TopDomains', 1000);">[more]</a></div>
                                                         <div class="clearfix"></div>
                                                     </div>
-                                                    <table class="table table-hover">
+                                                    <table class="table table-hover" style="word-break: break-all;">
                                                         <thead>
                                                             <tr>
-                                                                <th>Domain</th>
+                                                                <th style="width: 450px;">Domain</th>
                                                                 <th>Hits</th>
                                                             </tr>
                                                         </thead>
@@ -311,10 +311,10 @@
                                                         <div class="pull-right"><a href="#" onclick="return showTopStats('TopBlockedDomains', 1000);">[more]</a></div>
                                                         <div class="clearfix"></div>
                                                     </div>
-                                                    <table class="table table-hover">
+                                                    <table class="table table-hover" style="word-break: break-all;">
                                                         <thead>
                                                             <tr>
-                                                                <th>Domain</th>
+                                                                <th style="width: 450px;">Domain</th>
                                                                 <th>Hits</th>
                                                             </tr>
                                                         </thead>
@@ -339,7 +339,7 @@
                                     <div id="divViewZones" style="margin-top: 10px;">
                                         <div>
                                             <div style="float: right;">
-                                                <button type="button" class="btn btn-primary" style="padding: 2px 0px; width: 100px;" onclick="showAddZoneModal(this);" data-loading-text="Loading...">Add Zone</button>
+                                                <button type="button" class="btn btn-primary" style="padding: 2px 0px; width: 100px;" onclick="showAddZoneModal();">Add Zone</button>
                                             </div>
                                             <div style="clear: both;"></div>
                                         </div>
@@ -1622,6 +1622,9 @@
                                             Follow <a href="https://twitter.com/Technitium" target="_blank">@technitium</a> on Twitter.<br />
                                             Checkout <a href="https://blog.technitium.com/" target="_blank">Technitium Blog</a>.
                                         </p>
+                                        <p>
+                                            Join <a href="https://www.reddit.com/r/technitium/" target="_blank">/r/technitium</a> on Reddit.
+                                        </p>
 
                                         <h3 style="margin-top: 40px;"><a style="color: rgb(51,51,51) !important;" href="https://go.technitium.com/?id=35" target="_blank">Donate</a></h3>
                                         <p>Make a contribution to Technitium by becoming a Patron and help making new software, updates, and features possible.</p>
@@ -1752,12 +1755,6 @@
                                         Conditional Forwarder Zone
                                     </label>
                                 </div>
-                                <div class="radio">
-                                    <label>
-                                        <input type="radio" name="rdAddZoneType" id="rdAddZoneTypeApplication" value="Application">
-                                        Application Zone
-                                    </label>
-                                </div>
                             </div>
                         </div>
 
@@ -1817,28 +1814,6 @@
                                 </div>
 
                                 <input id="txtAddZoneForwarder" type="text" class="form-control" placeholder="8.8.8.8">
-                            </div>
-                        </div>
-
-
-                        <div class="form-group" id="divAddZoneAppName">
-                            <label for="optAddZoneAppName" class="col-sm-4 control-label">App Name</label>
-                            <div class="col-sm-7">
-                                <select id="optAddZoneAppName" class="form-control"></select>
-                            </div>
-                        </div>
-
-                        <div class="form-group" id="divAddZoneAppClassPath">
-                            <label for="optAddZoneAppClassPath" class="col-sm-4 control-label">Class Path</label>
-                            <div class="col-sm-7">
-                                <select id="optAddZoneAppClassPath" class="form-control"></select>
-                            </div>
-                        </div>
-
-                        <div class="form-group" id="divAddZoneAppRecordData">
-                            <label for="txtAddZoneAppRecordData" class="col-sm-4 control-label">Record Data (if any)</label>
-                            <div class="col-sm-7">
-                                <textarea id="txtAddZoneAppRecordData" class="form-control" rows="6"></textarea>
                             </div>
                         </div>
 
@@ -2471,10 +2446,10 @@
                     <div id="divTopStatsLoader" style="height: 500px;"></div>
 
                     <div id="divTopStatsData" style="max-height: 500px; overflow-y: auto;">
-                        <table id="tableTopStatsClients" class="table table-hover">
+                        <table id="tableTopStatsClients" class="table table-hover" style="word-break: break-all;">
                             <thead>
                                 <tr>
-                                    <th>Client</th>
+                                    <th style="width: 470px;">Client</th>
                                     <th>Queries</th>
                                 </tr>
                             </thead>
@@ -2490,10 +2465,10 @@
                             </tbody>
                         </table>
 
-                        <table id="tableTopStatsDomains" class="table table-hover">
+                        <table id="tableTopStatsDomains" class="table table-hover" style="word-break: break-all;">
                             <thead>
                                 <tr>
-                                    <th>Domain</th>
+                                    <th style="width: 470px;">Domain</th>
                                     <th>Hits</th>
                                 </tr>
                             </thead>
@@ -2505,10 +2480,10 @@
                             </tbody>
                         </table>
 
-                        <table id="tableTopStatsBlockedDomains" class="table table-hover">
+                        <table id="tableTopStatsBlockedDomains" class="table table-hover" style="word-break: break-all;">
                             <thead>
                                 <tr>
-                                    <th>Domain</th>
+                                    <th style="width: 470px;">Domain</th>
                                     <th>Hits</th>
                                 </tr>
                             </thead>
