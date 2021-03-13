@@ -1,3 +1,5 @@
+[Code]
+
 type
 	SERVICE_STATUS = record
     	dwServiceType				: cardinal;
