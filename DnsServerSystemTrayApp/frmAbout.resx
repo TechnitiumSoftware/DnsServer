@@ -1,4 +1,5 @@
-﻿<root>
+﻿<?xml version="1.0" encoding="utf-8"?>
+<root>
   <xsd:schema id="root" xmlns="" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:msdata="urn:schemas-microsoft-com:xml-msdata">
     <xsd:import namespace="http://www.w3.org/XML/1998/namespace" />
     <xsd:element name="root" msdata:IsDataSet="true">
@@ -57,112 +58,12 @@
   <resheader name="writer">
     <value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
   </resheader>
-  <metadata name="panel1.Locked" type="System.Boolean, System.Private.CoreLib, Version=5.0.0.0, Culture=neutral, PublicKeyToken=7cec85d7bea7798e">
-    <value>True</value>
-  </metadata>
-  <metadata name="pictureBox1.Locked" type="System.Boolean, System.Private.CoreLib, Version=5.0.0.0, Culture=neutral, PublicKeyToken=7cec85d7bea7798e">
-    <value>True</value>
-  </metadata>
-  <assembly alias="System.Drawing.Common" name="System.Drawing.Common, Version=5.0.0.1, Culture=neutral, PublicKeyToken=cc7b13ffcd2ddd51" />
-  <data name="pictureBox1.Image" type="System.Drawing.Bitmap, System.Drawing.Common" mimetype="application/x-microsoft.net.object.bytearray.base64">
-    <value>
-        Qk02DQAAAAAAADYEAAAoAAAAMAAAADAAAAABAAgAAAAAAAAAAAAAAAAAAAAAAAABAAAAAQAAAAAA/wAA
-        gP8AgAD/AICA/4AAAP+AAID/gIAA/8DAwP/A3MD/8Mqm/wQEBP8ICAj/DAwM/xEREf8WFhb/HBwc/yIi
-        Iv8pKSn/VVVV/01NTf9CQkL/OTk5/4B8//9QUP//kwDW///szP/G1u//1ufn/5Cprf8AADP/AABm/wAA
-        mf8AAMz/ADMA/wAzM/8AM2b/ADOZ/wAzzP8AM///AGYA/wBmM/8AZmb/AGaZ/wBmzP8AZv//AJkA/wCZ
-        M/8AmWb/AJmZ/wCZzP8Amf//AMwA/wDMM/8AzGb/AMyZ/wDMzP8AzP//AP9m/wD/mf8A/8z/MwAA/zMA
-        M/8zAGb/MwCZ/zMAzP8zAP//MzMA/zMzM/8zM2b/MzOZ/zMzzP8zM///M2YA/zNmM/8zZmb/M2aZ/zNm
-        zP8zZv//M5kA/zOZM/8zmWb/M5mZ/zOZzP8zmf//M8wA/zPMM/8zzGb/M8yZ/zPMzP8zzP//M/8z/zP/
-        Zv8z/5n/M//M/zP///9mAAD/ZgAz/2YAZv9mAJn/ZgDM/2YA//9mMwD/ZjMz/2YzZv9mM5n/ZjPM/2Yz
-        //9mZgD/ZmYz/2ZmZv9mZpn/ZmbM/2aZAP9mmTP/Zplm/2aZmf9mmcz/Zpn//2bMAP9mzDP/ZsyZ/2bM
-        zP9mzP//Zv8A/2b/M/9m/5n/Zv/M/8wA////AMz/mZkA/5kzmf+ZAJn/mQDM/5kAAP+ZMzP/mQBm/5kz
-        zP+ZAP//mWYA/5lmM/+ZM2b/mWaZ/5lmzP+ZM///mZkz/5mZZv+ZmZn/mZnM/5mZ//+ZzAD/mcwz/2bM
-        Zv+ZzJn/mczM/5nM//+Z/wD/mf8z/5nMZv+Z/5n/mf/M/5n////MAAD/mQAz/8wAZv/MAJn/zADM/5kz
-        AP/MMzP/zDNm/8wzmf/MM8z/zDP//8xmAP/MZjP/mWZm/8xmmf/MZsz/mWb//8yZAP/MmTP/zJlm/8yZ
-        mf/Mmcz/zJn//8zMAP/MzDP/zMxm/8zMmf/MzMz/zMz//8z/AP/M/zP/mf9m/8z/mf/M/8z/zP///8wA
-        M///AGb//wCZ/8wzAP//MzP//zNm//8zmf//M8z//zP///9mAP//ZjP/zGZm//9mmf//Zsz/zGb///+Z
-        AP//mTP//5lm//+Zmf//mcz//5n////MAP//zDP//8xm///Mmf//zMz//8z/////M//M/2b///+Z////
-        zP9mZv//Zv9m/2b/////Zmb//2b/////Zv8hAKX/X19f/3d3d/+Ghob/lpaW/8vLy/+ysrL/19fX/93d
-        3f/j4+P/6urq//Hx8f/4+Pj/8Pv//6SgoP+AgID/AAD//wD/AP8A/////wAA//8A/////wD//////9XV
-        1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV
-        1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV////////1dXV////////////////////
-        ///////////////////////////V1dXV////////1dXV////////////////////////////////////
-        ///////////V1dXV////////1dXV///////////////////////////////////////////////V1dXV
-        ////////1dXV///////////////////////////////////////////////V1dXV////////1dXV////
-        ///////////////////////////////////////////V1dXV////////1dXV////////////////////
-        ///////////////////////////V1dXV////////1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dX////////V
-        1dXV1dXV1dXV1dXV////////1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dX////////V1dXV1dXV1dXV1dXV
-        ////////1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dX////////V1dXV1dXV1dXV1dXV////////////////
-        ///////////////////V1dX////////V1dX////////V1dXV////////////////////////////////
-        ///V1dX////////V1dX////////V1dXV///////////////////////////////////V1dX////////V
-        1dX////////V1dXV///////////////////////////////////V1dX////////V1dX////////V1dXV
-        ///////////////////////////////////V1dX////////V1dX////////V1dXV////////////////
-        ///////////////////V1dX////////V1dX////////V1dXV////////1dXV1dXV1dXV1dXV1dXV1dXV
-        1dXV1dX////////V1dX////////V1dXV////////1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dX////////V
-        1dX////////V1dXV////////1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dX////////V1dX////////V1dXV
-        ////////1dXV////////1dXV1dXV1dXV1dXV1dX////////V1dX////////V1dXV////////1dXV////
-        ////1dXV1dXV1dXV1dXV1dX////////V1dX////////V1dXV////////1dXV////////1dXV1dXV1dXV
-        1dXV1dX////////V1dX////////V1dXV////////1dXV////////1dXV1dXV1dXV1dXV1dX////////V
-        1dX////////V1dXV////////1dXV////////1dXV1dXV1dXV1dXV1dX////////V1dX////////V1dXV
-        ////////1dXV////////1dXV1dXV1dXV1dXV1dX////////V1dX////////V1dXV////////1dXV////
-        ////1dXV1dXV1dXV1dXV1dX////////V1dX////////V1dXV////////1dXV////////1dXV1dXV1dXV
-        1dXV1dX////////V1dX////////V1dXV////////1dXV////////1dXV1dXV1dXV1dXV1dXV1dXV1dXV
-        1dX////////V1dXV////////1dXV////////1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dX////////V1dXV
-        ////////1dXV////////1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dX////////V1dXV////////1dXV////
-        ////1dXV///////////////////////////////////V1dXV////////1dXV////////1dXV////////
-        ///////////////////////////V1dXV////////1dXV////////1dXV////////////////////////
-        ///////////V1dXV////////1dXV////////1dXV///////////////////////////////////V1dXV
-        ////////1dXV////////1dXV///////////////////////////////////V1dXV////////1dXV////
-        ////1dXV///////////////////////////////////V1dXV1dXV1dXV1dXV////////1dXV1dXV1dXV
-        1dXV1dXV1dXV1dXV1dX////////V1dXV1dXV1dXV1dXV////////1dXV1dXV1dXV1dXV1dXV1dXV1dXV
-        1dX////////V1dXV1dXV1dXV1dXV////////1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dX////////V1dXV
-        ///////////////////////////////////////////////V1dX////////V1dXV////////////////
-        ///////////////////////////////V1dX////////V1dXV////////////////////////////////
-        ///////////////V1dX////////V1dXV///////////////////////////////////////////////V
-        1dX////////V1dXV///////////////////////////////////////////////V1dX////////V1dXV
-        ///////////////////////////////////////////////V1dX////////V1dXV1dXV1dXV1dXV1dXV
-        1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV1dXV
-        1dXV1dXV1dXV1dXV1dXV1dXV1dXV1Q==
-</value>
-  </data>
-  <metadata name="label2.Locked" type="System.Boolean, System.Private.CoreLib, Version=5.0.0.0, Culture=neutral, PublicKeyToken=7cec85d7bea7798e">
-    <value>True</value>
-  </metadata>
-  <metadata name="label4.Locked" type="System.Boolean, System.Private.CoreLib, Version=5.0.0.0, Culture=neutral, PublicKeyToken=7cec85d7bea7798e">
-    <value>True</value>
-  </metadata>
   <data name="label4.Text" xml:space="preserve">
     <value>Copyright (C) 2021  Shreyas Zare (shreyas@technitium.com)
 This program comes with ABSOLUTELY NO WARRANTY. This is free software, and you are welcome to redistribute it under certain conditions. Click link below for details:</value>
   </data>
-  <metadata name="lnkTerms.Locked" type="System.Boolean, System.Private.CoreLib, Version=5.0.0.0, Culture=neutral, PublicKeyToken=7cec85d7bea7798e">
-    <value>True</value>
-  </metadata>
-  <metadata name="btnClose.Locked" type="System.Boolean, System.Private.CoreLib, Version=5.0.0.0, Culture=neutral, PublicKeyToken=7cec85d7bea7798e">
-    <value>True</value>
-  </metadata>
-  <metadata name="label3.Locked" type="System.Boolean, System.Private.CoreLib, Version=5.0.0.0, Culture=neutral, PublicKeyToken=7cec85d7bea7798e">
-    <value>True</value>
-  </metadata>
-  <metadata name="lnkWebsite.Locked" type="System.Boolean, System.Private.CoreLib, Version=5.0.0.0, Culture=neutral, PublicKeyToken=7cec85d7bea7798e">
-    <value>True</value>
-  </metadata>
-  <metadata name="label1.Locked" type="System.Boolean, System.Private.CoreLib, Version=5.0.0.0, Culture=neutral, PublicKeyToken=7cec85d7bea7798e">
-    <value>True</value>
-  </metadata>
-  <metadata name="lnkContactEmail.Locked" type="System.Boolean, System.Private.CoreLib, Version=5.0.0.0, Culture=neutral, PublicKeyToken=7cec85d7bea7798e">
-    <value>True</value>
-  </metadata>
-  <metadata name="labVersion.Locked" type="System.Boolean, System.Private.CoreLib, Version=5.0.0.0, Culture=neutral, PublicKeyToken=7cec85d7bea7798e">
-    <value>True</value>
-  </metadata>
-  <metadata name="label5.Locked" type="System.Boolean, System.Private.CoreLib, Version=5.0.0.0, Culture=neutral, PublicKeyToken=7cec85d7bea7798e">
-    <value>True</value>
-  </metadata>
-  <metadata name="$this.Locked" type="System.Boolean, System.Private.CoreLib, Version=5.0.0.0, Culture=neutral, PublicKeyToken=7cec85d7bea7798e">
-    <value>True</value>
-  </metadata>
-  <data name="$this.Icon" type="System.Drawing.Icon, System.Drawing.Common" mimetype="application/x-microsoft.net.object.bytearray.base64">
+  <assembly alias="System.Drawing" name="System.Drawing, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a" />
+  <data name="$this.Icon" type="System.Drawing.Icon, System.Drawing" mimetype="application/x-microsoft.net.object.bytearray.base64">
     <value>
         AAABAAUAICAQAAAAAADoAgAAVgAAACAgAAAAAAAAqAgAAD4DAAAwMAAAAAAAAKgOAADmCwAAEBAQAAAA
         AAAoAQAAjhoAABAQAAAAAAAAaAUAALYbAAAoAAAAIAAAAEAAAAABAAQAAAAAAIACAAAAAAAAAAAAAAAA
