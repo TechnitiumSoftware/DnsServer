@@ -1879,84 +1879,81 @@ namespace DnsServerCore.Dns
 
                     foreach (KeyValuePair<DnsQuestionRecord, int> eligibleQuery in eligibleQueries)
                     {
-                        if (eligibleQuery.Key.Type == DnsResourceRecordType.ANY)
+                        DnsQuestionRecord eligibleQuerySample = eligibleQuery.Key;
+
+                        if (eligibleQuerySample.Type == DnsResourceRecordType.ANY)
                             continue; //dont refresh type ANY queries
 
-                        DnsQuestionRecord refreshQuery;
-
+                        DnsQuestionRecord refreshQuery = null;
                         IReadOnlyList<NameServerAddress> viaForwarders = null;
 
                         //query auth zone for refresh query
-                        DnsDatagram response = _authZoneManager.Query(new DnsDatagram(0, false, DnsOpcode.StandardQuery, false, false, false, false, false, false, DnsResponseCode.NoError, new DnsQuestionRecord[] { eligibleQuery.Key }));
-
-                        if (response.RCODE == DnsResponseCode.NoError)
+                        int queryCount = 0;
+                        bool reQueryAuthZone;
+                        do
                         {
-                            if (response.Answer.Count > 0)
+                            reQueryAuthZone = false;
+
+                            DnsDatagram response = _authZoneManager.Query(new DnsDatagram(0, false, DnsOpcode.StandardQuery, false, false, false, false, false, false, DnsResponseCode.NoError, new DnsQuestionRecord[] { eligibleQuerySample }));
+                            switch (response.RCODE)
                             {
-                                DnsResourceRecord lastRecord = response.Answer[response.Answer.Count - 1];
+                                case DnsResponseCode.Refused: //zone not hosted; do refresh
+                                    refreshQuery = GetCacheRefreshNeededQuery(eligibleQuerySample, cacheRefreshTrigger);
+                                    break;
 
-                                if ((lastRecord.Type == DnsResourceRecordType.CNAME) && (eligibleQuery.Key.Type != DnsResourceRecordType.CNAME))
-                                {
-                                    //refresh CNAME
-                                    refreshQuery = GetCacheRefreshNeededQuery(new DnsQuestionRecord((lastRecord.RDATA as DnsCNAMERecord).Domain, eligibleQuery.Key.Type, eligibleQuery.Key.Class), cacheRefreshTrigger);
-                                }
-                                else
-                                {
-                                    //dont refresh; zone is hosted
-                                    continue;
-                                }
-                            }
-                            else if (response.Authority.Count > 0)
-                            {
-                                switch (response.Authority[0].Type)
-                                {
-                                    case DnsResourceRecordType.NS:
-                                        refreshQuery = GetCacheRefreshNeededQuery(eligibleQuery.Key, cacheRefreshTrigger);
-                                        break;
+                                case DnsResponseCode.NoError: //zone is hosted; check further
+                                    if (response.Answer.Count > 0)
+                                    {
+                                        DnsResourceRecord lastRecord = response.Answer[response.Answer.Count - 1];
 
-                                    case DnsResourceRecordType.FWD:
-                                        refreshQuery = GetCacheRefreshNeededQuery(eligibleQuery.Key, cacheRefreshTrigger);
-
-                                        if ((response.Authority.Count == 1) && (response.Authority[0].RDATA as DnsForwarderRecord).Forwarder.Equals("this-server", StringComparison.OrdinalIgnoreCase))
+                                        if ((lastRecord.Type == DnsResourceRecordType.CNAME) && (eligibleQuerySample.Type != DnsResourceRecordType.CNAME))
                                         {
-                                            //do conditional forwarding via "this-server"
+                                            eligibleQuerySample = new DnsQuestionRecord((lastRecord.RDATA as DnsCNAMERecord).Domain, eligibleQuerySample.Type, eligibleQuerySample.Class);
+                                            reQueryAuthZone = true;
                                         }
-                                        else
+                                    }
+                                    else if (response.Authority.Count > 0)
+                                    {
+                                        switch (response.Authority[0].Type)
                                         {
-                                            //do conditional forwarding
-                                            List<NameServerAddress> forwarders = new List<NameServerAddress>(response.Authority.Count);
+                                            case DnsResourceRecordType.NS: //zone is delegated
+                                                refreshQuery = GetCacheRefreshNeededQuery(eligibleQuerySample, cacheRefreshTrigger);
+                                                break;
 
-                                            foreach (DnsResourceRecord rr in response.Authority)
-                                            {
-                                                if (rr.Type == DnsResourceRecordType.FWD)
+                                            case DnsResourceRecordType.FWD: //zone is conditional forwarder
+                                                refreshQuery = GetCacheRefreshNeededQuery(eligibleQuerySample, cacheRefreshTrigger);
+
+                                                if ((response.Authority.Count == 1) && (response.Authority[0].RDATA as DnsForwarderRecord).Forwarder.Equals("this-server", StringComparison.OrdinalIgnoreCase))
                                                 {
-                                                    DnsForwarderRecord fwd = rr.RDATA as DnsForwarderRecord;
-
-                                                    if (!fwd.Forwarder.Equals("this-server", StringComparison.OrdinalIgnoreCase))
-                                                        forwarders.Add(fwd.NameServer);
+                                                    //do conditional forwarding via "this-server"
                                                 }
-                                            }
+                                                else
+                                                {
+                                                    //do conditional forwarding
+                                                    List<NameServerAddress> forwarders = new List<NameServerAddress>(response.Authority.Count);
 
-                                            if (forwarders.Count > 0)
-                                                viaForwarders = forwarders;
+                                                    foreach (DnsResourceRecord rr in response.Authority)
+                                                    {
+                                                        if (rr.Type == DnsResourceRecordType.FWD)
+                                                        {
+                                                            DnsForwarderRecord fwd = rr.RDATA as DnsForwarderRecord;
+
+                                                            if (!fwd.Forwarder.Equals("this-server", StringComparison.OrdinalIgnoreCase))
+                                                                forwarders.Add(fwd.NameServer);
+                                                        }
+                                                    }
+
+                                                    if (forwarders.Count > 0)
+                                                        viaForwarders = forwarders;
+                                                }
+                                                break;
                                         }
-                                        break;
+                                    }
 
-                                    default:
-                                        //dont refresh; invalid response
-                                        continue;
-                                }
-                            }
-                            else
-                            {
-                                //dont refresh; invalid response
-                                continue;
+                                    break;
                             }
                         }
-                        else
-                        {
-                            refreshQuery = GetCacheRefreshNeededQuery(eligibleQuery.Key, cacheRefreshTrigger);
-                        }
+                        while (reQueryAuthZone && (++queryCount < MAX_CNAME_HOPS));
 
                         if (refreshQuery != null)
                             cacheRefreshSampleList.Add(new CacheRefreshSample(refreshQuery, viaForwarders));
