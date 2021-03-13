@@ -1,5 +1,25 @@
 # Technitium DNS Server Change Log
 
+## Version 6.0
+Release Date: 13 March 2021
+
+- Updated entire DNS code base to .NET 5 with new Windows installer. This upgrade will improve overall performance on Windows installations.
+- Added support for DNS Application (APP) propriety record with DNS Apps feature support. DNS Apps allows creating custom apps by 3rd party using .NET that run on the DNS server allowing the apps to process DNS requests and provide custom DNS response based on any bussiness logic.
+- A default DNS app (available to download separately) supports APP records capable of Split Horizon and Geolocation based responses using MaxMind's GeoIP2 City & Country databases.
+- Updated dashboard charts to save legend selection state.
+- Updated dashboard with Custom date selection option to display stats.
+- Added option to configure max stats days in settings.
+- Added option to enable/disable QNAME minimization.
+- Added delete existing files option in Restore settings.
+- Added support to store query stats data to allow DNS cache auto prefetch to refresh cache when DNS server restarts.
+- Updated TLS certificate implementation to allow using self signed certificates for web console, DoH, and DoT.
+- Added DHCP lease Reserve/Unreserve options to allow quickly reserving lease for clients.
+- Updated DHCP reserved lease option to allow overriding client's host name.
+- Fixed issues with DNS cache auto prefetch feature.
+- Fixed multiple issues in DNS cache.
+- Fixed multiple vulnerabilities causing DNS cache poisoning.
+- Multiple other minor bug fixes and improvements.
+
 ## Version 5.6
 Release Date: 2 January 2021
 
