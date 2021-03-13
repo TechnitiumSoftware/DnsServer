@@ -21,9 +21,7 @@ using DnsServerSystemTrayApp.Properties;
 using Microsoft.Win32;
 using System;
 using System.Collections.Generic;
-using System.ComponentModel;
 using System.Diagnostics;
-using System.Drawing;
 using System.IO;
 using System.Management;
 using System.Net;
@@ -139,9 +137,8 @@ namespace DnsServerSystemTrayApp
             //
             // TrayIcon
             //
-            var resources = new ComponentResourceManager(typeof(frmAbout));
             TrayIcon = new NotifyIcon();
-            TrayIcon.Icon = (Icon)resources.GetObject("$this.Icon");
+            TrayIcon.Icon = Resources.logo2;
             TrayIcon.Visible = true;
             TrayIcon.MouseUp += TrayIcon_MouseUp;
             TrayIcon.ContextMenuStrip = TrayIconContextMenu;
