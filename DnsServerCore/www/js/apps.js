@@ -81,6 +81,10 @@ function showInstallAppModal() {
     $("#btnInstallApp").button("reset");
 
     $("#modalInstallApp").modal("show");
+
+    setTimeout(function () {
+        $("#txtInstallApp").focus();
+    }, 1000);
 }
 
 function installApp() {
@@ -177,6 +181,10 @@ function showAppConfigModal(objBtn, appName) {
             $("#btnAppConfig").button("reset");
 
             $("#modalAppConfig").modal("show");
+
+            setTimeout(function () {
+                $("#txtAppConfig").focus();
+            }, 1000);
         },
         error: function () {
             btn.button('reset');
