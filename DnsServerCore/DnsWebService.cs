@@ -3388,28 +3388,6 @@ namespace DnsServerCore
                     }
                     break;
 
-                case AuthZoneType.Application:
-                    {
-                        string strAppName = request.QueryString["appName"];
-                        if (string.IsNullOrEmpty(strAppName))
-                            throw new DnsWebServiceException("Parameter 'appName' missing.");
-
-                        string strClassPath = request.QueryString["classPath"];
-                        if (string.IsNullOrEmpty(strClassPath))
-                            throw new DnsWebServiceException("Parameter 'classPath' missing.");
-
-                        string strRecordData = request.QueryString["recordData"];
-                        if (string.IsNullOrEmpty(strRecordData))
-                            strRecordData = "";
-
-                        if (_dnsServer.AuthZoneManager.CreateApplicationZone(domain, _dnsServer.ServerDomain, strAppName, strClassPath, strRecordData) == null)
-                            throw new DnsWebServiceException("Zone already exists: " + domain);
-
-                        _log.Write(GetRequestRemoteEndPoint(request), "[" + GetSession(request).Username + "] Application zone was created: " + domain);
-                        _dnsServer.AuthZoneManager.SaveZoneFile(domain);
-                    }
-                    break;
-
                 default:
                     throw new NotSupportedException("Zone type not supported.");
             }
