@@ -1,1 +1,0 @@
-I am the package maintainer AND the software developer for Technitium DNS Server.
