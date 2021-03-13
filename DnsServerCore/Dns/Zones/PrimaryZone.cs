@@ -1,6 +1,6 @@
 ﻿/*
 Technitium DNS Server
-Copyright (C) 2020  Shreyas Zare (shreyas@technitium.com)
+Copyright (C) 2021  Shreyas Zare (shreyas@technitium.com)
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -235,6 +235,9 @@ namespace DnsServerCore.Dns.Zones
 
         public override void AddRecord(DnsResourceRecord record)
         {
+            if (record.Type == DnsResourceRecordType.APP)
+                throw new InvalidOperationException("Cannot add record: use SetRecords() for " + record.Type.ToString() + " record");
+
             base.AddRecord(record);
 
             IncrementSoaSerial();
