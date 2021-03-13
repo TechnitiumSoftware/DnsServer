@@ -31,7 +31,9 @@ Applications of using a locally hosted DNS server is limited only by the user's 
 - QNAME minimization support in recursive resolver [draft-ietf-dnsop-rfc7816bis-04](https://tools.ietf.org/html/draft-ietf-dnsop-rfc7816bis-04).
 - QNAME randomization support for UDP transport protocol [draft-vixie-dnsext-dns0x20-00](https://tools.ietf.org/html/draft-vixie-dnsext-dns0x20-00).
 - ANAME propriety record support to allow using CNAME like feature at zone root.
-- Primary, Secondary, Stub and Conditional Forwarder zone support.
+- APP propriety record support that allows custom DNS Apps to directly handle DNS requests and return a custom DNS response based on any business logic.
+- Support for features like Split Horizon and Geolocation based responses using DNS Apps feature.
+- Primary, Secondary, Stub, and Conditional Forwarder zone support.
 - Host domain names on your own DNS server.
 - Wildcard sub domain support.
 - Enable/disable zones and records to allow testing with ease.
@@ -43,12 +45,12 @@ Applications of using a locally hosted DNS server is limited only by the user's 
 - Web console portal for easy configuration using any web browser.
 - Built in HTTP API to allow 3rd party apps to control and configure the DNS server.
 - Built-in system logging and query logging.
-- Open source cross-platform .NET Core implementation hosted on GitHub.
+- Open source cross-platform .NET 5 implementation hosted on GitHub.
 
 # Installation
 - **Windows**: [Download setup installer](https://download.technitium.com/dns/DnsServerSetup.zip) for easy installation.
 - **Linux & Raspberry Pi**: Follow install instructions from [this blog post](https://blog.technitium.com/2017/11/running-dns-server-on-ubuntu-linux.html).
-- **Cross-Platform**: [Download portable app](https://download.technitium.com/dns/DnsServerPortable.tar.gz) to run on any platform that has .NET Core installed.
+- **Cross-Platform**: [Download portable app](https://download.technitium.com/dns/DnsServerPortable.tar.gz) to run on any platform that has .NET 5 installed.
 
 # API Documentation
 The DNS server HTTP API allows any 3rd party app or script to configure the DNS server. The HTTP API is used by the web console and thus all the actions that the web console does can be performed via the API. Read the [HTTP API documentation](https://github.com/TechnitiumSoftware/DnsServer/blob/master/APIDOCS.md) for complete details.
@@ -59,7 +61,9 @@ Read the latest [online help topics](https://go.technitium.com/?id=25) which con
 # Support
 For support, send an email to support@technitium.com. For any issues, feedback, or feature request, create an issue on [GitHub](https://github.com/TechnitiumSoftware/DnsServer/issues).
 
-# Become A Patron
+Join [/r/technitium](https://www.reddit.com/r/technitium/) on Reddit.
+
+# Donate
 Make contribution to Technitium by becoming a Patron and help making new software, updates, and features possible.
 
 [Become a Patron now!](https://www.patreon.com/technitium)
