@@ -103,8 +103,9 @@ namespace DnsServerCore.Dns.Applications
                         }
                     }
                 }
-                catch (BadImageFormatException)
+                catch (Exception ex)
                 {
+                    _dnsServer.WriteLog(ex);
                     continue;
                 }
 
@@ -120,9 +121,6 @@ namespace DnsServerCore.Dns.Applications
                     }
                 }
             }
-
-            if (dnsRequestHandlers.Count == 0)
-                throw new DnsServerException("No DNS request handler was found in the DNS application: " + _appName);
 
             _dnsRequestHandlers = dnsRequestHandlers;
         }
