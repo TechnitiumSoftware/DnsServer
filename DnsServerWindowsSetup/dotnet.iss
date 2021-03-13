@@ -1,5 +1,5 @@
 [Setup]
-MinVersion=6.2
+MinVersion=6.1sp1
 
 // remove next line if you only deploy 32-bit binaries and dependencies
 ArchitecturesInstallIn64BitMode=x64
