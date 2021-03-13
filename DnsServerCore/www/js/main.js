@@ -508,6 +508,10 @@ function login(username, password) {
 
             if ((username === "admin") && (password === "admin")) {
                 $('#modalChangePassword').modal();
+
+                setTimeout(function () {
+                    $("#txtChangePasswordNewPassword").focus();
+                }, 1000);
             }
         },
         error: function () {
@@ -544,6 +548,10 @@ function resetChangePasswordModal() {
     $("#divChangePasswordAlert").html("");
     $("#txtChangePasswordNewPassword").val("");
     $("#txtChangePasswordConfirmPassword").val("");
+
+    setTimeout(function () {
+        $("#txtChangePasswordNewPassword").focus();
+    }, 1000);
 
     return false;
 }
@@ -2156,6 +2164,10 @@ function resetImportAllowedZonesModal() {
     $("#divImportAllowedZonesAlert").html("");
     $("#txtImportAllowedZones").val("");
 
+    setTimeout(function () {
+        $("#txtImportAllowedZones").focus();
+    }, 1000);
+
     return false;
 }
 
@@ -2206,6 +2218,10 @@ function resetImportBlockedZonesModal() {
 
     $("#divImportBlockedZonesAlert").html("");
     $("#txtImportBlockedZones").val("");
+
+    setTimeout(function () {
+        $("#txtImportBlockedZones").focus();
+    }, 1000);
 
     return false;
 }
