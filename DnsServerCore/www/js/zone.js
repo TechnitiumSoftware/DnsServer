@@ -24,9 +24,6 @@ $(function () {
         $("#divAddZonePrimaryNameServerAddresses").hide();
         $("#divAddZoneForwarderProtocol").hide();
         $("#divAddZoneForwarder").hide();
-        $("#divAddZoneAppName").hide();
-        $("#divAddZoneAppClassPath").hide();
-        $("#divAddZoneAppRecordData").hide();
 
         var zoneType = $('input[name=rdAddZoneType]:checked').val();
         switch (zoneType) {
@@ -41,12 +38,6 @@ $(function () {
             case "Forwarder":
                 $("#divAddZoneForwarderProtocol").show();
                 $("#divAddZoneForwarder").show();
-                break;
-
-            case "Application":
-                $("#divAddZoneAppName").show();
-                $("#divAddZoneAppClassPath").show();
-                $("#divAddZoneAppRecordData").show();
                 break;
         }
     });
@@ -76,46 +67,6 @@ $(function () {
     });
 
     $("input[type=radio][name=rdAddEditRecordDataForwarderProtocol]").change(updateAddEditFormForwarderPlaceholder);
-
-    $("#optAddZoneAppName").change(function () {
-        if (dataApps == null)
-            return;
-
-        var appName = $("#optAddZoneAppName").val();
-        var optClassPaths = "<option></option>";
-
-        for (var i = 0; i < dataApps.length; i++) {
-            if (dataApps[i].name == appName) {
-                for (var j = 0; j < dataApps[i].details.length; j++) {
-                    optClassPaths += "<option>" + dataApps[i].details[j].classPath + "</option>";
-                }
-            }
-        }
-
-        $("#optAddZoneAppClassPath").html(optClassPaths);
-        $("#txtAddZoneAppRecordData").val("");
-    });
-
-    $("#optAddZoneAppClassPath").change(function () {
-        if (dataApps == null)
-            return;
-
-        var appName = $("#optAddZoneAppName").val();
-        var classPath = $("#optAddZoneAppClassPath").val();
-
-        for (var i = 0; i < dataApps.length; i++) {
-            if (dataApps[i].name == appName) {
-                for (var j = 0; j < dataApps[i].details.length; j++) {
-                    if (dataApps[i].details[j].classPath == classPath) {
-                        $("#txtAddZoneAppRecordData").val(dataApps[i].details[j].dataTemplate);
-                        return;
-                    }
-                }
-            }
-        }
-
-        $("#txtAddZoneAppRecordData").val("");
-    });
 
     $("#optAddEditRecordDataAppName").change(function () {
         if (dataApps == null)
@@ -336,60 +287,30 @@ function deleteZone(objBtn, domain, editZone) {
     });
 }
 
-function showAddZoneModal(objBtn) {
-    var btn = $(objBtn);
+function showAddZoneModal() {
+    $("#divAddZoneAlert").html("");
 
-    btn.button('loading');
+    $("#txtAddZone").val("");
+    $("#rdAddZoneTypePrimary").prop("checked", true);
+    $("#txtAddZonePrimaryNameServerAddresses").val("");
+    $("input[name=rdAddZoneForwarderProtocol]:radio").attr("disabled", false);
+    $("#rdAddZoneForwarderProtocolUdp").prop("checked", true);
+    $("#chkAddZoneForwarderThisServer").prop('checked', false);
+    $("#txtAddZoneForwarder").prop("disabled", false);
+    $("#txtAddZoneForwarder").attr("placeholder", "8.8.8.8 or [2620:fe::10]")
+    $("#txtAddZoneForwarder").val("");
 
-    HTTPRequest({
-        url: "/api/apps/list?token=" + token,
-        success: function (responseJSON) {
-            btn.button('reset');
+    $("#divAddZonePrimaryNameServerAddresses").hide();
+    $("#divAddZoneForwarderProtocol").hide();
+    $("#divAddZoneForwarder").hide();
 
-            $("#divAddZoneAlert").html("");
+    $("#btnAddZone").button('reset');
 
-            $("#txtAddZone").val("");
-            $("#rdAddZoneTypePrimary").prop("checked", true);
-            $("#txtAddZonePrimaryNameServerAddresses").val("");
-            $("input[name=rdAddZoneForwarderProtocol]:radio").attr("disabled", false);
-            $("#rdAddZoneForwarderProtocolUdp").prop("checked", true);
-            $("#chkAddZoneForwarderThisServer").prop('checked', false);
-            $("#txtAddZoneForwarder").prop("disabled", false);
-            $("#txtAddZoneForwarder").attr("placeholder", "8.8.8.8 or [2620:fe::10]")
-            $("#txtAddZoneForwarder").val("");
+    $("#modalAddZone").modal("show");
 
-            dataApps = responseJSON.response.apps;
-            var apps = responseJSON.response.apps;
-            var optApps = "<option></option>";
-            var optClassPaths = "<option></option>";
-
-            for (var i = 0; i < apps.length; i++) {
-                optApps += "<option>" + apps[i].name + "</option>";
-            }
-
-            $("#optAddZoneAppName").html(optApps);
-            $("#optAddZoneAppClassPath").html(optClassPaths);
-            $("#txtAddZoneAppRecordData").val("");
-
-            $("#divAddZonePrimaryNameServerAddresses").hide();
-            $("#divAddZoneForwarderProtocol").hide();
-            $("#divAddZoneForwarder").hide();
-
-            $("#divAddZoneAppName").hide();
-            $("#divAddZoneAppClassPath").hide();
-            $("#divAddZoneAppRecordData").hide();
-
-            $("#btnAddZone").button('reset');
-
-            $("#modalAddZone").modal("show");
-        },
-        error: function () {
-            btn.button('reset');
-        },
-        invalidToken: function () {
-            showPageLogin();
-        }
-    });
+    setTimeout(function () {
+        $("#txtAddZone").focus();
+    }, 1000);
 }
 
 function updateAddZoneFormForwarderThisServer() {
@@ -441,28 +362,6 @@ function addZone() {
             }
 
             parameters = "&protocol=" + $('input[name=rdAddZoneForwarderProtocol]:checked').val() + "&forwarder=" + forwarder;
-            break;
-
-        case "Application":
-            var appName = $("#optAddZoneAppName").val();
-
-            if ((appName === null) || (appName === "")) {
-                showAlert("warning", "Missing!", "Please select an application name to add zone.", divAddZoneAlert);
-                $("#optAddZoneAppName").focus();
-                return;
-            }
-
-            var classPath = $("#optAddZoneAppClassPath").val();
-
-            if ((classPath === null) || (classPath === "")) {
-                showAlert("warning", "Missing!", "Please select a class path to add zone.", divAddZoneAlert);
-                $("#optAddZoneAppClassPath").focus();
-                return;
-            }
-
-            var recordData = $("#txtAddZoneAppRecordData").val();
-
-            parameters = "&appName=" + encodeURIComponent(appName) + "&classPath=" + encodeURIComponent(classPath) + "&recordData=" + encodeURIComponent(recordData);
             break;
 
         default:
@@ -558,16 +457,10 @@ function showEditZone(domain) {
                     $("#optEditRecordTypeApp").hide();
                     break;
 
-                case "Application":
-                    $("#btnEditZoneAddRecord").show();
-                    $("#optEditRecordTypeFwd").hide();
-                    $("#optEditRecordTypeApp").show();
-                    break;
-
                 default:
                     $("#btnEditZoneAddRecord").show();
                     $("#optEditRecordTypeFwd").hide();
-                    $("#optEditRecordTypeApp").hide();
+                    $("#optEditRecordTypeApp").show();
                     break;
             }
 
@@ -866,7 +759,7 @@ function clearAddEditForm() {
 
 function showAddRecordModal(objBtn) {
     var zoneType = $("#titleEditZoneType").text();
-    if (zoneType === "Application") {
+    if (zoneType === "Primary") {
         var btn = $(objBtn);
 
         btn.button('loading');
@@ -918,6 +811,10 @@ function showAddRecordModalNow(apps) {
     }
 
     $("#modalAddEditRecord").modal("show");
+
+    setTimeout(function () {
+        $("#txtAddEditRecordName").focus();
+    }, 1000);
 }
 
 function modifyAddRecordForm() {
@@ -1318,7 +1215,6 @@ function showEditRecordModal(objBtn) {
     var zoneType = $("#titleEditZoneType").text();
     switch (zoneType) {
         case "Primary":
-        case "Application":
             switch (type) {
                 case "SOA":
                     hideSoaRecordPrimaryAddressesField = true;
@@ -1461,6 +1357,10 @@ function showEditRecordModal(objBtn) {
     $("#btnAddEditRecord").attr("onclick", "updateRecord(); return false;");
 
     $("#modalAddEditRecord").modal("show");
+
+    setTimeout(function () {
+        $("#txtAddEditRecordName").focus();
+    }, 1000);
 }
 
 function updateRecord() {
@@ -1781,6 +1681,9 @@ function updateRecordState(objBtn, disable) {
         url: apiUrl,
         success: function (responseJSON) {
             btn.button('reset');
+
+            //set new state
+            divData.attr("data-record-disabled", disable);
 
             if (disable) {
                 $("#btnEnableRecord" + id).show();
