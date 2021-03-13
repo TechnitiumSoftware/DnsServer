@@ -23,7 +23,7 @@ using System;
 using System.Reflection;
 using TechnitiumLibrary.Net.Firewall;
 
-namespace DnsService
+namespace DnsServerWindowsService
 {
     static class Program
     {

@@ -23,7 +23,7 @@ using System;
 using System.Threading;
 using System.Threading.Tasks;
 
-namespace DnsService
+namespace DnsServerWindowsService
 {
     public class DnsServiceWorker : BackgroundService
     {
