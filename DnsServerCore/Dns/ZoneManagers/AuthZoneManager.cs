@@ -68,18 +68,7 @@ namespace DnsServerCore.Dns.ZoneManagers
             if (disposing)
             {
                 foreach (AuthZone zone in _root)
-                {
-                    AuthZoneInfo zoneInfo = new AuthZoneInfo(zone);
-                    switch (zoneInfo.Type)
-                    {
-                        case AuthZoneType.Primary:
-                        case AuthZoneType.Secondary:
-                        case AuthZoneType.Stub:
-                        case AuthZoneType.Forwarder:
-                            zone.Dispose();
-                            break;
-                    }
-                }
+                    zone.Dispose();
             }
 
             _disposed = true;
@@ -181,10 +170,6 @@ namespace DnsServerCore.Dns.ZoneManagers
                     zone = new ForwarderZone(zoneInfo);
                     break;
 
-                case AuthZoneType.Application:
-                    zone = new ApplicationZone(zoneInfo);
-                    break;
-
                 default:
                     throw new InvalidDataException("DNS zone type not supported.");
             }
@@ -244,8 +229,6 @@ namespace DnsServerCore.Dns.ZoneManagers
                     return new SecondarySubDomainZone(domain);
                 else if (authZone is ForwarderZone)
                     return new ForwarderSubDomainZone(domain);
-                else if (authZone is ApplicationZone)
-                    return new ApplicationSubDomainZone(authZone as ApplicationZone, domain);
 
                 throw new DnsServerException("Zone cannot have sub domains.");
             });
@@ -328,22 +311,6 @@ namespace DnsServerCore.Dns.ZoneManagers
                 authority = forwarderZone.QueryRecords(DnsResourceRecordType.FWD);
 
             return new DnsDatagram(request.Identifier, true, DnsOpcode.StandardQuery, false, false, request.RecursionDesired, false, false, false, DnsResponseCode.NoError, request.Question, null, authority);
-        }
-
-        private static DnsDatagram GetApplicationResponse(DnsDatagram request, AuthZone zone, AuthZone applicationZone)
-        {
-            IReadOnlyList<DnsResourceRecord> authority = null;
-
-            if (zone != null)
-                authority = zone.QueryRecords(DnsResourceRecordType.APP);
-
-            if ((authority == null) || (authority.Count == 0))
-                authority = applicationZone.QueryRecords(DnsResourceRecordType.APP);
-
-            if ((authority == null) || (authority.Count == 0))
-                authority = applicationZone.QueryRecords(DnsResourceRecordType.SOA);
-
-            return new DnsDatagram(request.Identifier, true, DnsOpcode.StandardQuery, true, false, request.RecursionDesired, false, false, false, DnsResponseCode.NoError, request.Question, null, authority);
         }
 
         internal void Flush()
@@ -531,26 +498,6 @@ namespace DnsServerCore.Dns.ZoneManagers
         public AuthZoneInfo CreateForwarderZone(string domain, DnsTransportProtocol forwarderProtocol, string forwarder)
         {
             AuthZone authZone = new ForwarderZone(domain, forwarderProtocol, forwarder);
-
-            if (_root.TryAdd(authZone))
-            {
-                _totalZones++;
-                return new AuthZoneInfo(authZone);
-            }
-
-            if (_root.TryGet(domain, out AuthZone existingZone) && (existingZone is SubDomainZone))
-            {
-                _root[domain] = authZone;
-                _totalZones++;
-                return new AuthZoneInfo(authZone);
-            }
-
-            return null;
-        }
-
-        public AuthZoneInfo CreateApplicationZone(string domain, string primaryNameServer, string appName, string classPath, string data)
-        {
-            AuthZone authZone = new ApplicationZone(domain, primaryNameServer, appName, classPath, data);
 
             if (_root.TryAdd(authZone))
             {
@@ -919,7 +866,6 @@ namespace DnsServerCore.Dns.ZoneManagers
                     case AuthZoneType.Secondary:
                     case AuthZoneType.Stub:
                     case AuthZoneType.Forwarder:
-                    case AuthZoneType.Application:
                         zones.Add(zoneInfo);
                         break;
                 }
@@ -952,11 +898,16 @@ namespace DnsServerCore.Dns.ZoneManagers
                     return GetReferralResponse(request, authZone);
                 else if (authZone is ForwarderZone)
                     return GetForwarderResponse(request, null, authZone);
-                else if (authZone is ApplicationZone)
-                    return GetApplicationResponse(request, null, authZone);
 
-                DnsResponseCode rCode = hasSubDomains ? DnsResponseCode.NoError : DnsResponseCode.NameError;
-                IReadOnlyList<DnsResourceRecord> authority = authZone.GetRecords(DnsResourceRecordType.SOA);
+                DnsResponseCode rCode = DnsResponseCode.NoError;
+                IReadOnlyList<DnsResourceRecord> authority = authZone.QueryRecords(DnsResourceRecordType.APP);
+                if (authority.Count == 0)
+                {
+                    if (!hasSubDomains)
+                        rCode = DnsResponseCode.NameError;
+
+                    authority = authZone.GetRecords(DnsResourceRecordType.SOA);
+                }
 
                 return new DnsDatagram(request.Identifier, true, DnsOpcode.StandardQuery, true, false, request.RecursionDesired, false, false, false, rCode, request.Question, null, authority);
             }
@@ -974,10 +925,15 @@ namespace DnsServerCore.Dns.ZoneManagers
                         return GetReferralResponse(request, authZone);
                     else if (authZone is ForwarderZone)
                         return GetForwarderResponse(request, zone, authZone);
-                    else if (authZone is ApplicationZone)
-                        return GetApplicationResponse(request, zone, authZone);
 
-                    authority = authZone.GetRecords(DnsResourceRecordType.SOA);
+                    authority = zone.QueryRecords(DnsResourceRecordType.APP);
+                    if (authority.Count == 0)
+                    {
+                        authority = authZone.QueryRecords(DnsResourceRecordType.APP);
+                        if (authority.Count == 0)
+                            authority = authZone.GetRecords(DnsResourceRecordType.SOA);
+                    }
+
                     additional = null;
                 }
                 else
