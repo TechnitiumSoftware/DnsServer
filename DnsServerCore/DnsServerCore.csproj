@@ -1,7 +1,7 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <TargetFramework>netstandard2.0</TargetFramework>
+    <TargetFramework>net5.0</TargetFramework>
   </PropertyGroup>
 
   <ItemGroup>
@@ -36,6 +36,7 @@
     <None Remove="www\img\logo.png" />
     <None Remove="www\img\logo25x25.png" />
     <None Remove="www\index.html" />
+    <None Remove="www\js\apps.js" />
     <None Remove="www\js\bootstrap.min.js" />
     <None Remove="www\js\Chart.min.js" />
     <None Remove="www\js\common.js" />
@@ -135,6 +136,9 @@
     <Content Include="www\index.html">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
+    <Content Include="www\js\apps.js">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
     <Content Include="www\js\bootstrap.min.js">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
@@ -183,6 +187,10 @@
     </Content>
   </ItemGroup>
 
+  <ItemGroup>
+    <ProjectReference Include="..\DnsApplicationCommon\DnsApplicationCommon.csproj" />
+  </ItemGroup>
+
   <PropertyGroup>
     <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
     <CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>
@@ -192,11 +200,11 @@
     <PackageProjectUrl>https://technitium.com/dns/</PackageProjectUrl>
     <RepositoryUrl>https://github.com/TechnitiumSoftware/DnsServer</RepositoryUrl>
     <RepositoryType></RepositoryType>
-    <Description>.NET Standard 2.0</Description>
+    <Description>.NET 5</Description>
     <PackageId>DnsServer</PackageId>
-    <AssemblyVersion>5.6.0.0</AssemblyVersion>
-    <FileVersion>5.6.0.0</FileVersion>
-    <Version>5.6</Version>
+    <AssemblyVersion>6.0.0.0</AssemblyVersion>
+    <FileVersion>6.0.0.0</FileVersion>
+    <Version>6.0</Version>
   </PropertyGroup>
 
 </Project>

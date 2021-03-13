@@ -3,13 +3,20 @@
   <PropertyGroup>
     <OutputType>WinExe</OutputType>
     <TargetFramework>net5.0-windows</TargetFramework>
+    <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
+    <CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>
     <UseWindowsForms>true</UseWindowsForms>
     <GenerateAssemblyInfo>true</GenerateAssemblyInfo>
     <RootNamespace>DnsServerSystemTrayApp</RootNamespace>
     <AssemblyName>DnsServerSystemTrayApp</AssemblyName>
     <Authors>Shreyas Zare</Authors>
     <ApplicationIcon>logo2.ico</ApplicationIcon>
-    <Version>2.0.0.0</Version>
+    <Version>2.0</Version>
+    <Company>Technitium</Company>
+    <Product>Technitium DNS Server</Product>
+    <Description>.NET 5</Description>
+    <PackageProjectUrl>https://technitium.com/dns/</PackageProjectUrl>
+    <RepositoryUrl>https://github.com/TechnitiumSoftware/DnsServer</RepositoryUrl>
   </PropertyGroup>
   <ItemGroup>
     <Reference Include="TechnitiumLibrary.IO, Version=2.5.4.0, Culture=neutral, processorArchitecture=MSIL">
@@ -26,15 +33,6 @@
       <DependentUpon>Resources.resx</DependentUpon>
       <DesignTime>True</DesignTime>
     </Compile>
-    <None Include="Properties\Settings.settings">
-      <Generator>SettingsSingleFileGenerator</Generator>
-      <LastGenOutput>Settings.Designer.cs</LastGenOutput>
-    </None>
-    <Compile Update="Properties\Settings.Designer.cs">
-      <AutoGen>True</AutoGen>
-      <DependentUpon>Settings.settings</DependentUpon>
-      <DesignTimeSharedInput>True</DesignTimeSharedInput>
-    </Compile>
   </ItemGroup>
   <ItemGroup>
     <Content Include="logo2.ico" />
@@ -42,5 +40,11 @@
   <ItemGroup>
     <PackageReference Include="System.Management" Version="5.0.0" />
     <PackageReference Include="System.ServiceProcess.ServiceController" Version="5.0.0" />
+  </ItemGroup>
+  <ItemGroup>
+    <EmbeddedResource Update="Properties\Resources.resx">
+      <Generator>ResXFileCodeGenerator</Generator>
+      <LastGenOutput>Resources.Designer.cs</LastGenOutput>
+    </EmbeddedResource>
   </ItemGroup>
 </Project>

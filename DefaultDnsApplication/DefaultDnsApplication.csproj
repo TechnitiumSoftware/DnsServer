@@ -36,4 +36,10 @@
     </Reference>
   </ItemGroup>
 
+  <ItemGroup>
+    <None Update="Readme.txt">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+  </ItemGroup>
+
 </Project>
