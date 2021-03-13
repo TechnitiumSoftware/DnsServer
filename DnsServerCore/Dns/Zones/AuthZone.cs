@@ -96,7 +96,7 @@ namespace DnsServerCore.Dns.Zones
             return newRecords;
         }
 
-        private async Task<IReadOnlyList<NameServerAddress>> GetNameServerAddressesAsync(DnsServer dnsServer, DnsResourceRecord record)
+        private static async Task<IReadOnlyList<NameServerAddress>> GetNameServerAddressesAsync(DnsServer dnsServer, DnsResourceRecord record)
         {
             string nsDomain;
 
@@ -243,9 +243,9 @@ namespace DnsServerCore.Dns.Zones
             }
 
             //set new entries into zone
-            if ((this is ForwarderZone) || (this is ApplicationZone))
+            if (this is ForwarderZone)
             {
-                //skip NS and SOA records from being added to ForwarderZone or ApplicationZone
+                //skip NS and SOA records from being added to ForwarderZone
                 foreach (KeyValuePair<DnsResourceRecordType, List<DnsResourceRecord>> newEntry in newEntries)
                 {
                     switch (newEntry.Key)

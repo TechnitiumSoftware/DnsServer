@@ -32,8 +32,7 @@ namespace DnsServerCore.Dns.Zones
         Primary = 1,
         Secondary = 2,
         Stub = 3,
-        Forwarder = 4,
-        Application = 5
+        Forwarder = 4
     }
 
     public sealed class AuthZoneInfo : IComparable<AuthZoneInfo>
@@ -98,8 +97,6 @@ namespace DnsServerCore.Dns.Zones
                 _type = AuthZoneType.Stub;
             else if (_zone is ForwarderZone)
                 _type = AuthZoneType.Forwarder;
-            else if (_zone is ApplicationZone)
-                _type = AuthZoneType.Application;
             else
                 _type = AuthZoneType.Unknown;
 
