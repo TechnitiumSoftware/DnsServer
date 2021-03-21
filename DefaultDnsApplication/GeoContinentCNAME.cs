@@ -86,32 +86,35 @@ namespace DefaultDnsApplication
 
         public Task<DnsDatagram> ProcessRequestAsync(DnsDatagram request, IPEndPoint remoteEP, string zoneName, uint appRecordTtl, string appRecordData, bool isRecursionAllowed, IDnsServer dnsServer)
         {
-            string continent;
+            dynamic jsonAppRecordData = JsonConvert.DeserializeObject(appRecordData);
+            dynamic jsonContinent;
 
             if (_mmCountryReader.TryCountry(remoteEP.Address, out CountryResponse response))
-                continent = response.Continent.Code;
-            else
-                continent = "default";
-
-            dynamic jsonAppRecordData = JsonConvert.DeserializeObject(appRecordData);
-            dynamic jsonCname = jsonAppRecordData[continent];
-            if (jsonCname != null)
             {
-                string cname = jsonCname.Value;
-                if (!string.IsNullOrEmpty(cname))
-                {
-                    IReadOnlyList<DnsResourceRecord> answers;
-
-                    if (request.Question[0].Name.Equals(zoneName, StringComparison.OrdinalIgnoreCase)) //check for zone apex
-                        answers = new DnsResourceRecord[] { new DnsResourceRecord(request.Question[0].Name, DnsResourceRecordType.ANAME, DnsClass.IN, appRecordTtl, new DnsANAMERecord(cname)) }; //use ANAME
-                    else
-                        answers = new DnsResourceRecord[] { new DnsResourceRecord(request.Question[0].Name, DnsResourceRecordType.CNAME, DnsClass.IN, appRecordTtl, new DnsCNAMERecord(cname)) };
-
-                    return Task.FromResult(new DnsDatagram(request.Identifier, true, request.OPCODE, true, false, request.RecursionDesired, isRecursionAllowed, false, false, DnsResponseCode.NoError, request.Question, answers));
-                }
+                jsonContinent = jsonAppRecordData[response.Continent.Code];
+                if (jsonContinent == null)
+                    jsonContinent = jsonAppRecordData["default"];
+            }
+            else
+            {
+                jsonContinent = jsonAppRecordData["default"];
             }
 
-            return Task.FromResult<DnsDatagram>(null);
+            if (jsonContinent == null)
+                return Task.FromResult<DnsDatagram>(null);
+
+            string cname = jsonContinent.Value;
+            if (string.IsNullOrEmpty(cname))
+                return Task.FromResult<DnsDatagram>(null);
+
+            IReadOnlyList<DnsResourceRecord> answers;
+
+            if (request.Question[0].Name.Equals(zoneName, StringComparison.OrdinalIgnoreCase)) //check for zone apex
+                answers = new DnsResourceRecord[] { new DnsResourceRecord(request.Question[0].Name, DnsResourceRecordType.ANAME, DnsClass.IN, appRecordTtl, new DnsANAMERecord(cname)) }; //use ANAME
+            else
+                answers = new DnsResourceRecord[] { new DnsResourceRecord(request.Question[0].Name, DnsResourceRecordType.CNAME, DnsClass.IN, appRecordTtl, new DnsCNAMERecord(cname)) };
+
+            return Task.FromResult(new DnsDatagram(request.Identifier, true, request.OPCODE, true, false, request.RecursionDesired, isRecursionAllowed, false, false, DnsResponseCode.NoError, request.Question, answers));
         }
 
         #endregion

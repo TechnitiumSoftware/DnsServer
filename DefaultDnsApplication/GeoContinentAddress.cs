@@ -90,15 +90,23 @@ namespace DefaultDnsApplication
             {
                 case DnsResourceRecordType.A:
                 case DnsResourceRecordType.AAAA:
-                    string continent;
+                    dynamic jsonAppRecordData = JsonConvert.DeserializeObject(appRecordData);
+                    dynamic jsonContinent;
 
                     if (_mmCountryReader.TryCountry(remoteEP.Address, out CountryResponse response))
-                        continent = response.Continent.Code;
+                    {
+                        jsonContinent = jsonAppRecordData[response.Continent.Code];
+                        if (jsonContinent == null)
+                            jsonContinent = jsonAppRecordData["default"];
+                    }
                     else
-                        continent = "default";
+                    {
+                        jsonContinent = jsonAppRecordData["default"];
 
-                    dynamic jsonAppRecordData = JsonConvert.DeserializeObject(appRecordData);
-                    dynamic jsonContinent = jsonAppRecordData[continent];
+                    }
+
+                    if (jsonContinent == null)
+                        return Task.FromResult<DnsDatagram>(null);
 
                     List<DnsResourceRecord> answers = new List<DnsResourceRecord>();
 
