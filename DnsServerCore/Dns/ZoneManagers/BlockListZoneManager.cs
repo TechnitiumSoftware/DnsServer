@@ -1,6 +1,6 @@
 ﻿/*
 Technitium DNS Server
-Copyright (C) 2020  Shreyas Zare (shreyas@technitium.com)
+Copyright (C) 2021  Shreyas Zare (shreyas@technitium.com)
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -225,8 +225,6 @@ namespace DnsServerCore.Dns.ZoneManagers
 
         public void LoadBlockLists()
         {
-            Flush();
-
             //read all block lists in a queue
             Dictionary<Uri, Queue<string>> blockListQueues = new Dictionary<Uri, Queue<string>>(_blockListUrls.Count);
             int totalDomains = 0;
