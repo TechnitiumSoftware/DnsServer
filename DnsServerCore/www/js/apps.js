@@ -50,6 +50,7 @@ function refreshApps() {
                 tableHtmlRows += "<tr id=\"trApp" + id + "\"><td>" + htmlEncode(name) + "</td>";
                 tableHtmlRows += "<td>" + detailsTable + "</td>";
                 tableHtmlRows += "<td><button type=\"button\" class=\"btn btn-default\" style=\"font-size: 12px; padding: 2px 0px; width: 80px; margin-bottom: 6px; display: block;\" onclick=\"showAppConfigModal(this, '" + name + "');\" data-loading-text=\"Loading...\">Config</button>";
+                tableHtmlRows += "<button type=\"button\" class=\"btn btn-warning\" style=\"font-size: 12px; padding: 2px 0px; width: 80px; margin-bottom: 6px; display: block;\" onclick=\"showUpdateAppModal('" + name + "');\">Update</button>";
                 tableHtmlRows += "<button type=\"button\" data-id=\"" + id + "\" class=\"btn btn-danger\" style=\"font-size: 12px; padding: 2px 0px; width: 80px; margin-bottom: 6px; display: block;\" onclick=\"uninstallApp(this, '" + name + "');\" data-loading-text=\"Uninstalling...\">Uninstall</button></td></tr>";
             }
 
@@ -85,6 +86,15 @@ function showInstallAppModal() {
     setTimeout(function () {
         $("#txtInstallApp").focus();
     }, 1000);
+}
+
+function showUpdateAppModal(appName) {
+    $("#divUpdateAppAlert").html("");
+    $("#txtUpdateApp").val(appName);
+    $("#fileUpdateAppZip").val("");
+    $("#btnUpdateApp").button("reset");
+
+    $("#modalUpdateApp").modal("show");
 }
 
 function installApp() {
@@ -128,6 +138,43 @@ function installApp() {
             showPageLogin();
         },
         objAlertPlaceholder: divInstallAppAlert
+    });
+}
+
+function updateApp() {
+    var divUpdateAppAlert = $("#divUpdateAppAlert");
+    var appName = $("#txtUpdateApp").val();
+    var fileAppZip = $("#fileUpdateAppZip");
+
+    if (fileAppZip[0].files.length === 0) {
+        showAlert("warning", "Missing!", "Please select an application zip file to update.", divUpdateAppAlert);
+        fileAppZip.focus();
+        return false;
+    }
+
+    var formData = new FormData();
+    formData.append("fileAppZip", $("#fileUpdateAppZip")[0].files[0]);
+
+    var btn = $("#btnUpdateApp").button('loading');
+
+    HTTPRequest({
+        url: "/api/apps/update?token=" + token + "&name=" + appName,
+        data: formData,
+        dataIsFormData: true,
+        success: function (responseJSON) {
+            $("#modalUpdateApp").modal("hide");
+
+            refreshApps();
+
+            showAlert("success", "App Updated!", "DNS application was updated successfully.");
+        },
+        error: function () {
+            btn.button('reset');
+        },
+        invalidToken: function () {
+            showPageLogin();
+        },
+        objAlertPlaceholder: divUpdateAppAlert
     });
 }
 
