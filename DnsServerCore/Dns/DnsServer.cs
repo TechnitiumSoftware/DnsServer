@@ -1328,105 +1328,121 @@ namespace DnsServerCore.Dns
 
         private async Task<DnsDatagram> ProcessANAMEAsync(DnsDatagram request, IPEndPoint remoteEP, DnsDatagram response, bool isRecursionAllowed, DnsTransportProtocol protocol)
         {
-            List<DnsResourceRecord> responseAnswer = new List<DnsResourceRecord>();
-
-            for (int i = 0; i < response.Answer.Count - 1; i++)
-                responseAnswer.Add(response.Answer[i]);
-
-            DnsDatagram lastResponse;
-            DnsResourceRecord anameRR = response.Answer[response.Answer.Count - 1];
-            string lastDomain = (anameRR.RDATA as DnsANAMERecord).Domain;
-
-            int queryCount = 0;
-            do
+            async Task<List<DnsResourceRecord>> ResolveANAMEAsync(DnsResourceRecord anameRR)
             {
-                DnsDatagram newRequest = new DnsDatagram(0, false, DnsOpcode.StandardQuery, false, false, request.RecursionDesired, false, false, false, DnsResponseCode.NoError, new DnsQuestionRecord[] { new DnsQuestionRecord(lastDomain, request.Question[0].Type, request.Question[0].Class) });
+                List<DnsResourceRecord> answers = new List<DnsResourceRecord>();
+                DnsDatagram lastResponse;
+                string lastDomain = (anameRR.RDATA as DnsANAMERecord).Domain;
 
-                //query authoritative zone first
-                lastResponse = _authZoneManager.Query(newRequest, isRecursionAllowed);
+                int queryCount = 0;
+                do
+                {
+                    DnsDatagram newRequest = new DnsDatagram(0, false, DnsOpcode.StandardQuery, false, false, request.RecursionDesired, false, false, false, DnsResponseCode.NoError, new DnsQuestionRecord[] { new DnsQuestionRecord(lastDomain, request.Question[0].Type, request.Question[0].Class) });
 
-                if (lastResponse.RCODE == DnsResponseCode.Refused)
-                {
-                    //not found in auth zone; do recursion
-                    lastResponse = await RecursiveResolveAsync(newRequest, null, false, false);
-                }
-                else if ((lastResponse.Answer.Count == 0) && (lastResponse.Authority.Count > 0))
-                {
-                    //found delegated/forwarded zone
-                    switch (lastResponse.Authority[0].Type)
+                    //query authoritative zone first
+                    lastResponse = _authZoneManager.Query(newRequest, isRecursionAllowed);
+
+                    if (lastResponse.RCODE == DnsResponseCode.Refused)
                     {
-                        case DnsResourceRecordType.NS:
-                            //do recursive resolution; name servers will be provided via ResolverDnsCache
-                            lastResponse = await RecursiveResolveAsync(newRequest, null, false, false);
-                            break;
-
-                        case DnsResourceRecordType.FWD:
-                            if ((lastResponse.Authority.Count == 1) && (lastResponse.Authority[0].RDATA as DnsForwarderRecord).Forwarder.Equals("this-server", StringComparison.OrdinalIgnoreCase))
-                            {
-                                //do conditional forwarding via "this-server" 
+                        //not found in auth zone; do recursion
+                        lastResponse = await RecursiveResolveAsync(newRequest, null, false, false);
+                    }
+                    else if ((lastResponse.Answer.Count == 0) && (lastResponse.Authority.Count > 0))
+                    {
+                        //found delegated/forwarded zone
+                        switch (lastResponse.Authority[0].Type)
+                        {
+                            case DnsResourceRecordType.NS:
+                                //do recursive resolution; name servers will be provided via ResolverDnsCache
                                 lastResponse = await RecursiveResolveAsync(newRequest, null, false, false);
-                            }
-                            else
-                            {
-                                //do conditional forwarding
-                                List<NameServerAddress> forwarders = new List<NameServerAddress>(lastResponse.Authority.Count);
+                                break;
 
-                                foreach (DnsResourceRecord rr in lastResponse.Authority)
+                            case DnsResourceRecordType.FWD:
+                                if ((lastResponse.Authority.Count == 1) && (lastResponse.Authority[0].RDATA as DnsForwarderRecord).Forwarder.Equals("this-server", StringComparison.OrdinalIgnoreCase))
                                 {
-                                    if (rr.Type == DnsResourceRecordType.FWD)
-                                    {
-                                        DnsForwarderRecord fwd = rr.RDATA as DnsForwarderRecord;
+                                    //do conditional forwarding via "this-server" 
+                                    lastResponse = await RecursiveResolveAsync(newRequest, null, false, false);
+                                }
+                                else
+                                {
+                                    //do conditional forwarding
+                                    List<NameServerAddress> forwarders = new List<NameServerAddress>(lastResponse.Authority.Count);
 
-                                        if (!fwd.Forwarder.Equals("this-server", StringComparison.OrdinalIgnoreCase))
-                                            forwarders.Add(fwd.NameServer);
+                                    foreach (DnsResourceRecord rr in lastResponse.Authority)
+                                    {
+                                        if (rr.Type == DnsResourceRecordType.FWD)
+                                        {
+                                            DnsForwarderRecord fwd = rr.RDATA as DnsForwarderRecord;
+
+                                            if (!fwd.Forwarder.Equals("this-server", StringComparison.OrdinalIgnoreCase))
+                                                forwarders.Add(fwd.NameServer);
+                                        }
                                     }
+
+                                    lastResponse = await RecursiveResolveAsync(newRequest, forwarders, false, false);
                                 }
 
-                                lastResponse = await RecursiveResolveAsync(newRequest, forwarders, false, false);
-                            }
+                                break;
 
-                            break;
-
-                        case DnsResourceRecordType.APP:
-                            lastResponse = await ProcessAPPAsync(newRequest, remoteEP, lastResponse, isRecursionAllowed, protocol);
-                            break;
+                            case DnsResourceRecordType.APP:
+                                lastResponse = await ProcessAPPAsync(newRequest, remoteEP, lastResponse, isRecursionAllowed, protocol);
+                                break;
+                        }
                     }
-                }
 
-                //check last response
-                if (lastResponse.Answer.Count == 0)
-                    break; //cannot proceed to resolve further
+                    //check last response
+                    if (lastResponse.Answer.Count == 0)
+                        break; //cannot proceed to resolve further
 
-                DnsResourceRecord firstRR = lastResponse.Answer[0];
-                if (firstRR.Type == request.Question[0].Type)
-                {
-                    foreach (DnsResourceRecord answer in lastResponse.Answer)
+                    DnsResourceRecord lastRR = lastResponse.Answer[lastResponse.Answer.Count - 1];
+                    if (lastRR.Type == request.Question[0].Type)
                     {
-                        if (anameRR.TtlValue < answer.TtlValue)
-                            responseAnswer.Add(new DnsResourceRecord(anameRR.Name, answer.Type, answer.Class, anameRR.TtlValue, answer.RDATA));
-                        else
-                            responseAnswer.Add(new DnsResourceRecord(anameRR.Name, answer.Type, answer.Class, answer.TtlValue, answer.RDATA));
+                        foreach (DnsResourceRecord answer in lastResponse.Answer)
+                        {
+                            if (answer.Type != request.Question[0].Type)
+                                continue;
+
+                            if (anameRR.TtlValue < answer.TtlValue)
+                                answers.Add(new DnsResourceRecord(anameRR.Name, answer.Type, answer.Class, anameRR.TtlValue, answer.RDATA));
+                            else
+                                answers.Add(new DnsResourceRecord(anameRR.Name, answer.Type, answer.Class, answer.TtlValue, answer.RDATA));
+                        }
+
+                        break; //found final answer
                     }
 
-                    break; //found final answer
+                    if (lastRR.Type == DnsResourceRecordType.ANAME)
+                        lastDomain = (lastRR.RDATA as DnsANAMERecord).Domain;
+                    else if (lastRR.Type == DnsResourceRecordType.CNAME)
+                        lastDomain = (lastRR.RDATA as DnsCNAMERecord).Domain;
+                    else
+                        break; //aname/cname was resolved
                 }
+                while (++queryCount < MAX_CNAME_HOPS);
 
-                DnsResourceRecord lastRR = lastResponse.Answer[lastResponse.Answer.Count - 1];
-
-                if (lastRR.Type == DnsResourceRecordType.ANAME)
-                    lastDomain = (lastRR.RDATA as DnsANAMERecord).Domain;
-                else if (lastRR.Type == DnsResourceRecordType.CNAME)
-                    lastDomain = (lastRR.RDATA as DnsCNAMERecord).Domain;
-                else
-                    break; //aname/cname was resolved
+                return answers;
             }
-            while (++queryCount < MAX_CNAME_HOPS);
 
-            DnsResponseCode rcode = lastResponse.RCODE;
-            if (rcode == DnsResponseCode.NameError)
-                rcode = DnsResponseCode.NoError;
+            List<DnsResourceRecord> responseAnswer = new List<DnsResourceRecord>();
+            List<Task<List<DnsResourceRecord>>> tasks = new List<Task<List<DnsResourceRecord>>>();
 
-            return new DnsDatagram(request.Identifier, true, DnsOpcode.StandardQuery, true, false, request.RecursionDesired, isRecursionAllowed, false, false, rcode, request.Question, responseAnswer, response.Authority, response.Additional) { Tag = response.Tag };
+            foreach (DnsResourceRecord answer in response.Answer)
+            {
+                if (answer.Type == DnsResourceRecordType.ANAME)
+                {
+                    tasks.Add(ResolveANAMEAsync(answer));
+                }
+                else
+                {
+                    if (tasks.Count == 0)
+                        responseAnswer.Add(answer);
+                }
+            }
+
+            foreach (Task<List<DnsResourceRecord>> task in tasks)
+                responseAnswer.AddRange(await task);
+
+            return new DnsDatagram(request.Identifier, true, DnsOpcode.StandardQuery, true, false, request.RecursionDesired, isRecursionAllowed, false, false, DnsResponseCode.NoError, request.Question, responseAnswer, response.Authority, response.Additional) { Tag = response.Tag };
         }
 
         private DnsDatagram ProcessBlockedQuery(DnsDatagram request)
