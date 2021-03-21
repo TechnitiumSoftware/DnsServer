@@ -3657,7 +3657,7 @@ namespace DnsServerCore
                     break;
 
                 case DnsResourceRecordType.ANAME:
-                    _dnsServer.AuthZoneManager.SetRecords(domain, type, ttl, new DnsResourceRecordData[] { new DnsANAMERecord(value) });
+                    _dnsServer.AuthZoneManager.AddRecord(domain, type, ttl, new DnsANAMERecord(value));
                     break;
 
                 case DnsResourceRecordType.FWD:
@@ -4197,9 +4197,12 @@ namespace DnsServerCore
                     _dnsServer.AuthZoneManager.DeleteRecord(domain, type, new DnsNSRecord(value));
                     break;
 
+                case DnsResourceRecordType.ANAME:
+                    _dnsServer.AuthZoneManager.DeleteRecord(domain, type, new DnsANAMERecord(value));
+                    break;
+
                 case DnsResourceRecordType.CNAME:
                 case DnsResourceRecordType.PTR:
-                case DnsResourceRecordType.ANAME:
                 case DnsResourceRecordType.APP:
                     _dnsServer.AuthZoneManager.DeleteRecords(domain, type);
                     break;
