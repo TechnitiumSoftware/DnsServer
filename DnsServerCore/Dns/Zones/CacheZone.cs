@@ -194,10 +194,9 @@ namespace DnsServerCore.Dns.Zones
 
                 return anyRecords;
             }
-            else if (_entries.TryGetValue(type, out IReadOnlyList<DnsResourceRecord> existingRecords))
-            {
+
+            if (_entries.TryGetValue(type, out IReadOnlyList<DnsResourceRecord> existingRecords))
                 return FilterExpiredRecords(type, existingRecords, serveStale, filterSpecialCacheRecords);
-            }
 
             return Array.Empty<DnsResourceRecord>();
         }
