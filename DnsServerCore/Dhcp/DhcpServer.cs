@@ -28,7 +28,6 @@ using System.Net;
 using System.Net.Sockets;
 using System.Threading;
 using System.Threading.Tasks;
-using TechnitiumLibrary.Net;
 using TechnitiumLibrary.Net.Dns;
 using TechnitiumLibrary.Net.Dns.ResourceRecords;
 
@@ -156,13 +155,15 @@ namespace DnsServerCore.Dhcp
             {
                 bool processOnlyUnicastMessages = !(udpListener.LocalEndPoint as IPEndPoint).Address.Equals(IPAddress.Any); //only 0.0.0.0 ip should process broadcast to avoid duplicate offers on Windows
 
-                UdpReceiveMessageFromResult result;
+                EndPoint epAny = new IPEndPoint(IPAddress.Any, 0);
+
+                SocketReceiveMessageFromResult result;
 
                 while (true)
                 {
                     try
                     {
-                        result = await udpListener.ReceiveMessageFromAsync(recvBuffer, 0, recvBuffer.Length);
+                        result = await udpListener.ReceiveMessageFromAsync(recvBuffer, SocketFlags.None, epAny);
                     }
                     catch (SocketException ex)
                     {
@@ -172,7 +173,7 @@ namespace DnsServerCore.Dhcp
                             case SocketError.HostUnreachable:
                             case SocketError.MessageSize:
                             case SocketError.NetworkReset:
-                                result = null;
+                                result = default;
                                 break;
 
                             default:
@@ -180,16 +181,16 @@ namespace DnsServerCore.Dhcp
                         }
                     }
 
-                    if ((result != null) && (result.BytesReceived > 0))
+                    if (result.ReceivedBytes > 0)
                     {
-                        if (processOnlyUnicastMessages && result.IPPacketInformation.Address.Equals(IPAddress.Broadcast))
+                        if (processOnlyUnicastMessages && result.PacketInformation.Address.Equals(IPAddress.Broadcast))
                             continue;
 
                         try
                         {
-                            DhcpMessage request = new DhcpMessage(new MemoryStream(recvBuffer, 0, result.BytesReceived, false));
+                            DhcpMessage request = new DhcpMessage(new MemoryStream(recvBuffer, 0, result.ReceivedBytes, false));
 
-                            _ = ProcessDhcpRequestAsync(request, result.RemoteEndPoint as IPEndPoint, result.IPPacketInformation, udpListener);
+                            _ = ProcessDhcpRequestAsync(request, result.RemoteEndPoint as IPEndPoint, result.PacketInformation, udpListener);
                         }
                         catch (Exception ex)
                         {
@@ -250,12 +251,12 @@ namespace DnsServerCore.Dhcp
                     if (!request.RelayAgentIpAddress.Equals(IPAddress.Any))
                     {
                         //received request via relay agent so send unicast response to relay agent on port 67
-                        await udpListener.SendToAsync(sendBuffer, 0, (int)sendBufferStream.Position, new IPEndPoint(request.RelayAgentIpAddress, 67));
+                        await udpListener.SendToAsync(new ArraySegment<byte>(sendBuffer, 0, (int)sendBufferStream.Position), SocketFlags.None, new IPEndPoint(request.RelayAgentIpAddress, 67));
                     }
                     else if (!request.ClientIpAddress.Equals(IPAddress.Any))
                     {
                         //client is already configured and renewing lease so send unicast response on port 68
-                        await udpListener.SendToAsync(sendBuffer, 0, (int)sendBufferStream.Position, new IPEndPoint(request.ClientIpAddress, 68));
+                        await udpListener.SendToAsync(new ArraySegment<byte>(sendBuffer, 0, (int)sendBufferStream.Position), SocketFlags.None, new IPEndPoint(request.ClientIpAddress, 68));
                     }
                     else
                     {
@@ -267,7 +268,7 @@ namespace DnsServerCore.Dhcp
                         else
                             udpSocket = udpListener; //no appropriate socket found so use default socket
 
-                        await udpSocket.SendToAsync(sendBuffer, 0, (int)sendBufferStream.Position, new IPEndPoint(IPAddress.Broadcast, 68), SocketFlags.DontRoute); //no routing for broadcast
+                        await udpSocket.SendToAsync(new ArraySegment<byte>(sendBuffer, 0, (int)sendBufferStream.Position), SocketFlags.DontRoute, new IPEndPoint(IPAddress.Broadcast, 68)); //no routing for broadcast
                     }
                 }
             }
