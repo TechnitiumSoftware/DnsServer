@@ -100,6 +100,15 @@ namespace DnsServerCore.Dns.Applications
             }
         }
 
+        public void UnloadApplication(string appName)
+        {
+            if (!_applications.TryRemove(appName, out DnsApplication existingApp))
+                throw new DnsServerException("DNS application does not exists: " + appName);
+
+            existingApp.Dispose();
+        }
+
+
         #endregion
 
         #region public
@@ -107,7 +116,18 @@ namespace DnsServerCore.Dns.Applications
         public void UnloadAllApplications()
         {
             foreach (DnsApplication _application in _applications.Values)
-                _application.Dispose();
+            {
+                try
+                {
+                    _application.Dispose();
+                }
+                catch (Exception ex)
+                {
+                    LogManager log = _dnsServer.LogManager;
+                    if (log != null)
+                        log.Write(ex);
+                }
+            }
 
             _applications.Clear();
         }
@@ -163,6 +183,23 @@ namespace DnsServerCore.Dns.Applications
 
                     throw;
                 }
+            }
+        }
+
+        public async Task UpdateApplicationAsync(string appName, Stream appStream)
+        {
+            if (!_applications.ContainsKey(appName))
+                throw new DnsServerException("DNS application does not exists: " + appName);
+
+            using (ZipArchive appZip = new ZipArchive(appStream, ZipArchiveMode.Read, false, Encoding.UTF8))
+            {
+                UnloadApplication(appName);
+
+                string applicationFolder = Path.Combine(_appsPath, appName);
+
+                appZip.ExtractToDirectory(applicationFolder, true);
+
+                await LoadApplicationAsync(applicationFolder);
             }
         }
 
