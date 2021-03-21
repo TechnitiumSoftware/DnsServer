@@ -190,11 +190,7 @@ namespace DnsServerCore.Dns.Zones
                 List<DnsResourceRecord> anyRecords = new List<DnsResourceRecord>();
 
                 foreach (IReadOnlyList<DnsResourceRecord> entryRecords in _entries.Values)
-                {
-                    IReadOnlyList<DnsResourceRecord> filteredRecords = FilterExpiredRecords(type, entryRecords, serveStale, filterSpecialCacheRecords);
-                    if (filteredRecords.Count > 0)
-                        anyRecords.AddRange(filteredRecords);
-                }
+                    anyRecords.AddRange(FilterExpiredRecords(type, entryRecords, serveStale, true));
 
                 return anyRecords;
             }
