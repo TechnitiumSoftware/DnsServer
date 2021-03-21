@@ -62,6 +62,9 @@ namespace DefaultDnsApplication
                     else
                         jsonAddresses = jsonAppRecordData.@public;
 
+                    if (jsonAddresses == null)
+                        return Task.FromResult<DnsDatagram>(null);
+
                     List<DnsResourceRecord> answers = new List<DnsResourceRecord>();
 
                     foreach (dynamic jsonAddress in jsonAddresses)
