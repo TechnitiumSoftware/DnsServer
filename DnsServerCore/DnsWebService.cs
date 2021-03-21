@@ -493,6 +493,10 @@ namespace DnsServerCore
                                                 await InstallAppAsync(request);
                                                 break;
 
+                                            case "/api/apps/update":
+                                                await UpdateAppAsync(request);
+                                                break;
+
                                             case "/api/apps/uninstall":
                                                 UninstallApp(request);
                                                 break;
@@ -3761,8 +3765,16 @@ namespace DnsServerCore
                         {
                             case DnsResourceRecordType.A:
                                 {
-                                    DnsARecord rdata = (record.RDATA as DnsARecord);
-                                    if (rdata != null)
+                                    DnsARecord rdata = record.RDATA as DnsARecord;
+                                    if (rdata == null)
+                                    {
+                                        jsonWriter.WritePropertyName("dataType");
+                                        jsonWriter.WriteValue(record.RDATA.GetType().Name);
+
+                                        jsonWriter.WritePropertyName("data");
+                                        jsonWriter.WriteValue(record.RDATA.ToString());
+                                    }
+                                    else
                                     {
                                         jsonWriter.WritePropertyName("value");
                                         jsonWriter.WriteValue(rdata.IPAddress);
@@ -3772,8 +3784,16 @@ namespace DnsServerCore
 
                             case DnsResourceRecordType.AAAA:
                                 {
-                                    DnsAAAARecord rdata = (record.RDATA as DnsAAAARecord);
-                                    if (rdata != null)
+                                    DnsAAAARecord rdata = record.RDATA as DnsAAAARecord;
+                                    if (rdata == null)
+                                    {
+                                        jsonWriter.WritePropertyName("dataType");
+                                        jsonWriter.WriteValue(record.RDATA.GetType().Name);
+
+                                        jsonWriter.WritePropertyName("data");
+                                        jsonWriter.WriteValue(record.RDATA.ToString());
+                                    }
+                                    else
                                     {
                                         jsonWriter.WritePropertyName("value");
                                         jsonWriter.WriteValue(rdata.IPAddress);
@@ -3784,7 +3804,15 @@ namespace DnsServerCore
                             case DnsResourceRecordType.SOA:
                                 {
                                     DnsSOARecord rdata = record.RDATA as DnsSOARecord;
-                                    if (rdata != null)
+                                    if (rdata == null)
+                                    {
+                                        jsonWriter.WritePropertyName("dataType");
+                                        jsonWriter.WriteValue(record.RDATA.GetType().Name);
+
+                                        jsonWriter.WritePropertyName("data");
+                                        jsonWriter.WriteValue(record.RDATA.ToString());
+                                    }
+                                    else
                                     {
                                         jsonWriter.WritePropertyName("primaryNameServer");
                                         jsonWriter.WriteValue(rdata.PrimaryNameServer);
@@ -3830,7 +3858,15 @@ namespace DnsServerCore
                             case DnsResourceRecordType.PTR:
                                 {
                                     DnsPTRRecord rdata = record.RDATA as DnsPTRRecord;
-                                    if (rdata != null)
+                                    if (rdata == null)
+                                    {
+                                        jsonWriter.WritePropertyName("dataType");
+                                        jsonWriter.WriteValue(record.RDATA.GetType().Name);
+
+                                        jsonWriter.WritePropertyName("data");
+                                        jsonWriter.WriteValue(record.RDATA.ToString());
+                                    }
+                                    else
                                     {
                                         jsonWriter.WritePropertyName("value");
                                         jsonWriter.WriteValue(rdata.Domain);
@@ -3841,7 +3877,15 @@ namespace DnsServerCore
                             case DnsResourceRecordType.MX:
                                 {
                                     DnsMXRecord rdata = record.RDATA as DnsMXRecord;
-                                    if (rdata != null)
+                                    if (rdata == null)
+                                    {
+                                        jsonWriter.WritePropertyName("dataType");
+                                        jsonWriter.WriteValue(record.RDATA.GetType().Name);
+
+                                        jsonWriter.WritePropertyName("data");
+                                        jsonWriter.WriteValue(record.RDATA.ToString());
+                                    }
+                                    else
                                     {
                                         jsonWriter.WritePropertyName("preference");
                                         jsonWriter.WriteValue(rdata.Preference);
@@ -3855,7 +3899,15 @@ namespace DnsServerCore
                             case DnsResourceRecordType.TXT:
                                 {
                                     DnsTXTRecord rdata = record.RDATA as DnsTXTRecord;
-                                    if (rdata != null)
+                                    if (rdata == null)
+                                    {
+                                        jsonWriter.WritePropertyName("dataType");
+                                        jsonWriter.WriteValue(record.RDATA.GetType().Name);
+
+                                        jsonWriter.WritePropertyName("data");
+                                        jsonWriter.WriteValue(record.RDATA.ToString());
+                                    }
+                                    else
                                     {
                                         jsonWriter.WritePropertyName("value");
                                         jsonWriter.WriteValue(rdata.Text);
@@ -3866,7 +3918,15 @@ namespace DnsServerCore
                             case DnsResourceRecordType.NS:
                                 {
                                     DnsNSRecord rdata = record.RDATA as DnsNSRecord;
-                                    if (rdata != null)
+                                    if (rdata == null)
+                                    {
+                                        jsonWriter.WritePropertyName("dataType");
+                                        jsonWriter.WriteValue(record.RDATA.GetType().Name);
+
+                                        jsonWriter.WritePropertyName("data");
+                                        jsonWriter.WriteValue(record.RDATA.ToString());
+                                    }
+                                    else
                                     {
                                         jsonWriter.WritePropertyName("value");
                                         jsonWriter.WriteValue(rdata.NameServer);
@@ -3894,7 +3954,15 @@ namespace DnsServerCore
                             case DnsResourceRecordType.CNAME:
                                 {
                                     DnsCNAMERecord rdata = record.RDATA as DnsCNAMERecord;
-                                    if (rdata != null)
+                                    if (rdata == null)
+                                    {
+                                        jsonWriter.WritePropertyName("dataType");
+                                        jsonWriter.WriteValue(record.RDATA.GetType().Name);
+
+                                        jsonWriter.WritePropertyName("data");
+                                        jsonWriter.WriteValue(record.RDATA.ToString());
+                                    }
+                                    else
                                     {
                                         jsonWriter.WritePropertyName("value");
                                         jsonWriter.WriteValue(rdata.Domain);
@@ -3905,7 +3973,15 @@ namespace DnsServerCore
                             case DnsResourceRecordType.SRV:
                                 {
                                     DnsSRVRecord rdata = record.RDATA as DnsSRVRecord;
-                                    if (rdata != null)
+                                    if (rdata == null)
+                                    {
+                                        jsonWriter.WritePropertyName("dataType");
+                                        jsonWriter.WriteValue(record.RDATA.GetType().Name);
+
+                                        jsonWriter.WritePropertyName("data");
+                                        jsonWriter.WriteValue(record.RDATA.ToString());
+                                    }
+                                    else
                                     {
                                         jsonWriter.WritePropertyName("priority");
                                         jsonWriter.WriteValue(rdata.Priority);
@@ -3925,7 +4001,15 @@ namespace DnsServerCore
                             case DnsResourceRecordType.CAA:
                                 {
                                     DnsCAARecord rdata = record.RDATA as DnsCAARecord;
-                                    if (rdata != null)
+                                    if (rdata == null)
+                                    {
+                                        jsonWriter.WritePropertyName("dataType");
+                                        jsonWriter.WriteValue(record.RDATA.GetType().Name);
+
+                                        jsonWriter.WritePropertyName("data");
+                                        jsonWriter.WriteValue(record.RDATA.ToString());
+                                    }
+                                    else
                                     {
                                         jsonWriter.WritePropertyName("flags");
                                         jsonWriter.WriteValue(rdata.Flags);
@@ -3942,7 +4026,15 @@ namespace DnsServerCore
                             case DnsResourceRecordType.ANAME:
                                 {
                                     DnsANAMERecord rdata = record.RDATA as DnsANAMERecord;
-                                    if (rdata != null)
+                                    if (rdata == null)
+                                    {
+                                        jsonWriter.WritePropertyName("dataType");
+                                        jsonWriter.WriteValue(record.RDATA.GetType().Name);
+
+                                        jsonWriter.WritePropertyName("data");
+                                        jsonWriter.WriteValue(record.RDATA.ToString());
+                                    }
+                                    else
                                     {
                                         jsonWriter.WritePropertyName("value");
                                         jsonWriter.WriteValue(rdata.Domain);
@@ -4569,6 +4661,65 @@ namespace DnsServerCore
                     await _dnsServer.DnsApplicationManager.InstallApplicationAsync(name, fS);
 
                     _log.Write(GetRequestRemoteEndPoint(request), "[" + GetSession(request).Username + "] DNS application was installed successfully: " + name);
+                }
+            }
+            finally
+            {
+                try
+                {
+                    File.Delete(tmpFile);
+                }
+                catch (Exception ex)
+                {
+                    _log.Write(ex);
+                }
+            }
+        }
+
+        private async Task UpdateAppAsync(HttpListenerRequest request)
+        {
+            string name = request.QueryString["name"];
+            if (string.IsNullOrEmpty(name))
+                throw new DnsWebServiceException("Parameter 'name' missing.");
+
+            #region skip to content
+
+            int crlfCount = 0;
+            int byteRead;
+
+            while (crlfCount != 4)
+            {
+                byteRead = request.InputStream.ReadByte();
+                switch (byteRead)
+                {
+                    case -1:
+                        throw new EndOfStreamException();
+
+                    case 13: //CR
+                    case 10: //LF
+                        crlfCount++;
+                        break;
+
+                    default:
+                        crlfCount = 0;
+                        break;
+                }
+            }
+
+            #endregion
+
+            //write to temp file
+            string tmpFile = Path.GetTempFileName();
+            try
+            {
+                using (FileStream fS = new FileStream(tmpFile, FileMode.Create, FileAccess.ReadWrite))
+                {
+                    await request.InputStream.CopyToAsync(fS);
+
+                    fS.Position = 0;
+                    await _dnsServer.DnsApplicationManager.UpdateApplicationAsync(name, fS);
+
+                    _log.Write(GetRequestRemoteEndPoint(request), "[" + GetSession(request).Username + "] DNS application was updated successfully: " + name);
                 }
             }
             finally
