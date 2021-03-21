@@ -546,7 +546,7 @@
                                                 <tr>
                                                     <th style="min-width: 100px;" onclick="sortTable('tableAppsBody', 0);">App</th>
                                                     <th>Details</th>
-                                                    <th></th>
+                                                    <th style="width: 96px;"></th>
                                                 </tr>
                                             </thead>
                                             <tbody id="tableAppsBody">
@@ -2202,6 +2202,41 @@
                     </div>
                     <div class="modal-footer">
                         <button id="btnInstallApp" type="submit" class="btn btn-primary" data-loading-text="Installing..." onclick="installApp(); return false;">Install</button>
+                        <button type="button" class="btn btn-default" data-dismiss="modal">Close</button>
+                    </div>
+                </div>
+            </div>
+        </form>
+    </div>
+
+    <div id="modalUpdateApp" class="modal fade" tabindex="-1" role="dialog">
+        <form class="form-horizontal">
+            <div class="modal-dialog" role="document">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <button type="button" class="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button>
+                        <h4 class="modal-title">Update App</h4>
+                    </div>
+                    <div class="modal-body">
+                        <div id="divUpdateAppAlert"></div>
+
+                        <div class="form-group">
+                            <label for="txtUpdateApp" class="col-sm-4 control-label">App Name</label>
+                            <div class="col-sm-7">
+                                <input id="txtUpdateApp" type="text" class="form-control" disabled>
+                            </div>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="fileUpdateAppZip" class="col-sm-4 control-label">App Zip File</label>
+                            <div class="col-sm-7">
+                                <input type="file" class="form-control" id="fileUpdateAppZip">
+                            </div>
+                        </div>
+
+                    </div>
+                    <div class="modal-footer">
+                        <button id="btnUpdateApp" type="submit" class="btn btn-primary" data-loading-text="Updating..." onclick="updateApp(); return false;">Update</button>
                         <button type="button" class="btn btn-default" data-dismiss="modal">Close</button>
                     </div>
                 </div>
