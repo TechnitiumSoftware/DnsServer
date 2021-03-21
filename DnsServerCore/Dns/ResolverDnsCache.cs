@@ -45,7 +45,7 @@ namespace DnsServerCore.Dns
 
         public virtual DnsDatagram Query(DnsDatagram request, bool serveStale = false)
         {
-            DnsDatagram authResponse = _authZoneManager.Query(request);
+            DnsDatagram authResponse = _authZoneManager.Query(request, true);
             if (authResponse.Answer.Count > 0)
                 return authResponse;
 
