@@ -33,9 +33,20 @@ namespace DnsServerSystemTrayApp
 
         const string MUTEX_NAME = "TechnitiumDnsServerSystemTrayApp";
 
-        static string _appPath = Assembly.GetEntryAssembly().Location;
-        static readonly bool _isAdmin = (new WindowsPrincipal(WindowsIdentity.GetCurrent())).IsInRole(WindowsBuiltInRole.Administrator);
+        public static readonly string APP_PATH = Assembly.GetEntryAssembly().Location;
+
+        static readonly bool _isAdmin = new WindowsPrincipal(WindowsIdentity.GetCurrent()).IsInRole(WindowsBuiltInRole.Administrator);
         static Mutex _app;
+
+        #endregion
+
+        #region constructor
+
+        static Program()
+        {
+            if (APP_PATH.EndsWith(".dll", StringComparison.OrdinalIgnoreCase))
+                APP_PATH = APP_PATH.Substring(0, APP_PATH.Length - 4) + ".exe";
+        }
 
         #endregion
 
@@ -44,9 +55,6 @@ namespace DnsServerSystemTrayApp
         [STAThread]
         public static void Main(string[] args)
         {
-            if (_appPath.EndsWith(".dll", StringComparison.OrdinalIgnoreCase))
-                _appPath = _appPath.Substring(0, _appPath.Length - 4) + ".exe";
-
             Application.EnableVisualStyles();
             Application.SetCompatibleTextRenderingDefault(false);
 
@@ -62,7 +70,7 @@ namespace DnsServerSystemTrayApp
 
             #endregion
 
-            string configFile = Path.Combine(Path.GetDirectoryName(_appPath), "SystemTrayApp.config");
+            string configFile = Path.Combine(Path.GetDirectoryName(APP_PATH), "SystemTrayApp.config");
 
             Application.Run(new MainApplicationContext(configFile, args));
         }
@@ -72,7 +80,7 @@ namespace DnsServerSystemTrayApp
             if (_isAdmin)
                 throw new Exception("App is already running as admin.");
 
-            ProcessStartInfo processInfo = new ProcessStartInfo(_appPath, args);
+            ProcessStartInfo processInfo = new ProcessStartInfo(APP_PATH, args);
 
             processInfo.UseShellExecute = true;
             processInfo.Verb = "runas";

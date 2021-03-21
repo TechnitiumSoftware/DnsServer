@@ -27,7 +27,6 @@ using System.Management;
 using System.Net;
 using System.Net.NetworkInformation;
 using System.Net.Sockets;
-using System.Reflection;
 using System.ServiceProcess;
 using System.Text;
 using System.Windows.Forms;
@@ -506,7 +505,7 @@ namespace DnsServerSystemTrayApp
                         {
                             string autoStartPath = key.GetValue("Technitium DNS System Tray") as string;
 
-                            AutoStartMenuItem.Checked = (autoStartPath != null) && autoStartPath.Equals("\"" + Assembly.GetEntryAssembly().Location + "\"");
+                            AutoStartMenuItem.Checked = (autoStartPath != null) && autoStartPath.Equals("\"" + Program.APP_PATH + "\"");
                         }
                     }
                 }
@@ -527,7 +526,7 @@ namespace DnsServerSystemTrayApp
             {
                 //try finding port number from dns config file
 
-                string dnsConfigFile = Path.Combine(Path.GetDirectoryName(Assembly.GetEntryAssembly().Location), "config", "dns.config");
+                string dnsConfigFile = Path.Combine(Path.GetDirectoryName(Program.APP_PATH), "config", "dns.config");
 
                 using (FileStream fS = new FileStream(dnsConfigFile, FileMode.Open, FileAccess.Read))
                 {
@@ -766,7 +765,7 @@ namespace DnsServerSystemTrayApp
                     using (RegistryKey key = Registry.CurrentUser.OpenSubKey(@"Software\Microsoft\Windows\CurrentVersion\Run", true))
                     {
                         if (key != null)
-                            key.SetValue("Technitium DNS System Tray", "\"" + Assembly.GetEntryAssembly().Location + "\"", RegistryValueKind.String);
+                            key.SetValue("Technitium DNS System Tray", "\"" + Program.APP_PATH + "\"", RegistryValueKind.String);
                     }
                 }
                 catch (Exception ex)
