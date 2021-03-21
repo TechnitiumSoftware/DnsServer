@@ -249,12 +249,6 @@ namespace DnsServerCore.Dns.ZoneManagers
                     return new DnsDatagram(request.Identifier, true, DnsOpcode.StandardQuery, false, false, request.RecursionDesired, true, false, false, DnsResponseCode.NameError, request.Question, null, authority);
                 }
 
-                if (answers[0].RDATA is DnsANYRecord)
-                {
-                    DnsANYRecord anyRR = answers[0].RDATA as DnsANYRecord;
-                    return new DnsDatagram(request.Identifier, true, DnsOpcode.StandardQuery, false, false, request.RecursionDesired, true, false, false, DnsResponseCode.NoError, request.Question, anyRR.Records);
-                }
-
                 if (answers[0].RDATA is DnsFailureRecord)
                     return new DnsDatagram(request.Identifier, true, DnsOpcode.StandardQuery, false, false, request.RecursionDesired, true, false, false, (answers[0].RDATA as DnsFailureRecord).RCODE, request.Question);
 
