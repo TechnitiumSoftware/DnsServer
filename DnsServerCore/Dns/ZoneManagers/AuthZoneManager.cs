@@ -286,7 +286,7 @@ namespace DnsServerCore.Dns.ZoneManagers
             }
         }
 
-        private DnsDatagram GetReferralResponse(DnsDatagram request, AuthZone delegationZone)
+        private DnsDatagram GetReferralResponse(DnsDatagram request, AuthZone delegationZone, bool isRecursionAllowed)
         {
             IReadOnlyList<DnsResourceRecord> authority;
 
@@ -297,10 +297,10 @@ namespace DnsServerCore.Dns.ZoneManagers
 
             IReadOnlyList<DnsResourceRecord> additional = GetAdditionalRecords(authority);
 
-            return new DnsDatagram(request.Identifier, true, DnsOpcode.StandardQuery, false, false, request.RecursionDesired, false, false, false, DnsResponseCode.NoError, request.Question, null, authority, additional);
+            return new DnsDatagram(request.Identifier, true, DnsOpcode.StandardQuery, false, false, request.RecursionDesired, isRecursionAllowed, false, false, DnsResponseCode.NoError, request.Question, null, authority, additional);
         }
 
-        private static DnsDatagram GetForwarderResponse(DnsDatagram request, AuthZone zone, AuthZone forwarderZone)
+        private static DnsDatagram GetForwarderResponse(DnsDatagram request, AuthZone zone, AuthZone forwarderZone, bool isRecursionAllowed)
         {
             IReadOnlyList<DnsResourceRecord> authority = null;
 
@@ -310,7 +310,7 @@ namespace DnsServerCore.Dns.ZoneManagers
             if ((authority == null) || (authority.Count == 0))
                 authority = forwarderZone.QueryRecords(DnsResourceRecordType.FWD);
 
-            return new DnsDatagram(request.Identifier, true, DnsOpcode.StandardQuery, false, false, request.RecursionDesired, false, false, false, DnsResponseCode.NoError, request.Question, null, authority);
+            return new DnsDatagram(request.Identifier, true, DnsOpcode.StandardQuery, false, false, request.RecursionDesired, isRecursionAllowed, false, false, DnsResponseCode.NoError, request.Question, null, authority);
         }
 
         internal void Flush()
@@ -881,23 +881,23 @@ namespace DnsServerCore.Dns.ZoneManagers
             return _root.ListSubDomains(domain);
         }
 
-        public DnsDatagram Query(DnsDatagram request)
+        public DnsDatagram Query(DnsDatagram request, bool isRecursionAllowed)
         {
             AuthZone zone = _root.FindZone(request.Question[0].Name, out AuthZone delegation, out AuthZone authZone, out bool hasSubDomains);
 
             if ((authZone == null) || !authZone.IsActive) //no authority for requested zone
-                return new DnsDatagram(request.Identifier, true, DnsOpcode.StandardQuery, false, false, request.RecursionDesired, false, false, false, DnsResponseCode.Refused, request.Question);
+                return new DnsDatagram(request.Identifier, true, DnsOpcode.StandardQuery, false, false, request.RecursionDesired, isRecursionAllowed, false, false, DnsResponseCode.Refused, request.Question);
 
             if ((delegation != null) && delegation.IsActive)
-                return GetReferralResponse(request, delegation);
+                return GetReferralResponse(request, delegation, isRecursionAllowed);
 
             if ((zone == null) || !zone.IsActive)
             {
                 //zone not found                
                 if (authZone is StubZone)
-                    return GetReferralResponse(request, authZone);
+                    return GetReferralResponse(request, authZone, isRecursionAllowed);
                 else if (authZone is ForwarderZone)
-                    return GetForwarderResponse(request, null, authZone);
+                    return GetForwarderResponse(request, null, authZone, isRecursionAllowed);
 
                 DnsResponseCode rCode = DnsResponseCode.NoError;
                 IReadOnlyList<DnsResourceRecord> authority = authZone.QueryRecords(DnsResourceRecordType.APP);
@@ -909,7 +909,7 @@ namespace DnsServerCore.Dns.ZoneManagers
                     authority = authZone.GetRecords(DnsResourceRecordType.SOA);
                 }
 
-                return new DnsDatagram(request.Identifier, true, DnsOpcode.StandardQuery, true, false, request.RecursionDesired, false, false, false, rCode, request.Question, null, authority);
+                return new DnsDatagram(request.Identifier, true, DnsOpcode.StandardQuery, true, false, request.RecursionDesired, isRecursionAllowed, false, false, rCode, request.Question, null, authority);
             }
             else
             {
@@ -922,9 +922,9 @@ namespace DnsServerCore.Dns.ZoneManagers
                 {
                     //record type not found
                     if (authZone is StubZone)
-                        return GetReferralResponse(request, authZone);
+                        return GetReferralResponse(request, authZone, isRecursionAllowed);
                     else if (authZone is ForwarderZone)
-                        return GetForwarderResponse(request, zone, authZone);
+                        return GetForwarderResponse(request, zone, authZone, isRecursionAllowed);
 
                     authority = zone.QueryRecords(DnsResourceRecordType.APP);
                     if (authority.Count == 0)
@@ -971,7 +971,7 @@ namespace DnsServerCore.Dns.ZoneManagers
                     }
                 }
 
-                return new DnsDatagram(request.Identifier, true, DnsOpcode.StandardQuery, true, false, request.RecursionDesired, false, false, false, DnsResponseCode.NoError, request.Question, answers, authority, additional);
+                return new DnsDatagram(request.Identifier, true, DnsOpcode.StandardQuery, true, false, request.RecursionDesired, isRecursionAllowed, false, false, DnsResponseCode.NoError, request.Question, answers, authority, additional);
             }
         }
 
