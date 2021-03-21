@@ -52,19 +52,17 @@ namespace DefaultDnsApplication
             switch (request.Question[0].Type)
             {
                 case DnsResourceRecordType.A:
-                    if (remoteEP.AddressFamily == AddressFamily.InterNetwork)
-                        answer = new DnsResourceRecord(request.Question[0].Name, DnsResourceRecordType.A, DnsClass.IN, appRecordTtl, new DnsARecord(remoteEP.Address));
-                    else
+                    if (remoteEP.AddressFamily != AddressFamily.InterNetwork)
                         return Task.FromResult<DnsDatagram>(null);
 
+                    answer = new DnsResourceRecord(request.Question[0].Name, DnsResourceRecordType.A, DnsClass.IN, appRecordTtl, new DnsARecord(remoteEP.Address));
                     break;
 
                 case DnsResourceRecordType.AAAA:
-                    if (remoteEP.AddressFamily == AddressFamily.InterNetworkV6)
-                        answer = new DnsResourceRecord(request.Question[0].Name, DnsResourceRecordType.AAAA, DnsClass.IN, appRecordTtl, new DnsAAAARecord(remoteEP.Address));
-                    else
+                    if (remoteEP.AddressFamily != AddressFamily.InterNetworkV6)
                         return Task.FromResult<DnsDatagram>(null);
 
+                    answer = new DnsResourceRecord(request.Question[0].Name, DnsResourceRecordType.AAAA, DnsClass.IN, appRecordTtl, new DnsAAAARecord(remoteEP.Address));
                     break;
 
                 case DnsResourceRecordType.TXT:
