@@ -51,7 +51,7 @@ namespace DnsServerCore.Dns.Zones
 
                 if (filterSpecialCacheRecords)
                 {
-                    if ((record.RDATA is DnsCache.DnsNXRecord) || (record.RDATA is DnsCache.DnsEmptyRecord) || (record.RDATA is DnsCache.DnsANYRecord) || (record.RDATA is DnsCache.DnsFailureRecord))
+                    if ((record.RDATA is DnsCache.DnsNXRecord) || (record.RDATA is DnsCache.DnsEmptyRecord) || (record.RDATA is DnsCache.DnsFailureRecord))
                         return Array.Empty<DnsResourceRecord>(); //special cache record
                 }
 
@@ -70,7 +70,7 @@ namespace DnsServerCore.Dns.Zones
 
                 if (filterSpecialCacheRecords)
                 {
-                    if ((record.RDATA is DnsCache.DnsNXRecord) || (record.RDATA is DnsCache.DnsEmptyRecord) || (record.RDATA is DnsCache.DnsANYRecord) || (record.RDATA is DnsCache.DnsFailureRecord))
+                    if ((record.RDATA is DnsCache.DnsNXRecord) || (record.RDATA is DnsCache.DnsEmptyRecord) || (record.RDATA is DnsCache.DnsFailureRecord))
                         continue; //special cache record
                 }
 
@@ -122,9 +122,9 @@ namespace DnsServerCore.Dns.Zones
                     //remove old CNAME entry since current new entry type overlaps any existing CNAME entry in cache
                     //keeping both entries will create issue with serve stale implementation since stale CNAME entry will be always returned
 
-                    if (_entries.TryGetValue(DnsResourceRecordType.CNAME, out IReadOnlyList<DnsResourceRecord> cnameRecords))
+                    if (_entries.TryGetValue(DnsResourceRecordType.CNAME, out IReadOnlyList<DnsResourceRecord> existingCNAMERecords))
                     {
-                        if ((cnameRecords.Count > 0) && (cnameRecords[0].RDATA is DnsCNAMERecord))
+                        if ((existingCNAMERecords.Count > 0) && (existingCNAMERecords[0].RDATA is DnsCNAMERecord))
                         {
                             //delete CNAME entry only when it contains DnsCNAMERecord RDATA and not special cache records
                             _entries.TryRemove(DnsResourceRecordType.CNAME, out _);
@@ -185,8 +185,23 @@ namespace DnsServerCore.Dns.Zones
                 }
             }
 
-            if (_entries.TryGetValue(type, out IReadOnlyList<DnsResourceRecord> existingRecords))
+            if (type == DnsResourceRecordType.ANY)
+            {
+                List<DnsResourceRecord> anyRecords = new List<DnsResourceRecord>();
+
+                foreach (IReadOnlyList<DnsResourceRecord> entryRecords in _entries.Values)
+                {
+                    IReadOnlyList<DnsResourceRecord> filteredRecords = FilterExpiredRecords(type, entryRecords, serveStale, filterSpecialCacheRecords);
+                    if (filteredRecords.Count > 0)
+                        anyRecords.AddRange(filteredRecords);
+                }
+
+                return anyRecords;
+            }
+            else if (_entries.TryGetValue(type, out IReadOnlyList<DnsResourceRecord> existingRecords))
+            {
                 return FilterExpiredRecords(type, existingRecords, serveStale, filterSpecialCacheRecords);
+            }
 
             return Array.Empty<DnsResourceRecord>();
         }
