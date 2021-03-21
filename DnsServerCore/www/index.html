@@ -2254,12 +2254,14 @@
                 <div class="modal-body">
                     <div id="divAppConfigAlert"></div>
 
-                    <p>Enter the custom config below as required by the DNS application: <span id="lblAppConfigName"></span></p>
+                    <p>Edit the <code>dnsApp.config</code> config file below as required by the DNS application: <span id="lblAppConfigName" style="font-weight: bold;"></span></p>
 
                     <div class="form-group">
-                        <label for="txtAppConfig" class="control-label">App Config</label>
+                        <label for="txtAppConfig" class="control-label">Config File</label>
                         <textarea id="txtAppConfig" class="form-control" rows="15"></textarea>
                     </div>
+
+                    <p>Note: The app will reload the config automatically after saving it.</p>
                 </div>
                 <div class="modal-footer">
                     <button id="btnAppConfig" type="submit" class="btn btn-primary" data-loading-text="Saving..." onclick="return saveAppConfig();">Save</button>
