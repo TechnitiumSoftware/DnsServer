@@ -296,7 +296,6 @@ namespace DnsServerCore.Dns.Zones
             switch (record.Type)
             {
                 case DnsResourceRecordType.CNAME:
-                case DnsResourceRecordType.ANAME:
                 case DnsResourceRecordType.PTR:
                 case DnsResourceRecordType.SOA:
                     throw new InvalidOperationException("Cannot add record: use SetRecords() for " + record.Type.ToString() + " record");
