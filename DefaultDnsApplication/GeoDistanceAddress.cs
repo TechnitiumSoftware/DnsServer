@@ -113,11 +113,11 @@ namespace DefaultDnsApplication
                         location = response.Location;
 
                     dynamic jsonAppRecordData = JsonConvert.DeserializeObject(appRecordData);
-                    dynamic jsonLastServer = null;
+                    dynamic jsonClosestServer = null;
 
                     if ((location == null) || !location.HasCoordinates)
                     {
-                        jsonLastServer = jsonAppRecordData[0];
+                        jsonClosestServer = jsonAppRecordData[0];
                     }
                     else
                     {
@@ -133,14 +133,17 @@ namespace DefaultDnsApplication
                             if (distance < lastDistance)
                             {
                                 lastDistance = distance;
-                                jsonLastServer = jsonServer;
+                                jsonClosestServer = jsonServer;
                             }
                         }
                     }
 
+                    if (jsonClosestServer == null)
+                        return Task.FromResult<DnsDatagram>(null);
+
                     List<DnsResourceRecord> answers = new List<DnsResourceRecord>();
 
-                    foreach (dynamic jsonAddress in jsonLastServer.addresses)
+                    foreach (dynamic jsonAddress in jsonClosestServer.addresses)
                     {
                         IPAddress address = IPAddress.Parse(jsonAddress.Value);
 

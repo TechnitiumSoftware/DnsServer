@@ -108,11 +108,11 @@ namespace DefaultDnsApplication
                 location = response.Location;
 
             dynamic jsonAppRecordData = JsonConvert.DeserializeObject(appRecordData);
-            dynamic jsonLastServer = null;
+            dynamic jsonClosestServer = null;
 
             if ((location == null) || !location.HasCoordinates)
             {
-                jsonLastServer = jsonAppRecordData[0];
+                jsonClosestServer = jsonAppRecordData[0];
             }
             else
             {
@@ -128,29 +128,30 @@ namespace DefaultDnsApplication
                     if (distance < lastDistance)
                     {
                         lastDistance = distance;
-                        jsonLastServer = jsonServer;
+                        jsonClosestServer = jsonServer;
                     }
                 }
             }
 
-            dynamic jsonCname = jsonLastServer.cname;
-            if (jsonCname != null)
-            {
-                string cname = jsonCname.Value;
-                if (!string.IsNullOrEmpty(cname))
-                {
-                    IReadOnlyList<DnsResourceRecord> answers;
+            if (jsonClosestServer == null)
+                return Task.FromResult<DnsDatagram>(null);
 
-                    if (request.Question[0].Name.Equals(zoneName, StringComparison.OrdinalIgnoreCase)) //check for zone apex
-                        answers = new DnsResourceRecord[] { new DnsResourceRecord(request.Question[0].Name, DnsResourceRecordType.ANAME, DnsClass.IN, appRecordTtl, new DnsANAMERecord(cname)) }; //use ANAME
-                    else
-                        answers = new DnsResourceRecord[] { new DnsResourceRecord(request.Question[0].Name, DnsResourceRecordType.CNAME, DnsClass.IN, appRecordTtl, new DnsCNAMERecord(cname)) };
+            dynamic jsonCname = jsonClosestServer.cname;
+            if (jsonCname == null)
+                return Task.FromResult<DnsDatagram>(null);
 
-                    return Task.FromResult(new DnsDatagram(request.Identifier, true, request.OPCODE, true, false, request.RecursionDesired, isRecursionAllowed, false, false, DnsResponseCode.NoError, request.Question, answers));
-                }
-            }
+            string cname = jsonCname.Value;
+            if (string.IsNullOrEmpty(cname))
+                return Task.FromResult<DnsDatagram>(null);
 
-            return Task.FromResult<DnsDatagram>(null);
+            IReadOnlyList<DnsResourceRecord> answers;
+
+            if (request.Question[0].Name.Equals(zoneName, StringComparison.OrdinalIgnoreCase)) //check for zone apex
+                answers = new DnsResourceRecord[] { new DnsResourceRecord(request.Question[0].Name, DnsResourceRecordType.ANAME, DnsClass.IN, appRecordTtl, new DnsANAMERecord(cname)) }; //use ANAME
+            else
+                answers = new DnsResourceRecord[] { new DnsResourceRecord(request.Question[0].Name, DnsResourceRecordType.CNAME, DnsClass.IN, appRecordTtl, new DnsCNAMERecord(cname)) };
+
+            return Task.FromResult(new DnsDatagram(request.Identifier, true, request.OPCODE, true, false, request.RecursionDesired, isRecursionAllowed, false, false, DnsResponseCode.NoError, request.Question, answers));
         }
 
         #endregion
