@@ -1037,20 +1037,22 @@ function saveDnsSettings() {
 }
 
 function checkForWebConsoleRedirection(responseJSON) {
-    var hostname = window.location.hostname;
+    if (location.protocol == "https:") {
+        var currentPort = window.location.port;
 
-    var webServiceLocalAddresses = responseJSON.response.webServiceLocalAddresses;
-    if (webServiceLocalAddresses != null) {
-        for (var i = 0; i < webServiceLocalAddresses.length; i++) {
-            if ((webServiceLocalAddresses[i] === "0.0.0.0") || (webServiceLocalAddresses[i] === "[::]") || (webServiceLocalAddresses[i] === window.location.hostname))
-                break;
+        if ((currentPort == 0) || (currentPort == ""))
+            currentPort = 443;
 
-            hostname = webServiceLocalAddresses[i];
-        }
-    }
+        if (currentPort != responseJSON.response.webServiceTlsPort)
+            window.open("https://" + window.location.hostname + ":" + responseJSON.response.webServiceTlsPort, "_self");
+    } else {
+        var currentPort = window.location.port;
 
-    if ((window.location.hostname != hostname) || ((window.location.port != responseJSON.response.webServiceHttpPort) && (window.location.port != responseJSON.response.webServiceTlsPort))) {
-        window.open("http://" + hostname + ":" + responseJSON.response.webServiceHttpPort, "_self");
+        if ((currentPort == 0) || (currentPort == ""))
+            currentPort = 80;
+
+        if (currentPort != responseJSON.response.webServiceHttpPort)
+            window.open("http://" + window.location.hostname + ":" + responseJSON.response.webServiceHttpPort, "_self");
     }
 }
 
