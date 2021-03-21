@@ -370,8 +370,17 @@ namespace DnsServerCore.Dns.Zones
 
                 foreach (KeyValuePair<DnsResourceRecordType, IReadOnlyList<DnsResourceRecord>> entry in _entries)
                 {
-                    if (entry.Key != DnsResourceRecordType.ANY)
-                        records.AddRange(entry.Value);
+                    switch (entry.Key)
+                    {
+                        case DnsResourceRecordType.FWD:
+                        case DnsResourceRecordType.APP:
+                            //skip records
+                            continue;
+
+                        default:
+                            records.AddRange(entry.Value);
+                            break;
+                    }
                 }
 
                 return FilterDisabledRecords(type, records);
