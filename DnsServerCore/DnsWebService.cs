@@ -1253,13 +1253,16 @@ namespace DnsServerCore
 
             jsonWriter.WritePropertyName("blockListUrls");
 
-            if (_dnsServer.BlockListZoneManager.BlockListUrls.Count == 0)
+            if ((_dnsServer.BlockListZoneManager.AllowListUrls.Count == 0) && (_dnsServer.BlockListZoneManager.BlockListUrls.Count == 0))
             {
                 jsonWriter.WriteNull();
             }
             else
             {
                 jsonWriter.WriteStartArray();
+
+                foreach (Uri allowListUrl in _dnsServer.BlockListZoneManager.AllowListUrls)
+                    jsonWriter.WriteValue("!" + allowListUrl.AbsoluteUri);
 
                 foreach (Uri blockListUrl in _dnsServer.BlockListZoneManager.BlockListUrls)
                     jsonWriter.WriteValue(blockListUrl.AbsoluteUri);
@@ -1616,6 +1619,7 @@ namespace DnsServerCore
                 {
                     StopBlockListUpdateTimer();
 
+                    _dnsServer.BlockListZoneManager.AllowListUrls.Clear();
                     _dnsServer.BlockListZoneManager.BlockListUrls.Clear();
                     _dnsServer.BlockListZoneManager.Flush();
                 }
@@ -1640,7 +1644,7 @@ namespace DnsServerCore
 
                     if (!updated)
                     {
-                        if (strBlockListUrlList.Length != _dnsServer.BlockListZoneManager.BlockListUrls.Count)
+                        if (strBlockListUrlList.Length != (_dnsServer.BlockListZoneManager.AllowListUrls.Count + _dnsServer.BlockListZoneManager.BlockListUrls.Count))
                         {
                             updated = true;
                         }
@@ -1648,10 +1652,23 @@ namespace DnsServerCore
                         {
                             foreach (string strBlockListUrl in strBlockListUrlList)
                             {
-                                if (!_dnsServer.BlockListZoneManager.BlockListUrls.Contains(new Uri(strBlockListUrl)))
+                                if (strBlockListUrl.StartsWith("!"))
                                 {
-                                    updated = true;
-                                    break;
+                                    string strAllowListUrl = strBlockListUrl.Substring(1);
+
+                                    if (!_dnsServer.BlockListZoneManager.AllowListUrls.Contains(new Uri(strAllowListUrl)))
+                                    {
+                                        updated = true;
+                                        break;
+                                    }
+                                }
+                                else
+                                {
+                                    if (!_dnsServer.BlockListZoneManager.BlockListUrls.Contains(new Uri(strBlockListUrl)))
+                                    {
+                                        updated = true;
+                                        break;
+                                    }
                                 }
                             }
                         }
@@ -1659,14 +1676,25 @@ namespace DnsServerCore
 
                     if (updated)
                     {
+                        _dnsServer.BlockListZoneManager.AllowListUrls.Clear();
                         _dnsServer.BlockListZoneManager.BlockListUrls.Clear();
 
                         foreach (string strBlockListUrl in strBlockListUrlList)
                         {
-                            Uri blockListUrl = new Uri(strBlockListUrl);
+                            if (strBlockListUrl.StartsWith("!"))
+                            {
+                                Uri allowListUrl = new Uri(strBlockListUrl.Substring(1));
 
-                            if (!_dnsServer.BlockListZoneManager.BlockListUrls.Contains(blockListUrl))
-                                _dnsServer.BlockListZoneManager.BlockListUrls.Add(blockListUrl);
+                                if (!_dnsServer.BlockListZoneManager.AllowListUrls.Contains(allowListUrl))
+                                    _dnsServer.BlockListZoneManager.AllowListUrls.Add(allowListUrl);
+                            }
+                            else
+                            {
+                                Uri blockListUrl = new Uri(strBlockListUrl);
+
+                                if (!_dnsServer.BlockListZoneManager.BlockListUrls.Contains(blockListUrl))
+                                    _dnsServer.BlockListZoneManager.BlockListUrls.Add(blockListUrl);
+                            }
                         }
 
                         ForceUpdateBlockLists();
@@ -6059,7 +6087,14 @@ namespace DnsServerCore
                                 int count = bR.ReadByte();
 
                                 for (int i = 0; i < count; i++)
-                                    _dnsServer.BlockListZoneManager.BlockListUrls.Add(new Uri(bR.ReadShortString()));
+                                {
+                                    string listUrl = bR.ReadShortString();
+
+                                    if (listUrl.StartsWith("!"))
+                                        _dnsServer.BlockListZoneManager.AllowListUrls.Add(new Uri(listUrl.Substring(1)));
+                                    else
+                                        _dnsServer.BlockListZoneManager.BlockListUrls.Add(new Uri(listUrl));
+                                }
 
                                 _blockListLastUpdatedOn = bR.ReadDate();
 
@@ -6279,7 +6314,10 @@ namespace DnsServerCore
 
                 //block list
                 {
-                    bW.Write(Convert.ToByte(_dnsServer.BlockListZoneManager.BlockListUrls.Count));
+                    bW.Write(Convert.ToByte(_dnsServer.BlockListZoneManager.AllowListUrls.Count + _dnsServer.BlockListZoneManager.BlockListUrls.Count));
+
+                    foreach (Uri allowListUrl in _dnsServer.BlockListZoneManager.AllowListUrls)
+                        bW.WriteShortString("!" + allowListUrl.AbsoluteUri);
 
                     foreach (Uri blockListUrl in _dnsServer.BlockListZoneManager.BlockListUrls)
                         bW.WriteShortString(blockListUrl.AbsoluteUri);
