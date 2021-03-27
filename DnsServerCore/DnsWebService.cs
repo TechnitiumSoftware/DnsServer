@@ -6531,9 +6531,19 @@ namespace DnsServerCore
             {
                 _log.Write("Web Service failed to bind using default hostname. Attempting to bind again using 'localhost' hostname.\r\n" + ex.ToString());
 
-                _webService = new HttpListener();
-                _webService.Prefixes.Add("http://localhost:" + _webServiceHttpPort + "/");
-                _webService.Start();
+                try
+                {
+                    _webService = new HttpListener();
+                    _webService.Prefixes.Add("http://localhost:" + _webServiceHttpPort + "/");
+                    _webService.Prefixes.Add("http://127.0.0.1:" + _webServiceHttpPort + "/");
+                    _webService.Start();
+                }
+                catch
+                {
+                    _webService = new HttpListener();
+                    _webService.Prefixes.Add("http://localhost:" + _webServiceHttpPort + "/");
+                    _webService.Start();
+                }
 
                 _webServiceHostname = "localhost";
             }
