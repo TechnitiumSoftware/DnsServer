@@ -549,6 +549,14 @@ namespace DnsServerCore.Dns.ZoneManagers
             return records;
         }
 
+        public IReadOnlyList<DnsResourceRecord> GetRecords(string domain, DnsResourceRecordType type)
+        {
+            if (_root.TryGet(domain, out AuthZone zone))
+                return zone.GetRecords(type);
+
+            return Array.Empty<DnsResourceRecord>();
+        }
+
         public IReadOnlyList<DnsResourceRecord> QueryRecords(string domain, DnsResourceRecordType type)
         {
             if (_root.TryGet(domain, out AuthZone zone))
