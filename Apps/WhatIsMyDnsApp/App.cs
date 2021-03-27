@@ -24,9 +24,9 @@ using System.Threading.Tasks;
 using TechnitiumLibrary.Net.Dns;
 using TechnitiumLibrary.Net.Dns.ResourceRecords;
 
-namespace DefaultDnsApplication
+namespace WhatIsMyDns
 {
-    public class WhatIsMyDns : IDnsApplicationRequestHandler
+    public class App : IDnsApplicationRequestHandler
     {
         #region IDisposable
 

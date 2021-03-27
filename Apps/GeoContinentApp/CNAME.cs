@@ -29,9 +29,9 @@ using System.Threading.Tasks;
 using TechnitiumLibrary.Net.Dns;
 using TechnitiumLibrary.Net.Dns.ResourceRecords;
 
-namespace DefaultDnsApplication
+namespace GeoContinent
 {
-    public class GeoContinentCNAME : IDnsApplicationRequestHandler
+    public sealed class CNAME : IDnsApplicationRequestHandler
     {
         #region variables
 
@@ -43,7 +43,7 @@ namespace DefaultDnsApplication
 
         bool _disposed;
 
-        protected virtual void Dispose(bool disposing)
+        private void Dispose(bool disposing)
         {
             if (_disposed)
                 return;
@@ -122,7 +122,7 @@ namespace DefaultDnsApplication
         #region properties
 
         public string Description
-        { get { return "Returns CNAME record based on the continent the client queries from using MaxMind GeoIP2 Country database. Note that the app will return ANAME record for an APP record at zone apex."; } }
+        { get { return "Returns CNAME record based on the continent the client queries from using MaxMind GeoIP2 Country database. Note that the app will return ANAME record for an APP record at zone apex. Use the two character continent code like \"NA\" (North America) or \"OC\" (Oceania)."; } }
 
         public string ApplicationRecordDataTemplate
         {

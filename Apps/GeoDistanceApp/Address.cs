@@ -19,8 +19,10 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 using DnsApplicationCommon;
 using MaxMind.GeoIP2;
+using MaxMind.GeoIP2.Model;
 using MaxMind.GeoIP2.Responses;
 using Newtonsoft.Json;
+using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Net;
@@ -29,13 +31,13 @@ using System.Threading.Tasks;
 using TechnitiumLibrary.Net.Dns;
 using TechnitiumLibrary.Net.Dns.ResourceRecords;
 
-namespace DefaultDnsApplication
+namespace GeoDistance
 {
-    public class GeoCountryAddress : IDnsApplicationRequestHandler
+    public sealed class Address : IDnsApplicationRequestHandler
     {
         #region variables
 
-        DatabaseReader _mmCountryReader;
+        DatabaseReader _mmCityReader;
 
         #endregion
 
@@ -43,15 +45,15 @@ namespace DefaultDnsApplication
 
         bool _disposed;
 
-        protected virtual void Dispose(bool disposing)
+        private void Dispose(bool disposing)
         {
             if (_disposed)
                 return;
 
             if (disposing)
             {
-                if (_mmCountryReader != null)
-                    _mmCountryReader.Dispose();
+                if (_mmCityReader != null)
+                    _mmCityReader.Dispose();
             }
 
             _disposed = true;
@@ -64,21 +66,36 @@ namespace DefaultDnsApplication
 
         #endregion
 
+        #region private
+
+        private static double GetDistance(double lat1, double long1, double lat2, double long2)
+        {
+            double d1 = lat1 * (Math.PI / 180.0);
+            double num1 = long1 * (Math.PI / 180.0);
+            double d2 = lat2 * (Math.PI / 180.0);
+            double num2 = long2 * (Math.PI / 180.0) - num1;
+            double d3 = Math.Pow(Math.Sin((d2 - d1) / 2.0), 2.0) + Math.Cos(d1) * Math.Cos(d2) * Math.Pow(Math.Sin(num2 / 2.0), 2.0);
+
+            return 6376500.0 * (2.0 * Math.Atan2(Math.Sqrt(d3), Math.Sqrt(1.0 - d3)));
+        }
+
+        #endregion
+
         #region public
 
         public Task InitializeAsync(IDnsServer dnsServer, string config)
         {
-            if (_mmCountryReader == null)
+            if (_mmCityReader == null)
             {
-                string mmFile = Path.Combine(dnsServer.ApplicationFolder, "GeoIP2-Country.mmdb");
+                string mmFile = Path.Combine(dnsServer.ApplicationFolder, "GeoIP2-City.mmdb");
 
                 if (!File.Exists(mmFile))
-                    mmFile = Path.Combine(dnsServer.ApplicationFolder, "GeoLite2-Country.mmdb");
+                    mmFile = Path.Combine(dnsServer.ApplicationFolder, "GeoLite2-City.mmdb");
 
                 if (!File.Exists(mmFile))
-                    throw new FileNotFoundException("MaxMind Country file is missing!");
+                    throw new FileNotFoundException("MaxMind City file is missing!");
 
-                _mmCountryReader = new DatabaseReader(mmFile);
+                _mmCityReader = new DatabaseReader(mmFile);
             }
 
             return Task.CompletedTask;
@@ -90,27 +107,43 @@ namespace DefaultDnsApplication
             {
                 case DnsResourceRecordType.A:
                 case DnsResourceRecordType.AAAA:
-                    dynamic jsonAppRecordData = JsonConvert.DeserializeObject(appRecordData);
-                    dynamic jsonCountry;
+                    Location location = null;
 
-                    if (_mmCountryReader.TryCountry(remoteEP.Address, out CountryResponse response))
+                    if (_mmCityReader.TryCity(remoteEP.Address, out CityResponse response))
+                        location = response.Location;
+
+                    dynamic jsonAppRecordData = JsonConvert.DeserializeObject(appRecordData);
+                    dynamic jsonClosestServer = null;
+
+                    if ((location == null) || !location.HasCoordinates)
                     {
-                        jsonCountry = jsonAppRecordData[response.Country.IsoCode];
-                        if (jsonCountry == null)
-                            jsonCountry = jsonAppRecordData["default"];
+                        jsonClosestServer = jsonAppRecordData[0];
                     }
                     else
                     {
-                        jsonCountry = jsonAppRecordData["default"];
+                        double lastDistance = double.MaxValue;
 
+                        foreach (dynamic jsonServer in jsonAppRecordData)
+                        {
+                            double lat = Convert.ToDouble(jsonServer.lat.Value);
+                            double @long = Convert.ToDouble(jsonServer.@long.Value);
+
+                            double distance = GetDistance(lat, @long, location.Latitude.Value, location.Longitude.Value);
+
+                            if (distance < lastDistance)
+                            {
+                                lastDistance = distance;
+                                jsonClosestServer = jsonServer;
+                            }
+                        }
                     }
 
-                    if (jsonCountry == null)
+                    if (jsonClosestServer == null)
                         return Task.FromResult<DnsDatagram>(null);
 
                     List<DnsResourceRecord> answers = new List<DnsResourceRecord>();
 
-                    foreach (dynamic jsonAddress in jsonCountry)
+                    foreach (dynamic jsonAddress in jsonClosestServer.addresses)
                     {
                         IPAddress address = IPAddress.Parse(jsonAddress.Value);
 
@@ -145,21 +178,30 @@ namespace DefaultDnsApplication
         #region properties
 
         public string Description
-        { get { return "Returns A or AAAA records based on the country the client queries from using MaxMind GeoIP2 Country database."; } }
+        { get { return "Returns A or AAAA records of the server located geographically closest to the client using MaxMind GeoIP2 City database. Use the geographic coordinates in decimal degrees (DD) form for the city the server is located in."; } }
 
         public string ApplicationRecordDataTemplate
         {
             get
             {
-                return @"{
-  ""IN"": [
-    ""1.1.1.1"", 
-    ""2.2.2.2""
-  ],
-  ""default"": [
-    ""3.3.3.3""
-  ]
-}";
+                return @"[
+  {
+    ""name"": ""server1-mumbai"",
+    ""lat"": ""19.07283"",
+    ""long"": ""72.88261"",
+    ""addresses"": [
+      ""1.1.1.1""
+    ]
+  },
+  {
+    ""name"": ""server2-london"",
+    ""lat"": ""51.50853"",
+    ""long"": ""-0.12574"",
+    ""addresses"": [
+      ""2.2.2.2""
+    ]
+  }
+]";
             }
         }
 

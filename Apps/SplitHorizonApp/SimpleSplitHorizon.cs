@@ -18,48 +18,24 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
 using DnsApplicationCommon;
-using MaxMind.GeoIP2;
-using MaxMind.GeoIP2.Responses;
 using Newtonsoft.Json;
 using System.Collections.Generic;
-using System.IO;
 using System.Net;
 using System.Net.Sockets;
 using System.Threading.Tasks;
+using TechnitiumLibrary.Net;
 using TechnitiumLibrary.Net.Dns;
 using TechnitiumLibrary.Net.Dns.ResourceRecords;
 
-namespace DefaultDnsApplication
+namespace SplitHorizon
 {
-    public class GeoContinentAddress : IDnsApplicationRequestHandler
+    public class SimpleSplitHorizon : IDnsApplicationRequestHandler
     {
-        #region variables
-
-        DatabaseReader _mmCountryReader;
-
-        #endregion
-
         #region IDisposable
-
-        bool _disposed;
-
-        protected virtual void Dispose(bool disposing)
-        {
-            if (_disposed)
-                return;
-
-            if (disposing)
-            {
-                if (_mmCountryReader != null)
-                    _mmCountryReader.Dispose();
-            }
-
-            _disposed = true;
-        }
 
         public void Dispose()
         {
-            Dispose(true);
+            //do nothing
         }
 
         #endregion
@@ -68,19 +44,7 @@ namespace DefaultDnsApplication
 
         public Task InitializeAsync(IDnsServer dnsServer, string config)
         {
-            if (_mmCountryReader == null)
-            {
-                string mmFile = Path.Combine(dnsServer.ApplicationFolder, "GeoIP2-Country.mmdb");
-
-                if (!File.Exists(mmFile))
-                    mmFile = Path.Combine(dnsServer.ApplicationFolder, "GeoLite2-Country.mmdb");
-
-                if (!File.Exists(mmFile))
-                    throw new FileNotFoundException("MaxMind Country file is missing!");
-
-                _mmCountryReader = new DatabaseReader(mmFile);
-            }
-
+            //no config needed
             return Task.CompletedTask;
         }
 
@@ -91,26 +55,19 @@ namespace DefaultDnsApplication
                 case DnsResourceRecordType.A:
                 case DnsResourceRecordType.AAAA:
                     dynamic jsonAppRecordData = JsonConvert.DeserializeObject(appRecordData);
-                    dynamic jsonContinent;
+                    dynamic jsonAddresses;
 
-                    if (_mmCountryReader.TryCountry(remoteEP.Address, out CountryResponse response))
-                    {
-                        jsonContinent = jsonAppRecordData[response.Continent.Code];
-                        if (jsonContinent == null)
-                            jsonContinent = jsonAppRecordData["default"];
-                    }
+                    if (NetUtilities.IsPrivateIP(remoteEP.Address))
+                        jsonAddresses = jsonAppRecordData.@private;
                     else
-                    {
-                        jsonContinent = jsonAppRecordData["default"];
+                        jsonAddresses = jsonAppRecordData.@public;
 
-                    }
-
-                    if (jsonContinent == null)
+                    if (jsonAddresses == null)
                         return Task.FromResult<DnsDatagram>(null);
 
                     List<DnsResourceRecord> answers = new List<DnsResourceRecord>();
 
-                    foreach (dynamic jsonAddress in jsonContinent)
+                    foreach (dynamic jsonAddress in jsonAddresses)
                     {
                         IPAddress address = IPAddress.Parse(jsonAddress.Value);
 
@@ -145,19 +102,20 @@ namespace DefaultDnsApplication
         #region properties
 
         public string Description
-        { get { return "Returns A or AAAA records based on the continent the client queries from using MaxMind GeoIP2 Country database."; } }
+        { get { return "Returns A or AAAA records with different set of IP addresses for clients querying over public and private networks."; } }
 
         public string ApplicationRecordDataTemplate
         {
             get
             {
                 return @"{
-  ""EU"": [
+  ""public"": [
     ""1.1.1.1"", 
     ""2.2.2.2""
   ],
-  ""default"": [
-    ""3.3.3.3""
+  ""private"": [
+    ""192.168.1.1"", 
+    ""::1""
   ]
 }";
             }
