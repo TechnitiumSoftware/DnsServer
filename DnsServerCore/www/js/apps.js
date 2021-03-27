@@ -33,13 +33,14 @@ function refreshApps() {
             for (var i = 0; i < apps.length; i++) {
                 var id = Math.floor(Math.random() * 10000);
                 var name = apps[i].name;
+                var version = apps[i].version;
 
                 var detailsTable = "<table class=\"table\"><thead><th>Class Path</th><th>Description</th><th>Record Data Template</th></thead><tbody>";
 
                 for (var j = 0; j < apps[i].details.length; j++) {
                     detailsTable += "<tr><td>" + htmlEncode(apps[i].details[j].classPath) + "</td><td>" +
                         htmlEncode(apps[i].details[j].description) + "</td><td>" +
-                        (apps[i].details[j].dataTemplate == null ? "" : "<pre>" + htmlEncode(apps[i].details[j].dataTemplate) + "</pre>") + "</td></tr>";
+                        (apps[i].details[j].recordDataTemplate == null ? "" : "<pre>" + htmlEncode(apps[i].details[j].recordDataTemplate) + "</pre>") + "</td></tr>";
                 }
 
                 if (apps[i].details.length == 0)
@@ -47,7 +48,7 @@ function refreshApps() {
 
                 detailsTable += "</tbody></table>"
 
-                tableHtmlRows += "<tr id=\"trApp" + id + "\"><td>" + htmlEncode(name) + "</td>";
+                tableHtmlRows += "<tr id=\"trApp" + id + "\"><td>" + htmlEncode(name) + "<br /><span class=\"label label-primary\">Version " + htmlEncode(version) + "</span></td>";
                 tableHtmlRows += "<td>" + detailsTable + "</td>";
                 tableHtmlRows += "<td><button type=\"button\" class=\"btn btn-default\" style=\"font-size: 12px; padding: 2px 0px; width: 80px; margin-bottom: 6px; display: block;\" onclick=\"showAppConfigModal(this, '" + name + "');\" data-loading-text=\"Loading...\">Config</button>";
                 tableHtmlRows += "<button type=\"button\" class=\"btn btn-warning\" style=\"font-size: 12px; padding: 2px 0px; width: 80px; margin-bottom: 6px; display: block;\" onclick=\"showUpdateAppModal('" + name + "');\">Update</button>";
