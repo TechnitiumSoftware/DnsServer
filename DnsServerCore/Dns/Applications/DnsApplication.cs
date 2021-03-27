@@ -34,6 +34,8 @@ namespace DnsServerCore.Dns.Applications
         readonly string _appName;
 
         readonly DnsApplicationAssemblyLoadContext _appContext = new DnsApplicationAssemblyLoadContext();
+
+        readonly Version _version;
         readonly Dictionary<string, IDnsApplicationRequestHandler> _dnsRequestHandlers;
 
         #endregion
@@ -47,7 +49,7 @@ namespace DnsServerCore.Dns.Applications
 
             //load DLLs and handlers
             Dictionary<string, IDnsApplicationRequestHandler> dnsRequestHandlers = new Dictionary<string, IDnsApplicationRequestHandler>();
-            Type dnsAppInterface = typeof(IDnsApplicationRequestHandler);
+            Type dnsRequestHandlerInterface = typeof(IDnsApplicationRequestHandler);
 
             Assembly[] loadedAssemblies = AppDomain.CurrentDomain.GetAssemblies();
 
@@ -113,14 +115,20 @@ namespace DnsServerCore.Dns.Applications
                 {
                     foreach (Type interfaceType in classType.GetInterfaces())
                     {
-                        if (interfaceType == dnsAppInterface)
+                        if (interfaceType == dnsRequestHandlerInterface)
                         {
                             IDnsApplicationRequestHandler handler = Activator.CreateInstance(classType) as IDnsApplicationRequestHandler;
                             dnsRequestHandlers.TryAdd(classType.FullName, handler);
+
+                            if (_version == null)
+                                _version = assembly.GetName().Version;
                         }
                     }
                 }
             }
+
+            if (_version == null)
+                _version = new Version(1, 0);
 
             _dnsRequestHandlers = dnsRequestHandlers;
         }
@@ -206,6 +214,9 @@ namespace DnsServerCore.Dns.Applications
 
         public string AppName
         { get { return _appName; } }
+
+        public Version Version
+        { get { return _version; } }
 
         public IReadOnlyDictionary<string, IDnsApplicationRequestHandler> DnsRequestHandlers
         { get { return _dnsRequestHandlers; } }
