@@ -98,7 +98,7 @@ $(function () {
             if (dataApps[i].name == appName) {
                 for (var j = 0; j < dataApps[i].details.length; j++) {
                     if (dataApps[i].details[j].classPath == classPath) {
-                        $("#txtAddEditRecordDataData").val(dataApps[i].details[j].dataTemplate);
+                        $("#txtAddEditRecordDataData").val(dataApps[i].details[j].recordDataTemplate);
                         return;
                     }
                 }
@@ -684,6 +684,7 @@ function showEditZone(domain) {
 function clearAddEditForm() {
     $("#divAddEditRecordAlert").html("");
 
+    $("#txtAddEditRecordName").prop("placeholder", "@");
     $("#txtAddEditRecordName").prop("disabled", false);
     $("#optAddEditRecordType").prop("disabled", false);
     $("#txtAddEditRecordTtl").prop("disabled", false);
@@ -754,6 +755,9 @@ function clearAddEditForm() {
     $("#optAddEditRecordDataClassPath").attr('disabled', false);
     $("#txtAddEditRecordDataData").val("");
 
+    $("#divAddEditRecordOverwrite").show();
+    $("#chkAddEditRecordOverwrite").prop("checked", false);
+
     $("#btnAddEditRecord").button("reset");
 }
 
@@ -817,7 +821,7 @@ function showAddRecordModalNow(apps) {
     }, 1000);
 }
 
-function modifyAddRecordForm() {
+function modifyAddRecordFormByType() {
     $("#divAddEditRecordAlert").html("");
 
     $("#txtAddEditRecordName").prop("placeholder", "@");
@@ -958,7 +962,9 @@ function addRecord() {
     if (ttl === "")
         ttl = 3600;
 
-    var apiUrl = "/api/addRecord?token=" + token + "&domain=" + encodeURIComponent(domain) + "&type=" + type + "&ttl=" + ttl;
+    var overwrite = $("#chkAddEditRecordOverwrite").prop('checked');
+
+    var apiUrl = "/api/addRecord?token=" + token + "&domain=" + encodeURIComponent(domain) + "&type=" + type + "&ttl=" + ttl + "&overwrite=" + overwrite;
 
     switch (type) {
         case "A":
@@ -1204,7 +1210,8 @@ function showEditRecordModal(objBtn) {
     $("#lblAddEditRecordZoneName").text(zone);
     $("#optEditRecordTypeSoa").show();
     $("#optAddEditRecordType").val(type);
-    modifyAddRecordForm();
+    $("#divAddEditRecordOverwrite").hide();
+    modifyAddRecordFormByType();
 
     $("#txtAddEditRecordName").val(name);
     $("#txtAddEditRecordTtl").val(ttl)
