@@ -1845,6 +1845,7 @@ WHERE:
 - `type`: The DNS resource record type. Supported record types are [`A`, `AAAA`, `MX`, `TXT`, `NS`, `PTR`, `CNAME`, `SRV`, `CAA`] and proprietory types [`ANAME`, `FWD`, `APP`].
 - `value`: The value for the resource record. This parameter is shared among different types of resource records and thus will mean different values as per the type of record. Example, for type A and AAAA record, the value will be an IP address while for type MX, the value will be the exchange domain name and for type TXT the value will be the text data. The `APP` record uses this value as the app name.
 - `ttl`: The DNS resource record TTL value. This is the value in seconds that the DNS resolvers can cache the record for.
+- `overwrite` (optional): This option when set to `true` will overwrite existing resource record set for the selected `type` with the new record. Default value of `false` will add the new record into existing resource record set.
 - `ptr` (optional): Add a reverse PTR record for the IP address in the `A` or `AAAA` record. This option is used only for `A` and `AAAA` records.
 - `createPtrZone` (optional): Create a reverse zone for PTR record. This option is used for `A` and `AAAA` records.
 - `preference` (optional): This is the preference value for MX record type. This option is required for adding `MX` record.
@@ -2068,32 +2069,32 @@ RESPONSE:
 					{
 						"classPath": "DefaultDnsApplication.GeoContinentAddress",
 						"description": "Returns A or AAAA records based on the continent the client queries from using MaxMind GeoIP2 Country database.",
-						"dataTemplate": "{\r\n  \"EU\": [\r\n    \"1.1.1.1\", \r\n    \"2.2.2.2\"\r\n  ],\r\n  \"default\": [\r\n    \"3.3.3.3\"\r\n  ]\r\n}"
+						"recordDataTemplate": "{\r\n  \"EU\": [\r\n    \"1.1.1.1\", \r\n    \"2.2.2.2\"\r\n  ],\r\n  \"default\": [\r\n    \"3.3.3.3\"\r\n  ]\r\n}"
 					},
 					{
 						"classPath": "DefaultDnsApplication.GeoContinentCNAME",
 						"description": "Returns CNAME record based on the continent the client queries from using MaxMind GeoIP2 Country database. Note that the app will return ANAME record for an APP record at zone apex.",
-						"dataTemplate": "{\r\n  \"EU\": \"eu.example.com\",\r\n  \"default\": \"example.com\"\r\n}"
+						"recordDataTemplate": "{\r\n  \"EU\": \"eu.example.com\",\r\n  \"default\": \"example.com\"\r\n}"
 					},
 					{
 						"classPath": "DefaultDnsApplication.GeoDistanceAddress",
 						"description": "Returns A or AAAA records of the server located geographically closest to the client using MaxMind GeoIP2 City database.",
-						"dataTemplate": "[\r\n  {\r\n    \"name\": \"server1-mumbai\",\r\n    \"lat\": \"19.07283\",\r\n    \"long\": \"72.88261\",\r\n    \"addresses\": [\r\n      \"1.1.1.1\"\r\n    ]\r\n  },\r\n  {\r\n    \"name\": \"server2-london\",\r\n    \"lat\": \"51.50853\",\r\n    \"long\": \"-0.12574\",\r\n    \"addresses\": [\r\n      \"2.2.2.2\"\r\n    ]\r\n  }\r\n]"
+						"recordDataTemplate": "[\r\n  {\r\n    \"name\": \"server1-mumbai\",\r\n    \"lat\": \"19.07283\",\r\n    \"long\": \"72.88261\",\r\n    \"addresses\": [\r\n      \"1.1.1.1\"\r\n    ]\r\n  },\r\n  {\r\n    \"name\": \"server2-london\",\r\n    \"lat\": \"51.50853\",\r\n    \"long\": \"-0.12574\",\r\n    \"addresses\": [\r\n      \"2.2.2.2\"\r\n    ]\r\n  }\r\n]"
 					},
 					{
 						"classPath": "DefaultDnsApplication.GeoDistanceCNAME",
 						"description": "Returns CNAME record of the server located geographically closest to the client using MaxMind GeoIP2 City database. Note that the app will return ANAME record for an APP record at zone apex.",
-						"dataTemplate": "[\r\n  {\r\n    \"name\": \"server1-mumbai\",\r\n    \"lat\": \"19.07283\",\r\n    \"long\": \"72.88261\",\r\n    \"cname\": \"mumbai.example.com\"\r\n  },\r\n  {\r\n    \"name\": \"server2-london\",\r\n    \"lat\": \"51.50853\",\r\n    \"long\": \"-0.12574\",\r\n    \"cname\": \"london.example.com\"\r\n  }\r\n]"
+						"recordDataTemplate": "[\r\n  {\r\n    \"name\": \"server1-mumbai\",\r\n    \"lat\": \"19.07283\",\r\n    \"long\": \"72.88261\",\r\n    \"cname\": \"mumbai.example.com\"\r\n  },\r\n  {\r\n    \"name\": \"server2-london\",\r\n    \"lat\": \"51.50853\",\r\n    \"long\": \"-0.12574\",\r\n    \"cname\": \"london.example.com\"\r\n  }\r\n]"
 					},
 					{
 						"classPath": "DefaultDnsApplication.SimpleSplitHorizon",
 						"description": "Returns A or AAAA records with different set of IP addresses for clients querying over public and private networks.",
-						"dataTemplate": "{\r\n  \"public\": [\r\n    \"1.1.1.1\", \r\n    \"2.2.2.2\"\r\n  ],\r\n  \"private\": [\r\n    \"192.168.1.1\", \r\n    \"::1\"\r\n  ]\r\n}"
+						"recordDataTemplate": "{\r\n  \"public\": [\r\n    \"1.1.1.1\", \r\n    \"2.2.2.2\"\r\n  ],\r\n  \"private\": [\r\n    \"192.168.1.1\", \r\n    \"::1\"\r\n  ]\r\n}"
 					},
 					{
 						"classPath": "DefaultDnsApplication.WhatIsMyDns",
 						"description": "Returns the IP address of the user's DNS Server for A, AAAA, and TXT queries.",
-						"dataTemplate": null
+						"recordDataTemplate": null
 					}
 				]
 			}
