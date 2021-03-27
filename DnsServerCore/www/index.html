@@ -1851,7 +1851,7 @@
                         <div class="form-group">
                             <label for="optAddEditRecordType" class="col-sm-4 control-label">Type</label>
                             <div class="col-sm-7">
-                                <select id="optAddEditRecordType" class="form-control" onchange="modifyAddRecordForm();" style="width: auto;">
+                                <select id="optAddEditRecordType" class="form-control" onchange="modifyAddRecordFormByType();" style="width: auto;">
                                     <option>A</option>
                                     <option>NS</option>
                                     <option id="optEditRecordTypeSoa">SOA</option>
@@ -2110,6 +2110,16 @@
                                 <label for="txtAddEditRecordDataData" class="col-sm-4 control-label">Record Data (if any)</label>
                                 <div class="col-sm-7">
                                     <textarea id="txtAddEditRecordDataData" class="form-control" rows="6"></textarea>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div id="divAddEditRecordOverwrite" class="form-group">
+                            <div class="col-sm-offset-4 col-sm-7">
+                                <div class="checkbox">
+                                    <label>
+                                        <input id="chkAddEditRecordOverwrite" type="checkbox"> Overwrite existing records
+                                    </label>
                                 </div>
                             </div>
                         </div>
