@@ -276,9 +276,12 @@ namespace DnsServerCore.Dns
                     {
                         try
                         {
-                            DnsDatagram request = DnsDatagram.ReadFromUdp(new MemoryStream(recvBuffer, 0, result.ReceivedBytes, false));
+                            using (MemoryStream mS = new MemoryStream(recvBuffer, 0, result.ReceivedBytes, false))
+                            {
+                                DnsDatagram request = DnsDatagram.ReadFromUdp(mS);
 
-                            _ = ProcessUdpRequestAsync(udpListener, result.RemoteEndPoint as IPEndPoint, request);
+                                _ = ProcessUdpRequestAsync(udpListener, result.RemoteEndPoint as IPEndPoint, request);
+                            }
                         }
                         catch (EndOfStreamException)
                         {
@@ -948,7 +951,7 @@ namespace DnsServerCore.Dns
                         DnsDatagram response;
 
                         //check in allowed zone
-                        bool inAllowedZone = _allowedZoneManager.Query(request).RCODE != DnsResponseCode.Refused;
+                        bool inAllowedZone = (_allowedZoneManager.TotalZonesAllowed > 0) && (_allowedZoneManager.Query(request).RCODE != DnsResponseCode.Refused);
                         if (!inAllowedZone)
                         {
                             //check in blocked zone and block list zone
@@ -1473,11 +1476,17 @@ namespace DnsServerCore.Dns
 
         private DnsDatagram ProcessBlockedQuery(DnsDatagram request)
         {
-            DnsDatagram response = _blockedZoneManager.Query(request);
-            if (response.RCODE == DnsResponseCode.Refused)
+            DnsDatagram response = null;
+
+            if (_blockedZoneManager.TotalZonesBlocked > 0)
+                response = _blockedZoneManager.Query(request);
+
+            if ((response == null) || (response.RCODE == DnsResponseCode.Refused))
             {
                 //domain not blocked in blocked zone
-                response = _blockListZoneManager.Query(request); //check in block list zone
+                if (_blockListZoneManager.TotalZonesBlocked > 0)
+                    response = _blockListZoneManager.Query(request); //check in block list zone
+
                 if (response == null)
                     return null;
             }
@@ -1541,7 +1550,7 @@ namespace DnsServerCore.Dns
                         DnsDatagram newRequest = new DnsDatagram(0, false, DnsOpcode.StandardQuery, false, false, true, false, false, false, DnsResponseCode.NoError, new DnsQuestionRecord[] { new DnsQuestionRecord((record.RDATA as DnsCNAMERecord).Domain, request.Question[0].Type, request.Question[0].Class) });
 
                         //check allowed zone
-                        bool inAllowedZone = _allowedZoneManager.Query(newRequest).RCODE != DnsResponseCode.Refused;
+                        bool inAllowedZone = (_allowedZoneManager.TotalZonesAllowed > 0) && (_allowedZoneManager.Query(newRequest).RCODE != DnsResponseCode.Refused);
                         if (inAllowedZone)
                             break; //CNAME is in allowed zone
 
