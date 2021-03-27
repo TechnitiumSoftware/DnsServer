@@ -299,6 +299,10 @@ namespace DnsServerCore
 
                 dispose = false;
             }
+            catch (IOException)
+            {
+                //ignore
+            }
             catch (Exception ex)
             {
                 _log.Write(ex);
@@ -758,7 +762,7 @@ namespace DnsServerCore
 
                 using (Stream stream = response.OutputStream)
                 {
-                    await stream.WriteAsync(buffer, 0, buffer.Length);
+                    await stream.WriteAsync(buffer);
                 }
             }
             catch
@@ -3537,54 +3541,67 @@ namespace DnsServerCore
             else
                 ttl = uint.Parse(strTtl);
 
+            bool overwrite = false;
+            string strOverwrite = request.QueryString["overwrite"];
+            if (!string.IsNullOrEmpty(strOverwrite))
+                overwrite = bool.Parse(strOverwrite);
+
             switch (type)
             {
                 case DnsResourceRecordType.A:
                 case DnsResourceRecordType.AAAA:
-                    IPAddress ipAddress = IPAddress.Parse(value);
-
-                    bool ptr = false;
-                    string strPtr = request.QueryString["ptr"];
-                    if (!string.IsNullOrEmpty(strPtr))
-                        ptr = bool.Parse(strPtr);
-
-                    if (ptr)
                     {
-                        string ptrDomain = Zone.GetReverseZone(ipAddress, type == DnsResourceRecordType.A ? 32 : 128);
+                        IPAddress ipAddress = IPAddress.Parse(value);
 
-                        AuthZoneInfo reverseZoneInfo = _dnsServer.AuthZoneManager.GetAuthZoneInfo(ptrDomain);
-                        if (reverseZoneInfo == null)
+                        bool ptr = false;
+                        string strPtr = request.QueryString["ptr"];
+                        if (!string.IsNullOrEmpty(strPtr))
+                            ptr = bool.Parse(strPtr);
+
+                        if (ptr)
                         {
-                            bool createPtrZone = false;
-                            string strCreatePtrZone = request.QueryString["createPtrZone"];
-                            if (!string.IsNullOrEmpty(strCreatePtrZone))
-                                createPtrZone = bool.Parse(strCreatePtrZone);
+                            string ptrDomain = Zone.GetReverseZone(ipAddress, type == DnsResourceRecordType.A ? 32 : 128);
 
-                            if (!createPtrZone)
-                                throw new DnsServerException("No reverse zone available to add PTR record.");
-
-                            string ptrZone = Zone.GetReverseZone(ipAddress, type == DnsResourceRecordType.A ? 24 : 64);
-
-                            reverseZoneInfo = _dnsServer.AuthZoneManager.CreatePrimaryZone(ptrZone, _dnsServer.ServerDomain, false);
+                            AuthZoneInfo reverseZoneInfo = _dnsServer.AuthZoneManager.GetAuthZoneInfo(ptrDomain);
                             if (reverseZoneInfo == null)
-                                throw new DnsServerException("Failed to create reverse zone to add PTR record: " + ptrZone);
+                            {
+                                bool createPtrZone = false;
+                                string strCreatePtrZone = request.QueryString["createPtrZone"];
+                                if (!string.IsNullOrEmpty(strCreatePtrZone))
+                                    createPtrZone = bool.Parse(strCreatePtrZone);
+
+                                if (!createPtrZone)
+                                    throw new DnsServerException("No reverse zone available to add PTR record.");
+
+                                string ptrZone = Zone.GetReverseZone(ipAddress, type == DnsResourceRecordType.A ? 24 : 64);
+
+                                reverseZoneInfo = _dnsServer.AuthZoneManager.CreatePrimaryZone(ptrZone, _dnsServer.ServerDomain, false);
+                                if (reverseZoneInfo == null)
+                                    throw new DnsServerException("Failed to create reverse zone to add PTR record: " + ptrZone);
+                            }
+
+                            if (reverseZoneInfo.Internal)
+                                throw new DnsServerException("Reverse zone '" + reverseZoneInfo.Name + "' is an internal zone.");
+
+                            if (reverseZoneInfo.Type != AuthZoneType.Primary)
+                                throw new DnsServerException("Reverse zone '" + reverseZoneInfo.Name + "' is not a primary zone.");
+
+                            _dnsServer.AuthZoneManager.SetRecords(ptrDomain, DnsResourceRecordType.PTR, ttl, new DnsPTRRecord[] { new DnsPTRRecord(domain) });
+                            _dnsServer.AuthZoneManager.SaveZoneFile(reverseZoneInfo.Name);
                         }
 
-                        if (reverseZoneInfo.Internal)
-                            throw new DnsServerException("Reverse zone '" + reverseZoneInfo.Name + "' is an internal zone.");
+                        DnsResourceRecord newRecord;
 
-                        if (reverseZoneInfo.Type != AuthZoneType.Primary)
-                            throw new DnsServerException("Reverse zone '" + reverseZoneInfo.Name + "' is not a primary zone.");
+                        if (type == DnsResourceRecordType.A)
+                            newRecord = new DnsResourceRecord(domain, type, DnsClass.IN, ttl, new DnsARecord(ipAddress));
+                        else
+                            newRecord = new DnsResourceRecord(domain, type, DnsClass.IN, ttl, new DnsAAAARecord(ipAddress));
 
-                        _dnsServer.AuthZoneManager.SetRecords(ptrDomain, DnsResourceRecordType.PTR, ttl, new DnsPTRRecord[] { new DnsPTRRecord(domain) });
-                        _dnsServer.AuthZoneManager.SaveZoneFile(reverseZoneInfo.Name);
+                        if (overwrite)
+                            _dnsServer.AuthZoneManager.SetRecord(newRecord);
+                        else
+                            _dnsServer.AuthZoneManager.AddRecord(newRecord);
                     }
-
-                    if (type == DnsResourceRecordType.A)
-                        _dnsServer.AuthZoneManager.AddRecord(domain, type, ttl, new DnsARecord(ipAddress));
-                    else
-                        _dnsServer.AuthZoneManager.AddRecord(domain, type, ttl, new DnsAAAARecord(ipAddress));
-
                     break;
 
                 case DnsResourceRecordType.MX:
@@ -3593,12 +3610,24 @@ namespace DnsServerCore
                         if (string.IsNullOrEmpty(preference))
                             throw new DnsWebServiceException("Parameter 'preference' missing.");
 
-                        _dnsServer.AuthZoneManager.AddRecord(domain, type, ttl, new DnsMXRecord(ushort.Parse(preference), value));
+                        DnsResourceRecord newRecord = new DnsResourceRecord(domain, type, DnsClass.IN, ttl, new DnsMXRecord(ushort.Parse(preference), value));
+
+                        if (overwrite)
+                            _dnsServer.AuthZoneManager.SetRecord(newRecord);
+                        else
+                            _dnsServer.AuthZoneManager.AddRecord(newRecord);
                     }
                     break;
 
                 case DnsResourceRecordType.TXT:
-                    _dnsServer.AuthZoneManager.AddRecord(domain, type, ttl, new DnsTXTRecord(value));
+                    {
+                        DnsResourceRecord newRecord = new DnsResourceRecord(domain, type, DnsClass.IN, ttl, new DnsTXTRecord(value));
+
+                        if (overwrite)
+                            _dnsServer.AuthZoneManager.SetRecord(newRecord);
+                        else
+                            _dnsServer.AuthZoneManager.AddRecord(newRecord);
+                    }
                     break;
 
                 case DnsResourceRecordType.NS:
@@ -3607,21 +3636,42 @@ namespace DnsServerCore
                         if (string.IsNullOrEmpty(glueAddresses))
                             glueAddresses = null;
 
-                        DnsResourceRecord nsRecord = new DnsResourceRecord(domain, type, DnsClass.IN, ttl, new DnsNSRecord(value));
+                        DnsResourceRecord newRecord = new DnsResourceRecord(domain, type, DnsClass.IN, ttl, new DnsNSRecord(value));
 
                         if (glueAddresses != null)
-                            nsRecord.SetGlueRecords(glueAddresses);
+                            newRecord.SetGlueRecords(glueAddresses);
 
-                        _dnsServer.AuthZoneManager.AddRecord(nsRecord);
+                        if (overwrite)
+                            _dnsServer.AuthZoneManager.SetRecord(newRecord);
+                        else
+                            _dnsServer.AuthZoneManager.AddRecord(newRecord);
                     }
                     break;
 
                 case DnsResourceRecordType.PTR:
-                    _dnsServer.AuthZoneManager.SetRecords(domain, type, ttl, new DnsResourceRecordData[] { new DnsPTRRecord(value) });
+                    {
+                        if (!overwrite)
+                        {
+                            IReadOnlyList<DnsResourceRecord> existingRecords = _dnsServer.AuthZoneManager.GetRecords(domain, type);
+                            if (existingRecords.Count > 0)
+                                throw new DnsWebServiceException("Record already exists. Use overwrite option if you wish to overwrite existing records.");
+                        }
+
+                        _dnsServer.AuthZoneManager.SetRecords(domain, type, ttl, new DnsResourceRecordData[] { new DnsPTRRecord(value) });
+                    }
                     break;
 
                 case DnsResourceRecordType.CNAME:
-                    _dnsServer.AuthZoneManager.SetRecords(domain, type, ttl, new DnsResourceRecordData[] { new DnsCNAMERecord(value) });
+                    {
+                        if (!overwrite)
+                        {
+                            IReadOnlyList<DnsResourceRecord> existingRecords = _dnsServer.AuthZoneManager.GetRecords(domain, type);
+                            if (existingRecords.Count > 0)
+                                throw new DnsWebServiceException("Record already exists. Use overwrite option if you wish to overwrite existing records.");
+                        }
+
+                        _dnsServer.AuthZoneManager.SetRecords(domain, type, ttl, new DnsResourceRecordData[] { new DnsCNAMERecord(value) });
+                    }
                     break;
 
                 case DnsResourceRecordType.SRV:
@@ -3638,7 +3688,12 @@ namespace DnsServerCore
                         if (string.IsNullOrEmpty(port))
                             throw new DnsWebServiceException("Parameter 'port' missing.");
 
-                        _dnsServer.AuthZoneManager.AddRecord(domain, type, ttl, new DnsSRVRecord(ushort.Parse(priority), ushort.Parse(weight), ushort.Parse(port), value));
+                        DnsResourceRecord newRecord = new DnsResourceRecord(domain, type, DnsClass.IN, ttl, new DnsSRVRecord(ushort.Parse(priority), ushort.Parse(weight), ushort.Parse(port), value));
+
+                        if (overwrite)
+                            _dnsServer.AuthZoneManager.SetRecord(newRecord);
+                        else
+                            _dnsServer.AuthZoneManager.AddRecord(newRecord);
                     }
                     break;
 
@@ -3652,12 +3707,24 @@ namespace DnsServerCore
                         if (string.IsNullOrEmpty(tag))
                             throw new DnsWebServiceException("Parameter 'tag' missing.");
 
-                        _dnsServer.AuthZoneManager.AddRecord(domain, type, ttl, new DnsCAARecord(byte.Parse(flags), tag, value));
+                        DnsResourceRecord newRecord = new DnsResourceRecord(domain, type, DnsClass.IN, ttl, new DnsCAARecord(byte.Parse(flags), tag, value));
+
+                        if (overwrite)
+                            _dnsServer.AuthZoneManager.SetRecord(newRecord);
+                        else
+                            _dnsServer.AuthZoneManager.AddRecord(newRecord);
                     }
                     break;
 
                 case DnsResourceRecordType.ANAME:
-                    _dnsServer.AuthZoneManager.AddRecord(domain, type, ttl, new DnsANAMERecord(value));
+                    {
+                        DnsResourceRecord newRecord = new DnsResourceRecord(domain, type, DnsClass.IN, ttl, new DnsANAMERecord(value));
+
+                        if (overwrite)
+                            _dnsServer.AuthZoneManager.SetRecord(newRecord);
+                        else
+                            _dnsServer.AuthZoneManager.AddRecord(newRecord);
+                    }
                     break;
 
                 case DnsResourceRecordType.FWD:
@@ -3666,7 +3733,12 @@ namespace DnsServerCore
                         if (string.IsNullOrEmpty(protocol))
                             protocol = "Udp";
 
-                        _dnsServer.AuthZoneManager.AddRecord(domain, type, 0, new DnsForwarderRecord((DnsTransportProtocol)Enum.Parse(typeof(DnsTransportProtocol), protocol, true), value));
+                        DnsResourceRecord newRecord = new DnsResourceRecord(domain, type, DnsClass.IN, 0, new DnsForwarderRecord((DnsTransportProtocol)Enum.Parse(typeof(DnsTransportProtocol), protocol, true), value));
+
+                        if (overwrite)
+                            _dnsServer.AuthZoneManager.SetRecord(newRecord);
+                        else
+                            _dnsServer.AuthZoneManager.AddRecord(newRecord);
                     }
                     break;
 
@@ -3679,6 +3751,13 @@ namespace DnsServerCore
                         string recordData = request.QueryString["recordData"];
                         if (string.IsNullOrEmpty(recordData))
                             recordData = "";
+
+                        if (!overwrite)
+                        {
+                            IReadOnlyList<DnsResourceRecord> existingRecords = _dnsServer.AuthZoneManager.GetRecords(domain, type);
+                            if (existingRecords.Count > 0)
+                                throw new DnsWebServiceException("Record already exists. Use overwrite option if you wish to overwrite existing records.");
+                        }
 
                         _dnsServer.AuthZoneManager.SetRecords(domain, type, ttl, new DnsResourceRecordData[] { new DnsApplicationRecord(value, classPath, recordData) });
                     }
@@ -4620,6 +4699,9 @@ namespace DnsServerCore
                     jsonWriter.WritePropertyName("name");
                     jsonWriter.WriteValue(application.AppName);
 
+                    jsonWriter.WritePropertyName("version");
+                    jsonWriter.WriteValue(GetCleanVersion(application.Version));
+
                     jsonWriter.WritePropertyName("details");
                     jsonWriter.WriteStartArray();
 
@@ -4633,7 +4715,7 @@ namespace DnsServerCore
                         jsonWriter.WritePropertyName("description");
                         jsonWriter.WriteValue(handler.Value.Description);
 
-                        jsonWriter.WritePropertyName("dataTemplate");
+                        jsonWriter.WritePropertyName("recordDataTemplate");
                         jsonWriter.WriteValue(handler.Value.ApplicationRecordDataTemplate);
 
                         jsonWriter.WriteEndObject();
