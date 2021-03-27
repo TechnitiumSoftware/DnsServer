@@ -46,6 +46,7 @@ using TechnitiumLibrary.IO;
 using TechnitiumLibrary.Net;
 using TechnitiumLibrary.Net.Dns;
 using TechnitiumLibrary.Net.Dns.ResourceRecords;
+using TechnitiumLibrary.Net.Http;
 using TechnitiumLibrary.Net.Proxy;
 
 namespace DnsServerCore
@@ -84,6 +85,7 @@ namespace DnsServerCore
         string _webServiceTlsCertificatePath;
         string _webServiceTlsCertificatePassword;
         DateTime _webServiceTlsCertificateLastModifiedOn;
+        const int HTTPS_REQUEST_TIMEOUT = 60000;
 
         HttpListener _webService;
         IReadOnlyList<Socket> _webServiceTlsListeners;
@@ -268,13 +270,14 @@ namespace DnsServerCore
 
         private async Task TlsToHttpTunnelAsync(Socket socket)
         {
-            bool dispose = true;
             Socket tunnel = null;
 
             try
             {
                 if (_webServiceLocalAddresses.Count < 1)
                     return;
+
+                string remoteIP = (socket.RemoteEndPoint as IPEndPoint).Address.ToString();
 
                 SslStream sslStream = new SslStream(new NetworkStream(socket, true));
 
@@ -294,10 +297,51 @@ namespace DnsServerCore
 
                 NetworkStream tunnelStream = new NetworkStream(tunnel, true);
 
-                _ = sslStream.CopyToAsync(tunnelStream).ContinueWith(delegate (Task prevTask) { sslStream.Dispose(); tunnelStream.Dispose(); });
+                //copy tunnel to ssl
                 _ = tunnelStream.CopyToAsync(sslStream).ContinueWith(delegate (Task prevTask) { sslStream.Dispose(); tunnelStream.Dispose(); });
 
-                dispose = false;
+                //copy ssl to tunnel
+                try
+                {
+                    while (true)
+                    {
+                        HttpRequest httpRequest;
+                        {
+                            Task<HttpRequest> task = HttpRequest.ReadRequestAsync(sslStream);
+
+                            using (CancellationTokenSource timeoutCancellationTokenSource = new CancellationTokenSource())
+                            {
+                                if (await Task.WhenAny(task, Task.Delay(HTTPS_REQUEST_TIMEOUT, timeoutCancellationTokenSource.Token)) != task)
+                                    return; //request timed out
+
+                                timeoutCancellationTokenSource.Cancel(); //cancel delay task
+                            }
+
+                            httpRequest = await task;
+                        }
+
+                        if (httpRequest == null)
+                            return; //connection closed gracefully by client
+
+                        //inject X-Real-IP & host header
+                        httpRequest.Headers.Add("X-Real-IP", remoteIP);
+                        httpRequest.Headers[HttpRequestHeader.Host] = "localhost:" + _webServiceHttpPort.ToString();
+
+                        //relay request
+                        await tunnelStream.WriteAsync(Encoding.ASCII.GetBytes(httpRequest.HttpMethod + " " + httpRequest.RequestPathAndQuery + " " + httpRequest.Protocol + "\r\n"));
+                        await tunnelStream.WriteAsync(httpRequest.Headers.ToByteArray());
+
+                        if (httpRequest.InputStream != null)
+                            await httpRequest.InputStream.CopyToAsync(tunnelStream);
+
+                        await tunnelStream.FlushAsync();
+                    }
+                }
+                finally
+                {
+                    sslStream.Dispose();
+                    tunnelStream.Dispose();
+                }
             }
             catch (IOException)
             {
@@ -309,13 +353,10 @@ namespace DnsServerCore
             }
             finally
             {
-                if (dispose)
-                {
-                    socket.Dispose();
+                socket.Dispose();
 
-                    if (tunnel != null)
-                        tunnel.Dispose();
-                }
+                if (tunnel != null)
+                    tunnel.Dispose();
             }
         }
 
@@ -6451,6 +6492,8 @@ namespace DnsServerCore
 
         private void StartDnsWebService()
         {
+            int acceptTasks = Math.Max(1, Environment.ProcessorCount);
+
             //HTTP service
             try
             {
@@ -6497,10 +6540,13 @@ namespace DnsServerCore
 
             _webService.IgnoreWriteExceptions = true;
 
-            _ = Task.Factory.StartNew(delegate ()
+            for (int i = 0; i < acceptTasks; i++)
             {
-                return AcceptWebRequestAsync();
-            }, CancellationToken.None, TaskCreationOptions.DenyChildAttach, _webServiceTaskScheduler);
+                _ = Task.Factory.StartNew(delegate ()
+                {
+                    return AcceptWebRequestAsync();
+                }, CancellationToken.None, TaskCreationOptions.DenyChildAttach, _webServiceTaskScheduler);
+            }
 
             _log.Write(new IPEndPoint(IPAddress.Any, _webServiceHttpPort), "HTTP Web Service was started successfully.");
 
@@ -6523,10 +6569,13 @@ namespace DnsServerCore
 
                     foreach (Socket tlsListener in webServiceTlsListeners)
                     {
-                        _ = Task.Factory.StartNew(delegate ()
+                        for (int i = 0; i < acceptTasks; i++)
                         {
-                            return AcceptTlsWebRequestAsync(tlsListener);
-                        }, CancellationToken.None, TaskCreationOptions.DenyChildAttach, _webServiceTaskScheduler);
+                            _ = Task.Factory.StartNew(delegate ()
+                            {
+                                return AcceptTlsWebRequestAsync(tlsListener);
+                            }, CancellationToken.None, TaskCreationOptions.DenyChildAttach, _webServiceTaskScheduler);
+                        }
                     }
 
                     _webServiceTlsListeners = webServiceTlsListeners;
