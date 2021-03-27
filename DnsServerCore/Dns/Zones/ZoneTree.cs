@@ -310,13 +310,11 @@ namespace DnsServerCore.Dns.Zones
 
                     //use wildcard node
                     //skip to next label
-                    do
+                    while (++i < key.Length)
                     {
-                        i++;
                         if (key[i] == 39) //[.]
                             break;
                     }
-                    while (i < key.Length);
 
                     closestNode = wildcard;
                     wildcard = null;
