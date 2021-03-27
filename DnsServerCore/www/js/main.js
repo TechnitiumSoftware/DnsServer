@@ -486,13 +486,13 @@ function login(username, password) {
     }
 
     if ((username === null) || (username === "")) {
-        showAlert("warning", "Missing!", "Please enter username.");
+        showAlert("warning", "Missing!", "Please enter an username.");
         $("#txtUser").focus();
         return false;
     }
 
     if ((password === null) || (password === "")) {
-        showAlert("warning", "Missing!", "Please enter password.");
+        showAlert("warning", "Missing!", "Please enter a password.");
         $("#txtPass").focus();
         return false;
     }
