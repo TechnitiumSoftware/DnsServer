@@ -918,7 +918,7 @@ namespace DnsServerCore.Dns
             {
                 case DnsOpcode.StandardQuery:
                     if ((request.Question.Count != 1) || (request.Question[0].Class != DnsClass.IN))
-                        return new DnsDatagram(request.Identifier, true, DnsOpcode.StandardQuery, false, false, request.RecursionDesired, isRecursionAllowed, false, false, DnsResponseCode.Refused, request.Question);
+                        return new DnsDatagram(request.Identifier, true, DnsOpcode.StandardQuery, false, false, request.RecursionDesired, isRecursionAllowed, false, false, DnsResponseCode.NotImplemented, request.Question);
 
                     try
                     {
@@ -932,16 +932,6 @@ namespace DnsServerCore.Dns
 
                             case DnsResourceRecordType.IXFR:
                                 return await ProcessZoneTransferQueryAsync(request, remoteEP);
-
-                            case DnsResourceRecordType.ANY:
-                                if (protocol == DnsTransportProtocol.Udp) //force TCP for ANY request
-                                    return new DnsDatagram(request.Identifier, true, DnsOpcode.StandardQuery, false, true, request.RecursionDesired, isRecursionAllowed, false, false, DnsResponseCode.NoError, request.Question);
-
-                                break;
-
-                            case DnsResourceRecordType.MAILB:
-                            case DnsResourceRecordType.MAILA:
-                                return new DnsDatagram(request.Identifier, true, DnsOpcode.StandardQuery, false, false, request.RecursionDesired, isRecursionAllowed, false, false, DnsResponseCode.NotImplemented, request.Question);
 
                             case DnsResourceRecordType.FWD:
                             case DnsResourceRecordType.APP:
@@ -963,10 +953,21 @@ namespace DnsServerCore.Dns
                         //query authoritative zone
                         response = await ProcessAuthoritativeQueryAsync(request, remoteEP, inAllowedZone, isRecursionAllowed, protocol);
 
-                        if ((response.RCODE != DnsResponseCode.Refused) || !request.RecursionDesired || !isRecursionAllowed)
+                        if (response.RCODE != DnsResponseCode.Refused)
+                        {
+                            if ((request.Question[0].Type == DnsResourceRecordType.ANY) && (protocol == DnsTransportProtocol.Udp)) //force TCP for ANY request
+                                return new DnsDatagram(request.Identifier, true, DnsOpcode.StandardQuery, true, true, request.RecursionDesired, isRecursionAllowed, false, false, response.RCODE, request.Question);
+
+                            return response;
+                        }
+
+                        if (!request.RecursionDesired || !isRecursionAllowed)
                             return response;
 
                         //do recursive query
+                        if ((request.Question[0].Type == DnsResourceRecordType.ANY) && (protocol == DnsTransportProtocol.Udp)) //force TCP for ANY request
+                            return new DnsDatagram(request.Identifier, true, DnsOpcode.StandardQuery, false, true, request.RecursionDesired, isRecursionAllowed, false, false, DnsResponseCode.NoError, request.Question);
+
                         return await ProcessRecursiveQueryAsync(request, remoteEP, protocol, null, !inAllowedZone, false);
                     }
                     catch (InvalidDomainNameException)
