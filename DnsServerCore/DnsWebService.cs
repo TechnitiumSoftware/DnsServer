@@ -85,7 +85,6 @@ namespace DnsServerCore
         string _webServiceTlsCertificatePath;
         string _webServiceTlsCertificatePassword;
         DateTime _webServiceTlsCertificateLastModifiedOn;
-        const int HTTPS_REQUEST_TIMEOUT = 60000;
 
         HttpListener _webService;
         IReadOnlyList<Socket> _webServiceTlsListeners;
@@ -305,21 +304,7 @@ namespace DnsServerCore
                 {
                     while (true)
                     {
-                        HttpRequest httpRequest;
-                        {
-                            Task<HttpRequest> task = HttpRequest.ReadRequestAsync(sslStream);
-
-                            using (CancellationTokenSource timeoutCancellationTokenSource = new CancellationTokenSource())
-                            {
-                                if (await Task.WhenAny(task, Task.Delay(HTTPS_REQUEST_TIMEOUT, timeoutCancellationTokenSource.Token)) != task)
-                                    return; //request timed out
-
-                                timeoutCancellationTokenSource.Cancel(); //cancel delay task
-                            }
-
-                            httpRequest = await task;
-                        }
-
+                        HttpRequest httpRequest = await HttpRequest.ReadRequestAsync(sslStream);
                         if (httpRequest == null)
                             return; //connection closed gracefully by client
 
