@@ -34,15 +34,19 @@ namespace DnsServerCore.Dns.ZoneManagers
         const uint MINIMUM_RECORD_TTL = 10u;
         const uint SERVE_STALE_TTL = 3 * 24 * 60 * 60; //3 days serve stale ttl as per https://www.rfc-editor.org/rfc/rfc8767.html suggestion
 
+        readonly DnsServer _dnsServer;
+
         readonly ZoneTree<CacheZone> _root = new ZoneTree<CacheZone>();
 
         #endregion
 
         #region constructor
 
-        public CacheZoneManager()
+        public CacheZoneManager(DnsServer dnsServer)
             : base(FAILURE_RECORD_TTL, NEGATIVE_RECORD_TTL, MINIMUM_RECORD_TTL, SERVE_STALE_TTL)
-        { }
+        {
+            _dnsServer = dnsServer;
+        }
 
         #endregion
 
@@ -68,11 +72,12 @@ namespace DnsServerCore.Dns.ZoneManagers
                     return new CacheZone(resourceRecords[0].Name);
                 });
 
-                zone.SetRecords(resourceRecords[0].Type, resourceRecords);
+                zone.SetRecords(resourceRecords[0].Type, resourceRecords, _dnsServer.ServeStale);
             }
             else
             {
                 Dictionary<string, Dictionary<DnsResourceRecordType, List<DnsResourceRecord>>> groupedByDomainRecords = DnsResourceRecord.GroupRecords(resourceRecords);
+                bool serveStale = _dnsServer.ServeStale;
 
                 //add grouped records
                 foreach (KeyValuePair<string, Dictionary<DnsResourceRecordType, List<DnsResourceRecord>>> groupedByTypeRecords in groupedByDomainRecords)
@@ -86,7 +91,7 @@ namespace DnsServerCore.Dns.ZoneManagers
                     });
 
                     foreach (KeyValuePair<DnsResourceRecordType, List<DnsResourceRecord>> groupedRecords in groupedByTypeRecords.Value)
-                        zone.SetRecords(groupedRecords.Key, groupedRecords.Value);
+                        zone.SetRecords(groupedRecords.Key, groupedRecords.Value, serveStale);
                 }
             }
         }
@@ -170,11 +175,13 @@ namespace DnsServerCore.Dns.ZoneManagers
 
         #region public
 
-        public void DoMaintenance()
+        public override void RemoveExpiredRecords()
         {
+            bool serveStale = _dnsServer.ServeStale;
+
             foreach (CacheZone zone in _root)
             {
-                zone.RemoveExpiredRecords();
+                zone.RemoveExpiredRecords(serveStale);
 
                 if (zone.IsEmpty)
                     _root.TryRemove(zone.Name, out _); //remove empty zone
