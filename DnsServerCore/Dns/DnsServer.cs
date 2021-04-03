@@ -84,7 +84,7 @@ namespace DnsServerCore.Dns
         readonly AllowedZoneManager _allowedZoneManager;
         readonly BlockedZoneManager _blockedZoneManager;
         readonly BlockListZoneManager _blockListZoneManager;
-        readonly CacheZoneManager _cacheZoneManager = new CacheZoneManager();
+        readonly CacheZoneManager _cacheZoneManager;
         readonly DnsApplicationManager _dnsApplicationManager;
 
         readonly ResolverDnsCache _dnsCache;
@@ -128,8 +128,8 @@ namespace DnsServerCore.Dns
         IList<CacheRefreshSample> _cacheRefreshSampleList;
 
         Timer _cacheMaintenanceTimer;
-        const int CACHE_MAINTENANCE_TIMER_INITIAL_INTEVAL = 60 * 60 * 1000;
-        const int CACHE_MAINTENANCE_TIMER_PERIODIC_INTERVAL = 60 * 60 * 1000;
+        const int CACHE_MAINTENANCE_TIMER_INITIAL_INTEVAL = 15 * 60 * 1000;
+        const int CACHE_MAINTENANCE_TIMER_PERIODIC_INTERVAL = 15 * 60 * 1000;
 
         readonly IndependentTaskScheduler _resolverTaskScheduler = new IndependentTaskScheduler(ThreadPriority.AboveNormal);
         readonly DomainTree<Task<DnsDatagram>> _resolverTasks = new DomainTree<Task<DnsDatagram>>();
@@ -181,6 +181,7 @@ namespace DnsServerCore.Dns
             _allowedZoneManager = new AllowedZoneManager(this);
             _blockedZoneManager = new BlockedZoneManager(this);
             _blockListZoneManager = new BlockListZoneManager(this);
+            _cacheZoneManager = new CacheZoneManager(this);
             _dnsApplicationManager = new DnsApplicationManager(this);
 
             _dnsCache = new ResolverDnsCache(_authZoneManager, _cacheZoneManager);
@@ -228,7 +229,7 @@ namespace DnsServerCore.Dns
 
         private async Task ReadUdpRequestAsync(Socket udpListener)
         {
-            byte[] recvBuffer = new byte[512];
+            byte[] recvBuffer = new byte[1500];
 
             try
             {
@@ -940,18 +941,8 @@ namespace DnsServerCore.Dns
 
                         DnsDatagram response;
 
-                        //check in allowed zone
-                        bool inAllowedZone = (_allowedZoneManager.TotalZonesAllowed > 0) && (_allowedZoneManager.Query(request).RCODE != DnsResponseCode.Refused);
-                        if (!inAllowedZone)
-                        {
-                            //check in blocked zone and block list zone
-                            response = ProcessBlockedQuery(request);
-                            if (response != null)
-                                return response;
-                        }
-
                         //query authoritative zone
-                        response = await ProcessAuthoritativeQueryAsync(request, remoteEP, inAllowedZone, isRecursionAllowed, protocol);
+                        response = await ProcessAuthoritativeQueryAsync(request, remoteEP, isRecursionAllowed, protocol);
 
                         if (response.RCODE != DnsResponseCode.Refused)
                         {
@@ -968,7 +959,7 @@ namespace DnsServerCore.Dns
                         if ((request.Question[0].Type == DnsResourceRecordType.ANY) && (protocol == DnsTransportProtocol.Udp)) //force TCP for ANY request
                             return new DnsDatagram(request.Identifier, true, DnsOpcode.StandardQuery, false, true, request.RecursionDesired, isRecursionAllowed, false, false, DnsResponseCode.NoError, request.Question);
 
-                        return await ProcessRecursiveQueryAsync(request, remoteEP, protocol, null, !inAllowedZone, false);
+                        return await ProcessRecursiveQueryAsync(request, remoteEP, protocol, null, false);
                     }
                     catch (InvalidDomainNameException)
                     {
@@ -1069,7 +1060,7 @@ namespace DnsServerCore.Dns
             return new DnsDatagram(request.Identifier, true, DnsOpcode.StandardQuery, true, false, request.RecursionDesired, false, false, false, DnsResponseCode.NoError, request.Question, axfrRecords) { Tag = StatsResponseType.Authoritative };
         }
 
-        private async Task<DnsDatagram> ProcessAuthoritativeQueryAsync(DnsDatagram request, IPEndPoint remoteEP, bool inAllowedZone, bool isRecursionAllowed, DnsTransportProtocol protocol)
+        private async Task<DnsDatagram> ProcessAuthoritativeQueryAsync(DnsDatagram request, IPEndPoint remoteEP, bool isRecursionAllowed, DnsTransportProtocol protocol)
         {
             DnsDatagram response = _authZoneManager.Query(request, isRecursionAllowed);
             response.Tag = StatsResponseType.Authoritative;
@@ -1106,7 +1097,7 @@ namespace DnsServerCore.Dns
                                 if (request.RecursionDesired && isRecursionAllowed)
                                 {
                                     //do recursive resolution; name servers will be provided via ResolverDnsCache
-                                    return await ProcessRecursiveQueryAsync(request, remoteEP, protocol, null, !inAllowedZone, false);
+                                    return await ProcessRecursiveQueryAsync(request, remoteEP, protocol, null, false);
                                 }
 
                                 break;
@@ -1115,7 +1106,7 @@ namespace DnsServerCore.Dns
                                 if ((response.Authority.Count == 1) && (response.Authority[0].RDATA as DnsForwarderRecord).Forwarder.Equals("this-server", StringComparison.OrdinalIgnoreCase))
                                 {
                                     //do conditional forwarding via "this-server" 
-                                    return await ProcessRecursiveQueryAsync(request, remoteEP, protocol, null, !inAllowedZone, false);
+                                    return await ProcessRecursiveQueryAsync(request, remoteEP, protocol, null, false);
                                 }
                                 else
                                 {
@@ -1133,7 +1124,7 @@ namespace DnsServerCore.Dns
                                         }
                                     }
 
-                                    return await ProcessRecursiveQueryAsync(request, remoteEP, protocol, forwarders, !inAllowedZone, false);
+                                    return await ProcessRecursiveQueryAsync(request, remoteEP, protocol, forwarders, false);
                                 }
 
                             case DnsResourceRecordType.APP:
@@ -1527,8 +1518,28 @@ namespace DnsServerCore.Dns
             return response;
         }
 
-        private async Task<DnsDatagram> ProcessRecursiveQueryAsync(DnsDatagram request, IPEndPoint remoteEP, DnsTransportProtocol protocol, IReadOnlyList<NameServerAddress> viaForwarders, bool checkForCnameCloaking, bool cacheRefreshOperation)
+        private async Task<DnsDatagram> ProcessRecursiveQueryAsync(DnsDatagram request, IPEndPoint remoteEP, DnsTransportProtocol protocol, IReadOnlyList<NameServerAddress> viaForwarders, bool cacheRefreshOperation)
         {
+            bool inAllowedZone;
+
+            if (cacheRefreshOperation)
+            {
+                //cache refresh operation should be able to refresh all the records in cache
+                //this is since a blocked CNAME record could still be used by an allowed domain name and so must resolve
+                inAllowedZone = true;
+            }
+            else
+            {
+                inAllowedZone = (_allowedZoneManager.TotalZonesAllowed > 0) && (_allowedZoneManager.Query(request).RCODE != DnsResponseCode.Refused);
+                if (!inAllowedZone)
+                {
+                    //check in blocked zone and block list zone
+                    DnsDatagram blockedResponse = ProcessBlockedQuery(request);
+                    if (blockedResponse != null)
+                        return blockedResponse;
+                }
+            }
+
             DnsDatagram response = await RecursiveResolveAsync(request, viaForwarders, false, cacheRefreshOperation);
 
             if (response.Answer.Count > 0)
@@ -1539,8 +1550,9 @@ namespace DnsServerCore.Dns
                 if ((lastRR.Type != questionType) && (lastRR.Type == DnsResourceRecordType.CNAME) && (questionType != DnsResourceRecordType.ANY))
                     response = await ProcessCNAMEAsync(request, remoteEP, response, true, protocol, cacheRefreshOperation);
 
-                if (checkForCnameCloaking)
+                if (!inAllowedZone)
                 {
+                    //check for CNAME cloaking
                     for (int i = 0; i < response.Answer.Count; i++)
                     {
                         DnsResourceRecord record = response.Answer[i];
@@ -1551,7 +1563,7 @@ namespace DnsServerCore.Dns
                         DnsDatagram newRequest = new DnsDatagram(0, false, DnsOpcode.StandardQuery, false, false, true, false, false, false, DnsResponseCode.NoError, new DnsQuestionRecord[] { new DnsQuestionRecord((record.RDATA as DnsCNAMERecord).Domain, request.Question[0].Type, request.Question[0].Class) });
 
                         //check allowed zone
-                        bool inAllowedZone = (_allowedZoneManager.TotalZonesAllowed > 0) && (_allowedZoneManager.Query(newRequest).RCODE != DnsResponseCode.Refused);
+                        inAllowedZone = (_allowedZoneManager.TotalZonesAllowed > 0) && (_allowedZoneManager.Query(newRequest).RCODE != DnsResponseCode.Refused);
                         if (inAllowedZone)
                             break; //CNAME is in allowed zone
 
@@ -1717,6 +1729,8 @@ namespace DnsServerCore.Dns
 
             try
             {
+                DnsDatagram response;
+
                 if (forwarders != null)
                 {
                     //use forwarders
@@ -1740,11 +1754,8 @@ namespace DnsServerCore.Dns
                     dnsClient.Timeout = _forwarderTimeout;
                     dnsClient.Concurrency = _forwarderConcurrency;
 
-                    DnsDatagram response = await dnsClient.ResolveAsync(request.Question[0]);
-
+                    response = await dnsClient.ResolveAsync(request.Question[0]);
                     _cacheZoneManager.CacheResponse(response);
-
-                    taskCompletionSource.SetResult(response);
                 }
                 else
                 {
@@ -1756,8 +1767,18 @@ namespace DnsServerCore.Dns
                     else
                         dnsCache = _dnsCache;
 
-                    DnsDatagram response = await DnsClient.RecursiveResolveAsync(request.Question[0], dnsCache, _proxy, _preferIPv6, _randomizeName, _qnameMinimization, _resolverRetries, _resolverTimeout, _resolverMaxStackCount);
-                    taskCompletionSource.SetResult(response);
+                    response = await DnsClient.RecursiveResolveAsync(request.Question[0], dnsCache, _proxy, _preferIPv6, _randomizeName, _qnameMinimization, _resolverRetries, _resolverTimeout, _resolverMaxStackCount);
+                }
+
+                switch (response.RCODE)
+                {
+                    case DnsResponseCode.NoError:
+                    case DnsResponseCode.NameError:
+                        taskCompletionSource.SetResult(response);
+                        break;
+
+                    default:
+                        throw new DnsServerException("DNS Server received a response with RCODE=" + response.RCODE.ToString() + " from: " + response.Metadata.NameServer);
                 }
             }
             catch (Exception ex)
@@ -1860,7 +1881,7 @@ namespace DnsServerCore.Dns
             {
                 //refresh cache
                 DnsDatagram request = new DnsDatagram(0, false, DnsOpcode.StandardQuery, false, false, true, false, false, false, DnsResponseCode.NoError, new DnsQuestionRecord[] { sample.SampleQuestion });
-                DnsDatagram response = await ProcessRecursiveQueryAsync(request, new IPEndPoint(IPAddress.Any, 0), DnsTransportProtocol.Udp, sample.ViaForwarders, false, true);
+                DnsDatagram response = await ProcessRecursiveQueryAsync(request, new IPEndPoint(IPAddress.Any, 0), DnsTransportProtocol.Udp, sample.ViaForwarders, true);
 
                 bool removeFromSampleList = true;
                 DateTime utcNow = DateTime.UtcNow;
@@ -2097,7 +2118,7 @@ namespace DnsServerCore.Dns
         {
             try
             {
-                _cacheZoneManager.DoMaintenance();
+                _cacheZoneManager.RemoveExpiredRecords();
             }
             catch (Exception ex)
             {
