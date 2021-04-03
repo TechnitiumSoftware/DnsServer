@@ -95,78 +95,90 @@ namespace DnsServerCore.Dns.Zones
 
         #region public
 
-        public void SetRecords(DnsResourceRecordType type, IReadOnlyList<DnsResourceRecord> records)
+        public void SetRecords(DnsResourceRecordType type, IReadOnlyList<DnsResourceRecord> records, bool serveStale)
         {
             if ((records.Count > 0) && (records[0].RDATA is DnsCache.DnsFailureRecord))
             {
                 //call trying to cache failure record
                 if (_entries.TryGetValue(type, out IReadOnlyList<DnsResourceRecord> existingRecords))
                 {
-                    if ((existingRecords.Count > 0) && !(existingRecords[0].RDATA is DnsCache.DnsFailureRecord))
-                        return; //skip to avoid overwriting a useful stale record with a failure record to allow serve-stale to work as intended
+                    if ((existingRecords.Count > 0) && !(existingRecords[0].RDATA is DnsCache.DnsFailureRecord) && (serveStale || !existingRecords[0].IsStale))
+                        return; //skip to avoid overwriting a useful record with a failure record
                 }
             }
 
             //set records
             _entries[type] = records;
 
-            switch (type)
+            if (serveStale && (records.Count > 0) && !(records[0].RDATA is DnsCache.DnsFailureRecord))
             {
-                case DnsResourceRecordType.CNAME:
-                case DnsResourceRecordType.SOA:
-                case DnsResourceRecordType.NS:
-                    //do nothing
-                    break;
+                //remove stale CNAME entry only when serve stale is enabled
+                //making sure current record is not a failure record causing removal of useful stale CNAME record
+                switch (type)
+                {
+                    case DnsResourceRecordType.CNAME:
+                    case DnsResourceRecordType.SOA:
+                    case DnsResourceRecordType.NS:
+                        //do nothing
+                        break;
 
-                default:
-                    //remove old CNAME entry since current new entry type overlaps any existing CNAME entry in cache
-                    //keeping both entries will create issue with serve stale implementation since stale CNAME entry will be always returned
+                    default:
+                        //remove stale CNAME entry since current new entry type overlaps any existing CNAME entry in cache
+                        //keeping both entries will create issue with serve stale implementation since stale CNAME entry will be always returned
 
-                    if (_entries.TryGetValue(DnsResourceRecordType.CNAME, out IReadOnlyList<DnsResourceRecord> existingCNAMERecords))
-                    {
-                        if ((existingCNAMERecords.Count > 0) && (existingCNAMERecords[0].RDATA is DnsCNAMERecord))
+                        if (_entries.TryGetValue(DnsResourceRecordType.CNAME, out IReadOnlyList<DnsResourceRecord> existingCNAMERecords))
                         {
-                            //delete CNAME entry only when it contains DnsCNAMERecord RDATA and not special cache records
-                            _entries.TryRemove(DnsResourceRecordType.CNAME, out _);
+                            if ((existingCNAMERecords.Count > 0) && (existingCNAMERecords[0].RDATA is DnsCNAMERecord) && existingCNAMERecords[0].IsStale)
+                            {
+                                //delete CNAME entry only when it contains stale DnsCNAMERecord RDATA and not special cache records
+                                _entries.TryRemove(DnsResourceRecordType.CNAME, out _);
+                            }
                         }
-                    }
-                    break;
+                        break;
+                }
             }
         }
 
-        public void RemoveExpiredRecords()
+        public void RemoveExpiredRecords(bool serveStale)
         {
-            foreach (DnsResourceRecordType type in _entries.Keys)
+            foreach (KeyValuePair<DnsResourceRecordType, IReadOnlyList<DnsResourceRecord>> entry in _entries)
             {
-                IReadOnlyList<DnsResourceRecord> records = _entries[type];
+                bool isExpired = false;
 
-                foreach (DnsResourceRecord record in records)
+                foreach (DnsResourceRecord record in entry.Value)
                 {
-                    if (record.TtlValue < 1u)
+                    if ((record.TtlValue < 1u) || (!serveStale && record.IsStale))
                     {
-                        //record is expired; update entry
-                        List<DnsResourceRecord> newRecords = new List<DnsResourceRecord>(records.Count);
-
-                        foreach (DnsResourceRecord existingRecord in records)
-                        {
-                            if (existingRecord.TtlValue < 1u)
-                                continue;
-
-                            newRecords.Add(existingRecord);
-                        }
-
-                        if (newRecords.Count > 0)
-                        {
-                            //try update entry with non-expired records
-                            _entries.TryUpdate(type, newRecords, records);
-                        }
-                        else
-                        {
-                            //all records expired; remove entry
-                            _entries.TryRemove(type, out _);
-                        }
-
+                        //record expired
+                        isExpired = true;
                         break;
+                    }
+                }
+
+                if (isExpired)
+                {
+                    List<DnsResourceRecord> newRecords = null;
+
+                    foreach (DnsResourceRecord record in entry.Value)
+                    {
+                        if ((record.TtlValue < 1u) || (!serveStale && record.IsStale))
+                            continue; //record expired, skip it
+
+                        if (newRecords == null)
+                            newRecords = new List<DnsResourceRecord>(entry.Value.Count);
+
+                        newRecords.Add(record);
+                    }
+
+                    if (newRecords == null)
+                    {
+                        //all records expired; remove entry
+                        _entries.TryRemove(entry.Key, out _);
+                    }
+                    else
+                    {
+                        //try update entry with non-expired records
+                        _entries.TryUpdate(entry.Key, newRecords, entry.Value);
                     }
                 }
             }
