@@ -47,6 +47,15 @@ Applications of using a locally hosted DNS server is limited only by the user's 
 - Built-in system logging and query logging.
 - Open source cross-platform .NET 5 implementation hosted on GitHub.
 
+# Planned Features
+- Query logging support for databases feature as a DNS App.
+- Query rate limiting per IP address option.
+- Multi-user role based access.
+- API key to provide long term access token.
+- Clustering support to manage two or more DNS servers.
+- EDNS support.
+- DNSSEC support.
+
 # Installation
 - **Windows**: [Download setup installer](https://download.technitium.com/dns/DnsServerSetup.zip) for easy installation.
 - **Linux & Raspberry Pi**: Follow install instructions from [this blog post](https://blog.technitium.com/2017/11/running-dns-server-on-ubuntu-linux.html).
