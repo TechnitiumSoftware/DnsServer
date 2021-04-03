@@ -888,6 +888,22 @@ namespace DnsServerCore.Dns.ZoneManagers
             return _root.ListSubDomains(domain);
         }
 
+        public DnsDatagram QueryClosestDelegation(DnsDatagram request)
+        {
+            _ = _root.FindZone(request.Question[0].Name, out AuthZone delegation, out _, out _);
+            if (delegation == null)
+            {
+                //no delegation found
+                return new DnsDatagram(request.Identifier, true, DnsOpcode.StandardQuery, false, false, request.RecursionDesired, true, false, false, DnsResponseCode.Refused, request.Question);
+            }
+
+            //return closest name servers in delegation
+            IReadOnlyList<DnsResourceRecord> authority = delegation.QueryRecords(DnsResourceRecordType.NS);
+            IReadOnlyList<DnsResourceRecord> additional = GetAdditionalRecords(authority);
+
+            return new DnsDatagram(request.Identifier, true, DnsOpcode.StandardQuery, false, false, request.RecursionDesired, true, false, false, DnsResponseCode.NoError, request.Question, null, authority, additional);
+        }
+
         public DnsDatagram Query(DnsDatagram request, bool isRecursionAllowed)
         {
             AuthZone zone = _root.FindZone(request.Question[0].Name, out AuthZone delegation, out AuthZone authZone, out bool hasSubDomains);
