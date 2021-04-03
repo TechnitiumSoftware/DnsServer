@@ -47,7 +47,24 @@ namespace DnsServerCore.Dns
             if (_prefetchQuery.Equals(request.Question[0]))
             {
                 //return closest name servers so that the recursive resolver queries them to refreshes cache instead of returning response from cache
-                return _cacheZoneManager.QueryClosestDelegation(request);
+                DnsDatagram authResponse = _authZoneManager.QueryClosestDelegation(request);
+                DnsDatagram cacheResponse = _cacheZoneManager.QueryClosestDelegation(request);
+
+                if ((authResponse.Authority.Count > 0) && (cacheResponse.Authority.Count > 0))
+                {
+                    if (authResponse.Authority[0].Name.Length >= cacheResponse.Authority[0].Name.Length)
+                        return authResponse;
+
+                    return cacheResponse;
+                }
+                else if (authResponse.Authority.Count > 0)
+                {
+                    return authResponse;
+                }
+                else
+                {
+                    return cacheResponse;
+                }
             }
 
             return base.Query(request, serveStale);
