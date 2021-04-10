@@ -235,10 +235,10 @@ namespace DnsServerCore.Dns.Zones
             if (!dontRemoveRecords)
             {
                 //remove entires of type that do not exists in new entries
-                foreach (DnsResourceRecordType type in _entries.Keys)
+                foreach (KeyValuePair<DnsResourceRecordType, IReadOnlyList<DnsResourceRecord>> entry in _entries)
                 {
-                    if (!newEntries.ContainsKey(type))
-                        _entries.TryRemove(type, out _);
+                    if (!newEntries.ContainsKey(entry.Key))
+                        _entries.TryRemove(entry.Key, out _);
                 }
             }
 
