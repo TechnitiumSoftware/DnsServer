@@ -536,6 +536,7 @@
                                     <div id="divViewApps" style="margin-top: 10px;">
                                         <div>
                                             <div style="float: right;">
+                                                <button type="button" class="btn btn-primary" style="padding: 2px 0px; width: 100px;" onclick="showStoreAppsModal();">App Store</button>
                                                 <button type="button" class="btn btn-primary" style="padding: 2px 0px; width: 100px;" onclick="showInstallAppModal();">Install</button>
                                             </div>
                                             <div style="clear: both;"></div>
@@ -2186,6 +2187,49 @@
     </div>
 
 
+    <div id="modalStoreApps" class="modal fade" tabindex="-1" role="dialog">
+        <form class="form-horizontal">
+            <div class="modal-dialog" role="document" style="width: 800px;">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <button type="button" class="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button>
+                        <h4 class="modal-title">DNS App Store</h4>
+                    </div>
+                    <div class="modal-body">
+                        <div id="divStoreAppsAlert"></div>
+
+                        <div id="divStoreAppsLoader" style="height: 500px;"></div>
+
+                        <div id="divStoreApps" style="max-height: 500px; overflow-y: auto; display: none;">
+                            <table class="table table-hover">
+                                <thead>
+                                    <tr>
+                                        <th style="min-width: 120px;" onclick="sortTable('tableStoreAppsBody', 0);">Store App</th>
+                                        <th>Description</th>
+                                        <th style="width: 96px;"></th>
+                                    </tr>
+                                </thead>
+                                <tbody id="tableStoreAppsBody">
+                                    <tr>
+                                        <td>Store App</td>
+                                        <td>Description</td>
+                                        <td>Install Update</td>
+                                    </tr>
+                                </tbody>
+                                <tfoot id="tableStoreAppsFooter">
+                                    <tr><td colspan="3"><b>Total Apps: 1</b></td></tr>
+                                </tfoot>
+                            </table>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-default" data-dismiss="modal">Close</button>
+                    </div>
+                </div>
+            </div>
+        </form>
+    </div>
+
     <div id="modalInstallApp" class="modal fade" tabindex="-1" role="dialog">
         <form class="form-horizontal">
             <div class="modal-dialog" role="document">
@@ -2273,7 +2317,7 @@
                         <textarea id="txtAppConfig" class="form-control" rows="15"></textarea>
                     </div>
 
-                    <p>Note: The app will reload the config automatically after saving it.</p>
+                    <p>Note: The app will reload the config automatically after you save it.</p>
                 </div>
                 <div class="modal-footer">
                     <button id="btnAppConfig" type="submit" class="btn btn-primary" data-loading-text="Saving..." onclick="return saveAppConfig();">Save</button>
