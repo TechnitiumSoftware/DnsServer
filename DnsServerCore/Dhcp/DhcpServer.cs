@@ -655,8 +655,10 @@ namespace DnsServerCore.Dhcp
                     //broadcast request
                     Scope foundScope = null;
 
-                    foreach (Scope scope in _scopes.Values)
+                    foreach (KeyValuePair<string, Scope> entry in _scopes)
                     {
+                        Scope scope = entry.Value;
+
                         if (scope.Enabled && (scope.InterfaceIndex == ipPacketInformation.Interface))
                         {
                             if (scope.GetReservedLease(request) != null)
@@ -675,8 +677,10 @@ namespace DnsServerCore.Dhcp
                         return null; //client ip must match udp src addr
 
                     //unicast request
-                    foreach (Scope scope in _scopes.Values)
+                    foreach (KeyValuePair<string, Scope> entry in _scopes)
                     {
+                        Scope scope = entry.Value;
+
                         if (scope.Enabled && scope.IsAddressInRange(request.ClientIpAddress))
                             return scope;
                     }
@@ -689,8 +693,10 @@ namespace DnsServerCore.Dhcp
                 //relay agent unicast
                 Scope foundScope = null;
 
-                foreach (Scope scope in _scopes.Values)
+                foreach (KeyValuePair<string, Scope> entry in _scopes)
                 {
+                    Scope scope = entry.Value;
+
                     if (scope.Enabled && scope.InterfaceAddress.Equals(IPAddress.Any) && scope.IsAddressInNetwork(request.RelayAgentIpAddress))
                     {
                         if (scope.GetReservedLease(request) != null)
@@ -828,11 +834,11 @@ namespace DnsServerCore.Dhcp
             ConcurrentDictionary<string, object> modifiedDnsAuthZones = _modifiedDnsAuthZones;
             _modifiedDnsAuthZones = new ConcurrentDictionary<string, object>();
 
-            foreach (string authZone in modifiedDnsAuthZones.Keys)
+            foreach (KeyValuePair<string, object> authZone in modifiedDnsAuthZones)
             {
                 try
                 {
-                    _authZoneManager.SaveZoneFile(authZone);
+                    _authZoneManager.SaveZoneFile(authZone.Key);
                 }
                 catch (Exception ex)
                 {
@@ -972,8 +978,8 @@ namespace DnsServerCore.Dhcp
                     //update valid leases into dns
                     DateTime utcNow = DateTime.UtcNow;
 
-                    foreach (Lease lease in scope.Leases)
-                        UpdateDnsAuthZone(utcNow < lease.LeaseExpires, scope, lease); //lease valid
+                    foreach (KeyValuePair<ClientIdentifierOption, Lease> lease in scope.Leases)
+                        UpdateDnsAuthZone(utcNow < lease.Value.LeaseExpires, scope, lease.Value); //lease valid
                 }
 
                 LogManager log = _log;
@@ -1009,8 +1015,8 @@ namespace DnsServerCore.Dhcp
                 if (_authZoneManager != null)
                 {
                     //remove all leases from dns
-                    foreach (Lease lease in scope.Leases)
-                        UpdateDnsAuthZone(false, scope, lease);
+                    foreach (KeyValuePair<ClientIdentifierOption, Lease> lease in scope.Leases)
+                        UpdateDnsAuthZone(false, scope, lease.Value);
                 }
 
                 LogManager log = _log;
@@ -1031,8 +1037,10 @@ namespace DnsServerCore.Dhcp
 
         private async Task LoadScopeAsync(Scope scope, bool waitForInterface)
         {
-            foreach (Scope existingScope in _scopes.Values)
+            foreach (KeyValuePair<string, Scope> entry in _scopes)
             {
+                Scope existingScope = entry.Value;
+
                 if (existingScope.IsAddressInRange(scope.StartingAddress) || existingScope.IsAddressInRange(scope.EndingAddress))
                     throw new DhcpServerException("Scope with overlapping range already exists: " + existingScope.StartingAddress.ToString() + "-" + existingScope.EndingAddress.ToString());
             }
@@ -1322,10 +1330,10 @@ namespace DnsServerCore.Dhcp
 
             foreach (KeyValuePair<string, Scope> scope in _scopes)
             {
-                foreach (Lease lease in scope.Value.Leases)
+                foreach (KeyValuePair<ClientIdentifierOption, Lease> lease in scope.Value.Leases)
                 {
-                    if (!string.IsNullOrEmpty(lease.HostName))
-                        map.Add(lease.Address.ToString(), lease.HostName);
+                    if (!string.IsNullOrEmpty(lease.Value.HostName))
+                        map.Add(lease.Value.Address.ToString(), lease.Value.HostName);
                 }
             }
 
@@ -1336,8 +1344,8 @@ namespace DnsServerCore.Dhcp
 
         #region properties
 
-        public ICollection<Scope> Scopes
-        { get { return _scopes.Values; } }
+        public IReadOnlyDictionary<string, Scope> Scopes
+        { get { return _scopes; } }
 
         public AuthZoneManager AuthZoneManager
         {
