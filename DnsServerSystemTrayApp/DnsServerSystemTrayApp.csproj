@@ -11,7 +11,7 @@
     <AssemblyName>DnsServerSystemTrayApp</AssemblyName>
     <Authors>Shreyas Zare</Authors>
     <ApplicationIcon>logo2.ico</ApplicationIcon>
-    <Version>2.0</Version>
+    <Version>2.1</Version>
     <Company>Technitium</Company>
     <Product>Technitium DNS Server</Product>
     <Description>.NET 5</Description>
@@ -19,8 +19,7 @@
     <RepositoryUrl>https://github.com/TechnitiumSoftware/DnsServer</RepositoryUrl>
   </PropertyGroup>
   <ItemGroup>
-    <Reference Include="TechnitiumLibrary.IO, Version=2.5.4.0, Culture=neutral, processorArchitecture=MSIL">
-      <SpecificVersion>False</SpecificVersion>
+    <Reference Include="TechnitiumLibrary.IO">
       <HintPath>..\..\TechnitiumLibrary\bin\TechnitiumLibrary.IO.dll</HintPath>
     </Reference>
     <Reference Include="TechnitiumLibrary.Net">
