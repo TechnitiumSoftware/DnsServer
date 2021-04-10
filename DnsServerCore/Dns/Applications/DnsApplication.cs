@@ -148,8 +148,8 @@ namespace DnsServerCore.Dns.Applications
             {
                 if (_dnsRequestHandlers != null)
                 {
-                    foreach (IDnsApplicationRequestHandler handler in _dnsRequestHandlers.Values)
-                        handler.Dispose();
+                    foreach (KeyValuePair<string, IDnsApplicationRequestHandler> handler in _dnsRequestHandlers)
+                        handler.Value.Dispose();
 
                     _dnsRequestHandlers.Clear();
                 }
@@ -174,8 +174,8 @@ namespace DnsServerCore.Dns.Applications
         {
             string config = await GetConfigAsync();
 
-            foreach (IDnsApplicationRequestHandler handler in _dnsRequestHandlers.Values)
-                await handler.InitializeAsync(_dnsServer, config);
+            foreach (KeyValuePair<string, IDnsApplicationRequestHandler> handler in _dnsRequestHandlers)
+                await handler.Value.InitializeAsync(_dnsServer, config);
         }
 
         #endregion
@@ -196,8 +196,8 @@ namespace DnsServerCore.Dns.Applications
         {
             string configFile = Path.Combine(_dnsServer.ApplicationFolder, "dnsApp.config");
 
-            foreach (IDnsApplicationRequestHandler handler in _dnsRequestHandlers.Values)
-                await handler.InitializeAsync(_dnsServer, config);
+            foreach (KeyValuePair<string, IDnsApplicationRequestHandler> handler in _dnsRequestHandlers)
+                await handler.Value.InitializeAsync(_dnsServer, config);
 
             if (string.IsNullOrEmpty(config))
                 File.Delete(configFile);
