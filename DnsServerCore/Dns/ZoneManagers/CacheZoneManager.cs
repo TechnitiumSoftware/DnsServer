@@ -69,7 +69,7 @@ namespace DnsServerCore.Dns.ZoneManagers
 
                 CacheZone zone = _root.GetOrAdd(resourceRecords[0].Name, delegate (string key)
                 {
-                    return new CacheZone(resourceRecords[0].Name);
+                    return new CacheZone(resourceRecords[0].Name, 1);
                 });
 
                 zone.SetRecords(resourceRecords[0].Type, resourceRecords, _dnsServer.ServeStale);
@@ -87,7 +87,7 @@ namespace DnsServerCore.Dns.ZoneManagers
 
                     CacheZone zone = _root.GetOrAdd(groupedByTypeRecords.Key, delegate (string key)
                     {
-                        return new CacheZone(groupedByTypeRecords.Key);
+                        return new CacheZone(groupedByTypeRecords.Key, groupedByTypeRecords.Value.Count);
                     });
 
                     foreach (KeyValuePair<DnsResourceRecordType, List<DnsResourceRecord>> groupedRecords in groupedByTypeRecords.Value)
