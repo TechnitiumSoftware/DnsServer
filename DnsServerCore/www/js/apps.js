@@ -58,9 +58,9 @@ function refreshApps() {
             $("#tableAppsBody").html(tableHtmlRows);
 
             if (apps.length > 0)
-                $("#tableAppsFooter").html("<tr><td colspan=\"5\"><b>Total Apps: " + apps.length + "</b></td></tr>");
+                $("#tableAppsFooter").html("<tr><td colspan=\"3\"><b>Total Apps: " + apps.length + "</b></td></tr>");
             else
-                $("#tableAppsFooter").html("<tr><td colspan=\"5\" align=\"center\">No Apps Found</td></tr>");
+                $("#tableAppsFooter").html("<tr><td colspan=\"3\" align=\"center\">No Apps Found</td></tr>");
 
             divViewAppsLoader.hide();
             divViewApps.show();
@@ -73,6 +73,61 @@ function refreshApps() {
             showPageLogin();
         },
         objLoaderPlaceholder: divViewAppsLoader
+    });
+}
+
+function showStoreAppsModal() {
+    var divStoreAppsAlert = $("#divStoreAppsAlert");
+    var divStoreAppsLoader = $("#divStoreAppsLoader");
+    var divStoreApps = $("#divStoreApps");
+
+    divStoreAppsLoader.show();
+    divStoreApps.hide();
+    $("#modalStoreApps").modal("show");
+
+    HTTPRequest({
+        url: "/api/apps/listStoreApps?token=" + token,
+        success: function (responseJSON) {
+            var storeApps = responseJSON.response.storeApps;
+            var tableHtmlRows = "";
+
+            for (var i = 0; i < storeApps.length; i++) {
+                var id = Math.floor(Math.random() * 10000);
+                var name = storeApps[i].name;
+                var version = storeApps[i].version;
+                var description = storeApps[i].description;
+                var url = storeApps[i].url;
+                var installed = storeApps[i].installed;
+                var updateAvailable = installed ? storeApps[i].updateAvailable : false;
+
+                tableHtmlRows += "<tr id=\"trStoreApp" + id + "\"><td>" + htmlEncode(name) + "<br /><span id=\"spanStoreAppVersion" + id + "\" class=\"label label-" + (updateAvailable ? "warning" : "primary") + "\">Version " + htmlEncode(version) + "</span></td>";
+                tableHtmlRows += "<td>" + htmlEncode(description) + "<br /><br /><b>App Zip File</b>: " + htmlEncode(url) + "</td><td>";
+                tableHtmlRows += "<button id=\"btnStoreAppInstall" + id + "\" type=\"button\" data-id=\"" + id + "\" class=\"btn btn-primary\" style=\"font-size: 12px; padding: 2px 0px; width: 80px; margin-bottom: 6px; " + (installed ? "display: none;" : "") + "\" onclick=\"installStoreApp(this, '" + name + "', '" + url + "');\" data-loading-text=\"Installing...\">Install</button>";
+                tableHtmlRows += "<button id=\"btnStoreAppUpdate" + id + "\" type=\"button\" data-id=\"" + id + "\" class=\"btn btn-warning\" style=\"font-size: 12px; padding: 2px 0px; width: 80px; margin-bottom: 6px; " + (updateAvailable ? "" : "display: none;") + "\" onclick=\"updateStoreApp(this, '" + name + "', '" + url + "');\" data-loading-text=\"Updating...\">Update</button>";
+                tableHtmlRows += "<button id=\"btnStoreAppUninstall" + id + "\" type=\"button\" data-id=\"" + id + "\" class=\"btn btn-danger\" style=\"font-size: 12px; padding: 2px 0px; width: 80px; margin-bottom: 6px; " + (installed ? "" : "display: none;") + "\" onclick=\"uninstallStoreApp(this, '" + name + "');\" data-loading-text=\"Uninstalling...\">Uninstall</button>";
+                tableHtmlRows += "</td></tr>";
+            }
+
+            $("#tableStoreAppsBody").html(tableHtmlRows);
+
+            if (storeApps.length > 0)
+                $("#tableStoreAppsFooter").html("<tr><td colspan=\"3\"><b>Total Apps: " + storeApps.length + "</b></td></tr>");
+            else
+                $("#tableStoreAppsFooter").html("<tr><td colspan=\"3\" align=\"center\">No Apps Found</td></tr>");
+
+            divStoreAppsLoader.hide();
+            divStoreApps.show();
+        },
+        error: function () {
+            divStoreAppsLoader.hide();
+            divStoreApps.show();
+        },
+        invalidToken: function () {
+            $("#modalStoreApps").modal("hide");
+            showPageLogin();
+        },
+        objAlertPlaceholder: divStoreAppsAlert,
+        objLoaderPlaceholder: divStoreAppsLoader
     });
 }
 
@@ -96,6 +151,99 @@ function showUpdateAppModal(appName) {
     $("#btnUpdateApp").button("reset");
 
     $("#modalUpdateApp").modal("show");
+}
+
+function installStoreApp(objBtn, appName, url) {
+    var divStoreAppsAlert = $("#divStoreAppsAlert");
+    var btn = $(objBtn);
+
+    btn.button('loading');
+
+    HTTPRequest({
+        url: "/api/apps/downloadAndInstall?token=" + token + "&name=" + encodeURIComponent(appName) + "&url=" + encodeURIComponent(url),
+        success: function (responseJSON) {
+            btn.button('reset');
+            btn.hide();
+
+            var id = btn.attr("data-id");
+            $("#btnStoreAppUninstall" + id).show();
+
+            refreshApps();
+
+            showAlert("success", "Store App Installed!", "DNS application was installed successfully from DNS App Store.", divStoreAppsAlert);
+        },
+        error: function () {
+            btn.button('reset');
+        },
+        invalidToken: function () {
+            $("#modalStoreApps").modal("hide");
+            showPageLogin();
+        },
+        objAlertPlaceholder: divStoreAppsAlert
+    });
+}
+
+function updateStoreApp(objBtn, appName, url) {
+    var divStoreAppsAlert = $("#divStoreAppsAlert");
+    var btn = $(objBtn);
+
+    btn.button('loading');
+
+    HTTPRequest({
+        url: "/api/apps/downloadAndUpdate?token=" + token + "&name=" + encodeURIComponent(appName) + "&url=" + encodeURIComponent(url),
+        success: function (responseJSON) {
+            btn.button('reset');
+            btn.hide();
+
+            var id = btn.attr("data-id");
+            $("#spanStoreAppVersion" + id).attr("class", "label label-primary");
+
+            showAlert("success", "Store App Updated!", "DNS application was updated successfully from DNS App Store.", divStoreAppsAlert);
+        },
+        error: function () {
+            btn.button('reset');
+        },
+        invalidToken: function () {
+            $("#modalStoreApps").modal("hide");
+            showPageLogin();
+        },
+        objAlertPlaceholder: divStoreAppsAlert
+    });
+}
+
+function uninstallStoreApp(objBtn, appName) {
+    if (!confirm("Are you sure you want to uninstall the DNS application '" + appName + "'?"))
+        return false;
+
+    var divStoreAppsAlert = $("#divStoreAppsAlert");
+    var btn = $(objBtn);
+
+    btn.button('loading');
+
+    HTTPRequest({
+        url: "/api/apps/uninstall?token=" + token + "&name=" + encodeURIComponent(appName),
+        success: function (responseJSON) {
+            btn.button('reset');
+            btn.hide();
+
+            var id = btn.attr("data-id");
+            $("#btnStoreAppInstall" + id).show();
+            $("#btnStoreAppUpdate" + id).hide();
+            $("#spanStoreAppVersion" + id).attr("class", "label label-primary");
+
+            refreshApps();
+
+            showAlert("success", "Store App Uninstalled!", "DNS application was uninstalled successfully.", divStoreAppsAlert);
+        },
+        error: function () {
+            btn.button('reset');
+        },
+        invalidToken: function () {
+            $("#modalStoreApps").modal("hide");
+            showPageLogin();
+        },
+        objAlertPlaceholder: divStoreAppsAlert
+    });
 }
 
 function installApp() {
@@ -122,7 +270,7 @@ function installApp() {
     var btn = $("#btnInstallApp").button('loading');
 
     HTTPRequest({
-        url: "/api/apps/install?token=" + token + "&name=" + appName,
+        url: "/api/apps/install?token=" + token + "&name=" + encodeURIComponent(appName),
         data: formData,
         dataIsFormData: true,
         success: function (responseJSON) {
@@ -136,6 +284,7 @@ function installApp() {
             btn.button('reset');
         },
         invalidToken: function () {
+            $("#modalInstallApp").modal("hide");
             showPageLogin();
         },
         objAlertPlaceholder: divInstallAppAlert
@@ -159,7 +308,7 @@ function updateApp() {
     var btn = $("#btnUpdateApp").button('loading');
 
     HTTPRequest({
-        url: "/api/apps/update?token=" + token + "&name=" + appName,
+        url: "/api/apps/update?token=" + token + "&name=" + encodeURIComponent(appName),
         data: formData,
         dataIsFormData: true,
         success: function (responseJSON) {
@@ -173,6 +322,7 @@ function updateApp() {
             btn.button('reset');
         },
         invalidToken: function () {
+            $("#modalUpdateApp").modal("hide");
             showPageLogin();
         },
         objAlertPlaceholder: divUpdateAppAlert
@@ -189,7 +339,7 @@ function uninstallApp(objBtn, appName) {
     btn.button('loading');
 
     HTTPRequest({
-        url: "/api/apps/uninstall?token=" + token + "&name=" + appName,
+        url: "/api/apps/uninstall?token=" + token + "&name=" + encodeURIComponent(appName),
         success: function (responseJSON) {
             $("#trApp" + id).remove();
 
@@ -217,7 +367,7 @@ function showAppConfigModal(objBtn, appName) {
     btn.button('loading');
 
     HTTPRequest({
-        url: "/api/apps/getConfig?token=" + token + "&name=" + appName,
+        url: "/api/apps/getConfig?token=" + token + "&name=" + encodeURIComponent(appName),
         success: function (responseJSON) {
             btn.button('reset');
 
@@ -252,7 +402,7 @@ function saveAppConfig() {
     var btn = $("#btnAppConfig").button("loading");
 
     HTTPRequest({
-        url: "/api/apps/setConfig?token=" + token + "&name=" + appName,
+        url: "/api/apps/setConfig?token=" + token + "&name=" + encodeURIComponent(appName),
         data: "config=" + config,
         success: function (responseJSON) {
             $("#modalAppConfig").modal("hide");
@@ -263,6 +413,7 @@ function saveAppConfig() {
             btn.button('reset');
         },
         invalidToken: function () {
+            $("#modalAppConfig").modal("hide");
             showPageLogin();
         },
         objAlertPlaceholder: divAppConfigAlert
