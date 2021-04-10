@@ -688,10 +688,10 @@ namespace DnsServerCore.Dns.ZoneManagers
             if (!dontRemoveRecords)
             {
                 //remove domains that do not exists in new records
-                foreach (string oldDomain in oldRecordsGroupedByDomain.Keys)
+                foreach (KeyValuePair<string, Dictionary<DnsResourceRecordType, List<DnsResourceRecord>>> oldDomain in oldRecordsGroupedByDomain)
                 {
-                    if (!newRecordsGroupedByDomain.ContainsKey(oldDomain))
-                        _root.TryRemove(oldDomain, out _);
+                    if (!newRecordsGroupedByDomain.ContainsKey(oldDomain.Key))
+                        _root.TryRemove(oldDomain.Key, out _);
                 }
             }
 
