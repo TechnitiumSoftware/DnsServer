@@ -320,9 +320,9 @@ namespace DnsServerCore.Dhcp
                 }
             }
 
-            foreach (Lease reservedLease in _reservedLeases.Values)
+            foreach (KeyValuePair<ClientIdentifierOption, Lease> reservedLease in _reservedLeases)
             {
-                if (address.Equals(reservedLease.Address))
+                if (address.Equals(reservedLease.Value.Address))
                     return false;
             }
 
@@ -1008,8 +1008,10 @@ namespace DnsServerCore.Dhcp
         {
             byte[] hardwareAddressBytes = Lease.ParseHardwareAddress(hardwareAddress);
 
-            foreach (Lease lease in _leases.Values)
+            foreach (KeyValuePair<ClientIdentifierOption, Lease> entry in _leases)
             {
+                Lease lease = entry.Value;
+
                 if ((lease.Type == LeaseType.Dynamic) && BinaryNumber.Equals(lease.HardwareAddress, hardwareAddressBytes))
                 {
                     //convert dynamic to reserved lease
@@ -1042,8 +1044,10 @@ namespace DnsServerCore.Dhcp
         {
             byte[] hardwareAddressBytes = Lease.ParseHardwareAddress(hardwareAddress);
 
-            foreach (Lease lease in _leases.Values)
+            foreach (KeyValuePair<ClientIdentifierOption, Lease> entry in _leases)
             {
+                Lease lease = entry.Value;
+
                 if ((lease.Type == LeaseType.Reserved) && BinaryNumber.Equals(lease.HardwareAddress, hardwareAddressBytes))
                 {
                     //convert reserved to dynamic lease
@@ -1214,8 +1218,8 @@ namespace DnsServerCore.Dhcp
 
             bW.Write(_reservedLeases.Count);
 
-            foreach (Lease reservedLease in _reservedLeases.Values)
-                reservedLease.WriteTo(bW);
+            foreach (KeyValuePair<ClientIdentifierOption, Lease> reservedLease in _reservedLeases)
+                reservedLease.Value.WriteTo(bW);
 
             bW.Write(_allowOnlyReservedLeases);
 
@@ -1254,11 +1258,7 @@ namespace DnsServerCore.Dhcp
 
         public override int GetHashCode()
         {
-            var hashCode = 206027136;
-            hashCode = hashCode * -1521134295 + _startingAddress.GetHashCode();
-            hashCode = hashCode * -1521134295 + _endingAddress.GetHashCode();
-            hashCode = hashCode * -1521134295 + _subnetMask.GetHashCode();
-            return hashCode;
+            return HashCode.Combine(_startingAddress, _endingAddress, _subnetMask);
         }
 
         public override string ToString()
@@ -1462,11 +1462,15 @@ namespace DnsServerCore.Dhcp
             }
         }
 
-        public ICollection<Lease> ReservedLeases
+        public IReadOnlyCollection<Lease> ReservedLeases
         {
             get
             {
-                List<Lease> leases = new List<Lease>(_reservedLeases.Values);
+                List<Lease> leases = new List<Lease>(_reservedLeases.Count);
+
+                foreach (KeyValuePair<ClientIdentifierOption, Lease> entry in _reservedLeases)
+                    leases.Add(entry.Value);
+
                 leases.Sort();
                 return leases;
             }
@@ -1498,8 +1502,8 @@ namespace DnsServerCore.Dhcp
             set { _allowOnlyReservedLeases = value; }
         }
 
-        public ICollection<Lease> Leases
-        { get { return _leases.Values; } }
+        public IReadOnlyDictionary<ClientIdentifierOption, Lease> Leases
+        { get { return _leases; } }
 
         public IPAddress NetworkAddress
         { get { return _networkAddress; } }
