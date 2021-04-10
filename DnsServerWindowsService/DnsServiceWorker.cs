@@ -31,7 +31,7 @@ namespace DnsServerWindowsService
 
         public DnsServiceWorker()
         {
-            _service = new DnsWebService(null, new Uri("https://go.technitium.com/?id=22"));
+            _service = new DnsWebService(null, new Uri("https://go.technitium.com/?id=22"), new Uri("https://go.technitium.com/?id=40"));
         }
 
         public override Task StartAsync(CancellationToken cancellationToken)
