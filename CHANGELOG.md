@@ -1,5 +1,19 @@
 # Technitium DNS Server Change Log
 
+## Version 6.1
+Release Date: 10 April 2021
+
+- Added DNS App Store feature that list all available apps for quick and easy installation and update.
+- Added 'Overwrite' option in Add Record for zones.
+- Multiple ANAME record support added.
+- Added block list allowed URL feature to prevent domain names from getting added to the block list zone.
+- Fixed bug in ZoneTree.
+- Fixed bugs in DNS Apps.
+- Split Default DNS App into 5 independent apps that are now available on the DNS App Store.
+- Fixed issues in DNS Cache and updated code for memory optimization.
+- Upgraded all library projects to .NET 5.
+- Multiple other minor bug fixes and improvements.
+
 ## Version 6.0
 Release Date: 13 March 2021
 
