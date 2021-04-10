@@ -29,8 +29,8 @@ namespace DnsServerCore.Dns.Zones
     {
         #region constructor
 
-        public CacheZone(string name)
-            : base(name)
+        public CacheZone(string name, int capacity)
+            : base(name, capacity)
         { }
 
         #endregion
@@ -201,8 +201,8 @@ namespace DnsServerCore.Dns.Zones
             {
                 List<DnsResourceRecord> anyRecords = new List<DnsResourceRecord>();
 
-                foreach (IReadOnlyList<DnsResourceRecord> entryRecords in _entries.Values)
-                    anyRecords.AddRange(FilterExpiredRecords(type, entryRecords, serveStale, true));
+                foreach (KeyValuePair<DnsResourceRecordType, IReadOnlyList<DnsResourceRecord>> entry in _entries)
+                    anyRecords.AddRange(FilterExpiredRecords(type, entry.Value, serveStale, true));
 
                 return anyRecords;
             }
