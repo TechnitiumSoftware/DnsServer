@@ -71,6 +71,7 @@ namespace DnsServerCore
         readonly string _appFolder;
         readonly string _configFolder;
         readonly Uri _updateCheckUri;
+        readonly Uri _appStoreUri;
 
         readonly LogManager _log;
 
@@ -91,6 +92,7 @@ namespace DnsServerCore
         X509Certificate2 _webServiceTlsCertificate;
         readonly IndependentTaskScheduler _webServiceTaskScheduler = new IndependentTaskScheduler(ThreadPriority.AboveNormal);
         string _webServiceHostname;
+        IPEndPoint _webServiceHttpEP;
 
         string _dnsTlsCertificatePath;
         string _dnsTlsCertificatePassword;
@@ -121,7 +123,7 @@ namespace DnsServerCore
 
         #region constructor
 
-        public DnsWebService(string configFolder = null, Uri updateCheckUri = null)
+        public DnsWebService(string configFolder = null, Uri updateCheckUri = null, Uri appStoreUri = null)
         {
             Assembly assembly = Assembly.GetExecutingAssembly();
             AssemblyName assemblyName = assembly.GetName();
@@ -138,6 +140,7 @@ namespace DnsServerCore
                 Directory.CreateDirectory(_configFolder);
 
             _updateCheckUri = updateCheckUri;
+            _appStoreUri = appStoreUri;
 
             _log = new LogManager(_configFolder);
 
@@ -282,17 +285,8 @@ namespace DnsServerCore
 
                 await sslStream.AuthenticateAsServerAsync(_webServiceTlsCertificate);
 
-                IPEndPoint httpEP;
-
-                if (_webServiceLocalAddresses[0].Equals(IPAddress.Any))
-                    httpEP = new IPEndPoint(IPAddress.Loopback, _webServiceHttpPort);
-                else if (_webServiceLocalAddresses[0].Equals(IPAddress.IPv6Any))
-                    httpEP = new IPEndPoint(IPAddress.IPv6Loopback, _webServiceHttpPort);
-                else
-                    httpEP = new IPEndPoint(_webServiceLocalAddresses[0], _webServiceHttpPort);
-
-                tunnel = new Socket(httpEP.AddressFamily, SocketType.Stream, ProtocolType.Tcp);
-                tunnel.Connect(httpEP);
+                tunnel = new Socket(_webServiceHttpEP.AddressFamily, SocketType.Stream, ProtocolType.Tcp);
+                tunnel.Connect(_webServiceHttpEP);
 
                 NetworkStream tunnelStream = new NetworkStream(tunnel, true);
 
@@ -516,7 +510,19 @@ namespace DnsServerCore
                                                 break;
 
                                             case "/api/apps/list":
-                                                ListApps(jsonWriter);
+                                                ListInstalledApps(jsonWriter);
+                                                break;
+
+                                            case "/api/apps/listStoreApps":
+                                                await ListStoreApps(jsonWriter);
+                                                break;
+
+                                            case "/api/apps/downloadAndInstall":
+                                                await DownloadAndInstallAppAsync(request);
+                                                break;
+
+                                            case "/api/apps/downloadAndUpdate":
+                                                await DownloadAndUpdateAppAsync(request);
                                                 break;
 
                                             case "/api/apps/install":
@@ -1036,7 +1042,7 @@ namespace DnsServerCore
             {
                 try
                 {
-                    HttpClientHandler handler = new HttpClientHandler();
+                    SocketsHttpHandler handler = new SocketsHttpHandler();
                     handler.Proxy = _dnsServer.Proxy;
 
                     using (HttpClient http = new HttpClient(handler))
@@ -1127,7 +1133,12 @@ namespace DnsServerCore
             jsonWriter.WriteStartArray();
 
             foreach (IPAddress localAddress in _webServiceLocalAddresses)
-                jsonWriter.WriteValue(localAddress.ToString());
+            {
+                if (localAddress.AddressFamily == AddressFamily.InterNetworkV6)
+                    jsonWriter.WriteValue("[" + localAddress.ToString() + "]");
+                else
+                    jsonWriter.WriteValue(localAddress.ToString());
+            }
 
             jsonWriter.WriteEndArray();
 
@@ -4707,7 +4718,7 @@ namespace DnsServerCore
 
         #region dns apps api
 
-        private void ListApps(JsonTextWriter jsonWriter)
+        private void ListInstalledApps(JsonTextWriter jsonWriter)
         {
             List<string> apps = new List<string>(_dnsServer.DnsApplicationManager.Applications.Keys);
 
@@ -4756,6 +4767,166 @@ namespace DnsServerCore
             jsonWriter.WriteEndArray();
         }
 
+        private async Task ListStoreApps(JsonTextWriter jsonWriter)
+        {
+            SocketsHttpHandler handler = new SocketsHttpHandler();
+            handler.Proxy = _dnsServer.Proxy;
+            handler.AutomaticDecompression = DecompressionMethods.GZip | DecompressionMethods.Deflate;
+
+            using (HttpClient http = new HttpClient(handler))
+            {
+                string strStoreAppsJsonArray = await http.GetStringAsync(_appStoreUri);
+                dynamic jsonStoreAppsArray = JsonConvert.DeserializeObject(strStoreAppsJsonArray);
+
+                List<string> installedApps = new List<string>(_dnsServer.DnsApplicationManager.Applications.Keys);
+
+                jsonWriter.WritePropertyName("storeApps");
+                jsonWriter.WriteStartArray();
+
+                foreach (dynamic jsonStoreApp in jsonStoreAppsArray)
+                {
+                    string name = jsonStoreApp.name.Value;
+                    string version = jsonStoreApp.version.Value;
+                    string description = jsonStoreApp.description.Value;
+                    string url = jsonStoreApp.url.Value;
+
+                    jsonWriter.WriteStartObject();
+
+                    jsonWriter.WritePropertyName("name");
+                    jsonWriter.WriteValue(name);
+
+                    jsonWriter.WritePropertyName("version");
+                    jsonWriter.WriteValue(version);
+
+                    jsonWriter.WritePropertyName("description");
+                    jsonWriter.WriteValue(description);
+
+                    jsonWriter.WritePropertyName("url");
+                    jsonWriter.WriteValue(url);
+
+                    bool installed = _dnsServer.DnsApplicationManager.Applications.TryGetValue(name, out DnsApplication installedApp);
+
+                    jsonWriter.WritePropertyName("installed");
+                    jsonWriter.WriteValue(installed);
+
+                    if (installed)
+                    {
+                        jsonWriter.WritePropertyName("installedVersion");
+                        jsonWriter.WriteValue(GetCleanVersion(installedApp.Version));
+
+                        jsonWriter.WritePropertyName("updateAvailable");
+                        jsonWriter.WriteValue(new Version(version) > installedApp.Version);
+                    }
+
+                    jsonWriter.WriteEndObject();
+                }
+
+                jsonWriter.WriteEndArray();
+            }
+        }
+
+        private async Task DownloadAndInstallAppAsync(HttpListenerRequest request)
+        {
+            string name = request.QueryString["name"];
+            if (string.IsNullOrEmpty(name))
+                throw new DnsWebServiceException("Parameter 'name' missing.");
+
+            string url = request.QueryString["url"];
+            if (string.IsNullOrEmpty(url))
+                throw new DnsWebServiceException("Parameter 'url' missing.");
+
+            if (!url.StartsWith("https://", StringComparison.OrdinalIgnoreCase))
+                throw new DnsWebServiceException("Parameter 'url' value must start with 'https://'.");
+
+            string tmpFile = Path.GetTempFileName();
+            try
+            {
+                using (FileStream fS = new FileStream(tmpFile, FileMode.Create, FileAccess.ReadWrite))
+                {
+                    //download to temp file
+                    SocketsHttpHandler handler = new SocketsHttpHandler();
+                    handler.Proxy = _dnsServer.Proxy;
+                    handler.AutomaticDecompression = DecompressionMethods.GZip | DecompressionMethods.Deflate;
+
+                    using (HttpClient http = new HttpClient(handler))
+                    {
+                        using (Stream httpStream = await http.GetStreamAsync(url))
+                        {
+                            await httpStream.CopyToAsync(fS);
+                        }
+                    }
+
+                    //install app
+                    fS.Position = 0;
+                    await _dnsServer.DnsApplicationManager.InstallApplicationAsync(name, fS);
+
+                    _log.Write(GetRequestRemoteEndPoint(request), "[" + GetSession(request).Username + "] DNS application '" + name + "' was installed successfully from: " + url);
+                }
+            }
+            finally
+            {
+                try
+                {
+                    File.Delete(tmpFile);
+                }
+                catch (Exception ex)
+                {
+                    _log.Write(ex);
+                }
+            }
+        }
+
+        private async Task DownloadAndUpdateAppAsync(HttpListenerRequest request)
+        {
+            string name = request.QueryString["name"];
+            if (string.IsNullOrEmpty(name))
+                throw new DnsWebServiceException("Parameter 'name' missing.");
+
+            string url = request.QueryString["url"];
+            if (string.IsNullOrEmpty(url))
+                throw new DnsWebServiceException("Parameter 'url' missing.");
+
+            if (!url.StartsWith("https://", StringComparison.OrdinalIgnoreCase))
+                throw new DnsWebServiceException("Parameter 'url' value must start with 'https://'.");
+
+            string tmpFile = Path.GetTempFileName();
+            try
+            {
+                using (FileStream fS = new FileStream(tmpFile, FileMode.Create, FileAccess.ReadWrite))
+                {
+                    //download to temp file
+                    SocketsHttpHandler handler = new SocketsHttpHandler();
+                    handler.Proxy = _dnsServer.Proxy;
+                    handler.AutomaticDecompression = DecompressionMethods.GZip | DecompressionMethods.Deflate;
+
+                    using (HttpClient http = new HttpClient(handler))
+                    {
+                        using (Stream httpStream = await http.GetStreamAsync(url))
+                        {
+                            await httpStream.CopyToAsync(fS);
+                        }
+                    }
+
+                    //update app
+                    fS.Position = 0;
+                    await _dnsServer.DnsApplicationManager.UpdateApplicationAsync(name, fS);
+
+                    _log.Write(GetRequestRemoteEndPoint(request), "[" + GetSession(request).Username + "] DNS application '" + name + "' was updated successfully from: " + url);
+                }
+            }
+            finally
+            {
+                try
+                {
+                    File.Delete(tmpFile);
+                }
+                catch (Exception ex)
+                {
+                    _log.Write(ex);
+                }
+            }
+        }
+
         private async Task InstallAppAsync(HttpListenerRequest request)
         {
             string name = request.QueryString["name"];
@@ -4788,18 +4959,19 @@ namespace DnsServerCore
 
             #endregion
 
-            //write to temp file
             string tmpFile = Path.GetTempFileName();
             try
             {
                 using (FileStream fS = new FileStream(tmpFile, FileMode.Create, FileAccess.ReadWrite))
                 {
+                    //write to temp file
                     await request.InputStream.CopyToAsync(fS);
 
+                    //install app
                     fS.Position = 0;
                     await _dnsServer.DnsApplicationManager.InstallApplicationAsync(name, fS);
 
-                    _log.Write(GetRequestRemoteEndPoint(request), "[" + GetSession(request).Username + "] DNS application was installed successfully: " + name);
+                    _log.Write(GetRequestRemoteEndPoint(request), "[" + GetSession(request).Username + "] DNS application '" + name + "' was installed successfully.");
                 }
             }
             finally
@@ -4847,18 +5019,19 @@ namespace DnsServerCore
 
             #endregion
 
-            //write to temp file
             string tmpFile = Path.GetTempFileName();
             try
             {
                 using (FileStream fS = new FileStream(tmpFile, FileMode.Create, FileAccess.ReadWrite))
                 {
+                    //write to temp file
                     await request.InputStream.CopyToAsync(fS);
 
+                    //update app
                     fS.Position = 0;
                     await _dnsServer.DnsApplicationManager.UpdateApplicationAsync(name, fS);
 
-                    _log.Write(GetRequestRemoteEndPoint(request), "[" + GetSession(request).Username + "] DNS application was updated successfully: " + name);
+                    _log.Write(GetRequestRemoteEndPoint(request), "[" + GetSession(request).Username + "] DNS application '" + name + "' was updated successfully.");
                 }
             }
             finally
@@ -4881,7 +5054,7 @@ namespace DnsServerCore
                 throw new DnsWebServiceException("Parameter 'name' missing.");
 
             _dnsServer.DnsApplicationManager.UninstallApplication(name);
-            _log.Write(GetRequestRemoteEndPoint(request), "[" + GetSession(request).Username + "] DNS application was uninstalled successfully: " + name);
+            _log.Write(GetRequestRemoteEndPoint(request), "[" + GetSession(request).Username + "] DNS application '" + name + "' was uninstalled successfully.");
         }
 
         private async Task GetAppConfigAsync(HttpListenerRequest request, JsonTextWriter jsonWriter)
@@ -5172,26 +5345,32 @@ namespace DnsServerCore
 
         private void ListDhcpLeases(JsonTextWriter jsonWriter)
         {
-            ICollection<Scope> scopes = _dhcpServer.Scopes;
+            IReadOnlyDictionary<string, Scope> scopes = _dhcpServer.Scopes;
 
             //sort by name
-            Scope[] scopesArray = new Scope[scopes.Count];
-            scopes.CopyTo(scopesArray, 0);
-            Array.Sort(scopesArray);
+            List<Scope> sortedScopes = new List<Scope>(scopes.Count);
+
+            foreach (KeyValuePair<string, Scope> entry in scopes)
+                sortedScopes.Add(entry.Value);
+
+            sortedScopes.Sort();
 
             jsonWriter.WritePropertyName("leases");
             jsonWriter.WriteStartArray();
 
-            foreach (Scope scope in scopesArray)
+            foreach (Scope scope in sortedScopes)
             {
-                ICollection<Lease> leases = scope.Leases;
+                IReadOnlyDictionary<ClientIdentifierOption, Lease> leases = scope.Leases;
 
                 //sort by address
-                Lease[] leasesArray = new Lease[leases.Count];
-                leases.CopyTo(leasesArray, 0);
-                Array.Sort(leasesArray);
+                List<Lease> sortedLeases = new List<Lease>(leases.Count);
 
-                foreach (Lease lease in leasesArray)
+                foreach (KeyValuePair<ClientIdentifierOption, Lease> entry in leases)
+                    sortedLeases.Add(entry.Value);
+
+                sortedLeases.Sort();
+
+                foreach (Lease lease in sortedLeases)
                 {
                     jsonWriter.WriteStartObject();
 
@@ -5225,17 +5404,20 @@ namespace DnsServerCore
 
         private void ListDhcpScopes(JsonTextWriter jsonWriter)
         {
-            ICollection<Scope> scopes = _dhcpServer.Scopes;
+            IReadOnlyDictionary<string, Scope> scopes = _dhcpServer.Scopes;
 
             //sort by name
-            Scope[] scopesArray = new Scope[scopes.Count];
-            scopes.CopyTo(scopesArray, 0);
-            Array.Sort(scopesArray);
+            List<Scope> sortedScopes = new List<Scope>(scopes.Count);
+
+            foreach (KeyValuePair<string, Scope> entry in scopes)
+                sortedScopes.Add(entry.Value);
+
+            sortedScopes.Sort();
 
             jsonWriter.WritePropertyName("scopes");
             jsonWriter.WriteStartArray();
 
-            foreach (Scope scope in scopesArray)
+            foreach (Scope scope in sortedScopes)
             {
                 jsonWriter.WriteStartObject();
 
@@ -5512,8 +5694,10 @@ namespace DnsServerCore
                 IPAddress endingAddress = IPAddress.Parse(strEndingAddress);
 
                 //validate scope address
-                foreach (Scope existingScope in _dhcpServer.Scopes)
+                foreach (KeyValuePair<string, Scope> entry in _dhcpServer.Scopes)
                 {
+                    Scope existingScope = entry.Value;
+
                     if (existingScope.Equals(scope))
                         continue;
 
@@ -6485,14 +6669,24 @@ namespace DnsServerCore
                 string webServiceHostname = null;
 
                 _webService = new HttpListener();
+                IPAddress httpAddress = null;
 
                 foreach (IPAddress webServiceLocalAddress in _webServiceLocalAddresses)
                 {
                     string host;
 
-                    if (webServiceLocalAddress.Equals(IPAddress.Any) || webServiceLocalAddress.Equals(IPAddress.IPv6Any))
+                    if (webServiceLocalAddress.Equals(IPAddress.Any))
                     {
                         host = "+";
+
+                        httpAddress = IPAddress.Loopback;
+                    }
+                    else if (webServiceLocalAddress.Equals(IPAddress.IPv6Any))
+                    {
+                        host = "+";
+
+                        if ((httpAddress == null) || !IPAddress.IsLoopback(httpAddress))
+                            httpAddress = IPAddress.IPv6Loopback;
                     }
                     else
                     {
@@ -6500,6 +6694,9 @@ namespace DnsServerCore
                             host = "[" + webServiceLocalAddress.ToString() + "]";
                         else
                             host = webServiceLocalAddress.ToString();
+
+                        if (httpAddress == null)
+                            httpAddress = webServiceLocalAddress;
 
                         if (webServiceHostname == null)
                             webServiceHostname = host;
@@ -6509,6 +6706,11 @@ namespace DnsServerCore
                 }
 
                 _webService.Start();
+
+                if (httpAddress == null)
+                    httpAddress = IPAddress.Loopback;
+
+                _webServiceHttpEP = new IPEndPoint(httpAddress, _webServiceHttpPort);
 
                 _webServiceHostname = webServiceHostname ?? Environment.MachineName.ToLower();
             }
@@ -6529,6 +6731,8 @@ namespace DnsServerCore
                     _webService.Prefixes.Add("http://localhost:" + _webServiceHttpPort + "/");
                     _webService.Start();
                 }
+
+                _webServiceHttpEP = new IPEndPoint(IPAddress.Loopback, _webServiceHttpPort);
 
                 _webServiceHostname = "localhost";
             }
