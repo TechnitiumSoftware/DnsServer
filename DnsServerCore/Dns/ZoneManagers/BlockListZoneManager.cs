@@ -307,7 +307,7 @@ namespace DnsServerCore.Dns.ZoneManagers
                     if (File.Exists(listDownloadFilePath))
                         File.Delete(listDownloadFilePath);
 
-                    HttpClientHandler handler = new HttpClientHandler();
+                    SocketsHttpHandler handler = new SocketsHttpHandler();
                     handler.Proxy = _dnsServer.Proxy;
                     handler.AutomaticDecompression = DecompressionMethods.GZip | DecompressionMethods.Deflate;
 
@@ -323,8 +323,10 @@ namespace DnsServerCore.Dns.ZoneManagers
                                 {
                                     using (FileStream fS = new FileStream(listDownloadFilePath, FileMode.Create, FileAccess.Write))
                                     {
-                                        Stream httpStream = await httpResponse.Content.ReadAsStreamAsync();
-                                        await httpStream.CopyToAsync(fS);
+                                        using (Stream httpStream = await httpResponse.Content.ReadAsStreamAsync())
+                                        {
+                                            await httpStream.CopyToAsync(fS);
+                                        }
                                     }
 
                                     if (File.Exists(listFilePath))
