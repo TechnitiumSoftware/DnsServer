@@ -570,7 +570,7 @@ namespace DnsServerSystemTrayApp
                     if (nic.OperationalStatus != OperationalStatus.Up)
                         continue;
 
-                    SetNameServerIPv6(nic, new IPAddress[] { });
+                    SetNameServerIPv6(nic, Array.Empty<IPAddress>());
 
                     try
                     {
@@ -578,7 +578,7 @@ namespace DnsServerSystemTrayApp
 
                         if (properties.GetIPv4Properties().IsDhcpEnabled)
                         {
-                            SetNameServerIPv4(nic, new IPAddress[] { });
+                            SetNameServerIPv4(nic, Array.Empty<IPAddress>());
                         }
                         else if (properties.GatewayAddresses.Count > 0)
                         {
@@ -586,7 +586,7 @@ namespace DnsServerSystemTrayApp
                         }
                         else
                         {
-                            SetNameServerIPv4(nic, new IPAddress[] { });
+                            SetNameServerIPv4(nic, Array.Empty<IPAddress>());
                         }
                     }
                     catch (NetworkInformationException)
