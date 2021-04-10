@@ -53,6 +53,8 @@ Applications of using a locally hosted DNS server is limited only by the user's 
 - Multi-user role based access.
 - API key to provide long term access token.
 - Clustering support to manage two or more DNS servers.
+- TSIG support.
+- Dynamic DNS updates.
 - EDNS support.
 - DNSSEC support.
 
