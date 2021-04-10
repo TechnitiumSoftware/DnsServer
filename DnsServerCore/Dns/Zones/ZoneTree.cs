@@ -27,7 +27,7 @@ namespace DnsServerCore.Dns.Zones
     {
         #region private
 
-        private Node GetNextSubDomainZoneNode(Node current, int baseDepth)
+        private static Node GetNextSubDomainZoneNode(Node current, int baseDepth)
         {
             int k = 0;
 
@@ -84,7 +84,7 @@ namespace DnsServerCore.Dns.Zones
             return null;
         }
 
-        private Node GetNextChildZoneNode(Node current, int baseDepth)
+        private static Node GetNextChildZoneNode(Node current, int baseDepth)
         {
             int k = 0;
 
@@ -132,7 +132,7 @@ namespace DnsServerCore.Dns.Zones
             return null;
         }
 
-        private byte[] GetNodeKey(Node node)
+        private static byte[] GetNodeKey(Node node)
         {
             byte[] key = new byte[node.Depth];
             int i = node.Depth - 1;
@@ -370,7 +370,7 @@ namespace DnsServerCore.Dns.Zones
             return null;
         }
 
-        private bool SubDomainExists(byte[] key, Node closestNode)
+        private static bool SubDomainExists(byte[] key, Node closestNode)
         {
             if (!closestNode.HasChildren)
                 return false;
