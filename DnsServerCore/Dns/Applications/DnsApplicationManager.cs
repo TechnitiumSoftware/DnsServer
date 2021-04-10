@@ -115,11 +115,11 @@ namespace DnsServerCore.Dns.Applications
 
         public void UnloadAllApplications()
         {
-            foreach (DnsApplication _application in _applications.Values)
+            foreach (KeyValuePair<string, DnsApplication> application in _applications)
             {
                 try
                 {
-                    _application.Dispose();
+                    application.Value.Dispose();
                 }
                 catch (Exception ex)
                 {
