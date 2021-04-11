@@ -1291,6 +1291,8 @@ namespace DnsServerCore
             jsonWriter.WritePropertyName("forwarderProtocol");
             jsonWriter.WriteValue(forwarderProtocol.ToString());
 
+            jsonWriter.WritePropertyName("useNxDomainForBlocking");
+            jsonWriter.WriteValue(_dnsServer.UseNxDomainForBlocking);
 
             jsonWriter.WritePropertyName("blockListUrls");
 
@@ -1652,6 +1654,10 @@ namespace DnsServerCore
                     _dnsServer.Forwarders = forwarders;
                 }
             }
+
+            string strUseNxDomainForBlocking = request.QueryString["useNxDomainForBlocking"];
+            if (!string.IsNullOrEmpty(strUseNxDomainForBlocking))
+                _dnsServer.UseNxDomainForBlocking = bool.Parse(strUseNxDomainForBlocking);
 
             string strBlockListUrls = request.QueryString["blockListUrls"];
             if (!string.IsNullOrEmpty(strBlockListUrls))
@@ -2500,7 +2506,7 @@ namespace DnsServerCore
                     WriteChartDataSet(jsonWriter, "Total", "rgba(102, 153, 255, 0.1)", "rgb(102, 153, 255)", data["totalQueriesPerInterval"]);
                     WriteChartDataSet(jsonWriter, "No Error", "rgba(92, 184, 92, 0.1)", "rgb(92, 184, 92)", data["totalNoErrorPerInterval"]);
                     WriteChartDataSet(jsonWriter, "Server Failure", "rgba(217, 83, 79, 0.1)", "rgb(217, 83, 79)", data["totalServerFailurePerInterval"]);
-                    WriteChartDataSet(jsonWriter, "Name Error", "rgba(7, 7, 7, 0.1)", "rgb(7, 7, 7)", data["totalNameErrorPerInterval"]);
+                    WriteChartDataSet(jsonWriter, "NX Domain", "rgba(7, 7, 7, 0.1)", "rgb(7, 7, 7)", data["totalNxDomainPerInterval"]);
                     WriteChartDataSet(jsonWriter, "Refused", "rgba(91, 192, 222, 0.1)", "rgb(91, 192, 222)", data["totalRefusedPerInterval"]);
 
                     WriteChartDataSet(jsonWriter, "Authoritative", "rgba(150, 150, 0, 0.1)", "rgb(150, 150, 0)", data["totalAuthHitPerInterval"]);
@@ -6205,6 +6211,7 @@ namespace DnsServerCore
                         case 13:
                         case 14:
                         case 15:
+                        case 16:
                             _dnsServer.ServerDomain = bR.ReadShortString();
                             _webServiceHttpPort = bR.ReadInt32();
 
@@ -6376,6 +6383,9 @@ namespace DnsServerCore
                                 }
                             }
 
+                            if (version >= 16)
+                                _dnsServer.UseNxDomainForBlocking = bR.ReadBoolean();
+
                             if (version > 4)
                             {
                                 //read block list urls
@@ -6509,7 +6519,7 @@ namespace DnsServerCore
                 BinaryWriter bW = new BinaryWriter(mS);
 
                 bW.Write(Encoding.ASCII.GetBytes("DS")); //format
-                bW.Write((byte)15); //version
+                bW.Write((byte)16); //version
 
                 bW.WriteShortString(_dnsServer.ServerDomain);
                 bW.Write(_webServiceHttpPort);
@@ -6608,6 +6618,8 @@ namespace DnsServerCore
                 }
 
                 //block list
+                bW.Write(_dnsServer.UseNxDomainForBlocking);
+
                 {
                     bW.Write(Convert.ToByte(_dnsServer.BlockListZoneManager.AllowListUrls.Count + _dnsServer.BlockListZoneManager.BlockListUrls.Count));
 
