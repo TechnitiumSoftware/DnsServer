@@ -165,9 +165,9 @@
                                             </div>
 
                                             <div class="stats-item name-error">
-                                                <div class="number" id="divDashboardStatsTotalNameError">5</div>
-                                                <div class="percentage" id="divDashboardStatsTotalNameErrorPercentage">0%</div>
-                                                <div class="title">Name Error</div>
+                                                <div class="number" id="divDashboardStatsTotalNxDomain">5</div>
+                                                <div class="percentage" id="divDashboardStatsTotalNxDomainPercentage">0%</div>
+                                                <div class="title">NX Domain</div>
                                             </div>
 
                                             <div class="stats-item refused">
@@ -1003,6 +1003,18 @@
                                             </div>
 
                                             <div class="well well-sm form-horizontal">
+                                                <div class="form-group">
+                                                    <label class="col-sm-3 control-label">Blocking Type</label>
+                                                    <div class="col-sm-8">
+                                                        <div class="checkbox">
+                                                            <label>
+                                                                <input id="chkUseNxDomainForBlocking" type="checkbox"> Use <code>NX Domain</code> For Blocking
+                                                            </label>
+                                                        </div>
+                                                        <div style="padding-top: 5px;">Enabling this will return <code>NX Domain</code> response instead of <code>0.0.0.0</code> address for blocked domains.</div>
+                                                    </div>
+                                                </div>
+
                                                 <div class="form-group">
                                                     <label for="txtBlockListUrls" class="col-sm-3 control-label">Block List URLs</label>
                                                     <div class="col-sm-6">
