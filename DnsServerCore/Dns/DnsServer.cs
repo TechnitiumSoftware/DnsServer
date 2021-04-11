@@ -1499,12 +1499,19 @@ namespace DnsServerCore.Dns
             {
                 //domain not blocked in blocked zone
                 if (_blockListZoneManager.TotalZonesBlocked > 0)
+                {
                     response = _blockListZoneManager.Query(request); //check in block list zone
 
-                if (response == null)
-                    return null; //domain not blocked in block list zone
+                    if (response == null)
+                        return null; //domain not blocked in block list zone
 
-                //domain is blocked in block list zone
+                    //domain is blocked in block list zone
+                }
+                else
+                {
+                    //domain not blocked in block list zone
+                    return null;
+                }
             }
             else
             {
