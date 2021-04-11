@@ -268,7 +268,7 @@ namespace DnsServerCore.Dns.ZoneManagers
                     if (soaRecord != null)
                         authority = new DnsResourceRecord[] { soaRecord };
 
-                    return new DnsDatagram(request.Identifier, true, DnsOpcode.StandardQuery, false, false, request.RecursionDesired, true, false, false, DnsResponseCode.NameError, request.Question, null, authority);
+                    return new DnsDatagram(request.Identifier, true, DnsOpcode.StandardQuery, false, false, request.RecursionDesired, true, false, false, DnsResponseCode.NxDomain, request.Question, null, authority);
                 }
 
                 if (answers[0].RDATA is DnsFailureRecord)

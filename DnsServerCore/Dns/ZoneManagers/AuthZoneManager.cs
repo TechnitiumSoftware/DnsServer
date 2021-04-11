@@ -927,7 +927,7 @@ namespace DnsServerCore.Dns.ZoneManagers
                 if (authority.Count == 0)
                 {
                     if (!hasSubDomains)
-                        rCode = DnsResponseCode.NameError;
+                        rCode = DnsResponseCode.NxDomain;
 
                     authority = authZone.GetRecords(DnsResourceRecordType.SOA);
                 }

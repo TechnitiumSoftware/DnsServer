@@ -35,7 +35,7 @@ namespace DnsServerCore.Dns
     {
         NoError = 1,
         ServerFailure = 2,
-        NameError = 3,
+        NxDomain = 3,
         Refused = 4
     }
 
@@ -527,8 +527,8 @@ namespace DnsServerCore.Dns
                     responseCode = StatsResponseCode.ServerFailure;
                     break;
 
-                case DnsResponseCode.NameError:
-                    responseCode = StatsResponseCode.NameError;
+                case DnsResponseCode.NxDomain:
+                    responseCode = StatsResponseCode.NxDomain;
                     break;
 
                 case DnsResponseCode.Refused:
@@ -564,7 +564,7 @@ namespace DnsServerCore.Dns
             List<KeyValuePair<string, int>> totalQueriesPerInterval = new List<KeyValuePair<string, int>>(60);
             List<KeyValuePair<string, int>> totalNoErrorPerInterval = new List<KeyValuePair<string, int>>(60);
             List<KeyValuePair<string, int>> totalServerFailurePerInterval = new List<KeyValuePair<string, int>>(60);
-            List<KeyValuePair<string, int>> totalNameErrorPerInterval = new List<KeyValuePair<string, int>>(60);
+            List<KeyValuePair<string, int>> totalNxDomainPerInterval = new List<KeyValuePair<string, int>>(60);
             List<KeyValuePair<string, int>> totalRefusedPerInterval = new List<KeyValuePair<string, int>>(60);
 
             List<KeyValuePair<string, int>> totalAuthHitPerInterval = new List<KeyValuePair<string, int>>(60);
@@ -590,7 +590,7 @@ namespace DnsServerCore.Dns
                     totalQueriesPerInterval.Add(new KeyValuePair<string, int>(label, statCounter.TotalQueries));
                     totalNoErrorPerInterval.Add(new KeyValuePair<string, int>(label, statCounter.TotalNoError));
                     totalServerFailurePerInterval.Add(new KeyValuePair<string, int>(label, statCounter.TotalServerFailure));
-                    totalNameErrorPerInterval.Add(new KeyValuePair<string, int>(label, statCounter.TotalNameError));
+                    totalNxDomainPerInterval.Add(new KeyValuePair<string, int>(label, statCounter.TotalNxDomain));
                     totalRefusedPerInterval.Add(new KeyValuePair<string, int>(label, statCounter.TotalRefused));
 
                     totalAuthHitPerInterval.Add(new KeyValuePair<string, int>(label, statCounter.TotalAuthoritative));
@@ -605,7 +605,7 @@ namespace DnsServerCore.Dns
                     totalQueriesPerInterval.Add(new KeyValuePair<string, int>(label, 0));
                     totalNoErrorPerInterval.Add(new KeyValuePair<string, int>(label, 0));
                     totalServerFailurePerInterval.Add(new KeyValuePair<string, int>(label, 0));
-                    totalNameErrorPerInterval.Add(new KeyValuePair<string, int>(label, 0));
+                    totalNxDomainPerInterval.Add(new KeyValuePair<string, int>(label, 0));
                     totalRefusedPerInterval.Add(new KeyValuePair<string, int>(label, 0));
 
                     totalAuthHitPerInterval.Add(new KeyValuePair<string, int>(label, 0));
@@ -625,7 +625,7 @@ namespace DnsServerCore.Dns
                 stats.Add(new KeyValuePair<string, int>("totalQueries", totalStatCounter.TotalQueries));
                 stats.Add(new KeyValuePair<string, int>("totalNoError", totalStatCounter.TotalNoError));
                 stats.Add(new KeyValuePair<string, int>("totalServerFailure", totalStatCounter.TotalServerFailure));
-                stats.Add(new KeyValuePair<string, int>("totalNameError", totalStatCounter.TotalNameError));
+                stats.Add(new KeyValuePair<string, int>("totalNxDomain", totalStatCounter.TotalNxDomain));
                 stats.Add(new KeyValuePair<string, int>("totalRefused", totalStatCounter.TotalRefused));
 
                 stats.Add(new KeyValuePair<string, int>("totalAuthoritative", totalStatCounter.TotalAuthoritative));
@@ -641,7 +641,7 @@ namespace DnsServerCore.Dns
             data.Add("totalQueriesPerInterval", totalQueriesPerInterval);
             data.Add("totalNoErrorPerInterval", totalNoErrorPerInterval);
             data.Add("totalServerFailurePerInterval", totalServerFailurePerInterval);
-            data.Add("totalNameErrorPerInterval", totalNameErrorPerInterval);
+            data.Add("totalNxDomainPerInterval", totalNxDomainPerInterval);
             data.Add("totalRefusedPerInterval", totalRefusedPerInterval);
 
             data.Add("totalAuthHitPerInterval", totalAuthHitPerInterval);
@@ -682,7 +682,7 @@ namespace DnsServerCore.Dns
             List<KeyValuePair<string, int>> totalQueriesPerInterval = new List<KeyValuePair<string, int>>();
             List<KeyValuePair<string, int>> totalNoErrorPerInterval = new List<KeyValuePair<string, int>>();
             List<KeyValuePair<string, int>> totalServerFailurePerInterval = new List<KeyValuePair<string, int>>();
-            List<KeyValuePair<string, int>> totalNameErrorPerInterval = new List<KeyValuePair<string, int>>();
+            List<KeyValuePair<string, int>> totalNxDomainPerInterval = new List<KeyValuePair<string, int>>();
             List<KeyValuePair<string, int>> totalRefusedPerInterval = new List<KeyValuePair<string, int>>();
 
             List<KeyValuePair<string, int>> totalAuthHitPerInterval = new List<KeyValuePair<string, int>>();
@@ -716,7 +716,7 @@ namespace DnsServerCore.Dns
                 totalQueriesPerInterval.Add(new KeyValuePair<string, int>(label, monthlyStatCounter.TotalQueries));
                 totalNoErrorPerInterval.Add(new KeyValuePair<string, int>(label, monthlyStatCounter.TotalNoError));
                 totalServerFailurePerInterval.Add(new KeyValuePair<string, int>(label, monthlyStatCounter.TotalServerFailure));
-                totalNameErrorPerInterval.Add(new KeyValuePair<string, int>(label, monthlyStatCounter.TotalNameError));
+                totalNxDomainPerInterval.Add(new KeyValuePair<string, int>(label, monthlyStatCounter.TotalNxDomain));
                 totalRefusedPerInterval.Add(new KeyValuePair<string, int>(label, monthlyStatCounter.TotalRefused));
 
                 totalAuthHitPerInterval.Add(new KeyValuePair<string, int>(label, monthlyStatCounter.TotalAuthoritative));
@@ -735,7 +735,7 @@ namespace DnsServerCore.Dns
                 stats.Add(new KeyValuePair<string, int>("totalQueries", totalStatCounter.TotalQueries));
                 stats.Add(new KeyValuePair<string, int>("totalNoError", totalStatCounter.TotalNoError));
                 stats.Add(new KeyValuePair<string, int>("totalServerFailure", totalStatCounter.TotalServerFailure));
-                stats.Add(new KeyValuePair<string, int>("totalNameError", totalStatCounter.TotalNameError));
+                stats.Add(new KeyValuePair<string, int>("totalNxDomain", totalStatCounter.TotalNxDomain));
                 stats.Add(new KeyValuePair<string, int>("totalRefused", totalStatCounter.TotalRefused));
 
                 stats.Add(new KeyValuePair<string, int>("totalAuthoritative", totalStatCounter.TotalAuthoritative));
@@ -751,7 +751,7 @@ namespace DnsServerCore.Dns
             data.Add("totalQueriesPerInterval", totalQueriesPerInterval);
             data.Add("totalNoErrorPerInterval", totalNoErrorPerInterval);
             data.Add("totalServerFailurePerInterval", totalServerFailurePerInterval);
-            data.Add("totalNameErrorPerInterval", totalNameErrorPerInterval);
+            data.Add("totalNxDomainPerInterval", totalNxDomainPerInterval);
             data.Add("totalRefusedPerInterval", totalRefusedPerInterval);
 
             data.Add("totalAuthHitPerInterval", totalAuthHitPerInterval);
@@ -786,7 +786,7 @@ namespace DnsServerCore.Dns
             List<KeyValuePair<string, int>> totalQueriesPerInterval = new List<KeyValuePair<string, int>>();
             List<KeyValuePair<string, int>> totalNoErrorPerInterval = new List<KeyValuePair<string, int>>();
             List<KeyValuePair<string, int>> totalServerFailurePerInterval = new List<KeyValuePair<string, int>>();
-            List<KeyValuePair<string, int>> totalNameErrorPerInterval = new List<KeyValuePair<string, int>>();
+            List<KeyValuePair<string, int>> totalNxDomainPerInterval = new List<KeyValuePair<string, int>>();
             List<KeyValuePair<string, int>> totalRefusedPerInterval = new List<KeyValuePair<string, int>>();
 
             List<KeyValuePair<string, int>> totalAuthHitPerInterval = new List<KeyValuePair<string, int>>();
@@ -809,7 +809,7 @@ namespace DnsServerCore.Dns
                 totalQueriesPerInterval.Add(new KeyValuePair<string, int>(label, hourlyStatCounter.TotalQueries));
                 totalNoErrorPerInterval.Add(new KeyValuePair<string, int>(label, hourlyStatCounter.TotalNoError));
                 totalServerFailurePerInterval.Add(new KeyValuePair<string, int>(label, hourlyStatCounter.TotalServerFailure));
-                totalNameErrorPerInterval.Add(new KeyValuePair<string, int>(label, hourlyStatCounter.TotalNameError));
+                totalNxDomainPerInterval.Add(new KeyValuePair<string, int>(label, hourlyStatCounter.TotalNxDomain));
                 totalRefusedPerInterval.Add(new KeyValuePair<string, int>(label, hourlyStatCounter.TotalRefused));
 
                 totalAuthHitPerInterval.Add(new KeyValuePair<string, int>(label, hourlyStatCounter.TotalAuthoritative));
@@ -828,7 +828,7 @@ namespace DnsServerCore.Dns
                 stats.Add(new KeyValuePair<string, int>("totalQueries", totalStatCounter.TotalQueries));
                 stats.Add(new KeyValuePair<string, int>("totalNoError", totalStatCounter.TotalNoError));
                 stats.Add(new KeyValuePair<string, int>("totalServerFailure", totalStatCounter.TotalServerFailure));
-                stats.Add(new KeyValuePair<string, int>("totalNameError", totalStatCounter.TotalNameError));
+                stats.Add(new KeyValuePair<string, int>("totalNxDomain", totalStatCounter.TotalNxDomain));
                 stats.Add(new KeyValuePair<string, int>("totalRefused", totalStatCounter.TotalRefused));
 
                 stats.Add(new KeyValuePair<string, int>("totalAuthoritative", totalStatCounter.TotalAuthoritative));
@@ -844,7 +844,7 @@ namespace DnsServerCore.Dns
             data.Add("totalQueriesPerInterval", totalQueriesPerInterval);
             data.Add("totalNoErrorPerInterval", totalNoErrorPerInterval);
             data.Add("totalServerFailurePerInterval", totalServerFailurePerInterval);
-            data.Add("totalNameErrorPerInterval", totalNameErrorPerInterval);
+            data.Add("totalNxDomainPerInterval", totalNxDomainPerInterval);
             data.Add("totalRefusedPerInterval", totalRefusedPerInterval);
 
             data.Add("totalAuthHitPerInterval", totalAuthHitPerInterval);
@@ -875,7 +875,7 @@ namespace DnsServerCore.Dns
             List<KeyValuePair<string, int>> totalQueriesPerInterval = new List<KeyValuePair<string, int>>();
             List<KeyValuePair<string, int>> totalNoErrorPerInterval = new List<KeyValuePair<string, int>>();
             List<KeyValuePair<string, int>> totalServerFailurePerInterval = new List<KeyValuePair<string, int>>();
-            List<KeyValuePair<string, int>> totalNameErrorPerInterval = new List<KeyValuePair<string, int>>();
+            List<KeyValuePair<string, int>> totalNxDomainPerInterval = new List<KeyValuePair<string, int>>();
             List<KeyValuePair<string, int>> totalRefusedPerInterval = new List<KeyValuePair<string, int>>();
 
             List<KeyValuePair<string, int>> totalAuthHitPerInterval = new List<KeyValuePair<string, int>>();
@@ -896,7 +896,7 @@ namespace DnsServerCore.Dns
                 totalQueriesPerInterval.Add(new KeyValuePair<string, int>(label, dailyStatCounter.TotalQueries));
                 totalNoErrorPerInterval.Add(new KeyValuePair<string, int>(label, dailyStatCounter.TotalNoError));
                 totalServerFailurePerInterval.Add(new KeyValuePair<string, int>(label, dailyStatCounter.TotalServerFailure));
-                totalNameErrorPerInterval.Add(new KeyValuePair<string, int>(label, dailyStatCounter.TotalNameError));
+                totalNxDomainPerInterval.Add(new KeyValuePair<string, int>(label, dailyStatCounter.TotalNxDomain));
                 totalRefusedPerInterval.Add(new KeyValuePair<string, int>(label, dailyStatCounter.TotalRefused));
 
                 totalAuthHitPerInterval.Add(new KeyValuePair<string, int>(label, dailyStatCounter.TotalAuthoritative));
@@ -915,7 +915,7 @@ namespace DnsServerCore.Dns
                 stats.Add(new KeyValuePair<string, int>("totalQueries", totalStatCounter.TotalQueries));
                 stats.Add(new KeyValuePair<string, int>("totalNoError", totalStatCounter.TotalNoError));
                 stats.Add(new KeyValuePair<string, int>("totalServerFailure", totalStatCounter.TotalServerFailure));
-                stats.Add(new KeyValuePair<string, int>("totalNameError", totalStatCounter.TotalNameError));
+                stats.Add(new KeyValuePair<string, int>("totalNxDomain", totalStatCounter.TotalNxDomain));
                 stats.Add(new KeyValuePair<string, int>("totalRefused", totalStatCounter.TotalRefused));
 
                 stats.Add(new KeyValuePair<string, int>("totalAuthoritative", totalStatCounter.TotalAuthoritative));
@@ -931,7 +931,7 @@ namespace DnsServerCore.Dns
             data.Add("totalQueriesPerInterval", totalQueriesPerInterval);
             data.Add("totalNoErrorPerInterval", totalNoErrorPerInterval);
             data.Add("totalServerFailurePerInterval", totalServerFailurePerInterval);
-            data.Add("totalNameErrorPerInterval", totalNameErrorPerInterval);
+            data.Add("totalNxDomainPerInterval", totalNxDomainPerInterval);
             data.Add("totalRefusedPerInterval", totalRefusedPerInterval);
 
             data.Add("totalAuthHitPerInterval", totalAuthHitPerInterval);
@@ -1241,7 +1241,7 @@ namespace DnsServerCore.Dns
             int _totalQueries;
             int _totalNoError;
             int _totalServerFailure;
-            int _totalNameError;
+            int _totalNxDomain;
             int _totalRefused;
 
             int _totalAuthoritative;
@@ -1277,7 +1277,7 @@ namespace DnsServerCore.Dns
                         _totalQueries = bR.ReadInt32();
                         _totalNoError = bR.ReadInt32();
                         _totalServerFailure = bR.ReadInt32();
-                        _totalNameError = bR.ReadInt32();
+                        _totalNxDomain = bR.ReadInt32();
                         _totalRefused = bR.ReadInt32();
 
                         if (version >= 3)
@@ -1393,8 +1393,8 @@ namespace DnsServerCore.Dns
                         Interlocked.Increment(ref _totalServerFailure);
                         break;
 
-                    case StatsResponseCode.NameError:
-                        Interlocked.Increment(ref _totalNameError);
+                    case StatsResponseCode.NxDomain:
+                        Interlocked.Increment(ref _totalNxDomain);
                         break;
 
                     case StatsResponseCode.Refused:
@@ -1434,7 +1434,7 @@ namespace DnsServerCore.Dns
                 _totalQueries += statCounter._totalQueries;
                 _totalNoError += statCounter._totalNoError;
                 _totalServerFailure += statCounter._totalServerFailure;
-                _totalNameError += statCounter._totalNameError;
+                _totalNxDomain += statCounter._totalNxDomain;
                 _totalRefused += statCounter._totalRefused;
 
                 _totalAuthoritative += statCounter._totalAuthoritative;
@@ -1469,7 +1469,7 @@ namespace DnsServerCore.Dns
                 bW.Write(_totalQueries);
                 bW.Write(_totalNoError);
                 bW.Write(_totalServerFailure);
-                bW.Write(_totalNameError);
+                bW.Write(_totalNxDomain);
                 bW.Write(_totalRefused);
 
                 bW.Write(_totalAuthoritative);
@@ -1608,8 +1608,8 @@ namespace DnsServerCore.Dns
             public int TotalServerFailure
             { get { return _totalServerFailure; } }
 
-            public int TotalNameError
-            { get { return _totalNameError; } }
+            public int TotalNxDomain
+            { get { return _totalNxDomain; } }
 
             public int TotalRefused
             { get { return _totalRefused; } }
