@@ -1,5 +1,12 @@
 # Technitium DNS Server Change Log
 
+## Version 6.2
+Release Date: 11 April 2021
+
+- Fixed critical bug in block list condition check causing server to respond with `RCODE=Refused` when only using Blocked zone.
+- Added option to respond with `RCODE=NxDomain` for blocked domains instead of returning `0.0.0.0` address.
+- Renamed `NameError` to `NxDomain` to make the terminology clear that the domain does not exists. Dashboard API returns JSON with new terminology so its adviced to test your code before updating the server.
+
 ## Version 6.1
 Release Date: 10 April 2021
 
