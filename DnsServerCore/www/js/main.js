@@ -822,6 +822,8 @@ function loadDnsSettings() {
                     break;
             }
 
+            $("#chkUseNxDomainForBlocking").prop("checked", responseJSON.response.useNxDomainForBlocking);
+
             var blockListUrls = responseJSON.response.blockListUrls;
             if (blockListUrls == null) {
                 $("#txtBlockListUrls").val("");
@@ -987,6 +989,8 @@ function saveDnsSettings() {
 
     var forwarderProtocol = $('input[name=rdForwarderProtocol]:checked').val();
 
+    var useNxDomainForBlocking = $("#chkUseNxDomainForBlocking").prop("checked");
+
     var blockListUrls = cleanTextList($("#txtBlockListUrls").val());
 
     if ((blockListUrls.length === 0) || (blockListUrls === ","))
@@ -1005,7 +1009,7 @@ function saveDnsSettings() {
             + "&preferIPv6=" + preferIPv6 + "&enableLogging=" + enableLogging + "&logQueries=" + logQueries + "&useLocalTime=" + useLocalTime + "&logFolder=" + encodeURIComponent(logFolder) + "&maxLogFileDays=" + maxLogFileDays + "&maxStatFileDays=" + maxStatFileDays
             + "&allowRecursion=" + allowRecursion + "&allowRecursionOnlyForPrivateNetworks=" + allowRecursionOnlyForPrivateNetworks + "&randomizeName=" + randomizeName + "&qnameMinimization=" + qnameMinimization
             + "&serveStale=" + serveStale + "&serveStaleTtl=" + serveStaleTtl + "&cachePrefetchEligibility=" + cachePrefetchEligibility + "&cachePrefetchTrigger=" + cachePrefetchTrigger + "&cachePrefetchSampleIntervalInMinutes=" + cachePrefetchSampleIntervalInMinutes + "&cachePrefetchSampleEligibilityHitsPerHour=" + cachePrefetchSampleEligibilityHitsPerHour
-            + proxy + "&forwarders=" + encodeURIComponent(forwarders) + "&forwarderProtocol=" + forwarderProtocol + "&blockListUrls=" + encodeURIComponent(blockListUrls) + "&blockListUpdateIntervalHours=" + blockListUpdateIntervalHours,
+            + proxy + "&forwarders=" + encodeURIComponent(forwarders) + "&forwarderProtocol=" + forwarderProtocol + "&useNxDomainForBlocking=" + useNxDomainForBlocking + "&blockListUrls=" + encodeURIComponent(blockListUrls) + "&blockListUpdateIntervalHours=" + blockListUpdateIntervalHours,
         success: function (responseJSON) {
             document.title = responseJSON.response.dnsServerDomain + " - " + "Technitium DNS Server v" + responseJSON.response.version;
             $("#lblDnsServerDomain").text(" - " + responseJSON.response.dnsServerDomain);
@@ -1220,7 +1224,7 @@ function refreshDashboard(hideLoader) {
             $("#divDashboardStatsTotalQueries").text(responseJSON.response.stats.totalQueries.toLocaleString());
             $("#divDashboardStatsTotalNoError").text(responseJSON.response.stats.totalNoError.toLocaleString());
             $("#divDashboardStatsTotalServerFailure").text(responseJSON.response.stats.totalServerFailure.toLocaleString());
-            $("#divDashboardStatsTotalNameError").text(responseJSON.response.stats.totalNameError.toLocaleString());
+            $("#divDashboardStatsTotalNxDomain").text(responseJSON.response.stats.totalNxDomain.toLocaleString());
             $("#divDashboardStatsTotalRefused").text(responseJSON.response.stats.totalRefused.toLocaleString());
 
             $("#divDashboardStatsTotalAuthHit").text(responseJSON.response.stats.totalAuthoritative.toLocaleString());
@@ -1238,7 +1242,7 @@ function refreshDashboard(hideLoader) {
             if (responseJSON.response.stats.totalQueries > 0) {
                 $("#divDashboardStatsTotalNoErrorPercentage").text((responseJSON.response.stats.totalNoError * 100 / responseJSON.response.stats.totalQueries).toFixed(2) + "%");
                 $("#divDashboardStatsTotalServerFailurePercentage").text((responseJSON.response.stats.totalServerFailure * 100 / responseJSON.response.stats.totalQueries).toFixed(2) + "%");
-                $("#divDashboardStatsTotalNameErrorPercentage").text((responseJSON.response.stats.totalNameError * 100 / responseJSON.response.stats.totalQueries).toFixed(2) + "%");
+                $("#divDashboardStatsTotalNxDomainPercentage").text((responseJSON.response.stats.totalNxDomain * 100 / responseJSON.response.stats.totalQueries).toFixed(2) + "%");
                 $("#divDashboardStatsTotalRefusedPercentage").text((responseJSON.response.stats.totalRefused * 100 / responseJSON.response.stats.totalQueries).toFixed(2) + "%");
 
                 $("#divDashboardStatsTotalAuthHitPercentage").text((responseJSON.response.stats.totalAuthoritative * 100 / responseJSON.response.stats.totalQueries).toFixed(2) + "%");
@@ -1249,7 +1253,7 @@ function refreshDashboard(hideLoader) {
             else {
                 $("#divDashboardStatsTotalNoErrorPercentage").text("0%");
                 $("#divDashboardStatsTotalServerFailurePercentage").text("0%");
-                $("#divDashboardStatsTotalNameErrorPercentage").text("0%");
+                $("#divDashboardStatsTotalNxDomainPercentage").text("0%");
                 $("#divDashboardStatsTotalRefusedPercentage").text("0%");
 
                 $("#divDashboardStatsTotalAuthHitPercentage").text("0%");
