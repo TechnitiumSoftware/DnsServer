@@ -392,14 +392,13 @@ namespace DnsServerCore.Dns.ZoneManagers
         public DnsDatagram Query(DnsDatagram request)
         {
             List<Uri> blockLists = IsZoneBlocked(request.Question[0].Name.ToLower());
-
             if (blockLists == null)
-            {
-                //zone not blocked
-                return null;
-            }
+                return null; //zone not blocked
 
             //zone is blocked
+            if (_dnsServer.UseNxDomainForBlocking && (request.Question[0].Type != DnsResourceRecordType.TXT))
+                return new DnsDatagram(request.Identifier, true, DnsOpcode.StandardQuery, false, false, request.RecursionDesired, true, false, false, DnsResponseCode.NxDomain, request.Question);
+
             DnsResourceRecord[] answers = null;
             DnsResourceRecord[] authority = null;
 
@@ -430,7 +429,7 @@ namespace DnsServerCore.Dns.ZoneManagers
                     break;
             }
 
-            return new DnsDatagram(request.Identifier, true, DnsOpcode.StandardQuery, true, false, request.RecursionDesired, true, false, false, DnsResponseCode.NoError, request.Question, answers, authority);
+            return new DnsDatagram(request.Identifier, true, DnsOpcode.StandardQuery, false, false, request.RecursionDesired, true, false, false, DnsResponseCode.NoError, request.Question, answers, authority);
         }
 
         #endregion
