@@ -111,6 +111,7 @@ namespace DnsServerCore.Dns
         int _cachePrefetchTrigger = 9;
         int _cachePrefetchSampleIntervalInMinutes = 5;
         int _cachePrefetchSampleEligibilityHitsPerHour = 30;
+        bool _useNxDomainForBlocking;
         LogManager _queryLog;
         readonly StatsManager _stats;
 
@@ -1501,11 +1502,16 @@ namespace DnsServerCore.Dns
                     response = _blockListZoneManager.Query(request); //check in block list zone
 
                 if (response == null)
-                    return null;
+                    return null; //domain not blocked in block list zone
+
+                //domain is blocked in block list zone
             }
             else
             {
                 //domain is blocked in blocked zone
+                if (_useNxDomainForBlocking && (request.Question[0].Type != DnsResourceRecordType.TXT))
+                    return new DnsDatagram(request.Identifier, true, DnsOpcode.StandardQuery, false, false, request.RecursionDesired, true, false, false, DnsResponseCode.NxDomain, request.Question);
+
                 IReadOnlyList<DnsResourceRecord> answer = null;
                 IReadOnlyList<DnsResourceRecord> authority = null;
 
@@ -1794,7 +1800,7 @@ namespace DnsServerCore.Dns
                 switch (response.RCODE)
                 {
                     case DnsResponseCode.NoError:
-                    case DnsResponseCode.NameError:
+                    case DnsResponseCode.NxDomain:
                         taskCompletionSource.SetResult(response);
                         break;
 
@@ -2840,6 +2846,12 @@ namespace DnsServerCore.Dns
 
                 _cachePrefetchSampleEligibilityHitsPerHour = value;
             }
+        }
+
+        public bool UseNxDomainForBlocking
+        {
+            get { return _useNxDomainForBlocking; }
+            set { _useNxDomainForBlocking = value; }
         }
 
         public LogManager LogManager
