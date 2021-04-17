@@ -43,11 +43,8 @@ namespace DnsServerCore.Dns.Zones
             {
                 DnsResourceRecord record = records[0];
 
-                if (!serveStale && record.IsStale)
-                    return Array.Empty<DnsResourceRecord>(); //record is stale
-
-                if (record.TtlValue < 1u)
-                    return Array.Empty<DnsResourceRecord>(); //ttl expired
+                if (record.IsExpired(serveStale))
+                    return Array.Empty<DnsResourceRecord>(); //record expired
 
                 if (filterSpecialCacheRecords)
                 {
@@ -62,11 +59,8 @@ namespace DnsServerCore.Dns.Zones
 
             foreach (DnsResourceRecord record in records)
             {
-                if (!serveStale && record.IsStale)
-                    continue; //record is stale
-
-                if (record.TtlValue < 1u)
-                    continue; //ttl expired
+                if (record.IsExpired(serveStale))
+                    continue; //record expired
 
                 if (filterSpecialCacheRecords)
                 {
@@ -102,7 +96,7 @@ namespace DnsServerCore.Dns.Zones
                 //call trying to cache failure record
                 if (_entries.TryGetValue(type, out IReadOnlyList<DnsResourceRecord> existingRecords))
                 {
-                    if ((existingRecords.Count > 0) && !(existingRecords[0].RDATA is DnsCache.DnsFailureRecord) && (serveStale || !existingRecords[0].IsStale))
+                    if ((existingRecords.Count > 0) && !(existingRecords[0].RDATA is DnsCache.DnsFailureRecord) && !existingRecords[0].IsExpired(serveStale))
                         return; //skip to avoid overwriting a useful record with a failure record
                 }
             }
@@ -147,7 +141,7 @@ namespace DnsServerCore.Dns.Zones
 
                 foreach (DnsResourceRecord record in entry.Value)
                 {
-                    if ((record.TtlValue < 1u) || (!serveStale && record.IsStale))
+                    if (record.IsExpired(serveStale))
                     {
                         //record expired
                         isExpired = true;
@@ -161,7 +155,7 @@ namespace DnsServerCore.Dns.Zones
 
                     foreach (DnsResourceRecord record in entry.Value)
                     {
-                        if ((record.TtlValue < 1u) || (!serveStale && record.IsStale))
+                        if (record.IsExpired(serveStale))
                             continue; //record expired, skip it
 
                         if (newRecords == null)
@@ -202,9 +196,9 @@ namespace DnsServerCore.Dns.Zones
                 List<DnsResourceRecord> anyRecords = new List<DnsResourceRecord>();
 
                 foreach (KeyValuePair<DnsResourceRecordType, IReadOnlyList<DnsResourceRecord>> entry in _entries)
-                    anyRecords.AddRange(FilterExpiredRecords(type, entry.Value, serveStale, true));
+                    anyRecords.AddRange(entry.Value);
 
-                return anyRecords;
+                return FilterExpiredRecords(type, anyRecords, serveStale, true);
             }
 
             if (_entries.TryGetValue(type, out IReadOnlyList<DnsResourceRecord> existingRecords))
@@ -223,10 +217,8 @@ namespace DnsServerCore.Dns.Zones
                 if (record.IsStale)
                     continue;
 
-                if (record.TtlValue < 1u)
-                    continue;
-
-                return true;
+                if (record.RDATA is DnsNSRecord)
+                    return true;
             }
 
             return false;
