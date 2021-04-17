@@ -234,6 +234,29 @@ namespace DnsServerCore.Dns.ZoneManagers
             });
         }
 
+        private void ResolveCNAME(DnsQuestionRecord question, DnsResourceRecord lastCNAME, List<DnsResourceRecord> answerRecords)
+        {
+            int queryCount = 0;
+
+            do
+            {
+                if (!_root.TryGet((lastCNAME.RDATA as DnsCNAMERecord).Domain, out AuthZone authZone))
+                    break;
+
+                IReadOnlyList<DnsResourceRecord> records = authZone.QueryRecords(question.Type);
+                if (records.Count < 1)
+                    break;
+
+                answerRecords.AddRange(records);
+
+                if (records[0].Type != DnsResourceRecordType.CNAME)
+                    break;
+
+                lastCNAME = records[0];
+            }
+            while (++queryCount < DnsServer.MAX_CNAME_HOPS);
+        }
+
         private IReadOnlyList<DnsResourceRecord> GetAdditionalRecords(IReadOnlyList<DnsResourceRecord> refRecords)
         {
             List<DnsResourceRecord> additionalRecords = new List<DnsResourceRecord>();
@@ -269,18 +292,17 @@ namespace DnsServerCore.Dns.ZoneManagers
 
         private void ResolveAdditionalRecords(string domain, List<DnsResourceRecord> additionalRecords)
         {
-            AuthZone authZone = _root.FindZone(domain, out _, out _, out _);
-            if ((authZone != null) && authZone.IsActive)
+            if (_root.TryGet(domain, out AuthZone authZone) && authZone.IsActive)
             {
                 {
                     IReadOnlyList<DnsResourceRecord> records = authZone.QueryRecords(DnsResourceRecordType.A);
-                    if ((records.Count > 0) && (records[0].RDATA is DnsARecord))
+                    if ((records.Count > 0) && (records[0].Type == DnsResourceRecordType.A))
                         additionalRecords.AddRange(records);
                 }
 
                 {
                     IReadOnlyList<DnsResourceRecord> records = authZone.QueryRecords(DnsResourceRecordType.AAAA);
-                    if ((records.Count > 0) && (records[0].RDATA is DnsAAAARecord))
+                    if ((records.Count > 0) && (records[0].Type == DnsResourceRecordType.AAAA))
                         additionalRecords.AddRange(records);
                 }
             }
@@ -891,22 +913,27 @@ namespace DnsServerCore.Dns.ZoneManagers
         public DnsDatagram QueryClosestDelegation(DnsDatagram request)
         {
             _ = _root.FindZone(request.Question[0].Name, out AuthZone delegation, out _, out _);
-            if (delegation == null)
+            if (delegation != null)
             {
-                //no delegation found
-                return new DnsDatagram(request.Identifier, true, DnsOpcode.StandardQuery, false, false, request.RecursionDesired, true, false, false, DnsResponseCode.Refused, request.Question);
+                //return closest name servers in delegation
+                IReadOnlyList<DnsResourceRecord> closestAuthority = delegation.QueryRecords(DnsResourceRecordType.NS);
+                if ((closestAuthority.Count > 0) && (closestAuthority[0].Type == DnsResourceRecordType.NS))
+                {
+                    IReadOnlyList<DnsResourceRecord> additional = GetAdditionalRecords(closestAuthority);
+
+                    return new DnsDatagram(request.Identifier, true, DnsOpcode.StandardQuery, false, false, request.RecursionDesired, true, false, false, DnsResponseCode.NoError, request.Question, null, closestAuthority, additional);
+                }
             }
 
-            //return closest name servers in delegation
-            IReadOnlyList<DnsResourceRecord> authority = delegation.QueryRecords(DnsResourceRecordType.NS);
-            IReadOnlyList<DnsResourceRecord> additional = GetAdditionalRecords(authority);
-
-            return new DnsDatagram(request.Identifier, true, DnsOpcode.StandardQuery, false, false, request.RecursionDesired, true, false, false, DnsResponseCode.NoError, request.Question, null, authority, additional);
+            //no delegation found
+            return new DnsDatagram(request.Identifier, true, DnsOpcode.StandardQuery, false, false, request.RecursionDesired, true, false, false, DnsResponseCode.Refused, request.Question);
         }
 
         public DnsDatagram Query(DnsDatagram request, bool isRecursionAllowed)
         {
-            AuthZone zone = _root.FindZone(request.Question[0].Name, out AuthZone delegation, out AuthZone authZone, out bool hasSubDomains);
+            DnsQuestionRecord question = request.Question[0];
+
+            AuthZone zone = _root.FindZone(question.Name, out AuthZone delegation, out AuthZone authZone, out bool hasSubDomains);
 
             if ((authZone == null) || !authZone.IsActive) //no authority for requested zone
                 return new DnsDatagram(request.Identifier, true, DnsOpcode.StandardQuery, false, false, request.RecursionDesired, isRecursionAllowed, false, false, DnsResponseCode.Refused, request.Question);
@@ -940,7 +967,7 @@ namespace DnsServerCore.Dns.ZoneManagers
                 IReadOnlyList<DnsResourceRecord> authority;
                 IReadOnlyList<DnsResourceRecord> additional;
 
-                IReadOnlyList<DnsResourceRecord> answers = zone.QueryRecords(request.Question[0].Type);
+                IReadOnlyList<DnsResourceRecord> answers = zone.QueryRecords(question.Type);
                 if (answers.Count == 0)
                 {
                     //record type not found
@@ -968,12 +995,22 @@ namespace DnsServerCore.Dns.ZoneManagers
                         DnsResourceRecord[] wildcardAnswers = new DnsResourceRecord[answers.Count];
 
                         for (int i = 0; i < answers.Count; i++)
-                            wildcardAnswers[i] = new DnsResourceRecord(request.Question[0].Name, answers[i].Type, answers[i].Class, answers[i].TtlValue, answers[i].RDATA) { Tag = answers[i].Tag };
+                            wildcardAnswers[i] = new DnsResourceRecord(question.Name, answers[i].Type, answers[i].Class, answers[i].TtlValue, answers[i].RDATA) { Tag = answers[i].Tag };
 
                         answers = wildcardAnswers;
                     }
 
-                    switch (request.Question[0].Type)
+                    DnsResourceRecord lastRR = answers[answers.Count - 1];
+                    if ((lastRR.Type != question.Type) && (lastRR.Type == DnsResourceRecordType.CNAME) && (question.Type != DnsResourceRecordType.ANY))
+                    {
+                        List<DnsResourceRecord> newAnswers = new List<DnsResourceRecord>(answers);
+
+                        ResolveCNAME(question, lastRR, newAnswers);
+
+                        answers = newAnswers;
+                    }
+
+                    switch (question.Type)
                     {
                         case DnsResourceRecordType.NS:
                         case DnsResourceRecordType.MX:
