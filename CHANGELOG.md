@@ -1,5 +1,13 @@
 # Technitium DNS Server Change Log
 
+## Version 6.2.1
+Release Date: 17 April 2021
+
+- Updated DNS Cache serve stale implementation for better performance.
+- Implemented CNAME resolution optimization in DNS Cache and Auth Zone.
+- Fixed issue in DNS Cache caused due to missing check of the type of NS record's RDATA causing cache zone to return special cache RDATA record.
+- Fixed issue in DNS client caused when response greater than the buffer size is received.
+
 ## Version 6.2
 Release Date: 11 April 2021
 
