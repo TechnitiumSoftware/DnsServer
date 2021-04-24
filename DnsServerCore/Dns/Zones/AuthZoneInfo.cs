@@ -243,11 +243,11 @@ namespace DnsServerCore.Dns.Zones
                 if (_zone == null)
                     throw new InvalidOperationException();
 
-                if (_zone is SecondaryZone)
-                    return (_zone as SecondaryZone).IsExpired;
+                if (_zone is SecondaryZone secondaryZone)
+                    return secondaryZone.IsExpired;
 
-                if (_zone is StubZone)
-                    return (_zone as StubZone).IsExpired;
+                if (_zone is StubZone stubZone)
+                    return stubZone.IsExpired;
 
                 return false;
             }
@@ -260,8 +260,8 @@ namespace DnsServerCore.Dns.Zones
                 if (_zone == null)
                     throw new InvalidOperationException();
 
-                if (_zone is PrimaryZone)
-                    return (_zone as PrimaryZone).Internal;
+                if (_zone is PrimaryZone primaryZone)
+                    return primaryZone.Internal;
 
                 return false;
             }
