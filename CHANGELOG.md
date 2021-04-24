@@ -1,5 +1,14 @@
 # Technitium DNS Server Change Log
 
+## Version 6.2.2
+Release Date: 24 April 2021
+
+- Fixed issues with recursive resolution.
+- Fixed issue in parsing AXFR response.
+- Fixed missing tags in responses to reflect correct stats on dashboard.
+- Fixed issue with web console redirection on saving settings when using a reverse proxy.
+- Multiple other minor bug fixes and improvements.
+
 ## Version 6.2.1
 Release Date: 17 April 2021
 
