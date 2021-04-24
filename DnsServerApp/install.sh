@@ -48,9 +48,9 @@ else
 	then
 		if [ "$dotnetUpdate" = "yes" ]
 		then
-			echo ".NET 5 Runtime was updated succesfully!"
+			echo ".NET 5 Runtime was updated successfully!"
 		else
-			echo ".NET 5 Runtime was installed succesfully!"
+			echo ".NET 5 Runtime was installed successfully!"
 		fi
 	else
 		echo "Failed to install .NET 5 Runtime. Please try again."
@@ -99,7 +99,7 @@ then
 		fi
 	
 		echo ""
-		echo "Technitium DNS Server was installed succesfully!"
+		echo "Technitium DNS Server was installed successfully!"
 		echo "Open http://$(hostname):5380/ to access the web console."
 		echo ""
 		echo "Donate! Make a contribution by becoming a Patron: https://www.patreon.com/technitium"
