@@ -46,22 +46,27 @@ namespace DnsServerCore.Dns
         public virtual DnsDatagram Query(DnsDatagram request, bool serveStale = false)
         {
             DnsDatagram authResponse = _authZoneManager.Query(request, true);
-            if (authResponse.Answer.Count > 0)
-                return authResponse;
+            if ((authResponse != null))
+            {
+                if ((authResponse.Answer.Count > 0) || ((authResponse.Authority.Count > 0) && (authResponse.Authority[0].Type == DnsResourceRecordType.SOA)))
+                    return authResponse;
+            }
 
             DnsDatagram cacheResponse = _cacheZoneManager.Query(request, serveStale);
-            if (cacheResponse.Answer.Count > 0)
-                return cacheResponse;
-
-            if ((authResponse.Authority.Count > 0) && (cacheResponse.Authority.Count > 0))
+            if (cacheResponse != null)
             {
-                if (authResponse.Authority[0].Name.Length >= cacheResponse.Authority[0].Name.Length)
-                    return authResponse;
-
-                return cacheResponse;
+                if ((cacheResponse.Answer.Count > 0) || ((cacheResponse.Authority.Count > 0) && (cacheResponse.Authority[0].Type == DnsResourceRecordType.SOA)))
+                    return cacheResponse;
             }
-            else if (authResponse.Authority.Count > 0)
+
+            if ((authResponse != null) && (authResponse.Authority.Count > 0))
             {
+                if ((cacheResponse != null) && (cacheResponse.Authority.Count > 0))
+                {
+                    if (cacheResponse.Authority[0].Name.Length > authResponse.Authority[0].Name.Length)
+                        return cacheResponse;
+                }
+
                 return authResponse;
             }
             else
