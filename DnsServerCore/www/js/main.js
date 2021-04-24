@@ -19,6 +19,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 var token = null;
 var refreshTimerHandle;
+var reverseProxyDetected = false;
 
 function showPageLogin() {
     hideAlert();
@@ -645,6 +646,7 @@ function loadDnsSettings() {
         success: function (responseJSON) {
             document.title = responseJSON.response.dnsServerDomain + " - " + "Technitium DNS Server v" + responseJSON.response.version;
             $("#lblAboutVersion").text(responseJSON.response.version);
+            checkForReverseProxy(responseJSON);
 
             $("#txtDnsServerDomain").val(responseJSON.response.dnsServerDomain);
             $("#lblDnsServerDomain").text(" - " + responseJSON.response.dnsServerDomain);
@@ -1040,7 +1042,28 @@ function saveDnsSettings() {
     return false;
 }
 
+function checkForReverseProxy(responseJSON) {
+    if (location.protocol == "https:") {
+        var currentPort = window.location.port;
+
+        if ((currentPort == 0) || (currentPort == ""))
+            currentPort = 443;
+
+        reverseProxyDetected = currentPort != responseJSON.response.webServiceTlsPort;
+    } else {
+        var currentPort = window.location.port;
+
+        if ((currentPort == 0) || (currentPort == ""))
+            currentPort = 80;
+
+        reverseProxyDetected = currentPort != responseJSON.response.webServiceHttpPort
+    }
+}
+
 function checkForWebConsoleRedirection(responseJSON) {
+    if (reverseProxyDetected)
+        return;
+
     if (location.protocol == "https:") {
         var currentPort = window.location.port;
 
