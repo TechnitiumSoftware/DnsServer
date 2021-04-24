@@ -6,7 +6,6 @@
 
   <ItemGroup>
     <None Remove="named.root" />
-    <None Remove="www\blocklist.txt" />
     <None Remove="www\css\bootstrap-theme.min.css" />
     <None Remove="www\css\bootstrap-theme.min.css.map" />
     <None Remove="www\css\bootstrap.min.css" />
@@ -50,9 +49,6 @@
 
   <ItemGroup>
     <Content Include="named.root">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </Content>
-    <Content Include="www\blocklist.txt">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
     <Content Include="www\css\images\ui-icons_444444_256x240.png">
@@ -202,7 +198,7 @@
     <RepositoryType></RepositoryType>
     <Description>.NET 5</Description>
     <PackageId>DnsServer</PackageId>
-    <Version>6.2.1</Version>
+    <Version>6.2.2</Version>
   </PropertyGroup>
 
 </Project>
