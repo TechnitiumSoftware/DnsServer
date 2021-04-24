@@ -4042,6 +4042,23 @@ namespace DnsServerCore
 
                                         jsonWriter.WritePropertyName("value");
                                         jsonWriter.WriteValue(rdata.Exchange);
+
+                                        IReadOnlyList<DnsResourceRecord> glueRecords = record.GetGlueRecords();
+                                        if (glueRecords.Count > 0)
+                                        {
+                                            string glue = null;
+
+                                            foreach (DnsResourceRecord glueRecord in glueRecords)
+                                            {
+                                                if (glue == null)
+                                                    glue = glueRecord.RDATA.ToString();
+                                                else
+                                                    glue = glue + ", " + glueRecord.RDATA.ToString();
+                                            }
+
+                                            jsonWriter.WritePropertyName("glue");
+                                            jsonWriter.WriteValue(glue);
+                                        }
                                     }
                                 }
                                 break;
@@ -4080,23 +4097,23 @@ namespace DnsServerCore
                                     {
                                         jsonWriter.WritePropertyName("value");
                                         jsonWriter.WriteValue(rdata.NameServer);
-                                    }
 
-                                    IReadOnlyList<DnsResourceRecord> glueRecords = record.GetGlueRecords();
-                                    if (glueRecords.Count > 0)
-                                    {
-                                        string glue = null;
-
-                                        foreach (DnsResourceRecord glueRecord in glueRecords)
+                                        IReadOnlyList<DnsResourceRecord> glueRecords = record.GetGlueRecords();
+                                        if (glueRecords.Count > 0)
                                         {
-                                            if (glue == null)
-                                                glue = glueRecord.RDATA.ToString();
-                                            else
-                                                glue = glue + ", " + glueRecord.RDATA.ToString();
-                                        }
+                                            string glue = null;
 
-                                        jsonWriter.WritePropertyName("glue");
-                                        jsonWriter.WriteValue(glue);
+                                            foreach (DnsResourceRecord glueRecord in glueRecords)
+                                            {
+                                                if (glue == null)
+                                                    glue = glueRecord.RDATA.ToString();
+                                                else
+                                                    glue = glue + ", " + glueRecord.RDATA.ToString();
+                                            }
+
+                                            jsonWriter.WritePropertyName("glue");
+                                            jsonWriter.WriteValue(glue);
+                                        }
                                     }
                                 }
                                 break;
@@ -4144,6 +4161,23 @@ namespace DnsServerCore
 
                                         jsonWriter.WritePropertyName("value");
                                         jsonWriter.WriteValue(rdata.Target);
+
+                                        IReadOnlyList<DnsResourceRecord> glueRecords = record.GetGlueRecords();
+                                        if (glueRecords.Count > 0)
+                                        {
+                                            string glue = null;
+
+                                            foreach (DnsResourceRecord glueRecord in glueRecords)
+                                            {
+                                                if (glue == null)
+                                                    glue = glueRecord.RDATA.ToString();
+                                                else
+                                                    glue = glue + ", " + glueRecord.RDATA.ToString();
+                                            }
+
+                                            jsonWriter.WritePropertyName("glue");
+                                            jsonWriter.WriteValue(glue);
+                                        }
                                     }
                                 }
                                 break;
