@@ -204,18 +204,22 @@ namespace DnsServerCore.Dns.ZoneManagers
             if (i > -1)
                 return domain.Substring(i + 1);
 
+            //dont return root zone
             return null;
         }
 
         private List<Uri> IsZoneBlocked(string domain)
         {
-            while (domain != null)
+            domain = domain.ToLower();
+
+            do
             {
                 if (_blockListZone.TryGetValue(domain, out List<Uri> blockLists))
                     return blockLists; //found zone blocked
 
                 domain = GetParentZone(domain);
             }
+            while (domain != null);
 
             return null;
         }
@@ -391,41 +395,43 @@ namespace DnsServerCore.Dns.ZoneManagers
 
         public DnsDatagram Query(DnsDatagram request)
         {
-            List<Uri> blockLists = IsZoneBlocked(request.Question[0].Name.ToLower());
+            DnsQuestionRecord question = request.Question[0];
+
+            List<Uri> blockLists = IsZoneBlocked(question.Name);
             if (blockLists == null)
                 return null; //zone not blocked
 
             //zone is blocked
-            if (_dnsServer.UseNxDomainForBlocking && (request.Question[0].Type != DnsResourceRecordType.TXT))
+            if (_dnsServer.UseNxDomainForBlocking && (question.Type != DnsResourceRecordType.TXT))
                 return new DnsDatagram(request.Identifier, true, DnsOpcode.StandardQuery, false, false, request.RecursionDesired, true, false, false, DnsResponseCode.NxDomain, request.Question);
 
             DnsResourceRecord[] answers = null;
             DnsResourceRecord[] authority = null;
 
-            switch (request.Question[0].Type)
+            switch (question.Type)
             {
                 case DnsResourceRecordType.A:
-                    answers = new DnsResourceRecord[] { new DnsResourceRecord(request.Question[0].Name, DnsResourceRecordType.A, request.Question[0].Class, 60, _aRecord) };
+                    answers = new DnsResourceRecord[] { new DnsResourceRecord(question.Name, DnsResourceRecordType.A, question.Class, 60, _aRecord) };
                     break;
 
                 case DnsResourceRecordType.AAAA:
-                    answers = new DnsResourceRecord[] { new DnsResourceRecord(request.Question[0].Name, DnsResourceRecordType.AAAA, request.Question[0].Class, 60, _aaaaRecord) };
+                    answers = new DnsResourceRecord[] { new DnsResourceRecord(question.Name, DnsResourceRecordType.AAAA, question.Class, 60, _aaaaRecord) };
                     break;
 
                 case DnsResourceRecordType.NS:
-                    answers = new DnsResourceRecord[] { new DnsResourceRecord(request.Question[0].Name, DnsResourceRecordType.NS, request.Question[0].Class, 60, _nsRecord) };
+                    answers = new DnsResourceRecord[] { new DnsResourceRecord(question.Name, DnsResourceRecordType.NS, question.Class, 60, _nsRecord) };
                     break;
 
                 case DnsResourceRecordType.TXT:
                     answers = new DnsResourceRecord[blockLists.Count];
 
                     for (int i = 0; i < answers.Length; i++)
-                        answers[i] = new DnsResourceRecord(request.Question[0].Name, DnsResourceRecordType.TXT, request.Question[0].Class, 60, new DnsTXTRecord("blockList=" + blockLists[i].AbsoluteUri + "; domain=" + request.Question[0].Name));
+                        answers[i] = new DnsResourceRecord(question.Name, DnsResourceRecordType.TXT, question.Class, 60, new DnsTXTRecord("blockList=" + blockLists[i].AbsoluteUri + "; domain=" + question.Name));
 
                     break;
 
                 default:
-                    authority = new DnsResourceRecord[] { new DnsResourceRecord(request.Question[0].Name, DnsResourceRecordType.SOA, request.Question[0].Class, 60, _soaRecord) };
+                    authority = new DnsResourceRecord[] { new DnsResourceRecord(question.Name, DnsResourceRecordType.SOA, question.Class, 60, _soaRecord) };
                     break;
             }
 
