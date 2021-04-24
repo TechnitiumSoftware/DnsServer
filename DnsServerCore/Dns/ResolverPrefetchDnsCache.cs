@@ -1,6 +1,6 @@
 ﻿/*
 Technitium DNS Server
-Copyright (C) 2020  Shreyas Zare (shreyas@technitium.com)
+Copyright (C) 2021  Shreyas Zare (shreyas@technitium.com)
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -50,15 +50,14 @@ namespace DnsServerCore.Dns
                 DnsDatagram authResponse = _authZoneManager.QueryClosestDelegation(request);
                 DnsDatagram cacheResponse = _cacheZoneManager.QueryClosestDelegation(request);
 
-                if ((authResponse.Authority.Count > 0) && (cacheResponse.Authority.Count > 0))
+                if ((authResponse != null) && (authResponse.Authority.Count > 0))
                 {
-                    if (authResponse.Authority[0].Name.Length >= cacheResponse.Authority[0].Name.Length)
-                        return authResponse;
+                    if ((cacheResponse != null) && (cacheResponse.Authority.Count > 0))
+                    {
+                        if (cacheResponse.Authority[0].Name.Length > authResponse.Authority[0].Name.Length)
+                            return cacheResponse;
+                    }
 
-                    return cacheResponse;
-                }
-                else if (authResponse.Authority.Count > 0)
-                {
                     return authResponse;
                 }
                 else
