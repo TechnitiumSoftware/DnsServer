@@ -2052,7 +2052,7 @@ RESPONSE:
 
 ### List Apps
 
-Lists all installed apps on the DNS server.
+Lists all installed apps on the DNS server. If the DNS server has internet access and is able to retrieve data from DNS App Store, the API call will also return if a store App has updates available.
 
 URL:
 `http://localhost:5380/api/apps/list?token=x`
@@ -2084,6 +2084,9 @@ RESPONSE:
 			{
 				"name": "What Is My Dns",
 				"version": "1.1",
+				"updateVersion": "1.1",
+				"updateUrl": "https://download.technitium.com/dns/apps/WhatIsMyDnsApp.zip",
+				"updateAvailable": false,
 				"details": [
 					{
 						"classPath": "WhatIsMyDns.App",
@@ -2118,6 +2121,7 @@ RESPONSE:
 				"version": "1.1",
 				"description": "Returns A or AAAA records, or CNAME record based on the continent the client queries from using MaxMind GeoIP2 Country database. This app requires MaxMind GeoIP2 database and includes the GeoLite2 version for trial. To update the MaxMind GeoIP2 database for your app, download the GeoIP2-Country.mmdb file from MaxMind and zip it. Use the zip file with the manual Update option.",
 				"url": "https://download.technitium.com/dns/apps/GeoContinentApp.zip",
+				"size": "2.01 MB",
 				"installed": false
 			},
 			{
@@ -2125,6 +2129,7 @@ RESPONSE:
 				"version": "1.1",
 				"description": "Returns A or AAAA records, or CNAME record based on the country the client queries from using MaxMind GeoIP2 Country database. This app requires MaxMind GeoIP2 database and includes the GeoLite2 version for trial. To update the MaxMind GeoIP2 database for your app, download the GeoIP2-Country.mmdb file from MaxMind and zip it. Use the zip file with the manual Update option.",
 				"url": "https://download.technitium.com/dns/apps/GeoCountryApp.zip",
+				"size": "2.01 MB",
 				"installed": false
 			},
 			{
@@ -2132,6 +2137,7 @@ RESPONSE:
 				"version": "1.1",
 				"description": "Returns A or AAAA records, or CNAME record of the server located geographically closest to the client using MaxMind GeoIP2 City database. This app requires MaxMind GeoIP2 database and includes the GeoLite2 version for trial. To update the MaxMind GeoIP2 database for your app, download the GeoIP2-City.mmdb file from MaxMind and zip it. Use the zip file with the manual Update option.",
 				"url": "https://download.technitium.com/dns/apps/GeoDistanceApp.zip",
+				"size": "28.6 MB",
 				"installed": false
 			},
 			{
@@ -2139,6 +2145,7 @@ RESPONSE:
 				"version": "1.1",
 				"description": "Returns different set of A or AAAA records, or CNAME record for clients querying over public and private networks.",
 				"url": "https://download.technitium.com/dns/apps/SplitHorizonApp.zip",
+				"size": "11.1 KB",
 				"installed": true,
 				"installedVersion": "1.1",
 				"updateAvailable": false
@@ -2148,6 +2155,7 @@ RESPONSE:
 				"version": "1.1",
 				"description": "Returns the IP address of the user's DNS Server for A, AAAA, and TXT queries.",
 				"url": "https://download.technitium.com/dns/apps/WhatIsMyDnsApp.zip",
+				"size": "8.79 KB",
 				"installed": true,
 				"installedVersion": "1.1",
 				"updateAvailable": false
