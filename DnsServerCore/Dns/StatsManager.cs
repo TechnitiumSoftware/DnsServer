@@ -59,6 +59,8 @@ namespace DnsServerCore.Dns
     {
         #region variables
 
+        const int DAILY_STATS_FILE_TOP_LIMIT = 1000;
+
         readonly DnsServer _dnsServer;
         readonly string _statsFolder;
 
@@ -406,6 +408,10 @@ namespace DnsServerCore.Dns
                         {
                             dailyStats = new StatCounter(new BinaryReader(fS));
                         }
+
+                        //check if existing file could be truncated to avoid loading unnecessary data in memory
+                        if (dailyStats.Truncate(DAILY_STATS_FILE_TOP_LIMIT))
+                            SaveDailyStats(dailyDateTime, dailyStats); //save truncated file
                     }
                     catch (Exception ex)
                     {
@@ -427,7 +433,10 @@ namespace DnsServerCore.Dns
                     }
 
                     if (dailyStats.TotalQueries > 0)
+                    {
+                        _ = dailyStats.Truncate(DAILY_STATS_FILE_TOP_LIMIT);
                         SaveDailyStats(dailyDateTime, dailyStats);
+                    }
                 }
 
                 if (!_dailyStatsCache.TryAdd(dailyDateTime, dailyStats))
@@ -654,7 +663,7 @@ namespace DnsServerCore.Dns
             data.Add("topDomains", totalStatCounter.GetTopDomains(10));
             data.Add("topBlockedDomains", totalStatCounter.GetTopBlockedDomains(10));
             data.Add("topClients", totalStatCounter.GetTopClients(10));
-            data.Add("queryTypes", totalStatCounter.GetTopQueryTypes(5));
+            data.Add("queryTypes", totalStatCounter.GetTopQueryTypes(10));
 
             return data;
         }
@@ -764,7 +773,7 @@ namespace DnsServerCore.Dns
             data.Add("topDomains", totalStatCounter.GetTopDomains(10));
             data.Add("topBlockedDomains", totalStatCounter.GetTopBlockedDomains(10));
             data.Add("topClients", totalStatCounter.GetTopClients(10));
-            data.Add("queryTypes", totalStatCounter.GetTopQueryTypes(5));
+            data.Add("queryTypes", totalStatCounter.GetTopQueryTypes(10));
 
             return data;
         }
@@ -857,7 +866,7 @@ namespace DnsServerCore.Dns
             data.Add("topDomains", totalStatCounter.GetTopDomains(10));
             data.Add("topBlockedDomains", totalStatCounter.GetTopBlockedDomains(10));
             data.Add("topClients", totalStatCounter.GetTopClients(10));
-            data.Add("queryTypes", totalStatCounter.GetTopQueryTypes(5));
+            data.Add("queryTypes", totalStatCounter.GetTopQueryTypes(10));
 
             return data;
         }
@@ -944,7 +953,7 @@ namespace DnsServerCore.Dns
             data.Add("topDomains", totalStatCounter.GetTopDomains(10));
             data.Add("topBlockedDomains", totalStatCounter.GetTopBlockedDomains(10));
             data.Add("topClients", totalStatCounter.GetTopClients(10));
-            data.Add("queryTypes", totalStatCounter.GetTopQueryTypes(5));
+            data.Add("queryTypes", totalStatCounter.GetTopQueryTypes(10));
 
             return data;
         }
@@ -1249,18 +1258,24 @@ namespace DnsServerCore.Dns
             int _totalCached;
             int _totalBlocked;
 
-            readonly ConcurrentDictionary<string, Counter> _queryDomains = new ConcurrentDictionary<string, Counter>();
-            readonly ConcurrentDictionary<string, Counter> _queryBlockedDomains = new ConcurrentDictionary<string, Counter>();
-            readonly ConcurrentDictionary<DnsResourceRecordType, Counter> _queryTypes = new ConcurrentDictionary<DnsResourceRecordType, Counter>();
-            readonly ConcurrentDictionary<IPAddress, Counter> _clientIpAddresses = new ConcurrentDictionary<IPAddress, Counter>();
-            readonly ConcurrentDictionary<DnsQuestionRecord, Counter> _queries = new ConcurrentDictionary<DnsQuestionRecord, Counter>();
+            readonly ConcurrentDictionary<string, Counter> _queryDomains;
+            readonly ConcurrentDictionary<string, Counter> _queryBlockedDomains;
+            readonly ConcurrentDictionary<DnsResourceRecordType, Counter> _queryTypes;
+            readonly ConcurrentDictionary<IPAddress, Counter> _clientIpAddresses;
+            readonly ConcurrentDictionary<DnsQuestionRecord, Counter> _queries;
 
             #endregion
 
             #region constructor
 
             public StatCounter()
-            { }
+            {
+                _queryDomains = new ConcurrentDictionary<string, Counter>();
+                _queryBlockedDomains = new ConcurrentDictionary<string, Counter>();
+                _queryTypes = new ConcurrentDictionary<DnsResourceRecordType, Counter>();
+                _clientIpAddresses = new ConcurrentDictionary<IPAddress, Counter>();
+                _queries = new ConcurrentDictionary<DnsQuestionRecord, Counter>();
+            }
 
             public StatCounter(BinaryReader bR)
             {
@@ -1297,24 +1312,32 @@ namespace DnsServerCore.Dns
 
                         {
                             int count = bR.ReadInt32();
+                            _queryDomains = new ConcurrentDictionary<string, Counter>(1, count);
+
                             for (int i = 0; i < count; i++)
                                 _queryDomains.TryAdd(bR.ReadShortString(), new Counter(bR.ReadInt32()));
                         }
 
                         {
                             int count = bR.ReadInt32();
+                            _queryBlockedDomains = new ConcurrentDictionary<string, Counter>(1, count);
+
                             for (int i = 0; i < count; i++)
                                 _queryBlockedDomains.TryAdd(bR.ReadShortString(), new Counter(bR.ReadInt32()));
                         }
 
                         {
                             int count = bR.ReadInt32();
+                            _queryTypes = new ConcurrentDictionary<DnsResourceRecordType, Counter>(1, count);
+
                             for (int i = 0; i < count; i++)
                                 _queryTypes.TryAdd((DnsResourceRecordType)bR.ReadUInt16(), new Counter(bR.ReadInt32()));
                         }
 
                         {
                             int count = bR.ReadInt32();
+                            _clientIpAddresses = new ConcurrentDictionary<IPAddress, Counter>(1, count);
+
                             for (int i = 0; i < count; i++)
                                 _clientIpAddresses.TryAdd(IPAddressExtension.Parse(bR), new Counter(bR.ReadInt32()));
                         }
@@ -1322,9 +1345,16 @@ namespace DnsServerCore.Dns
                         if (version >= 4)
                         {
                             int count = bR.ReadInt32();
+                            _queries = new ConcurrentDictionary<DnsQuestionRecord, Counter>(1, count);
+
                             for (int i = 0; i < count; i++)
                                 _queries.TryAdd(new DnsQuestionRecord(bR.BaseStream), new Counter(bR.ReadInt32()));
                         }
+                        else
+                        {
+                            _queries = new ConcurrentDictionary<DnsQuestionRecord, Counter>(1, 0);
+                        }
+
                         break;
 
                     default:
@@ -1458,6 +1488,109 @@ namespace DnsServerCore.Dns
                     _queries.GetOrAdd(query.Key, GetNewCounter).Merge(query.Value);
             }
 
+            public bool Truncate(int limit)
+            {
+                bool truncated = false;
+
+                if (_queryDomains.Count > limit)
+                {
+                    List<KeyValuePair<string, Counter>> topDomains = new List<KeyValuePair<string, Counter>>(_queryDomains);
+
+                    _queryDomains.Clear();
+
+                    topDomains.Sort(delegate (KeyValuePair<string, Counter> item1, KeyValuePair<string, Counter> item2)
+                    {
+                        return item2.Value.Count.CompareTo(item1.Value.Count);
+                    });
+
+                    if (topDomains.Count > limit)
+                        topDomains.RemoveRange(limit, topDomains.Count - limit);
+
+                    foreach (KeyValuePair<string, Counter> item in topDomains)
+                        _queryDomains[item.Key] = item.Value;
+
+                    truncated = true;
+                }
+
+                if (_queryBlockedDomains.Count > limit)
+                {
+                    List<KeyValuePair<string, Counter>> topBlockedDomains = new List<KeyValuePair<string, Counter>>(_queryBlockedDomains);
+
+                    _queryBlockedDomains.Clear();
+
+                    topBlockedDomains.Sort(delegate (KeyValuePair<string, Counter> item1, KeyValuePair<string, Counter> item2)
+                    {
+                        return item2.Value.Count.CompareTo(item1.Value.Count);
+                    });
+
+                    if (topBlockedDomains.Count > limit)
+                        topBlockedDomains.RemoveRange(limit, topBlockedDomains.Count - limit);
+
+                    foreach (KeyValuePair<string, Counter> item in topBlockedDomains)
+                        _queryBlockedDomains[item.Key] = item.Value;
+
+                    truncated = true;
+                }
+
+                if (_queryTypes.Count > limit)
+                {
+                    List<KeyValuePair<DnsResourceRecordType, Counter>> queryTypes = new List<KeyValuePair<DnsResourceRecordType, Counter>>(_queryTypes);
+
+                    _queryTypes.Clear();
+
+                    queryTypes.Sort(delegate (KeyValuePair<DnsResourceRecordType, Counter> item1, KeyValuePair<DnsResourceRecordType, Counter> item2)
+                    {
+                        return item2.Value.Count.CompareTo(item1.Value.Count);
+                    });
+
+                    if (queryTypes.Count > limit)
+                    {
+                        int othersCount = 0;
+
+                        for (int i = limit; i < queryTypes.Count; i++)
+                            othersCount += queryTypes[i].Value.Count;
+
+                        queryTypes.RemoveRange(limit - 1, queryTypes.Count - (limit - 1));
+                        queryTypes.Add(new KeyValuePair<DnsResourceRecordType, Counter>(DnsResourceRecordType.Unknown, new Counter(othersCount)));
+                    }
+
+                    foreach (KeyValuePair<DnsResourceRecordType, Counter> item in queryTypes)
+                        _queryTypes[item.Key] = item.Value;
+
+                    truncated = true;
+                }
+
+                if (_clientIpAddresses.Count > limit)
+                {
+                    List<KeyValuePair<IPAddress, Counter>> topClients = new List<KeyValuePair<IPAddress, Counter>>(_clientIpAddresses);
+
+                    _clientIpAddresses.Clear();
+
+                    topClients.Sort(delegate (KeyValuePair<IPAddress, Counter> item1, KeyValuePair<IPAddress, Counter> item2)
+                    {
+                        return item2.Value.Count.CompareTo(item1.Value.Count);
+                    });
+
+                    if (topClients.Count > limit)
+                        topClients.RemoveRange(limit, topClients.Count - limit);
+
+                    foreach (KeyValuePair<IPAddress, Counter> item in topClients)
+                        _clientIpAddresses[item.Key] = item.Value;
+
+                    truncated = true;
+                }
+
+                if (_queries.Count > limit)
+                {
+                    //only last hour queries data is required for cache auto prefetching
+                    _queries.Clear();
+
+                    truncated = true;
+                }
+
+                return truncated;
+            }
+
             public void WriteTo(BinaryWriter bW)
             {
                 if (!_locked)
@@ -1525,7 +1658,7 @@ namespace DnsServerCore.Dns
 
             public List<KeyValuePair<string, int>> GetTopDomains(int limit)
             {
-                List<KeyValuePair<string, int>> topDomains = new List<KeyValuePair<string, int>>(10);
+                List<KeyValuePair<string, int>> topDomains = new List<KeyValuePair<string, int>>(_queryDomains.Count);
 
                 foreach (KeyValuePair<string, Counter> item in _queryDomains)
                     topDomains.Add(new KeyValuePair<string, int>(item.Key, item.Value.Count));
@@ -1535,7 +1668,7 @@ namespace DnsServerCore.Dns
 
             public List<KeyValuePair<string, int>> GetTopBlockedDomains(int limit)
             {
-                List<KeyValuePair<string, int>> topBlockedDomains = new List<KeyValuePair<string, int>>(10);
+                List<KeyValuePair<string, int>> topBlockedDomains = new List<KeyValuePair<string, int>>(_queryBlockedDomains.Count);
 
                 foreach (KeyValuePair<string, Counter> item in _queryBlockedDomains)
                     topBlockedDomains.Add(new KeyValuePair<string, int>(item.Key, item.Value.Count));
@@ -1545,7 +1678,7 @@ namespace DnsServerCore.Dns
 
             public List<KeyValuePair<string, int>> GetTopClients(int limit)
             {
-                List<KeyValuePair<string, int>> topClients = new List<KeyValuePair<string, int>>(10);
+                List<KeyValuePair<string, int>> topClients = new List<KeyValuePair<string, int>>(_clientIpAddresses.Count);
 
                 foreach (KeyValuePair<IPAddress, Counter> item in _clientIpAddresses)
                     topClients.Add(new KeyValuePair<string, int>(item.Key.ToString(), item.Value.Count));
@@ -1555,7 +1688,7 @@ namespace DnsServerCore.Dns
 
             public List<KeyValuePair<string, int>> GetTopQueryTypes(int limit)
             {
-                List<KeyValuePair<string, int>> queryTypes = new List<KeyValuePair<string, int>>(10);
+                List<KeyValuePair<string, int>> queryTypes = new List<KeyValuePair<string, int>>(_queryTypes.Count);
 
                 foreach (KeyValuePair<DnsResourceRecordType, Counter> item in _queryTypes)
                     queryTypes.Add(new KeyValuePair<string, int>(item.Key.ToString(), item.Value.Count));
@@ -1581,7 +1714,7 @@ namespace DnsServerCore.Dns
 
             public List<KeyValuePair<DnsQuestionRecord, int>> GetEligibleQueries(int minimumHits)
             {
-                List<KeyValuePair<DnsQuestionRecord, int>> eligibleQueries = new List<KeyValuePair<DnsQuestionRecord, int>>(100);
+                List<KeyValuePair<DnsQuestionRecord, int>> eligibleQueries = new List<KeyValuePair<DnsQuestionRecord, int>>(Convert.ToInt32(_queries.Count * 0.1));
 
                 foreach (KeyValuePair<DnsQuestionRecord, Counter> item in _queries)
                 {
