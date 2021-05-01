@@ -34,6 +34,9 @@ function refreshApps() {
                 var id = Math.floor(Math.random() * 10000);
                 var name = apps[i].name;
                 var version = apps[i].version;
+                var updateVersion = apps[i].updateVersion;
+                var updateUrl = apps[i].updateUrl;
+                var updateAvailable = apps[i].updateAvailable;
 
                 var detailsTable = "<table class=\"table\"><thead><th>Class Path</th><th>Description</th><th>Record Data Template</th></thead><tbody>";
 
@@ -48,10 +51,11 @@ function refreshApps() {
 
                 detailsTable += "</tbody></table>"
 
-                tableHtmlRows += "<tr id=\"trApp" + id + "\"><td>" + htmlEncode(name) + "<br /><span class=\"label label-primary\">Version " + htmlEncode(version) + "</span></td>";
+                tableHtmlRows += "<tr id=\"trApp" + id + "\"><td>" + htmlEncode(name) + "<br /><span id=\"trAppVersion" + id + "\" class=\"label label-primary\">Version " + htmlEncode(version) + "</span><br /><span id=\"trAppUpdateVersion" + id + "\" class=\"label label-warning\" style=\"" + (updateAvailable ? "" : "display: none;") + "\">Version " + htmlEncode(updateVersion) + "</span></td>";
                 tableHtmlRows += "<td>" + detailsTable + "</td>";
                 tableHtmlRows += "<td><button type=\"button\" class=\"btn btn-default\" style=\"font-size: 12px; padding: 2px 0px; width: 80px; margin-bottom: 6px; display: block;\" onclick=\"showAppConfigModal(this, '" + name + "');\" data-loading-text=\"Loading...\">Config</button>";
                 tableHtmlRows += "<button type=\"button\" class=\"btn btn-warning\" style=\"font-size: 12px; padding: 2px 0px; width: 80px; margin-bottom: 6px; display: block;\" onclick=\"showUpdateAppModal('" + name + "');\">Update</button>";
+                tableHtmlRows += "<button id=\"btnAppsStoreUpdate" + id + "\" type=\"button\" data-id=\"" + id + "\" class=\"btn btn-warning\" style=\"font-size: 12px; padding: 2px 0px; width: 80px; margin-bottom: 6px; " + (updateAvailable ? "" : "display: none;") + "\" onclick=\"updateStoreApp(this, '" + name + "', '" + updateUrl + "', false);\" data-loading-text=\"Updating...\">Store Update</button>";
                 tableHtmlRows += "<button type=\"button\" data-id=\"" + id + "\" class=\"btn btn-danger\" style=\"font-size: 12px; padding: 2px 0px; width: 80px; margin-bottom: 6px; display: block;\" onclick=\"uninstallApp(this, '" + name + "');\" data-loading-text=\"Uninstalling...\">Uninstall</button></td></tr>";
             }
 
@@ -97,13 +101,18 @@ function showStoreAppsModal() {
                 var version = storeApps[i].version;
                 var description = storeApps[i].description;
                 var url = storeApps[i].url;
+                var size = storeApps[i].size;
                 var installed = storeApps[i].installed;
+                var installedVersion = storeApps[i].installedVersion;
                 var updateAvailable = installed ? storeApps[i].updateAvailable : false;
 
-                tableHtmlRows += "<tr id=\"trStoreApp" + id + "\"><td>" + htmlEncode(name) + "<br /><span id=\"spanStoreAppVersion" + id + "\" class=\"label label-" + (updateAvailable ? "warning" : "primary") + "\">Version " + htmlEncode(version) + "</span></td>";
-                tableHtmlRows += "<td>" + htmlEncode(description) + "<br /><br /><b>App Zip File</b>: " + htmlEncode(url) + "</td><td>";
+                var displayVersion = installed ? installedVersion : version;
+                description = htmlEncode(description).replace(/\n/g, "<br />");
+
+                tableHtmlRows += "<tr id=\"trStoreApp" + id + "\"><td>" + htmlEncode(name) + "<br /><span id=\"spanStoreAppDisplayVersion" + id + "\" class=\"label label-primary\">Version " + htmlEncode(displayVersion) + "</span><br /><span id=\"spanStoreAppUpdateVersion" + id + "\" class=\"label label-warning\" style=\"" + (updateAvailable ? "" : "display: none;") + "\">Version " + htmlEncode(version) + "</span></td>";
+                tableHtmlRows += "<td>" + description + "<br /><br /><b>App Zip File</b>: " + htmlEncode(url) + "<br /><b>Size</b>: " + htmlEncode(size) + "</td><td>";
                 tableHtmlRows += "<button id=\"btnStoreAppInstall" + id + "\" type=\"button\" data-id=\"" + id + "\" class=\"btn btn-primary\" style=\"font-size: 12px; padding: 2px 0px; width: 80px; margin-bottom: 6px; " + (installed ? "display: none;" : "") + "\" onclick=\"installStoreApp(this, '" + name + "', '" + url + "');\" data-loading-text=\"Installing...\">Install</button>";
-                tableHtmlRows += "<button id=\"btnStoreAppUpdate" + id + "\" type=\"button\" data-id=\"" + id + "\" class=\"btn btn-warning\" style=\"font-size: 12px; padding: 2px 0px; width: 80px; margin-bottom: 6px; " + (updateAvailable ? "" : "display: none;") + "\" onclick=\"updateStoreApp(this, '" + name + "', '" + url + "');\" data-loading-text=\"Updating...\">Update</button>";
+                tableHtmlRows += "<button id=\"btnStoreAppUpdate" + id + "\" type=\"button\" data-id=\"" + id + "\" class=\"btn btn-warning\" style=\"font-size: 12px; padding: 2px 0px; width: 80px; margin-bottom: 6px; " + (updateAvailable ? "" : "display: none;") + "\" onclick=\"updateStoreApp(this, '" + name + "', '" + url + "', true);\" data-loading-text=\"Updating...\">Update</button>";
                 tableHtmlRows += "<button id=\"btnStoreAppUninstall" + id + "\" type=\"button\" data-id=\"" + id + "\" class=\"btn btn-danger\" style=\"font-size: 12px; padding: 2px 0px; width: 80px; margin-bottom: 6px; " + (installed ? "" : "display: none;") + "\" onclick=\"uninstallStoreApp(this, '" + name + "');\" data-loading-text=\"Uninstalling...\">Uninstall</button>";
                 tableHtmlRows += "</td></tr>";
             }
@@ -183,8 +192,12 @@ function installStoreApp(objBtn, appName, url) {
     });
 }
 
-function updateStoreApp(objBtn, appName, url) {
-    var divStoreAppsAlert = $("#divStoreAppsAlert");
+function updateStoreApp(objBtn, appName, url, isModal) {
+    var divStoreAppsAlert;
+
+    if (isModal)
+        divStoreAppsAlert = $("#divStoreAppsAlert");
+
     var btn = $(objBtn);
 
     btn.button('loading');
@@ -196,7 +209,18 @@ function updateStoreApp(objBtn, appName, url) {
             btn.hide();
 
             var id = btn.attr("data-id");
-            $("#spanStoreAppVersion" + id).attr("class", "label label-primary");
+
+            if (isModal) {
+                $("#spanStoreAppUpdateVersion" + id).hide();
+                $("#spanStoreAppDisplayVersion" + id).text($("#spanStoreAppUpdateVersion" + id).text());
+
+                refreshApps();
+            }
+            else {
+                $("#btnAppsStoreUpdate" + id).hide();
+                $("#trAppUpdateVersion" + id).hide();
+                $("#trAppVersion" + id).text($("#trAppUpdateVersion" + id).text());
+            }
 
             showAlert("success", "Store App Updated!", "DNS application was updated successfully from DNS App Store.", divStoreAppsAlert);
         },
@@ -334,13 +358,13 @@ function uninstallApp(objBtn, appName) {
         return false;
 
     var btn = $(objBtn);
-    var id = btn.attr("data-id");
 
     btn.button('loading');
 
     HTTPRequest({
         url: "/api/apps/uninstall?token=" + token + "&name=" + encodeURIComponent(appName),
         success: function (responseJSON) {
+            var id = btn.attr("data-id");
             $("#trApp" + id).remove();
 
             var totalApps = $('#tableApps >tbody >tr').length;
