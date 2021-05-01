@@ -247,7 +247,8 @@ namespace DnsServerCore
             {
                 try
                 {
-                    _queueCancellationTokenSource.Cancel();
+                    if (_logOut != null)
+                        _queueCancellationTokenSource.Cancel();
 
                     lock (_logFileLock)
                     {
@@ -560,7 +561,8 @@ namespace DnsServerCore
             {
                 try
                 {
-                    _queueCancellationTokenSource.Cancel();
+                    if (_logOut != null)
+                        _queueCancellationTokenSource.Cancel();
 
                     lock (_logFileLock)
                     {
