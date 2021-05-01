@@ -510,7 +510,7 @@ namespace DnsServerCore
                                                 break;
 
                                             case "/api/apps/list":
-                                                ListInstalledApps(jsonWriter);
+                                                await ListInstalledAppsAsync(jsonWriter);
                                                 break;
 
                                             case "/api/apps/listStoreApps":
@@ -2635,9 +2635,14 @@ namespace DnsServerCore
                     jsonWriter.WriteStartArray();
                     jsonWriter.WriteValue("rgba(102, 153, 255, 0.5)");
                     jsonWriter.WriteValue("rgba(92, 184, 92, 0.5)");
+                    jsonWriter.WriteValue("rgba(7, 7, 7, 0.5)");
                     jsonWriter.WriteValue("rgba(91, 192, 222, 0.5)");
+                    jsonWriter.WriteValue("rgba(150, 150, 0, 0.5)");
+                    jsonWriter.WriteValue("rgba(23, 162, 184, 0.5)");
+                    jsonWriter.WriteValue("rgba(111, 84, 153, 0.5)");
                     jsonWriter.WriteValue("rgba(255, 165, 0, 0.5)");
                     jsonWriter.WriteValue("rgba(51, 122, 183, 0.5)");
+                    jsonWriter.WriteValue("rgba(150, 150, 150, 0.5)");
                     jsonWriter.WriteEndArray();
 
                     jsonWriter.WriteEndObject();
@@ -4758,11 +4763,46 @@ namespace DnsServerCore
 
         #region dns apps api
 
-        private void ListInstalledApps(JsonTextWriter jsonWriter)
+        string _storeAppsJsonData;
+        DateTime _storeAppsJsonDataUpdatedOn;
+        const int STORE_APPS_JSON_DATA_CACHE_TIME_SECONDS = 300;
+
+        private async Task<string> GetStoreAppsJsonData()
+        {
+            if ((_storeAppsJsonData == null) || (DateTime.UtcNow > _storeAppsJsonDataUpdatedOn.AddSeconds(STORE_APPS_JSON_DATA_CACHE_TIME_SECONDS)))
+            {
+                SocketsHttpHandler handler = new SocketsHttpHandler();
+                handler.Proxy = _dnsServer.Proxy;
+                handler.AutomaticDecompression = DecompressionMethods.GZip | DecompressionMethods.Deflate;
+
+                using (HttpClient http = new HttpClient(handler))
+                {
+                    _storeAppsJsonData = await http.GetStringAsync(_appStoreUri);
+                    _storeAppsJsonDataUpdatedOn = DateTime.UtcNow;
+                }
+            }
+
+            return _storeAppsJsonData;
+        }
+
+        private async Task ListInstalledAppsAsync(JsonTextWriter jsonWriter)
         {
             List<string> apps = new List<string>(_dnsServer.DnsApplicationManager.Applications.Keys);
 
             apps.Sort();
+
+            dynamic jsonStoreAppsArray = null;
+
+            if (apps.Count > 0)
+            {
+                try
+                {
+                    string storeAppsJsonData = await GetStoreAppsJsonData().WithTimeout(5000);
+                    jsonStoreAppsArray = JsonConvert.DeserializeObject(storeAppsJsonData);
+                }
+                catch
+                { }
+            }
 
             jsonWriter.WritePropertyName("apps");
             jsonWriter.WriteStartArray();
@@ -4778,6 +4818,29 @@ namespace DnsServerCore
 
                     jsonWriter.WritePropertyName("version");
                     jsonWriter.WriteValue(GetCleanVersion(application.Version));
+
+                    if (jsonStoreAppsArray != null)
+                    {
+                        foreach (dynamic jsonStoreApp in jsonStoreAppsArray)
+                        {
+                            string name = jsonStoreApp.name.Value;
+                            if (name.Equals(application.AppName))
+                            {
+                                string version = jsonStoreApp.version.Value;
+                                string url = jsonStoreApp.url.Value;
+
+                                jsonWriter.WritePropertyName("updateVersion");
+                                jsonWriter.WriteValue(version);
+
+                                jsonWriter.WritePropertyName("updateUrl");
+                                jsonWriter.WriteValue(url);
+
+                                jsonWriter.WritePropertyName("updateAvailable");
+                                jsonWriter.WriteValue(new Version(version) > application.Version);
+                                break;
+                            }
+                        }
+                    }
 
                     jsonWriter.WritePropertyName("details");
                     jsonWriter.WriteStartArray();
@@ -4809,60 +4872,55 @@ namespace DnsServerCore
 
         private async Task ListStoreApps(JsonTextWriter jsonWriter)
         {
-            SocketsHttpHandler handler = new SocketsHttpHandler();
-            handler.Proxy = _dnsServer.Proxy;
-            handler.AutomaticDecompression = DecompressionMethods.GZip | DecompressionMethods.Deflate;
+            string storeAppsJsonData = await GetStoreAppsJsonData();
+            dynamic jsonStoreAppsArray = JsonConvert.DeserializeObject(storeAppsJsonData);
 
-            using (HttpClient http = new HttpClient(handler))
+            jsonWriter.WritePropertyName("storeApps");
+            jsonWriter.WriteStartArray();
+
+            foreach (dynamic jsonStoreApp in jsonStoreAppsArray)
             {
-                string strStoreAppsJsonArray = await http.GetStringAsync(_appStoreUri);
-                dynamic jsonStoreAppsArray = JsonConvert.DeserializeObject(strStoreAppsJsonArray);
+                string name = jsonStoreApp.name.Value;
+                string version = jsonStoreApp.version.Value;
+                string description = jsonStoreApp.description.Value;
+                string url = jsonStoreApp.url.Value;
+                string size = jsonStoreApp.size.Value;
 
-                List<string> installedApps = new List<string>(_dnsServer.DnsApplicationManager.Applications.Keys);
+                jsonWriter.WriteStartObject();
 
-                jsonWriter.WritePropertyName("storeApps");
-                jsonWriter.WriteStartArray();
+                jsonWriter.WritePropertyName("name");
+                jsonWriter.WriteValue(name);
 
-                foreach (dynamic jsonStoreApp in jsonStoreAppsArray)
+                jsonWriter.WritePropertyName("version");
+                jsonWriter.WriteValue(version);
+
+                jsonWriter.WritePropertyName("description");
+                jsonWriter.WriteValue(description);
+
+                jsonWriter.WritePropertyName("url");
+                jsonWriter.WriteValue(url);
+
+                jsonWriter.WritePropertyName("size");
+                jsonWriter.WriteValue(size);
+
+                bool installed = _dnsServer.DnsApplicationManager.Applications.TryGetValue(name, out DnsApplication installedApp);
+
+                jsonWriter.WritePropertyName("installed");
+                jsonWriter.WriteValue(installed);
+
+                if (installed)
                 {
-                    string name = jsonStoreApp.name.Value;
-                    string version = jsonStoreApp.version.Value;
-                    string description = jsonStoreApp.description.Value;
-                    string url = jsonStoreApp.url.Value;
+                    jsonWriter.WritePropertyName("installedVersion");
+                    jsonWriter.WriteValue(GetCleanVersion(installedApp.Version));
 
-                    jsonWriter.WriteStartObject();
-
-                    jsonWriter.WritePropertyName("name");
-                    jsonWriter.WriteValue(name);
-
-                    jsonWriter.WritePropertyName("version");
-                    jsonWriter.WriteValue(version);
-
-                    jsonWriter.WritePropertyName("description");
-                    jsonWriter.WriteValue(description);
-
-                    jsonWriter.WritePropertyName("url");
-                    jsonWriter.WriteValue(url);
-
-                    bool installed = _dnsServer.DnsApplicationManager.Applications.TryGetValue(name, out DnsApplication installedApp);
-
-                    jsonWriter.WritePropertyName("installed");
-                    jsonWriter.WriteValue(installed);
-
-                    if (installed)
-                    {
-                        jsonWriter.WritePropertyName("installedVersion");
-                        jsonWriter.WriteValue(GetCleanVersion(installedApp.Version));
-
-                        jsonWriter.WritePropertyName("updateAvailable");
-                        jsonWriter.WriteValue(new Version(version) > installedApp.Version);
-                    }
-
-                    jsonWriter.WriteEndObject();
+                    jsonWriter.WritePropertyName("updateAvailable");
+                    jsonWriter.WriteValue(new Version(version) > installedApp.Version);
                 }
 
-                jsonWriter.WriteEndArray();
+                jsonWriter.WriteEndObject();
             }
+
+            jsonWriter.WriteEndArray();
         }
 
         private async Task DownloadAndInstallAppAsync(HttpListenerRequest request)
