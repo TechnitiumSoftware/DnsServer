@@ -1,5 +1,14 @@
 # Technitium DNS Server Change Log
 
+## Version 6.2.3
+Release Date: 2 May 2021
+
+- Improved DNS Apps interface to should if updates are available in the installed apps list.
+- Updated stats module to truncate daily stats data to optimize memory usage.
+- Fixed issue with QNAME minimization caused due to missing check when response contained no answer and no authority.
+- Fixed issue in logger which would fail to start in certain conditions.
+- Updated DNS Apps to shuffle addresses in response to allow load balancing.
+
 ## Version 6.2.2
 Release Date: 24 April 2021
 
@@ -22,7 +31,7 @@ Release Date: 11 April 2021
 
 - Fixed critical bug in block list condition check causing server to respond with `RCODE=Refused` when only using Blocked zone.
 - Added option to respond with `RCODE=NxDomain` for blocked domains instead of returning `0.0.0.0` address.
-- Renamed `NameError` to `NxDomain` to make the terminology clear that the domain does not exists. Dashboard API returns JSON with new terminology so its adviced to test your code before updating the server.
+- Renamed `NameError` to `NxDomain` to make the terminology clear that the domain does not exists. Dashboard API returns JSON with new terminology so its advised to test your code before updating the server.
 
 ## Version 6.1
 Release Date: 10 April 2021
