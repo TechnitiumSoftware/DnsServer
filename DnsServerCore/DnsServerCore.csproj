@@ -198,7 +198,7 @@
     <RepositoryType></RepositoryType>
     <Description>.NET 5</Description>
     <PackageId>DnsServer</PackageId>
-    <Version>6.2.2</Version>
+    <Version>6.2.3</Version>
   </PropertyGroup>
 
 </Project>

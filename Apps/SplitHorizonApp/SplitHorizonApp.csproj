@@ -4,7 +4,7 @@
     <TargetFramework>net5.0</TargetFramework>
     <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
     <CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>
-    <Version>1.1</Version>
+    <Version>1.2</Version>
     <Company>Technitium</Company>
     <Product>Technitium DNS Server</Product>
     <Authors>Shreyas Zare</Authors>
@@ -27,6 +27,10 @@
   </ItemGroup>
 
   <ItemGroup>
+    <Reference Include="TechnitiumLibrary.IO">
+      <HintPath>..\..\..\TechnitiumLibrary\bin\TechnitiumLibrary.IO.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
     <Reference Include="TechnitiumLibrary.Net">
       <HintPath>..\..\..\TechnitiumLibrary\bin\TechnitiumLibrary.Net.dll</HintPath>
       <Private>false</Private>
