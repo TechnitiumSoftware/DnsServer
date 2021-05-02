@@ -26,6 +26,7 @@ using System.IO;
 using System.Net;
 using System.Net.Sockets;
 using System.Threading.Tasks;
+using TechnitiumLibrary.IO;
 using TechnitiumLibrary.Net.Dns;
 using TechnitiumLibrary.Net.Dns.ResourceRecords;
 
@@ -86,7 +87,8 @@ namespace GeoCountry
 
         public Task<DnsDatagram> ProcessRequestAsync(DnsDatagram request, IPEndPoint remoteEP, string zoneName, uint appRecordTtl, string appRecordData, bool isRecursionAllowed, IDnsServer dnsServer)
         {
-            switch (request.Question[0].Type)
+            DnsQuestionRecord question = request.Question[0];
+            switch (question.Type)
             {
                 case DnsResourceRecordType.A:
                 case DnsResourceRecordType.AAAA:
@@ -102,7 +104,6 @@ namespace GeoCountry
                     else
                     {
                         jsonCountry = jsonAppRecordData["default"];
-
                     }
 
                     if (jsonCountry == null)
@@ -110,28 +111,34 @@ namespace GeoCountry
 
                     List<DnsResourceRecord> answers = new List<DnsResourceRecord>();
 
-                    foreach (dynamic jsonAddress in jsonCountry)
+                    switch (question.Type)
                     {
-                        IPAddress address = IPAddress.Parse(jsonAddress.Value);
+                        case DnsResourceRecordType.A:
+                            foreach (dynamic jsonAddress in jsonCountry)
+                            {
+                                IPAddress address = IPAddress.Parse(jsonAddress.Value);
 
-                        switch (request.Question[0].Type)
-                        {
-                            case DnsResourceRecordType.A:
                                 if (address.AddressFamily == AddressFamily.InterNetwork)
-                                    answers.Add(new DnsResourceRecord(request.Question[0].Name, DnsResourceRecordType.A, DnsClass.IN, appRecordTtl, new DnsARecord(address)));
+                                    answers.Add(new DnsResourceRecord(question.Name, DnsResourceRecordType.A, DnsClass.IN, appRecordTtl, new DnsARecord(address)));
+                            }
+                            break;
 
-                                break;
+                        case DnsResourceRecordType.AAAA:
+                            foreach (dynamic jsonAddress in jsonCountry)
+                            {
+                                IPAddress address = IPAddress.Parse(jsonAddress.Value);
 
-                            case DnsResourceRecordType.AAAA:
                                 if (address.AddressFamily == AddressFamily.InterNetworkV6)
-                                    answers.Add(new DnsResourceRecord(request.Question[0].Name, DnsResourceRecordType.AAAA, DnsClass.IN, appRecordTtl, new DnsAAAARecord(address)));
-
-                                break;
-                        }
+                                    answers.Add(new DnsResourceRecord(question.Name, DnsResourceRecordType.AAAA, DnsClass.IN, appRecordTtl, new DnsAAAARecord(address)));
+                            }
+                            break;
                     }
 
                     if (answers.Count == 0)
                         return Task.FromResult<DnsDatagram>(null);
+
+                    if (answers.Count > 1)
+                        answers.Shuffle();
 
                     return Task.FromResult(new DnsDatagram(request.Identifier, true, request.OPCODE, true, false, request.RecursionDesired, isRecursionAllowed, false, false, DnsResponseCode.NoError, request.Question, answers));
 
