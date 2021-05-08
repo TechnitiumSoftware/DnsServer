@@ -135,21 +135,21 @@ namespace DnsServerCore.Dns.ZoneManagers
                 {
                     case DnsResourceRecordType.NS:
                         DnsNSRecord nsRecord = refRecord.RDATA as DnsNSRecord;
-                        if (nsRecord != null)
+                        if (nsRecord is not null)
                             ResolveAdditionalRecords(refRecord, nsRecord.NameServer, serveStale, additionalRecords);
 
                         break;
 
                     case DnsResourceRecordType.MX:
                         DnsMXRecord mxRecord = refRecord.RDATA as DnsMXRecord;
-                        if (mxRecord != null)
+                        if (mxRecord is not null)
                             ResolveAdditionalRecords(refRecord, mxRecord.Exchange, serveStale, additionalRecords);
 
                         break;
 
                     case DnsResourceRecordType.SRV:
                         DnsSRVRecord srvRecord = refRecord.RDATA as DnsSRVRecord;
-                        if (srvRecord != null)
+                        if (srvRecord is not null)
                             ResolveAdditionalRecords(refRecord, srvRecord.Target, serveStale, additionalRecords);
 
                         break;
@@ -238,7 +238,7 @@ namespace DnsServerCore.Dns.ZoneManagers
         public DnsDatagram QueryClosestDelegation(DnsDatagram request)
         {
             _ = _root.FindZone(request.Question[0].Name, out CacheZone delegation, out _, out _);
-            if (delegation != null)
+            if (delegation is not null)
             {
                 //return closest name servers in delegation
                 IReadOnlyList<DnsResourceRecord> closestAuthority = delegation.QueryRecords(DnsResourceRecordType.NS, false, true);
@@ -254,21 +254,24 @@ namespace DnsServerCore.Dns.ZoneManagers
             return null;
         }
 
-        public override DnsDatagram Query(DnsDatagram request, bool serveStale = false)
+        public override DnsDatagram Query(DnsDatagram request, bool serveStaleAndResetExpiry = false)
         {
             DnsQuestionRecord question = request.Question[0];
 
             CacheZone zone = _root.FindZone(question.Name, out CacheZone delegation, out _, out _);
-            if (zone == null)
+            if (zone is null)
             {
                 //zone not found
-                if (delegation != null)
+                if (serveStaleAndResetExpiry)
+                    return null; //recursive resolver does not make stale request so no need to return delegation response
+
+                if (delegation is not null)
                 {
                     //return closest name servers in delegation
-                    IReadOnlyList<DnsResourceRecord> closestAuthority = delegation.QueryRecords(DnsResourceRecordType.NS, serveStale, true);
+                    IReadOnlyList<DnsResourceRecord> closestAuthority = delegation.QueryRecords(DnsResourceRecordType.NS, serveStaleAndResetExpiry, true);
                     if ((closestAuthority.Count > 0) && (closestAuthority[0].Type == DnsResourceRecordType.NS) && (closestAuthority[0].Name.Length > 0)) //dont trust root name servers from cache!
                     {
-                        IReadOnlyList<DnsResourceRecord> additional = GetAdditionalRecords(closestAuthority, serveStale);
+                        IReadOnlyList<DnsResourceRecord> additional = GetAdditionalRecords(closestAuthority, serveStaleAndResetExpiry);
 
                         return new DnsDatagram(request.Identifier, true, DnsOpcode.StandardQuery, false, false, request.RecursionDesired, true, false, false, DnsResponseCode.NoError, request.Question, null, closestAuthority, additional);
                     }
@@ -279,27 +282,63 @@ namespace DnsServerCore.Dns.ZoneManagers
             }
 
             //zone found
-            IReadOnlyList<DnsResourceRecord> answers = zone.QueryRecords(question.Type, serveStale, false);
+            IReadOnlyList<DnsResourceRecord> answers = zone.QueryRecords(question.Type, serveStaleAndResetExpiry, false);
             if (answers.Count > 0)
             {
                 //answer found in cache
                 DnsResourceRecord firstRR = answers[0];
 
                 if (firstRR.RDATA is DnsEmptyRecord dnsEmptyRecord)
+                {
+                    if (serveStaleAndResetExpiry)
+                    {
+                        if (firstRR.IsStale)
+                            firstRR.ResetExpiry(30); //reset expiry by 30 seconds so that resolver tries again only after 30 seconds as per draft-ietf-dnsop-serve-stale-04
+
+                        foreach (DnsResourceRecord record in dnsEmptyRecord.Authority)
+                        {
+                            if (record.IsStale)
+                                record.ResetExpiry(30); //reset expiry by 30 seconds so that resolver tries again only after 30 seconds as per draft-ietf-dnsop-serve-stale-04
+                        }
+                    }
+
                     return new DnsDatagram(request.Identifier, true, DnsOpcode.StandardQuery, false, false, request.RecursionDesired, true, false, false, DnsResponseCode.NoError, request.Question, null, dnsEmptyRecord.Authority);
+                }
 
                 if (firstRR.RDATA is DnsNXRecord dnsNXRecord)
+                {
+                    if (serveStaleAndResetExpiry)
+                    {
+                        if (firstRR.IsStale)
+                            firstRR.ResetExpiry(30); //reset expiry by 30 seconds so that resolver tries again only after 30 seconds as per draft-ietf-dnsop-serve-stale-04
+
+                        foreach (DnsResourceRecord record in dnsNXRecord.Authority)
+                        {
+                            if (record.IsStale)
+                                record.ResetExpiry(30); //reset expiry by 30 seconds so that resolver tries again only after 30 seconds as per draft-ietf-dnsop-serve-stale-04
+                        }
+                    }
+
                     return new DnsDatagram(request.Identifier, true, DnsOpcode.StandardQuery, false, false, request.RecursionDesired, true, false, false, DnsResponseCode.NxDomain, request.Question, null, dnsNXRecord.Authority);
+                }
 
                 if (firstRR.RDATA is DnsFailureRecord dnsFailureRecord)
+                {
+                    if (serveStaleAndResetExpiry)
+                    {
+                        if (firstRR.IsStale)
+                            firstRR.ResetExpiry(30); //reset expiry by 30 seconds so that resolver tries again only after 30 seconds as per draft-ietf-dnsop-serve-stale-04
+                    }
+
                     return new DnsDatagram(request.Identifier, true, DnsOpcode.StandardQuery, false, false, request.RecursionDesired, true, false, false, dnsFailureRecord.RCODE, request.Question);
+                }
 
                 DnsResourceRecord lastRR = answers[answers.Count - 1];
                 if ((lastRR.Type != question.Type) && (lastRR.Type == DnsResourceRecordType.CNAME) && (question.Type != DnsResourceRecordType.ANY))
                 {
                     List<DnsResourceRecord> newAnswers = new List<DnsResourceRecord>(answers);
 
-                    ResolveCNAME(question, lastRR, serveStale, newAnswers);
+                    ResolveCNAME(question, lastRR, serveStaleAndResetExpiry, newAnswers);
 
                     answers = newAnswers;
                 }
@@ -311,16 +350,38 @@ namespace DnsServerCore.Dns.ZoneManagers
                     case DnsResourceRecordType.NS:
                     case DnsResourceRecordType.MX:
                     case DnsResourceRecordType.SRV:
-                        additional = GetAdditionalRecords(answers, serveStale);
+                        additional = GetAdditionalRecords(answers, serveStaleAndResetExpiry);
                         break;
+                }
+
+                if (serveStaleAndResetExpiry)
+                {
+                    foreach (DnsResourceRecord record in answers)
+                    {
+                        if (record.IsStale)
+                            record.ResetExpiry(30); //reset expiry by 30 seconds so that resolver tries again only after 30 seconds as per draft-ietf-dnsop-serve-stale-04
+                    }
+
+                    if (additional is not null)
+                    {
+                        foreach (DnsResourceRecord record in additional)
+                        {
+                            if (record.IsStale)
+                                record.ResetExpiry(30); //reset expiry by 30 seconds so that resolver tries again only after 30 seconds as per draft-ietf-dnsop-serve-stale-04
+                        }
+                    }
                 }
 
                 return new DnsDatagram(request.Identifier, true, DnsOpcode.StandardQuery, false, false, request.RecursionDesired, true, false, false, DnsResponseCode.NoError, request.Question, answers, null, additional);
             }
             else
             {
-                //no answer in cache; check for closest delegation if any
-                if (delegation != null)
+                //no answer in cache
+                if (serveStaleAndResetExpiry)
+                    return null; //recursive resolver does not make stale request so no need to return delegation response
+
+                //check for closest delegation if any
+                if (delegation is not null)
                 {
                     //return closest name servers in delegation
                     IReadOnlyList<DnsResourceRecord> closestAuthority = delegation.QueryRecords(DnsResourceRecordType.NS, false, true);
