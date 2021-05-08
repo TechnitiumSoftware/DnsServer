@@ -31,10 +31,10 @@ namespace DnsServerCore.Dns.Zones
         {
             int k = 0;
 
-            while ((current != null) && (current.Depth >= baseDepth))
+            while ((current is not null) && (current.Depth >= baseDepth))
             {
                 Node[] children = current.Children;
-                if (children != null)
+                if (children is not null)
                 {
                     //find child node
                     Node child = null;
@@ -42,13 +42,13 @@ namespace DnsServerCore.Dns.Zones
                     for (int i = k; i < children.Length; i++)
                     {
                         child = Volatile.Read(ref children[i]);
-                        if (child != null)
+                        if (child is not null)
                         {
                             NodeValue value = child.Value;
-                            if (value != null)
+                            if (value is not null)
                             {
                                 T zone = value.Value;
-                                if (zone != null)
+                                if (zone is not null)
                                 {
                                     if (zone is SubDomainZone)
                                         return child; //child has value so return it
@@ -62,12 +62,12 @@ namespace DnsServerCore.Dns.Zones
                                 }
                             }
 
-                            if (child.Children != null)
+                            if (child.Children is not null)
                                 break;
                         }
                     }
 
-                    if (child != null)
+                    if (child is not null)
                     {
                         //make found child as current
                         k = 0;
@@ -88,12 +88,12 @@ namespace DnsServerCore.Dns.Zones
         {
             int k = 0;
 
-            while ((current != null) && (current.Depth >= baseDepth))
+            while ((current is not null) && (current.Depth >= baseDepth))
             {
                 if ((current.K != 39) || (current.Depth == baseDepth)) //[.] skip this node's children as its last for current sub zone
                 {
                     Node[] children = current.Children;
-                    if (children != null)
+                    if (children is not null)
                     {
                         //find child node
                         Node child = null;
@@ -101,20 +101,20 @@ namespace DnsServerCore.Dns.Zones
                         for (int i = k; i < children.Length; i++)
                         {
                             child = Volatile.Read(ref children[i]);
-                            if (child != null)
+                            if (child is not null)
                             {
-                                if (child.Value != null)
+                                if (child.Value is not null)
                                     return child; //child has value so return it
 
                                 if (child.K == 39) //[.]
                                     return child; //child node is last for current sub zone
 
-                                if (child.Children != null)
+                                if (child.Children is not null)
                                     break;
                             }
                         }
 
-                        if (child != null)
+                        if (child is not null)
                         {
                             //make found child as current
                             k = 0;
@@ -255,10 +255,10 @@ namespace DnsServerCore.Dns.Zones
             {
                 //find authority zone
                 NodeValue value = closestNode.Value;
-                if (value != null)
+                if (value is not null)
                 {
                     T zoneValue = value.Value;
-                    if (zoneValue != null)
+                    if (zoneValue is not null)
                     {
                         if (zoneValue is AuthZone)
                         {
@@ -271,7 +271,7 @@ namespace DnsServerCore.Dns.Zones
                                     closestAuthority = value;
                                 }
                             }
-                            else if ((zoneValue is SubDomainZone) && (closestDelegation == null) && zoneValue.ContainsNameServerRecords())
+                            else if ((zoneValue is SubDomainZone) && (closestDelegation is null) && zoneValue.ContainsNameServerRecords())
                             {
                                 if (IsKeySubDomain(value.Key, key))
                                 {
@@ -294,18 +294,18 @@ namespace DnsServerCore.Dns.Zones
                     break;
 
                 Node[] children = closestNode.Children;
-                if (children == null)
+                if (children is null)
                     break;
 
                 Node child = Volatile.Read(ref children[38]); //[*]
-                if (child != null)
+                if (child is not null)
                     wildcard = child;
 
                 child = Volatile.Read(ref children[key[i]]);
-                if (child == null)
+                if (child is null)
                 {
                     //no child found
-                    if (wildcard == null)
+                    if (wildcard is null)
                         return null; //no child or wildcard found
 
                     //use wildcard node
@@ -327,7 +327,7 @@ namespace DnsServerCore.Dns.Zones
 
             {
                 NodeValue value = closestNode.Value;
-                if (value != null)
+                if (value is not null)
                 {
                     //match exact + wildcard keys
                     if (KeysMatch(key, value.Key))
@@ -335,21 +335,21 @@ namespace DnsServerCore.Dns.Zones
                 }
             }
 
-            if (wildcard != null)
+            if (wildcard is not null)
             {
                 //wildcard node found
                 NodeValue value = wildcard.Value;
-                if (value == null)
+                if (value is null)
                 {
                     //find value from next [.] node
                     Node[] children = wildcard.Children;
-                    if (children != null)
+                    if (children is not null)
                     {
                         Node child = Volatile.Read(ref children[39]); //[.]
-                        if (child != null)
+                        if (child is not null)
                         {
                             value = child.Value;
-                            if (value != null)
+                            if (value is not null)
                             {
                                 //match wildcard keys
                                 if (KeysMatch(key, value.Key))
@@ -376,11 +376,11 @@ namespace DnsServerCore.Dns.Zones
                 return false;
 
             Node nextSubDomain = GetNextSubDomainZoneNode(closestNode, closestNode.Depth);
-            if (nextSubDomain == null)
+            if (nextSubDomain is null)
                 return false;
 
             NodeValue value = nextSubDomain.Value;
-            if (value == null)
+            if (value is null)
                 return false;
 
             return IsKeySubDomain(key, value.Key);
@@ -407,14 +407,14 @@ namespace DnsServerCore.Dns.Zones
                 do
                 {
                     current = current.GetNextNodeWithValue(closestNode.Depth);
-                    if (current == null)
+                    if (current is null)
                         break;
 
                     NodeValue v = current.Value;
-                    if (v != null)
+                    if (v is not null)
                     {
                         T zone = v.Value;
-                        if (zone != null)
+                        if (zone is not null)
                         {
                             current.RemoveNodeValue(v.Key, out _); //remove node value
                             current.CleanThisBranch();
@@ -433,7 +433,7 @@ namespace DnsServerCore.Dns.Zones
             {
                 if (TryRemove(domain, out value, out Node closestNode))
                 {
-                    if ((value != null) && ((value is PrimaryZone) || (value is SecondaryZone) || (value is StubZone) || (value is ForwarderZone)))
+                    if ((value is not null) && ((value is PrimaryZone) || (value is SecondaryZone) || (value is StubZone) || (value is ForwarderZone)))
                     {
                         //remove all sub domains under current zone
                         Node current = closestNode;
@@ -441,14 +441,14 @@ namespace DnsServerCore.Dns.Zones
                         do
                         {
                             current = GetNextSubDomainZoneNode(current, closestNode.Depth);
-                            if (current == null)
+                            if (current is null)
                                 break;
 
                             NodeValue v = current.Value;
-                            if (v != null)
+                            if (v is not null)
                             {
                                 T zone = v.Value;
-                                if (zone != null)
+                                if (zone is not null)
                                 {
                                     current.RemoveNodeValue(v.Key, out _); //remove node value
                                     current.CleanThisBranch();
@@ -468,7 +468,7 @@ namespace DnsServerCore.Dns.Zones
 
         public List<T> GetZoneWithSubDomainZones(string domain)
         {
-            if (domain == null)
+            if (domain is null)
                 throw new ArgumentNullException(nameof(domain));
 
             List<T> zones = new List<T>();
@@ -476,10 +476,10 @@ namespace DnsServerCore.Dns.Zones
             byte[] bKey = ConvertToByteKey(domain);
 
             NodeValue nodeValue = _root.FindNodeValue(bKey, out Node closestNode);
-            if (nodeValue != null)
+            if (nodeValue is not null)
             {
                 T zone = nodeValue.Value;
-                if (zone != null)
+                if (zone is not null)
                 {
                     if ((zone is PrimaryZone) || (zone is SecondaryZone) || (zone is StubZone) || (zone is ForwarderZone))
                     {
@@ -490,14 +490,14 @@ namespace DnsServerCore.Dns.Zones
                         do
                         {
                             current = GetNextSubDomainZoneNode(current, closestNode.Depth);
-                            if (current == null)
+                            if (current is null)
                                 break;
 
                             NodeValue value = current.Value;
-                            if (value != null)
+                            if (value is not null)
                             {
                                 zone = value.Value;
-                                if (zone != null)
+                                if (zone is not null)
                                     zones.Add(zone);
                             }
                         }
@@ -511,7 +511,7 @@ namespace DnsServerCore.Dns.Zones
 
         public List<string> ListSubDomains(string domain)
         {
-            if (domain == null)
+            if (domain is null)
                 throw new ArgumentNullException(nameof(domain));
 
             List<string> subDomains = new List<string>();
@@ -525,12 +525,12 @@ namespace DnsServerCore.Dns.Zones
             do
             {
                 value = current.Value;
-                if (value != null)
+                if (value is not null)
                 {
                     if (IsKeySubDomain(bKey, value.Key))
                     {
                         string label = ConvertKeyToLabel(value.Key, bKey.Length);
-                        if (label != null)
+                        if (label is not null)
                             subDomains.Add(label);
                     }
                 }
@@ -540,40 +540,40 @@ namespace DnsServerCore.Dns.Zones
                     if (IsKeySubDomain(bKey, nodeKey))
                     {
                         string label = ConvertKeyToLabel(nodeKey, bKey.Length);
-                        if (label != null)
+                        if (label is not null)
                             subDomains.Add(label);
                     }
                 }
 
                 current = GetNextChildZoneNode(current, closestNode.Depth);
             }
-            while (current != null);
+            while (current is not null);
 
             return subDomains;
         }
 
         public T FindZone(string domain, out T delegation, out T authority, out bool hasSubDomains)
         {
-            if (domain == null)
+            if (domain is null)
                 throw new ArgumentNullException(nameof(domain));
 
             byte[] key = ConvertToByteKey(domain);
 
             NodeValue nodeValue = FindNodeValue(key, out Node closestNode, out NodeValue closestDelegation, out NodeValue closestAuthority);
-            if (nodeValue == null)
+            if (nodeValue is null)
             {
                 //zone not found
-                if (closestDelegation != null)
+                if (closestDelegation is not null)
                     delegation = closestDelegation.Value;
                 else
                     delegation = null;
 
-                if (closestAuthority != null)
+                if (closestAuthority is not null)
                     authority = closestAuthority.Value;
                 else
                     authority = null;
 
-                if (authority == null)
+                if (authority is null)
                 {
                     //no authority so no subdomains
                     hasSubDomains = false;
@@ -582,7 +582,7 @@ namespace DnsServerCore.Dns.Zones
                 {
                     //check if current node has sub domains
                     NodeValue value = closestNode.Value;
-                    if (value == null)
+                    if (value is null)
                         hasSubDomains = SubDomainExists(key, closestNode);
                     else
                         hasSubDomains = IsKeySubDomain(key, value.Key);
@@ -592,7 +592,7 @@ namespace DnsServerCore.Dns.Zones
             }
 
             T zoneValue = nodeValue.Value;
-            if (zoneValue == null)
+            if (zoneValue is null)
             {
                 //zone value missing!
                 delegation = null;
@@ -611,14 +611,14 @@ namespace DnsServerCore.Dns.Zones
                 }
                 else
                 {
-                    if (closestDelegation != null)
+                    if (closestDelegation is not null)
                         delegation = closestDelegation.Value;
                     else if ((zoneValue is SubDomainZone) && zoneValue.ContainsNameServerRecords())
                         delegation = zoneValue;
                     else
                         delegation = null;
 
-                    if (closestAuthority != null)
+                    if (closestAuthority is not null)
                         authority = closestAuthority.Value;
                     else
                         authority = null;
@@ -630,7 +630,7 @@ namespace DnsServerCore.Dns.Zones
             {
                 if (zoneValue.ContainsNameServerRecords())
                     delegation = zoneValue;
-                else if (closestDelegation != null)
+                else if (closestDelegation is not null)
                     delegation = closestDelegation.Value;
                 else
                     delegation = null;

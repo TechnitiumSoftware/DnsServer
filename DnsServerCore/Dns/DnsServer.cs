@@ -207,13 +207,13 @@ namespace DnsServerCore.Dns
             {
                 Stop();
 
-                if (_authZoneManager != null)
+                if (_authZoneManager is not null)
                     _authZoneManager.Dispose();
 
-                if (_dnsApplicationManager != null)
+                if (_dnsApplicationManager is not null)
                     _dnsApplicationManager.Dispose();
 
-                if (_stats != null)
+                if (_stats is not null)
                     _stats.Dispose();
             }
 
@@ -297,7 +297,7 @@ namespace DnsServerCore.Dns
                         catch (Exception ex)
                         {
                             LogManager log = _log;
-                            if (log != null)
+                            if (log is not null)
                                 log.Write(result.RemoteEndPoint as IPEndPoint, DnsTransportProtocol.Udp, ex);
                         }
                     }
@@ -313,7 +313,7 @@ namespace DnsServerCore.Dns
                     return; //server stopping
 
                 LogManager log = _log;
-                if (log != null)
+                if (log is not null)
                     log.Write(ex);
             }
         }
@@ -324,7 +324,7 @@ namespace DnsServerCore.Dns
             {
                 DnsDatagram response;
 
-                if (request.ParsingException == null)
+                if (request.ParsingException is null)
                 {
                     response = await ProcessQueryAsync(request, remoteEP, IsRecursionAllowed(remoteEP), DnsTransportProtocol.Udp);
                 }
@@ -334,7 +334,7 @@ namespace DnsServerCore.Dns
                     if (!(request.ParsingException is IOException))
                     {
                         LogManager log = _log;
-                        if (log != null)
+                        if (log is not null)
                             log.Write(remoteEP, DnsTransportProtocol.Udp, request.ParsingException);
                     }
 
@@ -343,7 +343,7 @@ namespace DnsServerCore.Dns
                 }
 
                 //send response
-                if (response != null)
+                if (response is not null)
                 {
                     byte[] sendBuffer = new byte[512];
                     using (MemoryStream sendBufferStream = new MemoryStream(sendBuffer))
@@ -365,11 +365,11 @@ namespace DnsServerCore.Dns
                     }
 
                     LogManager queryLog = _queryLog;
-                    if (queryLog != null)
+                    if (queryLog is not null)
                         queryLog.Write(remoteEP, DnsTransportProtocol.Udp, request, response);
 
                     StatsManager stats = _stats;
-                    if (stats != null)
+                    if (stats is not null)
                         stats.Update(response, remoteEP.Address);
                 }
             }
@@ -379,11 +379,11 @@ namespace DnsServerCore.Dns
                     return; //server stopping
 
                 LogManager queryLog = _queryLog;
-                if (queryLog != null)
+                if (queryLog is not null)
                     queryLog.Write(remoteEP, DnsTransportProtocol.Udp, request, null);
 
                 LogManager log = _log;
-                if (log != null)
+                if (log is not null)
                     log.Write(remoteEP, DnsTransportProtocol.Udp, ex);
             }
         }
@@ -411,7 +411,7 @@ namespace DnsServerCore.Dns
                     return; //server stopping
 
                 LogManager log = _log;
-                if (log != null)
+                if (log is not null)
                     log.Write(localEP, protocol, ex);
             }
             catch (ObjectDisposedException)
@@ -424,7 +424,7 @@ namespace DnsServerCore.Dns
                     return; //server stopping
 
                 LogManager log = _log;
-                if (log != null)
+                if (log is not null)
                     log.Write(localEP, protocol, ex);
             }
         }
@@ -472,12 +472,12 @@ namespace DnsServerCore.Dns
             catch (Exception ex)
             {
                 LogManager log = _log;
-                if (log != null)
+                if (log is not null)
                     log.Write(remoteEP, protocol, ex);
             }
             finally
             {
-                if (socket != null)
+                if (socket is not null)
                     socket.Dispose();
             }
         }
@@ -526,7 +526,7 @@ namespace DnsServerCore.Dns
             catch (Exception ex)
             {
                 LogManager log = _log;
-                if (log != null)
+                if (log is not null)
                     log.Write(remoteEP, protocol, ex);
             }
         }
@@ -537,7 +537,7 @@ namespace DnsServerCore.Dns
             {
                 DnsDatagram response;
 
-                if (request.ParsingException == null)
+                if (request.ParsingException is null)
                 {
                     response = await ProcessQueryAsync(request, remoteEP, IsRecursionAllowed(remoteEP), protocol);
                 }
@@ -547,19 +547,19 @@ namespace DnsServerCore.Dns
                     response = new DnsDatagram(request.Identifier, true, request.OPCODE, false, false, request.RecursionDesired, IsRecursionAllowed(remoteEP), false, false, DnsResponseCode.FormatError, request.Question) { Tag = StatsResponseType.Authoritative };
 
                     LogManager queryLog = _queryLog;
-                    if (queryLog != null)
+                    if (queryLog is not null)
                         queryLog.Write(remoteEP, protocol, request, response);
 
                     if (!(request.ParsingException is IOException))
                     {
                         LogManager log = _log;
-                        if (log != null)
+                        if (log is not null)
                             log.Write(remoteEP, protocol, request.ParsingException);
                     }
                 }
 
                 //send response
-                if (response != null)
+                if (response is not null)
                 {
                     await writeSemaphore.WaitAsync();
                     try
@@ -574,11 +574,11 @@ namespace DnsServerCore.Dns
                     }
 
                     LogManager queryLog = _queryLog;
-                    if (queryLog != null)
+                    if (queryLog is not null)
                         queryLog.Write(remoteEP, protocol, request, response);
 
                     StatsManager stats = _stats;
-                    if (stats != null)
+                    if (stats is not null)
                         stats.Update(response, remoteEP.Address);
                 }
             }
@@ -589,11 +589,11 @@ namespace DnsServerCore.Dns
             catch (Exception ex)
             {
                 LogManager queryLog = _queryLog;
-                if ((queryLog != null) && (request != null))
+                if ((queryLog is not null) && (request is not null))
                     queryLog.Write(remoteEP, protocol, request, null);
 
                 LogManager log = _log;
-                if (log != null)
+                if (log is not null)
                     log.Write(remoteEP, protocol, ex);
             }
         }
@@ -608,7 +608,7 @@ namespace DnsServerCore.Dns
                 while (true)
                 {
                     HttpRequest httpRequest = await HttpRequest.ReadRequestAsync(stream).WithTimeout(receiveTimeout);
-                    if (httpRequest == null)
+                    if (httpRequest is null)
                         return; //connection closed gracefully by client
 
                     IPEndPoint socketRemoteEP = remoteEP;
@@ -713,7 +713,7 @@ namespace DnsServerCore.Dns
 
                                         DnsDatagram dnsResponse;
 
-                                        if (dnsRequest.ParsingException == null)
+                                        if (dnsRequest.ParsingException is null)
                                         {
                                             dnsResponse = await ProcessQueryAsync(dnsRequest, remoteEP, IsRecursionAllowed(remoteEP), protocol);
                                         }
@@ -723,7 +723,7 @@ namespace DnsServerCore.Dns
                                             if (!(dnsRequest.ParsingException is IOException))
                                             {
                                                 LogManager log = _log;
-                                                if (log != null)
+                                                if (log is not null)
                                                     log.Write(remoteEP, protocol, dnsRequest.ParsingException);
                                             }
 
@@ -731,7 +731,7 @@ namespace DnsServerCore.Dns
                                             dnsResponse = new DnsDatagram(dnsRequest.Identifier, true, dnsRequest.OPCODE, false, false, dnsRequest.RecursionDesired, IsRecursionAllowed(remoteEP), false, false, DnsResponseCode.FormatError, dnsRequest.Question) { Tag = StatsResponseType.Authoritative };
                                         }
 
-                                        if (dnsResponse != null)
+                                        if (dnsResponse is not null)
                                         {
                                             using (MemoryStream mS = new MemoryStream(512))
                                             {
@@ -742,11 +742,11 @@ namespace DnsServerCore.Dns
                                             }
 
                                             LogManager queryLog = _queryLog;
-                                            if (queryLog != null)
+                                            if (queryLog is not null)
                                                 queryLog.Write(remoteEP, protocol, dnsRequest, dnsResponse);
 
                                             StatsManager stats = _stats;
-                                            if (stats != null)
+                                            if (stats is not null)
                                                 stats.Update(dnsResponse, remoteEP.Address);
                                         }
                                     }
@@ -767,7 +767,7 @@ namespace DnsServerCore.Dns
                                         dnsRequest = new DnsDatagram(0, false, DnsOpcode.StandardQuery, false, false, true, false, false, false, DnsResponseCode.NoError, new DnsQuestionRecord[] { new DnsQuestionRecord(strName, (DnsResourceRecordType)int.Parse(strType), DnsClass.IN) });
 
                                         DnsDatagram dnsResponse = await ProcessQueryAsync(dnsRequest, remoteEP, IsRecursionAllowed(remoteEP), protocol);
-                                        if (dnsResponse != null)
+                                        if (dnsResponse is not null)
                                         {
                                             using (MemoryStream mS = new MemoryStream(512))
                                             {
@@ -780,11 +780,11 @@ namespace DnsServerCore.Dns
                                             }
 
                                             LogManager queryLog = _queryLog;
-                                            if (queryLog != null)
+                                            if (queryLog is not null)
                                                 queryLog.Write(remoteEP, protocol, dnsRequest, dnsResponse);
 
                                             StatsManager stats = _stats;
-                                            if (stats != null)
+                                            if (stats is not null)
                                                 stats.Update(dnsResponse, remoteEP.Address);
                                         }
                                     }
@@ -837,11 +837,11 @@ namespace DnsServerCore.Dns
             catch (Exception ex)
             {
                 LogManager queryLog = _queryLog;
-                if ((queryLog != null) && (dnsRequest != null))
+                if ((queryLog is not null) && (dnsRequest is not null))
                     queryLog.Write(remoteEP, dnsProtocol, dnsRequest, null);
 
                 LogManager log = _log;
-                if (log != null)
+                if (log is not null)
                     log.Write(remoteEP, dnsProtocol, ex);
 
                 await SendErrorAsync(stream, "close", ex);
@@ -867,7 +867,7 @@ namespace DnsServerCore.Dns
             try
             {
                 string statusString = statusCode + " " + GetHttpStatusString((HttpStatusCode)statusCode);
-                byte[] bufferContent = Encoding.UTF8.GetBytes("<html><head><title>" + statusString + "</title></head><body><h1>" + statusString + "</h1>" + (message == null ? "" : "<p>" + message + "</p>") + "</body></html>");
+                byte[] bufferContent = Encoding.UTF8.GetBytes("<html><head><title>" + statusString + "</title></head><body><h1>" + statusString + "</h1>" + (message is null ? "" : "<p>" + message + "</p>") + "</body></html>");
                 byte[] bufferHeader = Encoding.UTF8.GetBytes("HTTP/1.1 " + statusString + "\r\nDate: " + DateTime.UtcNow.ToString("r") + "\r\nContent-Type: text/html; charset=utf-8\r\nContent-Length: " + bufferContent.Length + "\r\nX-Robots-Tag: noindex, nofollow\r\nConnection: " + connection + "\r\n\r\n");
 
                 await outputStream.WriteAsync(bufferHeader);
@@ -959,7 +959,7 @@ namespace DnsServerCore.Dns
 
                         //query authoritative zone
                         DnsDatagram response = await ProcessAuthoritativeQueryAsync(request, remoteEP, isRecursionAllowed, protocol);
-                        if (response != null)
+                        if (response is not null)
                         {
                             if ((question.Type == DnsResourceRecordType.ANY) && (protocol == DnsTransportProtocol.Udp)) //force TCP for ANY request
                                 return new DnsDatagram(request.Identifier, true, DnsOpcode.StandardQuery, true, true, request.RecursionDesired, isRecursionAllowed, false, false, response.RCODE, request.Question) { Tag = StatsResponseType.Authoritative };
@@ -984,7 +984,7 @@ namespace DnsServerCore.Dns
                     catch (Exception ex)
                     {
                         LogManager log = _log;
-                        if (log != null)
+                        if (log is not null)
                             log.Write(remoteEP, protocol, ex);
 
                         return new DnsDatagram(request.Identifier, true, DnsOpcode.StandardQuery, false, false, request.RecursionDesired, isRecursionAllowed, false, false, DnsResponseCode.ServerFailure, request.Question) { Tag = StatsResponseType.Authoritative };
@@ -1001,7 +1001,7 @@ namespace DnsServerCore.Dns
         private async Task<DnsDatagram> ProcessNotifyQueryAsync(DnsDatagram request, IPEndPoint remoteEP)
         {
             AuthZoneInfo authZoneInfo = _authZoneManager.GetAuthZoneInfo(request.Question[0].Name);
-            if ((authZoneInfo == null) || (authZoneInfo.Type != AuthZoneType.Secondary))
+            if ((authZoneInfo is null) || (authZoneInfo.Type != AuthZoneType.Secondary))
                 return new DnsDatagram(request.Identifier, true, DnsOpcode.Notify, false, false, request.RecursionDesired, false, false, false, DnsResponseCode.Refused, request.Question) { Tag = StatsResponseType.Authoritative };
 
             IPAddress remoteAddress = remoteEP.Address;
@@ -1022,7 +1022,7 @@ namespace DnsServerCore.Dns
                 return new DnsDatagram(request.Identifier, true, DnsOpcode.Notify, false, false, request.RecursionDesired, false, false, false, DnsResponseCode.Refused, request.Question) { Tag = StatsResponseType.Authoritative };
 
             LogManager log = _log;
-            if (log != null)
+            if (log is not null)
                 log.Write(remoteEP, "DNS Server received NOTIFY for zone: " + authZoneInfo.Name);
 
             if ((request.Answer.Count > 0) && (request.Answer[0].Type == DnsResourceRecordType.SOA))
@@ -1043,7 +1043,7 @@ namespace DnsServerCore.Dns
         private async Task<DnsDatagram> ProcessZoneTransferQueryAsync(DnsDatagram request, IPEndPoint remoteEP)
         {
             AuthZoneInfo authZoneInfo = _authZoneManager.GetAuthZoneInfo(request.Question[0].Name);
-            if ((authZoneInfo == null) || (authZoneInfo.Type != AuthZoneType.Primary))
+            if ((authZoneInfo is null) || (authZoneInfo.Type != AuthZoneType.Primary))
                 return new DnsDatagram(request.Identifier, true, DnsOpcode.StandardQuery, false, false, request.RecursionDesired, false, false, false, DnsResponseCode.Refused, request.Question) { Tag = StatsResponseType.Authoritative };
 
             IPAddress remoteAddress = remoteEP.Address;
@@ -1067,7 +1067,7 @@ namespace DnsServerCore.Dns
                 return new DnsDatagram(request.Identifier, true, DnsOpcode.StandardQuery, false, false, request.RecursionDesired, false, false, false, DnsResponseCode.Refused, request.Question) { Tag = StatsResponseType.Authoritative };
 
             LogManager log = _log;
-            if (log != null)
+            if (log is not null)
                 log.Write(remoteEP, "DNS Server received zone transfer request for zone: " + authZoneInfo.Name);
 
             IReadOnlyList<DnsResourceRecord> axfrRecords = _authZoneManager.QueryZoneTransferRecords(request.Question[0].Name);
@@ -1170,7 +1170,7 @@ namespace DnsServerCore.Dns
                     AuthZoneInfo zoneInfo = _authZoneManager.GetAuthZoneInfo(appResourceRecord.Name);
 
                     DnsDatagram appResponse = await appRequestHandler.ProcessRequestAsync(request, remoteEP, zoneInfo.Name, appResourceRecord.TtlValue, appRecord.Data, isRecursionAllowed, application.DnsServer);
-                    if (appResponse == null)
+                    if (appResponse is null)
                     {
                         //return no error response with SOA
                         IReadOnlyList<DnsResourceRecord> authority = zoneInfo.GetRecords(DnsResourceRecordType.SOA);
@@ -1188,14 +1188,14 @@ namespace DnsServerCore.Dns
                 else
                 {
                     LogManager log = _log;
-                    if (log != null)
+                    if (log is not null)
                         log.Write(remoteEP, protocol, "DNS request handler '" + appRecord.ClassPath + "' was not found in the application '" + appRecord.AppName + "': " + appResourceRecord.Name);
                 }
             }
             else
             {
                 LogManager log = _log;
-                if (log != null)
+                if (log is not null)
                     log.Write(remoteEP, protocol, "DNS application '" + appRecord.AppName + "' was not found: " + appResourceRecord.Name);
             }
 
@@ -1509,7 +1509,7 @@ namespace DnsServerCore.Dns
                 if (_blockListZoneManager.TotalZonesBlocked > 0)
                 {
                     response = _blockListZoneManager.Query(request); //check in block list zone
-                    if (response != null)
+                    if (response is not null)
                     {
                         //domain is blocked in block list zone
                         response.Tag = StatsResponseType.Blocked;
@@ -1570,12 +1570,12 @@ namespace DnsServerCore.Dns
             }
             else
             {
-                inAllowedZone = (_allowedZoneManager.TotalZonesAllowed > 0) && (_allowedZoneManager.Query(request) != null);
+                inAllowedZone = (_allowedZoneManager.TotalZonesAllowed > 0) && (_allowedZoneManager.Query(request) is not null);
                 if (!inAllowedZone)
                 {
                     //check in blocked zone and block list zone
                     DnsDatagram blockedResponse = ProcessBlockedQuery(request);
-                    if (blockedResponse != null)
+                    if (blockedResponse is not null)
                         return blockedResponse;
                 }
             }
@@ -1603,13 +1603,13 @@ namespace DnsServerCore.Dns
                         DnsDatagram newRequest = new DnsDatagram(0, false, DnsOpcode.StandardQuery, false, false, true, false, false, false, DnsResponseCode.NoError, new DnsQuestionRecord[] { new DnsQuestionRecord((record.RDATA as DnsCNAMERecord).Domain, request.Question[0].Type, request.Question[0].Class) });
 
                         //check allowed zone
-                        inAllowedZone = (_allowedZoneManager.TotalZonesAllowed > 0) && (_allowedZoneManager.Query(newRequest) != null);
+                        inAllowedZone = (_allowedZoneManager.TotalZonesAllowed > 0) && (_allowedZoneManager.Query(newRequest) is not null);
                         if (inAllowedZone)
                             break; //CNAME is in allowed zone
 
                         //check blocked zone and block list zone
                         DnsDatagram lastResponse = ProcessBlockedQuery(newRequest);
-                        if (lastResponse != null)
+                        if (lastResponse is not null)
                         {
                             //found cname cloaking
                             List<DnsResourceRecord> answer = new List<DnsResourceRecord>();
@@ -1679,7 +1679,7 @@ namespace DnsServerCore.Dns
             {
                 //query cache zone to see if answer available
                 DnsDatagram cacheResponse = QueryCache(request, false);
-                if (cacheResponse != null)
+                if (cacheResponse is not null)
                 {
                     if (_cachePrefetchTrigger > 0)
                     {
@@ -1725,7 +1725,7 @@ namespace DnsServerCore.Dns
                 //resolver signaled
                 DnsDatagram response = await resolverTask;
 
-                if (response != null)
+                if (response is not null)
                     return response;
 
                 //resolver had exception and no stale record was found
@@ -1738,7 +1738,7 @@ namespace DnsServerCore.Dns
                 {
                     //query cache zone to return stale answer (if available) as per draft-ietf-dnsop-serve-stale-04
                     DnsDatagram staleResponse = QueryCache(request, true);
-                    if (staleResponse != null)
+                    if (staleResponse is not null)
                         return staleResponse;
                 }
 
@@ -1751,7 +1751,7 @@ namespace DnsServerCore.Dns
                         //resolver signaled
                         DnsDatagram response = await resolverTask;
 
-                        if (response != null)
+                        if (response is not null)
                             return response;
                     }
 
@@ -1778,10 +1778,10 @@ namespace DnsServerCore.Dns
             {
                 DnsDatagram response;
 
-                if ((forwarders != null) && (forwarders.Count > 0))
+                if ((forwarders is not null) && (forwarders.Count > 0))
                 {
                     //use forwarders
-                    if (_proxy == null)
+                    if (_proxy is null)
                     {
                         //recursive resolve name server when proxy is null else let proxy resolve it
                         foreach (NameServerAddress nameServerAddress in forwarders)
@@ -1831,29 +1831,29 @@ namespace DnsServerCore.Dns
             catch (Exception ex)
             {
                 LogManager log = _log;
-                if (log != null)
+                if (log is not null)
                 {
                     string strForwarders = null;
 
-                    if (forwarders != null)
+                    if (forwarders is not null)
                     {
                         foreach (NameServerAddress nameServer in forwarders)
                         {
-                            if (strForwarders == null)
+                            if (strForwarders is null)
                                 strForwarders = nameServer.ToString();
                             else
                                 strForwarders += ", " + nameServer.ToString();
                         }
                     }
 
-                    log.Write("DNS Server recursive resolution failed for QNAME: " + question.Name + "; QTYPE: " + question.Type.ToString() + "; QCLASS: " + question.Class.ToString() + (strForwarders == null ? "" : "; Forwarders: " + strForwarders) + ";\r\n" + ex.ToString());
+                    log.Write("DNS Server recursive resolution failed for QNAME: " + question.Name + "; QTYPE: " + question.Type.ToString() + "; QCLASS: " + question.Class.ToString() + (strForwarders is null ? "" : "; Forwarders: " + strForwarders) + ";\r\n" + ex.ToString());
                 }
 
                 if (_serveStale)
                 {
                     //fetch stale record
                     DnsDatagram staleResponse = QueryCache(request, true);
-                    if (staleResponse == null)
+                    if (staleResponse is null)
                     {
                         //no stale record was found; signal null response to release waiting tasks
                         taskCompletionSource.SetResult(null);
@@ -1887,7 +1887,7 @@ namespace DnsServerCore.Dns
         private DnsDatagram QueryCache(DnsDatagram request, bool serveStaleAndResetExpiry)
         {
             DnsDatagram cacheResponse = _cacheZoneManager.Query(request, serveStaleAndResetExpiry);
-            if (cacheResponse != null)
+            if (cacheResponse is not null)
             {
                 if ((cacheResponse.RCODE != DnsResponseCode.NoError) || (cacheResponse.Answer.Count > 0) || (cacheResponse.Authority.Count == 0) || (cacheResponse.Authority[0].Type == DnsResourceRecordType.SOA))
                 {
@@ -1909,7 +1909,7 @@ namespace DnsServerCore.Dns
             catch (Exception ex)
             {
                 LogManager log = _log;
-                if (log != null)
+                if (log is not null)
                     log.Write(ex);
             }
         }
@@ -1941,7 +1941,7 @@ namespace DnsServerCore.Dns
             catch (Exception ex)
             {
                 LogManager log = _log;
-                if (log != null)
+                if (log is not null)
                     log.Write(ex);
 
                 cacheRefreshSampleList[sampleQuestionIndex] = sample; //put back into sample list to allow refreshing it again
@@ -1955,7 +1955,7 @@ namespace DnsServerCore.Dns
             while (true)
             {
                 DnsDatagram cacheResponse = QueryCache(new DnsDatagram(0, false, DnsOpcode.StandardQuery, false, false, true, false, false, false, DnsResponseCode.NoError, new DnsQuestionRecord[] { question }), false);
-                if (cacheResponse == null)
+                if (cacheResponse is null)
                     return question; //cache expired so refresh question
 
                 if (cacheResponse.Answer.Count == 0)
@@ -1988,7 +1988,7 @@ namespace DnsServerCore.Dns
         private bool IsCacheRefreshNeeded(DnsQuestionRecord question, int trigger)
         {
             DnsDatagram cacheResponse = QueryCache(new DnsDatagram(0, false, DnsOpcode.StandardQuery, false, false, true, false, false, false, DnsResponseCode.NoError, new DnsQuestionRecord[] { question }), false);
-            if (cacheResponse == null)
+            if (cacheResponse is null)
                 return true; //cache expired so refresh needed
 
             if (cacheResponse.Answer.Count == 0)
@@ -2009,7 +2009,7 @@ namespace DnsServerCore.Dns
             try
             {
                 StatsManager stats = _stats;
-                if (stats != null)
+                if (stats is not null)
                 {
                     List<KeyValuePair<DnsQuestionRecord, int>> eligibleQueries = stats.GetLastHourEligibleQueries(_cachePrefetchSampleEligibilityHitsPerHour);
                     List<CacheRefreshSample> cacheRefreshSampleList = new List<CacheRefreshSample>(eligibleQueries.Count);
@@ -2093,7 +2093,7 @@ namespace DnsServerCore.Dns
                         }
                         while (reQueryAuthZone && (++queryCount < MAX_CNAME_HOPS));
 
-                        if (refreshQuery != null)
+                        if (refreshQuery is not null)
                             cacheRefreshSampleList.Add(new CacheRefreshSample(refreshQuery, viaForwarders));
                     }
 
@@ -2103,14 +2103,14 @@ namespace DnsServerCore.Dns
             catch (Exception ex)
             {
                 LogManager log = _log;
-                if (log != null)
+                if (log is not null)
                     log.Write(ex);
             }
             finally
             {
                 lock (_cachePrefetchSamplingTimerLock)
                 {
-                    if (_cachePrefetchSamplingTimer != null)
+                    if (_cachePrefetchSamplingTimer is not null)
                     {
                         _cachePrefetchSamplingTimer.Change(_cachePrefetchSampleIntervalInMinutes * 60 * 1000, Timeout.Infinite);
                         _cachePrefetchSamplingTimerTriggersOn = DateTime.UtcNow.AddMinutes(_cachePrefetchSampleIntervalInMinutes);
@@ -2124,12 +2124,12 @@ namespace DnsServerCore.Dns
             try
             {
                 IList<CacheRefreshSample> cacheRefreshSampleList = _cacheRefreshSampleList;
-                if (cacheRefreshSampleList != null)
+                if (cacheRefreshSampleList is not null)
                 {
                     for (int i = 0; i < cacheRefreshSampleList.Count; i++)
                     {
                         CacheRefreshSample sample = cacheRefreshSampleList[i];
-                        if (sample == null)
+                        if (sample is null)
                             continue;
 
                         if (!IsCacheRefreshNeeded(sample.SampleQuestion, _cachePrefetchTrigger + 2))
@@ -2145,14 +2145,14 @@ namespace DnsServerCore.Dns
             catch (Exception ex)
             {
                 LogManager log = _log;
-                if (log != null)
+                if (log is not null)
                     log.Write(ex);
             }
             finally
             {
                 lock (_cachePrefetchRefreshTimerLock)
                 {
-                    if (_cachePrefetchRefreshTimer != null)
+                    if (_cachePrefetchRefreshTimer is not null)
                         _cachePrefetchRefreshTimer.Change((_cachePrefetchTrigger + 1) * 1000, Timeout.Infinite);
                 }
             }
@@ -2167,14 +2167,14 @@ namespace DnsServerCore.Dns
             catch (Exception ex)
             {
                 LogManager log = _log;
-                if (log != null)
+                if (log is not null)
                     log.Write(ex);
             }
             finally
             {
                 lock (_cacheMaintenanceTimerLock)
                 {
-                    if (_cacheMaintenanceTimer != null)
+                    if (_cacheMaintenanceTimer is not null)
                         _cacheMaintenanceTimer.Change(CACHE_MAINTENANCE_TIMER_PERIODIC_INTERVAL, Timeout.Infinite);
                 }
             }
@@ -2186,13 +2186,13 @@ namespace DnsServerCore.Dns
             {
                 lock (_cachePrefetchSamplingTimerLock)
                 {
-                    if (_cachePrefetchSamplingTimer != null)
+                    if (_cachePrefetchSamplingTimer is not null)
                         _cachePrefetchSamplingTimer.Change(Timeout.Infinite, Timeout.Infinite);
                 }
 
                 lock (_cachePrefetchRefreshTimerLock)
                 {
-                    if (_cachePrefetchRefreshTimer != null)
+                    if (_cachePrefetchRefreshTimer is not null)
                         _cachePrefetchRefreshTimer.Change(Timeout.Infinite, Timeout.Infinite);
                 }
             }
@@ -2200,7 +2200,7 @@ namespace DnsServerCore.Dns
             {
                 lock (_cachePrefetchSamplingTimerLock)
                 {
-                    if (_cachePrefetchSamplingTimer != null)
+                    if (_cachePrefetchSamplingTimer is not null)
                     {
                         _cachePrefetchSamplingTimer.Change(CACHE_PREFETCH_SAMPLING_TIMER_INITIAL_INTEVAL, Timeout.Infinite);
                         _cachePrefetchSamplingTimerTriggersOn = DateTime.UtcNow.AddMilliseconds(CACHE_PREFETCH_SAMPLING_TIMER_INITIAL_INTEVAL);
@@ -2209,7 +2209,7 @@ namespace DnsServerCore.Dns
 
                 lock (_cachePrefetchRefreshTimerLock)
                 {
-                    if (_cachePrefetchRefreshTimer != null)
+                    if (_cachePrefetchRefreshTimer is not null)
                         _cachePrefetchRefreshTimer.Change(CACHE_PREFETCH_REFRESH_TIMER_INITIAL_INTEVAL, Timeout.Infinite);
                 }
             }
@@ -2217,7 +2217,7 @@ namespace DnsServerCore.Dns
 
         private void UpdateThisServer()
         {
-            if ((_localEndPoints == null) || (_localEndPoints.Count == 0))
+            if ((_localEndPoints is null) || (_localEndPoints.Count == 0))
             {
                 _thisServer = new NameServerAddress(_serverDomain, IPAddress.Loopback);
             }
@@ -2286,16 +2286,16 @@ namespace DnsServerCore.Dns
                     _udpListeners.Add(udpListener);
 
                     LogManager log = _log;
-                    if (log != null)
+                    if (log is not null)
                         log.Write(localEP, DnsTransportProtocol.Udp, "DNS Server was bound successfully.");
                 }
                 catch (Exception ex)
                 {
                     LogManager log = _log;
-                    if (log != null)
+                    if (log is not null)
                         log.Write(localEP, DnsTransportProtocol.Udp, "DNS Server failed to bind.\r\n" + ex.ToString());
 
-                    if (udpListener != null)
+                    if (udpListener is not null)
                         udpListener.Dispose();
                 }
 
@@ -2311,16 +2311,16 @@ namespace DnsServerCore.Dns
                     _tcpListeners.Add(tcpListener);
 
                     LogManager log = _log;
-                    if (log != null)
+                    if (log is not null)
                         log.Write(localEP, DnsTransportProtocol.Tcp, "DNS Server was bound successfully.");
                 }
                 catch (Exception ex)
                 {
                     LogManager log = _log;
-                    if (log != null)
+                    if (log is not null)
                         log.Write(localEP, DnsTransportProtocol.Tcp, "DNS Server failed to bind.\r\n" + ex.ToString());
 
-                    if (tcpListener != null)
+                    if (tcpListener is not null)
                         tcpListener.Dispose();
                 }
 
@@ -2341,21 +2341,21 @@ namespace DnsServerCore.Dns
                         _isDnsOverHttpsEnabled = true;
 
                         LogManager log = _log;
-                        if (log != null)
+                        if (log is not null)
                             log.Write(httpEP, "Http", "DNS Server was bound successfully.");
                     }
                     catch (Exception ex)
                     {
                         LogManager log = _log;
-                        if (log != null)
+                        if (log is not null)
                             log.Write(httpEP, "Http", "DNS Server failed to bind.\r\n" + ex.ToString());
 
-                        if (httpListener != null)
+                        if (httpListener is not null)
                             httpListener.Dispose();
                     }
                 }
 
-                if (_enableDnsOverTls && (_certificate != null))
+                if (_enableDnsOverTls && (_certificate is not null))
                 {
                     IPEndPoint tlsEP = new IPEndPoint(localEP.Address, 853);
                     Socket tlsListener = null;
@@ -2370,16 +2370,16 @@ namespace DnsServerCore.Dns
                         _tlsListeners.Add(tlsListener);
 
                         LogManager log = _log;
-                        if (log != null)
+                        if (log is not null)
                             log.Write(tlsEP, DnsTransportProtocol.Tls, "DNS Server was bound successfully.");
                     }
                     catch (Exception ex)
                     {
                         LogManager log = _log;
-                        if (log != null)
+                        if (log is not null)
                             log.Write(tlsEP, DnsTransportProtocol.Tls, "DNS Server failed to bind.\r\n" + ex.ToString());
 
-                        if (tlsListener != null)
+                        if (tlsListener is not null)
                             tlsListener.Dispose();
                     }
                 }
@@ -2401,22 +2401,22 @@ namespace DnsServerCore.Dns
                             _httpListeners.Add(httpListener);
 
                             LogManager log = _log;
-                            if (log != null)
+                            if (log is not null)
                                 log.Write(httpEP, "Http", "DNS Server was bound successfully.");
                         }
                         catch (Exception ex)
                         {
                             LogManager log = _log;
-                            if (log != null)
+                            if (log is not null)
                                 log.Write(httpEP, "Http", "DNS Server failed to bind.\r\n" + ex.ToString());
 
-                            if (httpListener != null)
+                            if (httpListener is not null)
                                 httpListener.Dispose();
                         }
                     }
 
                     //bind to https port 443
-                    if (_certificate != null)
+                    if (_certificate is not null)
                     {
                         IPEndPoint httpsEP = new IPEndPoint(localEP.Address, 443);
                         Socket httpsListener = null;
@@ -2433,16 +2433,16 @@ namespace DnsServerCore.Dns
                             _isDnsOverHttpsEnabled = true;
 
                             LogManager log = _log;
-                            if (log != null)
+                            if (log is not null)
                                 log.Write(httpsEP, DnsTransportProtocol.Https, "DNS Server was bound successfully.");
                         }
                         catch (Exception ex)
                         {
                             LogManager log = _log;
-                            if (log != null)
+                            if (log is not null)
                                 log.Write(httpsEP, DnsTransportProtocol.Https, "DNS Server failed to bind.\r\n" + ex.ToString());
 
-                            if (httpsListener != null)
+                            if (httpsListener is not null)
                                 httpsListener.Dispose();
                         }
                     }
@@ -2526,7 +2526,7 @@ namespace DnsServerCore.Dns
 
             lock (_cachePrefetchSamplingTimerLock)
             {
-                if (_cachePrefetchSamplingTimer != null)
+                if (_cachePrefetchSamplingTimer is not null)
                 {
                     _cachePrefetchSamplingTimer.Dispose();
                     _cachePrefetchSamplingTimer = null;
@@ -2535,7 +2535,7 @@ namespace DnsServerCore.Dns
 
             lock (_cachePrefetchRefreshTimerLock)
             {
-                if (_cachePrefetchRefreshTimer != null)
+                if (_cachePrefetchRefreshTimer is not null)
                 {
                     _cachePrefetchRefreshTimer.Dispose();
                     _cachePrefetchRefreshTimer = null;
@@ -2544,7 +2544,7 @@ namespace DnsServerCore.Dns
 
             lock (_cacheMaintenanceTimerLock)
             {
-                if (_cacheMaintenanceTimer != null)
+                if (_cacheMaintenanceTimer is not null)
                 {
                     _cacheMaintenanceTimer.Dispose();
                     _cacheMaintenanceTimer = null;
@@ -2594,7 +2594,7 @@ namespace DnsServerCore.Dns
             catch (Exception ex)
             {
                 LogManager log = _log;
-                if (log != null)
+                if (log is not null)
                     log.Write(ex);
 
                 return null;
