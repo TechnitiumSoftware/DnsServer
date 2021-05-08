@@ -197,7 +197,22 @@ namespace DnsServerCore.Dns.Applications
 
                 string applicationFolder = Path.Combine(_appsPath, appName);
 
-                appZip.ExtractToDirectory(applicationFolder, true);
+                foreach (ZipArchiveEntry entry in appZip.Entries)
+                {
+                    string entryPath = entry.FullName;
+
+                    if (Path.DirectorySeparatorChar != '/')
+                        entryPath = entryPath.Replace('/', '\\');
+
+                    string filePath = Path.Combine(applicationFolder, entryPath);
+
+                    if ((entry.Name == "dnsApp.config") && File.Exists(filePath))
+                        continue; //avoid overwriting existing config file
+
+                    Directory.CreateDirectory(Path.GetDirectoryName(filePath));
+
+                    entry.ExtractToFile(filePath, true);
+                }
 
                 await LoadApplicationAsync(applicationFolder);
             }
