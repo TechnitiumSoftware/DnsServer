@@ -42,7 +42,7 @@ namespace DnsServerCore.Dns
 
         #region public
 
-        public override DnsDatagram Query(DnsDatagram request, bool serveStale = false)
+        public override DnsDatagram Query(DnsDatagram request, bool serveStaleAndResetExpiry = false)
         {
             if (_prefetchQuery.Equals(request.Question[0]))
             {
@@ -50,9 +50,9 @@ namespace DnsServerCore.Dns
                 DnsDatagram authResponse = _authZoneManager.QueryClosestDelegation(request);
                 DnsDatagram cacheResponse = _cacheZoneManager.QueryClosestDelegation(request);
 
-                if ((authResponse != null) && (authResponse.Authority.Count > 0))
+                if ((authResponse is not null) && (authResponse.Authority.Count > 0))
                 {
-                    if ((cacheResponse != null) && (cacheResponse.Authority.Count > 0))
+                    if ((cacheResponse is not null) && (cacheResponse.Authority.Count > 0))
                     {
                         if (cacheResponse.Authority[0].Name.Length > authResponse.Authority[0].Name.Length)
                             return cacheResponse;
@@ -66,7 +66,7 @@ namespace DnsServerCore.Dns
                 }
             }
 
-            return base.Query(request, serveStale);
+            return base.Query(request, serveStaleAndResetExpiry);
         }
 
         #endregion
