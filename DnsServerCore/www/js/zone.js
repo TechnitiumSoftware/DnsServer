@@ -508,7 +508,12 @@ function showEditZone(domain) {
                     case "TXT":
                     case "AAAA":
                     case "ANAME":
-                        tableHtmlRows += "<td style=\"overflow-wrap: anywhere;\">" + htmlEncode(records[i].rData.value) + "</td>";
+                        tableHtmlRows += "<td style=\"overflow-wrap: anywhere;\">" + htmlEncode(records[i].rData.value);
+
+                        if ((records[i].comments != null) && (records[i].comments.length > 0))
+                            tableHtmlRows += "<br /><br /><b>Comments:</b> <pre>" + htmlEncode(records[i].comments) + "</pre>";
+
+                        tableHtmlRows += "</td>";
                         break;
 
                     case "NS":
@@ -521,6 +526,9 @@ function showEditZone(domain) {
                         } else {
                             additionalDataAttributes = "data-record-glue=\"\" ";
                         }
+
+                        if ((records[i].comments != null) && (records[i].comments.length > 0))
+                            tableHtmlRows += "<br /><br /><b>Comments:</b> <pre>" + htmlEncode(records[i].comments) + "</pre>";
 
                         tableHtmlRows += "</td>";
                         break;
@@ -542,6 +550,9 @@ function showEditZone(domain) {
                             additionalDataAttributes = "data-record-paddresses=\"\" ";
                         }
 
+                        if ((records[i].comments != null) && (records[i].comments.length > 0))
+                            tableHtmlRows += "<br /><br /><b>Comments:</b> <pre>" + htmlEncode(records[i].comments) + "</pre>";
+
                         tableHtmlRows += "</td>";
 
                         additionalDataAttributes += "data-record-pname=\"" + htmlEncode(records[i].rData.primaryNameServer) + "\" " +
@@ -555,7 +566,12 @@ function showEditZone(domain) {
 
                     case "MX":
                         tableHtmlRows += "<td style=\"overflow-wrap: anywhere;\"><b>Preference: </b> " + htmlEncode(records[i].rData.preference) +
-                            "<br /><b>Exchange:</b> " + htmlEncode(records[i].rData.value) + "</td>";
+                            "<br /><b>Exchange:</b> " + htmlEncode(records[i].rData.value);
+
+                        if ((records[i].comments != null) && (records[i].comments.length > 0))
+                            tableHtmlRows += "<br /><br /><b>Comments:</b> <pre>" + htmlEncode(records[i].comments) + "</pre>";
+
+                        tableHtmlRows += "</td>";
 
                         additionalDataAttributes = "data-record-preference=\"" + htmlEncode(records[i].rData.preference) + "\" ";
                         break;
@@ -564,7 +580,12 @@ function showEditZone(domain) {
                         tableHtmlRows += "<td style=\"overflow-wrap: anywhere;\"><b>Priority: </b> " + htmlEncode(records[i].rData.priority) +
                             "<br /><b>Weight:</b> " + htmlEncode(records[i].rData.weight) +
                             "<br /><b>Port:</b> " + htmlEncode(records[i].rData.port) +
-                            "<br /><b>Target:</b> " + htmlEncode(records[i].rData.value) + "</td>";
+                            "<br /><b>Target:</b> " + htmlEncode(records[i].rData.value);
+
+                        if ((records[i].comments != null) && (records[i].comments.length > 0))
+                            tableHtmlRows += "<br /><br /><b>Comments:</b> <pre>" + htmlEncode(records[i].comments) + "</pre>";
+
+                        tableHtmlRows += "</td>";
 
                         additionalDataAttributes = "data-record-priority=\"" + htmlEncode(records[i].rData.priority) + "\" " +
                             "data-record-weight=\"" + htmlEncode(records[i].rData.weight) + "\" " +
@@ -574,7 +595,12 @@ function showEditZone(domain) {
                     case "CAA":
                         tableHtmlRows += "<td style=\"overflow-wrap: anywhere;\"><b>Flags: </b> " + htmlEncode(records[i].rData.flags) +
                             "<br /><b>Tag:</b> " + htmlEncode(records[i].rData.tag) +
-                            "<br /><b>Authority:</b> " + htmlEncode(records[i].rData.value) + "</td>";
+                            "<br /><b>Authority:</b> " + htmlEncode(records[i].rData.value);
+
+                        if ((records[i].comments != null) && (records[i].comments.length > 0))
+                            tableHtmlRows += "<br /><br /><b>Comments:</b> <pre>" + htmlEncode(records[i].comments) + "</pre>";
+
+                        tableHtmlRows += "</td>";
 
                         additionalDataAttributes = "data-record-flags=\"" + htmlEncode(records[i].rData.flags) + "\" " +
                             "data-record-tag=\"" + htmlEncode(records[i].rData.tag) + "\" ";
@@ -582,7 +608,12 @@ function showEditZone(domain) {
 
                     case "FWD":
                         tableHtmlRows += "<td style=\"overflow-wrap: anywhere;\"><b>Protocol: </b> " + htmlEncode(records[i].rData.protocol) +
-                            "<br /><b>Forwarder:</b> " + htmlEncode(records[i].rData.value) + "</td>";
+                            "<br /><b>Forwarder:</b> " + htmlEncode(records[i].rData.value);
+
+                        if ((records[i].comments != null) && (records[i].comments.length > 0))
+                            tableHtmlRows += "<br /><br /><b>Comments:</b> <pre>" + htmlEncode(records[i].comments) + "</pre>";
+
+                        tableHtmlRows += "</td>";
 
                         additionalDataAttributes = "data-record-protocol=\"" + htmlEncode(records[i].rData.protocol) + "\" ";
                         break;
@@ -590,7 +621,12 @@ function showEditZone(domain) {
                     case "APP":
                         tableHtmlRows += "<td style=\"overflow-wrap: anywhere;\"><b>App Name: </b> " + htmlEncode(records[i].rData.value) +
                             "<br /><b>Class Path:</b> " + htmlEncode(records[i].rData.classPath) +
-                            "<br /><b>Record Data:</b> " + (records[i].rData.data == "" ? "" : "<pre>" + htmlEncode(records[i].rData.data) + "</pre>") + "</td>";
+                            "<br /><b>Record Data:</b> " + (records[i].rData.data == "" ? "" : "<pre>" + htmlEncode(records[i].rData.data) + "</pre>");
+
+                        if ((records[i].comments != null) && (records[i].comments.length > 0))
+                            tableHtmlRows += "<br /><br /><b>Comments:</b> <pre>" + htmlEncode(records[i].comments) + "</pre>";
+
+                        tableHtmlRows += "</td>";
 
                         additionalDataAttributes = "data-record-classpath=\"" + htmlEncode(records[i].rData.classPath) + "\" " +
                             "data-record-data=\"" + htmlEncode(records[i].rData.data) + "\"";
@@ -649,7 +685,7 @@ function showEditZone(domain) {
                 }
                 else {
                     tableHtmlRows += "<td align=\"right\" style=\"min-width: 220px;\">";
-                    tableHtmlRows += "<div id=\"data" + id + "\" data-record-name=\"" + htmlEncode(records[i].name) + "\" data-record-type=\"" + records[i].type + "\" data-record-ttl=\"" + records[i].ttl + "\" data-record-value=\"" + htmlEncode(records[i].rData.value) + "\" " + additionalDataAttributes + " data-record-disabled=\"" + records[i].disabled + "\" style=\"display: none;\"></div>";
+                    tableHtmlRows += "<div id=\"data" + id + "\" data-record-name=\"" + htmlEncode(records[i].name) + "\" data-record-type=\"" + records[i].type + "\" data-record-ttl=\"" + records[i].ttl + "\" data-record-value=\"" + htmlEncode(records[i].rData.value) + "\" " + additionalDataAttributes + " data-record-disabled=\"" + records[i].disabled + "\" data-record-comments=\"" + htmlEncode(records[i].comments) + "\" style=\"display: none;\"></div>";
                     tableHtmlRows += "<button type=\"button\" class=\"btn btn-primary\" style=\"font-size: 12px; padding: 2px 0px; width: 60px; margin: 0 6px 0 0;\" data-id=\"" + id + "\" onclick=\"showEditRecordModal(this);\">Edit</button>";
                     tableHtmlRows += "<button type=\"button\" class=\"btn btn-default\" id=\"btnEnableRecord" + id + "\" style=\"font-size: 12px; padding: 2px 0px; width: 60px; margin: 0 6px 0 0;" + (records[i].disabled ? "" : " display: none;") + "\" data-id=\"" + id + "\" onclick=\"updateRecordState(this, false);\"" + (disableEnableDisableDeleteButtons ? " disabled" : "") + " data-loading-text=\"Enabling...\">Enable</button>";
                     tableHtmlRows += "<button type=\"button\" class=\"btn btn-warning\" id=\"btnDisableRecord" + id + "\" style=\"font-size: 12px; padding: 2px 0px; width: 60px; margin: 0 6px 0 0;" + (!records[i].disabled ? "" : " display: none;") + "\" data-id=\"" + id + "\" onclick=\"updateRecordState(this, true);\"" + (disableEnableDisableDeleteButtons ? " disabled" : "") + " data-loading-text=\"Disabling...\">Disable</button>";
@@ -757,6 +793,8 @@ function clearAddEditForm() {
 
     $("#divAddEditRecordOverwrite").show();
     $("#chkAddEditRecordOverwrite").prop("checked", false);
+
+    $("#txtAddEditRecordComments").val("");
 
     $("#btnAddEditRecord").button("reset");
 }
@@ -963,8 +1001,9 @@ function addRecord() {
         ttl = 3600;
 
     var overwrite = $("#chkAddEditRecordOverwrite").prop('checked');
+    var comments = $("#txtAddEditRecordComments").val();
 
-    var apiUrl = "/api/addRecord?token=" + token + "&domain=" + encodeURIComponent(domain) + "&type=" + type + "&ttl=" + ttl + "&overwrite=" + overwrite;
+    var apiUrl = "/api/addRecord?token=" + token + "&domain=" + encodeURIComponent(domain) + "&type=" + type + "&ttl=" + ttl + "&overwrite=" + overwrite + "&comments=" + encodeURIComponent(comments);
 
     switch (type) {
         case "A":
@@ -1199,6 +1238,7 @@ function showEditRecordModal(objBtn) {
     var name = divData.attr("data-record-name");
     var type = divData.attr("data-record-type");
     var ttl = divData.attr("data-record-ttl");
+    var comments = divData.attr("data-record-comments");
 
     if (name === zone)
         name = "@";
@@ -1215,6 +1255,7 @@ function showEditRecordModal(objBtn) {
 
     $("#txtAddEditRecordName").val(name);
     $("#txtAddEditRecordTtl").val(ttl)
+    $("#txtAddEditRecordComments").val(comments);
 
     var disableEditRecordModalFields = false;
     var hideSoaRecordPrimaryAddressesField = false;
@@ -1404,8 +1445,9 @@ function updateRecord() {
 
     var value = divData.attr("data-record-value");
     var disable = (divData.attr("data-record-disabled") === "true");
+    var comments = $("#txtAddEditRecordComments").val();
 
-    var apiUrl = "/api/updateRecord?token=" + token + "&type=" + type + "&domain=" + encodeURIComponent(domain) + "&newDomain=" + encodeURIComponent(newDomain) + "&ttl=" + ttl + "&value=" + encodeURIComponent(value) + "&disable=" + disable;
+    var apiUrl = "/api/updateRecord?token=" + token + "&type=" + type + "&domain=" + encodeURIComponent(domain) + "&newDomain=" + encodeURIComponent(newDomain) + "&ttl=" + ttl + "&value=" + encodeURIComponent(value) + "&disable=" + disable + "&comments=" + encodeURIComponent(comments);
 
     switch (type) {
         case "A":
@@ -1647,6 +1689,7 @@ function updateRecordState(objBtn, disable) {
     var domain = divData.attr("data-record-name");
     var ttl = divData.attr("data-record-ttl");
     var value = divData.attr("data-record-value");
+    var comments = divData.attr("data-record-comments");
 
     if (domain === "")
         domain = ".";
@@ -1654,7 +1697,7 @@ function updateRecordState(objBtn, disable) {
     if (disable && !confirm("Are you sure to disable the " + type + " record '" + domain + "' with value '" + value + "'?"))
         return;
 
-    var apiUrl = "/api/updateRecord?token=" + token + "&type=" + type + "&domain=" + encodeURIComponent(domain) + "&ttl=" + ttl + "&value=" + encodeURIComponent(value) + "&disable=" + disable;
+    var apiUrl = "/api/updateRecord?token=" + token + "&type=" + type + "&domain=" + encodeURIComponent(domain) + "&ttl=" + ttl + "&value=" + encodeURIComponent(value) + "&disable=" + disable + "&comments=" + encodeURIComponent(comments);
 
     switch (type) {
         case "NS":
