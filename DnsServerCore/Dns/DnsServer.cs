@@ -1889,37 +1889,8 @@ namespace DnsServerCore.Dns
             DnsDatagram cacheResponse = _cacheZoneManager.Query(request, serveStaleAndResetExpiry);
             if (cacheResponse != null)
             {
-                if ((cacheResponse.Answer.Count > 0) || ((cacheResponse.Authority.Count > 0) && (cacheResponse.Authority[0].Type == DnsResourceRecordType.SOA)))
+                if ((cacheResponse.RCODE != DnsResponseCode.NoError) || (cacheResponse.Answer.Count > 0) || (cacheResponse.Authority.Count == 0) || (cacheResponse.Authority[0].Type == DnsResourceRecordType.SOA))
                 {
-                    if (serveStaleAndResetExpiry)
-                    {
-                        //reset expiry for stale records
-                        foreach (DnsResourceRecord record in cacheResponse.Answer)
-                        {
-                            if (record.IsStale)
-                                record.ResetExpiry(30); //reset expiry by 30 seconds so that resolver tries again only after 30 seconds as per draft-ietf-dnsop-serve-stale-04
-                        }
-
-                        foreach (DnsResourceRecord record in cacheResponse.Authority)
-                        {
-                            if (record.Tag is DnsResourceRecord parentRR)
-                            {
-                                //this authority record comes from DnsNXRecord or DnsEmptyRecord
-                                if (parentRR.IsStale)
-                                    parentRR.ResetExpiry(30); //reset expiry by 30 seconds so that resolver tries again only after 30 seconds as per draft-ietf-dnsop-serve-stale-04
-                            }
-
-                            if (record.IsStale)
-                                record.ResetExpiry(30); //reset expiry by 30 seconds so that resolver tries again only after 30 seconds as per draft-ietf-dnsop-serve-stale-04
-                        }
-
-                        foreach (DnsResourceRecord record in cacheResponse.Additional)
-                        {
-                            if (record.IsStale)
-                                record.ResetExpiry(30); //reset expiry by 30 seconds so that resolver tries again only after 30 seconds as per draft-ietf-dnsop-serve-stale-04
-                        }
-                    }
-
                     cacheResponse.Tag = StatsResponseType.Cached;
 
                     return cacheResponse;
