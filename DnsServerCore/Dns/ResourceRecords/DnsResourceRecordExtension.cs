@@ -1,6 +1,6 @@
 ﻿/*
 Technitium DNS Server
-Copyright (C) 2020  Shreyas Zare (shreyas@technitium.com)
+Copyright (C) 2021  Shreyas Zare (shreyas@technitium.com)
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -31,7 +31,7 @@ namespace DnsServerCore.Dns.ResourceRecords
         public static void SetGlueRecords(this DnsResourceRecord record, IReadOnlyList<DnsResourceRecord> glueRecords)
         {
             DnsResourceRecordInfo rrInfo = record.Tag as DnsResourceRecordInfo;
-            if (rrInfo == null)
+            if (rrInfo is null)
             {
                 rrInfo = new DnsResourceRecordInfo();
                 record.Tag = rrInfo;
@@ -127,11 +127,11 @@ namespace DnsServerCore.Dns.ResourceRecords
         public static IReadOnlyList<DnsResourceRecord> GetGlueRecords(this DnsResourceRecord record)
         {
             DnsResourceRecordInfo rrInfo = record.Tag as DnsResourceRecordInfo;
-            if (rrInfo == null)
+            if (rrInfo is null)
                 return Array.Empty<DnsResourceRecord>();
 
             IReadOnlyList<DnsResourceRecord> glueRecords = rrInfo.GlueRecords;
-            if (glueRecords == null)
+            if (glueRecords is null)
                 return Array.Empty<DnsResourceRecord>();
 
             return glueRecords;
@@ -153,7 +153,7 @@ namespace DnsServerCore.Dns.ResourceRecords
         public static bool IsDisabled(this DnsResourceRecord record)
         {
             DnsResourceRecordInfo rrInfo = record.Tag as DnsResourceRecordInfo;
-            if (rrInfo == null)
+            if (rrInfo is null)
                 return false;
 
             return rrInfo.Disabled;
@@ -162,7 +162,7 @@ namespace DnsServerCore.Dns.ResourceRecords
         public static void Disable(this DnsResourceRecord record)
         {
             DnsResourceRecordInfo rrInfo = record.Tag as DnsResourceRecordInfo;
-            if (rrInfo == null)
+            if (rrInfo is null)
             {
                 rrInfo = new DnsResourceRecordInfo();
                 record.Tag = rrInfo;
@@ -174,10 +174,31 @@ namespace DnsServerCore.Dns.ResourceRecords
         public static void Enable(this DnsResourceRecord record)
         {
             DnsResourceRecordInfo rrInfo = record.Tag as DnsResourceRecordInfo;
-            if (rrInfo == null)
+            if (rrInfo is null)
                 return;
 
             rrInfo.Disabled = false;
+        }
+
+        public static string GetComments(this DnsResourceRecord record)
+        {
+            DnsResourceRecordInfo rrInfo = record.Tag as DnsResourceRecordInfo;
+            if (rrInfo is null)
+                return null;
+
+            return rrInfo.Comments;
+        }
+
+        public static void SetComments(this DnsResourceRecord record, string value)
+        {
+            DnsResourceRecordInfo rrInfo = record.Tag as DnsResourceRecordInfo;
+            if (rrInfo is null)
+            {
+                rrInfo = new DnsResourceRecordInfo();
+                record.Tag = rrInfo;
+            }
+
+            rrInfo.Comments = value;
         }
     }
 }
