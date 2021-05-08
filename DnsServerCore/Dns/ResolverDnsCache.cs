@@ -43,25 +43,25 @@ namespace DnsServerCore.Dns
 
         #region public
 
-        public virtual DnsDatagram Query(DnsDatagram request, bool serveStale = false)
+        public virtual DnsDatagram Query(DnsDatagram request, bool serveStaleAndResetExpiry = false)
         {
             DnsDatagram authResponse = _authZoneManager.Query(request, true);
-            if ((authResponse != null))
+            if (authResponse is not null)
             {
-                if ((authResponse.Answer.Count > 0) || ((authResponse.Authority.Count > 0) && (authResponse.Authority[0].Type == DnsResourceRecordType.SOA)))
+                if ((authResponse.RCODE != DnsResponseCode.NoError) || (authResponse.Answer.Count > 0) || (authResponse.Authority.Count == 0) || (authResponse.Authority[0].Type == DnsResourceRecordType.SOA))
                     return authResponse;
             }
 
-            DnsDatagram cacheResponse = _cacheZoneManager.Query(request, serveStale);
-            if (cacheResponse != null)
+            DnsDatagram cacheResponse = _cacheZoneManager.Query(request, serveStaleAndResetExpiry);
+            if (cacheResponse is not null)
             {
-                if ((cacheResponse.Answer.Count > 0) || ((cacheResponse.Authority.Count > 0) && (cacheResponse.Authority[0].Type == DnsResourceRecordType.SOA)))
+                if ((cacheResponse.RCODE != DnsResponseCode.NoError) || (cacheResponse.Answer.Count > 0) || (cacheResponse.Authority.Count == 0) || (cacheResponse.Authority[0].Type == DnsResourceRecordType.SOA))
                     return cacheResponse;
             }
 
-            if ((authResponse != null) && (authResponse.Authority.Count > 0))
+            if ((authResponse is not null) && (authResponse.Authority.Count > 0))
             {
-                if ((cacheResponse != null) && (cacheResponse.Authority.Count > 0))
+                if ((cacheResponse is not null) && (cacheResponse.Authority.Count > 0))
                 {
                     if (cacheResponse.Authority[0].Name.Length > authResponse.Authority[0].Name.Length)
                         return cacheResponse;
