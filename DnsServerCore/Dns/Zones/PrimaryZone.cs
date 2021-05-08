@@ -17,6 +17,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 */
 
+using DnsServerCore.Dns.ResourceRecords;
 using System;
 using System.Collections.Generic;
 using System.Threading;
@@ -222,8 +223,10 @@ namespace DnsServerCore.Dns.Zones
                     if ((records.Count != 1) || !records[0].Name.Equals(_name, StringComparison.OrdinalIgnoreCase))
                         throw new InvalidOperationException("Invalid SOA record.");
 
-                    //remove any resource record info
+                    //remove any resource record info except comments
+                    string comments = records[0].GetComments();
                     records[0].Tag = null;
+                    records[0].SetComments(comments);
                     break;
             }
 
