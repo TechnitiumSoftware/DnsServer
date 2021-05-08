@@ -1,6 +1,6 @@
 ﻿/*
 Technitium DNS Server
-Copyright (C) 2020  Shreyas Zare (shreyas@technitium.com)
+Copyright (C) 2021  Shreyas Zare (shreyas@technitium.com)
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -349,7 +349,10 @@ namespace DnsServerCore.Dns.Zones
                     if ((records.Count != 1) || !records[0].Name.Equals(_name, StringComparison.OrdinalIgnoreCase))
                         throw new InvalidOperationException("Invalid SOA record.");
 
-                    _entries[DnsResourceRecordType.SOA][0].SetGlueRecords(records.GetGlueRecords());
+                    DnsResourceRecord existingSoaRR = _entries[DnsResourceRecordType.SOA][0];
+
+                    existingSoaRR.SetGlueRecords(records.GetGlueRecords());
+                    existingSoaRR.SetComments(records[0].GetComments());
                     break;
 
                 default:
