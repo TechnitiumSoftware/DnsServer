@@ -1,6 +1,6 @@
 ﻿/*
 Technitium DNS Server
-Copyright (C) 2020  Shreyas Zare (shreyas@technitium.com)
+Copyright (C) 2021  Shreyas Zare (shreyas@technitium.com)
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -20,6 +20,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 using System;
 using System.Collections.Generic;
 using System.IO;
+using TechnitiumLibrary.IO;
 using TechnitiumLibrary.Net.Dns;
 
 namespace DnsServerCore.Dns.ResourceRecords
@@ -30,6 +31,7 @@ namespace DnsServerCore.Dns.ResourceRecords
 
         bool _disabled;
         IReadOnlyList<DnsResourceRecord> _glueRecords;
+        string _comments;
 
         #endregion
 
@@ -40,13 +42,15 @@ namespace DnsServerCore.Dns.ResourceRecords
 
         public DnsResourceRecordInfo(BinaryReader bR)
         {
-            switch (bR.ReadByte()) //version
+            byte version = bR.ReadByte();
+            switch (version)
             {
                 case 1:
                     _disabled = bR.ReadBoolean();
                     break;
 
                 case 2:
+                case 3:
                     _disabled = bR.ReadBoolean();
 
                     int count = bR.ReadByte();
@@ -59,6 +63,9 @@ namespace DnsServerCore.Dns.ResourceRecords
 
                         _glueRecords = glueRecords;
                     }
+
+                    if (version >= 3)
+                        _comments = bR.ReadShortString();
 
                     break;
 
@@ -73,10 +80,10 @@ namespace DnsServerCore.Dns.ResourceRecords
 
         public void WriteTo(BinaryWriter bW)
         {
-            bW.Write((byte)2); //version
+            bW.Write((byte)3); //version
             bW.Write(_disabled);
 
-            if (_glueRecords == null)
+            if (_glueRecords is null)
             {
                 bW.Write((byte)0);
             }
@@ -87,6 +94,11 @@ namespace DnsServerCore.Dns.ResourceRecords
                 foreach (DnsResourceRecord glueRecord in _glueRecords)
                     glueRecord.WriteTo(bW.BaseStream);
             }
+
+            if (string.IsNullOrEmpty(_comments))
+                bW.Write((byte)0);
+            else
+                bW.WriteShortString(_comments);
         }
 
         #endregion
@@ -103,6 +115,12 @@ namespace DnsServerCore.Dns.ResourceRecords
         {
             get { return _glueRecords; }
             set { _glueRecords = value; }
+        }
+
+        public string Comments
+        {
+            get { return _comments; }
+            set { _comments = value; }
         }
 
         #endregion
