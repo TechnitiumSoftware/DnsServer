@@ -3594,6 +3594,8 @@ namespace DnsServerCore
             if (!string.IsNullOrEmpty(strOverwrite))
                 overwrite = bool.Parse(strOverwrite);
 
+            string comments = request.QueryString["comments"];
+
             switch (type)
             {
                 case DnsResourceRecordType.A:
@@ -3645,6 +3647,9 @@ namespace DnsServerCore
                         else
                             newRecord = new DnsResourceRecord(domain, type, DnsClass.IN, ttl, new DnsAAAARecord(ipAddress));
 
+                        if (!string.IsNullOrEmpty(comments))
+                            newRecord.SetComments(comments);
+
                         if (overwrite)
                             _dnsServer.AuthZoneManager.SetRecord(newRecord);
                         else
@@ -3660,6 +3665,9 @@ namespace DnsServerCore
 
                         DnsResourceRecord newRecord = new DnsResourceRecord(domain, type, DnsClass.IN, ttl, new DnsMXRecord(ushort.Parse(preference), value));
 
+                        if (!string.IsNullOrEmpty(comments))
+                            newRecord.SetComments(comments);
+
                         if (overwrite)
                             _dnsServer.AuthZoneManager.SetRecord(newRecord);
                         else
@@ -3670,6 +3678,9 @@ namespace DnsServerCore
                 case DnsResourceRecordType.TXT:
                     {
                         DnsResourceRecord newRecord = new DnsResourceRecord(domain, type, DnsClass.IN, ttl, new DnsTXTRecord(value));
+
+                        if (!string.IsNullOrEmpty(comments))
+                            newRecord.SetComments(comments);
 
                         if (overwrite)
                             _dnsServer.AuthZoneManager.SetRecord(newRecord);
@@ -3689,6 +3700,9 @@ namespace DnsServerCore
                         if (glueAddresses != null)
                             newRecord.SetGlueRecords(glueAddresses);
 
+                        if (!string.IsNullOrEmpty(comments))
+                            newRecord.SetComments(comments);
+
                         if (overwrite)
                             _dnsServer.AuthZoneManager.SetRecord(newRecord);
                         else
@@ -3705,7 +3719,12 @@ namespace DnsServerCore
                                 throw new DnsWebServiceException("Record already exists. Use overwrite option if you wish to overwrite existing records.");
                         }
 
-                        _dnsServer.AuthZoneManager.SetRecords(domain, type, ttl, new DnsResourceRecordData[] { new DnsPTRRecord(value) });
+                        DnsResourceRecord newRecord = new DnsResourceRecord(domain, type, DnsClass.IN, ttl, new DnsPTRRecord(value));
+
+                        if (!string.IsNullOrEmpty(comments))
+                            newRecord.SetComments(comments);
+
+                        _dnsServer.AuthZoneManager.SetRecord(newRecord);
                     }
                     break;
 
@@ -3718,7 +3737,12 @@ namespace DnsServerCore
                                 throw new DnsWebServiceException("Record already exists. Use overwrite option if you wish to overwrite existing records.");
                         }
 
-                        _dnsServer.AuthZoneManager.SetRecords(domain, type, ttl, new DnsResourceRecordData[] { new DnsCNAMERecord(value) });
+                        DnsResourceRecord newRecord = new DnsResourceRecord(domain, type, DnsClass.IN, ttl, new DnsCNAMERecord(value));
+
+                        if (!string.IsNullOrEmpty(comments))
+                            newRecord.SetComments(comments);
+
+                        _dnsServer.AuthZoneManager.SetRecord(newRecord);
                     }
                     break;
 
@@ -3737,6 +3761,9 @@ namespace DnsServerCore
                             throw new DnsWebServiceException("Parameter 'port' missing.");
 
                         DnsResourceRecord newRecord = new DnsResourceRecord(domain, type, DnsClass.IN, ttl, new DnsSRVRecord(ushort.Parse(priority), ushort.Parse(weight), ushort.Parse(port), value));
+
+                        if (!string.IsNullOrEmpty(comments))
+                            newRecord.SetComments(comments);
 
                         if (overwrite)
                             _dnsServer.AuthZoneManager.SetRecord(newRecord);
@@ -3757,6 +3784,9 @@ namespace DnsServerCore
 
                         DnsResourceRecord newRecord = new DnsResourceRecord(domain, type, DnsClass.IN, ttl, new DnsCAARecord(byte.Parse(flags), tag, value));
 
+                        if (!string.IsNullOrEmpty(comments))
+                            newRecord.SetComments(comments);
+
                         if (overwrite)
                             _dnsServer.AuthZoneManager.SetRecord(newRecord);
                         else
@@ -3767,6 +3797,9 @@ namespace DnsServerCore
                 case DnsResourceRecordType.ANAME:
                     {
                         DnsResourceRecord newRecord = new DnsResourceRecord(domain, type, DnsClass.IN, ttl, new DnsANAMERecord(value));
+
+                        if (!string.IsNullOrEmpty(comments))
+                            newRecord.SetComments(comments);
 
                         if (overwrite)
                             _dnsServer.AuthZoneManager.SetRecord(newRecord);
@@ -3782,6 +3815,9 @@ namespace DnsServerCore
                             protocol = "Udp";
 
                         DnsResourceRecord newRecord = new DnsResourceRecord(domain, type, DnsClass.IN, 0, new DnsForwarderRecord((DnsTransportProtocol)Enum.Parse(typeof(DnsTransportProtocol), protocol, true), value));
+
+                        if (!string.IsNullOrEmpty(comments))
+                            newRecord.SetComments(comments);
 
                         if (overwrite)
                             _dnsServer.AuthZoneManager.SetRecord(newRecord);
@@ -3807,7 +3843,12 @@ namespace DnsServerCore
                                 throw new DnsWebServiceException("Record already exists. Use overwrite option if you wish to overwrite existing records.");
                         }
 
-                        _dnsServer.AuthZoneManager.SetRecords(domain, type, ttl, new DnsResourceRecordData[] { new DnsApplicationRecord(value, classPath, recordData) });
+                        DnsResourceRecord newRecord = new DnsResourceRecord(domain, type, DnsClass.IN, ttl, new DnsApplicationRecord(value, classPath, recordData));
+
+                        if (!string.IsNullOrEmpty(comments))
+                            newRecord.SetComments(comments);
+
+                        _dnsServer.AuthZoneManager.SetRecord(newRecord);
                     }
                     break;
 
@@ -3912,6 +3953,13 @@ namespace DnsServerCore
                             jsonWriter.WriteValue(record.TtlValue);
                         else
                             jsonWriter.WriteValue(record.TTL);
+
+                        string comments = record.GetComments();
+                        if (!string.IsNullOrEmpty(comments))
+                        {
+                            jsonWriter.WritePropertyName("comments");
+                            jsonWriter.WriteValue(comments);
+                        }
 
                         jsonWriter.WritePropertyName("rData");
                         jsonWriter.WriteStartObject();
@@ -4458,6 +4506,8 @@ namespace DnsServerCore
             if (!string.IsNullOrEmpty(strDisable))
                 disable = bool.Parse(strDisable);
 
+            string comments = request.QueryString["comments"];
+
             switch (type)
             {
                 case DnsResourceRecordType.A:
@@ -4532,6 +4582,9 @@ namespace DnsServerCore
                         if (disable)
                             newRecord.Disable();
 
+                        if (!string.IsNullOrEmpty(comments))
+                            newRecord.SetComments(comments);
+
                         _dnsServer.AuthZoneManager.UpdateRecord(oldRecord, newRecord);
                     }
                     break;
@@ -4548,6 +4601,9 @@ namespace DnsServerCore
                         if (disable)
                             newRecord.Disable();
 
+                        if (!string.IsNullOrEmpty(comments))
+                            newRecord.SetComments(comments);
+
                         _dnsServer.AuthZoneManager.UpdateRecord(oldRecord, newRecord);
                     }
                     break;
@@ -4560,6 +4616,9 @@ namespace DnsServerCore
                         if (disable)
                             newRecord.Disable();
 
+                        if (!string.IsNullOrEmpty(comments))
+                            newRecord.SetComments(comments);
+
                         _dnsServer.AuthZoneManager.UpdateRecord(oldRecord, newRecord);
                     }
                     break;
@@ -4571,6 +4630,9 @@ namespace DnsServerCore
 
                         if (disable)
                             newRecord.Disable();
+
+                        if (!string.IsNullOrEmpty(comments))
+                            newRecord.SetComments(comments);
 
                         string glueAddresses = request.QueryString["glue"];
                         if (!string.IsNullOrEmpty(glueAddresses))
@@ -4616,6 +4678,9 @@ namespace DnsServerCore
                         if (!string.IsNullOrEmpty(primaryAddresses))
                             soaRecord.SetGlueRecords(primaryAddresses);
 
+                        if (!string.IsNullOrEmpty(comments))
+                            soaRecord.SetComments(comments);
+
                         _dnsServer.AuthZoneManager.SetRecord(soaRecord);
                     }
                     break;
@@ -4628,6 +4693,9 @@ namespace DnsServerCore
                         if (disable)
                             newRecord.Disable();
 
+                        if (!string.IsNullOrEmpty(comments))
+                            newRecord.SetComments(comments);
+
                         _dnsServer.AuthZoneManager.UpdateRecord(oldRecord, newRecord);
                     }
                     break;
@@ -4639,6 +4707,9 @@ namespace DnsServerCore
 
                         if (disable)
                             newRecord.Disable();
+
+                        if (!string.IsNullOrEmpty(comments))
+                            newRecord.SetComments(comments);
 
                         _dnsServer.AuthZoneManager.UpdateRecord(oldRecord, newRecord);
                     }
@@ -4668,6 +4739,9 @@ namespace DnsServerCore
                         if (disable)
                             newRecord.Disable();
 
+                        if (!string.IsNullOrEmpty(comments))
+                            newRecord.SetComments(comments);
+
                         _dnsServer.AuthZoneManager.UpdateRecord(oldRecord, newRecord);
                     }
                     break;
@@ -4696,6 +4770,9 @@ namespace DnsServerCore
                         if (disable)
                             newRecord.Disable();
 
+                        if (!string.IsNullOrEmpty(comments))
+                            newRecord.SetComments(comments);
+
                         _dnsServer.AuthZoneManager.UpdateRecord(oldRecord, newRecord);
                     }
                     break;
@@ -4707,6 +4784,9 @@ namespace DnsServerCore
 
                         if (disable)
                             newRecord.Disable();
+
+                        if (!string.IsNullOrEmpty(comments))
+                            newRecord.SetComments(comments);
 
                         _dnsServer.AuthZoneManager.UpdateRecord(oldRecord, newRecord);
                     }
@@ -4725,6 +4805,9 @@ namespace DnsServerCore
 
                         if (disable)
                             newRecord.Disable();
+
+                        if (!string.IsNullOrEmpty(comments))
+                            newRecord.SetComments(comments);
 
                         _dnsServer.AuthZoneManager.UpdateRecord(oldRecord, newRecord);
                     }
@@ -4745,6 +4828,9 @@ namespace DnsServerCore
 
                         if (disable)
                             newRecord.Disable();
+
+                        if (!string.IsNullOrEmpty(comments))
+                            newRecord.SetComments(comments);
 
                         _dnsServer.AuthZoneManager.UpdateRecord(oldRecord, newRecord);
                     }
