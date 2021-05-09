@@ -1493,7 +1493,7 @@ namespace DnsServerCore.Dns
             while (resolveQueue.Count > 0)
                 responseAnswer.AddRange(await resolveQueue.Dequeue());
 
-            return new DnsDatagram(request.Identifier, true, DnsOpcode.StandardQuery, true, false, request.RecursionDesired, isRecursionAllowed, false, false, DnsResponseCode.NoError, request.Question, responseAnswer, response.Authority, response.Additional) { Tag = response.Tag };
+            return new DnsDatagram(request.Identifier, true, DnsOpcode.StandardQuery, true, false, request.RecursionDesired, isRecursionAllowed, false, false, responseAnswer.Count > 0 ? DnsResponseCode.NoError : DnsResponseCode.ServerFailure, request.Question, responseAnswer, response.Authority, response.Additional) { Tag = response.Tag };
         }
 
         private DnsDatagram ProcessBlockedQuery(DnsDatagram request)
