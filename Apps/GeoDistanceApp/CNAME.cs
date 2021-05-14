@@ -18,13 +18,11 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
 using DnsApplicationCommon;
-using MaxMind.GeoIP2;
 using MaxMind.GeoIP2.Model;
 using MaxMind.GeoIP2.Responses;
 using Newtonsoft.Json;
 using System;
 using System.Collections.Generic;
-using System.IO;
 using System.Net;
 using System.Threading.Tasks;
 using TechnitiumLibrary.Net.Dns;
@@ -36,7 +34,7 @@ namespace GeoDistance
     {
         #region variables
 
-        DatabaseReader _mmCityReader;
+        MaxMind _maxMind;
 
         #endregion
 
@@ -51,8 +49,8 @@ namespace GeoDistance
 
             if (disposing)
             {
-                if (_mmCityReader != null)
-                    _mmCityReader.Dispose();
+                if (_maxMind is not null)
+                    _maxMind.Dispose();
             }
 
             _disposed = true;
@@ -84,18 +82,7 @@ namespace GeoDistance
 
         public Task InitializeAsync(IDnsServer dnsServer, string config)
         {
-            if (_mmCityReader == null)
-            {
-                string mmFile = Path.Combine(dnsServer.ApplicationFolder, "GeoIP2-City.mmdb");
-
-                if (!File.Exists(mmFile))
-                    mmFile = Path.Combine(dnsServer.ApplicationFolder, "GeoLite2-City.mmdb");
-
-                if (!File.Exists(mmFile))
-                    throw new FileNotFoundException("MaxMind City file is missing!");
-
-                _mmCityReader = new DatabaseReader(mmFile);
-            }
+            _maxMind = MaxMind.Create(dnsServer);
 
             return Task.CompletedTask;
         }
@@ -104,7 +91,7 @@ namespace GeoDistance
         {
             Location location = null;
 
-            if (_mmCityReader.TryCity(remoteEP.Address, out CityResponse response))
+            if (_maxMind.DatabaseReader.TryCity(remoteEP.Address, out CityResponse response))
                 location = response.Location;
 
             dynamic jsonAppRecordData = JsonConvert.DeserializeObject(appRecordData);
