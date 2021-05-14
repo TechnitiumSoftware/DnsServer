@@ -953,7 +953,7 @@ namespace DnsServerCore
                     await Task.Delay(1000);
                 }
 
-                throw new DnsWebServiceException("Invalid username or password: " + strUsername);
+                throw new DnsWebServiceException("Invalid username or password for user: " + strUsername);
             }
 
             ResetFailedLoginAttempt(remoteEP.Address);
