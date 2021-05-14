@@ -18,11 +18,9 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
 using DnsApplicationCommon;
-using MaxMind.GeoIP2;
 using MaxMind.GeoIP2.Responses;
 using Newtonsoft.Json;
 using System.Collections.Generic;
-using System.IO;
 using System.Net;
 using System.Net.Sockets;
 using System.Threading.Tasks;
@@ -36,7 +34,7 @@ namespace GeoContinent
     {
         #region variables
 
-        DatabaseReader _mmCountryReader;
+        MaxMind _maxMind;
 
         #endregion
 
@@ -51,8 +49,8 @@ namespace GeoContinent
 
             if (disposing)
             {
-                if (_mmCountryReader != null)
-                    _mmCountryReader.Dispose();
+                if (_maxMind is not null)
+                    _maxMind.Dispose();
             }
 
             _disposed = true;
@@ -69,18 +67,7 @@ namespace GeoContinent
 
         public Task InitializeAsync(IDnsServer dnsServer, string config)
         {
-            if (_mmCountryReader == null)
-            {
-                string mmFile = Path.Combine(dnsServer.ApplicationFolder, "GeoIP2-Country.mmdb");
-
-                if (!File.Exists(mmFile))
-                    mmFile = Path.Combine(dnsServer.ApplicationFolder, "GeoLite2-Country.mmdb");
-
-                if (!File.Exists(mmFile))
-                    throw new FileNotFoundException("MaxMind Country file is missing!");
-
-                _mmCountryReader = new DatabaseReader(mmFile);
-            }
+            _maxMind = MaxMind.Create(dnsServer);
 
             return Task.CompletedTask;
         }
@@ -95,7 +82,7 @@ namespace GeoContinent
                     dynamic jsonAppRecordData = JsonConvert.DeserializeObject(appRecordData);
                     dynamic jsonContinent;
 
-                    if (_mmCountryReader.TryCountry(remoteEP.Address, out CountryResponse response))
+                    if (_maxMind.DatabaseReader.TryCountry(remoteEP.Address, out CountryResponse response))
                     {
                         jsonContinent = jsonAppRecordData[response.Continent.Code];
                         if (jsonContinent == null)
