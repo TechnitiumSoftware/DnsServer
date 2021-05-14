@@ -42,7 +42,7 @@ function refreshApps() {
 
                 for (var j = 0; j < apps[i].details.length; j++) {
                     detailsTable += "<tr><td>" + htmlEncode(apps[i].details[j].classPath) + "</td><td>" +
-                        htmlEncode(apps[i].details[j].description) + "</td><td>" +
+                        htmlEncode(apps[i].details[j].description).replace(/\n/g, "<br />") + "</td><td>" +
                         (apps[i].details[j].recordDataTemplate == null ? "" : "<pre>" + htmlEncode(apps[i].details[j].recordDataTemplate) + "</pre>") + "</td></tr>";
                 }
 
