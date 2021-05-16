@@ -41,7 +41,15 @@ using TechnitiumLibrary.Net.Proxy;
 
 namespace DnsServerCore.Dns
 {
-    public sealed class DnsServer : IDisposable
+    public enum DnsServerRecursion : byte
+    {
+        Deny = 0,
+        Allow = 1,
+        AllowOnlyForPrivateNetworks = 2,
+        UseSpecifiedNetworks = 3
+    }
+
+    public sealed class DnsServer : IDisposable, IDnsClient
     {
         #region enum
 
@@ -92,8 +100,9 @@ namespace DnsServerCore.Dns
         readonly DnsARecord _aRecord = new DnsARecord(IPAddress.Any);
         readonly DnsAAAARecord _aaaaRecord = new DnsAAAARecord(IPAddress.IPv6Any);
 
-        bool _allowRecursion;
-        bool _allowRecursionOnlyForPrivateNetworks;
+        DnsServerRecursion _recursion;
+        IReadOnlyCollection<NetworkAddress> _recursionDeniedNetworks;
+        IReadOnlyCollection<NetworkAddress> _recursionAllowedNetworks;
         NetProxy _proxy;
         IReadOnlyList<NameServerAddress> _forwarders;
         bool _preferIPv6;
@@ -907,23 +916,48 @@ namespace DnsServerCore.Dns
 
         private bool IsRecursionAllowed(IPEndPoint remoteEP)
         {
-            if (!_allowRecursion)
-                return false;
-
-            if (_allowRecursionOnlyForPrivateNetworks)
+            switch (_recursion)
             {
-                switch (remoteEP.AddressFamily)
-                {
-                    case AddressFamily.InterNetwork:
-                    case AddressFamily.InterNetworkV6:
-                        return NetUtilities.IsPrivateIP(remoteEP.Address);
+                case DnsServerRecursion.Allow:
+                    return true;
 
-                    default:
-                        return false;
-                }
+                case DnsServerRecursion.AllowOnlyForPrivateNetworks:
+                    switch (remoteEP.AddressFamily)
+                    {
+                        case AddressFamily.InterNetwork:
+                        case AddressFamily.InterNetworkV6:
+                            return NetUtilities.IsPrivateIP(remoteEP.Address);
+
+                        default:
+                            return false;
+                    }
+
+                case DnsServerRecursion.UseSpecifiedNetworks:
+                    IPAddress address = remoteEP.Address;
+
+                    if (_recursionDeniedNetworks is not null)
+                    {
+                        foreach (NetworkAddress deniedNetworkAddress in _recursionDeniedNetworks)
+                        {
+                            if (deniedNetworkAddress.Contains(address))
+                                return false;
+                        }
+                    }
+
+                    if (_recursionAllowedNetworks is not null)
+                    {
+                        foreach (NetworkAddress allowedNetworkAddress in _recursionAllowedNetworks)
+                        {
+                            if (allowedNetworkAddress.Contains(address))
+                                return true;
+                        }
+                    }
+
+                    return false;
+
+                default:
+                    return false;
             }
-
-            return true;
         }
 
         private async Task<DnsDatagram> ProcessQueryAsync(DnsDatagram request, IPEndPoint remoteEP, bool isRecursionAllowed, DnsTransportProtocol protocol)
@@ -2182,7 +2216,7 @@ namespace DnsServerCore.Dns
 
         private void ResetPrefetchTimers()
         {
-            if ((_cachePrefetchTrigger == 0) || !_allowRecursion)
+            if ((_cachePrefetchTrigger == 0) || (_recursion == DnsServerRecursion.Deny))
             {
                 lock (_cachePrefetchSamplingTimerLock)
                 {
@@ -2601,6 +2635,11 @@ namespace DnsServerCore.Dns
             }
         }
 
+        Task<DnsDatagram> IDnsClient.ResolveAsync(DnsQuestionRecord question)
+        {
+            return DirectQueryAsync(question);
+        }
+
         #endregion
 
         #region properties
@@ -2690,20 +2729,26 @@ namespace DnsServerCore.Dns
         public IDnsCache DnsCache
         { get { return _dnsCache; } }
 
-        public bool AllowRecursion
+        public DnsServerRecursion Recursion
         {
-            get { return _allowRecursion; }
+            get { return _recursion; }
             set
             {
-                _allowRecursion = value;
+                _recursion = value;
                 ResetPrefetchTimers();
             }
         }
 
-        public bool AllowRecursionOnlyForPrivateNetworks
+        public IReadOnlyCollection<NetworkAddress> RecursionDeniedNetworks
         {
-            get { return _allowRecursionOnlyForPrivateNetworks; }
-            set { _allowRecursionOnlyForPrivateNetworks = value; }
+            get { return _recursionDeniedNetworks; }
+            set { _recursionDeniedNetworks = value; }
+        }
+
+        public IReadOnlyCollection<NetworkAddress> RecursionAllowedNetworks
+        {
+            get { return _recursionAllowedNetworks; }
+            set { _recursionAllowedNetworks = value; }
         }
 
         public NetProxy Proxy
