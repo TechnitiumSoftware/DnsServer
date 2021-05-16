@@ -146,7 +146,7 @@ RESPONSE:
 ```
 {
 	"response": {
-		"version": "6.2",
+		"version": "6.3",
 		"dnsServerDomain": "server1",
 		"dnsServerLocalEndPoints": [
 			"0.0.0.0:53",
@@ -174,9 +174,13 @@ RESPONSE:
 		"logFolder": "logs",
 		"maxLogFileDays": 365,
 		"maxStatFileDays": 365,
-		"allowRecursion": true,
-		"allowRecursionOnlyForPrivateNetworks": true,
+		"recursion": "AllowOnlyForPrivateNetworks",
+		"recursionDeniedNetworks": [],
+		"recursionAllowedNetworks": [
+			"192.168.1.0/24"
+		],
 		"randomizeName": true,
+		"qnameMinimization": true,
 		"serveStale": true,
 		"serveStaleTtl": 259200,
 		"cachePrefetchEligibility": 2,
@@ -201,7 +205,7 @@ RESPONSE:
 			"https://cloudflare-dns.com/dns-query (1.1.1.1)",
 			"https://cloudflare-dns.com/dns-query (1.0.0.1)"
 		],
-		"forwarderProtocol": "Udp",
+		"forwarderProtocol": "Https",
 		"useNxDomainForBlocking": false,
 		"blockListUrls": [
 			"https://raw.githubusercontent.com/StevenBlack/hosts/master/hosts",
@@ -245,9 +249,11 @@ WHERE:
 - `logFolder` (optional): The folder path on the server where the log files should be saved. The path can be relative to the DNS server config folder. Default value is `logs`.
 - `maxLogFileDays` (optional): Max number of days to keep the log files. Log files older than the specified number of days will be deleted automatically. Recommended value is `365`. Set `0` to disable auto delete.
 - `maxStatFileDays` (optional): Max number of days to keep the dashboard stats. Stat files older than the specified number of days will be deleted automatically. Recommended value is `365`. Set `0` to disable auto delete.
-- `allowRecursion` (optional): Enable recursion to allow this DNS Server to resolve any domain name. Default value is `true`.
-- `allowRecursionOnlyForPrivateNetworks` (optional): Enable this option if you want to support recursion only on private networks. Any recursive request from public network will be refused. Default value is `true`.
+- `recursion` (optional): Sets the recursion policy for the DNS server. Valid values are [`Deny`, `Allow`, `AllowOnlyForPrivateNetworks`, `UseSpecifiedNetworks`].
+- `recursionDeniedNetworks` (optional): A comma separated list of network addresses in CIDR format that must be denied recursion. Set this parameter to `false` to remove existing values. These values are only used when `recursion` is set to `UseSpecifiedNetworks`.
+- `recursionAllowedNetworks` (optional): A comma separated list of network addresses in CIDR format that must be allowed recursion. Set this parameter to `false` to remove existing values. These values are only used when `recursion` is set to `UseSpecifiedNetworks`.
 - `randomizeName` (optional): Enables QNAME randomization [draft-vixie-dnsext-dns0x20-00](https://tools.ietf.org/html/draft-vixie-dnsext-dns0x20-00) when using UDP as the transport protocol. Default value is `true`.
+- `qnameMinimization` (optional): Enables QNAME minimization [draft-ietf-dnsop-rfc7816bis-04](https://tools.ietf.org/html/draft-ietf-dnsop-rfc7816bis-04) when doing recursive resolution. Default value is `true`.
 - `serveStale` (optional): Enable the serve stale feature to improve resiliency by using expired or stale records in cache when the DNS server is unable to reach the upstream or authoritative name servers. Default value is `true`.
 - `serveStaleTtl` (optional): The TTL value in seconds which should be used for cached records that are expired. When the serve stale TTL too expires for a stale record, it gets removed from the cache. Recommended value is between 1-3 days and maximum supported value is 7 days. Default value is `259200`.
 - `cachePrefetchEligibility` (optional): The minimum initial TTL value of a record needed to be eligible for prefetching.
@@ -260,10 +266,10 @@ WHERE:
 - `proxyUsername` (optional): The proxy server username.
 - `proxyPassword` (optional): The proxy server password.
 - `proxyBypass` (optional): A comma separated bypass list consisting of IP addresses, network addresses in CIDR format, or host/domain names to never use proxy for.
-- `forwarders` (optional): A comma separated list of forwarders to be used by this DNS server. Set this parameter to empty string to remove existing forwarders so that the DNS server does recursive resolution by itself.
+- `forwarders` (optional): A comma separated list of forwarders to be used by this DNS server. Set this parameter to `false` string to remove existing forwarders so that the DNS server does recursive resolution by itself.
 - `forwarderProtocol` (optional): The forwarder DNS transport protocol to be used. Valid values are [`Udp`, `Tcp`, `Tls`, `Https`].
 - `useNxDomainForBlocking` (optional): Enabling this will return `NX Domain` response instead of `0.0.0.0` address for blocked domains. Default value is `false`.
-- `blockListUrls` (optional): A comma separated list of block list URLs that this server must automatically download and use with the block lists zone. DNS Server will use the data returned by the block list URLs to update the block list zone automatically every 24 hours. The expected file format is standard hosts file format or plain text file containing list of domains to block.
+- `blockListUrls` (optional): A comma separated list of block list URLs that this server must automatically download and use with the block lists zone. DNS Server will use the data returned by the block list URLs to update the block list zone automatically every 24 hours. The expected file format is standard hosts file format or plain text file containing list of domains to block. Set this parameter to `false` to remove existing values.
 - `blockListUpdateIntervalHours` (optional): The interval in hours to automatically download and update the block lists. Default value is `24`.
 
 RESPONSE:
