@@ -137,9 +137,16 @@ $(function () {
         }
     });
 
-    $("#chkAllowRecursion").click(function () {
-        var allowRecursion = $("#chkAllowRecursion").prop('checked');
-        $("#chkAllowRecursionOnlyForPrivateNetworks").prop('disabled', !allowRecursion);
+    $("input[type=radio][name=rdRecursion]").change(function () {
+        var recursion = $('input[name=rdRecursion]:checked').val();
+        if (recursion === "UseSpecifiedNetworks") {
+            $("#txtRecursionDeniedNetworks").prop("disabled", false);
+            $("#txtRecursionAllowedNetworks").prop("disabled", false);
+        }
+        else {
+            $("#txtRecursionDeniedNetworks").prop("disabled", true);
+            $("#txtRecursionAllowedNetworks").prop("disabled", true);
+        }
     });
 
     $("#chkWebServiceEnableTls").click(function () {
@@ -720,9 +727,49 @@ function loadDnsSettings() {
             $("#txtMaxLogFileDays").val(responseJSON.response.maxLogFileDays);
             $("#txtMaxStatFileDays").val(responseJSON.response.maxStatFileDays);
 
-            $("#chkAllowRecursion").prop("checked", responseJSON.response.allowRecursion);
-            $("#chkAllowRecursionOnlyForPrivateNetworks").prop('disabled', !responseJSON.response.allowRecursion);
-            $("#chkAllowRecursionOnlyForPrivateNetworks").prop("checked", responseJSON.response.allowRecursionOnlyForPrivateNetworks);
+            $("#txtRecursionDeniedNetworks").prop("disabled", true);
+            $("#txtRecursionAllowedNetworks").prop("disabled", true);
+
+            switch (responseJSON.response.recursion) {
+
+                case "Allow":
+                    $("#rdRecursionAllow").prop("checked", true);
+                    break;
+
+                case "AllowOnlyForPrivateNetworks":
+                    $("#rdRecursionAllowOnlyForPrivateNetworks").prop("checked", true);
+                    break;
+
+                case "UseSpecifiedNetworks":
+                    $("#rdRecursionUseSpecifiedNetworks").prop("checked", true);
+                    $("#txtRecursionDeniedNetworks").prop("disabled", false);
+                    $("#txtRecursionAllowedNetworks").prop("disabled", false);
+                    break;
+
+                case "Deny":
+                default:
+                    $("#rdRecursionDeny").prop("checked", true);
+                    break;
+            }
+
+            {
+                var value = "";
+
+                for (var i = 0; i < responseJSON.response.recursionDeniedNetworks.length; i++)
+                    value += responseJSON.response.recursionDeniedNetworks[i] + "\r\n";
+
+                $("#txtRecursionDeniedNetworks").val(value);
+            }
+
+            {
+                var value = "";
+
+                for (var i = 0; i < responseJSON.response.recursionAllowedNetworks.length; i++)
+                    value += responseJSON.response.recursionAllowedNetworks[i] + "\r\n";
+
+                $("#txtRecursionAllowedNetworks").val(value);
+            }
+
             $("#chkRandomizeName").prop("checked", responseJSON.response.randomizeName);
             $("#chkQnameMinimization").prop("checked", responseJSON.response.qnameMinimization);
 
@@ -914,8 +961,22 @@ function saveDnsSettings() {
     var maxLogFileDays = $("#txtMaxLogFileDays").val();
     var maxStatFileDays = $("#txtMaxStatFileDays").val();
 
-    var allowRecursion = $("#chkAllowRecursion").prop('checked');
-    var allowRecursionOnlyForPrivateNetworks = $("#chkAllowRecursionOnlyForPrivateNetworks").prop('checked');
+    var recursion = $("input[name=rdRecursion]:checked").val();
+
+    var recursionDeniedNetworks = cleanTextList($("#txtRecursionDeniedNetworks").val());
+
+    if ((recursionDeniedNetworks.length === 0) || (recursionDeniedNetworks === ","))
+        recursionDeniedNetworks = false;
+    else
+        $("#txtRecursionDeniedNetworks").val(recursionDeniedNetworks.replace(/,/g, "\n"));
+
+    var recursionAllowedNetworks = cleanTextList($("#txtRecursionAllowedNetworks").val());
+
+    if ((recursionAllowedNetworks.length === 0) || (recursionAllowedNetworks === ","))
+        recursionAllowedNetworks = false;
+    else
+        $("#txtRecursionAllowedNetworks").val(recursionAllowedNetworks.replace(/,/g, "\n"));
+
     var randomizeName = $("#chkRandomizeName").prop('checked');
     var qnameMinimization = $("#chkQnameMinimization").prop('checked');
 
@@ -1009,7 +1070,7 @@ function saveDnsSettings() {
             + "&webServiceLocalAddresses=" + encodeURIComponent(webServiceLocalAddresses) + "&webServiceHttpPort=" + webServiceHttpPort + "&webServiceEnableTls=" + webServiceEnableTls + "&webServiceHttpToTlsRedirect=" + webServiceHttpToTlsRedirect + "&webServiceTlsPort=" + webServiceTlsPort + "&webServiceTlsCertificatePath=" + encodeURIComponent(webServiceTlsCertificatePath) + "&webServiceTlsCertificatePassword=" + encodeURIComponent(webServiceTlsCertificatePassword)
             + "&enableDnsOverHttp=" + enableDnsOverHttp + "&enableDnsOverTls=" + enableDnsOverTls + "&enableDnsOverHttps=" + enableDnsOverHttps + "&dnsTlsCertificatePath=" + encodeURIComponent(dnsTlsCertificatePath) + "&dnsTlsCertificatePassword=" + encodeURIComponent(dnsTlsCertificatePassword)
             + "&preferIPv6=" + preferIPv6 + "&enableLogging=" + enableLogging + "&logQueries=" + logQueries + "&useLocalTime=" + useLocalTime + "&logFolder=" + encodeURIComponent(logFolder) + "&maxLogFileDays=" + maxLogFileDays + "&maxStatFileDays=" + maxStatFileDays
-            + "&allowRecursion=" + allowRecursion + "&allowRecursionOnlyForPrivateNetworks=" + allowRecursionOnlyForPrivateNetworks + "&randomizeName=" + randomizeName + "&qnameMinimization=" + qnameMinimization
+            + "&recursion=" + recursion + "&recursionDeniedNetworks=" + recursionDeniedNetworks + "&recursionAllowedNetworks=" + recursionAllowedNetworks + "&randomizeName=" + randomizeName + "&qnameMinimization=" + qnameMinimization
             + "&serveStale=" + serveStale + "&serveStaleTtl=" + serveStaleTtl + "&cachePrefetchEligibility=" + cachePrefetchEligibility + "&cachePrefetchTrigger=" + cachePrefetchTrigger + "&cachePrefetchSampleIntervalInMinutes=" + cachePrefetchSampleIntervalInMinutes + "&cachePrefetchSampleEligibilityHitsPerHour=" + cachePrefetchSampleEligibilityHitsPerHour
             + proxy + "&forwarders=" + encodeURIComponent(forwarders) + "&forwarderProtocol=" + forwarderProtocol + "&useNxDomainForBlocking=" + useNxDomainForBlocking + "&blockListUrls=" + encodeURIComponent(blockListUrls) + "&blockListUpdateIntervalHours=" + blockListUpdateIntervalHours,
         success: function (responseJSON) {
