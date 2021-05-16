@@ -902,22 +902,49 @@
 
                                             <div class="well well-sm form-horizontal">
                                                 <div class="form-group">
+                                                    <label class="col-sm-3 control-label">Recursion</label>
+                                                    <div class="col-sm-8">
+                                                        <div class="radio">
+                                                            <label>
+                                                                <input type="radio" name="rdRecursion" id="rdRecursionDeny" value="Deny">
+                                                                Deny Recursion
+                                                            </label>
+                                                            <div style="padding-top: 5px;">Disables recursion so that this DNS Server works as authoritative only.</div>
+                                                        </div>
+                                                        <div class="radio">
+                                                            <label>
+                                                                <input type="radio" name="rdRecursion" id="rdRecursionAllow" value="Allow">
+                                                                Allow Recursion
+                                                            </label>
+                                                            <div style="padding-top: 5px;">Enables recursion to allow this DNS Server to resolve any domain name.</div>
+                                                        </div>
+                                                        <div class="radio">
+                                                            <label>
+                                                                <input type="radio" name="rdRecursion" id="rdRecursionAllowOnlyForPrivateNetworks" value="AllowOnlyForPrivateNetworks" checked>
+                                                                Allow Recursion Only For Private Networks
+                                                            </label>
+                                                            <div style="padding-top: 5px;">Select this option if you want to support recursion only on private networks. Any recursive request from a public network will be refused.</div>
+                                                        </div>
+                                                        <div class="radio">
+                                                            <label>
+                                                                <input type="radio" name="rdRecursion" id="rdRecursionUseSpecifiedNetworks" value="UseSpecifiedNetworks">
+                                                                Allow/Deny Recursion For Specified Networks
+                                                            </label>
+                                                            <div style="padding-top: 5px;">Select this option to specify which networks (in CIDR form) must be allowed or denied. Denied networks are always matched first.</div>
+                                                        </div>
+                                                    </div>
+                                                    <div class="col-sm-offset-3 col-sm-6">
+                                                        <label for="txtRecursionDeniedNetworks" class="control-label">Denied Networks</label>
+                                                        <textarea id="txtRecursionDeniedNetworks" class="form-control" rows="5"></textarea>
+
+                                                        <label for="txtRecursionAllowedNetworks" class="control-label">Allowed Networks</label>
+                                                        <textarea id="txtRecursionAllowedNetworks" class="form-control" rows="5"></textarea>
+                                                    </div>
+                                                </div>
+
+                                                <div class="form-group">
                                                     <label class="col-sm-3 control-label">Recursive Resolver</label>
                                                     <div class="col-sm-8">
-                                                        <div class="checkbox">
-                                                            <label>
-                                                                <input id="chkAllowRecursion" type="checkbox"> Allow Recursion
-                                                            </label>
-                                                        </div>
-                                                        <div style="padding-top: 5px;">Enable recursion to allow this DNS Server to resolve any domain name.</div>
-
-                                                        <div class="checkbox">
-                                                            <label>
-                                                                <input id="chkAllowRecursionOnlyForPrivateNetworks" type="checkbox"> Allow Recursion Only For Private Networks
-                                                            </label>
-                                                        </div>
-                                                        <div style="padding-top: 5px;">Enable this option if you want to support recursion only on private networks. Any recursive request from public network will be refused.</div>
-
                                                         <div class="checkbox">
                                                             <label>
                                                                 <input id="chkRandomizeName" type="checkbox"> Randomize Name
