@@ -1196,11 +1196,34 @@ namespace DnsServerCore
             jsonWriter.WritePropertyName("maxStatFileDays");
             jsonWriter.WriteValue(_dnsServer.StatsManager.MaxStatFileDays);
 
-            jsonWriter.WritePropertyName("allowRecursion");
-            jsonWriter.WriteValue(_dnsServer.AllowRecursion);
+            jsonWriter.WritePropertyName("recursion");
+            jsonWriter.WriteValue(_dnsServer.Recursion.ToString());
 
-            jsonWriter.WritePropertyName("allowRecursionOnlyForPrivateNetworks");
-            jsonWriter.WriteValue(_dnsServer.AllowRecursionOnlyForPrivateNetworks);
+            jsonWriter.WritePropertyName("recursionDeniedNetworks");
+            {
+                jsonWriter.WriteStartArray();
+
+                if (_dnsServer.RecursionDeniedNetworks is not null)
+                {
+                    foreach (NetworkAddress networkAddress in _dnsServer.RecursionDeniedNetworks)
+                        jsonWriter.WriteValue(networkAddress.ToString());
+                }
+
+                jsonWriter.WriteEndArray();
+            }
+
+            jsonWriter.WritePropertyName("recursionAllowedNetworks");
+            {
+                jsonWriter.WriteStartArray();
+
+                if (_dnsServer.RecursionAllowedNetworks is not null)
+                {
+                    foreach (NetworkAddress networkAddress in _dnsServer.RecursionAllowedNetworks)
+                        jsonWriter.WriteValue(networkAddress.ToString());
+                }
+
+                jsonWriter.WriteEndArray();
+            }
 
             jsonWriter.WritePropertyName("randomizeName");
             jsonWriter.WriteValue(_dnsServer.RandomizeName);
@@ -1554,13 +1577,49 @@ namespace DnsServerCore
             if (!string.IsNullOrEmpty(strMaxStatFileDays))
                 _dnsServer.StatsManager.MaxStatFileDays = int.Parse(strMaxStatFileDays);
 
-            string strAllowRecursion = request.QueryString["allowRecursion"];
-            if (!string.IsNullOrEmpty(strAllowRecursion))
-                _dnsServer.AllowRecursion = bool.Parse(strAllowRecursion);
+            string strRecursion = request.QueryString["recursion"];
+            if (!string.IsNullOrEmpty(strRecursion))
+                _dnsServer.Recursion = Enum.Parse<DnsServerRecursion>(strRecursion);
 
-            string strAllowRecursionOnlyForPrivateNetworks = request.QueryString["allowRecursionOnlyForPrivateNetworks"];
-            if (!string.IsNullOrEmpty(strAllowRecursionOnlyForPrivateNetworks))
-                _dnsServer.AllowRecursionOnlyForPrivateNetworks = bool.Parse(strAllowRecursionOnlyForPrivateNetworks);
+            string strRecursionDeniedNetworks = request.QueryString["recursionDeniedNetworks"];
+            if (!string.IsNullOrEmpty(strRecursionDeniedNetworks))
+            {
+                if (strRecursionDeniedNetworks == "false")
+                {
+                    _dnsServer.RecursionDeniedNetworks = null;
+                }
+                else
+                {
+                    string[] strNetworks = strRecursionDeniedNetworks.Split(new char[] { ',' }, StringSplitOptions.RemoveEmptyEntries);
+
+                    NetworkAddress[] networks = new NetworkAddress[strNetworks.Length];
+
+                    for (int i = 0; i < networks.Length; i++)
+                        networks[i] = NetworkAddress.Parse(strNetworks[i]);
+
+                    _dnsServer.RecursionDeniedNetworks = networks;
+                }
+            }
+
+            string strRecursionAllowedNetworks = request.QueryString["recursionAllowedNetworks"];
+            if (!string.IsNullOrEmpty(strRecursionAllowedNetworks))
+            {
+                if (strRecursionAllowedNetworks == "false")
+                {
+                    _dnsServer.RecursionAllowedNetworks = null;
+                }
+                else
+                {
+                    string[] strNetworks = strRecursionAllowedNetworks.Split(new char[] { ',' }, StringSplitOptions.RemoveEmptyEntries);
+
+                    NetworkAddress[] networks = new NetworkAddress[strNetworks.Length];
+
+                    for (int i = 0; i < networks.Length; i++)
+                        networks[i] = NetworkAddress.Parse(strNetworks[i]);
+
+                    _dnsServer.RecursionAllowedNetworks = networks;
+                }
+            }
 
             string strRandomizeName = request.QueryString["randomizeName"];
             if (!string.IsNullOrEmpty(strRandomizeName))
@@ -1763,7 +1822,7 @@ namespace DnsServerCore
             SaveConfigFile();
             _log.Save();
 
-            _log.Write(GetRequestRemoteEndPoint(request), "[" + GetSession(request).Username + "] DNS Settings were updated {dnsServerDomain: " + _dnsServer.ServerDomain + "; dnsServerLocalEndPoints: " + strDnsServerLocalEndPoints + "; webServiceLocalAddresses: " + strWebServiceLocalAddresses + "; webServiceHttpPort: " + _webServiceHttpPort + "; webServiceEnableTls: " + strWebServiceEnableTls + "; webServiceHttpToTlsRedirect: " + strWebServiceHttpToTlsRedirect + "; webServiceTlsPort: " + strWebServiceTlsPort + "; webServiceTlsCertificatePath: " + strWebServiceTlsCertificatePath + "; enableDnsOverHttp: " + _dnsServer.EnableDnsOverHttp + "; enableDnsOverTls: " + _dnsServer.EnableDnsOverTls + "; enableDnsOverHttps: " + _dnsServer.EnableDnsOverHttps + "; dnsTlsCertificatePath: " + _dnsTlsCertificatePath + "; preferIPv6: " + _dnsServer.PreferIPv6 + "; enableLogging: " + strEnableLogging + "; logQueries: " + (_dnsServer.QueryLogManager != null) + "; useLocalTime: " + strUseLocalTime + "; logFolder: " + strLogFolder + "; maxLogFileDays: " + strMaxLogFileDays + "; allowRecursion: " + _dnsServer.AllowRecursion + "; allowRecursionOnlyForPrivateNetworks: " + _dnsServer.AllowRecursionOnlyForPrivateNetworks + "; randomizeName: " + strRandomizeName + "; serveStale: " + strServeStale + "; serveStaleTtl: " + strServeStaleTtl + "; cachePrefetchEligibility: " + strCachePrefetchEligibility + "; cachePrefetchTrigger: " + strCachePrefetchTrigger + "; cachePrefetchSampleIntervalInMinutes: " + strCachePrefetchSampleIntervalInMinutes + "; cachePrefetchSampleEligibilityHitsPerHour: " + strCachePrefetchSampleEligibilityHitsPerHour + "; proxyType: " + strProxyType + "; forwarders: " + strForwarders + "; forwarderProtocol: " + strForwarderProtocol + "; blockListUrl: " + strBlockListUrls + "; blockListUpdateIntervalHours: " + strBlockListUpdateIntervalHours + ";}");
+            _log.Write(GetRequestRemoteEndPoint(request), "[" + GetSession(request).Username + "] DNS Settings were updated {dnsServerDomain: " + _dnsServer.ServerDomain + "; dnsServerLocalEndPoints: " + strDnsServerLocalEndPoints + "; webServiceLocalAddresses: " + strWebServiceLocalAddresses + "; webServiceHttpPort: " + _webServiceHttpPort + "; webServiceEnableTls: " + strWebServiceEnableTls + "; webServiceHttpToTlsRedirect: " + strWebServiceHttpToTlsRedirect + "; webServiceTlsPort: " + strWebServiceTlsPort + "; webServiceTlsCertificatePath: " + strWebServiceTlsCertificatePath + "; enableDnsOverHttp: " + _dnsServer.EnableDnsOverHttp + "; enableDnsOverTls: " + _dnsServer.EnableDnsOverTls + "; enableDnsOverHttps: " + _dnsServer.EnableDnsOverHttps + "; dnsTlsCertificatePath: " + _dnsTlsCertificatePath + "; preferIPv6: " + _dnsServer.PreferIPv6 + "; enableLogging: " + strEnableLogging + "; logQueries: " + (_dnsServer.QueryLogManager != null) + "; useLocalTime: " + strUseLocalTime + "; logFolder: " + strLogFolder + "; maxLogFileDays: " + strMaxLogFileDays + "; recursion: " + _dnsServer.Recursion.ToString() + "; randomizeName: " + strRandomizeName + "; qnameMinimization: " + strQnameMinimization + "; serveStale: " + strServeStale + "; serveStaleTtl: " + strServeStaleTtl + "; cachePrefetchEligibility: " + strCachePrefetchEligibility + "; cachePrefetchTrigger: " + strCachePrefetchTrigger + "; cachePrefetchSampleIntervalInMinutes: " + strCachePrefetchSampleIntervalInMinutes + "; cachePrefetchSampleEligibilityHitsPerHour: " + strCachePrefetchSampleEligibilityHitsPerHour + "; proxyType: " + strProxyType + "; forwarders: " + strForwarders + "; forwarderProtocol: " + strForwarderProtocol + "; blockListUrl: " + strBlockListUrls + "; blockListUpdateIntervalHours: " + strBlockListUpdateIntervalHours + ";}");
 
             if ((_webServiceTlsCertificatePath == null) && (_dnsTlsCertificatePath == null))
                 StopTlsCertificateUpdateTimer();
@@ -5387,24 +5446,16 @@ namespace DnsServerCore
 
                     nameServer = new NameServerAddress(server, protocol);
 
-                    if (nameServer.IPEndPoint == null)
+                    if (nameServer.IPEndPoint is null)
                     {
-                        if (proxy == null)
-                        {
-                            if (_dnsServer.AllowRecursion)
-                                await nameServer.ResolveIPAddressAsync(new NameServerAddress[] { _dnsServer.ThisServer }, proxy, preferIPv6, randomizeName, RETRIES, TIMEOUT);
-                            else
-                                await nameServer.RecursiveResolveIPAddressAsync(_dnsServer.DnsCache, proxy, preferIPv6, randomizeName, qnameMinimization, RETRIES, TIMEOUT);
-                        }
+                        if (proxy is null)
+                            await nameServer.ResolveIPAddressAsync(_dnsServer);
                     }
                     else if (protocol != DnsTransportProtocol.Tls)
                     {
                         try
                         {
-                            if (_dnsServer.AllowRecursion)
-                                await nameServer.ResolveDomainNameAsync(new NameServerAddress[] { _dnsServer.ThisServer }, proxy, preferIPv6, randomizeName, RETRIES, TIMEOUT);
-                            else
-                                await nameServer.RecursiveResolveDomainNameAsync(_dnsServer.DnsCache, proxy, preferIPv6, randomizeName, qnameMinimization, RETRIES, TIMEOUT);
+                            await nameServer.ResolveDomainNameAsync(_dnsServer);
                         }
                         catch
                         { }
@@ -6390,6 +6441,7 @@ namespace DnsServerCore
                         case 14:
                         case 15:
                         case 16:
+                        case 17:
                             _dnsServer.ServerDomain = bR.ReadShortString();
                             _webServiceHttpPort = bR.ReadInt32();
 
@@ -6440,12 +6492,52 @@ namespace DnsServerCore
                             if (version >= 14)
                                 _dnsServer.StatsManager.MaxStatFileDays = bR.ReadInt32();
 
-                            _dnsServer.AllowRecursion = bR.ReadBoolean();
+                            if (version >= 17)
+                            {
+                                _dnsServer.Recursion = (DnsServerRecursion)bR.ReadByte();
 
-                            if (version >= 4)
-                                _dnsServer.AllowRecursionOnlyForPrivateNetworks = bR.ReadBoolean();
+                                {
+                                    int count = bR.ReadByte();
+                                    NetworkAddress[] networks = new NetworkAddress[count];
+
+                                    for (int i = 0; i < count; i++)
+                                        networks[i] = NetworkAddress.Parse(bR);
+
+                                    _dnsServer.RecursionDeniedNetworks = networks;
+                                }
+
+                                {
+                                    int count = bR.ReadByte();
+                                    NetworkAddress[] networks = new NetworkAddress[count];
+
+                                    for (int i = 0; i < count; i++)
+                                        networks[i] = NetworkAddress.Parse(bR);
+
+                                    _dnsServer.RecursionAllowedNetworks = networks;
+                                }
+                            }
                             else
-                                _dnsServer.AllowRecursionOnlyForPrivateNetworks = true; //default true for security reasons
+                            {
+                                bool allowRecursion = bR.ReadBoolean();
+                                bool allowRecursionOnlyForPrivateNetworks;
+
+                                if (version >= 4)
+                                    allowRecursionOnlyForPrivateNetworks = bR.ReadBoolean();
+                                else
+                                    allowRecursionOnlyForPrivateNetworks = true; //default true for security reasons
+
+                                if (allowRecursion)
+                                {
+                                    if (allowRecursionOnlyForPrivateNetworks)
+                                        _dnsServer.Recursion = DnsServerRecursion.AllowOnlyForPrivateNetworks;
+                                    else
+                                        _dnsServer.Recursion = DnsServerRecursion.Allow;
+                                }
+                                else
+                                {
+                                    _dnsServer.Recursion = DnsServerRecursion.Deny;
+                                }
+                            }
 
                             if (version >= 12)
                                 _dnsServer.RandomizeName = bR.ReadBoolean();
@@ -6672,8 +6764,7 @@ namespace DnsServerCore
 
                 SetCredentials("admin", "admin");
 
-                _dnsServer.AllowRecursion = true;
-                _dnsServer.AllowRecursionOnlyForPrivateNetworks = true; //default true for security reasons
+                _dnsServer.Recursion = DnsServerRecursion.AllowOnlyForPrivateNetworks; //default for security reasons
                 _dnsServer.RandomizeName = true; //default true to enable security feature
                 _dnsServer.QnameMinimization = true; //default true to enable privacy feature
 
@@ -6697,7 +6788,7 @@ namespace DnsServerCore
                 BinaryWriter bW = new BinaryWriter(mS);
 
                 bW.Write(Encoding.ASCII.GetBytes("DS")); //format
-                bW.Write((byte)16); //version
+                bW.Write((byte)17); //version
 
                 bW.WriteShortString(_dnsServer.ServerDomain);
                 bW.Write(_webServiceHttpPort);
@@ -6728,8 +6819,30 @@ namespace DnsServerCore
                 bW.Write(_dnsServer.QueryLogManager != null); //logQueries
                 bW.Write(_dnsServer.StatsManager.MaxStatFileDays);
 
-                bW.Write(_dnsServer.AllowRecursion);
-                bW.Write(_dnsServer.AllowRecursionOnlyForPrivateNetworks);
+                bW.Write((byte)_dnsServer.Recursion);
+
+                if (_dnsServer.RecursionDeniedNetworks is null)
+                {
+                    bW.Write((byte)0);
+                }
+                else
+                {
+                    bW.Write(Convert.ToByte(_dnsServer.RecursionDeniedNetworks.Count));
+                    foreach (NetworkAddress networkAddress in _dnsServer.RecursionDeniedNetworks)
+                        networkAddress.WriteTo(bW);
+                }
+
+                if (_dnsServer.RecursionAllowedNetworks is null)
+                {
+                    bW.Write((byte)0);
+                }
+                else
+                {
+                    bW.Write(Convert.ToByte(_dnsServer.RecursionAllowedNetworks.Count));
+                    foreach (NetworkAddress networkAddress in _dnsServer.RecursionAllowedNetworks)
+                        networkAddress.WriteTo(bW);
+                }
+
                 bW.Write(_dnsServer.RandomizeName);
                 bW.Write(_dnsServer.QnameMinimization);
 
