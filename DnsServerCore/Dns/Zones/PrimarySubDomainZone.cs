@@ -1,6 +1,6 @@
 ﻿/*
 Technitium DNS Server
-Copyright (C) 2020  Shreyas Zare (shreyas@technitium.com)
+Copyright (C) 2021  Shreyas Zare (shreyas@technitium.com)
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -47,7 +47,7 @@ namespace DnsServerCore.Dns.Zones
             base.SetRecords(type, records);
 
             _primaryZone.IncrementSoaSerial();
-            _primaryZone.NotifyNameServers();
+            _primaryZone.TriggerNotify();
         }
 
         public override void AddRecord(DnsResourceRecord record)
@@ -55,7 +55,7 @@ namespace DnsServerCore.Dns.Zones
             base.AddRecord(record);
 
             _primaryZone.IncrementSoaSerial();
-            _primaryZone.NotifyNameServers();
+            _primaryZone.TriggerNotify();
         }
 
         public override bool DeleteRecords(DnsResourceRecordType type)
@@ -63,7 +63,7 @@ namespace DnsServerCore.Dns.Zones
             if (base.DeleteRecords(type))
             {
                 _primaryZone.IncrementSoaSerial();
-                _primaryZone.NotifyNameServers();
+                _primaryZone.TriggerNotify();
 
                 return true;
             }
@@ -76,7 +76,7 @@ namespace DnsServerCore.Dns.Zones
             if (base.DeleteRecord(type, record))
             {
                 _primaryZone.IncrementSoaSerial();
-                _primaryZone.NotifyNameServers();
+                _primaryZone.TriggerNotify();
 
                 return true;
             }
