@@ -17,6 +17,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 */
 
+using DnsApplicationCommon;
 using System;
 using System.Collections.Generic;
 using System.Net;
@@ -45,7 +46,7 @@ namespace Failover
         string _password;
         MailAddress _mailFrom;
 
-        readonly SmtpClientEx _smtpClient = new SmtpClientEx();
+        readonly SmtpClientEx _smtpClient;
 
         #endregion
 
@@ -54,6 +55,9 @@ namespace Failover
         public EmailAlert(HealthMonitoringService service, dynamic jsonEmailAlert)
         {
             _service = service;
+
+            _smtpClient = new SmtpClientEx();
+            _smtpClient.DnsClient = new DnsClientInternal(_service.DnsServer);
 
             Reload(jsonEmailAlert);
         }
@@ -362,5 +366,20 @@ DNS Failover App
         { get { return _mailFrom; } }
 
         #endregion
+
+        class DnsClientInternal : IDnsClient
+        {
+            readonly IDnsServer _dnsServer;
+
+            public DnsClientInternal(IDnsServer dnsServer)
+            {
+                _dnsServer = dnsServer;
+            }
+
+            public Task<DnsDatagram> ResolveAsync(DnsQuestionRecord question)
+            {
+                return _dnsServer.DirectQueryAsync(question);
+            }
+        }
     }
 }
