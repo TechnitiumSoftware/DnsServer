@@ -1142,6 +1142,26 @@ namespace DnsServerCore.Dns
             return totalStatCounter.GetEligibleQueries(minimumHitsPerHour);
         }
 
+        public IReadOnlyDictionary<IPAddress, int> GetLatestClientStats(int minutes)
+        {
+            StatCounter totalStatCounter = new StatCounter();
+            totalStatCounter.Lock();
+
+            DateTime lastHourDateTime = DateTime.UtcNow.AddMinutes(-minutes);
+            lastHourDateTime = new DateTime(lastHourDateTime.Year, lastHourDateTime.Month, lastHourDateTime.Day, lastHourDateTime.Hour, lastHourDateTime.Minute, 0, DateTimeKind.Utc);
+
+            for (int minute = 0; minute < minutes; minute++)
+            {
+                DateTime lastDateTime = lastHourDateTime.AddMinutes(minute);
+
+                StatCounter statCounter = _lastHourStatCountersCopy[lastDateTime.Minute];
+                if ((statCounter != null) && statCounter.IsLocked)
+                    totalStatCounter.Merge(statCounter);
+            }
+
+            return totalStatCounter.GetClientStats();
+        }
+
         #endregion
 
         #region properties
@@ -1723,6 +1743,16 @@ namespace DnsServerCore.Dns
                 }
 
                 return eligibleQueries;
+            }
+
+            public IReadOnlyDictionary<IPAddress, int> GetClientStats()
+            {
+                Dictionary<IPAddress, int> clientStats = new Dictionary<IPAddress, int>(_clientIpAddresses.Count);
+
+                foreach (KeyValuePair<IPAddress, Counter> item in _clientIpAddresses)
+                    clientStats.Add(item.Key, item.Value.Count);
+
+                return clientStats;
             }
 
             #endregion
