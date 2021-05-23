@@ -20,8 +20,10 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Net;
 using System.Threading.Tasks;
 using TechnitiumLibrary.IO;
+using TechnitiumLibrary.Net;
 using TechnitiumLibrary.Net.Dns;
 
 namespace DnsServerCore.Dns.Zones
@@ -45,9 +47,9 @@ namespace DnsServerCore.Dns.Zones
         readonly AuthZoneType _type;
         readonly bool _disabled;
         readonly AuthZoneTransfer _zoneTransfer;
-        readonly IReadOnlyCollection<NameServerAddress> _zoneTransferNameServers;
+        readonly IReadOnlyCollection<IPAddress> _zoneTransferNameServers;
         readonly AuthZoneNotify _notify;
-        readonly IReadOnlyCollection<NameServerAddress> _notifyNameServers;
+        readonly IReadOnlyCollection<IPAddress> _notifyNameServers;
         readonly DateTime _expiry;
 
         #endregion
@@ -93,10 +95,10 @@ namespace DnsServerCore.Dns.Zones
                             int count = bR.ReadByte();
                             if (count > 0)
                             {
-                                NameServerAddress[] nameServers = new NameServerAddress[count];
+                                IPAddress[] nameServers = new IPAddress[count];
 
                                 for (int i = 0; i < count; i++)
-                                    nameServers[i] = new NameServerAddress(bR);
+                                    nameServers[i] = IPAddressExtension.Parse(bR);
 
                                 _zoneTransferNameServers = nameServers;
                             }
@@ -108,10 +110,10 @@ namespace DnsServerCore.Dns.Zones
                             int count = bR.ReadByte();
                             if (count > 0)
                             {
-                                NameServerAddress[] nameServers = new NameServerAddress[count];
+                                IPAddress[] nameServers = new IPAddress[count];
 
                                 for (int i = 0; i < count; i++)
-                                    nameServers[i] = new NameServerAddress(bR);
+                                    nameServers[i] = IPAddressExtension.Parse(bR);
 
                                 _notifyNameServers = nameServers;
                             }
@@ -272,7 +274,7 @@ namespace DnsServerCore.Dns.Zones
             else
             {
                 bW.Write(Convert.ToByte(_zoneTransferNameServers.Count));
-                foreach (NameServerAddress nameServer in _zoneTransferNameServers)
+                foreach (IPAddress nameServer in _zoneTransferNameServers)
                     nameServer.WriteTo(bW);
             }
 
@@ -285,7 +287,7 @@ namespace DnsServerCore.Dns.Zones
             else
             {
                 bW.Write(Convert.ToByte(_notifyNameServers.Count));
-                foreach (NameServerAddress nameServer in _notifyNameServers)
+                foreach (IPAddress nameServer in _notifyNameServers)
                     nameServer.WriteTo(bW);
             }
 
@@ -345,7 +347,7 @@ namespace DnsServerCore.Dns.Zones
             }
         }
 
-        public IReadOnlyCollection<NameServerAddress> ZoneTransferNameServers
+        public IReadOnlyCollection<IPAddress> ZoneTransferNameServers
         {
             get { return _zoneTransferNameServers; }
             set
@@ -369,7 +371,7 @@ namespace DnsServerCore.Dns.Zones
             }
         }
 
-        public IReadOnlyCollection<NameServerAddress> NotifyNameServers
+        public IReadOnlyCollection<IPAddress> NotifyNameServers
         {
             get { return _notifyNameServers; }
             set

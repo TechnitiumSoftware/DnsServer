@@ -49,9 +49,9 @@ namespace DnsServerCore.Dns.Zones
 
         protected bool _disabled;
         protected AuthZoneTransfer _zoneTransfer;
-        protected IReadOnlyCollection<NameServerAddress> _zoneTransferNameServers;
+        protected IReadOnlyCollection<IPAddress> _zoneTransferNameServers;
         protected AuthZoneNotify _notify;
-        protected IReadOnlyCollection<NameServerAddress> _notifyNameServers;
+        protected IReadOnlyCollection<IPAddress> _notifyNameServers;
 
         #endregion
 
@@ -474,7 +474,7 @@ namespace DnsServerCore.Dns.Zones
             set { _zoneTransfer = value; }
         }
 
-        public IReadOnlyCollection<NameServerAddress> ZoneTransferNameServers
+        public IReadOnlyCollection<IPAddress> ZoneTransferNameServers
         {
             get { return _zoneTransferNameServers; }
             set
@@ -492,7 +492,7 @@ namespace DnsServerCore.Dns.Zones
             set { _notify = value; }
         }
 
-        public IReadOnlyCollection<NameServerAddress> NotifyNameServers
+        public IReadOnlyCollection<IPAddress> NotifyNameServers
         {
             get { return _notifyNameServers; }
             set
