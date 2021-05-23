@@ -1,6 +1,6 @@
 ﻿/*
 Technitium DNS Server
-Copyright (C) 2020  Shreyas Zare (shreyas@technitium.com)
+Copyright (C) 2021  Shreyas Zare (shreyas@technitium.com)
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -29,14 +29,15 @@ namespace DnsServerCore.Dns.Zones
         #region constructor
 
         public ForwarderZone(AuthZoneInfo zoneInfo)
-            : base(zoneInfo.Name)
-        {
-            _disabled = zoneInfo.Disabled;
-        }
+            : base(zoneInfo)
+        { }
 
         public ForwarderZone(string name, DnsTransportProtocol forwarderProtocol, string forwarder)
             : base(name)
         {
+            _zoneTransfer = AuthZoneTransfer.Deny;
+            _notify = AuthZoneNotify.None;
+
             DnsResourceRecord fwdRecord = new DnsResourceRecord(name, DnsResourceRecordType.FWD, DnsClass.IN, 0, new DnsForwarderRecord(forwarderProtocol, forwarder));
 
             _entries[DnsResourceRecordType.FWD] = new DnsResourceRecord[] { fwdRecord };
@@ -76,6 +77,22 @@ namespace DnsServerCore.Dns.Zones
                     base.AddRecord(record);
                     break;
             }
+        }
+
+        #endregion
+
+        #region properties
+
+        public override AuthZoneTransfer ZoneTransfer
+        {
+            get { return _zoneTransfer; }
+            set { throw new InvalidOperationException(); }
+        }
+
+        public override AuthZoneNotify Notify
+        {
+            get { return _notify; }
+            set { throw new InvalidOperationException(); }
         }
 
         #endregion
