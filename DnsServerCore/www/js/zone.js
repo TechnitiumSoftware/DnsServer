@@ -61,6 +61,26 @@ $(function () {
         }
     });
 
+    $("input[type=radio][name=rdZoneTransfer]").change(function () {
+        var zoneTransfer = $('input[name=rdZoneTransfer]:checked').val();
+        if (zoneTransfer === "AllowOnlySpecifiedNameServers") {
+            $("#txtZoneTransferNameServers").prop("disabled", false);
+        }
+        else {
+            $("#txtZoneTransferNameServers").prop("disabled", true);
+        }
+    });
+
+    $("input[type=radio][name=rdZoneNotify]").change(function () {
+        var zoneTransfer = $('input[name=rdZoneNotify]:checked').val();
+        if (zoneTransfer === "SpecifiedNameServers") {
+            $("#txtZoneNotifyNameServers").prop("disabled", false);
+        }
+        else {
+            $("#txtZoneNotifyNameServers").prop("disabled", true);
+        }
+    });
+
     $("#chkAddEditRecordDataPtr").click(function () {
         var addPtrRecord = $("#chkAddEditRecordDataPtr").prop('checked');
         $("#chkAddEditRecordDataCreatePtrZone").prop('disabled', !addPtrRecord);
@@ -158,14 +178,28 @@ function refreshZones(checkDisplay) {
 
                 var isReadOnlyZone = zones[i].internal;
 
+                var disableOptions;
+
+                switch (zones[i].type) {
+                    case "Primary":
+                    case "Secondary":
+                        disableOptions = zones[i].internal;
+                        break;
+
+                    default:
+                        disableOptions = true;
+                        break;
+                }
+
                 tableHtmlRows += "<tr id=\"trZone" + id + "\"><td>" + htmlEncode(name) + "</td>";
                 tableHtmlRows += "<td>" + type + "</td>";
                 tableHtmlRows += "<td>" + status + "</td>";
                 tableHtmlRows += "<td>" + expiry + "</td>";
-                tableHtmlRows += "<td align=\"right\" style=\"width: 220px;\"><button type=\"button\" class=\"btn btn-primary\" style=\"font-size: 12px; padding: 2px 0px; width: 60px; margin: 0 6px 0 0;\" onclick=\"showEditZone('" + name + "');\">" + (isReadOnlyZone ? "View" : "Edit") + "</button>";
+                tableHtmlRows += "<td align=\"right\" style=\"width: 290px;\"><button type=\"button\" class=\"btn btn-primary\" style=\"font-size: 12px; padding: 2px 0px; width: 60px; margin: 0 6px 0 0;\" onclick=\"showEditZone('" + name + "');\">" + (isReadOnlyZone ? "View" : "Edit") + "</button>";
                 tableHtmlRows += "<button type=\"button\" data-id=\"" + id + "\" id=\"btnEnableZone" + id + "\" class=\"btn btn-default\" style=\"font-size: 12px; padding: 2px 0px; width: 60px; margin: 0 6px 0 0;" + (zones[i].disabled ? "" : " display: none;") + "\" onclick=\"enableZone(this, '" + name + "');\" data-loading-text=\"Enabling...\"" + (zones[i].internal ? " disabled" : "") + ">Enable</button>";
                 tableHtmlRows += "<button type=\"button\" data-id=\"" + id + "\" id=\"btnDisableZone" + id + "\" class=\"btn btn-warning\" style=\"font-size: 12px; padding: 2px 0px; width: 60px; margin: 0 6px 0 0;" + (!zones[i].disabled ? "" : " display: none;") + "\" onclick=\"disableZone(this, '" + name + "');\" data-loading-text=\"Disabling...\"" + (zones[i].internal ? " disabled" : "") + ">Disable</button>";
-                tableHtmlRows += "<button type=\"button\" data-id=\"" + id + "\" class=\"btn btn-danger\" style=\"font-size: 12px; padding: 2px 0px; width: 60px; margin: 0 6px 0 0;\" onclick=\"deleteZone(this, '" + name + "');\" data-loading-text=\"Deleting...\"" + (zones[i].internal ? " disabled" : "") + ">Delete</button></td></tr>";
+                tableHtmlRows += "<button type=\"button\" data-id=\"" + id + "\" class=\"btn btn-danger\" style=\"font-size: 12px; padding: 2px 0px; width: 60px; margin: 0 6px 0 0;\" onclick=\"deleteZone(this, '" + name + "');\" data-loading-text=\"Deleting...\"" + (zones[i].internal ? " disabled" : "") + ">Delete</button>";
+                tableHtmlRows += "<button type=\"button\" class=\"btn btn-primary\" style=\"font-size: 12px; padding: 2px 0px; width: 60px; margin: 0 6px 0 0;\" onclick=\"showZoneOptions('" + name + "');\"" + (disableOptions ? " disabled" : "") + ">Options</button></td></tr>";
             }
 
             $("#tableZonesBody").html(tableHtmlRows);
@@ -284,6 +318,144 @@ function deleteZone(objBtn, domain, editZone) {
         invalidToken: function () {
             showPageLogin();
         }
+    });
+}
+
+function showZoneOptions(domain) {
+    var divZoneOptionsAlert = $("#divZoneOptionsAlert");
+    var divZoneOptionsLoader = $("#divZoneOptionsLoader");
+    var divZoneOptions = $("#divZoneOptions");
+
+    divZoneOptionsLoader.show();
+    divZoneOptions.hide();
+
+    $("#modalZoneOptions").modal("show");
+
+    HTTPRequest({
+        url: "/api/zone/options/get?token=" + token + "&domain=" + domain,
+        success: function (responseJSON) {
+            if (responseJSON.response.name === "")
+                responseJSON.response.name = ".";
+
+            $("#lblZoneOptionsZoneName").text(responseJSON.response.name);
+
+            $("#txtZoneTransferNameServers").prop("disabled", true);
+            $("#txtZoneNotifyNameServers").prop("disabled", true);
+
+            switch (responseJSON.response.zoneTransfer) {
+                case "Allow":
+                    $("#rdZoneTransferAllow").prop("checked", true);
+                    break;
+
+                case "AllowOnlyZoneNameServers":
+                    $("#rdZoneTransferAllowOnlyZoneNameServers").prop("checked", true);
+                    break;
+
+                case "AllowOnlySpecifiedNameServers":
+                    $("#rdZoneTransferAllowOnlySpecifiedNameServers").prop("checked", true);
+                    $("#txtZoneTransferNameServers").prop("disabled", false);
+                    break;
+
+                case "Deny":
+                default:
+                    $("#rdZoneTransferDeny").prop("checked", true);
+                    break;
+            }
+
+            {
+                var value = "";
+
+                for (var i = 0; i < responseJSON.response.zoneTransferNameServers.length; i++)
+                    value += responseJSON.response.zoneTransferNameServers[i] + "\r\n";
+
+                $("#txtZoneTransferNameServers").val(value);
+            }
+
+            switch (responseJSON.response.notify) {
+                case "ZoneNameServers":
+                    $("#rdZoneNotifyZoneNameServers").prop("checked", true);
+                    break;
+
+                case "SpecifiedNameServers":
+                    $("#rdZoneNotifySpecifiedNameServers").prop("checked", true);
+                    $("#txtZoneNotifyNameServers").prop("disabled", false);
+                    break;
+
+                case "None":
+                default:
+                    $("#rdZoneNotifyNone").prop("checked", true);
+                    break;
+            }
+
+            {
+                var value = "";
+
+                for (var i = 0; i < responseJSON.response.notifyNameServers.length; i++)
+                    value += responseJSON.response.notifyNameServers[i] + "\r\n";
+
+                $("#txtZoneNotifyNameServers").val(value);
+            }
+
+            divZoneOptionsLoader.hide();
+            divZoneOptions.show();
+        },
+        error: function () {
+            divZoneOptionsLoader.hide();
+        },
+        invalidToken: function () {
+            $("#modalZoneOptions").modal("hide");
+            showPageLogin();
+        },
+        objAlertPlaceholder: divZoneOptionsAlert,
+        objLoaderPlaceholder: divZoneOptionsLoader
+    });
+}
+
+function saveZoneOptions() {
+    var divZoneOptionsAlert = $("#divZoneOptionsAlert");
+    var divZoneOptionsLoader = $("#divZoneOptionsLoader");
+    var domain = $("#lblZoneOptionsZoneName").text();
+
+    var zoneTransfer = $("input[name=rdZoneTransfer]:checked").val();
+
+    var zoneTransferNameServers = cleanTextList($("#txtZoneTransferNameServers").val());
+
+    if ((zoneTransferNameServers.length === 0) || (zoneTransferNameServers === ","))
+        zoneTransferNameServers = false;
+    else
+        $("#txtZoneTransferNameServers").val(zoneTransferNameServers.replace(/,/g, "\n"));
+
+    var notify = $("input[name=rdZoneNotify]:checked").val();
+
+    var notifyNameServers = cleanTextList($("#txtZoneNotifyNameServers").val());
+
+    if ((notifyNameServers.length === 0) || (notifyNameServers === ","))
+        notifyNameServers = false;
+    else
+        $("#txtZoneNotifyNameServers").val(notifyNameServers.replace(/,/g, "\n"));
+
+    var btn = $("#btnSaveZoneOptions");
+    btn.button('loading');
+
+    HTTPRequest({
+        url: "/api/zone/options/set?token=" + token + "&domain=" + domain
+            + "&zoneTransfer=" + zoneTransfer + "&zoneTransferNameServers=" + encodeURIComponent(zoneTransferNameServers)
+            + "&notify=" + notify + "&notifyNameServers=" + encodeURIComponent(notifyNameServers),
+        success: function (responseJSON) {
+            btn.button('reset');
+            $("#modalZoneOptions").modal("hide");
+        },
+        error: function () {
+            btn.button('reset');
+            divZoneOptionsLoader.hide();
+        },
+        invalidToken: function () {
+            btn.button('reset');
+            $("#modalZoneOptions").modal("hide");
+            showPageLogin();
+        },
+        objAlertPlaceholder: divZoneOptionsAlert,
+        objLoaderPlaceholder: divZoneOptionsLoader
     });
 }
 
@@ -478,6 +650,17 @@ function showEditZone(domain) {
                 $("#btnEnableZoneEditZone").hide();
                 $("#btnDisableZoneEditZone").show();
                 $("#btnEditZoneDeleteZone").show();
+            }
+
+            switch (type) {
+                case "Primary":
+                case "Secondary":
+                    $("#btnZoneOptions").show();
+                    break;
+
+                default:
+                    $("#btnZoneOptions").hide();
+                    break;
             }
 
             var records = responseJSON.response.records;
