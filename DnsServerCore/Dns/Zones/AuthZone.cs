@@ -28,15 +28,44 @@ using TechnitiumLibrary.Net.Dns.ResourceRecords;
 
 namespace DnsServerCore.Dns.Zones
 {
+    public enum AuthZoneTransfer : byte
+    {
+        Deny = 0,
+        Allow = 1,
+        AllowOnlyZoneNameServers = 2,
+        AllowOnlySpecifiedNameServers = 3
+    }
+
+    public enum AuthZoneNotify : byte
+    {
+        None = 0,
+        ZoneNameServers = 1,
+        SpecifiedNameServers = 2
+    }
+
     abstract class AuthZone : Zone, IDisposable
     {
         #region variables
 
         protected bool _disabled;
+        protected AuthZoneTransfer _zoneTransfer;
+        protected IReadOnlyCollection<NameServerAddress> _zoneTransferNameServers;
+        protected AuthZoneNotify _notify;
+        protected IReadOnlyCollection<NameServerAddress> _notifyNameServers;
 
         #endregion
 
         #region constructor
+
+        protected AuthZone(AuthZoneInfo zoneInfo)
+            : base(zoneInfo.Name)
+        {
+            _disabled = zoneInfo.Disabled;
+            _zoneTransfer = zoneInfo.ZoneTransfer;
+            _zoneTransferNameServers = zoneInfo.ZoneTransferNameServers;
+            _notify = zoneInfo.Notify;
+            _notifyNameServers = zoneInfo.NotifyNameServers;
+        }
 
         protected AuthZone(string name)
             : base(name)
@@ -437,6 +466,42 @@ namespace DnsServerCore.Dns.Zones
         {
             get { return _disabled; }
             set { _disabled = value; }
+        }
+
+        public virtual AuthZoneTransfer ZoneTransfer
+        {
+            get { return _zoneTransfer; }
+            set { _zoneTransfer = value; }
+        }
+
+        public IReadOnlyCollection<NameServerAddress> ZoneTransferNameServers
+        {
+            get { return _zoneTransferNameServers; }
+            set
+            {
+                if ((value is not null) && (value.Count > byte.MaxValue))
+                    throw new ArgumentOutOfRangeException(nameof(ZoneTransferNameServers), "Name server addresses cannot be more than 255.");
+
+                _zoneTransferNameServers = value;
+            }
+        }
+
+        public virtual AuthZoneNotify Notify
+        {
+            get { return _notify; }
+            set { _notify = value; }
+        }
+
+        public IReadOnlyCollection<NameServerAddress> NotifyNameServers
+        {
+            get { return _notifyNameServers; }
+            set
+            {
+                if ((value is not null) && (value.Count > byte.MaxValue))
+                    throw new ArgumentOutOfRangeException(nameof(NotifyNameServers), "Name server addresses cannot be more than 255.");
+
+                _notifyNameServers = value;
+            }
         }
 
         public virtual bool IsActive
