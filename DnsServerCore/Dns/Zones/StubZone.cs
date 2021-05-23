@@ -47,20 +47,24 @@ namespace DnsServerCore.Dns.Zones
 
         #region constructor
 
-        private StubZone(string name)
-            : base(name)
-        { }
-
         public StubZone(DnsServer dnsServer, AuthZoneInfo zoneInfo)
-            : base(zoneInfo.Name)
+            : base(zoneInfo)
         {
             _dnsServer = dnsServer;
 
-            _disabled = zoneInfo.Disabled;
             _expiry = zoneInfo.Expiry;
 
             _isExpired = DateTime.UtcNow > _expiry;
             _refreshTimer = new Timer(RefreshTimerCallback, null, Timeout.Infinite, Timeout.Infinite);
+        }
+
+        private StubZone(DnsServer dnsServer, string name)
+            : base(name)
+        {
+            _dnsServer = dnsServer;
+
+            _zoneTransfer = AuthZoneTransfer.Deny;
+            _notify = AuthZoneNotify.None;
         }
 
         #endregion
@@ -69,9 +73,7 @@ namespace DnsServerCore.Dns.Zones
 
         public static async Task<StubZone> CreateAsync(DnsServer dnsServer, string name, string primaryNameServerAddresses = null)
         {
-            StubZone stubZone = new StubZone(name);
-
-            stubZone._dnsServer = dnsServer;
+            StubZone stubZone = new StubZone(dnsServer, name);
 
             DnsQuestionRecord soaQuestion = new DnsQuestionRecord(name, DnsResourceRecordType.SOA, DnsClass.IN);
             DnsDatagram soaResponse = null;
@@ -209,6 +211,9 @@ namespace DnsServerCore.Dns.Zones
                 }
 
                 DnsClient client = new DnsClient(primaryNameServers);
+
+                client.Proxy = _dnsServer.Proxy;
+                client.PreferIPv6 = _dnsServer.PreferIPv6;
                 client.Timeout = REFRESH_TIMEOUT;
                 client.Retries = REFRESH_RETRIES;
 
@@ -254,6 +259,9 @@ namespace DnsServerCore.Dns.Zones
 
                 primaryNameServers = tcpNameServers;
                 client = new DnsClient(primaryNameServers);
+
+                client.Proxy = _dnsServer.Proxy;
+                client.PreferIPv6 = _dnsServer.PreferIPv6;
                 client.Timeout = REFRESH_TIMEOUT;
                 client.Retries = REFRESH_RETRIES;
 
@@ -320,7 +328,7 @@ namespace DnsServerCore.Dns.Zones
 
         #region public
 
-        public void RefreshZone()
+        public void TriggerRefresh()
         {
             if (_disabled)
                 return;
@@ -389,9 +397,21 @@ namespace DnsServerCore.Dns.Zones
                     if (_disabled)
                         _refreshTimer.Change(Timeout.Infinite, Timeout.Infinite);
                     else
-                        RefreshZone();
+                        TriggerRefresh();
                 }
             }
+        }
+
+        public override AuthZoneTransfer ZoneTransfer
+        {
+            get { return _zoneTransfer; }
+            set { throw new InvalidOperationException(); }
+        }
+
+        public override AuthZoneNotify Notify
+        {
+            get { return _notify; }
+            set { throw new InvalidOperationException(); }
         }
 
         public override bool IsActive
