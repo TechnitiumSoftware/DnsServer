@@ -178,7 +178,7 @@ namespace Failover
             _smtpClient.Host = _smtpServer;
             _smtpClient.Port = _smtpPort;
             _smtpClient.EnableSsl = _startTls;
-            _smtpClient.EnableSslWrapper = _smtpOverTls;
+            _smtpClient.SmtpOverTls = _smtpOverTls;
 
             if (string.IsNullOrEmpty(_username))
                 _smtpClient.Credentials = null;
