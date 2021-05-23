@@ -20,6 +20,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 using DnsServerCore.Dns.ResourceRecords;
 using System;
 using System.Collections.Generic;
+using System.Net;
 using System.Threading;
 using System.Threading.Tasks;
 using TechnitiumLibrary.Net.Dns;
@@ -36,7 +37,7 @@ namespace DnsServerCore.Dns.Zones
 
         readonly Timer _notifyTimer;
         const int NOTIFY_TIMER_INTERVAL = 10000;
-        readonly List<NameServerAddress> _notifyList = new List<NameServerAddress>();
+        readonly List<NameServerAddress> _notifyList;
 
         const int NOTIFY_TIMEOUT = 10000;
         const int NOTIFY_RETRIES = 5;
@@ -46,13 +47,12 @@ namespace DnsServerCore.Dns.Zones
         #region constructor
 
         public PrimaryZone(DnsServer dnsServer, AuthZoneInfo zoneInfo)
-            : base(zoneInfo.Name)
+            : base(zoneInfo)
         {
             _dnsServer = dnsServer;
 
-            _disabled = zoneInfo.Disabled;
-
             _notifyTimer = new Timer(NotifyTimerCallback, null, Timeout.Infinite, Timeout.Infinite);
+            _notifyList = new List<NameServerAddress>();
         }
 
         public PrimaryZone(DnsServer dnsServer, string name, string primaryNameServer, bool @internal)
@@ -61,12 +61,24 @@ namespace DnsServerCore.Dns.Zones
             _dnsServer = dnsServer;
             _internal = @internal;
 
+            if (_internal)
+            {
+                _zoneTransfer = AuthZoneTransfer.Deny;
+                _notify = AuthZoneNotify.None;
+            }
+            else
+            {
+                _zoneTransfer = AuthZoneTransfer.AllowOnlyZoneNameServers;
+                _notify = AuthZoneNotify.ZoneNameServers;
+
+                _notifyTimer = new Timer(NotifyTimerCallback, null, Timeout.Infinite, Timeout.Infinite);
+                _notifyList = new List<NameServerAddress>();
+            }
+
             DnsSOARecord soa = new DnsSOARecord(primaryNameServer, _name.Length == 0 ? "hostadmin" : "hostadmin." + _name, 1, 14400, 3600, 604800, 900);
 
             _entries[DnsResourceRecordType.SOA] = new DnsResourceRecord[] { new DnsResourceRecord(_name, DnsResourceRecordType.SOA, DnsClass.IN, soa.Refresh, soa) };
             _entries[DnsResourceRecordType.NS] = new DnsResourceRecord[] { new DnsResourceRecord(_name, DnsResourceRecordType.NS, DnsClass.IN, soa.Refresh, new DnsNSRecord(soa.PrimaryNameServer)) };
-
-            _notifyTimer = new Timer(NotifyTimerCallback, null, Timeout.Infinite, Timeout.Infinite);
         }
 
         internal PrimaryZone(DnsServer dnsServer, string name, DnsSOARecord soa, DnsNSRecord ns)
@@ -75,10 +87,11 @@ namespace DnsServerCore.Dns.Zones
             _dnsServer = dnsServer;
             _internal = true;
 
+            _zoneTransfer = AuthZoneTransfer.Deny;
+            _notify = AuthZoneNotify.None;
+
             _entries[DnsResourceRecordType.SOA] = new DnsResourceRecord[] { new DnsResourceRecord(_name, DnsResourceRecordType.SOA, DnsClass.IN, soa.Refresh, soa) };
             _entries[DnsResourceRecordType.NS] = new DnsResourceRecord[] { new DnsResourceRecord(_name, DnsResourceRecordType.NS, DnsClass.IN, soa.Refresh, ns) };
-
-            _notifyTimer = new Timer(NotifyTimerCallback, null, Timeout.Infinite, Timeout.Infinite);
         }
 
         #endregion
@@ -109,10 +122,29 @@ namespace DnsServerCore.Dns.Zones
         {
             try
             {
-                IReadOnlyList<NameServerAddress> secondaryNameServers = await GetSecondaryNameServerAddressesAsync(_dnsServer);
+                switch (_notify)
+                {
+                    case AuthZoneNotify.ZoneNameServers:
+                        IReadOnlyList<NameServerAddress> secondaryNameServers = await GetSecondaryNameServerAddressesAsync(_dnsServer);
 
-                foreach (NameServerAddress secondaryNameServer in secondaryNameServers)
-                    NotifyNameServer(secondaryNameServer);
+                        foreach (NameServerAddress secondaryNameServer in secondaryNameServers)
+                            _ = NotifyNameServerAsync(secondaryNameServer);
+
+                        break;
+
+                    case AuthZoneNotify.SpecifiedNameServers:
+                        IReadOnlyCollection<IPAddress> specifiedNameServers = _notifyNameServers;
+                        if (specifiedNameServers is not null)
+                        {
+                            foreach (IPAddress specifiedNameServer in specifiedNameServers)
+                                _ = NotifyNameServerAsync(new NameServerAddress(specifiedNameServer));
+                        }
+
+                        break;
+
+                    default:
+                        return;
+                }
             }
             catch (Exception ex)
             {
@@ -122,7 +154,7 @@ namespace DnsServerCore.Dns.Zones
             }
         }
 
-        private void NotifyNameServer(NameServerAddress nameServer)
+        private async Task NotifyNameServerAsync(NameServerAddress nameServer)
         {
             //use notify list to prevent multiple threads from notifying the same name server
             lock (_notifyList)
@@ -133,15 +165,11 @@ namespace DnsServerCore.Dns.Zones
                 _notifyList.Add(nameServer);
             }
 
-            _ = NotifyNameServerAsync(nameServer);
-        }
-
-        private async Task NotifyNameServerAsync(NameServerAddress nameServer)
-        {
             try
             {
                 DnsClient client = new DnsClient(nameServer);
 
+                client.Proxy = _dnsServer.Proxy;
                 client.Timeout = NOTIFY_TIMEOUT;
                 client.Retries = NOTIFY_RETRIES;
 
@@ -207,8 +235,11 @@ namespace DnsServerCore.Dns.Zones
             _entries[DnsResourceRecordType.SOA] = new DnsResourceRecord[] { newRecord };
         }
 
-        public void NotifyNameServers()
+        public void TriggerNotify()
         {
+            if (_notify == AuthZoneNotify.None)
+                return;
+
             _notifyTimer.Change(NOTIFY_TIMER_INTERVAL, Timeout.Infinite);
         }
 
@@ -233,7 +264,7 @@ namespace DnsServerCore.Dns.Zones
             base.SetRecords(type, records);
 
             IncrementSoaSerial();
-            NotifyNameServers();
+            TriggerNotify();
         }
 
         public override void AddRecord(DnsResourceRecord record)
@@ -244,7 +275,7 @@ namespace DnsServerCore.Dns.Zones
             base.AddRecord(record);
 
             IncrementSoaSerial();
-            NotifyNameServers();
+            TriggerNotify();
         }
 
         public override bool DeleteRecords(DnsResourceRecordType type)
@@ -255,7 +286,7 @@ namespace DnsServerCore.Dns.Zones
             if (base.DeleteRecords(type))
             {
                 IncrementSoaSerial();
-                NotifyNameServers();
+                TriggerNotify();
 
                 return true;
             }
@@ -271,7 +302,7 @@ namespace DnsServerCore.Dns.Zones
             if (base.DeleteRecord(type, record))
             {
                 IncrementSoaSerial();
-                NotifyNameServers();
+                TriggerNotify();
 
                 return true;
             }
@@ -298,8 +329,32 @@ namespace DnsServerCore.Dns.Zones
                     if (_disabled)
                         _notifyTimer.Change(Timeout.Infinite, Timeout.Infinite);
                     else
-                        NotifyNameServers();
+                        TriggerNotify();
                 }
+            }
+        }
+
+        public override AuthZoneTransfer ZoneTransfer
+        {
+            get { return _zoneTransfer; }
+            set
+            {
+                if (_internal)
+                    throw new InvalidOperationException();
+
+                _zoneTransfer = value;
+            }
+        }
+
+        public override AuthZoneNotify Notify
+        {
+            get { return _notify; }
+            set
+            {
+                if (_internal)
+                    throw new InvalidOperationException();
+
+                _notify = value;
             }
         }
 
