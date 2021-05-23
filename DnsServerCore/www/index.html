@@ -386,6 +386,7 @@
                                                 <button id="btnEnableZoneEditZone" data-id="EditZone" type="button" class="btn btn-default" style="padding: 2px 0px; width: 100px;" onclick="enableZone(this, $('#titleEditZone').text());">Enable Zone</button>
                                                 <button id="btnDisableZoneEditZone" data-id="EditZone" type="button" class="btn btn-warning" style="padding: 2px 0px; width: 100px;" onclick="disableZone(this, $('#titleEditZone').text());">Disable Zone</button>
                                                 <button id="btnEditZoneDeleteZone" type="button" class="btn btn-danger" style="padding: 2px 0px; width: 100px;" onclick="deleteZone(this, $('#titleEditZone').text(), true);">Delete Zone</button>
+                                                <button id="btnZoneOptions" type="button" class="btn btn-primary" style="padding: 2px 0px; width: 100px;" onclick="showZoneOptions($('#titleEditZone').text());">Options</button>
                                             </div>
                                             <div style="clear: both;"></div>
                                         </div>
@@ -962,6 +963,37 @@
                                                 </div>
 
                                                 <div>Note! Disable recursion if you wish this server to act only as authoritative name server for the configured zones.</div>
+                                            </div>
+
+                                            <div class="well well-sm form-horizontal">
+                                                <div class="form-group">
+                                                    <label for="txtQpmLimit" class="col-sm-3 control-label">Queries Per Minute (QPM) Limit</label>
+                                                    <div class="col-sm-6">
+                                                        <input type="number" class="form-control" id="txtQpmLimit" placeholder="limit" style="width: 100px; display: inline;">
+                                                        <span>(set 0 to disable)</span>
+                                                    </div>
+                                                    <div class="col-sm-offset-3 col-sm-8" style="padding-top: 5px;">The maximum queries a client can make per minute on average based on the sample size.</div>
+                                                </div>
+
+                                                <div class="form-group">
+                                                    <label for="txtQpmLimitSampleMinutes" class="col-sm-3 control-label">QPM Sample Size</label>
+                                                    <div class="col-sm-8">
+                                                        <input type="number" class="form-control" id="txtQpmLimitSampleMinutes" placeholder="sample" style="width: 100px; display: inline;">
+                                                        <span>minutes (valid range 1-60; default 5)</span>
+                                                    </div>
+                                                    <div class="col-sm-offset-3 col-sm-8" style="padding-top: 5px;">The sample size in minutes to be used for limiting queries per client.</div>
+                                                </div>
+
+                                                <div class="form-group">
+                                                    <label for="txtQpmLimitSamplingIntervalInMinutes" class="col-sm-3 control-label">QPM Sampling Interval</label>
+                                                    <div class="col-sm-6">
+                                                        <input type="number" class="form-control" id="txtQpmLimitSamplingIntervalInMinutes" placeholder="interval" style="width: 100px; display: inline;">
+                                                        <span>minutes (valid range 1-60; default 1)</span>
+                                                    </div>
+                                                    <div class="col-sm-offset-3 col-sm-8" style="padding-top: 5px;">The interval to sample client query stats.</div>
+                                                </div>
+
+                                                <div>Note! Queries Per Minute (QPM) feature will limit requests from a client based on its IP address. The QPM limit configured will be compared with the average count from the sample size which means a client may exceed the QPM limit for a given minute but won't exceed for the given sample size in minutes.</div>
                                             </div>
 
                                             <div class="well well-sm form-horizontal">
@@ -2177,6 +2209,101 @@
                 </div>
             </div>
         </form>
+    </div>
+
+    <div id="modalZoneOptions" class="modal fade" tabindex="-1" role="dialog">
+        <div class="modal-dialog" role="document" style="width: 780px;">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <button type="button" class="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button>
+                    <h4 class="modal-title">Zone Options - <span id="lblZoneOptionsZoneName"></span></h4>
+                </div>
+                <div class="modal-body">
+                    <div id="divZoneOptionsAlert"></div>
+
+                    <div id="divZoneOptionsLoader" style="height: 500px;"></div>
+
+                    <div id="divZoneOptions" style="max-height: 500px; overflow-y: auto; padding: 0 6px;">
+                        <div class="well well-sm form-horizontal">
+                            <div class="form-group">
+                                <label class="col-sm-3 control-label">Zone Transfer</label>
+                                <div class="col-sm-6">
+                                    <div class="radio">
+                                        <label>
+                                            <input type="radio" name="rdZoneTransfer" id="rdZoneTransferDeny" value="Deny">
+                                            Deny
+                                        </label>
+                                        <div style="padding-top: 5px;"></div>
+                                    </div>
+                                    <div class="radio">
+                                        <label>
+                                            <input type="radio" name="rdZoneTransfer" id="rdZoneTransferAllow" value="Allow">
+                                            Allow
+                                        </label>
+                                        <div style="padding-top: 5px;"></div>
+                                    </div>
+                                    <div class="radio">
+                                        <label>
+                                            <input type="radio" name="rdZoneTransfer" id="rdZoneTransferAllowOnlyZoneNameServers" value="AllowOnlyZoneNameServers">
+                                            Allow Only Name Servers In Zone
+                                        </label>
+                                        <div style="padding-top: 5px;"></div>
+                                    </div>
+                                    <div class="radio">
+                                        <label>
+                                            <input type="radio" name="rdZoneTransfer" id="rdZoneTransferAllowOnlySpecifiedNameServers" value="AllowOnlySpecifiedNameServers">
+                                            Allow Only Specified Name Servers
+                                        </label>
+                                        <div style="padding-top: 5px;"></div>
+                                    </div>
+                                </div>
+                                <div class="col-sm-offset-3 col-sm-6">
+                                    <label for="txtZoneTransferNameServers" class="control-label">Allowed Name Servers</label>
+                                    <textarea id="txtZoneTransferNameServers" class="form-control" rows="5"></textarea>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="well well-sm form-horizontal">
+                            <div class="form-group">
+                                <label class="col-sm-3 control-label">Notify</label>
+                                <div class="col-sm-6">
+                                    <div class="radio">
+                                        <label>
+                                            <input type="radio" name="rdZoneNotify" id="rdZoneNotifyNone" value="None">
+                                            None
+                                        </label>
+                                        <div style="padding-top: 5px;"></div>
+                                    </div>
+                                    <div class="radio">
+                                        <label>
+                                            <input type="radio" name="rdZoneNotify" id="rdZoneNotifyZoneNameServers" value="ZoneNameServers">
+                                            Name Servers In Zone
+                                        </label>
+                                        <div style="padding-top: 5px;"></div>
+                                    </div>
+                                    <div class="radio">
+                                        <label>
+                                            <input type="radio" name="rdZoneNotify" id="rdZoneNotifySpecifiedNameServers" value="SpecifiedNameServers">
+                                            Specified Name Servers
+                                        </label>
+                                        <div style="padding-top: 5px;"></div>
+                                    </div>
+                                </div>
+                                <div class="col-sm-offset-3 col-sm-6">
+                                    <label for="txtZoneNotifyNameServers" class="control-label">Notified Name Servers</label>
+                                    <textarea id="txtZoneNotifyNameServers" class="form-control" rows="5"></textarea>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button id="btnSaveZoneOptions" type="submit" class="btn btn-primary" data-loading-text="Saving..." onclick="saveZoneOptions();">Save</button>
+                    <button type="button" class="btn btn-default" data-dismiss="modal">Close</button>
+                </div>
+            </div>
+        </div>
     </div>
 
 
