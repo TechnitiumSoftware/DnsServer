@@ -44,6 +44,10 @@ namespace DnsServerCore.Dns.Zones
         readonly string _name;
         readonly AuthZoneType _type;
         readonly bool _disabled;
+        readonly AuthZoneTransfer _zoneTransfer;
+        readonly IReadOnlyCollection<NameServerAddress> _zoneTransferNameServers;
+        readonly AuthZoneNotify _notify;
+        readonly IReadOnlyCollection<NameServerAddress> _notifyNameServers;
         readonly DateTime _expiry;
 
         #endregion
@@ -55,16 +59,79 @@ namespace DnsServerCore.Dns.Zones
             _name = name;
             _type = type;
             _disabled = disabled;
+
+            switch (_type)
+            {
+                case AuthZoneType.Primary:
+                    _zoneTransfer = AuthZoneTransfer.AllowOnlyZoneNameServers;
+                    _notify = AuthZoneNotify.ZoneNameServers;
+                    break;
+
+                default:
+                    _zoneTransfer = AuthZoneTransfer.Deny;
+                    _notify = AuthZoneNotify.None;
+                    break;
+            }
         }
 
         public AuthZoneInfo(BinaryReader bR)
         {
-            switch (bR.ReadByte())
+            byte version = bR.ReadByte();
+            switch (version)
             {
                 case 1:
+                case 2:
                     _name = bR.ReadShortString();
                     _type = (AuthZoneType)bR.ReadByte();
                     _disabled = bR.ReadBoolean();
+
+                    if (version >= 2)
+                    {
+                        {
+                            _zoneTransfer = (AuthZoneTransfer)bR.ReadByte();
+
+                            int count = bR.ReadByte();
+                            if (count > 0)
+                            {
+                                NameServerAddress[] nameServers = new NameServerAddress[count];
+
+                                for (int i = 0; i < count; i++)
+                                    nameServers[i] = new NameServerAddress(bR);
+
+                                _zoneTransferNameServers = nameServers;
+                            }
+                        }
+
+                        {
+                            _notify = (AuthZoneNotify)bR.ReadByte();
+
+                            int count = bR.ReadByte();
+                            if (count > 0)
+                            {
+                                NameServerAddress[] nameServers = new NameServerAddress[count];
+
+                                for (int i = 0; i < count; i++)
+                                    nameServers[i] = new NameServerAddress(bR);
+
+                                _notifyNameServers = nameServers;
+                            }
+                        }
+                    }
+                    else
+                    {
+                        switch (_type)
+                        {
+                            case AuthZoneType.Primary:
+                                _zoneTransfer = AuthZoneTransfer.AllowOnlyZoneNameServers;
+                                _notify = AuthZoneNotify.ZoneNameServers;
+                                break;
+
+                            default:
+                                _zoneTransfer = AuthZoneTransfer.Deny;
+                                _notify = AuthZoneNotify.None;
+                                break;
+                        }
+                    }
 
                     switch (_type)
                     {
@@ -101,6 +168,10 @@ namespace DnsServerCore.Dns.Zones
                 _type = AuthZoneType.Unknown;
 
             _disabled = _zone.Disabled;
+            _zoneTransfer = zone.ZoneTransfer;
+            _zoneTransferNameServers = zone.ZoneTransferNameServers;
+            _notify = zone.Notify;
+            _notifyNameServers = zone.NotifyNameServers;
 
             switch (_type)
             {
@@ -126,7 +197,7 @@ namespace DnsServerCore.Dns.Zones
             return _zone.GetRecords(type);
         }
 
-        public void NotifyNameServers()
+        public void TriggerNotify()
         {
             if (_zone == null)
                 throw new InvalidOperationException();
@@ -134,7 +205,11 @@ namespace DnsServerCore.Dns.Zones
             switch (_type)
             {
                 case AuthZoneType.Primary:
-                    (_zone as PrimaryZone).NotifyNameServers();
+                    (_zone as PrimaryZone).TriggerNotify();
+                    break;
+
+                case AuthZoneType.Secondary:
+                    (_zone as SecondaryZone).TriggerNotify();
                     break;
 
                 default:
@@ -142,7 +217,7 @@ namespace DnsServerCore.Dns.Zones
             }
         }
 
-        public void RefreshZone()
+        public void TriggerRefresh()
         {
             if (_zone == null)
                 throw new InvalidOperationException();
@@ -150,11 +225,11 @@ namespace DnsServerCore.Dns.Zones
             switch (_type)
             {
                 case AuthZoneType.Secondary:
-                    (_zone as SecondaryZone).RefreshZone();
+                    (_zone as SecondaryZone).TriggerRefresh();
                     break;
 
                 case AuthZoneType.Stub:
-                    (_zone as StubZone).RefreshZone();
+                    (_zone as StubZone).TriggerRefresh();
                     break;
 
                 default:
@@ -183,11 +258,36 @@ namespace DnsServerCore.Dns.Zones
             if (_zone == null)
                 throw new InvalidOperationException();
 
-            bW.Write((byte)1); //version
+            bW.Write((byte)2); //version
 
             bW.WriteShortString(_name);
             bW.Write((byte)_type);
             bW.Write(_disabled);
+            bW.Write((byte)_zoneTransfer);
+
+            if (_zoneTransferNameServers is null)
+            {
+                bW.Write((byte)0);
+            }
+            else
+            {
+                bW.Write(Convert.ToByte(_zoneTransferNameServers.Count));
+                foreach (NameServerAddress nameServer in _zoneTransferNameServers)
+                    nameServer.WriteTo(bW);
+            }
+
+            bW.Write((byte)_notify);
+
+            if (_notifyNameServers is null)
+            {
+                bW.Write((byte)0);
+            }
+            else
+            {
+                bW.Write(Convert.ToByte(_notifyNameServers.Count));
+                foreach (NameServerAddress nameServer in _notifyNameServers)
+                    nameServer.WriteTo(bW);
+            }
 
             switch (_type)
             {
@@ -226,10 +326,58 @@ namespace DnsServerCore.Dns.Zones
             get { return _disabled; }
             set
             {
-                if (_zone == null)
+                if (_zone is null)
                     throw new InvalidOperationException();
 
                 _zone.Disabled = value;
+            }
+        }
+
+        public AuthZoneTransfer ZoneTransfer
+        {
+            get { return _zoneTransfer; }
+            set
+            {
+                if (_zone is null)
+                    throw new InvalidOperationException();
+
+                _zone.ZoneTransfer = value;
+            }
+        }
+
+        public IReadOnlyCollection<NameServerAddress> ZoneTransferNameServers
+        {
+            get { return _zoneTransferNameServers; }
+            set
+            {
+                if (_zone is null)
+                    throw new InvalidOperationException();
+
+                _zone.ZoneTransferNameServers = value;
+            }
+        }
+
+        public AuthZoneNotify Notify
+        {
+            get { return _notify; }
+            set
+            {
+                if (_zone is null)
+                    throw new InvalidOperationException();
+
+                _zone.Notify = value;
+            }
+        }
+
+        public IReadOnlyCollection<NameServerAddress> NotifyNameServers
+        {
+            get { return _notifyNameServers; }
+            set
+            {
+                if (_zone is null)
+                    throw new InvalidOperationException();
+
+                _zone.NotifyNameServers = value;
             }
         }
 
