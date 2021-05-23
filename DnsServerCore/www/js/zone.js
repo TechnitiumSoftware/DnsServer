@@ -444,6 +444,8 @@ function saveZoneOptions() {
         success: function (responseJSON) {
             btn.button('reset');
             $("#modalZoneOptions").modal("hide");
+
+            showAlert("success", "Options Saved!", "Zone options were saved successfully.");
         },
         error: function () {
             btn.button('reset');
