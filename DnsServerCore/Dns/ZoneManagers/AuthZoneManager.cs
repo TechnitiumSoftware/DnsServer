@@ -440,7 +440,7 @@ namespace DnsServerCore.Dns.ZoneManagers
             }
         }
 
-        internal AuthZoneInfo CreateInternalPrimaryZone(string domain, DnsSOARecord soaRecord, DnsNSRecord ns)
+        internal AuthZoneInfo CreateSpecialPrimaryZone(string domain, DnsSOARecord soaRecord, DnsNSRecord ns)
         {
             AuthZone authZone = new PrimaryZone(_dnsServer, domain, soaRecord, ns);
 
@@ -479,7 +479,7 @@ namespace DnsServerCore.Dns.ZoneManagers
 
             if (_root.TryAdd(authZone))
             {
-                authZone.RefreshZone();
+                authZone.TriggerRefresh();
                 _totalZones++;
                 return new AuthZoneInfo(authZone);
             }
@@ -487,7 +487,7 @@ namespace DnsServerCore.Dns.ZoneManagers
             if (_root.TryGet(domain, out AuthZone existingZone) && (existingZone is SubDomainZone))
             {
                 _root[domain] = authZone;
-                authZone.RefreshZone();
+                authZone.TriggerRefresh();
                 _totalZones++;
                 return new AuthZoneInfo(authZone);
             }
@@ -501,7 +501,7 @@ namespace DnsServerCore.Dns.ZoneManagers
 
             if (_root.TryAdd(authZone))
             {
-                authZone.RefreshZone();
+                authZone.TriggerRefresh();
                 _totalZones++;
                 return new AuthZoneInfo(authZone);
             }
@@ -509,7 +509,7 @@ namespace DnsServerCore.Dns.ZoneManagers
             if (_root.TryGet(domain, out AuthZone existingZone) && (existingZone is SubDomainZone))
             {
                 _root[domain] = authZone;
-                authZone.RefreshZone();
+                authZone.TriggerRefresh();
                 _totalZones++;
                 return new AuthZoneInfo(authZone);
             }
@@ -589,16 +589,16 @@ namespace DnsServerCore.Dns.ZoneManagers
 
         public IReadOnlyList<DnsResourceRecord> QueryZoneTransferRecords(string domain)
         {
-            List<DnsResourceRecord> axfrRecords = new List<DnsResourceRecord>();
+            List<DnsResourceRecord> zoneTransferRecords = new List<DnsResourceRecord>();
 
             List<AuthZone> zones = _root.GetZoneWithSubDomainZones(domain);
 
             if ((zones.Count > 0) && zones[0].IsActive)
             {
-                //only primary zones support zone transfer
+                //only primary and secondary zones support zone transfer
                 DnsResourceRecord soaRecord = zones[0].GetRecords(DnsResourceRecordType.SOA)[0];
 
-                axfrRecords.Add(soaRecord);
+                zoneTransferRecords.Add(soaRecord);
 
                 foreach (Zone zone in zones)
                 {
@@ -613,26 +613,26 @@ namespace DnsServerCore.Dns.ZoneManagers
                                 break; //skip record
 
                             case DnsResourceRecordType.NS:
-                                axfrRecords.Add(record);
+                                zoneTransferRecords.Add(record);
 
                                 foreach (DnsResourceRecord glueRecord in record.GetGlueRecords())
                                 {
-                                    if (!axfrRecords.Contains(glueRecord))
-                                        axfrRecords.Add(glueRecord);
+                                    if (!zoneTransferRecords.Contains(glueRecord))
+                                        zoneTransferRecords.Add(glueRecord);
                                 }
                                 break;
 
                             default:
-                                axfrRecords.Add(record);
+                                zoneTransferRecords.Add(record);
                                 break;
                         }
                     }
                 }
 
-                axfrRecords.Add(soaRecord);
+                zoneTransferRecords.Add(soaRecord);
             }
 
-            return axfrRecords;
+            return zoneTransferRecords;
         }
 
         public void SyncRecords(string domain, IReadOnlyList<DnsResourceRecord> syncRecords, IReadOnlyList<DnsResourceRecord> additionalRecords = null, bool dontRemoveRecords = false)
@@ -1089,7 +1089,7 @@ namespace DnsServerCore.Dns.ZoneManagers
                             switch (zoneInfo.Type)
                             {
                                 case AuthZoneType.Primary:
-                                    (authZone as PrimaryZone).NotifyNameServers();
+                                    (authZone as PrimaryZone).TriggerNotify();
                                     break;
                             }
                         }
@@ -1143,7 +1143,7 @@ namespace DnsServerCore.Dns.ZoneManagers
                             switch (zoneInfo.Type)
                             {
                                 case AuthZoneType.Primary:
-                                    (authZone as PrimaryZone).NotifyNameServers();
+                                    (authZone as PrimaryZone).TriggerNotify();
                                     break;
                             }
                         }
@@ -1183,15 +1183,18 @@ namespace DnsServerCore.Dns.ZoneManagers
                             switch (zoneInfo.Type)
                             {
                                 case AuthZoneType.Primary:
-                                    (authZone as PrimaryZone).NotifyNameServers();
+                                    (authZone as PrimaryZone).TriggerNotify();
                                     break;
 
                                 case AuthZoneType.Secondary:
-                                    (authZone as SecondaryZone).RefreshZone();
+                                    SecondaryZone secondary = authZone as SecondaryZone;
+
+                                    secondary.TriggerNotify();
+                                    secondary.TriggerRefresh();
                                     break;
 
                                 case AuthZoneType.Stub:
-                                    (authZone as StubZone).RefreshZone();
+                                    (authZone as StubZone).TriggerRefresh();
                                     break;
                             }
                         }
