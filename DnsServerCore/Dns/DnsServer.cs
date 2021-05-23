@@ -108,6 +108,9 @@ namespace DnsServerCore.Dns
         bool _preferIPv6;
         bool _randomizeName;
         bool _qnameMinimization;
+        int _qpmLimit = 0;
+        int _qpmLimitSampleMinutes = 5;
+        int _qpmLimitSamplingIntervalInMinutes = 1;
         int _forwarderRetries = 3;
         int _resolverRetries = 5;
         int _forwarderTimeout = 4000;
@@ -141,6 +144,10 @@ namespace DnsServerCore.Dns
         readonly object _cacheMaintenanceTimerLock = new object();
         const int CACHE_MAINTENANCE_TIMER_INITIAL_INTEVAL = 15 * 60 * 1000;
         const int CACHE_MAINTENANCE_TIMER_PERIODIC_INTERVAL = 15 * 60 * 1000;
+
+        Timer _qpmLimitSamplingTimer;
+        readonly object _qpmLimitSamplingTimerLock = new object();
+        IReadOnlyDictionary<IPAddress, int> _qpmLimitClientStats;
 
         readonly IndependentTaskScheduler _resolverTaskScheduler = new IndependentTaskScheduler(ThreadPriority.AboveNormal);
         readonly DomainTree<Task<DnsDatagram>> _resolverTasks = new DomainTree<Task<DnsDatagram>>();
@@ -242,7 +249,7 @@ namespace DnsServerCore.Dns
         {
             const int BUFFER_SIZE = 512;
             byte[] recvBuffer = new byte[BUFFER_SIZE];
-            MemoryStream recvBufferStream = new MemoryStream(recvBuffer);
+            using MemoryStream recvBufferStream = new MemoryStream(recvBuffer);
 
             try
             {
@@ -290,6 +297,12 @@ namespace DnsServerCore.Dns
 
                     if (result.ReceivedBytes > 0)
                     {
+                        if (result.RemoteEndPoint is not IPEndPoint remoteEP)
+                            continue;
+
+                        if (IsQpmLimitCrossed(remoteEP))
+                            continue;
+
                         try
                         {
                             recvBufferStream.Position = 0;
@@ -297,7 +310,7 @@ namespace DnsServerCore.Dns
 
                             DnsDatagram request = DnsDatagram.ReadFromUdp(recvBufferStream);
 
-                            _ = ProcessUdpRequestAsync(udpListener, result.RemoteEndPoint as IPEndPoint, request);
+                            _ = ProcessUdpRequestAsync(udpListener, remoteEP, request);
                         }
                         catch (EndOfStreamException)
                         {
@@ -307,7 +320,7 @@ namespace DnsServerCore.Dns
                         {
                             LogManager log = _log;
                             if (log is not null)
-                                log.Write(result.RemoteEndPoint as IPEndPoint, DnsTransportProtocol.Udp, ex);
+                                log.Write(remoteEP, DnsTransportProtocol.Udp, ex);
                         }
                     }
                 }
@@ -495,12 +508,15 @@ namespace DnsServerCore.Dns
         {
             try
             {
-                MemoryStream readBuffer = new MemoryStream(64);
-                MemoryStream writeBuffer = new MemoryStream(64);
-                SemaphoreSlim writeSemaphore = new SemaphoreSlim(1, 1);
+                using MemoryStream readBuffer = new MemoryStream(64);
+                using MemoryStream writeBuffer = new MemoryStream(64);
+                using SemaphoreSlim writeSemaphore = new SemaphoreSlim(1, 1);
 
                 while (true)
                 {
+                    if (IsQpmLimitCrossed(remoteEP))
+                        break;
+
                     DnsDatagram request;
 
                     //read dns datagram with timeout
@@ -616,6 +632,9 @@ namespace DnsServerCore.Dns
             {
                 while (true)
                 {
+                    if (IsQpmLimitCrossed(remoteEP))
+                        break;
+
                     HttpRequest httpRequest = await HttpRequest.ReadRequestAsync(stream).WithTimeout(receiveTimeout);
                     if (httpRequest is null)
                         return; //connection closed gracefully by client
@@ -695,7 +714,11 @@ namespace DnsServerCore.Dns
                                                 if (x > 0)
                                                     strRequest = strRequest.PadRight(strRequest.Length - x + 4, '=');
 
-                                                dnsRequest = DnsDatagram.ReadFromUdp(new MemoryStream(Convert.FromBase64String(strRequest)));
+                                                using (MemoryStream mS = new MemoryStream(Convert.FromBase64String(strRequest)))
+                                                {
+                                                    dnsRequest = DnsDatagram.ReadFromUdp(mS);
+                                                }
+
                                                 break;
 
                                             case "POST":
@@ -914,6 +937,23 @@ namespace DnsServerCore.Dns
             return sb.ToString();
         }
 
+        private bool IsQpmLimitCrossed(IPEndPoint remoteEP)
+        {
+            if ((_qpmLimit > 0) && (_qpmLimitClientStats is not null))
+            {
+                if (IPAddress.IsLoopback(remoteEP.Address))
+                    return false;
+
+                if (_qpmLimitClientStats.TryGetValue(remoteEP.Address, out int countPerSample))
+                {
+                    int averageCountPerMinute = countPerSample / _qpmLimitSampleMinutes;
+                    return averageCountPerMinute > _qpmLimit;
+                }
+            }
+
+            return false;
+        }
+
         private bool IsRecursionAllowed(IPEndPoint remoteEP)
         {
             switch (_recursion)
@@ -1070,34 +1110,74 @@ namespace DnsServerCore.Dns
                 }
             }
 
-            authZoneInfo.RefreshZone();
+            authZoneInfo.TriggerRefresh();
             return new DnsDatagram(request.Identifier, true, DnsOpcode.Notify, false, false, request.RecursionDesired, false, false, false, DnsResponseCode.NoError, request.Question) { Tag = StatsResponseType.Authoritative };
         }
 
         private async Task<DnsDatagram> ProcessZoneTransferQueryAsync(DnsDatagram request, IPEndPoint remoteEP)
         {
             AuthZoneInfo authZoneInfo = _authZoneManager.GetAuthZoneInfo(request.Question[0].Name);
-            if ((authZoneInfo is null) || (authZoneInfo.Type != AuthZoneType.Primary))
+            if (authZoneInfo is null)
                 return new DnsDatagram(request.Identifier, true, DnsOpcode.StandardQuery, false, false, request.RecursionDesired, false, false, false, DnsResponseCode.Refused, request.Question) { Tag = StatsResponseType.Authoritative };
 
-            IPAddress remoteAddress = remoteEP.Address;
-            bool isAxfrAllowed = IPAddress.IsLoopback(remoteAddress);
+            bool isZoneTransferAllowed = false;
 
-            if (!isAxfrAllowed)
+            switch (authZoneInfo.ZoneTransfer)
             {
-                IReadOnlyList<NameServerAddress> secondaryNameServers = await authZoneInfo.GetSecondaryNameServerAddressesAsync(this);
+                case AuthZoneTransfer.Allow:
+                    isZoneTransferAllowed = true;
+                    break;
 
-                foreach (NameServerAddress secondaryNameServer in secondaryNameServers)
-                {
-                    if (secondaryNameServer.IPEndPoint.Address.Equals(remoteAddress))
+                case AuthZoneTransfer.AllowOnlyZoneNameServers:
                     {
-                        isAxfrAllowed = true;
-                        break;
+                        IPAddress remoteAddress = remoteEP.Address;
+
+                        if (IPAddress.IsLoopback(remoteAddress))
+                        {
+                            isZoneTransferAllowed = true;
+                            break;
+                        }
+
+                        IReadOnlyList<NameServerAddress> secondaryNameServers = await authZoneInfo.GetSecondaryNameServerAddressesAsync(this);
+
+                        foreach (NameServerAddress secondaryNameServer in secondaryNameServers)
+                        {
+                            if (secondaryNameServer.IPEndPoint.Address.Equals(remoteAddress))
+                            {
+                                isZoneTransferAllowed = true;
+                                break;
+                            }
+                        }
                     }
-                }
+                    break;
+
+                case AuthZoneTransfer.AllowOnlySpecifiedNameServers:
+                    {
+                        IPAddress remoteAddress = remoteEP.Address;
+
+                        if (IPAddress.IsLoopback(remoteAddress))
+                        {
+                            isZoneTransferAllowed = true;
+                            break;
+                        }
+
+                        IReadOnlyCollection<IPAddress> specifiedNameServers = authZoneInfo.ZoneTransferNameServers;
+                        if (specifiedNameServers is not null)
+                        {
+                            foreach (IPAddress specifiedNameServer in specifiedNameServers)
+                            {
+                                if (specifiedNameServer.Equals(remoteAddress))
+                                {
+                                    isZoneTransferAllowed = true;
+                                    break;
+                                }
+                            }
+                        }
+                    }
+                    break;
             }
 
-            if (!isAxfrAllowed)
+            if (!isZoneTransferAllowed)
                 return new DnsDatagram(request.Identifier, true, DnsOpcode.StandardQuery, false, false, request.RecursionDesired, false, false, false, DnsResponseCode.Refused, request.Question) { Tag = StatsResponseType.Authoritative };
 
             LogManager log = _log;
@@ -2249,6 +2329,48 @@ namespace DnsServerCore.Dns
             }
         }
 
+        private void QpsLimitSamplingTimerCallback(object state)
+        {
+            try
+            {
+                _qpmLimitClientStats = _stats.GetLatestClientStats(_qpmLimitSampleMinutes);
+            }
+            catch (Exception ex)
+            {
+                LogManager log = _log;
+                if (log is not null)
+                    log.Write(ex);
+            }
+            finally
+            {
+                lock (_qpmLimitSamplingTimerLock)
+                {
+                    if (_qpmLimitSamplingTimer is not null)
+                        _qpmLimitSamplingTimer.Change(_qpmLimitSamplingIntervalInMinutes * 60 * 1000, Timeout.Infinite);
+                }
+            }
+        }
+
+        private void ResetQpsLimitTimer()
+        {
+            if (_qpmLimit == 0)
+            {
+                lock (_qpmLimitSamplingTimerLock)
+                {
+                    if (_qpmLimitSamplingTimer is not null)
+                        _qpmLimitSamplingTimer.Change(Timeout.Infinite, Timeout.Infinite);
+                }
+            }
+            else if (_state == ServiceState.Running)
+            {
+                lock (_qpmLimitSamplingTimerLock)
+                {
+                    if (_qpmLimitSamplingTimer is not null)
+                        _qpmLimitSamplingTimer.Change(0, Timeout.Infinite);
+                }
+            }
+        }
+
         private void UpdateThisServer()
         {
             if ((_localEndPoints is null) || (_localEndPoints.Count == 0))
@@ -2544,11 +2666,13 @@ namespace DnsServerCore.Dns
             _cachePrefetchSamplingTimer = new Timer(CachePrefetchSamplingTimerCallback, null, Timeout.Infinite, Timeout.Infinite);
             _cachePrefetchRefreshTimer = new Timer(CachePrefetchRefreshTimerCallback, null, Timeout.Infinite, Timeout.Infinite);
             _cacheMaintenanceTimer = new Timer(CacheMaintenanceTimerCallback, null, CACHE_MAINTENANCE_TIMER_INITIAL_INTEVAL, Timeout.Infinite);
+            _qpmLimitSamplingTimer = new Timer(QpsLimitSamplingTimerCallback, null, Timeout.Infinite, Timeout.Infinite);
 
             _state = ServiceState.Running;
 
             UpdateThisServer();
             ResetPrefetchTimers();
+            ResetQpsLimitTimer();
         }
 
         public void Stop()
@@ -2582,6 +2706,15 @@ namespace DnsServerCore.Dns
                 {
                     _cacheMaintenanceTimer.Dispose();
                     _cacheMaintenanceTimer = null;
+                }
+            }
+
+            lock (_qpmLimitSamplingTimerLock)
+            {
+                if (_qpmLimitSamplingTimer is not null)
+                {
+                    _qpmLimitSamplingTimer.Dispose();
+                    _qpmLimitSamplingTimer = null;
                 }
             }
 
@@ -2742,13 +2875,25 @@ namespace DnsServerCore.Dns
         public IReadOnlyCollection<NetworkAddress> RecursionDeniedNetworks
         {
             get { return _recursionDeniedNetworks; }
-            set { _recursionDeniedNetworks = value; }
+            set
+            {
+                if ((value is not null) && (value.Count > byte.MaxValue))
+                    throw new ArgumentOutOfRangeException(nameof(RecursionDeniedNetworks), "Networks cannot be more than 255.");
+
+                _recursionDeniedNetworks = value;
+            }
         }
 
         public IReadOnlyCollection<NetworkAddress> RecursionAllowedNetworks
         {
             get { return _recursionAllowedNetworks; }
-            set { _recursionAllowedNetworks = value; }
+            set
+            {
+                if ((value is not null) && (value.Count > byte.MaxValue))
+                    throw new ArgumentOutOfRangeException(nameof(RecursionAllowedNetworks), "Networks cannot be more than 255.");
+
+                _recursionAllowedNetworks = value;
+            }
         }
 
         public NetProxy Proxy
@@ -2779,6 +2924,43 @@ namespace DnsServerCore.Dns
         {
             get { return _qnameMinimization; }
             set { _qnameMinimization = value; }
+        }
+
+        public int QpmLimit
+        {
+            get { return _qpmLimit; }
+            set
+            {
+                if (value < 0)
+                    throw new ArgumentOutOfRangeException(nameof(QpmLimit), "Value cannot be less than 0.");
+
+                _qpmLimit = value;
+                ResetQpsLimitTimer();
+            }
+        }
+
+        public int QpmLimitSampleMinutes
+        {
+            get { return _qpmLimitSampleMinutes; }
+            set
+            {
+                if ((value < 1) || (value > 60))
+                    throw new ArgumentOutOfRangeException(nameof(QpmLimitSampleMinutes), "Valid range is between 1 and 60 minutes.");
+
+                _qpmLimitSampleMinutes = value;
+            }
+        }
+
+        public int QpmLimitSamplingIntervalInMinutes
+        {
+            get { return _qpmLimitSamplingIntervalInMinutes; }
+            set
+            {
+                if ((value < 1) || (value > 60))
+                    throw new ArgumentOutOfRangeException(nameof(QpmLimitSamplingIntervalInMinutes), "Valid range is between 1 and 60 minutes.");
+
+                _qpmLimitSamplingIntervalInMinutes = value;
+            }
         }
 
         public int ForwarderRetries
