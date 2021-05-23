@@ -493,6 +493,14 @@ namespace DnsServerCore
                                                 DisableZone(request);
                                                 break;
 
+                                            case "/api/zone/options/get":
+                                                GetZoneOptions(request, jsonWriter);
+                                                break;
+
+                                            case "/api/zone/options/set":
+                                                SetZoneOptions(request);
+                                                break;
+
                                             case "/api/addRecord":
                                                 AddRecord(request);
                                                 break;
@@ -1231,6 +1239,15 @@ namespace DnsServerCore
             jsonWriter.WritePropertyName("qnameMinimization");
             jsonWriter.WriteValue(_dnsServer.QnameMinimization);
 
+            jsonWriter.WritePropertyName("qpmLimit");
+            jsonWriter.WriteValue(_dnsServer.QpmLimit);
+
+            jsonWriter.WritePropertyName("qpmLimitSampleMinutes");
+            jsonWriter.WriteValue(_dnsServer.QpmLimitSampleMinutes);
+
+            jsonWriter.WritePropertyName("qpmLimitSamplingIntervalInMinutes");
+            jsonWriter.WriteValue(_dnsServer.QpmLimitSamplingIntervalInMinutes);
+
             jsonWriter.WritePropertyName("serveStale");
             jsonWriter.WriteValue(_dnsServer.ServeStale);
 
@@ -1579,7 +1596,7 @@ namespace DnsServerCore
 
             string strRecursion = request.QueryString["recursion"];
             if (!string.IsNullOrEmpty(strRecursion))
-                _dnsServer.Recursion = Enum.Parse<DnsServerRecursion>(strRecursion);
+                _dnsServer.Recursion = Enum.Parse<DnsServerRecursion>(strRecursion, true);
 
             string strRecursionDeniedNetworks = request.QueryString["recursionDeniedNetworks"];
             if (!string.IsNullOrEmpty(strRecursionDeniedNetworks))
@@ -1628,6 +1645,18 @@ namespace DnsServerCore
             string strQnameMinimization = request.QueryString["qnameMinimization"];
             if (!string.IsNullOrEmpty(strQnameMinimization))
                 _dnsServer.QnameMinimization = bool.Parse(strQnameMinimization);
+
+            string strQpmLimit = request.QueryString["qpmLimit"];
+            if (!string.IsNullOrEmpty(strQpmLimit))
+                _dnsServer.QpmLimit = int.Parse(strQpmLimit);
+
+            string strQpmLimitSampleMinutes = request.QueryString["qpmLimitSampleMinutes"];
+            if (!string.IsNullOrEmpty(strQpmLimitSampleMinutes))
+                _dnsServer.QpmLimitSampleMinutes = int.Parse(strQpmLimitSampleMinutes);
+
+            string strQpmLimitSamplingIntervalInMinutes = request.QueryString["qpmLimitSamplingIntervalInMinutes"];
+            if (!string.IsNullOrEmpty(strQpmLimitSamplingIntervalInMinutes))
+                _dnsServer.QpmLimitSamplingIntervalInMinutes = int.Parse(strQpmLimitSamplingIntervalInMinutes);
 
             string strServeStale = request.QueryString["serveStale"];
             if (!string.IsNullOrEmpty(strServeStale))
@@ -3615,6 +3644,139 @@ namespace DnsServerCore
             _dnsServer.AuthZoneManager.SaveZoneFile(zoneInfo.Name);
         }
 
+        private void GetZoneOptions(HttpListenerRequest request, JsonTextWriter jsonWriter)
+        {
+            string domain = request.QueryString["domain"];
+            if (string.IsNullOrEmpty(domain))
+                throw new DnsWebServiceException("Parameter 'domain' missing.");
+
+            if (domain.EndsWith("."))
+                domain = domain.Substring(0, domain.Length - 1);
+
+            AuthZoneInfo zoneInfo = _dnsServer.AuthZoneManager.GetAuthZoneInfo(domain);
+            if (zoneInfo == null)
+                throw new DnsWebServiceException("Zone '" + domain + "' was not found.");
+
+            if (zoneInfo.Internal)
+                throw new DnsWebServiceException("Access was denied to manage internal DNS Server zone.");
+
+            jsonWriter.WritePropertyName("name");
+            jsonWriter.WriteValue(zoneInfo.Name);
+
+            jsonWriter.WritePropertyName("type");
+            jsonWriter.WriteValue(zoneInfo.Type.ToString());
+
+            switch (zoneInfo.Type)
+            {
+                case AuthZoneType.Primary:
+                    jsonWriter.WritePropertyName("internal");
+                    jsonWriter.WriteValue(zoneInfo.Internal);
+                    break;
+            }
+
+            jsonWriter.WritePropertyName("disabled");
+            jsonWriter.WriteValue(zoneInfo.Disabled);
+
+            jsonWriter.WritePropertyName("zoneTransfer");
+            jsonWriter.WriteValue(zoneInfo.ZoneTransfer.ToString());
+
+            jsonWriter.WritePropertyName("zoneTransferNameServers");
+            jsonWriter.WriteStartArray();
+
+            if (zoneInfo.ZoneTransferNameServers is not null)
+            {
+                foreach (IPAddress nameServer in zoneInfo.ZoneTransferNameServers)
+                    jsonWriter.WriteValue(nameServer.ToString());
+            }
+
+            jsonWriter.WriteEndArray();
+
+            jsonWriter.WritePropertyName("notify");
+            jsonWriter.WriteValue(zoneInfo.Notify.ToString());
+
+            jsonWriter.WritePropertyName("notifyNameServers");
+            jsonWriter.WriteStartArray();
+
+            if (zoneInfo.NotifyNameServers is not null)
+            {
+                foreach (IPAddress nameServer in zoneInfo.NotifyNameServers)
+                    jsonWriter.WriteValue(nameServer.ToString());
+            }
+
+            jsonWriter.WriteEndArray();
+        }
+
+        private void SetZoneOptions(HttpListenerRequest request)
+        {
+            string domain = request.QueryString["domain"];
+            if (string.IsNullOrEmpty(domain))
+                throw new DnsWebServiceException("Parameter 'domain' missing.");
+
+            if (domain.EndsWith("."))
+                domain = domain.Substring(0, domain.Length - 1);
+
+            AuthZoneInfo zoneInfo = _dnsServer.AuthZoneManager.GetAuthZoneInfo(domain);
+            if (zoneInfo == null)
+                throw new DnsWebServiceException("Zone '" + domain + "' was not found.");
+
+            if (zoneInfo.Internal)
+                throw new DnsWebServiceException("Access was denied to manage internal DNS Server zone.");
+
+            string strDisabled = request.QueryString["disabled"];
+            if (!string.IsNullOrEmpty(strDisabled))
+                zoneInfo.Disabled = bool.Parse(strDisabled);
+
+            string strZoneTransfer = request.QueryString["zoneTransfer"];
+            if (!string.IsNullOrEmpty(strZoneTransfer))
+                zoneInfo.ZoneTransfer = Enum.Parse<AuthZoneTransfer>(strZoneTransfer, true);
+
+            string strZoneTransferNameServers = request.QueryString["zoneTransferNameServers"];
+            if (!string.IsNullOrEmpty(strZoneTransferNameServers))
+            {
+                if (strZoneTransferNameServers == "false")
+                {
+                    zoneInfo.ZoneTransferNameServers = null;
+                }
+                else
+                {
+                    string[] strNameServers = strZoneTransferNameServers.Split(new char[] { ',' }, StringSplitOptions.RemoveEmptyEntries);
+                    IPAddress[] nameServers = new IPAddress[strNameServers.Length];
+
+                    for (int i = 0; i < strNameServers.Length; i++)
+                        nameServers[i] = IPAddress.Parse(strNameServers[i]);
+
+                    zoneInfo.ZoneTransferNameServers = nameServers;
+                }
+            }
+
+            string strNotify = request.QueryString["notify"];
+            if (!string.IsNullOrEmpty(strNotify))
+                zoneInfo.Notify = Enum.Parse<AuthZoneNotify>(strNotify, true);
+
+            string strNotifyNameServers = request.QueryString["notifyNameServers"];
+            if (!string.IsNullOrEmpty(strNotifyNameServers))
+            {
+                if (strNotifyNameServers == "false")
+                {
+                    zoneInfo.NotifyNameServers = null;
+                }
+                else
+                {
+                    string[] strNameServers = strNotifyNameServers.Split(new char[] { ',' }, StringSplitOptions.RemoveEmptyEntries);
+                    IPAddress[] nameServers = new IPAddress[strNameServers.Length];
+
+                    for (int i = 0; i < strNameServers.Length; i++)
+                        nameServers[i] = IPAddress.Parse(strNameServers[i]);
+
+                    zoneInfo.NotifyNameServers = nameServers;
+                }
+            }
+
+            _log.Write(GetRequestRemoteEndPoint(request), "[" + GetSession(request).Username + "] " + zoneInfo.Type.ToString() + " zone options were updated successfully: " + zoneInfo.Name);
+
+            _dnsServer.AuthZoneManager.SaveZoneFile(zoneInfo.Name);
+        }
+
         private void AddRecord(HttpListenerRequest request)
         {
             string domain = request.QueryString["domain"];
@@ -4987,7 +5149,7 @@ namespace DnsServerCore
                         }
                     }
 
-                    jsonWriter.WritePropertyName("details");
+                    jsonWriter.WritePropertyName("requestHandlers");
                     jsonWriter.WriteStartArray();
 
                     foreach (KeyValuePair<string, IDnsApplicationRequestHandler> handler in application.DnsRequestHandlers)
@@ -6498,22 +6660,29 @@ namespace DnsServerCore
 
                                 {
                                     int count = bR.ReadByte();
-                                    NetworkAddress[] networks = new NetworkAddress[count];
+                                    if (count > 0)
+                                    {
+                                        NetworkAddress[] networks = new NetworkAddress[count];
 
-                                    for (int i = 0; i < count; i++)
-                                        networks[i] = NetworkAddress.Parse(bR);
+                                        for (int i = 0; i < count; i++)
+                                            networks[i] = NetworkAddress.Parse(bR);
 
-                                    _dnsServer.RecursionDeniedNetworks = networks;
+                                        _dnsServer.RecursionDeniedNetworks = networks;
+                                    }
                                 }
+
 
                                 {
                                     int count = bR.ReadByte();
-                                    NetworkAddress[] networks = new NetworkAddress[count];
+                                    if (count > 0)
+                                    {
+                                        NetworkAddress[] networks = new NetworkAddress[count];
 
-                                    for (int i = 0; i < count; i++)
-                                        networks[i] = NetworkAddress.Parse(bR);
+                                        for (int i = 0; i < count; i++)
+                                            networks[i] = NetworkAddress.Parse(bR);
 
-                                    _dnsServer.RecursionAllowedNetworks = networks;
+                                        _dnsServer.RecursionAllowedNetworks = networks;
+                                    }
                                 }
                             }
                             else
@@ -6548,6 +6717,13 @@ namespace DnsServerCore
                                 _dnsServer.QnameMinimization = bR.ReadBoolean();
                             else
                                 _dnsServer.QnameMinimization = true; //default true to enable privacy feature
+
+                            if (version >= 17)
+                            {
+                                _dnsServer.QpmLimit = bR.ReadInt32();
+                                _dnsServer.QpmLimitSampleMinutes = bR.ReadInt32();
+                                _dnsServer.QpmLimitSamplingIntervalInMinutes = bR.ReadInt32();
+                            }
 
                             if (version >= 13)
                             {
@@ -6845,6 +7021,10 @@ namespace DnsServerCore
 
                 bW.Write(_dnsServer.RandomizeName);
                 bW.Write(_dnsServer.QnameMinimization);
+
+                bW.Write(_dnsServer.QpmLimit);
+                bW.Write(_dnsServer.QpmLimitSampleMinutes);
+                bW.Write(_dnsServer.QpmLimitSamplingIntervalInMinutes);
 
                 bW.Write(_dnsServer.ServeStale);
                 bW.Write(_dnsServer.CacheZoneManager.ServeStaleTtl);
