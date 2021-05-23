@@ -20,6 +20,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 using DnsServerCore.Dns.ResourceRecords;
 using System;
 using System.Collections.Generic;
+using System.Net;
 using System.Threading;
 using System.Threading.Tasks;
 using TechnitiumLibrary.Net.Dns;
@@ -32,6 +33,13 @@ namespace DnsServerCore.Dns.Zones
         #region variables
 
         DnsServer _dnsServer;
+
+        readonly Timer _notifyTimer;
+        const int NOTIFY_TIMER_INTERVAL = 10000;
+        readonly List<NameServerAddress> _notifyList;
+
+        const int NOTIFY_TIMEOUT = 10000;
+        const int NOTIFY_RETRIES = 5;
 
         readonly object _refreshTimerLock = new object();
         Timer _refreshTimer;
@@ -48,20 +56,30 @@ namespace DnsServerCore.Dns.Zones
 
         #region constructor
 
-        private SecondaryZone(string name)
-            : base(name)
-        { }
-
         public SecondaryZone(DnsServer dnsServer, AuthZoneInfo zoneInfo)
-            : base(zoneInfo.Name)
+            : base(zoneInfo)
         {
             _dnsServer = dnsServer;
 
-            _disabled = zoneInfo.Disabled;
             _expiry = zoneInfo.Expiry;
 
             _isExpired = DateTime.UtcNow > _expiry;
             _refreshTimer = new Timer(RefreshTimerCallback, null, Timeout.Infinite, Timeout.Infinite);
+
+            _notifyTimer = new Timer(NotifyTimerCallback, null, Timeout.Infinite, Timeout.Infinite);
+            _notifyList = new List<NameServerAddress>();
+        }
+
+        private SecondaryZone(DnsServer dnsServer, string name)
+            : base(name)
+        {
+            _dnsServer = dnsServer;
+
+            _zoneTransfer = AuthZoneTransfer.Deny;
+            _notify = AuthZoneNotify.None;
+
+            _notifyTimer = new Timer(NotifyTimerCallback, null, Timeout.Infinite, Timeout.Infinite);
+            _notifyList = new List<NameServerAddress>();
         }
 
         #endregion
@@ -70,9 +88,7 @@ namespace DnsServerCore.Dns.Zones
 
         public static async Task<SecondaryZone> CreateAsync(DnsServer dnsServer, string name, string primaryNameServerAddresses = null)
         {
-            SecondaryZone secondaryZone = new SecondaryZone(name);
-
-            secondaryZone._dnsServer = dnsServer;
+            SecondaryZone secondaryZone = new SecondaryZone(dnsServer, name);
 
             DnsQuestionRecord soaQuestion = new DnsQuestionRecord(name, DnsResourceRecordType.SOA, DnsClass.IN);
             DnsDatagram soaResponse = null;
@@ -139,6 +155,104 @@ namespace DnsServerCore.Dns.Zones
         #endregion
 
         #region private
+
+        private async void NotifyTimerCallback(object state)
+        {
+            try
+            {
+                switch (_notify)
+                {
+                    case AuthZoneNotify.ZoneNameServers:
+                        IReadOnlyList<NameServerAddress> secondaryNameServers = await GetSecondaryNameServerAddressesAsync(_dnsServer);
+
+                        foreach (NameServerAddress secondaryNameServer in secondaryNameServers)
+                            _ = NotifyNameServerAsync(secondaryNameServer);
+
+                        break;
+
+                    case AuthZoneNotify.SpecifiedNameServers:
+                        IReadOnlyCollection<IPAddress> specifiedNameServers = _notifyNameServers;
+                        if (specifiedNameServers is not null)
+                        {
+                            foreach (IPAddress specifiedNameServer in specifiedNameServers)
+                                _ = NotifyNameServerAsync(new NameServerAddress(specifiedNameServer));
+                        }
+
+                        break;
+
+                    default:
+                        return;
+                }
+            }
+            catch (Exception ex)
+            {
+                LogManager log = _dnsServer.LogManager;
+                if (log != null)
+                    log.Write(ex);
+            }
+        }
+
+        private async Task NotifyNameServerAsync(NameServerAddress nameServer)
+        {
+            //use notify list to prevent multiple threads from notifying the same name server
+            lock (_notifyList)
+            {
+                if (_notifyList.Contains(nameServer))
+                    return; //already notifying the name server in another thread
+
+                _notifyList.Add(nameServer);
+            }
+
+            try
+            {
+                DnsClient client = new DnsClient(nameServer);
+
+                client.Proxy = _dnsServer.Proxy;
+                client.Timeout = NOTIFY_TIMEOUT;
+                client.Retries = NOTIFY_RETRIES;
+
+                DnsDatagram notifyRequest = new DnsDatagram(0, false, DnsOpcode.Notify, true, false, false, false, false, false, DnsResponseCode.NoError, new DnsQuestionRecord[] { new DnsQuestionRecord(_name, DnsResourceRecordType.SOA, DnsClass.IN) }, _entries[DnsResourceRecordType.SOA]);
+                DnsDatagram response = await client.ResolveAsync(notifyRequest);
+
+                switch (response.RCODE)
+                {
+                    case DnsResponseCode.NoError:
+                    case DnsResponseCode.NotImplemented:
+                        {
+                            //transaction complete
+                            LogManager log = _dnsServer.LogManager;
+                            if (log != null)
+                                log.Write("DNS Server successfully notified name server for '" + _name + "' zone changes: " + nameServer.ToString());
+                        }
+                        break;
+
+                    default:
+                        {
+                            //transaction failed
+                            LogManager log = _dnsServer.LogManager;
+                            if (log != null)
+                                log.Write("DNS Server received RCODE=" + response.RCODE.ToString() + " from name server for '" + _name + "' zone notification: " + nameServer.ToString());
+                        }
+                        break;
+                }
+            }
+            catch (Exception ex)
+            {
+                LogManager log = _dnsServer.LogManager;
+                if (log != null)
+                {
+                    log.Write("DNS Server failed to notify name server for '" + _name + "' zone changes: " + nameServer.ToString());
+                    log.Write(ex);
+                }
+            }
+            finally
+            {
+                lock (_notifyList)
+                {
+                    _notifyList.Remove(nameServer);
+                }
+            }
+        }
 
         private async void RefreshTimerCallback(object state)
         {
@@ -210,6 +324,9 @@ namespace DnsServerCore.Dns.Zones
                 }
 
                 DnsClient client = new DnsClient(primaryNameServers);
+
+                client.Proxy = _dnsServer.Proxy;
+                client.PreferIPv6 = _dnsServer.PreferIPv6;
                 client.Timeout = REFRESH_SOA_TIMEOUT;
                 client.Retries = REFRESH_RETRIES;
 
@@ -255,6 +372,9 @@ namespace DnsServerCore.Dns.Zones
 
                 primaryNameServers = tcpNameServers;
                 client = new DnsClient(primaryNameServers);
+
+                client.Proxy = _dnsServer.Proxy;
+                client.PreferIPv6 = _dnsServer.PreferIPv6;
                 client.Timeout = REFRESH_AXFR_TIMEOUT;
                 client.Retries = REFRESH_RETRIES;
 
@@ -292,6 +412,9 @@ namespace DnsServerCore.Dns.Zones
                 if (currentSoaRecord.IsZoneUpdateAvailable(axfrSoaRecord))
                 {
                     _dnsServer.AuthZoneManager.SyncRecords(_name, axfrResponse.Answer);
+
+                    //trigger notify
+                    TriggerNotify();
 
                     LogManager log = _dnsServer.LogManager;
                     if (log != null)
@@ -333,7 +456,15 @@ namespace DnsServerCore.Dns.Zones
 
         #region public
 
-        public void RefreshZone()
+        public void TriggerNotify()
+        {
+            if (_notify == AuthZoneNotify.None)
+                return;
+
+            _notifyTimer.Change(NOTIFY_TIMER_INTERVAL, Timeout.Infinite);
+        }
+
+        public void TriggerRefresh()
         {
             if (_disabled)
                 return;
@@ -397,7 +528,7 @@ namespace DnsServerCore.Dns.Zones
                     if (_disabled)
                         _refreshTimer.Change(Timeout.Infinite, Timeout.Infinite);
                     else
-                        RefreshZone();
+                        TriggerRefresh();
                 }
             }
         }
