@@ -731,7 +731,6 @@ function loadDnsSettings() {
             $("#txtRecursionAllowedNetworks").prop("disabled", true);
 
             switch (responseJSON.response.recursion) {
-
                 case "Allow":
                     $("#rdRecursionAllow").prop("checked", true);
                     break;
@@ -772,6 +771,10 @@ function loadDnsSettings() {
 
             $("#chkRandomizeName").prop("checked", responseJSON.response.randomizeName);
             $("#chkQnameMinimization").prop("checked", responseJSON.response.qnameMinimization);
+
+            $("#txtQpmLimit").val(responseJSON.response.qpmLimit);
+            $("#txtQpmLimitSampleMinutes").val(responseJSON.response.qpmLimitSampleMinutes);
+            $("#txtQpmLimitSamplingIntervalInMinutes").val(responseJSON.response.qpmLimitSamplingIntervalInMinutes);
 
             $("#chkServeStale").prop("checked", responseJSON.response.serveStale);
             $("#txtServeStaleTtl").prop("disabled", !responseJSON.response.serveStale);
@@ -980,6 +983,27 @@ function saveDnsSettings() {
     var randomizeName = $("#chkRandomizeName").prop('checked');
     var qnameMinimization = $("#chkQnameMinimization").prop('checked');
 
+    var qpmLimit = $("#txtQpmLimit").val();
+    if ((qpmLimit === null) || (qpmLimit === "")) {
+        showAlert("warning", "Missing!", "Please enter Queries Per Minute (QPM) limit value.");
+        $("#txtQpmLimit").focus();
+        return false;
+    }
+
+    var qpmLimitSampleMinutes = $("#txtQpmLimitSampleMinutes").val();
+    if ((qpmLimitSampleMinutes === null) || (qpmLimitSampleMinutes === "")) {
+        showAlert("warning", "Missing!", "Please enter Queries Per Minute (QPM) sample value.");
+        $("#txtQpmLimitSampleMinutes").focus();
+        return false;
+    }
+
+    var qpmLimitSamplingIntervalInMinutes = $("#txtQpmLimitSamplingIntervalInMinutes").val();
+    if ((qpmLimitSamplingIntervalInMinutes === null) || (qpmLimitSamplingIntervalInMinutes === "")) {
+        showAlert("warning", "Missing!", "Please enter Queries Per Minute (QPM) sampling interval value.");
+        $("#txtQpmLimitSamplingIntervalInMinutes").focus();
+        return false;
+    }
+
     var serveStale = $("#chkServeStale").prop("checked");
     var serveStaleTtl = $("#txtServeStaleTtl").val();
 
@@ -1070,7 +1094,8 @@ function saveDnsSettings() {
             + "&webServiceLocalAddresses=" + encodeURIComponent(webServiceLocalAddresses) + "&webServiceHttpPort=" + webServiceHttpPort + "&webServiceEnableTls=" + webServiceEnableTls + "&webServiceHttpToTlsRedirect=" + webServiceHttpToTlsRedirect + "&webServiceTlsPort=" + webServiceTlsPort + "&webServiceTlsCertificatePath=" + encodeURIComponent(webServiceTlsCertificatePath) + "&webServiceTlsCertificatePassword=" + encodeURIComponent(webServiceTlsCertificatePassword)
             + "&enableDnsOverHttp=" + enableDnsOverHttp + "&enableDnsOverTls=" + enableDnsOverTls + "&enableDnsOverHttps=" + enableDnsOverHttps + "&dnsTlsCertificatePath=" + encodeURIComponent(dnsTlsCertificatePath) + "&dnsTlsCertificatePassword=" + encodeURIComponent(dnsTlsCertificatePassword)
             + "&preferIPv6=" + preferIPv6 + "&enableLogging=" + enableLogging + "&logQueries=" + logQueries + "&useLocalTime=" + useLocalTime + "&logFolder=" + encodeURIComponent(logFolder) + "&maxLogFileDays=" + maxLogFileDays + "&maxStatFileDays=" + maxStatFileDays
-            + "&recursion=" + recursion + "&recursionDeniedNetworks=" + recursionDeniedNetworks + "&recursionAllowedNetworks=" + recursionAllowedNetworks + "&randomizeName=" + randomizeName + "&qnameMinimization=" + qnameMinimization
+            + "&recursion=" + recursion + "&recursionDeniedNetworks=" + encodeURIComponent(recursionDeniedNetworks) + "&recursionAllowedNetworks=" + encodeURIComponent(recursionAllowedNetworks) + "&randomizeName=" + randomizeName + "&qnameMinimization=" + qnameMinimization
+            + "&qpmLimit=" + qpmLimit + "&qpmLimitSampleMinutes=" + qpmLimitSampleMinutes + "&qpmLimitSamplingIntervalInMinutes=" + qpmLimitSamplingIntervalInMinutes
             + "&serveStale=" + serveStale + "&serveStaleTtl=" + serveStaleTtl + "&cachePrefetchEligibility=" + cachePrefetchEligibility + "&cachePrefetchTrigger=" + cachePrefetchTrigger + "&cachePrefetchSampleIntervalInMinutes=" + cachePrefetchSampleIntervalInMinutes + "&cachePrefetchSampleEligibilityHitsPerHour=" + cachePrefetchSampleEligibilityHitsPerHour
             + proxy + "&forwarders=" + encodeURIComponent(forwarders) + "&forwarderProtocol=" + forwarderProtocol + "&useNxDomainForBlocking=" + useNxDomainForBlocking + "&blockListUrls=" + encodeURIComponent(blockListUrls) + "&blockListUpdateIntervalHours=" + blockListUpdateIntervalHours,
         success: function (responseJSON) {
