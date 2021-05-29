@@ -149,6 +149,16 @@ $(function () {
         }
     });
 
+    $("input[type=radio][name=rdBlockingType]").change(function () {
+        var recursion = $('input[name=rdBlockingType]:checked').val();
+        if (recursion === "CustomAddress") {
+            $("#txtCustomBlockingAddresses").prop("disabled", false);
+        }
+        else {
+            $("#txtCustomBlockingAddresses").prop("disabled", true);
+        }
+    });
+
     $("#chkWebServiceEnableTls").click(function () {
         var webServiceEnableTls = $("#chkWebServiceEnableTls").prop("checked");
         $("#chkWebServiceHttpToTlsRedirect").prop("disabled", !webServiceEnableTls);
@@ -874,7 +884,32 @@ function loadDnsSettings() {
                     break;
             }
 
-            $("#chkUseNxDomainForBlocking").prop("checked", responseJSON.response.useNxDomainForBlocking);
+            $("#txtCustomBlockingAddresses").prop("disabled", true);
+
+            switch (responseJSON.response.blockingType) {
+                case "NxDomain":
+                    $("#rdBlockingTypeNxDomain").prop("checked", true);
+                    break;
+
+                case "CustomAddress":
+                    $("#rdBlockingTypeCustomAddress").prop("checked", true);
+                    $("#txtCustomBlockingAddresses").prop("disabled", false);
+                    break;
+
+                case "AnyAddress":
+                default:
+                    $("#rdBlockingTypeAnyAddress").prop("checked", true);
+                    break;
+            }
+
+            {
+                var value = "";
+
+                for (var i = 0; i < responseJSON.response.customBlockingAddresses.length; i++)
+                    value += responseJSON.response.customBlockingAddresses[i] + "\r\n";
+
+                $("#txtCustomBlockingAddresses").val(value);
+            }
 
             var blockListUrls = responseJSON.response.blockListUrls;
             if (blockListUrls == null) {
@@ -1076,7 +1111,13 @@ function saveDnsSettings() {
 
     var forwarderProtocol = $('input[name=rdForwarderProtocol]:checked').val();
 
-    var useNxDomainForBlocking = $("#chkUseNxDomainForBlocking").prop("checked");
+    var blockingType = $("input[name=rdBlockingType]:checked").val();
+
+    var customBlockingAddresses = cleanTextList($("#txtCustomBlockingAddresses").val());
+    if ((customBlockingAddresses.length === 0) || customBlockingAddresses === ",")
+        customBlockingAddresses = false;
+    else
+        $("#txtCustomBlockingAddresses").val(customBlockingAddresses.replace(/,/g, "\n") + "\n");
 
     var blockListUrls = cleanTextList($("#txtBlockListUrls").val());
 
@@ -1097,7 +1138,7 @@ function saveDnsSettings() {
             + "&recursion=" + recursion + "&recursionDeniedNetworks=" + encodeURIComponent(recursionDeniedNetworks) + "&recursionAllowedNetworks=" + encodeURIComponent(recursionAllowedNetworks) + "&randomizeName=" + randomizeName + "&qnameMinimization=" + qnameMinimization
             + "&qpmLimit=" + qpmLimit + "&qpmLimitSampleMinutes=" + qpmLimitSampleMinutes + "&qpmLimitSamplingIntervalInMinutes=" + qpmLimitSamplingIntervalInMinutes
             + "&serveStale=" + serveStale + "&serveStaleTtl=" + serveStaleTtl + "&cachePrefetchEligibility=" + cachePrefetchEligibility + "&cachePrefetchTrigger=" + cachePrefetchTrigger + "&cachePrefetchSampleIntervalInMinutes=" + cachePrefetchSampleIntervalInMinutes + "&cachePrefetchSampleEligibilityHitsPerHour=" + cachePrefetchSampleEligibilityHitsPerHour
-            + proxy + "&forwarders=" + encodeURIComponent(forwarders) + "&forwarderProtocol=" + forwarderProtocol + "&useNxDomainForBlocking=" + useNxDomainForBlocking + "&blockListUrls=" + encodeURIComponent(blockListUrls) + "&blockListUpdateIntervalHours=" + blockListUpdateIntervalHours,
+            + proxy + "&forwarders=" + encodeURIComponent(forwarders) + "&forwarderProtocol=" + forwarderProtocol + "&blockingType=" + blockingType + "&customBlockingAddresses=" + encodeURIComponent(customBlockingAddresses) + "&blockListUrls=" + encodeURIComponent(blockListUrls) + "&blockListUpdateIntervalHours=" + blockListUpdateIntervalHours,
         success: function (responseJSON) {
             document.title = responseJSON.response.dnsServerDomain + " - " + "Technitium DNS Server v" + responseJSON.response.version;
             $("#lblDnsServerDomain").text(" - " + responseJSON.response.dnsServerDomain);
