@@ -97,8 +97,8 @@ $(function () {
 
         for (var i = 0; i < dataApps.length; i++) {
             if (dataApps[i].name == appName) {
-                for (var j = 0; j < dataApps[i].details.length; j++) {
-                    optClassPaths += "<option>" + dataApps[i].details[j].classPath + "</option>";
+                for (var j = 0; j < dataApps[i].requestHandlers.length; j++) {
+                    optClassPaths += "<option>" + dataApps[i].requestHandlers[j].classPath + "</option>";
                 }
             }
         }
@@ -116,9 +116,9 @@ $(function () {
 
         for (var i = 0; i < dataApps.length; i++) {
             if (dataApps[i].name == appName) {
-                for (var j = 0; j < dataApps[i].details.length; j++) {
-                    if (dataApps[i].details[j].classPath == classPath) {
-                        $("#txtAddEditRecordDataData").val(dataApps[i].details[j].recordDataTemplate);
+                for (var j = 0; j < dataApps[i].requestHandlers.length; j++) {
+                    if (dataApps[i].requestHandlers[j].classPath == classPath) {
+                        $("#txtAddEditRecordDataData").val(dataApps[i].requestHandlers[j].recordDataTemplate);
                         return;
                     }
                 }
