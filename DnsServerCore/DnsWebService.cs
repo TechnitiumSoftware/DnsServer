@@ -946,7 +946,7 @@ namespace DnsServerCore
             if (IsAddressBlocked(remoteEP.Address))
                 throw new DnsWebServiceException("Max limit of " + MAX_LOGIN_ATTEMPTS + " attempts exceeded. Access blocked for " + (BLOCK_ADDRESS_INTERVAL / 1000) + " seconds.");
 
-            strUsername = strUsername.ToLower();
+            strUsername = strUsername.Trim().ToLower();
             string strPasswordHash = GetPasswordHash(strUsername, strPassword);
 
             if (!_credentials.TryGetValue(strUsername, out string passwordHash) || (passwordHash != strPasswordHash))
@@ -1331,8 +1331,19 @@ namespace DnsServerCore
             jsonWriter.WritePropertyName("forwarderProtocol");
             jsonWriter.WriteValue(forwarderProtocol.ToString());
 
-            jsonWriter.WritePropertyName("useNxDomainForBlocking");
-            jsonWriter.WriteValue(_dnsServer.UseNxDomainForBlocking);
+            jsonWriter.WritePropertyName("blockingType");
+            jsonWriter.WriteValue(_dnsServer.BlockingType.ToString());
+
+            jsonWriter.WritePropertyName("customBlockingAddresses");
+            jsonWriter.WriteStartArray();
+
+            foreach (DnsARecord record in _dnsServer.CustomBlockingARecords)
+                jsonWriter.WriteValue(record.Address.ToString());
+
+            foreach (DnsAAAARecord record in _dnsServer.CustomBlockingAAAARecords)
+                jsonWriter.WriteValue(record.Address.ToString());
+
+            jsonWriter.WriteEndArray();
 
             jsonWriter.WritePropertyName("blockListUrls");
 
@@ -1469,7 +1480,6 @@ namespace DnsServerCore
             string strWebServiceHttpToTlsRedirect = request.QueryString["webServiceHttpToTlsRedirect"];
             if (!string.IsNullOrEmpty(strWebServiceHttpToTlsRedirect))
                 _webServiceHttpToTlsRedirect = bool.Parse(strWebServiceHttpToTlsRedirect);
-
 
             string strWebServiceTlsPort = request.QueryString["webServiceTlsPort"];
             if (!string.IsNullOrEmpty(strWebServiceTlsPort))
@@ -1743,9 +1753,46 @@ namespace DnsServerCore
                 }
             }
 
-            string strUseNxDomainForBlocking = request.QueryString["useNxDomainForBlocking"];
-            if (!string.IsNullOrEmpty(strUseNxDomainForBlocking))
-                _dnsServer.UseNxDomainForBlocking = bool.Parse(strUseNxDomainForBlocking);
+            string strBlockingType = request.QueryString["blockingType"];
+            if (!string.IsNullOrEmpty(strBlockingType))
+                _dnsServer.BlockingType = Enum.Parse<DnsServerBlockingType>(strBlockingType, true);
+
+            string strCustomBlockingAddresses = request.QueryString["customBlockingAddresses"];
+            if (!string.IsNullOrEmpty(strCustomBlockingAddresses))
+            {
+                if (strCustomBlockingAddresses == "false")
+                {
+                    _dnsServer.CustomBlockingARecords = null;
+                    _dnsServer.CustomBlockingAAAARecords = null;
+                }
+                else
+                {
+                    string[] strAddresses = strCustomBlockingAddresses.Split(new char[] { ',' }, StringSplitOptions.RemoveEmptyEntries);
+
+                    List<DnsARecord> dnsARecords = new List<DnsARecord>();
+                    List<DnsAAAARecord> dnsAAAARecords = new List<DnsAAAARecord>();
+
+                    foreach (string strAddress in strAddresses)
+                    {
+                        if (IPAddress.TryParse(strAddress, out IPAddress customAddress))
+                        {
+                            switch (customAddress.AddressFamily)
+                            {
+                                case AddressFamily.InterNetwork:
+                                    dnsARecords.Add(new DnsARecord(customAddress));
+                                    break;
+
+                                case AddressFamily.InterNetworkV6:
+                                    dnsAAAARecords.Add(new DnsAAAARecord(customAddress));
+                                    break;
+                            }
+                        }
+                    }
+
+                    _dnsServer.CustomBlockingARecords = dnsARecords;
+                    _dnsServer.CustomBlockingAAAARecords = dnsAAAARecords;
+                }
+            }
 
             string strBlockListUrls = request.QueryString["blockListUrls"];
             if (!string.IsNullOrEmpty(strBlockListUrls))
@@ -6604,6 +6651,7 @@ namespace DnsServerCore
                         case 15:
                         case 16:
                         case 17:
+                        case 18:
                             _dnsServer.ServerDomain = bR.ReadShortString();
                             _webServiceHttpPort = bR.ReadInt32();
 
@@ -6829,8 +6877,42 @@ namespace DnsServerCore
                                 }
                             }
 
-                            if (version >= 16)
-                                _dnsServer.UseNxDomainForBlocking = bR.ReadBoolean();
+                            if (version >= 18)
+                                _dnsServer.BlockingType = (DnsServerBlockingType)bR.ReadByte();
+                            else if (version >= 16)
+                                _dnsServer.BlockingType = bR.ReadBoolean() ? DnsServerBlockingType.NxDomain : DnsServerBlockingType.AnyAddress;
+                            else
+                                _dnsServer.BlockingType = DnsServerBlockingType.AnyAddress;
+
+                            if (version >= 18)
+                            {
+                                //read custom blocking addresses
+                                int count = bR.ReadByte();
+                                if (count > 0)
+                                {
+                                    List<DnsARecord> dnsARecords = new List<DnsARecord>();
+                                    List<DnsAAAARecord> dnsAAAARecords = new List<DnsAAAARecord>();
+
+                                    for (int i = 0; i < count; i++)
+                                    {
+                                        IPAddress customAddress = IPAddressExtension.Parse(bR);
+
+                                        switch (customAddress.AddressFamily)
+                                        {
+                                            case AddressFamily.InterNetwork:
+                                                dnsARecords.Add(new DnsARecord(customAddress));
+                                                break;
+
+                                            case AddressFamily.InterNetworkV6:
+                                                dnsAAAARecords.Add(new DnsAAAARecord(customAddress));
+                                                break;
+                                        }
+                                    }
+
+                                    _dnsServer.CustomBlockingARecords = dnsARecords;
+                                    _dnsServer.CustomBlockingAAAARecords = dnsAAAARecords;
+                                }
+                            }
 
                             if (version > 4)
                             {
@@ -6964,7 +7046,7 @@ namespace DnsServerCore
                 BinaryWriter bW = new BinaryWriter(mS);
 
                 bW.Write(Encoding.ASCII.GetBytes("DS")); //format
-                bW.Write((byte)17); //version
+                bW.Write((byte)18); //version
 
                 bW.WriteShortString(_dnsServer.ServerDomain);
                 bW.Write(_webServiceHttpPort);
@@ -7089,7 +7171,17 @@ namespace DnsServerCore
                 }
 
                 //block list
-                bW.Write(_dnsServer.UseNxDomainForBlocking);
+                bW.Write((byte)_dnsServer.BlockingType);
+
+                {
+                    bW.Write(Convert.ToByte(_dnsServer.CustomBlockingARecords.Count + _dnsServer.CustomBlockingAAAARecords.Count));
+
+                    foreach (DnsARecord record in _dnsServer.CustomBlockingARecords)
+                        record.Address.WriteTo(bW);
+
+                    foreach (DnsAAAARecord record in _dnsServer.CustomBlockingAAAARecords)
+                        record.Address.WriteTo(bW);
+                }
 
                 {
                     bW.Write(Convert.ToByte(_dnsServer.BlockListZoneManager.AllowListUrls.Count + _dnsServer.BlockListZoneManager.BlockListUrls.Count));
