@@ -65,8 +65,7 @@ namespace Failover
                 else
                     return new DnsResourceRecord[] { new DnsResourceRecord(question.Name, DnsResourceRecordType.CNAME, DnsClass.IN, 30, new DnsCNAMERecord(domain)) };
             }
-
-            if (status.IsHealthy)
+            else if (status.IsHealthy)
             {
                 if (question.Name.Equals(zoneName, StringComparison.OrdinalIgnoreCase)) //check for zone apex
                     return new DnsResourceRecord[] { new DnsResourceRecord(question.Name, DnsResourceRecordType.ANAME, DnsClass.IN, appRecordTtl, new DnsANAMERecord(domain)) }; //use ANAME

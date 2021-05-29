@@ -73,8 +73,7 @@ namespace Failover
                             HealthCheckStatus status = _healthMonitor.QueryStatus(address, healthCheck, true);
                             if (status is null)
                                 answers.Add(new DnsResourceRecord(question.Name, DnsResourceRecordType.A, question.Class, 30, new DnsARecord(address)));
-
-                            if (status.IsHealthy)
+                            else if (status.IsHealthy)
                                 answers.Add(new DnsResourceRecord(question.Name, DnsResourceRecordType.A, question.Class, appRecordTtl, new DnsARecord(address)));
                         }
                     }
@@ -90,8 +89,7 @@ namespace Failover
                             HealthCheckStatus status = _healthMonitor.QueryStatus(address, healthCheck, true);
                             if (status is null)
                                 answers.Add(new DnsResourceRecord(question.Name, DnsResourceRecordType.AAAA, question.Class, 30, new DnsAAAARecord(address)));
-
-                            if (status.IsHealthy)
+                            else if (status.IsHealthy)
                                 answers.Add(new DnsResourceRecord(question.Name, DnsResourceRecordType.AAAA, question.Class, appRecordTtl, new DnsAAAARecord(address)));
                         }
                     }
