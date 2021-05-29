@@ -1142,7 +1142,7 @@ namespace DnsServerCore.Dns
             return totalStatCounter.GetEligibleQueries(minimumHitsPerHour);
         }
 
-        public IReadOnlyDictionary<IPAddress, int> GetLatestClientStats(int minutes)
+        public void GetLatestClientStats(int minutes, out IReadOnlyDictionary<IPAddress, int> clientStats, out IReadOnlyDictionary<IPAddress, int> refusedClientStats)
         {
             StatCounter totalStatCounter = new StatCounter();
             totalStatCounter.Lock();
@@ -1159,7 +1159,8 @@ namespace DnsServerCore.Dns
                     totalStatCounter.Merge(statCounter);
             }
 
-            return totalStatCounter.GetClientStats();
+            clientStats = totalStatCounter.GetClientStats();
+            refusedClientStats = totalStatCounter.GetRefusedClientStats();
         }
 
         #endregion
@@ -1282,6 +1283,7 @@ namespace DnsServerCore.Dns
             readonly ConcurrentDictionary<string, Counter> _queryBlockedDomains;
             readonly ConcurrentDictionary<DnsResourceRecordType, Counter> _queryTypes;
             readonly ConcurrentDictionary<IPAddress, Counter> _clientIpAddresses;
+            readonly ConcurrentDictionary<IPAddress, Counter> _refusedIpAddresses;
             readonly ConcurrentDictionary<DnsQuestionRecord, Counter> _queries;
 
             #endregion
@@ -1294,6 +1296,7 @@ namespace DnsServerCore.Dns
                 _queryBlockedDomains = new ConcurrentDictionary<string, Counter>();
                 _queryTypes = new ConcurrentDictionary<DnsResourceRecordType, Counter>();
                 _clientIpAddresses = new ConcurrentDictionary<IPAddress, Counter>();
+                _refusedIpAddresses = new ConcurrentDictionary<IPAddress, Counter>();
                 _queries = new ConcurrentDictionary<DnsQuestionRecord, Counter>();
             }
 
@@ -1309,6 +1312,7 @@ namespace DnsServerCore.Dns
                     case 2:
                     case 3:
                     case 4:
+                    case 5:
                         _totalQueries = bR.ReadInt32();
                         _totalNoError = bR.ReadInt32();
                         _totalServerFailure = bR.ReadInt32();
@@ -1373,6 +1377,19 @@ namespace DnsServerCore.Dns
                         else
                         {
                             _queries = new ConcurrentDictionary<DnsQuestionRecord, Counter>(1, 0);
+                        }
+
+                        if (version >= 5)
+                        {
+                            int count = bR.ReadInt32();
+                            _refusedIpAddresses = new ConcurrentDictionary<IPAddress, Counter>(1, count);
+
+                            for (int i = 0; i < count; i++)
+                                _refusedIpAddresses.TryAdd(IPAddressExtension.Parse(bR), new Counter(bR.ReadInt32()));
+                        }
+                        else
+                        {
+                            _refusedIpAddresses = new ConcurrentDictionary<IPAddress, Counter>(1, 0);
                         }
 
                         break;
@@ -1448,6 +1465,7 @@ namespace DnsServerCore.Dns
                         break;
 
                     case StatsResponseCode.Refused:
+                        _refusedIpAddresses.GetOrAdd(clientIpAddress, GetNewCounter).Increment();
                         Interlocked.Increment(ref _totalRefused);
                         break;
                 }
@@ -1503,6 +1521,9 @@ namespace DnsServerCore.Dns
 
                 foreach (KeyValuePair<IPAddress, Counter> clientIpAddress in statCounter._clientIpAddresses)
                     _clientIpAddresses.GetOrAdd(clientIpAddress.Key, GetNewCounter).Merge(clientIpAddress.Value);
+
+                foreach (KeyValuePair<IPAddress, Counter> refusedIpAddress in statCounter._refusedIpAddresses)
+                    _refusedIpAddresses.GetOrAdd(refusedIpAddress.Key, GetNewCounter).Merge(refusedIpAddress.Value);
 
                 foreach (KeyValuePair<DnsQuestionRecord, Counter> query in statCounter._queries)
                     _queries.GetOrAdd(query.Key, GetNewCounter).Merge(query.Value);
@@ -1600,6 +1621,26 @@ namespace DnsServerCore.Dns
                     truncated = true;
                 }
 
+                if (_refusedIpAddresses.Count > limit)
+                {
+                    List<KeyValuePair<IPAddress, Counter>> topRefusedClients = new List<KeyValuePair<IPAddress, Counter>>(_refusedIpAddresses);
+
+                    _refusedIpAddresses.Clear();
+
+                    topRefusedClients.Sort(delegate (KeyValuePair<IPAddress, Counter> item1, KeyValuePair<IPAddress, Counter> item2)
+                    {
+                        return item2.Value.Count.CompareTo(item1.Value.Count);
+                    });
+
+                    if (topRefusedClients.Count > limit)
+                        topRefusedClients.RemoveRange(limit, topRefusedClients.Count - limit);
+
+                    foreach (KeyValuePair<IPAddress, Counter> item in topRefusedClients)
+                        _refusedIpAddresses[item.Key] = item.Value;
+
+                    truncated = true;
+                }
+
                 if (_queries.Count > limit)
                 {
                     //only last hour queries data is required for cache auto prefetching
@@ -1617,7 +1658,7 @@ namespace DnsServerCore.Dns
                     throw new DnsServerException("StatCounter must be locked.");
 
                 bW.Write(Encoding.ASCII.GetBytes("SC")); //format
-                bW.Write((byte)4); //version
+                bW.Write((byte)5); //version
 
                 bW.Write(_totalQueries);
                 bW.Write(_totalNoError);
@@ -1672,6 +1713,15 @@ namespace DnsServerCore.Dns
                     {
                         query.Key.WriteTo(bW.BaseStream, null);
                         bW.Write(query.Value.Count);
+                    }
+                }
+
+                {
+                    bW.Write(_refusedIpAddresses.Count);
+                    foreach (KeyValuePair<IPAddress, Counter> refusedIpAddress in _refusedIpAddresses)
+                    {
+                        refusedIpAddress.Key.WriteTo(bW);
+                        bW.Write(refusedIpAddress.Value.Count);
                     }
                 }
             }
@@ -1753,6 +1803,16 @@ namespace DnsServerCore.Dns
                     clientStats.Add(item.Key, item.Value.Count);
 
                 return clientStats;
+            }
+
+            public IReadOnlyDictionary<IPAddress, int> GetRefusedClientStats()
+            {
+                Dictionary<IPAddress, int> refusedClientStats = new Dictionary<IPAddress, int>(_refusedIpAddresses.Count);
+
+                foreach (KeyValuePair<IPAddress, Counter> item in _refusedIpAddresses)
+                    refusedClientStats.Add(item.Key, item.Value.Count);
+
+                return refusedClientStats;
             }
 
             #endregion
