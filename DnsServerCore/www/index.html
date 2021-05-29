@@ -781,21 +781,21 @@
                                                                 <input id="chkEnableDnsOverHttp" type="checkbox"> Enable DNS-over-HTTP <code>(TCP Port 8053)</code>
                                                             </label>
                                                         </div>
-                                                        <div style="padding-top: 5px;">Enable this option to accept DNS-over-HTTP requests for both wire and json response formats. It must be used with a TLS terminating reverse proxy like nginx and will work only on private networks.</div>
+                                                        <div style="padding-top: 5px; padding-left: 20px;">Enable this option to accept DNS-over-HTTP requests for both wire and json response formats. It must be used with a TLS terminating reverse proxy like nginx and will work only on private networks.</div>
 
                                                         <div class="checkbox">
                                                             <label>
                                                                 <input id="chkEnableDnsOverTls" type="checkbox"> Enable DNS-over-TLS <code>(TCP Port 853)</code>
                                                             </label>
                                                         </div>
-                                                        <div style="padding-top: 5px;">Enable this option to accept DNS-over-TLS requests.</div>
+                                                        <div style="padding-top: 5px; padding-left: 20px;">Enable this option to accept DNS-over-TLS requests.</div>
 
                                                         <div class="checkbox">
                                                             <label>
                                                                 <input id="chkEnableDnsOverHttps" type="checkbox"> Enable DNS-over-HTTPS <code>(TCP Port 80 &amp; 443)</code>
                                                             </label>
                                                         </div>
-                                                        <div style="padding-top: 5px;">Enable this option to accept DNS-over-HTTPS requests for both wire and json response formats.</div>
+                                                        <div style="padding-top: 5px; padding-left: 20px;">Enable this option to accept DNS-over-HTTPS requests for both wire and json response formats.</div>
                                                     </div>
                                                 </div>
 
@@ -835,7 +835,7 @@
                                                                 <input id="chkPreferIPv6" type="checkbox"> Prefer IPv6
                                                             </label>
                                                         </div>
-                                                        <div style="padding-top: 5px;">DNS Server will use IPv6 for querying whenever possible with this option enabled.</div>
+                                                        <div style="padding-top: 5px; padding-left: 20px;">DNS Server will use IPv6 for querying whenever possible with this option enabled.</div>
                                                     </div>
                                                 </div>
 
@@ -851,21 +851,21 @@
                                                                 <input id="chkEnableLogging" type="checkbox"> Enable Logging
                                                             </label>
                                                         </div>
-                                                        <div style="padding-top: 5px;">Enable this option to log error and audit logs into the log file.</div>
+                                                        <div style="padding-top: 5px; padding-left: 20px;">Enable this option to log error and audit logs into the log file.</div>
 
                                                         <div class="checkbox">
                                                             <label>
                                                                 <input id="chkLogQueries" type="checkbox"> Log All Queries
                                                             </label>
                                                         </div>
-                                                        <div style="padding-top: 5px;">Enable this option to log every query received by this DNS Server and the corresponding response answers into the log file.</div>
+                                                        <div style="padding-top: 5px; padding-left: 20px;">Enable this option to log every query received by this DNS Server and the corresponding response answers into the log file.</div>
 
                                                         <div class="checkbox">
                                                             <label>
                                                                 <input id="chkUseLocalTime" type="checkbox"> Use Local Time
                                                             </label>
                                                         </div>
-                                                        <div style="padding-top: 5px;">Enable this option to use local time instead of UTC for logging.</div>
+                                                        <div style="padding-top: 5px; padding-left: 20px;">Enable this option to use local time instead of UTC for logging.</div>
                                                     </div>
                                                 </div>
 
@@ -910,35 +910,35 @@
                                                                 <input type="radio" name="rdRecursion" id="rdRecursionDeny" value="Deny">
                                                                 Deny Recursion
                                                             </label>
-                                                            <div style="padding-top: 5px;">Disables recursion so that this DNS Server works as authoritative only.</div>
+                                                            <div style="padding-top: 5px; padding-left: 20px;">Disables recursion so that this DNS Server works as authoritative only.</div>
                                                         </div>
                                                         <div class="radio">
                                                             <label>
                                                                 <input type="radio" name="rdRecursion" id="rdRecursionAllow" value="Allow">
                                                                 Allow Recursion
                                                             </label>
-                                                            <div style="padding-top: 5px;">Enables recursion to allow this DNS Server to resolve any domain name.</div>
+                                                            <div style="padding-top: 5px; padding-left: 20px;">Enables recursion to allow this DNS Server to resolve any domain name.</div>
                                                         </div>
                                                         <div class="radio">
                                                             <label>
                                                                 <input type="radio" name="rdRecursion" id="rdRecursionAllowOnlyForPrivateNetworks" value="AllowOnlyForPrivateNetworks" checked>
-                                                                Allow Recursion Only For Private Networks
+                                                                Allow Recursion Only For Private Networks (default)
                                                             </label>
-                                                            <div style="padding-top: 5px;">Select this option if you want to support recursion only on private networks. Any recursive request from a public network will be refused.</div>
+                                                            <div style="padding-top: 5px; padding-left: 20px;">Select this option if you want to support recursion only on private networks. Any recursive request from a public network will be refused.</div>
                                                         </div>
                                                         <div class="radio">
                                                             <label>
                                                                 <input type="radio" name="rdRecursion" id="rdRecursionUseSpecifiedNetworks" value="UseSpecifiedNetworks">
                                                                 Allow/Deny Recursion For Specified Networks
                                                             </label>
-                                                            <div style="padding-top: 5px;">Select this option to specify which networks (in CIDR form) must be allowed or denied. Denied networks are always matched first.</div>
+                                                            <div style="padding-top: 5px; padding-left: 20px;">Select this option to specify which networks (in CIDR form) must be allowed or denied. Denied networks are always matched first.</div>
                                                         </div>
                                                     </div>
                                                     <div class="col-sm-offset-3 col-sm-6">
-                                                        <label for="txtRecursionDeniedNetworks" class="control-label">Denied Networks</label>
+                                                        <label for="txtRecursionDeniedNetworks" class="control-label">Denied Networks (CIDR)</label>
                                                         <textarea id="txtRecursionDeniedNetworks" class="form-control" rows="5"></textarea>
 
-                                                        <label for="txtRecursionAllowedNetworks" class="control-label">Allowed Networks</label>
+                                                        <label for="txtRecursionAllowedNetworks" class="control-label">Allowed Networks (CIDR)</label>
                                                         <textarea id="txtRecursionAllowedNetworks" class="form-control" rows="5"></textarea>
                                                     </div>
                                                 </div>
@@ -951,14 +951,14 @@
                                                                 <input id="chkRandomizeName" type="checkbox"> Randomize Name
                                                             </label>
                                                         </div>
-                                                        <div style="padding-top: 5px;">Enables <a href="https://tools.ietf.org/html/draft-vixie-dnsext-dns0x20-00" target="_blank">QNAME randomization</a> when using UDP as the transport protocol to improve security.</div>
+                                                        <div style="padding-top: 5px; padding-left: 20px;">Enables <a href="https://tools.ietf.org/html/draft-vixie-dnsext-dns0x20-00" target="_blank">QNAME randomization</a> when using UDP as the transport protocol to improve security.</div>
 
                                                         <div class="checkbox">
                                                             <label>
                                                                 <input id="chkQnameMinimization" type="checkbox"> QNAME Minimization
                                                             </label>
                                                         </div>
-                                                        <div style="padding-top: 5px;">Enables <a href="https://tools.ietf.org/html/draft-ietf-dnsop-rfc7816bis-04" target="_blank">QNAME minimization</a> for recursive resolution to improve privacy.</div>
+                                                        <div style="padding-top: 5px; padding-left: 20px;">Enables <a href="https://tools.ietf.org/html/draft-ietf-dnsop-rfc7816bis-04" target="_blank">QNAME minimization</a> for recursive resolution to improve privacy.</div>
                                                     </div>
                                                 </div>
 
@@ -993,7 +993,7 @@
                                                     <div class="col-sm-offset-3 col-sm-8" style="padding-top: 5px;">The interval to sample client query stats.</div>
                                                 </div>
 
-                                                <div>Note! Queries Per Minute (QPM) feature will limit requests from a client based on its IP address. The QPM limit configured will be compared with the average count from the sample size which means a client may exceed the QPM limit for a given minute but won't exceed for the given sample size in minutes.</div>
+                                                <div>Note! Queries Per Minute (QPM) feature will limit requests from a client based on its IP address. The QPM limit configured will be compared with the average count from the sample size which means a client may exceed the QPM limit for a given minute but won't exceed for the given sample size in minutes. Additionally, any client hitting QPM limit for Refused responses will be automatically blocked for 12 hours.</div>
                                             </div>
 
                                             <div class="well well-sm form-horizontal">
@@ -1005,7 +1005,7 @@
                                                                 <input id="chkServeStale" type="checkbox"> Serve Stale
                                                             </label>
                                                         </div>
-                                                        <div style="padding-top: 5px;">Enable the serve stale feature to improve resiliency by using expired or stale records in cache when the DNS server is unable to reach the upstream or authoritative name servers.</div>
+                                                        <div style="padding-top: 5px; padding-left: 20px;">Enable the serve stale feature to improve resiliency by using expired or stale records in cache when the DNS server is unable to reach the upstream or authoritative name servers.</div>
                                                     </div>
                                                 </div>
 
@@ -1063,12 +1063,32 @@
                                                 <div class="form-group">
                                                     <label class="col-sm-3 control-label">Blocking Type</label>
                                                     <div class="col-sm-8">
-                                                        <div class="checkbox">
+                                                        <div class="radio">
                                                             <label>
-                                                                <input id="chkUseNxDomainForBlocking" type="checkbox"> Use <code>NX Domain</code> For Blocking
+                                                                <input type="radio" name="rdBlockingType" id="rdBlockingTypeAnyAddress" value="AnyAddress">
+                                                                Any Address (default)
                                                             </label>
+                                                            <div style="padding-top: 5px; padding-left: 20px;">Uses <code>0.0.0.0</code> and <code>::</code> IP addresses for blocked domain names.</div>
                                                         </div>
-                                                        <div style="padding-top: 5px;">Enabling this will return <code>NX Domain</code> response instead of <code>0.0.0.0</code> address for blocked domains.</div>
+                                                        <div class="radio">
+                                                            <label>
+                                                                <input type="radio" name="rdBlockingType" id="rdBlockingTypeNxDomain" value="NxDomain">
+                                                                NX Domain
+                                                            </label>
+                                                            <div style="padding-top: 5px; padding-left: 20px;">Uses <code>NX Domain</code> response for blocked domain names.</div>
+                                                        </div>
+                                                        <div class="radio">
+                                                            <label>
+                                                                <input type="radio" name="rdBlockingType" id="rdBlockingTypeCustomAddress" value="CustomAddress">
+                                                                Custom Address
+                                                            </label>
+                                                            <div style="padding-top: 5px; padding-left: 20px;">Uses custom IP addresses provided below for blocked domain names.</div>
+                                                        </div>
+                                                    </div>
+
+                                                    <div class="col-sm-offset-3 col-sm-6" style="margin-bottom: 10px;">
+                                                        <label for="txtCustomBlockingAddresses" class="control-label">Custom Blocking Addresses (IP Address)</label>
+                                                        <textarea id="txtCustomBlockingAddresses" class="form-control" rows="3"></textarea>
                                                     </div>
                                                 </div>
 
@@ -2227,74 +2247,78 @@
                         <div class="well well-sm form-horizontal">
                             <div class="form-group">
                                 <label class="col-sm-3 control-label">Zone Transfer</label>
-                                <div class="col-sm-6">
+                                <div class="col-sm-8">
                                     <div class="radio">
                                         <label>
                                             <input type="radio" name="rdZoneTransfer" id="rdZoneTransferDeny" value="Deny">
                                             Deny
                                         </label>
-                                        <div style="padding-top: 5px;"></div>
+                                        <div style="padding-top: 5px; padding-left: 20px;">Denies everyone from performing a zone transfer.</div>
                                     </div>
                                     <div class="radio">
                                         <label>
                                             <input type="radio" name="rdZoneTransfer" id="rdZoneTransferAllow" value="Allow">
                                             Allow
                                         </label>
-                                        <div style="padding-top: 5px;"></div>
+                                        <div style="padding-top: 5px; padding-left: 20px;">Allows everyone to perform a zone transfer.</div>
                                     </div>
                                     <div class="radio">
                                         <label>
                                             <input type="radio" name="rdZoneTransfer" id="rdZoneTransferAllowOnlyZoneNameServers" value="AllowOnlyZoneNameServers">
-                                            Allow Only Name Servers In Zone
+                                            Allow Only Name Servers In Zone (default)
                                         </label>
-                                        <div style="padding-top: 5px;"></div>
+                                        <div style="padding-top: 5px; padding-left: 20px;">Allows only the name servers with an NS record in the zone to perform a zone transfer.</div>
                                     </div>
                                     <div class="radio">
                                         <label>
                                             <input type="radio" name="rdZoneTransfer" id="rdZoneTransferAllowOnlySpecifiedNameServers" value="AllowOnlySpecifiedNameServers">
                                             Allow Only Specified Name Servers
                                         </label>
-                                        <div style="padding-top: 5px;"></div>
+                                        <div style="padding-top: 5px; padding-left: 20px;">Allows only the name servers with an IP address specified below to perform a zone transfer.</div>
                                     </div>
                                 </div>
                                 <div class="col-sm-offset-3 col-sm-6">
-                                    <label for="txtZoneTransferNameServers" class="control-label">Allowed Name Servers</label>
+                                    <label for="txtZoneTransferNameServers" class="control-label">Allowed Name Servers (IP addresses)</label>
                                     <textarea id="txtZoneTransferNameServers" class="form-control" rows="5"></textarea>
                                 </div>
                             </div>
+
+                            <div>Note! Zone transfer should be allowed only for trusted name servers to sync their secondary zone. Zone transfer from localhost (127.0.0.1 or ::1) is always allowed.</div>
                         </div>
 
                         <div class="well well-sm form-horizontal">
                             <div class="form-group">
                                 <label class="col-sm-3 control-label">Notify</label>
-                                <div class="col-sm-6">
+                                <div class="col-sm-8">
                                     <div class="radio">
                                         <label>
                                             <input type="radio" name="rdZoneNotify" id="rdZoneNotifyNone" value="None">
                                             None
                                         </label>
-                                        <div style="padding-top: 5px;"></div>
+                                        <div style="padding-top: 5px; padding-left: 20px;">Does not notify any name server when the zone is updated.</div>
                                     </div>
                                     <div class="radio">
                                         <label>
                                             <input type="radio" name="rdZoneNotify" id="rdZoneNotifyZoneNameServers" value="ZoneNameServers">
-                                            Name Servers In Zone
+                                            Name Servers In Zone (default)
                                         </label>
-                                        <div style="padding-top: 5px;"></div>
+                                        <div style="padding-top: 5px; padding-left: 20px;">Notifies only the name servers with an NS record in the zone when the zone is updated.</div>
                                     </div>
                                     <div class="radio">
                                         <label>
                                             <input type="radio" name="rdZoneNotify" id="rdZoneNotifySpecifiedNameServers" value="SpecifiedNameServers">
                                             Specified Name Servers
                                         </label>
-                                        <div style="padding-top: 5px;"></div>
+                                        <div style="padding-top: 5px; padding-left: 20px;">Notifies only the name servers with an IP address specified below when the zone is updated.</div>
                                     </div>
                                 </div>
                                 <div class="col-sm-offset-3 col-sm-6">
-                                    <label for="txtZoneNotifyNameServers" class="control-label">Notified Name Servers</label>
+                                    <label for="txtZoneNotifyNameServers" class="control-label">Notified Name Servers (IP addresses)</label>
                                     <textarea id="txtZoneNotifyNameServers" class="form-control" rows="5"></textarea>
                                 </div>
                             </div>
+
+                            <div>Note! Notification must be enabled to allow other name servers to trigger a zone transfer immediately when the zone is updated.</div>
                         </div>
                     </div>
                 </div>
