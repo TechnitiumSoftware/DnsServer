@@ -295,10 +295,13 @@ namespace DnsServerCore.Dns.ZoneManagers
                         if (firstRR.IsStale)
                             firstRR.ResetExpiry(30); //reset expiry by 30 seconds so that resolver tries again only after 30 seconds as per draft-ietf-dnsop-serve-stale-04
 
-                        foreach (DnsResourceRecord record in dnsEmptyRecord.Authority)
+                        if (dnsEmptyRecord.Authority is not null)
                         {
-                            if (record.IsStale)
-                                record.ResetExpiry(30); //reset expiry by 30 seconds so that resolver tries again only after 30 seconds as per draft-ietf-dnsop-serve-stale-04
+                            foreach (DnsResourceRecord record in dnsEmptyRecord.Authority)
+                            {
+                                if (record.IsStale)
+                                    record.ResetExpiry(30); //reset expiry by 30 seconds so that resolver tries again only after 30 seconds as per draft-ietf-dnsop-serve-stale-04
+                            }
                         }
                     }
 
@@ -312,10 +315,13 @@ namespace DnsServerCore.Dns.ZoneManagers
                         if (firstRR.IsStale)
                             firstRR.ResetExpiry(30); //reset expiry by 30 seconds so that resolver tries again only after 30 seconds as per draft-ietf-dnsop-serve-stale-04
 
-                        foreach (DnsResourceRecord record in dnsNXRecord.Authority)
+                        if (dnsNXRecord.Authority is not null)
                         {
-                            if (record.IsStale)
-                                record.ResetExpiry(30); //reset expiry by 30 seconds so that resolver tries again only after 30 seconds as per draft-ietf-dnsop-serve-stale-04
+                            foreach (DnsResourceRecord record in dnsNXRecord.Authority)
+                            {
+                                if (record.IsStale)
+                                    record.ResetExpiry(30); //reset expiry by 30 seconds so that resolver tries again only after 30 seconds as per draft-ietf-dnsop-serve-stale-04
+                            }
                         }
                     }
 
