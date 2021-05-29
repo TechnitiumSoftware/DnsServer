@@ -23,6 +23,7 @@ using DnsServerCore.Dns.ZoneManagers;
 using DnsServerCore.Dns.Zones;
 using Newtonsoft.Json;
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.IO;
 using System.Net;
@@ -47,6 +48,13 @@ namespace DnsServerCore.Dns
         Allow = 1,
         AllowOnlyForPrivateNetworks = 2,
         UseSpecifiedNetworks = 3
+    }
+
+    public enum DnsServerBlockingType : byte
+    {
+        AnyAddress = 0,
+        NxDomain = 1,
+        CustomAddress = 2
     }
 
     public sealed class DnsServer : IDisposable, IDnsClient
@@ -97,8 +105,8 @@ namespace DnsServerCore.Dns
 
         readonly ResolverDnsCache _dnsCache;
 
-        readonly DnsARecord _aRecord = new DnsARecord(IPAddress.Any);
-        readonly DnsAAAARecord _aaaaRecord = new DnsAAAARecord(IPAddress.IPv6Any);
+        readonly IReadOnlyCollection<DnsARecord> _aRecords = new DnsARecord[] { new DnsARecord(IPAddress.Any) };
+        readonly IReadOnlyCollection<DnsAAAARecord> _aaaaRecords = new DnsAAAARecord[] { new DnsAAAARecord(IPAddress.IPv6Any) };
 
         DnsServerRecursion _recursion;
         IReadOnlyCollection<NetworkAddress> _recursionDeniedNetworks;
@@ -123,7 +131,9 @@ namespace DnsServerCore.Dns
         int _cachePrefetchTrigger = 9;
         int _cachePrefetchSampleIntervalInMinutes = 5;
         int _cachePrefetchSampleEligibilityHitsPerHour = 30;
-        bool _useNxDomainForBlocking;
+        DnsServerBlockingType _blockingType = DnsServerBlockingType.AnyAddress;
+        IReadOnlyCollection<DnsARecord> _customBlockingARecords = Array.Empty<DnsARecord>();
+        IReadOnlyCollection<DnsAAAARecord> _customBlockingAAAARecords = Array.Empty<DnsAAAARecord>();
         LogManager _queryLog;
         readonly StatsManager _stats;
 
@@ -148,6 +158,8 @@ namespace DnsServerCore.Dns
         Timer _qpmLimitSamplingTimer;
         readonly object _qpmLimitSamplingTimerLock = new object();
         IReadOnlyDictionary<IPAddress, int> _qpmLimitClientStats;
+        IReadOnlyDictionary<IPAddress, int> _qpmLimitRefusedClientStats;
+        readonly ConcurrentDictionary<IPAddress, QpmBlockedAddress> _qpmLimitBlockedAddresses = new ConcurrentDictionary<IPAddress, QpmBlockedAddress>();
 
         readonly IndependentTaskScheduler _resolverTaskScheduler = new IndependentTaskScheduler(ThreadPriority.AboveNormal);
         readonly DomainTree<Task<DnsDatagram>> _resolverTasks = new DomainTree<Task<DnsDatagram>>();
@@ -937,23 +949,6 @@ namespace DnsServerCore.Dns
             return sb.ToString();
         }
 
-        private bool IsQpmLimitCrossed(IPEndPoint remoteEP)
-        {
-            if ((_qpmLimit > 0) && (_qpmLimitClientStats is not null))
-            {
-                if (IPAddress.IsLoopback(remoteEP.Address))
-                    return false;
-
-                if (_qpmLimitClientStats.TryGetValue(remoteEP.Address, out int countPerSample))
-                {
-                    int averageCountPerMinute = countPerSample / _qpmLimitSampleMinutes;
-                    return averageCountPerMinute > _qpmLimit;
-                }
-            }
-
-            return false;
-        }
-
         private bool IsRecursionAllowed(IPEndPoint remoteEP)
         {
             switch (_recursion)
@@ -1639,36 +1634,82 @@ namespace DnsServerCore.Dns
                 //domain is blocked in blocked zone
                 DnsQuestionRecord question = request.Question[0];
 
-                if (_useNxDomainForBlocking && (question.Type != DnsResourceRecordType.TXT))
-                    return new DnsDatagram(request.Identifier, true, DnsOpcode.StandardQuery, false, false, request.RecursionDesired, true, false, false, DnsResponseCode.NxDomain, request.Question) { Tag = StatsResponseType.Blocked };
-
-                IReadOnlyList<DnsResourceRecord> answer = null;
-                IReadOnlyList<DnsResourceRecord> authority = null;
-
-                switch (question.Type)
+                if (question.Type == DnsResourceRecordType.TXT)
                 {
-                    case DnsResourceRecordType.A:
-                        answer = new DnsResourceRecord[] { new DnsResourceRecord(question.Name, DnsResourceRecordType.A, question.Class, 60, _aRecord) };
-                        break;
+                    //return meta data
+                    string blockedDomain;
 
-                    case DnsResourceRecordType.AAAA:
-                        answer = new DnsResourceRecord[] { new DnsResourceRecord(question.Name, DnsResourceRecordType.AAAA, question.Class, 60, _aaaaRecord) };
-                        break;
+                    if ((response.Authority.Count > 0) && (response.Authority[0].Type == DnsResourceRecordType.SOA))
+                        blockedDomain = response.Authority[0].Name;
+                    else
+                        blockedDomain = question.Name;
 
-                    case DnsResourceRecordType.NS:
-                        answer = response.Answer;
-                        break;
+                    IReadOnlyList<DnsResourceRecord> answer = new DnsResourceRecord[] { new DnsResourceRecord(question.Name, DnsResourceRecordType.TXT, question.Class, 60, new DnsTXTRecord("blockList=custom; domain=" + blockedDomain)) };
 
-                    case DnsResourceRecordType.TXT:
-                        answer = new DnsResourceRecord[] { new DnsResourceRecord(question.Name, DnsResourceRecordType.TXT, question.Class, 60, new DnsTXTRecord("blockList=custom; domain=" + question.Name)) };
-                        break;
-
-                    default:
-                        authority = response.Authority;
-                        break;
+                    return new DnsDatagram(request.Identifier, true, DnsOpcode.StandardQuery, false, false, request.RecursionDesired, true, false, false, DnsResponseCode.NoError, request.Question, answer) { Tag = StatsResponseType.Blocked };
                 }
+                else
+                {
+                    IReadOnlyCollection<DnsARecord> aRecords;
+                    IReadOnlyCollection<DnsAAAARecord> aaaaRecords;
 
-                return new DnsDatagram(request.Identifier, true, DnsOpcode.StandardQuery, false, false, request.RecursionDesired, true, false, false, DnsResponseCode.NoError, request.Question, answer, authority) { Tag = StatsResponseType.Blocked };
+                    switch (_blockingType)
+                    {
+                        case DnsServerBlockingType.AnyAddress:
+                            aRecords = _aRecords;
+                            aaaaRecords = _aaaaRecords;
+                            break;
+
+                        case DnsServerBlockingType.CustomAddress:
+                            aRecords = _customBlockingARecords;
+                            aaaaRecords = _customBlockingAAAARecords;
+                            break;
+
+                        case DnsServerBlockingType.NxDomain:
+                            return new DnsDatagram(request.Identifier, true, DnsOpcode.StandardQuery, false, false, request.RecursionDesired, true, false, false, DnsResponseCode.NxDomain, request.Question) { Tag = StatsResponseType.Blocked };
+
+                        default:
+                            throw new InvalidOperationException();
+                    }
+
+                    IReadOnlyList<DnsResourceRecord> answer = null;
+                    IReadOnlyList<DnsResourceRecord> authority = null;
+
+                    switch (question.Type)
+                    {
+                        case DnsResourceRecordType.A:
+                            {
+                                List<DnsResourceRecord> rrList = new List<DnsResourceRecord>(aRecords.Count);
+
+                                foreach (DnsARecord record in aRecords)
+                                    rrList.Add(new DnsResourceRecord(question.Name, DnsResourceRecordType.A, question.Class, 60, record));
+
+                                answer = rrList;
+                            }
+                            break;
+
+                        case DnsResourceRecordType.AAAA:
+                            {
+                                List<DnsResourceRecord> rrList = new List<DnsResourceRecord>(aaaaRecords.Count);
+
+                                foreach (DnsAAAARecord record in aaaaRecords)
+                                    rrList.Add(new DnsResourceRecord(question.Name, DnsResourceRecordType.AAAA, question.Class, 60, record));
+
+                                answer = rrList;
+                            }
+                            break;
+
+                        case DnsResourceRecordType.NS:
+                            answer = response.Answer;
+                            break;
+
+                        default:
+                            authority = response.Authority;
+                            break;
+                    }
+
+                    return new DnsDatagram(request.Identifier, true, DnsOpcode.StandardQuery, false, false, request.RecursionDesired, true, false, false, DnsResponseCode.NoError, request.Question, answer, authority) { Tag = StatsResponseType.Blocked };
+                }
             }
         }
 
@@ -1800,7 +1841,7 @@ namespace DnsServerCore.Dns
                         //inspect response TTL values to decide if prefetch trigger is needed
                         foreach (DnsResourceRecord answer in cacheResponse.Answer)
                         {
-                            if ((answer.OriginalTtlValue > _cachePrefetchEligibility) && (answer.TtlValue < _cachePrefetchTrigger))
+                            if ((answer.OriginalTtlValue >= _cachePrefetchEligibility) && (answer.TtlValue <= _cachePrefetchTrigger))
                             {
                                 //trigger prefetch async
                                 _ = PrefetchCacheAsync(request, viaForwarders);
@@ -2041,7 +2082,7 @@ namespace DnsServerCore.Dns
 
                 foreach (DnsResourceRecord answer in response.Answer)
                 {
-                    if ((answer.OriginalTtlValue > _cachePrefetchEligibility) && (utcNow.AddSeconds(answer.TtlValue) < _cachePrefetchSamplingTimerTriggersOn))
+                    if ((answer.OriginalTtlValue >= _cachePrefetchEligibility) && (utcNow.AddSeconds(answer.TtlValue) < _cachePrefetchSamplingTimerTriggersOn))
                     {
                         //answer expires before next sampling so add back to the list to allow refreshing it
                         addBackToSampleList = true;
@@ -2078,7 +2119,7 @@ namespace DnsServerCore.Dns
                 //inspect response TTL values to decide if refresh is needed
                 foreach (DnsResourceRecord answer in cacheResponse.Answer)
                 {
-                    if ((answer.OriginalTtlValue > _cachePrefetchEligibility) && (answer.TtlValue < trigger))
+                    if ((answer.OriginalTtlValue >= _cachePrefetchEligibility) && (answer.TtlValue <= trigger))
                         return question; //TTL eligible and less than trigger so refresh question
                 }
 
@@ -2111,7 +2152,7 @@ namespace DnsServerCore.Dns
             //inspect response TTL values to decide if refresh is needed
             foreach (DnsResourceRecord answer in cacheResponse.Answer)
             {
-                if ((answer.OriginalTtlValue > _cachePrefetchEligibility) && (answer.TtlValue < trigger))
+                if ((answer.OriginalTtlValue >= _cachePrefetchEligibility) && (answer.TtlValue <= trigger))
                     return true; //TTL eligible less than trigger so refresh
             }
 
@@ -2246,7 +2287,7 @@ namespace DnsServerCore.Dns
                         if (sample is null)
                             continue;
 
-                        if (!IsCacheRefreshNeeded(sample.SampleQuestion, _cachePrefetchTrigger + 2))
+                        if (!IsCacheRefreshNeeded(sample.SampleQuestion, _cachePrefetchTrigger + 1))
                             continue;
 
                         cacheRefreshSampleList[i] = null; //remove from sample list to avoid concurrent refresh attempt
@@ -2329,11 +2370,53 @@ namespace DnsServerCore.Dns
             }
         }
 
-        private void QpsLimitSamplingTimerCallback(object state)
+        private bool IsQpmLimitCrossed(IPEndPoint remoteEP)
+        {
+            if (_qpmLimit > 0)
+            {
+                IPAddress remoteIP = remoteEP.Address;
+
+                if (IPAddress.IsLoopback(remoteIP))
+                    return false;
+
+                if (_qpmLimitBlockedAddresses.ContainsKey(remoteIP))
+                    return true;
+
+                if ((_qpmLimitClientStats is not null) && _qpmLimitClientStats.TryGetValue(remoteIP, out int countPerSample))
+                {
+                    int averageCountPerMinute = countPerSample / _qpmLimitSampleMinutes;
+                    bool limitCrossed = averageCountPerMinute >= _qpmLimit;
+
+                    if (limitCrossed && (_qpmLimitRefusedClientStats is not null) && _qpmLimitRefusedClientStats.TryGetValue(remoteIP, out int refusedCountPerSample))
+                    {
+                        int averageRefusedCountPerMinute = refusedCountPerSample / _qpmLimitSampleMinutes;
+                        if (averageRefusedCountPerMinute >= _qpmLimit)
+                            _ = _qpmLimitBlockedAddresses.GetOrAdd(remoteIP, GetNewQpmBlockedAddress);
+                    }
+
+                    return limitCrossed;
+                }
+            }
+
+            return false;
+        }
+
+        private static QpmBlockedAddress GetNewQpmBlockedAddress<T>(T key)
+        {
+            return new QpmBlockedAddress();
+        }
+
+        private void QpmLimitSamplingTimerCallback(object state)
         {
             try
             {
-                _qpmLimitClientStats = _stats.GetLatestClientStats(_qpmLimitSampleMinutes);
+                _stats.GetLatestClientStats(_qpmLimitSampleMinutes, out _qpmLimitClientStats, out _qpmLimitRefusedClientStats);
+
+                foreach (KeyValuePair<IPAddress, QpmBlockedAddress> item in _qpmLimitBlockedAddresses)
+                {
+                    if (item.Value.IsBlockExpired())
+                        _qpmLimitBlockedAddresses.TryRemove(item);
+                }
             }
             catch (Exception ex)
             {
@@ -2359,6 +2442,10 @@ namespace DnsServerCore.Dns
                 {
                     if (_qpmLimitSamplingTimer is not null)
                         _qpmLimitSamplingTimer.Change(Timeout.Infinite, Timeout.Infinite);
+
+                    _qpmLimitClientStats = null;
+                    _qpmLimitRefusedClientStats = null;
+                    _qpmLimitBlockedAddresses.Clear();
                 }
             }
             else if (_state == ServiceState.Running)
@@ -2666,7 +2753,7 @@ namespace DnsServerCore.Dns
             _cachePrefetchSamplingTimer = new Timer(CachePrefetchSamplingTimerCallback, null, Timeout.Infinite, Timeout.Infinite);
             _cachePrefetchRefreshTimer = new Timer(CachePrefetchRefreshTimerCallback, null, Timeout.Infinite, Timeout.Infinite);
             _cacheMaintenanceTimer = new Timer(CacheMaintenanceTimerCallback, null, CACHE_MAINTENANCE_TIMER_INITIAL_INTEVAL, Timeout.Infinite);
-            _qpmLimitSamplingTimer = new Timer(QpsLimitSamplingTimerCallback, null, Timeout.Infinite, Timeout.Infinite);
+            _qpmLimitSamplingTimer = new Timer(QpmLimitSamplingTimerCallback, null, Timeout.Infinite, Timeout.Infinite);
 
             _state = ServiceState.Running;
 
@@ -2867,8 +2954,18 @@ namespace DnsServerCore.Dns
             get { return _recursion; }
             set
             {
-                _recursion = value;
-                ResetPrefetchTimers();
+                if (_recursion != value)
+                {
+                    if ((_recursion == DnsServerRecursion.Deny) || (value == DnsServerRecursion.Deny))
+                    {
+                        _recursion = value;
+                        ResetPrefetchTimers();
+                    }
+                    else
+                    {
+                        _recursion = value;
+                    }
+                }
             }
         }
 
@@ -2934,8 +3031,18 @@ namespace DnsServerCore.Dns
                 if (value < 0)
                     throw new ArgumentOutOfRangeException(nameof(QpmLimit), "Value cannot be less than 0.");
 
-                _qpmLimit = value;
-                ResetQpsLimitTimer();
+                if (_qpmLimit != value)
+                {
+                    if ((_qpmLimit == 0) || (value == 0))
+                    {
+                        _qpmLimit = value;
+                        ResetQpsLimitTimer();
+                    }
+                    else
+                    {
+                        _qpmLimit = value;
+                    }
+                }
             }
         }
 
@@ -3053,8 +3160,15 @@ namespace DnsServerCore.Dns
 
                 if (_cachePrefetchTrigger != value)
                 {
-                    _cachePrefetchTrigger = value;
-                    ResetPrefetchTimers();
+                    if ((_cachePrefetchTrigger == 0) || (value == 0))
+                    {
+                        _cachePrefetchTrigger = value;
+                        ResetPrefetchTimers();
+                    }
+                    else
+                    {
+                        _cachePrefetchTrigger = value;
+                    }
                 }
             }
         }
@@ -3067,11 +3181,7 @@ namespace DnsServerCore.Dns
                 if ((value < 1) || (value > 60))
                     throw new ArgumentOutOfRangeException("CacheRefreshSampleIntervalInMinutes", "Valid range is between 1 and 60 minutes.");
 
-                if (_cachePrefetchSampleIntervalInMinutes != value)
-                {
-                    _cachePrefetchSampleIntervalInMinutes = value;
-                    ResetPrefetchTimers();
-                }
+                _cachePrefetchSampleIntervalInMinutes = value;
             }
         }
 
@@ -3087,10 +3197,34 @@ namespace DnsServerCore.Dns
             }
         }
 
-        public bool UseNxDomainForBlocking
+        public DnsServerBlockingType BlockingType
         {
-            get { return _useNxDomainForBlocking; }
-            set { _useNxDomainForBlocking = value; }
+            get { return _blockingType; }
+            set { _blockingType = value; }
+        }
+
+        public IReadOnlyCollection<DnsARecord> CustomBlockingARecords
+        {
+            get { return _customBlockingARecords; }
+            set
+            {
+                if (value is null)
+                    value = Array.Empty<DnsARecord>();
+
+                _customBlockingARecords = value;
+            }
+        }
+
+        public IReadOnlyCollection<DnsAAAARecord> CustomBlockingAAAARecords
+        {
+            get { return _customBlockingAAAARecords; }
+            set
+            {
+                if (value is null)
+                    value = Array.Empty<DnsAAAARecord>();
+
+                _customBlockingAAAARecords = value;
+            }
         }
 
         public LogManager LogManager
@@ -3132,6 +3266,18 @@ namespace DnsServerCore.Dns
 
             public DnsQuestionRecord SampleQuestion { get; }
             public IReadOnlyList<NameServerAddress> ViaForwarders { get; }
+        }
+
+        class QpmBlockedAddress
+        {
+            const int BLOCK_EXPIRY = 12 * 60 * 60 * 1000;
+
+            readonly DateTime _blockExpiresOn = DateTime.UtcNow.AddMilliseconds(BLOCK_EXPIRY);
+
+            public bool IsBlockExpired()
+            {
+                return DateTime.UtcNow > _blockExpiresOn;
+            }
         }
     }
 }
