@@ -209,7 +209,8 @@ RESPONSE:
 			"https://cloudflare-dns.com/dns-query (1.0.0.1)"
 		],
 		"forwarderProtocol": "Https",
-		"useNxDomainForBlocking": false,
+		"blockingType": "AnyAddress",
+		"customBlockingAddresses": [],
 		"blockListUrls": [
 			"https://raw.githubusercontent.com/StevenBlack/hosts/master/hosts",
 			"https://mirror1.malwaredomains.com/files/justdomains",
@@ -274,7 +275,8 @@ WHERE:
 - `proxyBypass` (optional): A comma separated bypass list consisting of IP addresses, network addresses in CIDR format, or host/domain names to never use proxy for.
 - `forwarders` (optional): A comma separated list of forwarders to be used by this DNS server. Set this parameter to `false` string to remove existing forwarders so that the DNS server does recursive resolution by itself.
 - `forwarderProtocol` (optional): The forwarder DNS transport protocol to be used. Valid values are [`Udp`, `Tcp`, `Tls`, `Https`].
-- `useNxDomainForBlocking` (optional): Enabling this will return `NX Domain` response instead of `0.0.0.0` address for blocked domains. Default value is `false`.
+- `blockingType` (optional): Sets how the DNS server should respond to a blocked domain request. Valid values are [`AnyAddress`, `NxDomain`, `CustomAddress`] where `AnyAddress` is default which response with `0.0.0.0` and `::` IP addresses for blocked domains. Using `NxDomain` will respond with `NX Domain` response. `CustomAddress` will return the specified custom blocking addresses.
+- `customBlockingAddresses` (optional): Set the custom blocking addresses to be used for blocked domain response. These addresses are returned only when `blockingType` is set to `CustomAddress`.
 - `blockListUrls` (optional): A comma separated list of block list URLs that this server must automatically download and use with the block lists zone. DNS Server will use the data returned by the block list URLs to update the block list zone automatically every 24 hours. The expected file format is standard hosts file format or plain text file containing list of domains to block. Set this parameter to `false` to remove existing values.
 - `blockListUpdateIntervalHours` (optional): The interval in hours to automatically download and update the block lists. Default value is `24`.
 
