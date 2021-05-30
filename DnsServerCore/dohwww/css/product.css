@@ -1,0 +1,92 @@
+﻿
+.container .download {
+    margin: 70px 0px 50px 0px;
+    text-align: center;
+    font-family: Arial;
+}
+
+    .container .download .product {
+        margin: 30px 0px 30px 0px;
+    }
+
+        .container .download .product h1 {
+            font-size: 44px;
+            font-weight: 600;
+            margin-right: 10px;
+            display: inline;
+        }
+
+    .container .download .btn {
+        margin: 26px auto 0px auto;
+    }
+
+    .container .download h2 {
+        font-size: 36px;
+    }
+
+    .container .download h3 {
+        color: rgb(119,119,119);
+        font-size: 20px;
+    }
+
+    .container .download h4 {
+        color: rgb(119,119,119);
+        font-size: 14px;
+    }
+
+    .container .download p {
+        color: rgb(119, 119, 119);
+    }
+
+    .container .download .info {
+        font-size: 12px;
+        text-align: left;
+    }
+
+        .container .download .info .item {
+            clear: both;
+        }
+
+        .container .download .info .label {
+            font-weight: 600;
+            color: #646464;
+            font-size: 12px;
+            width: 100px;
+            text-align: right;
+            float: left;
+        }
+
+        .container .download .info .value {
+            color: rgb(119, 119, 119);
+        }
+
+.shadow-screenshot {
+    box-shadow: 2px 3px 15px 1px #888888;
+}
+
+.features {
+    margin: 80px auto 40px auto;
+    font-family: Arial;
+}
+
+    .features .pull-left {
+        width: 50%;
+    }
+
+    .features .pull-right {
+        width: 50%;
+    }
+
+    .features h3 {
+        font-size: 22px;
+        text-align: center;
+    }
+
+    .features p {
+        color: rgb(119, 119, 119);
+        text-align: center;
+    }
+
+    .features li {
+        color: rgb(119, 119, 119);
+    }

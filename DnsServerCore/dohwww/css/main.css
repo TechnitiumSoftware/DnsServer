@@ -1,0 +1,323 @@
+﻿
+html, body {
+    height: 100% !important;
+}
+
+body {
+    margin: 0px !important;
+    line-height: 1.42857143 !important;
+}
+
+a {
+    color: #6699ff;
+}
+
+    a:hover {
+        color: #6699ff;
+    }
+
+#header {
+    background-color: #6699ff;
+    height: 32px;
+    margin-bottom: -32px;
+    box-shadow: 0px 1px 15px 0px #888888;
+    width: 100%;
+    min-width: 970px;
+}
+
+    #header .title {
+        margin: 0 auto;
+        color: #ffffff;
+        padding: 0px 15px 0px 15px;
+    }
+
+        #header .title img {
+            vertical-align: text-bottom;
+        }
+
+        #header .title .text {
+            font-size: 24px;
+            font-weight: 600;
+            font-family: Arial;
+            margin-left: 4px;
+        }
+
+    #header .menu {
+        float: right;
+        padding: 6px;
+    }
+
+        #header .menu .menu-title {
+            color: #ffffff;
+            font-family: Arial;
+            font-size: 16px;
+        }
+
+#content {
+    min-height: 100%;
+}
+
+.container {
+    margin-left: auto;
+    margin-right: auto;
+    padding: 55px 15px 60px 15px;
+    word-wrap: break-word;
+    min-width: 970px;
+}
+
+    .container .pageLogin {
+        display: none;
+        margin: auto;
+        width: 500px;
+        padding: 150px 0 0 0;
+    }
+
+    .container .page {
+        display: none;
+    }
+
+.auto-resize-img {
+    max-width: 100%;
+    height: auto;
+    display: block;
+    margin-right: auto;
+    margin-left: auto;
+}
+
+.center-iframe {
+    display: block;
+    margin-right: auto;
+    margin-left: auto;
+    max-width: 640px;
+    max-height: 480px;
+}
+
+    .center-iframe iframe {
+        width: 100%;
+        height: 100%;
+    }
+
+#footer {
+    background-color: rgb(243, 243, 243);
+    padding: 20px 0px 20px 0px;
+    margin-top: -55px;
+    box-shadow: 0px 2px 15px 1px #888888;
+    clear: both;
+    position: relative;
+    height: 55px;
+    min-width: 970px;
+}
+
+    #footer .content {
+        margin: 0 auto;
+        color: rgb(119,119,119);
+        font-family: Arial, sans-serif;
+        font-size: 11px;
+        font-weight: 600;
+        text-align: center;
+    }
+
+        #footer .content a {
+            color: #6699ff;
+            text-decoration: none;
+        }
+
+            #footer .content a:hover {
+                color: #6699ff;
+            }
+
+@media (min-width: 992px) {
+    #header .title, .container, #footer .content {
+        width: 970px;
+    }
+}
+
+@media (min-width: 1200px) {
+    #header .title, .container, #footer .content {
+        width: 1170px;
+    }
+
+    .stats-panel .stats-item {
+        padding: 6px !important;
+    }
+}
+
+.form-inline .form-group {
+    margin-right: 10px;
+    margin-bottom: 10px;
+}
+
+.AlertPlaceholder {
+    position: fixed;
+    width: 800px;
+    margin: auto;
+    left: 0;
+    right: 0;
+    top: 45px;
+    z-index: 1000;
+}
+
+.zone-list-pane {
+    float: left;
+    width: 24%;
+}
+
+.zones {
+    font-size: 14px;
+}
+
+    .zones .zone {
+        padding: 4px;
+    }
+
+.zone-viewer-pane {
+    float: right;
+    width: 75%;
+    display: none;
+}
+
+.log-list-pane {
+    float: left;
+    width: 17%;
+}
+
+.logs {
+    font-size: 12px;
+}
+
+    .logs .log {
+        padding: 2px;
+    }
+
+.log-viewer-pane {
+    float: right;
+    width: 82%;
+    display: none;
+}
+
+
+.stats-panel {
+    height: 80px;
+    padding: 6px 0 6px 0;
+}
+
+    .stats-panel .total-queries {
+        background-color: rgba(102, 153, 255, 0.7);
+        color: #ffffff;
+    }
+
+    .stats-panel .no-error {
+        background-color: rgba(92, 184, 92, 0.7);
+        color: #ffffff;
+    }
+
+    .stats-panel .server-failure {
+        background-color: rgba(217, 83, 79, 0.7);
+        color: #ffffff;
+    }
+
+    .stats-panel .name-error {
+        background-color: rgba(7, 7, 7, 0.7);
+        color: #ffffff;
+    }
+
+    .stats-panel .refused {
+        background-color: rgba(91, 192, 222, 0.7);
+        color: #ffffff;
+    }
+
+    .stats-panel .auth-hit {
+        background-color: rgba(150, 150, 0, 0.7);
+        color: #ffffff;
+    }
+
+    .stats-panel .cache-hit {
+        background-color: rgba(111, 84, 153, 0.7);
+        color: #ffffff;
+    }
+
+    .stats-panel .blocked {
+        background-color: rgba(255, 165, 0, 0.7);
+        color: #ffffff;
+    }
+
+    .stats-panel .recursions {
+        background-color: rgba(23, 162, 184, 0.7);
+        color: #ffffff;
+    }
+
+    .stats-panel .clients {
+        background-color: rgba(51, 122, 183, 0.7);
+        color: #ffffff;
+    }
+
+    .stats-panel .stats-item {
+        width: 9.7%;
+        float: left;
+        padding: 4px;
+        margin-right: 0.3%;
+    }
+
+        .stats-panel .stats-item .number {
+            font-size: 15px;
+            font-weight: bold;
+        }
+
+        .stats-panel .stats-item .percentage {
+            font-size: 10px;
+            font-weight: bold;
+        }
+
+        .stats-panel .stats-item .title {
+            font-size: 12px;
+            font-weight: bold;
+        }
+
+.zone-stats-panel {
+    height: 70px;
+    padding: 6px 0 6px 4px;
+    margin-bottom: 10px;
+}
+
+    .zone-stats-panel .zones {
+        background-color: rgba(51, 122, 183, 0.7);
+        color: #ffffff;
+    }
+
+    .zone-stats-panel .allowed-zones {
+        background-color: rgba(51, 122, 183, 0.7);
+        color: #ffffff;
+    }
+
+    .zone-stats-panel .blocked-zones {
+        background-color: rgba(51, 122, 183, 0.7);
+        color: #ffffff;
+    }
+
+    .zone-stats-panel .block-list-zones {
+        background-color: rgba(51, 122, 183, 0.7);
+        color: #ffffff;
+    }
+
+    .zone-stats-panel .stats-item {
+        width: 24%;
+        float: left;
+        padding: 6px 10px;
+        margin-right: 1%;
+    }
+
+        .zone-stats-panel .stats-item .number {
+            font-size: 16px;
+            font-weight: bold;
+            padding: 6px 0;
+        }
+
+        .zone-stats-panel .stats-item .title {
+            font-size: 12px;
+            font-weight: bold;
+        }
+
+.about p {
+    color: rgb(119, 119, 119);
+    text-align: center;
+}
