@@ -131,6 +131,7 @@ namespace DnsServerCore.Dns
         int _cachePrefetchTrigger = 9;
         int _cachePrefetchSampleIntervalInMinutes = 5;
         int _cachePrefetchSampleEligibilityHitsPerHour = 30;
+        bool _enableBlocking = true;
         DnsServerBlockingType _blockingType = DnsServerBlockingType.AnyAddress;
         IReadOnlyCollection<DnsARecord> _customBlockingARecords = Array.Empty<DnsARecord>();
         IReadOnlyCollection<DnsAAAARecord> _customBlockingAAAARecords = Array.Empty<DnsAAAARecord>();
@@ -1723,6 +1724,10 @@ namespace DnsServerCore.Dns
                 //this is since a blocked CNAME record could still be used by an allowed domain name and so must resolve
                 inAllowedZone = true;
             }
+            else if (!_enableBlocking)
+            {
+                inAllowedZone = true;
+            }
             else
             {
                 inAllowedZone = (_allowedZoneManager.TotalZonesAllowed > 0) && (_allowedZoneManager.Query(request) is not null);
@@ -3195,6 +3200,12 @@ namespace DnsServerCore.Dns
 
                 _cachePrefetchSampleEligibilityHitsPerHour = value;
             }
+        }
+
+        public bool EnableBlocking
+        {
+            get { return _enableBlocking; }
+            set { _enableBlocking = value; }
         }
 
         public DnsServerBlockingType BlockingType
