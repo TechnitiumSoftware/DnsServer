@@ -1190,7 +1190,7 @@ function saveDnsSettings() {
 }
 
 function checkForReverseProxy(responseJSON) {
-    if (location.protocol == "https:") {
+    if (window.location.protocol == "https:") {
         var currentPort = window.location.port;
 
         if ((currentPort == 0) || (currentPort == ""))
