@@ -923,6 +923,7 @@ function loadDnsSettings() {
             var blockListUrls = responseJSON.response.blockListUrls;
             if (blockListUrls == null) {
                 $("#txtBlockListUrls").val("");
+                $("#btnUpdateBlockListsNow").prop("disabled", true);
             }
             else {
                 var value = "";
@@ -931,6 +932,7 @@ function loadDnsSettings() {
                     value += blockListUrls[i] + "\r\n";
 
                 $("#txtBlockListUrls").val(value);
+                $("#btnUpdateBlockListsNow").prop("disabled", false);
             }
 
             $("#optQuickBlockList").val("blank");
@@ -944,7 +946,11 @@ function loadDnsSettings() {
             }
 
             $("#txtBlockListUpdateIntervalHours").val(responseJSON.response.blockListUpdateIntervalHours);
-            $("#lblBlockListNextUpdatedOn").text(responseJSON.response.blockListNextUpdatedOn);
+
+            if (responseJSON.response.blockListNextUpdatedOn == null)
+                $("#lblBlockListNextUpdatedOn").text("Not Scheduled");
+            else
+                $("#lblBlockListNextUpdatedOn").text(responseJSON.response.blockListNextUpdatedOn);
 
             divDnsSettingsLoader.hide();
             divDnsSettings.show();
@@ -1234,6 +1240,9 @@ function forceUpdateBlockLists() {
         url: "/api/forceUpdateBlockLists?token=" + token,
         success: function (responseJSON) {
             btn.button('reset');
+
+            $("#lblBlockListNextUpdatedOn").text("Updating Now");
+
             showAlert("success", "Updating Block List!", "Block list update was triggered successfully.");
         },
         error: function () {
