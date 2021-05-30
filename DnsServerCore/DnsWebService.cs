@@ -117,6 +117,9 @@ namespace DnsServerCore
         const int BLOCK_LIST_UPDATE_TIMER_INITIAL_INTERVAL = 5000;
         const int BLOCK_LIST_UPDATE_TIMER_INTERVAL = 900000;
 
+        Timer _temporaryDisableBlockingTimer;
+        DateTime _temporaryDisableBlockingTill;
+
         List<string> _configDisabledZones;
 
         #endregion
@@ -403,6 +406,10 @@ namespace DnsServerCore
 
                                             case "/api/forceUpdateBlockLists":
                                                 ForceUpdateBlockLists(request);
+                                                break;
+
+                                            case "/api/temporaryDisableBlocking":
+                                                TemporaryDisableBlocking(request);
                                                 break;
 
                                             case "/api/backupSettings":
@@ -1331,6 +1338,15 @@ namespace DnsServerCore
             jsonWriter.WritePropertyName("forwarderProtocol");
             jsonWriter.WriteValue(forwarderProtocol.ToString());
 
+            jsonWriter.WritePropertyName("enableBlocking");
+            jsonWriter.WriteValue(_dnsServer.EnableBlocking);
+
+            if (!_dnsServer.EnableBlocking && (DateTime.UtcNow < _temporaryDisableBlockingTill))
+            {
+                jsonWriter.WritePropertyName("temporaryDisableBlockingTill");
+                jsonWriter.WriteValue(_temporaryDisableBlockingTill.ToLocalTime().ToString());
+            }
+
             jsonWriter.WritePropertyName("blockingType");
             jsonWriter.WriteValue(_dnsServer.BlockingType.ToString());
 
@@ -1753,6 +1769,17 @@ namespace DnsServerCore
                 }
             }
 
+            string strEnableBlocking = request.QueryString["enableBlocking"];
+            if (!string.IsNullOrEmpty(strEnableBlocking))
+            {
+                _dnsServer.EnableBlocking = bool.Parse(strEnableBlocking);
+                if (_dnsServer.EnableBlocking)
+                {
+                    if (_temporaryDisableBlockingTimer is not null)
+                        _temporaryDisableBlockingTimer.Dispose();
+                }
+            }
+
             string strBlockingType = request.QueryString["blockingType"];
             if (!string.IsNullOrEmpty(strBlockingType))
                 _dnsServer.BlockingType = Enum.Parse<DnsServerBlockingType>(strBlockingType, true);
@@ -1898,7 +1925,7 @@ namespace DnsServerCore
             SaveConfigFile();
             _log.Save();
 
-            _log.Write(GetRequestRemoteEndPoint(request), "[" + GetSession(request).Username + "] DNS Settings were updated {dnsServerDomain: " + _dnsServer.ServerDomain + "; dnsServerLocalEndPoints: " + strDnsServerLocalEndPoints + "; webServiceLocalAddresses: " + strWebServiceLocalAddresses + "; webServiceHttpPort: " + _webServiceHttpPort + "; webServiceEnableTls: " + strWebServiceEnableTls + "; webServiceHttpToTlsRedirect: " + strWebServiceHttpToTlsRedirect + "; webServiceTlsPort: " + strWebServiceTlsPort + "; webServiceTlsCertificatePath: " + strWebServiceTlsCertificatePath + "; enableDnsOverHttp: " + _dnsServer.EnableDnsOverHttp + "; enableDnsOverTls: " + _dnsServer.EnableDnsOverTls + "; enableDnsOverHttps: " + _dnsServer.EnableDnsOverHttps + "; dnsTlsCertificatePath: " + _dnsTlsCertificatePath + "; preferIPv6: " + _dnsServer.PreferIPv6 + "; enableLogging: " + strEnableLogging + "; logQueries: " + (_dnsServer.QueryLogManager != null) + "; useLocalTime: " + strUseLocalTime + "; logFolder: " + strLogFolder + "; maxLogFileDays: " + strMaxLogFileDays + "; recursion: " + _dnsServer.Recursion.ToString() + "; randomizeName: " + strRandomizeName + "; qnameMinimization: " + strQnameMinimization + "; serveStale: " + strServeStale + "; serveStaleTtl: " + strServeStaleTtl + "; cachePrefetchEligibility: " + strCachePrefetchEligibility + "; cachePrefetchTrigger: " + strCachePrefetchTrigger + "; cachePrefetchSampleIntervalInMinutes: " + strCachePrefetchSampleIntervalInMinutes + "; cachePrefetchSampleEligibilityHitsPerHour: " + strCachePrefetchSampleEligibilityHitsPerHour + "; proxyType: " + strProxyType + "; forwarders: " + strForwarders + "; forwarderProtocol: " + strForwarderProtocol + "; blockListUrl: " + strBlockListUrls + "; blockListUpdateIntervalHours: " + strBlockListUpdateIntervalHours + ";}");
+            _log.Write(GetRequestRemoteEndPoint(request), "[" + GetSession(request).Username + "] DNS Settings were updated {dnsServerDomain: " + _dnsServer.ServerDomain + "; dnsServerLocalEndPoints: " + strDnsServerLocalEndPoints + "; webServiceLocalAddresses: " + strWebServiceLocalAddresses + "; webServiceHttpPort: " + _webServiceHttpPort + "; webServiceEnableTls: " + strWebServiceEnableTls + "; webServiceHttpToTlsRedirect: " + strWebServiceHttpToTlsRedirect + "; webServiceTlsPort: " + strWebServiceTlsPort + "; webServiceTlsCertificatePath: " + strWebServiceTlsCertificatePath + "; enableDnsOverHttp: " + _dnsServer.EnableDnsOverHttp + "; enableDnsOverTls: " + _dnsServer.EnableDnsOverTls + "; enableDnsOverHttps: " + _dnsServer.EnableDnsOverHttps + "; dnsTlsCertificatePath: " + _dnsTlsCertificatePath + "; preferIPv6: " + _dnsServer.PreferIPv6 + "; enableLogging: " + strEnableLogging + "; logQueries: " + (_dnsServer.QueryLogManager != null) + "; useLocalTime: " + strUseLocalTime + "; logFolder: " + strLogFolder + "; maxLogFileDays: " + strMaxLogFileDays + "; recursion: " + _dnsServer.Recursion.ToString() + "; randomizeName: " + strRandomizeName + "; qnameMinimization: " + strQnameMinimization + "; serveStale: " + strServeStale + "; serveStaleTtl: " + strServeStaleTtl + "; cachePrefetchEligibility: " + strCachePrefetchEligibility + "; cachePrefetchTrigger: " + strCachePrefetchTrigger + "; cachePrefetchSampleIntervalInMinutes: " + strCachePrefetchSampleIntervalInMinutes + "; cachePrefetchSampleEligibilityHitsPerHour: " + strCachePrefetchSampleEligibilityHitsPerHour + "; proxyType: " + strProxyType + "; forwarders: " + strForwarders + "; forwarderProtocol: " + strForwarderProtocol + "; enableBlocking: " + _dnsServer.EnableBlocking + "; blockingType: " + _dnsServer.BlockingType.ToString() + "; blockListUrl: " + strBlockListUrls + "; blockListUpdateIntervalHours: " + strBlockListUpdateIntervalHours + ";}");
 
             if ((_webServiceTlsCertificatePath == null) && (_dnsTlsCertificatePath == null))
                 StopTlsCertificateUpdateTimer();
@@ -2522,6 +2549,46 @@ namespace DnsServerCore
             ForceUpdateBlockLists();
 
             _log.Write(GetRequestRemoteEndPoint(request), "[" + GetSession(request).Username + "] Block list update was triggered.");
+        }
+
+        private void TemporaryDisableBlocking(HttpListenerRequest request)
+        {
+            string strMinutes = request.QueryString["minutes"];
+            if (string.IsNullOrEmpty(strMinutes))
+                throw new DnsWebServiceException("Parameter 'minutes' missing.");
+
+            int minutes = int.Parse(strMinutes);
+
+            Timer temporaryDisableBlockingTimer = _temporaryDisableBlockingTimer;
+            if (temporaryDisableBlockingTimer is not null)
+                temporaryDisableBlockingTimer.Dispose();
+
+            Timer newTemporaryDisableBlockingTimer = new Timer(delegate (object state)
+            {
+                try
+                {
+                    _dnsServer.EnableBlocking = true;
+                    _log.Write(GetRequestRemoteEndPoint(request), "[" + GetSession(request).Username + "] Blocking was enabled after " + minutes + " minute(s) being temporarily disabled.");
+                }
+                catch (Exception ex)
+                {
+                    _log.Write(ex);
+                }
+            });
+
+            Timer originalTimer = Interlocked.CompareExchange(ref _temporaryDisableBlockingTimer, newTemporaryDisableBlockingTimer, temporaryDisableBlockingTimer);
+            if (ReferenceEquals(originalTimer, temporaryDisableBlockingTimer))
+            {
+                newTemporaryDisableBlockingTimer.Change(minutes * 60 * 1000, Timeout.Infinite);
+                _dnsServer.EnableBlocking = false;
+                _temporaryDisableBlockingTill = DateTime.UtcNow.AddMinutes(minutes);
+
+                _log.Write(GetRequestRemoteEndPoint(request), "[" + GetSession(request).Username + "] Blocking was temporarily disabled for " + minutes + " minute(s).");
+            }
+            else
+            {
+                newTemporaryDisableBlockingTimer.Dispose();
+            }
         }
 
         #endregion
@@ -6878,6 +6945,9 @@ namespace DnsServerCore
                             }
 
                             if (version >= 18)
+                                _dnsServer.EnableBlocking = bR.ReadBoolean();
+
+                            if (version >= 18)
                                 _dnsServer.BlockingType = (DnsServerBlockingType)bR.ReadByte();
                             else if (version >= 16)
                                 _dnsServer.BlockingType = bR.ReadBoolean() ? DnsServerBlockingType.NxDomain : DnsServerBlockingType.AnyAddress;
@@ -7171,6 +7241,7 @@ namespace DnsServerCore
                 }
 
                 //block list
+                bW.Write(_dnsServer.EnableBlocking);
                 bW.Write((byte)_dnsServer.BlockingType);
 
                 {
@@ -7486,6 +7557,9 @@ namespace DnsServerCore
 
                 StopBlockListUpdateTimer();
                 StopTlsCertificateUpdateTimer();
+
+                if (_temporaryDisableBlockingTimer is not null)
+                    _temporaryDisableBlockingTimer.Dispose();
 
                 _state = ServiceState.Stopped;
 
