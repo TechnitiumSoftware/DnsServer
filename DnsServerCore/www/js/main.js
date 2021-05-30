@@ -1120,6 +1120,8 @@ function saveDnsSettings() {
 
     var forwarderProtocol = $('input[name=rdForwarderProtocol]:checked').val();
 
+    var enableBlocking = $("#chkEnableBlocking").prop("checked");
+
     var blockingType = $("input[name=rdBlockingType]:checked").val();
 
     var customBlockingAddresses = cleanTextList($("#txtCustomBlockingAddresses").val());
@@ -1147,7 +1149,7 @@ function saveDnsSettings() {
             + "&recursion=" + recursion + "&recursionDeniedNetworks=" + encodeURIComponent(recursionDeniedNetworks) + "&recursionAllowedNetworks=" + encodeURIComponent(recursionAllowedNetworks) + "&randomizeName=" + randomizeName + "&qnameMinimization=" + qnameMinimization
             + "&qpmLimit=" + qpmLimit + "&qpmLimitSampleMinutes=" + qpmLimitSampleMinutes + "&qpmLimitSamplingIntervalInMinutes=" + qpmLimitSamplingIntervalInMinutes
             + "&serveStale=" + serveStale + "&serveStaleTtl=" + serveStaleTtl + "&cachePrefetchEligibility=" + cachePrefetchEligibility + "&cachePrefetchTrigger=" + cachePrefetchTrigger + "&cachePrefetchSampleIntervalInMinutes=" + cachePrefetchSampleIntervalInMinutes + "&cachePrefetchSampleEligibilityHitsPerHour=" + cachePrefetchSampleEligibilityHitsPerHour
-            + proxy + "&forwarders=" + encodeURIComponent(forwarders) + "&forwarderProtocol=" + forwarderProtocol + "&blockingType=" + blockingType + "&customBlockingAddresses=" + encodeURIComponent(customBlockingAddresses) + "&blockListUrls=" + encodeURIComponent(blockListUrls) + "&blockListUpdateIntervalHours=" + blockListUpdateIntervalHours,
+            + proxy + "&forwarders=" + encodeURIComponent(forwarders) + "&forwarderProtocol=" + forwarderProtocol + "&enableBlocking=" + enableBlocking + "&blockingType=" + blockingType + "&customBlockingAddresses=" + encodeURIComponent(customBlockingAddresses) + "&blockListUrls=" + encodeURIComponent(blockListUrls) + "&blockListUpdateIntervalHours=" + blockListUpdateIntervalHours,
         success: function (responseJSON) {
             document.title = responseJSON.response.dnsServerDomain + " - " + "Technitium DNS Server v" + responseJSON.response.version;
             $("#lblDnsServerDomain").text(" - " + responseJSON.response.dnsServerDomain);
@@ -1160,6 +1162,9 @@ function saveDnsSettings() {
                 optCustomLocalBlockList.attr("value", "http://localhost:" + responseJSON.response.webServiceHttpPort + "/blocklist.txt");
                 optCustomLocalBlockList.text("Custom Local Block List (http://localhost:" + responseJSON.response.webServiceHttpPort + "/blocklist.txt)");
             }
+
+            if (enableBlocking)
+                $("#lblTemporaryDisableBlockingTill").text("Not Set");
 
             btn.button('reset');
             showAlert("success", "Settings Saved!", "DNS Server settings were saved successfully.");
@@ -1261,6 +1266,10 @@ function temporaryDisableBlockingNow() {
         url: "/api/temporaryDisableBlocking?token=" + token + "&minutes=" + minutes,
         success: function (responseJSON) {
             btn.button('reset');
+
+            $("#chkEnableBlocking").prop("checked", false);
+            $("#lblTemporaryDisableBlockingTill").text(responseJSON.response.temporaryDisableBlockingTill);
+
             showAlert("success", "Blocking Disabled!", "Blocking was successfully disabled temporarily for " + htmlEncode(minutes) + " minute(s).");
         },
         error: function () {
