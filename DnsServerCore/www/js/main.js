@@ -884,6 +884,15 @@ function loadDnsSettings() {
                     break;
             }
 
+            $("#chkEnableBlocking").prop("checked", responseJSON.response.enableBlocking);
+
+            if (responseJSON.response.temporaryDisableBlockingTill == null)
+                $("#lblTemporaryDisableBlockingTill").text("Not Set");
+            else
+                $("#lblTemporaryDisableBlockingTill").text(responseJSON.response.temporaryDisableBlockingTill);
+
+            $("#txtTemporaryDisableBlockingMinutes").val("");
+
             $("#txtCustomBlockingAddresses").prop("disabled", true);
 
             switch (responseJSON.response.blockingType) {
@@ -1221,6 +1230,38 @@ function forceUpdateBlockLists() {
         success: function (responseJSON) {
             btn.button('reset');
             showAlert("success", "Updating Block List!", "Block list update was triggered successfully.");
+        },
+        error: function () {
+            btn.button('reset');
+        },
+        invalidToken: function () {
+            btn.button('reset');
+            showPageLogin();
+        }
+    });
+
+    return false;
+}
+
+function temporaryDisableBlockingNow() {
+    var minutes = $("#txtTemporaryDisableBlockingMinutes").val();
+
+    if ((minutes === null) || (minutes === "")) {
+        showAlert("warning", "Missing!", "Please enter a value in minutes to temporarily disable blocking.");
+        $("#txtTemporaryDisableBlockingMinutes").focus();
+        return false;
+    }
+
+    if (!confirm("Are you sure to temporarily disable blocking for " + minutes + " minute(s)?"))
+        return false;
+
+    var btn = $("#btnTemporaryDisableBlockingNow").button('loading');
+
+    HTTPRequest({
+        url: "/api/temporaryDisableBlocking?token=" + token + "&minutes=" + minutes,
+        success: function (responseJSON) {
+            btn.button('reset');
+            showAlert("success", "Blocking Disabled!", "Blocking was successfully disabled temporarily for " + htmlEncode(minutes) + " minute(s).");
         },
         error: function () {
             btn.button('reset');
