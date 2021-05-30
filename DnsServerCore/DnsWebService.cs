@@ -1383,8 +1383,20 @@ namespace DnsServerCore
             jsonWriter.WritePropertyName("blockListUpdateIntervalHours");
             jsonWriter.WriteValue(_blockListUpdateIntervalHours);
 
-            jsonWriter.WritePropertyName("blockListNextUpdatedOn");
-            jsonWriter.WriteValue(_blockListLastUpdatedOn.AddHours(_blockListUpdateIntervalHours).ToLocalTime().ToString());
+            if (_blockListUpdateTimer is not null)
+            {
+                DateTime blockListNextUpdatedOn = _blockListLastUpdatedOn.AddHours(_blockListUpdateIntervalHours);
+                if (DateTime.UtcNow < blockListNextUpdatedOn)
+                {
+                    jsonWriter.WritePropertyName("blockListNextUpdatedOn");
+                    jsonWriter.WriteValue(blockListNextUpdatedOn.ToLocalTime().ToString());
+                }
+                else
+                {
+                    jsonWriter.WritePropertyName("blockListNextUpdatedOn");
+                    jsonWriter.WriteValue("Updating Now");
+                }
+            }
         }
 
         private void SetDnsSettings(HttpListenerRequest request, JsonTextWriter jsonWriter)
@@ -2546,9 +2558,8 @@ namespace DnsServerCore
 
         private void ForceUpdateBlockLists(HttpListenerRequest request)
         {
-            ForceUpdateBlockLists();
-
-            _log.Write(GetRequestRemoteEndPoint(request), "[" + GetSession(request).Username + "] Block list update was triggered.");
+            if (ForceUpdateBlockLists())
+                _log.Write(GetRequestRemoteEndPoint(request), "[" + GetSession(request).Username + "] Block list update was triggered.");
         }
 
         private void TemporaryDisableBlocking(HttpListenerRequest request, JsonTextWriter jsonWriter)
@@ -6536,12 +6547,19 @@ namespace DnsServerCore
 
         #region block list
 
-        private void ForceUpdateBlockLists()
+        private bool ForceUpdateBlockLists()
         {
-            _blockListLastUpdatedOn = new DateTime();
+            if ((_dnsServer.BlockListZoneManager.AllowListUrls.Count + _dnsServer.BlockListZoneManager.BlockListUrls.Count) > 0)
+            {
+                _blockListLastUpdatedOn = new DateTime();
 
-            StopBlockListUpdateTimer();
-            StartBlockListUpdateTimer();
+                StopBlockListUpdateTimer();
+                StartBlockListUpdateTimer();
+
+                return true;
+            }
+
+            return false;
         }
 
         private void StartBlockListUpdateTimer()
