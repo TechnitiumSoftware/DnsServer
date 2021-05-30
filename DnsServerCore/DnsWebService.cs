@@ -409,7 +409,7 @@ namespace DnsServerCore
                                                 break;
 
                                             case "/api/temporaryDisableBlocking":
-                                                TemporaryDisableBlocking(request);
+                                                TemporaryDisableBlocking(request, jsonWriter);
                                                 break;
 
                                             case "/api/backupSettings":
@@ -2551,7 +2551,7 @@ namespace DnsServerCore
             _log.Write(GetRequestRemoteEndPoint(request), "[" + GetSession(request).Username + "] Block list update was triggered.");
         }
 
-        private void TemporaryDisableBlocking(HttpListenerRequest request)
+        private void TemporaryDisableBlocking(HttpListenerRequest request, JsonTextWriter jsonWriter)
         {
             string strMinutes = request.QueryString["minutes"];
             if (string.IsNullOrEmpty(strMinutes))
@@ -2589,6 +2589,9 @@ namespace DnsServerCore
             {
                 newTemporaryDisableBlockingTimer.Dispose();
             }
+
+            jsonWriter.WritePropertyName("temporaryDisableBlockingTill");
+            jsonWriter.WriteValue(_temporaryDisableBlockingTill.ToLocalTime().ToString());
         }
 
         #endregion
