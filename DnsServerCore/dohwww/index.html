@@ -6,9 +6,8 @@
 
     <title>Technitium DNS Server</title>
 
-    <link href="/css/bootstrap.min.css" rel="stylesheet" />
     <link href="/css/main.css" rel="stylesheet" />
-    <link href="/css/product.css" rel="stylesheet" />
+    <link href="/css/bootstrap.min.css" rel="stylesheet" />
 
     <script src="/js/jquery.min.js"></script>
     <script src="/js/main.js"></script>
@@ -25,7 +24,7 @@
 
                 <h3 style="margin-top: 40px;">The Encrypted DNS Service URL</h3>
                 <p>
-                    Use the following URL to configure your clients for consuming the DoH service.
+                    Use the following URL to configure your clients for consuming the DNS-over-HTTPS service.
                 </p>
                 <p style="font-size: 16px; font-weight: bold;">
                     <a id="lnkDoH" href=""></a>
@@ -33,9 +32,9 @@
 
                 <h3 style="margin-top: 40px;">Mozilla Firefox Configuration</h3>
                 <p style="max-width: 800px; margin-right: auto; margin-left: auto;">
-                    To configure Firefox with custom DoH, go to <b>Options > General</b> and scroll down to find <b>Network Settings</b>. Click on the <b>Settings</b> button and find the DoH option at the bottom as shown below:
+                    To configure Firefox, go to <b>Options &gt; General</b> and scroll down to find <b>Network Settings</b>. Click on the <b>Settings</b> button, find the DNS-over-HTTPS option at the bottom (as shown below), and use the encrypted DNS service URL given above.
                 </p>
-                <img class="auto-resize-img shadow-screenshot" style="margin-top: 20px; margin-bottom: 20px;" src="img/firefox-doh.png" alt="Mozilla Firefox Custom DoH Option" />
+                <img class="auto-resize-img shadow-screenshot" style="margin-top: 20px; margin-bottom: 20px;" src="img/firefox-doh.png" alt="Mozilla Firefox Custom DNS-over-HTTPS Option" />
                 <p style="max-width: 800px; margin-right: auto; margin-left: auto;">
                     Note! This will work only for Firefox and all other applications on your computer will keep using the default DNS server configured in your network settings.
                 </p>
