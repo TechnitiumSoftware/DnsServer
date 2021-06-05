@@ -837,7 +837,7 @@ namespace DnsServerCore.Dns
                                     break;
 
                                 default:
-                                    await SendErrorAsync(stream, requestConnection, 406, "Only application/dns-message and application/dns-json types are accepted.");
+                                    await RedirectAsync(stream, httpRequest.Protocol, requestConnection, "https://" + httpRequest.Headers[HttpRequestHeader.Host]);
                                     break;
                             }
 
@@ -914,6 +914,22 @@ namespace DnsServerCore.Dns
                 string statusString = statusCode + " " + GetHttpStatusString((HttpStatusCode)statusCode);
                 byte[] bufferContent = Encoding.UTF8.GetBytes("<html><head><title>" + statusString + "</title></head><body><h1>" + statusString + "</h1>" + (message is null ? "" : "<p>" + message + "</p>") + "</body></html>");
                 byte[] bufferHeader = Encoding.UTF8.GetBytes("HTTP/1.1 " + statusString + "\r\nDate: " + DateTime.UtcNow.ToString("r") + "\r\nContent-Type: text/html; charset=utf-8\r\nContent-Length: " + bufferContent.Length + "\r\nX-Robots-Tag: noindex, nofollow\r\nConnection: " + connection + "\r\n\r\n");
+
+                await outputStream.WriteAsync(bufferHeader);
+                await outputStream.WriteAsync(bufferContent);
+                await outputStream.FlushAsync();
+            }
+            catch
+            { }
+        }
+
+        private static async Task RedirectAsync(Stream outputStream, string protocol, string connection, string location)
+        {
+            try
+            {
+                string statusString = "302 Found";
+                byte[] bufferContent = Encoding.UTF8.GetBytes("<html><head><title>" + statusString + "</title></head><body><h1>" + statusString + "</h1><p>Location: <a href=\"" + location + "\">" + location + "</a></p></body></html>");
+                byte[] bufferHeader = Encoding.UTF8.GetBytes(protocol + " " + statusString + "\r\nDate: " + DateTime.UtcNow.ToString("r") + "\r\nLocation: " + location + "\r\nContent-Type: text/html; charset=utf-8\r\nContent-Length: " + bufferContent.Length + "\r\nX-Robots-Tag: noindex, nofollow\r\nConnection: " + connection + "\r\n\r\n");
 
                 await outputStream.WriteAsync(bufferHeader);
                 await outputStream.WriteAsync(bufferContent);
