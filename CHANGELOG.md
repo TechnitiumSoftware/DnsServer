@@ -1,5 +1,21 @@
 # Technitium DNS Server Change Log
 
+## Version 6.3
+Release Date: 6 June 2021
+
+- Added Failover App in DNS App Store.
+- Added comments option to DNS records in Zones.
+- Added Recursion ACL support to specify allowed and denied networks that can perform recursion.
+- Added Zone Options feature to allow configuring Zone Transfer and Notify settings per zone.
+- Added Queries Per Minute (QPM) Limit feature to limit the number of queries being made by an IP address.
+- Added feature to specify custom IP addresses for blocked domain names.
+- Added feature to temporarily/permanently disable blocking of domain names.
+- Added index page for DNS-over-HTTPS (DoH) web service that displays basic configuration information to user when DoH URL is visited using a web browser.
+- Fixed multiple issues in QNAME minimization implementation.
+- Fixed multiple DNS Client implementation issues.
+- Multiple other minor bug fixes and improvements.
+- Updated few API calls which may cause issues in 3rd party clients if they are not updated before deploying this new version.
+
 ## Version 6.2.3
 Release Date: 2 May 2021
 
