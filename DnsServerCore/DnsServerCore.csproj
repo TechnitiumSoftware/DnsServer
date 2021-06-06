@@ -5,6 +5,16 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <None Remove="dohwww\css\bootstrap.min.css" />
+    <None Remove="dohwww\css\bootstrap.min.css.map" />
+    <None Remove="dohwww\css\main.css" />
+    <None Remove="dohwww\favicon.ico" />
+    <None Remove="dohwww\img\firefox-doh.png" />
+    <None Remove="dohwww\img\logo.png" />
+    <None Remove="dohwww\index.html" />
+    <None Remove="dohwww\js\jquery.min.js" />
+    <None Remove="dohwww\js\main.js" />
+    <None Remove="dohwww\robots.txt" />
     <None Remove="named.root" />
     <None Remove="www\css\bootstrap-theme.min.css" />
     <None Remove="www\css\bootstrap-theme.min.css.map" />
@@ -48,6 +58,36 @@
   </ItemGroup>
 
   <ItemGroup>
+    <Content Include="dohwww\css\bootstrap.min.css">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="dohwww\css\bootstrap.min.css.map">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="dohwww\css\main.css">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="dohwww\favicon.ico">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="dohwww\img\firefox-doh.png">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="dohwww\img\logo.png">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="dohwww\index.html">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="dohwww\js\jquery.min.js">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="dohwww\js\main.js">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="dohwww\robots.txt">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
     <Content Include="named.root">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
@@ -198,7 +238,7 @@
     <RepositoryType></RepositoryType>
     <Description>.NET 5</Description>
     <PackageId>DnsServer</PackageId>
-    <Version>6.2.3</Version>
+    <Version>6.3</Version>
   </PropertyGroup>
 
 </Project>
