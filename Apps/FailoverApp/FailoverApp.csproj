@@ -21,15 +21,19 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\..\DnsApplicationCommon\DnsApplicationCommon.csproj" />
+    <ProjectReference Include="..\..\DnsApplicationCommon\DnsApplicationCommon.csproj">
+      <Private>false</Private>
+    </ProjectReference>
   </ItemGroup>
 
   <ItemGroup>
     <Reference Include="TechnitiumLibrary.IO">
       <HintPath>..\..\..\TechnitiumLibrary\bin\TechnitiumLibrary.IO.dll</HintPath>
+      <Private>false</Private>
     </Reference>
     <Reference Include="TechnitiumLibrary.Net">
       <HintPath>..\..\..\TechnitiumLibrary\bin\TechnitiumLibrary.Net.dll</HintPath>
+      <Private>false</Private>
     </Reference>
     <Reference Include="TechnitiumLibrary.Net.Mail">
       <HintPath>..\..\..\TechnitiumLibrary\bin\TechnitiumLibrary.Net.Mail.dll</HintPath>
