@@ -49,7 +49,6 @@ Applications of using a locally hosted DNS server is limited only by the user's 
 
 # Planned Features
 - Query logging support for databases feature as a DNS App.
-- Query rate limiting per IP address option.
 - Multi-user role based access.
 - API key to provide long term access token.
 - Clustering support to manage two or more DNS servers.
