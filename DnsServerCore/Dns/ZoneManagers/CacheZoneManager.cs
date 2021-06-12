@@ -237,7 +237,7 @@ namespace DnsServerCore.Dns.ZoneManagers
 
         public DnsDatagram QueryClosestDelegation(DnsDatagram request)
         {
-            _ = _root.FindZone(request.Question[0].Name, out CacheZone delegation, out _, out _);
+            _ = _root.FindZone(request.Question[0].Name, out _, out CacheZone delegation, out _, out _);
             if (delegation is not null)
             {
                 //return closest name servers in delegation
@@ -258,7 +258,7 @@ namespace DnsServerCore.Dns.ZoneManagers
         {
             DnsQuestionRecord question = request.Question[0];
 
-            CacheZone zone = _root.FindZone(question.Name, out CacheZone delegation, out _, out _);
+            CacheZone zone = _root.FindZone(question.Name, out _, out CacheZone delegation, out _, out _);
             if (zone is null)
             {
                 //zone not found
