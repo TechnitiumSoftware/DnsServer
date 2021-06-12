@@ -648,7 +648,7 @@ namespace DnsServerCore.Dns
                     if (IsQpmLimitCrossed(remoteEP))
                         break;
 
-                    HttpRequest httpRequest = await HttpRequest.ReadRequestAsync(stream).WithTimeout(receiveTimeout);
+                    HttpRequest httpRequest = await HttpRequest.ReadRequestAsync(stream, 512).WithTimeout(receiveTimeout);
                     if (httpRequest is null)
                         return; //connection closed gracefully by client
 
