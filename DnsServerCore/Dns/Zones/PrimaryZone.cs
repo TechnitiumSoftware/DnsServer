@@ -237,6 +237,9 @@ namespace DnsServerCore.Dns.Zones
 
         public void TriggerNotify()
         {
+            if (_disabled)
+                return;
+
             if (_notify == AuthZoneNotify.None)
                 return;
 
