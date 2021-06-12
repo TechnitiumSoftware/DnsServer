@@ -689,6 +689,7 @@ function showEditZone(domain) {
                 switch (records[i].type.toUpperCase()) {
                     case "A":
                     case "CNAME":
+                    case "DNAME":
                     case "PTR":
                     case "TXT":
                     case "AAAA":
@@ -1105,6 +1106,7 @@ function modifyAddRecordFormByType() {
 
         case "PTR":
         case "CNAME":
+        case "DNAME":
         case "ANAME":
             $("#lblAddEditRecordDataValue").text("Domain Name");
             $("#txtAddEditRecordDataValue").val("");
@@ -1300,6 +1302,17 @@ function addRecord() {
             apiUrl += "&priority=" + priority + "&weight=" + weight + "&port=" + port + "&value=" + encodeURIComponent(value);
             break;
 
+        case "DNAME":
+            var value = $("#txtAddEditRecordDataValue").val();
+            if (value === "") {
+                showAlert("warning", "Missing!", "Please enter a domain name to add the record.", divAddEditRecordAlert);
+                $("#txtAddEditRecordDataValue").focus();
+                return;
+            }
+
+            apiUrl += "&value=" + encodeURIComponent(value);
+            break;
+
         case "CAA":
             var flags = $("#txtAddEditRecordDataCaaFlags").val();
             if (flags === "")
@@ -1483,6 +1496,7 @@ function showEditRecordModal(objBtn) {
             break;
 
         case "CNAME":
+        case "DNAME":
         case "PTR":
         case "TXT":
         case "ANAME":
@@ -1806,6 +1820,17 @@ function updateRecord() {
             }
 
             apiUrl += "&port=" + port + "&priority=" + priority + "&weight=" + weight + "&newPort=" + newPort + "&newValue=" + encodeURIComponent(newValue);
+            break;
+
+        case "DNAME":
+            var newValue = $("#txtAddEditRecordDataValue").val();
+            if (newValue === "") {
+                showAlert("warning", "Missing!", "Please enter a domain name to update the record.", divAddEditRecordAlert);
+                $("#txtAddEditRecordDataValue").focus();
+                return;
+            }
+
+            apiUrl += "&newValue=" + encodeURIComponent(newValue);
             break;
 
         case "CAA":
