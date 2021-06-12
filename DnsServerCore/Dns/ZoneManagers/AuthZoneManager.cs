@@ -219,7 +219,7 @@ namespace DnsServerCore.Dns.ZoneManagers
         {
             return _root.GetOrAdd(domain, delegate (string key)
             {
-                _ = _root.FindZone(domain, out _, out AuthZone authZone, out _);
+                _ = _root.FindZone(domain, out _, out _, out AuthZone authZone, out _);
                 if (authZone == null)
                     throw new DnsServerException("Zone was not found for domain: " + domain);
 
@@ -322,14 +322,17 @@ namespace DnsServerCore.Dns.ZoneManagers
             return new DnsDatagram(request.Identifier, true, DnsOpcode.StandardQuery, false, false, request.RecursionDesired, isRecursionAllowed, false, false, DnsResponseCode.NoError, request.Question, null, authority, additional);
         }
 
-        private static DnsDatagram GetForwarderResponse(DnsDatagram request, AuthZone zone, AuthZone forwarderZone, bool isRecursionAllowed)
+        private static DnsDatagram GetForwarderResponse(DnsDatagram request, AuthZone zone, AuthZone closestZone, AuthZone forwarderZone, bool isRecursionAllowed)
         {
             IReadOnlyList<DnsResourceRecord> authority = null;
 
-            if (zone != null)
+            if (zone is not null)
                 authority = zone.QueryRecords(DnsResourceRecordType.FWD);
 
-            if ((authority == null) || (authority.Count == 0))
+            if (((authority is null) || (authority.Count == 0)) && (closestZone is not null))
+                authority = closestZone.QueryRecords(DnsResourceRecordType.FWD);
+
+            if ((authority is null) || (authority.Count == 0))
                 authority = forwarderZone.QueryRecords(DnsResourceRecordType.FWD);
 
             return new DnsDatagram(request.Identifier, true, DnsOpcode.StandardQuery, false, false, request.RecursionDesired, isRecursionAllowed, false, false, DnsResponseCode.NoError, request.Question, null, authority);
@@ -554,7 +557,7 @@ namespace DnsServerCore.Dns.ZoneManagers
 
         public AuthZoneInfo GetAuthZoneInfo(string domain)
         {
-            _ = _root.FindZone(domain, out _, out AuthZone authority, out _);
+            _ = _root.FindZone(domain, out _, out _, out AuthZone authority, out _);
             if (authority == null)
                 return null;
 
@@ -912,7 +915,7 @@ namespace DnsServerCore.Dns.ZoneManagers
 
         public DnsDatagram QueryClosestDelegation(DnsDatagram request)
         {
-            _ = _root.FindZone(request.Question[0].Name, out AuthZone delegation, out _, out _);
+            _ = _root.FindZone(request.Question[0].Name, out _, out AuthZone delegation, out _, out _);
             if (delegation != null)
             {
                 //return closest name servers in delegation
@@ -933,7 +936,7 @@ namespace DnsServerCore.Dns.ZoneManagers
         {
             DnsQuestionRecord question = request.Question[0];
 
-            AuthZone zone = _root.FindZone(question.Name, out AuthZone delegation, out AuthZone authZone, out bool hasSubDomains);
+            AuthZone zone = _root.FindZone(question.Name, out AuthZone closest, out AuthZone delegation, out AuthZone authZone, out bool hasSubDomains);
 
             if ((authZone == null) || !authZone.IsActive) //no authority for requested zone
                 return null;
@@ -947,16 +950,24 @@ namespace DnsServerCore.Dns.ZoneManagers
                 if (authZone is StubZone)
                     return GetReferralResponse(request, authZone, isRecursionAllowed);
                 else if (authZone is ForwarderZone)
-                    return GetForwarderResponse(request, null, authZone, isRecursionAllowed);
+                    return GetForwarderResponse(request, null, closest, authZone, isRecursionAllowed);
 
                 DnsResponseCode rCode = DnsResponseCode.NoError;
-                IReadOnlyList<DnsResourceRecord> authority = authZone.QueryRecords(DnsResourceRecordType.APP);
-                if (authority.Count == 0)
-                {
-                    if (!hasSubDomains)
-                        rCode = DnsResponseCode.NxDomain;
+                IReadOnlyList<DnsResourceRecord> authority = null;
 
-                    authority = authZone.GetRecords(DnsResourceRecordType.SOA);
+                if (closest is not null)
+                    authority = closest.QueryRecords(DnsResourceRecordType.APP);
+
+                if ((authority is null) || (authority.Count == 0))
+                {
+                    authority = authZone.QueryRecords(DnsResourceRecordType.APP);
+                    if (authority.Count == 0)
+                    {
+                        if (!hasSubDomains)
+                            rCode = DnsResponseCode.NxDomain;
+
+                        authority = authZone.GetRecords(DnsResourceRecordType.SOA);
+                    }
                 }
 
                 return new DnsDatagram(request.Identifier, true, DnsOpcode.StandardQuery, true, false, request.RecursionDesired, isRecursionAllowed, false, false, rCode, request.Question, null, authority);
@@ -974,14 +985,20 @@ namespace DnsServerCore.Dns.ZoneManagers
                     if (authZone is StubZone)
                         return GetReferralResponse(request, authZone, isRecursionAllowed);
                     else if (authZone is ForwarderZone)
-                        return GetForwarderResponse(request, zone, authZone, isRecursionAllowed);
+                        return GetForwarderResponse(request, zone, closest, authZone, isRecursionAllowed);
 
                     authority = zone.QueryRecords(DnsResourceRecordType.APP);
                     if (authority.Count == 0)
                     {
-                        authority = authZone.QueryRecords(DnsResourceRecordType.APP);
+                        if (closest is not null)
+                            authority = closest.QueryRecords(DnsResourceRecordType.APP);
+
                         if (authority.Count == 0)
-                            authority = authZone.GetRecords(DnsResourceRecordType.SOA);
+                        {
+                            authority = authZone.QueryRecords(DnsResourceRecordType.APP);
+                            if (authority.Count == 0)
+                                authority = authZone.GetRecords(DnsResourceRecordType.SOA);
+                        }
                     }
 
                     additional = null;
