@@ -249,12 +249,42 @@ namespace DnsServerCore.Dns.ZoneManagers
 
                 answerRecords.AddRange(records);
 
-                if (records[0].Type != DnsResourceRecordType.CNAME)
+                DnsResourceRecord lastRR = records[records.Count - 1];
+
+                if (lastRR.Type != DnsResourceRecordType.CNAME)
                     break;
 
-                lastCNAME = records[0];
+                lastCNAME = lastRR;
             }
             while (++queryCount < DnsServer.MAX_CNAME_HOPS);
+        }
+
+        private bool DoDNAMESubstitution(DnsQuestionRecord question, IReadOnlyList<DnsResourceRecord> answer, out IReadOnlyList<DnsResourceRecord> newAnswer)
+        {
+            DnsResourceRecord dnameRR = answer[0];
+
+            string result = (dnameRR.RDATA as DnsDNAMERecord).Substitute(question.Name, dnameRR.Name);
+
+            if (DnsClient.IsDomainNameValid(result))
+            {
+                DnsResourceRecord cnameRR = new DnsResourceRecord(question.Name, DnsResourceRecordType.CNAME, question.Class, dnameRR.TtlValue, new DnsCNAMERecord(result));
+
+                List<DnsResourceRecord> list = new List<DnsResourceRecord>(5)
+                {
+                    dnameRR,
+                    cnameRR
+                };
+
+                ResolveCNAME(question, cnameRR, list);
+
+                newAnswer = list;
+                return true;
+            }
+            else
+            {
+                newAnswer = answer;
+                return false;
+            }
         }
 
         private IReadOnlyList<DnsResourceRecord> GetAdditionalRecords(IReadOnlyList<DnsResourceRecord> refRecords)
@@ -791,6 +821,7 @@ namespace DnsServerCore.Dns.ZoneManagers
             switch (oldRecord.Type)
             {
                 case DnsResourceRecordType.CNAME:
+                case DnsResourceRecordType.DNAME:
                 case DnsResourceRecordType.PTR:
                 case DnsResourceRecordType.APP:
                     if (oldRecord.Name.Equals(newRecord.Name, StringComparison.OrdinalIgnoreCase))
@@ -953,24 +984,47 @@ namespace DnsServerCore.Dns.ZoneManagers
                     return GetForwarderResponse(request, null, closest, authZone, isRecursionAllowed);
 
                 DnsResponseCode rCode = DnsResponseCode.NoError;
+                IReadOnlyList<DnsResourceRecord> answer = null;
                 IReadOnlyList<DnsResourceRecord> authority = null;
 
                 if (closest is not null)
-                    authority = closest.QueryRecords(DnsResourceRecordType.APP);
-
-                if ((authority is null) || (authority.Count == 0))
                 {
-                    authority = authZone.QueryRecords(DnsResourceRecordType.APP);
-                    if (authority.Count == 0)
+                    answer = closest.QueryRecords(DnsResourceRecordType.DNAME);
+                    if ((answer.Count > 0) && (answer[0].Type == DnsResourceRecordType.DNAME))
                     {
-                        if (!hasSubDomains)
-                            rCode = DnsResponseCode.NxDomain;
-
-                        authority = authZone.GetRecords(DnsResourceRecordType.SOA);
+                        if (!DoDNAMESubstitution(question, answer, out answer))
+                            rCode = DnsResponseCode.YXDomain;
+                    }
+                    else
+                    {
+                        answer = null;
+                        authority = closest.QueryRecords(DnsResourceRecordType.APP);
                     }
                 }
 
-                return new DnsDatagram(request.Identifier, true, DnsOpcode.StandardQuery, true, false, request.RecursionDesired, isRecursionAllowed, false, false, rCode, request.Question, null, authority);
+                if (((answer is null) || (answer.Count == 0)) && ((authority is null) || (authority.Count == 0)))
+                {
+                    answer = authZone.QueryRecords(DnsResourceRecordType.DNAME);
+                    if ((answer.Count > 0) && (answer[0].Type == DnsResourceRecordType.DNAME))
+                    {
+                        if (!DoDNAMESubstitution(question, answer, out answer))
+                            rCode = DnsResponseCode.YXDomain;
+                    }
+                    else
+                    {
+                        answer = null;
+                        authority = authZone.QueryRecords(DnsResourceRecordType.APP);
+                        if (authority.Count == 0)
+                        {
+                            if (!hasSubDomains)
+                                rCode = DnsResponseCode.NxDomain;
+
+                            authority = authZone.GetRecords(DnsResourceRecordType.SOA);
+                        }
+                    }
+                }
+
+                return new DnsDatagram(request.Identifier, true, DnsOpcode.StandardQuery, true, false, request.RecursionDesired, isRecursionAllowed, false, false, rCode, request.Question, answer, authority);
             }
             else
             {
