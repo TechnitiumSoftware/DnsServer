@@ -117,12 +117,42 @@ namespace DnsServerCore.Dns.ZoneManagers
 
                 answerRecords.AddRange(records);
 
-                if (records[0].Type != DnsResourceRecordType.CNAME)
+                DnsResourceRecord lastRR = records[records.Count - 1];
+
+                if (lastRR.Type != DnsResourceRecordType.CNAME)
                     break;
 
-                lastCNAME = records[0];
+                lastCNAME = lastRR;
             }
             while (++queryCount < DnsServer.MAX_CNAME_HOPS);
+        }
+
+        private bool DoDNAMESubstitution(DnsQuestionRecord question, IReadOnlyList<DnsResourceRecord> answer, bool serveStale, out IReadOnlyList<DnsResourceRecord> newAnswer)
+        {
+            DnsResourceRecord dnameRR = answer[0];
+
+            string result = (dnameRR.RDATA as DnsDNAMERecord).Substitute(question.Name, dnameRR.Name);
+
+            if (DnsClient.IsDomainNameValid(result))
+            {
+                DnsResourceRecord cnameRR = new DnsResourceRecord(question.Name, DnsResourceRecordType.CNAME, question.Class, dnameRR.TtlValue, new DnsCNAMERecord(result));
+
+                List<DnsResourceRecord> list = new List<DnsResourceRecord>(5)
+                {
+                    dnameRR,
+                    cnameRR
+                };
+
+                ResolveCNAME(question, cnameRR, serveStale, list);
+
+                newAnswer = list;
+                return true;
+            }
+            else
+            {
+                newAnswer = answer;
+                return false;
+            }
         }
 
         private IReadOnlyList<DnsResourceRecord> GetAdditionalRecords(IReadOnlyList<DnsResourceRecord> refRecords, bool serveStale)
@@ -258,10 +288,28 @@ namespace DnsServerCore.Dns.ZoneManagers
         {
             DnsQuestionRecord question = request.Question[0];
 
-            CacheZone zone = _root.FindZone(question.Name, out _, out CacheZone delegation, out _, out _);
+            CacheZone zone = _root.FindZone(question.Name, out CacheZone closest, out CacheZone delegation, out _, out _);
             if (zone is null)
             {
                 //zone not found
+
+                //check for DNAME in closest zone
+                if (closest is not null)
+                {
+                    IReadOnlyList<DnsResourceRecord> answer = closest.QueryRecords(DnsResourceRecordType.DNAME, serveStaleAndResetExpiry, true);
+                    if ((answer.Count > 0) && (answer[0].Type == DnsResourceRecordType.DNAME))
+                    {
+                        DnsResponseCode rCode;
+
+                        if (DoDNAMESubstitution(question, answer, serveStaleAndResetExpiry, out answer))
+                            rCode = DnsResponseCode.NoError;
+                        else
+                            rCode = DnsResponseCode.YXDomain;
+
+                        return new DnsDatagram(request.Identifier, true, DnsOpcode.StandardQuery, false, false, request.RecursionDesired, true, false, false, rCode, request.Question, answer);
+                    }
+                }
+
                 if (serveStaleAndResetExpiry)
                     return null; //recursive resolver does not make stale request so no need to return delegation response
 
