@@ -91,7 +91,7 @@ namespace DnsServerCore.Dhcp.Options
             _rcode2 = (byte)rcode;
 
             if (_flags.HasFlag(ClientFullyQualifiedDomainNameFlags.EncodeUsingCanonicalWireFormat))
-                _domainName = DnsDatagram.DeserializeDomainName(s);
+                _domainName = DnsDatagram.DeserializeDomainName(s, 0, true);
             else
                 _domainName = Encoding.ASCII.GetString(s.ReadBytes((int)s.Length - 3));
         }
