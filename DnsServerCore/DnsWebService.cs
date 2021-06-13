@@ -4420,7 +4420,7 @@ namespace DnsServerCore
                                     if (record.RDATA is DnsPTRRecord rdata)
                                     {
                                         jsonWriter.WritePropertyName("value");
-                                        jsonWriter.WriteValue(rdata.Domain);
+                                        jsonWriter.WriteValue(rdata.Domain.Length == 0 ? "." : rdata.Domain);
                                     }
                                     else
                                     {
@@ -4441,7 +4441,7 @@ namespace DnsServerCore
                                         jsonWriter.WriteValue(rdata.Preference);
 
                                         jsonWriter.WritePropertyName("value");
-                                        jsonWriter.WriteValue(rdata.Exchange);
+                                        jsonWriter.WriteValue(rdata.Exchange.Length == 0 ? "." : rdata.Exchange);
 
                                         IReadOnlyList<DnsResourceRecord> glueRecords = record.GetGlueRecords();
                                         if (glueRecords.Count > 0)
@@ -4494,7 +4494,7 @@ namespace DnsServerCore
                                     if (record.RDATA is DnsNSRecord rdata)
                                     {
                                         jsonWriter.WritePropertyName("value");
-                                        jsonWriter.WriteValue(rdata.NameServer);
+                                        jsonWriter.WriteValue(rdata.NameServer.Length == 0 ? "." : rdata.NameServer);
 
                                         IReadOnlyList<DnsResourceRecord> glueRecords = record.GetGlueRecords();
                                         if (glueRecords.Count > 0)
@@ -4529,7 +4529,7 @@ namespace DnsServerCore
                                     if (record.RDATA is DnsCNAMERecord rdata)
                                     {
                                         jsonWriter.WritePropertyName("value");
-                                        jsonWriter.WriteValue(rdata.Domain);
+                                        jsonWriter.WriteValue(rdata.Domain.Length == 0 ? "." : rdata.Domain);
                                     }
                                     else
                                     {
@@ -4556,7 +4556,7 @@ namespace DnsServerCore
                                         jsonWriter.WriteValue(rdata.Port);
 
                                         jsonWriter.WritePropertyName("value");
-                                        jsonWriter.WriteValue(rdata.Target);
+                                        jsonWriter.WriteValue(rdata.Target.Length == 0 ? "." : rdata.Target);
 
                                         IReadOnlyList<DnsResourceRecord> glueRecords = record.GetGlueRecords();
                                         if (glueRecords.Count > 0)
@@ -4591,7 +4591,7 @@ namespace DnsServerCore
                                     if (record.RDATA is DnsDNAMERecord rdata)
                                     {
                                         jsonWriter.WritePropertyName("value");
-                                        jsonWriter.WriteValue(rdata.Domain);
+                                        jsonWriter.WriteValue(rdata.Domain.Length == 0 ? "." : rdata.Domain);
                                     }
                                     else
                                     {
@@ -4633,7 +4633,7 @@ namespace DnsServerCore
                                     if (record.RDATA is DnsANAMERecord rdata)
                                     {
                                         jsonWriter.WritePropertyName("value");
-                                        jsonWriter.WriteValue(rdata.Domain);
+                                        jsonWriter.WriteValue(rdata.Domain.Length == 0 ? "." : rdata.Domain);
                                     }
                                     else
                                     {
