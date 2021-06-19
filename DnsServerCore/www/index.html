@@ -769,7 +769,7 @@
                                                     <p>Note! The web service port changes will be automatically applied and so you do not need to manually restart the main service. This web page will be automatically redirected to the new web console URL after saving settings. The HTTPS protocol will be enabled only when a TLS certificate is configured.</p>
 
                                                     <p>Use the following openssl command to convert your TLS certificate that is in PEM format to PKCS #12 certificate (.pfx) format:</p>
-                                                    <pre>openssl pkcs12 -export -out "example.com.pfx" -inkey "private.key" -in "certificate.crt" -certfile "ca_bundle.crt"</pre>
+                                                    <pre>openssl pkcs12 -export -out "example.com.pfx" -inkey "privkey.pem" -in "cert.pem" -certfile "chain.pem"</pre>
                                                 </div>
                                             </div>
 
@@ -821,7 +821,7 @@
                                                     <p>These optional DNS server protocols are used to host these as a service. You do not need to enable these optional protocols to use them with Forwarders or Conditional Forwarder Zones.</p>
                                                     <p>For DNS-over-HTTP, use <code>http://<span id="lblDoHHost">localhost:8053</span>/dns-query</code> with a TLS terminating reverse proxy like nginx. For DNS-over-TLS, use <code>tls-certificate-domain:853</code> and for DNS-over-HTTPS use <code>https://tls-certificate-domain/dns-query</code> to configure supported DNS clients.</p>
                                                     <p>Use the following openssl command to convert your TLS certificate that is in PEM format to PKCS #12 certificate (.pfx) format:</p>
-                                                    <pre>openssl pkcs12 -export -out "example.com.pfx" -inkey "private.key" -in "certificate.crt" -certfile "ca_bundle.crt"</pre>
+                                                    <pre>openssl pkcs12 -export -out "example.com.pfx" -inkey "privkey.pem" -in "cert.pem" -certfile "chain.pem"</pre>
                                                 </div>
 
                                                 <div style="margin-top: 10px;"><a href="https://blog.technitium.com/2020/07/how-to-host-your-own-dns-over-https-and.html" target="_blank">Help: How To Host Your Own DNS-over-HTTPS And DNS-over-TLS Services</a></div>
@@ -1017,6 +1017,44 @@
                                                         <span>(recommended 259200 seconds i.e. 3 days)</span>
                                                     </div>
                                                     <div class="col-sm-offset-3 col-sm-8" style="padding-top: 5px;">The TTL value in seconds which should be used for cached records that are expired. When the serve stale TTL too expires for a stale record, it gets removed from the cache. Recommended value is between 1-3 days and maximum supported value is 7 days.</div>
+                                                </div>
+                                            </div>
+
+                                            <div class="well well-sm form-horizontal">
+                                                <div class="form-group">
+                                                    <label for="txtCacheMinimumRecordTtl" class="col-sm-3 control-label">Cache Minimum TTL</label>
+                                                    <div class="col-sm-6">
+                                                        <input type="number" class="form-control" id="txtCacheMinimumRecordTtl" placeholder="min TTL" style="width: 100px; display: inline;">
+                                                        <span>(recommended 10)</span>
+                                                    </div>
+                                                    <div class="col-sm-offset-3 col-sm-8" style="padding-top: 5px;">The minimum TTL value that a record can have in cache. Set a value to make sure that the records with TTL value than it stays in cache for a minimum duration.</div>
+                                                </div>
+
+                                                <div class="form-group">
+                                                    <label for="txtCacheMaximumRecordTtl" class="col-sm-3 control-label">Cache Maximum TTL</label>
+                                                    <div class="col-sm-8">
+                                                        <input type="number" class="form-control" id="txtCacheMaximumRecordTtl" placeholder="max TTL" style="width: 100px; display: inline;">
+                                                        <span>(default 86400)</span>
+                                                    </div>
+                                                    <div class="col-sm-offset-3 col-sm-8" style="padding-top: 5px;">The maximum TTL value that a record can have in cache. Set a lower value to allow the records to expire early.</div>
+                                                </div>
+
+                                                <div class="form-group">
+                                                    <label for="txtCacheNegativeRecordTtl" class="col-sm-3 control-label">Cache Negative TTL</label>
+                                                    <div class="col-sm-6">
+                                                        <input type="number" class="form-control" id="txtCacheNegativeRecordTtl" placeholder="-ve TTL" style="width: 100px; display: inline;">
+                                                        <span>(recommended 300)</span>
+                                                    </div>
+                                                    <div class="col-sm-offset-3 col-sm-8" style="padding-top: 5px;">The negative TTL value to use when there is no SOA MINIMUM value available.</div>
+                                                </div>
+
+                                                <div class="form-group">
+                                                    <label for="txtCacheFailureRecordTtl" class="col-sm-3 control-label">Cache Failure TTL</label>
+                                                    <div class="col-sm-6">
+                                                        <input type="number" class="form-control" id="txtCacheFailureRecordTtl" placeholder="fail TTL" style="width: 100px; display: inline;">
+                                                        <span>(recommended 60)</span>
+                                                    </div>
+                                                    <div class="col-sm-offset-3 col-sm-8" style="padding-top: 5px;">The failure TTL value to used for caching failure responses. This allows storing failure record in cache and prevent frequent recursive resolution to name servers that are responding with <code>ServerFailure</code>.</div>
                                                 </div>
                                             </div>
 
