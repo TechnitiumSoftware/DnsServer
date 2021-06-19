@@ -48,7 +48,7 @@ namespace DnsServerCore.Dns.Zones
 
                 if (filterSpecialCacheRecords)
                 {
-                    if ((record.RDATA is DnsCache.DnsNXRecord) || (record.RDATA is DnsCache.DnsEmptyRecord) || (record.RDATA is DnsCache.DnsFailureRecord))
+                    if (record.RDATA is DnsCache.DnsSpecialCacheRecord)
                         return Array.Empty<DnsResourceRecord>(); //special cache record
                 }
 
@@ -64,7 +64,7 @@ namespace DnsServerCore.Dns.Zones
 
                 if (filterSpecialCacheRecords)
                 {
-                    if ((record.RDATA is DnsCache.DnsNXRecord) || (record.RDATA is DnsCache.DnsEmptyRecord) || (record.RDATA is DnsCache.DnsFailureRecord))
+                    if (record.RDATA is DnsCache.DnsSpecialCacheRecord)
                         continue; //special cache record
                 }
 
@@ -91,12 +91,13 @@ namespace DnsServerCore.Dns.Zones
 
         public void SetRecords(DnsResourceRecordType type, IReadOnlyList<DnsResourceRecord> records, bool serveStale)
         {
-            if ((records.Count > 0) && (records[0].RDATA is DnsCache.DnsFailureRecord))
+            bool isFailureRecord = (records.Count > 0) && (records[0].RDATA is DnsCache.DnsSpecialCacheRecord splRecord) && splRecord.IsFailure;
+            if (isFailureRecord)
             {
                 //call trying to cache failure record
                 if (_entries.TryGetValue(type, out IReadOnlyList<DnsResourceRecord> existingRecords))
                 {
-                    if ((existingRecords.Count > 0) && !(existingRecords[0].RDATA is DnsCache.DnsFailureRecord) && !existingRecords[0].IsExpired(serveStale))
+                    if ((existingRecords.Count > 0) && !(existingRecords[0].RDATA is DnsCache.DnsSpecialCacheRecord existingSplRecord && existingSplRecord.IsFailure) && !existingRecords[0].IsExpired(serveStale))
                         return; //skip to avoid overwriting a useful record with a failure record
                 }
             }
@@ -104,7 +105,7 @@ namespace DnsServerCore.Dns.Zones
             //set records
             _entries[type] = records;
 
-            if (serveStale && (records.Count > 0) && !(records[0].RDATA is DnsCache.DnsFailureRecord))
+            if (serveStale && !isFailureRecord)
             {
                 //remove stale CNAME entry only when serve stale is enabled
                 //making sure current record is not a failure record causing removal of useful stale CNAME record
