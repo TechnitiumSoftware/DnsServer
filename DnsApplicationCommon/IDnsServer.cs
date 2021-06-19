@@ -30,9 +30,8 @@ namespace DnsApplicationCommon
         /// Allows querying the DNS server directly. This call supports recursion even if its not enabled in the DNS server configuration. The request and its response are not counted in any stats or logged..
         /// </summary>
         /// <param name="question">The question record containing the details to query.</param>
-        /// <param name="timeout">The time the request should wait async for an response.</param>
         /// <returns>The DNS response for the DNS query or <c>null</c> if the request timed out.</returns>
-        Task<DnsDatagram> DirectQueryAsync(DnsQuestionRecord question, int timeout = 2000);
+        Task<DnsDatagram> DirectQueryAsync(DnsQuestionRecord question);
 
         /// <summary>
         /// Writes a log entry to the DNS server log file.
