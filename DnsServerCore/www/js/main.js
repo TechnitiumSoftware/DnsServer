@@ -790,6 +790,11 @@ function loadDnsSettings() {
             $("#txtServeStaleTtl").prop("disabled", !responseJSON.response.serveStale);
             $("#txtServeStaleTtl").val(responseJSON.response.serveStaleTtl);
 
+            $("#txtCacheMinimumRecordTtl").val(responseJSON.response.cacheMinimumRecordTtl);
+            $("#txtCacheMaximumRecordTtl").val(responseJSON.response.cacheMaximumRecordTtl);
+            $("#txtCacheNegativeRecordTtl").val(responseJSON.response.cacheNegativeRecordTtl);
+            $("#txtCacheFailureRecordTtl").val(responseJSON.response.cacheFailureRecordTtl);
+
             $("#txtCachePrefetchEligibility").val(responseJSON.response.cachePrefetchEligibility);
             $("#txtCachePrefetchTrigger").val(responseJSON.response.cachePrefetchTrigger);
             $("#txtCachePrefetchSampleIntervalInMinutes").val(responseJSON.response.cachePrefetchSampleIntervalInMinutes);
@@ -1057,6 +1062,34 @@ function saveDnsSettings() {
     var serveStale = $("#chkServeStale").prop("checked");
     var serveStaleTtl = $("#txtServeStaleTtl").val();
 
+    var cacheMinimumRecordTtl = $("#txtCacheMinimumRecordTtl").val();
+    if ((cacheMinimumRecordTtl === null) || (cacheMinimumRecordTtl === "")) {
+        showAlert("warning", "Missing!", "Please enter cache minimum record TTL value.");
+        $("#txtCacheMinimumRecordTtl").focus();
+        return false;
+    }
+
+    var cacheMaximumRecordTtl = $("#txtCacheMaximumRecordTtl").val();
+    if ((cacheMaximumRecordTtl === null) || (cacheMaximumRecordTtl === "")) {
+        showAlert("warning", "Missing!", "Please enter cache maximum record TTL value.");
+        $("#txtCacheMaximumRecordTtl").focus();
+        return false;
+    }
+
+    var cacheNegativeRecordTtl = $("#txtCacheNegativeRecordTtl").val();
+    if ((cacheNegativeRecordTtl === null) || (cacheNegativeRecordTtl === "")) {
+        showAlert("warning", "Missing!", "Please enter cache negative record TTL value.");
+        $("#txtCacheNegativeRecordTtl").focus();
+        return false;
+    }
+
+    var cacheFailureRecordTtl = $("#txtCacheFailureRecordTtl").val();
+    if ((cacheFailureRecordTtl === null) || (cacheFailureRecordTtl === "")) {
+        showAlert("warning", "Missing!", "Please enter cache failure record TTL value.");
+        $("#txtCacheFailureRecordTtl").focus();
+        return false;
+    }
+
     var cachePrefetchEligibility = $("#txtCachePrefetchEligibility").val();
     if ((cachePrefetchEligibility === null) || (cachePrefetchEligibility === "")) {
         showAlert("warning", "Missing!", "Please enter cache prefetch eligibility value.");
@@ -1154,7 +1187,7 @@ function saveDnsSettings() {
             + "&preferIPv6=" + preferIPv6 + "&enableLogging=" + enableLogging + "&logQueries=" + logQueries + "&useLocalTime=" + useLocalTime + "&logFolder=" + encodeURIComponent(logFolder) + "&maxLogFileDays=" + maxLogFileDays + "&maxStatFileDays=" + maxStatFileDays
             + "&recursion=" + recursion + "&recursionDeniedNetworks=" + encodeURIComponent(recursionDeniedNetworks) + "&recursionAllowedNetworks=" + encodeURIComponent(recursionAllowedNetworks) + "&randomizeName=" + randomizeName + "&qnameMinimization=" + qnameMinimization
             + "&qpmLimit=" + qpmLimit + "&qpmLimitSampleMinutes=" + qpmLimitSampleMinutes + "&qpmLimitSamplingIntervalInMinutes=" + qpmLimitSamplingIntervalInMinutes
-            + "&serveStale=" + serveStale + "&serveStaleTtl=" + serveStaleTtl + "&cachePrefetchEligibility=" + cachePrefetchEligibility + "&cachePrefetchTrigger=" + cachePrefetchTrigger + "&cachePrefetchSampleIntervalInMinutes=" + cachePrefetchSampleIntervalInMinutes + "&cachePrefetchSampleEligibilityHitsPerHour=" + cachePrefetchSampleEligibilityHitsPerHour
+            + "&serveStale=" + serveStale + "&serveStaleTtl=" + serveStaleTtl + "&cacheMinimumRecordTtl=" + cacheMinimumRecordTtl + "&cacheMaximumRecordTtl=" + cacheMaximumRecordTtl + "&cacheNegativeRecordTtl=" + cacheNegativeRecordTtl + "&cacheFailureRecordTtl=" + cacheFailureRecordTtl + "&cachePrefetchEligibility=" + cachePrefetchEligibility + "&cachePrefetchTrigger=" + cachePrefetchTrigger + "&cachePrefetchSampleIntervalInMinutes=" + cachePrefetchSampleIntervalInMinutes + "&cachePrefetchSampleEligibilityHitsPerHour=" + cachePrefetchSampleEligibilityHitsPerHour
             + proxy + "&forwarders=" + encodeURIComponent(forwarders) + "&forwarderProtocol=" + forwarderProtocol + "&enableBlocking=" + enableBlocking + "&blockingType=" + blockingType + "&customBlockingAddresses=" + encodeURIComponent(customBlockingAddresses) + "&blockListUrls=" + encodeURIComponent(blockListUrls) + "&blockListUpdateIntervalHours=" + blockListUpdateIntervalHours,
         success: function (responseJSON) {
             document.title = responseJSON.response.dnsServerDomain + " - " + "Technitium DNS Server v" + responseJSON.response.version;
