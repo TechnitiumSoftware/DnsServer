@@ -1261,6 +1261,18 @@ namespace DnsServerCore
             jsonWriter.WritePropertyName("serveStaleTtl");
             jsonWriter.WriteValue(_dnsServer.CacheZoneManager.ServeStaleTtl);
 
+            jsonWriter.WritePropertyName("cacheMinimumRecordTtl");
+            jsonWriter.WriteValue(_dnsServer.CacheZoneManager.MinimumRecordTtl);
+
+            jsonWriter.WritePropertyName("cacheMaximumRecordTtl");
+            jsonWriter.WriteValue(_dnsServer.CacheZoneManager.MaximumRecordTtl);
+
+            jsonWriter.WritePropertyName("cacheNegativeRecordTtl");
+            jsonWriter.WriteValue(_dnsServer.CacheZoneManager.NegativeRecordTtl);
+
+            jsonWriter.WritePropertyName("cacheFailureRecordTtl");
+            jsonWriter.WriteValue(_dnsServer.CacheZoneManager.FailureRecordTtl);
+
             jsonWriter.WritePropertyName("cachePrefetchEligibility");
             jsonWriter.WriteValue(_dnsServer.CachePrefetchEligibility);
 
@@ -1703,6 +1715,22 @@ namespace DnsServerCore
             string strServeStaleTtl = request.QueryString["serveStaleTtl"];
             if (!string.IsNullOrEmpty(strServeStaleTtl))
                 _dnsServer.CacheZoneManager.ServeStaleTtl = uint.Parse(strServeStaleTtl);
+
+            string strCacheMinimumRecordTtl = request.QueryString["cacheMinimumRecordTtl"];
+            if (!string.IsNullOrEmpty(strCacheMinimumRecordTtl))
+                _dnsServer.CacheZoneManager.MinimumRecordTtl = uint.Parse(strCacheMinimumRecordTtl);
+
+            string strCacheMaximumRecordTtl = request.QueryString["cacheMaximumRecordTtl"];
+            if (!string.IsNullOrEmpty(strCacheMaximumRecordTtl))
+                _dnsServer.CacheZoneManager.MaximumRecordTtl = uint.Parse(strCacheMaximumRecordTtl);
+
+            string strCacheNegativeRecordTtl = request.QueryString["cacheNegativeRecordTtl"];
+            if (!string.IsNullOrEmpty(strCacheNegativeRecordTtl))
+                _dnsServer.CacheZoneManager.NegativeRecordTtl = uint.Parse(strCacheNegativeRecordTtl);
+
+            string strCacheFailureRecordTtl = request.QueryString["cacheFailureRecordTtl"];
+            if (!string.IsNullOrEmpty(strCacheFailureRecordTtl))
+                _dnsServer.CacheZoneManager.FailureRecordTtl = uint.Parse(strCacheFailureRecordTtl);
 
             string strCachePrefetchEligibility = request.QueryString["cachePrefetchEligibility"];
             if (!string.IsNullOrEmpty(strCachePrefetchEligibility))
@@ -3140,8 +3168,8 @@ namespace DnsServerCore
                 if (IPAddress.IsLoopback(address))
                     return new KeyValuePair<string, string>(ip, "localhost");
 
-                DnsDatagram ptrResponse = await _dnsServer.DirectQueryAsync(new DnsQuestionRecord(address, DnsClass.IN), 500);
-                if ((ptrResponse != null) && (ptrResponse.Answer.Count > 0))
+                DnsDatagram ptrResponse = await _dnsServer.DirectQueryAsync(new DnsQuestionRecord(address, DnsClass.IN)).WithTimeout(500);
+                if (ptrResponse.Answer.Count > 0)
                 {
                     IReadOnlyList<string> ptrDomains = DnsClient.ParseResponsePTR(ptrResponse);
                     if (ptrDomains != null)
@@ -6766,6 +6794,7 @@ namespace DnsServerCore
                         case 16:
                         case 17:
                         case 18:
+                        case 19:
                             _dnsServer.ServerDomain = bR.ReadShortString();
                             _webServiceHttpPort = bR.ReadInt32();
 
@@ -7105,6 +7134,14 @@ namespace DnsServerCore
                                 }
                             }
 
+                            if (version >= 19)
+                            {
+                                _dnsServer.CacheZoneManager.MinimumRecordTtl = bR.ReadUInt32();
+                                _dnsServer.CacheZoneManager.MaximumRecordTtl = bR.ReadUInt32();
+                                _dnsServer.CacheZoneManager.NegativeRecordTtl = bR.ReadUInt32();
+                                _dnsServer.CacheZoneManager.FailureRecordTtl = bR.ReadUInt32();
+                            }
+
                             break;
 
                         default:
@@ -7163,7 +7200,7 @@ namespace DnsServerCore
                 BinaryWriter bW = new BinaryWriter(mS);
 
                 bW.Write(Encoding.ASCII.GetBytes("DS")); //format
-                bW.Write((byte)18); //version
+                bW.Write((byte)19); //version
 
                 bW.WriteShortString(_dnsServer.ServerDomain);
                 bW.Write(_webServiceHttpPort);
@@ -7335,6 +7372,11 @@ namespace DnsServerCore
                     bW.WriteShortString(string.Empty);
                 else
                     bW.WriteShortString(_dnsTlsCertificatePassword);
+
+                bW.Write(_dnsServer.CacheZoneManager.MinimumRecordTtl);
+                bW.Write(_dnsServer.CacheZoneManager.MaximumRecordTtl);
+                bW.Write(_dnsServer.CacheZoneManager.NegativeRecordTtl);
+                bW.Write(_dnsServer.CacheZoneManager.FailureRecordTtl);
 
                 //write config
                 mS.Position = 0;
