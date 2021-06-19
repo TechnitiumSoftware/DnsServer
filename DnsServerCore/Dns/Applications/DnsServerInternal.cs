@@ -46,9 +46,9 @@ namespace DnsServerCore.Dns.Applications
 
         #endregion
 
-        public Task<DnsDatagram> DirectQueryAsync(DnsQuestionRecord question, int timeout = 2000)
+        public Task<DnsDatagram> DirectQueryAsync(DnsQuestionRecord question)
         {
-            return _dnsServer.DirectQueryAsync(question, timeout);
+            return _dnsServer.DirectQueryAsync(question);
         }
 
         public void WriteLog(string message)

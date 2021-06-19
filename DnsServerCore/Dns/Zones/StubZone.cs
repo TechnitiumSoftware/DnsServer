@@ -22,6 +22,7 @@ using System;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
+using TechnitiumLibrary.IO;
 using TechnitiumLibrary.Net.Dns;
 using TechnitiumLibrary.Net.Dns.ResourceRecords;
 
@@ -76,11 +77,11 @@ namespace DnsServerCore.Dns.Zones
             StubZone stubZone = new StubZone(dnsServer, name);
 
             DnsQuestionRecord soaQuestion = new DnsQuestionRecord(name, DnsResourceRecordType.SOA, DnsClass.IN);
-            DnsDatagram soaResponse = null;
+            DnsDatagram soaResponse;
 
             if (primaryNameServerAddresses == null)
             {
-                soaResponse = await stubZone._dnsServer.DirectQueryAsync(soaQuestion);
+                soaResponse = await stubZone._dnsServer.DirectQueryAsync(soaQuestion).WithTimeout(2000);
             }
             else
             {
@@ -92,7 +93,7 @@ namespace DnsServerCore.Dns.Zones
                 soaResponse = await dnsClient.ResolveAsync(soaQuestion);
             }
 
-            if ((soaResponse == null) || (soaResponse.Answer.Count == 0) || (soaResponse.Answer[0].Type != DnsResourceRecordType.SOA))
+            if ((soaResponse.Answer.Count == 0) || (soaResponse.Answer[0].Type != DnsResourceRecordType.SOA))
                 throw new DnsServerException("DNS Server failed to find SOA record for: " + name);
 
             DnsSOARecord receivedSoa = soaResponse.Answer[0].RDATA as DnsSOARecord;

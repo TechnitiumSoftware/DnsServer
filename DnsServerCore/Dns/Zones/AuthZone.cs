@@ -169,8 +169,8 @@ namespace DnsServerCore.Dns.Zones
                 //resolve addresses
                 try
                 {
-                    DnsDatagram response = await dnsServer.DirectQueryAsync(new DnsQuestionRecord(nsDomain, DnsResourceRecordType.A, DnsClass.IN));
-                    if ((response != null) && (response.Answer.Count > 0))
+                    DnsDatagram response = await dnsServer.DirectQueryAsync(new DnsQuestionRecord(nsDomain, DnsResourceRecordType.A, DnsClass.IN)).WithTimeout(2000);
+                    if (response.Answer.Count > 0)
                     {
                         IReadOnlyList<IPAddress> addresses = DnsClient.ParseResponseA(response);
                         foreach (IPAddress address in addresses)
@@ -184,8 +184,8 @@ namespace DnsServerCore.Dns.Zones
                 {
                     try
                     {
-                        DnsDatagram response = await dnsServer.DirectQueryAsync(new DnsQuestionRecord(nsDomain, DnsResourceRecordType.AAAA, DnsClass.IN));
-                        if ((response != null) && (response.Answer.Count > 0))
+                        DnsDatagram response = await dnsServer.DirectQueryAsync(new DnsQuestionRecord(nsDomain, DnsResourceRecordType.AAAA, DnsClass.IN)).WithTimeout(2000);
+                        if (response.Answer.Count > 0)
                         {
                             IReadOnlyList<IPAddress> addresses = DnsClient.ParseResponseAAAA(response);
                             foreach (IPAddress address in addresses)
