@@ -29,9 +29,10 @@ namespace DnsServerCore.Dns.ZoneManagers
     {
         #region variables
 
-        const uint FAILURE_RECORD_TTL = 30u;
+        const uint FAILURE_RECORD_TTL = 60u;
         const uint NEGATIVE_RECORD_TTL = 300u;
         const uint MINIMUM_RECORD_TTL = 10u;
+        const uint MAXIMUM_RECORD_TTL = 1 * 24 * 60 * 60;
         const uint SERVE_STALE_TTL = 3 * 24 * 60 * 60; //3 days serve stale ttl as per https://www.rfc-editor.org/rfc/rfc8767.html suggestion
 
         readonly DnsServer _dnsServer;
@@ -43,7 +44,7 @@ namespace DnsServerCore.Dns.ZoneManagers
         #region constructor
 
         public CacheZoneManager(DnsServer dnsServer)
-            : base(FAILURE_RECORD_TTL, NEGATIVE_RECORD_TTL, MINIMUM_RECORD_TTL, SERVE_STALE_TTL)
+            : base(FAILURE_RECORD_TTL, NEGATIVE_RECORD_TTL, MINIMUM_RECORD_TTL, MAXIMUM_RECORD_TTL, SERVE_STALE_TTL)
         {
             _dnsServer = dnsServer;
         }
@@ -336,16 +337,16 @@ namespace DnsServerCore.Dns.ZoneManagers
                 //answer found in cache
                 DnsResourceRecord firstRR = answers[0];
 
-                if (firstRR.RDATA is DnsEmptyRecord dnsEmptyRecord)
+                if (firstRR.RDATA is DnsSpecialCacheRecord dnsSpecialCacheRecord)
                 {
                     if (serveStaleAndResetExpiry)
                     {
                         if (firstRR.IsStale)
                             firstRR.ResetExpiry(30); //reset expiry by 30 seconds so that resolver tries again only after 30 seconds as per draft-ietf-dnsop-serve-stale-04
 
-                        if (dnsEmptyRecord.Authority is not null)
+                        if (dnsSpecialCacheRecord.Authority is not null)
                         {
-                            foreach (DnsResourceRecord record in dnsEmptyRecord.Authority)
+                            foreach (DnsResourceRecord record in dnsSpecialCacheRecord.Authority)
                             {
                                 if (record.IsStale)
                                     record.ResetExpiry(30); //reset expiry by 30 seconds so that resolver tries again only after 30 seconds as per draft-ietf-dnsop-serve-stale-04
@@ -353,38 +354,7 @@ namespace DnsServerCore.Dns.ZoneManagers
                         }
                     }
 
-                    return new DnsDatagram(request.Identifier, true, DnsOpcode.StandardQuery, false, false, request.RecursionDesired, true, false, false, DnsResponseCode.NoError, request.Question, null, dnsEmptyRecord.Authority);
-                }
-
-                if (firstRR.RDATA is DnsNXRecord dnsNXRecord)
-                {
-                    if (serveStaleAndResetExpiry)
-                    {
-                        if (firstRR.IsStale)
-                            firstRR.ResetExpiry(30); //reset expiry by 30 seconds so that resolver tries again only after 30 seconds as per draft-ietf-dnsop-serve-stale-04
-
-                        if (dnsNXRecord.Authority is not null)
-                        {
-                            foreach (DnsResourceRecord record in dnsNXRecord.Authority)
-                            {
-                                if (record.IsStale)
-                                    record.ResetExpiry(30); //reset expiry by 30 seconds so that resolver tries again only after 30 seconds as per draft-ietf-dnsop-serve-stale-04
-                            }
-                        }
-                    }
-
-                    return new DnsDatagram(request.Identifier, true, DnsOpcode.StandardQuery, false, false, request.RecursionDesired, true, false, false, DnsResponseCode.NxDomain, request.Question, null, dnsNXRecord.Authority);
-                }
-
-                if (firstRR.RDATA is DnsFailureRecord dnsFailureRecord)
-                {
-                    if (serveStaleAndResetExpiry)
-                    {
-                        if (firstRR.IsStale)
-                            firstRR.ResetExpiry(30); //reset expiry by 30 seconds so that resolver tries again only after 30 seconds as per draft-ietf-dnsop-serve-stale-04
-                    }
-
-                    return new DnsDatagram(request.Identifier, true, DnsOpcode.StandardQuery, false, false, request.RecursionDesired, true, false, false, dnsFailureRecord.RCODE, request.Question);
+                    return new DnsDatagram(request.Identifier, true, DnsOpcode.StandardQuery, false, false, request.RecursionDesired, true, false, false, dnsSpecialCacheRecord.RCODE, request.Question, null, dnsSpecialCacheRecord.Authority);
                 }
 
                 DnsResourceRecord lastRR = answers[answers.Count - 1];
