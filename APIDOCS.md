@@ -186,6 +186,10 @@ RESPONSE:
 		"qpmLimitSamplingIntervalInMinutes": 1
 		"serveStale": true,
 		"serveStaleTtl": 259200,
+		"cacheMinimumRecordTtl": 10,
+		"cacheMaximumRecordTtl": 86400,
+		"cacheNegativeRecordTtl": 300,
+		"cacheFailureRecordTtl": 60,
 		"cachePrefetchEligibility": 2,
 		"cachePrefetchTrigger": 9,
 		"cachePrefetchSampleIntervalInMinutes": 5,
@@ -263,6 +267,10 @@ WHERE:
 - `qpmLimitSamplingIntervalInMinutes` (optional): Sets the client query stats sampling interval in minutes for QPM limit feature. Default value is 1.
 - `serveStale` (optional): Enable the serve stale feature to improve resiliency by using expired or stale records in cache when the DNS server is unable to reach the upstream or authoritative name servers. Default value is `true`.
 - `serveStaleTtl` (optional): The TTL value in seconds which should be used for cached records that are expired. When the serve stale TTL too expires for a stale record, it gets removed from the cache. Recommended value is between 1-3 days and maximum supported value is 7 days. Default value is `259200`.
+- `cacheMinimumRecordTtl` (optional): The minimum TTL value that a record can have in cache. Set a value to make sure that the records with TTL value than it stays in cache for a minimum duration. Default value is `10`.
+- `cacheMaximumRecordTtl` (optional): The maximum TTL value that a record can have in cache. Set a lower value to allow the records to expire early. Default value is `86400`.
+- `cacheNegativeRecordTtl` (optional): The negative TTL value to use when there is no SOA MINIMUM value available. Default value is `300`.
+- `cacheFailureRecordTtl` (optional): The failure TTL value to used for caching failure responses. This allows storing failure record in cache and prevent frequent recursive resolution to name servers that are responding with `ServerFailure`. Default value is `60`.
 - `cachePrefetchEligibility` (optional): The minimum initial TTL value of a record needed to be eligible for prefetching.
 - `cachePrefetchTrigger` (optional): A record with TTL value less than trigger value will initiate prefetch operation immediately for itself. Set `0` to disable prefetching & auto prefetching.
 - `cachePrefetchSampleIntervalInMinutes` (optional): The interval to sample eligible domain names from last hour stats for auto prefetch.
