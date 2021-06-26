@@ -102,7 +102,7 @@ namespace DnsServerCore.Dhcp
                 scope.RouterAddress = IPAddress.Parse("192.168.1.1");
                 scope.UseThisDnsServer = true;
                 scope.DomainName = "local";
-                scope.LeaseTimeDays = 7;
+                scope.LeaseTimeDays = 1;
 
                 SaveScopeFile(scope);
             }
