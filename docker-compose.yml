@@ -1,0 +1,22 @@
+version: "3"
+services:
+  dns-server:
+    container_name: dns-server
+    hostname: dns-server
+    image: technitium/dns-server:latest
+    # Use "host" network mode for DHCP deployments
+    # network_mode: "host"
+    ports:
+      - "5380:5380/tcp" #DNS web console
+      - "53:53/udp" #DNS service
+      - "53:53/tcp" #DNS service
+      # - "67:67/udp" #DHCP service
+      # - "853:853/tcp" #DNS-over-TLS service
+      # - "443:443/tcp" #DNS-over-HTTPS service
+      # - "80:80/tcp" #DNS-over-HTTPS service certbot certificate renewal
+      # - "8053:8053/tcp" #DNS-over-HTTPS using reverse proxy
+    volumes:
+      - config:/etc/dns/config    
+    restart: unless-stopped
+volumes:
+    config:
