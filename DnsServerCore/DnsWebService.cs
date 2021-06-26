@@ -7075,7 +7075,7 @@ namespace DnsServerCore
                                         _dnsServer.BlockListZoneManager.BlockListUrls.Add(new Uri(listUrl));
                                 }
 
-                                _blockListLastUpdatedOn = bR.ReadDate();
+                                _blockListLastUpdatedOn = bR.ReadDateTime();
 
                                 if (version >= 13)
                                     _blockListUpdateIntervalHours = bR.ReadInt32();
