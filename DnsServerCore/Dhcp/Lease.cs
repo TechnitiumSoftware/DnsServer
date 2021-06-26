@@ -97,8 +97,8 @@ namespace DnsServerCore.Dhcp
                             _comments = null;
                     }
 
-                    _leaseObtained = bR.ReadDate();
-                    _leaseExpires = bR.ReadDate();
+                    _leaseObtained = bR.ReadDateTime();
+                    _leaseExpires = bR.ReadDateTime();
                     break;
 
                 default:
