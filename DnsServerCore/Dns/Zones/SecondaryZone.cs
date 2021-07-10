@@ -33,9 +33,12 @@ namespace DnsServerCore.Dns.Zones
     {
         #region variables
 
-        DnsServer _dnsServer;
+        readonly DnsServer _dnsServer;
+
+        readonly List<DnsResourceRecord> _history; //for IXFR support
 
         readonly Timer _notifyTimer;
+        bool _notifyTimerTriggered;
         const int NOTIFY_TIMER_INTERVAL = 10000;
         readonly List<NameServerAddress> _notifyList;
 
@@ -44,14 +47,17 @@ namespace DnsServerCore.Dns.Zones
 
         readonly object _refreshTimerLock = new object();
         Timer _refreshTimer;
+        bool _refreshTimerTriggered;
         const int REFRESH_TIMER_INTERVAL = 5000;
 
         const int REFRESH_SOA_TIMEOUT = 10000;
-        const int REFRESH_AXFR_TIMEOUT = 120000;
+        const int REFRESH_XFR_TIMEOUT = 120000;
         const int REFRESH_RETRIES = 5;
 
         DateTime _expiry;
         bool _isExpired;
+
+        bool _resync;
 
         #endregion
 
@@ -61,6 +67,11 @@ namespace DnsServerCore.Dns.Zones
             : base(zoneInfo)
         {
             _dnsServer = dnsServer;
+
+            if (zoneInfo.ZoneHistory is null)
+                _history = new List<DnsResourceRecord>();
+            else
+                _history = new List<DnsResourceRecord>(zoneInfo.ZoneHistory);
 
             _expiry = zoneInfo.Expiry;
 
@@ -75,6 +86,8 @@ namespace DnsServerCore.Dns.Zones
             : base(name)
         {
             _dnsServer = dnsServer;
+
+            _history = new List<DnsResourceRecord>();
 
             _zoneTransfer = AuthZoneTransfer.Deny;
             _notify = AuthZoneNotify.None;
@@ -117,7 +130,7 @@ namespace DnsServerCore.Dns.Zones
             DnsResourceRecord[] soaRR = new DnsResourceRecord[] { new DnsResourceRecord(secondaryZone._name, DnsResourceRecordType.SOA, DnsClass.IN, soa.Refresh, soa) };
 
             if (!string.IsNullOrEmpty(primaryNameServerAddresses))
-                soaRR[0].SetGlueRecords(primaryNameServerAddresses);
+                soaRR[0].SetPrimaryNameServers(primaryNameServerAddresses);
 
             secondaryZone._entries[DnsResourceRecordType.SOA] = soaRR;
 
@@ -191,6 +204,10 @@ namespace DnsServerCore.Dns.Zones
                 if (log != null)
                     log.Write(ex);
             }
+            finally
+            {
+                _notifyTimerTriggered = false;
+            }
         }
 
         private async Task NotifyNameServerAsync(NameServerAddress nameServer)
@@ -257,11 +274,11 @@ namespace DnsServerCore.Dns.Zones
 
         private async void RefreshTimerCallback(object state)
         {
-            if (_disabled)
-                return;
-
             try
             {
+                if (_disabled && !_resync)
+                    return;
+
                 _isExpired = DateTime.UtcNow > _expiry;
 
                 //get primary name server addresses
@@ -288,6 +305,7 @@ namespace DnsServerCore.Dns.Zones
 
                     _expiry = DateTime.UtcNow.AddSeconds(latestSoa.Expire);
                     _isExpired = false;
+                    _resync = false;
                     _dnsServer.AuthZoneManager.SaveZoneFile(_name);
                     return;
                 }
@@ -311,6 +329,10 @@ namespace DnsServerCore.Dns.Zones
                         _refreshTimer.Change(soa.Retry * 1000, Timeout.Infinite);
                     }
                 }
+            }
+            finally
+            {
+                _refreshTimerTriggered = false;
             }
         }
 
@@ -343,7 +365,7 @@ namespace DnsServerCore.Dns.Zones
                     return false;
                 }
 
-                if (soaResponse.Answer.Count < 1)
+                if ((soaResponse.Answer.Count < 1) || (soaResponse.Answer[0].Type != DnsResourceRecordType.SOA) || !_name.Equals(soaResponse.Answer[0].Name, StringComparison.OrdinalIgnoreCase))
                 {
                     LogManager log = _dnsServer.LogManager;
                     if (log != null)
@@ -352,11 +374,14 @@ namespace DnsServerCore.Dns.Zones
                     return false;
                 }
 
-                DnsSOARecord currentSoaRecord = _entries[DnsResourceRecordType.SOA][0].RDATA as DnsSOARecord;
-                DnsSOARecord receivedSoaRecord = soaResponse.Answer[0].RDATA as DnsSOARecord;
+                DnsResourceRecord currentSoaRecord = _entries[DnsResourceRecordType.SOA][0];
+                DnsResourceRecord receivedSoaRecord = soaResponse.Answer[0];
+
+                DnsSOARecord currentSoa = currentSoaRecord.RDATA as DnsSOARecord;
+                DnsSOARecord receivedSoa = receivedSoaRecord.RDATA as DnsSOARecord;
 
                 //compare using sequence space arithmetic
-                if (!currentSoaRecord.IsZoneUpdateAvailable(receivedSoaRecord))
+                if (!_resync && !currentSoa.IsZoneUpdateAvailable(receivedSoa))
                 {
                     LogManager log = _dnsServer.LogManager;
                     if (log != null)
@@ -376,50 +401,77 @@ namespace DnsServerCore.Dns.Zones
 
                 client.Proxy = _dnsServer.Proxy;
                 client.PreferIPv6 = _dnsServer.PreferIPv6;
-                client.Timeout = REFRESH_AXFR_TIMEOUT;
+                client.Timeout = REFRESH_XFR_TIMEOUT;
                 client.Retries = REFRESH_RETRIES;
 
-                DnsDatagram axfrRequest = new DnsDatagram(0, false, DnsOpcode.StandardQuery, false, false, false, false, false, false, DnsResponseCode.NoError, new DnsQuestionRecord[] { new DnsQuestionRecord(_name, DnsResourceRecordType.AXFR, DnsClass.IN) });
-                DnsDatagram axfrResponse = await client.ResolveAsync(axfrRequest);
+                bool doIXFR = !_isExpired && !_resync;
 
-                if (axfrResponse.RCODE != DnsResponseCode.NoError)
+                DnsQuestionRecord xfrQuestion;
+                IReadOnlyList<DnsResourceRecord> xfrAuthority;
+
+                if (doIXFR)
+                {
+                    xfrQuestion = new DnsQuestionRecord(_name, DnsResourceRecordType.IXFR, DnsClass.IN);
+                    xfrAuthority = new DnsResourceRecord[] { currentSoaRecord };
+                }
+                else
+                {
+                    xfrQuestion = new DnsQuestionRecord(_name, DnsResourceRecordType.AXFR, DnsClass.IN);
+                    xfrAuthority = null;
+                }
+
+                DnsDatagram xfrRequest = new DnsDatagram(0, false, DnsOpcode.StandardQuery, false, false, false, false, false, false, DnsResponseCode.NoError, new DnsQuestionRecord[] { xfrQuestion }, null, xfrAuthority);
+                DnsDatagram xfrResponse = await client.ResolveAsync(xfrRequest);
+
+                if (xfrResponse.RCODE != DnsResponseCode.NoError)
                 {
                     LogManager log = _dnsServer.LogManager;
                     if (log != null)
-                        log.Write("DNS Server received RCODE=" + axfrResponse.RCODE.ToString() + " for '" + _name + "' secondary zone transfer from: " + axfrResponse.Metadata.NameServerAddress.ToString());
+                        log.Write("DNS Server received RCODE=" + xfrResponse.RCODE.ToString() + " for '" + _name + "' secondary zone transfer from: " + xfrResponse.Metadata.NameServerAddress.ToString());
 
                     return false;
                 }
 
-                if (axfrResponse.Answer.Count < 1)
+                if (xfrResponse.Answer.Count < 1)
                 {
                     LogManager log = _dnsServer.LogManager;
                     if (log != null)
-                        log.Write("DNS Server received an empty response for AXFR query for '" + _name + "' secondary zone from: " + axfrResponse.Metadata.NameServerAddress.ToString());
+                        log.Write("DNS Server received an empty response for AXFR query for '" + _name + "' secondary zone from: " + xfrResponse.Metadata.NameServerAddress.ToString());
 
                     return false;
                 }
 
-                DnsSOARecord axfrSoaRecord = axfrResponse.Answer[0].RDATA as DnsSOARecord;
-                if (axfrSoaRecord == null)
+                if (!_name.Equals(xfrResponse.Answer[0].Name, StringComparison.OrdinalIgnoreCase) || (xfrResponse.Answer[0].Type != DnsResourceRecordType.SOA) || (xfrResponse.Answer[0].RDATA is not DnsSOARecord xfrSoa))
                 {
                     LogManager log = _dnsServer.LogManager;
                     if (log != null)
-                        log.Write("DNS Server received invalid response for AXFR query for '" + _name + "' secondary zone from: " + axfrResponse.Metadata.NameServerAddress.ToString());
+                        log.Write("DNS Server received invalid response for AXFR query for '" + _name + "' secondary zone from: " + xfrResponse.Metadata.NameServerAddress.ToString());
 
                     return false;
                 }
 
-                if (currentSoaRecord.IsZoneUpdateAvailable(axfrSoaRecord))
+                if (_resync || currentSoa.IsZoneUpdateAvailable(xfrSoa))
                 {
-                    _dnsServer.AuthZoneManager.SyncRecords(_name, axfrResponse.Answer);
+                    if (doIXFR)
+                    {
+                        IReadOnlyList<DnsResourceRecord> historyRecords = _dnsServer.AuthZoneManager.SyncIncrementalZoneTransferRecords(_name, xfrResponse.Answer);
+                        if (historyRecords.Count > 0)
+                            CommitHistory(historyRecords);
+                        else
+                            ClearHistory(); //AXFR response was received
+                    }
+                    else
+                    {
+                        _dnsServer.AuthZoneManager.SyncZoneTransferRecords(_name, xfrResponse.Answer);
+                        ClearHistory();
+                    }
 
                     //trigger notify
                     TriggerNotify();
 
                     LogManager log = _dnsServer.LogManager;
                     if (log != null)
-                        log.Write("DNS Server successfully refreshed '" + _name + "' secondary zone from: " + axfrResponse.Metadata.NameServerAddress.ToString());
+                        log.Write("DNS Server successfully refreshed '" + _name + "' secondary zone from: " + xfrResponse.Metadata.NameServerAddress.ToString());
                 }
                 else
                 {
@@ -453,6 +505,27 @@ namespace DnsServerCore.Dns.Zones
             }
         }
 
+        private void CommitHistory(IReadOnlyList<DnsResourceRecord> historyRecords)
+        {
+            lock (_history)
+            {
+                historyRecords[0].SetDeletedOn(DateTime.UtcNow);
+
+                //write history
+                _history.AddRange(historyRecords);
+
+                CleanupHistory(_history);
+            }
+        }
+
+        private void ClearHistory()
+        {
+            lock (_history)
+            {
+                _history.Clear();
+            }
+        }
+
         #endregion
 
         #region public
@@ -465,7 +538,11 @@ namespace DnsServerCore.Dns.Zones
             if (_notify == AuthZoneNotify.None)
                 return;
 
+            if (_notifyTimerTriggered)
+                return;
+
             _notifyTimer.Change(NOTIFY_TIMER_INTERVAL, Timeout.Infinite);
+            _notifyTimerTriggered = true;
         }
 
         public void TriggerRefresh()
@@ -473,7 +550,22 @@ namespace DnsServerCore.Dns.Zones
             if (_disabled)
                 return;
 
+            if (_refreshTimerTriggered)
+                return;
+
             _refreshTimer.Change(REFRESH_TIMER_INTERVAL, Timeout.Infinite);
+            _refreshTimerTriggered = true;
+        }
+
+        public void TriggerResync()
+        {
+            if (_refreshTimerTriggered)
+                return;
+
+            _resync = true;
+
+            _refreshTimer.Change(REFRESH_TIMER_INTERVAL, Timeout.Infinite);
+            _refreshTimerTriggered = true;
         }
 
         public override void SetRecords(DnsResourceRecordType type, IReadOnlyList<DnsResourceRecord> records)
@@ -484,10 +576,11 @@ namespace DnsServerCore.Dns.Zones
                     if ((records.Count != 1) || !records[0].Name.Equals(_name, StringComparison.OrdinalIgnoreCase))
                         throw new InvalidOperationException("Invalid SOA record.");
 
-                    DnsResourceRecord existingSoaRR = _entries[DnsResourceRecordType.SOA][0];
+                    DnsResourceRecord existingSoaRecord = _entries[DnsResourceRecordType.SOA][0];
+                    DnsResourceRecord newSoaRecord = records[0];
 
-                    existingSoaRR.SetGlueRecords(records.GetGlueRecords());
-                    existingSoaRR.SetComments(records[0].GetComments());
+                    existingSoaRecord.SetPrimaryNameServers(newSoaRecord.GetPrimaryNameServers());
+                    existingSoaRecord.SetComments(newSoaRecord.GetComments());
                     break;
 
                 default:
@@ -508,6 +601,19 @@ namespace DnsServerCore.Dns.Zones
         public override bool DeleteRecords(DnsResourceRecordType type)
         {
             throw new InvalidOperationException("Cannot delete records in secondary zone.");
+        }
+
+        public override void UpdateRecord(DnsResourceRecord oldRecord, DnsResourceRecord newRecord)
+        {
+            throw new InvalidOperationException("Cannot update record in secondary zone.");
+        }
+
+        public IReadOnlyList<DnsResourceRecord> GetHistory()
+        {
+            lock (_history)
+            {
+                return _history.ToArray();
+            }
         }
 
         #endregion
