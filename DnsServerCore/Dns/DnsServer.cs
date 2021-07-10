@@ -125,7 +125,7 @@ namespace DnsServerCore.Dns
         int _resolverTimeout = 4000;
         int _clientTimeout = 4000;
         int _forwarderConcurrency = 2;
-        int _resolverMaxStackCount = 10;
+        int _resolverMaxStackCount = 16;
         bool _serveStale = true;
         int _cachePrefetchEligibility = 2;
         int _cachePrefetchTrigger = 9;
@@ -387,7 +387,10 @@ namespace DnsServerCore.Dns
                     }
                     catch (NotSupportedException)
                     {
-                        response = new DnsDatagram(response.Identifier, true, response.OPCODE, response.AuthoritativeAnswer, true, response.RecursionDesired, response.RecursionAvailable, response.AuthenticData, response.CheckingDisabled, response.RCODE, response.Question) { Tag = StatsResponseType.Authoritative };
+                        if (response.Question[0].Type == DnsResourceRecordType.IXFR)
+                            response = new DnsDatagram(response.Identifier, true, response.OPCODE, response.AuthoritativeAnswer, false, response.RecursionDesired, response.RecursionAvailable, response.AuthenticData, response.CheckingDisabled, response.RCODE, response.Question, new DnsResourceRecord[] { response.Answer[0] }) { Tag = StatsResponseType.Authoritative }; //truncate response
+                        else
+                            response = new DnsDatagram(response.Identifier, true, response.OPCODE, response.AuthoritativeAnswer, true, response.RecursionDesired, response.RecursionAvailable, response.AuthenticData, response.CheckingDisabled, response.RCODE, response.Question) { Tag = StatsResponseType.Authoritative };
 
                         sendBufferStream.Position = 0;
                         response.WriteToUdp(sendBufferStream);
@@ -990,6 +993,9 @@ namespace DnsServerCore.Dns
                         }
                     }
 
+                    if (IPAddress.IsLoopback(address))
+                        return true;
+
                     return false;
 
                 default:
@@ -1072,7 +1078,7 @@ namespace DnsServerCore.Dns
         private async Task<DnsDatagram> ProcessNotifyQueryAsync(DnsDatagram request, IPEndPoint remoteEP)
         {
             AuthZoneInfo authZoneInfo = _authZoneManager.GetAuthZoneInfo(request.Question[0].Name);
-            if ((authZoneInfo is null) || (authZoneInfo.Type != AuthZoneType.Secondary))
+            if ((authZoneInfo is null) || (authZoneInfo.Type != AuthZoneType.Secondary) || authZoneInfo.Disabled)
                 return new DnsDatagram(request.Identifier, true, DnsOpcode.Notify, false, false, request.RecursionDesired, false, false, false, DnsResponseCode.Refused, request.Question) { Tag = StatsResponseType.Authoritative };
 
             IPAddress remoteAddress = remoteEP.Address;
@@ -1114,8 +1120,18 @@ namespace DnsServerCore.Dns
         private async Task<DnsDatagram> ProcessZoneTransferQueryAsync(DnsDatagram request, IPEndPoint remoteEP)
         {
             AuthZoneInfo authZoneInfo = _authZoneManager.GetAuthZoneInfo(request.Question[0].Name);
-            if (authZoneInfo is null)
+            if ((authZoneInfo is null) || authZoneInfo.Disabled || authZoneInfo.IsExpired)
                 return new DnsDatagram(request.Identifier, true, DnsOpcode.StandardQuery, false, false, request.RecursionDesired, false, false, false, DnsResponseCode.Refused, request.Question) { Tag = StatsResponseType.Authoritative };
+
+            switch (authZoneInfo.Type)
+            {
+                case AuthZoneType.Primary:
+                case AuthZoneType.Secondary:
+                    break;
+
+                default:
+                    return new DnsDatagram(request.Identifier, true, DnsOpcode.StandardQuery, false, false, request.RecursionDesired, false, false, false, DnsResponseCode.Refused, request.Question) { Tag = StatsResponseType.Authoritative };
+            }
 
             bool isZoneTransferAllowed = false;
 
@@ -1181,9 +1197,21 @@ namespace DnsServerCore.Dns
             if (log is not null)
                 log.Write(remoteEP, "DNS Server received zone transfer request for zone: " + authZoneInfo.Name);
 
-            IReadOnlyList<DnsResourceRecord> axfrRecords = _authZoneManager.QueryZoneTransferRecords(request.Question[0].Name);
+            IReadOnlyList<DnsResourceRecord> xfrRecords;
 
-            return new DnsDatagram(request.Identifier, true, DnsOpcode.StandardQuery, true, false, request.RecursionDesired, false, false, false, DnsResponseCode.NoError, request.Question, axfrRecords) { Tag = StatsResponseType.Authoritative };
+            if (request.Question[0].Type == DnsResourceRecordType.IXFR)
+            {
+                if ((request.Authority.Count == 1) && (request.Authority[0].Type == DnsResourceRecordType.SOA))
+                    xfrRecords = _authZoneManager.QueryIncrementalZoneTransferRecords(request.Question[0].Name, request.Authority[0]);
+                else
+                    return new DnsDatagram(request.Identifier, true, DnsOpcode.StandardQuery, false, false, request.RecursionDesired, false, false, false, DnsResponseCode.FormatError, request.Question) { Tag = StatsResponseType.Authoritative };
+            }
+            else
+            {
+                xfrRecords = _authZoneManager.QueryZoneTransferRecords(request.Question[0].Name);
+            }
+
+            return new DnsDatagram(request.Identifier, true, DnsOpcode.StandardQuery, true, false, request.RecursionDesired, false, false, false, DnsResponseCode.NoError, request.Question, xfrRecords) { Tag = StatsResponseType.Authoritative };
         }
 
         private async Task<DnsDatagram> ProcessAuthoritativeQueryAsync(DnsDatagram request, IPEndPoint remoteEP, bool isRecursionAllowed, DnsTransportProtocol protocol)
