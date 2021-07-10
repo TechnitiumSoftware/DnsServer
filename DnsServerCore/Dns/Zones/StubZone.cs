@@ -32,10 +32,11 @@ namespace DnsServerCore.Dns.Zones
     {
         #region variables
 
-        DnsServer _dnsServer;
+        readonly DnsServer _dnsServer;
 
         readonly object _refreshTimerLock = new object();
         Timer _refreshTimer;
+        bool _refreshTimerTriggered;
         const int REFRESH_TIMER_INTERVAL = 5000;
 
         const int REFRESH_TIMEOUT = 10000;
@@ -43,6 +44,8 @@ namespace DnsServerCore.Dns.Zones
 
         DateTime _expiry;
         bool _isExpired;
+
+        bool _resync;
 
         #endregion
 
@@ -102,7 +105,7 @@ namespace DnsServerCore.Dns.Zones
             DnsResourceRecord[] soaRR = new DnsResourceRecord[] { new DnsResourceRecord(stubZone._name, DnsResourceRecordType.SOA, DnsClass.IN, soa.Refresh, soa) };
 
             if (!string.IsNullOrEmpty(primaryNameServerAddresses))
-                soaRR[0].SetGlueRecords(primaryNameServerAddresses);
+                soaRR[0].SetPrimaryNameServers(primaryNameServerAddresses);
 
             stubZone._entries[DnsResourceRecordType.SOA] = soaRR;
 
@@ -144,21 +147,21 @@ namespace DnsServerCore.Dns.Zones
 
         private async void RefreshTimerCallback(object state)
         {
-            if (_disabled)
-                return;
-
             try
             {
+                if (_disabled && !_resync)
+                    return;
+
                 _isExpired = DateTime.UtcNow > _expiry;
 
-                //get primary name server addresses
-                IReadOnlyList<NameServerAddress> primaryNameServers = await GetPrimaryNameServerAddressesAsync(_dnsServer);
+                //get name server addresses
+                IReadOnlyList<NameServerAddress> nameServers = await GetNameServerAddressesAsync(_dnsServer);
 
-                if (primaryNameServers.Count == 0)
+                if (nameServers.Count == 0)
                 {
                     LogManager log = _dnsServer.LogManager;
                     if (log != null)
-                        log.Write("DNS Server could not find primary name server IP addresses for stub zone: " + _name);
+                        log.Write("DNS Server could not find name server IP addresses for stub zone: " + _name);
 
                     //set timer for retry
                     DnsSOARecord soa1 = _entries[DnsResourceRecordType.SOA][0].RDATA as DnsSOARecord;
@@ -167,7 +170,7 @@ namespace DnsServerCore.Dns.Zones
                 }
 
                 //refresh zone
-                if (await RefreshZoneAsync(primaryNameServers))
+                if (await RefreshZoneAsync(nameServers))
                 {
                     //zone refreshed; set timer for refresh
                     DnsSOARecord latestSoa = _entries[DnsResourceRecordType.SOA][0].RDATA as DnsSOARecord;
@@ -175,6 +178,7 @@ namespace DnsServerCore.Dns.Zones
 
                     _expiry = DateTime.UtcNow.AddSeconds(latestSoa.Expire);
                     _isExpired = false;
+                    _resync = false;
                     _dnsServer.AuthZoneManager.SaveZoneFile(_name);
                     return;
                 }
@@ -199,9 +203,13 @@ namespace DnsServerCore.Dns.Zones
                     }
                 }
             }
+            finally
+            {
+                _refreshTimerTriggered = false;
+            }
         }
 
-        private async Task<bool> RefreshZoneAsync(IReadOnlyList<NameServerAddress> primaryNameServers)
+        private async Task<bool> RefreshZoneAsync(IReadOnlyList<NameServerAddress> nameServers)
         {
             try
             {
@@ -211,7 +219,7 @@ namespace DnsServerCore.Dns.Zones
                         log.Write("DNS Server has started zone refresh for stub zone: " + _name);
                 }
 
-                DnsClient client = new DnsClient(primaryNameServers);
+                DnsClient client = new DnsClient(nameServers);
 
                 client.Proxy = _dnsServer.Proxy;
                 client.PreferIPv6 = _dnsServer.PreferIPv6;
@@ -230,7 +238,7 @@ namespace DnsServerCore.Dns.Zones
                     return false;
                 }
 
-                if (soaResponse.Answer.Count < 1)
+                if ((soaResponse.Answer.Count < 1) || (soaResponse.Answer[0].Type != DnsResourceRecordType.SOA) || !_name.Equals(soaResponse.Answer[0].Name, StringComparison.OrdinalIgnoreCase))
                 {
                     LogManager log = _dnsServer.LogManager;
                     if (log != null)
@@ -239,11 +247,14 @@ namespace DnsServerCore.Dns.Zones
                     return false;
                 }
 
-                DnsSOARecord currentSoaRecord = _entries[DnsResourceRecordType.SOA][0].RDATA as DnsSOARecord;
-                DnsSOARecord receivedSoaRecord = soaResponse.Answer[0].RDATA as DnsSOARecord;
+                DnsResourceRecord currentSoaRecord = _entries[DnsResourceRecordType.SOA][0];
+                DnsResourceRecord receivedSoaRecord = soaResponse.Answer[0];
+
+                DnsSOARecord currentSoa = currentSoaRecord.RDATA as DnsSOARecord;
+                DnsSOARecord receivedSoa = receivedSoaRecord.RDATA as DnsSOARecord;
 
                 //compare using sequence space arithmetic
-                if (!currentSoaRecord.IsZoneUpdateAvailable(receivedSoaRecord))
+                if (!_resync && !currentSoa.IsZoneUpdateAvailable(receivedSoa))
                 {
                     LogManager log = _dnsServer.LogManager;
                     if (log != null)
@@ -255,11 +266,11 @@ namespace DnsServerCore.Dns.Zones
                 //update available; do zone sync with TCP transport
                 List<NameServerAddress> tcpNameServers = new List<NameServerAddress>();
 
-                foreach (NameServerAddress nameServer in primaryNameServers)
+                foreach (NameServerAddress nameServer in nameServers)
                     tcpNameServers.Add(new NameServerAddress(nameServer, DnsTransportProtocol.Tcp));
 
-                primaryNameServers = tcpNameServers;
-                client = new DnsClient(primaryNameServers);
+                nameServers = tcpNameServers;
+                client = new DnsClient(nameServers);
 
                 client.Proxy = _dnsServer.Proxy;
                 client.PreferIPv6 = _dnsServer.PreferIPv6;
@@ -287,12 +298,24 @@ namespace DnsServerCore.Dns.Zones
                     return false;
                 }
 
-                List<DnsResourceRecord> allRecords = new List<DnsResourceRecord>();
+                //prepare sync records
+                List<DnsResourceRecord> nsRecords = new List<DnsResourceRecord>(nsResponse.Answer.Count);
 
-                allRecords.AddRange(nsResponse.Answer);
-                allRecords.AddRange(soaResponse.Answer); //to sync latest SOA record
+                foreach (DnsResourceRecord record in nsResponse.Answer)
+                {
+                    if ((record.Type == DnsResourceRecordType.NS) && record.Name.Equals(_name))
+                    {
+                        record.SyncGlueRecords(nsResponse.Additional);
+                        nsRecords.Add(record);
+                    }
+                }
 
-                _dnsServer.AuthZoneManager.SyncRecords(_name, allRecords, nsResponse.Additional, true);
+                receivedSoaRecord.SetPrimaryNameServers(currentSoaRecord.GetPrimaryNameServers());
+                receivedSoaRecord.SetComments(currentSoaRecord.GetComments());
+
+                //sync records
+                _entries[DnsResourceRecordType.NS] = nsRecords;
+                _entries[DnsResourceRecordType.SOA] = new DnsResourceRecord[] { receivedSoaRecord };
 
                 {
                     LogManager log = _dnsServer.LogManager;
@@ -309,7 +332,7 @@ namespace DnsServerCore.Dns.Zones
                 {
                     string strNameServers = null;
 
-                    foreach (NameServerAddress nameServer in primaryNameServers)
+                    foreach (NameServerAddress nameServer in nameServers)
                     {
                         if (strNameServers == null)
                             strNameServers = nameServer.ToString();
@@ -334,7 +357,22 @@ namespace DnsServerCore.Dns.Zones
             if (_disabled)
                 return;
 
+            if (_refreshTimerTriggered)
+                return;
+
             _refreshTimer.Change(REFRESH_TIMER_INTERVAL, Timeout.Infinite);
+            _refreshTimerTriggered = true;
+        }
+
+        public void TriggerResync()
+        {
+            if (_refreshTimerTriggered)
+                return;
+
+            _resync = true;
+
+            _refreshTimer.Change(REFRESH_TIMER_INTERVAL, Timeout.Infinite);
+            _refreshTimerTriggered = true;
         }
 
         public override void SetRecords(DnsResourceRecordType type, IReadOnlyList<DnsResourceRecord> records)
@@ -347,7 +385,7 @@ namespace DnsServerCore.Dns.Zones
 
                     DnsResourceRecord existingSoaRR = _entries[DnsResourceRecordType.SOA][0];
 
-                    existingSoaRR.SetGlueRecords(records.GetGlueRecords());
+                    existingSoaRR.SetPrimaryNameServers(records[0].GetPrimaryNameServers());
                     existingSoaRR.SetComments(records[0].GetComments());
                     break;
 
@@ -369,6 +407,11 @@ namespace DnsServerCore.Dns.Zones
         public override bool DeleteRecord(DnsResourceRecordType type, DnsResourceRecordData record)
         {
             throw new InvalidOperationException("Cannot delete records in stub zone.");
+        }
+
+        public override void UpdateRecord(DnsResourceRecord oldRecord, DnsResourceRecord newRecord)
+        {
+            throw new InvalidOperationException("Cannot update record in stub zone.");
         }
 
         public override IReadOnlyList<DnsResourceRecord> QueryRecords(DnsResourceRecordType type)
