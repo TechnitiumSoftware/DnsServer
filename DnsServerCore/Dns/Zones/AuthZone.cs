@@ -355,15 +355,20 @@ namespace DnsServerCore.Dns.Zones
             return nameServers;
         }
 
-        public Task<IReadOnlyList<NameServerAddress>> GetNameServerAddressesAsync(DnsServer dnsServer)
+        public async Task<IReadOnlyList<NameServerAddress>> GetAllNameServerAddressesAsync(DnsServer dnsServer)
         {
-            DnsResourceRecord soaRecord = _entries[DnsResourceRecordType.SOA][0];
+            IReadOnlyList<NameServerAddress> primaryNameServers = await GetPrimaryNameServerAddressesAsync(dnsServer);
+            IReadOnlyList<NameServerAddress> secondaryNameServers = await GetSecondaryNameServerAddressesAsync(dnsServer);
 
-            IReadOnlyList<NameServerAddress> primaryNameServers = soaRecord.GetPrimaryNameServers();
-            if (primaryNameServers.Count > 0)
-                return Task.FromResult(primaryNameServers);
+            if (secondaryNameServers.Count < 1)
+                return primaryNameServers;
 
-            return GetSecondaryNameServerAddressesAsync(dnsServer);
+            List<NameServerAddress> allNameServers = new List<NameServerAddress>(primaryNameServers.Count + secondaryNameServers.Count);
+
+            allNameServers.AddRange(primaryNameServers);
+            allNameServers.AddRange(secondaryNameServers);
+
+            return allNameServers;
         }
 
         public void SyncRecords(Dictionary<DnsResourceRecordType, List<DnsResourceRecord>> newEntries)

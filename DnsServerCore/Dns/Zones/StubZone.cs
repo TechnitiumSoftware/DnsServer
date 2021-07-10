@@ -154,8 +154,8 @@ namespace DnsServerCore.Dns.Zones
 
                 _isExpired = DateTime.UtcNow > _expiry;
 
-                //get name server addresses
-                IReadOnlyList<NameServerAddress> nameServers = await GetNameServerAddressesAsync(_dnsServer);
+                //get all name server addresses
+                IReadOnlyList<NameServerAddress> nameServers = await GetAllNameServerAddressesAsync(_dnsServer);
 
                 if (nameServers.Count == 0)
                 {
