@@ -1,6 +1,6 @@
 ﻿/*
 Technitium DNS Server
-Copyright (C) 2020  Shreyas Zare (shreyas@technitium.com)
+Copyright (C) 2021  Shreyas Zare (shreyas@technitium.com)
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -27,8 +27,8 @@ namespace DnsServerCore.Dns.Zones
     {
         #region constructor
 
-        public SecondarySubDomainZone(string name)
-            : base(name)
+        public SecondarySubDomainZone(SecondaryZone secondaryZone, string name)
+            : base(secondaryZone, name)
         { }
 
         #endregion
@@ -53,6 +53,11 @@ namespace DnsServerCore.Dns.Zones
         public override bool DeleteRecords(DnsResourceRecordType type)
         {
             throw new InvalidOperationException("Cannot delete records in secondary zone.");
+        }
+
+        public override void UpdateRecord(DnsResourceRecord oldRecord, DnsResourceRecord newRecord)
+        {
+            throw new InvalidOperationException("Cannot update record in secondary zone.");
         }
 
         #endregion
