@@ -386,6 +386,7 @@
                                                 <button id="btnEnableZoneEditZone" data-id="EditZone" type="button" class="btn btn-default" style="padding: 2px 0px; width: 100px;" onclick="enableZone(this, $('#titleEditZone').text());">Enable Zone</button>
                                                 <button id="btnDisableZoneEditZone" data-id="EditZone" type="button" class="btn btn-warning" style="padding: 2px 0px; width: 100px;" onclick="disableZone(this, $('#titleEditZone').text());">Disable Zone</button>
                                                 <button id="btnEditZoneDeleteZone" type="button" class="btn btn-danger" style="padding: 2px 0px; width: 100px;" onclick="deleteZone(this, $('#titleEditZone').text(), true);">Delete Zone</button>
+                                                <button id="btnZoneResync" type="button" class="btn btn-primary" style="padding: 2px 0px; width: 100px;" onclick="resyncZone(this, $('#titleEditZone').text());" data-loading-text="Resyncing...">Resync</button>
                                                 <button id="btnZoneOptions" type="button" class="btn btn-primary" style="padding: 2px 0px; width: 100px;" onclick="showZoneOptions($('#titleEditZone').text());">Options</button>
                                             </div>
                                             <div style="clear: both;"></div>
@@ -1917,7 +1918,7 @@
 
 
                         <div class="form-group" id="divAddZonePrimaryNameServerAddresses">
-                            <label for="txtAddZonePrimaryNameServerAddresses" class="col-sm-4 control-label">Primary Name Server Addresses (Optional)</label>
+                            <label for="txtAddZonePrimaryNameServerAddresses" class="col-sm-4 control-label">Primary Name Servers (Optional)</label>
                             <div class="col-sm-7">
                                 <textarea id="txtAddZonePrimaryNameServerAddresses" class="form-control" rows="3" placeholder="192.168.1.1
 2001:db8::"></textarea>
@@ -2120,7 +2121,7 @@
                                 </div>
                             </div>
                             <div class="form-group" id="divEditRecordDataSoaPrimaryAddresses">
-                                <label for="txtEditRecordDataSoaPrimaryAddresses" class="col-sm-4 control-label">Primary Name Server Addresses</label>
+                                <label for="txtEditRecordDataSoaPrimaryAddresses" class="col-sm-4 control-label">Primary Name Servers</label>
                                 <div class="col-sm-7">
                                     <textarea id="txtEditRecordDataSoaPrimaryAddresses" class="form-control" rows="3" placeholder="192.168.1.1
 2001:db8::"></textarea>

@@ -461,6 +461,29 @@ function saveZoneOptions() {
     });
 }
 
+function resyncZone(objBtn, domain) {
+    if (!confirm("The resync action will perform a full zone refresh. For Secondary zones, there will be a full zone transfer (AXFR) performed. You will need to check the logs to confirm if the resync action was successful.\r\n\r\nAre you sure you want to resync the '" + domain + "' zone?"))
+        return false;
+
+    var btn = $(objBtn);
+    btn.button('loading');
+
+    HTTPRequest({
+        url: "/api/zone/resync?token=" + token + "&domain=" + domain,
+        success: function (responseJSON) {
+            btn.button('reset');
+            showAlert("success", "Resync Triggered!", "Zone '" + domain + "' resync was triggered successfully. Please check the Logs for confirmation.");
+        },
+        error: function () {
+            btn.button('reset');
+        },
+        invalidToken: function () {
+            btn.button('reset');
+            showPageLogin();
+        }
+    });
+}
+
 function showAddZoneModal() {
     $("#divAddZoneAlert").html("");
 
@@ -655,6 +678,17 @@ function showEditZone(domain) {
             }
 
             switch (type) {
+                case "Secondary":
+                case "Stub":
+                    $("#btnZoneResync").show();
+                    break;
+
+                default:
+                    $("#btnZoneResync").hide();
+                    break;
+            }
+
+            switch (type) {
                 case "Primary":
                 case "Secondary":
                     $("#btnZoneOptions").show();
@@ -729,7 +763,7 @@ function showEditZone(domain) {
                             "<br /><b>Minimum:</b> " + htmlEncode(records[i].rData.minimum);
 
                         if (records[i].rData.primaryAddresses != null) {
-                            tableHtmlRows += "<br /><b>Primary Name Server Addresses:</b> " + records[i].rData.primaryAddresses;
+                            tableHtmlRows += "<br /><b>Primary Name Servers:</b> " + records[i].rData.primaryAddresses;
 
                             additionalDataAttributes = "data-record-paddresses=\"" + htmlEncode(records[i].rData.primaryAddresses) + "\" ";
                         } else {
