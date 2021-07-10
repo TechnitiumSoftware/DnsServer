@@ -508,6 +508,10 @@ namespace DnsServerCore
                                                 SetZoneOptions(request);
                                                 break;
 
+                                            case "/api/zone/resync":
+                                                ResyncZone(request);
+                                                break;
+
                                             case "/api/addRecord":
                                                 AddRecord(request);
                                                 break;
@@ -2439,6 +2443,9 @@ namespace DnsServerCore
                                 string appFolder = Path.Combine(_configFolder, "apps");
                                 if (Directory.Exists(appFolder))
                                     Directory.Delete(appFolder, true);
+
+                                //create apps folder
+                                Directory.CreateDirectory(appFolder);
                             }
 
                             //extract apps files from backup
@@ -3928,6 +3935,33 @@ namespace DnsServerCore
             _dnsServer.AuthZoneManager.SaveZoneFile(zoneInfo.Name);
         }
 
+        private void ResyncZone(HttpListenerRequest request)
+        {
+            string domain = request.QueryString["domain"];
+            if (string.IsNullOrEmpty(domain))
+                throw new DnsWebServiceException("Parameter 'domain' missing.");
+
+            domain = domain.TrimEnd('.');
+
+            AuthZoneInfo zoneInfo = _dnsServer.AuthZoneManager.GetAuthZoneInfo(domain);
+            if (zoneInfo == null)
+                throw new DnsWebServiceException("Zone '" + domain + "' was not found.");
+
+            if (zoneInfo.Internal)
+                throw new DnsWebServiceException("Access was denied to manage internal DNS Server zone.");
+
+            switch (zoneInfo.Type)
+            {
+                case AuthZoneType.Secondary:
+                case AuthZoneType.Stub:
+                    zoneInfo.TriggerResync();
+                    break;
+
+                default:
+                    throw new DnsWebServiceException("Only Secondary and Stub zones support resync.");
+            }
+        }
+
         private void AddRecord(HttpListenerRequest request)
         {
             string domain = request.QueryString["domain"];
@@ -4293,7 +4327,8 @@ namespace DnsServerCore
 
             jsonWriter.WriteEndObject();
 
-            List<DnsResourceRecord> records = _dnsServer.AuthZoneManager.ListAllRecords(domain);
+            List<DnsResourceRecord> records = new List<DnsResourceRecord>();
+            _dnsServer.AuthZoneManager.ListAllRecords(domain, records);
 
             WriteRecordsAsJson(records, jsonWriter, true);
         }
@@ -4424,17 +4459,17 @@ namespace DnsServerCore
                                         jsonWriter.WriteValue(record.RDATA.ToString());
                                     }
 
-                                    IReadOnlyList<DnsResourceRecord> glueRecords = record.GetGlueRecords();
-                                    if (glueRecords.Count > 0)
+                                    IReadOnlyList<NameServerAddress> primaryNameServers = record.GetPrimaryNameServers();
+                                    if (primaryNameServers.Count > 0)
                                     {
                                         string primaryAddresses = null;
 
-                                        foreach (DnsResourceRecord glueRecord in glueRecords)
+                                        foreach (NameServerAddress primaryNameServer in primaryNameServers)
                                         {
                                             if (primaryAddresses == null)
-                                                primaryAddresses = glueRecord.RDATA.ToString();
+                                                primaryAddresses = primaryNameServer.OriginalAddress;
                                             else
-                                                primaryAddresses = primaryAddresses + ", " + glueRecord.RDATA.ToString();
+                                                primaryAddresses = primaryAddresses + ", " + primaryNameServer.OriginalAddress;
                                         }
 
                                         jsonWriter.WritePropertyName("primaryAddresses");
@@ -5067,7 +5102,7 @@ namespace DnsServerCore
 
                         string primaryAddresses = request.QueryString["primaryAddresses"];
                         if (!string.IsNullOrEmpty(primaryAddresses))
-                            soaRecord.SetGlueRecords(primaryAddresses);
+                            soaRecord.SetPrimaryNameServers(primaryAddresses);
 
                         if (!string.IsNullOrEmpty(comments))
                             soaRecord.SetComments(comments);
@@ -5812,7 +5847,6 @@ namespace DnsServerCore
             if (importRecords)
             {
                 AuthZoneInfo zoneInfo = _dnsServer.AuthZoneManager.GetAuthZoneInfo(domain);
-
                 if (zoneInfo == null)
                 {
                     zoneInfo = _dnsServer.AuthZoneManager.CreatePrimaryZone(domain, _dnsServer.ServerDomain, false);
@@ -5824,7 +5858,12 @@ namespace DnsServerCore
                     switch (zoneInfo.Type)
                     {
                         case AuthZoneType.Primary:
+                            break;
+
                         case AuthZoneType.Forwarder:
+                            if (type == DnsResourceRecordType.AXFR)
+                                throw new DnsServerException("Cannot import records via zone transfer: import zone must be of primary type.");
+
                             break;
 
                         default:
@@ -5834,13 +5873,11 @@ namespace DnsServerCore
 
                 if (type == DnsResourceRecordType.AXFR)
                 {
-                    bool dontRemoveRecords = zoneInfo.Type == AuthZoneType.Forwarder;
-
-                    _dnsServer.AuthZoneManager.SyncRecords(domain, dnsResponse.Answer, null, dontRemoveRecords);
+                    _dnsServer.AuthZoneManager.SyncZoneTransferRecords(domain, dnsResponse.Answer);
                 }
                 else
                 {
-                    List<DnsResourceRecord> syncRecords = new List<DnsResourceRecord>();
+                    List<DnsResourceRecord> syncRecords = new List<DnsResourceRecord>(dnsResponse.Answer.Count);
 
                     foreach (DnsResourceRecord record in dnsResponse.Answer)
                     {
@@ -5851,7 +5888,7 @@ namespace DnsServerCore
                         }
                     }
 
-                    _dnsServer.AuthZoneManager.SyncRecords(domain, syncRecords, null, true);
+                    _dnsServer.AuthZoneManager.LoadRecords(syncRecords);
                 }
 
                 _log.Write(GetRequestRemoteEndPoint(request), "[" + GetSession(request).Username + "] DNS Client imported record(s) for authoritative zone {server: " + server + "; domain: " + domain + "; type: " + type + ";}");
