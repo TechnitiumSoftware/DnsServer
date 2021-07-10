@@ -225,10 +225,10 @@ namespace DnsServerCore.Dns.ZoneManagers
 
                 if (authZone is PrimaryZone primaryZone)
                     return new PrimarySubDomainZone(primaryZone, domain);
-                else if (authZone is SecondaryZone)
-                    return new SecondarySubDomainZone(domain);
-                else if (authZone is ForwarderZone)
-                    return new ForwarderSubDomainZone(domain);
+                else if (authZone is SecondaryZone secondaryZone)
+                    return new SecondarySubDomainZone(secondaryZone, domain);
+                else if (authZone is ForwarderZone forwarderZone)
+                    return new ForwarderSubDomainZone(forwarderZone, domain);
 
                 throw new DnsServerException("Zone cannot have sub domains.");
             });
@@ -371,6 +371,187 @@ namespace DnsServerCore.Dns.ZoneManagers
         internal void Flush()
         {
             _root.Clear();
+        }
+
+        private static IReadOnlyList<DnsResourceRecord> CondenseIncrementalZoneTransferRecords(string domain, DnsResourceRecord currentSoaRecord, IReadOnlyList<DnsResourceRecord> xfrRecords)
+        {
+            DnsResourceRecord firstSoaRecord = xfrRecords[0];
+            DnsResourceRecord lastSoaRecord = xfrRecords[xfrRecords.Count - 1];
+
+            DnsResourceRecord firstDeletedSoaRecord = null;
+            DnsResourceRecord lastAddedSoaRecord = null;
+
+            List<DnsResourceRecord> deletedRecords = new List<DnsResourceRecord>();
+            List<DnsResourceRecord> deletedGlueRecords = new List<DnsResourceRecord>();
+            List<DnsResourceRecord> addedRecords = new List<DnsResourceRecord>();
+            List<DnsResourceRecord> addedGlueRecords = new List<DnsResourceRecord>();
+
+            //read and apply difference sequences
+            int index = 1;
+            int count = xfrRecords.Count - 1;
+            DnsSOARecord currentSoa = (DnsSOARecord)currentSoaRecord.RDATA;
+
+            while (index < count)
+            {
+                //read deleted records
+                DnsResourceRecord deletedSoaRecord = xfrRecords[index];
+                if ((deletedSoaRecord.Type != DnsResourceRecordType.SOA) || !deletedSoaRecord.Name.Equals(domain, StringComparison.OrdinalIgnoreCase))
+                    throw new InvalidOperationException();
+
+                if (firstDeletedSoaRecord is null)
+                    firstDeletedSoaRecord = deletedSoaRecord;
+
+                index++;
+
+                while (index < count)
+                {
+                    DnsResourceRecord record = xfrRecords[index];
+                    if (record.Type == DnsResourceRecordType.SOA)
+                        break;
+
+                    if (domain.Length == 0)
+                    {
+                        //root zone case
+                        switch (record.Type)
+                        {
+                            case DnsResourceRecordType.A:
+                            case DnsResourceRecordType.AAAA:
+                                if (addedGlueRecords.Contains(record))
+                                    addedGlueRecords.Remove(record);
+                                else
+                                    deletedGlueRecords.Add(record);
+
+                                break;
+
+                            default:
+                                if (addedRecords.Contains(record))
+                                    addedRecords.Remove(record);
+                                else
+                                    deletedRecords.Add(record);
+
+                                break;
+                        }
+                    }
+                    else
+                    {
+                        if (record.Name.Equals(domain, StringComparison.OrdinalIgnoreCase) || record.Name.EndsWith("." + domain, StringComparison.OrdinalIgnoreCase))
+                        {
+                            if (addedRecords.Contains(record))
+                                addedRecords.Remove(record);
+                            else
+                                deletedRecords.Add(record);
+                        }
+                        else
+                        {
+                            switch (record.Type)
+                            {
+                                case DnsResourceRecordType.A:
+                                case DnsResourceRecordType.AAAA:
+                                    if (addedGlueRecords.Contains(record))
+                                        addedGlueRecords.Remove(record);
+                                    else
+                                        deletedGlueRecords.Add(record);
+
+                                    break;
+                            }
+                        }
+                    }
+
+                    index++;
+                }
+
+                //read added records
+                DnsResourceRecord addedSoaRecord = xfrRecords[index];
+                if (!addedSoaRecord.Name.Equals(domain, StringComparison.OrdinalIgnoreCase))
+                    throw new InvalidOperationException();
+
+                lastAddedSoaRecord = addedSoaRecord;
+
+                index++;
+
+                while (index < count)
+                {
+                    DnsResourceRecord record = xfrRecords[index];
+                    if (record.Type == DnsResourceRecordType.SOA)
+                        break;
+
+                    if (domain.Length == 0)
+                    {
+                        //root zone case
+                        switch (record.Type)
+                        {
+                            case DnsResourceRecordType.A:
+                            case DnsResourceRecordType.AAAA:
+                                if (deletedGlueRecords.Contains(record))
+                                    deletedGlueRecords.Remove(record);
+                                else
+                                    addedGlueRecords.Add(record);
+
+                                break;
+
+                            default:
+                                if (deletedRecords.Contains(record))
+                                    deletedRecords.Remove(record);
+                                else
+                                    addedRecords.Add(record);
+
+                                break;
+                        }
+                    }
+                    else
+                    {
+                        if (record.Name.Equals(domain, StringComparison.OrdinalIgnoreCase) || record.Name.EndsWith("." + domain, StringComparison.OrdinalIgnoreCase))
+                        {
+                            if (deletedRecords.Contains(record))
+                                deletedRecords.Remove(record);
+                            else
+                                addedRecords.Add(record);
+                        }
+                        else
+                        {
+                            switch (record.Type)
+                            {
+                                case DnsResourceRecordType.A:
+                                case DnsResourceRecordType.AAAA:
+                                    if (deletedGlueRecords.Contains(record))
+                                        deletedGlueRecords.Remove(record);
+                                    else
+                                        addedGlueRecords.Add(record);
+
+                                    break;
+                            }
+                        }
+                    }
+
+                    index++;
+                }
+
+                //check sequence soa serial
+                DnsSOARecord deletedSoa = deletedSoaRecord.RDATA as DnsSOARecord;
+
+                if (currentSoa.Serial != deletedSoa.Serial)
+                    throw new InvalidOperationException("Current SOA serial does not match with the IXFR difference sequence deleted SOA.");
+
+                //check next difference sequence
+                currentSoa = addedSoaRecord.RDATA as DnsSOARecord;
+            }
+
+            //create condensed records
+            List<DnsResourceRecord> condensedRecords = new List<DnsResourceRecord>(2 + 2 + deletedRecords.Count + deletedGlueRecords.Count + addedRecords.Count + addedGlueRecords.Count);
+
+            condensedRecords.Add(firstSoaRecord);
+
+            condensedRecords.Add(firstDeletedSoaRecord);
+            condensedRecords.AddRange(deletedRecords);
+            condensedRecords.AddRange(deletedGlueRecords);
+
+            condensedRecords.Add(lastAddedSoaRecord);
+            condensedRecords.AddRange(addedRecords);
+            condensedRecords.AddRange(addedGlueRecords);
+
+            condensedRecords.Add(lastSoaRecord);
+
+            return condensedRecords;
         }
 
         #endregion
@@ -594,14 +775,10 @@ namespace DnsServerCore.Dns.ZoneManagers
             return new AuthZoneInfo(authority);
         }
 
-        public List<DnsResourceRecord> ListAllRecords(string domain)
+        public void ListAllRecords(string domain, List<DnsResourceRecord> records)
         {
-            List<DnsResourceRecord> records = new List<DnsResourceRecord>();
-
             foreach (AuthZone zone in _root.GetZoneWithSubDomainZones(domain))
                 records.AddRange(zone.ListAllRecords());
-
-            return records;
         }
 
         public IReadOnlyList<DnsResourceRecord> GetRecords(string domain, DnsResourceRecordType type)
@@ -622,77 +799,143 @@ namespace DnsServerCore.Dns.ZoneManagers
 
         public IReadOnlyList<DnsResourceRecord> QueryZoneTransferRecords(string domain)
         {
-            List<DnsResourceRecord> zoneTransferRecords = new List<DnsResourceRecord>();
-
             List<AuthZone> zones = _root.GetZoneWithSubDomainZones(domain);
+            if (zones.Count == 0)
+                throw new InvalidOperationException();
 
-            if ((zones.Count > 0) && zones[0].IsActive)
+            //only primary and secondary zones support zone transfer
+            DnsResourceRecord soaRecord = zones[0].GetRecords(DnsResourceRecordType.SOA)[0];
+
+            List<DnsResourceRecord> xfrRecords = new List<DnsResourceRecord>();
+
+            //start message
+            xfrRecords.Add(soaRecord);
+
+            foreach (Zone zone in zones)
             {
-                //only primary and secondary zones support zone transfer
-                DnsResourceRecord soaRecord = zones[0].GetRecords(DnsResourceRecordType.SOA)[0];
-
-                zoneTransferRecords.Add(soaRecord);
-
-                foreach (Zone zone in zones)
+                foreach (DnsResourceRecord record in zone.ListAllRecords())
                 {
-                    foreach (DnsResourceRecord record in zone.ListAllRecords())
+                    if (record.IsDisabled())
+                        continue;
+
+                    switch (record.Type)
                     {
-                        if (record.IsDisabled())
-                            continue;
+                        case DnsResourceRecordType.SOA:
+                            break; //skip record
 
-                        switch (record.Type)
-                        {
-                            case DnsResourceRecordType.SOA:
-                                break; //skip record
+                        case DnsResourceRecordType.NS:
+                            xfrRecords.Add(record);
 
-                            case DnsResourceRecordType.NS:
-                                zoneTransferRecords.Add(record);
+                            foreach (DnsResourceRecord glueRecord in record.GetGlueRecords())
+                            {
+                                if (!xfrRecords.Contains(glueRecord))
+                                    xfrRecords.Add(glueRecord);
+                            }
+                            break;
 
-                                foreach (DnsResourceRecord glueRecord in record.GetGlueRecords())
-                                {
-                                    if (!zoneTransferRecords.Contains(glueRecord))
-                                        zoneTransferRecords.Add(glueRecord);
-                                }
-                                break;
+                        default:
+                            if (!xfrRecords.Contains(record))
+                                xfrRecords.Add(record);
 
-                            default:
-                                zoneTransferRecords.Add(record);
-                                break;
-                        }
+                            break;
                     }
                 }
-
-                zoneTransferRecords.Add(soaRecord);
             }
 
-            return zoneTransferRecords;
+            //end message
+            xfrRecords.Add(soaRecord);
+
+            return xfrRecords;
         }
 
-        public void SyncRecords(string domain, IReadOnlyList<DnsResourceRecord> syncRecords, IReadOnlyList<DnsResourceRecord> additionalRecords = null, bool dontRemoveRecords = false)
+        public IReadOnlyList<DnsResourceRecord> QueryIncrementalZoneTransferRecords(string domain, DnsResourceRecord clientSoaRecord)
         {
-            List<DnsResourceRecord> newRecords = new List<DnsResourceRecord>(syncRecords.Count);
-            List<DnsResourceRecord> allGlueRecords = new List<DnsResourceRecord>();
+            List<AuthZone> zones = _root.GetZoneWithSubDomainZones(domain);
+            if (zones.Count == 0)
+                throw new InvalidOperationException();
 
-            if (additionalRecords != null)
+            //only primary and secondary zones support zone transfer
+            DnsResourceRecord currentSoaRecord = zones[0].GetRecords(DnsResourceRecordType.SOA)[0];
+            uint clientSerial = (clientSoaRecord.RDATA as DnsSOARecord).Serial;
+
+            if (clientSerial == (currentSoaRecord.RDATA as DnsSOARecord).Serial)
             {
-                foreach (DnsResourceRecord additionalRecord in additionalRecords)
+                //zone not modified
+                return new DnsResourceRecord[] { currentSoaRecord };
+            }
+
+            //find history record start from client serial
+            IReadOnlyList<DnsResourceRecord> zoneHistory;
+
+            if (zones[0] is PrimaryZone primaryZone)
+                zoneHistory = primaryZone.GetHistory();
+            else if (zones[0] is SecondaryZone secondaryZone)
+                zoneHistory = secondaryZone.GetHistory();
+            else
+                throw new InvalidOperationException();
+
+            int index = 0;
+            while (index < zoneHistory.Count)
+            {
+                //check difference sequence
+                if ((zoneHistory[index].RDATA as DnsSOARecord).Serial == clientSerial)
+                    break; //found history for client's serial
+
+                //skip to next difference sequence
+                index++;
+                int soaCount = 1;
+
+                while (index < zoneHistory.Count)
                 {
-                    if (!allGlueRecords.Contains(additionalRecord))
-                        allGlueRecords.Add(additionalRecord);
+                    if (zoneHistory[index].Type == DnsResourceRecordType.SOA)
+                    {
+                        soaCount++;
+
+                        if (soaCount == 3)
+                            break;
+                    }
+
+                    index++;
                 }
             }
 
-            int i = 0;
+            if (index == zoneHistory.Count)
+            {
+                //client's serial was not found in zone history
+                //do full zone transfer
+                return QueryZoneTransferRecords(domain);
+            }
 
-            if ((syncRecords.Count > 1) && (syncRecords[0].Type == DnsResourceRecordType.SOA) && (syncRecords[syncRecords.Count - 1].Type == DnsResourceRecordType.SOA))
-                i = 1; //skip first SOA in AXFR
+            List<DnsResourceRecord> xfrRecords = new List<DnsResourceRecord>();
+
+            //start incremental message
+            xfrRecords.Add(currentSoaRecord);
+
+            //write history
+            for (int i = index; i < zoneHistory.Count; i++)
+                xfrRecords.Add(zoneHistory[i]);
+
+            //end incremental message
+            xfrRecords.Add(currentSoaRecord);
+
+            //condense
+            return CondenseIncrementalZoneTransferRecords(domain, clientSoaRecord, xfrRecords);
+        }
+
+        public void SyncZoneTransferRecords(string domain, IReadOnlyList<DnsResourceRecord> xfrRecords)
+        {
+            if ((xfrRecords.Count < 2) || (xfrRecords[0].Type != DnsResourceRecordType.SOA) || !xfrRecords[0].Name.Equals(domain, StringComparison.OrdinalIgnoreCase) || !xfrRecords[xfrRecords.Count - 1].Equals(xfrRecords[0]))
+                throw new DnsServerException("Invalid AXFR response was received.");
+
+            List<DnsResourceRecord> latestRecords = new List<DnsResourceRecord>(xfrRecords.Count);
+            List<DnsResourceRecord> allGlueRecords = new List<DnsResourceRecord>(4);
 
             if (domain.Length == 0)
             {
                 //root zone case
-                for (; i < syncRecords.Count; i++)
+                for (int i = 1; i < xfrRecords.Count; i++)
                 {
-                    DnsResourceRecord record = syncRecords[i];
+                    DnsResourceRecord record = xfrRecords[i];
 
                     switch (record.Type)
                     {
@@ -704,61 +947,271 @@ namespace DnsServerCore.Dns.ZoneManagers
                             break;
 
                         default:
-                            newRecords.Add(record);
+                            if (!latestRecords.Contains(record))
+                                latestRecords.Add(record);
+
                             break;
                     }
                 }
             }
             else
             {
-                for (; i < syncRecords.Count; i++)
+                for (int i = 1; i < xfrRecords.Count; i++)
                 {
-                    DnsResourceRecord record = syncRecords[i];
+                    DnsResourceRecord record = xfrRecords[i];
 
                     if (record.Name.Equals(domain, StringComparison.OrdinalIgnoreCase) || record.Name.EndsWith("." + domain, StringComparison.OrdinalIgnoreCase))
-                        newRecords.Add(record);
+                    {
+                        if (!latestRecords.Contains(record))
+                            latestRecords.Add(record);
+                    }
                     else if (!allGlueRecords.Contains(record))
+                    {
                         allGlueRecords.Add(record);
+                    }
                 }
             }
 
             if (allGlueRecords.Count > 0)
             {
-                foreach (DnsResourceRecord record in newRecords)
+                foreach (DnsResourceRecord record in latestRecords)
                 {
-                    switch (record.Type)
-                    {
-                        case DnsResourceRecordType.NS:
-                            record.SyncGlueRecords(allGlueRecords);
-                            break;
-                    }
+                    if (record.Type == DnsResourceRecordType.NS)
+                        record.SyncGlueRecords(allGlueRecords);
                 }
             }
 
-            List<DnsResourceRecord> oldRecords = ListAllRecords(domain);
+            //sync records
+            List<DnsResourceRecord> currentRecords = new List<DnsResourceRecord>();
+            ListAllRecords(domain, currentRecords);
 
-            Dictionary<string, Dictionary<DnsResourceRecordType, List<DnsResourceRecord>>> newRecordsGroupedByDomain = DnsResourceRecord.GroupRecords(newRecords);
-            Dictionary<string, Dictionary<DnsResourceRecordType, List<DnsResourceRecord>>> oldRecordsGroupedByDomain = DnsResourceRecord.GroupRecords(oldRecords);
+            Dictionary<string, Dictionary<DnsResourceRecordType, List<DnsResourceRecord>>> currentRecordsGroupedByDomain = DnsResourceRecord.GroupRecords(currentRecords);
+            Dictionary<string, Dictionary<DnsResourceRecordType, List<DnsResourceRecord>>> latestRecordsGroupedByDomain = DnsResourceRecord.GroupRecords(latestRecords);
 
-            if (!dontRemoveRecords)
+            //remove domains that do not exists in new records
+            foreach (KeyValuePair<string, Dictionary<DnsResourceRecordType, List<DnsResourceRecord>>> currentDomain in currentRecordsGroupedByDomain)
             {
-                //remove domains that do not exists in new records
-                foreach (KeyValuePair<string, Dictionary<DnsResourceRecordType, List<DnsResourceRecord>>> oldDomain in oldRecordsGroupedByDomain)
-                {
-                    if (!newRecordsGroupedByDomain.ContainsKey(oldDomain.Key))
-                        _root.TryRemove(oldDomain.Key, out _);
-                }
+                if (!latestRecordsGroupedByDomain.ContainsKey(currentDomain.Key))
+                    _root.TryRemove(currentDomain.Key, out _);
             }
 
             //sync new records
-            foreach (KeyValuePair<string, Dictionary<DnsResourceRecordType, List<DnsResourceRecord>>> newEntries in newRecordsGroupedByDomain)
+            foreach (KeyValuePair<string, Dictionary<DnsResourceRecordType, List<DnsResourceRecord>>> latestEntries in latestRecordsGroupedByDomain)
             {
-                AuthZone zone = GetOrAddSubDomainZone(newEntries.Key);
+                AuthZone zone = GetOrAddSubDomainZone(latestEntries.Key);
 
                 if (zone.Name.Equals(domain, StringComparison.OrdinalIgnoreCase))
-                    zone.SyncRecords(newEntries.Value, dontRemoveRecords);
-                else if (zone is SubDomainZone)
-                    zone.SyncRecords(newEntries.Value, dontRemoveRecords);
+                    zone.SyncRecords(latestEntries.Value);
+                else if ((zone is SubDomainZone subDomainZone) && subDomainZone.AuthoritativeZone.Name.Equals(domain, StringComparison.OrdinalIgnoreCase))
+                    zone.SyncRecords(latestEntries.Value);
+            }
+        }
+
+        public IReadOnlyList<DnsResourceRecord> SyncIncrementalZoneTransferRecords(string domain, IReadOnlyList<DnsResourceRecord> xfrRecords)
+        {
+            if ((xfrRecords.Count < 2) || (xfrRecords[0].Type != DnsResourceRecordType.SOA) || !xfrRecords[0].Name.Equals(domain, StringComparison.OrdinalIgnoreCase) || !xfrRecords[xfrRecords.Count - 1].Equals(xfrRecords[0]))
+                throw new DnsServerException("Invalid IXFR/AXFR response was received.");
+
+            if ((xfrRecords.Count < 4) || (xfrRecords[1].Type != DnsResourceRecordType.SOA))
+            {
+                //received AXFR response
+                SyncZoneTransferRecords(domain, xfrRecords);
+                return Array.Empty<DnsResourceRecord>();
+            }
+
+            IReadOnlyList<DnsResourceRecord> soaRecords = GetRecords(domain, DnsResourceRecordType.SOA);
+            if (soaRecords.Count != 1)
+                throw new InvalidOperationException("No authoritative zone was found for the domain.");
+
+            //process IXFR response
+            DnsResourceRecord currentSoaRecord = soaRecords[0];
+            DnsSOARecord currentSoa = currentSoaRecord.RDATA as DnsSOARecord;
+
+            IReadOnlyList<DnsResourceRecord> condensedXfrRecords = CondenseIncrementalZoneTransferRecords(domain, currentSoaRecord, xfrRecords);
+
+            List<DnsResourceRecord> deletedRecords = new List<DnsResourceRecord>();
+            List<DnsResourceRecord> deletedGlueRecords = new List<DnsResourceRecord>();
+            List<DnsResourceRecord> addedRecords = new List<DnsResourceRecord>();
+            List<DnsResourceRecord> addedGlueRecords = new List<DnsResourceRecord>();
+
+            //read and apply difference sequences
+            int index = 1;
+            int count = condensedXfrRecords.Count - 1;
+
+            while (index < count)
+            {
+                //read deleted records
+                DnsResourceRecord deletedSoaRecord = condensedXfrRecords[index];
+                if ((deletedSoaRecord.Type != DnsResourceRecordType.SOA) || !deletedSoaRecord.Name.Equals(domain, StringComparison.OrdinalIgnoreCase))
+                    throw new InvalidOperationException();
+
+                index++;
+
+                while (index < count)
+                {
+                    DnsResourceRecord record = condensedXfrRecords[index];
+                    if (record.Type == DnsResourceRecordType.SOA)
+                        break;
+
+                    if (domain.Length == 0)
+                    {
+                        //root zone case
+                        switch (record.Type)
+                        {
+                            case DnsResourceRecordType.A:
+                            case DnsResourceRecordType.AAAA:
+                                deletedGlueRecords.Add(record);
+                                break;
+
+                            default:
+                                deletedRecords.Add(record);
+                                break;
+                        }
+                    }
+                    else
+                    {
+                        if (record.Name.Equals(domain, StringComparison.OrdinalIgnoreCase) || record.Name.EndsWith("." + domain, StringComparison.OrdinalIgnoreCase))
+                        {
+                            deletedRecords.Add(record);
+                        }
+                        else
+                        {
+                            switch (record.Type)
+                            {
+                                case DnsResourceRecordType.A:
+                                case DnsResourceRecordType.AAAA:
+                                    deletedGlueRecords.Add(record);
+                                    break;
+                            }
+                        }
+                    }
+
+                    index++;
+                }
+
+                //read added records
+                DnsResourceRecord addedSoaRecord = condensedXfrRecords[index];
+                if (!addedSoaRecord.Name.Equals(domain, StringComparison.OrdinalIgnoreCase))
+                    throw new InvalidOperationException();
+
+                index++;
+
+                while (index < count)
+                {
+                    DnsResourceRecord record = condensedXfrRecords[index];
+                    if (record.Type == DnsResourceRecordType.SOA)
+                        break;
+
+                    if (domain.Length == 0)
+                    {
+                        //root zone case
+                        switch (record.Type)
+                        {
+                            case DnsResourceRecordType.A:
+                            case DnsResourceRecordType.AAAA:
+                                addedGlueRecords.Add(record);
+                                break;
+
+                            default:
+                                addedRecords.Add(record);
+                                break;
+                        }
+                    }
+                    else
+                    {
+                        if (record.Name.Equals(domain, StringComparison.OrdinalIgnoreCase) || record.Name.EndsWith("." + domain, StringComparison.OrdinalIgnoreCase))
+                        {
+                            addedRecords.Add(record);
+                        }
+                        else
+                        {
+                            switch (record.Type)
+                            {
+                                case DnsResourceRecordType.A:
+                                case DnsResourceRecordType.AAAA:
+                                    addedGlueRecords.Add(record);
+                                    break;
+                            }
+                        }
+                    }
+
+                    index++;
+                }
+
+                //check sequence soa serial
+                DnsSOARecord deletedSoa = deletedSoaRecord.RDATA as DnsSOARecord;
+
+                if (currentSoa.Serial != deletedSoa.Serial)
+                    throw new InvalidOperationException("Current SOA serial does not match with the IXFR difference sequence deleted SOA.");
+
+                //sync difference sequence
+                if (deletedRecords.Count > 0)
+                {
+                    foreach (KeyValuePair<string, Dictionary<DnsResourceRecordType, List<DnsResourceRecord>>> deletedEntry in DnsResourceRecord.GroupRecords(deletedRecords))
+                    {
+                        AuthZone zone = GetOrAddSubDomainZone(deletedEntry.Key);
+
+                        if (zone.Name.Equals(domain, StringComparison.OrdinalIgnoreCase))
+                            zone.SyncRecords(deletedEntry.Value);
+                        else if ((zone is SubDomainZone subDomainZone) && subDomainZone.AuthoritativeZone.Name.Equals(domain, StringComparison.OrdinalIgnoreCase))
+                            zone.SyncRecords(deletedEntry.Value);
+                    }
+                }
+
+                if (addedRecords.Count > 0)
+                {
+                    foreach (KeyValuePair<string, Dictionary<DnsResourceRecordType, List<DnsResourceRecord>>> addedEntry in DnsResourceRecord.GroupRecords(addedRecords))
+                    {
+                        AuthZone zone = GetOrAddSubDomainZone(addedEntry.Key);
+
+                        if (zone.Name.Equals(domain, StringComparison.OrdinalIgnoreCase))
+                            zone.SyncRecords(null, addedEntry.Value);
+                        else if ((zone is SubDomainZone subDomainZone) && subDomainZone.AuthoritativeZone.Name.Equals(domain, StringComparison.OrdinalIgnoreCase))
+                            zone.SyncRecords(null, addedEntry.Value);
+                    }
+                }
+
+                if ((deletedGlueRecords.Count > 0) || (addedGlueRecords.Count > 0))
+                {
+                    foreach (AuthZone zone in _root.GetZoneWithSubDomainZones(domain))
+                        zone.SyncGlueRecords(deletedGlueRecords, addedGlueRecords);
+                }
+
+                {
+                    AuthZone zone = GetOrAddSubDomainZone(domain);
+
+                    addedSoaRecord.SetPrimaryNameServers(currentSoaRecord.GetPrimaryNameServers());
+                    addedSoaRecord.SetComments(currentSoaRecord.GetComments());
+
+                    zone.LoadRecords(DnsResourceRecordType.SOA, new DnsResourceRecord[] { addedSoaRecord });
+                }
+
+                //check next difference sequence
+                currentSoa = addedSoaRecord.RDATA as DnsSOARecord;
+
+                deletedRecords.Clear();
+                deletedGlueRecords.Clear();
+                addedRecords.Clear();
+                addedGlueRecords.Clear();
+            }
+
+            //return history
+            List<DnsResourceRecord> historyRecords = new List<DnsResourceRecord>(xfrRecords.Count - 2);
+
+            for (int i = 1; i < xfrRecords.Count - 1; i++)
+                historyRecords.Add(xfrRecords[i]);
+
+            return historyRecords;
+        }
+
+        public void LoadRecords(IReadOnlyCollection<DnsResourceRecord> records)
+        {
+            foreach (KeyValuePair<string, Dictionary<DnsResourceRecordType, List<DnsResourceRecord>>> zoneEntry in DnsResourceRecord.GroupRecords(records))
+            {
+                AuthZone zone = GetOrAddSubDomainZone(zoneEntry.Key);
+
+                foreach (KeyValuePair<DnsResourceRecordType, List<DnsResourceRecord>> rrsetEntry in zoneEntry.Value)
+                    zone.LoadRecords(rrsetEntry.Key, rrsetEntry.Value);
             }
         }
 
@@ -855,8 +1308,7 @@ namespace DnsServerCore.Dns.ZoneManagers
                 default:
                     if (oldRecord.Name.Equals(newRecord.Name, StringComparison.OrdinalIgnoreCase))
                     {
-                        zone.DeleteRecord(oldRecord.Type, oldRecord.RDATA);
-                        zone.AddRecord(newRecord);
+                        zone.UpdateRecord(oldRecord, newRecord);
 
                         if (zone is SubDomainZone subDomainZone)
                             subDomainZone.AutoUpdateState();
@@ -1178,7 +1630,7 @@ namespace DnsServerCore.Dns.ZoneManagers
                             for (int i = 0; i < records.Length; i++)
                             {
                                 records[i] = new DnsResourceRecord(s);
-                                records[i].Tag = new DnsResourceRecordInfo(bR);
+                                records[i].Tag = new DnsResourceRecordInfo(bR, records[i].Type == DnsResourceRecordType.SOA);
 
                                 if (records[i].Type == DnsResourceRecordType.SOA)
                                     soaRecord = records[i];
@@ -1236,7 +1688,7 @@ namespace DnsServerCore.Dns.ZoneManagers
                             for (int i = 0; i < records.Length; i++)
                             {
                                 records[i] = new DnsResourceRecord(s);
-                                records[i].Tag = new DnsResourceRecordInfo(bR);
+                                records[i].Tag = new DnsResourceRecordInfo(bR, records[i].Type == DnsResourceRecordType.SOA);
                             }
 
                             try
@@ -1290,7 +1742,7 @@ namespace DnsServerCore.Dns.ZoneManagers
             bW.Write((byte)4); //version
 
             //write zone info
-            AuthZoneInfo zoneInfo = new AuthZoneInfo(zones[0]);
+            AuthZoneInfo zoneInfo = new AuthZoneInfo(zones[0], true);
 
             if (zoneInfo.Internal)
                 throw new InvalidOperationException("Cannot save zones marked as internal.");
@@ -1309,8 +1761,7 @@ namespace DnsServerCore.Dns.ZoneManagers
             {
                 record.WriteTo(s);
 
-                DnsResourceRecordInfo rrInfo = record.Tag as DnsResourceRecordInfo;
-                if (rrInfo == null)
+                if (record.Tag is not DnsResourceRecordInfo rrInfo)
                     rrInfo = new DnsResourceRecordInfo(); //default info
 
                 rrInfo.WriteTo(bW);
