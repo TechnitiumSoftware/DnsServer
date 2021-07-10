@@ -17,6 +17,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 */
 
+using DnsServerCore.Dns.ResourceRecords;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -51,6 +52,7 @@ namespace DnsServerCore.Dns.Zones
         readonly AuthZoneNotify _notify;
         readonly IReadOnlyCollection<IPAddress> _notifyNameServers;
         readonly DateTime _expiry;
+        readonly IReadOnlyList<DnsResourceRecord> _zoneHistory; //for IXFR support
 
         #endregion
 
@@ -83,6 +85,7 @@ namespace DnsServerCore.Dns.Zones
             {
                 case 1:
                 case 2:
+                case 3:
                     _name = bR.ReadShortString();
                     _type = (AuthZoneType)bR.ReadByte();
                     _disabled = bR.ReadBoolean();
@@ -137,12 +140,29 @@ namespace DnsServerCore.Dns.Zones
 
                     switch (_type)
                     {
+                        case AuthZoneType.Primary:
+                            if (version >= 3)
+                            {
+                                int count = bR.ReadInt32();
+                                DnsResourceRecord[] zoneHistory = new DnsResourceRecord[count];
+
+                                for (int i = 0; i < count; i++)
+                                {
+                                    zoneHistory[i] = new DnsResourceRecord(bR.BaseStream);
+                                    zoneHistory[i].Tag = new DnsResourceRecordInfo(bR, zoneHistory[i].Type == DnsResourceRecordType.SOA);
+                                }
+
+                                _zoneHistory = zoneHistory;
+                            }
+
+                            break;
+
                         case AuthZoneType.Secondary:
-                            _expiry = bR.ReadDate();
+                            _expiry = bR.ReadDateTime();
                             break;
 
                         case AuthZoneType.Stub:
-                            _expiry = bR.ReadDate();
+                            _expiry = bR.ReadDateTime();
                             break;
                     }
 
@@ -153,38 +173,42 @@ namespace DnsServerCore.Dns.Zones
             }
         }
 
-        internal AuthZoneInfo(AuthZone zone)
+        internal AuthZoneInfo(AuthZone zone, bool loadHistory = false)
         {
             _zone = zone;
             _name = _zone.Name;
 
-            if (_zone is PrimaryZone)
+            if (_zone is PrimaryZone primaryZone)
+            {
                 _type = AuthZoneType.Primary;
-            else if (_zone is SecondaryZone)
+
+                if (loadHistory)
+                    _zoneHistory = primaryZone.GetHistory();
+            }
+            else if (_zone is SecondaryZone secondaryZone)
+            {
                 _type = AuthZoneType.Secondary;
-            else if (_zone is StubZone)
+                _expiry = secondaryZone.Expiry;
+            }
+            else if (_zone is StubZone stubZone)
+            {
                 _type = AuthZoneType.Stub;
+                _expiry = stubZone.Expiry;
+            }
             else if (_zone is ForwarderZone)
+            {
                 _type = AuthZoneType.Forwarder;
+            }
             else
+            {
                 _type = AuthZoneType.Unknown;
+            }
 
             _disabled = _zone.Disabled;
             _zoneTransfer = zone.ZoneTransfer;
             _zoneTransferNameServers = zone.ZoneTransferNameServers;
             _notify = zone.Notify;
             _notifyNameServers = zone.NotifyNameServers;
-
-            switch (_type)
-            {
-                case AuthZoneType.Secondary:
-                    _expiry = (_zone as SecondaryZone).Expiry;
-                    break;
-
-                case AuthZoneType.Stub:
-                    _expiry = (_zone as StubZone).Expiry;
-                    break;
-            }
         }
 
         #endregion
@@ -239,6 +263,26 @@ namespace DnsServerCore.Dns.Zones
             }
         }
 
+        public void TriggerResync()
+        {
+            if (_zone == null)
+                throw new InvalidOperationException();
+
+            switch (_type)
+            {
+                case AuthZoneType.Secondary:
+                    (_zone as SecondaryZone).TriggerResync();
+                    break;
+
+                case AuthZoneType.Stub:
+                    (_zone as StubZone).TriggerResync();
+                    break;
+
+                default:
+                    throw new InvalidOperationException();
+            }
+        }
+
         public Task<IReadOnlyList<NameServerAddress>> GetPrimaryNameServerAddressesAsync(DnsServer dnsServer)
         {
             if (_zone == null)
@@ -260,7 +304,7 @@ namespace DnsServerCore.Dns.Zones
             if (_zone == null)
                 throw new InvalidOperationException();
 
-            bW.Write((byte)2); //version
+            bW.Write((byte)3); //version
 
             bW.WriteShortString(_name);
             bW.Write((byte)_type);
@@ -293,6 +337,28 @@ namespace DnsServerCore.Dns.Zones
 
             switch (_type)
             {
+                case AuthZoneType.Primary:
+                    if (_zoneHistory is null)
+                    {
+                        bW.Write(0);
+                    }
+                    else
+                    {
+                        bW.Write(_zoneHistory.Count);
+
+                        foreach (DnsResourceRecord record in _zoneHistory)
+                        {
+                            record.WriteTo(bW.BaseStream);
+
+                            if (record.Tag is not DnsResourceRecordInfo rrInfo)
+                                rrInfo = new DnsResourceRecordInfo(); //default info
+
+                            rrInfo.WriteTo(bW);
+                        }
+                    }
+
+                    break;
+
                 case AuthZoneType.Secondary:
                     bW.Write(_expiry);
                     break;
@@ -416,6 +482,9 @@ namespace DnsServerCore.Dns.Zones
                 return false;
             }
         }
+
+        public IReadOnlyList<DnsResourceRecord> ZoneHistory
+        { get { return _zoneHistory; } }
 
         #endregion
     }
