@@ -17,6 +17,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 */
 
+using System;
 using System.Collections.Generic;
 using TechnitiumLibrary.Net.Dns;
 
@@ -33,7 +34,7 @@ namespace DnsServerCore.Dns.Zones
         #region constructor
 
         public PrimarySubDomainZone(PrimaryZone primaryZone, string name)
-            : base(name)
+            : base(primaryZone, name)
         {
             _primaryZone = primaryZone;
         }
@@ -44,9 +45,10 @@ namespace DnsServerCore.Dns.Zones
 
         public override void SetRecords(DnsResourceRecordType type, IReadOnlyList<DnsResourceRecord> records)
         {
-            base.SetRecords(type, records);
+            if (!SetRecords(type, records, out IReadOnlyList<DnsResourceRecord> deletedRecords))
+                throw new DnsServerException("Failed to set records. Please try again.");
 
-            _primaryZone.IncrementSoaSerial();
+            _primaryZone.CommitAndIncrementSerial(deletedRecords, records);
             _primaryZone.TriggerNotify();
         }
 
@@ -54,15 +56,15 @@ namespace DnsServerCore.Dns.Zones
         {
             base.AddRecord(record);
 
-            _primaryZone.IncrementSoaSerial();
+            _primaryZone.CommitAndIncrementSerial(null, new DnsResourceRecord[] { record });
             _primaryZone.TriggerNotify();
         }
 
         public override bool DeleteRecords(DnsResourceRecordType type)
         {
-            if (base.DeleteRecords(type))
+            if (_entries.TryRemove(type, out IReadOnlyList<DnsResourceRecord> removedRecords))
             {
-                _primaryZone.IncrementSoaSerial();
+                _primaryZone.CommitAndIncrementSerial(removedRecords);
                 _primaryZone.TriggerNotify();
 
                 return true;
@@ -71,17 +73,32 @@ namespace DnsServerCore.Dns.Zones
             return false;
         }
 
-        public override bool DeleteRecord(DnsResourceRecordType type, DnsResourceRecordData record)
+        public override bool DeleteRecord(DnsResourceRecordType type, DnsResourceRecordData rdata)
         {
-            if (base.DeleteRecord(type, record))
+            if (DeleteRecord(type, rdata, out DnsResourceRecord deletedRecord))
             {
-                _primaryZone.IncrementSoaSerial();
+                _primaryZone.CommitAndIncrementSerial(new DnsResourceRecord[] { deletedRecord });
                 _primaryZone.TriggerNotify();
 
                 return true;
             }
 
             return false;
+        }
+
+        public override void UpdateRecord(DnsResourceRecord oldRecord, DnsResourceRecord newRecord)
+        {
+            if (oldRecord.Type == DnsResourceRecordType.SOA)
+                throw new InvalidOperationException("Cannot update record: use SetRecords() for " + oldRecord.Type.ToString() + " record");
+
+            if (oldRecord.Type != newRecord.Type)
+                throw new InvalidOperationException("Old and new record types do not match.");
+
+            DeleteRecord(oldRecord.Type, oldRecord.RDATA, out DnsResourceRecord deletedRecord);
+            base.AddRecord(newRecord);
+
+            _primaryZone.CommitAndIncrementSerial(new DnsResourceRecord[] { deletedRecord }, new DnsResourceRecord[] { newRecord });
+            _primaryZone.TriggerNotify();
         }
 
         #endregion
