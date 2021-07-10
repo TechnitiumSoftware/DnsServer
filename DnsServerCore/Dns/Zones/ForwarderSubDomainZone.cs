@@ -1,6 +1,6 @@
 ﻿/*
 Technitium DNS Server
-Copyright (C) 2020  Shreyas Zare (shreyas@technitium.com)
+Copyright (C) 2021  Shreyas Zare (shreyas@technitium.com)
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -23,8 +23,8 @@ namespace DnsServerCore.Dns.Zones
     {
         #region constructor
 
-        public ForwarderSubDomainZone(string name)
-            : base(name)
+        public ForwarderSubDomainZone(ForwarderZone forwarderZone, string name)
+            : base(forwarderZone, name)
         { }
 
         #endregion
