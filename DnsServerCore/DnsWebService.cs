@@ -5847,7 +5847,7 @@ namespace DnsServerCore
             if (importRecords)
             {
                 AuthZoneInfo zoneInfo = _dnsServer.AuthZoneManager.GetAuthZoneInfo(domain);
-                if (zoneInfo == null)
+                if ((zoneInfo == null) || !zoneInfo.Name.Equals(domain, StringComparison.OrdinalIgnoreCase))
                 {
                     zoneInfo = _dnsServer.AuthZoneManager.CreatePrimaryZone(domain, _dnsServer.ServerDomain, false);
                     if (zoneInfo == null)
