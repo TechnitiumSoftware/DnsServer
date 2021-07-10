@@ -19,6 +19,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Net;
 using System.Net.Sockets;
 using TechnitiumLibrary.Net.Dns;
@@ -30,8 +31,7 @@ namespace DnsServerCore.Dns.ResourceRecords
     {
         public static void SetGlueRecords(this DnsResourceRecord record, IReadOnlyList<DnsResourceRecord> glueRecords)
         {
-            DnsResourceRecordInfo rrInfo = record.Tag as DnsResourceRecordInfo;
-            if (rrInfo is null)
+            if (record.Tag is not DnsResourceRecordInfo rrInfo)
             {
                 rrInfo = new DnsResourceRecordInfo();
                 record.Tag = rrInfo;
@@ -42,31 +42,21 @@ namespace DnsServerCore.Dns.ResourceRecords
 
         public static void SetGlueRecords(this DnsResourceRecord record, string glueAddresses)
         {
-            List<IPAddress> addresses = new List<IPAddress>();
+            string[] addresses = glueAddresses.Split(new char[] { ',' }, StringSplitOptions.RemoveEmptyEntries);
+            List<IPAddress> ipAddresses = new List<IPAddress>(addresses.Length);
 
-            foreach (string address in glueAddresses.Split(new char[] { ',' }, StringSplitOptions.RemoveEmptyEntries))
-                addresses.Add(IPAddress.Parse(address.Trim()));
+            foreach (string address in addresses)
+                ipAddresses.Add(IPAddress.Parse(address.Trim()));
 
-            SetGlueRecords(record, addresses);
+            SetGlueRecords(record, ipAddresses);
         }
 
         public static void SetGlueRecords(this DnsResourceRecord record, IReadOnlyList<IPAddress> glueAddresses)
         {
-            string domain;
+            if (record.RDATA is not DnsNSRecord nsRecord)
+                throw new InvalidOperationException();
 
-            switch (record.Type)
-            {
-                case DnsResourceRecordType.NS:
-                    domain = (record.RDATA as DnsNSRecord).NameServer;
-                    break;
-
-                case DnsResourceRecordType.SOA:
-                    domain = (record.RDATA as DnsSOARecord).PrimaryNameServer;
-                    break;
-
-                default:
-                    throw new NotSupportedException();
-            }
+            string domain = nsRecord.NameServer;
 
             DnsResourceRecord[] glueRecords = new DnsResourceRecord[glueAddresses.Count];
 
@@ -89,21 +79,10 @@ namespace DnsServerCore.Dns.ResourceRecords
 
         public static void SyncGlueRecords(this DnsResourceRecord record, IReadOnlyList<DnsResourceRecord> allGlueRecords)
         {
-            string domain;
+            if (record.RDATA is not DnsNSRecord nsRecord)
+                throw new InvalidOperationException();
 
-            switch (record.Type)
-            {
-                case DnsResourceRecordType.NS:
-                    domain = (record.RDATA as DnsNSRecord).NameServer;
-                    break;
-
-                case DnsResourceRecordType.SOA:
-                    domain = (record.RDATA as DnsSOARecord).PrimaryNameServer;
-                    break;
-
-                default:
-                    throw new NotSupportedException();
-            }
+            string domain = nsRecord.NameServer;
 
             List<DnsResourceRecord> foundGlueRecords = new List<DnsResourceRecord>(2);
 
@@ -122,47 +101,74 @@ namespace DnsServerCore.Dns.ResourceRecords
 
             if (foundGlueRecords.Count > 0)
                 SetGlueRecords(record, foundGlueRecords);
+            else
+                SetGlueRecords(record, Array.Empty<DnsResourceRecord>());
+        }
+
+        public static void SyncGlueRecords(this DnsResourceRecord record, IReadOnlyCollection<DnsResourceRecord> deletedGlueRecords, IReadOnlyCollection<DnsResourceRecord> addedGlueRecords)
+        {
+            if (record.RDATA is not DnsNSRecord nsRecord)
+                throw new InvalidOperationException();
+
+            bool updated = false;
+
+            List<DnsResourceRecord> updatedGlueRecords = new List<DnsResourceRecord>();
+            IReadOnlyList<DnsResourceRecord> existingGlueRecords = GetGlueRecords(record);
+
+            foreach (DnsResourceRecord existingGlueRecord in existingGlueRecords)
+            {
+                if (deletedGlueRecords.Contains(existingGlueRecord))
+                    updated = true; //skipped to delete existing glue record
+                else
+                    updatedGlueRecords.Add(existingGlueRecord);
+            }
+
+            string domain = nsRecord.NameServer;
+
+            foreach (DnsResourceRecord addedGlueRecord in addedGlueRecords)
+            {
+                switch (addedGlueRecord.Type)
+                {
+                    case DnsResourceRecordType.A:
+                    case DnsResourceRecordType.AAAA:
+                        if (addedGlueRecord.Name.Equals(domain, StringComparison.OrdinalIgnoreCase))
+                        {
+                            updatedGlueRecords.Add(addedGlueRecord);
+                            updated = true;
+                        }
+                        break;
+                }
+            }
+
+            if (updated)
+                SetGlueRecords(record, updatedGlueRecords);
         }
 
         public static IReadOnlyList<DnsResourceRecord> GetGlueRecords(this DnsResourceRecord record)
         {
-            DnsResourceRecordInfo rrInfo = record.Tag as DnsResourceRecordInfo;
-            if (rrInfo is null)
-                return Array.Empty<DnsResourceRecord>();
+            if (record.Tag is DnsResourceRecordInfo rrInfo)
+            {
+                IReadOnlyList<DnsResourceRecord> glueRecords = rrInfo.GlueRecords;
+                if (glueRecords is null)
+                    return Array.Empty<DnsResourceRecord>();
 
-            IReadOnlyList<DnsResourceRecord> glueRecords = rrInfo.GlueRecords;
-            if (glueRecords is null)
-                return Array.Empty<DnsResourceRecord>();
+                return glueRecords;
+            }
 
-            return glueRecords;
-        }
-
-        public static IReadOnlyList<DnsResourceRecord> GetGlueRecords(this IReadOnlyList<DnsResourceRecord> records)
-        {
-            if (records.Count == 1)
-                return GetGlueRecords(records[0]);
-
-            List<DnsResourceRecord> glueRecords = new List<DnsResourceRecord>(records.Count * 2);
-
-            foreach (DnsResourceRecord nsRecord in records)
-                glueRecords.AddRange(GetGlueRecords(nsRecord));
-
-            return glueRecords;
+            return Array.Empty<DnsResourceRecord>();
         }
 
         public static bool IsDisabled(this DnsResourceRecord record)
         {
-            DnsResourceRecordInfo rrInfo = record.Tag as DnsResourceRecordInfo;
-            if (rrInfo is null)
-                return false;
+            if (record.Tag is DnsResourceRecordInfo rrInfo)
+                return rrInfo.Disabled;
 
-            return rrInfo.Disabled;
+            return false;
         }
 
         public static void Disable(this DnsResourceRecord record)
         {
-            DnsResourceRecordInfo rrInfo = record.Tag as DnsResourceRecordInfo;
-            if (rrInfo is null)
+            if (record.Tag is not DnsResourceRecordInfo rrInfo)
             {
                 rrInfo = new DnsResourceRecordInfo();
                 record.Tag = rrInfo;
@@ -173,32 +179,82 @@ namespace DnsServerCore.Dns.ResourceRecords
 
         public static void Enable(this DnsResourceRecord record)
         {
-            DnsResourceRecordInfo rrInfo = record.Tag as DnsResourceRecordInfo;
-            if (rrInfo is null)
-                return;
-
-            rrInfo.Disabled = false;
+            if (record.Tag is DnsResourceRecordInfo rrInfo)
+                rrInfo.Disabled = false;
         }
 
         public static string GetComments(this DnsResourceRecord record)
         {
-            DnsResourceRecordInfo rrInfo = record.Tag as DnsResourceRecordInfo;
-            if (rrInfo is null)
-                return null;
+            if (record.Tag is DnsResourceRecordInfo rrInfo)
+                return rrInfo.Comments;
 
-            return rrInfo.Comments;
+            return null;
         }
 
         public static void SetComments(this DnsResourceRecord record, string value)
         {
-            DnsResourceRecordInfo rrInfo = record.Tag as DnsResourceRecordInfo;
-            if (rrInfo is null)
+            if (record.Tag is not DnsResourceRecordInfo rrInfo)
             {
                 rrInfo = new DnsResourceRecordInfo();
                 record.Tag = rrInfo;
             }
 
             rrInfo.Comments = value;
+        }
+
+        public static DateTime GetDeletedOn(this DnsResourceRecord record)
+        {
+            if (record.Tag is DnsResourceRecordInfo rrInfo)
+                return rrInfo.DeletedOn;
+
+            return DateTime.MinValue;
+        }
+
+        public static void SetDeletedOn(this DnsResourceRecord record, DateTime value)
+        {
+            if (record.Tag is not DnsResourceRecordInfo rrInfo)
+            {
+                rrInfo = new DnsResourceRecordInfo();
+                record.Tag = rrInfo;
+            }
+
+            rrInfo.DeletedOn = value;
+        }
+
+        public static void SetPrimaryNameServers(this DnsResourceRecord record, IReadOnlyList<NameServerAddress> primaryNameServers)
+        {
+            if (record.Tag is not DnsResourceRecordInfo rrInfo)
+            {
+                rrInfo = new DnsResourceRecordInfo();
+                record.Tag = rrInfo;
+            }
+
+            rrInfo.PrimaryNameServers = primaryNameServers;
+        }
+
+        public static void SetPrimaryNameServers(this DnsResourceRecord record, string primaryNameServers)
+        {
+            string[] nameServerAddresses = primaryNameServers.Split(new char[] { ',' }, StringSplitOptions.RemoveEmptyEntries);
+            List<NameServerAddress> nameServers = new List<NameServerAddress>(nameServerAddresses.Length);
+
+            foreach (string nameServerAddress in nameServerAddresses)
+                nameServers.Add(new NameServerAddress(nameServerAddress));
+
+            SetPrimaryNameServers(record, nameServers);
+        }
+
+        public static IReadOnlyList<NameServerAddress> GetPrimaryNameServers(this DnsResourceRecord record)
+        {
+            if (record.Tag is DnsResourceRecordInfo rrInfo)
+            {
+                IReadOnlyList<NameServerAddress> primaryNameServers = rrInfo.PrimaryNameServers;
+                if (primaryNameServers is null)
+                    return Array.Empty<NameServerAddress>();
+
+                return primaryNameServers;
+            }
+
+            return Array.Empty<NameServerAddress>();
         }
     }
 }
