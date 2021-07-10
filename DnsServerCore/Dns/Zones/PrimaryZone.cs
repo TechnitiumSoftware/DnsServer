@@ -35,7 +35,10 @@ namespace DnsServerCore.Dns.Zones
         readonly DnsServer _dnsServer;
         readonly bool _internal;
 
+        readonly List<DnsResourceRecord> _history; //for IXFR support
+
         readonly Timer _notifyTimer;
+        bool _notifyTimerTriggered;
         const int NOTIFY_TIMER_INTERVAL = 10000;
         readonly List<NameServerAddress> _notifyList;
 
@@ -50,6 +53,11 @@ namespace DnsServerCore.Dns.Zones
             : base(zoneInfo)
         {
             _dnsServer = dnsServer;
+
+            if (zoneInfo.ZoneHistory is null)
+                _history = new List<DnsResourceRecord>();
+            else
+                _history = new List<DnsResourceRecord>(zoneInfo.ZoneHistory);
 
             _notifyTimer = new Timer(NotifyTimerCallback, null, Timeout.Infinite, Timeout.Infinite);
             _notifyList = new List<NameServerAddress>();
@@ -71,11 +79,13 @@ namespace DnsServerCore.Dns.Zones
                 _zoneTransfer = AuthZoneTransfer.AllowOnlyZoneNameServers;
                 _notify = AuthZoneNotify.ZoneNameServers;
 
+                _history = new List<DnsResourceRecord>();
+
                 _notifyTimer = new Timer(NotifyTimerCallback, null, Timeout.Infinite, Timeout.Infinite);
                 _notifyList = new List<NameServerAddress>();
             }
 
-            DnsSOARecord soa = new DnsSOARecord(primaryNameServer, _name.Length == 0 ? "hostadmin" : "hostadmin." + _name, 1, 14400, 3600, 604800, 900);
+            DnsSOARecord soa = new DnsSOARecord(primaryNameServer, _name.Length == 0 ? "hostadmin" : "hostadmin." + _name, 1, 900, 300, 604800, 900);
 
             _entries[DnsResourceRecordType.SOA] = new DnsResourceRecord[] { new DnsResourceRecord(_name, DnsResourceRecordType.SOA, DnsClass.IN, soa.Refresh, soa) };
             _entries[DnsResourceRecordType.NS] = new DnsResourceRecord[] { new DnsResourceRecord(_name, DnsResourceRecordType.NS, DnsClass.IN, soa.Refresh, new DnsNSRecord(soa.PrimaryNameServer)) };
@@ -152,6 +162,10 @@ namespace DnsServerCore.Dns.Zones
                 if (log != null)
                     log.Write(ex);
             }
+            finally
+            {
+                _notifyTimerTriggered = false;
+            }
         }
 
         private async Task NotifyNameServerAsync(NameServerAddress nameServer)
@@ -218,22 +232,79 @@ namespace DnsServerCore.Dns.Zones
 
         #endregion
 
-        #region public
+        #region internal
 
-        public void IncrementSoaSerial()
+        internal void CommitAndIncrementSerial(IReadOnlyList<DnsResourceRecord> deletedRecords = null, IReadOnlyList<DnsResourceRecord> addedRecords = null)
         {
-            DnsResourceRecord record = _entries[DnsResourceRecordType.SOA][0];
-            DnsSOARecord soa = record.RDATA as DnsSOARecord;
+            if (_internal)
+                return;
 
-            uint serial = soa.Serial;
-            if (serial < uint.MaxValue)
-                serial++;
-            else
-                serial = 0;
+            lock (_history)
+            {
+                DnsResourceRecord oldSoaRecord = _entries[DnsResourceRecordType.SOA][0];
+                DnsResourceRecord newSoaRecord;
+                {
+                    DnsSOARecord soa = oldSoaRecord.RDATA as DnsSOARecord;
 
-            DnsResourceRecord newRecord = new DnsResourceRecord(record.Name, record.Type, record.Class, record.TtlValue, new DnsSOARecord(soa.PrimaryNameServer, soa.ResponsiblePerson, serial, soa.Refresh, soa.Retry, soa.Expire, soa.Minimum)) { Tag = record.Tag };
-            _entries[DnsResourceRecordType.SOA] = new DnsResourceRecord[] { newRecord };
+                    uint serial = soa.Serial;
+                    if (serial < uint.MaxValue)
+                        serial++;
+                    else
+                        serial = 1;
+
+                    newSoaRecord = new DnsResourceRecord(oldSoaRecord.Name, oldSoaRecord.Type, oldSoaRecord.Class, oldSoaRecord.TtlValue, new DnsSOARecord(soa.PrimaryNameServer, soa.ResponsiblePerson, serial, soa.Refresh, soa.Retry, soa.Expire, soa.Minimum)) { Tag = oldSoaRecord.Tag };
+                    oldSoaRecord.Tag = null; //remove RR info from old SOA to allow creating new RR info for it during SetDeletedOn()
+                }
+
+                //update SOA
+                _entries[DnsResourceRecordType.SOA] = new DnsResourceRecord[] { newSoaRecord };
+
+                //start commit
+                oldSoaRecord.SetDeletedOn(DateTime.UtcNow);
+
+                //write removed
+                _history.Add(oldSoaRecord);
+
+                if (deletedRecords is not null)
+                {
+                    foreach (DnsResourceRecord deletedRecord in deletedRecords)
+                    {
+                        if (deletedRecord.IsDisabled())
+                            continue;
+
+                        _history.Add(deletedRecord);
+
+                        if (deletedRecord.Type == DnsResourceRecordType.NS)
+                            _history.AddRange(deletedRecord.GetGlueRecords());
+                    }
+                }
+
+                //write added
+                _history.Add(newSoaRecord);
+
+                if (addedRecords is not null)
+                {
+                    foreach (DnsResourceRecord addedRecord in addedRecords)
+                    {
+                        if (addedRecord.IsDisabled())
+                            continue;
+
+                        _history.Add(addedRecord);
+
+                        if (addedRecord.Type == DnsResourceRecordType.NS)
+                            _history.AddRange(addedRecord.GetGlueRecords());
+                    }
+                }
+
+                //end commit
+
+                CleanupHistory(_history);
+            }
         }
+
+        #endregion
+
+        #region public
 
         public void TriggerNotify()
         {
@@ -243,7 +314,11 @@ namespace DnsServerCore.Dns.Zones
             if (_notify == AuthZoneNotify.None)
                 return;
 
+            if (_notifyTimerTriggered)
+                return;
+
             _notifyTimer.Change(NOTIFY_TIMER_INTERVAL, Timeout.Infinite);
+            _notifyTimerTriggered = true;
         }
 
         public override void SetRecords(DnsResourceRecordType type, IReadOnlyList<DnsResourceRecord> records)
@@ -261,13 +336,21 @@ namespace DnsServerCore.Dns.Zones
                     string comments = records[0].GetComments();
                     records[0].Tag = null;
                     records[0].SetComments(comments);
+
+                    base.SetRecords(type, records);
+
+                    CommitAndIncrementSerial();
+                    TriggerNotify();
+                    break;
+
+                default:
+                    if (!SetRecords(type, records, out IReadOnlyList<DnsResourceRecord> deletedRecords))
+                        throw new DnsServerException("Failed to set records. Please try again.");
+
+                    CommitAndIncrementSerial(deletedRecords, records);
+                    TriggerNotify();
                     break;
             }
-
-            base.SetRecords(type, records);
-
-            IncrementSoaSerial();
-            TriggerNotify();
         }
 
         public override void AddRecord(DnsResourceRecord record)
@@ -277,7 +360,7 @@ namespace DnsServerCore.Dns.Zones
 
             base.AddRecord(record);
 
-            IncrementSoaSerial();
+            CommitAndIncrementSerial(null, new DnsResourceRecord[] { record });
             TriggerNotify();
         }
 
@@ -286,9 +369,9 @@ namespace DnsServerCore.Dns.Zones
             if (type == DnsResourceRecordType.SOA)
                 throw new InvalidOperationException("Cannot delete SOA record.");
 
-            if (base.DeleteRecords(type))
+            if (_entries.TryRemove(type, out IReadOnlyList<DnsResourceRecord> removedRecords))
             {
-                IncrementSoaSerial();
+                CommitAndIncrementSerial(removedRecords);
                 TriggerNotify();
 
                 return true;
@@ -302,15 +385,38 @@ namespace DnsServerCore.Dns.Zones
             if (type == DnsResourceRecordType.SOA)
                 throw new InvalidOperationException("Cannot delete SOA record.");
 
-            if (base.DeleteRecord(type, record))
+            if (DeleteRecord(type, record, out DnsResourceRecord deletedRecord))
             {
-                IncrementSoaSerial();
+                CommitAndIncrementSerial(new DnsResourceRecord[] { deletedRecord });
                 TriggerNotify();
 
                 return true;
             }
 
             return false;
+        }
+
+        public override void UpdateRecord(DnsResourceRecord oldRecord, DnsResourceRecord newRecord)
+        {
+            if (oldRecord.Type == DnsResourceRecordType.SOA)
+                throw new InvalidOperationException("Cannot update record: use SetRecords() for " + oldRecord.Type.ToString() + " record");
+
+            if (oldRecord.Type != newRecord.Type)
+                throw new InvalidOperationException("Old and new record types do not match.");
+
+            DeleteRecord(oldRecord.Type, oldRecord.RDATA, out DnsResourceRecord deletedRecord);
+            base.AddRecord(newRecord);
+
+            CommitAndIncrementSerial(new DnsResourceRecord[] { deletedRecord }, new DnsResourceRecord[] { newRecord });
+            TriggerNotify();
+        }
+
+        public IReadOnlyList<DnsResourceRecord> GetHistory()
+        {
+            lock (_history)
+            {
+                return _history.ToArray();
+            }
         }
 
         #endregion
