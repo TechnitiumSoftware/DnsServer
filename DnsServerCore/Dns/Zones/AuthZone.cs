@@ -423,7 +423,7 @@ namespace DnsServerCore.Dns.Zones
             }
         }
 
-        public void SyncRecords(Dictionary<DnsResourceRecordType, List<DnsResourceRecord>> deletedEntries = null, Dictionary<DnsResourceRecordType, List<DnsResourceRecord>> addedEntries = null)
+        public void SyncRecords(Dictionary<DnsResourceRecordType, List<DnsResourceRecord>> deletedEntries, Dictionary<DnsResourceRecordType, List<DnsResourceRecord>> addedEntries)
         {
             if (deletedEntries is not null)
             {
