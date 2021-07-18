@@ -32,7 +32,7 @@ namespace DnsServerCore.Dns.ZoneManagers
         const uint FAILURE_RECORD_TTL = 60u;
         const uint NEGATIVE_RECORD_TTL = 300u;
         const uint MINIMUM_RECORD_TTL = 10u;
-        const uint MAXIMUM_RECORD_TTL = 1 * 24 * 60 * 60;
+        const uint MAXIMUM_RECORD_TTL = 7 * 24 * 60 * 60;
         const uint SERVE_STALE_TTL = 3 * 24 * 60 * 60; //3 days serve stale ttl as per https://www.rfc-editor.org/rfc/rfc8767.html suggestion
 
         readonly DnsServer _dnsServer;
@@ -285,7 +285,7 @@ namespace DnsServerCore.Dns.ZoneManagers
             return null;
         }
 
-        public override DnsDatagram Query(DnsDatagram request, bool serveStaleAndResetExpiry = false)
+        public override DnsDatagram Query(DnsDatagram request, bool serveStaleAndResetExpiry = false, bool findClosestNameServers = false)
         {
             DnsQuestionRecord question = request.Question[0];
 
@@ -311,10 +311,7 @@ namespace DnsServerCore.Dns.ZoneManagers
                     }
                 }
 
-                if (serveStaleAndResetExpiry)
-                    return null; //recursive resolver does not make stale request so no need to return delegation response
-
-                if (delegation is not null)
+                if (findClosestNameServers && delegation is not null)
                 {
                     //return closest name servers in delegation
                     IReadOnlyList<DnsResourceRecord> closestAuthority = delegation.QueryRecords(DnsResourceRecordType.NS, serveStaleAndResetExpiry, true);
@@ -401,11 +398,8 @@ namespace DnsServerCore.Dns.ZoneManagers
             else
             {
                 //no answer in cache
-                if (serveStaleAndResetExpiry)
-                    return null; //recursive resolver does not make stale request so no need to return delegation response
-
                 //check for closest delegation if any
-                if (delegation is not null)
+                if (findClosestNameServers && delegation is not null)
                 {
                     //return closest name servers in delegation
                     IReadOnlyList<DnsResourceRecord> closestAuthority = delegation.QueryRecords(DnsResourceRecordType.NS, false, true);
