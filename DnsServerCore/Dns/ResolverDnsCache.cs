@@ -43,7 +43,7 @@ namespace DnsServerCore.Dns
 
         #region public
 
-        public virtual DnsDatagram Query(DnsDatagram request, bool serveStaleAndResetExpiry = false)
+        public virtual DnsDatagram Query(DnsDatagram request, bool serveStaleAndResetExpiry = false, bool findClosestNameServers = false)
         {
             DnsDatagram authResponse = _authZoneManager.Query(request, true);
             if (authResponse is not null)
@@ -52,7 +52,7 @@ namespace DnsServerCore.Dns
                     return authResponse;
             }
 
-            DnsDatagram cacheResponse = _cacheZoneManager.Query(request, serveStaleAndResetExpiry);
+            DnsDatagram cacheResponse = _cacheZoneManager.Query(request, serveStaleAndResetExpiry, findClosestNameServers);
             if (cacheResponse is not null)
             {
                 if ((cacheResponse.RCODE != DnsResponseCode.NoError) || (cacheResponse.Answer.Count > 0) || (cacheResponse.Authority.Count == 0) || (cacheResponse.Authority[0].Type == DnsResourceRecordType.SOA))
