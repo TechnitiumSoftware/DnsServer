@@ -496,7 +496,7 @@ function login(username, password) {
     var autoLogin = false;
 
     if (username == null) {
-        username = $("#txtUser").val();
+        username = $("#txtUser").val().toLowerCase();
         password = $("#txtPass").val();
     }
     else {
