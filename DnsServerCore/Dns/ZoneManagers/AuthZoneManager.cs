@@ -1152,9 +1152,9 @@ namespace DnsServerCore.Dns.ZoneManagers
                         AuthZone zone = GetOrAddSubDomainZone(deletedEntry.Key);
 
                         if (zone.Name.Equals(domain, StringComparison.OrdinalIgnoreCase))
-                            zone.SyncRecords(deletedEntry.Value);
+                            zone.SyncRecords(deletedEntry.Value, null);
                         else if ((zone is SubDomainZone subDomainZone) && subDomainZone.AuthoritativeZone.Name.Equals(domain, StringComparison.OrdinalIgnoreCase))
-                            zone.SyncRecords(deletedEntry.Value);
+                            zone.SyncRecords(deletedEntry.Value, null);
                     }
                 }
 
@@ -1542,14 +1542,9 @@ namespace DnsServerCore.Dns.ZoneManagers
                             additional = GetAdditionalRecords(answers);
                             break;
 
-                        case DnsResourceRecordType.ANY:
+                        default:
                             authority = null;
                             additional = null;
-                            break;
-
-                        default:
-                            authority = authZone.QueryRecords(DnsResourceRecordType.NS);
-                            additional = GetAdditionalRecords(authority);
                             break;
                     }
                 }
