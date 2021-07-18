@@ -165,7 +165,7 @@ namespace DnsServerCore.Dns.Zones
 
                     //set timer for retry
                     DnsSOARecord soa1 = _entries[DnsResourceRecordType.SOA][0].RDATA as DnsSOARecord;
-                    _refreshTimer.Change(soa1.Retry * 1000, Timeout.Infinite);
+                    ResetRefreshTimer(soa1.Retry * 1000);
                     return;
                 }
 
@@ -174,7 +174,7 @@ namespace DnsServerCore.Dns.Zones
                 {
                     //zone refreshed; set timer for refresh
                     DnsSOARecord latestSoa = _entries[DnsResourceRecordType.SOA][0].RDATA as DnsSOARecord;
-                    _refreshTimer.Change(latestSoa.Refresh * 1000, Timeout.Infinite);
+                    ResetRefreshTimer(latestSoa.Refresh * 1000);
 
                     _expiry = DateTime.UtcNow.AddSeconds(latestSoa.Expire);
                     _isExpired = false;
@@ -185,7 +185,7 @@ namespace DnsServerCore.Dns.Zones
 
                 //no response from any of the name servers; set timer for retry
                 DnsSOARecord soa = _entries[DnsResourceRecordType.SOA][0].RDATA as DnsSOARecord;
-                _refreshTimer.Change(soa.Retry * 1000, Timeout.Infinite);
+                ResetRefreshTimer(soa.Retry * 1000);
             }
             catch (Exception ex)
             {
@@ -194,18 +194,21 @@ namespace DnsServerCore.Dns.Zones
                     log.Write(ex);
 
                 //set timer for retry
-                lock (_refreshTimerLock)
-                {
-                    if (_refreshTimer != null)
-                    {
-                        DnsSOARecord soa = _entries[DnsResourceRecordType.SOA][0].RDATA as DnsSOARecord;
-                        _refreshTimer.Change(soa.Retry * 1000, Timeout.Infinite);
-                    }
-                }
+                DnsSOARecord soa = _entries[DnsResourceRecordType.SOA][0].RDATA as DnsSOARecord;
+                ResetRefreshTimer(soa.Retry * 1000);
             }
             finally
             {
                 _refreshTimerTriggered = false;
+            }
+        }
+
+        private void ResetRefreshTimer(long dueTime)
+        {
+            lock (_refreshTimerLock)
+            {
+                if (_refreshTimer != null)
+                    _refreshTimer.Change(dueTime, Timeout.Infinite);
             }
         }
 
@@ -225,6 +228,7 @@ namespace DnsServerCore.Dns.Zones
                 client.PreferIPv6 = _dnsServer.PreferIPv6;
                 client.Timeout = REFRESH_TIMEOUT;
                 client.Retries = REFRESH_RETRIES;
+                client.Concurrency = 1;
 
                 DnsDatagram soaRequest = new DnsDatagram(0, false, DnsOpcode.StandardQuery, false, false, false, false, false, false, DnsResponseCode.NoError, new DnsQuestionRecord[] { new DnsQuestionRecord(_name, DnsResourceRecordType.SOA, DnsClass.IN) });
                 DnsDatagram soaResponse = await client.ResolveAsync(soaRequest);
@@ -276,6 +280,7 @@ namespace DnsServerCore.Dns.Zones
                 client.PreferIPv6 = _dnsServer.PreferIPv6;
                 client.Timeout = REFRESH_TIMEOUT;
                 client.Retries = REFRESH_RETRIES;
+                client.Concurrency = 1;
 
                 DnsDatagram nsRequest = new DnsDatagram(0, false, DnsOpcode.StandardQuery, false, false, false, false, false, false, DnsResponseCode.NoError, new DnsQuestionRecord[] { new DnsQuestionRecord(_name, DnsResourceRecordType.NS, DnsClass.IN) });
                 DnsDatagram nsResponse = await client.ResolveAsync(nsRequest);
@@ -360,7 +365,7 @@ namespace DnsServerCore.Dns.Zones
             if (_refreshTimerTriggered)
                 return;
 
-            _refreshTimer.Change(REFRESH_TIMER_INTERVAL, Timeout.Infinite);
+            ResetRefreshTimer(REFRESH_TIMER_INTERVAL);
             _refreshTimerTriggered = true;
         }
 
@@ -371,7 +376,7 @@ namespace DnsServerCore.Dns.Zones
 
             _resync = true;
 
-            _refreshTimer.Change(REFRESH_TIMER_INTERVAL, Timeout.Infinite);
+            ResetRefreshTimer(REFRESH_TIMER_INTERVAL);
             _refreshTimerTriggered = true;
         }
 
@@ -439,7 +444,7 @@ namespace DnsServerCore.Dns.Zones
                     _disabled = value;
 
                     if (_disabled)
-                        _refreshTimer.Change(Timeout.Infinite, Timeout.Infinite);
+                        ResetRefreshTimer(Timeout.Infinite);
                     else
                         TriggerRefresh();
                 }
