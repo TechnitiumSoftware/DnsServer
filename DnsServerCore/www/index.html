@@ -1035,7 +1035,7 @@
                                                     <label for="txtCacheMaximumRecordTtl" class="col-sm-3 control-label">Cache Maximum TTL</label>
                                                     <div class="col-sm-8">
                                                         <input type="number" class="form-control" id="txtCacheMaximumRecordTtl" placeholder="max TTL" style="width: 100px; display: inline;">
-                                                        <span>(default 86400)</span>
+                                                        <span>(default 604800)</span>
                                                     </div>
                                                     <div class="col-sm-offset-3 col-sm-8" style="padding-top: 5px;">The maximum TTL value that a record can have in cache. Set a lower value to allow the records to expire early.</div>
                                                 </div>
@@ -1918,10 +1918,12 @@
 
 
                         <div class="form-group" id="divAddZonePrimaryNameServerAddresses">
-                            <label for="txtAddZonePrimaryNameServerAddresses" class="col-sm-4 control-label">Primary Name Servers (Optional)</label>
+                            <label for="txtAddZonePrimaryNameServerAddresses" class="col-sm-4 control-label">Primary Name Server Addresses (Optional)</label>
                             <div class="col-sm-7">
                                 <textarea id="txtAddZonePrimaryNameServerAddresses" class="form-control" rows="3" placeholder="192.168.1.1
-2001:db8::"></textarea>
+2001:db8::
+ns1.example.com (192.168.1.1)
+"></textarea>
                             </div>
                         </div>
 
@@ -2121,10 +2123,12 @@
                                 </div>
                             </div>
                             <div class="form-group" id="divEditRecordDataSoaPrimaryAddresses">
-                                <label for="txtEditRecordDataSoaPrimaryAddresses" class="col-sm-4 control-label">Primary Name Servers</label>
+                                <label for="txtEditRecordDataSoaPrimaryAddresses" class="col-sm-4 control-label">Primary Name Server Addresses</label>
                                 <div class="col-sm-7">
                                     <textarea id="txtEditRecordDataSoaPrimaryAddresses" class="form-control" rows="3" placeholder="192.168.1.1
-2001:db8::"></textarea>
+2001:db8::
+ns1.example.com (192.168.1.1)
+"></textarea>
                                 </div>
                             </div>
                         </div>
