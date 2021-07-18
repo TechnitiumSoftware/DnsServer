@@ -763,7 +763,7 @@ function showEditZone(domain) {
                             "<br /><b>Minimum:</b> " + htmlEncode(records[i].rData.minimum);
 
                         if (records[i].rData.primaryAddresses != null) {
-                            tableHtmlRows += "<br /><b>Primary Name Servers:</b> " + records[i].rData.primaryAddresses;
+                            tableHtmlRows += "<br /><b>Primary Name Server Addresses:</b> " + records[i].rData.primaryAddresses;
 
                             additionalDataAttributes = "data-record-paddresses=\"" + htmlEncode(records[i].rData.primaryAddresses) + "\" ";
                         } else {
