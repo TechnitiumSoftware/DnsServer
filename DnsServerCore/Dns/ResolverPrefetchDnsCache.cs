@@ -42,9 +42,9 @@ namespace DnsServerCore.Dns
 
         #region public
 
-        public override DnsDatagram Query(DnsDatagram request, bool serveStaleAndResetExpiry = false)
+        public override DnsDatagram Query(DnsDatagram request, bool serveStaleAndResetExpiry = false, bool findClosestNameServers = false)
         {
-            if (_prefetchQuery.Equals(request.Question[0]))
+            if (findClosestNameServers && _prefetchQuery.Equals(request.Question[0]))
             {
                 //return closest name servers so that the recursive resolver queries them to refreshes cache instead of returning response from cache
                 DnsDatagram authResponse = _authZoneManager.QueryClosestDelegation(request);
@@ -66,7 +66,7 @@ namespace DnsServerCore.Dns
                 }
             }
 
-            return base.Query(request, serveStaleAndResetExpiry);
+            return base.Query(request, serveStaleAndResetExpiry, findClosestNameServers);
         }
 
         #endregion
