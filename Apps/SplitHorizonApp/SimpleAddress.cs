@@ -57,15 +57,33 @@ namespace SplitHorizon
                 case DnsResourceRecordType.A:
                 case DnsResourceRecordType.AAAA:
                     dynamic jsonAppRecordData = JsonConvert.DeserializeObject(appRecordData);
-                    dynamic jsonAddresses;
+                    dynamic jsonAddresses = null;
 
-                    if (NetUtilities.IsPrivateIP(remoteEP.Address))
-                        jsonAddresses = jsonAppRecordData.@private;
-                    else
-                        jsonAddresses = jsonAppRecordData.@public;
+                    foreach (dynamic jsonProperty in jsonAppRecordData)
+                    {
+                        string name = jsonProperty.Name;
 
-                    if (jsonAddresses == null)
-                        return Task.FromResult<DnsDatagram>(null);
+                        if ((name == "public") || (name == "private"))
+                            continue;
+
+                        NetworkAddress networkAddress = NetworkAddress.Parse(name);
+                        if (networkAddress.Contains(remoteEP.Address))
+                        {
+                            jsonAddresses = jsonProperty.Value;
+                            break;
+                        }
+                    }
+
+                    if (jsonAddresses is null)
+                    {
+                        if (NetUtilities.IsPrivateIP(remoteEP.Address))
+                            jsonAddresses = jsonAppRecordData.@private;
+                        else
+                            jsonAddresses = jsonAppRecordData.@public;
+
+                        if (jsonAddresses is null)
+                            return Task.FromResult<DnsDatagram>(null);
+                    }
 
                     List<DnsResourceRecord> answers = new List<DnsResourceRecord>();
 
@@ -110,7 +128,7 @@ namespace SplitHorizon
         #region properties
 
         public string Description
-        { get { return "Returns A or AAAA records with different set of IP addresses for clients querying over public and private networks."; } }
+        { get { return "Returns A or AAAA records with different set of IP addresses for clients querying over public, private, or other specified networks."; } }
 
         public string ApplicationRecordDataTemplate
         {
@@ -124,6 +142,9 @@ namespace SplitHorizon
   ""private"": [
     ""192.168.1.1"", 
     ""::1""
+  ],
+  ""10.0.0.0/8"": [
+    ""10.1.1.1""
   ]
 }";
             }

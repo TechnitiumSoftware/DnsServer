@@ -51,26 +51,45 @@ namespace SplitHorizon
         public Task<DnsDatagram> ProcessRequestAsync(DnsDatagram request, IPEndPoint remoteEP, string zoneName, uint appRecordTtl, string appRecordData, bool isRecursionAllowed, IDnsServer dnsServer)
         {
             dynamic jsonAppRecordData = JsonConvert.DeserializeObject(appRecordData);
-            dynamic jsonCname;
+            dynamic jsonCname = null;
 
-            if (NetUtilities.IsPrivateIP(remoteEP.Address))
-                jsonCname = jsonAppRecordData.@private;
-            else
-                jsonCname = jsonAppRecordData.@public;
+            foreach (dynamic jsonProperty in jsonAppRecordData)
+            {
+                string name = jsonProperty.Name;
 
-            if (jsonCname == null)
-                return Task.FromResult<DnsDatagram>(null);
+                if ((name == "public") || (name == "private"))
+                    continue;
+
+                NetworkAddress networkAddress = NetworkAddress.Parse(name);
+                if (networkAddress.Contains(remoteEP.Address))
+                {
+                    jsonCname = jsonProperty.Value;
+                    break;
+                }
+            }
+
+            if (jsonCname is null)
+            {
+                if (NetUtilities.IsPrivateIP(remoteEP.Address))
+                    jsonCname = jsonAppRecordData.@private;
+                else
+                    jsonCname = jsonAppRecordData.@public;
+
+                if (jsonCname is null)
+                    return Task.FromResult<DnsDatagram>(null);
+            }
 
             string cname = jsonCname.Value;
             if (string.IsNullOrEmpty(cname))
                 return Task.FromResult<DnsDatagram>(null);
 
+            DnsQuestionRecord question = request.Question[0];
             IReadOnlyList<DnsResourceRecord> answers;
 
-            if (request.Question[0].Name.Equals(zoneName, StringComparison.OrdinalIgnoreCase)) //check for zone apex
-                answers = new DnsResourceRecord[] { new DnsResourceRecord(request.Question[0].Name, DnsResourceRecordType.ANAME, DnsClass.IN, appRecordTtl, new DnsANAMERecord(cname)) }; //use ANAME
+            if (question.Name.Equals(zoneName, StringComparison.OrdinalIgnoreCase)) //check for zone apex
+                answers = new DnsResourceRecord[] { new DnsResourceRecord(question.Name, DnsResourceRecordType.ANAME, DnsClass.IN, appRecordTtl, new DnsANAMERecord(cname)) }; //use ANAME
             else
-                answers = new DnsResourceRecord[] { new DnsResourceRecord(request.Question[0].Name, DnsResourceRecordType.CNAME, DnsClass.IN, appRecordTtl, new DnsCNAMERecord(cname)) };
+                answers = new DnsResourceRecord[] { new DnsResourceRecord(question.Name, DnsResourceRecordType.CNAME, DnsClass.IN, appRecordTtl, new DnsCNAMERecord(cname)) };
 
             return Task.FromResult(new DnsDatagram(request.Identifier, true, request.OPCODE, true, false, request.RecursionDesired, isRecursionAllowed, false, false, DnsResponseCode.NoError, request.Question, answers));
         }
@@ -80,7 +99,7 @@ namespace SplitHorizon
         #region properties
 
         public string Description
-        { get { return "Returns different CNAME record for clients querying over public and private networks. Note that the app will return ANAME record for an APP record at zone apex."; } }
+        { get { return "Returns different CNAME record for clients querying over public, private, or other specified networks. Note that the app will return ANAME record for an APP record at zone apex."; } }
 
         public string ApplicationRecordDataTemplate
         {
@@ -88,7 +107,8 @@ namespace SplitHorizon
             {
                 return @"{
   ""public"": ""api.example.com"",
-  ""private"": ""api.example.corp""
+  ""private"": ""api.example.corp"",
+  ""10.0.0.0/8"": ""api.intranet.example.corp""
 }";
             }
         }
