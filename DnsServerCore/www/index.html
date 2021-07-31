@@ -1922,8 +1922,58 @@
                             <div class="col-sm-7">
                                 <textarea id="txtAddZonePrimaryNameServerAddresses" class="form-control" rows="3" placeholder="192.168.1.1
 2001:db8::
-ns1.example.com (192.168.1.1)
+ns1.example.com (192.168.1.1:853)
+ns1.example.com ([2001:db8::]:853)
 "></textarea>
+                            </div>
+                        </div>
+
+                        <div class="form-group" id="divAddZoneZoneTransferProtocol">
+                            <label class="col-sm-4 control-label">Zone Transfer Protocol</label>
+                            <div class="col-sm-7">
+                                <div class="radio">
+                                    <label>
+                                        <input type="radio" name="rdAddZoneZoneTransferProtocol" id="rdAddZoneZoneTransferProtocolTcp" value="Tcp" checked>
+                                        XFR-over-TCP (default)
+                                    </label>
+                                </div>
+                                <div class="radio">
+                                    <label>
+                                        <input type="radio" name="rdAddZoneZoneTransferProtocol" value="Tls">
+                                        XFR-over-TLS
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="form-group" id="divAddZoneTsigKeyName">
+                            <label for="txtAddZoneTsigKeyName" class="col-sm-4 control-label">TSIG Key Name (Optional)</label>
+                            <div class="col-sm-7">
+                                <input id="txtAddZoneTsigKeyName" type="text" class="form-control" placeholder="TSIG Key Name">
+                            </div>
+                        </div>
+
+                        <div class="form-group" id="divAddZoneTsigSharedSecret">
+                            <label for="txtAddZoneTsigSharedSecret" class="col-sm-4 control-label">TSIG Shared Secret (Optional)</label>
+                            <div class="col-sm-7">
+                                <input id="txtAddZoneTsigSharedSecret" type="text" class="form-control" placeholder="TSIG Shared Secret">
+                            </div>
+                        </div>
+
+                        <div class="form-group" id="divAddZoneTsigAlgorithm">
+                            <label for="optAddZoneTsigAlgorithm" class="col-sm-4 control-label">TSIG Algorithm (Optional)</label>
+                            <div class="col-sm-7">
+                                <select id="optAddZoneTsigAlgorithm" class="form-control" style="width: 100%;">
+                                    <option value="" selected></option>
+                                    <option value="hmac-md5">HMAC-MD5</option>
+                                    <option value="hmac-sha1">HMAC-SHA1</option>
+                                    <option value="hmac-sha256">HMAC-SHA256 (Recommended)</option>
+                                    <option value="hmac-sha256-128">HMAC-SHA256 (128 bits)</option>
+                                    <option value="hmac-sha384">HMAC-SHA384</option>
+                                    <option value="hmac-sha384-192">HMAC-SHA384 (192 bits)</option>
+                                    <option value="hmac-sha512">HMAC-SHA512</option>
+                                    <option value="hmac-sha512-256">HMAC-SHA512 (256 bits)</option>
+                                </select>
                             </div>
                         </div>
 
@@ -2122,15 +2172,67 @@ ns1.example.com (192.168.1.1)
                                     <input id="txtEditRecordDataSoaMinimum" type="number" class="form-control" style="width: 100px;">
                                 </div>
                             </div>
+
                             <div class="form-group" id="divEditRecordDataSoaPrimaryAddresses">
                                 <label for="txtEditRecordDataSoaPrimaryAddresses" class="col-sm-4 control-label">Primary Name Server Addresses</label>
                                 <div class="col-sm-7">
                                     <textarea id="txtEditRecordDataSoaPrimaryAddresses" class="form-control" rows="3" placeholder="192.168.1.1
 2001:db8::
-ns1.example.com (192.168.1.1)
+ns1.example.com (192.168.1.1:853)
+ns1.example.com ([2001:db8::]:853)
 "></textarea>
                                 </div>
                             </div>
+
+                            <div class="form-group" id="divEditRecordDataSoaZoneTransferProtocol">
+                                <label class="col-sm-4 control-label">Zone Transfer Protocol</label>
+                                <div class="col-sm-7">
+                                    <div class="radio">
+                                        <label>
+                                            <input type="radio" name="rdEditRecordDataSoaZoneTransferProtocol" id="rdEditRecordDataSoaZoneTransferProtocolTcp" value="Tcp" checked>
+                                            XFR-over-TCP (default)
+                                        </label>
+                                    </div>
+                                    <div class="radio">
+                                        <label>
+                                            <input type="radio" name="rdEditRecordDataSoaZoneTransferProtocol" id="rdEditRecordDataSoaZoneTransferProtocolTls" value="Tls">
+                                            XFR-over-TLS
+                                        </label>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="form-group" id="divEditRecordDataSoaTsigKeyName">
+                                <label for="txtEditRecordDataSoaTsigKeyName" class="col-sm-4 control-label">TSIG Key Name</label>
+                                <div class="col-sm-7">
+                                    <input id="txtEditRecordDataSoaTsigKeyName" type="text" class="form-control" placeholder="TSIG Key Name">
+                                </div>
+                            </div>
+
+                            <div class="form-group" id="divEditRecordDataSoaTsigSharedSecret">
+                                <label for="txtEditRecordDataSoaTsigSharedSecret" class="col-sm-4 control-label">TSIG Shared Secret</label>
+                                <div class="col-sm-7">
+                                    <input id="txtEditRecordDataSoaTsigSharedSecret" type="text" class="form-control" placeholder="TSIG Shared Secret">
+                                </div>
+                            </div>
+
+                            <div class="form-group" id="divEditRecordDataSoaTsigAlgorithm">
+                                <label for="optEditRecordDataSoaTsigAlgorithm" class="col-sm-4 control-label">TSIG Algorithm</label>
+                                <div class="col-sm-7">
+                                    <select id="optEditRecordDataSoaTsigAlgorithm" class="form-control" style="width: 100%;">
+                                        <option value="" selected></option>
+                                        <option value="hmac-md5">HMAC-MD5</option>
+                                        <option value="hmac-sha1">HMAC-SHA1</option>
+                                        <option value="hmac-sha256">HMAC-SHA256 (Recommended)</option>
+                                        <option value="hmac-sha256-128">HMAC-SHA256 (128 bits)</option>
+                                        <option value="hmac-sha384">HMAC-SHA384</option>
+                                        <option value="hmac-sha384-192">HMAC-SHA384 (192 bits)</option>
+                                        <option value="hmac-sha512">HMAC-SHA512</option>
+                                        <option value="hmac-sha512-256">HMAC-SHA512 (256 bits)</option>
+                                    </select>
+                                </div>
+                            </div>
+
                         </div>
 
 
@@ -2315,6 +2417,7 @@ ns1.example.com (192.168.1.1)
                     <div id="divZoneOptionsLoader" style="height: 500px;"></div>
 
                     <div id="divZoneOptions" style="max-height: 500px; overflow-y: auto; padding: 0 6px;">
+
                         <div class="well well-sm form-horizontal">
                             <div class="form-group">
                                 <label class="col-sm-3 control-label">Zone Transfer</label>
@@ -2391,6 +2494,28 @@ ns1.example.com (192.168.1.1)
 
                             <div>Note! Notification must be enabled to allow other name servers to trigger a zone transfer immediately when the zone is updated.</div>
                         </div>
+
+                        <div class="well well-sm form-horizontal">
+                            <div class="form-group">
+                                <label for="tableZoneOptionsTsigKeys" class="col-sm-3 control-label">TSIG Keys</label>
+                                <div class="col-sm-9">
+                                    <table class="table table-hover" style="margin-bottom: 0px;">
+                                        <thead>
+                                            <tr>
+                                                <th>Key Name</th>
+                                                <th>Shared Secret</th>
+                                                <th><button type="button" class="btn btn-default" style="padding: 0px 20px;" onclick="addZoneOptionsTsigKeyRow('', '');">Add</button></th>
+                                            </tr>
+                                        </thead>
+                                        <tbody id="tableZoneOptionsTsigKeys"></tbody>
+                                    </table>
+                                </div>
+                                <div class="col-sm-offset-3 col-sm-8" style="padding-top: 5px;">The shared secret can be a base64 string or a literal string. Keep the shared secret empty if you want to auto generate a strong key.</div>
+                            </div>
+
+                            <div>Note! TSIG allows authenticating requests when at least one key is configured. A secondary zone must be configured with one of the above keys to be able to perform zone transfer. This server supports hmac-md5, hmac-sha1, hmac-sha256 (recommended), hmac-sha256-128, hmac-sha384, hmac-sha384-192, hmac-sha512, and hmac-sha512-256 algorithms.</div>
+                        </div>
+
                     </div>
                 </div>
                 <div class="modal-footer">
