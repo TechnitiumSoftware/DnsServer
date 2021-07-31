@@ -105,7 +105,7 @@ namespace DnsServerCore.Dns.Zones
 
         #region static
 
-        public static async Task<SecondaryZone> CreateAsync(DnsServer dnsServer, string name, string primaryNameServerAddresses = null, string tsigKeyName = null, string tsigSharedSecret = null, string tsigAlgorithm = null)
+        public static async Task<SecondaryZone> CreateAsync(DnsServer dnsServer, string name, string primaryNameServerAddresses = null, DnsTransportProtocol zoneTransferProtocol = DnsTransportProtocol.Tcp, string tsigKeyName = null, string tsigSharedSecret = null, string tsigAlgorithm = null)
         {
             SecondaryZone secondaryZone = new SecondaryZone(dnsServer, name);
 
@@ -137,14 +137,13 @@ namespace DnsServerCore.Dns.Zones
             if (!string.IsNullOrEmpty(primaryNameServerAddresses))
                 soaRR[0].SetPrimaryNameServers(primaryNameServerAddresses);
 
-            if (!string.IsNullOrEmpty(tsigKeyName))
-            {
-                DnsResourceRecordInfo recordInfo = soaRR[0].GetRecordInfo();
+            DnsResourceRecordInfo recordInfo = soaRR[0].GetRecordInfo();
 
-                recordInfo.TsigKeyName = tsigKeyName;
-                recordInfo.TsigSharedSecret = tsigSharedSecret;
-                recordInfo.TsigAlgorithm = tsigAlgorithm;
-            }
+            recordInfo.ZoneTransferProtocol = zoneTransferProtocol;
+
+            recordInfo.TsigKeyName = tsigKeyName;
+            recordInfo.TsigSharedSecret = tsigSharedSecret;
+            recordInfo.TsigAlgorithm = tsigAlgorithm;
 
             secondaryZone._entries[DnsResourceRecordType.SOA] = soaRR;
 
@@ -318,7 +317,7 @@ namespace DnsServerCore.Dns.Zones
                 DnsResourceRecordInfo recordInfo = currentSoaRecord.GetRecordInfo();
 
                 //refresh zone
-                if (await RefreshZoneAsync(primaryNameServers, recordInfo.TsigKeyName, recordInfo.TsigSharedSecret, recordInfo.TsigAlgorithm))
+                if (await RefreshZoneAsync(primaryNameServers, recordInfo.ZoneTransferProtocol, recordInfo.TsigKeyName, recordInfo.TsigSharedSecret, recordInfo.TsigAlgorithm))
                 {
                     //zone refreshed; set timer for refresh
                     DnsSOARecord latestSoa = _entries[DnsResourceRecordType.SOA][0].RDATA as DnsSOARecord;
@@ -360,7 +359,7 @@ namespace DnsServerCore.Dns.Zones
             }
         }
 
-        private async Task<bool> RefreshZoneAsync(IReadOnlyList<NameServerAddress> primaryNameServers, string tsigKeyName, string tsigSharedSecret, string tsigAlgorithm)
+        private async Task<bool> RefreshZoneAsync(IReadOnlyList<NameServerAddress> primaryNameServers, DnsTransportProtocol zoneTransferProtocol, string tsigKeyName, string tsigSharedSecret, string tsigAlgorithm)
         {
             try
             {
@@ -415,11 +414,11 @@ namespace DnsServerCore.Dns.Zones
                     return true;
                 }
 
-                //update available; do zone transfer with TCP transport
+                //update available; do zone transfer with specified transport
                 List<NameServerAddress> tcpNameServers = new List<NameServerAddress>();
 
                 foreach (NameServerAddress nameServer in primaryNameServers)
-                    tcpNameServers.Add(new NameServerAddress(nameServer, DnsTransportProtocol.Tcp));
+                    tcpNameServers.Add(new NameServerAddress(nameServer, zoneTransferProtocol));
 
                 primaryNameServers = tcpNameServers;
                 client = new DnsClient(primaryNameServers);
