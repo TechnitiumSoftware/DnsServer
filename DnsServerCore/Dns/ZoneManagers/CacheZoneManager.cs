@@ -253,17 +253,15 @@ namespace DnsServerCore.Dns.ZoneManagers
             return _root.TryRemove(domain, out _);
         }
 
-        public List<string> ListSubDomains(string domain)
+        public void ListSubDomains(string domain, List<string> subDomains)
         {
-            return _root.ListSubDomains(domain);
+            _root.ListSubDomains(domain, subDomains);
         }
 
-        public List<DnsResourceRecord> ListAllRecords(string domain)
+        public void ListAllRecords(string domain, List<DnsResourceRecord> records)
         {
             if (_root.TryGet(domain, out CacheZone zone))
-                return zone.ListAllRecords();
-
-            return new List<DnsResourceRecord>(0);
+                zone.ListAllRecords(records);
         }
 
         public DnsDatagram QueryClosestDelegation(DnsDatagram request)

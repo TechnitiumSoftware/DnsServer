@@ -155,9 +155,14 @@ namespace DnsServerCore.Dns.ZoneManagers
             return _zoneManager.ListZones();
         }
 
-        public List<string> ListSubDomains(string domain)
+        public void ListAllRecords(string domain, List<DnsResourceRecord> records)
         {
-            return _zoneManager.ListSubDomains(domain);
+            _zoneManager.ListAllRecords(domain, records);
+        }
+
+        public void ListSubDomains(string domain, List<string> subDomains)
+        {
+            _zoneManager.ListSubDomains(domain, subDomains);
         }
 
         public IReadOnlyList<DnsResourceRecord> QueryRecords(string domain, DnsResourceRecordType type)
