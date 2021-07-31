@@ -92,14 +92,10 @@ namespace DnsServerCore.Dns.Zones
 
         #region public
 
-        public List<DnsResourceRecord> ListAllRecords()
+        public void ListAllRecords(List<DnsResourceRecord> records)
         {
-            List<DnsResourceRecord> records = new List<DnsResourceRecord>(_entries.Count * 2);
-
             foreach (KeyValuePair<DnsResourceRecordType, IReadOnlyList<DnsResourceRecord>> entry in _entries)
                 records.AddRange(entry.Value);
-
-            return records;
         }
 
         public abstract bool ContainsNameServerRecords();
