@@ -321,7 +321,7 @@ namespace DnsServerCore.Dns
                             recvBufferStream.Position = 0;
                             recvBufferStream.SetLength(result.ReceivedBytes);
 
-                            DnsDatagram request = DnsDatagram.ReadFromUdp(recvBufferStream);
+                            DnsDatagram request = DnsDatagram.ReadFrom(recvBufferStream);
 
                             _ = ProcessUdpRequestAsync(udpListener, remoteEP, request);
                         }
@@ -383,17 +383,25 @@ namespace DnsServerCore.Dns
                 {
                     try
                     {
-                        response.WriteToUdp(sendBufferStream);
+                        response.WriteTo(sendBufferStream);
                     }
                     catch (NotSupportedException)
                     {
-                        if (response.Question[0].Type == DnsResourceRecordType.IXFR)
-                            response = new DnsDatagram(response.Identifier, true, response.OPCODE, response.AuthoritativeAnswer, false, response.RecursionDesired, response.RecursionAvailable, response.AuthenticData, response.CheckingDisabled, response.RCODE, response.Question, new DnsResourceRecord[] { response.Answer[0] }) { Tag = StatsResponseType.Authoritative }; //truncate response
+                        if (response.IsSigned)
+                        {
+                            //rfc8945 section 5.3
+                            response = new DnsDatagram(response.Identifier, true, response.OPCODE, response.AuthoritativeAnswer, true, response.RecursionDesired, response.RecursionAvailable, response.AuthenticData, response.CheckingDisabled, DnsResponseCode.NoError, response.Question, null, null, new DnsResourceRecord[] { response.Additional[response.Additional.Count - 1] }) { Tag = StatsResponseType.Authoritative };
+                        }
                         else
-                            response = new DnsDatagram(response.Identifier, true, response.OPCODE, response.AuthoritativeAnswer, true, response.RecursionDesired, response.RecursionAvailable, response.AuthenticData, response.CheckingDisabled, response.RCODE, response.Question) { Tag = StatsResponseType.Authoritative };
+                        {
+                            if (response.Question[0].Type == DnsResourceRecordType.IXFR)
+                                response = new DnsDatagram(response.Identifier, true, response.OPCODE, response.AuthoritativeAnswer, false, response.RecursionDesired, response.RecursionAvailable, response.AuthenticData, response.CheckingDisabled, response.RCODE, response.Question, new DnsResourceRecord[] { response.Answer[0] }) { Tag = StatsResponseType.Authoritative }; //truncate response
+                            else
+                                response = new DnsDatagram(response.Identifier, true, response.OPCODE, response.AuthoritativeAnswer, true, response.RecursionDesired, response.RecursionAvailable, response.AuthenticData, response.CheckingDisabled, response.RCODE, response.Question) { Tag = StatsResponseType.Authoritative };
+                        }
 
                         sendBufferStream.Position = 0;
-                        response.WriteToUdp(sendBufferStream);
+                        response.WriteTo(sendBufferStream);
                     }
 
                     //send dns datagram async
@@ -522,7 +530,7 @@ namespace DnsServerCore.Dns
             try
             {
                 using MemoryStream readBuffer = new MemoryStream(64);
-                using MemoryStream writeBuffer = new MemoryStream(64);
+                using MemoryStream writeBuffer = new MemoryStream(4096);
                 using SemaphoreSlim writeSemaphore = new SemaphoreSlim(1, 1);
 
                 while (true)
@@ -722,7 +730,7 @@ namespace DnsServerCore.Dns
 
                                                 using (MemoryStream mS = new MemoryStream(Convert.FromBase64String(strRequest)))
                                                 {
-                                                    dnsRequest = DnsDatagram.ReadFromUdp(mS);
+                                                    dnsRequest = DnsDatagram.ReadFrom(mS);
                                                 }
 
                                                 break;
@@ -740,7 +748,7 @@ namespace DnsServerCore.Dns
                                                     await httpRequest.InputStream.CopyToAsync(mS, 32);
 
                                                     mS.Position = 0;
-                                                    dnsRequest = DnsDatagram.ReadFromUdp(mS);
+                                                    dnsRequest = DnsDatagram.ReadFrom(mS);
                                                 }
 
                                                 break;
@@ -771,7 +779,7 @@ namespace DnsServerCore.Dns
 
                                         using (MemoryStream mS = new MemoryStream(512))
                                         {
-                                            dnsResponse.WriteToUdp(mS);
+                                            dnsResponse.WriteTo(mS);
 
                                             mS.Position = 0;
                                             await SendContentAsync(stream, requestConnection, "application/dns-message", mS);
@@ -1024,10 +1032,10 @@ namespace DnsServerCore.Dns
                                 if (protocol == DnsTransportProtocol.Udp)
                                     return new DnsDatagram(request.Identifier, true, DnsOpcode.StandardQuery, false, false, request.RecursionDesired, false, false, false, DnsResponseCode.FormatError, request.Question) { Tag = StatsResponseType.Authoritative };
 
-                                return await ProcessZoneTransferQueryAsync(request, remoteEP);
+                                return await ProcessZoneTransferQueryAsync(request, remoteEP, protocol);
 
                             case DnsResourceRecordType.IXFR:
-                                return await ProcessZoneTransferQueryAsync(request, remoteEP);
+                                return await ProcessZoneTransferQueryAsync(request, remoteEP, protocol);
 
                             case DnsResourceRecordType.FWD:
                             case DnsResourceRecordType.APP:
@@ -1117,7 +1125,7 @@ namespace DnsServerCore.Dns
             return new DnsDatagram(request.Identifier, true, DnsOpcode.Notify, false, false, request.RecursionDesired, false, false, false, DnsResponseCode.NoError, request.Question) { Tag = StatsResponseType.Authoritative };
         }
 
-        private async Task<DnsDatagram> ProcessZoneTransferQueryAsync(DnsDatagram request, IPEndPoint remoteEP)
+        private async Task<DnsDatagram> ProcessZoneTransferQueryAsync(DnsDatagram request, IPEndPoint remoteEP, DnsTransportProtocol protocol)
         {
             AuthZoneInfo authZoneInfo = _authZoneManager.GetAuthZoneInfo(request.Question[0].Name);
             if ((authZoneInfo is null) || authZoneInfo.Disabled || authZoneInfo.IsExpired)
@@ -1193,9 +1201,32 @@ namespace DnsServerCore.Dns
             if (!isZoneTransferAllowed)
                 return new DnsDatagram(request.Identifier, true, DnsOpcode.StandardQuery, false, false, request.RecursionDesired, false, false, false, DnsResponseCode.Refused, request.Question) { Tag = StatsResponseType.Authoritative };
 
-            LogManager log = _log;
-            if (log is not null)
-                log.Write(remoteEP, "DNS Server received zone transfer request for zone: " + authZoneInfo.Name);
+            IReadOnlyDictionary<string, string> tsigKeys = authZoneInfo.TsigKeys;
+            DnsDatagram signedRequest = null;
+
+            if ((tsigKeys is not null) && (tsigKeys.Count > 0))
+            {
+                //TSIG configured
+                signedRequest = request;
+
+                if (!signedRequest.VerifySignedRequest(tsigKeys, out DnsDatagram unsignedRequest, out DnsDatagram errorResponse))
+                {
+                    LogManager log = _log;
+                    if (log is not null)
+                        log.Write(remoteEP, "DNS Server received zone transfer request that failed TSIG signature verification for zone: " + authZoneInfo.Name + "; RCODE: " + errorResponse.RCODE + "; TSIG Error: " + errorResponse.TsigError);
+
+                    errorResponse.Tag = StatsResponseType.Authoritative;
+                    return errorResponse;
+                }
+
+                request = unsignedRequest;
+            }
+
+            {
+                LogManager log = _log;
+                if (log is not null)
+                    log.Write(remoteEP, "DNS Server received zone transfer request for zone: " + authZoneInfo.Name);
+            }
 
             IReadOnlyList<DnsResourceRecord> xfrRecords;
 
@@ -1211,7 +1242,22 @@ namespace DnsServerCore.Dns
                 xfrRecords = _authZoneManager.QueryZoneTransferRecords(request.Question[0].Name);
             }
 
-            return new DnsDatagram(request.Identifier, true, DnsOpcode.StandardQuery, true, false, request.RecursionDesired, false, false, false, DnsResponseCode.NoError, request.Question, xfrRecords) { Tag = StatsResponseType.Authoritative };
+            DnsDatagram response = new DnsDatagram(request.Identifier, true, DnsOpcode.StandardQuery, true, false, request.RecursionDesired, false, false, false, DnsResponseCode.NoError, request.Question, xfrRecords) { Tag = StatsResponseType.Authoritative };
+
+            if (signedRequest is not null)
+            {
+                DnsDatagram unsignedResponse;
+
+                if (protocol == DnsTransportProtocol.Tcp)
+                    unsignedResponse = response.Split();
+                else
+                    unsignedResponse = response;
+
+                DnsDatagram signedResponse = unsignedResponse.SignResponse(signedRequest, tsigKeys, DnsTsigError.NoError);
+                response = signedResponse;
+            }
+
+            return response;
         }
 
         private async Task<DnsDatagram> ProcessAuthoritativeQueryAsync(DnsDatagram request, IPEndPoint remoteEP, bool isRecursionAllowed, DnsTransportProtocol protocol)
