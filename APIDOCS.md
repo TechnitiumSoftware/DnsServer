@@ -1786,6 +1786,10 @@ WHERE:
 - `domain`: The domain name for creating new zone. The value can be valid domain name, an IP address, or an network address in CIDR format. When value is IP address or network address, a reverse zone is created.
 - `type`: The type of zone to be created. Valid values are [`primary`, `secondary`, `stub`, `forwarder`].
 - `primaryNameServerAddresses` (optional): List of comma separated IP addresses of the primary name server. This optional parameter is used only with Secondary and Stub zones. If this parameter is not used, the DNS server will try to recursively resolve the primary name server addresses automatically.
+- `zoneTransferProtocol` (optional): The zone transfer protocol to be used by secondary zones. Valid values are [`tcp`, `tls`].
+- `tsigKeyName` (optional): The TSIG key name to be used by secondary zones.
+- `tsigSharedSecret` (optional): The TSIG shared secret to be used by secondary zones.
+- `tsigAlgorithm` (optional): The TSIG algorithm to be used by secondary zones.
 - `protocol` (optional): The DNS transport protocol to be used by the conditional forwarder zone. This optional parameter is used with Conditional Forwarder zones. Valid values are [`Udp`, `Tcp`, `Tls`, `Https`]. Default UDP protocol is used when this parameter is missing.
 - `forwarder` (optional): The address of the DNS server to be used as a forwarder. This optional parameter is requred to be used with Conditional Forwarder zones. A special value `this-server` can be used as a forwarder which when used will forward all the requests internally to this DNS server such that you can override the zone with records and rest of the zone gets resolved via This Server.
 
@@ -1878,7 +1882,13 @@ RESPONSE:
 		"zoneTransfer": "AllowOnlyZoneNameServers",
 		"zoneTransferNameServers": [],
 		"notify": "ZoneNameServers",
-		"notifyNameServers": []
+		"notifyNameServers": [],
+		"tsigKeys": [
+			{
+				"keyName": "tsig.key",
+				"sharedSecret": "password"
+			}
+		]
 	},
 	"status": "ok"
 }
@@ -1899,6 +1909,7 @@ WHERE:
 - `zoneTransferNameServers` (optional): A list of comma separated IP addreses which should be allowed to perform zone transfer. This list is enabled only when `zoneTransfer` option is set to `AllowOnlySpecifiedNameServers`.
 - `notify` (optional): Sets if the DNS server should notify other DNS servers for zone updates. Valid options are [`None`, `ZoneNameServers`, `SpecifiedNameServers`].
 - `notifyNameServers` (optional): A list of comma separated IP addreses which should be notified by the DNS server for zone updates. This list is used only when `notify` option is set to `SpecifiedNameServers`.
+- `tsigKeys` (optional): A list of pipe "|" separated TSIG keys and passwords. Set this option to `false` to remove all keys.
 
 RESPONSE:
 ```
@@ -2101,6 +2112,10 @@ WHERE:
 - `expire` (optional): This is the expire parameter in the SOA record. This parameter is required when updating the SOA record.
 - `minimum` (optional): This is the minimum parameter in the SOA record. This parameter is required when updating the SOA record.
 - `primaryAddresses` (optional): This is a comma separated list of IP addresses of the primary name server. This parameter is to be used with secondary and stub zones where the primary name server address is not directly resolveable.
+- `zoneTransferProtocol` (optional): The zone transfer protocol to be used by the secondary zone. Valid values are [`tcp`, `tls`].
+- `tsigKeyName` (optional): The TSIG key name to be used by the secondary zone.
+- `tsigSharedSecret` (optional): The TSIG shared secret to be used by the secondary zone.
+- `tsigAlgorithm` (optional): The TSIG algorithm to be used by the secondary zone.
 - `port` (optional): This is the port parameter in the SRV record. This parameter is required when updating the SRV record.
 - `priority` (optional): This is the priority parameter in the SRV record. This parameter is required when updating the SRV record.
 - `weight` (optional): This is the weight parameter in the SRV record. This parameter is required when updating the SRV record.
