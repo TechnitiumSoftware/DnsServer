@@ -21,6 +21,7 @@ Applications of using a locally hosted DNS server is limited only by the user's 
 
 # Features
 - Works on Windows, Linux, macOS and Raspberry Pi.
+- Docker image available on [Docker Hub](https://hub.docker.com/r/technitium/dns-server).
 - Installs in just a minute and works out-of-the-box with zero configuration.
 - Block Ads using one or more block list URLs.
 - Run [DNS-over-TLS](https://en.wikipedia.org/wiki/DNS_over_TLS) and [DNS-over-HTTPS](https://en.wikipedia.org/wiki/DNS_over_HTTPS) DNS service on your network.
