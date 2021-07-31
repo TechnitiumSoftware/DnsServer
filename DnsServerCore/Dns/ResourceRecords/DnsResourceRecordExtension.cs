@@ -256,5 +256,21 @@ namespace DnsServerCore.Dns.ResourceRecords
 
             return Array.Empty<NameServerAddress>();
         }
+
+        public static DnsResourceRecordInfo GetRecordInfo(this DnsResourceRecord record)
+        {
+            if (record.Tag is not DnsResourceRecordInfo rrInfo)
+            {
+                rrInfo = new DnsResourceRecordInfo();
+                record.Tag = rrInfo;
+            }
+
+            return rrInfo;
+        }
+
+        public static void CopyRecordInfoFrom(this DnsResourceRecord record, DnsResourceRecord otherRecord)
+        {
+            record.Tag = otherRecord.Tag;
+        }
     }
 }
