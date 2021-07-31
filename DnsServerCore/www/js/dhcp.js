@@ -232,36 +232,6 @@ function addDhcpScopeReservedLeaseRow(hostName, hardwareAddress, address, commen
     $("#tableDhcpScopeReservedLeases").append(tableHtmlRows);
 }
 
-function serializeTableData(table, columns) {
-
-    var data = table.find('input:text');
-    var output = "";
-
-    for (var i = 0; i < data.length; i += columns) {
-        if (i > 0)
-            output += "|";
-
-        for (var j = 0; j < columns; j++) {
-            if (j > 0)
-                output += "|";
-
-            var cell = $(data[i + j]);
-            var cellValue = cell.val();
-            var optional = (cell.attr("data-optional") === "true");
-
-            if ((cellValue === "") && !optional) {
-                showAlert("warning", "Missing!", "Please enter a valid value in the text field in focus.");
-                cell.focus();
-                return false;
-            }
-
-            output += htmlDecode(cellValue);
-        }
-    }
-
-    return output;
-}
-
 function clearDhcpScopeForm() {
     $("#txtDhcpScopeName").attr("data-name", "");
     $("#txtDhcpScopeName").val("");

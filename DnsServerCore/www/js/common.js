@@ -1,6 +1,6 @@
 ﻿/*
 Technitium DNS Server
-Copyright (C) 2020  Shreyas Zare (shreyas@technitium.com)
+Copyright (C) 2021  Shreyas Zare (shreyas@technitium.com)
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -313,4 +313,40 @@ function sortTable(tableId, n) {
             }
         }
     }
+}
+
+function serializeTableData(table, columns) {
+
+    var data = table.find('input:text');
+    var output = "";
+
+    for (var i = 0; i < data.length; i += columns) {
+        if (i > 0)
+            output += "|";
+
+        for (var j = 0; j < columns; j++) {
+            if (j > 0)
+                output += "|";
+
+            var cell = $(data[i + j]);
+            var cellValue = cell.val();
+            var optional = (cell.attr("data-optional") === "true");
+
+            if ((cellValue === "") && !optional) {
+                showAlert("warning", "Missing!", "Please enter a valid value in the text field in focus.");
+                cell.focus();
+                return false;
+            }
+
+            if (cellValue.includes("|")) {
+                showAlert("warning", "Invalid Character!", "Please edit the value in the text field in focus to remove '|' character.");
+                cell.focus();
+                return false;
+            }
+
+            output += htmlDecode(cellValue);
+        }
+    }
+
+    return output;
 }
