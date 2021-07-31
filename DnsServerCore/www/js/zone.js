@@ -22,6 +22,10 @@ $(function () {
     $("input[type=radio][name=rdAddZoneType]").change(function () {
 
         $("#divAddZonePrimaryNameServerAddresses").hide();
+        $("#divAddZoneZoneTransferProtocol").hide();
+        $("#divAddZoneTsigKeyName").hide();
+        $("#divAddZoneTsigSharedSecret").hide();
+        $("#divAddZoneTsigAlgorithm").hide();
         $("#divAddZoneForwarderProtocol").hide();
         $("#divAddZoneForwarder").hide();
 
@@ -31,6 +35,13 @@ $(function () {
                 break;
 
             case "Secondary":
+                $("#divAddZonePrimaryNameServerAddresses").show();
+                $("#divAddZoneZoneTransferProtocol").show();
+                $("#divAddZoneTsigKeyName").show();
+                $("#divAddZoneTsigSharedSecret").show();
+                $("#divAddZoneTsigAlgorithm").show();
+                break;
+
             case "Stub":
                 $("#divAddZonePrimaryNameServerAddresses").show();
                 break;
@@ -321,6 +332,17 @@ function deleteZone(objBtn, domain, editZone) {
     });
 }
 
+function addZoneOptionsTsigKeyRow(keyName, sharedSecret) {
+
+    var id = Math.floor(Math.random() * 10000);
+
+    var tableHtmlRows = "<tr id=\"tableZoneOptionsTsigKeyRow" + id + "\"><td><input type=\"text\" class=\"form-control\" value=\"" + htmlEncode(keyName) + "\"></td>";
+    tableHtmlRows += "<td><input type=\"text\" class=\"form-control\" data-optional=\"true\" value=\"" + htmlEncode(sharedSecret) + "\"></td>";
+    tableHtmlRows += "<td><button type=\"button\" class=\"btn btn-danger\" onclick=\"$('#tableZoneOptionsTsigKeyRow" + id + "').remove();\">Delete</button></td></tr>";
+
+    $("#tableZoneOptionsTsigKeys").append(tableHtmlRows);
+}
+
 function showZoneOptions(domain) {
     var divZoneOptionsAlert = $("#divZoneOptionsAlert");
     var divZoneOptionsLoader = $("#divZoneOptionsLoader");
@@ -396,6 +418,14 @@ function showZoneOptions(domain) {
                 $("#txtZoneNotifyNameServers").val(value);
             }
 
+            $("#tableZoneOptionsTsigKeys").html("");
+
+            if (responseJSON.response.tsigKeys != null) {
+                for (var i = 0; i < responseJSON.response.tsigKeys.length; i++) {
+                    addZoneOptionsTsigKeyRow(responseJSON.response.tsigKeys[i].keyName, responseJSON.response.tsigKeys[i].sharedSecret);
+                }
+            }
+
             divZoneOptionsLoader.hide();
             divZoneOptions.show();
         },
@@ -434,13 +464,21 @@ function saveZoneOptions() {
     else
         $("#txtZoneNotifyNameServers").val(notifyNameServers.replace(/,/g, "\n"));
 
+    var tsigKeys = serializeTableData($("#tableZoneOptionsTsigKeys"), 2);
+    if (tsigKeys === false)
+        return;
+
+    if (tsigKeys.length === 0)
+        tsigKeys = false;
+
     var btn = $("#btnSaveZoneOptions");
     btn.button('loading');
 
     HTTPRequest({
         url: "/api/zone/options/set?token=" + token + "&domain=" + domain
             + "&zoneTransfer=" + zoneTransfer + "&zoneTransferNameServers=" + encodeURIComponent(zoneTransferNameServers)
-            + "&notify=" + notify + "&notifyNameServers=" + encodeURIComponent(notifyNameServers),
+            + "&notify=" + notify + "&notifyNameServers=" + encodeURIComponent(notifyNameServers)
+            + "&tsigKeys=" + encodeURIComponent(tsigKeys),
         success: function (responseJSON) {
             btn.button('reset');
             $("#modalZoneOptions").modal("hide");
@@ -462,8 +500,15 @@ function saveZoneOptions() {
 }
 
 function resyncZone(objBtn, domain) {
-    if (!confirm("The resync action will perform a full zone refresh. For Secondary zones, there will be a full zone transfer (AXFR) performed. You will need to check the logs to confirm if the resync action was successful.\r\n\r\nAre you sure you want to resync the '" + domain + "' zone?"))
-        return false;
+
+    if ($("#titleEditZoneType").text() == "Secondary") {
+        if (!confirm("The resync action will perform a full zone transfer (AXFR). You will need to check the logs to confirm if the resync action was successful.\r\n\r\nAre you sure you want to resync the '" + domain + "' zone?"))
+            return false;
+    }
+    else {
+        if (!confirm("The resync action will perform a full zone refresh. You will need to check the logs to confirm if the resync action was successful.\r\n\r\nAre you sure you want to resync the '" + domain + "' zone?"))
+            return false;
+    }
 
     var btn = $(objBtn);
     btn.button('loading');
@@ -490,6 +535,10 @@ function showAddZoneModal() {
     $("#txtAddZone").val("");
     $("#rdAddZoneTypePrimary").prop("checked", true);
     $("#txtAddZonePrimaryNameServerAddresses").val("");
+    $("#rdAddZoneZoneTransferProtocolTcp").prop("checked", true);
+    $("#txtAddZoneTsigKeyName").val("");
+    $("#txtAddZoneTsigSharedSecret").val("");
+    $("#optAddZoneTsigAlgorithm").val("");
     $("input[name=rdAddZoneForwarderProtocol]:radio").attr("disabled", false);
     $("#rdAddZoneForwarderProtocolUdp").prop("checked", true);
     $("#chkAddZoneForwarderThisServer").prop('checked', false);
@@ -498,6 +547,10 @@ function showAddZoneModal() {
     $("#txtAddZoneForwarder").val("");
 
     $("#divAddZonePrimaryNameServerAddresses").hide();
+    $("#divAddZoneZoneTransferProtocol").hide();
+    $("#divAddZoneTsigKeyName").hide();
+    $("#divAddZoneTsigSharedSecret").hide();
+    $("#divAddZoneTsigAlgorithm").hide();
     $("#divAddZoneForwarderProtocol").hide();
     $("#divAddZoneForwarder").hide();
 
@@ -545,8 +598,15 @@ function addZone() {
 
     switch (type) {
         case "Secondary":
+            parameters = "&primaryNameServerAddresses=" + encodeURIComponent(cleanTextList($("#txtAddZonePrimaryNameServerAddresses").val()));
+            parameters += "&zoneTransferProtocol=" + $('input[name=rdAddZoneZoneTransferProtocol]:checked').val();
+            parameters += "&tsigKeyName=" + encodeURIComponent($("#txtAddZoneTsigKeyName").val());
+            parameters += "&tsigSharedSecret=" + encodeURIComponent($("#txtAddZoneTsigSharedSecret").val());
+            parameters += "&tsigAlgorithm=" + encodeURIComponent($("#optAddZoneTsigAlgorithm").val());
+            break;
+
         case "Stub":
-            parameters = "&primaryNameServerAddresses=" + cleanTextList($("#txtAddZonePrimaryNameServerAddresses").val());
+            parameters = "&primaryNameServerAddresses=" + encodeURIComponent(cleanTextList($("#txtAddZonePrimaryNameServerAddresses").val()));
             break;
 
         case "Forwarder":
@@ -558,7 +618,7 @@ function addZone() {
                 return;
             }
 
-            parameters = "&protocol=" + $('input[name=rdAddZoneForwarderProtocol]:checked').val() + "&forwarder=" + forwarder;
+            parameters = "&protocol=" + $('input[name=rdAddZoneForwarderProtocol]:checked').val() + "&forwarder=" + encodeURIComponent(forwarder);
             break;
 
         default:
@@ -768,6 +828,38 @@ function showEditZone(domain) {
                             additionalDataAttributes = "data-record-paddresses=\"" + htmlEncode(records[i].rData.primaryAddresses) + "\" ";
                         } else {
                             additionalDataAttributes = "data-record-paddresses=\"\" ";
+                        }
+
+                        if (records[i].rData.zoneTransferProtocol != null) {
+                            tableHtmlRows += "<br /><b>Zone Transfer Protocol:</b> " + records[i].rData.zoneTransferProtocol;
+
+                            additionalDataAttributes += "data-record-zonetransferprotocol=\"" + htmlEncode(records[i].rData.zoneTransferProtocol) + "\" ";
+                        } else {
+                            additionalDataAttributes += "data-record-zonetransferprotocol=\"\" ";
+                        }
+
+                        if (records[i].rData.tsigKeyName != null) {
+                            tableHtmlRows += "<br /><b>TSIG Key Name:</b> " + records[i].rData.tsigKeyName;
+
+                            additionalDataAttributes += "data-record-tsigkeyname=\"" + htmlEncode(records[i].rData.tsigKeyName) + "\" ";
+                        } else {
+                            additionalDataAttributes += "data-record-tsigkeyname=\"\" ";
+                        }
+
+                        if (records[i].rData.tsigSharedSecret != null) {
+                            tableHtmlRows += "<br /><b>TSIG Shared Secret:</b> ********";
+
+                            additionalDataAttributes += "data-record-tsigsharedsecret=\"" + htmlEncode(records[i].rData.tsigSharedSecret) + "\" ";
+                        } else {
+                            additionalDataAttributes += "data-record-tsigsharedsecret=\"\" ";
+                        }
+
+                        if (records[i].rData.tsigAlgorithm != null) {
+                            tableHtmlRows += "<br /><b>TSIG Algorithm:</b> " + records[i].rData.tsigAlgorithm;
+
+                            additionalDataAttributes += "data-record-tsigalgorithm=\"" + htmlEncode(records[i].rData.tsigAlgorithm) + "\" ";
+                        } else {
+                            additionalDataAttributes += "data-record-tsigalgorithm=\"\" ";
                         }
 
                         if ((records[i].comments != null) && (records[i].comments.length > 0))
@@ -1135,6 +1227,10 @@ function modifyAddRecordFormByType() {
             $("#txtEditRecordDataSoaExpire").val("");
             $("#txtEditRecordDataSoaMinimum").val("");
             $("#txtEditRecordDataSoaPrimaryAddresses").val("");
+            $("#rdEditRecordDataSoaZoneTransferProtocolTcp").prop("checked", true);
+            $("#txtEditRecordDataSoaTsigKeyName").val("");
+            $("#txtEditRecordDataSoaTsigSharedSecret").val("");
+            $("#optEditRecordDataSoaTsigAlgorithm").val("");
             $("#divEditRecordDataSoa").show();
             break;
 
@@ -1489,8 +1585,9 @@ function showEditRecordModal(objBtn) {
     $("#txtAddEditRecordTtl").val(ttl)
     $("#txtAddEditRecordComments").val(comments);
 
-    var disableEditRecordModalFields = false;
+    var disableSoaRecordModalFields = false;
     var hideSoaRecordPrimaryAddressesField = false;
+    var hideSoaRecordXfrAndTsigFields = false;
 
     var zoneType = $("#titleEditZoneType").text();
     switch (zoneType) {
@@ -1498,6 +1595,7 @@ function showEditRecordModal(objBtn) {
             switch (type) {
                 case "SOA":
                     hideSoaRecordPrimaryAddressesField = true;
+                    hideSoaRecordXfrAndTsigFields = true;
                     break;
             }
             break;
@@ -1505,7 +1603,7 @@ function showEditRecordModal(objBtn) {
         case "Secondary":
             switch (type) {
                 case "SOA":
-                    disableEditRecordModalFields = true;
+                    disableSoaRecordModalFields = true;
                     break;
             }
             break;
@@ -1513,7 +1611,8 @@ function showEditRecordModal(objBtn) {
         case "Stub":
             switch (type) {
                 case "SOA":
-                    disableEditRecordModalFields = true;
+                    disableSoaRecordModalFields = true;
+                    hideSoaRecordXfrAndTsigFields = true;
                     break;
             }
             break;
@@ -1540,13 +1639,6 @@ function showEditRecordModal(objBtn) {
         case "NS":
             $("#txtAddEditRecordDataNsNameServer").val(divData.attr("data-record-value"));
             $("#txtAddEditRecordDataNsGlue").val(divData.attr("data-record-glue").replace(/, /g, "\n"));
-
-            if (disableEditRecordModalFields) {
-                $("#txtAddEditRecordName").prop("disabled", true);
-                $("#txtAddEditRecordTtl").prop("disabled", true);
-
-                $("#txtAddEditRecordDataNsNameServer").prop("disabled", true);
-            }
             break;
 
         case "SOA":
@@ -1559,9 +1651,24 @@ function showEditRecordModal(objBtn) {
             $("#txtEditRecordDataSoaMinimum").val(divData.attr("data-record-minimum"));
             $("#txtEditRecordDataSoaPrimaryAddresses").val(divData.attr("data-record-paddresses").replace(/, /g, "\n"));
 
+            switch (divData.attr("data-record-zonetransferprotocol").toLowerCase()) {
+                case "tls":
+                    $("#rdEditRecordDataSoaZoneTransferProtocolTls").prop("checked", true);
+                    break;
+
+                case "tcp":
+                default:
+                    $("#rdEditRecordDataSoaZoneTransferProtocolTcp").prop("checked", true);
+                    break;
+            }
+
+            $("#txtEditRecordDataSoaTsigKeyName").val(divData.attr("data-record-tsigkeyname"));
+            $("#txtEditRecordDataSoaTsigSharedSecret").val(divData.attr("data-record-tsigsharedsecret"));
+            $("#optEditRecordDataSoaTsigAlgorithm").val(divData.attr("data-record-tsigalgorithm"));
+
             $("#txtAddEditRecordName").prop("disabled", true);
 
-            if (disableEditRecordModalFields) {
+            if (disableSoaRecordModalFields) {
                 $("#txtAddEditRecordTtl").prop("disabled", true);
 
                 $("#txtEditRecordDataSoaPrimaryNameServer").prop("disabled", true);
@@ -1577,6 +1684,18 @@ function showEditRecordModal(objBtn) {
                 $("#divEditRecordDataSoaPrimaryAddresses").hide();
             } else {
                 $("#divEditRecordDataSoaPrimaryAddresses").show();
+            }
+
+            if (hideSoaRecordXfrAndTsigFields) {
+                $("#divEditRecordDataSoaZoneTransferProtocol").hide();
+                $("#divEditRecordDataSoaTsigKeyName").hide();
+                $("#divEditRecordDataSoaTsigSharedSecret").hide();
+                $("#divEditRecordDataSoaTsigAlgorithm").hide();
+            } else {
+                $("#divEditRecordDataSoaZoneTransferProtocol").show();
+                $("#divEditRecordDataSoaTsigKeyName").show();
+                $("#divEditRecordDataSoaTsigSharedSecret").show();
+                $("#divEditRecordDataSoaTsigAlgorithm").show();
             }
 
             break;
@@ -1790,6 +1909,10 @@ function updateRecord() {
             }
 
             var primaryAddresses = cleanTextList($("#txtEditRecordDataSoaPrimaryAddresses").val());
+            var zoneTransferProtocol = $('input[name=rdEditRecordDataSoaZoneTransferProtocol]:checked').val();
+            var tsigKeyName = $("#txtEditRecordDataSoaTsigKeyName").val();
+            var tsigSharedSecret = $("#txtEditRecordDataSoaTsigSharedSecret").val();
+            var tsigAlgorithm = $("#optEditRecordDataSoaTsigAlgorithm").val();
 
             apiUrl += "&primaryNameServer=" + encodeURIComponent(primaryNameServer) +
                 "&responsiblePerson=" + encodeURIComponent(responsiblePerson) +
@@ -1798,7 +1921,12 @@ function updateRecord() {
                 "&retry=" + encodeURIComponent(retry) +
                 "&expire=" + encodeURIComponent(expire) +
                 "&minimum=" + encodeURIComponent(minimum) +
-                "&primaryAddresses=" + encodeURIComponent(primaryAddresses);
+                "&primaryAddresses=" + encodeURIComponent(primaryAddresses) +
+                "&zoneTransferProtocol=" + encodeURIComponent(zoneTransferProtocol) +
+                "&tsigKeyName=" + encodeURIComponent(tsigKeyName) +
+                "&tsigSharedSecret=" + encodeURIComponent(tsigSharedSecret) +
+                "&tsigAlgorithm=" + encodeURIComponent(tsigAlgorithm);
+
             break;
 
         case "MX":
