@@ -36,6 +36,10 @@ namespace DnsServerCore.Dns.ResourceRecords
         string _comments;
         DateTime _deletedOn;
         IReadOnlyList<NameServerAddress> _primaryNameServers;
+        DnsTransportProtocol _zoneTransferProtocol;
+        string _tsigKeyName = string.Empty;
+        string _tsigSharedSecret = string.Empty;
+        string _tsigAlgorithm = string.Empty;
 
         #endregion
 
@@ -57,6 +61,7 @@ namespace DnsServerCore.Dns.ResourceRecords
                 case 3:
                 case 4:
                 case 5:
+                case 6:
                     _disabled = bR.ReadBoolean();
 
                     if ((version < 5) && isSoa)
@@ -127,6 +132,15 @@ namespace DnsServerCore.Dns.ResourceRecords
                         }
                     }
 
+                    if (version >= 6)
+                    {
+                        _zoneTransferProtocol = (DnsTransportProtocol)bR.ReadByte();
+
+                        _tsigKeyName = bR.ReadShortString();
+                        _tsigSharedSecret = bR.ReadShortString();
+                        _tsigAlgorithm = bR.ReadShortString();
+                    }
+
                     break;
 
                 default:
@@ -140,7 +154,7 @@ namespace DnsServerCore.Dns.ResourceRecords
 
         public void WriteTo(BinaryWriter bW)
         {
-            bW.Write((byte)5); //version
+            bW.Write((byte)6); //version
             bW.Write(_disabled);
 
             if (_glueRecords is null)
@@ -173,6 +187,12 @@ namespace DnsServerCore.Dns.ResourceRecords
                 foreach (NameServerAddress nameServer in _primaryNameServers)
                     nameServer.WriteTo(bW);
             }
+
+            bW.Write((byte)_zoneTransferProtocol);
+
+            bW.WriteShortString(_tsigKeyName);
+            bW.WriteShortString(_tsigSharedSecret);
+            bW.WriteShortString(_tsigAlgorithm);
         }
 
         #endregion
@@ -207,6 +227,60 @@ namespace DnsServerCore.Dns.ResourceRecords
         {
             get { return _primaryNameServers; }
             set { _primaryNameServers = value; }
+        }
+
+        public DnsTransportProtocol ZoneTransferProtocol
+        {
+            get { return _zoneTransferProtocol; }
+            set
+            {
+                switch (value)
+                {
+                    case DnsTransportProtocol.Tcp:
+                    case DnsTransportProtocol.Tls:
+                        _zoneTransferProtocol = value;
+                        break;
+
+                    default:
+                        throw new NotSupportedException("Zone transfer protocol not supported: " + value.ToString());
+                }
+            }
+        }
+
+        public string TsigKeyName
+        {
+            get { return _tsigKeyName; }
+            set
+            {
+                if (value is null)
+                    _tsigKeyName = string.Empty;
+                else
+                    _tsigKeyName = value;
+            }
+        }
+
+        public string TsigSharedSecret
+        {
+            get { return _tsigSharedSecret; }
+            set
+            {
+                if (value is null)
+                    _tsigSharedSecret = string.Empty;
+                else
+                    _tsigSharedSecret = value;
+            }
+        }
+
+        public string TsigAlgorithm
+        {
+            get { return _tsigAlgorithm; }
+            set
+            {
+                if (value is null)
+                    _tsigAlgorithm = string.Empty;
+                else
+                    _tsigAlgorithm = value;
+            }
         }
 
         #endregion
