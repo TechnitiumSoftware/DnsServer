@@ -53,6 +53,7 @@ namespace DnsServerCore.Dns.Zones
         readonly IReadOnlyCollection<IPAddress> _notifyNameServers;
         readonly DateTime _expiry;
         readonly IReadOnlyList<DnsResourceRecord> _zoneHistory; //for IXFR support
+        readonly IReadOnlyDictionary<string, string> _tsigKeys;
 
         #endregion
 
@@ -86,6 +87,7 @@ namespace DnsServerCore.Dns.Zones
                 case 1:
                 case 2:
                 case 3:
+                case 4:
                     _name = bR.ReadShortString();
                     _type = (AuthZoneType)bR.ReadByte();
                     _disabled = bR.ReadBoolean();
@@ -155,10 +157,55 @@ namespace DnsServerCore.Dns.Zones
                                 _zoneHistory = zoneHistory;
                             }
 
+                            if (version >= 4)
+                            {
+                                int count = bR.ReadByte();
+                                Dictionary<string, string> tsigKeys = new Dictionary<string, string>(count);
+
+                                for (int i = 0; i < count; i++)
+                                {
+                                    string keyName = bR.ReadShortString();
+                                    string sharedSecret = bR.ReadShortString();
+
+                                    tsigKeys.Add(keyName, sharedSecret);
+                                }
+
+                                _tsigKeys = tsigKeys;
+                            }
                             break;
 
                         case AuthZoneType.Secondary:
                             _expiry = bR.ReadDateTime();
+
+                            if (version >= 4)
+                            {
+                                int count = bR.ReadInt32();
+                                DnsResourceRecord[] zoneHistory = new DnsResourceRecord[count];
+
+                                for (int i = 0; i < count; i++)
+                                {
+                                    zoneHistory[i] = new DnsResourceRecord(bR.BaseStream);
+                                    zoneHistory[i].Tag = new DnsResourceRecordInfo(bR, zoneHistory[i].Type == DnsResourceRecordType.SOA);
+                                }
+
+                                _zoneHistory = zoneHistory;
+                            }
+
+                            if (version >= 4)
+                            {
+                                int count = bR.ReadByte();
+                                Dictionary<string, string> tsigKeys = new Dictionary<string, string>(count);
+
+                                for (int i = 0; i < count; i++)
+                                {
+                                    string keyName = bR.ReadShortString();
+                                    string sharedSecret = bR.ReadShortString();
+
+                                    tsigKeys.Add(keyName, sharedSecret);
+                                }
+
+                                _tsigKeys = tsigKeys;
+                            }
                             break;
 
                         case AuthZoneType.Stub:
@@ -184,11 +231,18 @@ namespace DnsServerCore.Dns.Zones
 
                 if (loadHistory)
                     _zoneHistory = primaryZone.GetHistory();
+
+                _tsigKeys = primaryZone.TsigKeys;
             }
             else if (_zone is SecondaryZone secondaryZone)
             {
                 _type = AuthZoneType.Secondary;
+
+                if (loadHistory)
+                    _zoneHistory = secondaryZone.GetHistory();
+
                 _expiry = secondaryZone.Expiry;
+                _tsigKeys = secondaryZone.TsigKeys;
             }
             else if (_zone is StubZone stubZone)
             {
@@ -304,7 +358,7 @@ namespace DnsServerCore.Dns.Zones
             if (_zone == null)
                 throw new InvalidOperationException();
 
-            bW.Write((byte)3); //version
+            bW.Write((byte)4); //version
 
             bW.WriteShortString(_name);
             bW.Write((byte)_type);
@@ -357,10 +411,60 @@ namespace DnsServerCore.Dns.Zones
                         }
                     }
 
+                    if (_tsigKeys is null)
+                    {
+                        bW.Write((byte)0);
+                    }
+                    else
+                    {
+                        bW.Write(Convert.ToByte(_tsigKeys.Count));
+
+                        foreach (KeyValuePair<string, string> tsigKey in _tsigKeys)
+                        {
+                            bW.WriteShortString(tsigKey.Key);
+                            bW.WriteShortString(tsigKey.Value);
+                        }
+                    }
+
                     break;
 
                 case AuthZoneType.Secondary:
                     bW.Write(_expiry);
+
+                    if (_zoneHistory is null)
+                    {
+                        bW.Write(0);
+                    }
+                    else
+                    {
+                        bW.Write(_zoneHistory.Count);
+
+                        foreach (DnsResourceRecord record in _zoneHistory)
+                        {
+                            record.WriteTo(bW.BaseStream);
+
+                            if (record.Tag is not DnsResourceRecordInfo rrInfo)
+                                rrInfo = new DnsResourceRecordInfo(); //default info
+
+                            rrInfo.WriteTo(bW);
+                        }
+                    }
+
+                    if (_tsigKeys is null)
+                    {
+                        bW.Write((byte)0);
+                    }
+                    else
+                    {
+                        bW.Write(Convert.ToByte(_tsigKeys.Count));
+
+                        foreach (KeyValuePair<string, string> tsigKey in _tsigKeys)
+                        {
+                            bW.WriteShortString(tsigKey.Key);
+                            bW.WriteShortString(tsigKey.Value);
+                        }
+                    }
+
                     break;
 
                 case AuthZoneType.Stub:
@@ -485,6 +589,30 @@ namespace DnsServerCore.Dns.Zones
 
         public IReadOnlyList<DnsResourceRecord> ZoneHistory
         { get { return _zoneHistory; } }
+
+        public IReadOnlyDictionary<string, string> TsigKeys
+        {
+            get { return _tsigKeys; }
+            set
+            {
+                if (_zone is null)
+                    throw new InvalidOperationException();
+
+                switch (_type)
+                {
+                    case AuthZoneType.Primary:
+                        (_zone as PrimaryZone).TsigKeys = value;
+                        break;
+
+                    case AuthZoneType.Secondary:
+                        (_zone as SecondaryZone).TsigKeys = value;
+                        break;
+
+                    default:
+                        throw new InvalidOperationException();
+                }
+            }
+        }
 
         #endregion
     }
