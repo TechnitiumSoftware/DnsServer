@@ -101,7 +101,7 @@ namespace DnsServerCore.Dns.Zones
 
             DnsSOARecord receivedSoa = soaResponse.Answer[0].RDATA as DnsSOARecord;
 
-            DnsSOARecord soa = new DnsSOARecord(receivedSoa.PrimaryNameServer, receivedSoa.ResponsiblePerson, receivedSoa.Serial - 1, receivedSoa.Refresh, receivedSoa.Retry, receivedSoa.Expire, receivedSoa.Minimum);
+            DnsSOARecord soa = new DnsSOARecord(receivedSoa.PrimaryNameServer, receivedSoa.ResponsiblePerson, 0u, receivedSoa.Refresh, receivedSoa.Retry, receivedSoa.Expire, receivedSoa.Minimum);
             DnsResourceRecord[] soaRR = new DnsResourceRecord[] { new DnsResourceRecord(stubZone._name, DnsResourceRecordType.SOA, DnsClass.IN, soa.Refresh, soa) };
 
             if (!string.IsNullOrEmpty(primaryNameServerAddresses))
@@ -315,8 +315,7 @@ namespace DnsServerCore.Dns.Zones
                     }
                 }
 
-                receivedSoaRecord.SetPrimaryNameServers(currentSoaRecord.GetPrimaryNameServers());
-                receivedSoaRecord.SetComments(currentSoaRecord.GetComments());
+                receivedSoaRecord.CopyRecordInfoFrom(currentSoaRecord);
 
                 //sync records
                 _entries[DnsResourceRecordType.NS] = nsRecords;
@@ -388,10 +387,10 @@ namespace DnsServerCore.Dns.Zones
                     if ((records.Count != 1) || !records[0].Name.Equals(_name, StringComparison.OrdinalIgnoreCase))
                         throw new InvalidOperationException("Invalid SOA record.");
 
-                    DnsResourceRecord existingSoaRR = _entries[DnsResourceRecordType.SOA][0];
+                    DnsResourceRecord existingSoaRecord = _entries[DnsResourceRecordType.SOA][0];
+                    DnsResourceRecord newSoaRecord = records[0];
 
-                    existingSoaRR.SetPrimaryNameServers(records[0].GetPrimaryNameServers());
-                    existingSoaRR.SetComments(records[0].GetComments());
+                    existingSoaRecord.CopyRecordInfoFrom(newSoaRecord);
                     break;
 
                 default:
