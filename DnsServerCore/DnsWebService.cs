@@ -67,6 +67,8 @@ namespace DnsServerCore
 
         #region variables
 
+        readonly static RandomNumberGenerator _rng = RandomNumberGenerator.Create();
+
         readonly Version _currentVersion;
         readonly string _appFolder;
         readonly string _configFolder;
@@ -3228,13 +3230,16 @@ namespace DnsServerCore
 
             string direction = request.QueryString["direction"];
 
-            List<string> subZones;
-            List<DnsResourceRecord> records;
+            List<string> subZones = new List<string>();
+            List<DnsResourceRecord> records = new List<DnsResourceRecord>();
 
             while (true)
             {
-                subZones = _dnsServer.CacheZoneManager.ListSubDomains(domain);
-                records = _dnsServer.CacheZoneManager.ListAllRecords(domain);
+                subZones.Clear();
+                records.Clear();
+
+                _dnsServer.CacheZoneManager.ListSubDomains(domain, subZones);
+                _dnsServer.CacheZoneManager.ListAllRecords(domain, records);
 
                 if (records.Count > 0)
                     break;
@@ -3304,13 +3309,16 @@ namespace DnsServerCore
 
             string direction = request.QueryString["direction"];
 
-            List<string> subZones;
-            IReadOnlyList<DnsResourceRecord> records;
+            List<string> subZones = new List<string>();
+            List<DnsResourceRecord> records = new List<DnsResourceRecord>();
 
             while (true)
             {
-                subZones = _dnsServer.AllowedZoneManager.ListSubDomains(domain);
-                records = _dnsServer.AllowedZoneManager.QueryRecords(domain, DnsResourceRecordType.ANY);
+                subZones.Clear();
+                records.Clear();
+
+                _dnsServer.AllowedZoneManager.ListSubDomains(domain, subZones);
+                _dnsServer.AllowedZoneManager.ListAllRecords(domain, records);
 
                 if (records.Count > 0)
                     break;
@@ -3452,13 +3460,16 @@ namespace DnsServerCore
 
             string direction = request.QueryString["direction"];
 
-            List<string> subZones;
-            IReadOnlyList<DnsResourceRecord> records;
+            List<string> subZones = new List<string>();
+            List<DnsResourceRecord> records = new List<DnsResourceRecord>();
 
             while (true)
             {
-                subZones = _dnsServer.BlockedZoneManager.ListSubDomains(domain);
-                records = _dnsServer.BlockedZoneManager.QueryRecords(domain, DnsResourceRecordType.ANY);
+                subZones.Clear();
+                records.Clear();
+
+                _dnsServer.BlockedZoneManager.ListSubDomains(domain, subZones);
+                _dnsServer.BlockedZoneManager.ListAllRecords(domain, records);
 
                 if (records.Count > 0)
                     break;
@@ -3678,11 +3689,31 @@ namespace DnsServerCore
 
                 case AuthZoneType.Secondary:
                     {
-                        string strPrimaryNameServerAddresses = request.QueryString["primaryNameServerAddresses"];
-                        if (string.IsNullOrEmpty(strPrimaryNameServerAddresses))
-                            strPrimaryNameServerAddresses = null;
+                        string primaryNameServerAddresses = request.QueryString["primaryNameServerAddresses"];
+                        if (string.IsNullOrEmpty(primaryNameServerAddresses))
+                            primaryNameServerAddresses = null;
 
-                        if (await _dnsServer.AuthZoneManager.CreateSecondaryZoneAsync(domain, strPrimaryNameServerAddresses) == null)
+                        DnsTransportProtocol zoneTransferProtocol;
+
+                        string strZoneTransferProtocol = request.QueryString["zoneTransferProtocol"];
+                        if (string.IsNullOrEmpty(strZoneTransferProtocol))
+                            zoneTransferProtocol = DnsTransportProtocol.Tcp;
+                        else
+                            zoneTransferProtocol = Enum.Parse<DnsTransportProtocol>(strZoneTransferProtocol, true);
+
+                        string tsigKeyName = request.QueryString["tsigKeyName"];
+                        if (string.IsNullOrEmpty(tsigKeyName))
+                            tsigKeyName = null;
+
+                        string tsigSharedSecret = request.QueryString["tsigSharedSecret"];
+                        if (string.IsNullOrEmpty(tsigSharedSecret))
+                            tsigSharedSecret = null;
+
+                        string tsigAlgorithm = request.QueryString["tsigAlgorithm"];
+                        if (string.IsNullOrEmpty(tsigAlgorithm))
+                            tsigAlgorithm = null;
+
+                        if (await _dnsServer.AuthZoneManager.CreateSecondaryZoneAsync(domain, primaryNameServerAddresses, zoneTransferProtocol, tsigKeyName, tsigSharedSecret, tsigAlgorithm) == null)
                             throw new DnsWebServiceException("Zone already exists: " + domain);
 
                         _log.Write(GetRequestRemoteEndPoint(request), "[" + GetSession(request).Username + "] Authoritative secondary zone was created: " + domain);
@@ -3863,6 +3894,27 @@ namespace DnsServerCore
             }
 
             jsonWriter.WriteEndArray();
+
+            jsonWriter.WritePropertyName("tsigKeys");
+            jsonWriter.WriteStartArray();
+
+            if (zoneInfo.TsigKeys is not null)
+            {
+                foreach (KeyValuePair<string, string> tsigKey in zoneInfo.TsigKeys)
+                {
+                    jsonWriter.WriteStartObject();
+
+                    jsonWriter.WritePropertyName("keyName");
+                    jsonWriter.WriteValue(tsigKey.Key);
+
+                    jsonWriter.WritePropertyName("sharedSecret");
+                    jsonWriter.WriteValue(tsigKey.Value);
+
+                    jsonWriter.WriteEndObject();
+                }
+            }
+
+            jsonWriter.WriteEndArray();
         }
 
         private void SetZoneOptions(HttpListenerRequest request)
@@ -3927,6 +3979,40 @@ namespace DnsServerCore
                         nameServers[i] = IPAddress.Parse(strNameServers[i]);
 
                     zoneInfo.NotifyNameServers = nameServers;
+                }
+            }
+
+            string strTsigKeys = request.QueryString["tsigKeys"];
+            if (!string.IsNullOrEmpty(strTsigKeys))
+            {
+                if (strTsigKeys == "false")
+                {
+                    zoneInfo.TsigKeys = null;
+                }
+                else
+                {
+                    string[] strTsigKeyParts = strTsigKeys.Split('|');
+                    Dictionary<string, string> tsigKeys = new Dictionary<string, string>(strTsigKeyParts.Length);
+
+                    for (int i = 0; i < strTsigKeyParts.Length; i += 2)
+                    {
+                        string keyName = strTsigKeyParts[i + 0].ToLower();
+                        string sharedSecret = strTsigKeyParts[i + 1];
+
+                        if (sharedSecret.Length == 0)
+                        {
+                            byte[] key = new byte[32];
+                            _rng.GetBytes(key);
+
+                            tsigKeys.Add(keyName, Convert.ToBase64String(key));
+                        }
+                        else
+                        {
+                            tsigKeys.Add(keyName, sharedSecret);
+                        }
+                    }
+
+                    zoneInfo.TsigKeys = tsigKeys;
                 }
             }
 
@@ -4377,11 +4463,14 @@ namespace DnsServerCore
                         else
                             jsonWriter.WriteValue(record.TTL);
 
-                        string comments = record.GetComments();
-                        if (!string.IsNullOrEmpty(comments))
+                        if (authoritativeZoneRecords)
                         {
-                            jsonWriter.WritePropertyName("comments");
-                            jsonWriter.WriteValue(comments);
+                            string comments = record.GetComments();
+                            if (!string.IsNullOrEmpty(comments))
+                            {
+                                jsonWriter.WritePropertyName("comments");
+                                jsonWriter.WriteValue(comments);
+                            }
                         }
 
                         jsonWriter.WritePropertyName("rData");
@@ -4459,21 +4548,50 @@ namespace DnsServerCore
                                         jsonWriter.WriteValue(record.RDATA.ToString());
                                     }
 
-                                    IReadOnlyList<NameServerAddress> primaryNameServers = record.GetPrimaryNameServers();
-                                    if (primaryNameServers.Count > 0)
+                                    if (authoritativeZoneRecords)
                                     {
-                                        string primaryAddresses = null;
-
-                                        foreach (NameServerAddress primaryNameServer in primaryNameServers)
+                                        IReadOnlyList<NameServerAddress> primaryNameServers = record.GetPrimaryNameServers();
+                                        if (primaryNameServers.Count > 0)
                                         {
-                                            if (primaryAddresses == null)
-                                                primaryAddresses = primaryNameServer.OriginalAddress;
-                                            else
-                                                primaryAddresses = primaryAddresses + ", " + primaryNameServer.OriginalAddress;
+                                            string primaryAddresses = null;
+
+                                            foreach (NameServerAddress primaryNameServer in primaryNameServers)
+                                            {
+                                                if (primaryAddresses == null)
+                                                    primaryAddresses = primaryNameServer.OriginalAddress;
+                                                else
+                                                    primaryAddresses = primaryAddresses + ", " + primaryNameServer.OriginalAddress;
+                                            }
+
+                                            jsonWriter.WritePropertyName("primaryAddresses");
+                                            jsonWriter.WriteValue(primaryAddresses);
                                         }
 
-                                        jsonWriter.WritePropertyName("primaryAddresses");
-                                        jsonWriter.WriteValue(primaryAddresses);
+                                        DnsResourceRecordInfo recordInfo = record.GetRecordInfo();
+
+                                        if (recordInfo.ZoneTransferProtocol != DnsTransportProtocol.Udp)
+                                        {
+                                            jsonWriter.WritePropertyName("zoneTransferProtocol");
+                                            jsonWriter.WriteValue(recordInfo.ZoneTransferProtocol.ToString());
+                                        }
+
+                                        if (!string.IsNullOrEmpty(recordInfo.TsigKeyName))
+                                        {
+                                            jsonWriter.WritePropertyName("tsigKeyName");
+                                            jsonWriter.WriteValue(recordInfo.TsigKeyName);
+                                        }
+
+                                        if (!string.IsNullOrEmpty(recordInfo.TsigSharedSecret))
+                                        {
+                                            jsonWriter.WritePropertyName("tsigSharedSecret");
+                                            jsonWriter.WriteValue(recordInfo.TsigSharedSecret);
+                                        }
+
+                                        if (!string.IsNullOrEmpty(recordInfo.TsigAlgorithm))
+                                        {
+                                            jsonWriter.WritePropertyName("tsigAlgorithm");
+                                            jsonWriter.WriteValue(recordInfo.TsigAlgorithm);
+                                        }
                                     }
                                 }
                                 break;
@@ -5098,16 +5216,46 @@ namespace DnsServerCore
                         if (string.IsNullOrEmpty(minimum))
                             throw new DnsWebServiceException("Parameter 'minimum' missing.");
 
-                        DnsResourceRecord soaRecord = new DnsResourceRecord(domain, type, DnsClass.IN, ttl, new DnsSOARecord(primaryNameServer, responsiblePerson, uint.Parse(serial), uint.Parse(refresh), uint.Parse(retry), uint.Parse(expire), uint.Parse(minimum)));
+                        DnsResourceRecord newSoaRecord = new DnsResourceRecord(domain, type, DnsClass.IN, ttl, new DnsSOARecord(primaryNameServer, responsiblePerson, uint.Parse(serial), uint.Parse(refresh), uint.Parse(retry), uint.Parse(expire), uint.Parse(minimum)));
 
-                        string primaryAddresses = request.QueryString["primaryAddresses"];
-                        if (!string.IsNullOrEmpty(primaryAddresses))
-                            soaRecord.SetPrimaryNameServers(primaryAddresses);
+                        switch (zoneInfo.Type)
+                        {
+                            case AuthZoneType.Secondary:
+                            case AuthZoneType.Stub:
+                                string primaryAddresses = request.QueryString["primaryAddresses"];
+                                if (!string.IsNullOrEmpty(primaryAddresses))
+                                    newSoaRecord.SetPrimaryNameServers(primaryAddresses);
+
+                                break;
+                        }
+
+                        if (zoneInfo.Type == AuthZoneType.Secondary)
+                        {
+                            DnsResourceRecordInfo recordInfo = newSoaRecord.GetRecordInfo();
+
+                            string zoneTransferProtocol = request.QueryString["zoneTransferProtocol"];
+                            if (string.IsNullOrEmpty(zoneTransferProtocol))
+                                recordInfo.ZoneTransferProtocol = DnsTransportProtocol.Tcp;
+                            else
+                                recordInfo.ZoneTransferProtocol = Enum.Parse<DnsTransportProtocol>(zoneTransferProtocol, true);
+
+                            string tsigKeyName = request.QueryString["tsigKeyName"];
+                            if (!string.IsNullOrEmpty(tsigKeyName))
+                                recordInfo.TsigKeyName = tsigKeyName;
+
+                            string tsigSharedSecret = request.QueryString["tsigSharedSecret"];
+                            if (!string.IsNullOrEmpty(tsigSharedSecret))
+                                recordInfo.TsigSharedSecret = tsigSharedSecret;
+
+                            string tsigAlgorithm = request.QueryString["tsigAlgorithm"];
+                            if (!string.IsNullOrEmpty(tsigAlgorithm))
+                                recordInfo.TsigAlgorithm = tsigAlgorithm;
+                        }
 
                         if (!string.IsNullOrEmpty(comments))
-                            soaRecord.SetComments(comments);
+                            newSoaRecord.SetComments(comments);
 
-                        _dnsServer.AuthZoneManager.SetRecord(soaRecord);
+                        _dnsServer.AuthZoneManager.SetRecord(newSoaRecord);
                     }
                     break;
 
@@ -5786,7 +5934,7 @@ namespace DnsServerCore
             }
             else
             {
-                if (type == DnsResourceRecordType.AXFR)
+                if ((type == DnsResourceRecordType.AXFR) && (protocol == DnsTransportProtocol.Udp))
                     protocol = DnsTransportProtocol.Tcp;
 
                 NameServerAddress nameServer;
@@ -5842,6 +5990,9 @@ namespace DnsServerCore
                 }
 
                 dnsResponse = await new DnsClient(nameServer) { Proxy = proxy, PreferIPv6 = preferIPv6, RandomizeName = randomizeName, Retries = RETRIES, Timeout = TIMEOUT }.ResolveAsync(domain, type);
+
+                if (type == DnsResourceRecordType.AXFR)
+                    dnsResponse = dnsResponse.Join();
             }
 
             if (importRecords)
