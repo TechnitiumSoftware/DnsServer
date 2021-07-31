@@ -687,9 +687,9 @@ namespace DnsServerCore.Dns.ZoneManagers
             return null;
         }
 
-        public async Task<AuthZoneInfo> CreateSecondaryZoneAsync(string domain, string primaryNameServerAddresses = null, string tsigKeyName = null, string tsigSharedSecret = null, string tsigAlgorithm = null)
+        public async Task<AuthZoneInfo> CreateSecondaryZoneAsync(string domain, string primaryNameServerAddresses = null, DnsTransportProtocol zoneTransferProtocol = DnsTransportProtocol.Tcp, string tsigKeyName = null, string tsigSharedSecret = null, string tsigAlgorithm = null)
         {
-            SecondaryZone authZone = await SecondaryZone.CreateAsync(_dnsServer, domain, primaryNameServerAddresses, tsigKeyName, tsigSharedSecret, tsigAlgorithm);
+            SecondaryZone authZone = await SecondaryZone.CreateAsync(_dnsServer, domain, primaryNameServerAddresses, zoneTransferProtocol, tsigKeyName, tsigSharedSecret, tsigAlgorithm);
 
             if (_root.TryAdd(authZone))
             {
