@@ -409,12 +409,11 @@ namespace DnsServerCore.Dns.Zones
 
                         if (this is SecondaryZone)
                         {
-                            //copy existing SOA record's glue addresses and comments to new SOA record
+                            //copy existing SOA record's info to new SOA record
                             DnsResourceRecord existingSoaRecord = _entries[DnsResourceRecordType.SOA][0];
                             DnsResourceRecord newSoaRecord = newEntry.Value[0];
 
-                            newSoaRecord.SetPrimaryNameServers(existingSoaRecord.GetPrimaryNameServers());
-                            newSoaRecord.SetComments(existingSoaRecord.GetComments());
+                            newSoaRecord.CopyRecordInfoFrom(existingSoaRecord);
                         }
                     }
 
