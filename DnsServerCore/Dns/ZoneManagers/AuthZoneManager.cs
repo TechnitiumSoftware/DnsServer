@@ -687,9 +687,9 @@ namespace DnsServerCore.Dns.ZoneManagers
             return null;
         }
 
-        public async Task<AuthZoneInfo> CreateSecondaryZoneAsync(string domain, string primaryNameServerAddresses = null)
+        public async Task<AuthZoneInfo> CreateSecondaryZoneAsync(string domain, string primaryNameServerAddresses = null, string tsigKeyName = null, string tsigSharedSecret = null, string tsigAlgorithm = null)
         {
-            SecondaryZone authZone = await SecondaryZone.CreateAsync(_dnsServer, domain, primaryNameServerAddresses);
+            SecondaryZone authZone = await SecondaryZone.CreateAsync(_dnsServer, domain, primaryNameServerAddresses, tsigKeyName, tsigSharedSecret, tsigAlgorithm);
 
             if (_root.TryAdd(authZone))
             {
@@ -766,19 +766,19 @@ namespace DnsServerCore.Dns.ZoneManagers
             return false;
         }
 
-        public AuthZoneInfo GetAuthZoneInfo(string domain)
+        public AuthZoneInfo GetAuthZoneInfo(string domain, bool loadHistory = false)
         {
             _ = _root.FindZone(domain, out _, out _, out AuthZone authority, out _);
             if (authority == null)
                 return null;
 
-            return new AuthZoneInfo(authority);
+            return new AuthZoneInfo(authority, loadHistory);
         }
 
         public void ListAllRecords(string domain, List<DnsResourceRecord> records)
         {
             foreach (AuthZone zone in _root.GetZoneWithSubDomainZones(domain))
-                records.AddRange(zone.ListAllRecords());
+                zone.ListAllRecords(records);
         }
 
         public IReadOnlyList<DnsResourceRecord> GetRecords(string domain, DnsResourceRecordType type)
@@ -799,46 +799,50 @@ namespace DnsServerCore.Dns.ZoneManagers
 
         public IReadOnlyList<DnsResourceRecord> QueryZoneTransferRecords(string domain)
         {
-            List<AuthZone> zones = _root.GetZoneWithSubDomainZones(domain);
-            if (zones.Count == 0)
-                throw new InvalidOperationException();
+            AuthZoneInfo authZone = GetAuthZoneInfo(domain, false);
+            if (authZone is null)
+                throw new InvalidOperationException("Zone was not found: " + domain);
 
             //only primary and secondary zones support zone transfer
-            DnsResourceRecord soaRecord = zones[0].GetRecords(DnsResourceRecordType.SOA)[0];
+            IReadOnlyList<DnsResourceRecord> soaRecords = authZone.GetRecords(DnsResourceRecordType.SOA);
+            if (soaRecords.Count != 1)
+                throw new InvalidOperationException("Zone must be a primary or secondary zone.");
 
-            List<DnsResourceRecord> xfrRecords = new List<DnsResourceRecord>();
+            DnsResourceRecord soaRecord = soaRecords[0];
+
+            List<DnsResourceRecord> records = new List<DnsResourceRecord>();
+            ListAllRecords(domain, records);
+
+            List<DnsResourceRecord> xfrRecords = new List<DnsResourceRecord>(records.Count + 1);
 
             //start message
             xfrRecords.Add(soaRecord);
 
-            foreach (Zone zone in zones)
+            foreach (DnsResourceRecord record in records)
             {
-                foreach (DnsResourceRecord record in zone.ListAllRecords())
+                if (record.IsDisabled())
+                    continue;
+
+                switch (record.Type)
                 {
-                    if (record.IsDisabled())
-                        continue;
+                    case DnsResourceRecordType.SOA:
+                        break; //skip record
 
-                    switch (record.Type)
-                    {
-                        case DnsResourceRecordType.SOA:
-                            break; //skip record
+                    case DnsResourceRecordType.NS:
+                        xfrRecords.Add(record);
 
-                        case DnsResourceRecordType.NS:
+                        foreach (DnsResourceRecord glueRecord in record.GetGlueRecords())
+                        {
+                            if (!xfrRecords.Contains(glueRecord))
+                                xfrRecords.Add(glueRecord);
+                        }
+                        break;
+
+                    default:
+                        if (!xfrRecords.Contains(record))
                             xfrRecords.Add(record);
 
-                            foreach (DnsResourceRecord glueRecord in record.GetGlueRecords())
-                            {
-                                if (!xfrRecords.Contains(glueRecord))
-                                    xfrRecords.Add(glueRecord);
-                            }
-                            break;
-
-                        default:
-                            if (!xfrRecords.Contains(record))
-                                xfrRecords.Add(record);
-
-                            break;
-                    }
+                        break;
                 }
             }
 
@@ -850,12 +854,16 @@ namespace DnsServerCore.Dns.ZoneManagers
 
         public IReadOnlyList<DnsResourceRecord> QueryIncrementalZoneTransferRecords(string domain, DnsResourceRecord clientSoaRecord)
         {
-            List<AuthZone> zones = _root.GetZoneWithSubDomainZones(domain);
-            if (zones.Count == 0)
-                throw new InvalidOperationException();
+            AuthZoneInfo authZone = GetAuthZoneInfo(domain, true);
+            if (authZone is null)
+                throw new InvalidOperationException("Zone was not found: " + domain);
 
             //only primary and secondary zones support zone transfer
-            DnsResourceRecord currentSoaRecord = zones[0].GetRecords(DnsResourceRecordType.SOA)[0];
+            IReadOnlyList<DnsResourceRecord> soaRecords = authZone.GetRecords(DnsResourceRecordType.SOA);
+            if (soaRecords.Count != 1)
+                throw new InvalidOperationException("Zone must be a primary or secondary zone.");
+
+            DnsResourceRecord currentSoaRecord = soaRecords[0];
             uint clientSerial = (clientSoaRecord.RDATA as DnsSOARecord).Serial;
 
             if (clientSerial == (currentSoaRecord.RDATA as DnsSOARecord).Serial)
@@ -865,14 +873,7 @@ namespace DnsServerCore.Dns.ZoneManagers
             }
 
             //find history record start from client serial
-            IReadOnlyList<DnsResourceRecord> zoneHistory;
-
-            if (zones[0] is PrimaryZone primaryZone)
-                zoneHistory = primaryZone.GetHistory();
-            else if (zones[0] is SecondaryZone secondaryZone)
-                zoneHistory = secondaryZone.GetHistory();
-            else
-                throw new InvalidOperationException();
+            IReadOnlyList<DnsResourceRecord> zoneHistory = authZone.ZoneHistory;
 
             int index = 0;
             while (index < zoneHistory.Count)
@@ -1180,8 +1181,7 @@ namespace DnsServerCore.Dns.ZoneManagers
                 {
                     AuthZone zone = GetOrAddSubDomainZone(domain);
 
-                    addedSoaRecord.SetPrimaryNameServers(currentSoaRecord.GetPrimaryNameServers());
-                    addedSoaRecord.SetComments(currentSoaRecord.GetComments());
+                    addedSoaRecord.CopyRecordInfoFrom(currentSoaRecord);
 
                     zone.LoadRecords(DnsResourceRecordType.SOA, new DnsResourceRecord[] { addedSoaRecord });
                 }
@@ -1391,9 +1391,9 @@ namespace DnsServerCore.Dns.ZoneManagers
             return zones;
         }
 
-        public List<string> ListSubDomains(string domain)
+        public void ListSubDomains(string domain, List<string> subDomains)
         {
-            return _root.ListSubDomains(domain);
+            _root.ListSubDomains(domain, subDomains);
         }
 
         public DnsDatagram QueryClosestDelegation(DnsDatagram request)
@@ -1726,9 +1726,9 @@ namespace DnsServerCore.Dns.ZoneManagers
 
         public void WriteZoneTo(string domain, Stream s)
         {
-            List<AuthZone> zones = _root.GetZoneWithSubDomainZones(domain);
-            if (zones.Count == 0)
-                throw new DnsServerException("Zone was not found: " + domain);
+            AuthZoneInfo zoneInfo = GetAuthZoneInfo(domain, true);
+            if (zoneInfo is null)
+                throw new InvalidOperationException("Zone was not found: " + domain);
 
             //serialize zone
             BinaryWriter bW = new BinaryWriter(s);
@@ -1737,8 +1737,6 @@ namespace DnsServerCore.Dns.ZoneManagers
             bW.Write((byte)4); //version
 
             //write zone info
-            AuthZoneInfo zoneInfo = new AuthZoneInfo(zones[0], true);
-
             if (zoneInfo.Internal)
                 throw new InvalidOperationException("Cannot save zones marked as internal.");
 
@@ -1746,9 +1744,7 @@ namespace DnsServerCore.Dns.ZoneManagers
 
             //write all zone records
             List<DnsResourceRecord> records = new List<DnsResourceRecord>();
-
-            foreach (AuthZone zone in zones)
-                records.AddRange(zone.ListAllRecords());
+            ListAllRecords(domain, records);
 
             bW.Write(records.Count);
 
