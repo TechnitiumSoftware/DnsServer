@@ -516,12 +516,10 @@ namespace DnsServerCore.Dns.Zones
             return zones;
         }
 
-        public List<string> ListSubDomains(string domain)
+        public void ListSubDomains(string domain, List<string> subDomains)
         {
             if (domain is null)
                 throw new ArgumentNullException(nameof(domain));
-
-            List<string> subDomains = new List<string>();
 
             byte[] bKey = ConvertToByteKey(domain);
 
@@ -555,8 +553,6 @@ namespace DnsServerCore.Dns.Zones
                 current = GetNextChildZoneNode(current, closestNode.Depth);
             }
             while (current is not null);
-
-            return subDomains;
         }
 
         public T FindZone(string domain, out T closest, out T delegation, out T authority, out bool hasSubDomains)
