@@ -36,6 +36,7 @@ namespace DnsServerCore.Dns.Zones
         readonly DnsServer _dnsServer;
 
         readonly List<DnsResourceRecord> _history; //for IXFR support
+        IReadOnlyDictionary<string, string> _tsigKeys;
 
         readonly Timer _notifyTimer;
         bool _notifyTimerTriggered;
@@ -53,6 +54,8 @@ namespace DnsServerCore.Dns.Zones
         const int REFRESH_SOA_TIMEOUT = 10000;
         const int REFRESH_XFR_TIMEOUT = 120000;
         const int REFRESH_RETRIES = 5;
+
+        const int REFRESH_TSIG_FUDGE = 300;
 
         DateTime _expiry;
         bool _isExpired;
@@ -72,6 +75,8 @@ namespace DnsServerCore.Dns.Zones
                 _history = new List<DnsResourceRecord>();
             else
                 _history = new List<DnsResourceRecord>(zoneInfo.ZoneHistory);
+
+            _tsigKeys = zoneInfo.TsigKeys;
 
             _expiry = zoneInfo.Expiry;
 
@@ -100,7 +105,7 @@ namespace DnsServerCore.Dns.Zones
 
         #region static
 
-        public static async Task<SecondaryZone> CreateAsync(DnsServer dnsServer, string name, string primaryNameServerAddresses = null)
+        public static async Task<SecondaryZone> CreateAsync(DnsServer dnsServer, string name, string primaryNameServerAddresses = null, string tsigKeyName = null, string tsigSharedSecret = null, string tsigAlgorithm = null)
         {
             SecondaryZone secondaryZone = new SecondaryZone(dnsServer, name);
 
@@ -126,11 +131,20 @@ namespace DnsServerCore.Dns.Zones
 
             DnsSOARecord receivedSoa = soaResponse.Answer[0].RDATA as DnsSOARecord;
 
-            DnsSOARecord soa = new DnsSOARecord(receivedSoa.PrimaryNameServer, receivedSoa.ResponsiblePerson, receivedSoa.Serial - 1, receivedSoa.Refresh, receivedSoa.Retry, receivedSoa.Expire, receivedSoa.Minimum);
+            DnsSOARecord soa = new DnsSOARecord(receivedSoa.PrimaryNameServer, receivedSoa.ResponsiblePerson, 0u, receivedSoa.Refresh, receivedSoa.Retry, receivedSoa.Expire, receivedSoa.Minimum);
             DnsResourceRecord[] soaRR = new DnsResourceRecord[] { new DnsResourceRecord(secondaryZone._name, DnsResourceRecordType.SOA, DnsClass.IN, soa.Refresh, soa) };
 
             if (!string.IsNullOrEmpty(primaryNameServerAddresses))
                 soaRR[0].SetPrimaryNameServers(primaryNameServerAddresses);
+
+            if (!string.IsNullOrEmpty(tsigKeyName))
+            {
+                DnsResourceRecordInfo recordInfo = soaRR[0].GetRecordInfo();
+
+                recordInfo.TsigKeyName = tsigKeyName;
+                recordInfo.TsigSharedSecret = tsigSharedSecret;
+                recordInfo.TsigAlgorithm = tsigAlgorithm;
+            }
 
             secondaryZone._entries[DnsResourceRecordType.SOA] = soaRR;
 
@@ -287,6 +301,9 @@ namespace DnsServerCore.Dns.Zones
                 //get primary name server addresses
                 IReadOnlyList<NameServerAddress> primaryNameServers = await GetPrimaryNameServerAddressesAsync(_dnsServer);
 
+                DnsResourceRecord currentSoaRecord = _entries[DnsResourceRecordType.SOA][0];
+                DnsSOARecord currentSoa = currentSoaRecord.RDATA as DnsSOARecord;
+
                 if (primaryNameServers.Count == 0)
                 {
                     LogManager log = _dnsServer.LogManager;
@@ -294,13 +311,14 @@ namespace DnsServerCore.Dns.Zones
                         log.Write("DNS Server could not find primary name server IP addresses for secondary zone: " + _name);
 
                     //set timer for retry
-                    DnsSOARecord soa1 = _entries[DnsResourceRecordType.SOA][0].RDATA as DnsSOARecord;
-                    ResetRefreshTimer(soa1.Retry * 1000);
+                    ResetRefreshTimer(currentSoa.Retry * 1000);
                     return;
                 }
 
+                DnsResourceRecordInfo recordInfo = currentSoaRecord.GetRecordInfo();
+
                 //refresh zone
-                if (await RefreshZoneAsync(primaryNameServers))
+                if (await RefreshZoneAsync(primaryNameServers, recordInfo.TsigKeyName, recordInfo.TsigSharedSecret, recordInfo.TsigAlgorithm))
                 {
                     //zone refreshed; set timer for refresh
                     DnsSOARecord latestSoa = _entries[DnsResourceRecordType.SOA][0].RDATA as DnsSOARecord;
@@ -342,7 +360,7 @@ namespace DnsServerCore.Dns.Zones
             }
         }
 
-        private async Task<bool> RefreshZoneAsync(IReadOnlyList<NameServerAddress> primaryNameServers)
+        private async Task<bool> RefreshZoneAsync(IReadOnlyList<NameServerAddress> primaryNameServers, string tsigKeyName, string tsigSharedSecret, string tsigAlgorithm)
         {
             try
             {
@@ -431,6 +449,16 @@ namespace DnsServerCore.Dns.Zones
                     }
 
                     DnsDatagram xfrRequest = new DnsDatagram(0, false, DnsOpcode.StandardQuery, false, false, false, false, false, false, DnsResponseCode.NoError, new DnsQuestionRecord[] { xfrQuestion }, null, xfrAuthority);
+                    DnsDatagram signedXfrRequest = null;
+
+                    if (!string.IsNullOrEmpty(tsigKeyName) && !string.IsNullOrEmpty(tsigSharedSecret) && !string.IsNullOrEmpty(tsigAlgorithm))
+                    {
+                        xfrRequest.SetRandomIdentifier(); //set random ID before TSIG signing
+
+                        signedXfrRequest = xfrRequest.SignRequest(tsigKeyName, tsigSharedSecret, tsigAlgorithm, REFRESH_TSIG_FUDGE);
+                        xfrRequest = signedXfrRequest;
+                    }
+
                     DnsDatagram xfrResponse = await client.ResolveAsync(xfrRequest);
 
                     if (doIXFR && (xfrResponse.RCODE == DnsResponseCode.NotImplemented))
@@ -443,7 +471,7 @@ namespace DnsServerCore.Dns.Zones
                     {
                         LogManager log = _dnsServer.LogManager;
                         if (log != null)
-                            log.Write("DNS Server received RCODE=" + xfrResponse.RCODE.ToString() + " for '" + _name + "' secondary zone transfer from: " + xfrResponse.Metadata.NameServerAddress.ToString());
+                            log.Write("DNS Server received a zone transfer response (RCODE=" + xfrResponse.RCODE.ToString() + (signedXfrRequest is null ? "" : ", TSIG Error=" + xfrResponse.TsigError) + ") for '" + _name + "' secondary zone from: " + xfrResponse.Metadata.NameServerAddress.ToString());
 
                         return false;
                     }
@@ -466,8 +494,26 @@ namespace DnsServerCore.Dns.Zones
                         return false;
                     }
 
+                    if (signedXfrRequest is not null)
+                    {
+                        if (xfrResponse.VerifySignedResponse(signedXfrRequest, tsigKeyName, tsigSharedSecret, out DnsDatagram unsignedResponse, out DnsResponseCode rCode, out DnsTsigError error))
+                        {
+                            xfrResponse = unsignedResponse;
+                        }
+                        else
+                        {
+                            LogManager log = _dnsServer.LogManager;
+                            if (log != null)
+                                log.Write("DNS Server received response that failed verification (Client RCODE=" + rCode.ToString() + ", Client TSIG Error=" + error.ToString() + ") for zone transfer query for '" + _name + "' secondary zone from: " + xfrResponse.Metadata.NameServerAddress.ToString());
+
+                            return false;
+                        }
+                    }
+
                     if (_resync || currentSoa.IsZoneUpdateAvailable(xfrSoa))
                     {
+                        xfrResponse = xfrResponse.Join(); //join multi message response
+
                         if (doIXFR)
                         {
                             IReadOnlyList<DnsResourceRecord> historyRecords = _dnsServer.AuthZoneManager.SyncIncrementalZoneTransferRecords(_name, xfrResponse.Answer);
@@ -596,8 +642,7 @@ namespace DnsServerCore.Dns.Zones
                     DnsResourceRecord existingSoaRecord = _entries[DnsResourceRecordType.SOA][0];
                     DnsResourceRecord newSoaRecord = records[0];
 
-                    existingSoaRecord.SetPrimaryNameServers(newSoaRecord.GetPrimaryNameServers());
-                    existingSoaRecord.SetComments(newSoaRecord.GetComments());
+                    existingSoaRecord.CopyRecordInfoFrom(newSoaRecord);
                     break;
 
                 default:
@@ -663,6 +708,12 @@ namespace DnsServerCore.Dns.Zones
         public override bool IsActive
         {
             get { return !_disabled && !_isExpired; }
+        }
+
+        public IReadOnlyDictionary<string, string> TsigKeys
+        {
+            get { return _tsigKeys; }
+            set { _tsigKeys = value; }
         }
 
         #endregion
