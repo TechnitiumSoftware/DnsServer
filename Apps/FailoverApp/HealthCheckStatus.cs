@@ -23,18 +23,41 @@ namespace Failover
 {
     class HealthCheckStatus
     {
-        public static readonly HealthCheckStatus Success = new HealthCheckStatus(true, null);
-        public static readonly HealthCheckStatus NotSupported = new HealthCheckStatus(false, "Not supported.");
-        public static readonly HealthCheckStatus FailedToResolve = new HealthCheckStatus(false, "Failed to resolve address.");
+        #region variables
 
         public readonly DateTime DateTime = DateTime.UtcNow;
         public readonly bool IsHealthy;
         public readonly string FailureReason;
+
+        #endregion
+
+        #region constructor
 
         public HealthCheckStatus(bool isHealthy, string failureReason)
         {
             IsHealthy = isHealthy;
             FailureReason = failureReason;
         }
+
+        #endregion
+
+        #region static
+
+        public static HealthCheckStatus Success()
+        {
+            return new HealthCheckStatus(true, null);
+        }
+
+        public static HealthCheckStatus NotSupported()
+        {
+            return new HealthCheckStatus(false, "Not supported.");
+        }
+
+        public static HealthCheckStatus FailedToResolve()
+        {
+            return new HealthCheckStatus(false, "Failed to resolve address.");
+        }
+
+        #endregion
     }
 }
