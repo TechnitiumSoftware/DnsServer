@@ -207,7 +207,7 @@ namespace Failover
 
 The DNS Failover App was successfully able to perform a health check [" + healthCheck + "] on the address [" + address.ToString() + @"] and found that the address was healthy.
 
-Alert time: " + healthCheckStatus.DateTime.ToLongDateString() + @"
+Alert time: " + healthCheckStatus.DateTime.ToString("R") + @"
 
 Regards,
 DNS Failover App
@@ -221,7 +221,7 @@ DNS Failover App
 The DNS Failover App was successfully able to perform a health check [" + healthCheck + "] on the address [" + address.ToString() + @"] and found that the address failed to respond. 
 
 The failure reason is: " + healthCheckStatus.FailureReason + @"
-Alert time: " + healthCheckStatus.DateTime.ToLongDateString() + @"
+Alert time: " + healthCheckStatus.DateTime.ToString("R") + @"
 
 Regards,
 DNS Failover App
@@ -249,7 +249,7 @@ DNS Failover App
 The DNS Failover App has failed to perform a health check [" + healthCheck + "] on the address [" + address.ToString() + @"]. 
 
 The error description is: " + ex.ToString() + @"
-Alert time: " + DateTime.UtcNow.ToLongDateString() + @"
+Alert time: " + DateTime.UtcNow.ToString("R") + @"
 
 Regards,
 DNS Failover App
@@ -278,7 +278,7 @@ DNS Failover App
 The DNS Failover App was successfully able to perform a health check [" + healthCheck + "] on the domain name [" + domain + @"] and found that the domain name was healthy.
 
 DNS record type: " + type.ToString() + @"
-Alert time: " + healthCheckStatus.DateTime.ToLongDateString() + @"
+Alert time: " + healthCheckStatus.DateTime.ToString("R") + @"
 
 Regards,
 DNS Failover App
@@ -293,7 +293,7 @@ The DNS Failover App was successfully able to perform a health check [" + health
 
 The failure reason is: " + healthCheckStatus.FailureReason + @"
 DNS record type: " + type.ToString() + @"
-Alert time: " + healthCheckStatus.DateTime.ToLongDateString() + @"
+Alert time: " + healthCheckStatus.DateTime.ToString("R") + @"
 
 Regards,
 DNS Failover App
@@ -322,7 +322,7 @@ The DNS Failover App has failed to perform a health check [" + healthCheck + "] 
 
 The error description is: " + ex.ToString() + @"
 DNS record type: " + type.ToString() + @"
-Alert time: " + DateTime.UtcNow.ToLongDateString() + @"
+Alert time: " + DateTime.UtcNow.ToString("R") + @"
 
 Regards,
 DNS Failover App
