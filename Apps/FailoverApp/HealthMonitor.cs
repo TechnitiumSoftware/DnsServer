@@ -46,7 +46,7 @@ namespace Failover
 
         #region constructor
 
-        public HealthMonitor(IDnsServer dnsServer, IPAddress address, HealthCheck healthCheck)
+        public HealthMonitor(IDnsServer dnsServer, IPAddress address, HealthCheck healthCheck, Uri healthCheckUrl)
         {
             _dnsServer = dnsServer;
             _address = address;
@@ -62,7 +62,7 @@ namespace Failover
                     }
                     else
                     {
-                        HealthCheckStatus healthCheckStatus = await _healthCheck.IsHealthyAsync(_address);
+                        HealthCheckStatus healthCheckStatus = await _healthCheck.IsHealthyAsync(_address, healthCheckUrl);
 
                         bool sendAlert = false;
 
@@ -81,6 +81,11 @@ namespace Failover
 
                         if (sendAlert)
                         {
+                            if (healthCheckStatus.IsHealthy)
+                                _dnsServer.WriteLog("[" + healthCheckStatus.DateTime.ToString("R") + "] ALERT! Address [" + _address.ToString() + "] status is HEALTHY based on '" + _healthCheck.Name + "' health check.");
+                            else
+                                _dnsServer.WriteLog("[" + healthCheckStatus.DateTime.ToString("R") + "] ALERT! Address [" + _address.ToString() + "] status is FAILED based on '" + _healthCheck.Name + "' health check. The failure reason is: " + healthCheckStatus.FailureReason);
+
                             EmailAlert emailAlert = _healthCheck.EmailAlert;
                             if (emailAlert is not null)
                                 _ = emailAlert.SendAlertAsync(_address, _healthCheck.Name, healthCheckStatus);
@@ -124,7 +129,7 @@ namespace Failover
             _healthCheckTimer.Change(0, Timeout.Infinite);
         }
 
-        public HealthMonitor(IDnsServer dnsServer, string domain, DnsResourceRecordType type, HealthCheck healthCheck)
+        public HealthMonitor(IDnsServer dnsServer, string domain, DnsResourceRecordType type, HealthCheck healthCheck, Uri healthCheckUrl)
         {
             _dnsServer = dnsServer;
             _domain = domain;
@@ -141,7 +146,7 @@ namespace Failover
                     }
                     else
                     {
-                        HealthCheckStatus healthCheckStatus = await _healthCheck.IsHealthyAsync(_domain, _type);
+                        HealthCheckStatus healthCheckStatus = await _healthCheck.IsHealthyAsync(_domain, _type, healthCheckUrl);
 
                         bool sendAlert = false;
 
@@ -160,6 +165,11 @@ namespace Failover
 
                         if (sendAlert)
                         {
+                            if (healthCheckStatus.IsHealthy)
+                                _dnsServer.WriteLog("[" + healthCheckStatus.DateTime.ToString("R") + "] ALERT! Domain [" + _domain + "] type [" + _type.ToString() + "] status is HEALTHY based on '" + _healthCheck.Name + "' health check.");
+                            else
+                                _dnsServer.WriteLog("[" + healthCheckStatus.DateTime.ToString("R") + "] ALERT! Domain [" + _domain + "] type [" + _type.ToString() + "] status is FAILED based on '" + _healthCheck.Name + "' health check. The failure reason is: " + healthCheckStatus.FailureReason);
+
                             EmailAlert emailAlert = _healthCheck.EmailAlert;
                             if (emailAlert is not null)
                                 _ = emailAlert.SendAlertAsync(_domain, _type, _healthCheck.Name, healthCheckStatus);
