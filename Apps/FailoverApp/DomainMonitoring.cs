@@ -38,14 +38,14 @@ namespace Failover
 
         #region constructor
 
-        public DomainMonitoring(HealthMonitoringService service, string domain, DnsResourceRecordType type, string healthCheck)
+        public DomainMonitoring(HealthMonitoringService service, string domain, DnsResourceRecordType type, string healthCheck, Uri healthCheckUrl)
         {
             _service = service;
             _domain = domain;
             _type = type;
 
             if (_service.HealthChecks.TryGetValue(healthCheck, out HealthCheck existingHealthCheck))
-                _healthMonitors.TryAdd(healthCheck, new HealthMonitor(_service.DnsServer, domain, type, existingHealthCheck));
+                _healthMonitors.TryAdd(GetHealthMonitorKey(healthCheck, healthCheckUrl), new HealthMonitor(_service.DnsServer, domain, type, existingHealthCheck, healthCheckUrl));
         }
 
         #endregion
@@ -78,23 +78,45 @@ namespace Failover
 
         #endregion
 
+        #region private
+
+        private static string GetHealthMonitorKey(string healthCheck, Uri healthCheckUrl)
+        {
+            string healthMonitorKey = healthCheck;
+
+            if (healthCheckUrl is not null)
+                healthMonitorKey += "|" + healthCheckUrl.AbsoluteUri;
+
+            return healthMonitorKey;
+        }
+
+        #endregion
+
         #region public
 
-        public HealthCheckStatus QueryStatus(string healthCheck)
+        public HealthCheckStatus QueryStatus(string healthCheck, Uri healthCheckUrl)
         {
-            if (_healthMonitors.TryGetValue(healthCheck, out HealthMonitor monitor))
+            string healthMonitorKey = GetHealthMonitorKey(healthCheck, healthCheckUrl);
+
+            if (_healthMonitors.TryGetValue(healthMonitorKey, out HealthMonitor monitor))
                 return monitor.HealthCheckStatus;
 
             if (_service.HealthChecks.TryGetValue(healthCheck, out HealthCheck existingHealthCheck))
-                _healthMonitors.TryAdd(healthCheck, new HealthMonitor(_service.DnsServer, _domain, _type, existingHealthCheck));
+                _healthMonitors.TryAdd(healthMonitorKey, new HealthMonitor(_service.DnsServer, _domain, _type, existingHealthCheck, healthCheckUrl));
 
             return null;
         }
 
         public void RemoveHealthMonitor(string healthCheck)
         {
-            if (_healthMonitors.TryRemove(healthCheck, out HealthMonitor removedMonitor))
-                removedMonitor.Dispose();
+            foreach (KeyValuePair<string, HealthMonitor> healthMonitor in _healthMonitors)
+            {
+                if (healthMonitor.Key.StartsWith(healthCheck + "|"))
+                {
+                    if (_healthMonitors.TryRemove(healthMonitor.Key, out HealthMonitor removedMonitor))
+                        removedMonitor.Dispose();
+                }
+            }
         }
 
         public bool IsExpired()
