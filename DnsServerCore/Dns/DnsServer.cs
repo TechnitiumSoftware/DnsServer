@@ -23,7 +23,6 @@ using DnsServerCore.Dns.ZoneManagers;
 using DnsServerCore.Dns.Zones;
 using Newtonsoft.Json;
 using System;
-using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.IO;
 using System.Net;
@@ -95,6 +94,7 @@ namespace DnsServerCore.Dns
         bool _enableDnsOverHttps;
         bool _isDnsOverHttpsEnabled;
         X509Certificate2 _certificate;
+        IReadOnlyDictionary<string, string> _tsigKeys;
 
         readonly AuthZoneManager _authZoneManager;
         readonly AllowedZoneManager _allowedZoneManager;
@@ -116,9 +116,11 @@ namespace DnsServerCore.Dns
         bool _preferIPv6;
         bool _randomizeName;
         bool _qnameMinimization;
-        int _qpmLimit = 0;
+        int _qpmLimitRequests = 0;
+        int _qpmLimitErrors = 0;
         int _qpmLimitSampleMinutes = 5;
-        int _qpmLimitSamplingIntervalInMinutes = 1;
+        int _qpmLimitIPv4PrefixLength = 24;
+        int _qpmLimitIPv6PrefixLength = 56;
         int _forwarderRetries = 3;
         int _resolverRetries = 5;
         int _forwarderTimeout = 4000;
@@ -158,9 +160,9 @@ namespace DnsServerCore.Dns
 
         Timer _qpmLimitSamplingTimer;
         readonly object _qpmLimitSamplingTimerLock = new object();
-        IReadOnlyDictionary<IPAddress, int> _qpmLimitClientStats;
-        IReadOnlyDictionary<IPAddress, int> _qpmLimitRefusedClientStats;
-        readonly ConcurrentDictionary<IPAddress, QpmBlockedAddress> _qpmLimitBlockedAddresses = new ConcurrentDictionary<IPAddress, QpmBlockedAddress>();
+        const int QPM_LIMIT_SAMPLING_TIMER_INTERVAL = 10000;
+        IReadOnlyDictionary<IPAddress, int> _qpmLimitClientSubnetStats;
+        IReadOnlyDictionary<IPAddress, int> _qpmLimitErrorClientSubnetStats;
 
         readonly IndependentTaskScheduler _resolverTaskScheduler = new IndependentTaskScheduler(ThreadPriority.AboveNormal);
         readonly DomainTree<Task<DnsDatagram>> _resolverTasks = new DomainTree<Task<DnsDatagram>>();
@@ -1013,6 +1015,27 @@ namespace DnsServerCore.Dns
 
         private async Task<DnsDatagram> ProcessQueryAsync(DnsDatagram request, IPEndPoint remoteEP, bool isRecursionAllowed, DnsTransportProtocol protocol)
         {
+            if (request.IsSigned)
+            {
+                if (!request.VerifySignedRequest(_tsigKeys, out DnsDatagram unsignedRequest, out DnsDatagram errorResponse))
+                {
+                    LogManager log = _log;
+                    if (log is not null)
+                        log.Write(remoteEP, "DNS Server received a request that failed TSIG signature verification (RCODE: " + errorResponse.RCODE + "; TSIG Error: " + errorResponse.TsigError + ")");
+
+                    errorResponse.Tag = StatsResponseType.Authoritative;
+                    return errorResponse;
+                }
+
+                DnsDatagram unsignedResponse = await ProcessQueryAsync(unsignedRequest, remoteEP, isRecursionAllowed, protocol, request.TsigKeyName);
+                return unsignedResponse.SignResponse(request, _tsigKeys);
+            }
+
+            return await ProcessQueryAsync(request, remoteEP, isRecursionAllowed, protocol, request.TsigKeyName);
+        }
+
+        private async Task<DnsDatagram> ProcessQueryAsync(DnsDatagram request, IPEndPoint remoteEP, bool isRecursionAllowed, DnsTransportProtocol protocol, string tsigAuthenticatedKeyName)
+        {
             if (request.IsResponse)
                 return new DnsDatagram(request.Identifier, true, DnsOpcode.StandardQuery, false, false, request.RecursionDesired, false, false, false, DnsResponseCode.FormatError, request.Question) { Tag = StatsResponseType.Authoritative };
 
@@ -1032,10 +1055,10 @@ namespace DnsServerCore.Dns
                                 if (protocol == DnsTransportProtocol.Udp)
                                     return new DnsDatagram(request.Identifier, true, DnsOpcode.StandardQuery, false, false, request.RecursionDesired, false, false, false, DnsResponseCode.FormatError, request.Question) { Tag = StatsResponseType.Authoritative };
 
-                                return await ProcessZoneTransferQueryAsync(request, remoteEP, protocol);
+                                return await ProcessZoneTransferQueryAsync(request, remoteEP, protocol, tsigAuthenticatedKeyName);
 
                             case DnsResourceRecordType.IXFR:
-                                return await ProcessZoneTransferQueryAsync(request, remoteEP, protocol);
+                                return await ProcessZoneTransferQueryAsync(request, remoteEP, protocol, tsigAuthenticatedKeyName);
 
                             case DnsResourceRecordType.FWD:
                             case DnsResourceRecordType.APP:
@@ -1125,7 +1148,7 @@ namespace DnsServerCore.Dns
             return new DnsDatagram(request.Identifier, true, DnsOpcode.Notify, false, false, request.RecursionDesired, false, false, false, DnsResponseCode.NoError, request.Question) { Tag = StatsResponseType.Authoritative };
         }
 
-        private async Task<DnsDatagram> ProcessZoneTransferQueryAsync(DnsDatagram request, IPEndPoint remoteEP, DnsTransportProtocol protocol)
+        private async Task<DnsDatagram> ProcessZoneTransferQueryAsync(DnsDatagram request, IPEndPoint remoteEP, DnsTransportProtocol protocol, string tsigAuthenticatedKeyName)
         {
             AuthZoneInfo authZoneInfo = _authZoneManager.GetAuthZoneInfo(request.Question[0].Name);
             if ((authZoneInfo is null) || authZoneInfo.Disabled || authZoneInfo.IsExpired)
@@ -1201,32 +1224,15 @@ namespace DnsServerCore.Dns
             if (!isZoneTransferAllowed)
                 return new DnsDatagram(request.Identifier, true, DnsOpcode.StandardQuery, false, false, request.RecursionDesired, false, false, false, DnsResponseCode.Refused, request.Question) { Tag = StatsResponseType.Authoritative };
 
-            IReadOnlyDictionary<string, string> tsigKeys = authZoneInfo.TsigKeys;
-            DnsDatagram signedRequest = null;
-
-            if ((tsigKeys is not null) && (tsigKeys.Count > 0))
+            if ((authZoneInfo.TsigKeyNames is not null) && (authZoneInfo.TsigKeyNames.Count > 0))
             {
-                //TSIG configured
-                signedRequest = request;
-
-                if (!signedRequest.VerifySignedRequest(tsigKeys, out DnsDatagram unsignedRequest, out DnsDatagram errorResponse))
-                {
-                    LogManager log = _log;
-                    if (log is not null)
-                        log.Write(remoteEP, "DNS Server received zone transfer request that failed TSIG signature verification for zone: " + authZoneInfo.Name + "; RCODE: " + errorResponse.RCODE + "; TSIG Error: " + errorResponse.TsigError);
-
-                    errorResponse.Tag = StatsResponseType.Authoritative;
-                    return errorResponse;
-                }
-
-                request = unsignedRequest;
+                if ((tsigAuthenticatedKeyName is null) || !authZoneInfo.TsigKeyNames.ContainsKey(tsigAuthenticatedKeyName.ToLower()))
+                    return new DnsDatagram(request.Identifier, true, DnsOpcode.StandardQuery, false, false, request.RecursionDesired, false, false, false, DnsResponseCode.Refused, request.Question) { Tag = StatsResponseType.Authoritative };
             }
 
-            {
-                LogManager log = _log;
-                if (log is not null)
-                    log.Write(remoteEP, "DNS Server received zone transfer request for zone: " + authZoneInfo.Name);
-            }
+            LogManager log = _log;
+            if (log is not null)
+                log.Write(remoteEP, "DNS Server received zone transfer request for zone: " + authZoneInfo.Name);
 
             IReadOnlyList<DnsResourceRecord> xfrRecords;
 
@@ -1242,22 +1248,10 @@ namespace DnsServerCore.Dns
                 xfrRecords = _authZoneManager.QueryZoneTransferRecords(request.Question[0].Name);
             }
 
-            DnsDatagram response = new DnsDatagram(request.Identifier, true, DnsOpcode.StandardQuery, true, false, request.RecursionDesired, false, false, false, DnsResponseCode.NoError, request.Question, xfrRecords) { Tag = StatsResponseType.Authoritative };
+            DnsDatagram xfrResponse = new DnsDatagram(request.Identifier, true, DnsOpcode.StandardQuery, true, false, request.RecursionDesired, false, false, false, DnsResponseCode.NoError, request.Question, xfrRecords) { Tag = StatsResponseType.Authoritative };
+            xfrResponse = xfrResponse.Split();
 
-            if (signedRequest is not null)
-            {
-                DnsDatagram unsignedResponse;
-
-                if (protocol == DnsTransportProtocol.Tcp)
-                    unsignedResponse = response.Split();
-                else
-                    unsignedResponse = response;
-
-                DnsDatagram signedResponse = unsignedResponse.SignResponse(signedRequest, tsigKeys, DnsTsigError.NoError);
-                response = signedResponse;
-            }
-
-            return response;
+            return xfrResponse;
         }
 
         private async Task<DnsDatagram> ProcessAuthoritativeQueryAsync(DnsDatagram request, IPEndPoint remoteEP, bool isRecursionAllowed, DnsTransportProtocol protocol)
@@ -2453,51 +2447,52 @@ namespace DnsServerCore.Dns
 
         private bool IsQpmLimitCrossed(IPEndPoint remoteEP)
         {
-            if (_qpmLimit > 0)
+            if ((_qpmLimitRequests < 1) && (_qpmLimitErrors < 1))
+                return false;
+
+            IPAddress remoteIP = remoteEP.Address;
+
+            if (IPAddress.IsLoopback(remoteIP))
+                return false;
+
+            IPAddress remoteSubnet;
+
+            switch (remoteIP.AddressFamily)
             {
-                IPAddress remoteIP = remoteEP.Address;
+                case AddressFamily.InterNetwork:
+                    remoteSubnet = remoteIP.GetNetworkAddress(_qpmLimitIPv4PrefixLength);
+                    break;
 
-                if (IPAddress.IsLoopback(remoteIP))
-                    return false;
+                case AddressFamily.InterNetworkV6:
+                    remoteSubnet = remoteIP.GetNetworkAddress(_qpmLimitIPv6PrefixLength);
+                    break;
 
-                if (_qpmLimitBlockedAddresses.ContainsKey(remoteIP))
+                default:
+                    throw new NotSupportedException("AddressFamily not supported.");
+            }
+
+            if ((_qpmLimitErrors > 0) && (_qpmLimitErrorClientSubnetStats is not null) && _qpmLimitErrorClientSubnetStats.TryGetValue(remoteSubnet, out int errorCountPerSample))
+            {
+                int averageErrorCountPerMinute = errorCountPerSample / _qpmLimitSampleMinutes;
+                if (averageErrorCountPerMinute >= _qpmLimitErrors)
                     return true;
+            }
 
-                if ((_qpmLimitClientStats is not null) && _qpmLimitClientStats.TryGetValue(remoteIP, out int countPerSample))
-                {
-                    int averageCountPerMinute = countPerSample / _qpmLimitSampleMinutes;
-                    bool limitCrossed = averageCountPerMinute >= _qpmLimit;
-
-                    if (limitCrossed && (_qpmLimitRefusedClientStats is not null) && _qpmLimitRefusedClientStats.TryGetValue(remoteIP, out int refusedCountPerSample))
-                    {
-                        int averageRefusedCountPerMinute = refusedCountPerSample / _qpmLimitSampleMinutes;
-                        if (averageRefusedCountPerMinute >= _qpmLimit)
-                            _ = _qpmLimitBlockedAddresses.GetOrAdd(remoteIP, GetNewQpmBlockedAddress);
-                    }
-
-                    return limitCrossed;
-                }
+            if ((_qpmLimitRequests > 0) && (_qpmLimitClientSubnetStats is not null) && _qpmLimitClientSubnetStats.TryGetValue(remoteSubnet, out int countPerSample))
+            {
+                int averageCountPerMinute = countPerSample / _qpmLimitSampleMinutes;
+                if (averageCountPerMinute >= _qpmLimitRequests)
+                    return true;
             }
 
             return false;
-        }
-
-        private static QpmBlockedAddress GetNewQpmBlockedAddress<T>(T key)
-        {
-            return new QpmBlockedAddress();
         }
 
         private void QpmLimitSamplingTimerCallback(object state)
         {
             try
             {
-                _stats.GetLatestClientStats(_qpmLimitSampleMinutes, out _qpmLimitClientStats, out _qpmLimitRefusedClientStats);
-
-                foreach (KeyValuePair<IPAddress, QpmBlockedAddress> item in _qpmLimitBlockedAddresses)
-                {
-                    if (item.Value.IsBlockExpired())
-                        _qpmLimitBlockedAddresses.TryRemove(item);
-                }
+                _stats.GetLatestClientSubnetStats(_qpmLimitSampleMinutes, _qpmLimitIPv4PrefixLength, _qpmLimitIPv6PrefixLength, out _qpmLimitClientSubnetStats, out _qpmLimitErrorClientSubnetStats);
             }
             catch (Exception ex)
             {
@@ -2510,23 +2505,22 @@ namespace DnsServerCore.Dns
                 lock (_qpmLimitSamplingTimerLock)
                 {
                     if (_qpmLimitSamplingTimer is not null)
-                        _qpmLimitSamplingTimer.Change(_qpmLimitSamplingIntervalInMinutes * 60 * 1000, Timeout.Infinite);
+                        _qpmLimitSamplingTimer.Change(QPM_LIMIT_SAMPLING_TIMER_INTERVAL, Timeout.Infinite);
                 }
             }
         }
 
         private void ResetQpsLimitTimer()
         {
-            if (_qpmLimit == 0)
+            if ((_qpmLimitRequests < 1) && (_qpmLimitErrors < 1))
             {
                 lock (_qpmLimitSamplingTimerLock)
                 {
                     if (_qpmLimitSamplingTimer is not null)
                         _qpmLimitSamplingTimer.Change(Timeout.Infinite, Timeout.Infinite);
 
-                    _qpmLimitClientStats = null;
-                    _qpmLimitRefusedClientStats = null;
-                    _qpmLimitBlockedAddresses.Clear();
+                    _qpmLimitClientSubnetStats = null;
+                    _qpmLimitErrorClientSubnetStats = null;
                 }
             }
             else if (_state == ServiceState.Running)
@@ -2988,6 +2982,12 @@ namespace DnsServerCore.Dns
             }
         }
 
+        public IReadOnlyDictionary<string, string> TsigKeys
+        {
+            get { return _tsigKeys; }
+            set { _tsigKeys = value; }
+        }
+
         public AuthZoneManager AuthZoneManager
         { get { return _authZoneManager; } }
 
@@ -3083,24 +3083,47 @@ namespace DnsServerCore.Dns
             set { _qnameMinimization = value; }
         }
 
-        public int QpmLimit
+        public int QpmLimitRequests
         {
-            get { return _qpmLimit; }
+            get { return _qpmLimitRequests; }
             set
             {
                 if (value < 0)
-                    throw new ArgumentOutOfRangeException(nameof(QpmLimit), "Value cannot be less than 0.");
+                    throw new ArgumentOutOfRangeException(nameof(QpmLimitRequests), "Value cannot be less than 0.");
 
-                if (_qpmLimit != value)
+                if (_qpmLimitRequests != value)
                 {
-                    if ((_qpmLimit == 0) || (value == 0))
+                    if ((_qpmLimitRequests == 0) || (value == 0))
                     {
-                        _qpmLimit = value;
+                        _qpmLimitRequests = value;
                         ResetQpsLimitTimer();
                     }
                     else
                     {
-                        _qpmLimit = value;
+                        _qpmLimitRequests = value;
+                    }
+                }
+            }
+        }
+
+        public int QpmLimitErrors
+        {
+            get { return _qpmLimitErrors; }
+            set
+            {
+                if (value < 0)
+                    throw new ArgumentOutOfRangeException(nameof(QpmLimitErrors), "Value cannot be less than 0.");
+
+                if (_qpmLimitErrors != value)
+                {
+                    if ((_qpmLimitErrors == 0) || (value == 0))
+                    {
+                        _qpmLimitErrors = value;
+                        ResetQpsLimitTimer();
+                    }
+                    else
+                    {
+                        _qpmLimitErrors = value;
                     }
                 }
             }
@@ -3118,15 +3141,27 @@ namespace DnsServerCore.Dns
             }
         }
 
-        public int QpmLimitSamplingIntervalInMinutes
+        public int QpmLimitIPv4PrefixLength
         {
-            get { return _qpmLimitSamplingIntervalInMinutes; }
+            get { return _qpmLimitIPv4PrefixLength; }
             set
             {
-                if ((value < 1) || (value > 60))
-                    throw new ArgumentOutOfRangeException(nameof(QpmLimitSamplingIntervalInMinutes), "Valid range is between 1 and 60 minutes.");
+                if ((value < 0) || (value > 32))
+                    throw new ArgumentOutOfRangeException(nameof(QpmLimitIPv4PrefixLength), "Valid range is between 0 and 32.");
 
-                _qpmLimitSamplingIntervalInMinutes = value;
+                _qpmLimitIPv4PrefixLength = value;
+            }
+        }
+
+        public int QpmLimitIPv6PrefixLength
+        {
+            get { return _qpmLimitIPv6PrefixLength; }
+            set
+            {
+                if ((value < 0) || (value > 64))
+                    throw new ArgumentOutOfRangeException(nameof(QpmLimitIPv6PrefixLength), "Valid range is between 0 and 64.");
+
+                _qpmLimitIPv6PrefixLength = value;
             }
         }
 
@@ -3332,18 +3367,6 @@ namespace DnsServerCore.Dns
 
             public DnsQuestionRecord SampleQuestion { get; }
             public IReadOnlyList<NameServerAddress> ViaForwarders { get; }
-        }
-
-        class QpmBlockedAddress
-        {
-            const int BLOCK_EXPIRY = 12 * 60 * 60 * 1000;
-
-            readonly DateTime _blockExpiresOn = DateTime.UtcNow.AddMilliseconds(BLOCK_EXPIRY);
-
-            public bool IsBlockExpired()
-            {
-                return DateTime.UtcNow > _blockExpiresOn;
-            }
         }
     }
 }
