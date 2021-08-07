@@ -138,6 +138,30 @@ $(function () {
 
         $("#txtAddEditRecordDataData").val("");
     });
+
+    $("#optZoneOptionsQuickTsigKeyNames").change(function () {
+
+        var selectedOption = $("#optZoneOptionsQuickTsigKeyNames").val();
+
+        switch (selectedOption) {
+            case "blank":
+                break;
+
+            case "none":
+                $("#txtZoneOptionsZoneTransferTsigKeyNames").val("");
+                break;
+
+            default:
+                var existingList = $("#txtZoneOptionsZoneTransferTsigKeyNames").val();
+
+                if (existingList.indexOf(selectedOption) < 0) {
+                    existingList += selectedOption + "\n";
+                    $("#txtZoneOptionsZoneTransferTsigKeyNames").val(existingList);
+                }
+
+                break;
+        }
+    });
 });
 
 function refreshZones(checkDisplay) {
@@ -418,12 +442,28 @@ function showZoneOptions(domain) {
                 $("#txtZoneNotifyNameServers").val(value);
             }
 
-            $("#tableZoneOptionsTsigKeys").html("");
+            {
+                var value = "";
 
-            if (responseJSON.response.tsigKeys != null) {
-                for (var i = 0; i < responseJSON.response.tsigKeys.length; i++) {
-                    addZoneOptionsTsigKeyRow(responseJSON.response.tsigKeys[i].keyName, responseJSON.response.tsigKeys[i].sharedSecret);
+                if (responseJSON.response.zoneTransferTsigKeyNames != null) {
+                    for (var i = 0; i < responseJSON.response.zoneTransferTsigKeyNames.length; i++) {
+                        value += responseJSON.response.zoneTransferTsigKeyNames[i] + "\r\n";
+                    }
                 }
+
+                $("#txtZoneOptionsZoneTransferTsigKeyNames").val(value);
+            }
+
+            {
+                var options = "<option value=\"blank\" selected></option><option value=\"none\">None</option>";
+
+                if (responseJSON.response.availableTsigKeyNames != null) {
+                    for (var i = 0; i < responseJSON.response.availableTsigKeyNames.length; i++) {
+                        options += "<option>" + htmlEncode(responseJSON.response.availableTsigKeyNames[i]) + "</option>";
+                    }
+                }
+
+                $("#optZoneOptionsQuickTsigKeyNames").html(options);
             }
 
             divZoneOptionsLoader.hide();
@@ -464,12 +504,12 @@ function saveZoneOptions() {
     else
         $("#txtZoneNotifyNameServers").val(notifyNameServers.replace(/,/g, "\n"));
 
-    var tsigKeys = serializeTableData($("#tableZoneOptionsTsigKeys"), 2);
-    if (tsigKeys === false)
-        return;
+    var zoneTransferTsigKeyNames = cleanTextList($("#txtZoneOptionsZoneTransferTsigKeyNames").val());
 
-    if (tsigKeys.length === 0)
-        tsigKeys = false;
+    if ((zoneTransferTsigKeyNames.length === 0) || (zoneTransferTsigKeyNames === ","))
+        zoneTransferTsigKeyNames = false;
+    else
+        $("#txtZoneOptionsZoneTransferTsigKeyNames").val(zoneTransferTsigKeyNames.replace(/,/g, "\n"));
 
     var btn = $("#btnSaveZoneOptions");
     btn.button('loading');
@@ -478,7 +518,7 @@ function saveZoneOptions() {
         url: "/api/zone/options/set?token=" + token + "&domain=" + domain
             + "&zoneTransfer=" + zoneTransfer + "&zoneTransferNameServers=" + encodeURIComponent(zoneTransferNameServers)
             + "&notify=" + notify + "&notifyNameServers=" + encodeURIComponent(notifyNameServers)
-            + "&tsigKeys=" + encodeURIComponent(tsigKeys),
+            + "&zoneTransferTsigKeyNames=" + encodeURIComponent(zoneTransferTsigKeyNames),
         success: function (responseJSON) {
             btn.button('reset');
             $("#modalZoneOptions").modal("hide");
@@ -586,7 +626,7 @@ function addZone() {
     var divAddZoneAlert = $("#divAddZoneAlert");
     var domain = $("#txtAddZone").val();
 
-    if ((domain === null) || (domain === "")) {
+    if ((domain == null) || (domain === "")) {
         showAlert("warning", "Missing!", "Please enter a domain name to add zone.", divAddZoneAlert);
         $("#txtAddZone").focus();
         return;
@@ -598,11 +638,39 @@ function addZone() {
 
     switch (type) {
         case "Secondary":
+            var tsigKeyName = $("#txtAddZoneTsigKeyName").val();
+            var tsigSharedSecret = $("#txtAddZoneTsigSharedSecret").val();
+            var tsigAlgorithm = $("#optAddZoneTsigAlgorithm").val();
+
+            var tsigKeyNameEmpty = (tsigKeyName == null) || (tsigKeyName === "");
+            var tsigSharedSecretEmpty = (tsigSharedSecret == null) || (tsigSharedSecret === "");
+            var tsigAlgorithmEmpty = (tsigAlgorithm == null) || (tsigAlgorithm === "");
+
+            if (!tsigKeyNameEmpty || !tsigSharedSecretEmpty || !tsigAlgorithmEmpty) {
+                if (tsigKeyNameEmpty) {
+                    showAlert("warning", "Missing!", "Please enter a TSIG key name to add zone. Clear all TSIG fields to disable TSIG.", divAddZoneAlert);
+                    $("#txtAddZoneTsigKeyName").focus();
+                    return;
+                }
+
+                if (tsigSharedSecretEmpty) {
+                    showAlert("warning", "Missing!", "Please enter a TSIG shared secret to add zone. Clear all TSIG fields to disable TSIG.", divAddZoneAlert);
+                    $("#txtAddZoneTsigSharedSecret").focus();
+                    return;
+                }
+
+                if (tsigAlgorithmEmpty) {
+                    showAlert("warning", "Missing!", "Please select a TSIG algorithm to add zone. Clear all TSIG fields to disable TSIG.", divAddZoneAlert);
+                    $("#optAddZoneTsigAlgorithm").focus();
+                    return;
+                }
+            }
+
             parameters = "&primaryNameServerAddresses=" + encodeURIComponent(cleanTextList($("#txtAddZonePrimaryNameServerAddresses").val()));
             parameters += "&zoneTransferProtocol=" + $('input[name=rdAddZoneZoneTransferProtocol]:checked').val();
-            parameters += "&tsigKeyName=" + encodeURIComponent($("#txtAddZoneTsigKeyName").val());
-            parameters += "&tsigSharedSecret=" + encodeURIComponent($("#txtAddZoneTsigSharedSecret").val());
-            parameters += "&tsigAlgorithm=" + encodeURIComponent($("#optAddZoneTsigAlgorithm").val());
+            parameters += "&tsigKeyName=" + encodeURIComponent(tsigKeyName);
+            parameters += "&tsigSharedSecret=" + encodeURIComponent(tsigSharedSecret);
+            parameters += "&tsigAlgorithm=" + encodeURIComponent(tsigAlgorithm);
             break;
 
         case "Stub":
@@ -612,7 +680,7 @@ function addZone() {
         case "Forwarder":
             var forwarder = $("#txtAddZoneForwarder").val();
 
-            if ((forwarder === null) || (forwarder === "")) {
+            if ((forwarder == null) || (forwarder === "")) {
                 showAlert("warning", "Missing!", "Please enter a forwarder server name to add zone.", divAddZoneAlert);
                 $("#divAddZoneForwarder").focus();
                 return;
@@ -831,7 +899,7 @@ function showEditZone(domain) {
                         }
 
                         if (records[i].rData.zoneTransferProtocol != null) {
-                            tableHtmlRows += "<br /><b>Zone Transfer Protocol:</b> " + records[i].rData.zoneTransferProtocol;
+                            tableHtmlRows += "<br /><b>Zone Transfer Protocol:</b> XFR-over-" + records[i].rData.zoneTransferProtocol.toUpperCase();
 
                             additionalDataAttributes += "data-record-zonetransferprotocol=\"" + htmlEncode(records[i].rData.zoneTransferProtocol) + "\" ";
                         } else {
@@ -1913,6 +1981,30 @@ function updateRecord() {
             var tsigKeyName = $("#txtEditRecordDataSoaTsigKeyName").val();
             var tsigSharedSecret = $("#txtEditRecordDataSoaTsigSharedSecret").val();
             var tsigAlgorithm = $("#optEditRecordDataSoaTsigAlgorithm").val();
+
+            var tsigKeyNameEmpty = (tsigKeyName == null) || (tsigKeyName === "");
+            var tsigSharedSecretEmpty = (tsigSharedSecret == null) || (tsigSharedSecret === "");
+            var tsigAlgorithmEmpty = (tsigAlgorithm == null) || (tsigAlgorithm === "");
+
+            if (!tsigKeyNameEmpty || !tsigSharedSecretEmpty || !tsigAlgorithmEmpty) {
+                if (tsigKeyNameEmpty) {
+                    showAlert("warning", "Missing!", "Please enter a TSIG key name to add zone. Clear all TSIG fields to disable TSIG.", divAddEditRecordAlert);
+                    $("#txtEditRecordDataSoaTsigKeyName").focus();
+                    return;
+                }
+
+                if (tsigSharedSecretEmpty) {
+                    showAlert("warning", "Missing!", "Please enter a TSIG shared secret to add zone. Clear all TSIG fields to disable TSIG.", divAddEditRecordAlert);
+                    $("#txtEditRecordDataSoaTsigSharedSecret").focus();
+                    return;
+                }
+
+                if (tsigAlgorithmEmpty) {
+                    showAlert("warning", "Missing!", "Please select a TSIG algorithm to add zone. Clear all TSIG fields to disable TSIG.", divAddEditRecordAlert);
+                    $("#optEditRecordDataSoaTsigAlgorithm").focus();
+                    return;
+                }
+            }
 
             apiUrl += "&primaryNameServer=" + encodeURIComponent(primaryNameServer) +
                 "&responsiblePerson=" + encodeURIComponent(responsiblePerson) +
