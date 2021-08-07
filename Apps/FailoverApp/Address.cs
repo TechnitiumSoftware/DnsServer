@@ -19,6 +19,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 using DnsApplicationCommon;
 using Newtonsoft.Json;
+using System;
 using System.Collections.Generic;
 using System.Net;
 using System.Net.Sockets;
@@ -29,11 +30,19 @@ using TechnitiumLibrary.Net.Dns.ResourceRecords;
 
 namespace Failover
 {
+    enum FailoverType
+    {
+        Unknown = 0,
+        Primary = 1,
+        Secondary = 2,
+        ServerDown = 3
+    }
+
     public class Address : IDnsApplicationRequestHandler
     {
         #region variables
 
-        HealthMonitoringService _healthMonitor;
+        HealthMonitoringService _healthService;
 
         #endregion
 
@@ -46,8 +55,8 @@ namespace Failover
             if (_disposed)
                 return;
 
-            if (_healthMonitor is not null)
-                _healthMonitor.Dispose();
+            if (_healthService is not null)
+                _healthService.Dispose();
 
             _disposed = true;
         }
@@ -56,7 +65,7 @@ namespace Failover
 
         #region private
 
-        private void GetAnswers(dynamic jsonAddresses, DnsQuestionRecord question, uint appRecordTtl, string healthCheck, List<DnsResourceRecord> answers)
+        private void GetAnswers(dynamic jsonAddresses, DnsQuestionRecord question, uint appRecordTtl, string healthCheck, Uri healthCheckUrl, List<DnsResourceRecord> answers)
         {
             if (jsonAddresses == null)
                 return;
@@ -70,7 +79,7 @@ namespace Failover
 
                         if (address.AddressFamily == AddressFamily.InterNetwork)
                         {
-                            HealthCheckStatus status = _healthMonitor.QueryStatus(address, healthCheck, true);
+                            HealthCheckStatus status = _healthService.QueryStatus(address, healthCheck, healthCheckUrl, true);
                             if (status is null)
                                 answers.Add(new DnsResourceRecord(question.Name, DnsResourceRecordType.A, question.Class, 30, new DnsARecord(address)));
                             else if (status.IsHealthy)
@@ -86,7 +95,7 @@ namespace Failover
 
                         if (address.AddressFamily == AddressFamily.InterNetworkV6)
                         {
-                            HealthCheckStatus status = _healthMonitor.QueryStatus(address, healthCheck, true);
+                            HealthCheckStatus status = _healthService.QueryStatus(address, healthCheck, healthCheckUrl, true);
                             if (status is null)
                                 answers.Add(new DnsResourceRecord(question.Name, DnsResourceRecordType.AAAA, question.Class, 30, new DnsAAAARecord(address)));
                             else if (status.IsHealthy)
@@ -97,7 +106,7 @@ namespace Failover
             }
         }
 
-        private void GetStatusAnswers(dynamic jsonAddresses, bool primary, DnsQuestionRecord question, uint appRecordTtl, string healthCheck, List<DnsResourceRecord> answers)
+        private void GetStatusAnswers(dynamic jsonAddresses, FailoverType type, DnsQuestionRecord question, uint appRecordTtl, string healthCheck, Uri healthCheckUrl, List<DnsResourceRecord> answers)
         {
             if (jsonAddresses == null)
                 return;
@@ -105,9 +114,9 @@ namespace Failover
             foreach (dynamic jsonAddress in jsonAddresses)
             {
                 IPAddress address = IPAddress.Parse(jsonAddress.Value);
-                HealthCheckStatus status = _healthMonitor.QueryStatus(address, healthCheck, false);
+                HealthCheckStatus status = _healthService.QueryStatus(address, healthCheck, healthCheckUrl, false);
 
-                string text = "app=failover; addressType=" + (primary ? "primary" : "secondary") + "; address=" + address.ToString() + "; healthCheck=" + healthCheck;
+                string text = "app=failover; addressType=" + type.ToString() + "; address=" + address.ToString() + "; healthCheck=" + healthCheck;
 
                 if (status is null)
                     text += "; healthStatus=Unknown;";
@@ -126,10 +135,10 @@ namespace Failover
 
         public Task InitializeAsync(IDnsServer dnsServer, string config)
         {
-            if (_healthMonitor is null)
-                _healthMonitor = HealthMonitoringService.Create(dnsServer);
+            if (_healthService is null)
+                _healthService = HealthMonitoringService.Create(dnsServer);
 
-            _healthMonitor.Initialize(JsonConvert.DeserializeObject(config));
+            _healthService.Initialize(JsonConvert.DeserializeObject(config));
 
             return Task.CompletedTask;
         }
@@ -145,15 +154,23 @@ namespace Failover
                         dynamic jsonAppRecordData = JsonConvert.DeserializeObject(appRecordData);
 
                         string healthCheck = jsonAppRecordData.healthCheck?.Value;
+                        Uri healthCheckUrl = null;
+
+                        if (jsonAppRecordData.healthCheckUrl != null)
+                            healthCheckUrl = new Uri(jsonAppRecordData.healthCheckUrl.Value);
 
                         List<DnsResourceRecord> answers = new List<DnsResourceRecord>();
 
-                        GetAnswers(jsonAppRecordData.primary, question, appRecordTtl, healthCheck, answers);
+                        GetAnswers(jsonAppRecordData.primary, question, appRecordTtl, healthCheck, healthCheckUrl, answers);
                         if (answers.Count == 0)
                         {
-                            GetAnswers(jsonAppRecordData.secondary, question, appRecordTtl, healthCheck, answers);
+                            GetAnswers(jsonAppRecordData.secondary, question, appRecordTtl, healthCheck, healthCheckUrl, answers);
                             if (answers.Count == 0)
-                                return Task.FromResult<DnsDatagram>(null);
+                            {
+                                GetAnswers(jsonAppRecordData.serverDown, question, appRecordTtl, healthCheck, healthCheckUrl, answers);
+                                if (answers.Count == 0)
+                                    return Task.FromResult<DnsDatagram>(null);
+                            }
                         }
 
                         if (answers.Count > 1)
@@ -177,11 +194,16 @@ namespace Failover
                             return Task.FromResult<DnsDatagram>(null);
 
                         string healthCheck = jsonAppRecordData.healthCheck?.Value;
+                        Uri healthCheckUrl = null;
+
+                        if (jsonAppRecordData.healthCheckUrl != null)
+                            healthCheckUrl = new Uri(jsonAppRecordData.healthCheckUrl.Value);
 
                         List<DnsResourceRecord> answers = new List<DnsResourceRecord>();
 
-                        GetStatusAnswers(jsonAppRecordData.primary, true, question, 30, healthCheck, answers);
-                        GetStatusAnswers(jsonAppRecordData.secondary, false, question, 30, healthCheck, answers);
+                        GetStatusAnswers(jsonAppRecordData.primary, FailoverType.Primary, question, 30, healthCheck, healthCheckUrl, answers);
+                        GetStatusAnswers(jsonAppRecordData.secondary, FailoverType.Secondary, question, 30, healthCheck, healthCheckUrl, answers);
+                        GetStatusAnswers(jsonAppRecordData.serverDown, FailoverType.ServerDown, question, 30, healthCheck, healthCheckUrl, answers);
 
                         return Task.FromResult(new DnsDatagram(request.Identifier, true, request.OPCODE, true, false, request.RecursionDesired, isRecursionAllowed, false, false, DnsResponseCode.NoError, request.Question, answers));
                     }
@@ -196,7 +218,7 @@ namespace Failover
         #region properties
 
         public string Description
-        { get { return "Returns A or AAAA records from primary set of addresses with a continous health check as configured in the app config. When none of the primary addresses are healthy, the app returns healthy addresses from the secondary set of addresses.\n\nSet 'allowTxtStatus' to 'true' in your APP record data to allow checking health status by querying for TXT record."; } }
+        { get { return "Returns A or AAAA records from primary set of addresses with a continous health check as configured in the app config. When none of the primary addresses are healthy, the app returns healthy addresses from the secondary set of addresses. When none of the primary and secondary addresses are healthy, the app returns healthy addresses from the server down set of addresses. The server down feature is expected to be used for showing a service status page and not to serve the actual content.\n\nSet 'allowTxtStatus' to 'true' in your APP record data to allow checking health status by querying for TXT record."; } }
 
         public string ApplicationRecordDataTemplate
         {
@@ -211,7 +233,11 @@ namespace Failover
     ""2.2.2.2"",
     ""::2""
   ],
-  ""healthCheck"": ""tcp80"",
+  ""serverDown"": [
+    ""3.3.3.3""
+  ],
+  ""healthCheck"": ""http"",
+  ""healthCheckUrl"": ""https://www.example.com"",
   ""allowTxtStatus"": false
 }";
             }

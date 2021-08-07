@@ -32,7 +32,7 @@ namespace Failover
     {
         #region variables
 
-        HealthMonitoringService _healthMonitor;
+        HealthMonitoringService _healthService;
 
         #endregion
 
@@ -45,8 +45,8 @@ namespace Failover
             if (_disposed)
                 return;
 
-            if (_healthMonitor is not null)
-                _healthMonitor.Dispose();
+            if (_healthService is not null)
+                _healthService.Dispose();
 
             _disposed = true;
         }
@@ -55,9 +55,9 @@ namespace Failover
 
         #region private
 
-        private IReadOnlyList<DnsResourceRecord> GetAnswers(string domain, DnsQuestionRecord question, string zoneName, uint appRecordTtl, string healthCheck)
+        private IReadOnlyList<DnsResourceRecord> GetAnswers(string domain, DnsQuestionRecord question, string zoneName, uint appRecordTtl, string healthCheck, Uri healthCheckUrl)
         {
-            HealthCheckStatus status = _healthMonitor.QueryStatus(domain, question.Type, healthCheck, true);
+            HealthCheckStatus status = _healthService.QueryStatus(domain, question.Type, healthCheck, healthCheckUrl, true);
             if (status is null)
             {
                 if (question.Name.Equals(zoneName, StringComparison.OrdinalIgnoreCase)) //check for zone apex
@@ -76,12 +76,12 @@ namespace Failover
             return null;
         }
 
-        private void GetStatusAnswers(string domain, bool primary, DnsQuestionRecord question, uint appRecordTtl, string healthCheck, List<DnsResourceRecord> answers)
+        private void GetStatusAnswers(string domain, FailoverType type, DnsQuestionRecord question, uint appRecordTtl, string healthCheck, Uri healthCheckUrl, List<DnsResourceRecord> answers)
         {
             {
-                HealthCheckStatus status = _healthMonitor.QueryStatus(domain, DnsResourceRecordType.A, healthCheck, false);
+                HealthCheckStatus status = _healthService.QueryStatus(domain, DnsResourceRecordType.A, healthCheck, healthCheckUrl, false);
 
-                string text = "app=failover; cnameType=" + (primary ? "primary" : "secondary") + "; domain=" + domain + "; qType: A; healthCheck=" + healthCheck;
+                string text = "app=failover; cnameType=" + type.ToString() + "; domain=" + domain + "; qType: A; healthCheck=" + healthCheck;
 
                 if (status is null)
                     text += "; healthStatus=Unknown;";
@@ -94,9 +94,9 @@ namespace Failover
             }
 
             {
-                HealthCheckStatus status = _healthMonitor.QueryStatus(domain, DnsResourceRecordType.AAAA, healthCheck, false);
+                HealthCheckStatus status = _healthService.QueryStatus(domain, DnsResourceRecordType.AAAA, healthCheck, healthCheckUrl, false);
 
-                string text = "app=failover; cnameType=" + (primary ? "primary" : "secondary") + "; domain=" + domain + "; qType: AAAA; healthCheck=" + healthCheck;
+                string text = "app=failover; cnameType=" + type.ToString() + "; domain=" + domain + "; qType: AAAA; healthCheck=" + healthCheck;
 
                 if (status is null)
                     text += "; healthStatus=Unknown;";
@@ -115,8 +115,8 @@ namespace Failover
 
         public Task InitializeAsync(IDnsServer dnsServer, string config)
         {
-            if (_healthMonitor is null)
-                _healthMonitor = HealthMonitoringService.Create(dnsServer);
+            if (_healthService is null)
+                _healthService = HealthMonitoringService.Create(dnsServer);
 
             //let Address class initialize config
 
@@ -130,6 +130,10 @@ namespace Failover
             dynamic jsonAppRecordData = JsonConvert.DeserializeObject(appRecordData);
 
             string healthCheck = jsonAppRecordData.healthCheck?.Value;
+            Uri healthCheckUrl = null;
+
+            if (jsonAppRecordData.healthCheckUrl != null)
+                healthCheckUrl = new Uri(jsonAppRecordData.healthCheckUrl.Value);
 
             IReadOnlyList<DnsResourceRecord> answers;
 
@@ -147,27 +151,36 @@ namespace Failover
 
                 List<DnsResourceRecord> txtAnswers = new List<DnsResourceRecord>();
 
-                GetStatusAnswers(jsonAppRecordData.primary.Value, true, question, 30, healthCheck, txtAnswers);
+                GetStatusAnswers(jsonAppRecordData.primary.Value, FailoverType.Primary, question, 30, healthCheck, healthCheckUrl, txtAnswers);
 
                 foreach (dynamic jsonDomain in jsonAppRecordData.secondary)
-                    GetStatusAnswers(jsonDomain.Value, false, question, 30, healthCheck, txtAnswers);
+                    GetStatusAnswers(jsonDomain.Value, FailoverType.Secondary, question, 30, healthCheck, healthCheckUrl, txtAnswers);
+
+                GetStatusAnswers(jsonAppRecordData.serverDown.Value, FailoverType.ServerDown, question, 30, healthCheck, healthCheckUrl, txtAnswers);
 
                 answers = txtAnswers;
             }
             else
             {
-                answers = GetAnswers(jsonAppRecordData.primary.Value, question, zoneName, appRecordTtl, healthCheck);
+                answers = GetAnswers(jsonAppRecordData.primary.Value, question, zoneName, appRecordTtl, healthCheck, healthCheckUrl);
                 if (answers is null)
                 {
                     foreach (dynamic jsonDomain in jsonAppRecordData.secondary)
                     {
-                        answers = GetAnswers(jsonDomain.Value, question, zoneName, appRecordTtl, healthCheck);
+                        answers = GetAnswers(jsonDomain.Value, question, zoneName, appRecordTtl, healthCheck, healthCheckUrl);
                         if (answers is not null)
                             break;
                     }
 
                     if (answers is null)
-                        return Task.FromResult<DnsDatagram>(null);
+                    {
+                        if (jsonAppRecordData.serverDown == null)
+                            return Task.FromResult<DnsDatagram>(null);
+
+                        answers = GetAnswers(jsonAppRecordData.serverDown.Value, question, zoneName, appRecordTtl, healthCheck, healthCheckUrl);
+                        if (answers is null)
+                            return Task.FromResult<DnsDatagram>(null);
+                    }
                 }
             }
 
@@ -179,7 +192,7 @@ namespace Failover
         #region properties
 
         public string Description
-        { get { return "Returns CNAME record for primary domain name with a continous health check as configured in the app config. When the primary domain name is unhealthy, the app returns one of the secondary domain names in order of preference that is healthy. Note that the app will return ANAME record for an APP record at zone apex.\n\nSet 'allowTxtStatus' to 'true' in your APP record data to allow checking health status by querying for TXT record."; } }
+        { get { return "Returns CNAME record for primary domain name with a continous health check as configured in the app config. When the primary domain name is unhealthy, the app returns one of the secondary domain names in the given order of preference that is healthy. When none of the primary and secondary domain names are healthy, the app returns the server down domain name. The server down feature is expected to be used for showing a service status page and not to serve the actual content. Note that the app will return ANAME record for an APP record at zone apex.\n\nSet 'allowTxtStatus' to 'true' in your APP record data to allow checking health status by querying for TXT record."; } }
 
         public string ApplicationRecordDataTemplate
         {
@@ -191,7 +204,9 @@ namespace Failover
     ""sg.example.org"",
     ""eu.example.org""
   ],
+  ""serverDown"": ""status.example.org"",
   ""healthCheck"": ""tcp443"",
+  ""healthCheckUrl"": null,
   ""allowTxtStatus"": false
 }";
             }
