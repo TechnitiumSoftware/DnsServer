@@ -53,7 +53,7 @@ namespace DnsServerCore.Dns.Zones
         readonly IReadOnlyCollection<IPAddress> _notifyNameServers;
         readonly DateTime _expiry;
         readonly IReadOnlyList<DnsResourceRecord> _zoneHistory; //for IXFR support
-        readonly IReadOnlyDictionary<string, string> _tsigKeys;
+        readonly IReadOnlyDictionary<string, object> _tsigKeyNames;
 
         #endregion
 
@@ -160,17 +160,12 @@ namespace DnsServerCore.Dns.Zones
                             if (version >= 4)
                             {
                                 int count = bR.ReadByte();
-                                Dictionary<string, string> tsigKeys = new Dictionary<string, string>(count);
+                                Dictionary<string, object> tsigKeyNames = new Dictionary<string, object>(count);
 
                                 for (int i = 0; i < count; i++)
-                                {
-                                    string keyName = bR.ReadShortString();
-                                    string sharedSecret = bR.ReadShortString();
+                                    tsigKeyNames.Add(bR.ReadShortString(), null);
 
-                                    tsigKeys.Add(keyName, sharedSecret);
-                                }
-
-                                _tsigKeys = tsigKeys;
+                                _tsigKeyNames = tsigKeyNames;
                             }
                             break;
 
@@ -194,17 +189,12 @@ namespace DnsServerCore.Dns.Zones
                             if (version >= 4)
                             {
                                 int count = bR.ReadByte();
-                                Dictionary<string, string> tsigKeys = new Dictionary<string, string>(count);
+                                Dictionary<string, object> tsigKeyNames = new Dictionary<string, object>(count);
 
                                 for (int i = 0; i < count; i++)
-                                {
-                                    string keyName = bR.ReadShortString();
-                                    string sharedSecret = bR.ReadShortString();
+                                    tsigKeyNames.Add(bR.ReadShortString(), null);
 
-                                    tsigKeys.Add(keyName, sharedSecret);
-                                }
-
-                                _tsigKeys = tsigKeys;
+                                _tsigKeyNames = tsigKeyNames;
                             }
                             break;
 
@@ -232,7 +222,7 @@ namespace DnsServerCore.Dns.Zones
                 if (loadHistory)
                     _zoneHistory = primaryZone.GetHistory();
 
-                _tsigKeys = primaryZone.TsigKeys;
+                _tsigKeyNames = primaryZone.TsigKeyNames;
             }
             else if (_zone is SecondaryZone secondaryZone)
             {
@@ -242,7 +232,7 @@ namespace DnsServerCore.Dns.Zones
                     _zoneHistory = secondaryZone.GetHistory();
 
                 _expiry = secondaryZone.Expiry;
-                _tsigKeys = secondaryZone.TsigKeys;
+                _tsigKeyNames = secondaryZone.TsigKeyNames;
             }
             else if (_zone is StubZone stubZone)
             {
@@ -411,19 +401,16 @@ namespace DnsServerCore.Dns.Zones
                         }
                     }
 
-                    if (_tsigKeys is null)
+                    if (_tsigKeyNames is null)
                     {
                         bW.Write((byte)0);
                     }
                     else
                     {
-                        bW.Write(Convert.ToByte(_tsigKeys.Count));
+                        bW.Write(Convert.ToByte(_tsigKeyNames.Count));
 
-                        foreach (KeyValuePair<string, string> tsigKey in _tsigKeys)
-                        {
-                            bW.WriteShortString(tsigKey.Key);
-                            bW.WriteShortString(tsigKey.Value);
-                        }
+                        foreach (KeyValuePair<string, object> tsigKeyName in _tsigKeyNames)
+                            bW.WriteShortString(tsigKeyName.Key);
                     }
 
                     break;
@@ -450,19 +437,16 @@ namespace DnsServerCore.Dns.Zones
                         }
                     }
 
-                    if (_tsigKeys is null)
+                    if (_tsigKeyNames is null)
                     {
                         bW.Write((byte)0);
                     }
                     else
                     {
-                        bW.Write(Convert.ToByte(_tsigKeys.Count));
+                        bW.Write(Convert.ToByte(_tsigKeyNames.Count));
 
-                        foreach (KeyValuePair<string, string> tsigKey in _tsigKeys)
-                        {
-                            bW.WriteShortString(tsigKey.Key);
-                            bW.WriteShortString(tsigKey.Value);
-                        }
+                        foreach (KeyValuePair<string, object> tsigKeyName in _tsigKeyNames)
+                            bW.WriteShortString(tsigKeyName.Key);
                     }
 
                     break;
@@ -590,9 +574,9 @@ namespace DnsServerCore.Dns.Zones
         public IReadOnlyList<DnsResourceRecord> ZoneHistory
         { get { return _zoneHistory; } }
 
-        public IReadOnlyDictionary<string, string> TsigKeys
+        public IReadOnlyDictionary<string, object> TsigKeyNames
         {
-            get { return _tsigKeys; }
+            get { return _tsigKeyNames; }
             set
             {
                 if (_zone is null)
@@ -601,11 +585,11 @@ namespace DnsServerCore.Dns.Zones
                 switch (_type)
                 {
                     case AuthZoneType.Primary:
-                        (_zone as PrimaryZone).TsigKeys = value;
+                        (_zone as PrimaryZone).TsigKeyNames = value;
                         break;
 
                     case AuthZoneType.Secondary:
-                        (_zone as SecondaryZone).TsigKeys = value;
+                        (_zone as SecondaryZone).TsigKeyNames = value;
                         break;
 
                     default:
