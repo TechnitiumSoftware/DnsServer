@@ -29,11 +29,11 @@ namespace DnsServerCore.Dns.ZoneManagers
     {
         #region variables
 
-        const uint FAILURE_RECORD_TTL = 60u;
-        const uint NEGATIVE_RECORD_TTL = 300u;
-        const uint MINIMUM_RECORD_TTL = 10u;
-        const uint MAXIMUM_RECORD_TTL = 7 * 24 * 60 * 60;
-        const uint SERVE_STALE_TTL = 3 * 24 * 60 * 60; //3 days serve stale ttl as per https://www.rfc-editor.org/rfc/rfc8767.html suggestion
+        public const uint FAILURE_RECORD_TTL = 60u;
+        public const uint NEGATIVE_RECORD_TTL = 300u;
+        public const uint MINIMUM_RECORD_TTL = 10u;
+        public const uint MAXIMUM_RECORD_TTL = 7 * 24 * 60 * 60;
+        public const uint SERVE_STALE_TTL = 3 * 24 * 60 * 60; //3 days serve stale ttl as per https://www.rfc-editor.org/rfc/rfc8767.html suggestion
 
         readonly DnsServer _dnsServer;
 

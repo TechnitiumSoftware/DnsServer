@@ -23,6 +23,7 @@ using DnsServerCore.Dhcp.Options;
 using DnsServerCore.Dns;
 using DnsServerCore.Dns.Applications;
 using DnsServerCore.Dns.ResourceRecords;
+using DnsServerCore.Dns.ZoneManagers;
 using DnsServerCore.Dns.Zones;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Converters;
@@ -7090,6 +7091,16 @@ namespace DnsServerCore
                                     StartTlsCertificateUpdateTimer();
                                 }
                             }
+                            else
+                            {
+                                _webServiceLocalAddresses = new IPAddress[] { IPAddress.Any, IPAddress.IPv6Any };
+
+                                _webServiceTlsPort = 53443;
+                                _webServiceEnableTls = false;
+                                _webServiceHttpToTlsRedirect = false;
+                                _webServiceTlsCertificatePath = string.Empty;
+                                _webServiceTlsCertificatePassword = string.Empty;
+                            }
 
                             _dnsServer.PreferIPv6 = bR.ReadBoolean();
 
@@ -7098,6 +7109,8 @@ namespace DnsServerCore
 
                             if (version >= 14)
                                 _dnsServer.StatsManager.MaxStatFileDays = bR.ReadInt32();
+                            else
+                                _dnsServer.StatsManager.MaxStatFileDays = 0;
 
                             if (version >= 17)
                             {
@@ -7177,11 +7190,24 @@ namespace DnsServerCore
                                 _dnsServer.QpmLimitSampleMinutes = bR.ReadInt32();
                                 _ = bR.ReadInt32(); //read obsolete value _dnsServer.QpmLimitSamplingIntervalInMinutes
                             }
+                            else
+                            {
+                                _dnsServer.QpmLimitRequests = 0;
+                                _dnsServer.QpmLimitErrors = 0;
+                                _dnsServer.QpmLimitSampleMinutes = 1;
+                                _dnsServer.QpmLimitIPv4PrefixLength = 24;
+                                _dnsServer.QpmLimitIPv6PrefixLength = 56;
+                            }
 
                             if (version >= 13)
                             {
                                 _dnsServer.ServeStale = bR.ReadBoolean();
                                 _dnsServer.CacheZoneManager.ServeStaleTtl = bR.ReadUInt32();
+                            }
+                            else
+                            {
+                                _dnsServer.ServeStale = true;
+                                _dnsServer.CacheZoneManager.ServeStaleTtl = CacheZoneManager.SERVE_STALE_TTL;
                             }
 
                             if (version >= 9)
@@ -7190,6 +7216,13 @@ namespace DnsServerCore
                                 _dnsServer.CachePrefetchTrigger = bR.ReadInt32();
                                 _dnsServer.CachePrefetchSampleIntervalInMinutes = bR.ReadInt32();
                                 _dnsServer.CachePrefetchSampleEligibilityHitsPerHour = bR.ReadInt32();
+                            }
+                            else
+                            {
+                                _dnsServer.CachePrefetchEligibility = 2;
+                                _dnsServer.CachePrefetchTrigger = 9;
+                                _dnsServer.CachePrefetchSampleIntervalInMinutes = 5;
+                                _dnsServer.CachePrefetchSampleEligibilityHitsPerHour = 30;
                             }
 
                             NetProxyType proxyType = (NetProxyType)bR.ReadByte();
@@ -7213,6 +7246,10 @@ namespace DnsServerCore
                                         bypassList.Add(new NetProxyBypassItem(bR.ReadShortString()));
 
                                     _dnsServer.Proxy.BypassList = bypassList;
+                                }
+                                else
+                                {
+                                    _dnsServer.Proxy.BypassList = null;
                                 }
                             }
                             else
@@ -7284,6 +7321,8 @@ namespace DnsServerCore
 
                             if (version >= 18)
                                 _dnsServer.EnableBlocking = bR.ReadBoolean();
+                            else
+                                _dnsServer.EnableBlocking = true;
 
                             if (version >= 18)
                                 _dnsServer.BlockingType = (DnsServerBlockingType)bR.ReadByte();
@@ -7321,6 +7360,11 @@ namespace DnsServerCore
                                     _dnsServer.CustomBlockingAAAARecords = dnsAAAARecords;
                                 }
                             }
+                            else
+                            {
+                                _dnsServer.CustomBlockingARecords = null;
+                                _dnsServer.CustomBlockingAAAARecords = null;
+                            }
 
                             if (version > 4)
                             {
@@ -7341,6 +7385,13 @@ namespace DnsServerCore
 
                                 if (version >= 13)
                                     _blockListUpdateIntervalHours = bR.ReadInt32();
+                            }
+                            else
+                            {
+                                _dnsServer.BlockListZoneManager.AllowListUrls.Clear();
+                                _dnsServer.BlockListZoneManager.BlockListUrls.Clear();
+                                _blockListLastUpdatedOn = DateTime.MinValue;
+                                _blockListUpdateIntervalHours = 24;
                             }
 
                             if (version >= 11)
@@ -7369,6 +7420,10 @@ namespace DnsServerCore
                                     _dnsServer.LocalEndPoints = localEndPoints;
                                 }
                             }
+                            else
+                            {
+                                _dnsServer.LocalEndPoints = new IPEndPoint[] { new IPEndPoint(IPAddress.Any, 53), new IPEndPoint(IPAddress.IPv6Any, 53) };
+                            }
 
                             if (version >= 8)
                             {
@@ -7395,6 +7450,14 @@ namespace DnsServerCore
                                     StartTlsCertificateUpdateTimer();
                                 }
                             }
+                            else
+                            {
+                                _dnsServer.EnableDnsOverHttp = false;
+                                _dnsServer.EnableDnsOverTls = false;
+                                _dnsServer.EnableDnsOverHttps = false;
+                                _dnsTlsCertificatePath = string.Empty;
+                                _dnsTlsCertificatePassword = string.Empty;
+                            }
 
                             if (version >= 19)
                             {
@@ -7402,6 +7465,13 @@ namespace DnsServerCore
                                 _dnsServer.CacheZoneManager.MaximumRecordTtl = bR.ReadUInt32();
                                 _dnsServer.CacheZoneManager.NegativeRecordTtl = bR.ReadUInt32();
                                 _dnsServer.CacheZoneManager.FailureRecordTtl = bR.ReadUInt32();
+                            }
+                            else
+                            {
+                                _dnsServer.CacheZoneManager.MinimumRecordTtl = CacheZoneManager.MINIMUM_RECORD_TTL;
+                                _dnsServer.CacheZoneManager.MaximumRecordTtl = CacheZoneManager.MAXIMUM_RECORD_TTL;
+                                _dnsServer.CacheZoneManager.NegativeRecordTtl = CacheZoneManager.NEGATIVE_RECORD_TTL;
+                                _dnsServer.CacheZoneManager.FailureRecordTtl = CacheZoneManager.FAILURE_RECORD_TTL;
                             }
 
                             if (version >= 20)
@@ -7418,6 +7488,10 @@ namespace DnsServerCore
                                 }
 
                                 _dnsServer.TsigKeys = tsigKeys;
+                            }
+                            else
+                            {
+                                _dnsServer.TsigKeys = null;
                             }
 
                             break;
