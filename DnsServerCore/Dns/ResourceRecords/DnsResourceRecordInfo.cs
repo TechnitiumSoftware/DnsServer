@@ -242,7 +242,7 @@ namespace DnsServerCore.Dns.ResourceRecords
                         break;
 
                     default:
-                        throw new NotSupportedException("Zone transfer protocol not supported: " + value.ToString());
+                        throw new NotSupportedException("Zone transfer protocol is not supported: XFR-over-" + value.ToString().ToUpper());
                 }
             }
         }
