@@ -688,741 +688,773 @@
                                     <div id="divDnsSettings" style="display: none;">
                                         <form style="margin-top: 10px;" onsubmit="return false;">
 
-                                            <div class="well well-sm form-horizontal">
-                                                <div class="form-group">
-                                                    <label for="txtDnsServerDomain" class="col-sm-3 control-label">DNS Server Domain</label>
-                                                    <div class="col-sm-6">
-                                                        <input type="text" class="form-control" id="txtDnsServerDomain" placeholder="Domain Name">
-                                                    </div>
-                                                    <div class="col-sm-offset-3 col-sm-8" style="padding-top: 5px;">The primary domain name used by this DNS Server to identify itself.</div>
-                                                </div>
+                                            <ul class="nav nav-tabs" role="tablist">
+                                                <li id="settingsTabListGeneral" role="presentation" class="active"><a href="#settingsTabPaneGeneral" aria-controls="settingsTabPaneGeneral" role="tab" data-toggle="tab">General</a></li>
+                                                <li id="settingsTabListWebService" role="presentation"><a href="#settingsTabPaneWebService" aria-controls="settingsTabPaneWebService" role="tab" data-toggle="tab">Web Service</a></li>
+                                                <li id="settingsTabListOptionalProtocols" role="presentation"><a href="#settingsTabPaneOptionalProtocols" aria-controls="settingsTabPaneOptionalProtocols" role="tab" data-toggle="tab">Optional Protocols</a></li>
+                                                <li id="settingsTabListTsig" role="presentation"><a href="#settingsTabPaneTsig" aria-controls="settingsTabPaneTsig" role="tab" data-toggle="tab">TSIG</a></li>
+                                                <li id="settingsTabListRecursion" role="presentation"><a href="#settingsTabPaneRecursion" aria-controls="settingsTabPaneRecursion" role="tab" data-toggle="tab">Recursion</a></li>
+                                                <li id="settingsTabListCache" role="presentation"><a href="#settingsTabPaneCache" aria-controls="settingsTabPaneCache" role="tab" data-toggle="tab">Cache</a></li>
+                                                <li id="settingsTabListBlocking" role="presentation"><a href="#settingsTabPaneBlocking" aria-controls="settingsTabPaneBlocking" role="tab" data-toggle="tab">Blocking</a></li>
+                                                <li id="settingsTabListProxyForwarders" role="presentation"><a href="#settingsTabPaneProxyForwarders" aria-controls="settingsTabPaneProxyForwarders" role="tab" data-toggle="tab">Proxy &amp; Forwarders</a></li>
+                                                <li id="settingsTabListLogging" role="presentation"><a href="#settingsTabPaneLogging" aria-controls="settingsTabPaneLogging" role="tab" data-toggle="tab">Logging</a></li>
+                                            </ul>
 
-                                                <div class="form-group">
-                                                    <label for="txtDnsServerLocalEndPoints" class="col-sm-3 control-label">DNS Server Local End Points</label>
-                                                    <div class="col-sm-6">
-                                                        <textarea id="txtDnsServerLocalEndPoints" class="form-control" rows="3"></textarea>
-                                                    </div>
-                                                    <div class="col-sm-offset-3 col-sm-8" style="padding-top: 5px;">Local end points are the network interface IP addresses and ports you want the DNS Server to listen for requests. The default values work for most scenarios so, do not change these defaults unless you have a requirement for the DNS server to listen on specific networks or ports.</div>
-                                                </div>
-
-                                                <div>Note! The DNS Server local end point changes will be automatically applied and so you do not need to manually restart the main service.</div>
-                                            </div>
-
-                                            <div class="well well-sm form-horizontal">
-                                                <div class="form-group">
-                                                    <label for="txtWebServiceLocalAddresses" class="col-sm-3 control-label">Web Service Local Addresses</label>
-                                                    <div class="col-sm-6">
-                                                        <textarea id="txtWebServiceLocalAddresses" class="form-control" rows="3"></textarea>
-                                                    </div>
-                                                    <div class="col-sm-offset-3 col-sm-8" style="padding-top: 5px;">Local addresses are the network interface IP addresses you want the web service to listen for requests. The default values work for most scenarios so, do not change these defaults unless you have a requirement for the web service to listen on specific networks.</div>
-                                                </div>
-
-                                                <div class="form-group">
-                                                    <label for="txtWebServiceHttpPort" class="col-sm-3 control-label">Web Service HTTP Port</label>
-                                                    <div class="col-sm-6">
-                                                        <input type="number" class="form-control" id="txtWebServiceHttpPort" placeholder="HTTP Port" style="width: 100px;">
-                                                    </div>
-                                                    <div class="col-sm-offset-3 col-sm-8" style="padding-top: 5px;">Specify the TCP port number for this web console over HTTP protocol.</div>
-                                                </div>
-
-                                                <div class="form-group">
-                                                    <label class="col-sm-3 control-label">HTTPS Options</label>
-                                                    <div class="col-sm-8">
-                                                        <div class="checkbox">
-                                                            <label>
-                                                                <input id="chkWebServiceEnableTls" type="checkbox"> Enable HTTPS
-                                                            </label>
+                                            <div class="tab-content" style="min-height: 350px; padding-top: 15px;">
+                                                <div id="settingsTabPaneGeneral" role="tabpanel" class="tab-pane active">
+                                                    <div class="well well-sm form-horizontal">
+                                                        <div class="form-group">
+                                                            <label for="txtDnsServerDomain" class="col-sm-3 control-label">DNS Server Domain</label>
+                                                            <div class="col-sm-6">
+                                                                <input type="text" class="form-control" id="txtDnsServerDomain" placeholder="Domain Name">
+                                                            </div>
+                                                            <div class="col-sm-offset-3 col-sm-8" style="padding-top: 5px;">The primary domain name used by this DNS Server to identify itself.</div>
                                                         </div>
 
-                                                        <div class="checkbox">
-                                                            <label>
-                                                                <input id="chkWebServiceHttpToTlsRedirect" type="checkbox"> Enable HTTP to HTTPS Redirection
-                                                            </label>
+                                                        <div class="form-group">
+                                                            <label for="txtDnsServerLocalEndPoints" class="col-sm-3 control-label">DNS Server Local End Points</label>
+                                                            <div class="col-sm-6">
+                                                                <textarea id="txtDnsServerLocalEndPoints" class="form-control" rows="3"></textarea>
+                                                            </div>
+                                                            <div class="col-sm-offset-3 col-sm-8" style="padding-top: 5px;">Local end points are the network interface IP addresses and ports you want the DNS Server to listen for requests. The default values work for most scenarios so, do not change these defaults unless you have a requirement for the DNS server to listen on specific networks or ports.</div>
                                                         </div>
+
+                                                        <div>Note! The DNS Server local end point changes will be automatically applied and so you do not need to manually restart the main service.</div>
                                                     </div>
-                                                </div>
 
-                                                <div class="form-group">
-                                                    <label for="txtWebServiceTlsPort" class="col-sm-3 control-label">Web Service HTTPS Port</label>
-                                                    <div class="col-sm-6">
-                                                        <input type="number" class="form-control" id="txtWebServiceTlsPort" placeholder="TLS Port" style="width: 100px;">
-                                                    </div>
-                                                    <div class="col-sm-offset-3 col-sm-8" style="padding-top: 5px;">Specify the TCP port number for this web console over TLS protocol.</div>
-                                                </div>
-
-                                                <div class="form-group">
-                                                    <label for="txtWebServiceTlsCertificatePath" class="col-sm-3 control-label">TLS Certificate File Path</label>
-                                                    <div class="col-sm-6">
-                                                        <input type="text" class="form-control" id="txtWebServiceTlsCertificatePath" placeholder="Web Service TLS Certificate File Path On Server">
-                                                    </div>
-                                                    <div class="col-sm-offset-3 col-sm-8" style="padding-top: 5px;">Specify a PKCS #12 certificate (.pfx) file path on the server. The certificate must contain private key.</div>
-                                                </div>
-
-                                                <div class="form-group">
-                                                    <label for="txtWebServiceTlsCertificatePassword" class="col-sm-3 control-label">TLS Certificate Password</label>
-                                                    <div class="col-sm-6">
-                                                        <input type="password" class="form-control" id="txtWebServiceTlsCertificatePassword" placeholder="Web Service TLS Certificate Password">
-                                                    </div>
-                                                    <div class="col-sm-offset-3 col-sm-8" style="padding-top: 5px;">Enter the certificate (.pfx) password, if any.</div>
-                                                </div>
-
-                                                <div>
-                                                    <p>Note! The web service port changes will be automatically applied and so you do not need to manually restart the main service. This web page will be automatically redirected to the new web console URL after saving settings. The HTTPS protocol will be enabled only when a TLS certificate is configured.</p>
-
-                                                    <p>Use the following openssl command to convert your TLS certificate that is in PEM format to PKCS #12 certificate (.pfx) format:</p>
-                                                    <pre>openssl pkcs12 -export -out "example.com.pfx" -inkey "privkey.pem" -in "cert.pem" -certfile "chain.pem"</pre>
-                                                </div>
-                                            </div>
-
-                                            <div class="well well-sm form-horizontal">
-                                                <div class="form-group">
-                                                    <label class="col-sm-3 control-label">Optional DNS Server Protocols</label>
-                                                    <div class="col-sm-8">
-                                                        <div class="checkbox">
-                                                            <label>
-                                                                <input id="chkEnableDnsOverHttp" type="checkbox"> Enable DNS-over-HTTP <code>(TCP Port 8053)</code>
-                                                            </label>
+                                                    <div class="well well-sm form-horizontal">
+                                                        <div class="form-group">
+                                                            <label class="col-sm-3 control-label">IPv6 Support</label>
+                                                            <div class="col-sm-8">
+                                                                <div class="checkbox">
+                                                                    <label>
+                                                                        <input id="chkPreferIPv6" type="checkbox"> Prefer IPv6
+                                                                    </label>
+                                                                </div>
+                                                                <div style="padding-top: 5px; padding-left: 20px;">DNS Server will use IPv6 for querying whenever possible with this option enabled.</div>
+                                                            </div>
                                                         </div>
-                                                        <div style="padding-top: 5px; padding-left: 20px;">Enable this option to accept DNS-over-HTTP requests for both wire and json response formats. It must be used with a TLS terminating reverse proxy like nginx and will work only on private networks.</div>
 
-                                                        <div class="checkbox">
-                                                            <label>
-                                                                <input id="chkEnableDnsOverTls" type="checkbox"> Enable DNS-over-TLS <code>(TCP Port 853)</code>
-                                                            </label>
+                                                        <div>Warning! Use this option only if this DNS server has native IPv6 Internet access otherwise it will affect performance.</div>
+                                                    </div>
+
+                                                    <div class="well well-sm form-horizontal">
+                                                        <div class="form-group">
+                                                            <label for="txtQpmLimitRequests" class="col-sm-3 control-label">Queries Per Minute (QPM) Limit (Requests)</label>
+                                                            <div class="col-sm-6">
+                                                                <input type="number" class="form-control" id="txtQpmLimitRequests" placeholder="limit" style="width: 100px; display: inline;">
+                                                                <span>(set 0 to disable)</span>
+                                                            </div>
+                                                            <div class="col-sm-offset-3 col-sm-8" style="padding-top: 5px;">The maximum queries a client subnet can make per minute on average based on the sample size.</div>
                                                         </div>
-                                                        <div style="padding-top: 5px; padding-left: 20px;">Enable this option to accept DNS-over-TLS requests.</div>
 
-                                                        <div class="checkbox">
-                                                            <label>
-                                                                <input id="chkEnableDnsOverHttps" type="checkbox"> Enable DNS-over-HTTPS <code>(TCP Port 80 &amp; 443)</code>
-                                                            </label>
+                                                        <div class="form-group">
+                                                            <label for="txtQpmLimitErrors" class="col-sm-3 control-label">Queries Per Minute (QPM) Limit (Errors)</label>
+                                                            <div class="col-sm-6">
+                                                                <input type="number" class="form-control" id="txtQpmLimitErrors" placeholder="limit" style="width: 100px; display: inline;">
+                                                                <span>(set 0 to disable)</span>
+                                                            </div>
+                                                            <div class="col-sm-offset-3 col-sm-8" style="padding-top: 5px;">The maximum queries that generate an error response a client subnet can make per minute on average based on the sample size. Responses with RCODE as FormatError, ServerFailure, or Refused are considered as error responses.</div>
                                                         </div>
-                                                        <div style="padding-top: 5px; padding-left: 20px;">Enable this option to accept DNS-over-HTTPS requests for both wire and json response formats.</div>
-                                                    </div>
-                                                </div>
 
-                                                <div class="form-group">
-                                                    <label for="txtDnsTlsCertificatePath" class="col-sm-3 control-label">TLS Certificate File Path</label>
-                                                    <div class="col-sm-6">
-                                                        <input type="text" class="form-control" id="txtDnsTlsCertificatePath" placeholder="DNS Service TLS Certificate File Path On Server">
-                                                    </div>
-                                                    <div class="col-sm-offset-3 col-sm-8" style="padding-top: 5px;">Specify a PKCS #12 certificate (.pfx) file path on the server. The certificate must contain private key.</div>
-                                                </div>
-
-                                                <div class="form-group">
-                                                    <label for="txtDnsTlsCertificatePassword" class="col-sm-3 control-label">TLS Certificate Password</label>
-                                                    <div class="col-sm-6">
-                                                        <input type="password" class="form-control" id="txtDnsTlsCertificatePassword" placeholder="DNS Service TLS Certificate Password">
-                                                    </div>
-                                                    <div class="col-sm-offset-3 col-sm-8" style="padding-top: 5px;">Enter the certificate (.pfx) password, if any.</div>
-                                                </div>
-
-                                                <div>
-                                                    <p>Note! These optional DNS server protocol changes will be automatically applied and so you do not need to manually restart the main service. The DNS-over-TLS and DNS-over-HTTPS protocols will be enabled only when a TLS certificate is configured.</p>
-                                                    <p>These optional DNS server protocols are used to host these as a service. You do not need to enable these optional protocols to use them with Forwarders or Conditional Forwarder Zones.</p>
-                                                    <p>For DNS-over-HTTP, use <code>http://<span id="lblDoHHost">localhost:8053</span>/dns-query</code> with a TLS terminating reverse proxy like nginx. For DNS-over-TLS, use <code>tls-certificate-domain:853</code> and for DNS-over-HTTPS use <code>https://tls-certificate-domain/dns-query</code> to configure supported DNS clients.</p>
-                                                    <p>Use the following openssl command to convert your TLS certificate that is in PEM format to PKCS #12 certificate (.pfx) format:</p>
-                                                    <pre>openssl pkcs12 -export -out "example.com.pfx" -inkey "privkey.pem" -in "cert.pem" -certfile "chain.pem"</pre>
-                                                </div>
-
-                                                <div style="margin-top: 10px;"><a href="https://blog.technitium.com/2020/07/how-to-host-your-own-dns-over-https-and.html" target="_blank">Help: How To Host Your Own DNS-over-HTTPS And DNS-over-TLS Services</a></div>
-                                            </div>
-
-                                            <div class="well well-sm form-horizontal">
-                                                <div class="form-group">
-                                                    <label for="tableTsigKeys" class="col-sm-3 control-label">TSIG Keys</label>
-                                                    <div class="col-sm-9">
-                                                        <table class="table table-hover" style="margin-bottom: 0px;">
-                                                            <thead>
-                                                                <tr>
-                                                                    <th>Key Name</th>
-                                                                    <th>Shared Secret</th>
-                                                                    <th><button type="button" class="btn btn-default" style="padding: 0px 20px;" onclick="addTsigKeyRow('', '');">Add</button></th>
-                                                                </tr>
-                                                            </thead>
-                                                            <tbody id="tableTsigKeys"></tbody>
-                                                        </table>
-                                                    </div>
-                                                    <div class="col-sm-offset-3 col-sm-8" style="padding-top: 5px;">The shared secret can be a base64 string or a literal string. Keep the shared secret empty if you want to auto generate a strong key.</div>
-                                                </div>
-
-                                                <div>Note! You will need to select these TSIG keys for zone transfer in the zone options separately. This DNS server supports hmac-md5, hmac-sha1, hmac-sha256 (recommended), hmac-sha256-128, hmac-sha384, hmac-sha384-192, hmac-sha512, and hmac-sha512-256 algorithms.</div>
-                                            </div>
-
-                                            <div class="well well-sm form-horizontal">
-                                                <div class="form-group">
-                                                    <label class="col-sm-3 control-label">IPv6 Support</label>
-                                                    <div class="col-sm-8">
-                                                        <div class="checkbox">
-                                                            <label>
-                                                                <input id="chkPreferIPv6" type="checkbox"> Prefer IPv6
-                                                            </label>
+                                                        <div class="form-group">
+                                                            <label for="txtQpmLimitSampleMinutes" class="col-sm-3 control-label">QPM Sample Size</label>
+                                                            <div class="col-sm-8">
+                                                                <input type="number" class="form-control" id="txtQpmLimitSampleMinutes" placeholder="sample" style="width: 100px; display: inline;">
+                                                                <span>minutes (valid range 1-60; default 5)</span>
+                                                            </div>
+                                                            <div class="col-sm-offset-3 col-sm-8" style="padding-top: 5px;">The sample size in minutes to be used for limiting queries per client.</div>
                                                         </div>
-                                                        <div style="padding-top: 5px; padding-left: 20px;">DNS Server will use IPv6 for querying whenever possible with this option enabled.</div>
-                                                    </div>
-                                                </div>
 
-                                                <div>Warning! Use this option only if this DNS server has native IPv6 Internet access otherwise it will affect performance.</div>
-                                            </div>
-
-                                            <div class="well well-sm form-horizontal">
-                                                <div class="form-group">
-                                                    <label class="col-sm-3 control-label">Logging</label>
-                                                    <div class="col-sm-8">
-                                                        <div class="checkbox">
-                                                            <label>
-                                                                <input id="chkEnableLogging" type="checkbox"> Enable Logging
-                                                            </label>
+                                                        <div class="form-group">
+                                                            <label for="txtQpmLimitIPv4PrefixLength" class="col-sm-3 control-label">QPM Limit IPv4 Prefix Length</label>
+                                                            <div class="col-sm-6">
+                                                                <input type="number" class="form-control" id="txtQpmLimitIPv4PrefixLength" placeholder="prefix" style="width: 100px; display: inline;">
+                                                                <span>(valid range 0-32; default 24)</span>
+                                                            </div>
+                                                            <div class="col-sm-offset-3 col-sm-8" style="padding-top: 5px;">The IPv4 prefix length to define the client subnet.</div>
                                                         </div>
-                                                        <div style="padding-top: 5px; padding-left: 20px;">Enable this option to log error and audit logs into the log file.</div>
 
-                                                        <div class="checkbox">
-                                                            <label>
-                                                                <input id="chkLogQueries" type="checkbox"> Log All Queries
-                                                            </label>
+                                                        <div class="form-group">
+                                                            <label for="txtQpmLimitIPv6PrefixLength" class="col-sm-3 control-label">QPM Limit IPv6 Prefix Length</label>
+                                                            <div class="col-sm-6">
+                                                                <input type="number" class="form-control" id="txtQpmLimitIPv6PrefixLength" placeholder="prefix" style="width: 100px; display: inline;">
+                                                                <span>(valid range 0-64; default 56)</span>
+                                                            </div>
+                                                            <div class="col-sm-offset-3 col-sm-8" style="padding-top: 5px;">The IPv6 prefix length to define the client subnet.</div>
                                                         </div>
-                                                        <div style="padding-top: 5px; padding-left: 20px;">Enable this option to log every query received by this DNS Server and the corresponding response answers into the log file.</div>
 
-                                                        <div class="checkbox">
-                                                            <label>
-                                                                <input id="chkUseLocalTime" type="checkbox"> Use Local Time
-                                                            </label>
+                                                        <div>Note! Queries Per Minute (QPM) feature will limit requests from a client subnet based on its IP address and the specified subnet prefix lengths. The QPM limit configured will be compared with the average count from the sample size which means a client may exceed the QPM limit for a given minute but won't exceed for the given sample size in minutes.</div>
+                                                    </div>
+                                                </div>
+
+                                                <div id="settingsTabPaneWebService" role="tabpanel" class="tab-pane">
+                                                    <div class="well well-sm form-horizontal">
+                                                        <div class="form-group">
+                                                            <label for="txtWebServiceLocalAddresses" class="col-sm-3 control-label">Web Service Local Addresses</label>
+                                                            <div class="col-sm-6">
+                                                                <textarea id="txtWebServiceLocalAddresses" class="form-control" rows="3"></textarea>
+                                                            </div>
+                                                            <div class="col-sm-offset-3 col-sm-8" style="padding-top: 5px;">Local addresses are the network interface IP addresses you want the web service to listen for requests. The default values work for most scenarios so, do not change these defaults unless you have a requirement for the web service to listen on specific networks.</div>
                                                         </div>
-                                                        <div style="padding-top: 5px; padding-left: 20px;">Enable this option to use local time instead of UTC for logging.</div>
-                                                    </div>
-                                                </div>
 
-                                                <div class="form-group">
-                                                    <label for="txtLogFolderPath" class="col-sm-3 control-label">Log Folder Path</label>
-                                                    <div class="col-sm-6">
-                                                        <input type="text" class="form-control" id="txtLogFolderPath" placeholder="Log Folder Path On Server">
-                                                    </div>
-
-                                                    <div class="col-sm-offset-3 col-sm-8" style="padding-top: 5px;">The folder path on the server where the log files should be saved. The path can be relative to the DNS server config folder.</div>
-                                                </div>
-
-                                                <div class="form-group">
-                                                    <label for="txtMaxLogFileDays" class="col-sm-3 control-label">Max Log File Days</label>
-                                                    <div class="col-sm-6">
-                                                        <input type="number" class="form-control" id="txtMaxLogFileDays" placeholder="Max Days" style="width: 100px; display: inline;">
-                                                        <span>days (recommended 365, set 0 to disable auto delete)</span>
-                                                    </div>
-
-                                                    <div class="col-sm-offset-3 col-sm-8" style="padding-top: 5px;">Max number of days to keep the log files. Log files older than the specified number of days will be deleted automatically.</div>
-                                                </div>
-
-                                                <div class="form-group">
-                                                    <label for="txtMaxStatFileDays" class="col-sm-3 control-label">Max Stat File Days</label>
-                                                    <div class="col-sm-6">
-                                                        <input type="number" class="form-control" id="txtMaxStatFileDays" placeholder="Max Days" style="width: 100px; display: inline;">
-                                                        <span>days (recommended 365, set 0 to disable auto delete)</span>
-                                                    </div>
-
-                                                    <div class="col-sm-offset-3 col-sm-8" style="padding-top: 5px;">Max number of days to keep the dashboard stats. Stat files older than the specified number of days will be deleted automatically.</div>
-                                                </div>
-
-                                                <div>Warning! Enabling query logging will significantly increase the log file size and use up disk space.</div>
-                                            </div>
-
-                                            <div class="well well-sm form-horizontal">
-                                                <div class="form-group">
-                                                    <label class="col-sm-3 control-label">Recursion</label>
-                                                    <div class="col-sm-8">
-                                                        <div class="radio">
-                                                            <label>
-                                                                <input type="radio" name="rdRecursion" id="rdRecursionDeny" value="Deny">
-                                                                Deny Recursion
-                                                            </label>
-                                                            <div style="padding-top: 5px; padding-left: 20px;">Disables recursion so that this DNS Server works as authoritative only.</div>
+                                                        <div class="form-group">
+                                                            <label for="txtWebServiceHttpPort" class="col-sm-3 control-label">Web Service HTTP Port</label>
+                                                            <div class="col-sm-6">
+                                                                <input type="number" class="form-control" id="txtWebServiceHttpPort" placeholder="HTTP Port" style="width: 100px;">
+                                                            </div>
+                                                            <div class="col-sm-offset-3 col-sm-8" style="padding-top: 5px;">Specify the TCP port number for this web console over HTTP protocol.</div>
                                                         </div>
-                                                        <div class="radio">
-                                                            <label>
-                                                                <input type="radio" name="rdRecursion" id="rdRecursionAllow" value="Allow">
-                                                                Allow Recursion
-                                                            </label>
-                                                            <div style="padding-top: 5px; padding-left: 20px;">Enables recursion to allow this DNS Server to resolve any domain name.</div>
+
+                                                        <div class="form-group">
+                                                            <label class="col-sm-3 control-label">HTTPS Options</label>
+                                                            <div class="col-sm-8">
+                                                                <div class="checkbox">
+                                                                    <label>
+                                                                        <input id="chkWebServiceEnableTls" type="checkbox"> Enable HTTPS
+                                                                    </label>
+                                                                </div>
+
+                                                                <div class="checkbox">
+                                                                    <label>
+                                                                        <input id="chkWebServiceHttpToTlsRedirect" type="checkbox"> Enable HTTP to HTTPS Redirection
+                                                                    </label>
+                                                                </div>
+                                                            </div>
                                                         </div>
-                                                        <div class="radio">
-                                                            <label>
-                                                                <input type="radio" name="rdRecursion" id="rdRecursionAllowOnlyForPrivateNetworks" value="AllowOnlyForPrivateNetworks" checked>
-                                                                Allow Recursion Only For Private Networks (default)
-                                                            </label>
-                                                            <div style="padding-top: 5px; padding-left: 20px;">Select this option if you want to support recursion only on private networks. Any recursive request from a public network will be refused.</div>
+
+                                                        <div class="form-group">
+                                                            <label for="txtWebServiceTlsPort" class="col-sm-3 control-label">Web Service HTTPS Port</label>
+                                                            <div class="col-sm-6">
+                                                                <input type="number" class="form-control" id="txtWebServiceTlsPort" placeholder="TLS Port" style="width: 100px;">
+                                                            </div>
+                                                            <div class="col-sm-offset-3 col-sm-8" style="padding-top: 5px;">Specify the TCP port number for this web console over TLS protocol.</div>
                                                         </div>
-                                                        <div class="radio">
-                                                            <label>
-                                                                <input type="radio" name="rdRecursion" id="rdRecursionUseSpecifiedNetworks" value="UseSpecifiedNetworks">
-                                                                Allow/Deny Recursion For Specified Networks
-                                                            </label>
-                                                            <div style="padding-top: 5px; padding-left: 20px;">Select this option to specify which networks (in CIDR form) must be allowed or denied. Denied networks are always matched first.</div>
+
+                                                        <div class="form-group">
+                                                            <label for="txtWebServiceTlsCertificatePath" class="col-sm-3 control-label">TLS Certificate File Path</label>
+                                                            <div class="col-sm-6">
+                                                                <input type="text" class="form-control" id="txtWebServiceTlsCertificatePath" placeholder="Web Service TLS Certificate File Path On Server">
+                                                            </div>
+                                                            <div class="col-sm-offset-3 col-sm-8" style="padding-top: 5px;">Specify a PKCS #12 certificate (.pfx) file path on the server. The certificate must contain private key.</div>
                                                         </div>
-                                                    </div>
-                                                    <div class="col-sm-offset-3 col-sm-6">
-                                                        <label for="txtRecursionDeniedNetworks" class="control-label">Denied Networks (CIDR)</label>
-                                                        <textarea id="txtRecursionDeniedNetworks" class="form-control" rows="5"></textarea>
 
-                                                        <label for="txtRecursionAllowedNetworks" class="control-label">Allowed Networks (CIDR)</label>
-                                                        <textarea id="txtRecursionAllowedNetworks" class="form-control" rows="5"></textarea>
-                                                    </div>
-                                                </div>
-
-                                                <div class="form-group">
-                                                    <label class="col-sm-3 control-label">Recursive Resolver</label>
-                                                    <div class="col-sm-8">
-                                                        <div class="checkbox">
-                                                            <label>
-                                                                <input id="chkRandomizeName" type="checkbox"> Randomize Name
-                                                            </label>
+                                                        <div class="form-group">
+                                                            <label for="txtWebServiceTlsCertificatePassword" class="col-sm-3 control-label">TLS Certificate Password</label>
+                                                            <div class="col-sm-6">
+                                                                <input type="password" class="form-control" id="txtWebServiceTlsCertificatePassword" placeholder="Web Service TLS Certificate Password">
+                                                            </div>
+                                                            <div class="col-sm-offset-3 col-sm-8" style="padding-top: 5px;">Enter the certificate (.pfx) password, if any.</div>
                                                         </div>
-                                                        <div style="padding-top: 5px; padding-left: 20px;">Enables <a href="https://tools.ietf.org/html/draft-vixie-dnsext-dns0x20-00" target="_blank">QNAME randomization</a> when using UDP as the transport protocol to improve security.</div>
 
-                                                        <div class="checkbox">
-                                                            <label>
-                                                                <input id="chkQnameMinimization" type="checkbox"> QNAME Minimization
-                                                            </label>
-                                                        </div>
-                                                        <div style="padding-top: 5px; padding-left: 20px;">Enables <a href="https://tools.ietf.org/html/draft-ietf-dnsop-rfc7816bis-04" target="_blank">QNAME minimization</a> for recursive resolution to improve privacy.</div>
-                                                    </div>
-                                                </div>
+                                                        <div>
+                                                            <p>Note! The web service port changes will be automatically applied and so you do not need to manually restart the main service. This web page will be automatically redirected to the new web console URL after saving settings. The HTTPS protocol will be enabled only when a TLS certificate is configured.</p>
 
-                                                <div>Note! Disable recursion if you wish this server to act only as authoritative name server for the configured zones.</div>
-                                            </div>
-
-                                            <div class="well well-sm form-horizontal">
-                                                <div class="form-group">
-                                                    <label for="txtQpmLimitRequests" class="col-sm-3 control-label">Queries Per Minute (QPM) Limit (Requests)</label>
-                                                    <div class="col-sm-6">
-                                                        <input type="number" class="form-control" id="txtQpmLimitRequests" placeholder="limit" style="width: 100px; display: inline;">
-                                                        <span>(set 0 to disable)</span>
-                                                    </div>
-                                                    <div class="col-sm-offset-3 col-sm-8" style="padding-top: 5px;">The maximum queries a client subnet can make per minute on average based on the sample size.</div>
-                                                </div>
-
-                                                <div class="form-group">
-                                                    <label for="txtQpmLimitErrors" class="col-sm-3 control-label">Queries Per Minute (QPM) Limit (Errors)</label>
-                                                    <div class="col-sm-6">
-                                                        <input type="number" class="form-control" id="txtQpmLimitErrors" placeholder="limit" style="width: 100px; display: inline;">
-                                                        <span>(set 0 to disable)</span>
-                                                    </div>
-                                                    <div class="col-sm-offset-3 col-sm-8" style="padding-top: 5px;">The maximum queries that generate an error response a client subnet can make per minute on average based on the sample size. Responses with RCODE as FormatError, ServerFailure, or Refused are considered as error responses.</div>
-                                                </div>
-
-                                                <div class="form-group">
-                                                    <label for="txtQpmLimitSampleMinutes" class="col-sm-3 control-label">QPM Sample Size</label>
-                                                    <div class="col-sm-8">
-                                                        <input type="number" class="form-control" id="txtQpmLimitSampleMinutes" placeholder="sample" style="width: 100px; display: inline;">
-                                                        <span>minutes (valid range 1-60; default 5)</span>
-                                                    </div>
-                                                    <div class="col-sm-offset-3 col-sm-8" style="padding-top: 5px;">The sample size in minutes to be used for limiting queries per client.</div>
-                                                </div>
-
-                                                <div class="form-group">
-                                                    <label for="txtQpmLimitIPv4PrefixLength" class="col-sm-3 control-label">QPM Limit IPv4 Prefix Length</label>
-                                                    <div class="col-sm-6">
-                                                        <input type="number" class="form-control" id="txtQpmLimitIPv4PrefixLength" placeholder="prefix" style="width: 100px; display: inline;">
-                                                        <span>(valid range 0-32; default 24)</span>
-                                                    </div>
-                                                    <div class="col-sm-offset-3 col-sm-8" style="padding-top: 5px;">The IPv4 prefix length to define the client subnet.</div>
-                                                </div>
-
-                                                <div class="form-group">
-                                                    <label for="txtQpmLimitIPv6PrefixLength" class="col-sm-3 control-label">QPM Limit IPv6 Prefix Length</label>
-                                                    <div class="col-sm-6">
-                                                        <input type="number" class="form-control" id="txtQpmLimitIPv6PrefixLength" placeholder="prefix" style="width: 100px; display: inline;">
-                                                        <span>(valid range 0-64; default 56)</span>
-                                                    </div>
-                                                    <div class="col-sm-offset-3 col-sm-8" style="padding-top: 5px;">The IPv6 prefix length to define the client subnet.</div>
-                                                </div>
-
-                                                <div>Note! Queries Per Minute (QPM) feature will limit requests from a client subnet based on its IP address and the specified subnet prefix lengths. The QPM limit configured will be compared with the average count from the sample size which means a client may exceed the QPM limit for a given minute but won't exceed for the given sample size in minutes.</div>
-                                            </div>
-
-                                            <div class="well well-sm form-horizontal">
-                                                <div class="form-group">
-                                                    <label class="col-sm-3 control-label">DNS Cache</label>
-                                                    <div class="col-sm-8">
-                                                        <div class="checkbox">
-                                                            <label>
-                                                                <input id="chkServeStale" type="checkbox"> Serve Stale
-                                                            </label>
-                                                        </div>
-                                                        <div style="padding-top: 5px; padding-left: 20px;">Enable the serve stale feature to improve resiliency by using expired or stale records in cache when the DNS server is unable to reach the upstream or authoritative name servers.</div>
-                                                    </div>
-                                                </div>
-
-                                                <div class="form-group">
-                                                    <label for="txtServeStaleTtl" class="col-sm-3 control-label">Serve Stale TTL</label>
-                                                    <div class="col-sm-6">
-                                                        <input type="number" class="form-control" id="txtServeStaleTtl" placeholder="seconds" style="width: 100px; display: inline;">
-                                                        <span>(recommended 259200 seconds i.e. 3 days)</span>
-                                                    </div>
-                                                    <div class="col-sm-offset-3 col-sm-8" style="padding-top: 5px;">The TTL value in seconds which should be used for cached records that are expired. When the serve stale TTL too expires for a stale record, it gets removed from the cache. Recommended value is between 1-3 days and maximum supported value is 7 days.</div>
-                                                </div>
-                                            </div>
-
-                                            <div class="well well-sm form-horizontal">
-                                                <div class="form-group">
-                                                    <label for="txtCacheMinimumRecordTtl" class="col-sm-3 control-label">Cache Minimum TTL</label>
-                                                    <div class="col-sm-6">
-                                                        <input type="number" class="form-control" id="txtCacheMinimumRecordTtl" placeholder="min TTL" style="width: 100px; display: inline;">
-                                                        <span>(recommended 10)</span>
-                                                    </div>
-                                                    <div class="col-sm-offset-3 col-sm-8" style="padding-top: 5px;">The minimum TTL value that a record can have in cache. Set a value to make sure that the records with TTL value than it stays in cache for a minimum duration.</div>
-                                                </div>
-
-                                                <div class="form-group">
-                                                    <label for="txtCacheMaximumRecordTtl" class="col-sm-3 control-label">Cache Maximum TTL</label>
-                                                    <div class="col-sm-8">
-                                                        <input type="number" class="form-control" id="txtCacheMaximumRecordTtl" placeholder="max TTL" style="width: 100px; display: inline;">
-                                                        <span>(default 604800)</span>
-                                                    </div>
-                                                    <div class="col-sm-offset-3 col-sm-8" style="padding-top: 5px;">The maximum TTL value that a record can have in cache. Set a lower value to allow the records to expire early.</div>
-                                                </div>
-
-                                                <div class="form-group">
-                                                    <label for="txtCacheNegativeRecordTtl" class="col-sm-3 control-label">Cache Negative TTL</label>
-                                                    <div class="col-sm-6">
-                                                        <input type="number" class="form-control" id="txtCacheNegativeRecordTtl" placeholder="-ve TTL" style="width: 100px; display: inline;">
-                                                        <span>(recommended 300)</span>
-                                                    </div>
-                                                    <div class="col-sm-offset-3 col-sm-8" style="padding-top: 5px;">The negative TTL value to use when there is no SOA MINIMUM value available.</div>
-                                                </div>
-
-                                                <div class="form-group">
-                                                    <label for="txtCacheFailureRecordTtl" class="col-sm-3 control-label">Cache Failure TTL</label>
-                                                    <div class="col-sm-6">
-                                                        <input type="number" class="form-control" id="txtCacheFailureRecordTtl" placeholder="fail TTL" style="width: 100px; display: inline;">
-                                                        <span>(recommended 60)</span>
-                                                    </div>
-                                                    <div class="col-sm-offset-3 col-sm-8" style="padding-top: 5px;">The failure TTL value to used for caching failure responses. This allows storing failure record in cache and prevent frequent recursive resolution to name servers that are responding with <code>ServerFailure</code>.</div>
-                                                </div>
-                                            </div>
-
-                                            <div class="well well-sm form-horizontal">
-                                                <div class="form-group">
-                                                    <label for="txtCachePrefetchEligibility" class="col-sm-3 control-label">Prefetch Eligibility</label>
-                                                    <div class="col-sm-6">
-                                                        <input type="number" class="form-control" id="txtCachePrefetchEligibility" placeholder="eligibility" style="width: 100px; display: inline;">
-                                                        <span>(recommended 2)</span>
-                                                    </div>
-                                                    <div class="col-sm-offset-3 col-sm-8" style="padding-top: 5px;">The minimum initial TTL value of a record needed to be eligible for prefetching.</div>
-                                                </div>
-
-                                                <div class="form-group">
-                                                    <label for="txtCachePrefetchTrigger" class="col-sm-3 control-label">Prefetch Trigger</label>
-                                                    <div class="col-sm-8">
-                                                        <input type="number" class="form-control" id="txtCachePrefetchTrigger" placeholder="trigger" style="width: 100px; display: inline;">
-                                                        <span>(recommended 9; set 0 to disable prefetching &amp; auto prefetching)</span>
-                                                    </div>
-                                                    <div class="col-sm-offset-3 col-sm-8" style="padding-top: 5px;">A record with TTL value less than trigger value will initiate prefetch operation immediately for itself.</div>
-                                                </div>
-
-                                                <div class="form-group">
-                                                    <label for="txtCachePrefetchSampleIntervalInMinutes" class="col-sm-3 control-label">Auto Prefetch Sampling</label>
-                                                    <div class="col-sm-6">
-                                                        <input type="number" class="form-control" id="txtCachePrefetchSampleIntervalInMinutes" placeholder="interval" style="width: 100px; display: inline;">
-                                                        <span>minutes (valid range 1-60; default 5)</span>
-                                                    </div>
-                                                    <div class="col-sm-offset-3 col-sm-8" style="padding-top: 5px;">The interval to sample eligible domain names from last hour stats for auto prefetch.</div>
-                                                </div>
-
-                                                <div class="form-group">
-                                                    <label for="txtCachePrefetchSampleEligibilityHitsPerHour" class="col-sm-3 control-label">Auto Prefetch Eligibility</label>
-                                                    <div class="col-sm-6">
-                                                        <input type="number" class="form-control" id="txtCachePrefetchSampleEligibilityHitsPerHour" placeholder="hits" style="width: 100px; display: inline;">
-                                                        <span>hits/hour (default 30)</span>
-                                                    </div>
-                                                    <div class="col-sm-offset-3 col-sm-8" style="padding-top: 5px;">Minimum required hits per hour for a domain name to be eligible for auto prefetch.</div>
-                                                </div>
-
-                                                <div>The DNS Server cache auto prefetch option can keep eligible domain names from last hour stats "hot" in cache. Auto prefetch eligibility value can be decided by keeping an eye on the hits shown for last hour on the dashboard. Experiment with auto prefetch sampling interval and eligibility to get best results.</div>
-                                            </div>
-
-                                            <div class="well well-sm form-horizontal">
-                                                <div class="form-group">
-                                                    <label class="col-sm-3 control-label">Blocking</label>
-                                                    <div class="col-sm-8">
-                                                        <div class="checkbox">
-                                                            <label>
-                                                                <input id="chkEnableBlocking" type="checkbox"> Enable Blocking
-                                                            </label>
-                                                        </div>
-                                                        <div style="padding-top: 5px; padding-left: 20px;">Sets the DNS server to block domain names using Blocked Zone and Block List Zone.</div>
-                                                    </div>
-                                                </div>
-
-                                                <div class="form-group">
-                                                    <label class="col-sm-3 control-label">Blocking Temporarily Disabled Till</label>
-                                                    <div class="col-sm-8">
-                                                        <div id="lblTemporaryDisableBlockingTill" style="padding-top: 7px;"></div>
-                                                        <div style="padding-top: 12px;">
-                                                            <input type="number" class="form-control" id="txtTemporaryDisableBlockingMinutes" placeholder="minutes" style="width: 100px; display: inline;">
-                                                            <span>minutes</span>
-                                                        </div>
-                                                        <div style="padding-top: 6px;">
-                                                            <button id="btnTemporaryDisableBlockingNow" type="button" class="btn btn-default" style="padding: 2px 0; width: 170px;" data-loading-text="Disabling..." onclick="return temporaryDisableBlockingNow();">Temporary Disable Now</button>
+                                                            <p>Use the following openssl command to convert your TLS certificate that is in PEM format to PKCS #12 certificate (.pfx) format:</p>
+                                                            <pre>openssl pkcs12 -export -out "example.com.pfx" -inkey "privkey.pem" -in "cert.pem" -certfile "chain.pem"</pre>
                                                         </div>
                                                     </div>
                                                 </div>
 
-                                                <div class="form-group">
-                                                    <label class="col-sm-3 control-label">Blocking Type</label>
-                                                    <div class="col-sm-8">
-                                                        <div class="radio">
-                                                            <label>
-                                                                <input type="radio" name="rdBlockingType" id="rdBlockingTypeAnyAddress" value="AnyAddress">
-                                                                Any Address (default)
-                                                            </label>
-                                                            <div style="padding-top: 5px; padding-left: 20px;">Uses <code>0.0.0.0</code> and <code>::</code> IP addresses for blocked domain names.</div>
-                                                        </div>
-                                                        <div class="radio">
-                                                            <label>
-                                                                <input type="radio" name="rdBlockingType" id="rdBlockingTypeNxDomain" value="NxDomain">
-                                                                NX Domain
-                                                            </label>
-                                                            <div style="padding-top: 5px; padding-left: 20px;">Uses <code>NX Domain</code> response for blocked domain names.</div>
-                                                        </div>
-                                                        <div class="radio">
-                                                            <label>
-                                                                <input type="radio" name="rdBlockingType" id="rdBlockingTypeCustomAddress" value="CustomAddress">
-                                                                Custom Address
-                                                            </label>
-                                                            <div style="padding-top: 5px; padding-left: 20px;">Uses custom IP addresses provided below for blocked domain names.</div>
-                                                        </div>
-                                                    </div>
+                                                <div id="settingsTabPaneOptionalProtocols" role="tabpanel" class="tab-pane">
+                                                    <div class="well well-sm form-horizontal">
+                                                        <div class="form-group">
+                                                            <label class="col-sm-3 control-label">Optional DNS Server Protocols</label>
+                                                            <div class="col-sm-8">
+                                                                <div class="checkbox">
+                                                                    <label>
+                                                                        <input id="chkEnableDnsOverHttp" type="checkbox"> Enable DNS-over-HTTP <code>(TCP Port 8053)</code>
+                                                                    </label>
+                                                                </div>
+                                                                <div style="padding-top: 5px; padding-left: 20px;">Enable this option to accept DNS-over-HTTP requests for both wire and json response formats. It must be used with a TLS terminating reverse proxy like nginx and will work only on private networks.</div>
 
-                                                    <div class="col-sm-offset-3 col-sm-6" style="margin-bottom: 10px;">
-                                                        <label for="txtCustomBlockingAddresses" class="control-label">Custom Blocking Addresses (IP Address)</label>
-                                                        <textarea id="txtCustomBlockingAddresses" class="form-control" rows="3"></textarea>
-                                                    </div>
-                                                </div>
+                                                                <div class="checkbox">
+                                                                    <label>
+                                                                        <input id="chkEnableDnsOverTls" type="checkbox"> Enable DNS-over-TLS <code>(TCP Port 853)</code>
+                                                                    </label>
+                                                                </div>
+                                                                <div style="padding-top: 5px; padding-left: 20px;">Enable this option to accept DNS-over-TLS requests.</div>
 
-                                                <div class="form-group">
-                                                    <label for="txtBlockListUrls" class="col-sm-3 control-label">Block List URLs</label>
-                                                    <div class="col-sm-6">
-                                                        <textarea id="txtBlockListUrls" class="form-control" rows="7"></textarea>
-
-                                                        <label for="optQuickBlockList" class="control-label">Quick Add</label>
-                                                        <select id="optQuickBlockList" class="form-control" style="width: 100%;">
-                                                            <option value="blank" selected></option>
-                                                            <option value="none">None</option>
-                                                            <option value="default">Default</option>
-
-                                                            <option id="optCustomLocalBlockList" value="http://localhost:5380/blocklist.txt">Custom Local Block List (http://localhost:5380/blocklist.txt)</option>
-
-                                                            <option value="https://raw.githubusercontent.com/StevenBlack/hosts/master/hosts">Steven Black [adware + malware] (https://raw.githubusercontent.com/StevenBlack/hosts/master/hosts)</option>
-                                                            <option value="https://raw.githubusercontent.com/StevenBlack/hosts/master/alternates/fakenews/hosts">Steven Black [adware + malware + fakenews] (https://raw.githubusercontent.com/StevenBlack/hosts/master/alternates/fakenews/hosts)</option>
-                                                            <option value="https://raw.githubusercontent.com/StevenBlack/hosts/master/alternates/gambling/hosts">Steven Black [adware + malware + gambling] (https://raw.githubusercontent.com/StevenBlack/hosts/master/alternates/gambling/hosts)</option>
-                                                            <option value="https://raw.githubusercontent.com/StevenBlack/hosts/master/alternates/porn/hosts">Steven Black [adware + malware + porn] (https://raw.githubusercontent.com/StevenBlack/hosts/master/alternates/porn/hosts)</option>
-                                                            <option value="https://raw.githubusercontent.com/StevenBlack/hosts/master/alternates/social/hosts">Steven Black [adware + malware + social] (https://raw.githubusercontent.com/StevenBlack/hosts/master/alternates/social/hosts)</option>
-                                                            <option value="https://raw.githubusercontent.com/StevenBlack/hosts/master/alternates/fakenews-gambling/hosts">Steven Black [adware + malware + fakenews + gambling] (https://raw.githubusercontent.com/StevenBlack/hosts/master/alternates/fakenews-gambling/hosts)</option>
-                                                            <option value="https://raw.githubusercontent.com/StevenBlack/hosts/master/alternates/fakenews-porn/hosts">Steven Black [adware + malware + fakenews + porn] (https://raw.githubusercontent.com/StevenBlack/hosts/master/alternates/fakenews-porn/hosts)</option>
-                                                            <option value="https://raw.githubusercontent.com/StevenBlack/hosts/master/alternates/fakenews-social/hosts">Steven Black [adware + malware + fakenews + social] (https://raw.githubusercontent.com/StevenBlack/hosts/master/alternates/fakenews-social/hosts)</option>
-                                                            <option value="https://raw.githubusercontent.com/StevenBlack/hosts/master/alternates/gambling-porn/hosts">Steven Black [adware + malware + gambling + porn] (https://raw.githubusercontent.com/StevenBlack/hosts/master/alternates/gambling-porn/hosts)</option>
-                                                            <option value="https://raw.githubusercontent.com/StevenBlack/hosts/master/alternates/gambling-social/hosts">Steven Black [adware + malware + gambling + social] (https://raw.githubusercontent.com/StevenBlack/hosts/master/alternates/gambling-social/hosts)</option>
-                                                            <option value="https://raw.githubusercontent.com/StevenBlack/hosts/master/alternates/porn-social/hosts">Steven Black [adware + malware + porn + social] (https://raw.githubusercontent.com/StevenBlack/hosts/master/alternates/porn-social/hosts)</option>
-                                                            <option value="https://raw.githubusercontent.com/StevenBlack/hosts/master/alternates/fakenews-gambling-porn/hosts">Steven Black [adware + malware + fakenews + gambling + porn] (https://raw.githubusercontent.com/StevenBlack/hosts/master/alternates/fakenews-gambling-porn/hosts)</option>
-                                                            <option value="https://raw.githubusercontent.com/StevenBlack/hosts/master/alternates/fakenews-gambling-social/hosts">Steven Black [adware + malware + fakenews + gambling + social] (https://raw.githubusercontent.com/StevenBlack/hosts/master/alternates/fakenews-gambling-social/hosts)</option>
-                                                            <option value="https://raw.githubusercontent.com/StevenBlack/hosts/master/alternates/fakenews-porn-social/hosts">Steven Black [adware + malware + fakenews + porn + social] (https://raw.githubusercontent.com/StevenBlack/hosts/master/alternates/fakenews-porn-social/hosts)</option>
-                                                            <option value="https://raw.githubusercontent.com/StevenBlack/hosts/master/alternates/gambling-porn-social/hosts">Steven Black [adware + malware + gambling + porn + social] (https://raw.githubusercontent.com/StevenBlack/hosts/master/alternates/gambling-porn-social/hosts)</option>
-                                                            <option value="https://raw.githubusercontent.com/StevenBlack/hosts/master/alternates/fakenews-gambling-porn-social/hosts">Steven Black [adware + malware + fakenews + gambling + porn + social] (https://raw.githubusercontent.com/StevenBlack/hosts/master/alternates/fakenews-gambling-porn-social/hosts)</option>
-
-                                                            <option value="https://s3.amazonaws.com/lists.disconnect.me/simple_tracking.txt">Disconnect.me [tracking] (https://s3.amazonaws.com/lists.disconnect.me/simple_tracking.txt)</option>
-                                                            <option value="https://s3.amazonaws.com/lists.disconnect.me/simple_ad.txt">Disconnect.me [ads] (https://s3.amazonaws.com/lists.disconnect.me/simple_ad.txt)</option>
-
-                                                            <option value="https://dbl.oisd.nl/">OISD Block List by sjhgvr (https://dbl.oisd.nl/)</option>
-                                                        </select>
-                                                    </div>
-                                                    <div class="col-sm-offset-3 col-sm-8" style="padding-top: 5px;">
-                                                        <p>Enter block list URL one below another in the above text field or use the Quick Add list to add known block list URLs.</p>
-                                                        <p>Add <code>!</code> character at the start of an URL to make it an allow list URL. Domain names in such an allow list URL are prevented from being added to the block list zone.</p>
-                                                    </div>
-                                                </div>
-
-                                                <div class="form-group">
-                                                    <label for="txtBlockListUpdateIntervalHours" class="col-sm-3 control-label">Block List Update Interval</label>
-                                                    <div class="col-sm-6">
-                                                        <input type="number" class="form-control" id="txtBlockListUpdateIntervalHours" placeholder="hours" style="width: 100px; display: inline;">
-                                                        <span>hours (default 24, valid range 1-168)</span>
-                                                    </div>
-                                                    <div class="col-sm-offset-3 col-sm-8" style="padding-top: 5px;">The interval in hours to automatically download and update the block lists.</div>
-                                                </div>
-
-                                                <div class="form-group">
-                                                    <label for="lblBlockListNextUpdatedOn" class="col-sm-3 control-label">Block List Next Update On</label>
-                                                    <div class="col-sm-6" style="padding-top: 5px;">
-                                                        <span id="lblBlockListNextUpdatedOn" style="margin-right: 15px;"></span>
-                                                        <button id="btnUpdateBlockListsNow" type="button" class="btn btn-default" style="padding: 2px 0; width: 100px;" data-loading-text="Updating..." onclick="return forceUpdateBlockLists();">Update Now</button>
-                                                    </div>
-                                                    <div class="col-sm-offset-3 col-sm-8" style="padding-top: 5px;">Click the 'Update Now' button to reset the next update schedule and force download and update of the block lists.</div>
-                                                </div>
-
-                                                <div style="margin-top: 10px;">DNS Server will use the data returned by the block list URLs to update the block list zone automatically. The expected file format is standard <code>hosts</code> file format or plain text file containing list of domains to block.</div>
-                                                <div style="margin-top: 10px;"><a href="https://blog.technitium.com/2018/10/blocking-internet-ads-using-dns-sinkhole.html" target="_blank">Help: Blocking Internet Ads Using DNS Sinkhole</a></div>
-                                            </div>
-
-                                            <div class="well well-sm form-horizontal">
-                                                <div class="form-group">
-                                                    <label class="col-sm-3 control-label">Network Proxy</label>
-                                                    <div class="col-sm-6">
-                                                        <div class="radio">
-                                                            <label>
-                                                                <input type="radio" name="rdProxyType" id="rdProxyTypeNone" value="None" checked>
-                                                                No Proxy (default)
-                                                            </label>
-                                                        </div>
-                                                        <div class="radio">
-                                                            <label>
-                                                                <input type="radio" name="rdProxyType" id="rdProxyTypeHttp" value="Http">
-                                                                HTTP Proxy
-                                                            </label>
-                                                        </div>
-                                                        <div class="radio">
-                                                            <label>
-                                                                <input type="radio" name="rdProxyType" id="rdProxyTypeSocks5" value="Socks5">
-                                                                SOCKS5 Proxy
-                                                            </label>
-                                                        </div>
-                                                    </div>
-                                                </div>
-
-                                                <div class="form-group">
-                                                    <label for="txtProxyAddress" class="col-sm-3 control-label">Proxy Address</label>
-                                                    <div class="col-sm-6">
-                                                        <input type="text" class="form-control" id="txtProxyAddress" placeholder="Proxy Server Address">
-                                                    </div>
-                                                </div>
-
-                                                <div class="form-group">
-                                                    <label for="txtProxyPort" class="col-sm-3 control-label">Proxy Port</label>
-                                                    <div class="col-sm-6">
-                                                        <input type="number" class="form-control" id="txtProxyPort" placeholder="Proxy Server Port" style="width: 170px;">
-                                                    </div>
-                                                </div>
-
-                                                <div class="form-group">
-                                                    <label for="txtProxyUsername" class="col-sm-3 control-label">Username</label>
-                                                    <div class="col-sm-6">
-                                                        <input type="text" class="form-control" id="txtProxyUsername" placeholder="Proxy Server Username">
-                                                    </div>
-                                                </div>
-
-                                                <div class="form-group">
-                                                    <label for="txtProxyPassword" class="col-sm-3 control-label">Password</label>
-                                                    <div class="col-sm-6">
-                                                        <input type="password" class="form-control" id="txtProxyPassword" placeholder="Proxy Server Password">
-                                                    </div>
-                                                </div>
-
-                                                <div class="form-group">
-                                                    <label for="txtProxyBypassList" class="col-sm-3 control-label">Proxy Bypass List</label>
-                                                    <div class="col-sm-6">
-                                                        <textarea id="txtProxyBypassList" class="form-control" rows="5"></textarea>
-                                                    </div>
-                                                    <div class="col-sm-offset-3 col-sm-8" style="padding-top: 5px;">Enter IP addresses, network addresses or domain names to never proxy.</div>
-                                                </div>
-
-                                                <div style="margin-top: 10px;">When proxy server is configured, DNS Server will use it for all outbound network requests.</div>
-                                            </div>
-
-                                            <div class="well well-sm form-horizontal">
-                                                <div class="form-group">
-                                                    <label for="txtForwarders" class="col-sm-3 control-label">Forwarders</label>
-                                                    <div class="col-sm-6">
-                                                        <textarea id="txtForwarders" class="form-control" rows="3"></textarea>
-
-                                                        <label for="optQuickForwarders" class="control-label">Quick Select</label>
-                                                        <select id="optQuickForwarders" class="form-control" style="width: 100%;">
-                                                            <option value="blank" selected></option>
-                                                            <option value="none">None</option>
-
-                                                            <option value="cloudflare-udp">Cloudflare (DNS-over-UDP)</option>
-                                                            <option value="cloudflare-udp-ipv6">Cloudflare (DNS-over-UDP IPv6)</option>
-                                                            <option value="cloudflare-tcp">Cloudflare (DNS-over-TCP)</option>
-                                                            <option value="cloudflare-tcp-ipv6">Cloudflare (DNS-over-TCP IPv6)</option>
-                                                            <option value="cloudflare-tls">Cloudflare (DNS-over-TLS)</option>
-                                                            <option value="cloudflare-tls-ipv6">Cloudflare (DNS-over-TLS IPv6)</option>
-                                                            <option value="cloudflare-https">Cloudflare (DNS-over-HTTPS)</option>
-                                                            <option value="cloudflare-json">Cloudflare (DNS-over-HTTPS-JSON)</option>
-                                                            <option value="cloudflare-tor">Cloudflare (DNS-over-TOR!)</option>
-
-                                                            <option value="google-udp">Google (DNS-over-UDP)</option>
-                                                            <option value="google-udp-ipv6">Google (DNS-over-UDP IPv6)</option>
-                                                            <option value="google-tcp">Google (DNS-over-TCP)</option>
-                                                            <option value="google-tcp-ipv6">Google (DNS-over-TCP IPv6)</option>
-                                                            <option value="google-tls">Google (DNS-over-TLS)</option>
-                                                            <option value="google-tls-ipv6">Google (DNS-over-TLS IPv6)</option>
-                                                            <option value="google-https">Google (DNS-over-HTTPS)</option>
-                                                            <option value="google-json">Google (DNS-over-HTTPS-JSON)</option>
-
-                                                            <option value="quad9-udp">Quad9 Secure (DNS-over-UDP)</option>
-                                                            <option value="quad9-udp-ipv6">Quad9 Secure (DNS-over-UDP IPv6)</option>
-                                                            <option value="quad9-tcp">Quad9 Secure (DNS-over-TCP)</option>
-                                                            <option value="quad9-tcp-ipv6">Quad9 Secure (DNS-over-TCP IPv6)</option>
-                                                            <option value="quad9-tls">Quad9 Secure (DNS-over-TLS)</option>
-                                                            <option value="quad9-tls-ipv6">Quad9 Secure (DNS-over-TLS IPv6)</option>
-                                                            <option value="quad9-https">Quad9 Secure (DNS-over-HTTPS)</option>
-
-                                                            <option value="quad9-unsecure-udp">Quad9 Unsecure (DNS-over-UDP)</option>
-                                                            <option value="quad9-unsecure-udp-ipv6">Quad9 Unsecure (DNS-over-UDP IPv6)</option>
-                                                            <option value="quad9-unsecure-tcp">Quad9 Unsecure (DNS-over-TCP)</option>
-                                                            <option value="quad9-unsecure-tcp-ipv6">Quad9 Unsecure (DNS-over-TCP IPv6)</option>
-                                                            <option value="quad9-unsecure-tls">Quad9 Unsecure (DNS-over-TLS)</option>
-                                                            <option value="quad9-unsecure-tls-ipv6">Quad9 Unsecure (DNS-over-TLS IPv6)</option>
-                                                            <option value="quad9-unsecure-https">Quad9 Unsecure (DNS-over-HTTPS)</option>
-
-                                                            <option value="opendns-udp">OpenDNS (DNS-over-UDP)</option>
-                                                            <option value="opendns-udp-ipv6">OpenDNS (DNS-over-UDP IPv6)</option>
-                                                            <option value="opendns-tcp">OpenDNS (DNS-over-TCP)</option>
-                                                            <option value="opendns-tcp-ipv6">OpenDNS (DNS-over-TCP IPv6)</option>
-
-                                                            <option value="opendns-fs-udp">OpenDNS FamilyShield (DNS-over-UDP)</option>
-                                                        </select>
-
-                                                        <div style="margin-top: 10px;">Enter forwarder DNS Server IP addresses or URLs one below another in above text field or use the Quick Select list to select desired forwarder.</div>
-                                                    </div>
-                                                </div>
-
-                                                <div class="form-group">
-                                                    <label class="col-sm-3 control-label">Forwarder Protocol</label>
-                                                    <div class="col-sm-8">
-                                                        <div class="radio">
-                                                            <label>
-                                                                <input type="radio" name="rdForwarderProtocol" id="rdForwarderProtocolUdp" value="Udp" checked>
-                                                                DNS-over-UDP (default)
-                                                            </label>
-                                                        </div>
-                                                        <div class="radio">
-                                                            <label>
-                                                                <input type="radio" name="rdForwarderProtocol" id="rdForwarderProtocolTcp" value="Tcp">
-                                                                DNS-over-TCP
-                                                            </label>
-                                                        </div>
-                                                        <div class="radio">
-                                                            <label>
-                                                                <input type="radio" name="rdForwarderProtocol" id="rdForwarderProtocolTls" value="Tls">
-                                                                DNS-over-TLS
-                                                            </label>
-                                                        </div>
-                                                        <div class="radio">
-                                                            <label>
-                                                                <input type="radio" name="rdForwarderProtocol" id="rdForwarderProtocolHttps" value="Https">
-                                                                DNS-over-HTTPS
-                                                            </label>
-                                                        </div>
-                                                        <div class="radio">
-                                                            <label>
-                                                                <input type="radio" name="rdForwarderProtocol" id="rdForwarderProtocolHttpsJson" value="HttpsJson">
-                                                                DNS-over-HTTPS (JSON)
-                                                            </label>
+                                                                <div class="checkbox">
+                                                                    <label>
+                                                                        <input id="chkEnableDnsOverHttps" type="checkbox"> Enable DNS-over-HTTPS <code>(TCP Port 80 &amp; 443)</code>
+                                                                    </label>
+                                                                </div>
+                                                                <div style="padding-top: 5px; padding-left: 20px;">Enable this option to accept DNS-over-HTTPS requests for both wire and json response formats.</div>
+                                                            </div>
                                                         </div>
 
-                                                        <div style="margin-top: 10px;">Select a protocol that this DNS server must use to query the forwarders specified above.</div>
+                                                        <div class="form-group">
+                                                            <label for="txtDnsTlsCertificatePath" class="col-sm-3 control-label">TLS Certificate File Path</label>
+                                                            <div class="col-sm-6">
+                                                                <input type="text" class="form-control" id="txtDnsTlsCertificatePath" placeholder="DNS Service TLS Certificate File Path On Server">
+                                                            </div>
+                                                            <div class="col-sm-offset-3 col-sm-8" style="padding-top: 5px;">Specify a PKCS #12 certificate (.pfx) file path on the server. The certificate must contain private key.</div>
+                                                        </div>
+
+                                                        <div class="form-group">
+                                                            <label for="txtDnsTlsCertificatePassword" class="col-sm-3 control-label">TLS Certificate Password</label>
+                                                            <div class="col-sm-6">
+                                                                <input type="password" class="form-control" id="txtDnsTlsCertificatePassword" placeholder="DNS Service TLS Certificate Password">
+                                                            </div>
+                                                            <div class="col-sm-offset-3 col-sm-8" style="padding-top: 5px;">Enter the certificate (.pfx) password, if any.</div>
+                                                        </div>
+
+                                                        <div>
+                                                            <p>Note! These optional DNS server protocol changes will be automatically applied and so you do not need to manually restart the main service. The DNS-over-TLS and DNS-over-HTTPS protocols will be enabled only when a TLS certificate is configured.</p>
+                                                            <p>These optional DNS server protocols are used to host these as a service. You do not need to enable these optional protocols to use them with Forwarders or Conditional Forwarder Zones.</p>
+                                                            <p>For DNS-over-HTTP, use <code>http://<span id="lblDoHHost">localhost:8053</span>/dns-query</code> with a TLS terminating reverse proxy like nginx. For DNS-over-TLS, use <code>tls-certificate-domain:853</code> and for DNS-over-HTTPS use <code>https://tls-certificate-domain/dns-query</code> to configure supported DNS clients.</p>
+                                                            <p>Use the following openssl command to convert your TLS certificate that is in PEM format to PKCS #12 certificate (.pfx) format:</p>
+                                                            <pre>openssl pkcs12 -export -out "example.com.pfx" -inkey "privkey.pem" -in "cert.pem" -certfile "chain.pem"</pre>
+                                                        </div>
+
+                                                        <div style="margin-top: 10px;"><a href="https://blog.technitium.com/2020/07/how-to-host-your-own-dns-over-https-and.html" target="_blank">Help: How To Host Your Own DNS-over-HTTPS And DNS-over-TLS Services</a></div>
                                                     </div>
                                                 </div>
 
-                                                <div style="margin-top: 10px;">Forwarders are DNS servers which this DNS Server should use to resolve recursive queries. If no forwarders are configured then this DNS server will use preconfigured ROOT SERVERS to perform recursive resolution.</div>
-                                                <div style="margin-top: 10px;"><a href="https://blog.technitium.com/2018/06/configuring-dns-server-for-privacy.html" target="_blank">Help: Configuring DNS Server For Privacy & Security</a></div>
+                                                <div id="settingsTabPaneTsig" role="tabpanel" class="tab-pane">
+                                                    <div class="well well-sm form-horizontal">
+                                                        <div class="form-group">
+                                                            <label for="tableTsigKeys" class="col-sm-3 control-label">TSIG Keys</label>
+                                                            <div class="col-sm-9">
+                                                                <table class="table table-hover" style="margin-bottom: 0px;">
+                                                                    <thead>
+                                                                        <tr>
+                                                                            <th>Key Name</th>
+                                                                            <th>Shared Secret</th>
+                                                                            <th><button type="button" class="btn btn-default" style="padding: 0px 20px;" onclick="addTsigKeyRow('', '');">Add</button></th>
+                                                                        </tr>
+                                                                    </thead>
+                                                                    <tbody id="tableTsigKeys"></tbody>
+                                                                </table>
+                                                            </div>
+                                                            <div class="col-sm-offset-3 col-sm-8" style="padding-top: 5px;">The shared secret can be a base64 string or a literal string. Keep the shared secret empty if you want to auto generate a strong key.</div>
+                                                        </div>
+
+                                                        <div>Note! You will need to select these TSIG keys for zone transfer in the zone options separately. This DNS server supports hmac-md5, hmac-sha1, hmac-sha256 (recommended), hmac-sha256-128, hmac-sha384, hmac-sha384-192, hmac-sha512, and hmac-sha512-256 algorithms.</div>
+                                                    </div>
+                                                </div>
+
+                                                <div id="settingsTabPaneRecursion" role="tabpanel" class="tab-pane">
+                                                    <div class="well well-sm form-horizontal">
+                                                        <div class="form-group">
+                                                            <label class="col-sm-3 control-label">Recursion</label>
+                                                            <div class="col-sm-8">
+                                                                <div class="radio">
+                                                                    <label>
+                                                                        <input type="radio" name="rdRecursion" id="rdRecursionDeny" value="Deny">
+                                                                        Deny Recursion
+                                                                    </label>
+                                                                    <div style="padding-top: 5px; padding-left: 20px;">Disables recursion so that this DNS Server works as authoritative only.</div>
+                                                                </div>
+                                                                <div class="radio">
+                                                                    <label>
+                                                                        <input type="radio" name="rdRecursion" id="rdRecursionAllow" value="Allow">
+                                                                        Allow Recursion
+                                                                    </label>
+                                                                    <div style="padding-top: 5px; padding-left: 20px;">Enables recursion to allow this DNS Server to resolve any domain name.</div>
+                                                                </div>
+                                                                <div class="radio">
+                                                                    <label>
+                                                                        <input type="radio" name="rdRecursion" id="rdRecursionAllowOnlyForPrivateNetworks" value="AllowOnlyForPrivateNetworks" checked>
+                                                                        Allow Recursion Only For Private Networks (default)
+                                                                    </label>
+                                                                    <div style="padding-top: 5px; padding-left: 20px;">Select this option if you want to support recursion only on private networks. Any recursive request from a public network will be refused.</div>
+                                                                </div>
+                                                                <div class="radio">
+                                                                    <label>
+                                                                        <input type="radio" name="rdRecursion" id="rdRecursionUseSpecifiedNetworks" value="UseSpecifiedNetworks">
+                                                                        Allow/Deny Recursion For Specified Networks
+                                                                    </label>
+                                                                    <div style="padding-top: 5px; padding-left: 20px;">Select this option to specify which networks (in CIDR form) must be allowed or denied. Denied networks are always matched first.</div>
+                                                                </div>
+                                                            </div>
+                                                            <div class="col-sm-offset-3 col-sm-6">
+                                                                <label for="txtRecursionDeniedNetworks" class="control-label">Denied Networks (CIDR)</label>
+                                                                <textarea id="txtRecursionDeniedNetworks" class="form-control" rows="5"></textarea>
+
+                                                                <label for="txtRecursionAllowedNetworks" class="control-label">Allowed Networks (CIDR)</label>
+                                                                <textarea id="txtRecursionAllowedNetworks" class="form-control" rows="5"></textarea>
+                                                            </div>
+                                                        </div>
+
+                                                        <div class="form-group">
+                                                            <label class="col-sm-3 control-label">Recursive Resolver</label>
+                                                            <div class="col-sm-8">
+                                                                <div class="checkbox">
+                                                                    <label>
+                                                                        <input id="chkRandomizeName" type="checkbox"> Randomize Name
+                                                                    </label>
+                                                                </div>
+                                                                <div style="padding-top: 5px; padding-left: 20px;">Enables <a href="https://tools.ietf.org/html/draft-vixie-dnsext-dns0x20-00" target="_blank">QNAME randomization</a> when using UDP as the transport protocol to improve security.</div>
+
+                                                                <div class="checkbox">
+                                                                    <label>
+                                                                        <input id="chkQnameMinimization" type="checkbox"> QNAME Minimization
+                                                                    </label>
+                                                                </div>
+                                                                <div style="padding-top: 5px; padding-left: 20px;">Enables <a href="https://tools.ietf.org/html/draft-ietf-dnsop-rfc7816bis-04" target="_blank">QNAME minimization</a> for recursive resolution to improve privacy.</div>
+                                                            </div>
+                                                        </div>
+
+                                                        <div>Note! Disable recursion if you wish this server to act only as authoritative name server for the configured zones.</div>
+                                                    </div>
+                                                </div>
+
+                                                <div id="settingsTabPaneCache" role="tabpanel" class="tab-pane">
+                                                    <div class="well well-sm form-horizontal">
+                                                        <div class="form-group">
+                                                            <label class="col-sm-3 control-label">DNS Cache</label>
+                                                            <div class="col-sm-8">
+                                                                <div class="checkbox">
+                                                                    <label>
+                                                                        <input id="chkServeStale" type="checkbox"> Serve Stale
+                                                                    </label>
+                                                                </div>
+                                                                <div style="padding-top: 5px; padding-left: 20px;">Enable the serve stale feature to improve resiliency by using expired or stale records in cache when the DNS server is unable to reach the upstream or authoritative name servers.</div>
+                                                            </div>
+                                                        </div>
+
+                                                        <div class="form-group">
+                                                            <label for="txtServeStaleTtl" class="col-sm-3 control-label">Serve Stale TTL</label>
+                                                            <div class="col-sm-6">
+                                                                <input type="number" class="form-control" id="txtServeStaleTtl" placeholder="seconds" style="width: 100px; display: inline;">
+                                                                <span>(recommended 259200 seconds i.e. 3 days)</span>
+                                                            </div>
+                                                            <div class="col-sm-offset-3 col-sm-8" style="padding-top: 5px;">The TTL value in seconds which should be used for cached records that are expired. When the serve stale TTL too expires for a stale record, it gets removed from the cache. Recommended value is between 1-3 days and maximum supported value is 7 days.</div>
+                                                        </div>
+                                                    </div>
+
+                                                    <div class="well well-sm form-horizontal">
+                                                        <div class="form-group">
+                                                            <label for="txtCacheMinimumRecordTtl" class="col-sm-3 control-label">Cache Minimum TTL</label>
+                                                            <div class="col-sm-6">
+                                                                <input type="number" class="form-control" id="txtCacheMinimumRecordTtl" placeholder="min TTL" style="width: 100px; display: inline;">
+                                                                <span>(recommended 10)</span>
+                                                            </div>
+                                                            <div class="col-sm-offset-3 col-sm-8" style="padding-top: 5px;">The minimum TTL value that a record can have in cache. Set a value to make sure that the records with TTL value than it stays in cache for a minimum duration.</div>
+                                                        </div>
+
+                                                        <div class="form-group">
+                                                            <label for="txtCacheMaximumRecordTtl" class="col-sm-3 control-label">Cache Maximum TTL</label>
+                                                            <div class="col-sm-8">
+                                                                <input type="number" class="form-control" id="txtCacheMaximumRecordTtl" placeholder="max TTL" style="width: 100px; display: inline;">
+                                                                <span>(default 604800)</span>
+                                                            </div>
+                                                            <div class="col-sm-offset-3 col-sm-8" style="padding-top: 5px;">The maximum TTL value that a record can have in cache. Set a lower value to allow the records to expire early.</div>
+                                                        </div>
+
+                                                        <div class="form-group">
+                                                            <label for="txtCacheNegativeRecordTtl" class="col-sm-3 control-label">Cache Negative TTL</label>
+                                                            <div class="col-sm-6">
+                                                                <input type="number" class="form-control" id="txtCacheNegativeRecordTtl" placeholder="-ve TTL" style="width: 100px; display: inline;">
+                                                                <span>(recommended 300)</span>
+                                                            </div>
+                                                            <div class="col-sm-offset-3 col-sm-8" style="padding-top: 5px;">The negative TTL value to use when there is no SOA MINIMUM value available.</div>
+                                                        </div>
+
+                                                        <div class="form-group">
+                                                            <label for="txtCacheFailureRecordTtl" class="col-sm-3 control-label">Cache Failure TTL</label>
+                                                            <div class="col-sm-6">
+                                                                <input type="number" class="form-control" id="txtCacheFailureRecordTtl" placeholder="fail TTL" style="width: 100px; display: inline;">
+                                                                <span>(recommended 60)</span>
+                                                            </div>
+                                                            <div class="col-sm-offset-3 col-sm-8" style="padding-top: 5px;">The failure TTL value to used for caching failure responses. This allows storing failure record in cache and prevent frequent recursive resolution to name servers that are responding with <code>ServerFailure</code>.</div>
+                                                        </div>
+                                                    </div>
+
+                                                    <div class="well well-sm form-horizontal">
+                                                        <div class="form-group">
+                                                            <label for="txtCachePrefetchEligibility" class="col-sm-3 control-label">Prefetch Eligibility</label>
+                                                            <div class="col-sm-6">
+                                                                <input type="number" class="form-control" id="txtCachePrefetchEligibility" placeholder="eligibility" style="width: 100px; display: inline;">
+                                                                <span>(recommended 2)</span>
+                                                            </div>
+                                                            <div class="col-sm-offset-3 col-sm-8" style="padding-top: 5px;">The minimum initial TTL value of a record needed to be eligible for prefetching.</div>
+                                                        </div>
+
+                                                        <div class="form-group">
+                                                            <label for="txtCachePrefetchTrigger" class="col-sm-3 control-label">Prefetch Trigger</label>
+                                                            <div class="col-sm-8">
+                                                                <input type="number" class="form-control" id="txtCachePrefetchTrigger" placeholder="trigger" style="width: 100px; display: inline;">
+                                                                <span>(recommended 9; set 0 to disable prefetching &amp; auto prefetching)</span>
+                                                            </div>
+                                                            <div class="col-sm-offset-3 col-sm-8" style="padding-top: 5px;">A record with TTL value less than trigger value will initiate prefetch operation immediately for itself.</div>
+                                                        </div>
+
+                                                        <div class="form-group">
+                                                            <label for="txtCachePrefetchSampleIntervalInMinutes" class="col-sm-3 control-label">Auto Prefetch Sampling</label>
+                                                            <div class="col-sm-6">
+                                                                <input type="number" class="form-control" id="txtCachePrefetchSampleIntervalInMinutes" placeholder="interval" style="width: 100px; display: inline;">
+                                                                <span>minutes (valid range 1-60; default 5)</span>
+                                                            </div>
+                                                            <div class="col-sm-offset-3 col-sm-8" style="padding-top: 5px;">The interval to sample eligible domain names from last hour stats for auto prefetch.</div>
+                                                        </div>
+
+                                                        <div class="form-group">
+                                                            <label for="txtCachePrefetchSampleEligibilityHitsPerHour" class="col-sm-3 control-label">Auto Prefetch Eligibility</label>
+                                                            <div class="col-sm-6">
+                                                                <input type="number" class="form-control" id="txtCachePrefetchSampleEligibilityHitsPerHour" placeholder="hits" style="width: 100px; display: inline;">
+                                                                <span>hits/hour (default 30)</span>
+                                                            </div>
+                                                            <div class="col-sm-offset-3 col-sm-8" style="padding-top: 5px;">Minimum required hits per hour for a domain name to be eligible for auto prefetch.</div>
+                                                        </div>
+
+                                                        <div>The DNS Server cache auto prefetch option can keep eligible domain names from last hour stats "hot" in cache. Auto prefetch eligibility value can be decided by keeping an eye on the hits shown for last hour on the dashboard. Experiment with auto prefetch sampling interval and eligibility to get best results.</div>
+                                                    </div>
+                                                </div>
+
+                                                <div id="settingsTabPaneBlocking" role="tabpanel" class="tab-pane">
+                                                    <div class="well well-sm form-horizontal">
+                                                        <div class="form-group">
+                                                            <label class="col-sm-3 control-label">Blocking</label>
+                                                            <div class="col-sm-8">
+                                                                <div class="checkbox">
+                                                                    <label>
+                                                                        <input id="chkEnableBlocking" type="checkbox"> Enable Blocking
+                                                                    </label>
+                                                                </div>
+                                                                <div style="padding-top: 5px; padding-left: 20px;">Sets the DNS server to block domain names using Blocked Zone and Block List Zone.</div>
+                                                            </div>
+                                                        </div>
+
+                                                        <div class="form-group">
+                                                            <label class="col-sm-3 control-label">Blocking Temporarily Disabled Till</label>
+                                                            <div class="col-sm-8">
+                                                                <div id="lblTemporaryDisableBlockingTill" style="padding-top: 7px;"></div>
+                                                                <div style="padding-top: 12px;">
+                                                                    <input type="number" class="form-control" id="txtTemporaryDisableBlockingMinutes" placeholder="minutes" style="width: 100px; display: inline;">
+                                                                    <span>minutes</span>
+                                                                </div>
+                                                                <div style="padding-top: 6px;">
+                                                                    <button id="btnTemporaryDisableBlockingNow" type="button" class="btn btn-default" style="padding: 2px 0; width: 170px;" data-loading-text="Disabling..." onclick="return temporaryDisableBlockingNow();">Temporary Disable Now</button>
+                                                                </div>
+                                                            </div>
+                                                        </div>
+
+                                                        <div class="form-group">
+                                                            <label class="col-sm-3 control-label">Blocking Type</label>
+                                                            <div class="col-sm-8">
+                                                                <div class="radio">
+                                                                    <label>
+                                                                        <input type="radio" name="rdBlockingType" id="rdBlockingTypeAnyAddress" value="AnyAddress">
+                                                                        Any Address (default)
+                                                                    </label>
+                                                                    <div style="padding-top: 5px; padding-left: 20px;">Uses <code>0.0.0.0</code> and <code>::</code> IP addresses for blocked domain names.</div>
+                                                                </div>
+                                                                <div class="radio">
+                                                                    <label>
+                                                                        <input type="radio" name="rdBlockingType" id="rdBlockingTypeNxDomain" value="NxDomain">
+                                                                        NX Domain
+                                                                    </label>
+                                                                    <div style="padding-top: 5px; padding-left: 20px;">Uses <code>NX Domain</code> response for blocked domain names.</div>
+                                                                </div>
+                                                                <div class="radio">
+                                                                    <label>
+                                                                        <input type="radio" name="rdBlockingType" id="rdBlockingTypeCustomAddress" value="CustomAddress">
+                                                                        Custom Address
+                                                                    </label>
+                                                                    <div style="padding-top: 5px; padding-left: 20px;">Uses custom IP addresses provided below for blocked domain names.</div>
+                                                                </div>
+                                                            </div>
+
+                                                            <div class="col-sm-offset-3 col-sm-6" style="margin-bottom: 10px;">
+                                                                <label for="txtCustomBlockingAddresses" class="control-label">Custom Blocking Addresses (IP Address)</label>
+                                                                <textarea id="txtCustomBlockingAddresses" class="form-control" rows="3"></textarea>
+                                                            </div>
+                                                        </div>
+
+                                                        <div class="form-group">
+                                                            <label for="txtBlockListUrls" class="col-sm-3 control-label">Block List URLs</label>
+                                                            <div class="col-sm-6">
+                                                                <textarea id="txtBlockListUrls" class="form-control" rows="7"></textarea>
+
+                                                                <label for="optQuickBlockList" class="control-label">Quick Add</label>
+                                                                <select id="optQuickBlockList" class="form-control" style="width: 100%;">
+                                                                    <option value="blank" selected></option>
+                                                                    <option value="none">None</option>
+                                                                    <option value="default">Default</option>
+
+                                                                    <option id="optCustomLocalBlockList" value="http://localhost:5380/blocklist.txt">Custom Local Block List (http://localhost:5380/blocklist.txt)</option>
+
+                                                                    <option value="https://raw.githubusercontent.com/StevenBlack/hosts/master/hosts">Steven Black [adware + malware] (https://raw.githubusercontent.com/StevenBlack/hosts/master/hosts)</option>
+                                                                    <option value="https://raw.githubusercontent.com/StevenBlack/hosts/master/alternates/fakenews/hosts">Steven Black [adware + malware + fakenews] (https://raw.githubusercontent.com/StevenBlack/hosts/master/alternates/fakenews/hosts)</option>
+                                                                    <option value="https://raw.githubusercontent.com/StevenBlack/hosts/master/alternates/gambling/hosts">Steven Black [adware + malware + gambling] (https://raw.githubusercontent.com/StevenBlack/hosts/master/alternates/gambling/hosts)</option>
+                                                                    <option value="https://raw.githubusercontent.com/StevenBlack/hosts/master/alternates/porn/hosts">Steven Black [adware + malware + porn] (https://raw.githubusercontent.com/StevenBlack/hosts/master/alternates/porn/hosts)</option>
+                                                                    <option value="https://raw.githubusercontent.com/StevenBlack/hosts/master/alternates/social/hosts">Steven Black [adware + malware + social] (https://raw.githubusercontent.com/StevenBlack/hosts/master/alternates/social/hosts)</option>
+                                                                    <option value="https://raw.githubusercontent.com/StevenBlack/hosts/master/alternates/fakenews-gambling/hosts">Steven Black [adware + malware + fakenews + gambling] (https://raw.githubusercontent.com/StevenBlack/hosts/master/alternates/fakenews-gambling/hosts)</option>
+                                                                    <option value="https://raw.githubusercontent.com/StevenBlack/hosts/master/alternates/fakenews-porn/hosts">Steven Black [adware + malware + fakenews + porn] (https://raw.githubusercontent.com/StevenBlack/hosts/master/alternates/fakenews-porn/hosts)</option>
+                                                                    <option value="https://raw.githubusercontent.com/StevenBlack/hosts/master/alternates/fakenews-social/hosts">Steven Black [adware + malware + fakenews + social] (https://raw.githubusercontent.com/StevenBlack/hosts/master/alternates/fakenews-social/hosts)</option>
+                                                                    <option value="https://raw.githubusercontent.com/StevenBlack/hosts/master/alternates/gambling-porn/hosts">Steven Black [adware + malware + gambling + porn] (https://raw.githubusercontent.com/StevenBlack/hosts/master/alternates/gambling-porn/hosts)</option>
+                                                                    <option value="https://raw.githubusercontent.com/StevenBlack/hosts/master/alternates/gambling-social/hosts">Steven Black [adware + malware + gambling + social] (https://raw.githubusercontent.com/StevenBlack/hosts/master/alternates/gambling-social/hosts)</option>
+                                                                    <option value="https://raw.githubusercontent.com/StevenBlack/hosts/master/alternates/porn-social/hosts">Steven Black [adware + malware + porn + social] (https://raw.githubusercontent.com/StevenBlack/hosts/master/alternates/porn-social/hosts)</option>
+                                                                    <option value="https://raw.githubusercontent.com/StevenBlack/hosts/master/alternates/fakenews-gambling-porn/hosts">Steven Black [adware + malware + fakenews + gambling + porn] (https://raw.githubusercontent.com/StevenBlack/hosts/master/alternates/fakenews-gambling-porn/hosts)</option>
+                                                                    <option value="https://raw.githubusercontent.com/StevenBlack/hosts/master/alternates/fakenews-gambling-social/hosts">Steven Black [adware + malware + fakenews + gambling + social] (https://raw.githubusercontent.com/StevenBlack/hosts/master/alternates/fakenews-gambling-social/hosts)</option>
+                                                                    <option value="https://raw.githubusercontent.com/StevenBlack/hosts/master/alternates/fakenews-porn-social/hosts">Steven Black [adware + malware + fakenews + porn + social] (https://raw.githubusercontent.com/StevenBlack/hosts/master/alternates/fakenews-porn-social/hosts)</option>
+                                                                    <option value="https://raw.githubusercontent.com/StevenBlack/hosts/master/alternates/gambling-porn-social/hosts">Steven Black [adware + malware + gambling + porn + social] (https://raw.githubusercontent.com/StevenBlack/hosts/master/alternates/gambling-porn-social/hosts)</option>
+                                                                    <option value="https://raw.githubusercontent.com/StevenBlack/hosts/master/alternates/fakenews-gambling-porn-social/hosts">Steven Black [adware + malware + fakenews + gambling + porn + social] (https://raw.githubusercontent.com/StevenBlack/hosts/master/alternates/fakenews-gambling-porn-social/hosts)</option>
+
+                                                                    <option value="https://s3.amazonaws.com/lists.disconnect.me/simple_tracking.txt">Disconnect.me [tracking] (https://s3.amazonaws.com/lists.disconnect.me/simple_tracking.txt)</option>
+                                                                    <option value="https://s3.amazonaws.com/lists.disconnect.me/simple_ad.txt">Disconnect.me [ads] (https://s3.amazonaws.com/lists.disconnect.me/simple_ad.txt)</option>
+
+                                                                    <option value="https://dbl.oisd.nl/">OISD Block List by sjhgvr (https://dbl.oisd.nl/)</option>
+                                                                </select>
+                                                            </div>
+                                                            <div class="col-sm-offset-3 col-sm-8" style="padding-top: 5px;">
+                                                                <p>Enter block list URL one below another in the above text field or use the Quick Add list to add known block list URLs.</p>
+                                                                <p>Add <code>!</code> character at the start of an URL to make it an allow list URL. Domain names in such an allow list URL are prevented from being added to the block list zone.</p>
+                                                            </div>
+                                                        </div>
+
+                                                        <div class="form-group">
+                                                            <label for="txtBlockListUpdateIntervalHours" class="col-sm-3 control-label">Block List Update Interval</label>
+                                                            <div class="col-sm-6">
+                                                                <input type="number" class="form-control" id="txtBlockListUpdateIntervalHours" placeholder="hours" style="width: 100px; display: inline;">
+                                                                <span>hours (default 24, valid range 1-168)</span>
+                                                            </div>
+                                                            <div class="col-sm-offset-3 col-sm-8" style="padding-top: 5px;">The interval in hours to automatically download and update the block lists.</div>
+                                                        </div>
+
+                                                        <div class="form-group">
+                                                            <label for="lblBlockListNextUpdatedOn" class="col-sm-3 control-label">Block List Next Update On</label>
+                                                            <div class="col-sm-6" style="padding-top: 5px;">
+                                                                <span id="lblBlockListNextUpdatedOn" style="margin-right: 15px;"></span>
+                                                                <button id="btnUpdateBlockListsNow" type="button" class="btn btn-default" style="padding: 2px 0; width: 100px;" data-loading-text="Updating..." onclick="return forceUpdateBlockLists();">Update Now</button>
+                                                            </div>
+                                                            <div class="col-sm-offset-3 col-sm-8" style="padding-top: 5px;">Click the 'Update Now' button to reset the next update schedule and force download and update of the block lists.</div>
+                                                        </div>
+
+                                                        <div style="margin-top: 10px;">DNS Server will use the data returned by the block list URLs to update the block list zone automatically. The expected file format is standard <code>hosts</code> file format or plain text file containing list of domains to block.</div>
+                                                        <div style="margin-top: 10px;"><a href="https://blog.technitium.com/2018/10/blocking-internet-ads-using-dns-sinkhole.html" target="_blank">Help: Blocking Internet Ads Using DNS Sinkhole</a></div>
+                                                    </div>
+                                                </div>
+
+                                                <div id="settingsTabPaneProxyForwarders" role="tabpanel" class="tab-pane">
+                                                    <div class="well well-sm form-horizontal">
+                                                        <div class="form-group">
+                                                            <label class="col-sm-3 control-label">Network Proxy</label>
+                                                            <div class="col-sm-6">
+                                                                <div class="radio">
+                                                                    <label>
+                                                                        <input type="radio" name="rdProxyType" id="rdProxyTypeNone" value="None" checked>
+                                                                        No Proxy (default)
+                                                                    </label>
+                                                                </div>
+                                                                <div class="radio">
+                                                                    <label>
+                                                                        <input type="radio" name="rdProxyType" id="rdProxyTypeHttp" value="Http">
+                                                                        HTTP Proxy
+                                                                    </label>
+                                                                </div>
+                                                                <div class="radio">
+                                                                    <label>
+                                                                        <input type="radio" name="rdProxyType" id="rdProxyTypeSocks5" value="Socks5">
+                                                                        SOCKS5 Proxy
+                                                                    </label>
+                                                                </div>
+                                                            </div>
+                                                        </div>
+
+                                                        <div class="form-group">
+                                                            <label for="txtProxyAddress" class="col-sm-3 control-label">Proxy Address</label>
+                                                            <div class="col-sm-6">
+                                                                <input type="text" class="form-control" id="txtProxyAddress" placeholder="Proxy Server Address">
+                                                            </div>
+                                                        </div>
+
+                                                        <div class="form-group">
+                                                            <label for="txtProxyPort" class="col-sm-3 control-label">Proxy Port</label>
+                                                            <div class="col-sm-6">
+                                                                <input type="number" class="form-control" id="txtProxyPort" placeholder="Proxy Server Port" style="width: 170px;">
+                                                            </div>
+                                                        </div>
+
+                                                        <div class="form-group">
+                                                            <label for="txtProxyUsername" class="col-sm-3 control-label">Username</label>
+                                                            <div class="col-sm-6">
+                                                                <input type="text" class="form-control" id="txtProxyUsername" placeholder="Proxy Server Username">
+                                                            </div>
+                                                        </div>
+
+                                                        <div class="form-group">
+                                                            <label for="txtProxyPassword" class="col-sm-3 control-label">Password</label>
+                                                            <div class="col-sm-6">
+                                                                <input type="password" class="form-control" id="txtProxyPassword" placeholder="Proxy Server Password">
+                                                            </div>
+                                                        </div>
+
+                                                        <div class="form-group">
+                                                            <label for="txtProxyBypassList" class="col-sm-3 control-label">Proxy Bypass List</label>
+                                                            <div class="col-sm-6">
+                                                                <textarea id="txtProxyBypassList" class="form-control" rows="5"></textarea>
+                                                            </div>
+                                                            <div class="col-sm-offset-3 col-sm-8" style="padding-top: 5px;">Enter IP addresses, network addresses or domain names to never proxy.</div>
+                                                        </div>
+
+                                                        <div style="margin-top: 10px;">When proxy server is configured, DNS Server will use it for all outbound network requests.</div>
+                                                    </div>
+
+                                                    <div class="well well-sm form-horizontal">
+                                                        <div class="form-group">
+                                                            <label for="txtForwarders" class="col-sm-3 control-label">Forwarders</label>
+                                                            <div class="col-sm-6">
+                                                                <textarea id="txtForwarders" class="form-control" rows="3"></textarea>
+
+                                                                <label for="optQuickForwarders" class="control-label">Quick Select</label>
+                                                                <select id="optQuickForwarders" class="form-control" style="width: 100%;">
+                                                                    <option value="blank" selected></option>
+                                                                    <option value="none">None</option>
+
+                                                                    <option value="cloudflare-udp">Cloudflare (DNS-over-UDP)</option>
+                                                                    <option value="cloudflare-udp-ipv6">Cloudflare (DNS-over-UDP IPv6)</option>
+                                                                    <option value="cloudflare-tcp">Cloudflare (DNS-over-TCP)</option>
+                                                                    <option value="cloudflare-tcp-ipv6">Cloudflare (DNS-over-TCP IPv6)</option>
+                                                                    <option value="cloudflare-tls">Cloudflare (DNS-over-TLS)</option>
+                                                                    <option value="cloudflare-tls-ipv6">Cloudflare (DNS-over-TLS IPv6)</option>
+                                                                    <option value="cloudflare-https">Cloudflare (DNS-over-HTTPS)</option>
+                                                                    <option value="cloudflare-json">Cloudflare (DNS-over-HTTPS-JSON)</option>
+                                                                    <option value="cloudflare-tor">Cloudflare (DNS-over-TOR!)</option>
+
+                                                                    <option value="google-udp">Google (DNS-over-UDP)</option>
+                                                                    <option value="google-udp-ipv6">Google (DNS-over-UDP IPv6)</option>
+                                                                    <option value="google-tcp">Google (DNS-over-TCP)</option>
+                                                                    <option value="google-tcp-ipv6">Google (DNS-over-TCP IPv6)</option>
+                                                                    <option value="google-tls">Google (DNS-over-TLS)</option>
+                                                                    <option value="google-tls-ipv6">Google (DNS-over-TLS IPv6)</option>
+                                                                    <option value="google-https">Google (DNS-over-HTTPS)</option>
+                                                                    <option value="google-json">Google (DNS-over-HTTPS-JSON)</option>
+
+                                                                    <option value="quad9-udp">Quad9 Secure (DNS-over-UDP)</option>
+                                                                    <option value="quad9-udp-ipv6">Quad9 Secure (DNS-over-UDP IPv6)</option>
+                                                                    <option value="quad9-tcp">Quad9 Secure (DNS-over-TCP)</option>
+                                                                    <option value="quad9-tcp-ipv6">Quad9 Secure (DNS-over-TCP IPv6)</option>
+                                                                    <option value="quad9-tls">Quad9 Secure (DNS-over-TLS)</option>
+                                                                    <option value="quad9-tls-ipv6">Quad9 Secure (DNS-over-TLS IPv6)</option>
+                                                                    <option value="quad9-https">Quad9 Secure (DNS-over-HTTPS)</option>
+
+                                                                    <option value="quad9-unsecure-udp">Quad9 Unsecure (DNS-over-UDP)</option>
+                                                                    <option value="quad9-unsecure-udp-ipv6">Quad9 Unsecure (DNS-over-UDP IPv6)</option>
+                                                                    <option value="quad9-unsecure-tcp">Quad9 Unsecure (DNS-over-TCP)</option>
+                                                                    <option value="quad9-unsecure-tcp-ipv6">Quad9 Unsecure (DNS-over-TCP IPv6)</option>
+                                                                    <option value="quad9-unsecure-tls">Quad9 Unsecure (DNS-over-TLS)</option>
+                                                                    <option value="quad9-unsecure-tls-ipv6">Quad9 Unsecure (DNS-over-TLS IPv6)</option>
+                                                                    <option value="quad9-unsecure-https">Quad9 Unsecure (DNS-over-HTTPS)</option>
+
+                                                                    <option value="opendns-udp">OpenDNS (DNS-over-UDP)</option>
+                                                                    <option value="opendns-udp-ipv6">OpenDNS (DNS-over-UDP IPv6)</option>
+                                                                    <option value="opendns-tcp">OpenDNS (DNS-over-TCP)</option>
+                                                                    <option value="opendns-tcp-ipv6">OpenDNS (DNS-over-TCP IPv6)</option>
+
+                                                                    <option value="opendns-fs-udp">OpenDNS FamilyShield (DNS-over-UDP)</option>
+                                                                </select>
+
+                                                                <div style="margin-top: 10px;">Enter forwarder DNS Server IP addresses or URLs one below another in above text field or use the Quick Select list to select desired forwarder.</div>
+                                                            </div>
+                                                        </div>
+
+                                                        <div class="form-group">
+                                                            <label class="col-sm-3 control-label">Forwarder Protocol</label>
+                                                            <div class="col-sm-8">
+                                                                <div class="radio">
+                                                                    <label>
+                                                                        <input type="radio" name="rdForwarderProtocol" id="rdForwarderProtocolUdp" value="Udp" checked>
+                                                                        DNS-over-UDP (default)
+                                                                    </label>
+                                                                </div>
+                                                                <div class="radio">
+                                                                    <label>
+                                                                        <input type="radio" name="rdForwarderProtocol" id="rdForwarderProtocolTcp" value="Tcp">
+                                                                        DNS-over-TCP
+                                                                    </label>
+                                                                </div>
+                                                                <div class="radio">
+                                                                    <label>
+                                                                        <input type="radio" name="rdForwarderProtocol" id="rdForwarderProtocolTls" value="Tls">
+                                                                        DNS-over-TLS
+                                                                    </label>
+                                                                </div>
+                                                                <div class="radio">
+                                                                    <label>
+                                                                        <input type="radio" name="rdForwarderProtocol" id="rdForwarderProtocolHttps" value="Https">
+                                                                        DNS-over-HTTPS
+                                                                    </label>
+                                                                </div>
+                                                                <div class="radio">
+                                                                    <label>
+                                                                        <input type="radio" name="rdForwarderProtocol" id="rdForwarderProtocolHttpsJson" value="HttpsJson">
+                                                                        DNS-over-HTTPS (JSON)
+                                                                    </label>
+                                                                </div>
+
+                                                                <div style="margin-top: 10px;">Select a protocol that this DNS server must use to query the forwarders specified above.</div>
+                                                            </div>
+                                                        </div>
+
+                                                        <div style="margin-top: 10px;">Forwarders are DNS servers which this DNS Server should use to resolve recursive queries. If no forwarders are configured then this DNS server will use preconfigured ROOT SERVERS to perform recursive resolution.</div>
+                                                        <div style="margin-top: 10px;"><a href="https://blog.technitium.com/2018/06/configuring-dns-server-for-privacy.html" target="_blank">Help: Configuring DNS Server For Privacy & Security</a></div>
+                                                    </div>
+                                                </div>
+
+                                                <div id="settingsTabPaneLogging" role="tabpanel" class="tab-pane">
+                                                    <div class="well well-sm form-horizontal">
+                                                        <div class="form-group">
+                                                            <label class="col-sm-3 control-label">Logging</label>
+                                                            <div class="col-sm-8">
+                                                                <div class="checkbox">
+                                                                    <label>
+                                                                        <input id="chkEnableLogging" type="checkbox"> Enable Logging
+                                                                    </label>
+                                                                </div>
+                                                                <div style="padding-top: 5px; padding-left: 20px;">Enable this option to log error and audit logs into the log file.</div>
+
+                                                                <div class="checkbox">
+                                                                    <label>
+                                                                        <input id="chkLogQueries" type="checkbox"> Log All Queries
+                                                                    </label>
+                                                                </div>
+                                                                <div style="padding-top: 5px; padding-left: 20px;">Enable this option to log every query received by this DNS Server and the corresponding response answers into the log file.</div>
+
+                                                                <div class="checkbox">
+                                                                    <label>
+                                                                        <input id="chkUseLocalTime" type="checkbox"> Use Local Time
+                                                                    </label>
+                                                                </div>
+                                                                <div style="padding-top: 5px; padding-left: 20px;">Enable this option to use local time instead of UTC for logging.</div>
+                                                            </div>
+                                                        </div>
+
+                                                        <div class="form-group">
+                                                            <label for="txtLogFolderPath" class="col-sm-3 control-label">Log Folder Path</label>
+                                                            <div class="col-sm-6">
+                                                                <input type="text" class="form-control" id="txtLogFolderPath" placeholder="Log Folder Path On Server">
+                                                            </div>
+
+                                                            <div class="col-sm-offset-3 col-sm-8" style="padding-top: 5px;">The folder path on the server where the log files should be saved. The path can be relative to the DNS server config folder.</div>
+                                                        </div>
+
+                                                        <div class="form-group">
+                                                            <label for="txtMaxLogFileDays" class="col-sm-3 control-label">Max Log File Days</label>
+                                                            <div class="col-sm-6">
+                                                                <input type="number" class="form-control" id="txtMaxLogFileDays" placeholder="Max Days" style="width: 100px; display: inline;">
+                                                                <span>days (recommended 365, set 0 to disable auto delete)</span>
+                                                            </div>
+
+                                                            <div class="col-sm-offset-3 col-sm-8" style="padding-top: 5px;">Max number of days to keep the log files. Log files older than the specified number of days will be deleted automatically.</div>
+                                                        </div>
+
+                                                        <div class="form-group">
+                                                            <label for="txtMaxStatFileDays" class="col-sm-3 control-label">Max Stat File Days</label>
+                                                            <div class="col-sm-6">
+                                                                <input type="number" class="form-control" id="txtMaxStatFileDays" placeholder="Max Days" style="width: 100px; display: inline;">
+                                                                <span>days (recommended 365, set 0 to disable auto delete)</span>
+                                                            </div>
+
+                                                            <div class="col-sm-offset-3 col-sm-8" style="padding-top: 5px;">Max number of days to keep the dashboard stats. Stat files older than the specified number of days will be deleted automatically.</div>
+                                                        </div>
+
+                                                        <div>Warning! Enabling query logging will significantly increase the log file size and use up disk space.</div>
+                                                    </div>
+                                                </div>
                                             </div>
 
                                             <div class="form-group" style="margin-bottom: 0px;">

@@ -53,6 +53,8 @@ function showPageMain(username) {
     $(".tab-pane").removeClass("active");
     $("#mainPanelTabListDashboard").addClass("active");
     $("#mainPanelTabPaneDashboard").addClass("active");
+    $("#settingsTabListGeneral").addClass("active");
+    $("#settingsTabPaneGeneral").addClass("active");
     $("#dhcpTabListLeases").addClass("active");
     $("#dhcpTabPaneLeases").addClass("active");
     $("#divDhcpViewScopes").show();
