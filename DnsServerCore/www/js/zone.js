@@ -1214,7 +1214,7 @@ function showAddRecordModalNow(apps) {
     clearAddEditForm();
 
     $("#titleAddEditRecord").text("Add Record");
-    $("#lblAddEditRecordZoneName").text(zone);
+    $("#lblAddEditRecordZoneName").text(zone === "." ? "" : zone);
     $("#optEditRecordTypeSoa").hide();
     $("#btnAddEditRecord").attr("onclick", "addRecord(); return false;");
 
@@ -1643,7 +1643,7 @@ function showEditRecordModal(objBtn) {
 
     clearAddEditForm();
     $("#titleAddEditRecord").text("Edit Record");
-    $("#lblAddEditRecordZoneName").text(zone);
+    $("#lblAddEditRecordZoneName").text(zone === "." ? "" : zone);
     $("#optEditRecordTypeSoa").show();
     $("#optAddEditRecordType").val(type);
     $("#divAddEditRecordOverwrite").hide();
