@@ -36,7 +36,7 @@ namespace DnsServerCore.Dns.Zones
         readonly bool _internal;
 
         readonly List<DnsResourceRecord> _history; //for IXFR support
-        IReadOnlyDictionary<string, string> _tsigKeys;
+        IReadOnlyDictionary<string, object> _tsigKeyNames;
 
         readonly Timer _notifyTimer;
         bool _notifyTimerTriggered;
@@ -60,7 +60,7 @@ namespace DnsServerCore.Dns.Zones
             else
                 _history = new List<DnsResourceRecord>(zoneInfo.ZoneHistory);
 
-            _tsigKeys = zoneInfo.TsigKeys;
+            _tsigKeyNames = zoneInfo.TsigKeyNames;
 
             _notifyTimer = new Timer(NotifyTimerCallback, null, Timeout.Infinite, Timeout.Infinite);
             _notifyList = new List<NameServerAddress>();
@@ -470,10 +470,10 @@ namespace DnsServerCore.Dns.Zones
             }
         }
 
-        public IReadOnlyDictionary<string, string> TsigKeys
+        public IReadOnlyDictionary<string, object> TsigKeyNames
         {
-            get { return _tsigKeys; }
-            set { _tsigKeys = value; }
+            get { return _tsigKeyNames; }
+            set { _tsigKeyNames = value; }
         }
 
         #endregion
