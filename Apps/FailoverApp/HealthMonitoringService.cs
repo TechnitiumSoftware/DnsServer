@@ -348,15 +348,15 @@ namespace Failover
 
         #region public
 
-        public HealthCheckStatus QueryStatus(IPAddress address, string healthCheck, bool tryAdd)
+        public HealthCheckStatus QueryStatus(IPAddress address, string healthCheck, Uri healthCheckUrl, bool tryAdd)
         {
             if (_addressMonitoring.TryGetValue(address, out AddressMonitoring monitoring))
             {
-                return monitoring.QueryStatus(healthCheck);
+                return monitoring.QueryStatus(healthCheck, healthCheckUrl);
             }
             else if (tryAdd)
             {
-                monitoring = new AddressMonitoring(this, address, healthCheck);
+                monitoring = new AddressMonitoring(this, address, healthCheck, healthCheckUrl);
 
                 if (!_addressMonitoring.TryAdd(address, monitoring))
                     monitoring.Dispose(); //failed to add first
@@ -365,7 +365,7 @@ namespace Failover
             return null;
         }
 
-        public HealthCheckStatus QueryStatus(string domain, DnsResourceRecordType type, string healthCheck, bool tryAdd)
+        public HealthCheckStatus QueryStatus(string domain, DnsResourceRecordType type, string healthCheck, Uri healthCheckUrl, bool tryAdd)
         {
             domain = domain.ToLower();
 
@@ -375,11 +375,11 @@ namespace Failover
                     {
                         if (_domainMonitoringA.TryGetValue(domain, out DomainMonitoring monitoring))
                         {
-                            return monitoring.QueryStatus(healthCheck);
+                            return monitoring.QueryStatus(healthCheck, healthCheckUrl);
                         }
                         else if (tryAdd)
                         {
-                            monitoring = new DomainMonitoring(this, domain, type, healthCheck);
+                            monitoring = new DomainMonitoring(this, domain, type, healthCheck, healthCheckUrl);
 
                             if (!_domainMonitoringA.TryAdd(domain, monitoring))
                                 monitoring.Dispose(); //failed to add first
@@ -391,11 +391,11 @@ namespace Failover
                     {
                         if (_domainMonitoringAAAA.TryGetValue(domain, out DomainMonitoring monitoring))
                         {
-                            return monitoring.QueryStatus(healthCheck);
+                            return monitoring.QueryStatus(healthCheck, healthCheckUrl);
                         }
                         else if (tryAdd)
                         {
-                            monitoring = new DomainMonitoring(this, domain, type, healthCheck);
+                            monitoring = new DomainMonitoring(this, domain, type, healthCheck, healthCheckUrl);
 
                             if (!_domainMonitoringAAAA.TryAdd(domain, monitoring))
                                 monitoring.Dispose(); //failed to add first
