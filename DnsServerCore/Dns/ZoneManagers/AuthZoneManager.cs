@@ -832,16 +832,12 @@ namespace DnsServerCore.Dns.ZoneManagers
                         xfrRecords.Add(record);
 
                         foreach (DnsResourceRecord glueRecord in record.GetGlueRecords())
-                        {
-                            if (!xfrRecords.Contains(glueRecord))
-                                xfrRecords.Add(glueRecord);
-                        }
+                            xfrRecords.Add(glueRecord);
+
                         break;
 
                     default:
-                        if (!xfrRecords.Contains(record))
-                            xfrRecords.Add(record);
-
+                        xfrRecords.Add(record);
                         break;
                 }
             }
