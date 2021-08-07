@@ -167,6 +167,12 @@ RESPONSE:
 		"enableDnsOverHttps": false,
 		"dnsTlsCertificatePath": null,
 		"dnsTlsCertificatePassword": "************",
+		"tsigKeys": [
+			{
+				"keyName": "key.example.com",
+				"sharedSecret": "AQ=="
+			}
+		],
 		"preferIPv6": false,
 		"enableLogging": true,
 		"logQueries": true,
@@ -181,9 +187,11 @@ RESPONSE:
 		],
 		"randomizeName": true,
 		"qnameMinimization": true,
-		"qpmLimit", 0,
+		"qpmLimitRequests", 0,
+		"qpmLimitErrors", 0,
 		"qpmLimitSampleMinutes": 5,
-		"qpmLimitSamplingIntervalInMinutes": 1
+		"qpmLimitIPv4PrefixLength": 24,
+		"qpmLimitIPv6PrefixLength": 56,
 		"serveStale": true,
 		"serveStaleTtl": 259200,
 		"cacheMinimumRecordTtl": 10,
@@ -250,6 +258,7 @@ WHERE:
 - `enableDnsOverHttps` (optional): Enable this option to accept DNS-over-HTTPS requests for both wire and json response formats.
 - `dnsTlsCertificatePath` (optional): Specify a PKCS #12 certificate (.pfx) file path on the server. The certificate must contain private key. This certificate is used by the DNS-over-TLS and DNS-over-HTTPS optional protocols.
 - `dnsTlsCertificatePassword` (optional): Enter the certificate (.pfx) password, if any.
+- `tsigKeys` (optional): A pipe `|` separated list of TSIG keys names and shared secrets. Set this parameter to `false` to remove all existing keys.
 - `preferIPv6` (optional): DNS Server will use IPv6 for querying whenever possible with this option enabled. Default value is `false`.
 - `enableLogging` (optional): Enable this option to log error and audit logs into the log file. Default value is `true`.
 - `logQueries` (optional): Enable this option to log every query received by this DNS Server and the corresponding response answers into the log file.  Default value is `false`.
@@ -262,9 +271,11 @@ WHERE:
 - `recursionAllowedNetworks` (optional): A comma separated list of network addresses in CIDR format that must be allowed recursion. Set this parameter to `false` to remove existing values. These values are only used when `recursion` is set to `UseSpecifiedNetworks`.
 - `randomizeName` (optional): Enables QNAME randomization [draft-vixie-dnsext-dns0x20-00](https://tools.ietf.org/html/draft-vixie-dnsext-dns0x20-00) when using UDP as the transport protocol. Default value is `true`.
 - `qnameMinimization` (optional): Enables QNAME minimization [draft-ietf-dnsop-rfc7816bis-04](https://tools.ietf.org/html/draft-ietf-dnsop-rfc7816bis-04) when doing recursive resolution. Default value is `true`.
-- `qpmLimit` (optional): Sets the Queries Per Minute (QPM) limit that is enforces per client (IP address). Set value to `0` to disable the feature.
+- `qpmLimitRequests` (optional): Sets the Queries Per Minute (QPM) limit on total number of requests that is enforces per client subnet. Set value to `0` to disable the feature.
+- `qpmLimitErrors` (optional): Sets the Queries Per Minute (QPM) limit on total number of requests which generates an error response that is enforces per client subnet. Set value to `0` to disable the feature. Response with an RCODE of FormatError, ServerFailure, or Refused is considered as an error response.
 - `qpmLimitSampleMinutes` (optional): Sets the client query stats sample size in minutes for QPM limit feature. Default value is `5`.
-- `qpmLimitSamplingIntervalInMinutes` (optional): Sets the client query stats sampling interval in minutes for QPM limit feature. Default value is 1.
+- `qpmLimitIPv4PrefixLength` (optional): Sets the client subnet IPv4 prefix length used to define the subnet. Default value is `24`.
+- `qpmLimitIPv6PrefixLength` (optional): Sets the client subnet IPv6 prefix length used to define the subnet. Default value is `56`.
 - `serveStale` (optional): Enable the serve stale feature to improve resiliency by using expired or stale records in cache when the DNS server is unable to reach the upstream or authoritative name servers. Default value is `true`.
 - `serveStaleTtl` (optional): The TTL value in seconds which should be used for cached records that are expired. When the serve stale TTL too expires for a stale record, it gets removed from the cache. Recommended value is between 1-3 days and maximum supported value is 7 days. Default value is `259200`.
 - `cacheMinimumRecordTtl` (optional): The minimum TTL value that a record can have in cache. Set a value to make sure that the records with TTL value than it stays in cache for a minimum duration. Default value is `10`.
@@ -1883,11 +1894,11 @@ RESPONSE:
 		"zoneTransferNameServers": [],
 		"notify": "ZoneNameServers",
 		"notifyNameServers": [],
-		"tsigKeys": [
-			{
-				"keyName": "tsig.key",
-				"sharedSecret": "password"
-			}
+		"zoneTransferTsigKeyNames": [
+			"key.example.com"
+		],
+		"availableTsigKeyNames": [
+			"key.example.com"
 		]
 	},
 	"status": "ok"
@@ -1906,10 +1917,10 @@ WHERE:
 - `domain`: The domain name of the zone to set options.
 - `disabled` (optional): Sets if the zone is enabled or disabled.
 - `zoneTransfer` (optional): Sets if the zone allows zone transfer. Valid options are [`Deny`, `Allow`, `AllowOnlyZoneNameServers`, `AllowOnlySpecifiedNameServers`].
-- `zoneTransferNameServers` (optional): A list of comma separated IP addreses which should be allowed to perform zone transfer. This list is enabled only when `zoneTransfer` option is set to `AllowOnlySpecifiedNameServers`.
+- `zoneTransferNameServers` (optional): A list of comma separated IP addresses which should be allowed to perform zone transfer. This list is enabled only when `zoneTransfer` option is set to `AllowOnlySpecifiedNameServers`.
 - `notify` (optional): Sets if the DNS server should notify other DNS servers for zone updates. Valid options are [`None`, `ZoneNameServers`, `SpecifiedNameServers`].
-- `notifyNameServers` (optional): A list of comma separated IP addreses which should be notified by the DNS server for zone updates. This list is used only when `notify` option is set to `SpecifiedNameServers`.
-- `tsigKeys` (optional): A list of pipe "|" separated TSIG keys and passwords. Set this option to `false` to remove all keys.
+- `notifyNameServers` (optional): A list of comma separated IP addresses which should be notified by the DNS server for zone updates. This list is used only when `notify` option is set to `SpecifiedNameServers`.
+- `zoneTransferTsigKeyNames` (optional): A list of comma separated TSIG keys names that are authorized to perform a zone transfer. Set this option to `false` to remove all keys.
 
 RESPONSE:
 ```
