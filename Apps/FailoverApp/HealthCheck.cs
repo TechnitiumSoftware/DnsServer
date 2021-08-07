@@ -248,7 +248,7 @@ namespace Failover
             ConditionalHttpReload();
         }
 
-        public async Task<HealthCheckStatus> IsHealthyAsync(string domain, DnsResourceRecordType type)
+        public async Task<HealthCheckStatus> IsHealthyAsync(string domain, DnsResourceRecordType type, Uri healthCheckUrl)
         {
             switch (type)
             {
@@ -256,7 +256,7 @@ namespace Failover
                     {
                         DnsDatagram response = await _service.DnsServer.DirectQueryAsync(new DnsQuestionRecord(domain, type, DnsClass.IN));
                         if ((response is null) || (response.Answer.Count == 0))
-                            return HealthCheckStatus.FailedToResolve;
+                            return HealthCheckStatus.FailedToResolve();
 
                         IReadOnlyList<IPAddress> addresses = DnsClient.ParseResponseA(response);
                         if (addresses.Count > 0)
@@ -265,7 +265,7 @@ namespace Failover
 
                             foreach (IPAddress address in addresses)
                             {
-                                lastStatus = await IsHealthyAsync(address);
+                                lastStatus = await IsHealthyAsync(address, healthCheckUrl);
                                 if (lastStatus.IsHealthy)
                                     return lastStatus;
                             }
@@ -273,14 +273,14 @@ namespace Failover
                             return lastStatus;
                         }
 
-                        return HealthCheckStatus.FailedToResolve;
+                        return HealthCheckStatus.FailedToResolve();
                     }
 
                 case DnsResourceRecordType.AAAA:
                     {
                         DnsDatagram response = await _service.DnsServer.DirectQueryAsync(new DnsQuestionRecord(domain, type, DnsClass.IN));
                         if ((response is null) || (response.Answer.Count == 0))
-                            return HealthCheckStatus.FailedToResolve;
+                            return HealthCheckStatus.FailedToResolve();
 
                         IReadOnlyList<IPAddress> addresses = DnsClient.ParseResponseAAAA(response);
                         if (addresses.Count > 0)
@@ -289,7 +289,7 @@ namespace Failover
 
                             foreach (IPAddress address in addresses)
                             {
-                                lastStatus = await IsHealthyAsync(address);
+                                lastStatus = await IsHealthyAsync(address, healthCheckUrl);
                                 if (lastStatus.IsHealthy)
                                     return lastStatus;
                             }
@@ -297,15 +297,15 @@ namespace Failover
                             return lastStatus;
                         }
 
-                        return HealthCheckStatus.FailedToResolve;
+                        return HealthCheckStatus.FailedToResolve();
                     }
 
                 default:
-                    return HealthCheckStatus.NotSupported;
+                    return HealthCheckStatus.NotSupported();
             }
         }
 
-        public async Task<HealthCheckStatus> IsHealthyAsync(IPAddress address)
+        public async Task<HealthCheckStatus> IsHealthyAsync(IPAddress address, Uri healthCheckUrl)
         {
             switch (_type)
             {
@@ -322,7 +322,7 @@ namespace Failover
                             {
                                 PingReply reply = await ping.SendPingAsync(address, _timeout);
                                 if (reply.Status == IPStatus.Success)
-                                    return HealthCheckStatus.Success;
+                                    return HealthCheckStatus.Success();
 
                                 lastReason = reply.Status.ToString();
                             }
@@ -358,7 +358,7 @@ namespace Failover
                                     }
                                 }
 
-                                return HealthCheckStatus.Success;
+                                return HealthCheckStatus.Success();
                             }
                             catch (TimeoutException)
                             {
@@ -392,20 +392,28 @@ namespace Failover
                         {
                             try
                             {
-                                IPEndPoint ep = new IPEndPoint(address, _url.Port);
-                                Uri queryUri = new Uri(_url.Scheme + "://" + ep.ToString() + _url.PathAndQuery);
+                                Uri url = healthCheckUrl;
+
+                                if (url is null)
+                                    url = _url;
+
+                                if (url is null)
+                                    return new HealthCheckStatus(false, "Missing health check URL in APP record as well as in app config.");
+
+                                IPEndPoint ep = new IPEndPoint(address, url.Port);
+                                Uri queryUri = new Uri(url.Scheme + "://" + ep.ToString() + url.PathAndQuery);
                                 HttpRequestMessage httpRequest = new HttpRequestMessage(HttpMethod.Get, queryUri);
 
-                                if (_url.IsDefaultPort)
-                                    httpRequest.Headers.Host = _url.Host;
+                                if (url.IsDefaultPort)
+                                    httpRequest.Headers.Host = url.Host;
                                 else
-                                    httpRequest.Headers.Host = _url.Host + ":" + _url.Port;
+                                    httpRequest.Headers.Host = url.Host + ":" + url.Port;
 
                                 HttpResponseMessage httpResponse = await _httpClient.SendAsync(httpRequest);
                                 if (httpResponse.IsSuccessStatusCode)
-                                    return HealthCheckStatus.Success;
+                                    return HealthCheckStatus.Success();
 
-                                lastReason = "Received HTTP status code: " + (int)httpResponse.StatusCode + " " + httpResponse.StatusCode.ToString();
+                                lastReason = "Received HTTP status code: " + (int)httpResponse.StatusCode + " " + httpResponse.StatusCode.ToString() + "; URL: " + url.AbsoluteUri;
                                 break;
                             }
                             catch (TaskCanceledException)
