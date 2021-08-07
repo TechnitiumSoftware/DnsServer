@@ -23,6 +23,7 @@ using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
 using System.Net;
+using System.Net.Sockets;
 using System.Text;
 using System.Threading;
 using TechnitiumLibrary.IO;
@@ -31,14 +32,6 @@ using TechnitiumLibrary.Net.Dns;
 
 namespace DnsServerCore.Dns
 {
-    public enum StatsResponseCode
-    {
-        NoError = 1,
-        ServerFailure = 2,
-        NxDomain = 3,
-        Refused = 4
-    }
-
     public enum StatsResponseType
     {
         Authoritative = 1,
@@ -524,30 +517,6 @@ namespace DnsServerCore.Dns
 
         public void Update(DnsDatagram response, IPAddress clientIpAddress)
         {
-            StatsResponseCode responseCode;
-
-            switch (response.RCODE)
-            {
-                case DnsResponseCode.NoError:
-                    responseCode = StatsResponseCode.NoError;
-                    break;
-
-                case DnsResponseCode.ServerFailure:
-                    responseCode = StatsResponseCode.ServerFailure;
-                    break;
-
-                case DnsResponseCode.NxDomain:
-                    responseCode = StatsResponseCode.NxDomain;
-                    break;
-
-                case DnsResponseCode.Refused:
-                    responseCode = StatsResponseCode.Refused;
-                    break;
-
-                default:
-                    return;
-            }
-
             StatsResponseType responseType;
 
             if (response.Tag == null)
@@ -558,9 +527,9 @@ namespace DnsServerCore.Dns
             StatsQueueItem item;
 
             if (response.QDCOUNT > 0)
-                item = new StatsQueueItem(response.Question[0], responseCode, responseType, clientIpAddress);
+                item = new StatsQueueItem(response.Question[0], response.RCODE, responseType, clientIpAddress);
             else
-                item = new StatsQueueItem(new DnsQuestionRecord("", DnsResourceRecordType.ANY, DnsClass.IN), responseCode, responseType, clientIpAddress);
+                item = new StatsQueueItem(null, response.RCODE, responseType, clientIpAddress);
 
             _queue.Add(item);
         }
@@ -1142,25 +1111,25 @@ namespace DnsServerCore.Dns
             return totalStatCounter.GetEligibleQueries(minimumHitsPerHour);
         }
 
-        public void GetLatestClientStats(int minutes, out IReadOnlyDictionary<IPAddress, int> clientStats, out IReadOnlyDictionary<IPAddress, int> refusedClientStats)
+        public void GetLatestClientSubnetStats(int minutes, int ipv4PrefixLength, int ipv6PrefixLength, out IReadOnlyDictionary<IPAddress, int> clientSubnetStats, out IReadOnlyDictionary<IPAddress, int> errorClientSubnetStats)
         {
             StatCounter totalStatCounter = new StatCounter();
             totalStatCounter.Lock();
 
-            DateTime lastHourDateTime = DateTime.UtcNow.AddMinutes(-minutes);
+            DateTime lastHourDateTime = DateTime.UtcNow.AddMinutes(1 - minutes);
             lastHourDateTime = new DateTime(lastHourDateTime.Year, lastHourDateTime.Month, lastHourDateTime.Day, lastHourDateTime.Hour, lastHourDateTime.Minute, 0, DateTimeKind.Utc);
 
             for (int minute = 0; minute < minutes; minute++)
             {
                 DateTime lastDateTime = lastHourDateTime.AddMinutes(minute);
 
-                StatCounter statCounter = _lastHourStatCountersCopy[lastDateTime.Minute];
-                if ((statCounter != null) && statCounter.IsLocked)
-                    totalStatCounter.Merge(statCounter);
+                StatCounter statCounter = _lastHourStatCounters[lastDateTime.Minute];
+                if (statCounter is not null)
+                    totalStatCounter.Merge(statCounter, true);
             }
 
-            clientStats = totalStatCounter.GetClientStats();
-            refusedClientStats = totalStatCounter.GetRefusedClientStats();
+            clientSubnetStats = totalStatCounter.GetClientSubnetStats(ipv4PrefixLength, ipv6PrefixLength);
+            errorClientSubnetStats = totalStatCounter.GetErrorClientSubnetStats(ipv4PrefixLength, ipv6PrefixLength);
         }
 
         #endregion
@@ -1282,8 +1251,8 @@ namespace DnsServerCore.Dns
             readonly ConcurrentDictionary<string, Counter> _queryDomains;
             readonly ConcurrentDictionary<string, Counter> _queryBlockedDomains;
             readonly ConcurrentDictionary<DnsResourceRecordType, Counter> _queryTypes;
-            readonly ConcurrentDictionary<IPAddress, Counter> _clientIpAddresses;
-            readonly ConcurrentDictionary<IPAddress, Counter> _refusedIpAddresses;
+            readonly ConcurrentDictionary<IPAddress, Counter> _clientIpAddresses; //includes all queries
+            readonly ConcurrentDictionary<IPAddress, Counter> _errorIpAddresses; //includes REFUSED, FORMERR and SERVFAIL
             readonly ConcurrentDictionary<DnsQuestionRecord, Counter> _queries;
 
             #endregion
@@ -1296,7 +1265,7 @@ namespace DnsServerCore.Dns
                 _queryBlockedDomains = new ConcurrentDictionary<string, Counter>();
                 _queryTypes = new ConcurrentDictionary<DnsResourceRecordType, Counter>();
                 _clientIpAddresses = new ConcurrentDictionary<IPAddress, Counter>();
-                _refusedIpAddresses = new ConcurrentDictionary<IPAddress, Counter>();
+                _errorIpAddresses = new ConcurrentDictionary<IPAddress, Counter>();
                 _queries = new ConcurrentDictionary<DnsQuestionRecord, Counter>();
             }
 
@@ -1382,14 +1351,14 @@ namespace DnsServerCore.Dns
                         if (version >= 5)
                         {
                             int count = bR.ReadInt32();
-                            _refusedIpAddresses = new ConcurrentDictionary<IPAddress, Counter>(1, count);
+                            _errorIpAddresses = new ConcurrentDictionary<IPAddress, Counter>(1, count);
 
                             for (int i = 0; i < count; i++)
-                                _refusedIpAddresses.TryAdd(IPAddressExtension.Parse(bR), new Counter(bR.ReadInt32()));
+                                _errorIpAddresses.TryAdd(IPAddressExtension.Parse(bR), new Counter(bR.ReadInt32()));
                         }
                         else
                         {
-                            _refusedIpAddresses = new ConcurrentDictionary<IPAddress, Counter>(1, 0);
+                            _errorIpAddresses = new ConcurrentDictionary<IPAddress, Counter>(1, 0);
                         }
 
                         break;
@@ -1432,7 +1401,7 @@ namespace DnsServerCore.Dns
                 _locked = true;
             }
 
-            public void Update(DnsQuestionRecord query, StatsResponseCode responseCode, StatsResponseType responseType, IPAddress clientIpAddress)
+            public void Update(DnsQuestionRecord query, DnsResponseCode responseCode, StatsResponseType responseType, IPAddress clientIpAddress)
             {
                 if (_locked)
                     return;
@@ -1440,33 +1409,36 @@ namespace DnsServerCore.Dns
                 if (clientIpAddress.IsIPv4MappedToIPv6)
                     clientIpAddress = clientIpAddress.MapToIPv4();
 
-                string domain = query.Name.ToLower();
-
                 Interlocked.Increment(ref _totalQueries);
 
                 switch (responseCode)
                 {
-                    case StatsResponseCode.NoError:
-                        if (responseType != StatsResponseType.Blocked) //skip blocked domains
+                    case DnsResponseCode.NoError:
+                        if ((query is not null) && (responseType != StatsResponseType.Blocked)) //skip blocked domains
                         {
-                            _queryDomains.GetOrAdd(domain, GetNewCounter).Increment();
+                            _queryDomains.GetOrAdd(query.Name.ToLower(), GetNewCounter).Increment();
                             _queries.GetOrAdd(query, GetNewCounter).Increment();
                         }
 
                         Interlocked.Increment(ref _totalNoError);
                         break;
 
-                    case StatsResponseCode.ServerFailure:
+                    case DnsResponseCode.ServerFailure:
+                        _errorIpAddresses.GetOrAdd(clientIpAddress, GetNewCounter).Increment();
                         Interlocked.Increment(ref _totalServerFailure);
                         break;
 
-                    case StatsResponseCode.NxDomain:
+                    case DnsResponseCode.NxDomain:
                         Interlocked.Increment(ref _totalNxDomain);
                         break;
 
-                    case StatsResponseCode.Refused:
-                        _refusedIpAddresses.GetOrAdd(clientIpAddress, GetNewCounter).Increment();
+                    case DnsResponseCode.Refused:
+                        _errorIpAddresses.GetOrAdd(clientIpAddress, GetNewCounter).Increment();
                         Interlocked.Increment(ref _totalRefused);
+                        break;
+
+                    case DnsResponseCode.FormatError:
+                        _errorIpAddresses.GetOrAdd(clientIpAddress, GetNewCounter).Increment();
                         break;
                 }
 
@@ -1476,7 +1448,7 @@ namespace DnsServerCore.Dns
                         Interlocked.Increment(ref _totalAuthoritative);
                         break;
 
-                    case StatsResponseType.Recursive: //recursion
+                    case StatsResponseType.Recursive:
                         Interlocked.Increment(ref _totalRecursive);
                         break;
 
@@ -1485,18 +1457,22 @@ namespace DnsServerCore.Dns
                         break;
 
                     case StatsResponseType.Blocked:
-                        _queryBlockedDomains.GetOrAdd(domain, GetNewCounter).Increment();
+                        if (query is not null)
+                            _queryBlockedDomains.GetOrAdd(query.Name.ToLower(), GetNewCounter).Increment();
+
                         Interlocked.Increment(ref _totalBlocked);
                         break;
                 }
 
-                _queryTypes.GetOrAdd(query.Type, GetNewCounter).Increment();
+                if (query is not null)
+                    _queryTypes.GetOrAdd(query.Type, GetNewCounter).Increment();
+
                 _clientIpAddresses.GetOrAdd(clientIpAddress, GetNewCounter).Increment();
             }
 
-            public void Merge(StatCounter statCounter)
+            public void Merge(StatCounter statCounter, bool skipLock = false)
             {
-                if (!_locked || !statCounter._locked)
+                if (!skipLock && (!_locked || !statCounter._locked))
                     throw new DnsServerException("StatCounter must be locked.");
 
                 _totalQueries += statCounter._totalQueries;
@@ -1522,8 +1498,8 @@ namespace DnsServerCore.Dns
                 foreach (KeyValuePair<IPAddress, Counter> clientIpAddress in statCounter._clientIpAddresses)
                     _clientIpAddresses.GetOrAdd(clientIpAddress.Key, GetNewCounter).Merge(clientIpAddress.Value);
 
-                foreach (KeyValuePair<IPAddress, Counter> refusedIpAddress in statCounter._refusedIpAddresses)
-                    _refusedIpAddresses.GetOrAdd(refusedIpAddress.Key, GetNewCounter).Merge(refusedIpAddress.Value);
+                foreach (KeyValuePair<IPAddress, Counter> refusedIpAddress in statCounter._errorIpAddresses)
+                    _errorIpAddresses.GetOrAdd(refusedIpAddress.Key, GetNewCounter).Merge(refusedIpAddress.Value);
 
                 foreach (KeyValuePair<DnsQuestionRecord, Counter> query in statCounter._queries)
                     _queries.GetOrAdd(query.Key, GetNewCounter).Merge(query.Value);
@@ -1621,22 +1597,22 @@ namespace DnsServerCore.Dns
                     truncated = true;
                 }
 
-                if (_refusedIpAddresses.Count > limit)
+                if (_errorIpAddresses.Count > limit)
                 {
-                    List<KeyValuePair<IPAddress, Counter>> topRefusedClients = new List<KeyValuePair<IPAddress, Counter>>(_refusedIpAddresses);
+                    List<KeyValuePair<IPAddress, Counter>> topErrorClients = new List<KeyValuePair<IPAddress, Counter>>(_errorIpAddresses);
 
-                    _refusedIpAddresses.Clear();
+                    _errorIpAddresses.Clear();
 
-                    topRefusedClients.Sort(delegate (KeyValuePair<IPAddress, Counter> item1, KeyValuePair<IPAddress, Counter> item2)
+                    topErrorClients.Sort(delegate (KeyValuePair<IPAddress, Counter> item1, KeyValuePair<IPAddress, Counter> item2)
                     {
                         return item2.Value.Count.CompareTo(item1.Value.Count);
                     });
 
-                    if (topRefusedClients.Count > limit)
-                        topRefusedClients.RemoveRange(limit, topRefusedClients.Count - limit);
+                    if (topErrorClients.Count > limit)
+                        topErrorClients.RemoveRange(limit, topErrorClients.Count - limit);
 
-                    foreach (KeyValuePair<IPAddress, Counter> item in topRefusedClients)
-                        _refusedIpAddresses[item.Key] = item.Value;
+                    foreach (KeyValuePair<IPAddress, Counter> item in topErrorClients)
+                        _errorIpAddresses[item.Key] = item.Value;
 
                     truncated = true;
                 }
@@ -1717,8 +1693,8 @@ namespace DnsServerCore.Dns
                 }
 
                 {
-                    bW.Write(_refusedIpAddresses.Count);
-                    foreach (KeyValuePair<IPAddress, Counter> refusedIpAddress in _refusedIpAddresses)
+                    bW.Write(_errorIpAddresses.Count);
+                    foreach (KeyValuePair<IPAddress, Counter> refusedIpAddress in _errorIpAddresses)
                     {
                         refusedIpAddress.Key.WriteTo(bW);
                         bW.Write(refusedIpAddress.Value.Count);
@@ -1795,24 +1771,66 @@ namespace DnsServerCore.Dns
                 return eligibleQueries;
             }
 
-            public IReadOnlyDictionary<IPAddress, int> GetClientStats()
+            public IReadOnlyDictionary<IPAddress, int> GetClientSubnetStats(int ipv4PrefixLength, int ipv6PrefixLength)
             {
-                Dictionary<IPAddress, int> clientStats = new Dictionary<IPAddress, int>(_clientIpAddresses.Count);
+                Dictionary<IPAddress, int> clientSubnetStats = new Dictionary<IPAddress, int>(_clientIpAddresses.Count);
 
                 foreach (KeyValuePair<IPAddress, Counter> item in _clientIpAddresses)
-                    clientStats.Add(item.Key, item.Value.Count);
+                {
+                    IPAddress clientSubnet;
 
-                return clientStats;
+                    switch (item.Key.AddressFamily)
+                    {
+                        case AddressFamily.InterNetwork:
+                            clientSubnet = item.Key.GetNetworkAddress(ipv4PrefixLength);
+                            break;
+
+                        case AddressFamily.InterNetworkV6:
+                            clientSubnet = item.Key.GetNetworkAddress(ipv6PrefixLength);
+                            break;
+
+                        default:
+                            throw new NotSupportedException("AddressFamily not supported.");
+                    }
+
+                    if (clientSubnetStats.TryGetValue(clientSubnet, out int existingValue))
+                        clientSubnetStats[clientSubnet] = existingValue + item.Value.Count;
+                    else
+                        clientSubnetStats.Add(clientSubnet, item.Value.Count);
+                }
+
+                return clientSubnetStats;
             }
 
-            public IReadOnlyDictionary<IPAddress, int> GetRefusedClientStats()
+            public IReadOnlyDictionary<IPAddress, int> GetErrorClientSubnetStats(int ipv4PrefixLength, int ipv6PrefixLength)
             {
-                Dictionary<IPAddress, int> refusedClientStats = new Dictionary<IPAddress, int>(_refusedIpAddresses.Count);
+                Dictionary<IPAddress, int> errorClientSubnetStats = new Dictionary<IPAddress, int>(_errorIpAddresses.Count);
 
-                foreach (KeyValuePair<IPAddress, Counter> item in _refusedIpAddresses)
-                    refusedClientStats.Add(item.Key, item.Value.Count);
+                foreach (KeyValuePair<IPAddress, Counter> item in _errorIpAddresses)
+                {
+                    IPAddress clientSubnet;
 
-                return refusedClientStats;
+                    switch (item.Key.AddressFamily)
+                    {
+                        case AddressFamily.InterNetwork:
+                            clientSubnet = item.Key.GetNetworkAddress(ipv4PrefixLength);
+                            break;
+
+                        case AddressFamily.InterNetworkV6:
+                            clientSubnet = item.Key.GetNetworkAddress(ipv6PrefixLength);
+                            break;
+
+                        default:
+                            throw new NotSupportedException("AddressFamily not supported.");
+                    }
+
+                    if (errorClientSubnetStats.TryGetValue(clientSubnet, out int existingValue))
+                        errorClientSubnetStats[clientSubnet] = existingValue + item.Value.Count;
+                    else
+                        errorClientSubnetStats.Add(clientSubnet, item.Value.Count);
+                }
+
+                return errorClientSubnetStats;
             }
 
             #endregion
@@ -1903,7 +1921,7 @@ namespace DnsServerCore.Dns
 
             public readonly DateTime _dateTime;
             public readonly DnsQuestionRecord _query;
-            public readonly StatsResponseCode _responseCode;
+            public readonly DnsResponseCode _responseCode;
             public readonly StatsResponseType _responseType;
             public readonly IPAddress _clientIpAddress;
 
@@ -1911,7 +1929,7 @@ namespace DnsServerCore.Dns
 
             #region constructor
 
-            public StatsQueueItem(DnsQuestionRecord query, StatsResponseCode responseCode, StatsResponseType responseType, IPAddress clientIpAddress)
+            public StatsQueueItem(DnsQuestionRecord query, DnsResponseCode responseCode, StatsResponseType responseType, IPAddress clientIpAddress)
             {
                 _dateTime = DateTime.UtcNow;
                 _query = query;
