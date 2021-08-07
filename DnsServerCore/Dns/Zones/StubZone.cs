@@ -271,7 +271,7 @@ namespace DnsServerCore.Dns.Zones
                 List<NameServerAddress> tcpNameServers = new List<NameServerAddress>();
 
                 foreach (NameServerAddress nameServer in nameServers)
-                    tcpNameServers.Add(new NameServerAddress(nameServer, DnsTransportProtocol.Tcp));
+                    tcpNameServers.Add(nameServer.ChangeProtocol(DnsTransportProtocol.Tcp));
 
                 nameServers = tcpNameServers;
                 client = new DnsClient(nameServers);
