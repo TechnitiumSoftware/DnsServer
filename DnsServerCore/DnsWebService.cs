@@ -1196,6 +1196,29 @@ namespace DnsServerCore
             jsonWriter.WritePropertyName("dnsTlsCertificatePassword");
             jsonWriter.WriteValue("************");
 
+            jsonWriter.WritePropertyName("tsigKeys");
+            {
+                jsonWriter.WriteStartArray();
+
+                if (_dnsServer.TsigKeys is not null)
+                {
+                    foreach (KeyValuePair<string, string> tsigKey in _dnsServer.TsigKeys)
+                    {
+                        jsonWriter.WriteStartObject();
+
+                        jsonWriter.WritePropertyName("keyName");
+                        jsonWriter.WriteValue(tsigKey.Key);
+
+                        jsonWriter.WritePropertyName("sharedSecret");
+                        jsonWriter.WriteValue(tsigKey.Value);
+
+                        jsonWriter.WriteEndObject();
+                    }
+                }
+
+                jsonWriter.WriteEndArray();
+            }
+
             jsonWriter.WritePropertyName("preferIPv6");
             jsonWriter.WriteValue(_dnsServer.PreferIPv6);
 
@@ -1252,14 +1275,20 @@ namespace DnsServerCore
             jsonWriter.WritePropertyName("qnameMinimization");
             jsonWriter.WriteValue(_dnsServer.QnameMinimization);
 
-            jsonWriter.WritePropertyName("qpmLimit");
-            jsonWriter.WriteValue(_dnsServer.QpmLimit);
+            jsonWriter.WritePropertyName("qpmLimitRequests");
+            jsonWriter.WriteValue(_dnsServer.QpmLimitRequests);
+
+            jsonWriter.WritePropertyName("qpmLimitErrors");
+            jsonWriter.WriteValue(_dnsServer.QpmLimitErrors);
 
             jsonWriter.WritePropertyName("qpmLimitSampleMinutes");
             jsonWriter.WriteValue(_dnsServer.QpmLimitSampleMinutes);
 
-            jsonWriter.WritePropertyName("qpmLimitSamplingIntervalInMinutes");
-            jsonWriter.WriteValue(_dnsServer.QpmLimitSamplingIntervalInMinutes);
+            jsonWriter.WritePropertyName("qpmLimitIPv4PrefixLength");
+            jsonWriter.WriteValue(_dnsServer.QpmLimitIPv4PrefixLength);
+
+            jsonWriter.WritePropertyName("qpmLimitIPv6PrefixLength");
+            jsonWriter.WriteValue(_dnsServer.QpmLimitIPv6PrefixLength);
 
             jsonWriter.WritePropertyName("serveStale");
             jsonWriter.WriteValue(_dnsServer.ServeStale);
@@ -1617,6 +1646,40 @@ namespace DnsServerCore
                 }
             }
 
+            string strTsigKeys = request.QueryString["tsigKeys"];
+            if (!string.IsNullOrEmpty(strTsigKeys))
+            {
+                if (strTsigKeys == "false")
+                {
+                    _dnsServer.TsigKeys = null;
+                }
+                else
+                {
+                    string[] strTsigKeyParts = strTsigKeys.Split('|');
+                    Dictionary<string, string> tsigKeys = new Dictionary<string, string>(strTsigKeyParts.Length);
+
+                    for (int i = 0; i < strTsigKeyParts.Length; i += 2)
+                    {
+                        string keyName = strTsigKeyParts[i + 0].ToLower();
+                        string sharedSecret = strTsigKeyParts[i + 1];
+
+                        if (sharedSecret.Length == 0)
+                        {
+                            byte[] key = new byte[32];
+                            _rng.GetBytes(key);
+
+                            tsigKeys.Add(keyName, Convert.ToBase64String(key));
+                        }
+                        else
+                        {
+                            tsigKeys.Add(keyName, sharedSecret);
+                        }
+                    }
+
+                    _dnsServer.TsigKeys = tsigKeys;
+                }
+            }
+
             string strPreferIPv6 = request.QueryString["preferIPv6"];
             if (!string.IsNullOrEmpty(strPreferIPv6))
                 _dnsServer.PreferIPv6 = bool.Parse(strPreferIPv6);
@@ -1702,17 +1765,25 @@ namespace DnsServerCore
             if (!string.IsNullOrEmpty(strQnameMinimization))
                 _dnsServer.QnameMinimization = bool.Parse(strQnameMinimization);
 
-            string strQpmLimit = request.QueryString["qpmLimit"];
-            if (!string.IsNullOrEmpty(strQpmLimit))
-                _dnsServer.QpmLimit = int.Parse(strQpmLimit);
+            string strQpmLimitRequests = request.QueryString["qpmLimitRequests"];
+            if (!string.IsNullOrEmpty(strQpmLimitRequests))
+                _dnsServer.QpmLimitRequests = int.Parse(strQpmLimitRequests);
+
+            string strQpmLimitErrors = request.QueryString["qpmLimitErrors"];
+            if (!string.IsNullOrEmpty(strQpmLimitErrors))
+                _dnsServer.QpmLimitErrors = int.Parse(strQpmLimitErrors);
 
             string strQpmLimitSampleMinutes = request.QueryString["qpmLimitSampleMinutes"];
             if (!string.IsNullOrEmpty(strQpmLimitSampleMinutes))
                 _dnsServer.QpmLimitSampleMinutes = int.Parse(strQpmLimitSampleMinutes);
 
-            string strQpmLimitSamplingIntervalInMinutes = request.QueryString["qpmLimitSamplingIntervalInMinutes"];
-            if (!string.IsNullOrEmpty(strQpmLimitSamplingIntervalInMinutes))
-                _dnsServer.QpmLimitSamplingIntervalInMinutes = int.Parse(strQpmLimitSamplingIntervalInMinutes);
+            string strQpmLimitIPv4PrefixLength = request.QueryString["qpmLimitIPv4PrefixLength"];
+            if (!string.IsNullOrEmpty(strQpmLimitIPv4PrefixLength))
+                _dnsServer.QpmLimitIPv4PrefixLength = int.Parse(strQpmLimitIPv4PrefixLength);
+
+            string strQpmLimitIPv6PrefixLength = request.QueryString["qpmLimitIPv6PrefixLength"];
+            if (!string.IsNullOrEmpty(strQpmLimitIPv6PrefixLength))
+                _dnsServer.QpmLimitIPv6PrefixLength = int.Parse(strQpmLimitIPv6PrefixLength);
 
             string strServeStale = request.QueryString["serveStale"];
             if (!string.IsNullOrEmpty(strServeStale))
@@ -3871,50 +3942,59 @@ namespace DnsServerCore
             jsonWriter.WriteValue(zoneInfo.ZoneTransfer.ToString());
 
             jsonWriter.WritePropertyName("zoneTransferNameServers");
-            jsonWriter.WriteStartArray();
-
-            if (zoneInfo.ZoneTransferNameServers is not null)
             {
-                foreach (IPAddress nameServer in zoneInfo.ZoneTransferNameServers)
-                    jsonWriter.WriteValue(nameServer.ToString());
-            }
+                jsonWriter.WriteStartArray();
 
-            jsonWriter.WriteEndArray();
+                if (zoneInfo.ZoneTransferNameServers is not null)
+                {
+                    foreach (IPAddress nameServer in zoneInfo.ZoneTransferNameServers)
+                        jsonWriter.WriteValue(nameServer.ToString());
+                }
+
+                jsonWriter.WriteEndArray();
+            }
 
             jsonWriter.WritePropertyName("notify");
             jsonWriter.WriteValue(zoneInfo.Notify.ToString());
 
             jsonWriter.WritePropertyName("notifyNameServers");
-            jsonWriter.WriteStartArray();
-
-            if (zoneInfo.NotifyNameServers is not null)
             {
-                foreach (IPAddress nameServer in zoneInfo.NotifyNameServers)
-                    jsonWriter.WriteValue(nameServer.ToString());
-            }
+                jsonWriter.WriteStartArray();
 
-            jsonWriter.WriteEndArray();
-
-            jsonWriter.WritePropertyName("tsigKeys");
-            jsonWriter.WriteStartArray();
-
-            if (zoneInfo.TsigKeys is not null)
-            {
-                foreach (KeyValuePair<string, string> tsigKey in zoneInfo.TsigKeys)
+                if (zoneInfo.NotifyNameServers is not null)
                 {
-                    jsonWriter.WriteStartObject();
-
-                    jsonWriter.WritePropertyName("keyName");
-                    jsonWriter.WriteValue(tsigKey.Key);
-
-                    jsonWriter.WritePropertyName("sharedSecret");
-                    jsonWriter.WriteValue(tsigKey.Value);
-
-                    jsonWriter.WriteEndObject();
+                    foreach (IPAddress nameServer in zoneInfo.NotifyNameServers)
+                        jsonWriter.WriteValue(nameServer.ToString());
                 }
+
+                jsonWriter.WriteEndArray();
             }
 
-            jsonWriter.WriteEndArray();
+            jsonWriter.WritePropertyName("zoneTransferTsigKeyNames");
+            {
+                jsonWriter.WriteStartArray();
+
+                if (zoneInfo.TsigKeyNames is not null)
+                {
+                    foreach (KeyValuePair<string, object> tsigKeyName in zoneInfo.TsigKeyNames)
+                        jsonWriter.WriteValue(tsigKeyName.Key);
+                }
+
+                jsonWriter.WriteEndArray();
+            }
+
+            jsonWriter.WritePropertyName("availableTsigKeyNames");
+            {
+                jsonWriter.WriteStartArray();
+
+                if (_dnsServer.TsigKeys is not null)
+                {
+                    foreach (KeyValuePair<string, string> tsigKey in _dnsServer.TsigKeys)
+                        jsonWriter.WriteValue(tsigKey.Key);
+                }
+
+                jsonWriter.WriteEndArray();
+            }
         }
 
         private void SetZoneOptions(HttpListenerRequest request)
@@ -3982,37 +4062,22 @@ namespace DnsServerCore
                 }
             }
 
-            string strTsigKeys = request.QueryString["tsigKeys"];
-            if (!string.IsNullOrEmpty(strTsigKeys))
+            string strZoneTransferTsigKeyNames = request.QueryString["zoneTransferTsigKeyNames"];
+            if (!string.IsNullOrEmpty(strZoneTransferTsigKeyNames))
             {
-                if (strTsigKeys == "false")
+                if (strZoneTransferTsigKeyNames == "false")
                 {
-                    zoneInfo.TsigKeys = null;
+                    zoneInfo.TsigKeyNames = null;
                 }
                 else
                 {
-                    string[] strTsigKeyParts = strTsigKeys.Split('|');
-                    Dictionary<string, string> tsigKeys = new Dictionary<string, string>(strTsigKeyParts.Length);
+                    string[] strZoneTransferTsigKeyNamesParts = strZoneTransferTsigKeyNames.Split(new char[] { ',' }, StringSplitOptions.RemoveEmptyEntries);
+                    Dictionary<string, object> zoneTransferTsigKeyNames = new Dictionary<string, object>(strZoneTransferTsigKeyNamesParts.Length);
 
-                    for (int i = 0; i < strTsigKeyParts.Length; i += 2)
-                    {
-                        string keyName = strTsigKeyParts[i + 0].ToLower();
-                        string sharedSecret = strTsigKeyParts[i + 1];
+                    for (int i = 0; i < strZoneTransferTsigKeyNamesParts.Length; i++)
+                        zoneTransferTsigKeyNames.Add(strZoneTransferTsigKeyNamesParts[i].ToLower(), null);
 
-                        if (sharedSecret.Length == 0)
-                        {
-                            byte[] key = new byte[32];
-                            _rng.GetBytes(key);
-
-                            tsigKeys.Add(keyName, Convert.ToBase64String(key));
-                        }
-                        else
-                        {
-                            tsigKeys.Add(keyName, sharedSecret);
-                        }
-                    }
-
-                    zoneInfo.TsigKeys = tsigKeys;
+                    zoneInfo.TsigKeyNames = zoneTransferTsigKeyNames;
                 }
             }
 
@@ -5948,7 +6013,7 @@ namespace DnsServerCore
                             break;
 
                         case DnsTransportProtocol.Tcp:
-                            nameServer = new NameServerAddress(_dnsServer.ThisServer, DnsTransportProtocol.Tcp);
+                            nameServer = _dnsServer.ThisServer.ChangeProtocol(DnsTransportProtocol.Tcp);
                             break;
 
                         case DnsTransportProtocol.Tls:
@@ -5968,10 +6033,10 @@ namespace DnsServerCore
                 }
                 else
                 {
-                    if ((protocol == DnsTransportProtocol.Tls) && !server.Contains(":853"))
-                        server += ":853";
+                    nameServer = new NameServerAddress(server);
 
-                    nameServer = new NameServerAddress(server, protocol);
+                    if (nameServer.Protocol != protocol)
+                        nameServer = nameServer.ChangeProtocol(protocol);
 
                     if (nameServer.IPEndPoint is null)
                     {
@@ -6983,6 +7048,7 @@ namespace DnsServerCore
                         case 17:
                         case 18:
                         case 19:
+                        case 20:
                             _dnsServer.ServerDomain = bR.ReadShortString();
                             _webServiceHttpPort = bR.ReadInt32();
 
@@ -7097,11 +7163,19 @@ namespace DnsServerCore
                             else
                                 _dnsServer.QnameMinimization = true; //default true to enable privacy feature
 
-                            if (version >= 17)
+                            if (version >= 20)
                             {
-                                _dnsServer.QpmLimit = bR.ReadInt32();
+                                _dnsServer.QpmLimitRequests = bR.ReadInt32();
+                                _dnsServer.QpmLimitErrors = bR.ReadInt32();
                                 _dnsServer.QpmLimitSampleMinutes = bR.ReadInt32();
-                                _dnsServer.QpmLimitSamplingIntervalInMinutes = bR.ReadInt32();
+                                _dnsServer.QpmLimitIPv4PrefixLength = bR.ReadInt32();
+                                _dnsServer.QpmLimitIPv6PrefixLength = bR.ReadInt32();
+                            }
+                            else if (version >= 17)
+                            {
+                                _dnsServer.QpmLimitRequests = bR.ReadInt32();
+                                _dnsServer.QpmLimitSampleMinutes = bR.ReadInt32();
+                                _ = bR.ReadInt32(); //read obsolete value _dnsServer.QpmLimitSamplingIntervalInMinutes
                             }
 
                             if (version >= 13)
@@ -7172,7 +7246,7 @@ namespace DnsServerCore
                                         if (forwarder.Protocol == forwarderProtocol)
                                             forwarders.Add(forwarder);
                                         else
-                                            forwarders.Add(new NameServerAddress(forwarder, forwarderProtocol));
+                                            forwarders.Add(forwarder.ChangeProtocol(forwarderProtocol));
                                     }
 
                                     _dnsServer.Forwarders = forwarders;
@@ -7330,6 +7404,22 @@ namespace DnsServerCore
                                 _dnsServer.CacheZoneManager.FailureRecordTtl = bR.ReadUInt32();
                             }
 
+                            if (version >= 20)
+                            {
+                                int count = bR.ReadByte();
+                                Dictionary<string, string> tsigKeys = new Dictionary<string, string>(count);
+
+                                for (int i = 0; i < count; i++)
+                                {
+                                    string keyName = bR.ReadShortString();
+                                    string sharedSecret = bR.ReadShortString();
+
+                                    tsigKeys.Add(keyName, sharedSecret);
+                                }
+
+                                _dnsServer.TsigKeys = tsigKeys;
+                            }
+
                             break;
 
                         default:
@@ -7388,7 +7478,7 @@ namespace DnsServerCore
                 BinaryWriter bW = new BinaryWriter(mS);
 
                 bW.Write(Encoding.ASCII.GetBytes("DS")); //format
-                bW.Write((byte)19); //version
+                bW.Write((byte)20); //version
 
                 bW.WriteShortString(_dnsServer.ServerDomain);
                 bW.Write(_webServiceHttpPort);
@@ -7446,9 +7536,11 @@ namespace DnsServerCore
                 bW.Write(_dnsServer.RandomizeName);
                 bW.Write(_dnsServer.QnameMinimization);
 
-                bW.Write(_dnsServer.QpmLimit);
+                bW.Write(_dnsServer.QpmLimitRequests);
+                bW.Write(_dnsServer.QpmLimitErrors);
                 bW.Write(_dnsServer.QpmLimitSampleMinutes);
-                bW.Write(_dnsServer.QpmLimitSamplingIntervalInMinutes);
+                bW.Write(_dnsServer.QpmLimitIPv4PrefixLength);
+                bW.Write(_dnsServer.QpmLimitIPv6PrefixLength);
 
                 bW.Write(_dnsServer.ServeStale);
                 bW.Write(_dnsServer.CacheZoneManager.ServeStaleTtl);
@@ -7565,6 +7657,21 @@ namespace DnsServerCore
                 bW.Write(_dnsServer.CacheZoneManager.MaximumRecordTtl);
                 bW.Write(_dnsServer.CacheZoneManager.NegativeRecordTtl);
                 bW.Write(_dnsServer.CacheZoneManager.FailureRecordTtl);
+
+                if (_dnsServer.TsigKeys is null)
+                {
+                    bW.Write((byte)0);
+                }
+                else
+                {
+                    bW.Write(Convert.ToByte(_dnsServer.TsigKeys.Count));
+
+                    foreach (KeyValuePair<string, string> tsigKey in _dnsServer.TsigKeys)
+                    {
+                        bW.WriteShortString(tsigKey.Key);
+                        bW.WriteShortString(tsigKey.Value);
+                    }
+                }
 
                 //write config
                 mS.Position = 0;
