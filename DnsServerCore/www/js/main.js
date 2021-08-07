@@ -725,6 +725,14 @@ function loadDnsSettings() {
             else
                 $("#txtDnsTlsCertificatePassword").val(responseJSON.response.dnsTlsCertificatePassword);
 
+            $("#tableTsigKeys").html("");
+
+            if (responseJSON.response.tsigKeys != null) {
+                for (var i = 0; i < responseJSON.response.tsigKeys.length; i++) {
+                    addTsigKeyRow(responseJSON.response.tsigKeys[i].keyName, responseJSON.response.tsigKeys[i].sharedSecret);
+                }
+            }
+
             $("#chkPreferIPv6").prop("checked", responseJSON.response.preferIPv6);
 
             $("#chkEnableLogging").prop("checked", responseJSON.response.enableLogging);
@@ -782,9 +790,11 @@ function loadDnsSettings() {
             $("#chkRandomizeName").prop("checked", responseJSON.response.randomizeName);
             $("#chkQnameMinimization").prop("checked", responseJSON.response.qnameMinimization);
 
-            $("#txtQpmLimit").val(responseJSON.response.qpmLimit);
+            $("#txtQpmLimitRequests").val(responseJSON.response.qpmLimitRequests);
+            $("#txtQpmLimitErrors").val(responseJSON.response.qpmLimitErrors);
             $("#txtQpmLimitSampleMinutes").val(responseJSON.response.qpmLimitSampleMinutes);
-            $("#txtQpmLimitSamplingIntervalInMinutes").val(responseJSON.response.qpmLimitSamplingIntervalInMinutes);
+            $("#txtQpmLimitIPv4PrefixLength").val(responseJSON.response.qpmLimitIPv4PrefixLength);
+            $("#txtQpmLimitIPv6PrefixLength").val(responseJSON.response.qpmLimitIPv6PrefixLength);
 
             $("#chkServeStale").prop("checked", responseJSON.response.serveStale);
             $("#txtServeStaleTtl").prop("disabled", !responseJSON.response.serveStale);
@@ -1010,6 +1020,13 @@ function saveDnsSettings() {
     var dnsTlsCertificatePath = $("#txtDnsTlsCertificatePath").val();
     var dnsTlsCertificatePassword = $("#txtDnsTlsCertificatePassword").val();
 
+    var tsigKeys = serializeTableData($("#tableTsigKeys"), 2);
+    if (tsigKeys === false)
+        return;
+
+    if (tsigKeys.length === 0)
+        tsigKeys = false;
+
     var preferIPv6 = $("#chkPreferIPv6").prop('checked');
 
     var enableLogging = $("#chkEnableLogging").prop('checked');
@@ -1038,24 +1055,38 @@ function saveDnsSettings() {
     var randomizeName = $("#chkRandomizeName").prop('checked');
     var qnameMinimization = $("#chkQnameMinimization").prop('checked');
 
-    var qpmLimit = $("#txtQpmLimit").val();
-    if ((qpmLimit === null) || (qpmLimit === "")) {
-        showAlert("warning", "Missing!", "Please enter Queries Per Minute (QPM) limit value.");
-        $("#txtQpmLimit").focus();
+    var qpmLimitRequests = $("#txtQpmLimitRequests").val();
+    if ((qpmLimitRequests == null) || (qpmLimitRequests === "")) {
+        showAlert("warning", "Missing!", "Please enter Queries Per Minute (QPM) request limit value.");
+        $("#txtQpmLimitRequests").focus();
+        return false;
+    }
+
+    var qpmLimitErrors = $("#txtQpmLimitErrors").val();
+    if ((qpmLimitErrors == null) || (qpmLimitErrors === "")) {
+        showAlert("warning", "Missing!", "Please enter Queries Per Minute (QPM) error limit value.");
+        $("#txtQpmLimitErrors").focus();
         return false;
     }
 
     var qpmLimitSampleMinutes = $("#txtQpmLimitSampleMinutes").val();
-    if ((qpmLimitSampleMinutes === null) || (qpmLimitSampleMinutes === "")) {
+    if ((qpmLimitSampleMinutes == null) || (qpmLimitSampleMinutes === "")) {
         showAlert("warning", "Missing!", "Please enter Queries Per Minute (QPM) sample value.");
         $("#txtQpmLimitSampleMinutes").focus();
         return false;
     }
 
-    var qpmLimitSamplingIntervalInMinutes = $("#txtQpmLimitSamplingIntervalInMinutes").val();
-    if ((qpmLimitSamplingIntervalInMinutes === null) || (qpmLimitSamplingIntervalInMinutes === "")) {
-        showAlert("warning", "Missing!", "Please enter Queries Per Minute (QPM) sampling interval value.");
-        $("#txtQpmLimitSamplingIntervalInMinutes").focus();
+    var qpmLimitIPv4PrefixLength = $("#txtQpmLimitIPv4PrefixLength").val();
+    if ((qpmLimitIPv4PrefixLength == null) || (qpmLimitIPv4PrefixLength === "")) {
+        showAlert("warning", "Missing!", "Please enter Queries Per Minute (QPM) limit IPv4 prefix length.");
+        $("#txtQpmLimitIPv4PrefixLength").focus();
+        return false;
+    }
+
+    var qpmLimitIPv6PrefixLength = $("#txtQpmLimitIPv6PrefixLength").val();
+    if ((qpmLimitIPv6PrefixLength == null) || (qpmLimitIPv6PrefixLength === "")) {
+        showAlert("warning", "Missing!", "Please enter Queries Per Minute (QPM) limit IPv6 prefix length.");
+        $("#txtQpmLimitIPv6PrefixLength").focus();
         return false;
     }
 
@@ -1184,15 +1215,25 @@ function saveDnsSettings() {
         url: "/api/setDnsSettings?token=" + token + "&dnsServerDomain=" + dnsServerDomain + "&dnsServerLocalEndPoints=" + encodeURIComponent(dnsServerLocalEndPoints)
             + "&webServiceLocalAddresses=" + encodeURIComponent(webServiceLocalAddresses) + "&webServiceHttpPort=" + webServiceHttpPort + "&webServiceEnableTls=" + webServiceEnableTls + "&webServiceHttpToTlsRedirect=" + webServiceHttpToTlsRedirect + "&webServiceTlsPort=" + webServiceTlsPort + "&webServiceTlsCertificatePath=" + encodeURIComponent(webServiceTlsCertificatePath) + "&webServiceTlsCertificatePassword=" + encodeURIComponent(webServiceTlsCertificatePassword)
             + "&enableDnsOverHttp=" + enableDnsOverHttp + "&enableDnsOverTls=" + enableDnsOverTls + "&enableDnsOverHttps=" + enableDnsOverHttps + "&dnsTlsCertificatePath=" + encodeURIComponent(dnsTlsCertificatePath) + "&dnsTlsCertificatePassword=" + encodeURIComponent(dnsTlsCertificatePassword)
+            + "&tsigKeys=" + encodeURIComponent(tsigKeys)
             + "&preferIPv6=" + preferIPv6 + "&enableLogging=" + enableLogging + "&logQueries=" + logQueries + "&useLocalTime=" + useLocalTime + "&logFolder=" + encodeURIComponent(logFolder) + "&maxLogFileDays=" + maxLogFileDays + "&maxStatFileDays=" + maxStatFileDays
             + "&recursion=" + recursion + "&recursionDeniedNetworks=" + encodeURIComponent(recursionDeniedNetworks) + "&recursionAllowedNetworks=" + encodeURIComponent(recursionAllowedNetworks) + "&randomizeName=" + randomizeName + "&qnameMinimization=" + qnameMinimization
-            + "&qpmLimit=" + qpmLimit + "&qpmLimitSampleMinutes=" + qpmLimitSampleMinutes + "&qpmLimitSamplingIntervalInMinutes=" + qpmLimitSamplingIntervalInMinutes
+            + "&qpmLimitRequests=" + qpmLimitRequests + "&qpmLimitErrors=" + qpmLimitErrors + "&qpmLimitSampleMinutes=" + qpmLimitSampleMinutes + "&qpmLimitIPv4PrefixLength=" + qpmLimitIPv4PrefixLength + "&qpmLimitIPv6PrefixLength=" + qpmLimitIPv6PrefixLength
             + "&serveStale=" + serveStale + "&serveStaleTtl=" + serveStaleTtl + "&cacheMinimumRecordTtl=" + cacheMinimumRecordTtl + "&cacheMaximumRecordTtl=" + cacheMaximumRecordTtl + "&cacheNegativeRecordTtl=" + cacheNegativeRecordTtl + "&cacheFailureRecordTtl=" + cacheFailureRecordTtl + "&cachePrefetchEligibility=" + cachePrefetchEligibility + "&cachePrefetchTrigger=" + cachePrefetchTrigger + "&cachePrefetchSampleIntervalInMinutes=" + cachePrefetchSampleIntervalInMinutes + "&cachePrefetchSampleEligibilityHitsPerHour=" + cachePrefetchSampleEligibilityHitsPerHour
             + proxy + "&forwarders=" + encodeURIComponent(forwarders) + "&forwarderProtocol=" + forwarderProtocol + "&enableBlocking=" + enableBlocking + "&blockingType=" + blockingType + "&customBlockingAddresses=" + encodeURIComponent(customBlockingAddresses) + "&blockListUrls=" + encodeURIComponent(blockListUrls) + "&blockListUpdateIntervalHours=" + blockListUpdateIntervalHours,
         success: function (responseJSON) {
             document.title = responseJSON.response.dnsServerDomain + " - " + "Technitium DNS Server v" + responseJSON.response.version;
             $("#lblDnsServerDomain").text(" - " + responseJSON.response.dnsServerDomain);
             $("#txtDnsServerDomain").val(responseJSON.response.dnsServerDomain);
+
+            //reload tsig keys
+            $("#tableTsigKeys").html("");
+
+            if (responseJSON.response.tsigKeys != null) {
+                for (var i = 0; i < responseJSON.response.tsigKeys.length; i++) {
+                    addTsigKeyRow(responseJSON.response.tsigKeys[i].keyName, responseJSON.response.tsigKeys[i].sharedSecret);
+                }
+            }
 
             //fix custom block list url in case port changes
             {
@@ -1220,6 +1261,17 @@ function saveDnsSettings() {
     });
 
     return false;
+}
+
+function addTsigKeyRow(keyName, sharedSecret) {
+
+    var id = Math.floor(Math.random() * 10000);
+
+    var tableHtmlRows = "<tr id=\"tableTsigKeyRow" + id + "\"><td><input type=\"text\" class=\"form-control\" value=\"" + htmlEncode(keyName) + "\"></td>";
+    tableHtmlRows += "<td><input type=\"text\" class=\"form-control\" data-optional=\"true\" value=\"" + htmlEncode(sharedSecret) + "\"></td>";
+    tableHtmlRows += "<td><button type=\"button\" class=\"btn btn-danger\" onclick=\"$('#tableTsigKeyRow" + id + "').remove();\">Delete</button></td></tr>";
+
+    $("#tableTsigKeys").append(tableHtmlRows);
 }
 
 function checkForReverseProxy(responseJSON) {
