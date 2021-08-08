@@ -42,6 +42,8 @@ namespace Failover
     {
         #region variables
 
+        const string HTTP_HEALTH_CHECK_USER_AGENT = "DNS Failover App (Technitium DNS Server)";
+
         readonly HealthMonitoringService _service;
 
         string _name;
@@ -147,6 +149,7 @@ namespace Failover
                 {
                     HttpClient httpClient = new HttpClient(_httpHandler);
                     httpClient.Timeout = TimeSpan.FromMilliseconds(_timeout);
+                    httpClient.DefaultRequestHeaders.UserAgent.ParseAdd(HTTP_HEALTH_CHECK_USER_AGENT);
 
                     _httpClient = httpClient;
                 }
@@ -156,6 +159,7 @@ namespace Failover
                     {
                         HttpClient httpClient = new HttpClient(_httpHandler);
                         httpClient.Timeout = TimeSpan.FromMilliseconds(_timeout);
+                        httpClient.DefaultRequestHeaders.UserAgent.ParseAdd(HTTP_HEALTH_CHECK_USER_AGENT);
 
                         HttpClient oldHttpClient = _httpClient;
                         _httpClient = httpClient;
