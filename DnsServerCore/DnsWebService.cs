@@ -5957,7 +5957,7 @@ namespace DnsServerCore
             if (string.IsNullOrEmpty(domain))
                 throw new DnsWebServiceException("Parameter 'domain' missing.");
 
-            domain = domain.Trim().TrimEnd('.');
+            domain = domain.Trim(new char[] { '\t', ' ', '.' });
 
             string strType = request.QueryString["type"];
             if (string.IsNullOrEmpty(strType))
@@ -6064,7 +6064,7 @@ namespace DnsServerCore
             if (importRecords)
             {
                 AuthZoneInfo zoneInfo = _dnsServer.AuthZoneManager.GetAuthZoneInfo(domain);
-                if ((zoneInfo == null) || !zoneInfo.Name.Equals(domain, StringComparison.OrdinalIgnoreCase))
+                if ((zoneInfo == null) || zoneInfo.Name.Equals("", StringComparison.OrdinalIgnoreCase))
                 {
                     zoneInfo = _dnsServer.AuthZoneManager.CreatePrimaryZone(domain, _dnsServer.ServerDomain, false);
                     if (zoneInfo == null)
