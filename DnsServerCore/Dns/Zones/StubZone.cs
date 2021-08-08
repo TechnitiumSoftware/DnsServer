@@ -262,7 +262,7 @@ namespace DnsServerCore.Dns.Zones
                 {
                     LogManager log = _dnsServer.LogManager;
                     if (log != null)
-                        log.Write("DNS Server successfully checked for update to '" + _name + "' stub zone from: " + soaResponse.Metadata.NameServerAddress.ToString());
+                        log.Write("DNS Server successfully checked for '" + _name + "' stub zone update from: " + soaResponse.Metadata.NameServerAddress.ToString());
 
                     return true;
                 }
@@ -356,7 +356,7 @@ namespace DnsServerCore.Dns.Zones
 
         #region public
 
-        public void TriggerRefresh()
+        public void TriggerRefresh(int refreshInterval = REFRESH_TIMER_INTERVAL)
         {
             if (_disabled)
                 return;
@@ -364,8 +364,8 @@ namespace DnsServerCore.Dns.Zones
             if (_refreshTimerTriggered)
                 return;
 
-            ResetRefreshTimer(REFRESH_TIMER_INTERVAL);
             _refreshTimerTriggered = true;
+            ResetRefreshTimer(refreshInterval);
         }
 
         public void TriggerResync()
@@ -375,8 +375,8 @@ namespace DnsServerCore.Dns.Zones
 
             _resync = true;
 
-            ResetRefreshTimer(REFRESH_TIMER_INTERVAL);
             _refreshTimerTriggered = true;
+            ResetRefreshTimer(0);
         }
 
         public override void SetRecords(DnsResourceRecordType type, IReadOnlyList<DnsResourceRecord> records)
