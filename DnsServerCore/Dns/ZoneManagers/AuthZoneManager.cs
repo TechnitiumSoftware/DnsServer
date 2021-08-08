@@ -693,7 +693,7 @@ namespace DnsServerCore.Dns.ZoneManagers
 
             if (_root.TryAdd(authZone))
             {
-                authZone.TriggerRefresh();
+                authZone.TriggerRefresh(0);
                 _totalZones++;
                 return new AuthZoneInfo(authZone);
             }
@@ -701,7 +701,7 @@ namespace DnsServerCore.Dns.ZoneManagers
             if (_root.TryGet(domain, out AuthZone existingZone) && (existingZone is SubDomainZone))
             {
                 _root[domain] = authZone;
-                authZone.TriggerRefresh();
+                authZone.TriggerRefresh(0);
                 _totalZones++;
                 return new AuthZoneInfo(authZone);
             }
@@ -715,7 +715,7 @@ namespace DnsServerCore.Dns.ZoneManagers
 
             if (_root.TryAdd(authZone))
             {
-                authZone.TriggerRefresh();
+                authZone.TriggerRefresh(0);
                 _totalZones++;
                 return new AuthZoneInfo(authZone);
             }
@@ -723,7 +723,7 @@ namespace DnsServerCore.Dns.ZoneManagers
             if (_root.TryGet(domain, out AuthZone existingZone) && (existingZone is SubDomainZone))
             {
                 _root[domain] = authZone;
-                authZone.TriggerRefresh();
+                authZone.TriggerRefresh(0);
                 _totalZones++;
                 return new AuthZoneInfo(authZone);
             }
