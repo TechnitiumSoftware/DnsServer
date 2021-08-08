@@ -382,6 +382,61 @@ namespace DnsServerCore.Dns.Zones
                         log.Write("DNS Server has started zone refresh for secondary zone: " + _name);
                 }
 
+                DnsResourceRecord currentSoaRecord = _entries[DnsResourceRecordType.SOA][0];
+                DnsSOARecord currentSoa = currentSoaRecord.RDATA as DnsSOARecord;
+
+                if (!_resync)
+                {
+                    DnsClient client = new DnsClient(primaryNameServers);
+
+                    client.Proxy = _dnsServer.Proxy;
+                    client.PreferIPv6 = _dnsServer.PreferIPv6;
+                    client.Timeout = REFRESH_SOA_TIMEOUT;
+                    client.Retries = REFRESH_RETRIES;
+                    client.Concurrency = 1;
+
+                    DnsDatagram soaRequest = new DnsDatagram(0, false, DnsOpcode.StandardQuery, false, false, false, false, false, false, DnsResponseCode.NoError, new DnsQuestionRecord[] { new DnsQuestionRecord(_name, DnsResourceRecordType.SOA, DnsClass.IN) });
+                    DnsDatagram soaResponse;
+
+                    if (string.IsNullOrEmpty(tsigKeyName) || string.IsNullOrEmpty(tsigSharedSecret) || string.IsNullOrEmpty(tsigAlgorithm))
+                        soaResponse = await client.ResolveAsync(soaRequest);
+                    else
+                        soaResponse = await client.ResolveAsync(soaRequest, tsigKeyName, tsigSharedSecret, tsigAlgorithm, REFRESH_TSIG_FUDGE);
+
+                    if (soaResponse.RCODE != DnsResponseCode.NoError)
+                    {
+                        LogManager log = _dnsServer.LogManager;
+                        if (log != null)
+                            log.Write("DNS Server received RCODE=" + soaResponse.RCODE.ToString() + " for '" + _name + "' secondary zone refresh from: " + soaResponse.Metadata.NameServerAddress.ToString());
+
+                        return false;
+                    }
+
+                    if ((soaResponse.Answer.Count < 1) || (soaResponse.Answer[0].Type != DnsResourceRecordType.SOA) || !_name.Equals(soaResponse.Answer[0].Name, StringComparison.OrdinalIgnoreCase))
+                    {
+                        LogManager log = _dnsServer.LogManager;
+                        if (log != null)
+                            log.Write("DNS Server received an empty response for SOA query for '" + _name + "' secondary zone refresh from: " + soaResponse.Metadata.NameServerAddress.ToString());
+
+                        return false;
+                    }
+
+                    DnsResourceRecord receivedSoaRecord = soaResponse.Answer[0];
+                    DnsSOARecord receivedSoa = receivedSoaRecord.RDATA as DnsSOARecord;
+
+                    //compare using sequence space arithmetic
+                    if (!currentSoa.IsZoneUpdateAvailable(receivedSoa))
+                    {
+                        LogManager log = _dnsServer.LogManager;
+                        if (log != null)
+                            log.Write("DNS Server successfully checked for '" + _name + "' secondary zone update from: " + soaResponse.Metadata.NameServerAddress.ToString());
+
+                        return true;
+                    }
+                }
+
+                //update available; do zone transfer with TLS or TCP transport
+
                 if (zoneTransferProtocol == DnsTransportProtocol.Tls)
                 {
                     //change name server protocol to TLS
@@ -392,64 +447,34 @@ namespace DnsServerCore.Dns.Zones
                         if (primaryNameServer.Protocol == DnsTransportProtocol.Tls)
                             tlsNameServers.Add(primaryNameServer);
                         else
-                            tlsNameServers.Add(primaryNameServer.ChangeProtocol(zoneTransferProtocol));
+                            tlsNameServers.Add(primaryNameServer.ChangeProtocol(DnsTransportProtocol.Tls));
                     }
 
                     primaryNameServers = tlsNameServers;
                 }
-
-                DnsClient client = new DnsClient(primaryNameServers);
-
-                client.Proxy = _dnsServer.Proxy;
-                client.PreferIPv6 = _dnsServer.PreferIPv6;
-                client.Timeout = REFRESH_SOA_TIMEOUT;
-                client.Retries = REFRESH_RETRIES;
-                client.Concurrency = 1;
-
-                DnsDatagram soaRequest = new DnsDatagram(0, false, DnsOpcode.StandardQuery, false, false, false, false, false, false, DnsResponseCode.NoError, new DnsQuestionRecord[] { new DnsQuestionRecord(_name, DnsResourceRecordType.SOA, DnsClass.IN) });
-                DnsDatagram soaResponse;
-
-                if (string.IsNullOrEmpty(tsigKeyName) || string.IsNullOrEmpty(tsigSharedSecret) || string.IsNullOrEmpty(tsigAlgorithm))
-                    soaResponse = await client.ResolveAsync(soaRequest);
                 else
-                    soaResponse = await client.ResolveAsync(soaRequest, tsigKeyName, tsigSharedSecret, tsigAlgorithm, REFRESH_TSIG_FUDGE);
-
-                if (soaResponse.RCODE != DnsResponseCode.NoError)
                 {
-                    LogManager log = _dnsServer.LogManager;
-                    if (log != null)
-                        log.Write("DNS Server received RCODE=" + soaResponse.RCODE.ToString() + " for '" + _name + "' secondary zone refresh from: " + soaResponse.Metadata.NameServerAddress.ToString());
+                    //change name server protocol to TCP
+                    List<NameServerAddress> tcpNameServers = new List<NameServerAddress>(primaryNameServers.Count);
 
-                    return false;
+                    foreach (NameServerAddress primaryNameServer in primaryNameServers)
+                    {
+                        if (primaryNameServer.Protocol == DnsTransportProtocol.Tcp)
+                            tcpNameServers.Add(primaryNameServer);
+                        else
+                            tcpNameServers.Add(primaryNameServer.ChangeProtocol(DnsTransportProtocol.Tcp));
+                    }
+
+                    primaryNameServers = tcpNameServers;
                 }
 
-                if ((soaResponse.Answer.Count < 1) || (soaResponse.Answer[0].Type != DnsResourceRecordType.SOA) || !_name.Equals(soaResponse.Answer[0].Name, StringComparison.OrdinalIgnoreCase))
-                {
-                    LogManager log = _dnsServer.LogManager;
-                    if (log != null)
-                        log.Write("DNS Server received an empty response for SOA query for '" + _name + "' secondary zone refresh from: " + soaResponse.Metadata.NameServerAddress.ToString());
+                DnsClient xfrClient = new DnsClient(primaryNameServers);
 
-                    return false;
-                }
-
-                DnsResourceRecord currentSoaRecord = _entries[DnsResourceRecordType.SOA][0];
-                DnsResourceRecord receivedSoaRecord = soaResponse.Answer[0];
-
-                DnsSOARecord currentSoa = currentSoaRecord.RDATA as DnsSOARecord;
-                DnsSOARecord receivedSoa = receivedSoaRecord.RDATA as DnsSOARecord;
-
-                //compare using sequence space arithmetic
-                if (!_resync && !currentSoa.IsZoneUpdateAvailable(receivedSoa))
-                {
-                    LogManager log = _dnsServer.LogManager;
-                    if (log != null)
-                        log.Write("DNS Server successfully checked for update to '" + _name + "' secondary zone from: " + soaResponse.Metadata.NameServerAddress.ToString());
-
-                    return true;
-                }
-
-                //update available; do zone transfer
-                client.Timeout = REFRESH_XFR_TIMEOUT;
+                xfrClient.Proxy = _dnsServer.Proxy;
+                xfrClient.PreferIPv6 = _dnsServer.PreferIPv6;
+                xfrClient.Timeout = REFRESH_XFR_TIMEOUT;
+                xfrClient.Retries = REFRESH_RETRIES;
+                xfrClient.Concurrency = 1;
 
                 bool doIXFR = !_isExpired && !_resync;
 
@@ -474,9 +499,9 @@ namespace DnsServerCore.Dns.Zones
                     DnsDatagram xfrResponse;
 
                     if (string.IsNullOrEmpty(tsigKeyName) || string.IsNullOrEmpty(tsigSharedSecret) || string.IsNullOrEmpty(tsigAlgorithm))
-                        xfrResponse = await client.ResolveAsync(xfrRequest);
+                        xfrResponse = await xfrClient.ResolveAsync(xfrRequest);
                     else
-                        xfrResponse = await client.ResolveAsync(xfrRequest, tsigKeyName, tsigSharedSecret, tsigAlgorithm, REFRESH_TSIG_FUDGE);
+                        xfrResponse = await xfrClient.ResolveAsync(xfrRequest, tsigKeyName, tsigSharedSecret, tsigAlgorithm, REFRESH_TSIG_FUDGE);
 
                     if (doIXFR && (xfrResponse.RCODE == DnsResponseCode.NotImplemented))
                     {
@@ -540,7 +565,7 @@ namespace DnsServerCore.Dns.Zones
                     {
                         LogManager log = _dnsServer.LogManager;
                         if (log != null)
-                            log.Write("DNS Server successfully checked for update to '" + _name + "' secondary zone from: " + soaResponse.Metadata.NameServerAddress.ToString());
+                            log.Write("DNS Server successfully checked for '" + _name + "' secondary zone update from: " + xfrResponse.Metadata.NameServerAddress.ToString());
                     }
 
                     return true;
@@ -609,7 +634,7 @@ namespace DnsServerCore.Dns.Zones
             _notifyTimerTriggered = true;
         }
 
-        public void TriggerRefresh()
+        public void TriggerRefresh(int refreshInterval = REFRESH_TIMER_INTERVAL)
         {
             if (_disabled)
                 return;
@@ -617,8 +642,8 @@ namespace DnsServerCore.Dns.Zones
             if (_refreshTimerTriggered)
                 return;
 
-            ResetRefreshTimer(REFRESH_TIMER_INTERVAL);
             _refreshTimerTriggered = true;
+            ResetRefreshTimer(refreshInterval);
         }
 
         public void TriggerResync()
@@ -628,8 +653,8 @@ namespace DnsServerCore.Dns.Zones
 
             _resync = true;
 
-            ResetRefreshTimer(REFRESH_TIMER_INTERVAL);
             _refreshTimerTriggered = true;
+            ResetRefreshTimer(0);
         }
 
         public override void SetRecords(DnsResourceRecordType type, IReadOnlyList<DnsResourceRecord> records)
