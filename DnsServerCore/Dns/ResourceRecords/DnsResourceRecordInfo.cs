@@ -38,8 +38,6 @@ namespace DnsServerCore.Dns.ResourceRecords
         IReadOnlyList<NameServerAddress> _primaryNameServers;
         DnsTransportProtocol _zoneTransferProtocol;
         string _tsigKeyName = string.Empty;
-        string _tsigSharedSecret = string.Empty;
-        string _tsigAlgorithm = string.Empty;
 
         #endregion
 
@@ -62,6 +60,7 @@ namespace DnsServerCore.Dns.ResourceRecords
                 case 4:
                 case 5:
                 case 6:
+                case 7:
                     _disabled = bR.ReadBoolean();
 
                     if ((version < 5) && isSoa)
@@ -132,13 +131,19 @@ namespace DnsServerCore.Dns.ResourceRecords
                         }
                     }
 
-                    if (version >= 6)
+                    if (version >= 7)
                     {
                         _zoneTransferProtocol = (DnsTransportProtocol)bR.ReadByte();
 
                         _tsigKeyName = bR.ReadShortString();
-                        _tsigSharedSecret = bR.ReadShortString();
-                        _tsigAlgorithm = bR.ReadShortString();
+                    }
+                    else if (version >= 6)
+                    {
+                        _zoneTransferProtocol = (DnsTransportProtocol)bR.ReadByte();
+
+                        _tsigKeyName = bR.ReadShortString();
+                        _ = bR.ReadShortString(); //_tsigSharedSecret (obsolete)
+                        _ = bR.ReadShortString(); //_tsigAlgorithm (obsolete)
                     }
 
                     break;
@@ -154,7 +159,7 @@ namespace DnsServerCore.Dns.ResourceRecords
 
         public void WriteTo(BinaryWriter bW)
         {
-            bW.Write((byte)6); //version
+            bW.Write((byte)7); //version
             bW.Write(_disabled);
 
             if (_glueRecords is null)
@@ -191,8 +196,6 @@ namespace DnsServerCore.Dns.ResourceRecords
             bW.Write((byte)_zoneTransferProtocol);
 
             bW.WriteShortString(_tsigKeyName);
-            bW.WriteShortString(_tsigSharedSecret);
-            bW.WriteShortString(_tsigAlgorithm);
         }
 
         #endregion
@@ -256,30 +259,6 @@ namespace DnsServerCore.Dns.ResourceRecords
                     _tsigKeyName = string.Empty;
                 else
                     _tsigKeyName = value;
-            }
-        }
-
-        public string TsigSharedSecret
-        {
-            get { return _tsigSharedSecret; }
-            set
-            {
-                if (value is null)
-                    _tsigSharedSecret = string.Empty;
-                else
-                    _tsigSharedSecret = value;
-            }
-        }
-
-        public string TsigAlgorithm
-        {
-            get { return _tsigAlgorithm; }
-            set
-            {
-                if (value is null)
-                    _tsigAlgorithm = string.Empty;
-                else
-                    _tsigAlgorithm = value;
             }
         }
 
