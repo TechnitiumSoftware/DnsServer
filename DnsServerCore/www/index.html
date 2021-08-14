@@ -915,23 +915,24 @@
                                                 <div id="settingsTabPaneTsig" role="tabpanel" class="tab-pane">
                                                     <div class="well well-sm form-horizontal">
                                                         <div class="form-group">
-                                                            <label for="tableTsigKeys" class="col-sm-3 control-label">TSIG Keys</label>
-                                                            <div class="col-sm-9">
+                                                            <label for="tableTsigKeys" class="col-sm-2 control-label">TSIG Keys</label>
+                                                            <div class="col-sm-10">
                                                                 <table class="table table-hover" style="margin-bottom: 0px;">
                                                                     <thead>
                                                                         <tr>
                                                                             <th>Key Name</th>
                                                                             <th>Shared Secret</th>
-                                                                            <th><button type="button" class="btn btn-default" style="padding: 0px 20px;" onclick="addTsigKeyRow('', '');">Add</button></th>
+                                                                            <th>Algorithm</th>
+                                                                            <th><button type="button" class="btn btn-default" style="padding: 0px 20px;" onclick="addTsigKeyRow('', '', 'hmac-sha256');">Add</button></th>
                                                                         </tr>
                                                                     </thead>
                                                                     <tbody id="tableTsigKeys"></tbody>
                                                                 </table>
                                                             </div>
-                                                            <div class="col-sm-offset-3 col-sm-8" style="padding-top: 5px;">The shared secret can be a base64 string or a literal string. Keep the shared secret empty if you want to auto generate a strong key.</div>
+                                                            <div class="col-sm-offset-2 col-sm-10" style="padding-top: 5px;">The shared secret can be a base64 string or a literal string. Keep the shared secret empty if you want to auto generate a strong key.</div>
                                                         </div>
 
-                                                        <div>Note! You will need to select these TSIG keys for zone transfer in the zone options separately. This DNS server supports hmac-md5, hmac-sha1, hmac-sha256 (recommended), hmac-sha256-128, hmac-sha384, hmac-sha384-192, hmac-sha512, and hmac-sha512-256 algorithms.</div>
+                                                        <div>Note! You will need to configure these TSIG keys names for zone transfer in the zone options and in the secondary zone SOA record options separately.</div>
                                                     </div>
                                                 </div>
 
@@ -1032,7 +1033,7 @@
                                                                 <input type="number" class="form-control" id="txtCacheMinimumRecordTtl" placeholder="min TTL" style="width: 100px; display: inline;">
                                                                 <span>(recommended 10)</span>
                                                             </div>
-                                                            <div class="col-sm-offset-3 col-sm-8" style="padding-top: 5px;">The minimum TTL value that a record can have in cache. Set a value to make sure that the records with TTL value than it stays in cache for a minimum duration.</div>
+                                                            <div class="col-sm-offset-3 col-sm-8" style="padding-top: 5px;">The minimum TTL value that a record can have in the cache. Set a value to make sure that the records with TTL value less than that stays in cache for a minimum duration.</div>
                                                         </div>
 
                                                         <div class="form-group">
@@ -1041,7 +1042,7 @@
                                                                 <input type="number" class="form-control" id="txtCacheMaximumRecordTtl" placeholder="max TTL" style="width: 100px; display: inline;">
                                                                 <span>(default 604800)</span>
                                                             </div>
-                                                            <div class="col-sm-offset-3 col-sm-8" style="padding-top: 5px;">The maximum TTL value that a record can have in cache. Set a lower value to allow the records to expire early.</div>
+                                                            <div class="col-sm-offset-3 col-sm-8" style="padding-top: 5px;">The maximum TTL value that a record can have in the cache. Set a lower value to allow the records to expire early.</div>
                                                         </div>
 
                                                         <div class="form-group">
@@ -1059,7 +1060,7 @@
                                                                 <input type="number" class="form-control" id="txtCacheFailureRecordTtl" placeholder="fail TTL" style="width: 100px; display: inline;">
                                                                 <span>(recommended 60)</span>
                                                             </div>
-                                                            <div class="col-sm-offset-3 col-sm-8" style="padding-top: 5px;">The failure TTL value to used for caching failure responses. This allows storing failure record in cache and prevent frequent recursive resolution to name servers that are responding with <code>ServerFailure</code>.</div>
+                                                            <div class="col-sm-offset-3 col-sm-8" style="padding-top: 5px;">The failure TTL value to be used for caching failure responses. This allows storing failure record in cache and prevent frequent recursive resolution requests to the name servers that are responding with <code>ServerFailure</code>.</div>
                                                         </div>
                                                     </div>
 
@@ -2017,34 +2018,11 @@ ns1.example.com ([2001:db8::])
                             </div>
                         </div>
 
+
                         <div class="form-group" id="divAddZoneTsigKeyName">
-                            <label for="txtAddZoneTsigKeyName" class="col-sm-4 control-label">TSIG Key Name (Optional)</label>
+                            <label for="optAddZoneTsigKeyName" class="col-sm-4 control-label">TSIG Key Name (Optional)</label>
                             <div class="col-sm-7">
-                                <input id="txtAddZoneTsigKeyName" type="text" class="form-control" placeholder="TSIG Key Name">
-                            </div>
-                        </div>
-
-                        <div class="form-group" id="divAddZoneTsigSharedSecret">
-                            <label for="txtAddZoneTsigSharedSecret" class="col-sm-4 control-label">TSIG Shared Secret (Optional)</label>
-                            <div class="col-sm-7">
-                                <input id="txtAddZoneTsigSharedSecret" type="text" class="form-control" placeholder="TSIG Shared Secret">
-                            </div>
-                        </div>
-
-                        <div class="form-group" id="divAddZoneTsigAlgorithm">
-                            <label for="optAddZoneTsigAlgorithm" class="col-sm-4 control-label">TSIG Algorithm (Optional)</label>
-                            <div class="col-sm-7">
-                                <select id="optAddZoneTsigAlgorithm" class="form-control" style="width: 100%;">
-                                    <option value="" selected></option>
-                                    <option value="hmac-md5">HMAC-MD5</option>
-                                    <option value="hmac-sha1">HMAC-SHA1</option>
-                                    <option value="hmac-sha256">HMAC-SHA256 (Recommended)</option>
-                                    <option value="hmac-sha256-128">HMAC-SHA256 (128 bits)</option>
-                                    <option value="hmac-sha384">HMAC-SHA384</option>
-                                    <option value="hmac-sha384-192">HMAC-SHA384 (192 bits)</option>
-                                    <option value="hmac-sha512">HMAC-SHA512</option>
-                                    <option value="hmac-sha512-256">HMAC-SHA512 (256 bits)</option>
-                                </select>
+                                <select id="optAddZoneTsigKeyName" class="form-control"></select>
                             </div>
                         </div>
 
@@ -2276,33 +2254,9 @@ ns1.example.com ([2001:db8::])
                                 </div>
 
                                 <div class="form-group" id="divEditRecordDataSoaTsigKeyName">
-                                    <label for="txtEditRecordDataSoaTsigKeyName" class="col-sm-4 control-label">TSIG Key Name</label>
+                                    <label for="optEditRecordDataSoaTsigKeyName" class="col-sm-4 control-label">TSIG Key Name</label>
                                     <div class="col-sm-7">
-                                        <input id="txtEditRecordDataSoaTsigKeyName" type="text" class="form-control" placeholder="TSIG Key Name">
-                                    </div>
-                                </div>
-
-                                <div class="form-group" id="divEditRecordDataSoaTsigSharedSecret">
-                                    <label for="txtEditRecordDataSoaTsigSharedSecret" class="col-sm-4 control-label">TSIG Shared Secret</label>
-                                    <div class="col-sm-7">
-                                        <input id="txtEditRecordDataSoaTsigSharedSecret" type="text" class="form-control" placeholder="TSIG Shared Secret">
-                                    </div>
-                                </div>
-
-                                <div class="form-group" id="divEditRecordDataSoaTsigAlgorithm">
-                                    <label for="optEditRecordDataSoaTsigAlgorithm" class="col-sm-4 control-label">TSIG Algorithm</label>
-                                    <div class="col-sm-7">
-                                        <select id="optEditRecordDataSoaTsigAlgorithm" class="form-control" style="width: 100%;">
-                                            <option value="" selected></option>
-                                            <option value="hmac-md5">HMAC-MD5</option>
-                                            <option value="hmac-sha1">HMAC-SHA1</option>
-                                            <option value="hmac-sha256">HMAC-SHA256 (Recommended)</option>
-                                            <option value="hmac-sha256-128">HMAC-SHA256 (128 bits)</option>
-                                            <option value="hmac-sha384">HMAC-SHA384</option>
-                                            <option value="hmac-sha384-192">HMAC-SHA384 (192 bits)</option>
-                                            <option value="hmac-sha512">HMAC-SHA512</option>
-                                            <option value="hmac-sha512-256">HMAC-SHA512 (256 bits)</option>
-                                        </select>
+                                        <select id="optEditRecordDataSoaTsigKeyName" class="form-control"></select>
                                     </div>
                                 </div>
 
@@ -2576,7 +2530,7 @@ ns1.example.com ([2001:db8::])
                                     <textarea id="txtZoneOptionsZoneTransferTsigKeyNames" class="form-control" rows="3"></textarea>
 
                                     <label for="optZoneOptionsQuickTsigKeyNames" class="control-label">Quick Add</label>
-                                    <select id="optZoneOptionsQuickTsigKeyNames" class="form-control" style="width: 100%;">
+                                    <select id="optZoneOptionsQuickTsigKeyNames" class="form-control">
                                     </select>
                                 </div>
                             </div>
