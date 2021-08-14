@@ -105,7 +105,7 @@ namespace DnsServerCore.Dns.Zones
 
         #region static
 
-        public static async Task<SecondaryZone> CreateAsync(DnsServer dnsServer, string name, string primaryNameServerAddresses = null, DnsTransportProtocol zoneTransferProtocol = DnsTransportProtocol.Tcp, string tsigKeyName = null, string tsigSharedSecret = null, string tsigAlgorithm = null)
+        public static async Task<SecondaryZone> CreateAsync(DnsServer dnsServer, string name, string primaryNameServerAddresses = null, DnsTransportProtocol zoneTransferProtocol = DnsTransportProtocol.Tcp, string tsigKeyName = null)
         {
             switch (zoneTransferProtocol)
             {
@@ -133,10 +133,12 @@ namespace DnsServerCore.Dns.Zones
                 dnsClient.Proxy = secondaryZone._dnsServer.Proxy;
                 dnsClient.PreferIPv6 = secondaryZone._dnsServer.PreferIPv6;
 
-                if (string.IsNullOrEmpty(tsigKeyName) || string.IsNullOrEmpty(tsigSharedSecret) || string.IsNullOrEmpty(tsigAlgorithm))
+                if (string.IsNullOrEmpty(tsigKeyName))
                     soaResponse = await dnsClient.ResolveAsync(soaQuestion);
+                else if ((dnsServer.TsigKeys is not null) && dnsServer.TsigKeys.TryGetValue(tsigKeyName, out TsigKey key))
+                    soaResponse = await dnsClient.ResolveAsync(soaQuestion, key, REFRESH_TSIG_FUDGE);
                 else
-                    soaResponse = await dnsClient.ResolveAsync(soaQuestion, tsigKeyName, tsigSharedSecret, tsigAlgorithm, REFRESH_TSIG_FUDGE);
+                    throw new DnsServerException("No such TSIG key was found configured: " + tsigKeyName);
             }
 
             if ((soaResponse.Answer.Count == 0) || (soaResponse.Answer[0].Type != DnsResourceRecordType.SOA))
@@ -153,10 +155,7 @@ namespace DnsServerCore.Dns.Zones
             DnsResourceRecordInfo recordInfo = soaRR[0].GetRecordInfo();
 
             recordInfo.ZoneTransferProtocol = zoneTransferProtocol;
-
             recordInfo.TsigKeyName = tsigKeyName;
-            recordInfo.TsigSharedSecret = tsigSharedSecret;
-            recordInfo.TsigAlgorithm = tsigAlgorithm;
 
             secondaryZone._entries[DnsResourceRecordType.SOA] = soaRR;
 
@@ -269,7 +268,7 @@ namespace DnsServerCore.Dns.Zones
                             //transaction complete
                             LogManager log = _dnsServer.LogManager;
                             if (log != null)
-                                log.Write("DNS Server successfully notified name server for '" + _name + "' zone changes: " + nameServer.ToString());
+                                log.Write("DNS Server successfully notified name server for '" + (_name == "" ? "<root>" : _name) + "' zone changes: " + nameServer.ToString());
                         }
                         break;
 
@@ -278,7 +277,7 @@ namespace DnsServerCore.Dns.Zones
                             //transaction failed
                             LogManager log = _dnsServer.LogManager;
                             if (log != null)
-                                log.Write("DNS Server received RCODE=" + response.RCODE.ToString() + " from name server for '" + _name + "' zone notification: " + nameServer.ToString());
+                                log.Write("DNS Server received RCODE=" + response.RCODE.ToString() + " from name server for '" + (_name == "" ? "<root>" : _name) + "' zone notification: " + nameServer.ToString());
                         }
                         break;
                 }
@@ -288,7 +287,7 @@ namespace DnsServerCore.Dns.Zones
                 LogManager log = _dnsServer.LogManager;
                 if (log != null)
                 {
-                    log.Write("DNS Server failed to notify name server for '" + _name + "' zone changes: " + nameServer.ToString());
+                    log.Write("DNS Server failed to notify name server for '" + (_name == "" ? "<root>" : _name) + "' zone changes: " + nameServer.ToString());
                     log.Write(ex);
                 }
             }
@@ -320,7 +319,7 @@ namespace DnsServerCore.Dns.Zones
                 {
                     LogManager log = _dnsServer.LogManager;
                     if (log != null)
-                        log.Write("DNS Server could not find primary name server IP addresses for secondary zone: " + _name);
+                        log.Write("DNS Server could not find primary name server IP addresses for secondary zone: " + (_name == "" ? "<root>" : _name));
 
                     //set timer for retry
                     ResetRefreshTimer(currentSoa.Retry * 1000);
@@ -328,9 +327,21 @@ namespace DnsServerCore.Dns.Zones
                 }
 
                 DnsResourceRecordInfo recordInfo = currentSoaRecord.GetRecordInfo();
+                TsigKey key = null;
+
+                if (!string.IsNullOrEmpty(recordInfo.TsigKeyName) && ((_dnsServer.TsigKeys is null) || !_dnsServer.TsigKeys.TryGetValue(recordInfo.TsigKeyName, out key)))
+                {
+                    LogManager log = _dnsServer.LogManager;
+                    if (log != null)
+                        log.Write("DNS Server does not have TSIG key '" + recordInfo.TsigKeyName + "' configured for refreshing secondary zone: " + (_name == "" ? "<root>" : _name));
+
+                    //set timer for retry
+                    ResetRefreshTimer(currentSoa.Retry * 1000);
+                    return;
+                }
 
                 //refresh zone
-                if (await RefreshZoneAsync(primaryNameServers, recordInfo.ZoneTransferProtocol, recordInfo.TsigKeyName, recordInfo.TsigSharedSecret, recordInfo.TsigAlgorithm))
+                if (await RefreshZoneAsync(primaryNameServers, recordInfo.ZoneTransferProtocol, key))
                 {
                     //zone refreshed; set timer for refresh
                     DnsSOARecord latestSoa = _entries[DnsResourceRecordType.SOA][0].RDATA as DnsSOARecord;
@@ -372,14 +383,14 @@ namespace DnsServerCore.Dns.Zones
             }
         }
 
-        private async Task<bool> RefreshZoneAsync(IReadOnlyList<NameServerAddress> primaryNameServers, DnsTransportProtocol zoneTransferProtocol, string tsigKeyName, string tsigSharedSecret, string tsigAlgorithm)
+        private async Task<bool> RefreshZoneAsync(IReadOnlyList<NameServerAddress> primaryNameServers, DnsTransportProtocol zoneTransferProtocol, TsigKey key)
         {
             try
             {
                 {
                     LogManager log = _dnsServer.LogManager;
                     if (log != null)
-                        log.Write("DNS Server has started zone refresh for secondary zone: " + _name);
+                        log.Write("DNS Server has started zone refresh for secondary zone: " + (_name == "" ? "<root>" : _name));
                 }
 
                 DnsResourceRecord currentSoaRecord = _entries[DnsResourceRecordType.SOA][0];
@@ -398,16 +409,16 @@ namespace DnsServerCore.Dns.Zones
                     DnsDatagram soaRequest = new DnsDatagram(0, false, DnsOpcode.StandardQuery, false, false, false, false, false, false, DnsResponseCode.NoError, new DnsQuestionRecord[] { new DnsQuestionRecord(_name, DnsResourceRecordType.SOA, DnsClass.IN) });
                     DnsDatagram soaResponse;
 
-                    if (string.IsNullOrEmpty(tsigKeyName) || string.IsNullOrEmpty(tsigSharedSecret) || string.IsNullOrEmpty(tsigAlgorithm))
+                    if (key is null)
                         soaResponse = await client.ResolveAsync(soaRequest);
                     else
-                        soaResponse = await client.ResolveAsync(soaRequest, tsigKeyName, tsigSharedSecret, tsigAlgorithm, REFRESH_TSIG_FUDGE);
+                        soaResponse = await client.ResolveAsync(soaRequest, key, REFRESH_TSIG_FUDGE);
 
                     if (soaResponse.RCODE != DnsResponseCode.NoError)
                     {
                         LogManager log = _dnsServer.LogManager;
                         if (log != null)
-                            log.Write("DNS Server received RCODE=" + soaResponse.RCODE.ToString() + " for '" + _name + "' secondary zone refresh from: " + soaResponse.Metadata.NameServerAddress.ToString());
+                            log.Write("DNS Server received RCODE=" + soaResponse.RCODE.ToString() + " for '" + (_name == "" ? "<root>" : _name) + "' secondary zone refresh from: " + soaResponse.Metadata.NameServerAddress.ToString());
 
                         return false;
                     }
@@ -416,7 +427,7 @@ namespace DnsServerCore.Dns.Zones
                     {
                         LogManager log = _dnsServer.LogManager;
                         if (log != null)
-                            log.Write("DNS Server received an empty response for SOA query for '" + _name + "' secondary zone refresh from: " + soaResponse.Metadata.NameServerAddress.ToString());
+                            log.Write("DNS Server received an empty response for SOA query for '" + (_name == "" ? "<root>" : _name) + "' secondary zone refresh from: " + soaResponse.Metadata.NameServerAddress.ToString());
 
                         return false;
                     }
@@ -429,7 +440,7 @@ namespace DnsServerCore.Dns.Zones
                     {
                         LogManager log = _dnsServer.LogManager;
                         if (log != null)
-                            log.Write("DNS Server successfully checked for '" + _name + "' secondary zone update from: " + soaResponse.Metadata.NameServerAddress.ToString());
+                            log.Write("DNS Server successfully checked for '" + (_name == "" ? "<root>" : _name) + "' secondary zone update from: " + soaResponse.Metadata.NameServerAddress.ToString());
 
                         return true;
                     }
@@ -498,10 +509,10 @@ namespace DnsServerCore.Dns.Zones
 
                     DnsDatagram xfrResponse;
 
-                    if (string.IsNullOrEmpty(tsigKeyName) || string.IsNullOrEmpty(tsigSharedSecret) || string.IsNullOrEmpty(tsigAlgorithm))
+                    if (key is null)
                         xfrResponse = await xfrClient.ResolveAsync(xfrRequest);
                     else
-                        xfrResponse = await xfrClient.ResolveAsync(xfrRequest, tsigKeyName, tsigSharedSecret, tsigAlgorithm, REFRESH_TSIG_FUDGE);
+                        xfrResponse = await xfrClient.ResolveAsync(xfrRequest, key, REFRESH_TSIG_FUDGE);
 
                     if (doIXFR && (xfrResponse.RCODE == DnsResponseCode.NotImplemented))
                     {
@@ -513,7 +524,7 @@ namespace DnsServerCore.Dns.Zones
                     {
                         LogManager log = _dnsServer.LogManager;
                         if (log != null)
-                            log.Write("DNS Server received a zone transfer response (RCODE=" + xfrResponse.RCODE.ToString() + ") for '" + _name + "' secondary zone from: " + xfrResponse.Metadata.NameServerAddress.ToString());
+                            log.Write("DNS Server received a zone transfer response (RCODE=" + xfrResponse.RCODE.ToString() + ") for '" + (_name == "" ? "<root>" : _name) + "' secondary zone from: " + xfrResponse.Metadata.NameServerAddress.ToString());
 
                         return false;
                     }
@@ -522,7 +533,7 @@ namespace DnsServerCore.Dns.Zones
                     {
                         LogManager log = _dnsServer.LogManager;
                         if (log != null)
-                            log.Write("DNS Server received an empty response for zone transfer query for '" + _name + "' secondary zone from: " + xfrResponse.Metadata.NameServerAddress.ToString());
+                            log.Write("DNS Server received an empty response for zone transfer query for '" + (_name == "" ? "<root>" : _name) + "' secondary zone from: " + xfrResponse.Metadata.NameServerAddress.ToString());
 
                         return false;
                     }
@@ -531,7 +542,7 @@ namespace DnsServerCore.Dns.Zones
                     {
                         LogManager log = _dnsServer.LogManager;
                         if (log != null)
-                            log.Write("DNS Server received invalid response for zone transfer query for '" + _name + "' secondary zone from: " + xfrResponse.Metadata.NameServerAddress.ToString());
+                            log.Write("DNS Server received invalid response for zone transfer query for '" + (_name == "" ? "<root>" : _name) + "' secondary zone from: " + xfrResponse.Metadata.NameServerAddress.ToString());
 
                         return false;
                     }
@@ -559,13 +570,13 @@ namespace DnsServerCore.Dns.Zones
 
                         LogManager log = _dnsServer.LogManager;
                         if (log != null)
-                            log.Write("DNS Server successfully refreshed '" + _name + "' secondary zone from: " + xfrResponse.Metadata.NameServerAddress.ToString());
+                            log.Write("DNS Server successfully refreshed '" + (_name == "" ? "<root>" : _name) + "' secondary zone from: " + xfrResponse.Metadata.NameServerAddress.ToString());
                     }
                     else
                     {
                         LogManager log = _dnsServer.LogManager;
                         if (log != null)
-                            log.Write("DNS Server successfully checked for '" + _name + "' secondary zone update from: " + xfrResponse.Metadata.NameServerAddress.ToString());
+                            log.Write("DNS Server successfully checked for '" + (_name == "" ? "<root>" : _name) + "' secondary zone update from: " + xfrResponse.Metadata.NameServerAddress.ToString());
                     }
 
                     return true;
@@ -586,7 +597,7 @@ namespace DnsServerCore.Dns.Zones
                             strNameServers += ", " + nameServer.ToString();
                     }
 
-                    log.Write("DNS Server failed to refresh '" + _name + "' secondary zone from: " + strNameServers);
+                    log.Write("DNS Server failed to refresh '" + (_name == "" ? "<root>" : _name) + "' secondary zone from: " + strNameServers);
                     log.Write(ex);
                 }
 
