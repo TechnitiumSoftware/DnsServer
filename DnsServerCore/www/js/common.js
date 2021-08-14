@@ -317,7 +317,7 @@ function sortTable(tableId, n) {
 
 function serializeTableData(table, columns) {
 
-    var data = table.find('input:text');
+    var data = table.find('input:text, select');
     var output = "";
 
     for (var i = 0; i < data.length; i += columns) {
