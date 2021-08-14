@@ -687,9 +687,9 @@ namespace DnsServerCore.Dns.ZoneManagers
             return null;
         }
 
-        public async Task<AuthZoneInfo> CreateSecondaryZoneAsync(string domain, string primaryNameServerAddresses = null, DnsTransportProtocol zoneTransferProtocol = DnsTransportProtocol.Tcp, string tsigKeyName = null, string tsigSharedSecret = null, string tsigAlgorithm = null)
+        public async Task<AuthZoneInfo> CreateSecondaryZoneAsync(string domain, string primaryNameServerAddresses = null, DnsTransportProtocol zoneTransferProtocol = DnsTransportProtocol.Tcp, string tsigKeyName = null)
         {
-            SecondaryZone authZone = await SecondaryZone.CreateAsync(_dnsServer, domain, primaryNameServerAddresses, zoneTransferProtocol, tsigKeyName, tsigSharedSecret, tsigAlgorithm);
+            SecondaryZone authZone = await SecondaryZone.CreateAsync(_dnsServer, domain, primaryNameServerAddresses, zoneTransferProtocol, tsigKeyName);
 
             if (_root.TryAdd(authZone))
             {
@@ -1775,7 +1775,7 @@ namespace DnsServerCore.Dns.ZoneManagers
 
             LogManager log = _dnsServer.LogManager;
             if (log != null)
-                log.Write("Saved zone file for domain: " + domain);
+                log.Write("Saved zone file for domain: " + (domain == "" ? "<root>" : domain));
         }
 
         public void DeleteZoneFile(string domain)
