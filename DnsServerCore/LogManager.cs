@@ -83,7 +83,8 @@ namespace DnsServerCore
 
                         lock (_logFileLock)
                         {
-                            WriteLog(DateTime.UtcNow, e.ExceptionObject.ToString());
+                            if (_logOut != null)
+                                WriteLog(DateTime.UtcNow, e.ExceptionObject.ToString());
                         }
                     }
                     catch (Exception ex)
@@ -216,13 +217,28 @@ namespace DnsServerCore
 
                         foreach (LogQueueItem item in _queue.GetConsumingEnumerable(_queueCancellationTokenSource.Token))
                         {
-                            if (item._dateTime.Date > _logDate.Date)
+                            if (_useLocalTime)
                             {
-                                WriteLog(DateTime.UtcNow, "Logging stopped.");
-                                StartNewLog();
-                            }
+                                DateTime messageLocalDateTime = item._dateTime.ToLocalTime();
 
-                            WriteLog(item._dateTime, item._message);
+                                if (messageLocalDateTime.Date > _logDate)
+                                {
+                                    WriteLog(DateTime.UtcNow, "Logging stopped.");
+                                    StartNewLog();
+                                }
+
+                                WriteLog(messageLocalDateTime, item._message);
+                            }
+                            else
+                            {
+                                if (item._dateTime.Date > _logDate)
+                                {
+                                    WriteLog(DateTime.UtcNow, "Logging stopped.");
+                                    StartNewLog();
+                                }
+
+                                WriteLog(item._dateTime, item._message);
+                            }
                         }
                     }
                     catch (OperationCanceledException)
@@ -369,26 +385,36 @@ namespace DnsServerCore
             if (!Directory.Exists(logFolder))
                 Directory.CreateDirectory(logFolder);
 
-            DateTime logDate;
+            DateTime logStartDateTime;
 
             if (_useLocalTime)
-                logDate = DateTime.Now;
+                logStartDateTime = DateTime.Now;
             else
-                logDate = DateTime.UtcNow;
+                logStartDateTime = DateTime.UtcNow;
 
-            _logFile = Path.Combine(logFolder, logDate.ToString(LOG_FILE_DATE_TIME_FORMAT) + ".log");
+            _logFile = Path.Combine(logFolder, logStartDateTime.ToString(LOG_FILE_DATE_TIME_FORMAT) + ".log");
             _logOut = new StreamWriter(new FileStream(_logFile, FileMode.Append, FileAccess.Write, FileShare.Read));
-            _logDate = logDate;
+            _logDate = logStartDateTime.Date;
 
-            WriteLog(logDate, "Logging started.");
+            WriteLog(logStartDateTime, "Logging started.");
         }
 
         private void WriteLog(DateTime dateTime, string message)
         {
             if (_useLocalTime)
-                _logOut.WriteLine("[" + dateTime.ToLocalTime().ToString(LOG_ENTRY_DATE_TIME_FORMAT) + " Local] " + message);
+            {
+                if (dateTime.Kind == DateTimeKind.Local)
+                    _logOut.WriteLine("[" + dateTime.ToString(LOG_ENTRY_DATE_TIME_FORMAT) + " Local] " + message);
+                else
+                    _logOut.WriteLine("[" + dateTime.ToLocalTime().ToString(LOG_ENTRY_DATE_TIME_FORMAT) + " Local] " + message);
+            }
             else
-                _logOut.WriteLine("[" + dateTime.ToString(LOG_ENTRY_DATE_TIME_FORMAT) + " UTC] " + message);
+            {
+                if (dateTime.Kind == DateTimeKind.Utc)
+                    _logOut.WriteLine("[" + dateTime.ToString(LOG_ENTRY_DATE_TIME_FORMAT) + " UTC] " + message);
+                else
+                    _logOut.WriteLine("[" + dateTime.ToUniversalTime().ToString(LOG_ENTRY_DATE_TIME_FORMAT) + " UTC] " + message);
+            }
 
             _logOut.Flush();
         }
@@ -508,6 +534,10 @@ namespace DnsServerCore
                 if (response.ANCOUNT == 0)
                 {
                     answer = "[]";
+                }
+                else if ((response.ANCOUNT > 2) && response.IsZoneTransfer)
+                {
+                    answer = "[ZONE TRANSFER]";
                 }
                 else
                 {
