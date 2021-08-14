@@ -125,10 +125,8 @@ namespace DnsServerCore.Dns.Zones
             return newRecords;
         }
 
-        private static async Task<IReadOnlyList<NameServerAddress>> ResolveNameServerAddressesAsync(DnsServer dnsServer, string nsDomain)
+        private static async Task ResolveNameServerAddressesAsync(DnsServer dnsServer, string nsDomain, int port, DnsTransportProtocol protocol, List<NameServerAddress> outNameServers)
         {
-            List<NameServerAddress> nameServers = new List<NameServerAddress>(2);
-
             try
             {
                 DnsDatagram response = await dnsServer.DirectQueryAsync(new DnsQuestionRecord(nsDomain, DnsResourceRecordType.A, DnsClass.IN)).WithTimeout(2000);
@@ -136,7 +134,7 @@ namespace DnsServerCore.Dns.Zones
                 {
                     IReadOnlyList<IPAddress> addresses = DnsClient.ParseResponseA(response);
                     foreach (IPAddress address in addresses)
-                        nameServers.Add(new NameServerAddress(nsDomain, address));
+                        outNameServers.Add(new NameServerAddress(nsDomain, new IPEndPoint(address, port), protocol));
                 }
             }
             catch
@@ -151,17 +149,15 @@ namespace DnsServerCore.Dns.Zones
                     {
                         IReadOnlyList<IPAddress> addresses = DnsClient.ParseResponseAAAA(response);
                         foreach (IPAddress address in addresses)
-                            nameServers.Add(new NameServerAddress(nsDomain, address));
+                            outNameServers.Add(new NameServerAddress(nsDomain, new IPEndPoint(address, port), protocol));
                     }
                 }
                 catch
                 { }
             }
-
-            return nameServers;
         }
 
-        private static Task<IReadOnlyList<NameServerAddress>> ResolveNameServerAddressesAsync(DnsServer dnsServer, DnsResourceRecord nsRecord)
+        private static Task ResolveNameServerAddressesAsync(DnsServer dnsServer, DnsResourceRecord nsRecord, List<NameServerAddress> outNameServers)
         {
             switch (nsRecord.Type)
             {
@@ -172,29 +168,27 @@ namespace DnsServerCore.Dns.Zones
                         IReadOnlyList<DnsResourceRecord> glueRecords = nsRecord.GetGlueRecords();
                         if (glueRecords.Count > 0)
                         {
-                            List<NameServerAddress> nameServers = new List<NameServerAddress>(2);
-
                             foreach (DnsResourceRecord glueRecord in glueRecords)
                             {
                                 switch (glueRecord.Type)
                                 {
                                     case DnsResourceRecordType.A:
-                                        nameServers.Add(new NameServerAddress(nsDomain, (glueRecord.RDATA as DnsARecord).Address));
+                                        outNameServers.Add(new NameServerAddress(nsDomain, (glueRecord.RDATA as DnsARecord).Address));
                                         break;
 
                                     case DnsResourceRecordType.AAAA:
                                         if (dnsServer.PreferIPv6)
-                                            nameServers.Add(new NameServerAddress(nsDomain, (glueRecord.RDATA as DnsAAAARecord).Address));
+                                            outNameServers.Add(new NameServerAddress(nsDomain, (glueRecord.RDATA as DnsAAAARecord).Address));
 
                                         break;
                                 }
                             }
 
-                            return Task.FromResult(nameServers as IReadOnlyList<NameServerAddress>);
+                            return Task.CompletedTask;
                         }
                         else
                         {
-                            return ResolveNameServerAddressesAsync(dnsServer, nsDomain);
+                            return ResolveNameServerAddressesAsync(dnsServer, nsDomain, 53, DnsTransportProtocol.Udp, outNameServers);
                         }
                     }
 
@@ -308,12 +302,28 @@ namespace DnsServerCore.Dns.Zones
 
             IReadOnlyList<NameServerAddress> primaryNameServers = soaRecord.GetPrimaryNameServers();
             if (primaryNameServers.Count > 0)
-                return primaryNameServers;
+            {
+                List<NameServerAddress> resolvedNameServers = new List<NameServerAddress>(primaryNameServers.Count * 2);
 
-            List<NameServerAddress> nameServers = new List<NameServerAddress>();
+                foreach (NameServerAddress nameServer in primaryNameServers)
+                {
+                    if (nameServer.IPEndPoint is null)
+                    {
+                        await ResolveNameServerAddressesAsync(dnsServer, nameServer.Host, nameServer.Port, nameServer.Protocol, resolvedNameServers);
+                    }
+                    else
+                    {
+                        resolvedNameServers.Add(nameServer);
+                    }
+                }
+
+                return resolvedNameServers;
+            }
 
             string primaryNameServer = (soaRecord.RDATA as DnsSOARecord).PrimaryNameServer;
             IReadOnlyList<DnsResourceRecord> nsRecords = GetRecords(DnsResourceRecordType.NS); //stub zone has no authority so cant use QueryRecords
+
+            List<NameServerAddress> nameServers = new List<NameServerAddress>(nsRecords.Count * 2);
 
             foreach (DnsResourceRecord nsRecord in nsRecords)
             {
@@ -323,23 +333,23 @@ namespace DnsServerCore.Dns.Zones
                 if (primaryNameServer.Equals((nsRecord.RDATA as DnsNSRecord).NameServer, StringComparison.OrdinalIgnoreCase))
                 {
                     //found primary NS
-                    nameServers.AddRange(await ResolveNameServerAddressesAsync(dnsServer, nsRecord));
+                    await ResolveNameServerAddressesAsync(dnsServer, nsRecord, nameServers);
                     break;
                 }
             }
 
             if (nameServers.Count < 1)
-                nameServers.AddRange(await ResolveNameServerAddressesAsync(dnsServer, primaryNameServer));
+                await ResolveNameServerAddressesAsync(dnsServer, primaryNameServer, 53, DnsTransportProtocol.Udp, nameServers);
 
             return nameServers;
         }
 
         public async Task<IReadOnlyList<NameServerAddress>> GetSecondaryNameServerAddressesAsync(DnsServer dnsServer)
         {
-            List<NameServerAddress> nameServers = new List<NameServerAddress>();
-
             string primaryNameServer = (_entries[DnsResourceRecordType.SOA][0].RDATA as DnsSOARecord).PrimaryNameServer;
             IReadOnlyList<DnsResourceRecord> nsRecords = GetRecords(DnsResourceRecordType.NS); //stub zone has no authority so cant use QueryRecords
+
+            List<NameServerAddress> nameServers = new List<NameServerAddress>(nsRecords.Count * 2);
 
             foreach (DnsResourceRecord nsRecord in nsRecords)
             {
@@ -349,7 +359,7 @@ namespace DnsServerCore.Dns.Zones
                 if (primaryNameServer.Equals((nsRecord.RDATA as DnsNSRecord).NameServer, StringComparison.OrdinalIgnoreCase))
                     continue; //skip primary name server
 
-                nameServers.AddRange(await ResolveNameServerAddressesAsync(dnsServer, nsRecord));
+                await ResolveNameServerAddressesAsync(dnsServer, nsRecord, nameServers);
             }
 
             return nameServers;
