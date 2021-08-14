@@ -1203,7 +1203,7 @@ namespace DnsServerCore
 
                 if (_dnsServer.TsigKeys is not null)
                 {
-                    foreach (KeyValuePair<string, string> tsigKey in _dnsServer.TsigKeys)
+                    foreach (KeyValuePair<string, TsigKey> tsigKey in _dnsServer.TsigKeys)
                     {
                         jsonWriter.WriteStartObject();
 
@@ -1211,7 +1211,10 @@ namespace DnsServerCore
                         jsonWriter.WriteValue(tsigKey.Key);
 
                         jsonWriter.WritePropertyName("sharedSecret");
-                        jsonWriter.WriteValue(tsigKey.Value);
+                        jsonWriter.WriteValue(tsigKey.Value.SharedSecret);
+
+                        jsonWriter.WritePropertyName("algorithmName");
+                        jsonWriter.WriteValue(tsigKey.Value.AlgorithmName);
 
                         jsonWriter.WriteEndObject();
                     }
@@ -1657,23 +1660,24 @@ namespace DnsServerCore
                 else
                 {
                     string[] strTsigKeyParts = strTsigKeys.Split('|');
-                    Dictionary<string, string> tsigKeys = new Dictionary<string, string>(strTsigKeyParts.Length);
+                    Dictionary<string, TsigKey> tsigKeys = new Dictionary<string, TsigKey>(strTsigKeyParts.Length);
 
-                    for (int i = 0; i < strTsigKeyParts.Length; i += 2)
+                    for (int i = 0; i < strTsigKeyParts.Length; i += 3)
                     {
                         string keyName = strTsigKeyParts[i + 0].ToLower();
                         string sharedSecret = strTsigKeyParts[i + 1];
+                        string algorithmName = strTsigKeyParts[i + 2];
 
                         if (sharedSecret.Length == 0)
                         {
                             byte[] key = new byte[32];
                             _rng.GetBytes(key);
 
-                            tsigKeys.Add(keyName, Convert.ToBase64String(key));
+                            tsigKeys.Add(keyName, new TsigKey(keyName, Convert.ToBase64String(key), algorithmName));
                         }
                         else
                         {
-                            tsigKeys.Add(keyName, sharedSecret);
+                            tsigKeys.Add(keyName, new TsigKey(keyName, sharedSecret, algorithmName));
                         }
                     }
 
@@ -3777,15 +3781,7 @@ namespace DnsServerCore
                         if (string.IsNullOrEmpty(tsigKeyName))
                             tsigKeyName = null;
 
-                        string tsigSharedSecret = request.QueryString["tsigSharedSecret"];
-                        if (string.IsNullOrEmpty(tsigSharedSecret))
-                            tsigSharedSecret = null;
-
-                        string tsigAlgorithm = request.QueryString["tsigAlgorithm"];
-                        if (string.IsNullOrEmpty(tsigAlgorithm))
-                            tsigAlgorithm = null;
-
-                        if (await _dnsServer.AuthZoneManager.CreateSecondaryZoneAsync(domain, primaryNameServerAddresses, zoneTransferProtocol, tsigKeyName, tsigSharedSecret, tsigAlgorithm) == null)
+                        if (await _dnsServer.AuthZoneManager.CreateSecondaryZoneAsync(domain, primaryNameServerAddresses, zoneTransferProtocol, tsigKeyName) == null)
                             throw new DnsWebServiceException("Zone already exists: " + domain);
 
                         _log.Write(GetRequestRemoteEndPoint(request), "[" + GetSession(request).Username + "] Authoritative secondary zone was created: " + domain);
@@ -3990,7 +3986,7 @@ namespace DnsServerCore
 
                 if (_dnsServer.TsigKeys is not null)
                 {
-                    foreach (KeyValuePair<string, string> tsigKey in _dnsServer.TsigKeys)
+                    foreach (KeyValuePair<string, TsigKey> tsigKey in _dnsServer.TsigKeys)
                         jsonWriter.WriteValue(tsigKey.Key);
                 }
 
@@ -4646,18 +4642,6 @@ namespace DnsServerCore
                                             jsonWriter.WritePropertyName("tsigKeyName");
                                             jsonWriter.WriteValue(recordInfo.TsigKeyName);
                                         }
-
-                                        if (!string.IsNullOrEmpty(recordInfo.TsigSharedSecret))
-                                        {
-                                            jsonWriter.WritePropertyName("tsigSharedSecret");
-                                            jsonWriter.WriteValue(recordInfo.TsigSharedSecret);
-                                        }
-
-                                        if (!string.IsNullOrEmpty(recordInfo.TsigAlgorithm))
-                                        {
-                                            jsonWriter.WritePropertyName("tsigAlgorithm");
-                                            jsonWriter.WriteValue(recordInfo.TsigAlgorithm);
-                                        }
                                     }
                                 }
                                 break;
@@ -5308,14 +5292,6 @@ namespace DnsServerCore
                             string tsigKeyName = request.QueryString["tsigKeyName"];
                             if (!string.IsNullOrEmpty(tsigKeyName))
                                 recordInfo.TsigKeyName = tsigKeyName;
-
-                            string tsigSharedSecret = request.QueryString["tsigSharedSecret"];
-                            if (!string.IsNullOrEmpty(tsigSharedSecret))
-                                recordInfo.TsigSharedSecret = tsigSharedSecret;
-
-                            string tsigAlgorithm = request.QueryString["tsigAlgorithm"];
-                            if (!string.IsNullOrEmpty(tsigAlgorithm))
-                                recordInfo.TsigAlgorithm = tsigAlgorithm;
                         }
 
                         if (!string.IsNullOrEmpty(comments))
@@ -6090,7 +6066,7 @@ namespace DnsServerCore
 
                 if (type == DnsResourceRecordType.AXFR)
                 {
-                    _dnsServer.AuthZoneManager.SyncZoneTransferRecords(domain, dnsResponse.Answer);
+                    _dnsServer.AuthZoneManager.SyncZoneTransferRecords(zoneInfo.Name, dnsResponse.Answer);
                 }
                 else
                 {
@@ -6098,7 +6074,7 @@ namespace DnsServerCore
 
                     foreach (DnsResourceRecord record in dnsResponse.Answer)
                     {
-                        if (record.Name.Equals(domain, StringComparison.OrdinalIgnoreCase))
+                        if (record.Name.Equals(zoneInfo.Name, StringComparison.OrdinalIgnoreCase) || record.Name.EndsWith("." + zoneInfo.Name, StringComparison.OrdinalIgnoreCase))
                         {
                             record.RemoveExpiry();
                             syncRecords.Add(record);
@@ -6108,7 +6084,7 @@ namespace DnsServerCore
                     _dnsServer.AuthZoneManager.LoadRecords(syncRecords);
                 }
 
-                _log.Write(GetRequestRemoteEndPoint(request), "[" + GetSession(request).Username + "] DNS Client imported record(s) for authoritative zone {server: " + server + "; domain: " + domain + "; type: " + type + ";}");
+                _log.Write(GetRequestRemoteEndPoint(request), "[" + GetSession(request).Username + "] DNS Client imported record(s) for authoritative zone {server: " + server + "; zone: " + zoneInfo.Name + "; type: " + type + ";}");
 
                 _dnsServer.AuthZoneManager.SaveZoneFile(zoneInfo.Name);
             }
@@ -7050,6 +7026,7 @@ namespace DnsServerCore
                         case 18:
                         case 19:
                         case 20:
+                        case 21:
                             _dnsServer.ServerDomain = bR.ReadShortString();
                             _webServiceHttpPort = bR.ReadInt32();
 
@@ -7474,17 +7451,33 @@ namespace DnsServerCore
                                 _dnsServer.CacheZoneManager.FailureRecordTtl = CacheZoneManager.FAILURE_RECORD_TTL;
                             }
 
-                            if (version >= 20)
+                            if (version >= 21)
                             {
                                 int count = bR.ReadByte();
-                                Dictionary<string, string> tsigKeys = new Dictionary<string, string>(count);
+                                Dictionary<string, TsigKey> tsigKeys = new Dictionary<string, TsigKey>(count);
+
+                                for (int i = 0; i < count; i++)
+                                {
+                                    string keyName = bR.ReadShortString();
+                                    string sharedSecret = bR.ReadShortString();
+                                    TsigAlgorithm algorithm = (TsigAlgorithm)bR.ReadByte();
+
+                                    tsigKeys.Add(keyName, new TsigKey(keyName, sharedSecret, algorithm));
+                                }
+
+                                _dnsServer.TsigKeys = tsigKeys;
+                            }
+                            else if (version >= 20)
+                            {
+                                int count = bR.ReadByte();
+                                Dictionary<string, TsigKey> tsigKeys = new Dictionary<string, TsigKey>(count);
 
                                 for (int i = 0; i < count; i++)
                                 {
                                     string keyName = bR.ReadShortString();
                                     string sharedSecret = bR.ReadShortString();
 
-                                    tsigKeys.Add(keyName, sharedSecret);
+                                    tsigKeys.Add(keyName, new TsigKey(keyName, sharedSecret, TsigAlgorithm.HMAC_SHA256));
                                 }
 
                                 _dnsServer.TsigKeys = tsigKeys;
@@ -7552,7 +7545,7 @@ namespace DnsServerCore
                 BinaryWriter bW = new BinaryWriter(mS);
 
                 bW.Write(Encoding.ASCII.GetBytes("DS")); //format
-                bW.Write((byte)20); //version
+                bW.Write((byte)21); //version
 
                 bW.WriteShortString(_dnsServer.ServerDomain);
                 bW.Write(_webServiceHttpPort);
@@ -7740,10 +7733,11 @@ namespace DnsServerCore
                 {
                     bW.Write(Convert.ToByte(_dnsServer.TsigKeys.Count));
 
-                    foreach (KeyValuePair<string, string> tsigKey in _dnsServer.TsigKeys)
+                    foreach (KeyValuePair<string, TsigKey> tsigKey in _dnsServer.TsigKeys)
                     {
                         bW.WriteShortString(tsigKey.Key);
-                        bW.WriteShortString(tsigKey.Value);
+                        bW.WriteShortString(tsigKey.Value.SharedSecret);
+                        bW.Write((byte)tsigKey.Value.Algorithm);
                     }
                 }
 
