@@ -201,7 +201,7 @@ namespace DnsServerCore.Dns.Zones
                             //transaction complete
                             LogManager log = _dnsServer.LogManager;
                             if (log != null)
-                                log.Write("DNS Server successfully notified name server for '" + _name + "' zone changes: " + nameServer.ToString());
+                                log.Write("DNS Server successfully notified name server for '" + (_name == "" ? "<root>" : _name) + "' zone changes: " + nameServer.ToString());
                         }
                         break;
 
@@ -210,7 +210,7 @@ namespace DnsServerCore.Dns.Zones
                             //transaction failed
                             LogManager log = _dnsServer.LogManager;
                             if (log != null)
-                                log.Write("DNS Server received RCODE=" + response.RCODE.ToString() + " from name server for '" + _name + "' zone notification: " + nameServer.ToString());
+                                log.Write("DNS Server received RCODE=" + response.RCODE.ToString() + " from name server for '" + (_name == "" ? "<root>" : _name) + "' zone notification: " + nameServer.ToString());
                         }
                         break;
                 }
@@ -220,7 +220,7 @@ namespace DnsServerCore.Dns.Zones
                 LogManager log = _dnsServer.LogManager;
                 if (log != null)
                 {
-                    log.Write("DNS Server failed to notify name server for '" + _name + "' zone changes: " + nameServer.ToString());
+                    log.Write("DNS Server failed to notify name server for '" + (_name == "" ? "<root>" : _name) + "' zone changes: " + nameServer.ToString());
                     log.Write(ex);
                 }
             }
