@@ -103,6 +103,10 @@ namespace DnsServerSystemTrayApp
                     case "--service-stop":
                         StopServiceMenuItem_Click(this, EventArgs.Empty);
                         break;
+
+                    case "--first-run":
+                        SetNetworkDns(new DnsProvider("Technitium", new IPAddress[] { IPAddress.Loopback, IPAddress.IPv6Loopback }));
+                        break;
                 }
             }
         }
@@ -287,6 +291,35 @@ namespace DnsServerSystemTrayApp
             catch (Exception ex)
             {
                 MessageBox.Show("Error occured while saving config file. " + ex.Message, "Error - " + Resources.ServiceName, MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+        }
+
+        private void SetNetworkDns(DnsProvider dnsProvider)
+        {
+            if (!Program.IsAdmin)
+            {
+                Program.RunAsAdmin("--network-dns-item " + dnsProvider.Name);
+                return;
+            }
+
+            try
+            {
+                foreach (NetworkInterface nic in NetworkInterface.GetAllNetworkInterfaces())
+                {
+                    if (nic.OperationalStatus != OperationalStatus.Up)
+                        continue;
+
+                    IPInterfaceProperties properties = nic.GetIPProperties();
+
+                    if ((properties.DnsAddresses.Count > 0) && !properties.DnsAddresses[0].IsIPv6SiteLocal)
+                        SetNameServer(nic, dnsProvider.Addresses);
+                }
+
+                MessageBox.Show("The network DNS servers were set to " + dnsProvider.Name + " successfully.", dnsProvider.Name + " Configured - " + Resources.ServiceName, MessageBoxButtons.OK, MessageBoxIcon.Information);
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show("Error occured while setting " + dnsProvider.Name + " as network DNS server. " + ex.Message, "Error - " + Resources.ServiceName, MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
         }
 
@@ -627,31 +660,7 @@ namespace DnsServerSystemTrayApp
             ToolStripMenuItem item = sender as ToolStripMenuItem;
             DnsProvider dnsProvider = item.Tag as DnsProvider;
 
-            if (!Program.IsAdmin)
-            {
-                Program.RunAsAdmin("--network-dns-item " + dnsProvider.Name);
-                return;
-            }
-
-            try
-            {
-                foreach (NetworkInterface nic in NetworkInterface.GetAllNetworkInterfaces())
-                {
-                    if (nic.OperationalStatus != OperationalStatus.Up)
-                        continue;
-
-                    IPInterfaceProperties properties = nic.GetIPProperties();
-
-                    if ((properties.DnsAddresses.Count > 0) && !properties.DnsAddresses[0].IsIPv6SiteLocal)
-                        SetNameServer(nic, dnsProvider.Addresses);
-                }
-
-                MessageBox.Show("The network DNS servers were set to " + dnsProvider.Name + " successfully.", dnsProvider.Name + " Configured - " + Resources.ServiceName, MessageBoxButtons.OK, MessageBoxIcon.Information);
-            }
-            catch (Exception ex)
-            {
-                MessageBox.Show("Error occured while setting " + dnsProvider.Name + " as network DNS server. " + ex.Message, "Error - " + Resources.ServiceName, MessageBoxButtons.OK, MessageBoxIcon.Error);
-            }
+            SetNetworkDns(dnsProvider);
         }
 
         private void StartServiceMenuItem_Click(object sender, EventArgs e)
