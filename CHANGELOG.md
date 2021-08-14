@@ -1,5 +1,20 @@
 # Technitium DNS Server Change Log
 
+## Version 6.4
+Release Date: 14 August 2021
+- Added DNAME record [RFC 6672](https://datatracker.ietf.org/doc/html/rfc6672) support.
+- Implemented incremental zone transfer (IXFR) [RFC 1995](https://datatracker.ietf.org/doc/html/rfc1995) support.
+- Implemented secret key transaction authentication (TSIG) [RFC 8945](https://datatracker.ietf.org/doc/html/rfc8945) support for zone transfers.
+- Implemented zone transfer over TLS (XFR-over-TLS) [draft-ietf-dprive-xfr-over-tls](https://datatracker.ietf.org/doc/draft-ietf-dprive-xfr-over-tls/) support.
+- Added advance options in Settings to control TTL values in Cache.
+- Added Resync button to force resync Secondary and Stub zones.
+- Updated query rate limiting feature to allow limiting requests from the client's subnet.
+- Updated SplitHorizon App to support configuring CIDR networks.
+- Updated Failover App to fix multiple issues and added feature to auto generate health check URL from APP record domain name or specify the URL in the APP record data.
+- Fixed issues with log file rolling when using local time.
+- Multiple other minor bug fixes and improvements.
+- Updated few API calls which may cause issues in 3rd party clients if they are not updated before deploying this new version.
+
 ## Version 6.3
 Release Date: 6 June 2021
 
