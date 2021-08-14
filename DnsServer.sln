@@ -25,7 +25,7 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "SplitHorizonApp", "Apps\Spl
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "WhatIsMyDnsApp", "Apps\WhatIsMyDnsApp\WhatIsMyDnsApp.csproj", "{F5FD0B99-08AC-47FC-8C52-7D7CA1A7D9A0}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "FailoverApp", "Apps\FailoverApp\FailoverApp.csproj", "{099D27AF-3AEB-495A-A5D0-46DA59CC9213}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "FailoverApp", "Apps\FailoverApp\FailoverApp.csproj", "{099D27AF-3AEB-495A-A5D0-46DA59CC9213}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
