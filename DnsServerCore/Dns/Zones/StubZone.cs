@@ -161,7 +161,7 @@ namespace DnsServerCore.Dns.Zones
                 {
                     LogManager log = _dnsServer.LogManager;
                     if (log != null)
-                        log.Write("DNS Server could not find name server IP addresses for stub zone: " + _name);
+                        log.Write("DNS Server could not find name server IP addresses for stub zone: " + (_name == "" ? "<root>" : _name));
 
                     //set timer for retry
                     DnsSOARecord soa1 = _entries[DnsResourceRecordType.SOA][0].RDATA as DnsSOARecord;
@@ -219,7 +219,7 @@ namespace DnsServerCore.Dns.Zones
                 {
                     LogManager log = _dnsServer.LogManager;
                     if (log != null)
-                        log.Write("DNS Server has started zone refresh for stub zone: " + _name);
+                        log.Write("DNS Server has started zone refresh for stub zone: " + (_name == "" ? "<root>" : _name));
                 }
 
                 DnsClient client = new DnsClient(nameServers);
@@ -237,7 +237,7 @@ namespace DnsServerCore.Dns.Zones
                 {
                     LogManager log = _dnsServer.LogManager;
                     if (log != null)
-                        log.Write("DNS Server received RCODE=" + soaResponse.RCODE.ToString() + " for '" + _name + "' stub zone refresh from: " + soaResponse.Metadata.NameServerAddress.ToString());
+                        log.Write("DNS Server received RCODE=" + soaResponse.RCODE.ToString() + " for '" + (_name == "" ? "<root>" : _name) + "' stub zone refresh from: " + soaResponse.Metadata.NameServerAddress.ToString());
 
                     return false;
                 }
@@ -246,7 +246,7 @@ namespace DnsServerCore.Dns.Zones
                 {
                     LogManager log = _dnsServer.LogManager;
                     if (log != null)
-                        log.Write("DNS Server received an empty response for SOA query for '" + _name + "' stub zone refresh from: " + soaResponse.Metadata.NameServerAddress.ToString());
+                        log.Write("DNS Server received an empty response for SOA query for '" + (_name == "" ? "<root>" : _name) + "' stub zone refresh from: " + soaResponse.Metadata.NameServerAddress.ToString());
 
                     return false;
                 }
@@ -262,7 +262,7 @@ namespace DnsServerCore.Dns.Zones
                 {
                     LogManager log = _dnsServer.LogManager;
                     if (log != null)
-                        log.Write("DNS Server successfully checked for '" + _name + "' stub zone update from: " + soaResponse.Metadata.NameServerAddress.ToString());
+                        log.Write("DNS Server successfully checked for '" + (_name == "" ? "<root>" : _name) + "' stub zone update from: " + soaResponse.Metadata.NameServerAddress.ToString());
 
                     return true;
                 }
@@ -289,7 +289,7 @@ namespace DnsServerCore.Dns.Zones
                 {
                     LogManager log = _dnsServer.LogManager;
                     if (log != null)
-                        log.Write("DNS Server received RCODE=" + nsResponse.RCODE.ToString() + " for '" + _name + "' stub zone refresh from: " + nsResponse.Metadata.NameServerAddress.ToString());
+                        log.Write("DNS Server received RCODE=" + nsResponse.RCODE.ToString() + " for '" + (_name == "" ? "<root>" : _name) + "' stub zone refresh from: " + nsResponse.Metadata.NameServerAddress.ToString());
 
                     return false;
                 }
@@ -298,7 +298,7 @@ namespace DnsServerCore.Dns.Zones
                 {
                     LogManager log = _dnsServer.LogManager;
                     if (log != null)
-                        log.Write("DNS Server received an empty response for NS query for '" + _name + "' stub zone from: " + nsResponse.Metadata.NameServerAddress.ToString());
+                        log.Write("DNS Server received an empty response for NS query for '" + (_name == "" ? "<root>" : _name) + "' stub zone from: " + nsResponse.Metadata.NameServerAddress.ToString());
 
                     return false;
                 }
@@ -324,7 +324,7 @@ namespace DnsServerCore.Dns.Zones
                 {
                     LogManager log = _dnsServer.LogManager;
                     if (log != null)
-                        log.Write("DNS Server successfully refreshed '" + _name + "' stub zone from: " + nsResponse.Metadata.NameServerAddress.ToString());
+                        log.Write("DNS Server successfully refreshed '" + (_name == "" ? "<root>" : _name) + "' stub zone from: " + nsResponse.Metadata.NameServerAddress.ToString());
                 }
 
                 return true;
@@ -344,7 +344,7 @@ namespace DnsServerCore.Dns.Zones
                             strNameServers += ", " + nameServer.ToString();
                     }
 
-                    log.Write("DNS Server failed to refresh '" + _name + "' stub zone from: " + strNameServers);
+                    log.Write("DNS Server failed to refresh '" + (_name == "" ? "<root>" : _name) + "' stub zone from: " + strNameServers);
                     log.Write(ex);
                 }
 
