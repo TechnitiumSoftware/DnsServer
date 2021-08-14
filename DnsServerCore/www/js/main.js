@@ -731,8 +731,10 @@ function loadDnsSettings() {
 
             if (responseJSON.response.tsigKeys != null) {
                 for (var i = 0; i < responseJSON.response.tsigKeys.length; i++) {
-                    addTsigKeyRow(responseJSON.response.tsigKeys[i].keyName, responseJSON.response.tsigKeys[i].sharedSecret);
+                    addTsigKeyRow(responseJSON.response.tsigKeys[i].keyName, responseJSON.response.tsigKeys[i].sharedSecret, responseJSON.response.tsigKeys[i].algorithmName);
                 }
+
+                updateTsigKeyNamesDropdowns(responseJSON.response.tsigKeys);
             }
 
             $("#chkPreferIPv6").prop("checked", responseJSON.response.preferIPv6);
@@ -1022,7 +1024,7 @@ function saveDnsSettings() {
     var dnsTlsCertificatePath = $("#txtDnsTlsCertificatePath").val();
     var dnsTlsCertificatePassword = $("#txtDnsTlsCertificatePassword").val();
 
-    var tsigKeys = serializeTableData($("#tableTsigKeys"), 2);
+    var tsigKeys = serializeTableData($("#tableTsigKeys"), 3);
     if (tsigKeys === false)
         return;
 
@@ -1233,8 +1235,10 @@ function saveDnsSettings() {
 
             if (responseJSON.response.tsigKeys != null) {
                 for (var i = 0; i < responseJSON.response.tsigKeys.length; i++) {
-                    addTsigKeyRow(responseJSON.response.tsigKeys[i].keyName, responseJSON.response.tsigKeys[i].sharedSecret);
+                    addTsigKeyRow(responseJSON.response.tsigKeys[i].keyName, responseJSON.response.tsigKeys[i].sharedSecret, responseJSON.response.tsigKeys[i].algorithmName);
                 }
+
+                updateTsigKeyNamesDropdowns(responseJSON.response.tsigKeys);
             }
 
             //fix custom block list url in case port changes
@@ -1265,15 +1269,38 @@ function saveDnsSettings() {
     return false;
 }
 
-function addTsigKeyRow(keyName, sharedSecret) {
+function addTsigKeyRow(keyName, sharedSecret, algorithmName) {
 
     var id = Math.floor(Math.random() * 10000);
 
     var tableHtmlRows = "<tr id=\"tableTsigKeyRow" + id + "\"><td><input type=\"text\" class=\"form-control\" value=\"" + htmlEncode(keyName) + "\"></td>";
     tableHtmlRows += "<td><input type=\"text\" class=\"form-control\" data-optional=\"true\" value=\"" + htmlEncode(sharedSecret) + "\"></td>";
+
+    tableHtmlRows += "<td><select class=\"form-control\">";
+    tableHtmlRows += "<option value=\"hmac-md5.sig-alg.reg.int\"" + (algorithmName == "hmac-md5.sig-alg.reg.int" ? " selected" : "") + ">HMAC-MD5 (obsolete)</option>";
+    tableHtmlRows += "<option value=\"hmac-sha1\"" + (algorithmName == "hmac-sha1" ? " selected" : "") + ">HMAC-SHA1</option>";
+    tableHtmlRows += "<option value=\"hmac-sha256\"" + (algorithmName == "hmac-sha256" ? " selected" : "") + ">HMAC-SHA256 (recommended)</option>";
+    tableHtmlRows += "<option value=\"hmac-sha256-128\"" + (algorithmName == "hmac-sha256-128" ? " selected" : "") + ">HMAC-SHA256 (128 bits)</option>";
+    tableHtmlRows += "<option value=\"hmac-sha384\"" + (algorithmName == "hmac-sha384" ? " selected" : "") + ">HMAC-SHA384</option>";
+    tableHtmlRows += "<option value=\"hmac-sha384-192\"" + (algorithmName == "hmac-sha384-192" ? " selected" : "") + ">HMAC-SHA384 (192 bits)</option>";
+    tableHtmlRows += "<option value=\"hmac-sha512\"" + (algorithmName == "hmac-sha512" ? " selected" : "") + ">HMAC-SHA512</option>";
+    tableHtmlRows += "<option value=\"hmac-sha512-256\"" + (algorithmName == "hmac-sha512-256" ? " selected" : "") + ">HMAC-SHA512 (256 bits)</option>";
+    tableHtmlRows += "</select></td>";
+
     tableHtmlRows += "<td><button type=\"button\" class=\"btn btn-danger\" onclick=\"$('#tableTsigKeyRow" + id + "').remove();\">Delete</button></td></tr>";
 
     $("#tableTsigKeys").append(tableHtmlRows);
+}
+
+function updateTsigKeyNamesDropdowns(tsigKeys) {
+    var optionsHtml = "<option selected></option>";
+
+    for (var i = 0; i < tsigKeys.length; i++) {
+        optionsHtml += "<option>" + htmlEncode(tsigKeys[i].keyName) + "</option>";
+    }
+
+    $("#optAddZoneTsigKeyName").html(optionsHtml);
+    $("#optEditRecordDataSoaTsigKeyName").html(optionsHtml);
 }
 
 function checkForReverseProxy(responseJSON) {
@@ -2260,7 +2287,7 @@ function resolveQuery(importRecords) {
     }
 
     if (importRecords) {
-        if (!confirm("Importing all the records from the result of this query will overwrite existing records in the zone '" + domain + "'.\n\nAre you sure you want to import all records?"))
+        if (!confirm("Importing all the records from the result of this query will overwrite existing records in the zone or if the zone does not exists, a new primary zone '" + domain + "' will be created.\n\nAre you sure you want to import all records?"))
             return false;
     }
 
