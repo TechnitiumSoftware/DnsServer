@@ -1248,6 +1248,8 @@ namespace DnsServerCore.Dns
             int _totalCached;
             int _totalBlocked;
 
+            int _totalClients;
+
             readonly ConcurrentDictionary<string, Counter> _queryDomains;
             readonly ConcurrentDictionary<string, Counter> _queryBlockedDomains;
             readonly ConcurrentDictionary<DnsResourceRecordType, Counter> _queryTypes;
@@ -1282,6 +1284,7 @@ namespace DnsServerCore.Dns
                     case 3:
                     case 4:
                     case 5:
+                    case 6:
                         _totalQueries = bR.ReadInt32();
                         _totalNoError = bR.ReadInt32();
                         _totalServerFailure = bR.ReadInt32();
@@ -1302,6 +1305,9 @@ namespace DnsServerCore.Dns
                             if (version >= 2)
                                 _totalCached = bR.ReadInt32();
                         }
+
+                        if (version >= 6)
+                            _totalClients = bR.ReadInt32();
 
                         {
                             int count = bR.ReadInt32();
@@ -1333,6 +1339,9 @@ namespace DnsServerCore.Dns
 
                             for (int i = 0; i < count; i++)
                                 _clientIpAddresses.TryAdd(IPAddressExtension.Parse(bR), new Counter(bR.ReadInt32()));
+
+                            if (version < 6)
+                                _totalClients = count;
                         }
 
                         if (version >= 4)
@@ -1468,6 +1477,7 @@ namespace DnsServerCore.Dns
                     _queryTypes.GetOrAdd(query.Type, GetNewCounter).Increment();
 
                 _clientIpAddresses.GetOrAdd(clientIpAddress, GetNewCounter).Increment();
+                _totalClients = _clientIpAddresses.Count;
             }
 
             public void Merge(StatCounter statCounter, bool skipLock = false)
@@ -1485,6 +1495,8 @@ namespace DnsServerCore.Dns
                 _totalRecursive += statCounter._totalRecursive;
                 _totalCached += statCounter._totalCached;
                 _totalBlocked += statCounter._totalBlocked;
+
+                _totalClients += statCounter._totalClients;
 
                 foreach (KeyValuePair<string, Counter> queryDomain in statCounter._queryDomains)
                     _queryDomains.GetOrAdd(queryDomain.Key, GetNewCounter).Merge(queryDomain.Value);
@@ -1634,7 +1646,7 @@ namespace DnsServerCore.Dns
                     throw new DnsServerException("StatCounter must be locked.");
 
                 bW.Write(Encoding.ASCII.GetBytes("SC")); //format
-                bW.Write((byte)5); //version
+                bW.Write((byte)6); //version
 
                 bW.Write(_totalQueries);
                 bW.Write(_totalNoError);
@@ -1646,6 +1658,8 @@ namespace DnsServerCore.Dns
                 bW.Write(_totalRecursive);
                 bW.Write(_totalCached);
                 bW.Write(_totalBlocked);
+
+                bW.Write(_totalClients);
 
                 {
                     bW.Write(_queryDomains.Count);
@@ -1868,7 +1882,7 @@ namespace DnsServerCore.Dns
             { get { return _totalBlocked; } }
 
             public int TotalClients
-            { get { return _clientIpAddresses.Count; } }
+            { get { return _totalClients; } }
 
             #endregion
 
