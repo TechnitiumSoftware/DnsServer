@@ -31,10 +31,13 @@ Applications of using a locally hosted DNS server is limited only by the user's 
 - CNAME cloaking feature to block domain names that resolve to CNAME which are blocked.
 - QNAME minimization support in recursive resolver [draft-ietf-dnsop-rfc7816bis-04](https://tools.ietf.org/html/draft-ietf-dnsop-rfc7816bis-04).
 - QNAME randomization support for UDP transport protocol [draft-vixie-dnsext-dns0x20-00](https://tools.ietf.org/html/draft-vixie-dnsext-dns0x20-00).
+- DNAME record [RFC 6672](https://datatracker.ietf.org/doc/html/rfc6672) support.
 - ANAME propriety record support to allow using CNAME like feature at zone root.
 - APP propriety record support that allows custom DNS Apps to directly handle DNS requests and return a custom DNS response based on any business logic.
 - Support for features like Split Horizon and Geolocation based responses using DNS Apps feature.
 - Primary, Secondary, Stub, and Conditional Forwarder zone support.
+- Zone transfer over TLS (XFR-over-TLS) [draft-ietf-dprive-xfr-over-tls](https://datatracker.ietf.org/doc/draft-ietf-dprive-xfr-over-tls/) support.
+- Secret key transaction authentication (TSIG) [RFC 8945](https://datatracker.ietf.org/doc/html/rfc8945) support for zone transfers.
 - Host domain names on your own DNS server.
 - Wildcard sub domain support.
 - Enable/disable zones and records to allow testing with ease.
@@ -53,7 +56,6 @@ Applications of using a locally hosted DNS server is limited only by the user's 
 - Multi-user role based access.
 - API key to provide long term access token.
 - Clustering support to manage two or more DNS servers.
-- TSIG support.
 - Dynamic DNS updates.
 - EDNS support.
 - DNSSEC support.
@@ -81,6 +83,7 @@ Make contribution to Technitium by becoming a Patron and help making new softwar
 [Become a Patron now!](https://www.patreon.com/technitium)
 
 # Blog Posts
+- [Technitium Blog: Running A Root Server Locally On Your DNS Resolver](https://blog.technitium.com/2021/07/running-root-server-locally-on-your-dns.html) (July 2021)
 - [Yolan Romailler: Being ad-free on Android without rooting](https://romailler.ch/2021/04/15/misc-pihole_over_dot/) (Apr 2021)
 - [Technitium Blog: Creating And Running DNS Apps On Technitium DNS Server](https://blog.technitium.com/2021/03/creating-and-running-dns-apps-on.html) (Mar 2021)
 - [Technitium Blog: How To Host Your Own DNS-over-HTTPS And DNS-over-TLS Services](https://blog.technitium.com/2020/07/how-to-host-your-own-dns-over-https-and.html) (Oct 2020)
