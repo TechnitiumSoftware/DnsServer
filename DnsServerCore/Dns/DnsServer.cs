@@ -94,7 +94,7 @@ namespace DnsServerCore.Dns
         bool _enableDnsOverHttps;
         bool _isDnsOverHttpsEnabled;
         X509Certificate2 _certificate;
-        IReadOnlyDictionary<string, string> _tsigKeys;
+        IReadOnlyDictionary<string, TsigKey> _tsigKeys;
 
         readonly AuthZoneManager _authZoneManager;
         readonly AllowedZoneManager _allowedZoneManager;
@@ -1021,7 +1021,7 @@ namespace DnsServerCore.Dns
                 {
                     LogManager log = _log;
                     if (log is not null)
-                        log.Write(remoteEP, "DNS Server received a request that failed TSIG signature verification (RCODE: " + errorResponse.RCODE + "; TSIG Error: " + errorResponse.TsigError + ")");
+                        log.Write(remoteEP, protocol, "DNS Server received a request that failed TSIG signature verification (RCODE: " + errorResponse.RCODE + "; TSIG Error: " + errorResponse.TsigError + ")");
 
                     errorResponse.Tag = StatsResponseType.Authoritative;
                     return errorResponse;
@@ -1099,14 +1099,14 @@ namespace DnsServerCore.Dns
                     }
 
                 case DnsOpcode.Notify:
-                    return await ProcessNotifyQueryAsync(request, remoteEP);
+                    return await ProcessNotifyQueryAsync(request, remoteEP, protocol);
 
                 default:
                     return new DnsDatagram(request.Identifier, true, request.OPCODE, false, false, request.RecursionDesired, isRecursionAllowed, false, false, DnsResponseCode.NotImplemented, request.Question) { Tag = StatsResponseType.Authoritative };
             }
         }
 
-        private async Task<DnsDatagram> ProcessNotifyQueryAsync(DnsDatagram request, IPEndPoint remoteEP)
+        private async Task<DnsDatagram> ProcessNotifyQueryAsync(DnsDatagram request, IPEndPoint remoteEP, DnsTransportProtocol protocol)
         {
             AuthZoneInfo authZoneInfo = _authZoneManager.GetAuthZoneInfo(request.Question[0].Name);
             if ((authZoneInfo is null) || (authZoneInfo.Type != AuthZoneType.Secondary) || authZoneInfo.Disabled)
@@ -1131,7 +1131,7 @@ namespace DnsServerCore.Dns
 
             LogManager log = _log;
             if (log is not null)
-                log.Write(remoteEP, "DNS Server received NOTIFY for zone: " + authZoneInfo.Name);
+                log.Write(remoteEP, protocol, "DNS Server received NOTIFY for zone: " + (authZoneInfo.Name == "" ? "<root>" : authZoneInfo.Name));
 
             if ((request.Answer.Count > 0) && (request.Answer[0].Type == DnsResourceRecordType.SOA))
             {
@@ -1232,7 +1232,7 @@ namespace DnsServerCore.Dns
 
             LogManager log = _log;
             if (log is not null)
-                log.Write(remoteEP, "DNS Server received zone transfer request for zone: " + authZoneInfo.Name);
+                log.Write(remoteEP, protocol, "DNS Server received zone transfer request for zone: " + (authZoneInfo.Name == "" ? "<root>" : authZoneInfo.Name));
 
             IReadOnlyList<DnsResourceRecord> xfrRecords;
 
@@ -1392,9 +1392,10 @@ namespace DnsServerCore.Dns
             List<DnsResourceRecord> responseAnswer = new List<DnsResourceRecord>();
             responseAnswer.AddRange(response.Answer);
 
-            DnsDatagram lastResponse;
+            DnsDatagram lastResponse = response;
             bool isAuthoritativeAnswer = response.AuthoritativeAnswer;
             string lastDomain = (response.Answer[response.Answer.Count - 1].RDATA as DnsCNAMERecord).Domain;
+            DnsDatagram newResponse;
 
             int queryCount = 0;
             do
@@ -1402,14 +1403,14 @@ namespace DnsServerCore.Dns
                 DnsDatagram newRequest = new DnsDatagram(0, false, DnsOpcode.StandardQuery, false, false, request.RecursionDesired, false, false, false, DnsResponseCode.NoError, new DnsQuestionRecord[] { new DnsQuestionRecord(lastDomain, request.Question[0].Type, request.Question[0].Class) });
 
                 //query authoritative zone first
-                lastResponse = _authZoneManager.Query(newRequest, isRecursionAllowed);
-                if (lastResponse is null)
+                newResponse = _authZoneManager.Query(newRequest, isRecursionAllowed);
+                if (newResponse is null)
                 {
                     //not found in auth zone
                     if (newRequest.RecursionDesired && isRecursionAllowed)
                     {
                         //do recursion
-                        lastResponse = await RecursiveResolveAsync(newRequest, null, false, cacheRefreshOperation);
+                        newResponse = await RecursiveResolveAsync(newRequest, null, false, cacheRefreshOperation);
                         isAuthoritativeAnswer = false;
                     }
                     else
@@ -1418,38 +1419,38 @@ namespace DnsServerCore.Dns
                         break;
                     }
                 }
-                else if ((lastResponse.Answer.Count > 0) && (lastResponse.Answer[lastResponse.Answer.Count - 1].Type == DnsResourceRecordType.ANAME))
+                else if ((newResponse.Answer.Count > 0) && (newResponse.Answer[newResponse.Answer.Count - 1].Type == DnsResourceRecordType.ANAME))
                 {
-                    lastResponse = await ProcessANAMEAsync(request, remoteEP, lastResponse, isRecursionAllowed, protocol);
+                    newResponse = await ProcessANAMEAsync(request, remoteEP, newResponse, isRecursionAllowed, protocol);
                 }
-                else if ((lastResponse.Answer.Count == 0) && (lastResponse.Authority.Count > 0))
+                else if ((newResponse.Answer.Count == 0) && (newResponse.Authority.Count > 0))
                 {
                     //found delegated/forwarded zone
-                    switch (lastResponse.Authority[0].Type)
+                    switch (newResponse.Authority[0].Type)
                     {
                         case DnsResourceRecordType.NS:
                             if (newRequest.RecursionDesired && isRecursionAllowed)
                             {
                                 //do forced recursive resolution using empty forwarders; name servers will be provided via ResolveDnsCache
-                                lastResponse = await RecursiveResolveAsync(newRequest, Array.Empty<NameServerAddress>(), false, false);
+                                newResponse = await RecursiveResolveAsync(newRequest, Array.Empty<NameServerAddress>(), false, false);
                                 isAuthoritativeAnswer = false;
                             }
 
                             break;
 
                         case DnsResourceRecordType.FWD:
-                            if ((lastResponse.Authority.Count == 1) && (lastResponse.Authority[0].RDATA as DnsForwarderRecord).Forwarder.Equals("this-server", StringComparison.OrdinalIgnoreCase))
+                            if ((newResponse.Authority.Count == 1) && (newResponse.Authority[0].RDATA as DnsForwarderRecord).Forwarder.Equals("this-server", StringComparison.OrdinalIgnoreCase))
                             {
                                 //do conditional forwarding via "this-server" 
-                                lastResponse = await RecursiveResolveAsync(newRequest, null, false, false);
+                                newResponse = await RecursiveResolveAsync(newRequest, null, false, false);
                                 isAuthoritativeAnswer = false;
                             }
                             else
                             {
                                 //do conditional forwarding
-                                List<NameServerAddress> forwarders = new List<NameServerAddress>(lastResponse.Authority.Count);
+                                List<NameServerAddress> forwarders = new List<NameServerAddress>(newResponse.Authority.Count);
 
-                                foreach (DnsResourceRecord rr in lastResponse.Authority)
+                                foreach (DnsResourceRecord rr in newResponse.Authority)
                                 {
                                     if (rr.Type == DnsResourceRecordType.FWD)
                                     {
@@ -1463,29 +1464,30 @@ namespace DnsServerCore.Dns
                                 if (forwarders.Count < 1)
                                     forwarders = null;
 
-                                lastResponse = await RecursiveResolveAsync(newRequest, forwarders, false, false);
+                                newResponse = await RecursiveResolveAsync(newRequest, forwarders, false, false);
                                 isAuthoritativeAnswer = false;
                             }
 
                             break;
 
                         case DnsResourceRecordType.APP:
-                            lastResponse = await ProcessAPPAsync(newRequest, remoteEP, lastResponse, isRecursionAllowed, protocol);
+                            newResponse = await ProcessAPPAsync(newRequest, remoteEP, newResponse, isRecursionAllowed, protocol);
                             break;
                     }
                 }
 
                 //check last response
-                if (lastResponse.Answer.Count == 0)
+                if (newResponse.Answer.Count == 0)
                     break; //cannot proceed to resolve further
 
-                responseAnswer.AddRange(lastResponse.Answer);
+                responseAnswer.AddRange(newResponse.Answer);
 
-                DnsResourceRecord lastRR = lastResponse.Answer[lastResponse.Answer.Count - 1];
+                DnsResourceRecord lastRR = newResponse.Answer[newResponse.Answer.Count - 1];
 
                 if (lastRR.Type != DnsResourceRecordType.CNAME)
                     break; //cname was resolved
 
+                lastResponse = newResponse;
                 lastDomain = (lastRR.RDATA as DnsCNAMERecord).Domain;
             }
             while (++queryCount < MAX_CNAME_HOPS);
@@ -1494,25 +1496,29 @@ namespace DnsServerCore.Dns
             IReadOnlyList<DnsResourceRecord> authority = null;
             IReadOnlyList<DnsResourceRecord> additional = null;
 
-            if (lastResponse is null)
+            if (newResponse is null)
             {
+                //no recursion available
                 rcode = DnsResponseCode.NoError;
+
+                authority = lastResponse.Authority;
+                additional = lastResponse.Additional;
             }
             else
             {
-                rcode = lastResponse.RCODE;
+                rcode = newResponse.RCODE;
 
                 if (isAuthoritativeAnswer)
                 {
-                    authority = response.Authority;
-                    additional = response.Additional;
+                    authority = newResponse.Authority;
+                    additional = newResponse.Additional;
                 }
                 else
                 {
-                    if (lastResponse.Authority.Count > 0)
+                    if (newResponse.Authority.Count > 0)
                     {
-                        if (lastResponse.Authority[0].Type == DnsResourceRecordType.SOA)
-                            authority = lastResponse.Authority;
+                        if (newResponse.Authority[0].Type == DnsResourceRecordType.SOA)
+                            authority = newResponse.Authority;
                     }
                     else
                     {
@@ -1521,7 +1527,7 @@ namespace DnsServerCore.Dns
                             case DnsResourceRecordType.NS:
                             case DnsResourceRecordType.MX:
                             case DnsResourceRecordType.SRV:
-                                additional = lastResponse.Additional;
+                                additional = newResponse.Additional;
                                 break;
                         }
                     }
@@ -2982,7 +2988,7 @@ namespace DnsServerCore.Dns
             }
         }
 
-        public IReadOnlyDictionary<string, string> TsigKeys
+        public IReadOnlyDictionary<string, TsigKey> TsigKeys
         {
             get { return _tsigKeys; }
             set { _tsigKeys = value; }
