@@ -224,7 +224,7 @@ namespace Failover
             else
                 _port = Convert.ToInt32(jsonHealthCheck.port.Value);
 
-            if (jsonHealthCheck.url is null)
+            if ((jsonHealthCheck.url is null) || (jsonHealthCheck.url.Value is null))
                 _url = null;
             else
                 _url = new Uri(jsonHealthCheck.url.Value);

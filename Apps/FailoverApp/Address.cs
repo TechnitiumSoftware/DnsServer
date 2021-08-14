@@ -156,7 +156,7 @@ namespace Failover
                         string healthCheck = jsonAppRecordData.healthCheck?.Value;
                         Uri healthCheckUrl = null;
 
-                        if (jsonAppRecordData.healthCheckUrl != null)
+                        if ((jsonAppRecordData.healthCheckUrl is not null) && (jsonAppRecordData.healthCheckUrl.Value is not null))
                             healthCheckUrl = new Uri(jsonAppRecordData.healthCheckUrl.Value);
 
                         if (healthCheckUrl is null)
@@ -199,7 +199,7 @@ namespace Failover
                         string healthCheck = jsonAppRecordData.healthCheck?.Value;
                         Uri healthCheckUrl = null;
 
-                        if (jsonAppRecordData.healthCheckUrl != null)
+                        if ((jsonAppRecordData.healthCheckUrl is not null) && (jsonAppRecordData.healthCheckUrl.Value is not null))
                             healthCheckUrl = new Uri(jsonAppRecordData.healthCheckUrl.Value);
 
                         if (healthCheckUrl is null)
