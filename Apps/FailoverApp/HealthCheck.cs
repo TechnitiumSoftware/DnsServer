@@ -35,7 +35,8 @@ namespace Failover
         Unknown = 0,
         Ping = 1,
         Tcp = 2,
-        Http = 3
+        Http = 3,
+        Https = 4
     }
 
     class HealthCheck : IDisposable
@@ -111,25 +112,14 @@ namespace Failover
 
         private void ConditionalHttpReload()
         {
-            if (_type == HealthCheckType.Http)
+            switch (_type)
             {
-                bool handlerChanged = false;
-                NetProxy proxy = _service.DnsServer.Proxy;
+                case HealthCheckType.Http:
+                case HealthCheckType.Https:
+                    bool handlerChanged = false;
+                    NetProxy proxy = _service.DnsServer.Proxy;
 
-                if (_httpHandler is null)
-                {
-                    SocketsHttpHandler httpHandler = new SocketsHttpHandler();
-                    httpHandler.ConnectTimeout = TimeSpan.FromMilliseconds(_timeout);
-                    httpHandler.Proxy = proxy;
-                    httpHandler.AllowAutoRedirect = true;
-                    httpHandler.MaxAutomaticRedirections = 10;
-
-                    _httpHandler = httpHandler;
-                    handlerChanged = true;
-                }
-                else
-                {
-                    if ((_httpHandler.ConnectTimeout.TotalMilliseconds != _timeout) || (_httpHandler.Proxy != proxy))
+                    if (_httpHandler is null)
                     {
                         SocketsHttpHandler httpHandler = new SocketsHttpHandler();
                         httpHandler.ConnectTimeout = TimeSpan.FromMilliseconds(_timeout);
@@ -137,50 +127,64 @@ namespace Failover
                         httpHandler.AllowAutoRedirect = true;
                         httpHandler.MaxAutomaticRedirections = 10;
 
-                        SocketsHttpHandler oldHttpHandler = _httpHandler;
                         _httpHandler = httpHandler;
                         handlerChanged = true;
-
-                        oldHttpHandler.Dispose();
                     }
-                }
+                    else
+                    {
+                        if ((_httpHandler.ConnectTimeout.TotalMilliseconds != _timeout) || (_httpHandler.Proxy != proxy))
+                        {
+                            SocketsHttpHandler httpHandler = new SocketsHttpHandler();
+                            httpHandler.ConnectTimeout = TimeSpan.FromMilliseconds(_timeout);
+                            httpHandler.Proxy = proxy;
+                            httpHandler.AllowAutoRedirect = true;
+                            httpHandler.MaxAutomaticRedirections = 10;
 
-                if (_httpClient is null)
-                {
-                    HttpClient httpClient = new HttpClient(_httpHandler);
-                    httpClient.Timeout = TimeSpan.FromMilliseconds(_timeout);
-                    httpClient.DefaultRequestHeaders.UserAgent.ParseAdd(HTTP_HEALTH_CHECK_USER_AGENT);
+                            SocketsHttpHandler oldHttpHandler = _httpHandler;
+                            _httpHandler = httpHandler;
+                            handlerChanged = true;
 
-                    _httpClient = httpClient;
-                }
-                else
-                {
-                    if (handlerChanged || (_httpClient.Timeout.TotalMilliseconds != _timeout))
+                            oldHttpHandler.Dispose();
+                        }
+                    }
+
+                    if (_httpClient is null)
                     {
                         HttpClient httpClient = new HttpClient(_httpHandler);
                         httpClient.Timeout = TimeSpan.FromMilliseconds(_timeout);
                         httpClient.DefaultRequestHeaders.UserAgent.ParseAdd(HTTP_HEALTH_CHECK_USER_AGENT);
 
-                        HttpClient oldHttpClient = _httpClient;
                         _httpClient = httpClient;
-
-                        oldHttpClient.Dispose();
                     }
-                }
-            }
-            else
-            {
-                if (_httpClient != null)
-                {
-                    _httpClient.Dispose();
-                    _httpClient = null;
-                }
+                    else
+                    {
+                        if (handlerChanged || (_httpClient.Timeout.TotalMilliseconds != _timeout))
+                        {
+                            HttpClient httpClient = new HttpClient(_httpHandler);
+                            httpClient.Timeout = TimeSpan.FromMilliseconds(_timeout);
+                            httpClient.DefaultRequestHeaders.UserAgent.ParseAdd(HTTP_HEALTH_CHECK_USER_AGENT);
 
-                if (_httpHandler != null)
-                {
-                    _httpHandler.Dispose();
-                    _httpHandler = null;
-                }
+                            HttpClient oldHttpClient = _httpClient;
+                            _httpClient = httpClient;
+
+                            oldHttpClient.Dispose();
+                        }
+                    }
+                    break;
+
+                default:
+                    if (_httpClient != null)
+                    {
+                        _httpClient.Dispose();
+                        _httpClient = null;
+                    }
+
+                    if (_httpHandler != null)
+                    {
+                        _httpHandler.Dispose();
+                        _httpHandler = null;
+                    }
+                    break;
             }
         }
 
@@ -386,6 +390,7 @@ namespace Failover
                     }
 
                 case HealthCheckType.Http:
+                case HealthCheckType.Https:
                     {
                         ConditionalHttpReload();
 
@@ -397,12 +402,23 @@ namespace Failover
                             try
                             {
                                 Uri url = healthCheckUrl;
-
                                 if (url is null)
+                                {
                                     url = _url;
+                                    if (url is null)
+                                        return new HealthCheckStatus(false, "Missing health check URL in APP record as well as in app config.");
+                                }
 
-                                if (url is null)
-                                    return new HealthCheckStatus(false, "Missing health check URL in APP record as well as in app config.");
+                                if (_type == HealthCheckType.Http)
+                                {
+                                    if (url.Scheme.Equals("https", StringComparison.OrdinalIgnoreCase))
+                                        url = new Uri("http://" + url.Host + (url.IsDefaultPort ? "" : ":" + url.Port) + url.PathAndQuery);
+                                }
+                                else
+                                {
+                                    if (url.Scheme.Equals("http", StringComparison.OrdinalIgnoreCase))
+                                        url = new Uri("https://" + url.Host + (url.IsDefaultPort ? "" : ":" + url.Port) + url.PathAndQuery);
+                                }
 
                                 IPEndPoint ep = new IPEndPoint(address, url.Port);
                                 Uri queryUri = new Uri(url.Scheme + "://" + ep.ToString() + url.PathAndQuery);

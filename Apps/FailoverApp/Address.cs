@@ -159,6 +159,9 @@ namespace Failover
                         if (jsonAppRecordData.healthCheckUrl != null)
                             healthCheckUrl = new Uri(jsonAppRecordData.healthCheckUrl.Value);
 
+                        if (healthCheckUrl is null)
+                            healthCheckUrl = new Uri("http://" + question.Name);
+
                         List<DnsResourceRecord> answers = new List<DnsResourceRecord>();
 
                         GetAnswers(jsonAppRecordData.primary, question, appRecordTtl, healthCheck, healthCheckUrl, answers);
@@ -199,6 +202,9 @@ namespace Failover
                         if (jsonAppRecordData.healthCheckUrl != null)
                             healthCheckUrl = new Uri(jsonAppRecordData.healthCheckUrl.Value);
 
+                        if (healthCheckUrl is null)
+                            healthCheckUrl = new Uri("http://" + question.Name);
+
                         List<DnsResourceRecord> answers = new List<DnsResourceRecord>();
 
                         GetStatusAnswers(jsonAppRecordData.primary, FailoverType.Primary, question, 30, healthCheck, healthCheckUrl, answers);
@@ -218,7 +224,7 @@ namespace Failover
         #region properties
 
         public string Description
-        { get { return "Returns A or AAAA records from primary set of addresses with a continous health check as configured in the app config. When none of the primary addresses are healthy, the app returns healthy addresses from the secondary set of addresses. When none of the primary and secondary addresses are healthy, the app returns healthy addresses from the server down set of addresses. The server down feature is expected to be used for showing a service status page and not to serve the actual content.\n\nSet 'allowTxtStatus' to 'true' in your APP record data to allow checking health status by querying for TXT record."; } }
+        { get { return "Returns A or AAAA records from primary set of addresses with a continous health check as configured in the app config. When none of the primary addresses are healthy, the app returns healthy addresses from the secondary set of addresses. When none of the primary and secondary addresses are healthy, the app returns healthy addresses from the server down set of addresses. The server down feature is expected to be used for showing a service status page and not to serve the actual content.\n\nWhen an URL is not provided in 'healthCheckUrl' parameter for 'http' or 'https' type health check, the domain name of the APP record will be used to auto generate an URL.\n\nSet 'allowTxtStatus' parameter to 'true' in your APP record data to allow checking health status by querying for TXT record."; } }
 
         public string ApplicationRecordDataTemplate
         {
@@ -236,8 +242,8 @@ namespace Failover
   ""serverDown"": [
     ""3.3.3.3""
   ],
-  ""healthCheck"": ""http"",
-  ""healthCheckUrl"": ""https://www.example.com"",
+  ""healthCheck"": ""https"",
+  ""healthCheckUrl"": null,
   ""allowTxtStatus"": false
 }";
             }

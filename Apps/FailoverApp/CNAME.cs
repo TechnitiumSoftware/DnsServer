@@ -135,6 +135,9 @@ namespace Failover
             if (jsonAppRecordData.healthCheckUrl != null)
                 healthCheckUrl = new Uri(jsonAppRecordData.healthCheckUrl.Value);
 
+            if (healthCheckUrl is null)
+                healthCheckUrl = new Uri("http://" + question.Name);
+
             IReadOnlyList<DnsResourceRecord> answers;
 
             if (question.Type == DnsResourceRecordType.TXT)
@@ -192,7 +195,7 @@ namespace Failover
         #region properties
 
         public string Description
-        { get { return "Returns CNAME record for primary domain name with a continous health check as configured in the app config. When the primary domain name is unhealthy, the app returns one of the secondary domain names in the given order of preference that is healthy. When none of the primary and secondary domain names are healthy, the app returns the server down domain name. The server down feature is expected to be used for showing a service status page and not to serve the actual content. Note that the app will return ANAME record for an APP record at zone apex.\n\nSet 'allowTxtStatus' to 'true' in your APP record data to allow checking health status by querying for TXT record."; } }
+        { get { return "Returns CNAME record for primary domain name with a continous health check as configured in the app config. When the primary domain name is unhealthy, the app returns one of the secondary domain names in the given order of preference that is healthy. When none of the primary and secondary domain names are healthy, the app returns the server down domain name. The server down feature is expected to be used for showing a service status page and not to serve the actual content. Note that the app will return ANAME record for an APP record at zone apex.\n\nWhen an URL is not provided in 'healthCheckUrl' parameter for 'http' or 'https' type health check, the domain name of the APP record will be used to auto generate an URL.\n\nSet 'allowTxtStatus' parameter to 'true' in your APP record data to allow checking health status by querying for TXT record."; } }
 
         public string ApplicationRecordDataTemplate
         {
