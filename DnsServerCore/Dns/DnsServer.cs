@@ -648,24 +648,36 @@ namespace DnsServerCore.Dns
             {
                 while (true)
                 {
-                    HttpRequest httpRequest = await HttpRequest.ReadRequestAsync(stream, 512).WithTimeout(receiveTimeout);
-                    if (httpRequest is null)
-                        return; //connection closed gracefully by client
+                    bool isSocketRemoteIpPrivate = NetUtilities.IsPrivateIP(remoteEP.Address);
+                    HttpRequest httpRequest;
 
-                    IPEndPoint socketRemoteEP = remoteEP;
-
-                    if (!usingHttps && NetUtilities.IsPrivateIP(socketRemoteEP.Address))
+                    if (usingHttps || !isSocketRemoteIpPrivate)
                     {
+                        //is HTTPS request or is over public IP
+                        if (IsQpmLimitCrossed(remoteEP))
+                            break;
+
+                        httpRequest = await HttpRequest.ReadRequestAsync(stream, 512).WithTimeout(receiveTimeout);
+                        if (httpRequest is null)
+                            return; //connection closed gracefully by client
+                    }
+                    else
+                    {
+                        //is HTTP request (probably via reverse proxy) and is over private IP
+                        httpRequest = await HttpRequest.ReadRequestAsync(stream, 512).WithTimeout(receiveTimeout);
+                        if (httpRequest is null)
+                            return; //connection closed gracefully by client
+
                         string xRealIp = httpRequest.Headers["X-Real-IP"];
                         if (IPAddress.TryParse(xRealIp, out IPAddress address))
                         {
                             //get the real IP address of the requesting client from X-Real-IP header set in nginx proxy_pass block
                             remoteEP = new IPEndPoint(address, 0);
                         }
-                    }
 
-                    if (IsQpmLimitCrossed(remoteEP))
-                        break;
+                        if (IsQpmLimitCrossed(remoteEP))
+                            break;
+                    }
 
                     string requestConnection = httpRequest.Headers[HttpRequestHeader.Connection];
                     if (string.IsNullOrEmpty(requestConnection))
@@ -674,7 +686,7 @@ namespace DnsServerCore.Dns
                     switch (httpRequest.RequestPath)
                     {
                         case "/dns-query":
-                            if (!usingHttps && !NetUtilities.IsPrivateIP(socketRemoteEP.Address))
+                            if (!usingHttps && !isSocketRemoteIpPrivate)
                             {
                                 //intentionally blocking public IP addresses from using DNS-over-HTTP (without TLS)
                                 //this feature is intended to be used with an SSL terminated reverse proxy like nginx on private network
