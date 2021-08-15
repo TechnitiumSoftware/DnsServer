@@ -648,9 +648,6 @@ namespace DnsServerCore.Dns
             {
                 while (true)
                 {
-                    if (IsQpmLimitCrossed(remoteEP))
-                        break;
-
                     HttpRequest httpRequest = await HttpRequest.ReadRequestAsync(stream, 512).WithTimeout(receiveTimeout);
                     if (httpRequest is null)
                         return; //connection closed gracefully by client
@@ -666,6 +663,9 @@ namespace DnsServerCore.Dns
                             remoteEP = new IPEndPoint(address, 0);
                         }
                     }
+
+                    if (IsQpmLimitCrossed(remoteEP))
+                        break;
 
                     string requestConnection = httpRequest.Headers[HttpRequestHeader.Connection];
                     if (string.IsNullOrEmpty(requestConnection))
