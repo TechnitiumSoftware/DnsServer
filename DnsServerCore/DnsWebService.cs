@@ -1279,6 +1279,9 @@ namespace DnsServerCore
             jsonWriter.WritePropertyName("qnameMinimization");
             jsonWriter.WriteValue(_dnsServer.QnameMinimization);
 
+            jsonWriter.WritePropertyName("nsRevalidation");
+            jsonWriter.WriteValue(_dnsServer.NsRevalidation);
+
             jsonWriter.WritePropertyName("qpmLimitRequests");
             jsonWriter.WriteValue(_dnsServer.QpmLimitRequests);
 
@@ -1769,6 +1772,10 @@ namespace DnsServerCore
             string strQnameMinimization = request.QueryString["qnameMinimization"];
             if (!string.IsNullOrEmpty(strQnameMinimization))
                 _dnsServer.QnameMinimization = bool.Parse(strQnameMinimization);
+
+            string strNsRevalidation = request.QueryString["nsRevalidation"];
+            if (!string.IsNullOrEmpty(strNsRevalidation))
+                _dnsServer.NsRevalidation = bool.Parse(strNsRevalidation);
 
             string strQpmLimitRequests = request.QueryString["qpmLimitRequests"];
             if (!string.IsNullOrEmpty(strQpmLimitRequests))
@@ -3257,7 +3264,7 @@ namespace DnsServerCore
                 if (ptrResponse.Answer.Count > 0)
                 {
                     IReadOnlyList<string> ptrDomains = DnsClient.ParseResponsePTR(ptrResponse);
-                    if (ptrDomains != null)
+                    if (ptrDomains.Count > 0)
                         return new KeyValuePair<string, string>(ip, ptrDomains[0]);
                 }
 
@@ -5972,7 +5979,7 @@ namespace DnsServerCore
                 else
                     question = new DnsQuestionRecord(domain, type, DnsClass.IN);
 
-                dnsResponse = await DnsClient.RecursiveResolveAsync(question, null, proxy, preferIPv6, randomizeName, qnameMinimization, RETRIES, TIMEOUT);
+                dnsResponse = await DnsClient.RecursiveResolveAsync(question, null, proxy, preferIPv6, randomizeName, qnameMinimization, false, RETRIES, TIMEOUT);
             }
             else
             {
@@ -7027,6 +7034,7 @@ namespace DnsServerCore
                         case 19:
                         case 20:
                         case 21:
+                        case 22:
                             _dnsServer.ServerDomain = bR.ReadShortString();
                             _webServiceHttpPort = bR.ReadInt32();
 
@@ -7487,6 +7495,11 @@ namespace DnsServerCore
                                 _dnsServer.TsigKeys = null;
                             }
 
+                            if (version >= 22)
+                                _dnsServer.NsRevalidation = bR.ReadBoolean();
+                            else
+                                _dnsServer.NsRevalidation = true;
+
                             break;
 
                         default:
@@ -7545,7 +7558,7 @@ namespace DnsServerCore
                 BinaryWriter bW = new BinaryWriter(mS);
 
                 bW.Write(Encoding.ASCII.GetBytes("DS")); //format
-                bW.Write((byte)21); //version
+                bW.Write((byte)22); //version
 
                 bW.WriteShortString(_dnsServer.ServerDomain);
                 bW.Write(_webServiceHttpPort);
@@ -7740,6 +7753,8 @@ namespace DnsServerCore
                         bW.Write((byte)tsigKey.Value.Algorithm);
                     }
                 }
+
+                bW.Write(_dnsServer.NsRevalidation);
 
                 //write config
                 mS.Position = 0;
