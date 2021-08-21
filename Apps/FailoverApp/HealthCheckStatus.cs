@@ -28,34 +28,17 @@ namespace Failover
         public readonly DateTime DateTime = DateTime.UtcNow;
         public readonly bool IsHealthy;
         public readonly string FailureReason;
+        public readonly Exception Exception;
 
         #endregion
 
         #region constructor
 
-        public HealthCheckStatus(bool isHealthy, string failureReason)
+        public HealthCheckStatus(bool isHealthy, string failureReason, Exception exception)
         {
             IsHealthy = isHealthy;
             FailureReason = failureReason;
-        }
-
-        #endregion
-
-        #region static
-
-        public static HealthCheckStatus Success()
-        {
-            return new HealthCheckStatus(true, null);
-        }
-
-        public static HealthCheckStatus NotSupported()
-        {
-            return new HealthCheckStatus(false, "Not supported.");
-        }
-
-        public static HealthCheckStatus FailedToResolve()
-        {
-            return new HealthCheckStatus(false, "Failed to resolve address.");
+            Exception = exception;
         }
 
         #endregion
