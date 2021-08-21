@@ -146,7 +146,7 @@ RESPONSE:
 ```
 {
 	"response": {
-		"version": "6.4",
+		"version": "6.4.1",
 		"dnsServerDomain": "server1",
 		"dnsServerLocalEndPoints": [
 			"0.0.0.0:53",
@@ -188,6 +188,7 @@ RESPONSE:
 		],
 		"randomizeName": true,
 		"qnameMinimization": true,
+		"nsRevalidation": true,
 		"qpmLimitRequests", 0,
 		"qpmLimitErrors", 0,
 		"qpmLimitSampleMinutes": 5,
@@ -272,6 +273,7 @@ WHERE:
 - `recursionAllowedNetworks` (optional): A comma separated list of network addresses in CIDR format that must be allowed recursion. Set this parameter to `false` to remove existing values. These values are only used when `recursion` is set to `UseSpecifiedNetworks`.
 - `randomizeName` (optional): Enables QNAME randomization [draft-vixie-dnsext-dns0x20-00](https://tools.ietf.org/html/draft-vixie-dnsext-dns0x20-00) when using UDP as the transport protocol. Default value is `true`.
 - `qnameMinimization` (optional): Enables QNAME minimization [draft-ietf-dnsop-rfc7816bis-04](https://tools.ietf.org/html/draft-ietf-dnsop-rfc7816bis-04) when doing recursive resolution. Default value is `true`.
+- `nsRevalidation` (optional): Enables [draft-ietf-dnsop-ns-revalidation](https://datatracker.ietf.org/doc/draft-ietf-dnsop-ns-revalidation/) for recursive resolution. Default value is `true`.
 - `qpmLimitRequests` (optional): Sets the Queries Per Minute (QPM) limit on total number of requests that is enforces per client subnet. Set value to `0` to disable the feature.
 - `qpmLimitErrors` (optional): Sets the Queries Per Minute (QPM) limit on total number of requests which generates an error response that is enforces per client subnet. Set value to `0` to disable the feature. Response with an RCODE of FormatError, ServerFailure, or Refused is considered as an error response.
 - `qpmLimitSampleMinutes` (optional): Sets the client query stats sample size in minutes for QPM limit feature. Default value is `5`.
