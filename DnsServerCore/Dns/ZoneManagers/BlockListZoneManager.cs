@@ -223,10 +223,24 @@ namespace DnsServerCore.Dns.ZoneManagers
 
                 domain = GetParentZone(domain);
             }
-            while (domain != null);
+            while (domain is not null);
 
             blockedDomain = null;
             return null;
+        }
+
+        private bool IsZoneAllowed(Dictionary<string, object> allowedDomains, string domain)
+        {
+            do
+            {
+                if (allowedDomains.TryGetValue(domain, out _))
+                    return true;
+
+                domain = GetParentZone(domain);
+            }
+            while (domain is not null);
+
+            return false;
         }
 
         #endregion
@@ -275,7 +289,7 @@ namespace DnsServerCore.Dns.ZoneManagers
                 {
                     string domain = queue.Dequeue();
 
-                    if (allowedDomains.TryGetValue(domain, out _))
+                    if (IsZoneAllowed(allowedDomains, domain))
                         continue; //domain is in allowed list so skip adding it to block list zone
 
                     if (!blockListZone.TryGetValue(domain, out List<Uri> blockLists))
