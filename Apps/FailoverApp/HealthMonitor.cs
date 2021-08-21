@@ -36,6 +36,7 @@ namespace Failover
         readonly HealthCheck _healthCheck;
 
         readonly Timer _healthCheckTimer;
+        const int HEALTH_CHECK_TIMER_INITIAL_INTERVAL = 1000;
 
         HealthCheckStatus _healthCheckStatus;
 
@@ -75,16 +76,17 @@ namespace Failover
                         {
                             if (_healthCheckStatus.IsHealthy != healthCheckStatus.IsHealthy)
                                 sendAlert = true;
-                            else if (_healthCheckStatus.FailureReason != healthCheckStatus.FailureReason)
-                                sendAlert = true;
                         }
 
                         if (sendAlert)
                         {
                             if (healthCheckStatus.IsHealthy)
-                                _dnsServer.WriteLog("[" + healthCheckStatus.DateTime.ToString("R") + "] ALERT! Address [" + _address.ToString() + "] status is HEALTHY based on '" + _healthCheck.Name + "' health check.");
+                                _dnsServer.WriteLog("ALERT! Address [" + _address.ToString() + "] status is HEALTHY based on '" + _healthCheck.Name + "' health check.");
                             else
-                                _dnsServer.WriteLog("[" + healthCheckStatus.DateTime.ToString("R") + "] ALERT! Address [" + _address.ToString() + "] status is FAILED based on '" + _healthCheck.Name + "' health check. The failure reason is: " + healthCheckStatus.FailureReason);
+                                _dnsServer.WriteLog("ALERT! Address [" + _address.ToString() + "] status is FAILED based on '" + _healthCheck.Name + "' health check. The failure reason is: " + healthCheckStatus.FailureReason);
+
+                            if (healthCheckStatus.Exception is not null)
+                                _dnsServer.WriteLog(healthCheckStatus.Exception);
 
                             EmailAlert emailAlert = _healthCheck.EmailAlert;
                             if (emailAlert is not null)
@@ -112,7 +114,7 @@ namespace Failover
                         if (webHook is not null)
                             _ = webHook.CallAsync(_address, _healthCheck.Name, ex);
 
-                        _healthCheckStatus = new HealthCheckStatus(false, ex.ToString());
+                        _healthCheckStatus = new HealthCheckStatus(false, ex.ToString(), ex);
                     }
                     else
                     {
@@ -126,7 +128,7 @@ namespace Failover
                 }
             }, null, Timeout.Infinite, Timeout.Infinite);
 
-            _healthCheckTimer.Change(0, Timeout.Infinite);
+            _healthCheckTimer.Change(HEALTH_CHECK_TIMER_INITIAL_INTERVAL, Timeout.Infinite);
         }
 
         public HealthMonitor(IDnsServer dnsServer, string domain, DnsResourceRecordType type, HealthCheck healthCheck, Uri healthCheckUrl)
@@ -159,16 +161,17 @@ namespace Failover
                         {
                             if (_healthCheckStatus.IsHealthy != healthCheckStatus.IsHealthy)
                                 sendAlert = true;
-                            else if (_healthCheckStatus.FailureReason != healthCheckStatus.FailureReason)
-                                sendAlert = true;
                         }
 
                         if (sendAlert)
                         {
                             if (healthCheckStatus.IsHealthy)
-                                _dnsServer.WriteLog("[" + healthCheckStatus.DateTime.ToString("R") + "] ALERT! Domain [" + _domain + "] type [" + _type.ToString() + "] status is HEALTHY based on '" + _healthCheck.Name + "' health check.");
+                                _dnsServer.WriteLog("ALERT! Domain [" + _domain + "] type [" + _type.ToString() + "] status is HEALTHY based on '" + _healthCheck.Name + "' health check.");
                             else
-                                _dnsServer.WriteLog("[" + healthCheckStatus.DateTime.ToString("R") + "] ALERT! Domain [" + _domain + "] type [" + _type.ToString() + "] status is FAILED based on '" + _healthCheck.Name + "' health check. The failure reason is: " + healthCheckStatus.FailureReason);
+                                _dnsServer.WriteLog("ALERT! Domain [" + _domain + "] type [" + _type.ToString() + "] status is FAILED based on '" + _healthCheck.Name + "' health check. The failure reason is: " + healthCheckStatus.FailureReason);
+
+                            if (healthCheckStatus.Exception is not null)
+                                _dnsServer.WriteLog(healthCheckStatus.Exception);
 
                             EmailAlert emailAlert = _healthCheck.EmailAlert;
                             if (emailAlert is not null)
@@ -196,7 +199,7 @@ namespace Failover
                         if (webHook is not null)
                             _ = webHook.CallAsync(_domain, _type, _healthCheck.Name, ex);
 
-                        _healthCheckStatus = new HealthCheckStatus(false, ex.ToString());
+                        _healthCheckStatus = new HealthCheckStatus(false, ex.ToString(), ex);
                     }
                     else
                     {
@@ -210,7 +213,7 @@ namespace Failover
                 }
             }, null, Timeout.Infinite, Timeout.Infinite);
 
-            _healthCheckTimer.Change(0, Timeout.Infinite);
+            _healthCheckTimer.Change(HEALTH_CHECK_TIMER_INITIAL_INTERVAL, Timeout.Infinite);
         }
 
         #endregion
