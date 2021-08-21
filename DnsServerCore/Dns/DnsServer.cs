@@ -116,6 +116,7 @@ namespace DnsServerCore.Dns
         bool _preferIPv6;
         bool _randomizeName;
         bool _qnameMinimization;
+        bool _nsRevalidation;
         int _qpmLimitRequests = 0;
         int _qpmLimitErrors = 0;
         int _qpmLimitSampleMinutes = 5;
@@ -2061,7 +2062,7 @@ namespace DnsServerCore.Dns
                     else
                         dnsCache = _dnsCache;
 
-                    response = await DnsClient.RecursiveResolveAsync(question, dnsCache, _proxy, _preferIPv6, _randomizeName, _qnameMinimization, _resolverRetries, _resolverTimeout, _resolverMaxStackCount);
+                    response = await DnsClient.RecursiveResolveAsync(question, dnsCache, _proxy, _preferIPv6, _randomizeName, _qnameMinimization, _nsRevalidation, _resolverRetries, _resolverTimeout, _resolverMaxStackCount);
                 }
 
                 switch (response.RCODE)
@@ -3099,6 +3100,12 @@ namespace DnsServerCore.Dns
         {
             get { return _qnameMinimization; }
             set { _qnameMinimization = value; }
+        }
+
+        public bool NsRevalidation
+        {
+            get { return _nsRevalidation; }
+            set { _nsRevalidation = value; }
         }
 
         public int QpmLimitRequests
