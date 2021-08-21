@@ -7537,6 +7537,7 @@ namespace DnsServerCore
                 _dnsServer.Recursion = DnsServerRecursion.AllowOnlyForPrivateNetworks; //default for security reasons
                 _dnsServer.RandomizeName = true; //default true to enable security feature
                 _dnsServer.QnameMinimization = true; //default true to enable privacy feature
+                _dnsServer.NsRevalidation = true;
 
                 SaveConfigFile();
             }
