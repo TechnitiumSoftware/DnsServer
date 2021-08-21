@@ -45,7 +45,7 @@ namespace Failover
 
         const string HTTP_HEALTH_CHECK_USER_AGENT = "DNS Failover App (Technitium DNS Server)";
 
-        readonly HealthMonitoringService _service;
+        readonly HealthService _service;
 
         string _name;
         HealthCheckType _type;
@@ -64,7 +64,7 @@ namespace Failover
 
         #region constructor
 
-        public HealthCheck(HealthMonitoringService service, dynamic jsonHealthCheck)
+        public HealthCheck(HealthService service, dynamic jsonHealthCheck)
         {
             _service = service;
 
@@ -123,6 +123,7 @@ namespace Failover
                     {
                         SocketsHttpHandler httpHandler = new SocketsHttpHandler();
                         httpHandler.ConnectTimeout = TimeSpan.FromMilliseconds(_timeout);
+                        httpHandler.PooledConnectionIdleTimeout = TimeSpan.FromMilliseconds(Math.Max(10000, _timeout));
                         httpHandler.Proxy = proxy;
                         httpHandler.AllowAutoRedirect = true;
                         httpHandler.MaxAutomaticRedirections = 10;
@@ -136,6 +137,7 @@ namespace Failover
                         {
                             SocketsHttpHandler httpHandler = new SocketsHttpHandler();
                             httpHandler.ConnectTimeout = TimeSpan.FromMilliseconds(_timeout);
+                            httpHandler.PooledConnectionIdleTimeout = TimeSpan.FromMilliseconds(Math.Max(10000, _timeout));
                             httpHandler.Proxy = proxy;
                             httpHandler.AllowAutoRedirect = true;
                             httpHandler.MaxAutomaticRedirections = 10;
@@ -264,7 +266,7 @@ namespace Failover
                     {
                         DnsDatagram response = await _service.DnsServer.DirectQueryAsync(new DnsQuestionRecord(domain, type, DnsClass.IN));
                         if ((response is null) || (response.Answer.Count == 0))
-                            return HealthCheckStatus.FailedToResolve();
+                            return new HealthCheckStatus(false, "Failed to resolve address.", null);
 
                         IReadOnlyList<IPAddress> addresses = DnsClient.ParseResponseA(response);
                         if (addresses.Count > 0)
@@ -281,14 +283,14 @@ namespace Failover
                             return lastStatus;
                         }
 
-                        return HealthCheckStatus.FailedToResolve();
+                        return new HealthCheckStatus(false, "Failed to resolve address.", null);
                     }
 
                 case DnsResourceRecordType.AAAA:
                     {
                         DnsDatagram response = await _service.DnsServer.DirectQueryAsync(new DnsQuestionRecord(domain, type, DnsClass.IN));
                         if ((response is null) || (response.Answer.Count == 0))
-                            return HealthCheckStatus.FailedToResolve();
+                            return new HealthCheckStatus(false, "Failed to resolve address.", null);
 
                         IReadOnlyList<IPAddress> addresses = DnsClient.ParseResponseAAAA(response);
                         if (addresses.Count > 0)
@@ -305,11 +307,11 @@ namespace Failover
                             return lastStatus;
                         }
 
-                        return HealthCheckStatus.FailedToResolve();
+                        return new HealthCheckStatus(false, "Failed to resolve address.", null);
                     }
 
                 default:
-                    return HealthCheckStatus.NotSupported();
+                    return new HealthCheckStatus(false, "Not supported.", null);
             }
         }
 
@@ -330,19 +332,19 @@ namespace Failover
                             {
                                 PingReply reply = await ping.SendPingAsync(address, _timeout);
                                 if (reply.Status == IPStatus.Success)
-                                    return HealthCheckStatus.Success();
+                                    return new HealthCheckStatus(true, null, null);
 
                                 lastReason = reply.Status.ToString();
                             }
                             while (++retry < _retries);
 
-                            return new HealthCheckStatus(false, lastReason);
+                            return new HealthCheckStatus(false, lastReason, null);
                         }
                     }
 
                 case HealthCheckType.Tcp:
                     {
-                        Exception lastException = null;
+                        Exception lastException;
                         string lastReason = null;
                         int retry = 0;
                         do
@@ -366,15 +368,17 @@ namespace Failover
                                     }
                                 }
 
-                                return HealthCheckStatus.Success();
+                                return new HealthCheckStatus(true, null, null);
                             }
-                            catch (TimeoutException)
+                            catch (TimeoutException ex)
                             {
                                 lastReason = "Connection timed out.";
+                                lastException = ex;
                             }
                             catch (SocketException ex)
                             {
                                 lastReason = ex.Message;
+                                lastException = ex;
                             }
                             catch (Exception ex)
                             {
@@ -383,10 +387,7 @@ namespace Failover
                         }
                         while (++retry < _retries);
 
-                        if (lastException is not null)
-                            throw lastException;
-
-                        return new HealthCheckStatus(false, lastReason);
+                        return new HealthCheckStatus(false, lastReason, lastException);
                     }
 
                 case HealthCheckType.Http:
@@ -394,20 +395,22 @@ namespace Failover
                     {
                         ConditionalHttpReload();
 
-                        Exception lastException = null;
+                        Exception lastException;
                         string lastReason = null;
                         int retry = 0;
                         do
                         {
                             try
                             {
-                                Uri url = healthCheckUrl;
-                                if (url is null)
-                                {
+                                Uri url;
+
+                                if (_url is null)
+                                    url = healthCheckUrl;
+                                else
                                     url = _url;
-                                    if (url is null)
-                                        return new HealthCheckStatus(false, "Missing health check URL in APP record as well as in app config.");
-                                }
+
+                                if (url is null)
+                                    return new HealthCheckStatus(false, "Missing health check URL in APP record as well as in app config.", null);
 
                                 if (_type == HealthCheckType.Http)
                                 {
@@ -431,14 +434,19 @@ namespace Failover
 
                                 HttpResponseMessage httpResponse = await _httpClient.SendAsync(httpRequest);
                                 if (httpResponse.IsSuccessStatusCode)
-                                    return HealthCheckStatus.Success();
+                                    return new HealthCheckStatus(true, null, null);
 
-                                lastReason = "Received HTTP status code: " + (int)httpResponse.StatusCode + " " + httpResponse.StatusCode.ToString() + "; URL: " + url.AbsoluteUri;
-                                break;
+                                return new HealthCheckStatus(false, "Received HTTP status code: " + (int)httpResponse.StatusCode + " " + httpResponse.StatusCode.ToString() + "; URL: " + url.AbsoluteUri, null);
                             }
-                            catch (TaskCanceledException)
+                            catch (TaskCanceledException ex)
                             {
                                 lastReason = "Connection timed out.";
+                                lastException = ex;
+                            }
+                            catch (HttpRequestException ex)
+                            {
+                                lastReason = ex.Message;
+                                lastException = ex;
                             }
                             catch (Exception ex)
                             {
@@ -447,10 +455,7 @@ namespace Failover
                         }
                         while (++retry < _retries);
 
-                        if (lastException is not null)
-                            throw lastException;
-
-                        return new HealthCheckStatus(false, lastReason);
+                        return new HealthCheckStatus(false, lastReason, lastException);
                     }
 
                 default:
