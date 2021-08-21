@@ -1496,8 +1496,6 @@ namespace DnsServerCore.Dns
                 _totalCached += statCounter._totalCached;
                 _totalBlocked += statCounter._totalBlocked;
 
-                _totalClients += statCounter._totalClients;
-
                 foreach (KeyValuePair<string, Counter> queryDomain in statCounter._queryDomains)
                     _queryDomains.GetOrAdd(queryDomain.Key, GetNewCounter).Merge(queryDomain.Value);
 
@@ -1515,6 +1513,8 @@ namespace DnsServerCore.Dns
 
                 foreach (KeyValuePair<DnsQuestionRecord, Counter> query in statCounter._queries)
                     _queries.GetOrAdd(query.Key, GetNewCounter).Merge(query.Value);
+
+                _totalClients = _clientIpAddresses.Count;
             }
 
             public bool Truncate(int limit)
