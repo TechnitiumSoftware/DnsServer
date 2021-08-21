@@ -34,7 +34,7 @@ namespace Failover
     {
         #region variables
 
-        readonly HealthMonitoringService _service;
+        readonly HealthService _service;
 
         string _name;
         bool _enabled;
@@ -47,7 +47,7 @@ namespace Failover
 
         #region constructor
 
-        public WebHook(HealthMonitoringService service, dynamic jsonWebHook)
+        public WebHook(HealthService service, dynamic jsonWebHook)
         {
             _service = service;
 

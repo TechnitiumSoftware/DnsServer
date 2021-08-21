@@ -33,7 +33,7 @@ namespace Failover
     {
         #region variables
 
-        readonly HealthMonitoringService _service;
+        readonly HealthService _service;
 
         string _name;
         bool _enabled;
@@ -52,7 +52,7 @@ namespace Failover
 
         #region constructor
 
-        public EmailAlert(HealthMonitoringService service, dynamic jsonEmailAlert)
+        public EmailAlert(HealthService service, dynamic jsonEmailAlert)
         {
             _service = service;
 
