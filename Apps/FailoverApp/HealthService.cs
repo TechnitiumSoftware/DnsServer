@@ -27,11 +27,11 @@ using TechnitiumLibrary.Net.Dns;
 
 namespace Failover
 {
-    class HealthMonitoringService : IDisposable
+    class HealthService : IDisposable
     {
         #region variables
 
-        static HealthMonitoringService _healthMonitoringService;
+        static HealthService _healthService;
 
         readonly IDnsServer _dnsServer;
 
@@ -39,9 +39,7 @@ namespace Failover
         readonly ConcurrentDictionary<string, EmailAlert> _emailAlerts = new ConcurrentDictionary<string, EmailAlert>(1, 2);
         readonly ConcurrentDictionary<string, WebHook> _webHooks = new ConcurrentDictionary<string, WebHook>(1, 2);
 
-        readonly ConcurrentDictionary<IPAddress, AddressMonitoring> _addressMonitoring = new ConcurrentDictionary<IPAddress, AddressMonitoring>();
-        readonly ConcurrentDictionary<string, DomainMonitoring> _domainMonitoringA = new ConcurrentDictionary<string, DomainMonitoring>();
-        readonly ConcurrentDictionary<string, DomainMonitoring> _domainMonitoringAAAA = new ConcurrentDictionary<string, DomainMonitoring>();
+        readonly ConcurrentDictionary<string, HealthMonitor> _healthMonitors = new ConcurrentDictionary<string, HealthMonitor>();
 
         readonly Timer _maintenanceTimer;
         const int MAINTENANCE_TIMER_INTERVAL = 15 * 60 * 1000; //15 mins
@@ -50,7 +48,7 @@ namespace Failover
 
         #region constructor
 
-        private HealthMonitoringService(IDnsServer dnsServer)
+        private HealthService(IDnsServer dnsServer)
         {
             _dnsServer = dnsServer;
 
@@ -58,30 +56,12 @@ namespace Failover
             {
                 try
                 {
-                    foreach (KeyValuePair<IPAddress, AddressMonitoring> monitoring in _addressMonitoring)
+                    foreach (KeyValuePair<string, HealthMonitor> healthMonitor in _healthMonitors)
                     {
-                        if (monitoring.Value.IsExpired())
+                        if (healthMonitor.Value.IsExpired())
                         {
-                            if (_addressMonitoring.TryRemove(monitoring.Key, out AddressMonitoring removedMonitoring))
-                                removedMonitoring.Dispose();
-                        }
-                    }
-
-                    foreach (KeyValuePair<string, DomainMonitoring> monitoring in _domainMonitoringA)
-                    {
-                        if (monitoring.Value.IsExpired())
-                        {
-                            if (_domainMonitoringA.TryRemove(monitoring.Key, out DomainMonitoring removedMonitoring))
-                                removedMonitoring.Dispose();
-                        }
-                    }
-
-                    foreach (KeyValuePair<string, DomainMonitoring> monitoring in _domainMonitoringAAAA)
-                    {
-                        if (monitoring.Value.IsExpired())
-                        {
-                            if (_domainMonitoringAAAA.TryRemove(monitoring.Key, out DomainMonitoring removedMonitoring))
-                                removedMonitoring.Dispose();
+                            if (_healthMonitors.TryRemove(healthMonitor.Key, out HealthMonitor removedMonitor))
+                                removedMonitor.Dispose();
                         }
                     }
                 }
@@ -127,20 +107,10 @@ namespace Failover
 
                 _webHooks.Clear();
 
-                foreach (KeyValuePair<IPAddress, AddressMonitoring> monitoring in _addressMonitoring)
-                    monitoring.Value.Dispose();
+                foreach (KeyValuePair<string, HealthMonitor> healthMonitor in _healthMonitors)
+                    healthMonitor.Value.Dispose();
 
-                _addressMonitoring.Clear();
-
-                foreach (KeyValuePair<string, DomainMonitoring> monitoring in _domainMonitoringA)
-                    monitoring.Value.Dispose();
-
-                _domainMonitoringA.Clear();
-
-                foreach (KeyValuePair<string, DomainMonitoring> monitoring in _domainMonitoringAAAA)
-                    monitoring.Value.Dispose();
-
-                _domainMonitoringAAAA.Clear();
+                _healthMonitors.Clear();
             }
 
             _disposed = true;
@@ -156,13 +126,55 @@ namespace Failover
 
         #region static
 
-        public static HealthMonitoringService Create(IDnsServer dnsServer)
+        public static HealthService Create(IDnsServer dnsServer)
         {
-            if (_healthMonitoringService is null)
-                _healthMonitoringService = new HealthMonitoringService(dnsServer);
+            if (_healthService is null)
+                _healthService = new HealthService(dnsServer);
 
-            return _healthMonitoringService;
+            return _healthService;
         }
+
+        #endregion
+
+        #region private
+
+        private static string GetHealthMonitorKey(IPAddress address, string healthCheck, Uri healthCheckUrl)
+        {
+            //key: health-check|127.0.0.1
+            //key: health-check|127.0.0.1|http://example.com/
+
+            if (healthCheckUrl is null)
+                return healthCheck + "|" + address.ToString();
+            else
+                return healthCheck + "|" + address.ToString() + "|" + healthCheckUrl.AbsoluteUri;
+        }
+
+        private static string GetHealthMonitorKey(string domain, DnsResourceRecordType type, string healthCheck, Uri healthCheckUrl)
+        {
+            //key: health-check|example.com|A
+            //key: health-check|example.com|AAAA|http://example.com/
+
+            if (healthCheckUrl is null)
+                return healthCheck + "|" + domain + "|" + type.ToString();
+            else
+                return healthCheck + "|" + domain + "|" + type.ToString() + "|" + healthCheckUrl.AbsoluteUri;
+        }
+
+        private void RemoveHealthMonitor(string healthCheck)
+        {
+            foreach (KeyValuePair<string, HealthMonitor> healthMonitor in _healthMonitors)
+            {
+                if (healthMonitor.Key.StartsWith(healthCheck + "|"))
+                {
+                    if (_healthMonitors.TryRemove(healthMonitor.Key, out HealthMonitor removedMonitor))
+                        removedMonitor.Dispose();
+                }
+            }
+        }
+
+        #endregion
+
+        #region public
 
         public void Initialize(dynamic jsonConfig)
         {
@@ -328,14 +340,7 @@ namespace Failover
                         if (_healthChecks.TryRemove(healthCheck.Key, out HealthCheck removedHealthCheck))
                         {
                             //remove health monitors using this health check
-                            foreach (KeyValuePair<IPAddress, AddressMonitoring> monitoring in _addressMonitoring)
-                                monitoring.Value.RemoveHealthMonitor(healthCheck.Key);
-
-                            foreach (KeyValuePair<string, DomainMonitoring> monitoring in _domainMonitoringA)
-                                monitoring.Value.RemoveHealthMonitor(healthCheck.Key);
-
-                            foreach (KeyValuePair<string, DomainMonitoring> monitoring in _domainMonitoringAAAA)
-                                monitoring.Value.RemoveHealthMonitor(healthCheck.Key);
+                            RemoveHealthMonitor(healthCheck.Key);
 
                             removedHealthCheck.Dispose();
                         }
@@ -344,83 +349,68 @@ namespace Failover
             }
         }
 
-        #endregion
-
-        #region public
-
         public HealthCheckStatus QueryStatus(IPAddress address, string healthCheck, Uri healthCheckUrl, bool tryAdd)
         {
-            if (_addressMonitoring.TryGetValue(address, out AddressMonitoring monitoring))
-            {
-                return monitoring.QueryStatus(healthCheck, healthCheckUrl);
-            }
-            else if (tryAdd)
-            {
-                monitoring = new AddressMonitoring(this, address, healthCheck, healthCheckUrl);
+            string healthMonitorKey = GetHealthMonitorKey(address, healthCheck, healthCheckUrl);
 
-                if (!_addressMonitoring.TryAdd(address, monitoring))
-                    monitoring.Dispose(); //failed to add first
+            if (_healthMonitors.TryGetValue(healthMonitorKey, out HealthMonitor monitor))
+                return monitor.HealthCheckStatus;
+
+            if (_healthChecks.TryGetValue(healthCheck, out HealthCheck existingHealthCheck))
+            {
+                if (tryAdd)
+                {
+                    monitor = new HealthMonitor(_dnsServer, address, existingHealthCheck, healthCheckUrl);
+
+                    if (!_healthMonitors.TryAdd(healthMonitorKey, monitor))
+                        monitor.Dispose(); //failed to add first
+                }
+
+                return null;
             }
 
-            return null;
+            return new HealthCheckStatus(false, "No such health check: " + healthCheck, null);
         }
 
         public HealthCheckStatus QueryStatus(string domain, DnsResourceRecordType type, string healthCheck, Uri healthCheckUrl, bool tryAdd)
         {
             domain = domain.ToLower();
 
-            switch (type)
+            string healthMonitorKey = GetHealthMonitorKey(domain, type, healthCheck, healthCheckUrl);
+
+            if (_healthMonitors.TryGetValue(healthMonitorKey, out HealthMonitor monitor))
+                return monitor.HealthCheckStatus;
+
+            if (_healthChecks.TryGetValue(healthCheck, out HealthCheck existingHealthCheck))
             {
-                case DnsResourceRecordType.A:
-                    {
-                        if (_domainMonitoringA.TryGetValue(domain, out DomainMonitoring monitoring))
-                        {
-                            return monitoring.QueryStatus(healthCheck, healthCheckUrl);
-                        }
-                        else if (tryAdd)
-                        {
-                            monitoring = new DomainMonitoring(this, domain, type, healthCheck, healthCheckUrl);
+                if (tryAdd)
+                {
+                    monitor = new HealthMonitor(_dnsServer, domain, type, existingHealthCheck, healthCheckUrl);
 
-                            if (!_domainMonitoringA.TryAdd(domain, monitoring))
-                                monitoring.Dispose(); //failed to add first
-                        }
-                    }
-                    break;
+                    if (!_healthMonitors.TryAdd(healthMonitorKey, monitor))
+                        monitor.Dispose(); //failed to add first
+                }
 
-                case DnsResourceRecordType.AAAA:
-                    {
-                        if (_domainMonitoringAAAA.TryGetValue(domain, out DomainMonitoring monitoring))
-                        {
-                            return monitoring.QueryStatus(healthCheck, healthCheckUrl);
-                        }
-                        else if (tryAdd)
-                        {
-                            monitoring = new DomainMonitoring(this, domain, type, healthCheck, healthCheckUrl);
-
-                            if (!_domainMonitoringAAAA.TryAdd(domain, monitoring))
-                                monitoring.Dispose(); //failed to add first
-                        }
-                    }
-                    break;
+                return null;
             }
 
-            return null;
+            return new HealthCheckStatus(false, "No such health check: " + healthCheck, null);
         }
 
         #endregion
 
         #region properties
 
-        internal IReadOnlyDictionary<string, HealthCheck> HealthChecks
+        public IReadOnlyDictionary<string, HealthCheck> HealthChecks
         { get { return _healthChecks; } }
 
-        internal IReadOnlyDictionary<string, EmailAlert> EmailAlerts
+        public IReadOnlyDictionary<string, EmailAlert> EmailAlerts
         { get { return _emailAlerts; } }
 
-        internal IReadOnlyDictionary<string, WebHook> WebHooks
+        public IReadOnlyDictionary<string, WebHook> WebHooks
         { get { return _webHooks; } }
 
-        internal IDnsServer DnsServer
+        public IDnsServer DnsServer
         { get { return _dnsServer; } }
 
         #endregion
