@@ -686,10 +686,10 @@ namespace DnsServerCore.Dns
                 for (int day = 0; day < days; day++) //days
                 {
                     StatCounter dailyStatCounter = LoadDailyStats(lastMonthDateTime.AddDays(day));
-                    monthlyStatCounter.Merge(dailyStatCounter);
+                    monthlyStatCounter.Merge(dailyStatCounter, true);
                 }
 
-                totalStatCounter.Merge(monthlyStatCounter);
+                totalStatCounter.Merge(monthlyStatCounter, true);
 
                 totalQueriesPerInterval.Add(new KeyValuePair<string, int>(label, monthlyStatCounter.TotalQueries));
                 totalNoErrorPerInterval.Add(new KeyValuePair<string, int>(label, monthlyStatCounter.TotalNoError));
@@ -869,7 +869,7 @@ namespace DnsServerCore.Dns
                 string label = lastDayDateTime.ToLocalTime().ToString("MM/dd");
 
                 StatCounter dailyStatCounter = LoadDailyStats(lastDayDateTime);
-                totalStatCounter.Merge(dailyStatCounter);
+                totalStatCounter.Merge(dailyStatCounter, true);
 
                 totalQueriesPerInterval.Add(new KeyValuePair<string, int>(label, dailyStatCounter.TotalQueries));
                 totalNoErrorPerInterval.Add(new KeyValuePair<string, int>(label, dailyStatCounter.TotalNoError));
@@ -995,10 +995,10 @@ namespace DnsServerCore.Dns
                 for (int day = 0; day < days; day++) //days
                 {
                     StatCounter dailyStatCounter = LoadDailyStats(lastMonthDateTime.AddDays(day));
-                    monthlyStatCounter.Merge(dailyStatCounter);
+                    monthlyStatCounter.Merge(dailyStatCounter, true);
                 }
 
-                totalStatCounter.Merge(monthlyStatCounter);
+                totalStatCounter.Merge(monthlyStatCounter, true);
             }
 
             switch (type)
@@ -1072,7 +1072,7 @@ namespace DnsServerCore.Dns
                 DateTime lastDayDateTime = startDate.AddDays(day);
 
                 StatCounter dailyStatCounter = LoadDailyStats(lastDayDateTime);
-                totalStatCounter.Merge(dailyStatCounter);
+                totalStatCounter.Merge(dailyStatCounter, true);
             }
 
             switch (type)
@@ -1125,7 +1125,7 @@ namespace DnsServerCore.Dns
 
                 StatCounter statCounter = _lastHourStatCounters[lastDateTime.Minute];
                 if (statCounter is not null)
-                    totalStatCounter.Merge(statCounter, true);
+                    totalStatCounter.Merge(statCounter, false, true);
             }
 
             clientSubnetStats = totalStatCounter.GetClientSubnetStats(ipv4PrefixLength, ipv6PrefixLength);
@@ -1256,6 +1256,9 @@ namespace DnsServerCore.Dns
             readonly ConcurrentDictionary<IPAddress, Counter> _clientIpAddresses; //includes all queries
             readonly ConcurrentDictionary<IPAddress, Counter> _errorIpAddresses; //includes REFUSED, FORMERR and SERVFAIL
             readonly ConcurrentDictionary<DnsQuestionRecord, Counter> _queries;
+
+            bool _truncationFoundDuringMerge;
+            int _totalClientsDailyStatsSummation;
 
             #endregion
 
@@ -1480,7 +1483,7 @@ namespace DnsServerCore.Dns
                 _totalClients = _clientIpAddresses.Count;
             }
 
-            public void Merge(StatCounter statCounter, bool skipLock = false)
+            public void Merge(StatCounter statCounter, bool isDailyStatCounter = false, bool skipLock = false)
             {
                 if (!skipLock && (!_locked || !statCounter._locked))
                     throw new DnsServerException("StatCounter must be locked.");
@@ -1515,6 +1518,10 @@ namespace DnsServerCore.Dns
                     _queries.GetOrAdd(query.Key, GetNewCounter).Merge(query.Value);
 
                 _totalClients = _clientIpAddresses.Count;
+                _totalClientsDailyStatsSummation += statCounter._totalClients;
+
+                if (isDailyStatCounter && (statCounter._totalClients > statCounter._clientIpAddresses.Count))
+                    _truncationFoundDuringMerge = true;
             }
 
             public bool Truncate(int limit)
@@ -1882,7 +1889,15 @@ namespace DnsServerCore.Dns
             { get { return _totalBlocked; } }
 
             public int TotalClients
-            { get { return _totalClients; } }
+            {
+                get
+                {
+                    if (_truncationFoundDuringMerge)
+                        return _totalClientsDailyStatsSummation;
+
+                    return _totalClients;
+                }
+            }
 
             #endregion
 
