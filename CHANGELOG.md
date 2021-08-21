@@ -1,5 +1,14 @@
 # Technitium DNS Server Change Log
 
+## Version 6.4.1
+Release Date: 21 August 2021
+- Implemented Delegation Revalidation [draft-ietf-dnsop-ns-revalidation-01](https://datatracker.ietf.org/doc/draft-ietf-dnsop-ns-revalidation/) in recursive resolver.
+- Fixed issues with DNS-over-TLS due to "dot" ALPN causing SSL handshake to fail when using NextDNS as forwarder.
+- Fixed issues in counting total unique clients in dashboard stats. The future data for total clients will be displayed correctly however the bad data since last release can be fixed by deleting '/etc/dns/config/stats/202108*.dstat' files manually.
+- Updated allowed list URL implementation to check for domains zone wise so that subdomain names from blocked list URLs too are allowed.
+- Updated DNS Failover App to v1.4 to fix implementation issues.
+- Multiple other minor bug fixes and improvements.
+
 ## Version 6.4
 Release Date: 14 August 2021
 - Added DNAME record [RFC 6672](https://datatracker.ietf.org/doc/html/rfc6672) support.
