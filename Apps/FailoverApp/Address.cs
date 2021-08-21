@@ -34,15 +34,14 @@ namespace Failover
     {
         Unknown = 0,
         Primary = 1,
-        Secondary = 2,
-        ServerDown = 3
+        Secondary = 2
     }
 
     public class Address : IDnsApplicationRequestHandler
     {
         #region variables
 
-        HealthMonitoringService _healthService;
+        HealthService _healthService;
 
         #endregion
 
@@ -116,7 +115,7 @@ namespace Failover
                 IPAddress address = IPAddress.Parse(jsonAddress.Value);
                 HealthCheckStatus status = _healthService.QueryStatus(address, healthCheck, healthCheckUrl, false);
 
-                string text = "app=failover; addressType=" + type.ToString() + "; address=" + address.ToString() + "; healthCheck=" + healthCheck;
+                string text = "app=failover; addressType=" + type.ToString() + "; address=" + address.ToString() + "; healthCheck=" + healthCheck + (healthCheckUrl is null ? "" : "; healthCheckUrl=" + healthCheckUrl.AbsoluteUri);
 
                 if (status is null)
                     text += "; healthStatus=Unknown;";
@@ -136,7 +135,7 @@ namespace Failover
         public Task InitializeAsync(IDnsServer dnsServer, string config)
         {
             if (_healthService is null)
-                _healthService = HealthMonitoringService.Create(dnsServer);
+                _healthService = HealthService.Create(dnsServer);
 
             _healthService.Initialize(JsonConvert.DeserializeObject(config));
 
@@ -156,11 +155,21 @@ namespace Failover
                         string healthCheck = jsonAppRecordData.healthCheck?.Value;
                         Uri healthCheckUrl = null;
 
-                        if ((jsonAppRecordData.healthCheckUrl is not null) && (jsonAppRecordData.healthCheckUrl.Value is not null))
-                            healthCheckUrl = new Uri(jsonAppRecordData.healthCheckUrl.Value);
-
-                        if (healthCheckUrl is null)
-                            healthCheckUrl = new Uri("http://" + question.Name);
+                        if (_healthService.HealthChecks.TryGetValue(healthCheck, out HealthCheck hc) && ((hc.Type == HealthCheckType.Https) || (hc.Type == HealthCheckType.Http)) && (hc.Url is null))
+                        {
+                            //read health check url only for http/https type checks and only when app config does not have an url configured
+                            if ((jsonAppRecordData.healthCheckUrl is not null) && (jsonAppRecordData.healthCheckUrl.Value is not null))
+                            {
+                                healthCheckUrl = new Uri(jsonAppRecordData.healthCheckUrl.Value);
+                            }
+                            else
+                            {
+                                if (hc.Type == HealthCheckType.Https)
+                                    healthCheckUrl = new Uri("https://" + question.Name);
+                                else
+                                    healthCheckUrl = new Uri("http://" + question.Name);
+                            }
+                        }
 
                         List<DnsResourceRecord> answers = new List<DnsResourceRecord>();
 
@@ -170,7 +179,30 @@ namespace Failover
                             GetAnswers(jsonAppRecordData.secondary, question, appRecordTtl, healthCheck, healthCheckUrl, answers);
                             if (answers.Count == 0)
                             {
-                                GetAnswers(jsonAppRecordData.serverDown, question, appRecordTtl, healthCheck, healthCheckUrl, answers);
+                                if (jsonAppRecordData.serverDown is not null)
+                                {
+                                    if (question.Type == DnsResourceRecordType.A)
+                                    {
+                                        foreach (dynamic jsonAddress in jsonAppRecordData.serverDown)
+                                        {
+                                            IPAddress address = IPAddress.Parse(jsonAddress.Value);
+
+                                            if (address.AddressFamily == AddressFamily.InterNetwork)
+                                                answers.Add(new DnsResourceRecord(question.Name, DnsResourceRecordType.A, question.Class, 30, new DnsARecord(address)));
+                                        }
+                                    }
+                                    else
+                                    {
+                                        foreach (dynamic jsonAddress in jsonAppRecordData.serverDown)
+                                        {
+                                            IPAddress address = IPAddress.Parse(jsonAddress.Value);
+
+                                            if (address.AddressFamily == AddressFamily.InterNetworkV6)
+                                                answers.Add(new DnsResourceRecord(question.Name, DnsResourceRecordType.AAAA, question.Class, 30, new DnsAAAARecord(address)));
+                                        }
+                                    }
+                                }
+
                                 if (answers.Count == 0)
                                     return Task.FromResult<DnsDatagram>(null);
                             }
@@ -199,17 +231,26 @@ namespace Failover
                         string healthCheck = jsonAppRecordData.healthCheck?.Value;
                         Uri healthCheckUrl = null;
 
-                        if ((jsonAppRecordData.healthCheckUrl is not null) && (jsonAppRecordData.healthCheckUrl.Value is not null))
-                            healthCheckUrl = new Uri(jsonAppRecordData.healthCheckUrl.Value);
-
-                        if (healthCheckUrl is null)
-                            healthCheckUrl = new Uri("http://" + question.Name);
+                        if (_healthService.HealthChecks.TryGetValue(healthCheck, out HealthCheck hc) && ((hc.Type == HealthCheckType.Https) || (hc.Type == HealthCheckType.Http)) && (hc.Url is null))
+                        {
+                            //read health check url only for http/https type checks and only when app config does not have an url configured
+                            if ((jsonAppRecordData.healthCheckUrl is not null) && (jsonAppRecordData.healthCheckUrl.Value is not null))
+                            {
+                                healthCheckUrl = new Uri(jsonAppRecordData.healthCheckUrl.Value);
+                            }
+                            else
+                            {
+                                if (hc.Type == HealthCheckType.Https)
+                                    healthCheckUrl = new Uri("https://" + question.Name);
+                                else
+                                    healthCheckUrl = new Uri("http://" + question.Name);
+                            }
+                        }
 
                         List<DnsResourceRecord> answers = new List<DnsResourceRecord>();
 
                         GetStatusAnswers(jsonAppRecordData.primary, FailoverType.Primary, question, 30, healthCheck, healthCheckUrl, answers);
                         GetStatusAnswers(jsonAppRecordData.secondary, FailoverType.Secondary, question, 30, healthCheck, healthCheckUrl, answers);
-                        GetStatusAnswers(jsonAppRecordData.serverDown, FailoverType.ServerDown, question, 30, healthCheck, healthCheckUrl, answers);
 
                         return Task.FromResult(new DnsDatagram(request.Identifier, true, request.OPCODE, true, false, request.RecursionDesired, isRecursionAllowed, false, false, DnsResponseCode.NoError, request.Question, answers));
                     }
@@ -224,7 +265,7 @@ namespace Failover
         #region properties
 
         public string Description
-        { get { return "Returns A or AAAA records from primary set of addresses with a continous health check as configured in the app config. When none of the primary addresses are healthy, the app returns healthy addresses from the secondary set of addresses. When none of the primary and secondary addresses are healthy, the app returns healthy addresses from the server down set of addresses. The server down feature is expected to be used for showing a service status page and not to serve the actual content.\n\nWhen an URL is not provided in 'healthCheckUrl' parameter for 'http' or 'https' type health check, the domain name of the APP record will be used to auto generate an URL.\n\nSet 'allowTxtStatus' parameter to 'true' in your APP record data to allow checking health status by querying for TXT record."; } }
+        { get { return "Returns A or AAAA records from primary set of addresses with a continous health check as configured in the app config. When none of the primary addresses are healthy, the app returns healthy addresses from the secondary set of addresses. When none of the primary and secondary addresses are healthy, the app returns all addresses from the server down set of addresses. The server down feature is expected to be used for showing a service status page and not to serve the actual content.\n\nIf an URL is provided for the health check in the app's config then it will override the 'healthCheckUrl' parameter. When an URL is not provided in 'healthCheckUrl' parameter for 'http' or 'https' type health check, the domain name of the APP record will be used to auto generate an URL.\n\nSet 'allowTxtStatus' parameter to 'true' in your APP record data to allow checking health status by querying for TXT record."; } }
 
         public string ApplicationRecordDataTemplate
         {
@@ -243,7 +284,7 @@ namespace Failover
     ""3.3.3.3""
   ],
   ""healthCheck"": ""https"",
-  ""healthCheckUrl"": null,
+  ""healthCheckUrl"": ""https://www.example.com/"",
   ""allowTxtStatus"": false
 }";
             }

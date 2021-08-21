@@ -32,7 +32,7 @@ namespace Failover
     {
         #region variables
 
-        HealthMonitoringService _healthService;
+        HealthService _healthService;
 
         #endregion
 
@@ -81,7 +81,7 @@ namespace Failover
             {
                 HealthCheckStatus status = _healthService.QueryStatus(domain, DnsResourceRecordType.A, healthCheck, healthCheckUrl, false);
 
-                string text = "app=failover; cnameType=" + type.ToString() + "; domain=" + domain + "; qType: A; healthCheck=" + healthCheck;
+                string text = "app=failover; cnameType=" + type.ToString() + "; domain=" + domain + "; qType: A; healthCheck=" + healthCheck + (healthCheckUrl is null ? "" : "; healthCheckUrl=" + healthCheckUrl.AbsoluteUri);
 
                 if (status is null)
                     text += "; healthStatus=Unknown;";
@@ -96,7 +96,7 @@ namespace Failover
             {
                 HealthCheckStatus status = _healthService.QueryStatus(domain, DnsResourceRecordType.AAAA, healthCheck, healthCheckUrl, false);
 
-                string text = "app=failover; cnameType=" + type.ToString() + "; domain=" + domain + "; qType: AAAA; healthCheck=" + healthCheck;
+                string text = "app=failover; cnameType=" + type.ToString() + "; domain=" + domain + "; qType: AAAA; healthCheck=" + healthCheck + (healthCheckUrl is null ? "" : "; healthCheckUrl=" + healthCheckUrl.AbsoluteUri);
 
                 if (status is null)
                     text += "; healthStatus=Unknown;";
@@ -116,7 +116,7 @@ namespace Failover
         public Task InitializeAsync(IDnsServer dnsServer, string config)
         {
             if (_healthService is null)
-                _healthService = HealthMonitoringService.Create(dnsServer);
+                _healthService = HealthService.Create(dnsServer);
 
             //let Address class initialize config
 
@@ -132,11 +132,21 @@ namespace Failover
             string healthCheck = jsonAppRecordData.healthCheck?.Value;
             Uri healthCheckUrl = null;
 
-            if ((jsonAppRecordData.healthCheckUrl is not null) && (jsonAppRecordData.healthCheckUrl.Value is not null))
-                healthCheckUrl = new Uri(jsonAppRecordData.healthCheckUrl.Value);
-
-            if (healthCheckUrl is null)
-                healthCheckUrl = new Uri("http://" + question.Name);
+            if (_healthService.HealthChecks.TryGetValue(healthCheck, out HealthCheck hc) && ((hc.Type == HealthCheckType.Https) || (hc.Type == HealthCheckType.Http)) && (hc.Url is null))
+            {
+                //read health check url only for http/https type checks and only when app config does not have an url configured
+                if ((jsonAppRecordData.healthCheckUrl is not null) && (jsonAppRecordData.healthCheckUrl.Value is not null))
+                {
+                    healthCheckUrl = new Uri(jsonAppRecordData.healthCheckUrl.Value);
+                }
+                else
+                {
+                    if (hc.Type == HealthCheckType.Https)
+                        healthCheckUrl = new Uri("https://" + question.Name);
+                    else
+                        healthCheckUrl = new Uri("http://" + question.Name);
+                }
+            }
 
             IReadOnlyList<DnsResourceRecord> answers;
 
@@ -159,8 +169,6 @@ namespace Failover
                 foreach (dynamic jsonDomain in jsonAppRecordData.secondary)
                     GetStatusAnswers(jsonDomain.Value, FailoverType.Secondary, question, 30, healthCheck, healthCheckUrl, txtAnswers);
 
-                GetStatusAnswers(jsonAppRecordData.serverDown.Value, FailoverType.ServerDown, question, 30, healthCheck, healthCheckUrl, txtAnswers);
-
                 answers = txtAnswers;
             }
             else
@@ -177,12 +185,15 @@ namespace Failover
 
                     if (answers is null)
                     {
-                        if (jsonAppRecordData.serverDown == null)
+                        if ((jsonAppRecordData.serverDown is null) || (jsonAppRecordData.serverDown.Value is null))
                             return Task.FromResult<DnsDatagram>(null);
 
-                        answers = GetAnswers(jsonAppRecordData.serverDown.Value, question, zoneName, appRecordTtl, healthCheck, healthCheckUrl);
-                        if (answers is null)
-                            return Task.FromResult<DnsDatagram>(null);
+                        string serverDown = jsonAppRecordData.serverDown.Value;
+
+                        if (question.Name.Equals(zoneName, StringComparison.OrdinalIgnoreCase)) //check for zone apex
+                            answers = new DnsResourceRecord[] { new DnsResourceRecord(question.Name, DnsResourceRecordType.ANAME, DnsClass.IN, 30, new DnsANAMERecord(serverDown)) }; //use ANAME
+                        else
+                            answers = new DnsResourceRecord[] { new DnsResourceRecord(question.Name, DnsResourceRecordType.CNAME, DnsClass.IN, 30, new DnsCNAMERecord(serverDown)) };
                     }
                 }
             }
@@ -195,7 +206,7 @@ namespace Failover
         #region properties
 
         public string Description
-        { get { return "Returns CNAME record for primary domain name with a continous health check as configured in the app config. When the primary domain name is unhealthy, the app returns one of the secondary domain names in the given order of preference that is healthy. When none of the primary and secondary domain names are healthy, the app returns the server down domain name. The server down feature is expected to be used for showing a service status page and not to serve the actual content. Note that the app will return ANAME record for an APP record at zone apex.\n\nWhen an URL is not provided in 'healthCheckUrl' parameter for 'http' or 'https' type health check, the domain name of the APP record will be used to auto generate an URL.\n\nSet 'allowTxtStatus' parameter to 'true' in your APP record data to allow checking health status by querying for TXT record."; } }
+        { get { return "Returns CNAME record for primary domain name with a continous health check as configured in the app config. When the primary domain name is unhealthy, the app returns one of the secondary domain names in the given order of preference that is healthy. When none of the primary and secondary domain names are healthy, the app returns the server down domain name. The server down feature is expected to be used for showing a service status page and not to serve the actual content. Note that the app will return ANAME record for an APP record at zone apex.\n\nIf an URL is provided for the health check in the app's config then it will override the 'healthCheckUrl' parameter. When an URL is not provided in 'healthCheckUrl' parameter for 'http' or 'https' type health check, the domain name of the APP record will be used to auto generate an URL.\n\nSet 'allowTxtStatus' parameter to 'true' in your APP record data to allow checking health status by querying for TXT record."; } }
 
         public string ApplicationRecordDataTemplate
         {
