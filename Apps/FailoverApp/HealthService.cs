@@ -23,6 +23,7 @@ using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Net;
 using System.Threading;
+using TechnitiumLibrary.Net;
 using TechnitiumLibrary.Net.Dns;
 
 namespace Failover
@@ -38,6 +39,7 @@ namespace Failover
         readonly ConcurrentDictionary<string, HealthCheck> _healthChecks = new ConcurrentDictionary<string, HealthCheck>(1, 5);
         readonly ConcurrentDictionary<string, EmailAlert> _emailAlerts = new ConcurrentDictionary<string, EmailAlert>(1, 2);
         readonly ConcurrentDictionary<string, WebHook> _webHooks = new ConcurrentDictionary<string, WebHook>(1, 2);
+        readonly ConcurrentDictionary<NetworkAddress, bool> _underMaintenance = new ConcurrentDictionary<NetworkAddress, bool>();
 
         readonly ConcurrentDictionary<string, HealthMonitor> _healthMonitors = new ConcurrentDictionary<string, HealthMonitor>();
 
@@ -347,14 +349,28 @@ namespace Failover
                     }
                 }
             }
+
+            //under maintenance networks
+            _underMaintenance.Clear();
+
+            if (jsonConfig.underMaintenance is not null)
+            {
+                foreach (dynamic jsonNetwork in jsonConfig.underMaintenance)
+                {
+                    string network = jsonNetwork.network.Value;
+                    bool enable = jsonNetwork.enable.Value;
+
+                    _underMaintenance.TryAdd(NetworkAddress.Parse(network), enable);
+                }
+            }
         }
 
-        public HealthCheckStatus QueryStatus(IPAddress address, string healthCheck, Uri healthCheckUrl, bool tryAdd)
+        public HealthCheckResponse QueryStatus(IPAddress address, string healthCheck, Uri healthCheckUrl, bool tryAdd)
         {
             string healthMonitorKey = GetHealthMonitorKey(address, healthCheck, healthCheckUrl);
 
             if (_healthMonitors.TryGetValue(healthMonitorKey, out HealthMonitor monitor))
-                return monitor.HealthCheckStatus;
+                return monitor.LastHealthCheckResponse;
 
             if (_healthChecks.TryGetValue(healthCheck, out HealthCheck existingHealthCheck))
             {
@@ -366,20 +382,22 @@ namespace Failover
                         monitor.Dispose(); //failed to add first
                 }
 
-                return null;
+                return new HealthCheckResponse(HealthStatus.Unknown);
             }
-
-            return new HealthCheckStatus(false, "No such health check: " + healthCheck, null);
+            else
+            {
+                return new HealthCheckResponse(HealthStatus.Failed, "No such health check: " + healthCheck);
+            }
         }
 
-        public HealthCheckStatus QueryStatus(string domain, DnsResourceRecordType type, string healthCheck, Uri healthCheckUrl, bool tryAdd)
+        public HealthCheckResponse QueryStatus(string domain, DnsResourceRecordType type, string healthCheck, Uri healthCheckUrl, bool tryAdd)
         {
             domain = domain.ToLower();
 
             string healthMonitorKey = GetHealthMonitorKey(domain, type, healthCheck, healthCheckUrl);
 
             if (_healthMonitors.TryGetValue(healthMonitorKey, out HealthMonitor monitor))
-                return monitor.HealthCheckStatus;
+                return monitor.LastHealthCheckResponse;
 
             if (_healthChecks.TryGetValue(healthCheck, out HealthCheck existingHealthCheck))
             {
@@ -391,10 +409,12 @@ namespace Failover
                         monitor.Dispose(); //failed to add first
                 }
 
-                return null;
+                return new HealthCheckResponse(HealthStatus.Unknown);
             }
-
-            return new HealthCheckStatus(false, "No such health check: " + healthCheck, null);
+            else
+            {
+                return new HealthCheckResponse(HealthStatus.Failed, "No such health check: " + healthCheck);
+            }
         }
 
         #endregion
@@ -409,6 +429,9 @@ namespace Failover
 
         public IReadOnlyDictionary<string, WebHook> WebHooks
         { get { return _webHooks; } }
+
+        public IReadOnlyDictionary<NetworkAddress, bool> UnderMaintenance
+        { get { return _underMaintenance; } }
 
         public IDnsServer DnsServer
         { get { return _dnsServer; } }

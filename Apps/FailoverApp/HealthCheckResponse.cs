@@ -21,12 +21,20 @@ using System;
 
 namespace Failover
 {
-    class HealthCheckStatus
+    enum HealthStatus
+    {
+        Unknown = 0,
+        Failed = 1,
+        Healthy = 2,
+        Maintenance = 3
+    }
+
+    class HealthCheckResponse
     {
         #region variables
 
         public readonly DateTime DateTime = DateTime.UtcNow;
-        public readonly bool IsHealthy;
+        public readonly HealthStatus Status;
         public readonly string FailureReason;
         public readonly Exception Exception;
 
@@ -34,9 +42,9 @@ namespace Failover
 
         #region constructor
 
-        public HealthCheckStatus(bool isHealthy, string failureReason, Exception exception)
+        public HealthCheckResponse(HealthStatus status, string failureReason = null, Exception exception = null)
         {
-            IsHealthy = isHealthy;
+            Status = status;
             FailureReason = failureReason;
             Exception = exception;
         }

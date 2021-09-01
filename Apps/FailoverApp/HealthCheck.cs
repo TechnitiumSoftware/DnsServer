@@ -25,6 +25,7 @@ using System.Net.NetworkInformation;
 using System.Net.Sockets;
 using System.Threading.Tasks;
 using TechnitiumLibrary.IO;
+using TechnitiumLibrary.Net;
 using TechnitiumLibrary.Net.Dns;
 using TechnitiumLibrary.Net.Proxy;
 
@@ -258,7 +259,7 @@ namespace Failover
             ConditionalHttpReload();
         }
 
-        public async Task<HealthCheckStatus> IsHealthyAsync(string domain, DnsResourceRecordType type, Uri healthCheckUrl)
+        public async Task<HealthCheckResponse> IsHealthyAsync(string domain, DnsResourceRecordType type, Uri healthCheckUrl)
         {
             switch (type)
             {
@@ -266,57 +267,68 @@ namespace Failover
                     {
                         DnsDatagram response = await _service.DnsServer.DirectQueryAsync(new DnsQuestionRecord(domain, type, DnsClass.IN));
                         if ((response is null) || (response.Answer.Count == 0))
-                            return new HealthCheckStatus(false, "Failed to resolve address.", null);
+                            return new HealthCheckResponse(HealthStatus.Failed, "Failed to resolve address.");
 
                         IReadOnlyList<IPAddress> addresses = DnsClient.ParseResponseA(response);
                         if (addresses.Count > 0)
                         {
-                            HealthCheckStatus lastStatus = null;
+                            HealthCheckResponse lastResponse = null;
 
                             foreach (IPAddress address in addresses)
                             {
-                                lastStatus = await IsHealthyAsync(address, healthCheckUrl);
-                                if (lastStatus.IsHealthy)
-                                    return lastStatus;
+                                lastResponse = await IsHealthyAsync(address, healthCheckUrl);
+                                if (lastResponse.Status == HealthStatus.Healthy)
+                                    return lastResponse;
                             }
 
-                            return lastStatus;
+                            return lastResponse;
                         }
 
-                        return new HealthCheckStatus(false, "Failed to resolve address.", null);
+                        return new HealthCheckResponse(HealthStatus.Failed, "Failed to resolve address.");
                     }
 
                 case DnsResourceRecordType.AAAA:
                     {
                         DnsDatagram response = await _service.DnsServer.DirectQueryAsync(new DnsQuestionRecord(domain, type, DnsClass.IN));
                         if ((response is null) || (response.Answer.Count == 0))
-                            return new HealthCheckStatus(false, "Failed to resolve address.", null);
+                            return new HealthCheckResponse(HealthStatus.Failed, "Failed to resolve address.");
 
                         IReadOnlyList<IPAddress> addresses = DnsClient.ParseResponseAAAA(response);
                         if (addresses.Count > 0)
                         {
-                            HealthCheckStatus lastStatus = null;
+                            HealthCheckResponse lastResponse = null;
 
                             foreach (IPAddress address in addresses)
                             {
-                                lastStatus = await IsHealthyAsync(address, healthCheckUrl);
-                                if (lastStatus.IsHealthy)
-                                    return lastStatus;
+                                lastResponse = await IsHealthyAsync(address, healthCheckUrl);
+                                if (lastResponse.Status == HealthStatus.Healthy)
+                                    return lastResponse;
                             }
 
-                            return lastStatus;
+                            return lastResponse;
                         }
 
-                        return new HealthCheckStatus(false, "Failed to resolve address.", null);
+                        return new HealthCheckResponse(HealthStatus.Failed, "Failed to resolve address.");
                     }
 
                 default:
-                    return new HealthCheckStatus(false, "Not supported.", null);
+                    return new HealthCheckResponse(HealthStatus.Failed, "Not supported.");
             }
         }
 
-        public async Task<HealthCheckStatus> IsHealthyAsync(IPAddress address, Uri healthCheckUrl)
+        public async Task<HealthCheckResponse> IsHealthyAsync(IPAddress address, Uri healthCheckUrl)
         {
+            foreach (KeyValuePair<NetworkAddress, bool> network in _service.UnderMaintenance)
+            {
+                if (network.Key.Contains(address))
+                {
+                    if (network.Value)
+                        return new HealthCheckResponse(HealthStatus.Maintenance);
+
+                    break;
+                }
+            }
+
             switch (_type)
             {
                 case HealthCheckType.Ping:
@@ -332,13 +344,13 @@ namespace Failover
                             {
                                 PingReply reply = await ping.SendPingAsync(address, _timeout);
                                 if (reply.Status == IPStatus.Success)
-                                    return new HealthCheckStatus(true, null, null);
+                                    return new HealthCheckResponse(HealthStatus.Healthy);
 
                                 lastReason = reply.Status.ToString();
                             }
                             while (++retry < _retries);
 
-                            return new HealthCheckStatus(false, lastReason, null);
+                            return new HealthCheckResponse(HealthStatus.Failed, lastReason);
                         }
                     }
 
@@ -368,7 +380,7 @@ namespace Failover
                                     }
                                 }
 
-                                return new HealthCheckStatus(true, null, null);
+                                return new HealthCheckResponse(HealthStatus.Healthy);
                             }
                             catch (TimeoutException ex)
                             {
@@ -387,7 +399,7 @@ namespace Failover
                         }
                         while (++retry < _retries);
 
-                        return new HealthCheckStatus(false, lastReason, lastException);
+                        return new HealthCheckResponse(HealthStatus.Failed, lastReason, lastException);
                     }
 
                 case HealthCheckType.Http:
@@ -410,7 +422,7 @@ namespace Failover
                                     url = _url;
 
                                 if (url is null)
-                                    return new HealthCheckStatus(false, "Missing health check URL in APP record as well as in app config.", null);
+                                    return new HealthCheckResponse(HealthStatus.Failed, "Missing health check URL in APP record as well as in app config.");
 
                                 if (_type == HealthCheckType.Http)
                                 {
@@ -434,9 +446,9 @@ namespace Failover
 
                                 HttpResponseMessage httpResponse = await _httpClient.SendAsync(httpRequest);
                                 if (httpResponse.IsSuccessStatusCode)
-                                    return new HealthCheckStatus(true, null, null);
+                                    return new HealthCheckResponse(HealthStatus.Healthy);
 
-                                return new HealthCheckStatus(false, "Received HTTP status code: " + (int)httpResponse.StatusCode + " " + httpResponse.StatusCode.ToString() + "; URL: " + url.AbsoluteUri, null);
+                                return new HealthCheckResponse(HealthStatus.Failed, "Received HTTP status code: " + (int)httpResponse.StatusCode + " " + httpResponse.StatusCode.ToString() + "; URL: " + url.AbsoluteUri);
                             }
                             catch (TaskCanceledException ex)
                             {
@@ -455,7 +467,7 @@ namespace Failover
                         }
                         while (++retry < _retries);
 
-                        return new HealthCheckStatus(false, lastReason, lastException);
+                        return new HealthCheckResponse(HealthStatus.Failed, lastReason, lastException);
                     }
 
                 default:

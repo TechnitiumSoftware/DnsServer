@@ -78,11 +78,17 @@ namespace Failover
 
                         if (address.AddressFamily == AddressFamily.InterNetwork)
                         {
-                            HealthCheckStatus status = _healthService.QueryStatus(address, healthCheck, healthCheckUrl, true);
-                            if (status is null)
-                                answers.Add(new DnsResourceRecord(question.Name, DnsResourceRecordType.A, question.Class, 30, new DnsARecord(address)));
-                            else if (status.IsHealthy)
-                                answers.Add(new DnsResourceRecord(question.Name, DnsResourceRecordType.A, question.Class, appRecordTtl, new DnsARecord(address)));
+                            HealthCheckResponse response = _healthService.QueryStatus(address, healthCheck, healthCheckUrl, true);
+                            switch (response.Status)
+                            {
+                                case HealthStatus.Unknown:
+                                    answers.Add(new DnsResourceRecord(question.Name, DnsResourceRecordType.A, question.Class, 30, new DnsARecord(address)));
+                                    break;
+
+                                case HealthStatus.Healthy:
+                                    answers.Add(new DnsResourceRecord(question.Name, DnsResourceRecordType.A, question.Class, appRecordTtl, new DnsARecord(address)));
+                                    break;
+                            }
                         }
                     }
                     break;
@@ -94,11 +100,17 @@ namespace Failover
 
                         if (address.AddressFamily == AddressFamily.InterNetworkV6)
                         {
-                            HealthCheckStatus status = _healthService.QueryStatus(address, healthCheck, healthCheckUrl, true);
-                            if (status is null)
-                                answers.Add(new DnsResourceRecord(question.Name, DnsResourceRecordType.AAAA, question.Class, 30, new DnsAAAARecord(address)));
-                            else if (status.IsHealthy)
-                                answers.Add(new DnsResourceRecord(question.Name, DnsResourceRecordType.AAAA, question.Class, appRecordTtl, new DnsAAAARecord(address)));
+                            HealthCheckResponse response = _healthService.QueryStatus(address, healthCheck, healthCheckUrl, true);
+                            switch (response.Status)
+                            {
+                                case HealthStatus.Unknown:
+                                    answers.Add(new DnsResourceRecord(question.Name, DnsResourceRecordType.AAAA, question.Class, 30, new DnsAAAARecord(address)));
+                                    break;
+
+                                case HealthStatus.Healthy:
+                                    answers.Add(new DnsResourceRecord(question.Name, DnsResourceRecordType.AAAA, question.Class, appRecordTtl, new DnsAAAARecord(address)));
+                                    break;
+                            }
                         }
                     }
                     break;
@@ -113,16 +125,12 @@ namespace Failover
             foreach (dynamic jsonAddress in jsonAddresses)
             {
                 IPAddress address = IPAddress.Parse(jsonAddress.Value);
-                HealthCheckStatus status = _healthService.QueryStatus(address, healthCheck, healthCheckUrl, false);
+                HealthCheckResponse response = _healthService.QueryStatus(address, healthCheck, healthCheckUrl, false);
 
-                string text = "app=failover; addressType=" + type.ToString() + "; address=" + address.ToString() + "; healthCheck=" + healthCheck + (healthCheckUrl is null ? "" : "; healthCheckUrl=" + healthCheckUrl.AbsoluteUri);
+                string text = "app=failover; addressType=" + type.ToString() + "; address=" + address.ToString() + "; healthCheck=" + healthCheck + (healthCheckUrl is null ? "" : "; healthCheckUrl=" + healthCheckUrl.AbsoluteUri) + "; healthStatus=" + response.Status.ToString() + ";";
 
-                if (status is null)
-                    text += "; healthStatus=Unknown;";
-                else if (status.IsHealthy)
-                    text += "; healthStatus=Healthy;";
-                else
-                    text += "; healthStatus=Failed; failureReason=" + status.FailureReason + ";";
+                if (response.Status == HealthStatus.Failed)
+                    text += " failureReason=" + response.FailureReason + ";";
 
                 answers.Add(new DnsResourceRecord(question.Name, DnsResourceRecordType.TXT, question.Class, appRecordTtl, new DnsTXTRecord(text)));
             }

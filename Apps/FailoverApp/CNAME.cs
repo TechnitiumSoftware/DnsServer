@@ -57,20 +57,20 @@ namespace Failover
 
         private IReadOnlyList<DnsResourceRecord> GetAnswers(string domain, DnsQuestionRecord question, string zoneName, uint appRecordTtl, string healthCheck, Uri healthCheckUrl)
         {
-            HealthCheckStatus status = _healthService.QueryStatus(domain, question.Type, healthCheck, healthCheckUrl, true);
-            if (status is null)
+            HealthCheckResponse response = _healthService.QueryStatus(domain, question.Type, healthCheck, healthCheckUrl, true);
+            switch (response.Status)
             {
-                if (question.Name.Equals(zoneName, StringComparison.OrdinalIgnoreCase)) //check for zone apex
-                    return new DnsResourceRecord[] { new DnsResourceRecord(question.Name, DnsResourceRecordType.ANAME, DnsClass.IN, 30, new DnsANAMERecord(domain)) }; //use ANAME
-                else
-                    return new DnsResourceRecord[] { new DnsResourceRecord(question.Name, DnsResourceRecordType.CNAME, DnsClass.IN, 30, new DnsCNAMERecord(domain)) };
-            }
-            else if (status.IsHealthy)
-            {
-                if (question.Name.Equals(zoneName, StringComparison.OrdinalIgnoreCase)) //check for zone apex
-                    return new DnsResourceRecord[] { new DnsResourceRecord(question.Name, DnsResourceRecordType.ANAME, DnsClass.IN, appRecordTtl, new DnsANAMERecord(domain)) }; //use ANAME
-                else
-                    return new DnsResourceRecord[] { new DnsResourceRecord(question.Name, DnsResourceRecordType.CNAME, DnsClass.IN, appRecordTtl, new DnsCNAMERecord(domain)) };
+                case HealthStatus.Unknown:
+                    if (question.Name.Equals(zoneName, StringComparison.OrdinalIgnoreCase)) //check for zone apex
+                        return new DnsResourceRecord[] { new DnsResourceRecord(question.Name, DnsResourceRecordType.ANAME, DnsClass.IN, 30, new DnsANAMERecord(domain)) }; //use ANAME
+                    else
+                        return new DnsResourceRecord[] { new DnsResourceRecord(question.Name, DnsResourceRecordType.CNAME, DnsClass.IN, 30, new DnsCNAMERecord(domain)) };
+
+                case HealthStatus.Healthy:
+                    if (question.Name.Equals(zoneName, StringComparison.OrdinalIgnoreCase)) //check for zone apex
+                        return new DnsResourceRecord[] { new DnsResourceRecord(question.Name, DnsResourceRecordType.ANAME, DnsClass.IN, appRecordTtl, new DnsANAMERecord(domain)) }; //use ANAME
+                    else
+                        return new DnsResourceRecord[] { new DnsResourceRecord(question.Name, DnsResourceRecordType.CNAME, DnsClass.IN, appRecordTtl, new DnsCNAMERecord(domain)) };
             }
 
             return null;
@@ -79,31 +79,23 @@ namespace Failover
         private void GetStatusAnswers(string domain, FailoverType type, DnsQuestionRecord question, uint appRecordTtl, string healthCheck, Uri healthCheckUrl, List<DnsResourceRecord> answers)
         {
             {
-                HealthCheckStatus status = _healthService.QueryStatus(domain, DnsResourceRecordType.A, healthCheck, healthCheckUrl, false);
+                HealthCheckResponse response = _healthService.QueryStatus(domain, DnsResourceRecordType.A, healthCheck, healthCheckUrl, false);
 
-                string text = "app=failover; cnameType=" + type.ToString() + "; domain=" + domain + "; qType: A; healthCheck=" + healthCheck + (healthCheckUrl is null ? "" : "; healthCheckUrl=" + healthCheckUrl.AbsoluteUri);
+                string text = "app=failover; cnameType=" + type.ToString() + "; domain=" + domain + "; qType: A; healthCheck=" + healthCheck + (healthCheckUrl is null ? "" : "; healthCheckUrl=" + healthCheckUrl.AbsoluteUri) + "; healthStatus=" + response.Status.ToString() + ";";
 
-                if (status is null)
-                    text += "; healthStatus=Unknown;";
-                else if (status.IsHealthy)
-                    text += "; healthStatus=Healthy;";
-                else
-                    text += "; healthStatus=Failed; failureReason=" + status.FailureReason + ";";
+                if (response.Status == HealthStatus.Failed)
+                    text += " failureReason=" + response.FailureReason + ";";
 
                 answers.Add(new DnsResourceRecord(question.Name, DnsResourceRecordType.TXT, question.Class, appRecordTtl, new DnsTXTRecord(text)));
             }
 
             {
-                HealthCheckStatus status = _healthService.QueryStatus(domain, DnsResourceRecordType.AAAA, healthCheck, healthCheckUrl, false);
+                HealthCheckResponse response = _healthService.QueryStatus(domain, DnsResourceRecordType.AAAA, healthCheck, healthCheckUrl, false);
 
-                string text = "app=failover; cnameType=" + type.ToString() + "; domain=" + domain + "; qType: AAAA; healthCheck=" + healthCheck + (healthCheckUrl is null ? "" : "; healthCheckUrl=" + healthCheckUrl.AbsoluteUri);
+                string text = "app=failover; cnameType=" + type.ToString() + "; domain=" + domain + "; qType: AAAA; healthCheck=" + healthCheck + (healthCheckUrl is null ? "" : "; healthCheckUrl=" + healthCheckUrl.AbsoluteUri) + "; healthStatus=" + response.Status.ToString() + ";";
 
-                if (status is null)
-                    text += "; healthStatus=Unknown;";
-                else if (status.IsHealthy)
-                    text += "; healthStatus=Healthy;";
-                else
-                    text += "; healthStatus=Failed; failureReason=" + status.FailureReason + ";";
+                if (response.Status == HealthStatus.Failed)
+                    text += " failureReason=" + response.FailureReason + ";";
 
                 answers.Add(new DnsResourceRecord(question.Name, DnsResourceRecordType.TXT, question.Class, appRecordTtl, new DnsTXTRecord(text)));
             }

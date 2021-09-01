@@ -201,7 +201,7 @@ namespace Failover
             ConditionalHttpReload();
         }
 
-        public Task CallAsync(IPAddress address, string healthCheck, HealthCheckStatus healthCheckStatus)
+        public Task CallAsync(IPAddress address, string healthCheck, HealthCheckResponse healthCheckResponse)
         {
             if (!_enabled)
                 return Task.CompletedTask;
@@ -219,14 +219,17 @@ namespace Failover
                     jsonWriter.WritePropertyName("healthCheck");
                     jsonWriter.WriteValue(healthCheck);
 
-                    jsonWriter.WritePropertyName("isHealthy");
-                    jsonWriter.WriteValue(healthCheckStatus.IsHealthy);
+                    jsonWriter.WritePropertyName("status");
+                    jsonWriter.WriteValue(healthCheckResponse.Status.ToString());
 
-                    jsonWriter.WritePropertyName("failureReason");
-                    jsonWriter.WriteValue(healthCheckStatus.FailureReason);
+                    if (healthCheckResponse.Status == HealthStatus.Failed)
+                    {
+                        jsonWriter.WritePropertyName("failureReason");
+                        jsonWriter.WriteValue(healthCheckResponse.FailureReason);
+                    }
 
                     jsonWriter.WritePropertyName("dateTime");
-                    jsonWriter.WriteValue(healthCheckStatus.DateTime);
+                    jsonWriter.WriteValue(healthCheckResponse.DateTime);
 
                     jsonWriter.WriteEndObject();
                     jsonWriter.Flush();
@@ -257,8 +260,8 @@ namespace Failover
                     jsonWriter.WritePropertyName("healthCheck");
                     jsonWriter.WriteValue(healthCheck);
 
-                    jsonWriter.WritePropertyName("isHealthy");
-                    jsonWriter.WriteValue(false);
+                    jsonWriter.WritePropertyName("status");
+                    jsonWriter.WriteValue("Error");
 
                     jsonWriter.WritePropertyName("failureReason");
                     jsonWriter.WriteValue(ex.ToString());
@@ -277,7 +280,7 @@ namespace Failover
             return CallAsync(content);
         }
 
-        public Task CallAsync(string domain, DnsResourceRecordType type, string healthCheck, HealthCheckStatus healthCheckStatus)
+        public Task CallAsync(string domain, DnsResourceRecordType type, string healthCheck, HealthCheckResponse healthCheckResponse)
         {
             if (!_enabled)
                 return Task.CompletedTask;
@@ -298,14 +301,17 @@ namespace Failover
                     jsonWriter.WritePropertyName("healthCheck");
                     jsonWriter.WriteValue(healthCheck);
 
-                    jsonWriter.WritePropertyName("isHealthy");
-                    jsonWriter.WriteValue(healthCheckStatus.IsHealthy);
+                    jsonWriter.WritePropertyName("status");
+                    jsonWriter.WriteValue(healthCheckResponse.Status.ToString());
 
-                    jsonWriter.WritePropertyName("failureReason");
-                    jsonWriter.WriteValue(healthCheckStatus.FailureReason);
+                    if (healthCheckResponse.Status == HealthStatus.Failed)
+                    {
+                        jsonWriter.WritePropertyName("failureReason");
+                        jsonWriter.WriteValue(healthCheckResponse.FailureReason);
+                    }
 
                     jsonWriter.WritePropertyName("dateTime");
-                    jsonWriter.WriteValue(healthCheckStatus.DateTime);
+                    jsonWriter.WriteValue(healthCheckResponse.DateTime);
 
                     jsonWriter.WriteEndObject();
                     jsonWriter.Flush();
@@ -339,8 +345,8 @@ namespace Failover
                     jsonWriter.WritePropertyName("healthCheck");
                     jsonWriter.WriteValue(healthCheck);
 
-                    jsonWriter.WritePropertyName("isHealthy");
-                    jsonWriter.WriteValue(false);
+                    jsonWriter.WritePropertyName("status");
+                    jsonWriter.WriteValue("Error");
 
                     jsonWriter.WritePropertyName("failureReason");
                     jsonWriter.WriteValue(ex.ToString());

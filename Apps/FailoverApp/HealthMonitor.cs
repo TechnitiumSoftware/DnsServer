@@ -38,10 +38,10 @@ namespace Failover
         readonly Timer _healthCheckTimer;
         const int HEALTH_CHECK_TIMER_INITIAL_INTERVAL = 1000;
 
-        HealthCheckStatus _healthCheckStatus;
+        HealthCheckResponse _lastHealthCheckResponse;
 
         const int MONITOR_EXPIRY = 1 * 60 * 60 * 1000; //1 hour
-        DateTime _lastStatusCheckedOn;
+        DateTime _lastHealthStatusCheckedOn;
 
         #endregion
 
@@ -59,52 +59,77 @@ namespace Failover
                 {
                     if (_healthCheck is null)
                     {
-                        _healthCheckStatus = null;
+                        _lastHealthCheckResponse = null;
                     }
                     else
                     {
-                        HealthCheckStatus healthCheckStatus = await _healthCheck.IsHealthyAsync(_address, healthCheckUrl);
+                        HealthCheckResponse healthCheckResponse = await _healthCheck.IsHealthyAsync(_address, healthCheckUrl);
 
-                        bool sendAlert = false;
+                        bool statusChanged = false;
+                        bool maintenance = false;
 
-                        if (_healthCheckStatus is null)
+                        if (_lastHealthCheckResponse is null)
                         {
-                            if (!healthCheckStatus.IsHealthy)
-                                sendAlert = true;
+                            switch (healthCheckResponse.Status)
+                            {
+                                case HealthStatus.Failed:
+                                    statusChanged = true;
+                                    break;
+
+                                case HealthStatus.Maintenance:
+                                    statusChanged = true;
+                                    maintenance = true;
+                                    break;
+                            }
                         }
                         else
                         {
-                            if (_healthCheckStatus.IsHealthy != healthCheckStatus.IsHealthy)
-                                sendAlert = true;
+                            if (_lastHealthCheckResponse.Status != healthCheckResponse.Status)
+                            {
+                                statusChanged = true;
+
+                                if ((_lastHealthCheckResponse.Status == HealthStatus.Maintenance) || (healthCheckResponse.Status == HealthStatus.Maintenance))
+                                    maintenance = true;
+                            }
                         }
 
-                        if (sendAlert)
+                        if (statusChanged)
                         {
-                            if (healthCheckStatus.IsHealthy)
-                                _dnsServer.WriteLog("ALERT! Address [" + _address.ToString() + "] status is HEALTHY based on '" + _healthCheck.Name + "' health check.");
-                            else
-                                _dnsServer.WriteLog("ALERT! Address [" + _address.ToString() + "] status is FAILED based on '" + _healthCheck.Name + "' health check. The failure reason is: " + healthCheckStatus.FailureReason);
+                            switch (healthCheckResponse.Status)
+                            {
+                                case HealthStatus.Failed:
+                                    _dnsServer.WriteLog("ALERT! Address [" + _address.ToString() + "] status is FAILED based on '" + _healthCheck.Name + "' health check. The failure reason is: " + healthCheckResponse.FailureReason);
+                                    break;
 
-                            if (healthCheckStatus.Exception is not null)
-                                _dnsServer.WriteLog(healthCheckStatus.Exception);
+                                default:
+                                    _dnsServer.WriteLog("ALERT! Address [" + _address.ToString() + "] status is " + healthCheckResponse.Status.ToString().ToUpper() + " based on '" + _healthCheck.Name + "' health check.");
+                                    break;
+                            }
 
-                            EmailAlert emailAlert = _healthCheck.EmailAlert;
-                            if (emailAlert is not null)
-                                _ = emailAlert.SendAlertAsync(_address, _healthCheck.Name, healthCheckStatus);
+                            if (healthCheckResponse.Exception is not null)
+                                _dnsServer.WriteLog(healthCheckResponse.Exception);
+
+                            if (!maintenance)
+                            {
+                                //avoid sending email alerts when switching from or to maintenance
+                                EmailAlert emailAlert = _healthCheck.EmailAlert;
+                                if (emailAlert is not null)
+                                    _ = emailAlert.SendAlertAsync(_address, _healthCheck.Name, healthCheckResponse);
+                            }
 
                             WebHook webHook = _healthCheck.WebHook;
                             if (webHook is not null)
-                                _ = webHook.CallAsync(_address, _healthCheck.Name, healthCheckStatus);
+                                _ = webHook.CallAsync(_address, _healthCheck.Name, healthCheckResponse);
                         }
 
-                        _healthCheckStatus = healthCheckStatus;
+                        _lastHealthCheckResponse = healthCheckResponse;
                     }
                 }
                 catch (Exception ex)
                 {
                     _dnsServer.WriteLog(ex);
 
-                    if (_healthCheckStatus is null)
+                    if (_lastHealthCheckResponse is null)
                     {
                         EmailAlert emailAlert = _healthCheck.EmailAlert;
                         if (emailAlert is not null)
@@ -114,11 +139,11 @@ namespace Failover
                         if (webHook is not null)
                             _ = webHook.CallAsync(_address, _healthCheck.Name, ex);
 
-                        _healthCheckStatus = new HealthCheckStatus(false, ex.ToString(), ex);
+                        _lastHealthCheckResponse = new HealthCheckResponse(HealthStatus.Failed, ex.ToString(), ex);
                     }
                     else
                     {
-                        _healthCheckStatus = null;
+                        _lastHealthCheckResponse = null;
                     }
                 }
                 finally
@@ -144,52 +169,77 @@ namespace Failover
                 {
                     if (_healthCheck is null)
                     {
-                        _healthCheckStatus = null;
+                        _lastHealthCheckResponse = null;
                     }
                     else
                     {
-                        HealthCheckStatus healthCheckStatus = await _healthCheck.IsHealthyAsync(_domain, _type, healthCheckUrl);
+                        HealthCheckResponse healthCheckResponse = await _healthCheck.IsHealthyAsync(_domain, _type, healthCheckUrl);
 
-                        bool sendAlert = false;
+                        bool statusChanged = false;
+                        bool maintenance = false;
 
-                        if (_healthCheckStatus is null)
+                        if (_lastHealthCheckResponse is null)
                         {
-                            if (!healthCheckStatus.IsHealthy)
-                                sendAlert = true;
+                            switch (healthCheckResponse.Status)
+                            {
+                                case HealthStatus.Failed:
+                                    statusChanged = true;
+                                    break;
+
+                                case HealthStatus.Maintenance:
+                                    statusChanged = true;
+                                    maintenance = true;
+                                    break;
+                            }
                         }
                         else
                         {
-                            if (_healthCheckStatus.IsHealthy != healthCheckStatus.IsHealthy)
-                                sendAlert = true;
+                            if (_lastHealthCheckResponse.Status != healthCheckResponse.Status)
+                            {
+                                statusChanged = true;
+
+                                if ((_lastHealthCheckResponse.Status == HealthStatus.Maintenance) || (healthCheckResponse.Status == HealthStatus.Maintenance))
+                                    maintenance = true;
+                            }
                         }
 
-                        if (sendAlert)
+                        if (statusChanged)
                         {
-                            if (healthCheckStatus.IsHealthy)
-                                _dnsServer.WriteLog("ALERT! Domain [" + _domain + "] type [" + _type.ToString() + "] status is HEALTHY based on '" + _healthCheck.Name + "' health check.");
-                            else
-                                _dnsServer.WriteLog("ALERT! Domain [" + _domain + "] type [" + _type.ToString() + "] status is FAILED based on '" + _healthCheck.Name + "' health check. The failure reason is: " + healthCheckStatus.FailureReason);
+                            switch (healthCheckResponse.Status)
+                            {
+                                case HealthStatus.Failed:
+                                    _dnsServer.WriteLog("ALERT! Domain [" + _domain + "] type [" + _type.ToString() + "] status is FAILED based on '" + _healthCheck.Name + "' health check. The failure reason is: " + healthCheckResponse.FailureReason);
+                                    break;
 
-                            if (healthCheckStatus.Exception is not null)
-                                _dnsServer.WriteLog(healthCheckStatus.Exception);
+                                default:
+                                    _dnsServer.WriteLog("ALERT! Domain [" + _domain + "] type [" + _type.ToString() + "] status is " + healthCheckResponse.Status.ToString().ToUpper() + " based on '" + _healthCheck.Name + "' health check.");
+                                    break;
+                            }
 
-                            EmailAlert emailAlert = _healthCheck.EmailAlert;
-                            if (emailAlert is not null)
-                                _ = emailAlert.SendAlertAsync(_domain, _type, _healthCheck.Name, healthCheckStatus);
+                            if (healthCheckResponse.Exception is not null)
+                                _dnsServer.WriteLog(healthCheckResponse.Exception);
+
+                            if (!maintenance)
+                            {
+                                //avoid sending email alerts when switching from or to maintenance
+                                EmailAlert emailAlert = _healthCheck.EmailAlert;
+                                if (emailAlert is not null)
+                                    _ = emailAlert.SendAlertAsync(_domain, _type, _healthCheck.Name, healthCheckResponse);
+                            }
 
                             WebHook webHook = _healthCheck.WebHook;
                             if (webHook is not null)
-                                _ = webHook.CallAsync(_domain, _type, _healthCheck.Name, healthCheckStatus);
+                                _ = webHook.CallAsync(_domain, _type, _healthCheck.Name, healthCheckResponse);
                         }
 
-                        _healthCheckStatus = healthCheckStatus;
+                        _lastHealthCheckResponse = healthCheckResponse;
                     }
                 }
                 catch (Exception ex)
                 {
                     _dnsServer.WriteLog(ex);
 
-                    if (_healthCheckStatus is null)
+                    if (_lastHealthCheckResponse is null)
                     {
                         EmailAlert emailAlert = _healthCheck.EmailAlert;
                         if (emailAlert is not null)
@@ -199,11 +249,11 @@ namespace Failover
                         if (webHook is not null)
                             _ = webHook.CallAsync(_domain, _type, _healthCheck.Name, ex);
 
-                        _healthCheckStatus = new HealthCheckStatus(false, ex.ToString(), ex);
+                        _lastHealthCheckResponse = new HealthCheckResponse(HealthStatus.Failed, ex.ToString(), ex);
                     }
                     else
                     {
-                        _healthCheckStatus = null;
+                        _lastHealthCheckResponse = null;
                     }
                 }
                 finally
@@ -248,19 +298,19 @@ namespace Failover
 
         public bool IsExpired()
         {
-            return DateTime.UtcNow > _lastStatusCheckedOn.AddMilliseconds(MONITOR_EXPIRY);
+            return DateTime.UtcNow > _lastHealthStatusCheckedOn.AddMilliseconds(MONITOR_EXPIRY);
         }
 
         #endregion
 
         #region properties
 
-        public HealthCheckStatus HealthCheckStatus
+        public HealthCheckResponse LastHealthCheckResponse
         {
             get
             {
-                _lastStatusCheckedOn = DateTime.UtcNow;
-                return _healthCheckStatus;
+                _lastHealthStatusCheckedOn = DateTime.UtcNow;
+                return _lastHealthCheckResponse;
             }
         }
 

@@ -188,7 +188,7 @@ namespace Failover
             _smtpClient.Proxy = _service.DnsServer.Proxy;
         }
 
-        public Task SendAlertAsync(IPAddress address, string healthCheck, HealthCheckStatus healthCheckStatus)
+        public Task SendAlertAsync(IPAddress address, string healthCheck, HealthCheckResponse healthCheckResponse)
         {
             if (!_enabled || (_mailFrom is null) || (_alertTo is null) || (_alertTo.Length == 0))
                 return Task.CompletedTask;
@@ -200,32 +200,40 @@ namespace Failover
             foreach (MailAddress alertTo in _alertTo)
                 message.To.Add(alertTo);
 
-            if (healthCheckStatus.IsHealthy)
+            message.Subject = "[Alert] Address [" + address.ToString() + "] Status Is " + healthCheckResponse.Status.ToString().ToUpper();
+
+            switch (healthCheckResponse.Status)
             {
-                message.Subject = "[Alert] Address [" + address.ToString() + "] Status Is Healthy";
-                message.Body = @"Hi,
-
-The DNS Failover App was successfully able to perform a health check [" + healthCheck + "] on the address [" + address.ToString() + @"] and found that the address was healthy.
-
-Alert time: " + healthCheckStatus.DateTime.ToString("R") + @"
-
-Regards,
-DNS Failover App
-";
-            }
-            else
-            {
-                message.Subject = "[Alert] Address [" + address.ToString() + "] Status Is Failed";
-                message.Body = @"Hi,
+                case HealthStatus.Failed:
+                    message.Body = @"Hi,
 
 The DNS Failover App was successfully able to perform a health check [" + healthCheck + "] on the address [" + address.ToString() + @"] and found that the address failed to respond. 
 
-The failure reason is: " + healthCheckStatus.FailureReason + @"
-Alert time: " + healthCheckStatus.DateTime.ToString("R") + @"
+Address: " + address.ToString() + @"
+Health Check: " + healthCheck + @"
+Status: " + healthCheckResponse.Status.ToString().ToUpper() + @"
+Alert Time: " + healthCheckResponse.DateTime.ToString("R") + @"
+Failure Reason: " + healthCheckResponse.FailureReason + @"
 
 Regards,
 DNS Failover App
 ";
+                    break;
+
+                default:
+                    message.Body = @"Hi,
+
+The DNS Failover App was successfully able to perform a health check [" + healthCheck + "] on the address [" + address.ToString() + @"] and found that the address status was " + healthCheckResponse.Status.ToString().ToUpper() + @".
+
+Address: " + address.ToString() + @"
+Health Check: " + healthCheck + @"
+Status: " + healthCheckResponse.Status.ToString().ToUpper() + @"
+Alert Time: " + healthCheckResponse.DateTime.ToString("R") + @"
+
+Regards,
+DNS Failover App
+";
+                    break;
             }
 
             return SendMailAsync(message);
@@ -243,13 +251,16 @@ DNS Failover App
             foreach (MailAddress alertTo in _alertTo)
                 message.To.Add(alertTo);
 
-            message.Subject = "[Alert] Address [" + address.ToString() + "] Status Is Error";
+            message.Subject = "[Alert] Address [" + address.ToString() + "] Status Is ERROR";
             message.Body = @"Hi,
 
 The DNS Failover App has failed to perform a health check [" + healthCheck + "] on the address [" + address.ToString() + @"]. 
 
-The error description is: " + ex.ToString() + @"
-Alert time: " + DateTime.UtcNow.ToString("R") + @"
+Address: " + address.ToString() + @"
+Health Check: " + healthCheck + @"
+Status: ERROR
+Alert Time: " + DateTime.UtcNow.ToString("R") + @"
+Failure Reason: " + ex.ToString() + @"
 
 Regards,
 DNS Failover App
@@ -258,7 +269,7 @@ DNS Failover App
             return SendMailAsync(message);
         }
 
-        public Task SendAlertAsync(string domain, DnsResourceRecordType type, string healthCheck, HealthCheckStatus healthCheckStatus)
+        public Task SendAlertAsync(string domain, DnsResourceRecordType type, string healthCheck, HealthCheckResponse healthCheckResponse)
         {
             if (!_enabled || (_mailFrom is null) || (_alertTo is null) || (_alertTo.Length == 0))
                 return Task.CompletedTask;
@@ -270,34 +281,42 @@ DNS Failover App
             foreach (MailAddress alertTo in _alertTo)
                 message.To.Add(alertTo);
 
-            if (healthCheckStatus.IsHealthy)
+            message.Subject = "[Alert] Domain [" + domain + "] Status Is " + healthCheckResponse.Status.ToString().ToUpper();
+
+            switch(healthCheckResponse.Status)
             {
-                message.Subject = "[Alert] Domain [" + domain + "] Status Is Healthy";
-                message.Body = @"Hi,
-
-The DNS Failover App was successfully able to perform a health check [" + healthCheck + "] on the domain name [" + domain + @"] and found that the domain name was healthy.
-
-DNS record type: " + type.ToString() + @"
-Alert time: " + healthCheckStatus.DateTime.ToString("R") + @"
-
-Regards,
-DNS Failover App
-";
-            }
-            else
-            {
-                message.Subject = "[Alert] Domain [" + domain + "] Status Is Failed";
-                message.Body = @"Hi,
+                case HealthStatus.Failed:
+                    message.Body = @"Hi,
 
 The DNS Failover App was successfully able to perform a health check [" + healthCheck + "] on the domain name [" + domain + @"] and found that the domain name failed to respond. 
 
-The failure reason is: " + healthCheckStatus.FailureReason + @"
-DNS record type: " + type.ToString() + @"
-Alert time: " + healthCheckStatus.DateTime.ToString("R") + @"
+Domain: " + domain + @"
+Record Type: " + type.ToString() + @"
+Health Check: " + healthCheck + @"
+Status: " + healthCheckResponse.Status.ToString().ToUpper() + @"
+Alert Time: " + healthCheckResponse.DateTime.ToString("R") + @"
+Failure Reason: " + healthCheckResponse.FailureReason + @"
 
 Regards,
 DNS Failover App
 ";
+                    break;
+
+                default:
+                    message.Body = @"Hi,
+
+The DNS Failover App was successfully able to perform a health check [" + healthCheck + "] on the domain name [" + domain + @"] and found that the domain name status was " + healthCheckResponse.Status.ToString().ToUpper() + @".
+
+Domain: " + domain + @"
+Record Type: " + type.ToString() + @"
+Health Check: " + healthCheck + @"
+Status: " + healthCheckResponse.Status.ToString().ToUpper() + @"
+Alert Time: " + healthCheckResponse.DateTime.ToString("R") + @"
+
+Regards,
+DNS Failover App
+";
+                    break;
             }
 
             return SendMailAsync(message);
@@ -315,14 +334,17 @@ DNS Failover App
             foreach (MailAddress alertTo in _alertTo)
                 message.To.Add(alertTo);
 
-            message.Subject = "[Alert] Domain [" + domain + "] Status Is Error";
+            message.Subject = "[Alert] Domain [" + domain + "] Status Is ERROR";
             message.Body = @"Hi,
 
 The DNS Failover App has failed to perform a health check [" + healthCheck + "] on the domain name [" + domain + @"]. 
 
-The error description is: " + ex.ToString() + @"
-DNS record type: " + type.ToString() + @"
-Alert time: " + DateTime.UtcNow.ToString("R") + @"
+Domain: " + domain + @"
+Record Type: " + type.ToString() + @"
+Health Check: " + healthCheck + @"
+Status: ERROR
+Alert Time: " + DateTime.UtcNow.ToString("R") + @"
+Failure Reason: " + ex.ToString() + @"
 
 Regards,
 DNS Failover App
