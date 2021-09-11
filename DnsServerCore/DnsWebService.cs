@@ -587,6 +587,10 @@ namespace DnsServerCore
                                                 DeleteAllStats(request);
                                                 break;
 
+                                            case "/api/queryLogs":
+                                                await QueryLogsAsync(request, jsonWriter);
+                                                break;
+
                                             case "/api/listDhcpScopes":
                                                 ListDhcpScopes(jsonWriter);
                                                 break;
@@ -1398,7 +1402,7 @@ namespace DnsServerCore
             if (!_dnsServer.EnableBlocking && (DateTime.UtcNow < _temporaryDisableBlockingTill))
             {
                 jsonWriter.WritePropertyName("temporaryDisableBlockingTill");
-                jsonWriter.WriteValue(_temporaryDisableBlockingTill.ToLocalTime().ToString());
+                jsonWriter.WriteValue(_temporaryDisableBlockingTill);
             }
 
             jsonWriter.WritePropertyName("blockingType");
@@ -1440,16 +1444,9 @@ namespace DnsServerCore
             if (_blockListUpdateTimer is not null)
             {
                 DateTime blockListNextUpdatedOn = _blockListLastUpdatedOn.AddHours(_blockListUpdateIntervalHours);
-                if (DateTime.UtcNow < blockListNextUpdatedOn)
-                {
-                    jsonWriter.WritePropertyName("blockListNextUpdatedOn");
-                    jsonWriter.WriteValue(blockListNextUpdatedOn.ToLocalTime().ToString());
-                }
-                else
-                {
-                    jsonWriter.WritePropertyName("blockListNextUpdatedOn");
-                    jsonWriter.WriteValue("Updating Now");
-                }
+
+                jsonWriter.WritePropertyName("blockListNextUpdatedOn");
+                jsonWriter.WriteValue(blockListNextUpdatedOn);
             }
         }
 
@@ -2046,7 +2043,7 @@ namespace DnsServerCore
                 int blockListUpdateIntervalHours = int.Parse(strBlockListUpdateIntervalHours);
 
                 if ((blockListUpdateIntervalHours < 1) || (blockListUpdateIntervalHours > 168))
-                    throw new ArgumentOutOfRangeException("Parameter `blockListUpdateIntervalHours` must be between 1 hour and 168 hours (7 days).");
+                    throw new DnsWebServiceException("Parameter `blockListUpdateIntervalHours` must be between 1 hour and 168 hours (7 days).");
 
                 _blockListUpdateIntervalHours = blockListUpdateIntervalHours;
             }
@@ -2722,7 +2719,7 @@ namespace DnsServerCore
             }
 
             jsonWriter.WritePropertyName("temporaryDisableBlockingTill");
-            jsonWriter.WriteValue(_temporaryDisableBlockingTill.ToLocalTime().ToString());
+            jsonWriter.WriteValue(_temporaryDisableBlockingTill);
         }
 
         #endregion
@@ -2768,10 +2765,10 @@ namespace DnsServerCore
                     if (string.IsNullOrEmpty(strEndDate))
                         throw new DnsWebServiceException("Parameter 'end' missing.");
 
-                    if (!DateTime.TryParseExact(strStartDate, "yyyy-M-d", CultureInfo.InvariantCulture, DateTimeStyles.AssumeUniversal | DateTimeStyles.AdjustToUniversal, out DateTime startDate))
+                    if (!DateTime.TryParseExact(strStartDate, "yyyy-M-d", CultureInfo.InvariantCulture, DateTimeStyles.AssumeLocal | DateTimeStyles.AdjustToUniversal, out DateTime startDate))
                         throw new DnsWebServiceException("Invalid start date format.");
 
-                    if (!DateTime.TryParseExact(strEndDate, "yyyy-M-d", CultureInfo.InvariantCulture, DateTimeStyles.AssumeUniversal | DateTimeStyles.AdjustToUniversal, out DateTime endDate))
+                    if (!DateTime.TryParseExact(strEndDate, "yyyy-M-d", CultureInfo.InvariantCulture, DateTimeStyles.AssumeLocal | DateTimeStyles.AdjustToUniversal, out DateTime endDate))
                         throw new DnsWebServiceException("Invalid end date format.");
 
                     if (startDate > endDate)
@@ -3715,7 +3712,7 @@ namespace DnsServerCore
                     case AuthZoneType.Secondary:
                     case AuthZoneType.Stub:
                         jsonWriter.WritePropertyName("expiry");
-                        jsonWriter.WriteValue(zone.Expiry.ToLocalTime().ToString("dd MMM yyyy HH:mm:ss"));
+                        jsonWriter.WriteValue(zone.Expiry);
 
                         jsonWriter.WritePropertyName("isExpired");
                         jsonWriter.WriteValue(zone.IsExpired);
@@ -4470,7 +4467,7 @@ namespace DnsServerCore
                 case AuthZoneType.Secondary:
                 case AuthZoneType.Stub:
                     jsonWriter.WritePropertyName("expiry");
-                    jsonWriter.WriteValue(zoneInfo.Expiry.ToLocalTime().ToString("dd MMM yyyy HH:mm:ss"));
+                    jsonWriter.WriteValue(zoneInfo.Expiry);
 
                     jsonWriter.WritePropertyName("isExpired");
                     jsonWriter.WriteValue(zoneInfo.IsExpired);
@@ -5566,26 +5563,88 @@ namespace DnsServerCore
                         }
                     }
 
-                    jsonWriter.WritePropertyName("requestHandlers");
-                    jsonWriter.WriteStartArray();
-
-                    foreach (KeyValuePair<string, IDnsApplicationRequestHandler> handler in application.DnsRequestHandlers)
+                    jsonWriter.WritePropertyName("appRecordRequestHandlers");
                     {
-                        jsonWriter.WriteStartObject();
+                        jsonWriter.WriteStartArray();
 
-                        jsonWriter.WritePropertyName("classPath");
-                        jsonWriter.WriteValue(handler.Key);
+                        foreach (KeyValuePair<string, IDnsAppRecordRequestHandler> handler in application.DnsAppRecordRequestHandlers)
+                        {
+                            jsonWriter.WriteStartObject();
 
-                        jsonWriter.WritePropertyName("description");
-                        jsonWriter.WriteValue(handler.Value.Description);
+                            jsonWriter.WritePropertyName("classPath");
+                            jsonWriter.WriteValue(handler.Key);
 
-                        jsonWriter.WritePropertyName("recordDataTemplate");
-                        jsonWriter.WriteValue(handler.Value.ApplicationRecordDataTemplate);
+                            jsonWriter.WritePropertyName("description");
+                            jsonWriter.WriteValue(handler.Value.Description);
 
-                        jsonWriter.WriteEndObject();
+                            jsonWriter.WritePropertyName("recordDataTemplate");
+                            jsonWriter.WriteValue(handler.Value.ApplicationRecordDataTemplate);
+
+                            jsonWriter.WriteEndObject();
+                        }
+
+                        jsonWriter.WriteEndArray();
                     }
 
-                    jsonWriter.WriteEndArray();
+                    jsonWriter.WritePropertyName("requestControllers");
+                    {
+                        jsonWriter.WriteStartArray();
+
+                        foreach (KeyValuePair<string, IDnsRequestController> controller in application.DnsRequestControllers)
+                        {
+                            jsonWriter.WriteStartObject();
+
+                            jsonWriter.WritePropertyName("classPath");
+                            jsonWriter.WriteValue(controller.Key);
+
+                            jsonWriter.WritePropertyName("description");
+                            jsonWriter.WriteValue(controller.Value.Description);
+
+                            jsonWriter.WriteEndObject();
+                        }
+
+                        jsonWriter.WriteEndArray();
+                    }
+
+                    jsonWriter.WritePropertyName("authoritativeRequestHandlers");
+                    {
+                        jsonWriter.WriteStartArray();
+
+                        foreach (KeyValuePair<string, IDnsAuthoritativeRequestHandler> handler in application.DnsAuthoritativeRequestHandlers)
+                        {
+                            jsonWriter.WriteStartObject();
+
+                            jsonWriter.WritePropertyName("classPath");
+                            jsonWriter.WriteValue(handler.Key);
+
+                            jsonWriter.WritePropertyName("description");
+                            jsonWriter.WriteValue(handler.Value.Description);
+
+                            jsonWriter.WriteEndObject();
+                        }
+
+                        jsonWriter.WriteEndArray();
+                    }
+
+                    jsonWriter.WritePropertyName("loggers");
+                    {
+                        jsonWriter.WriteStartArray();
+
+                        foreach (KeyValuePair<string, IDnsLogger> handler in application.DnsLoggers)
+                        {
+                            jsonWriter.WriteStartObject();
+
+                            jsonWriter.WritePropertyName("classPath");
+                            jsonWriter.WriteValue(handler.Key);
+
+                            jsonWriter.WritePropertyName("description");
+                            jsonWriter.WriteValue(handler.Value.Description);
+
+                            jsonWriter.WriteEndObject();
+                        }
+
+                        jsonWriter.WriteEndArray();
+                    }
 
                     jsonWriter.WriteEndObject();
                 }
@@ -5979,7 +6038,11 @@ namespace DnsServerCore
                 else
                     question = new DnsQuestionRecord(domain, type, DnsClass.IN);
 
-                dnsResponse = await DnsClient.RecursiveResolveAsync(question, null, proxy, preferIPv6, randomizeName, qnameMinimization, false, RETRIES, TIMEOUT);
+                DnsCache dnsCache = new DnsCache();
+                dnsCache.MinimumRecordTtl = 0;
+                dnsCache.MaximumRecordTtl = 7 * 24 * 60 * 60;
+
+                dnsResponse = await DnsClient.RecursiveResolveAsync(question, dnsCache, proxy, preferIPv6, randomizeName, qnameMinimization, false, RETRIES, TIMEOUT);
             }
             else
             {
@@ -6155,6 +6218,150 @@ namespace DnsServerCore
             _log.Write(GetRequestRemoteEndPoint(request), "[" + GetSession(request).Username + "] All stats files were deleted.");
         }
 
+        private async Task QueryLogsAsync(HttpListenerRequest request, JsonTextWriter jsonWriter)
+        {
+            string name = request.QueryString["name"];
+            if (string.IsNullOrEmpty(name))
+                throw new DnsWebServiceException("Parameter 'name' missing.");
+
+            string classPath = request.QueryString["classPath"];
+            if (string.IsNullOrEmpty(classPath))
+                throw new DnsWebServiceException("Parameter 'classPath' missing.");
+
+            if (!_dnsServer.DnsApplicationManager.Applications.TryGetValue(name, out DnsApplication application))
+                throw new DnsWebServiceException("DNS application was not found: " + name);
+
+            if (!application.DnsLoggers.TryGetValue(classPath, out IDnsLogger logger))
+                throw new DnsWebServiceException("DNS application '" + classPath + "' class path was not found: " + name);
+
+            long pageNumber;
+            string strPageNumber = request.QueryString["pageNumber"];
+            if (string.IsNullOrEmpty(strPageNumber))
+                pageNumber = 1;
+            else
+                pageNumber = long.Parse(strPageNumber);
+
+            int entriesPerPage;
+            string strEntriesPerPage = request.QueryString["entriesPerPage"];
+            if (string.IsNullOrEmpty(strEntriesPerPage))
+                entriesPerPage = 25;
+            else
+                entriesPerPage = int.Parse(strEntriesPerPage);
+
+            DateTime? start;
+            string strStart = request.QueryString["start"];
+            if (string.IsNullOrEmpty(strStart))
+                start = null;
+            else
+                start = DateTime.ParseExact(strStart, "yyyy-MM-dd HH:mm:ss", CultureInfo.InvariantCulture, DateTimeStyles.AssumeLocal | DateTimeStyles.AdjustToUniversal);
+
+            DateTime? end;
+            string strEnd = request.QueryString["end"];
+            if (string.IsNullOrEmpty(strEnd))
+                end = null;
+            else
+                end = DateTime.ParseExact(strEnd, "yyyy-MM-dd HH:mm:ss", CultureInfo.InvariantCulture, DateTimeStyles.AssumeLocal | DateTimeStyles.AdjustToUniversal);
+
+            IPAddress clientIpAddress;
+            string strClientIpAddress = request.QueryString["clientIpAddress"];
+            if (string.IsNullOrEmpty(strClientIpAddress))
+                clientIpAddress = null;
+            else
+                clientIpAddress = IPAddress.Parse(strClientIpAddress);
+
+            DnsTransportProtocol? protocol;
+            string strProtocol = request.QueryString["protocol"];
+            if (string.IsNullOrEmpty(strProtocol))
+                protocol = null;
+            else
+                protocol = Enum.Parse<DnsTransportProtocol>(strProtocol, true);
+
+            DnsServerResponseType? responseType;
+            string strResponseType = request.QueryString["responseType"];
+            if (string.IsNullOrEmpty(strResponseType))
+                responseType = null;
+            else
+                responseType = Enum.Parse<DnsServerResponseType>(strResponseType, true);
+
+            DnsResponseCode? rcode;
+            string strRcode = request.QueryString["rcode"];
+            if (string.IsNullOrEmpty(strRcode))
+                rcode = null;
+            else
+                rcode = Enum.Parse<DnsResponseCode>(strRcode, true);
+
+            string qname = request.QueryString["qname"];
+            if (string.IsNullOrEmpty(qname))
+                qname = null;
+
+            DnsResourceRecordType? qtype;
+            string strQtype = request.QueryString["qtype"];
+            if (string.IsNullOrEmpty(strQtype))
+                qtype = null;
+            else
+                qtype = Enum.Parse<DnsResourceRecordType>(strQtype, true);
+
+            DnsClass? qclass;
+            string strQclass = request.QueryString["qclass"];
+            if (string.IsNullOrEmpty(strQclass))
+                qclass = null;
+            else
+                qclass = Enum.Parse<DnsClass>(strQclass, true);
+
+            DnsLogPage page = await logger.QueryLogsAsync(pageNumber, entriesPerPage, start, end, clientIpAddress, protocol, responseType, rcode, qname, qtype, qclass);
+
+            jsonWriter.WritePropertyName("pageNumber");
+            jsonWriter.WriteValue(page.PageNumber);
+
+            jsonWriter.WritePropertyName("totalPages");
+            jsonWriter.WriteValue(page.TotalPages);
+
+            jsonWriter.WritePropertyName("totalEntries");
+            jsonWriter.WriteValue(page.TotalEntries);
+
+            jsonWriter.WritePropertyName("entries");
+            jsonWriter.WriteStartArray();
+
+            foreach (DnsLogEntry entry in page.Entries)
+            {
+                jsonWriter.WriteStartObject();
+
+                jsonWriter.WritePropertyName("rowNumber");
+                jsonWriter.WriteValue(entry.RowNumber);
+
+                jsonWriter.WritePropertyName("timestamp");
+                jsonWriter.WriteValue(entry.Timestamp);
+
+                jsonWriter.WritePropertyName("clientIpAddress");
+                jsonWriter.WriteValue(entry.ClientIpAddress.ToString());
+
+                jsonWriter.WritePropertyName("protocol");
+                jsonWriter.WriteValue(entry.Protocol.ToString());
+
+                jsonWriter.WritePropertyName("responseType");
+                jsonWriter.WriteValue(entry.ResponseType.ToString());
+
+                jsonWriter.WritePropertyName("rcode");
+                jsonWriter.WriteValue(entry.RCODE.ToString());
+
+                jsonWriter.WritePropertyName("qname");
+                jsonWriter.WriteValue(entry.Question.Name);
+
+                jsonWriter.WritePropertyName("qtype");
+                jsonWriter.WriteValue(entry.Question.Type.ToString());
+
+                jsonWriter.WritePropertyName("qclass");
+                jsonWriter.WriteValue(entry.Question.Class.ToString());
+
+                jsonWriter.WritePropertyName("answer");
+                jsonWriter.WriteValue(entry.Answer);
+
+                jsonWriter.WriteEndObject();
+            }
+
+            jsonWriter.WriteEndArray();
+        }
+
         #endregion
 
         #region dhcp api
@@ -6206,10 +6413,10 @@ namespace DnsServerCore
                     jsonWriter.WriteValue(lease.HostName);
 
                     jsonWriter.WritePropertyName("leaseObtained");
-                    jsonWriter.WriteValue(lease.LeaseObtained.ToLocalTime().ToString());
+                    jsonWriter.WriteValue(lease.LeaseObtained);
 
                     jsonWriter.WritePropertyName("leaseExpires");
-                    jsonWriter.WriteValue(lease.LeaseExpires.ToLocalTime().ToString());
+                    jsonWriter.WriteValue(lease.LeaseExpires);
 
                     jsonWriter.WriteEndObject();
                 }
@@ -7498,7 +7705,7 @@ namespace DnsServerCore
                             if (version >= 22)
                                 _dnsServer.NsRevalidation = bR.ReadBoolean();
                             else
-                                _dnsServer.NsRevalidation = true;
+                                _dnsServer.NsRevalidation = false; //default false since some badly configured websites fail to load
 
                             break;
 
@@ -7537,7 +7744,7 @@ namespace DnsServerCore
                 _dnsServer.Recursion = DnsServerRecursion.AllowOnlyForPrivateNetworks; //default for security reasons
                 _dnsServer.RandomizeName = true; //default true to enable security feature
                 _dnsServer.QnameMinimization = true; //default true to enable privacy feature
-                _dnsServer.NsRevalidation = true;
+                _dnsServer.NsRevalidation = false; //default false since some badly configured websites fail to load
 
                 SaveConfigFile();
             }
