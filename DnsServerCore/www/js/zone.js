@@ -96,16 +96,16 @@ $(function () {
     $("input[type=radio][name=rdAddEditRecordDataForwarderProtocol]").change(updateAddEditFormForwarderPlaceholder);
 
     $("#optAddEditRecordDataAppName").change(function () {
-        if (dataApps == null)
+        if (appsList == null)
             return;
 
         var appName = $("#optAddEditRecordDataAppName").val();
         var optClassPaths = "<option></option>";
 
-        for (var i = 0; i < dataApps.length; i++) {
-            if (dataApps[i].name == appName) {
-                for (var j = 0; j < dataApps[i].requestHandlers.length; j++) {
-                    optClassPaths += "<option>" + dataApps[i].requestHandlers[j].classPath + "</option>";
+        for (var i = 0; i < appsList.length; i++) {
+            if (appsList[i].name == appName) {
+                for (var j = 0; j < appsList[i].appRecordRequestHandlers.length; j++) {
+                    optClassPaths += "<option>" + appsList[i].appRecordRequestHandlers[j].classPath + "</option>";
                 }
             }
         }
@@ -115,17 +115,17 @@ $(function () {
     });
 
     $("#optAddEditRecordDataClassPath").change(function () {
-        if (dataApps == null)
+        if (appsList == null)
             return;
 
         var appName = $("#optAddEditRecordDataAppName").val();
         var classPath = $("#optAddEditRecordDataClassPath").val();
 
-        for (var i = 0; i < dataApps.length; i++) {
-            if (dataApps[i].name == appName) {
-                for (var j = 0; j < dataApps[i].requestHandlers.length; j++) {
-                    if (dataApps[i].requestHandlers[j].classPath == classPath) {
-                        $("#txtAddEditRecordDataData").val(dataApps[i].requestHandlers[j].recordDataTemplate);
+        for (var i = 0; i < appsList.length; i++) {
+            if (appsList[i].name == appName) {
+                for (var j = 0; j < appsList[i].appRecordRequestHandlers.length; j++) {
+                    if (appsList[i].appRecordRequestHandlers[j].classPath == classPath) {
+                        $("#txtAddEditRecordDataData").val(appsList[i].appRecordRequestHandlers[j].recordDataTemplate);
                         return;
                     }
                 }
@@ -206,6 +206,8 @@ function refreshZones(checkDisplay) {
                 var expiry = zones[i].expiry;
                 if (expiry == null)
                     expiry = "&nbsp;";
+                else
+                    expiry = moment(expiry).local().format("YYYY-MM-DD HH:mm");
 
                 var isReadOnlyZone = zones[i].internal;
 
@@ -697,7 +699,7 @@ function showEditZone(domain) {
             if (expiry == null)
                 expiry = "&nbsp;";
             else
-                expiry = "Expiry: " + expiry;
+                expiry = "Expiry: " + moment(expiry).local().format("YYYY-MM-DD HH:mm:ss");
 
             $("#titleEditZoneType").html(type);
             $("#tdStatusEditZone").html(status);
@@ -1143,7 +1145,7 @@ function showAddRecordModal(objBtn) {
     }
 }
 
-var dataApps;
+var appsList;
 
 function showAddRecordModalNow(apps) {
     var zone = $("#titleEditZone").text();
@@ -1155,7 +1157,7 @@ function showAddRecordModalNow(apps) {
     $("#optEditRecordTypeSoa").hide();
     $("#btnAddEditRecord").attr("onclick", "addRecord(); return false;");
 
-    dataApps = apps;
+    appsList = apps;
     if (apps != null) {
         var optApps = "<option></option>";
         var optClassPaths = "<option></option>";
