@@ -5535,7 +5535,7 @@ namespace DnsServerCore
                     jsonWriter.WriteStartObject();
 
                     jsonWriter.WritePropertyName("name");
-                    jsonWriter.WriteValue(application.AppName);
+                    jsonWriter.WriteValue(application.Name);
 
                     jsonWriter.WritePropertyName("version");
                     jsonWriter.WriteValue(GetCleanVersion(application.Version));
@@ -5545,7 +5545,7 @@ namespace DnsServerCore
                         foreach (dynamic jsonStoreApp in jsonStoreAppsArray)
                         {
                             string name = jsonStoreApp.name.Value;
-                            if (name.Equals(application.AppName))
+                            if (name.Equals(application.Name))
                             {
                                 string version = jsonStoreApp.version.Value;
                                 string url = jsonStoreApp.url.Value;
@@ -5712,6 +5712,8 @@ namespace DnsServerCore
             if (string.IsNullOrEmpty(name))
                 throw new DnsWebServiceException("Parameter 'name' missing.");
 
+            name = name.Trim();
+
             string url = request.QueryString["url"];
             if (string.IsNullOrEmpty(url))
                 throw new DnsWebServiceException("Parameter 'url' missing.");
@@ -5763,6 +5765,8 @@ namespace DnsServerCore
             if (string.IsNullOrEmpty(name))
                 throw new DnsWebServiceException("Parameter 'name' missing.");
 
+            name = name.Trim();
+
             string url = request.QueryString["url"];
             if (string.IsNullOrEmpty(url))
                 throw new DnsWebServiceException("Parameter 'url' missing.");
@@ -5813,6 +5817,8 @@ namespace DnsServerCore
             string name = request.QueryString["name"];
             if (string.IsNullOrEmpty(name))
                 throw new DnsWebServiceException("Parameter 'name' missing.");
+
+            name = name.Trim();
 
             #region skip to content
 
@@ -5874,6 +5880,8 @@ namespace DnsServerCore
             if (string.IsNullOrEmpty(name))
                 throw new DnsWebServiceException("Parameter 'name' missing.");
 
+            name = name.Trim();
+
             #region skip to content
 
             int crlfCount = 0;
@@ -5934,6 +5942,8 @@ namespace DnsServerCore
             if (string.IsNullOrEmpty(name))
                 throw new DnsWebServiceException("Parameter 'name' missing.");
 
+            name = name.Trim();
+
             _dnsServer.DnsApplicationManager.UninstallApplication(name);
             _log.Write(GetRequestRemoteEndPoint(request), "[" + GetSession(request).Username + "] DNS application '" + name + "' was uninstalled successfully.");
         }
@@ -5943,6 +5953,8 @@ namespace DnsServerCore
             string name = request.QueryString["name"];
             if (string.IsNullOrEmpty(name))
                 throw new DnsWebServiceException("Parameter 'name' missing.");
+
+            name = name.Trim();
 
             if (!_dnsServer.DnsApplicationManager.Applications.TryGetValue(name, out DnsApplication application))
                 throw new DnsWebServiceException("DNS application was not found: " + name);
@@ -5958,6 +5970,8 @@ namespace DnsServerCore
             string name = request.QueryString["name"];
             if (string.IsNullOrEmpty(name))
                 throw new DnsWebServiceException("Parameter 'name' missing.");
+
+            name = name.Trim();
 
             if (!_dnsServer.DnsApplicationManager.Applications.TryGetValue(name, out DnsApplication application))
                 throw new DnsWebServiceException("DNS application was not found: " + name);
