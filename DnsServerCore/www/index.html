@@ -18,12 +18,18 @@
     <link href="/css/jquery-ui.min.css" rel="stylesheet">
     <script src="/js/jquery-ui.min.js"></script>
 
+    <script src="/js/moment.min.js"></script>
+    <script src="/js/bootstrap-datetimepicker.min.js"></script>
+    <link rel="stylesheet" href="/css/bootstrap-datetimepicker.min.css">
+
     <link href="/css/main.css" rel="stylesheet" />
     <script src="/js/common.js"></script>
     <script src="/js/main.js"></script>
     <script src="/js/zone.js"></script>
+    <script src="/js/other-zones.js"></script>
     <script src="/js/apps.js"></script>
     <script src="/js/dhcp.js"></script>
+    <script src="/js/logs.js"></script>
 </head>
 <body>
     <div id="header">
@@ -103,7 +109,7 @@
                                 <li id="mainPanelTabListDnsClient" role="presentation"><a href="#mainPanelTabPaneDnsClient" aria-controls="mainPanelTabPaneDnsClient" role="tab" data-toggle="tab">DNS Client</a></li>
                                 <li id="mainPanelTabListSettings" role="presentation"><a href="#mainPanelTabPaneSettings" aria-controls="mainPanelTabPaneSettings" role="tab" data-toggle="tab" onclick="loadDnsSettings();">Settings</a></li>
                                 <li id="mainPanelTabListDhcp" role="presentation"><a href="#mainPanelTabPaneDhcp" aria-controls="mainPanelTabPaneDhcp" role="tab" data-toggle="tab" onclick="refreshDhcpTab();">DHCP</a></li>
-                                <li id="mainPanelTabListLogs" role="presentation"><a href="#mainPanelTabPaneLogs" aria-controls="mainPanelTabPaneLogs" role="tab" data-toggle="tab" onclick="refreshLogFilesList();">Logs</a></li>
+                                <li id="mainPanelTabListLogs" role="presentation"><a href="#mainPanelTabPaneLogs" aria-controls="mainPanelTabPaneLogs" role="tab" data-toggle="tab" onclick="refreshLogsTab();">Logs</a></li>
                                 <li id="mainPanelTabListAbout" role="presentation"><a href="#mainPanelTabPaneAbout" aria-controls="mainPanelTabPaneAbout" role="tab" data-toggle="tab">About</a></li>
                             </ul>
 
@@ -714,7 +720,7 @@
                                                         <div class="form-group">
                                                             <label for="txtDnsServerLocalEndPoints" class="col-sm-3 control-label">DNS Server Local End Points</label>
                                                             <div class="col-sm-6">
-                                                                <textarea id="txtDnsServerLocalEndPoints" class="form-control" rows="3"></textarea>
+                                                                <textarea id="txtDnsServerLocalEndPoints" class="form-control" rows="3" spellcheck="false"></textarea>
                                                             </div>
                                                             <div class="col-sm-offset-3 col-sm-8" style="padding-top: 5px;">Local end points are the network interface IP addresses and ports you want the DNS Server to listen for requests. The default values work for most scenarios so, do not change these defaults unless you have a requirement for the DNS server to listen on specific networks or ports.</div>
                                                         </div>
@@ -793,7 +799,7 @@
                                                         <div class="form-group">
                                                             <label for="txtWebServiceLocalAddresses" class="col-sm-3 control-label">Web Service Local Addresses</label>
                                                             <div class="col-sm-6">
-                                                                <textarea id="txtWebServiceLocalAddresses" class="form-control" rows="3"></textarea>
+                                                                <textarea id="txtWebServiceLocalAddresses" class="form-control" rows="3" spellcheck="false"></textarea>
                                                             </div>
                                                             <div class="col-sm-offset-3 col-sm-8" style="padding-top: 5px;">Local addresses are the network interface IP addresses you want the web service to listen for requests. The default values work for most scenarios so, do not change these defaults unless you have a requirement for the web service to listen on specific networks.</div>
                                                         </div>
@@ -904,6 +910,7 @@
                                                             <p>Note! These optional DNS server protocol changes will be automatically applied and so you do not need to manually restart the main service. The DNS-over-TLS and DNS-over-HTTPS protocols will be enabled only when a TLS certificate is configured.</p>
                                                             <p>These optional DNS server protocols are used to host these as a service. You do not need to enable these optional protocols to use them with Forwarders or Conditional Forwarder Zones.</p>
                                                             <p>For DNS-over-HTTP, use <code>http://<span id="lblDoHHost">localhost:8053</span>/dns-query</code> with a TLS terminating reverse proxy like nginx. For DNS-over-TLS, use <code>tls-certificate-domain:853</code> and for DNS-over-HTTPS use <code>https://tls-certificate-domain/dns-query</code> to configure supported DNS clients.</p>
+                                                            <p>When using a reverse proxy with the DNS-over-HTTP service, you need to add <code>X-Real-IP</code> header to the proxy request with the IP address of the client to allow the DNS server to know the real IP address of the client originating the request. For example, if you are using nginx as the reverse proxy, you can add <code>proxy_set_header X-Real-IP $remote_addr;</code> to make it work.</p>
                                                             <p>Use the following openssl command to convert your TLS certificate that is in PEM format to PKCS #12 certificate (.pfx) format:</p>
                                                             <pre>openssl pkcs12 -export -out "example.com.pfx" -inkey "privkey.pem" -in "cert.pem" -certfile "chain.pem"</pre>
                                                         </div>
@@ -972,10 +979,10 @@
                                                             </div>
                                                             <div class="col-sm-offset-3 col-sm-6">
                                                                 <label for="txtRecursionDeniedNetworks" class="control-label">Denied Networks (CIDR)</label>
-                                                                <textarea id="txtRecursionDeniedNetworks" class="form-control" rows="5"></textarea>
+                                                                <textarea id="txtRecursionDeniedNetworks" class="form-control" rows="5" spellcheck="false"></textarea>
 
                                                                 <label for="txtRecursionAllowedNetworks" class="control-label">Allowed Networks (CIDR)</label>
-                                                                <textarea id="txtRecursionAllowedNetworks" class="form-control" rows="5"></textarea>
+                                                                <textarea id="txtRecursionAllowedNetworks" class="form-control" rows="5" spellcheck="false"></textarea>
                                                             </div>
                                                         </div>
 
@@ -1019,7 +1026,7 @@
                                                                         <input id="chkServeStale" type="checkbox"> Serve Stale
                                                                     </label>
                                                                 </div>
-                                                                <div style="padding-top: 5px; padding-left: 20px;">Enable the serve stale feature to improve resiliency by using expired or stale records in cache when the DNS server is unable to reach the upstream or authoritative name servers.</div>
+                                                                <div style="padding-top: 5px; padding-left: 20px;">Enable the <a href="https://datatracker.ietf.org/doc/rfc8767/" target="_blank">Serve Stale</a> feature to improve resiliency by using expired or stale records in cache when the DNS server is unable to reach the upstream or authoritative name servers.</div>
                                                             </div>
                                                         </div>
 
@@ -1168,14 +1175,14 @@
 
                                                             <div class="col-sm-offset-3 col-sm-6" style="margin-bottom: 10px;">
                                                                 <label for="txtCustomBlockingAddresses" class="control-label">Custom Blocking Addresses (IP Address)</label>
-                                                                <textarea id="txtCustomBlockingAddresses" class="form-control" rows="3"></textarea>
+                                                                <textarea id="txtCustomBlockingAddresses" class="form-control" rows="3" spellcheck="false"></textarea>
                                                             </div>
                                                         </div>
 
                                                         <div class="form-group">
                                                             <label for="txtBlockListUrls" class="col-sm-3 control-label">Block List URLs</label>
                                                             <div class="col-sm-6">
-                                                                <textarea id="txtBlockListUrls" class="form-control" rows="7"></textarea>
+                                                                <textarea id="txtBlockListUrls" class="form-control" rows="7" spellcheck="false"></textarea>
 
                                                                 <label for="optQuickBlockList" class="control-label">Quick Add</label>
                                                                 <select id="optQuickBlockList" class="form-control" style="width: 100%;">
@@ -1294,7 +1301,7 @@
                                                         <div class="form-group">
                                                             <label for="txtProxyBypassList" class="col-sm-3 control-label">Proxy Bypass List</label>
                                                             <div class="col-sm-6">
-                                                                <textarea id="txtProxyBypassList" class="form-control" rows="5"></textarea>
+                                                                <textarea id="txtProxyBypassList" class="form-control" rows="5" spellcheck="false"></textarea>
                                                             </div>
                                                             <div class="col-sm-offset-3 col-sm-8" style="padding-top: 5px;">Enter IP addresses, network addresses or domain names to never proxy.</div>
                                                         </div>
@@ -1306,7 +1313,7 @@
                                                         <div class="form-group">
                                                             <label for="txtForwarders" class="col-sm-3 control-label">Forwarders</label>
                                                             <div class="col-sm-6">
-                                                                <textarea id="txtForwarders" class="form-control" rows="3"></textarea>
+                                                                <textarea id="txtForwarders" class="form-control" rows="3" spellcheck="false"></textarea>
 
                                                                 <label for="optQuickForwarders" class="control-label">Quick Select</label>
                                                                 <select id="optQuickForwarders" class="form-control" style="width: 100%;">
@@ -1660,7 +1667,7 @@
                                                             </div>
                                                             <div class="col-sm-offset-3 col-sm-8" style="padding-top: 5px; margin-bottom: 10px;">Enable this option to automatically use this DNS Server.</div>
                                                             <div class="col-sm-offset-3 col-sm-3">
-                                                                <textarea id="txtDhcpScopeDnsServers" class="form-control" rows="2"></textarea>
+                                                                <textarea id="txtDhcpScopeDnsServers" class="form-control" rows="2" spellcheck="false"></textarea>
                                                             </div>
                                                             <div class="col-sm-offset-3 col-sm-8" style="padding-top: 5px;">The DNS server IP addresses to be used by the clients.</div>
                                                         </div>
@@ -1668,7 +1675,7 @@
                                                         <div class="form-group">
                                                             <label for="txtDhcpScopeWinsServers" class="col-sm-3 control-label">WINS Servers</label>
                                                             <div class="col-sm-3">
-                                                                <textarea id="txtDhcpScopeWinsServers" class="form-control" rows="2"></textarea>
+                                                                <textarea id="txtDhcpScopeWinsServers" class="form-control" rows="2" spellcheck="false"></textarea>
                                                             </div>
                                                             <div class="col-sm-offset-3 col-sm-8" style="padding-top: 5px;">The NBNS/WINS server IP addresses to be used by the clients.</div>
                                                         </div>
@@ -1676,7 +1683,7 @@
                                                         <div class="form-group">
                                                             <label for="txtDhcpScopeNtpServers" class="col-sm-3 control-label">NTP Servers</label>
                                                             <div class="col-sm-3">
-                                                                <textarea id="txtDhcpScopeNtpServers" class="form-control" rows="2"></textarea>
+                                                                <textarea id="txtDhcpScopeNtpServers" class="form-control" rows="2" spellcheck="false"></textarea>
                                                             </div>
                                                             <div class="col-sm-offset-3 col-sm-8" style="padding-top: 5px;">The Network Time Protocol (NTP) server IP addresses to be used by the clients.</div>
                                                         </div>
@@ -1807,26 +1814,204 @@
 
                                 <div id="mainPanelTabPaneLogs" role="tabpanel" class="tab-pane" style="padding: 10px 0 0 0;">
 
-                                    <div class="well well-sm log-list-pane">
-                                        <div id="lstLogFiles" class="logs">
-                                            <div class="log"><a href="#" onclick="return viewLog('20171012');">20171012</a></div>
-                                        </div>
-                                    </div>
+                                    <ul class="nav nav-tabs" role="tablist">
+                                        <li id="logsTabListLogViewer" role="presentation" class="active"><a href="#logsTabPaneLogViewer" aria-controls="logsTabPaneLogViewer" role="tab" data-toggle="tab" onclick="refreshLogFilesList();">View Logs</a></li>
+                                        <li id="logsTabListQueryLogs" role="presentation"><a href="#logsTabPaneQueryLogs" aria-controls="logsTabPaneQueryLogs" role="tab" data-toggle="tab" onclick="refreshQueryLogsTab();">Query Logs</a></li>
+                                    </ul>
 
-                                    <div id="divLogViewer" class="log-viewer-pane">
-                                        <div class="panel panel-default">
-                                            <div class="panel-heading" style="height: 36px; padding: 4px 6px;">
-                                                <div id="txtLogViewerTitle" style="float: left; padding: 4px;">20171012</div>
-                                                <div style="float: right;">
-                                                    <button type="button" class="btn btn-default" data-loading-text="Download" onclick="return downloadLog();" style="font-size: 12px; padding: 4px 6px;">Download</button>
-                                                    <button id="btnDeleteLog" type="button" class="btn btn-danger" data-loading-text="Delete" onclick="return deleteLog();" style="font-size: 12px; padding: 4px 6px;">Delete</button>
+                                    <div class="tab-content">
+                                        <div id="logsTabPaneLogViewer" class="tab-pane active" style="padding-top: 15px;">
+
+                                            <div class="well well-sm log-list-pane">
+                                                <div id="lstLogFiles" class="logs">
+                                                    <div class="log"><a href="#" onclick="return viewLog('20171012');">20171012</a></div>
                                                 </div>
                                             </div>
 
-                                            <div class="panel-body">
-                                                <div id="divLogViewerLoader" style="margin-top: 20px; height: 400px;"></div>
-                                                <pre id="preLogViewerBody" style="display: none; word-wrap: normal; word-break: normal;"></pre>
+                                            <div id="divLogViewer" class="log-viewer-pane">
+                                                <div class="panel panel-default">
+                                                    <div class="panel-heading" style="height: 36px; padding: 4px 6px;">
+                                                        <div id="txtLogViewerTitle" style="float: left; padding: 4px;">20171012</div>
+                                                        <div style="float: right;">
+                                                            <button type="button" class="btn btn-default" data-loading-text="Download" onclick="return downloadLog();" style="font-size: 12px; padding: 4px 6px;">Download</button>
+                                                            <button id="btnDeleteLog" type="button" class="btn btn-danger" data-loading-text="Delete" onclick="return deleteLog();" style="font-size: 12px; padding: 4px 6px;">Delete</button>
+                                                        </div>
+                                                    </div>
+
+                                                    <div class="panel-body">
+                                                        <div id="divLogViewerLoader" style="margin-top: 20px; height: 400px;"></div>
+                                                        <pre id="preLogViewerBody" style="display: none; word-wrap: normal; word-break: normal;"></pre>
+                                                    </div>
+                                                </div>
                                             </div>
+
+                                        </div>
+
+                                        <div id="logsTabPaneQueryLogs" class="tab-pane active" style="padding-top: 15px;">
+
+                                            <form id="frmQueryLogs" class="form-inline well" style="padding-bottom: 6px;">
+                                                <div class="form-group">
+                                                    <label for="optQueryLogsAppName">App Name</label>
+                                                    <select class="form-control" id="optQueryLogsAppName">
+                                                    </select>
+                                                </div>
+
+                                                <div class="form-group">
+                                                    <label for="optQueryLogsClassPath">Class Path</label>
+                                                    <select class="form-control" id="optQueryLogsClassPath">
+                                                    </select>
+                                                </div>
+
+                                                <div class="form-group">
+                                                    <label for="optQueryLogsEntriesPerPage">Logs Per Page</label>
+                                                    <select class="form-control" id="optQueryLogsEntriesPerPage">
+                                                        <option>10</option>
+                                                        <option>25</option>
+                                                        <option>50</option>
+                                                        <option>100</option>
+                                                        <option>250</option>
+                                                        <option>500</option>
+                                                    </select>
+                                                </div>
+
+                                                <div class="form-group">
+                                                    <label for="txtQueryLogStart">From</label>
+                                                    <div class='input-group date' id='dtpQueryLogStart'>
+                                                        <input id="txtQueryLogStart" type='text' class="form-control" />
+                                                        <span class="input-group-addon">
+                                                            <span class="glyphicon glyphicon-calendar"></span>
+                                                        </span>
+                                                    </div>
+                                                </div>
+
+                                                <div class="form-group">
+                                                    <label for="txtQueryLogEnd">To</label>
+                                                    <div class='input-group date' id='dtpQueryLogEnd'>
+                                                        <input id="txtQueryLogEnd" type='text' class="form-control" />
+                                                        <span class="input-group-addon">
+                                                            <span class="glyphicon glyphicon-calendar"></span>
+                                                        </span>
+                                                    </div>
+                                                </div>
+
+                                                <div class="form-group">
+                                                    <label for="txtQueryLogClientIpAddress">Client IP Address</label>
+                                                    <input id="txtQueryLogClientIpAddress" type='text' class="form-control" style="min-width: 170px;" />
+                                                </div>
+
+                                                <div class="form-group">
+                                                    <label for="optQueryLogsProtocol">Protocol</label>
+                                                    <select class="form-control" id="optQueryLogsProtocol">
+                                                        <option selected></option>
+                                                        <option value="Udp">UDP</option>
+                                                        <option value="Tcp">TCP</option>
+                                                        <option value="Tls">TLS</option>
+                                                        <option value="Https">HTTPS</option>
+                                                        <option value="HttpsJson">HTTPS (JSON)</option>
+                                                    </select>
+                                                </div>
+
+                                                <div class="form-group">
+                                                    <label for="optQueryLogsResponseType">Response Type</label>
+                                                    <select class="form-control" id="optQueryLogsResponseType">
+                                                        <option selected></option>
+                                                        <option>Authoritative</option>
+                                                        <option>Recursive</option>
+                                                        <option>Cached</option>
+                                                        <option>Blocked</option>
+                                                    </select>
+                                                </div>
+
+                                                <div class="form-group">
+                                                    <label for="optQueryLogsResponseCode">Response Code</label>
+                                                    <select class="form-control" id="optQueryLogsResponseCode">
+                                                        <option selected></option>
+                                                        <option value="NoError">No Error</option>
+                                                        <option value="FormatError">Format Error</option>
+                                                        <option value="ServerFailure">Server Failure</option>
+                                                        <option value="NxDomain">NX Domain</option>
+                                                        <option value="NotImplemented">Not Implemented</option>
+                                                        <option value="Refused">Refused</option>
+                                                        <option value="YXDomain">YX Domain</option>
+                                                        <option value="NotAuthorized">Not Authorized</option>
+                                                    </select>
+                                                </div>
+
+                                                <div class="form-group">
+                                                    <label for="txtQueryLogQName">Domain</label>
+                                                    <input id="txtQueryLogQName" type='text' class="form-control" style="min-width: 300px;" />
+                                                </div>
+
+                                                <div class="form-group">
+                                                    <label for="optQueryLogQType">Type</label>
+                                                    <select class="form-control" id="optQueryLogQType">
+                                                        <option selected></option>
+                                                        <option>A</option>
+                                                        <option>NS</option>
+                                                        <option>CNAME</option>
+                                                        <option>SOA</option>
+                                                        <option>PTR</option>
+                                                        <option>MX</option>
+                                                        <option>TXT</option>
+                                                        <option>AAAA</option>
+                                                        <option>SRV</option>
+                                                        <option>DNAME</option>
+                                                        <option>CAA</option>
+                                                        <option>ANY</option>
+                                                        <option>AXFR</option>
+                                                        <option>ANAME</option>
+                                                    </select>
+                                                </div>
+
+                                                <div class="form-group">
+                                                    <label for="optQueryLogQClass">Class</label>
+                                                    <select class="form-control" id="optQueryLogQClass">
+                                                        <option selected></option>
+                                                        <option>IN</option>
+                                                        <option>CH</option>
+                                                    </select>
+                                                </div>
+
+                                                <div class="form-group" style="display: block;">
+                                                    <button type="submit" class="btn btn-primary" id="btnQueryLogs" data-loading-text="Loading..." onclick="return queryLogs(1);" style="margin-right: 6px;">Query</button>
+                                                </div>
+                                            </form>
+
+                                            <div id="divQueryLogsLoader" style="margin-top: 20px; height: 300px;"></div>
+
+                                            <table id="tableQueryLogs" class="table table-hover">
+                                                <thead>
+                                                    <tr>
+                                                        <th>#</th>
+                                                        <th>Timestamp</th>
+                                                        <th>Client IP Address</th>
+                                                        <th>Protocol</th>
+                                                        <th>Response Type</th>
+                                                        <th>Response Code</th>
+                                                        <th style="min-width: 200px;">Domain</th>
+                                                        <th>Type</th>
+                                                        <th>Class</th>
+                                                        <th>Answer</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody id="tableQueryLogsBody">
+                                                </tbody>
+                                                <tfoot>
+                                                    <tr>
+                                                        <td colspan="5"><b id="tableQueryLogsFooterStatus">Found: 0 logs</b></td>
+                                                        <td colspan="5" align="right">
+                                                            <nav aria-label="Page navigation">
+                                                                <ul id="tableQueryLogsFooterPagination" class="pagination" style="margin: 0;">
+                                                                    <li><a href="#" aria-label="Previous"><span aria-hidden="true">&laquo;</span></a></li>
+                                                                    <li><a href="#">1</a></li>
+                                                                    <li><a href="#" aria-label="Next"><span aria-hidden="true">&raquo;</span></a></li>
+                                                                </ul>
+                                                            </nav>
+                                                        </td>
+                                                    </tr>
+                                                </tfoot>
+                                            </table>
+
                                         </div>
                                     </div>
 
@@ -1999,7 +2184,7 @@
                         <div class="form-group" id="divAddZonePrimaryNameServerAddresses">
                             <label for="txtAddZonePrimaryNameServerAddresses" class="col-sm-4 control-label">Primary Name Server Addresses (Optional)</label>
                             <div class="col-sm-7">
-                                <textarea id="txtAddZonePrimaryNameServerAddresses" class="form-control" rows="3" placeholder="192.168.1.1
+                                <textarea id="txtAddZonePrimaryNameServerAddresses" class="form-control" rows="3" spellcheck="false" placeholder="192.168.1.1
 2001:db8::
 ns1.example.com (192.168.1.1)
 ns1.example.com ([2001:db8::])
@@ -2180,7 +2365,7 @@ ns1.example.com ([2001:db8::])
                                 <div class="form-group">
                                     <label for="txtAddEditRecordDataNsGlue" class="col-sm-4 control-label">Glue Addresses</label>
                                     <div class="col-sm-7">
-                                        <textarea id="txtAddEditRecordDataNsGlue" class="form-control" rows="3" placeholder="192.168.1.1
+                                        <textarea id="txtAddEditRecordDataNsGlue" class="form-control" rows="3" spellcheck="false" placeholder="192.168.1.1
 2001:db8::"></textarea>
                                     </div>
                                 </div>
@@ -2234,7 +2419,7 @@ ns1.example.com ([2001:db8::])
                                 <div class="form-group" id="divEditRecordDataSoaPrimaryAddresses">
                                     <label for="txtEditRecordDataSoaPrimaryAddresses" class="col-sm-4 control-label">Primary Name Server Addresses</label>
                                     <div class="col-sm-7">
-                                        <textarea id="txtEditRecordDataSoaPrimaryAddresses" class="form-control" rows="3" placeholder="192.168.1.1
+                                        <textarea id="txtEditRecordDataSoaPrimaryAddresses" class="form-control" rows="3" spellcheck="false" placeholder="192.168.1.1
 2001:db8::
 ns1.example.com (192.168.1.1)
 ns1.example.com ([2001:db8::])
@@ -2488,7 +2673,7 @@ ns1.example.com ([2001:db8::])
                                 </div>
                                 <div class="col-sm-offset-3 col-sm-6">
                                     <label for="txtZoneTransferNameServers" class="control-label">Allowed Name Servers (IP addresses)</label>
-                                    <textarea id="txtZoneTransferNameServers" class="form-control" rows="5"></textarea>
+                                    <textarea id="txtZoneTransferNameServers" class="form-control" rows="5" spellcheck="false"></textarea>
                                 </div>
                             </div>
 
@@ -2523,7 +2708,7 @@ ns1.example.com ([2001:db8::])
                                 </div>
                                 <div class="col-sm-offset-3 col-sm-6">
                                     <label for="txtZoneNotifyNameServers" class="control-label">Notified Name Servers (IP addresses)</label>
-                                    <textarea id="txtZoneNotifyNameServers" class="form-control" rows="5"></textarea>
+                                    <textarea id="txtZoneNotifyNameServers" class="form-control" rows="5" spellcheck="false"></textarea>
                                 </div>
                             </div>
 
@@ -2534,7 +2719,7 @@ ns1.example.com ([2001:db8::])
                             <div class="form-group">
                                 <label for="txtZoneOptionsZoneTransferTsigKeyNames" class="col-sm-3 control-label">Zone Transfer TSIG Key Names</label>
                                 <div class="col-sm-6">
-                                    <textarea id="txtZoneOptionsZoneTransferTsigKeyNames" class="form-control" rows="3"></textarea>
+                                    <textarea id="txtZoneOptionsZoneTransferTsigKeyNames" class="form-control" rows="3" spellcheck="false"></textarea>
 
                                     <label for="optZoneOptionsQuickTsigKeyNames" class="control-label">Quick Add</label>
                                     <select id="optZoneOptionsQuickTsigKeyNames" class="form-control">
@@ -2570,7 +2755,7 @@ ns1.example.com ([2001:db8::])
 
                     <div class="form-group">
                         <label for="txtImportAllowedZones" class="control-label">Allowed Zones</label>
-                        <textarea id="txtImportAllowedZones" class="form-control" rows="15"></textarea>
+                        <textarea id="txtImportAllowedZones" class="form-control" rows="15" spellcheck="false"></textarea>
                     </div>
                 </div>
                 <div class="modal-footer">
@@ -2595,7 +2780,7 @@ ns1.example.com ([2001:db8::])
 
                     <div class="form-group">
                         <label for="txtImportBlockedZones" class="control-label">Blocked Zones</label>
-                        <textarea id="txtImportBlockedZones" class="form-control" rows="15"></textarea>
+                        <textarea id="txtImportBlockedZones" class="form-control" rows="15" spellcheck="false"></textarea>
                     </div>
                 </div>
                 <div class="modal-footer">
