@@ -1163,7 +1163,8 @@ function showAddRecordModalNow(apps) {
         var optClassPaths = "<option></option>";
 
         for (var i = 0; i < apps.length; i++) {
-            optApps += "<option>" + apps[i].name + "</option>";
+            if (apps[i].appRecordRequestHandlers.length > 0)
+                optApps += "<option>" + apps[i].name + "</option>";
         }
 
         $("#optAddEditRecordDataAppName").html(optApps);
