@@ -38,21 +38,75 @@ function refreshApps() {
                 var updateUrl = apps[i].updateUrl;
                 var updateAvailable = apps[i].updateAvailable;
 
-                var requestHandlersTable = "<table class=\"table\"><thead><th>Class Path</th><th>Description</th><th>Record Data Template</th></thead><tbody>";
+                var appRecordRequestHandlersTable = null;
+                var requestControllersTable = null;
+                var authoritativeRequestHandlersTable = null;
+                var loggersTable = null;
 
-                for (var j = 0; j < apps[i].requestHandlers.length; j++) {
-                    requestHandlersTable += "<tr><td>" + htmlEncode(apps[i].requestHandlers[j].classPath) + "</td><td>" +
-                        htmlEncode(apps[i].requestHandlers[j].description).replace(/\n/g, "<br />") + "</td><td>" +
-                        (apps[i].requestHandlers[j].recordDataTemplate == null ? "" : "<pre>" + htmlEncode(apps[i].requestHandlers[j].recordDataTemplate) + "</pre>") + "</td></tr>";
+                //AppRecordRequestHandlers
+                if (apps[i].appRecordRequestHandlers.length > 0) {
+                    appRecordRequestHandlersTable = "<table class=\"table\"><thead><th>Class Path</th><th>Description</th><th>Record Data Template</th></thead><tbody>";
+
+                    for (var j = 0; j < apps[i].appRecordRequestHandlers.length; j++) {
+                        appRecordRequestHandlersTable += "<tr><td>" + htmlEncode(apps[i].appRecordRequestHandlers[j].classPath) + "</td><td>" +
+                            htmlEncode(apps[i].appRecordRequestHandlers[j].description).replace(/\n/g, "<br />") + "</td><td>" +
+                            (apps[i].appRecordRequestHandlers[j].recordDataTemplate == null ? "" : "<pre>" + htmlEncode(apps[i].appRecordRequestHandlers[j].recordDataTemplate) + "</pre>") + "</td></tr>";
+                    }
+
+                    appRecordRequestHandlersTable += "</tbody></table>"
                 }
 
-                if (apps[i].requestHandlers.length == 0)
-                    requestHandlersTable += "<tr><td colspan=\"3\" align=\"center\">No Request Handlers Found!</td></tr>";
+                //RequestControllers
+                if (apps[i].requestControllers.length > 0) {
+                    requestControllersTable = "<table class=\"table\"><thead><th>Class Path</th><th>Description</th></thead><tbody>";
 
-                requestHandlersTable += "</tbody></table>"
+                    for (var j = 0; j < apps[i].requestControllers.length; j++) {
+                        requestControllersTable += "<tr><td>" + htmlEncode(apps[i].requestControllers[j].classPath) + "</td><td>" +
+                            htmlEncode(apps[i].requestControllers[j].description).replace(/\n/g, "<br />") + "</td></tr>";
+                    }
+
+                    requestControllersTable += "</tbody></table>"
+                }
+
+                //AuthoritativeRequestHandler
+                if (apps[i].authoritativeRequestHandlers.length > 0) {
+                    authoritativeRequestHandlersTable = "<table class=\"table\"><thead><th>Class Path</th><th>Description</th></thead><tbody>";
+
+                    for (var j = 0; j < apps[i].authoritativeRequestHandlers.length; j++) {
+                        authoritativeRequestHandlersTable += "<tr><td>" + htmlEncode(apps[i].authoritativeRequestHandlers[j].classPath) + "</td><td>" +
+                            htmlEncode(apps[i].authoritativeRequestHandlers[j].description).replace(/\n/g, "<br />") + "</td></tr>";
+                    }
+
+                    authoritativeRequestHandlersTable += "</tbody></table>"
+                }
+
+                //Loggers
+                if (apps[i].loggers.length > 0) {
+                    loggersTable = "<table class=\"table\"><thead><th>Class Path</th><th>Description</th></thead><tbody>";
+
+                    for (var j = 0; j < apps[i].loggers.length; j++) {
+                        loggersTable += "<tr><td>" + htmlEncode(apps[i].loggers[j].classPath) + "</td><td>" +
+                            htmlEncode(apps[i].loggers[j].description).replace(/\n/g, "<br />") + "</td></tr>";
+                    }
+
+                    loggersTable += "</tbody></table>"
+                }
 
                 tableHtmlRows += "<tr id=\"trApp" + id + "\"><td><div style=\"margin-bottom: 20px;\"><span style=\"font-weight: bold; font-size: 16px;\">" + htmlEncode(name) + "</span><br /><span id=\"trAppVersion" + id + "\" class=\"label label-primary\">Version " + htmlEncode(version) + "</span> <span id=\"trAppUpdateVersion" + id + "\" class=\"label label-warning\" style=\"" + (updateAvailable ? "" : "display: none;") + "\">Update " + htmlEncode(updateVersion) + "</span></div>";
-                tableHtmlRows += "<div><div style=\"font-weight: bold; margin-bottom: 4px;\">APP Record Request Handlers</div>" + requestHandlersTable + "</div></td>";
+
+                if (appRecordRequestHandlersTable != null)
+                    tableHtmlRows += "<div><div style=\"font-weight: bold; margin-bottom: 4px;\">APP Record Request Handlers</div>" + appRecordRequestHandlersTable + "</div>";
+
+                if (requestControllersTable != null)
+                    tableHtmlRows += "<div><div style=\"font-weight: bold; margin-bottom: 4px;\">Request Controllers</div>" + requestControllersTable + "</div>";
+
+                if (authoritativeRequestHandlersTable != null)
+                    tableHtmlRows += "<div><div style=\"font-weight: bold; margin-bottom: 4px;\">Authoritative Request Handlers</div>" + authoritativeRequestHandlersTable + "</div>";
+
+                if (loggersTable != null)
+                    tableHtmlRows += "<div><div style=\"font-weight: bold; margin-bottom: 4px;\">Query Loggers</div>" + loggersTable + "</div>";
+
+                tableHtmlRows += "</td>";
                 tableHtmlRows += "<td><button type=\"button\" class=\"btn btn-default\" style=\"font-size: 12px; padding: 2px 0px; width: 80px; margin-bottom: 6px; display: block;\" onclick=\"showAppConfigModal(this, '" + name + "');\" data-loading-text=\"Loading...\">Config</button>";
                 tableHtmlRows += "<button type=\"button\" class=\"btn btn-warning\" style=\"font-size: 12px; padding: 2px 0px; width: 80px; margin-bottom: 6px; display: block;\" onclick=\"showUpdateAppModal('" + name + "');\">Update</button>";
                 tableHtmlRows += "<button id=\"btnAppsStoreUpdate" + id + "\" type=\"button\" data-id=\"" + id + "\" class=\"btn btn-warning\" style=\"font-size: 12px; padding: 2px 0px; width: 80px; margin-bottom: 6px; " + (updateAvailable ? "" : "display: none;") + "\" onclick=\"updateStoreApp(this, '" + name + "', '" + updateUrl + "', false);\" data-loading-text=\"Updating...\">Store Update</button>";
