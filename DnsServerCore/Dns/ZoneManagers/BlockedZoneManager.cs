@@ -58,7 +58,7 @@ namespace DnsServerCore.Dns.ZoneManagers
 
         private void UpdateServerDomain(string serverDomain)
         {
-            _soaRecord = new DnsSOARecord(serverDomain, "hostadmin." + serverDomain, 1, 14400, 3600, 604800, 900);
+            _soaRecord = new DnsSOARecord(serverDomain, "hostadmin." + serverDomain, 1, 14400, 3600, 604800, 60);
             _nsRecord = new DnsNSRecord(serverDomain);
 
             _zoneManager.ServerDomain = serverDomain;
@@ -202,6 +202,9 @@ namespace DnsServerCore.Dns.ZoneManagers
         #endregion
 
         #region properties
+
+        internal DnsSOARecord DnsSOARecord
+        { get { return _soaRecord; } }
 
         public string ServerDomain
         {
