@@ -30,7 +30,7 @@ using TechnitiumLibrary.Net.Dns;
 
 namespace DnsServerCore
 {
-    public class LogManager : IDisposable
+    public sealed class LogManager : IDisposable
     {
         #region variables
 
@@ -153,7 +153,7 @@ namespace DnsServerCore
 
         bool _disposed;
 
-        protected virtual void Dispose(bool disposing)
+        private void Dispose(bool disposing)
         {
             lock (_queueLock)
             {
@@ -432,7 +432,7 @@ namespace DnsServerCore
         {
             string logFileName = logName + ".log";
 
-            using (FileStream fS = new FileStream(Path.Combine(ConvertToAbsolutePath(_logFolder), logFileName), FileMode.Open, FileAccess.Read, FileShare.ReadWrite))
+            using (FileStream fS = new FileStream(Path.Combine(ConvertToAbsolutePath(_logFolder), logFileName), FileMode.Open, FileAccess.Read, FileShare.ReadWrite, 64 * 1024, true))
             {
                 response.ContentType = "text/plain";
                 response.AddHeader("Content-Disposition", "attachment;filename=" + logFileName);
@@ -511,19 +511,19 @@ namespace DnsServerCore
         {
             DnsQuestionRecord q = null;
 
-            if (request.QDCOUNT > 0)
+            if (request.Question.Count > 0)
                 q = request.Question[0];
 
             string question;
 
-            if (q == null)
+            if (q is null)
                 question = "MISSING QUESTION!";
             else
                 question = "QNAME: " + q.Name + "; QTYPE: " + q.Type.ToString() + "; QCLASS: " + q.Class;
 
             string responseInfo;
 
-            if (response == null)
+            if (response is null)
             {
                 responseInfo = " NO RESPONSE FROM SERVER!";
             }
@@ -531,11 +531,11 @@ namespace DnsServerCore
             {
                 string answer;
 
-                if (response.ANCOUNT == 0)
+                if (response.Answer.Count == 0)
                 {
                     answer = "[]";
                 }
-                else if ((response.ANCOUNT > 2) && response.IsZoneTransfer)
+                else if ((response.Answer.Count > 2) && response.IsZoneTransfer)
                 {
                     answer = "[ZONE TRANSFER]";
                 }
@@ -545,7 +545,7 @@ namespace DnsServerCore
 
                     for (int i = 0; i < response.Answer.Count; i++)
                     {
-                        if (i != 0)
+                        if (i > 0)
                             answer += ", ";
 
                         answer += response.Answer[i].RDATA.ToString();
@@ -672,7 +672,7 @@ namespace DnsServerCore
             set
             {
                 if (value < 0)
-                    throw new ArgumentOutOfRangeException("MaxLogFileDays must be greater than or equal to 0.");
+                    throw new ArgumentOutOfRangeException(nameof(MaxLogFileDays), "MaxLogFileDays must be greater than or equal to 0.");
 
                 _maxLogFileDays = value;
 
