@@ -49,14 +49,19 @@ namespace DnsApplicationCommon
         void WriteLog(Exception ex);
 
         /// <summary>
-        /// The primary domain name used by this DNS Server to identify itself.
+        /// The name of this installed application.
         /// </summary>
-        string ServerDomain { get; }
+        string ApplicationName { get; }
 
         /// <summary>
         /// The folder where this application is saved on the disk. Can be used to create temp files, read/write files, etc. for this application.
         /// </summary>
         string ApplicationFolder { get; }
+
+        /// <summary>
+        /// The primary domain name used by this DNS Server to identify itself.
+        /// </summary>
+        string ServerDomain { get; }
 
         /// <summary>
         /// The DNS cache object which provides direct access to the DNS server cache.
