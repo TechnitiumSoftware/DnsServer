@@ -1299,7 +1299,7 @@ namespace DnsServerCore.Dhcp
             set
             {
                 if (value > 999)
-                    throw new ArgumentOutOfRangeException("Lease time in days must be between 0 to 999.");
+                    throw new ArgumentOutOfRangeException(nameof(LeaseTimeDays), "Lease time in days must be between 0 to 999.");
 
                 _leaseTimeDays = value;
             }
@@ -1311,7 +1311,7 @@ namespace DnsServerCore.Dhcp
             set
             {
                 if (value > 23)
-                    throw new ArgumentOutOfRangeException("Lease time in hours must be between 0 to 23.");
+                    throw new ArgumentOutOfRangeException(nameof(LeaseTimeHours), "Lease time in hours must be between 0 to 23.");
 
                 _leaseTimeHours = value;
             }
@@ -1323,7 +1323,7 @@ namespace DnsServerCore.Dhcp
             set
             {
                 if (value > 59)
-                    throw new ArgumentOutOfRangeException("Lease time in minutes must be between 0 to 59.");
+                    throw new ArgumentOutOfRangeException(nameof(LeaseTimeMinutes), "Lease time in minutes must be between 0 to 59.");
 
                 _leaseTimeMinutes = value;
             }
@@ -1451,10 +1451,10 @@ namespace DnsServerCore.Dhcp
                     foreach (Exclusion exclusion in value)
                     {
                         if (!IsAddressInRange(exclusion.StartingAddress))
-                            throw new ArgumentOutOfRangeException("Exclusion starting address must be in scope range.");
+                            throw new ArgumentOutOfRangeException(nameof(Exclusions), "Exclusion starting address must be in scope range.");
 
                         if (!IsAddressInRange(exclusion.EndingAddress))
-                            throw new ArgumentOutOfRangeException("Exclusion ending address must be in scope range.");
+                            throw new ArgumentOutOfRangeException(nameof(Exclusions), "Exclusion ending address must be in scope range.");
                     }
 
                     _exclusions = value;
@@ -1485,7 +1485,7 @@ namespace DnsServerCore.Dhcp
                     foreach (Lease reservedLease in value)
                     {
                         if (!IsAddressInRange(reservedLease.Address))
-                            throw new ArgumentOutOfRangeException("Reserved address must be in scope range.");
+                            throw new ArgumentOutOfRangeException(nameof(ReservedLeases), "Reserved address must be in scope range.");
                     }
 
                     _reservedLeases.Clear();
