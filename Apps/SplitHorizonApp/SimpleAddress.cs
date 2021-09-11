@@ -30,7 +30,7 @@ using TechnitiumLibrary.Net.Dns.ResourceRecords;
 
 namespace SplitHorizon
 {
-    public class SimpleAddress : IDnsApplicationRequestHandler
+    public class SimpleAddress : IDnsAppRecordRequestHandler
     {
         #region IDisposable
 
@@ -49,7 +49,7 @@ namespace SplitHorizon
             return Task.CompletedTask;
         }
 
-        public Task<DnsDatagram> ProcessRequestAsync(DnsDatagram request, IPEndPoint remoteEP, string zoneName, uint appRecordTtl, string appRecordData, bool isRecursionAllowed, IDnsServer dnsServer)
+        public Task<DnsDatagram> ProcessRequestAsync(DnsDatagram request, IPEndPoint remoteEP, DnsTransportProtocol protocol, bool isRecursionAllowed, string zoneName, uint appRecordTtl, string appRecordData)
         {
             DnsQuestionRecord question = request.Question[0];
             switch (question.Type)

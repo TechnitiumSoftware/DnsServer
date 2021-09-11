@@ -29,7 +29,7 @@ using TechnitiumLibrary.Net.Dns.ResourceRecords;
 
 namespace SplitHorizon
 {
-    public class SimpleCNAME : IDnsApplicationRequestHandler
+    public class SimpleCNAME : IDnsAppRecordRequestHandler
     {
         #region IDisposable
 
@@ -48,7 +48,7 @@ namespace SplitHorizon
             return Task.CompletedTask;
         }
 
-        public Task<DnsDatagram> ProcessRequestAsync(DnsDatagram request, IPEndPoint remoteEP, string zoneName, uint appRecordTtl, string appRecordData, bool isRecursionAllowed, IDnsServer dnsServer)
+        public Task<DnsDatagram> ProcessRequestAsync(DnsDatagram request, IPEndPoint remoteEP, DnsTransportProtocol protocol, bool isRecursionAllowed, string zoneName, uint appRecordTtl, string appRecordData)
         {
             dynamic jsonAppRecordData = JsonConvert.DeserializeObject(appRecordData);
             dynamic jsonCname = null;
