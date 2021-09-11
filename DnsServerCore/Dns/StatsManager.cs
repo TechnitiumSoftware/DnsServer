@@ -17,6 +17,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 */
 
+using DnsApplicationCommon;
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
@@ -32,14 +33,6 @@ using TechnitiumLibrary.Net.Dns;
 
 namespace DnsServerCore.Dns
 {
-    public enum StatsResponseType
-    {
-        Authoritative = 1,
-        Recursive = 2,
-        Cached = 3,
-        Blocked = 4
-    }
-
     public enum TopStatsType
     {
         Unknown = 0,
@@ -48,7 +41,7 @@ namespace DnsServerCore.Dns
         TopBlockedDomains = 3
     }
 
-    public class StatsManager : IDisposable
+    public sealed class StatsManager : IDisposable
     {
         #region variables
 
@@ -114,9 +107,37 @@ namespace DnsServerCore.Dns
                 {
                     foreach (StatsQueueItem item in _queue.GetConsumingEnumerable())
                     {
+                        DnsServerResponseType responseType;
+
+                        if (item._response.Tag == null)
+                            responseType = DnsServerResponseType.Recursive;
+                        else
+                            responseType = (DnsServerResponseType)item._response.Tag;
+
+                        DnsQuestionRecord query;
+
+                        if (item._request.Question.Count > 0)
+                            query = item._request.Question[0];
+                        else
+                            query = null;
+
                         StatCounter statCounter = _lastHourStatCounters[item._dateTime.Minute];
                         if (statCounter != null)
-                            statCounter.Update(item._query, item._responseCode, item._responseType, item._clientIpAddress);
+                            statCounter.Update(query, item._response.RCODE, responseType, item._remoteEP.Address);
+
+                        foreach (IDnsLogger logger in _dnsServer.DnsApplicationManager.DnsLoggers)
+                        {
+                            try
+                            {
+                                _ = logger.InsertLogAsync(item._request, item._remoteEP, item._protocol, item._response);
+                            }
+                            catch (Exception ex)
+                            {
+                                LogManager log = dnsServer.LogManager;
+                                if (log != null)
+                                    log.Write(ex);
+                            }
+                        }
                     }
                 }
                 catch (Exception ex)
@@ -212,10 +233,10 @@ namespace DnsServerCore.Dns
 
         #region IDisposable
 
-        private bool _disposed = false;
-        private readonly object _disposeLock = new object();
+        bool _disposed;
+        readonly object _disposeLock = new object();
 
-        protected virtual void Dispose(bool disposing)
+        private void Dispose(bool disposing)
         {
             lock (_disposeLock)
             {
@@ -515,23 +536,9 @@ namespace DnsServerCore.Dns
             Flush();
         }
 
-        public void Update(DnsDatagram response, IPAddress clientIpAddress)
+        public void QueueUpdate(DnsDatagram request, IPEndPoint remoteEP, DnsTransportProtocol protocol, DnsDatagram response)
         {
-            StatsResponseType responseType;
-
-            if (response.Tag == null)
-                responseType = StatsResponseType.Recursive;
-            else
-                responseType = (StatsResponseType)response.Tag;
-
-            StatsQueueItem item;
-
-            if (response.QDCOUNT > 0)
-                item = new StatsQueueItem(response.Question[0], response.RCODE, responseType, clientIpAddress);
-            else
-                item = new StatsQueueItem(null, response.RCODE, responseType, clientIpAddress);
-
-            _queue.Add(item);
+            _queue.Add(new StatsQueueItem(request, remoteEP, protocol, response));
         }
 
         public Dictionary<string, List<KeyValuePair<string, int>>> GetLastHourMinuteWiseStats()
@@ -1413,7 +1420,7 @@ namespace DnsServerCore.Dns
                 _locked = true;
             }
 
-            public void Update(DnsQuestionRecord query, DnsResponseCode responseCode, StatsResponseType responseType, IPAddress clientIpAddress)
+            public void Update(DnsQuestionRecord query, DnsResponseCode responseCode, DnsServerResponseType responseType, IPAddress clientIpAddress)
             {
                 if (_locked)
                     return;
@@ -1426,7 +1433,7 @@ namespace DnsServerCore.Dns
                 switch (responseCode)
                 {
                     case DnsResponseCode.NoError:
-                        if ((query is not null) && (responseType != StatsResponseType.Blocked)) //skip blocked domains
+                        if ((query is not null) && (responseType != DnsServerResponseType.Blocked)) //skip blocked domains
                         {
                             _queryDomains.GetOrAdd(query.Name.ToLower(), GetNewCounter).Increment();
                             _queries.GetOrAdd(query, GetNewCounter).Increment();
@@ -1456,19 +1463,19 @@ namespace DnsServerCore.Dns
 
                 switch (responseType)
                 {
-                    case StatsResponseType.Authoritative:
+                    case DnsServerResponseType.Authoritative:
                         Interlocked.Increment(ref _totalAuthoritative);
                         break;
 
-                    case StatsResponseType.Recursive:
+                    case DnsServerResponseType.Recursive:
                         Interlocked.Increment(ref _totalRecursive);
                         break;
 
-                    case StatsResponseType.Cached:
+                    case DnsServerResponseType.Cached:
                         Interlocked.Increment(ref _totalCached);
                         break;
 
-                    case StatsResponseType.Blocked:
+                    case DnsServerResponseType.Blocked:
                         if (query is not null)
                             _queryBlockedDomains.GetOrAdd(query.Name.ToLower(), GetNewCounter).Increment();
 
@@ -1949,22 +1956,24 @@ namespace DnsServerCore.Dns
             #region variables
 
             public readonly DateTime _dateTime;
-            public readonly DnsQuestionRecord _query;
-            public readonly DnsResponseCode _responseCode;
-            public readonly StatsResponseType _responseType;
-            public readonly IPAddress _clientIpAddress;
+
+            public readonly DnsDatagram _request;
+            public readonly IPEndPoint _remoteEP;
+            public readonly DnsTransportProtocol _protocol;
+            public readonly DnsDatagram _response;
 
             #endregion
 
             #region constructor
 
-            public StatsQueueItem(DnsQuestionRecord query, DnsResponseCode responseCode, StatsResponseType responseType, IPAddress clientIpAddress)
+            public StatsQueueItem(DnsDatagram request, IPEndPoint remoteEP, DnsTransportProtocol protocol, DnsDatagram response)
             {
                 _dateTime = DateTime.UtcNow;
-                _query = query;
-                _responseCode = responseCode;
-                _responseType = responseType;
-                _clientIpAddress = clientIpAddress;
+
+                _request = request;
+                _remoteEP = remoteEP;
+                _protocol = protocol;
+                _response = response;
             }
 
             #endregion
