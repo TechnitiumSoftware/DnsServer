@@ -17,7 +17,11 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 */
 
+using DnsApplicationCommon;
+using DnsServerCore.Dns.Applications;
 using DnsServerCore.Dns.ZoneManagers;
+using System.Net;
+using TechnitiumLibrary.IO;
 using TechnitiumLibrary.Net.Dns;
 
 namespace DnsServerCore.Dns
@@ -26,6 +30,7 @@ namespace DnsServerCore.Dns
     {
         #region variables
 
+        readonly protected DnsApplicationManager _dnsApplicationManager;
         readonly protected AuthZoneManager _authZoneManager;
         readonly protected CacheZoneManager _cacheZoneManager;
 
@@ -33,8 +38,9 @@ namespace DnsServerCore.Dns
 
         #region constructor
 
-        public ResolverDnsCache(AuthZoneManager authZoneManager, CacheZoneManager cacheZoneManager)
+        public ResolverDnsCache(DnsApplicationManager dnsApplicationManager, AuthZoneManager authZoneManager, CacheZoneManager cacheZoneManager)
         {
+            _dnsApplicationManager = dnsApplicationManager;
             _authZoneManager = authZoneManager;
             _cacheZoneManager = cacheZoneManager;
         }
@@ -45,11 +51,26 @@ namespace DnsServerCore.Dns
 
         public virtual DnsDatagram Query(DnsDatagram request, bool serveStaleAndResetExpiry = false, bool findClosestNameServers = false)
         {
-            DnsDatagram authResponse = _authZoneManager.Query(request, true);
-            if (authResponse is not null)
+            DnsDatagram authResponse = null;
+
+            foreach (IDnsAuthoritativeRequestHandler requestHandler in _dnsApplicationManager.DnsAuthoritativeRequestHandlers)
             {
-                if ((authResponse.RCODE != DnsResponseCode.NoError) || (authResponse.Answer.Count > 0) || (authResponse.Authority.Count == 0) || (authResponse.Authority[0].Type == DnsResourceRecordType.SOA))
-                    return authResponse;
+                authResponse = requestHandler.ProcessRequestAsync(request, new IPEndPoint(IPAddress.Any, 0), DnsTransportProtocol.Tcp, false).Sync();
+                if (authResponse is not null)
+                {
+                    if ((authResponse.RCODE != DnsResponseCode.NoError) || (authResponse.Answer.Count > 0) || (authResponse.Authority.Count == 0) || (authResponse.Authority[0].Type == DnsResourceRecordType.SOA))
+                        return authResponse;
+                }
+            }
+
+            if (authResponse is null)
+            {
+                authResponse = _authZoneManager.Query(request, true);
+                if (authResponse is not null)
+                {
+                    if ((authResponse.RCODE != DnsResponseCode.NoError) || (authResponse.Answer.Count > 0) || (authResponse.Authority.Count == 0) || (authResponse.Authority[0].Type == DnsResourceRecordType.SOA))
+                        return authResponse;
+                }
             }
 
             DnsDatagram cacheResponse = _cacheZoneManager.Query(request, serveStaleAndResetExpiry, findClosestNameServers);
