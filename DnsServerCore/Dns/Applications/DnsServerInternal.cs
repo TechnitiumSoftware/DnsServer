@@ -30,46 +30,55 @@ namespace DnsServerCore.Dns.Applications
         #region variables
 
         readonly DnsServer _dnsServer;
-        readonly string _appName;
+        readonly string _applicationName;
         readonly string _applicationFolder;
 
         #endregion
 
         #region constructor
 
-        public DnsServerInternal(DnsServer dnsServer, string appName, string applicationFolder)
+        public DnsServerInternal(DnsServer dnsServer, string applicationName, string applicationFolder)
         {
             _dnsServer = dnsServer;
-            _appName = appName;
+            _applicationName = applicationName;
             _applicationFolder = applicationFolder;
         }
 
         #endregion
 
+        #region public
+
         public Task<DnsDatagram> DirectQueryAsync(DnsQuestionRecord question)
         {
-            return _dnsServer.DirectQueryAsync(question);
+            return _dnsServer.DirectQueryAsync(question, true);
         }
 
         public void WriteLog(string message)
         {
             LogManager log = _dnsServer.LogManager;
             if (log != null)
-                log.Write("DNS App [" + _appName + "]: " + message);
+                log.Write("DNS App [" + _applicationName + "]: " + message);
         }
 
         public void WriteLog(Exception ex)
         {
             LogManager log = _dnsServer.LogManager;
             if (log != null)
-                log.Write("DNS App [" + _appName + "]: " + ex.ToString());
+                log.Write("DNS App [" + _applicationName + "]: " + ex.ToString());
         }
 
-        public string ServerDomain
-        { get { return _dnsServer.ServerDomain; } }
+        #endregion
+
+        #region properties
+
+        public string ApplicationName
+        { get { return _applicationName; } }
 
         public string ApplicationFolder
         { get { return _applicationFolder; } }
+
+        public string ServerDomain
+        { get { return _dnsServer.ServerDomain; } }
 
         public IDnsCache DnsCache
         { get { return _dnsServer.DnsCache; } }
@@ -79,5 +88,7 @@ namespace DnsServerCore.Dns.Applications
 
         public bool PreferIPv6
         { get { return _dnsServer.PreferIPv6; } }
+
+        #endregion
     }
 }
