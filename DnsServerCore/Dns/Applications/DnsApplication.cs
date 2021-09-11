@@ -33,10 +33,13 @@ namespace DnsServerCore.Dns.Applications
         readonly IDnsServer _dnsServer;
         readonly string _appName;
 
-        readonly DnsApplicationAssemblyLoadContext _appContext = new DnsApplicationAssemblyLoadContext();
+        readonly DnsApplicationAssemblyLoadContext _appContext;
 
         readonly Version _version;
-        readonly Dictionary<string, IDnsApplicationRequestHandler> _dnsRequestHandlers;
+        readonly IReadOnlyDictionary<string, IDnsAppRecordRequestHandler> _dnsAppRecordRequestHandlers;
+        readonly IReadOnlyDictionary<string, IDnsRequestController> _dnsRequestControllers;
+        readonly IReadOnlyDictionary<string, IDnsAuthoritativeRequestHandler> _dnsAuthoritativeRequestHandlers;
+        readonly IReadOnlyDictionary<string, IDnsLogger> _dnsLoggers;
 
         #endregion
 
@@ -47,9 +50,20 @@ namespace DnsServerCore.Dns.Applications
             _dnsServer = dnsServer;
             _appName = appName;
 
+            _appContext = new DnsApplicationAssemblyLoadContext(_dnsServer.ApplicationFolder);
+
             //load DLLs and handlers
-            Dictionary<string, IDnsApplicationRequestHandler> dnsRequestHandlers = new Dictionary<string, IDnsApplicationRequestHandler>();
-            Type dnsRequestHandlerInterface = typeof(IDnsApplicationRequestHandler);
+            Dictionary<string, IDnsAppRecordRequestHandler> dnsAppRecordRequestHandlers = new Dictionary<string, IDnsAppRecordRequestHandler>(2);
+            Type dnsAppRecordRequestHandlerInterface = typeof(IDnsAppRecordRequestHandler);
+
+            Dictionary<string, IDnsRequestController> dnsRequestControllers = new Dictionary<string, IDnsRequestController>(1);
+            Type dnsRequestControllerInterface = typeof(IDnsRequestController);
+
+            Dictionary<string, IDnsAuthoritativeRequestHandler> dnsAuthoritativeRequestHandlers = new Dictionary<string, IDnsAuthoritativeRequestHandler>(1);
+            Type dnsRequestHandlersInterface = typeof(IDnsAuthoritativeRequestHandler);
+
+            Dictionary<string, IDnsLogger> dnsLoggers = new Dictionary<string, IDnsLogger>(1);
+            Type dnsLoggerInterface = typeof(IDnsLogger);
 
             Assembly[] loadedAssemblies = AppDomain.CurrentDomain.GetAssemblies();
 
@@ -115,22 +129,49 @@ namespace DnsServerCore.Dns.Applications
                 {
                     foreach (Type interfaceType in classType.GetInterfaces())
                     {
-                        if (interfaceType == dnsRequestHandlerInterface)
+                        if (interfaceType == dnsAppRecordRequestHandlerInterface)
                         {
-                            IDnsApplicationRequestHandler handler = Activator.CreateInstance(classType) as IDnsApplicationRequestHandler;
-                            dnsRequestHandlers.TryAdd(classType.FullName, handler);
+                            IDnsAppRecordRequestHandler handler = Activator.CreateInstance(classType) as IDnsAppRecordRequestHandler;
+                            dnsAppRecordRequestHandlers.TryAdd(classType.FullName, handler);
 
-                            if (_version == null)
+                            if (_version is null)
+                                _version = assembly.GetName().Version;
+                        }
+                        else if (interfaceType == dnsRequestControllerInterface)
+                        {
+                            IDnsRequestController controller = Activator.CreateInstance(classType) as IDnsRequestController;
+                            dnsRequestControllers.TryAdd(classType.FullName, controller);
+
+                            if (_version is null)
+                                _version = assembly.GetName().Version;
+                        }
+                        else if (interfaceType == dnsRequestHandlersInterface)
+                        {
+                            IDnsAuthoritativeRequestHandler handler = Activator.CreateInstance(classType) as IDnsAuthoritativeRequestHandler;
+                            dnsAuthoritativeRequestHandlers.TryAdd(classType.FullName, handler);
+
+                            if (_version is null)
+                                _version = assembly.GetName().Version;
+                        }
+                        else if (interfaceType == dnsLoggerInterface)
+                        {
+                            IDnsLogger logger = Activator.CreateInstance(classType) as IDnsLogger;
+                            dnsLoggers.TryAdd(classType.FullName, logger);
+
+                            if (_version is null)
                                 _version = assembly.GetName().Version;
                         }
                     }
                 }
             }
 
-            if (_version == null)
+            if (_version is null)
                 _version = new Version(1, 0);
 
-            _dnsRequestHandlers = dnsRequestHandlers;
+            _dnsAppRecordRequestHandlers = dnsAppRecordRequestHandlers;
+            _dnsRequestControllers = dnsRequestControllers;
+            _dnsAuthoritativeRequestHandlers = dnsAuthoritativeRequestHandlers;
+            _dnsLoggers = dnsLoggers;
         }
 
         #endregion
@@ -146,12 +187,28 @@ namespace DnsServerCore.Dns.Applications
 
             if (disposing)
             {
-                if (_dnsRequestHandlers != null)
+                if (_dnsAppRecordRequestHandlers is not null)
                 {
-                    foreach (KeyValuePair<string, IDnsApplicationRequestHandler> handler in _dnsRequestHandlers)
+                    foreach (KeyValuePair<string, IDnsAppRecordRequestHandler> handler in _dnsAppRecordRequestHandlers)
                         handler.Value.Dispose();
+                }
 
-                    _dnsRequestHandlers.Clear();
+                if (_dnsRequestControllers is not null)
+                {
+                    foreach (KeyValuePair<string, IDnsRequestController> controller in _dnsRequestControllers)
+                        controller.Value.Dispose();
+                }
+
+                if (_dnsAuthoritativeRequestHandlers is not null)
+                {
+                    foreach (KeyValuePair<string, IDnsAuthoritativeRequestHandler> handler in _dnsAuthoritativeRequestHandlers)
+                        handler.Value.Dispose();
+                }
+
+                if (_dnsLoggers is not null)
+                {
+                    foreach (KeyValuePair<string, IDnsLogger> logger in _dnsLoggers)
+                        logger.Value.Dispose();
                 }
 
                 if (_appContext != null)
@@ -174,8 +231,17 @@ namespace DnsServerCore.Dns.Applications
         {
             string config = await GetConfigAsync();
 
-            foreach (KeyValuePair<string, IDnsApplicationRequestHandler> handler in _dnsRequestHandlers)
+            foreach (KeyValuePair<string, IDnsAppRecordRequestHandler> handler in _dnsAppRecordRequestHandlers)
                 await handler.Value.InitializeAsync(_dnsServer, config);
+
+            foreach (KeyValuePair<string, IDnsRequestController> controller in _dnsRequestControllers)
+                await controller.Value.InitializeAsync(_dnsServer, config);
+
+            foreach (KeyValuePair<string, IDnsAuthoritativeRequestHandler> handler in _dnsAuthoritativeRequestHandlers)
+                await handler.Value.InitializeAsync(_dnsServer, config);
+
+            foreach (KeyValuePair<string, IDnsLogger> logger in _dnsLoggers)
+                await logger.Value.InitializeAsync(_dnsServer, config);
         }
 
         #endregion
@@ -196,8 +262,17 @@ namespace DnsServerCore.Dns.Applications
         {
             string configFile = Path.Combine(_dnsServer.ApplicationFolder, "dnsApp.config");
 
-            foreach (KeyValuePair<string, IDnsApplicationRequestHandler> handler in _dnsRequestHandlers)
+            foreach (KeyValuePair<string, IDnsAppRecordRequestHandler> handler in _dnsAppRecordRequestHandlers)
                 await handler.Value.InitializeAsync(_dnsServer, config);
+
+            foreach (KeyValuePair<string, IDnsRequestController> controller in _dnsRequestControllers)
+                await controller.Value.InitializeAsync(_dnsServer, config);
+
+            foreach (KeyValuePair<string, IDnsAuthoritativeRequestHandler> handler in _dnsAuthoritativeRequestHandlers)
+                await handler.Value.InitializeAsync(_dnsServer, config);
+
+            foreach (KeyValuePair<string, IDnsLogger> logger in _dnsLoggers)
+                await logger.Value.InitializeAsync(_dnsServer, config);
 
             if (string.IsNullOrEmpty(config))
                 File.Delete(configFile);
@@ -218,8 +293,17 @@ namespace DnsServerCore.Dns.Applications
         public Version Version
         { get { return _version; } }
 
-        public IReadOnlyDictionary<string, IDnsApplicationRequestHandler> DnsRequestHandlers
-        { get { return _dnsRequestHandlers; } }
+        public IReadOnlyDictionary<string, IDnsAppRecordRequestHandler> DnsAppRecordRequestHandlers
+        { get { return _dnsAppRecordRequestHandlers; } }
+
+        public IReadOnlyDictionary<string, IDnsRequestController> DnsRequestControllers
+        { get { return _dnsRequestControllers; } }
+
+        public IReadOnlyDictionary<string, IDnsAuthoritativeRequestHandler> DnsAuthoritativeRequestHandlers
+        { get { return _dnsAuthoritativeRequestHandlers; } }
+
+        public IReadOnlyDictionary<string, IDnsLogger> DnsLoggers
+        { get { return _dnsLoggers; } }
 
         #endregion
     }
