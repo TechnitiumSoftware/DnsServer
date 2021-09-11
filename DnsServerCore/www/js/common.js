@@ -350,3 +350,19 @@ function serializeTableData(table, columns) {
 
     return output;
 }
+
+function cleanTextList(text) {
+    text = text.replace(/\n/g, ",");
+
+    while (text.indexOf(",,") !== -1) {
+        text = text.replace(/,,/g, ",");
+    }
+
+    if (text.startsWith(","))
+        text = text.substr(1);
+
+    if (text.endsWith(","))
+        text = text.substr(0, text.length - 1);
+
+    return text;
+}
