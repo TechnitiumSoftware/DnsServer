@@ -70,7 +70,7 @@ namespace DnsServerCore.Dns.ZoneManagers
 
         private void UpdateServerDomain(string serverDomain)
         {
-            _soaRecord = new DnsSOARecord(serverDomain, "hostadmin." + serverDomain, 1, 14400, 3600, 604800, 900);
+            _soaRecord = new DnsSOARecord(serverDomain, "hostadmin." + serverDomain, 1, 14400, 3600, 604800, 60);
             _nsRecord = new DnsNSRecord(serverDomain);
         }
 
@@ -141,7 +141,6 @@ namespace DnsServerCore.Dns.ZoneManagers
 
                         firstWord = PopWord(ref line);
 
-
                         if (line.Length == 0)
                         {
                             hostname = firstWord;
@@ -198,7 +197,7 @@ namespace DnsServerCore.Dns.ZoneManagers
             return domains;
         }
 
-        private static string GetParentZone(string domain)
+        internal static string GetParentZone(string domain)
         {
             int i = domain.IndexOf('.');
             if (i > -1)
@@ -229,7 +228,7 @@ namespace DnsServerCore.Dns.ZoneManagers
             return null;
         }
 
-        private bool IsZoneAllowed(Dictionary<string, object> allowedDomains, string domain)
+        private static bool IsZoneAllowed(Dictionary<string, object> allowedDomains, string domain)
         {
             do
             {
@@ -278,7 +277,7 @@ namespace DnsServerCore.Dns.ZoneManagers
                 }
             }
 
-            //load custom blocked zone into new block zone
+            //load block list zone
             Dictionary<string, List<Uri>> blockListZone = new Dictionary<string, List<Uri>>(totalDomains);
 
             foreach (KeyValuePair<Uri, Queue<string>> blockListQueue in blockListQueues)
@@ -318,7 +317,7 @@ namespace DnsServerCore.Dns.ZoneManagers
         public async Task<bool> UpdateBlockListsAsync()
         {
             bool downloaded = false;
-            bool notmodified = false;
+            bool notModified = false;
 
             async Task DownloadListUrlAsync(Uri listUrl, bool isAllowList)
             {
@@ -370,7 +369,7 @@ namespace DnsServerCore.Dns.ZoneManagers
 
                             case HttpStatusCode.NotModified:
                                 {
-                                    notmodified = true;
+                                    notModified = true;
 
                                     LogManager log = _dnsServer.LogManager;
                                     if (log != null)
@@ -409,7 +408,7 @@ namespace DnsServerCore.Dns.ZoneManagers
                 GC.Collect();
             }
 
-            return downloaded || notmodified;
+            return downloaded || notModified;
         }
 
         public DnsDatagram Query(DnsDatagram request)
@@ -417,7 +416,7 @@ namespace DnsServerCore.Dns.ZoneManagers
             DnsQuestionRecord question = request.Question[0];
 
             List<Uri> blockLists = IsZoneBlocked(question.Name, out string blockedDomain);
-            if (blockLists == null)
+            if (blockLists is null)
                 return null; //zone not blocked
 
             //zone is blocked
@@ -449,7 +448,11 @@ namespace DnsServerCore.Dns.ZoneManagers
                         break;
 
                     case DnsServerBlockingType.NxDomain:
-                        return new DnsDatagram(request.Identifier, true, DnsOpcode.StandardQuery, false, false, request.RecursionDesired, true, false, false, DnsResponseCode.NxDomain, request.Question);
+                        string parentDomain = GetParentZone(blockedDomain);
+                        if (parentDomain is null)
+                            parentDomain = string.Empty;
+
+                        return new DnsDatagram(request.Identifier, true, DnsOpcode.StandardQuery, false, false, request.RecursionDesired, true, false, false, DnsResponseCode.NxDomain, request.Question, null, new DnsResourceRecord[] { new DnsResourceRecord(parentDomain, DnsResourceRecordType.SOA, question.Class, 60, _soaRecord) });
 
                     default:
                         throw new InvalidOperationException();
@@ -483,11 +486,15 @@ namespace DnsServerCore.Dns.ZoneManagers
                         break;
 
                     case DnsResourceRecordType.NS:
-                        answer = new DnsResourceRecord[] { new DnsResourceRecord(question.Name, DnsResourceRecordType.NS, question.Class, 60, _nsRecord) };
+                        if (question.Name.Equals(blockedDomain, StringComparison.OrdinalIgnoreCase))
+                            answer = new DnsResourceRecord[] { new DnsResourceRecord(blockedDomain, DnsResourceRecordType.NS, question.Class, 60, _nsRecord) };
+                        else
+                            authority = new DnsResourceRecord[] { new DnsResourceRecord(blockedDomain, DnsResourceRecordType.SOA, question.Class, 60, _soaRecord) };
+
                         break;
 
                     default:
-                        authority = new DnsResourceRecord[] { new DnsResourceRecord(question.Name, DnsResourceRecordType.SOA, question.Class, 60, _soaRecord) };
+                        authority = new DnsResourceRecord[] { new DnsResourceRecord(blockedDomain, DnsResourceRecordType.SOA, question.Class, 60, _soaRecord) };
                         break;
                 }
 
