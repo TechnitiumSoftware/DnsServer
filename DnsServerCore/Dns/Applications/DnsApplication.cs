@@ -31,7 +31,7 @@ namespace DnsServerCore.Dns.Applications
         #region variables
 
         readonly IDnsServer _dnsServer;
-        readonly string _appName;
+        readonly string _name;
 
         readonly DnsApplicationAssemblyLoadContext _appContext;
 
@@ -45,10 +45,10 @@ namespace DnsServerCore.Dns.Applications
 
         #region constructor
 
-        public DnsApplication(IDnsServer dnsServer, string appName)
+        public DnsApplication(IDnsServer dnsServer, string name)
         {
             _dnsServer = dnsServer;
-            _appName = appName;
+            _name = name;
 
             _appContext = new DnsApplicationAssemblyLoadContext(_dnsServer.ApplicationFolder);
 
@@ -287,8 +287,8 @@ namespace DnsServerCore.Dns.Applications
         public IDnsServer DnsServer
         { get { return _dnsServer; } }
 
-        public string AppName
-        { get { return _appName; } }
+        public string Name
+        { get { return _name; } }
 
         public Version Version
         { get { return _version; } }
