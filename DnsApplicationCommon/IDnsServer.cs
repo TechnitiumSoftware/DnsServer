@@ -24,10 +24,13 @@ using TechnitiumLibrary.Net.Proxy;
 
 namespace DnsApplicationCommon
 {
+    /// <summary>
+    /// Provides an interface to access the internal DNS Server core.
+    /// </summary>
     public interface IDnsServer
     {
         /// <summary>
-        /// Allows querying the DNS server directly. This call supports recursion even if its not enabled in the DNS server configuration. The request and its response are not counted in any stats or logged..
+        /// Allows querying the DNS server core directly. This call supports recursion even if its not enabled in the DNS server configuration. The request wont be routed to any of the installed DNS Apps except for processing APP records. The request and its response are not counted in any stats or logged.
         /// </summary>
         /// <param name="question">The question record containing the details to query.</param>
         /// <returns>The DNS response for the DNS query or <c>null</c> if the request timed out.</returns>
