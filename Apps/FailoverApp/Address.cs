@@ -37,7 +37,7 @@ namespace Failover
         Secondary = 2
     }
 
-    public class Address : IDnsApplicationRequestHandler
+    public class Address : IDnsAppRecordRequestHandler
     {
         #region variables
 
@@ -150,7 +150,7 @@ namespace Failover
             return Task.CompletedTask;
         }
 
-        public Task<DnsDatagram> ProcessRequestAsync(DnsDatagram request, IPEndPoint remoteEP, string zoneName, uint appRecordTtl, string appRecordData, bool isRecursionAllowed, IDnsServer dnsServer)
+        public Task<DnsDatagram> ProcessRequestAsync(DnsDatagram request, IPEndPoint remoteEP, DnsTransportProtocol protocol, bool isRecursionAllowed, string zoneName, uint appRecordTtl, string appRecordData)
         {
             DnsQuestionRecord question = request.Question[0];
             switch (question.Type)

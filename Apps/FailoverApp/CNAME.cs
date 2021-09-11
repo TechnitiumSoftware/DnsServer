@@ -28,7 +28,7 @@ using TechnitiumLibrary.Net.Dns.ResourceRecords;
 
 namespace Failover
 {
-    public class CNAME : IDnsApplicationRequestHandler
+    public class CNAME : IDnsAppRecordRequestHandler
     {
         #region variables
 
@@ -115,7 +115,7 @@ namespace Failover
             return Task.CompletedTask;
         }
 
-        public Task<DnsDatagram> ProcessRequestAsync(DnsDatagram request, IPEndPoint remoteEP, string zoneName, uint appRecordTtl, string appRecordData, bool isRecursionAllowed, IDnsServer dnsServer)
+        public Task<DnsDatagram> ProcessRequestAsync(DnsDatagram request, IPEndPoint remoteEP, DnsTransportProtocol protocol, bool isRecursionAllowed, string zoneName, uint appRecordTtl, string appRecordData)
         {
             DnsQuestionRecord question = request.Question[0];
 
