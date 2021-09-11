@@ -26,7 +26,7 @@ using TechnitiumLibrary.Net.Dns.ResourceRecords;
 
 namespace WhatIsMyDns
 {
-    public class App : IDnsApplicationRequestHandler
+    public class App : IDnsAppRecordRequestHandler
     {
         #region IDisposable
 
@@ -45,7 +45,7 @@ namespace WhatIsMyDns
             return Task.CompletedTask;
         }
 
-        public Task<DnsDatagram> ProcessRequestAsync(DnsDatagram request, IPEndPoint remoteEP, string zoneName, uint appRecordTtl, string appRecordData, bool isRecursionAllowed, IDnsServer dnsServer)
+        public Task<DnsDatagram> ProcessRequestAsync(DnsDatagram request, IPEndPoint remoteEP, DnsTransportProtocol protocol, bool isRecursionAllowed, string zoneName, uint appRecordTtl, string appRecordData)
         {
             DnsResourceRecord answer;
 
