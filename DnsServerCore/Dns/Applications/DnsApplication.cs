@@ -52,20 +52,9 @@ namespace DnsServerCore.Dns.Applications
 
             _appContext = new DnsApplicationAssemblyLoadContext(_dnsServer.ApplicationFolder);
 
-            //load DLLs and handlers
-            Dictionary<string, IDnsAppRecordRequestHandler> dnsAppRecordRequestHandlers = new Dictionary<string, IDnsAppRecordRequestHandler>(2);
-            Type dnsAppRecordRequestHandlerInterface = typeof(IDnsAppRecordRequestHandler);
-
-            Dictionary<string, IDnsRequestController> dnsRequestControllers = new Dictionary<string, IDnsRequestController>(1);
-            Type dnsRequestControllerInterface = typeof(IDnsRequestController);
-
-            Dictionary<string, IDnsAuthoritativeRequestHandler> dnsAuthoritativeRequestHandlers = new Dictionary<string, IDnsAuthoritativeRequestHandler>(1);
-            Type dnsRequestHandlersInterface = typeof(IDnsAuthoritativeRequestHandler);
-
-            Dictionary<string, IDnsLogger> dnsLoggers = new Dictionary<string, IDnsLogger>(1);
-            Type dnsLoggerInterface = typeof(IDnsLogger);
-
+            //load app assemblies
             Assembly[] loadedAssemblies = AppDomain.CurrentDomain.GetAssemblies();
+            List<Assembly> appAssemblies = new List<Assembly>();
 
             foreach (string dllFile in Directory.GetFiles(_dnsServer.ApplicationFolder, "*.dll", SearchOption.TopDirectoryOnly))
             {
@@ -97,7 +86,6 @@ namespace DnsServerCore.Dns.Applications
 
                 try
                 {
-                    Assembly assembly;
                     string pdbFile = Path.Combine(_dnsServer.ApplicationFolder, Path.GetFileNameWithoutExtension(dllFile) + ".pdb");
 
                     if (File.Exists(pdbFile))
@@ -106,7 +94,7 @@ namespace DnsServerCore.Dns.Applications
                         {
                             using (FileStream pdbStream = new FileStream(pdbFile, FileMode.Open, FileAccess.Read))
                             {
-                                assembly = _appContext.LoadFromStream(dllStream, pdbStream);
+                                appAssemblies.Add(_appContext.LoadFromStream(dllStream, pdbStream));
                             }
                         }
                     }
@@ -114,11 +102,34 @@ namespace DnsServerCore.Dns.Applications
                     {
                         using (FileStream dllStream = new FileStream(dllFile, FileMode.Open, FileAccess.Read))
                         {
-                            assembly = _appContext.LoadFromStream(dllStream);
+                            appAssemblies.Add(_appContext.LoadFromStream(dllStream));
                         }
                     }
+                }
+                catch (Exception ex)
+                {
+                    _dnsServer.WriteLog(ex);
+                }
+            }
 
-                    foreach (Type classType in assembly.ExportedTypes)
+            //load app handlers
+            Dictionary<string, IDnsAppRecordRequestHandler> dnsAppRecordRequestHandlers = new Dictionary<string, IDnsAppRecordRequestHandler>(2);
+            Type dnsAppRecordRequestHandlerInterface = typeof(IDnsAppRecordRequestHandler);
+
+            Dictionary<string, IDnsRequestController> dnsRequestControllers = new Dictionary<string, IDnsRequestController>(1);
+            Type dnsRequestControllerInterface = typeof(IDnsRequestController);
+
+            Dictionary<string, IDnsAuthoritativeRequestHandler> dnsAuthoritativeRequestHandlers = new Dictionary<string, IDnsAuthoritativeRequestHandler>(1);
+            Type dnsRequestHandlersInterface = typeof(IDnsAuthoritativeRequestHandler);
+
+            Dictionary<string, IDnsLogger> dnsLoggers = new Dictionary<string, IDnsLogger>(1);
+            Type dnsLoggerInterface = typeof(IDnsLogger);
+
+            foreach (Assembly appAssembly in appAssemblies)
+            {
+                try
+                {
+                    foreach (Type classType in appAssembly.ExportedTypes)
                     {
                         foreach (Type interfaceType in classType.GetInterfaces())
                         {
@@ -130,7 +141,7 @@ namespace DnsServerCore.Dns.Applications
                                     dnsAppRecordRequestHandlers.TryAdd(classType.FullName, handler);
 
                                     if (_version is null)
-                                        _version = assembly.GetName().Version;
+                                        _version = appAssembly.GetName().Version;
                                 }
                                 catch (Exception ex)
                                 {
@@ -145,7 +156,7 @@ namespace DnsServerCore.Dns.Applications
                                     dnsRequestControllers.TryAdd(classType.FullName, controller);
 
                                     if (_version is null)
-                                        _version = assembly.GetName().Version;
+                                        _version = appAssembly.GetName().Version;
                                 }
                                 catch (Exception ex)
                                 {
@@ -160,7 +171,7 @@ namespace DnsServerCore.Dns.Applications
                                     dnsAuthoritativeRequestHandlers.TryAdd(classType.FullName, handler);
 
                                     if (_version is null)
-                                        _version = assembly.GetName().Version;
+                                        _version = appAssembly.GetName().Version;
                                 }
                                 catch (Exception ex)
                                 {
@@ -175,7 +186,7 @@ namespace DnsServerCore.Dns.Applications
                                     dnsLoggers.TryAdd(classType.FullName, logger);
 
                                     if (_version is null)
-                                        _version = assembly.GetName().Version;
+                                        _version = appAssembly.GetName().Version;
                                 }
                                 catch (Exception ex)
                                 {
@@ -188,7 +199,6 @@ namespace DnsServerCore.Dns.Applications
                 catch (Exception ex)
                 {
                     _dnsServer.WriteLog(ex);
-                    continue;
                 }
             }
 
