@@ -95,10 +95,9 @@ namespace DnsServerCore.Dns.Applications
                 if (isLoaded)
                     continue;
 
-                Assembly assembly;
-
                 try
                 {
+                    Assembly assembly;
                     string pdbFile = Path.Combine(_dnsServer.ApplicationFolder, Path.GetFileNameWithoutExtension(dllFile) + ".pdb");
 
                     if (File.Exists(pdbFile))
@@ -118,55 +117,88 @@ namespace DnsServerCore.Dns.Applications
                             assembly = _appContext.LoadFromStream(dllStream);
                         }
                     }
+
+                    foreach (Type classType in assembly.ExportedTypes)
+                    {
+                        foreach (Type interfaceType in classType.GetInterfaces())
+                        {
+                            if (interfaceType == dnsAppRecordRequestHandlerInterface)
+                            {
+                                try
+                                {
+                                    IDnsAppRecordRequestHandler handler = Activator.CreateInstance(classType) as IDnsAppRecordRequestHandler;
+                                    dnsAppRecordRequestHandlers.TryAdd(classType.FullName, handler);
+
+                                    if (_version is null)
+                                        _version = assembly.GetName().Version;
+                                }
+                                catch (Exception ex)
+                                {
+                                    _dnsServer.WriteLog(ex);
+                                }
+                            }
+                            else if (interfaceType == dnsRequestControllerInterface)
+                            {
+                                try
+                                {
+                                    IDnsRequestController controller = Activator.CreateInstance(classType) as IDnsRequestController;
+                                    dnsRequestControllers.TryAdd(classType.FullName, controller);
+
+                                    if (_version is null)
+                                        _version = assembly.GetName().Version;
+                                }
+                                catch (Exception ex)
+                                {
+                                    _dnsServer.WriteLog(ex);
+                                }
+                            }
+                            else if (interfaceType == dnsRequestHandlersInterface)
+                            {
+                                try
+                                {
+                                    IDnsAuthoritativeRequestHandler handler = Activator.CreateInstance(classType) as IDnsAuthoritativeRequestHandler;
+                                    dnsAuthoritativeRequestHandlers.TryAdd(classType.FullName, handler);
+
+                                    if (_version is null)
+                                        _version = assembly.GetName().Version;
+                                }
+                                catch (Exception ex)
+                                {
+                                    _dnsServer.WriteLog(ex);
+                                }
+                            }
+                            else if (interfaceType == dnsLoggerInterface)
+                            {
+                                try
+                                {
+                                    IDnsLogger logger = Activator.CreateInstance(classType) as IDnsLogger;
+                                    dnsLoggers.TryAdd(classType.FullName, logger);
+
+                                    if (_version is null)
+                                        _version = assembly.GetName().Version;
+                                }
+                                catch (Exception ex)
+                                {
+                                    _dnsServer.WriteLog(ex);
+                                }
+                            }
+                        }
+                    }
                 }
                 catch (Exception ex)
                 {
                     _dnsServer.WriteLog(ex);
                     continue;
                 }
-
-                foreach (Type classType in assembly.ExportedTypes)
-                {
-                    foreach (Type interfaceType in classType.GetInterfaces())
-                    {
-                        if (interfaceType == dnsAppRecordRequestHandlerInterface)
-                        {
-                            IDnsAppRecordRequestHandler handler = Activator.CreateInstance(classType) as IDnsAppRecordRequestHandler;
-                            dnsAppRecordRequestHandlers.TryAdd(classType.FullName, handler);
-
-                            if (_version is null)
-                                _version = assembly.GetName().Version;
-                        }
-                        else if (interfaceType == dnsRequestControllerInterface)
-                        {
-                            IDnsRequestController controller = Activator.CreateInstance(classType) as IDnsRequestController;
-                            dnsRequestControllers.TryAdd(classType.FullName, controller);
-
-                            if (_version is null)
-                                _version = assembly.GetName().Version;
-                        }
-                        else if (interfaceType == dnsRequestHandlersInterface)
-                        {
-                            IDnsAuthoritativeRequestHandler handler = Activator.CreateInstance(classType) as IDnsAuthoritativeRequestHandler;
-                            dnsAuthoritativeRequestHandlers.TryAdd(classType.FullName, handler);
-
-                            if (_version is null)
-                                _version = assembly.GetName().Version;
-                        }
-                        else if (interfaceType == dnsLoggerInterface)
-                        {
-                            IDnsLogger logger = Activator.CreateInstance(classType) as IDnsLogger;
-                            dnsLoggers.TryAdd(classType.FullName, logger);
-
-                            if (_version is null)
-                                _version = assembly.GetName().Version;
-                        }
-                    }
-                }
             }
 
             if (_version is null)
-                _version = new Version(1, 0);
+            {
+                if ((dnsAppRecordRequestHandlers.Count > 0) || (dnsRequestControllers.Count > 0) || (dnsAuthoritativeRequestHandlers.Count > 0) || (dnsLoggers.Count > 0))
+                    _version = new Version(1, 0);
+                else
+                    _version = new Version(0, 0);
+            }
 
             _dnsAppRecordRequestHandlers = dnsAppRecordRequestHandlers;
             _dnsRequestControllers = dnsRequestControllers;
