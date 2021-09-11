@@ -87,16 +87,16 @@ namespace DnsServerCore.Dns.Applications
 
         private async Task LoadApplicationAsync(string applicationFolder, bool refreshAppObjectList)
         {
-            string appName = Path.GetFileName(applicationFolder);
+            string applicationName = Path.GetFileName(applicationFolder);
 
-            DnsApplication application = new DnsApplication(new DnsServerInternal(_dnsServer, appName, applicationFolder), appName);
+            DnsApplication application = new DnsApplication(new DnsServerInternal(_dnsServer, applicationName, applicationFolder), applicationName);
 
             try
             {
                 await application.InitializeAsync();
 
-                if (!_applications.TryAdd(application.AppName, application))
-                    throw new DnsServerException("DNS application already exists: " + application.AppName);
+                if (!_applications.TryAdd(application.Name, application))
+                    throw new DnsServerException("DNS application already exists: " + application.Name);
 
                 if (refreshAppObjectList)
                     RefreshAppObjectLists();
@@ -108,10 +108,10 @@ namespace DnsServerCore.Dns.Applications
             }
         }
 
-        private void UnloadApplication(string appName)
+        private void UnloadApplication(string applicationName)
         {
-            if (!_applications.TryRemove(appName, out DnsApplication existingApp))
-                throw new DnsServerException("DNS application does not exists: " + appName);
+            if (!_applications.TryRemove(applicationName, out DnsApplication existingApp))
+                throw new DnsServerException("DNS application does not exists: " + applicationName);
 
             RefreshAppObjectLists();
 
@@ -194,14 +194,14 @@ namespace DnsServerCore.Dns.Applications
             }
         }
 
-        public async Task InstallApplicationAsync(string appName, Stream appStream)
+        public async Task InstallApplicationAsync(string applicationName, Stream appStream)
         {
-            if (_applications.ContainsKey(appName))
-                throw new DnsServerException("DNS application already exists: " + appName);
+            if (_applications.ContainsKey(applicationName))
+                throw new DnsServerException("DNS application already exists: " + applicationName);
 
             using (ZipArchive appZip = new ZipArchive(appStream, ZipArchiveMode.Read, false, Encoding.UTF8))
             {
-                string applicationFolder = Path.Combine(_appsPath, appName);
+                string applicationFolder = Path.Combine(_appsPath, applicationName);
 
                 if (Directory.Exists(applicationFolder))
                     Directory.Delete(applicationFolder, true);
@@ -222,16 +222,16 @@ namespace DnsServerCore.Dns.Applications
             }
         }
 
-        public async Task UpdateApplicationAsync(string appName, Stream appStream)
+        public async Task UpdateApplicationAsync(string applicationName, Stream appStream)
         {
-            if (!_applications.ContainsKey(appName))
-                throw new DnsServerException("DNS application does not exists: " + appName);
+            if (!_applications.ContainsKey(applicationName))
+                throw new DnsServerException("DNS application does not exists: " + applicationName);
 
             using (ZipArchive appZip = new ZipArchive(appStream, ZipArchiveMode.Read, false, Encoding.UTF8))
             {
-                UnloadApplication(appName);
+                UnloadApplication(applicationName);
 
-                string applicationFolder = Path.Combine(_appsPath, appName);
+                string applicationFolder = Path.Combine(_appsPath, applicationName);
 
                 foreach (ZipArchiveEntry entry in appZip.Entries)
                 {
@@ -254,9 +254,9 @@ namespace DnsServerCore.Dns.Applications
             }
         }
 
-        public void UninstallApplication(string appName)
+        public void UninstallApplication(string applicationName)
         {
-            if (_applications.TryRemove(appName, out DnsApplication app))
+            if (_applications.TryRemove(applicationName, out DnsApplication app))
             {
                 RefreshAppObjectLists();
 
