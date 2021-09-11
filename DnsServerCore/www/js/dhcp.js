@@ -47,8 +47,8 @@ function refreshDhcpLeases() {
                     dhcpLeases[i].address + "</td><td><span id=\"spanDhcpLeaseType" + i + "\" class=\"label label-" +
                     (dhcpLeases[i].type === "Reserved" ? "default" : "primary") + "\">" + dhcpLeases[i].type + "</span></td><td>" +
                     htmlEncode(dhcpLeases[i].hostName) + "</td><td>" +
-                    dhcpLeases[i].leaseObtained + "</td><td>" +
-                    dhcpLeases[i].leaseExpires +
+                    moment(dhcpLeases[i].leaseObtained).local().format("YYYY-MM-DD HH:mm") + "</td><td>" +
+                    moment(dhcpLeases[i].leaseExpires).local().format("YYYY-MM-DD HH:mm") +
                     "</td><td><button id=\"btnDhcpLeaseReserve" + i + "\" type=\"button\" class=\"btn btn-default\" style=\"" + (dhcpLeases[i].type === "Dynamic" ? "" : "display: none;") + "font-size: 12px; padding: 2px 0px; width: 70px;\" data-loading-text=\"Working...\" onclick=\"convertToReservedLease(this, " + i + ", '" + dhcpLeases[i].scope + "', '" + dhcpLeases[i].hardwareAddress + "');\">Reserve</button>" +
                     "<button id=\"btnDhcpLeaseUnreserve" + i + "\" type=\"button\" class=\"btn btn-default\" style=\"" + (dhcpLeases[i].type === "Dynamic" ? "display: none;" : "") + "font-size: 12px; padding: 2px 0px; width: 70px;\" data-loading-text=\"Working...\" onclick=\"convertToDynamicLease(this, " + i + ", '" + dhcpLeases[i].scope + "', '" + dhcpLeases[i].hardwareAddress + "');\">Unreserve</button></td></tr>";
             }
