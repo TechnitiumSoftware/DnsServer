@@ -17,7 +17,11 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 */
 
+using DnsApplicationCommon;
+using DnsServerCore.Dns.Applications;
 using DnsServerCore.Dns.ZoneManagers;
+using System.Net;
+using TechnitiumLibrary.IO;
 using TechnitiumLibrary.Net.Dns;
 
 namespace DnsServerCore.Dns
@@ -32,10 +36,50 @@ namespace DnsServerCore.Dns
 
         #region constructor
 
-        public ResolverPrefetchDnsCache(AuthZoneManager authZoneManager, CacheZoneManager cacheZoneManager, DnsQuestionRecord prefetchQuery)
-            : base(authZoneManager, cacheZoneManager)
+        public ResolverPrefetchDnsCache(DnsApplicationManager dnsApplicationManager, AuthZoneManager authZoneManager, CacheZoneManager cacheZoneManager, DnsQuestionRecord prefetchQuery)
+            : base(dnsApplicationManager, authZoneManager, cacheZoneManager)
         {
             _prefetchQuery = prefetchQuery;
+        }
+
+        #endregion
+
+        #region private
+
+        private DnsDatagram DnsApplicationQueryClosestDelegation(DnsDatagram request)
+        {
+            if ((_dnsApplicationManager.DnsAuthoritativeRequestHandlers.Count < 1) || (request.Question.Count != 1))
+                return null;
+
+            IPEndPoint localEP = new IPEndPoint(IPAddress.Any, 0);
+            DnsQuestionRecord question = request.Question[0];
+            string currentDomain = question.Name;
+
+            while (true)
+            {
+                DnsDatagram nsRequest = new DnsDatagram(0, false, DnsOpcode.StandardQuery, false, false, true, false, false, false, DnsResponseCode.NoError, new DnsQuestionRecord[] { new DnsQuestionRecord(currentDomain, DnsResourceRecordType.NS, DnsClass.IN) });
+
+                foreach (IDnsAuthoritativeRequestHandler requestHandler in _dnsApplicationManager.DnsAuthoritativeRequestHandlers)
+                {
+                    DnsDatagram nsResponse = requestHandler.ProcessRequestAsync(nsRequest, localEP, DnsTransportProtocol.Tcp, false).Sync();
+                    if (nsResponse is not null)
+                    {
+                        if ((nsResponse.Answer.Count > 0) && (nsResponse.Answer[0].Type == DnsResourceRecordType.NS))
+                            return new DnsDatagram(request.Identifier, true, nsResponse.OPCODE, nsResponse.AuthoritativeAnswer, nsResponse.Truncation, nsResponse.RecursionDesired, nsResponse.RecursionAvailable, nsResponse.AuthenticData, nsResponse.CheckingDisabled, nsResponse.RCODE, request.Question, null, nsResponse.Answer, nsResponse.Additional);
+                        else if ((nsResponse.Authority.Count > 0) && (nsResponse.Authority[0].Type == DnsResourceRecordType.NS))
+                            return new DnsDatagram(request.Identifier, true, nsResponse.OPCODE, nsResponse.AuthoritativeAnswer, nsResponse.Truncation, nsResponse.RecursionDesired, nsResponse.RecursionAvailable, nsResponse.AuthenticData, nsResponse.CheckingDisabled, nsResponse.RCODE, request.Question, null, nsResponse.Authority, nsResponse.Additional);
+                    }
+                }
+
+                //get parent domain
+                int i = currentDomain.IndexOf('.');
+                if (i < 0)
+                    break;
+
+                currentDomain = currentDomain.Substring(i + 1);
+            }
+
+            return null;
         }
 
         #endregion
@@ -47,7 +91,10 @@ namespace DnsServerCore.Dns
             if (findClosestNameServers && _prefetchQuery.Equals(request.Question[0]))
             {
                 //return closest name servers so that the recursive resolver queries them to refreshes cache instead of returning response from cache
-                DnsDatagram authResponse = _authZoneManager.QueryClosestDelegation(request);
+                DnsDatagram authResponse = DnsApplicationQueryClosestDelegation(request);
+                if (authResponse is null)
+                    authResponse = _authZoneManager.QueryClosestDelegation(request);
+
                 DnsDatagram cacheResponse = _cacheZoneManager.QueryClosestDelegation(request);
 
                 if ((authResponse is not null) && (authResponse.Authority.Count > 0))
