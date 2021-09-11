@@ -24,7 +24,10 @@ using TechnitiumLibrary.Net.Dns;
 
 namespace DnsApplicationCommon
 {
-    public interface IDnsApplicationRequestHandler : IDisposable
+    /// <summary>
+    /// Allows a DNS App to handle incoming DNS requests for configured APP records in the DNS server zones.
+    /// </summary>
+    public interface IDnsAppRecordRequestHandler : IDisposable
     {
         /// <summary>
         /// Allows initializing the DNS application with a config. This function is also called when the config is updated to allow reloading.
@@ -34,17 +37,17 @@ namespace DnsApplicationCommon
         Task InitializeAsync(IDnsServer dnsServer, string config);
 
         /// <summary>
-        /// This method is called by the DNS Server to process the DNS application request when an APP record in an Application zone is hit.
+        /// Allows a DNS App to respond to the incoming DNS requests for an APP record in a primary or secondary zone.
         /// </summary>
-        /// <param name="request">The DNS request object to be processed.</param>
+        /// <param name="request">The incoming DNS request to be processed.</param>
         /// <param name="remoteEP">The end point (IP address and port) of the client making the request.</param>
+        /// <param name="protocol">The protocol using which the request was received.</param>
+        /// <param name="isRecursionAllowed">Tells if the DNS server is configured to allow recursion for the client making this request.</param>
         /// <param name="zoneName">The name of the application zone that the APP record belongs to.</param>
         /// <param name="appRecordTtl">The TTL value set in the APP record.</param>
         /// <param name="appRecordData">The record data in the APP record as required for processing the request.</param>
-        /// <param name="isRecursionAllowed">Tells if the DNS server is configured to allow recursion for the client making this request.</param>
-        /// <param name="dnsServer">The DNS server object that allows access to the DNS server properties.</param>
         /// <returns>The DNS response for the DNS request or <c>null</c> to send no answer response with an SOA authority.</returns>
-        Task<DnsDatagram> ProcessRequestAsync(DnsDatagram request, IPEndPoint remoteEP, string zoneName, uint appRecordTtl, string appRecordData, bool isRecursionAllowed, IDnsServer dnsServer);
+        Task<DnsDatagram> ProcessRequestAsync(DnsDatagram request, IPEndPoint remoteEP, DnsTransportProtocol protocol, bool isRecursionAllowed, string zoneName, uint appRecordTtl, string appRecordData);
 
         /// <summary>
         /// The description about this app to be shown in the Apps section of the DNS web console.
