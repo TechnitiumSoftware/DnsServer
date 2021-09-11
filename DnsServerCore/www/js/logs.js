@@ -278,7 +278,7 @@ function queryLogs(pageNumber) {
 
     var name = $("#optQueryLogsAppName").val();
     if (name == null) {
-        showAlert("warning", "Missing!", "Please install a DNS App that does query logging to view its logged data here.");
+        showAlert("warning", "Missing!", "Please install a DNS App that supports query logging feature.");
         $("#optQueryLogsAppName").focus();
         return false;
     }
