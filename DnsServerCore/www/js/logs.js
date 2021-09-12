@@ -290,7 +290,11 @@ function queryLogs(pageNumber) {
         return false;
     }
 
+    if (pageNumber == null)
+        pageNumber = $("#txtQueryLogPageNumber").val();
+
     var entriesPerPage = $("#optQueryLogsEntriesPerPage").val();
+    var descendingOrder = $("#optQueryLogsDescendingOrder").val();
 
     var start = $("#txtQueryLogStart").val();
     if (start != "")
@@ -314,7 +318,7 @@ function queryLogs(pageNumber) {
     btn.button('loading');
 
     HTTPRequest({
-        url: "/api/queryLogs?token=" + token + "&name=" + encodeURIComponent(name) + "&classPath=" + encodeURIComponent(classPath) + "&pageNumber=" + pageNumber + "&entriesPerPage=" + entriesPerPage +
+        url: "/api/queryLogs?token=" + token + "&name=" + encodeURIComponent(name) + "&classPath=" + encodeURIComponent(classPath) + "&pageNumber=" + pageNumber + "&entriesPerPage=" + entriesPerPage + "&descendingOrder=" + descendingOrder +
             "&start=" + encodeURIComponent(start) + "&end=" + encodeURIComponent(end) + "&clientIpAddress=" + encodeURIComponent(clientIpAddress) + "&protocol=" + protocol + "&responseType=" + responseType + "&rcode=" + rcode +
             "&qname=" + encodeURIComponent(qname) + "&qtype=" + qtype + "&qclass=" + qclass,
         success: function (responseJSON) {
@@ -369,7 +373,7 @@ function queryLogs(pageNumber) {
             $("#tableQueryLogsBody").html(tableHtml);
 
             if (responseJSON.response.entries.length > 0)
-                $("#tableQueryLogsFooterStatus").html(responseJSON.response.entries[0].rowNumber + "-" + responseJSON.response.entries[responseJSON.response.entries.length - 1].rowNumber + " (" + responseJSON.response.entries.length + ") of " + responseJSON.response.totalEntries + " logs");
+                $("#tableQueryLogsFooterStatus").html(responseJSON.response.entries[0].rowNumber + "-" + responseJSON.response.entries[responseJSON.response.entries.length - 1].rowNumber + " (" + responseJSON.response.entries.length + ") of " + responseJSON.response.totalEntries + " logs (page " + responseJSON.response.pageNumber + " of " + responseJSON.response.totalPages + ")");
             else
                 $("#tableQueryLogsFooterStatus").html("0 logs");
 
