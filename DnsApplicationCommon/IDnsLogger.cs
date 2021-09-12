@@ -59,6 +59,7 @@ namespace DnsApplicationCommon
         /// </summary>
         /// <param name="pageNumber">The page number to be displayed to the user.</param>
         /// <param name="entriesPerPage">Total entries per page.</param>
+        /// <param name="descendingOrder">Lists log entries in descending order.</param>
         /// <param name="start">Optional parameter to filter records by start date time.</param>
         /// <param name="end">Optional parameter to filter records by end date time.</param>
         /// <param name="clientIpAddress">Optional parameter to filter records by the client IP address.</param>
@@ -69,7 +70,7 @@ namespace DnsApplicationCommon
         /// <param name="qtype">Optional parameter to filter records by the request QTYPE.</param>
         /// <param name="qclass">Optional parameter to filter records by the request QCLASS.</param>
         /// <returns>The <code>DnsLogPage</code> object that contains all the entries in the requested page number.</returns>
-        Task<DnsLogPage> QueryLogsAsync(long pageNumber, int entriesPerPage, DateTime? start, DateTime? end, IPAddress clientIpAddress, DnsTransportProtocol? protocol, DnsServerResponseType? responseType, DnsResponseCode? rcode, string qname, DnsResourceRecordType? qtype, DnsClass? qclass);
+        Task<DnsLogPage> QueryLogsAsync(long pageNumber, int entriesPerPage, bool descendingOrder, DateTime? start, DateTime? end, IPAddress clientIpAddress, DnsTransportProtocol? protocol, DnsServerResponseType? responseType, DnsResponseCode? rcode, string qname, DnsResourceRecordType? qtype, DnsClass? qclass);
 
         /// <summary>
         /// The description about this app to be shown in the Apps section of the DNS web console.
