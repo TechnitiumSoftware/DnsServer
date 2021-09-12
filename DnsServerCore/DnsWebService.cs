@@ -6262,6 +6262,13 @@ namespace DnsServerCore
             else
                 entriesPerPage = int.Parse(strEntriesPerPage);
 
+            bool descendingOrder;
+            string strDescendingOrder = request.QueryString["descendingOrder"];
+            if (string.IsNullOrEmpty(strDescendingOrder))
+                descendingOrder = true;
+            else
+                descendingOrder = bool.Parse(strDescendingOrder);
+
             DateTime? start;
             string strStart = request.QueryString["start"];
             if (string.IsNullOrEmpty(strStart))
@@ -6322,7 +6329,7 @@ namespace DnsServerCore
             else
                 qclass = Enum.Parse<DnsClass>(strQclass, true);
 
-            DnsLogPage page = await logger.QueryLogsAsync(pageNumber, entriesPerPage, start, end, clientIpAddress, protocol, responseType, rcode, qname, qtype, qclass);
+            DnsLogPage page = await logger.QueryLogsAsync(pageNumber, entriesPerPage, descendingOrder, start, end, clientIpAddress, protocol, responseType, rcode, qname, qtype, qclass);
 
             jsonWriter.WritePropertyName("pageNumber");
             jsonWriter.WriteValue(page.PageNumber);
