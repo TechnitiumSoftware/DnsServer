@@ -397,7 +397,7 @@ namespace RegexBlockList
                 return Task.FromResult<DnsDatagram>(null);
 
             DnsQuestionRecord question = request.Question[0];
-            string domain = question.Name;
+            string domain = question.Name.ToLower();
 
             foreach (Regex regex in _regexAllowListPatterns)
             {
