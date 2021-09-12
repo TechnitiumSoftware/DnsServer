@@ -1863,6 +1863,11 @@
                                                 </div>
 
                                                 <div class="form-group">
+                                                    <label for="txtQueryLogPageNumber">Page Number</label>
+                                                    <input id="txtQueryLogPageNumber" type="number" class="form-control" style="width: 120px;" value="1" />
+                                                </div>
+
+                                                <div class="form-group">
                                                     <label for="optQueryLogsEntriesPerPage">Logs Per Page</label>
                                                     <select class="form-control" id="optQueryLogsEntriesPerPage">
                                                         <option>10</option>
@@ -1871,6 +1876,14 @@
                                                         <option>100</option>
                                                         <option>250</option>
                                                         <option>500</option>
+                                                    </select>
+                                                </div>
+
+                                                <div class="form-group">
+                                                    <label for="optQueryLogsDescendingOrder">Order</label>
+                                                    <select class="form-control" id="optQueryLogsDescendingOrder">
+                                                        <option value="false">Ascending</option>
+                                                        <option value="true" selected>Descending</option>
                                                     </select>
                                                 </div>
 
@@ -1973,7 +1986,7 @@
                                                 </div>
 
                                                 <div class="form-group" style="display: block;">
-                                                    <button type="submit" class="btn btn-primary" id="btnQueryLogs" data-loading-text="Loading..." onclick="return queryLogs(1);" style="margin-right: 6px;">Query</button>
+                                                    <button type="submit" class="btn btn-primary" id="btnQueryLogs" data-loading-text="Loading..." onclick="return queryLogs();" style="margin-right: 6px;">Query</button>
                                                 </div>
                                             </form>
 
@@ -1983,7 +1996,7 @@
                                                 <thead>
                                                     <tr>
                                                         <th>#</th>
-                                                        <th>Timestamp</th>
+                                                        <th style="width: 95px;">Timestamp</th>
                                                         <th>Client IP Address</th>
                                                         <th>Protocol</th>
                                                         <th>Response Type</th>
@@ -1998,15 +2011,22 @@
                                                 </tbody>
                                                 <tfoot>
                                                     <tr>
-                                                        <td colspan="5"><b id="tableQueryLogsFooterStatus">Found: 0 logs</b></td>
-                                                        <td colspan="5" align="right">
-                                                            <nav aria-label="Page navigation">
-                                                                <ul id="tableQueryLogsFooterPagination" class="pagination" style="margin: 0;">
-                                                                    <li><a href="#" aria-label="Previous"><span aria-hidden="true">&laquo;</span></a></li>
-                                                                    <li><a href="#">1</a></li>
-                                                                    <li><a href="#" aria-label="Next"><span aria-hidden="true">&raquo;</span></a></li>
-                                                                </ul>
-                                                            </nav>
+                                                        <td colspan="10">
+                                                            <div>
+                                                                <div class="pull-left">
+                                                                    <b id="tableQueryLogsFooterStatus">Found: 0 logs</b>
+                                                                </div>
+                                                                <div class="pull-right">
+                                                                    <nav aria-label="Page navigation">
+                                                                        <ul id="tableQueryLogsFooterPagination" class="pagination" style="margin: 0;">
+                                                                            <li><a href="#" aria-label="Previous"><span aria-hidden="true">&laquo;</span></a></li>
+                                                                            <li><a href="#">1</a></li>
+                                                                            <li><a href="#" aria-label="Next"><span aria-hidden="true">&raquo;</span></a></li>
+                                                                        </ul>
+                                                                    </nav>
+                                                                </div>
+                                                                <div class="clearfix"></div>
+                                                            </div>
                                                         </td>
                                                     </tr>
                                                 </tfoot>
