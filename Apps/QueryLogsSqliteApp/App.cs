@@ -286,7 +286,7 @@ CREATE TABLE IF NOT EXISTS dns_logs
                     }
                     else
                     {
-                        command.Parameters.AddWithValue("@qname", query.Name);
+                        command.Parameters.AddWithValue("@qname", query.Name.ToLower());
                         command.Parameters.AddWithValue("@qtype", (ushort)query.Type);
                         command.Parameters.AddWithValue("@qclass", (ushort)query.Class);
                     }
@@ -303,8 +303,11 @@ CREATE TABLE IF NOT EXISTS dns_logs
             return Task.CompletedTask;
         }
 
-        public Task<DnsLogPage> QueryLogsAsync(long pageNumber, int entriesPerPage, DateTime? start, DateTime? end, IPAddress clientIpAddress, DnsTransportProtocol? protocol, DnsServerResponseType? responseType, DnsResponseCode? rcode, string qname, DnsResourceRecordType? qtype, DnsClass? qclass)
+        public Task<DnsLogPage> QueryLogsAsync(long pageNumber, int entriesPerPage, bool descendingOrder, DateTime? start, DateTime? end, IPAddress clientIpAddress, DnsTransportProtocol? protocol, DnsServerResponseType? responseType, DnsResponseCode? rcode, string qname, DnsResourceRecordType? qtype, DnsClass? qclass)
         {
+            if (qname is not null)
+                qname = qname.ToLower();
+
             string whereClause = string.Empty;
 
             if (start is not null)
@@ -383,8 +386,19 @@ CREATE TABLE IF NOT EXISTS dns_logs
                 if (pageNumber > totalPages)
                     pageNumber = totalPages;
 
-                long endRowNum = pageNumber * entriesPerPage;
-                long startRowNum = endRowNum - entriesPerPage;
+                long endRowNum;
+                long startRowNum;
+
+                if (descendingOrder)
+                {
+                    endRowNum = totalEntries - ((pageNumber - 1) * entriesPerPage);
+                    startRowNum = endRowNum - entriesPerPage;
+                }
+                else
+                {
+                    endRowNum = pageNumber * entriesPerPage;
+                    startRowNum = endRowNum - entriesPerPage;
+                }
 
                 List<DnsLogEntry> entries = new List<DnsLogEntry>(entriesPerPage);
 
@@ -408,6 +422,7 @@ SELECT * FROM (
     FROM
         dns_logs
 " + (string.IsNullOrEmpty(whereClause) ? "" : "WHERE " + whereClause) + @"
+    ORDER BY row_num" + (descendingOrder ? " DESC" : "") + @"
 ) t
 WHERE 
     row_num > @start_row_num AND row_num <= @end_row_num
