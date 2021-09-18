@@ -737,7 +737,7 @@ namespace DnsServerCore.Dns
                                             case "GET":
                                                 string strRequest = httpRequest.QueryString["dns"];
                                                 if (string.IsNullOrEmpty(strRequest))
-                                                    throw new ArgumentNullException("dns");
+                                                    throw new DnsServerException("Missing query string parameter: dns");
 
                                                 //convert from base64url to base64
                                                 strRequest = strRequest.Replace('-', '+');
@@ -821,7 +821,7 @@ namespace DnsServerCore.Dns
                                     {
                                         string strName = httpRequest.QueryString["name"];
                                         if (string.IsNullOrEmpty(strName))
-                                            throw new ArgumentNullException("name");
+                                            throw new DnsServerException("Missing query string parameter: name");
 
                                         string strType = httpRequest.QueryString["type"];
                                         if (string.IsNullOrEmpty(strType))
