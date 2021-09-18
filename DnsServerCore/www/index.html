@@ -1511,7 +1511,7 @@
                                                             <th onclick="sortTable('tableDhcpLeasesBody', 4);">Host Name</th>
                                                             <th onclick="sortTable('tableDhcpLeasesBody', 5);">Lease Obtained</th>
                                                             <th onclick="sortTable('tableDhcpLeasesBody', 6);">Lease Expires</th>
-                                                            <th style="width: 80px;" align="right"></th>
+                                                            <th style="width: 40px;" align="right"></th>
                                                         </tr>
                                                     </thead>
                                                     <tbody id="tableDhcpLeasesBody">
@@ -1622,10 +1622,44 @@
                                                             <label for="txtDhcpScopeOfferDelayTime" class="col-sm-3 control-label">Offer Delay Time</label>
                                                             <div class="col-sm-3">
                                                                 <input type="number" class="form-control" style="width: 80px; display: inline;" id="txtDhcpScopeOfferDelayTime" placeholder="Delay">
-                                                                <span>(milli seconds)</span>
+                                                                <span>milliseconds</span>
                                                             </div>
                                                             <div class="col-sm-offset-3 col-sm-8" style="padding-top: 5px;">The time duration that the DHCP server delays sending an DHCPOFFER message.</div>
                                                         </div>
+                                                    </div>
+
+                                                    <div class="well well-sm form-horizontal">
+                                                        <div class="form-group">
+                                                            <label for="chkDhcpScopePingCheckEnabled" class="col-sm-3 control-label">Ping Check</label>
+                                                            <div class="col-sm-6">
+                                                                <div class="checkbox">
+                                                                    <label>
+                                                                        <input id="chkDhcpScopePingCheckEnabled" type="checkbox"> Enable Ping Check
+                                                                    </label>
+                                                                </div>
+                                                            </div>
+                                                            <div class="col-sm-offset-3 col-sm-8" style="padding-top: 5px; margin-bottom: 10px;">Enable this option to allow DHCP server to find out if an IP address is already in use to prevent IP address conflict when some of the devices on the network have manually configured IP addresses.</div>
+                                                        </div>
+
+                                                        <div class="form-group">
+                                                            <label for="txtDhcpScopePingCheckTimeout" class="col-sm-3 control-label">Ping Check Timeout</label>
+                                                            <div class="col-sm-4">
+                                                                <input type="number" class="form-control" style="width: 100px; display: inline;" id="txtDhcpScopePingCheckTimeout" placeholder="timeout">
+                                                                <span>milliseconds (default 1000)</span>
+                                                            </div>
+                                                            <div class="col-sm-offset-3 col-sm-8" style="padding-top: 5px;">The timeout interval to wait for an ping reply.</div>
+                                                        </div>
+
+                                                        <div class="form-group">
+                                                            <label for="txtDhcpScopePingCheckRetries" class="col-sm-3 control-label">Ping Check Retries</label>
+                                                            <div class="col-sm-3">
+                                                                <input type="number" class="form-control" style="width: 100px; display: inline;" id="txtDhcpScopePingCheckRetries" placeholder="timeout">
+                                                                <span>(default 2)</span>
+                                                            </div>
+                                                            <div class="col-sm-offset-3 col-sm-8" style="padding-top: 5px;">The maximum number of ping requests to try.</div>
+                                                        </div>
+
+                                                        <div style="padding-top: 5px;">Warning! Ping check would work as expected only when you make sure that all the client devices with manually configured IP addresses on the network respond to a ping request. Devices running Microsoft Windows by default drop ping requests at host firewall and will cause this ping check to fail to detect in use IP addresses. It is recommended to not rely on this option and instead make sure that you exclude a range of addresses using Exclusions and manually assign IP addresses to your devices only in the excluded range.</div>
                                                     </div>
 
                                                     <div class="well well-sm form-horizontal">
@@ -1641,7 +1675,7 @@
                                                             <label for="txtDhcpScopeDnsTtl" class="col-sm-3 control-label">DNS TTL</label>
                                                             <div class="col-sm-3">
                                                                 <input type="number" class="form-control" style="width: 100px; display: inline;" id="txtDhcpScopeDnsTtl" placeholder="DNS TTL">
-                                                                <span>(seconds)</span>
+                                                                <span>seconds (default 900)</span>
                                                             </div>
                                                             <div class="col-sm-offset-3 col-sm-8" style="padding-top: 5px;">The TTL value of the DNS records updated for the above provided domain name.</div>
                                                         </div>
@@ -1771,6 +1805,7 @@
                                                             </div>
                                                             <div class="col-sm-offset-3 col-sm-8" style="padding-top: 5px;">The IP address range that must be excluded or not assigned dynamically to any client by the DHCP server.</div>
                                                         </div>
+                                                        <div style="padding-top: 5px;">Note! Make sure to exclude address ranges if you plan to manually assign IP addresses to some of the devices or to assign reserved leases so that these IP addresses are not dynamically allocated in the first place.</div>
                                                     </div>
 
                                                     <div class="well well-sm form-horizontal">
@@ -3221,6 +3256,37 @@ ns1.example.com ([2001:db8::])
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-default" data-dismiss="modal">Close</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+
+    <div id="modalDhcpRemoveLease" class="modal fade" tabindex="-1" role="dialog">
+        <div class="modal-dialog" role="document">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <button type="button" class="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button>
+                    <h4 class="modal-title">Remove Lease?</h4>
+                </div>
+                <div class="modal-body">
+                    <div id="divDhcpRemoveLeaseAlert"></div>
+
+                    <p><b>WARNING!</b> Removing a DHCP lease from the server side will NOT remove the allocated IP address from the client side. Make sure that the client assigned this lease is not connected to the network before proceeding.</p>
+                    <p><b>WARNING!</b> Removing a DHCP lease may cause IP address conflict if the DHCP server assigns the same IP address to a new client while the old client is still connected to the network.</p>
+                    <p>
+                        It is not recommended to remove DHCP leases. Use this option only as a last resort. Follow the recommendations below to avoid such a case that requires removing a DHCP lease:
+                        <ul>
+                            <li>Use a shorter lease time such that a dynamically allocated lease expires quickly when the client exits the network.</li>
+                            <li>Use Exclusions to exclude IP address ranges from being dynamically allocated that you plan to assign manually to some of the devices on the network.</li>
+                            <li>Also use Exclusions to make sure that you have unallocated addresses available in the DHCP scope to be assigned as reserved leases in future.</li>
+                        </ul>
+                    </p>
+                    <p>Are you sure you want to remove the DHCP lease now?</p>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-default" data-dismiss="modal">Close</button>
+                    <button id="btnRemoveDhcpLease" type="button" class="btn btn-danger" data-loading-text="Removing...">Remove</button>
                 </div>
             </div>
         </div>
