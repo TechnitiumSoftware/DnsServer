@@ -10,8 +10,8 @@
     <RepositoryUrl>https://github.com/TechnitiumSoftware/DnsServer</RepositoryUrl>
     <RepositoryType></RepositoryType>
     <Description>.NET 5</Description>
-    <PackageId>DnsApplicationCommon</PackageId>
-    <Version>1.1</Version>
+    <PackageId>DnsServerCore.ApplicationCommon</PackageId>
+    <Version>2.0</Version>
   </PropertyGroup>
 
   <ItemGroup>

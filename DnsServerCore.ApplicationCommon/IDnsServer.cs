@@ -22,7 +22,7 @@ using System.Threading.Tasks;
 using TechnitiumLibrary.Net.Dns;
 using TechnitiumLibrary.Net.Proxy;
 
-namespace DnsApplicationCommon
+namespace DnsServerCore.ApplicationCommon
 {
     /// <summary>
     /// Provides an interface to access the internal DNS Server core.

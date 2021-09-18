@@ -22,12 +22,30 @@ using System.Net;
 using System.Threading.Tasks;
 using TechnitiumLibrary.Net.Dns;
 
-namespace DnsApplicationCommon
+namespace DnsServerCore.ApplicationCommon
 {
+    public enum DnsRequestControllerAction
+    {
+        /// <summary>
+        /// Allow the request to be processed.
+        /// </summary>
+        Allow = 0,
+
+        /// <summary>
+        /// Drop the request without any response.
+        /// </summary>
+        DropSilently = 1,
+
+        /// <summary>
+        /// Drop the request with a Refused response.
+        /// </summary>
+        DropWithRefused = 2
+    }
+
     /// <summary>
-    /// Lets a DNS App to handle incoming requests for the DNS server's authoritative zone allowing it to act as an authoritative zone by itself and respond to any requests.
+    /// Allows a DNS App to inspect and optionally block incoming DNS requests before they are processed by the DNS Server core.
     /// </summary>
-    public interface IDnsAuthoritativeRequestHandler : IDisposable
+    public interface IDnsRequestController : IDisposable
     {
         /// <summary>
         /// Allows initializing the DNS application with a config. This function is also called when the config is updated to allow reloading.
@@ -37,14 +55,13 @@ namespace DnsApplicationCommon
         Task InitializeAsync(IDnsServer dnsServer, string config);
 
         /// <summary>
-        /// Allows a DNS App to respond to an incoming DNS request for the DNS server's authoritative zone. This method is called by the DNS Server's authoritative zone before querying its built in zone database. Response returned may be further processed to resolve CNAME or ANAME records, or referral response.
+        /// Allows a DNS App to inspect an incoming DNS request and decide whether to allow or block it. This method is called by the DNS Server before an incoming request is processed.
         /// </summary>
-        /// <param name="request">The incoming DNS request to be processed.</param>
+        /// <param name="request">The incoming DNS request.</param>
         /// <param name="remoteEP">The end point (IP address and port) of the client making the request.</param>
         /// <param name="protocol">The protocol using which the request was received.</param>
-        /// <param name="isRecursionAllowed">Tells if the DNS server is configured to allow recursion for the client making this request.</param>
-        /// <returns>The DNS response for the DNS request or <c>null</c> to let the DNS server core process the request as usual.</returns>
-        Task<DnsDatagram> ProcessRequestAsync(DnsDatagram request, IPEndPoint remoteEP, DnsTransportProtocol protocol, bool isRecursionAllowed);
+        /// <returns>The action that must be taken by the DNS server i.e. if the request must be allowed or dropped.</returns>
+        Task<DnsRequestControllerAction> GetRequestActionAsync(DnsDatagram request, IPEndPoint remoteEP, DnsTransportProtocol protocol);
 
         /// <summary>
         /// The description about this app to be shown in the Apps section of the DNS web console.

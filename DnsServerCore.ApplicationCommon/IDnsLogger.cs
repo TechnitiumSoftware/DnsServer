@@ -23,7 +23,7 @@ using System.Net;
 using System.Threading.Tasks;
 using TechnitiumLibrary.Net.Dns;
 
-namespace DnsApplicationCommon
+namespace DnsServerCore.ApplicationCommon
 {
     public enum DnsServerResponseType : byte
     {
