@@ -106,7 +106,7 @@ namespace DnsServerCore.Dns.ZoneManagers
             return word;
         }
 
-        private Queue<string> ReadListFile(Uri listUrl, bool isAllow)
+        private Queue<string> ReadListFile(Uri listUrl, bool isAllowList)
         {
             Queue<string> domains = new Queue<string>();
 
@@ -114,7 +114,7 @@ namespace DnsServerCore.Dns.ZoneManagers
             {
                 LogManager log = _dnsServer.LogManager;
                 if (log != null)
-                    log.Write("DNS Server is reading " + (isAllow ? "allow" : "block") + " list from: " + listUrl.AbsoluteUri);
+                    log.Write("DNS Server is reading " + (isAllowList ? "allow" : "block") + " list from: " + listUrl.AbsoluteUri);
 
                 using (FileStream fS = new FileStream(GetBlockListFilePath(listUrl), FileMode.Open, FileAccess.Read))
                 {
@@ -185,13 +185,13 @@ namespace DnsServerCore.Dns.ZoneManagers
                 }
 
                 if (log != null)
-                    log.Write("DNS Server " + (isAllow ? "allow" : "block") + " list file was read (" + domains.Count + " domains) from: " + listUrl.AbsoluteUri);
+                    log.Write("DNS Server read " + (isAllowList ? "allow" : "block") + " list file (" + domains.Count + " domains) from: " + listUrl.AbsoluteUri);
             }
             catch (Exception ex)
             {
                 LogManager log = _dnsServer.LogManager;
                 if (log != null)
-                    log.Write("DNS Server failed to read " + (isAllow ? "allow" : "block") + " list from: " + listUrl.AbsoluteUri + "\r\n" + ex.ToString());
+                    log.Write("DNS Server failed to read " + (isAllowList ? "allow" : "block") + " list from: " + listUrl.AbsoluteUri + "\r\n" + ex.ToString());
             }
 
             return domains;
@@ -251,9 +251,9 @@ namespace DnsServerCore.Dns.ZoneManagers
             //read all allowed domains in dictionary
             Dictionary<string, object> allowedDomains = new Dictionary<string, object>();
 
-            foreach (Uri allowListUri in _allowListUrls)
+            foreach (Uri allowListUrl in _allowListUrls)
             {
-                Queue<string> queue = ReadListFile(allowListUri, true);
+                Queue<string> queue = ReadListFile(allowListUrl, true);
 
                 while (queue.Count > 0)
                 {
@@ -426,7 +426,7 @@ namespace DnsServerCore.Dns.ZoneManagers
                 DnsResourceRecord[] answer = new DnsResourceRecord[blockLists.Count];
 
                 for (int i = 0; i < answer.Length; i++)
-                    answer[i] = new DnsResourceRecord(question.Name, DnsResourceRecordType.TXT, question.Class, 60, new DnsTXTRecord("blockList=" + blockLists[i].AbsoluteUri + "; domain=" + blockedDomain));
+                    answer[i] = new DnsResourceRecord(question.Name, DnsResourceRecordType.TXT, question.Class, 60, new DnsTXTRecord("source=block-list-zone; blockListUrl=" + blockLists[i].AbsoluteUri + "; domain=" + blockedDomain));
 
                 return new DnsDatagram(request.Identifier, true, DnsOpcode.StandardQuery, false, false, request.RecursionDesired, true, false, false, DnsResponseCode.NoError, request.Question, answer);
             }
