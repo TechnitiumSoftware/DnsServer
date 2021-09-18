@@ -7,8 +7,8 @@
     <Company>Technitium</Company>
     <Product>Technitium DNS Server</Product>
     <Authors>Shreyas Zare</Authors>
-    <AssemblyName>BlockListGroupsApp</AssemblyName>
-    <RootNamespace>BlockListGroups</RootNamespace>
+    <AssemblyName>AdvanceBlockingApp</AssemblyName>
+    <RootNamespace>AdvanceBlocking</RootNamespace>
     <PackageProjectUrl>https://technitium.com/dns/</PackageProjectUrl>
     <RepositoryUrl>https://github.com/TechnitiumSoftware/DnsServer</RepositoryUrl>
     <GeneratePackageOnBuild>false</GeneratePackageOnBuild>
@@ -20,7 +20,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\..\DnsApplicationCommon\DnsApplicationCommon.csproj">
+    <ProjectReference Include="..\..\DnsServerCore.ApplicationCommon\DnsServerCore.ApplicationCommon.csproj">
       <Private>false</Private>
     </ProjectReference>
   </ItemGroup>
