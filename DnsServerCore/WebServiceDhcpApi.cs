@@ -679,16 +679,11 @@ namespace DnsServerCore
             if (string.IsNullOrEmpty(scopeName))
                 throw new DnsWebServiceException("Parameter 'name' missing.");
 
-            Scope scope = _dnsWebService.DhcpServer.GetScope(scopeName);
-            if (scope == null)
-                throw new DnsWebServiceException("DHCP scope does not exists: " + scopeName);
-
             string strHardwareAddress = request.QueryString["hardwareAddress"];
             if (string.IsNullOrEmpty(strHardwareAddress))
                 throw new DnsWebServiceException("Parameter 'hardwareAddress' missing.");
 
-            scope.RemoveLease(strHardwareAddress);
-
+            _dnsWebService.DhcpServer.RemoveLease(scopeName, strHardwareAddress);
             _dnsWebService.DhcpServer.SaveScope(scopeName);
 
             _dnsWebService.Log.Write(DnsWebService.GetRequestRemoteEndPoint(request), "[" + _dnsWebService.GetSession(request).Username + "] DHCP scope's lease was removed successfully: " + scopeName);
