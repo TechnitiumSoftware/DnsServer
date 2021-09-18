@@ -1936,7 +1936,7 @@
                                                 </div>
 
                                                 <div class="form-group">
-                                                    <label for="optQueryLogsResponseCode">Response Code</label>
+                                                    <label for="optQueryLogsResponseCode">RCODE</label>
                                                     <select class="form-control" id="optQueryLogsResponseCode">
                                                         <option selected></option>
                                                         <option value="NoError">No Error</option>
@@ -1956,24 +1956,8 @@
                                                 </div>
 
                                                 <div class="form-group">
-                                                    <label for="optQueryLogQType">Type</label>
-                                                    <select class="form-control" id="optQueryLogQType">
-                                                        <option selected></option>
-                                                        <option>A</option>
-                                                        <option>NS</option>
-                                                        <option>CNAME</option>
-                                                        <option>SOA</option>
-                                                        <option>PTR</option>
-                                                        <option>MX</option>
-                                                        <option>TXT</option>
-                                                        <option>AAAA</option>
-                                                        <option>SRV</option>
-                                                        <option>DNAME</option>
-                                                        <option>CAA</option>
-                                                        <option>ANY</option>
-                                                        <option>AXFR</option>
-                                                        <option>ANAME</option>
-                                                    </select>
+                                                    <label for="txtQueryLogQType">Type</label>
+                                                    <input id="txtQueryLogQType" type='text' class="form-control" />
                                                 </div>
 
                                                 <div class="form-group">
@@ -1981,7 +1965,11 @@
                                                     <select class="form-control" id="optQueryLogQClass">
                                                         <option selected></option>
                                                         <option>IN</option>
+                                                        <option>CS</option>
                                                         <option>CH</option>
+                                                        <option>HS</option>
+                                                        <option>NONE</option>
+                                                        <option>ANY</option>
                                                     </select>
                                                 </div>
 
@@ -1992,45 +1980,63 @@
 
                                             <div id="divQueryLogsLoader" style="margin-top: 20px; height: 300px;"></div>
 
-                                            <table id="tableQueryLogs" class="table table-hover">
-                                                <thead>
-                                                    <tr>
-                                                        <th>#</th>
-                                                        <th style="width: 95px;">Timestamp</th>
-                                                        <th>Client IP Address</th>
-                                                        <th>Protocol</th>
-                                                        <th>Response Type</th>
-                                                        <th>Response Code</th>
-                                                        <th style="min-width: 200px;">Domain</th>
-                                                        <th>Type</th>
-                                                        <th>Class</th>
-                                                        <th>Answer</th>
-                                                    </tr>
-                                                </thead>
-                                                <tbody id="tableQueryLogsBody">
-                                                </tbody>
-                                                <tfoot>
-                                                    <tr>
-                                                        <td colspan="10">
-                                                            <div>
-                                                                <div class="pull-left">
-                                                                    <b id="tableQueryLogsFooterStatus">Found: 0 logs</b>
+                                            <div id="divQueryLogsTable">
+                                                <div>
+                                                    <div class="pull-left" style="padding: 8px;">
+                                                        <b id="tableQueryLogsTopStatus">Found: 0 logs</b>
+                                                    </div>
+                                                    <div class="pull-right">
+                                                        <nav aria-label="Page navigation">
+                                                            <ul id="tableQueryLogsTopPagination" class="pagination" style="margin: 0;">
+                                                                <li><a href="#" aria-label="Previous"><span aria-hidden="true">&laquo;</span></a></li>
+                                                                <li><a href="#">1</a></li>
+                                                                <li><a href="#" aria-label="Next"><span aria-hidden="true">&raquo;</span></a></li>
+                                                            </ul>
+                                                        </nav>
+                                                    </div>
+                                                    <div class="clearfix"></div>
+                                                </div>
+
+                                                <table class="table table-hover">
+                                                    <thead>
+                                                        <tr>
+                                                            <th>#</th>
+                                                            <th style="width: 95px;">Timestamp</th>
+                                                            <th>Client IP Address</th>
+                                                            <th>Protocol</th>
+                                                            <th>Response Type</th>
+                                                            <th>RCODE</th>
+                                                            <th style="min-width: 200px;">Domain</th>
+                                                            <th>Type</th>
+                                                            <th>Class</th>
+                                                            <th>Answer</th>
+                                                        </tr>
+                                                    </thead>
+                                                    <tbody id="tableQueryLogsBody">
+                                                    </tbody>
+                                                    <tfoot>
+                                                        <tr>
+                                                            <td colspan="10">
+                                                                <div>
+                                                                    <div class="pull-left">
+                                                                        <b id="tableQueryLogsFooterStatus">Found: 0 logs</b>
+                                                                    </div>
+                                                                    <div class="pull-right">
+                                                                        <nav aria-label="Page navigation">
+                                                                            <ul id="tableQueryLogsFooterPagination" class="pagination" style="margin: 0;">
+                                                                                <li><a href="#" aria-label="Previous"><span aria-hidden="true">&laquo;</span></a></li>
+                                                                                <li><a href="#">1</a></li>
+                                                                                <li><a href="#" aria-label="Next"><span aria-hidden="true">&raquo;</span></a></li>
+                                                                            </ul>
+                                                                        </nav>
+                                                                    </div>
+                                                                    <div class="clearfix"></div>
                                                                 </div>
-                                                                <div class="pull-right">
-                                                                    <nav aria-label="Page navigation">
-                                                                        <ul id="tableQueryLogsFooterPagination" class="pagination" style="margin: 0;">
-                                                                            <li><a href="#" aria-label="Previous"><span aria-hidden="true">&laquo;</span></a></li>
-                                                                            <li><a href="#">1</a></li>
-                                                                            <li><a href="#" aria-label="Next"><span aria-hidden="true">&raquo;</span></a></li>
-                                                                        </ul>
-                                                                    </nav>
-                                                                </div>
-                                                                <div class="clearfix"></div>
-                                                            </div>
-                                                        </td>
-                                                    </tr>
-                                                </tfoot>
-                                            </table>
+                                                            </td>
+                                                        </tr>
+                                                    </tfoot>
+                                                </table>
+                                            </div>
 
                                         </div>
                                     </div>
