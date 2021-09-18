@@ -17,7 +17,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 */
 
-using DnsApplicationCommon;
+using DnsServerCore.ApplicationCommon;
 using DnsServerCore.Dns.Applications;
 using DnsServerCore.Dns.ZoneManagers;
 using DnsServerCore.Dns.Zones;
@@ -1771,7 +1771,7 @@ namespace DnsServerCore.Dns
                     else
                         blockedDomain = question.Name;
 
-                    IReadOnlyList<DnsResourceRecord> answer = new DnsResourceRecord[] { new DnsResourceRecord(question.Name, DnsResourceRecordType.TXT, question.Class, 60, new DnsTXTRecord("blockList=custom; domain=" + blockedDomain)) };
+                    IReadOnlyList<DnsResourceRecord> answer = new DnsResourceRecord[] { new DnsResourceRecord(question.Name, DnsResourceRecordType.TXT, question.Class, 60, new DnsTXTRecord("source=blocked-zone; domain=" + blockedDomain)) };
 
                     return new DnsDatagram(request.Identifier, true, DnsOpcode.StandardQuery, false, false, request.RecursionDesired, true, false, false, DnsResponseCode.NoError, request.Question, answer) { Tag = DnsServerResponseType.Blocked };
                 }
