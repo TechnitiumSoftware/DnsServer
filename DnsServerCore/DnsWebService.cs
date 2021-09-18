@@ -17,7 +17,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 */
 
-using DnsApplicationCommon;
+using DnsServerCore.ApplicationCommon;
 using DnsServerCore.Dhcp;
 using DnsServerCore.Dhcp.Options;
 using DnsServerCore.Dns;
@@ -118,7 +118,7 @@ namespace DnsServerCore
         DateTime _blockListLastUpdatedOn;
         int _blockListUpdateIntervalHours = 24;
         const int BLOCK_LIST_UPDATE_TIMER_INITIAL_INTERVAL = 5000;
-        const int BLOCK_LIST_UPDATE_TIMER_INTERVAL = 900000;
+        const int BLOCK_LIST_UPDATE_TIMER_PERIODIC_INTERVAL = 900000;
 
         Timer _temporaryDisableBlockingTimer;
         DateTime _temporaryDisableBlockingTill;
@@ -7105,7 +7105,7 @@ namespace DnsServerCore
                         _log.Write("DNS Server encountered an error while updating block lists.\r\n" + ex.ToString());
                     }
 
-                }, null, BLOCK_LIST_UPDATE_TIMER_INITIAL_INTERVAL, BLOCK_LIST_UPDATE_TIMER_INTERVAL);
+                }, null, BLOCK_LIST_UPDATE_TIMER_INITIAL_INTERVAL, BLOCK_LIST_UPDATE_TIMER_PERIODIC_INTERVAL);
             }
         }
 
