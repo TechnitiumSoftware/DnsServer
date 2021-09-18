@@ -148,7 +148,9 @@ function removeLease(objBtn, index, scopeName, hardwareAddress) {
     HTTPRequest({
         url: "/api/removeDhcpLease?token=" + token + "&name=" + encodeURIComponent(scopeName) + "&hardwareAddress=" + encodeURIComponent(hardwareAddress),
         success: function (responseJSON) {
+            btn.button('reset');
             $("#modalDhcpRemoveLease").modal("hide");
+
             refreshDhcpLeases();
 
             showAlert("success", "Lease Removed!", "The DHCP lease was removed successfully.");
