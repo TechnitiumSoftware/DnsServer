@@ -128,11 +128,19 @@ namespace DnsServerCore.Dhcp
             {
                 Stop();
 
-                if (_saveModifiedDnsAuthZonesTimer != null)
+                if (_saveModifiedDnsAuthZonesTimer is not null)
                     _saveModifiedDnsAuthZonesTimer.Dispose();
 
-                if (_maintenanceTimer != null)
+                if (_maintenanceTimer is not null)
                     _maintenanceTimer.Dispose();
+
+                if (_scopes is not null)
+                {
+                    foreach (KeyValuePair<string, Scope> scope in _scopes)
+                        scope.Value.Dispose();
+
+                    _scopes.Clear();
+                }
             }
 
             _disposed = true;
@@ -309,7 +317,7 @@ namespace DnsServerCore.Dhcp
                         if (scope.OfferDelayTime > 0)
                             await Task.Delay(scope.OfferDelayTime); //delay sending offer
 
-                        Lease offer = scope.GetOffer(request);
+                        Lease offer = await scope.GetOfferAsync(request);
                         if (offer == null)
                             return null; //no offer available, do nothing
 
@@ -394,9 +402,9 @@ namespace DnsServerCore.Dhcp
                                 }
                             }
 
-                            if ((leaseOffer.Type == LeaseType.Dynamic) && scope.IsAddressExcluded(leaseOffer.Address))
+                            if ((leaseOffer.Type == LeaseType.Dynamic) && (scope.IsAddressExcluded(leaseOffer.Address) || scope.IsAddressReserved(leaseOffer.Address)))
                             {
-                                //client ip is excluded for dynamic allocations
+                                //client ip is excluded/reserved for dynamic allocations
                                 scope.ReleaseLease(leaseOffer);
                                 //send nak
                                 return DhcpMessage.CreateReply(request, IPAddress.Any, IPAddress.Any, null, null, new DhcpOption[] { new DhcpMessageTypeOption(DhcpMessageType.Nak), new ServerIdentifierOption(scope.InterfaceAddress), DhcpOption.CreateEndOption() });
@@ -407,7 +415,7 @@ namespace DnsServerCore.Dhcp
                             {
                                 if (leaseOffer.Type == LeaseType.Reserved)
                                 {
-                                    //client's reserved has been removed so release the current lease and send NAK to allow it to get new allocation
+                                    //client's reserved lease has been removed so release the current lease and send NAK to allow it to get new allocation
                                     scope.ReleaseLease(leaseOffer);
                                     //send nak
                                     return DhcpMessage.CreateReply(request, IPAddress.Any, IPAddress.Any, null, null, new DhcpOption[] { new DhcpMessageTypeOption(DhcpMessageType.Nak), new ServerIdentifierOption(scope.InterfaceAddress), DhcpOption.CreateEndOption() });
@@ -673,7 +681,7 @@ namespace DnsServerCore.Dhcp
                 }
                 else
                 {
-                    if (!remoteAddress.Equals(request.ClientIpAddress))
+                    if ((request.DhcpMessageType?.Type != DhcpMessageType.Decline) && !remoteAddress.Equals(request.ClientIpAddress))
                         return null; //client ip must match udp src addr
 
                     //unicast request
@@ -1064,8 +1072,10 @@ namespace DnsServerCore.Dhcp
             if (scope.Enabled)
                 DeactivateScope(scope);
 
-            if (_scopes.TryRemove(scope.Name, out _))
+            if (_scopes.TryRemove(scope.Name, out Scope removedScope))
             {
+                removedScope.Dispose();
+
                 LogManager log = _log;
                 if (log != null)
                     log.Write("DHCP Server successfully unloaded scope: " + scope.Name);
