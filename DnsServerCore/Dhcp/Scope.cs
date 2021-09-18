@@ -27,13 +27,15 @@ using System.Net;
 using System.Net.NetworkInformation;
 using System.Net.Sockets;
 using System.Text;
+using System.Threading;
+using System.Threading.Tasks;
 using TechnitiumLibrary.IO;
 using TechnitiumLibrary.Net;
 using TechnitiumLibrary.Net.Dns;
 
 namespace DnsServerCore.Dhcp
 {
-    public class Scope : IComparable<Scope>
+    public sealed class Scope : IComparable<Scope>, IDisposable
     {
         #region variables
 
@@ -47,6 +49,10 @@ namespace DnsServerCore.Dhcp
         byte _leaseTimeHours = 0;
         byte _leaseTimeMinutes = 0;
         ushort _offerDelayTime;
+
+        bool _pingCheckEnabled;
+        ushort _pingCheckTimeout = 1000;
+        byte _pingCheckRetries = 2;
 
         //dhcp options
         string _domainName;
@@ -78,7 +84,7 @@ namespace DnsServerCore.Dhcp
         const int OFFER_EXPIRY_SECONDS = 60; //1 mins offer expiry
         readonly ConcurrentDictionary<ClientIdentifierOption, Lease> _offers = new ConcurrentDictionary<ClientIdentifierOption, Lease>();
         IPAddress _lastAddressOffered;
-        readonly object _lastAddressOfferedLock = new object();
+        readonly SemaphoreSlim _lastAddressOfferedLock = new SemaphoreSlim(1, 1);
         IPAddress _interfaceAddress;
         int _interfaceIndex;
         DateTime _lastModified = DateTime.UtcNow;
@@ -107,6 +113,7 @@ namespace DnsServerCore.Dhcp
                 case 2:
                 case 3:
                 case 4:
+                case 5:
                     _name = bR.ReadShortString();
                     _enabled = bR.ReadBoolean();
 
@@ -117,6 +124,13 @@ namespace DnsServerCore.Dhcp
                     _leaseTimeMinutes = bR.ReadByte();
 
                     _offerDelayTime = bR.ReadUInt16();
+
+                    if (version >= 5)
+                    {
+                        _pingCheckEnabled = bR.ReadBoolean();
+                        _pingCheckTimeout = bR.ReadUInt16();
+                        _pingCheckRetries = bR.ReadByte();
+                    }
 
                     _domainName = bR.ReadShortString();
                     if (string.IsNullOrWhiteSpace(_domainName))
@@ -274,6 +288,23 @@ namespace DnsServerCore.Dhcp
 
         #endregion
 
+        #region IDisposable
+
+        bool _disposed;
+
+        public void Dispose()
+        {
+            if (_disposed)
+                return;
+
+            if (_lastAddressOfferedLock is not null)
+                _lastAddressOfferedLock.Dispose();
+
+            _disposed = true;
+        }
+
+        #endregion
+
         #region static
 
         public static bool IsAddressInRange(IPAddress address, IPAddress startingAddress, IPAddress endingAddress)
@@ -294,51 +325,68 @@ namespace DnsServerCore.Dhcp
             return Convert.ToUInt32((_leaseTimeDays * 24 * 60 * 60) + (_leaseTimeHours * 60 * 60) + (_leaseTimeMinutes * 60));
         }
 
-        private bool IsAddressAvailable(ref IPAddress address)
+        private async Task<AddressStatus> IsAddressAvailableAsync(IPAddress address)
         {
             if (address.Equals(_routerAddress))
-                return false;
+                return AddressStatus.FALSE;
 
             if ((_dnsServers != null) && _dnsServers.Contains(address))
-                return false;
+                return AddressStatus.FALSE;
 
             if ((_winsServers != null) && _winsServers.Contains(address))
-                return false;
+                return AddressStatus.FALSE;
 
             if ((_ntpServers != null) && _ntpServers.Contains(address))
-                return false;
+                return AddressStatus.FALSE;
 
             if (_exclusions != null)
             {
                 foreach (Exclusion exclusion in _exclusions)
                 {
                     if (IsAddressInRange(address, exclusion.StartingAddress, exclusion.EndingAddress))
-                    {
-                        address = exclusion.EndingAddress;
-                        return false;
-                    }
+                        return new AddressStatus(false, exclusion.EndingAddress);
                 }
             }
 
             foreach (KeyValuePair<ClientIdentifierOption, Lease> reservedLease in _reservedLeases)
             {
                 if (address.Equals(reservedLease.Value.Address))
-                    return false;
+                    return AddressStatus.FALSE;
             }
 
             foreach (KeyValuePair<ClientIdentifierOption, Lease> lease in _leases)
             {
                 if (address.Equals(lease.Value.Address))
-                    return false;
+                    return AddressStatus.FALSE;
             }
 
             foreach (KeyValuePair<ClientIdentifierOption, Lease> offer in _offers)
             {
                 if (address.Equals(offer.Value.Address))
-                    return false;
+                    return AddressStatus.FALSE;
             }
 
-            return true;
+            if (_pingCheckEnabled)
+            {
+                try
+                {
+                    using (Ping ping = new Ping())
+                    {
+                        int retry = 0;
+                        do
+                        {
+                            PingReply reply = await ping.SendPingAsync(address, _pingCheckTimeout);
+                            if (reply.Status == IPStatus.Success)
+                                return AddressStatus.FALSE; //address is in use
+                        }
+                        while (++retry < _pingCheckRetries);
+                    }
+                }
+                catch
+                { }
+            }
+
+            return AddressStatus.TRUE;
         }
 
         private bool IsAddressAlreadyAllocated(Lease reservedLease)
@@ -592,6 +640,17 @@ namespace DnsServerCore.Dhcp
             return false;
         }
 
+        internal bool IsAddressReserved(IPAddress address)
+        {
+            foreach (KeyValuePair<ClientIdentifierOption, Lease> reservedLease in _reservedLeases)
+            {
+                if (address.Equals(reservedLease.Value.Address))
+                    return true;
+            }
+
+            return false;
+        }
+
         internal Lease GetReservedLease(DhcpMessage request)
         {
             return GetReservedLease(new ClientIdentifierOption((byte)request.HardwareAddressType, request.ClientHardwareAddress));
@@ -616,7 +675,7 @@ namespace DnsServerCore.Dhcp
             return null;
         }
 
-        internal Lease GetOffer(DhcpMessage request)
+        internal async Task<Lease> GetOfferAsync(DhcpMessage request)
         {
             if (_leases.TryGetValue(request.ClientIdentifier, out Lease existingLease))
             {
@@ -661,13 +720,18 @@ namespace DnsServerCore.Dhcp
                 //client wish to get this address
                 IPAddress requestedAddress = request.RequestedIpAddress.Address;
 
-                if (IsAddressInRange(requestedAddress) && IsAddressAvailable(ref requestedAddress))
-                    offerAddress = requestedAddress;
+                if (IsAddressInRange(requestedAddress))
+                {
+                    AddressStatus addressStatus = await IsAddressAvailableAsync(requestedAddress);
+                    if (addressStatus.IsAddressAvailable)
+                        offerAddress = requestedAddress;
+                }
             }
 
             if (offerAddress == null)
             {
-                lock (_lastAddressOfferedLock)
+                await _lastAddressOfferedLock.WaitAsync();
+                try
                 {
                     //find free address from scope
                     offerAddress = _lastAddressOffered;
@@ -690,11 +754,19 @@ namespace DnsServerCore.Dhcp
 
                         offerAddress = IPAddressExtension.ConvertNumberToIp(nextOfferAddressNumber);
 
-                        if (IsAddressAvailable(ref offerAddress))
+                        AddressStatus addressStatus = await IsAddressAvailableAsync(offerAddress);
+                        if (addressStatus.IsAddressAvailable)
                             break;
+
+                        if (addressStatus.NewAddress is not null)
+                            offerAddress = addressStatus.NewAddress;
                     }
 
                     _lastAddressOffered = offerAddress;
+                }
+                finally
+                {
+                    _lastAddressOfferedLock.Release();
                 }
             }
 
@@ -915,7 +987,6 @@ namespace DnsServerCore.Dhcp
 
         internal void RemoveExpiredOffers()
         {
-            List<ClientIdentifierOption> expiredOffers = new List<ClientIdentifierOption>();
             DateTime utcNow = DateTime.UtcNow;
 
             foreach (KeyValuePair<ClientIdentifierOption, Lease> offer in _offers)
@@ -923,17 +994,14 @@ namespace DnsServerCore.Dhcp
                 if (utcNow > offer.Value.LeaseObtained.AddSeconds(OFFER_EXPIRY_SECONDS))
                 {
                     //offer expired
-                    expiredOffers.Add(offer.Key);
+                    _offers.TryRemove(offer.Key, out _);
                 }
             }
-
-            foreach (ClientIdentifierOption expiredOffer in expiredOffers)
-                _offers.TryRemove(expiredOffer, out _);
         }
 
         internal List<Lease> RemoveExpiredLeases()
         {
-            List<ClientIdentifierOption> expiredLeaseKeys = new List<ClientIdentifierOption>();
+            List<Lease> expiredLeases = new List<Lease>();
             DateTime utcNow = DateTime.UtcNow;
 
             foreach (KeyValuePair<ClientIdentifierOption, Lease> lease in _leases)
@@ -941,19 +1009,12 @@ namespace DnsServerCore.Dhcp
                 if (utcNow > lease.Value.LeaseExpires)
                 {
                     //lease expired
-                    expiredLeaseKeys.Add(lease.Key);
+                    if (_leases.TryRemove(lease.Key, out Lease expiredLease))
+                        expiredLeases.Add(expiredLease);
                 }
             }
 
-            List<Lease> expiredLeases = new List<Lease>();
-
-            foreach (ClientIdentifierOption expiredLeaseKey in expiredLeaseKeys)
-            {
-                if (_leases.TryRemove(expiredLeaseKey, out Lease expiredLease))
-                    expiredLeases.Add(expiredLease);
-            }
-
-            if (expiredLeaseKeys.Count > 0)
+            if (expiredLeases.Count > 0)
                 _lastModified = DateTime.UtcNow;
 
             return expiredLeases;
@@ -998,10 +1059,42 @@ namespace DnsServerCore.Dhcp
             _networkAddress = IPAddressExtension.ConvertNumberToIp(networkAddressNumber);
             _broadcastAddress = IPAddressExtension.ConvertNumberToIp(broadcastAddressNumber);
 
-            lock (_lastAddressOfferedLock)
+            _lastAddressOfferedLock.Wait();
+            try
             {
                 _lastAddressOffered = IPAddressExtension.ConvertNumberToIp(startingAddressNumber - 1u);
             }
+            finally
+            {
+                _lastAddressOfferedLock.Release();
+            }
+        }
+
+        public void RemoveLease(string hardwareAddress)
+        {
+            byte[] hardwareAddressBytes = Lease.ParseHardwareAddress(hardwareAddress);
+
+            foreach (KeyValuePair<ClientIdentifierOption, Lease> entry in _leases)
+            {
+                Lease lease = entry.Value;
+
+                if (BinaryNumber.Equals(lease.HardwareAddress, hardwareAddressBytes))
+                {
+                    //remove lease
+                    _leases.TryRemove(entry.Key, out _);
+
+                    if (lease.Type == LeaseType.Reserved)
+                    {
+                        //remove reserved lease
+                        Lease reservedLease = new Lease(LeaseType.Reserved, null, DhcpMessageHardwareAddressType.Ethernet, lease.HardwareAddress, lease.Address, null);
+                        _reservedLeases.TryRemove(reservedLease.ClientIdentifier, out _);
+                    }
+
+                    return;
+                }
+            }
+
+            throw new DhcpServerException("No lease was found for hardware address: " + hardwareAddress);
         }
 
         public void ConvertToReservedLease(string hardwareAddress)
@@ -1020,19 +1113,6 @@ namespace DnsServerCore.Dhcp
                     //add reserved lease
                     Lease reservedLease = new Lease(LeaseType.Reserved, null, DhcpMessageHardwareAddressType.Ethernet, lease.HardwareAddress, lease.Address, null);
                     _reservedLeases[reservedLease.ClientIdentifier] = reservedLease;
-
-                    //add exclusion if required
-                    if (!IsAddressExcluded(lease.Address))
-                    {
-                        List<Exclusion> exclusions = new List<Exclusion>();
-
-                        if (_exclusions != null)
-                            exclusions.AddRange(_exclusions);
-
-                        exclusions.Add(new Exclusion(lease.Address, lease.Address));
-                        _exclusions = exclusions;
-                    }
-
                     return;
                 }
             }
@@ -1057,7 +1137,7 @@ namespace DnsServerCore.Dhcp
                     Lease reservedLease = new Lease(LeaseType.Reserved, null, DhcpMessageHardwareAddressType.Ethernet, lease.HardwareAddress, lease.Address, null);
                     _reservedLeases.TryRemove(reservedLease.ClientIdentifier, out _);
 
-                    //remove exclusion
+                    //remove any old single address exclusion entry
                     if (_exclusions != null)
                     {
                         foreach (Exclusion exclusion in _exclusions)
@@ -1095,7 +1175,7 @@ namespace DnsServerCore.Dhcp
         public void WriteTo(BinaryWriter bW)
         {
             bW.Write(Encoding.ASCII.GetBytes("SC"));
-            bW.Write((byte)4); //version
+            bW.Write((byte)5); //version
 
             bW.WriteShortString(_name);
             bW.Write(_enabled);
@@ -1106,6 +1186,10 @@ namespace DnsServerCore.Dhcp
             bW.Write(_leaseTimeHours);
             bW.Write(_leaseTimeMinutes);
             bW.Write(_offerDelayTime);
+
+            bW.Write(_pingCheckEnabled);
+            bW.Write(_pingCheckTimeout);
+            bW.Write(_pingCheckRetries);
 
             if (string.IsNullOrWhiteSpace(_domainName))
                 bW.Write((byte)0);
@@ -1335,6 +1419,24 @@ namespace DnsServerCore.Dhcp
             set { _offerDelayTime = value; }
         }
 
+        public bool PingCheckEnabled
+        {
+            get { return _pingCheckEnabled; }
+            set { _pingCheckEnabled = value; }
+        }
+
+        public ushort PingCheckTimeout
+        {
+            get { return _pingCheckTimeout; }
+            set { _pingCheckTimeout = value; }
+        }
+
+        public byte PingCheckRetries
+        {
+            get { return _pingCheckRetries; }
+            set { _pingCheckRetries = value; }
+        }
+
         public string DomainName
         {
             get { return _domainName; }
@@ -1521,5 +1623,20 @@ namespace DnsServerCore.Dhcp
         { get { return _lastModified; } }
 
         #endregion
+
+        class AddressStatus
+        {
+            public static readonly AddressStatus TRUE = new AddressStatus(true, null);
+            public static readonly AddressStatus FALSE = new AddressStatus(false, null);
+
+            public readonly bool IsAddressAvailable;
+            public readonly IPAddress NewAddress;
+
+            public AddressStatus(bool isAddressAvailable, IPAddress newAddress)
+            {
+                IsAddressAvailable = isAddressAvailable;
+                NewAddress = newAddress;
+            }
+        }
     }
 }
