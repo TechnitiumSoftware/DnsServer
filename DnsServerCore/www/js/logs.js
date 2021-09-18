@@ -190,7 +190,7 @@ var appsList;
 function refreshQueryLogsTab() {
     var frmQueryLogs = $("#frmQueryLogs");
     var divQueryLogsLoader = $("#divQueryLogsLoader");
-    var tableQueryLogs = $("#tableQueryLogs");
+    var divQueryLogsTable = $("#divQueryLogsTable");
 
     var optQueryLogsAppName = $("#optQueryLogsAppName");
     var optQueryLogsClassPath = $("#optQueryLogsClassPath");
@@ -201,7 +201,7 @@ function refreshQueryLogsTab() {
 
     if (appsList == null) {
         frmQueryLogs.hide();
-        tableQueryLogs.hide();
+        divQueryLogsTable.hide();
         loader = divQueryLogsLoader;
     }
     else {
@@ -257,7 +257,7 @@ function refreshQueryLogsTab() {
         error: function () {
             if (appsList == null) {
                 frmQueryLogs.show();
-                tableQueryLogs.show();
+                divQueryLogsTable.show();
             }
             else {
                 optQueryLogsAppName.prop('disabled', false);
@@ -274,7 +274,7 @@ function refreshQueryLogsTab() {
 function queryLogs(pageNumber) {
     var btn = $("#btnQueryLogs");
     var divQueryLogsLoader = $("#divQueryLogsLoader");
-    var tableQueryLogs = $("#tableQueryLogs");
+    var divQueryLogsTable = $("#divQueryLogsTable");
 
     var name = $("#optQueryLogsAppName").val();
     if (name == null) {
@@ -309,10 +309,10 @@ function queryLogs(pageNumber) {
     var responseType = $("#optQueryLogsResponseType").val();
     var rcode = $("#optQueryLogsResponseCode").val();
     var qname = $("#txtQueryLogQName").val();
-    var qtype = $("#optQueryLogQType").val();
+    var qtype = $("#txtQueryLogQType").val();
     var qclass = $("#optQueryLogQClass").val();
 
-    tableQueryLogs.hide();
+    divQueryLogsTable.hide();
     divQueryLogsLoader.show();
 
     btn.button('loading');
@@ -331,7 +331,7 @@ function queryLogs(pageNumber) {
                     responseJSON.response.entries[i].protocol + "</td><td>" +
                     responseJSON.response.entries[i].responseType + "</td><td>" +
                     responseJSON.response.entries[i].rcode + "</td><td style=\"word-break: break-all;\">" +
-                    htmlEncode(responseJSON.response.entries[i].qname) + "</td><td>" +
+                    htmlEncode(responseJSON.response.entries[i].qname == "" ? "." : responseJSON.response.entries[i].qname) + "</td><td>" +
                     responseJSON.response.entries[i].qtype + "</td><td>" +
                     responseJSON.response.entries[i].qclass + "</td><td style=\"word-break: break-all;\">" +
                     htmlEncode(responseJSON.response.entries[i].answer) + "</td></tr>"
@@ -372,16 +372,22 @@ function queryLogs(pageNumber) {
 
             $("#tableQueryLogsBody").html(tableHtml);
 
-            if (responseJSON.response.entries.length > 0)
-                $("#tableQueryLogsFooterStatus").html(responseJSON.response.entries[0].rowNumber + "-" + responseJSON.response.entries[responseJSON.response.entries.length - 1].rowNumber + " (" + responseJSON.response.entries.length + ") of " + responseJSON.response.totalEntries + " logs (page " + responseJSON.response.pageNumber + " of " + responseJSON.response.totalPages + ")");
-            else
-                $("#tableQueryLogsFooterStatus").html("0 logs");
+            var statusHtml;
 
+            if (responseJSON.response.entries.length > 0)
+                statusHtml = responseJSON.response.entries[0].rowNumber + "-" + responseJSON.response.entries[responseJSON.response.entries.length - 1].rowNumber + " (" + responseJSON.response.entries.length + ") of " + responseJSON.response.totalEntries + " logs (page " + responseJSON.response.pageNumber + " of " + responseJSON.response.totalPages + ")";
+            else
+                statusHtml = "0 logs";
+
+            $("#tableQueryLogsTopStatus").html(statusHtml);
+            $("#tableQueryLogsTopPagination").html(paginationHtml);
+
+            $("#tableQueryLogsFooterStatus").html(statusHtml);
             $("#tableQueryLogsFooterPagination").html(paginationHtml);
 
             btn.button('reset');
             divQueryLogsLoader.hide();
-            tableQueryLogs.show();
+            divQueryLogsTable.show();
         },
         error: function () {
             btn.button('reset');
