@@ -17,7 +17,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 */
 
-using DnsApplicationCommon;
+using DnsServerCore.ApplicationCommon;
 using MaxMind.GeoIP2;
 using System;
 using System.IO;
