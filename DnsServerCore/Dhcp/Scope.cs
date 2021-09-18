@@ -974,6 +974,32 @@ namespace DnsServerCore.Dhcp
             _lastModified = DateTime.UtcNow;
         }
 
+        internal Lease RemoveLease(string hardwareAddress)
+        {
+            byte[] hardwareAddressBytes = Lease.ParseHardwareAddress(hardwareAddress);
+
+            foreach (KeyValuePair<ClientIdentifierOption, Lease> entry in _leases)
+            {
+                if (BinaryNumber.Equals(entry.Value.HardwareAddress, hardwareAddressBytes))
+                {
+                    //remove lease
+                    if (_leases.TryRemove(entry.Key, out Lease removedLease))
+                    {
+                        if (removedLease.Type == LeaseType.Reserved)
+                        {
+                            //remove reserved lease
+                            Lease reservedLease = new Lease(LeaseType.Reserved, null, DhcpMessageHardwareAddressType.Ethernet, removedLease.HardwareAddress, removedLease.Address, null);
+                            _reservedLeases.TryRemove(reservedLease.ClientIdentifier, out _);
+                        }
+
+                        return removedLease;
+                    }
+                }
+            }
+
+            throw new DhcpServerException("No lease was found for hardware address: " + hardwareAddress);
+        }
+
         internal void SetEnabled(bool enabled)
         {
             _enabled = enabled;
@@ -1068,33 +1094,6 @@ namespace DnsServerCore.Dhcp
             {
                 _lastAddressOfferedLock.Release();
             }
-        }
-
-        public void RemoveLease(string hardwareAddress)
-        {
-            byte[] hardwareAddressBytes = Lease.ParseHardwareAddress(hardwareAddress);
-
-            foreach (KeyValuePair<ClientIdentifierOption, Lease> entry in _leases)
-            {
-                Lease lease = entry.Value;
-
-                if (BinaryNumber.Equals(lease.HardwareAddress, hardwareAddressBytes))
-                {
-                    //remove lease
-                    _leases.TryRemove(entry.Key, out _);
-
-                    if (lease.Type == LeaseType.Reserved)
-                    {
-                        //remove reserved lease
-                        Lease reservedLease = new Lease(LeaseType.Reserved, null, DhcpMessageHardwareAddressType.Ethernet, lease.HardwareAddress, lease.Address, null);
-                        _reservedLeases.TryRemove(reservedLease.ClientIdentifier, out _);
-                    }
-
-                    return;
-                }
-            }
-
-            throw new DhcpServerException("No lease was found for hardware address: " + hardwareAddress);
         }
 
         public void ConvertToReservedLease(string hardwareAddress)
