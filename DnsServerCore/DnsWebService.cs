@@ -619,6 +619,10 @@ namespace DnsServerCore
                                                 DeleteDhcpScope(request);
                                                 break;
 
+                                            case "/api/removeDhcpLease":
+                                                RemoveDhcpLease(request);
+                                                break;
+
                                             case "/api/convertToReservedLease":
                                                 ConvertToReservedLease(request);
                                                 break;
@@ -6532,6 +6536,15 @@ namespace DnsServerCore
             jsonWriter.WritePropertyName("offerDelayTime");
             jsonWriter.WriteValue(scope.OfferDelayTime);
 
+            jsonWriter.WritePropertyName("pingCheckEnabled");
+            jsonWriter.WriteValue(scope.PingCheckEnabled);
+
+            jsonWriter.WritePropertyName("pingCheckTimeout");
+            jsonWriter.WriteValue(scope.PingCheckTimeout);
+
+            jsonWriter.WritePropertyName("pingCheckRetries");
+            jsonWriter.WriteValue(scope.PingCheckRetries);
+
             if (!string.IsNullOrEmpty(scope.DomainName))
             {
                 jsonWriter.WritePropertyName("domainName");
@@ -6725,7 +6738,7 @@ namespace DnsServerCore
 
             bool scopeExists;
             Scope scope = _dhcpServer.GetScope(scopeName);
-            if (scope == null)
+            if (scope is null)
             {
                 //scope does not exists; create new scope
                 scopeExists = false;
@@ -6767,6 +6780,18 @@ namespace DnsServerCore
             string strOfferDelayTime = request.QueryString["offerDelayTime"];
             if (!string.IsNullOrEmpty(strOfferDelayTime))
                 scope.OfferDelayTime = ushort.Parse(strOfferDelayTime);
+
+            string strPingCheckEnabled = request.QueryString["pingCheckEnabled"];
+            if (!string.IsNullOrEmpty(strPingCheckEnabled))
+                scope.PingCheckEnabled = bool.Parse(strPingCheckEnabled);
+
+            string strPingCheckTimeout = request.QueryString["pingCheckTimeout"];
+            if (!string.IsNullOrEmpty(strPingCheckTimeout))
+                scope.PingCheckTimeout = ushort.Parse(strPingCheckTimeout);
+
+            string strPingCheckRetries = request.QueryString["pingCheckRetries"];
+            if (!string.IsNullOrEmpty(strPingCheckRetries))
+                scope.PingCheckRetries = byte.Parse(strPingCheckRetries);
 
             string strDomainName = request.QueryString["domainName"];
             if (strDomainName != null)
@@ -6993,6 +7018,27 @@ namespace DnsServerCore
             _log.Write(GetRequestRemoteEndPoint(request), "[" + GetSession(request).Username + "] DHCP scope was deleted successfully: " + scopeName);
         }
 
+        private void RemoveDhcpLease(HttpListenerRequest request)
+        {
+            string scopeName = request.QueryString["name"];
+            if (string.IsNullOrEmpty(scopeName))
+                throw new DnsWebServiceException("Parameter 'name' missing.");
+
+            Scope scope = _dhcpServer.GetScope(scopeName);
+            if (scope == null)
+                throw new DnsWebServiceException("DHCP scope does not exists: " + scopeName);
+
+            string strHardwareAddress = request.QueryString["hardwareAddress"];
+            if (string.IsNullOrEmpty(strHardwareAddress))
+                throw new DnsWebServiceException("Parameter 'hardwareAddress' missing.");
+
+            scope.RemoveLease(strHardwareAddress);
+
+            _dhcpServer.SaveScope(scopeName);
+
+            _log.Write(GetRequestRemoteEndPoint(request), "[" + GetSession(request).Username + "] DHCP scope's lease was removed successfully: " + scopeName);
+        }
+
         private void ConvertToReservedLease(HttpListenerRequest request)
         {
             string scopeName = request.QueryString["name"];
@@ -7011,7 +7057,7 @@ namespace DnsServerCore
 
             _dhcpServer.SaveScope(scopeName);
 
-            _log.Write(GetRequestRemoteEndPoint(request), "[" + GetSession(request).Username + "] DHCP scope was updated successfully: " + scopeName);
+            _log.Write(GetRequestRemoteEndPoint(request), "[" + GetSession(request).Username + "] DHCP scope's lease was reserved successfully: " + scopeName);
         }
 
         private void ConvertToDynamicLease(HttpListenerRequest request)
@@ -7032,7 +7078,7 @@ namespace DnsServerCore
 
             _dhcpServer.SaveScope(scopeName);
 
-            _log.Write(GetRequestRemoteEndPoint(request), "[" + GetSession(request).Username + "] DHCP scope was updated successfully: " + scopeName);
+            _log.Write(GetRequestRemoteEndPoint(request), "[" + GetSession(request).Username + "] DHCP scope's lease was unreserved successfully: " + scopeName);
         }
 
         #endregion
