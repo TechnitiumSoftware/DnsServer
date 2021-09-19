@@ -21,6 +21,7 @@ using DnsServerCore.ApplicationCommon;
 using Microsoft.Data.Sqlite;
 using Newtonsoft.Json;
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.IO;
 using System.Net;
@@ -34,9 +35,16 @@ namespace QueryLogsSqlite
     {
         #region variables
 
+        IDnsServer _dnsServer;
+
         bool _enableLogging;
         int _maxLogDays;
         string _connectionString;
+
+        readonly ConcurrentQueue<LogEntry> _queuedLogs = new ConcurrentQueue<LogEntry>();
+        Timer _queueTimer;
+        const int QUEUE_TIMER_INTERVAL = 5000;
+        const int BULK_INSERT_COUNT = 1000;
 
         Timer _cleanupTimer;
         const int CLEAN_UP_TIMER_INITIAL_INTERVAL = 5 * 1000;
@@ -48,10 +56,141 @@ namespace QueryLogsSqlite
 
         public void Dispose()
         {
+            _enableLogging = false;
+
+            if (_queueTimer is not null)
+            {
+                _queueTimer.Dispose();
+                _queueTimer = null;
+            }
+
             if (_cleanupTimer is not null)
             {
                 _cleanupTimer.Dispose();
                 _cleanupTimer = null;
+            }
+
+            BulkInsertLogs(); //flush any pending logs
+        }
+
+        #endregion
+
+        #region private
+
+        private void BulkInsertLogs()
+        {
+            try
+            {
+                List<LogEntry> logs = new List<LogEntry>(BULK_INSERT_COUNT);
+
+                while (true)
+                {
+                    while ((logs.Count < BULK_INSERT_COUNT) && _queuedLogs.TryDequeue(out LogEntry log))
+                    {
+                        logs.Add(log);
+                    }
+
+                    if (logs.Count < 1)
+                        break;
+
+                    using (SqliteConnection connection = new SqliteConnection(_connectionString))
+                    {
+                        connection.Open();
+
+                        using (SqliteTransaction transaction = connection.BeginTransaction())
+                        {
+                            using (SqliteCommand command = connection.CreateCommand())
+                            {
+                                command.CommandText = "INSERT INTO dns_logs (client_ip, protocol, response_type, rcode, qname, qtype, qclass, answer) VALUES (@client_ip, @protocol, @response_type, @rcode, @qname, @qtype, @qclass, @answer);";
+
+                                SqliteParameter paramClientIp = command.Parameters.Add("@client_ip", SqliteType.Text);
+                                SqliteParameter paramProtocol = command.Parameters.Add("@protocol", SqliteType.Integer);
+                                SqliteParameter paramResponseType = command.Parameters.Add("@response_type", SqliteType.Integer);
+                                SqliteParameter paramRcode = command.Parameters.Add("@rcode", SqliteType.Integer);
+                                SqliteParameter paramQname = command.Parameters.Add("@qname", SqliteType.Text);
+                                SqliteParameter paramQtype = command.Parameters.Add("@qtype", SqliteType.Integer);
+                                SqliteParameter paramQclass = command.Parameters.Add("@qclass", SqliteType.Integer);
+                                SqliteParameter paramAnswer = command.Parameters.Add("@answer", SqliteType.Text);
+
+                                foreach (LogEntry log in logs)
+                                {
+                                    DnsServerResponseType responseType;
+
+                                    if (log.Response.Tag == null)
+                                        responseType = DnsServerResponseType.Recursive;
+                                    else
+                                        responseType = (DnsServerResponseType)log.Response.Tag;
+
+                                    DnsQuestionRecord query;
+
+                                    if (log.Request.Question.Count > 0)
+                                        query = log.Request.Question[0];
+                                    else
+                                        query = null;
+
+                                    string answer = null;
+
+                                    if (log.Response is null)
+                                    {
+                                        answer = null;
+                                    }
+                                    else if (log.Response.Answer.Count == 0)
+                                    {
+                                        answer = "";
+                                    }
+                                    else if ((log.Response.Answer.Count > 2) && log.Response.IsZoneTransfer)
+                                    {
+                                        answer = "[ZONE TRANSFER]";
+                                    }
+                                    else
+                                    {
+                                        for (int i = 0; i < log.Response.Answer.Count; i++)
+                                        {
+                                            if (answer is null)
+                                                answer = log.Response.Answer[i].RDATA.ToString();
+                                            else
+                                                answer += ", " + log.Response.Answer[i].RDATA.ToString();
+                                        }
+                                    }
+
+                                    paramClientIp.Value = log.RemoteEP.Address.ToString();
+                                    paramProtocol.Value = (int)log.Protocol;
+                                    paramResponseType.Value = (int)responseType;
+                                    paramRcode.Value = (int)log.Response.RCODE;
+
+                                    if (query is null)
+                                    {
+                                        paramQname.Value = DBNull.Value;
+                                        paramQtype.Value = DBNull.Value;
+                                        paramQclass.Value = DBNull.Value;
+                                    }
+                                    else
+                                    {
+                                        paramQname.Value = query.Name.ToLower();
+                                        paramQtype.Value = (int)query.Type;
+                                        paramQclass.Value = (int)query.Class;
+                                    }
+
+                                    if (answer is null)
+                                        paramAnswer.Value = DBNull.Value;
+                                    else
+                                        paramAnswer.Value = answer;
+
+                                    command.ExecuteNonQuery();
+                                }
+
+                                transaction.Commit();
+                            }
+                        }
+                    }
+
+                    logs.Clear();
+                }
+            }
+            catch (Exception ex)
+            {
+                if (_dnsServer is not null)
+                    _dnsServer.WriteLog(ex);
             }
         }
 
@@ -61,6 +200,8 @@ namespace QueryLogsSqlite
 
         public Task InitializeAsync(IDnsServer dnsServer, string config)
         {
+            _dnsServer = dnsServer;
+
             dynamic jsonConfig = JsonConvert.DeserializeObject(config);
 
             _enableLogging = jsonConfig.enableLogging.Value;
@@ -70,7 +211,7 @@ namespace QueryLogsSqlite
             string connectionString = jsonConfig.connectionString.Value;
 
             if (!Path.IsPathRooted(sqliteDbPath))
-                sqliteDbPath = Path.Combine(dnsServer.ApplicationFolder, sqliteDbPath);
+                sqliteDbPath = Path.Combine(_dnsServer.ApplicationFolder, sqliteDbPath);
 
             _connectionString = connectionString.Replace("{sqliteDbPath}", sqliteDbPath);
 
@@ -177,6 +318,36 @@ CREATE TABLE IF NOT EXISTS dns_logs
                 }
             }
 
+            if (_enableLogging)
+            {
+                _queueTimer = new Timer(delegate (object state)
+                {
+                    try
+                    {
+                        BulkInsertLogs();
+                    }
+                    catch (Exception ex)
+                    {
+                        _dnsServer.WriteLog(ex);
+                    }
+                    finally
+                    {
+                        if (_queueTimer is not null)
+                            _queueTimer.Change(QUEUE_TIMER_INTERVAL, Timeout.Infinite);
+                    }
+                });
+
+                _queueTimer.Change(QUEUE_TIMER_INTERVAL, Timeout.Infinite);
+            }
+            else
+            {
+                if (_queueTimer is not null)
+                {
+                    _queueTimer.Dispose();
+                    _queueTimer = null;
+                }
+            }
+
             if (_maxLogDays < 1)
             {
                 if (_cleanupTimer is not null)
@@ -207,13 +378,14 @@ CREATE TABLE IF NOT EXISTS dns_logs
                     }
                     catch (Exception ex)
                     {
-                        dnsServer.WriteLog(ex);
+                        _dnsServer.WriteLog(ex);
                     }
                     finally
                     {
-                        _cleanupTimer.Change(CLEAN_UP_TIMER_PERIODIC_INTERVAL, Timeout.Infinite);
+                        if (_cleanupTimer is not null)
+                            _cleanupTimer.Change(CLEAN_UP_TIMER_PERIODIC_INTERVAL, Timeout.Infinite);
                     }
-                }, null, Timeout.Infinite, Timeout.Infinite);
+                });
 
                 _cleanupTimer.Change(CLEAN_UP_TIMER_INITIAL_INTERVAL, Timeout.Infinite);
             }
@@ -223,82 +395,8 @@ CREATE TABLE IF NOT EXISTS dns_logs
 
         public Task InsertLogAsync(DnsDatagram request, IPEndPoint remoteEP, DnsTransportProtocol protocol, DnsDatagram response)
         {
-            if (!_enableLogging)
-                return Task.CompletedTask;
-
-            DnsServerResponseType responseType;
-
-            if (response.Tag == null)
-                responseType = DnsServerResponseType.Recursive;
-            else
-                responseType = (DnsServerResponseType)response.Tag;
-
-            DnsQuestionRecord query;
-
-            if (request.Question.Count > 0)
-                query = request.Question[0];
-            else
-                query = null;
-
-            string answer = null;
-
-            if (response is null)
-            {
-                answer = null;
-            }
-            else if (response.Answer.Count == 0)
-            {
-                answer = "";
-            }
-            else if ((response.Answer.Count > 2) && response.IsZoneTransfer)
-            {
-                answer = "[ZONE TRANSFER]";
-            }
-            else
-            {
-                for (int i = 0; i < response.Answer.Count; i++)
-                {
-                    if (answer is null)
-                        answer = response.Answer[i].RDATA.ToString();
-                    else
-                        answer += ", " + response.Answer[i].RDATA.ToString();
-                }
-            }
-
-            using (SqliteConnection connection = new SqliteConnection(_connectionString))
-            {
-                connection.Open();
-
-                using (SqliteCommand command = connection.CreateCommand())
-                {
-                    command.CommandText = "INSERT INTO dns_logs (client_ip, protocol, response_type, rcode, qname, qtype, qclass, answer) VALUES (@client_ip, @protocol, @response_type, @rcode, @qname, @qtype, @qclass, @answer);";
-
-                    command.Parameters.AddWithValue("@client_ip", remoteEP.Address.ToString());
-                    command.Parameters.AddWithValue("@protocol", (byte)protocol);
-                    command.Parameters.AddWithValue("@response_type", (byte)responseType);
-                    command.Parameters.AddWithValue("@rcode", (byte)response.RCODE);
-
-                    if (query is null)
-                    {
-                        command.Parameters.AddWithValue("@qname", DBNull.Value);
-                        command.Parameters.AddWithValue("@qtype", DBNull.Value);
-                        command.Parameters.AddWithValue("@qclass", DBNull.Value);
-                    }
-                    else
-                    {
-                        command.Parameters.AddWithValue("@qname", query.Name.ToLower());
-                        command.Parameters.AddWithValue("@qtype", (ushort)query.Type);
-                        command.Parameters.AddWithValue("@qclass", (ushort)query.Class);
-                    }
-
-                    if (answer is null)
-                        command.Parameters.AddWithValue("@answer", DBNull.Value);
-                    else
-                        command.Parameters.AddWithValue("@answer", answer);
-
-                    command.ExecuteNonQuery();
-                }
-            }
+            if (_enableLogging)
+                _queuedLogs.Enqueue(new LogEntry(request, remoteEP, protocol, response));
 
             return Task.CompletedTask;
         }
@@ -490,8 +588,32 @@ WHERE
         #region properties
 
         public string Description
-        { get { return "Logs all incoming DNS requests and their responses in a Sqlite database that can be queried from the DNS Server web console."; } }
+        { get { return "Logs all incoming DNS requests and their responses in a Sqlite database that can be queried from the DNS Server web console. The query logging throughput is limited by the disk throughput on which the Sqlite db file is stored. This app is not recommended to be used with very high throughput."; } }
 
         #endregion
+
+        class LogEntry
+        {
+            #region variables
+
+            public readonly DnsDatagram Request;
+            public readonly IPEndPoint RemoteEP;
+            public readonly DnsTransportProtocol Protocol;
+            public readonly DnsDatagram Response;
+
+            #endregion
+
+            #region constructor
+
+            public LogEntry(DnsDatagram request, IPEndPoint remoteEP, DnsTransportProtocol protocol, DnsDatagram response)
+            {
+                Request = request;
+                RemoteEP = remoteEP;
+                Protocol = protocol;
+                Response = response;
+            }
+
+            #endregion
+        }
     }
 }
