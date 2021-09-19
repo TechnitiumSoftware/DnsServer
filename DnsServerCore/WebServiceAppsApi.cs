@@ -565,9 +565,13 @@ namespace DnsServerCore
                         config = null;
 
                     await application.SetConfigAsync(config);
-                    break;
+
+                    _dnsWebService.Log.Write(DnsWebService.GetRequestRemoteEndPoint(request), "[" + _dnsWebService.GetSession(request).Username + "] DNS application '" + name + "' app config was saved successfully.");
+                    return;
                 }
             }
+
+            throw new DnsWebServiceException("Missing POST parameter: config");
         }
 
         #endregion
