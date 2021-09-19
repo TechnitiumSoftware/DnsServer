@@ -1511,7 +1511,7 @@
                                                             <th onclick="sortTable('tableDhcpLeasesBody', 4);">Host Name</th>
                                                             <th onclick="sortTable('tableDhcpLeasesBody', 5);">Lease Obtained</th>
                                                             <th onclick="sortTable('tableDhcpLeasesBody', 6);">Lease Expires</th>
-                                                            <th style="width: 40px;" align="right"></th>
+                                                            <th style="width: 30px;" align="right"></th>
                                                         </tr>
                                                     </thead>
                                                     <tbody id="tableDhcpLeasesBody">
@@ -3274,14 +3274,16 @@ ns1.example.com ([2001:db8::])
 
                     <p><b>WARNING!</b> Removing a DHCP lease from the server side will NOT remove the allocated IP address from the client side. Make sure that the client assigned this lease is not connected to the network before proceeding.</p>
                     <p><b>WARNING!</b> Removing a DHCP lease may cause IP address conflict if the DHCP server assigns the same IP address to a new client while the old client is still connected to the network.</p>
+                    <p>It is not recommended to remove a DHCP lease when the client is still connected or may connect back later to the network before the lease expires. Use this option only as a last resort.</p>
                     <p>
-                        It is not recommended to remove DHCP leases. Use this option only as a last resort. Follow the recommendations below to avoid such a case that requires removing a DHCP lease:
+                        Follow the recommendations below to avoid such a case that requires removing a DHCP lease:
                         <ul>
                             <li>Use a shorter lease time such that a dynamically allocated lease expires quickly when the client exits the network.</li>
                             <li>Use Exclusions to exclude IP address ranges from being dynamically allocated that you plan to assign manually to some of the devices on the network.</li>
                             <li>Also use Exclusions to make sure that you have unallocated addresses available in the DHCP scope to be assigned as reserved leases in future.</li>
                         </ul>
                     </p>
+                    <p>&nbsp;</p>
                     <p>Are you sure you want to remove the DHCP lease now?</p>
                 </div>
                 <div class="modal-footer">

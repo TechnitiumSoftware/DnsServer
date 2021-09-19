@@ -18,7 +18,6 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
 function refreshDhcpTab() {
-
     if ($("#dhcpTabListLeases").hasClass("active"))
         refreshDhcpLeases();
     else if ($("#dhcpTabListScopes").hasClass("active"))
@@ -28,7 +27,6 @@ function refreshDhcpTab() {
 }
 
 function refreshDhcpLeases() {
-
     var divDhcpLeasesLoader = $("#divDhcpLeasesLoader");
     var divDhcpLeases = $("#divDhcpLeases");
 
@@ -50,10 +48,10 @@ function refreshDhcpLeases() {
                     moment(dhcpLeases[i].leaseObtained).local().format("YYYY-MM-DD HH:mm") + "</td><td>" +
                     moment(dhcpLeases[i].leaseExpires).local().format("YYYY-MM-DD HH:mm");
 
-                tableHtmlRows += "</td><td><div class=\"dropdown\"><button id=\"btnDhcpLeaseRowOption" + i + "\" class=\"btn btn-default dropdown-toggle\" style=\"padding: 0px 2px 0px 4px;\" type=\"button\" data-toggle=\"dropdown\" aria-haspopup=\"true\" aria-expanded=\"true\"><span class=\"glyphicon glyphicon-option-vertical\" aria-hidden=\"true\"></span></button><ul class=\"dropdown-menu\">";
-                tableHtmlRows += "<li id=\"btnDhcpLeaseReserve" + i + "\" style=\"" + (dhcpLeases[i].type === "Dynamic" ? "" : "display: none;") + "\"><a href=\"#\" onclick=\"convertToReservedLease(" + i + ", '" + dhcpLeases[i].scope + "', '" + dhcpLeases[i].hardwareAddress + "');\">Reserve</a></li>";
-                tableHtmlRows += "<li id=\"btnDhcpLeaseUnreserve" + i + "\" style=\"" + (dhcpLeases[i].type === "Dynamic" ? "display: none;" : "") + "\"><a href=\"#\" onclick=\"convertToDynamicLease(" + i + ", '" + dhcpLeases[i].scope + "', '" + dhcpLeases[i].hardwareAddress + "');\">Unreserve</a></li>";
-                tableHtmlRows += "<li><a href=\"#\" onclick=\"showRemoveLease(" + i + ", '" + dhcpLeases[i].scope + "', '" + dhcpLeases[i].hardwareAddress + "');\">Remove</a></li>";
+                tableHtmlRows += "</td><td><div class=\"dropdown\"><a href=\"#\" id=\"btnDhcpLeaseRowOption" + i + "\" class=\"dropdown-toggle\" data-toggle=\"dropdown\" aria-haspopup=\"true\" aria-expanded=\"true\"><span class=\"glyphicon glyphicon-option-vertical\" aria-hidden=\"true\"></span></a><ul class=\"dropdown-menu\">";
+                tableHtmlRows += "<li id=\"btnDhcpLeaseReserve" + i + "\" style=\"" + (dhcpLeases[i].type === "Dynamic" ? "" : "display: none;") + "\"><a href=\"#\" onclick=\"convertToReservedLease(" + i + ", '" + dhcpLeases[i].scope + "', '" + dhcpLeases[i].hardwareAddress + "');\">Convert To Reserved Lease</a></li>";
+                tableHtmlRows += "<li id=\"btnDhcpLeaseUnreserve" + i + "\" style=\"" + (dhcpLeases[i].type === "Dynamic" ? "display: none;" : "") + "\"><a href=\"#\" onclick=\"convertToDynamicLease(" + i + ", '" + dhcpLeases[i].scope + "', '" + dhcpLeases[i].hardwareAddress + "');\">Convert To Dynamic Lease</a></li>";
+                tableHtmlRows += "<li><a href=\"#\" onclick=\"showRemoveLease(" + i + ", '" + dhcpLeases[i].scope + "', '" + dhcpLeases[i].hardwareAddress + "');\">Remove Lease</a></li>";
                 tableHtmlRows += "</ul></div></td></tr>";
             }
 
