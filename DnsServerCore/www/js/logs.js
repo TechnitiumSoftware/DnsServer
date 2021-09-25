@@ -367,7 +367,7 @@ function queryLogs(pageNumber) {
 
             if (responseJSON.response.pageNumber < responseJSON.response.totalPages) {
                 paginationHtml += "<li><a href=\"#\" aria-label=\"Next\" onClick=\"queryLogs(" + (responseJSON.response.pageNumber + 1) + ");\"><span aria-hidden=\"true\">&rsaquo;</span></a></li>";
-                paginationHtml += "<li><a href=\"#\" aria-label=\"Last\" onClick=\"queryLogs(" + responseJSON.response.totalPages + ");\"><span aria-hidden=\"true\">&raquo;</span></a></li>";
+                paginationHtml += "<li><a href=\"#\" aria-label=\"Last\" onClick=\"queryLogs(-1);\"><span aria-hidden=\"true\">&raquo;</span></a></li>";
             }
 
             $("#tableQueryLogsBody").html(tableHtml);
