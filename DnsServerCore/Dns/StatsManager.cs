@@ -107,23 +107,25 @@ namespace DnsServerCore.Dns
                 {
                     foreach (StatsQueueItem item in _queue.GetConsumingEnumerable())
                     {
-                        DnsServerResponseType responseType;
-
-                        if (item._response.Tag == null)
-                            responseType = DnsServerResponseType.Recursive;
-                        else
-                            responseType = (DnsServerResponseType)item._response.Tag;
-
-                        DnsQuestionRecord query;
-
-                        if (item._request.Question.Count > 0)
-                            query = item._request.Question[0];
-                        else
-                            query = null;
-
                         StatCounter statCounter = _lastHourStatCounters[item._dateTime.Minute];
-                        if (statCounter != null)
+                        if (statCounter is not null)
+                        {
+                            DnsQuestionRecord query;
+
+                            if (item._request.Question.Count > 0)
+                                query = item._request.Question[0];
+                            else
+                                query = null;
+
+                            DnsServerResponseType responseType;
+
+                            if (item._response.Tag == null)
+                                responseType = DnsServerResponseType.Recursive;
+                            else
+                                responseType = (DnsServerResponseType)item._response.Tag;
+
                             statCounter.Update(query, item._response.RCODE, responseType, item._remoteEP.Address);
+                        }
 
                         foreach (IDnsLogger logger in _dnsServer.DnsApplicationManager.DnsLoggers)
                         {
