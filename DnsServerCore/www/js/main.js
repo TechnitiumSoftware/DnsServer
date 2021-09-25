@@ -739,6 +739,9 @@ function loadDnsSettings() {
                 updateTsigKeyNamesDropdowns(responseJSON.response.tsigKeys);
             }
 
+            $("#txtDefaultRecordTtl").val(responseJSON.response.defaultRecordTtl);
+            $("#txtAddEditRecordTtl").attr("placeholder", responseJSON.response.defaultRecordTtl);
+
             $("#chkPreferIPv6").prop("checked", responseJSON.response.preferIPv6);
 
             $("#chkEnableLogging").prop("checked", responseJSON.response.enableLogging);
@@ -907,6 +910,7 @@ function loadDnsSettings() {
             }
 
             $("#chkEnableBlocking").prop("checked", responseJSON.response.enableBlocking);
+            $("#chkAllowTxtBlockingReport").prop("checked", responseJSON.response.allowTxtBlockingReport);
 
             if (responseJSON.response.temporaryDisableBlockingTill == null)
                 $("#lblTemporaryDisableBlockingTill").text("Not Set");
@@ -1041,6 +1045,7 @@ function saveDnsSettings() {
     if (tsigKeys.length === 0)
         tsigKeys = false;
 
+    var defaultRecordTtl = $("#txtDefaultRecordTtl").val();
     var preferIPv6 = $("#chkPreferIPv6").prop('checked');
 
     var enableLogging = $("#chkEnableLogging").prop('checked');
@@ -1206,6 +1211,7 @@ function saveDnsSettings() {
     var forwarderProtocol = $('input[name=rdForwarderProtocol]:checked').val();
 
     var enableBlocking = $("#chkEnableBlocking").prop("checked");
+    var allowTxtBlockingReport = $("#chkAllowTxtBlockingReport").prop("checked");
 
     var blockingType = $("input[name=rdBlockingType]:checked").val();
 
@@ -1231,11 +1237,11 @@ function saveDnsSettings() {
             + "&webServiceLocalAddresses=" + encodeURIComponent(webServiceLocalAddresses) + "&webServiceHttpPort=" + webServiceHttpPort + "&webServiceEnableTls=" + webServiceEnableTls + "&webServiceHttpToTlsRedirect=" + webServiceHttpToTlsRedirect + "&webServiceTlsPort=" + webServiceTlsPort + "&webServiceTlsCertificatePath=" + encodeURIComponent(webServiceTlsCertificatePath) + "&webServiceTlsCertificatePassword=" + encodeURIComponent(webServiceTlsCertificatePassword)
             + "&enableDnsOverHttp=" + enableDnsOverHttp + "&enableDnsOverTls=" + enableDnsOverTls + "&enableDnsOverHttps=" + enableDnsOverHttps + "&dnsTlsCertificatePath=" + encodeURIComponent(dnsTlsCertificatePath) + "&dnsTlsCertificatePassword=" + encodeURIComponent(dnsTlsCertificatePassword)
             + "&tsigKeys=" + encodeURIComponent(tsigKeys)
-            + "&preferIPv6=" + preferIPv6 + "&enableLogging=" + enableLogging + "&logQueries=" + logQueries + "&useLocalTime=" + useLocalTime + "&logFolder=" + encodeURIComponent(logFolder) + "&maxLogFileDays=" + maxLogFileDays + "&maxStatFileDays=" + maxStatFileDays
+            + "&defaultRecordTtl=" + defaultRecordTtl + "&preferIPv6=" + preferIPv6 + "&enableLogging=" + enableLogging + "&logQueries=" + logQueries + "&useLocalTime=" + useLocalTime + "&logFolder=" + encodeURIComponent(logFolder) + "&maxLogFileDays=" + maxLogFileDays + "&maxStatFileDays=" + maxStatFileDays
             + "&recursion=" + recursion + "&recursionDeniedNetworks=" + encodeURIComponent(recursionDeniedNetworks) + "&recursionAllowedNetworks=" + encodeURIComponent(recursionAllowedNetworks) + "&randomizeName=" + randomizeName + "&qnameMinimization=" + qnameMinimization + "&nsRevalidation=" + nsRevalidation
             + "&qpmLimitRequests=" + qpmLimitRequests + "&qpmLimitErrors=" + qpmLimitErrors + "&qpmLimitSampleMinutes=" + qpmLimitSampleMinutes + "&qpmLimitIPv4PrefixLength=" + qpmLimitIPv4PrefixLength + "&qpmLimitIPv6PrefixLength=" + qpmLimitIPv6PrefixLength
             + "&serveStale=" + serveStale + "&serveStaleTtl=" + serveStaleTtl + "&cacheMinimumRecordTtl=" + cacheMinimumRecordTtl + "&cacheMaximumRecordTtl=" + cacheMaximumRecordTtl + "&cacheNegativeRecordTtl=" + cacheNegativeRecordTtl + "&cacheFailureRecordTtl=" + cacheFailureRecordTtl + "&cachePrefetchEligibility=" + cachePrefetchEligibility + "&cachePrefetchTrigger=" + cachePrefetchTrigger + "&cachePrefetchSampleIntervalInMinutes=" + cachePrefetchSampleIntervalInMinutes + "&cachePrefetchSampleEligibilityHitsPerHour=" + cachePrefetchSampleEligibilityHitsPerHour
-            + proxy + "&forwarders=" + encodeURIComponent(forwarders) + "&forwarderProtocol=" + forwarderProtocol + "&enableBlocking=" + enableBlocking + "&blockingType=" + blockingType + "&customBlockingAddresses=" + encodeURIComponent(customBlockingAddresses) + "&blockListUrls=" + encodeURIComponent(blockListUrls) + "&blockListUpdateIntervalHours=" + blockListUpdateIntervalHours,
+            + proxy + "&forwarders=" + encodeURIComponent(forwarders) + "&forwarderProtocol=" + forwarderProtocol + "&enableBlocking=" + enableBlocking + "&allowTxtBlockingReport=" + allowTxtBlockingReport + "&blockingType=" + blockingType + "&customBlockingAddresses=" + encodeURIComponent(customBlockingAddresses) + "&blockListUrls=" + encodeURIComponent(blockListUrls) + "&blockListUpdateIntervalHours=" + blockListUpdateIntervalHours,
         success: function (responseJSON) {
             document.title = responseJSON.response.dnsServerDomain + " - " + "Technitium DNS Server v" + responseJSON.response.version;
             $("#lblDnsServerDomain").text(" - " + responseJSON.response.dnsServerDomain);
