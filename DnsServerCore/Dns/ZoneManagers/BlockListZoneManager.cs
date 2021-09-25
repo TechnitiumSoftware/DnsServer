@@ -420,7 +420,7 @@ namespace DnsServerCore.Dns.ZoneManagers
                 return null; //zone not blocked
 
             //zone is blocked
-            if (question.Type == DnsResourceRecordType.TXT)
+            if (_dnsServer.AllowTxtBlockingReport && (question.Type == DnsResourceRecordType.TXT))
             {
                 //return meta data
                 DnsResourceRecord[] answer = new DnsResourceRecord[blockLists.Count];
