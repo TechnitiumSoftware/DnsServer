@@ -1230,6 +1230,9 @@ namespace DnsServerCore
                 jsonWriter.WriteEndArray();
             }
 
+            jsonWriter.WritePropertyName("defaultRecordTtl");
+            jsonWriter.WriteValue(_zonesApi.DefaultRecordTtl);
+
             jsonWriter.WritePropertyName("preferIPv6");
             jsonWriter.WriteValue(_dnsServer.PreferIPv6);
 
@@ -1401,6 +1404,9 @@ namespace DnsServerCore
 
             jsonWriter.WritePropertyName("enableBlocking");
             jsonWriter.WriteValue(_dnsServer.EnableBlocking);
+
+            jsonWriter.WritePropertyName("allowTxtBlockingReport");
+            jsonWriter.WriteValue(_dnsServer.AllowTxtBlockingReport);
 
             if (!_dnsServer.EnableBlocking && (DateTime.UtcNow < _temporaryDisableBlockingTill))
             {
@@ -1692,6 +1698,10 @@ namespace DnsServerCore
             if (!string.IsNullOrEmpty(strPreferIPv6))
                 _dnsServer.PreferIPv6 = bool.Parse(strPreferIPv6);
 
+            string strDefaultRecordTtl = request.QueryString["defaultRecordTtl"];
+            if (!string.IsNullOrEmpty(strDefaultRecordTtl))
+                _zonesApi.DefaultRecordTtl = uint.Parse(strDefaultRecordTtl);
+
             string strEnableLogging = request.QueryString["enableLogging"];
             if (!string.IsNullOrEmpty(strEnableLogging))
                 _log.EnableLogging = bool.Parse(strEnableLogging);
@@ -1908,6 +1918,10 @@ namespace DnsServerCore
                         _temporaryDisableBlockingTimer.Dispose();
                 }
             }
+
+            string strAllowTxtBlockingReport = request.QueryString["allowTxtBlockingReport"];
+            if (!string.IsNullOrEmpty(strAllowTxtBlockingReport))
+                _dnsServer.AllowTxtBlockingReport = bool.Parse(strAllowTxtBlockingReport);
 
             string strBlockingType = request.QueryString["blockingType"];
             if (!string.IsNullOrEmpty(strBlockingType))
@@ -3131,6 +3145,7 @@ namespace DnsServerCore
                         case 20:
                         case 21:
                         case 22:
+                        case 23:
                             _dnsServer.ServerDomain = bR.ReadShortString();
                             _webServiceHttpPort = bR.ReadInt32();
 
@@ -3596,6 +3611,17 @@ namespace DnsServerCore
                             else
                                 _dnsServer.NsRevalidation = false; //default false since some badly configured websites fail to load
 
+                            if (version >= 23)
+                            {
+                                _dnsServer.AllowTxtBlockingReport = bR.ReadBoolean();
+                                _zonesApi.DefaultRecordTtl = bR.ReadUInt32();
+                            }
+                            else
+                            {
+                                _dnsServer.AllowTxtBlockingReport = true;
+                                _zonesApi.DefaultRecordTtl = 3600;
+                            }
+
                             break;
 
                         default:
@@ -3655,7 +3681,7 @@ namespace DnsServerCore
                 BinaryWriter bW = new BinaryWriter(mS);
 
                 bW.Write(Encoding.ASCII.GetBytes("DS")); //format
-                bW.Write((byte)22); //version
+                bW.Write((byte)23); //version
 
                 bW.WriteShortString(_dnsServer.ServerDomain);
                 bW.Write(_webServiceHttpPort);
@@ -3852,6 +3878,9 @@ namespace DnsServerCore
                 }
 
                 bW.Write(_dnsServer.NsRevalidation);
+
+                bW.Write(_dnsServer.AllowTxtBlockingReport);
+                bW.Write(_zonesApi.DefaultRecordTtl);
 
                 //write config
                 mS.Position = 0;
