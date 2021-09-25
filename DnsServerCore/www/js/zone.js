@@ -1320,9 +1320,6 @@ function addRecord() {
     var type = $("#optAddEditRecordType").val();
 
     var ttl = $("#txtAddEditRecordTtl").val();
-    if (ttl === "")
-        ttl = 3600;
-
     var overwrite = $("#chkAddEditRecordOverwrite").prop('checked');
     var comments = $("#txtAddEditRecordComments").val();
 
@@ -1792,9 +1789,6 @@ function updateRecord() {
     }
 
     var ttl = $("#txtAddEditRecordTtl").val();
-    if (ttl === "")
-        ttl = 3600;
-
     var value = divData.attr("data-record-value");
     var disable = (divData.attr("data-record-disabled") === "true");
     var comments = $("#txtAddEditRecordComments").val();
