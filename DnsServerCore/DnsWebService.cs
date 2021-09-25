@@ -3654,7 +3654,52 @@ namespace DnsServerCore
                 _log.Write("DNS Server config file was not found: " + configFile);
                 _log.Write("DNS Server is restoring default config file.");
 
-                SetCredentials("admin", "admin");
+                string serverDomain = Environment.GetEnvironmentVariable("DNS_SERVER_DOMAIN");
+                if (!string.IsNullOrEmpty(serverDomain))
+                    _dnsServer.ServerDomain = serverDomain;
+
+                string adminPasswordFile = Environment.GetEnvironmentVariable("DNS_SERVER_ADMIN_PASSWORD_FILE");
+                if (string.IsNullOrEmpty(adminPasswordFile))
+                {
+                    SetCredentials("admin", "admin");
+                }
+                else
+                {
+                    try
+                    {
+                        using (StreamReader sR = new StreamReader(adminPasswordFile, true))
+                        {
+                            string password = sR.ReadLine();
+                            SetCredentials("admin", password);
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        _log.Write(ex);
+
+                        SetCredentials("admin", "admin");
+                    }
+                }
+
+                string strForwarders = Environment.GetEnvironmentVariable("DNS_SERVER_FORWARDERS");
+                if (!string.IsNullOrEmpty(strForwarders))
+                {
+                    DnsTransportProtocol forwarderProtocol;
+
+                    string strForwarderProtocol = Environment.GetEnvironmentVariable("DNS_SERVER_FORWARDER_PROTOCOL");
+                    if (string.IsNullOrEmpty(strForwarderProtocol))
+                        forwarderProtocol = DnsTransportProtocol.Udp;
+                    else
+                        forwarderProtocol = Enum.Parse<DnsTransportProtocol>(strForwarderProtocol, true);
+
+                    List<NameServerAddress> forwarders = new List<NameServerAddress>();
+                    string[] strForwardersAddresses = strForwarders.Split(new char[] { ',' }, StringSplitOptions.RemoveEmptyEntries);
+
+                    foreach (string strForwarderAddress in strForwardersAddresses)
+                        forwarders.Add(new NameServerAddress(strForwarderAddress.Trim(), forwarderProtocol));
+
+                    _dnsServer.Forwarders = forwarders;
+                }
 
                 _dnsServer.Recursion = DnsServerRecursion.AllowOnlyForPrivateNetworks; //default for security reasons
                 _dnsServer.RandomizeName = true; //default true to enable security feature
