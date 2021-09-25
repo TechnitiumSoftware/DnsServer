@@ -137,6 +137,7 @@ namespace DnsServerCore.Dns
         int _cachePrefetchSampleIntervalInMinutes = 5;
         int _cachePrefetchSampleEligibilityHitsPerHour = 30;
         bool _enableBlocking = true;
+        bool _allowTxtBlockingReport = true;
         DnsServerBlockingType _blockingType = DnsServerBlockingType.AnyAddress;
         IReadOnlyCollection<DnsARecord> _customBlockingARecords = Array.Empty<DnsARecord>();
         IReadOnlyCollection<DnsAAAARecord> _customBlockingAAAARecords = Array.Empty<DnsAAAARecord>();
@@ -1073,8 +1074,11 @@ namespace DnsServerCore.Dns
             switch (request.OPCODE)
             {
                 case DnsOpcode.StandardQuery:
-                    if ((request.Question.Count != 1) || (request.Question[0].Class != DnsClass.IN))
-                        return new DnsDatagram(request.Identifier, true, DnsOpcode.StandardQuery, false, false, request.RecursionDesired, isRecursionAllowed, false, false, DnsResponseCode.NotImplemented, request.Question) { Tag = DnsServerResponseType.Authoritative };
+                    if (request.Question.Count != 1)
+                        return new DnsDatagram(request.Identifier, true, DnsOpcode.StandardQuery, false, false, request.RecursionDesired, isRecursionAllowed, false, false, DnsResponseCode.FormatError, request.Question) { Tag = DnsServerResponseType.Authoritative };
+
+                    if (request.Question[0].Class != DnsClass.IN)
+                        return new DnsDatagram(request.Identifier, true, DnsOpcode.StandardQuery, false, false, request.RecursionDesired, isRecursionAllowed, false, false, DnsResponseCode.Refused, request.Question) { Tag = DnsServerResponseType.Authoritative };
 
                     try
                     {
@@ -1761,7 +1765,7 @@ namespace DnsServerCore.Dns
                 //domain is blocked in blocked zone
                 DnsQuestionRecord question = request.Question[0];
 
-                if (question.Type == DnsResourceRecordType.TXT)
+                if (_allowTxtBlockingReport && (question.Type == DnsResourceRecordType.TXT))
                 {
                     //return meta data
                     string blockedDomain;
@@ -3369,6 +3373,12 @@ namespace DnsServerCore.Dns
             set { _enableBlocking = value; }
         }
 
+        public bool AllowTxtBlockingReport
+        {
+            get { return _allowTxtBlockingReport; }
+            set { _allowTxtBlockingReport = value; }
+        }
+
         public DnsServerBlockingType BlockingType
         {
             get { return _blockingType; }
@@ -3437,6 +3447,7 @@ namespace DnsServerCore.Dns
             }
 
             public DnsQuestionRecord SampleQuestion { get; }
+
             public IReadOnlyList<NameServerAddress> ViaForwarders { get; }
         }
     }
