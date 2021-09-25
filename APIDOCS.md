@@ -174,6 +174,7 @@ RESPONSE:
 				"algorithmName": "hmac-sha256"
 			}
 		],
+		"defaultRecordTtl": 3600,
 		"preferIPv6": false,
 		"enableLogging": true,
 		"logQueries": true,
@@ -223,6 +224,8 @@ RESPONSE:
 			"https://cloudflare-dns.com/dns-query (1.0.0.1)"
 		],
 		"forwarderProtocol": "Https",
+		"enableBlocking": true,
+		"allowTxtBlockingReport": true,
 		"blockingType": "AnyAddress",
 		"customBlockingAddresses": [],
 		"blockListUrls": [
@@ -258,6 +261,7 @@ WHERE:
 - `dnsTlsCertificatePath` (optional): Specify a PKCS #12 certificate (.pfx) file path on the server. The certificate must contain private key. This certificate is used by the DNS-over-TLS and DNS-over-HTTPS optional protocols.
 - `dnsTlsCertificatePassword` (optional): Enter the certificate (.pfx) password, if any.
 - `tsigKeys` (optional): A pipe `|` separated multi row list of TSIG key name, shared secret, and algorithm. Set this parameter to `false` to remove all existing keys. Supported algorithms are [`hmac-md5.sig-alg.reg.int`, `hmac-sha1`, `hmac-sha256`, `hmac-sha256-128`, `hmac-sha384`, `hmac-sha384-192`, `hmac-sha512`, `hmac-sha512-256`].
+- `defaultRecordTtl` (optional): The default TTL value to use if not specified when adding or updating records in a Zone.
 - `preferIPv6` (optional): DNS Server will use IPv6 for querying whenever possible with this option enabled. Default value is `false`.
 - `enableLogging` (optional): Enable this option to log error and audit logs into the log file. Default value is `true`.
 - `logQueries` (optional): Enable this option to log every query received by this DNS Server and the corresponding response answers into the log file.  Default value is `false`.
@@ -294,6 +298,8 @@ WHERE:
 - `proxyBypass` (optional): A comma separated bypass list consisting of IP addresses, network addresses in CIDR format, or host/domain names to never use proxy for.
 - `forwarders` (optional): A comma separated list of forwarders to be used by this DNS server. Set this parameter to `false` string to remove existing forwarders so that the DNS server does recursive resolution by itself.
 - `forwarderProtocol` (optional): The forwarder DNS transport protocol to be used. Valid values are [`Udp`, `Tcp`, `Tls`, `Https`].
+- `enableBlocking` (optional): Sets the DNS server to block domain names using Blocked Zone and Block List Zone.
+- `allowTxtBlockingReport` (optional): Specifies if the DNS Server should respond with TXT records containing a blocked domain report for TXT type requests.
 - `blockingType` (optional): Sets how the DNS server should respond to a blocked domain request. Valid values are [`AnyAddress`, `NxDomain`, `CustomAddress`] where `AnyAddress` is default which response with `0.0.0.0` and `::` IP addresses for blocked domains. Using `NxDomain` will respond with `NX Domain` response. `CustomAddress` will return the specified custom blocking addresses.
 - `customBlockingAddresses` (optional): Set the custom blocking addresses to be used for blocked domain response. These addresses are returned only when `blockingType` is set to `CustomAddress`.
 - `blockListUrls` (optional): A comma separated list of block list URLs that this server must automatically download and use with the block lists zone. DNS Server will use the data returned by the block list URLs to update the block list zone automatically every 24 hours. The expected file format is standard hosts file format or plain text file containing list of domains to block. Set this parameter to `false` to remove existing values.
