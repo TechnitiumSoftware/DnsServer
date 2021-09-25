@@ -48,7 +48,7 @@ function refreshDhcpLeases() {
                     moment(dhcpLeases[i].leaseObtained).local().format("YYYY-MM-DD HH:mm") + "</td><td>" +
                     moment(dhcpLeases[i].leaseExpires).local().format("YYYY-MM-DD HH:mm");
 
-                tableHtmlRows += "</td><td><div class=\"dropdown\"><a href=\"#\" id=\"btnDhcpLeaseRowOption" + i + "\" class=\"dropdown-toggle\" data-toggle=\"dropdown\" aria-haspopup=\"true\" aria-expanded=\"true\"><span class=\"glyphicon glyphicon-option-vertical\" aria-hidden=\"true\"></span></a><ul class=\"dropdown-menu\">";
+                tableHtmlRows += "</td><td><div class=\"dropdown\"><a href=\"#\" id=\"btnDhcpLeaseRowOption" + i + "\" class=\"dropdown-toggle\" data-toggle=\"dropdown\" aria-haspopup=\"true\" aria-expanded=\"true\"><span class=\"glyphicon glyphicon-option-vertical\" aria-hidden=\"true\"></span></a><ul class=\"dropdown-menu dropdown-menu-right\">";
                 tableHtmlRows += "<li id=\"btnDhcpLeaseReserve" + i + "\" style=\"" + (dhcpLeases[i].type === "Dynamic" ? "" : "display: none;") + "\"><a href=\"#\" onclick=\"convertToReservedLease(" + i + ", '" + dhcpLeases[i].scope + "', '" + dhcpLeases[i].hardwareAddress + "');\">Convert To Reserved Lease</a></li>";
                 tableHtmlRows += "<li id=\"btnDhcpLeaseUnreserve" + i + "\" style=\"" + (dhcpLeases[i].type === "Dynamic" ? "display: none;" : "") + "\"><a href=\"#\" onclick=\"convertToDynamicLease(" + i + ", '" + dhcpLeases[i].scope + "', '" + dhcpLeases[i].hardwareAddress + "');\">Convert To Dynamic Lease</a></li>";
                 tableHtmlRows += "<li><a href=\"#\" onclick=\"showRemoveLease(" + i + ", '" + dhcpLeases[i].scope + "', '" + dhcpLeases[i].hardwareAddress + "');\">Remove Lease</a></li>";
