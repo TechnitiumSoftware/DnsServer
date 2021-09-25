@@ -43,7 +43,7 @@ namespace QueryLogsSqlite
 
         readonly ConcurrentQueue<LogEntry> _queuedLogs = new ConcurrentQueue<LogEntry>();
         Timer _queueTimer;
-        const int QUEUE_TIMER_INTERVAL = 5000;
+        const int QUEUE_TIMER_INTERVAL = 10000;
         const int BULK_INSERT_COUNT = 1000;
 
         Timer _cleanupTimer;
@@ -56,7 +56,7 @@ namespace QueryLogsSqlite
 
         public void Dispose()
         {
-            _enableLogging = false;
+            _enableLogging = false; //turn off logging
 
             if (_queueTimer is not null)
             {
@@ -114,36 +114,43 @@ namespace QueryLogsSqlite
 
                                 foreach (LogEntry log in logs)
                                 {
-                                    DnsServerResponseType responseType;
+                                    paramClientIp.Value = log.RemoteEP.Address.ToString();
+                                    paramProtocol.Value = (int)log.Protocol;
 
                                     if (log.Response.Tag == null)
-                                        responseType = DnsServerResponseType.Recursive;
+                                        paramResponseType.Value = (int)DnsServerResponseType.Recursive;
                                     else
-                                        responseType = (DnsServerResponseType)log.Response.Tag;
+                                        paramResponseType.Value = (int)(DnsServerResponseType)log.Response.Tag;
 
-                                    DnsQuestionRecord query;
+                                    paramRcode.Value = (int)log.Response.RCODE;
 
                                     if (log.Request.Question.Count > 0)
-                                        query = log.Request.Question[0];
-                                    else
-                                        query = null;
-
-                                    string answer = null;
-
-                                    if (log.Response is null)
                                     {
-                                        answer = null;
+                                        DnsQuestionRecord query = log.Request.Question[0];
+
+                                        paramQname.Value = query.Name.ToLower();
+                                        paramQtype.Value = (int)query.Type;
+                                        paramQclass.Value = (int)query.Class;
                                     }
-                                    else if (log.Response.Answer.Count == 0)
+                                    else
                                     {
-                                        answer = "";
+                                        paramQname.Value = DBNull.Value;
+                                        paramQtype.Value = DBNull.Value;
+                                        paramQclass.Value = DBNull.Value;
+                                    }
+
+                                    if (log.Response.Answer.Count == 0)
+                                    {
+                                        paramAnswer.Value = DBNull.Value;
                                     }
                                     else if ((log.Response.Answer.Count > 2) && log.Response.IsZoneTransfer)
                                     {
-                                        answer = "[ZONE TRANSFER]";
+                                        paramAnswer.Value = "[ZONE TRANSFER]";
                                     }
                                     else
                                     {
+                                        string answer = null;
+
                                         for (int i = 0; i < log.Response.Answer.Count; i++)
                                         {
                                             if (answer is null)
@@ -151,30 +158,9 @@ namespace QueryLogsSqlite
                                             else
                                                 answer += ", " + log.Response.Answer[i].RDATA.ToString();
                                         }
-                                    }
 
-                                    paramClientIp.Value = log.RemoteEP.Address.ToString();
-                                    paramProtocol.Value = (int)log.Protocol;
-                                    paramResponseType.Value = (int)responseType;
-                                    paramRcode.Value = (int)log.Response.RCODE;
-
-                                    if (query is null)
-                                    {
-                                        paramQname.Value = DBNull.Value;
-                                        paramQtype.Value = DBNull.Value;
-                                        paramQclass.Value = DBNull.Value;
-                                    }
-                                    else
-                                    {
-                                        paramQname.Value = query.Name.ToLower();
-                                        paramQtype.Value = (int)query.Type;
-                                        paramQclass.Value = (int)query.Class;
-                                    }
-
-                                    if (answer is null)
-                                        paramAnswer.Value = DBNull.Value;
-                                    else
                                         paramAnswer.Value = answer;
+                                    }
 
                                     command.ExecuteNonQuery();
                                 }
@@ -403,6 +389,11 @@ CREATE TABLE IF NOT EXISTS dns_logs
 
         public Task<DnsLogPage> QueryLogsAsync(long pageNumber, int entriesPerPage, bool descendingOrder, DateTime? start, DateTime? end, IPAddress clientIpAddress, DnsTransportProtocol? protocol, DnsServerResponseType? responseType, DnsResponseCode? rcode, string qname, DnsResourceRecordType? qtype, DnsClass? qclass)
         {
+            if (pageNumber < 0)
+                pageNumber = long.MaxValue;
+            else if (pageNumber == 0)
+                pageNumber = 1;
+
             if (qname is not null)
                 qname = qname.ToLower();
 
