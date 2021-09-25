@@ -730,6 +730,17 @@
 
                                                     <div class="well well-sm form-horizontal">
                                                         <div class="form-group">
+                                                            <label for="txtDefaultRecordTtl" class="col-sm-3 control-label">Default Record TTL</label>
+                                                            <div class="col-sm-6">
+                                                                <input type="number" class="form-control" id="txtDefaultRecordTtl" placeholder="ttl" style="width: 100px; display: inline;">
+                                                                <span>(default 3600)</span>
+                                                            </div>
+                                                            <div class="col-sm-offset-3 col-sm-8" style="padding-top: 5px;">The default TTL value to use if not specified when adding or updating records in a Zone.</div>
+                                                        </div>
+                                                    </div>
+
+                                                    <div class="well well-sm form-horizontal">
+                                                        <div class="form-group">
                                                             <label class="col-sm-3 control-label">IPv6 Support</label>
                                                             <div class="col-sm-8">
                                                                 <div class="checkbox">
@@ -1130,6 +1141,13 @@
                                                                     </label>
                                                                 </div>
                                                                 <div style="padding-top: 5px; padding-left: 20px;">Sets the DNS server to block domain names using Blocked Zone and Block List Zone.</div>
+
+                                                                <div class="checkbox">
+                                                                    <label>
+                                                                        <input id="chkAllowTxtBlockingReport" type="checkbox"> Allow TXT Blocking Report
+                                                                    </label>
+                                                                </div>
+                                                                <div style="padding-top: 5px; padding-left: 20px;">Specifies if the DNS Server should respond with TXT records containing a blocked domain report for TXT type requests.</div>
                                                             </div>
                                                         </div>
 
@@ -3280,7 +3298,8 @@ ns1.example.com ([2001:db8::])
                         <ul>
                             <li>Use a shorter lease time such that a dynamically allocated lease expires quickly when the client exits the network.</li>
                             <li>Use Exclusions to exclude IP address ranges from being dynamically allocated that you plan to assign manually to some of the devices on the network.</li>
-                            <li>Also use Exclusions to make sure that you have unallocated addresses available in the DHCP scope to be assigned as reserved leases in future.</li>
+                            <li>Use Exclusions to make sure that you have unallocated addresses available in the DHCP scope to be assigned as reserved leases in future.</li>
+                            <li>Rely less on the assigned IP addresses by configuring a domain name for the DHCP scope and accessing all the devices using their domain names.</li>
                         </ul>
                     </p>
                     <p>&nbsp;</p>
