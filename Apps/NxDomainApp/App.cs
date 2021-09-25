@@ -18,8 +18,8 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
 using DnsServerCore.ApplicationCommon;
+using Newtonsoft.Json;
 using System.Collections.Generic;
-using System.IO;
 using System.Net;
 using System.Threading.Tasks;
 using TechnitiumLibrary.Net.Dns;
@@ -32,6 +32,9 @@ namespace NxDomain
         #region variables
 
         DnsSOARecord _soaRecord;
+
+        bool _enableBlocking;
+        bool _allowTxtBlockingReport;
 
         IReadOnlyDictionary<string, object> _blockListZone;
 
@@ -48,62 +51,12 @@ namespace NxDomain
 
         #region private
 
-        private static string PopWord(ref string line)
+        private static IReadOnlyDictionary<string, object> ReadJsonDomainArray(dynamic jsonDomainArray)
         {
-            if (line.Length == 0)
-                return line;
+            Dictionary<string, object> domains = new Dictionary<string, object>(jsonDomainArray.Count);
 
-            line = line.TrimStart(' ', '\t');
-
-            int i = line.IndexOfAny(new char[] { ' ', '\t' });
-            string word;
-
-            if (i < 0)
-            {
-                word = line;
-                line = "";
-            }
-            else
-            {
-                word = line.Substring(0, i);
-                line = line.Substring(i + 1);
-            }
-
-            return word;
-        }
-
-        private static Queue<string> ReadDomainNames(string config)
-        {
-            Queue<string> domains = new Queue<string>();
-
-            using (StringReader sR = new StringReader(config))
-            {
-                //parse config file
-                string line;
-                string hostname;
-
-                while (true)
-                {
-                    line = sR.ReadLine();
-                    if (line == null)
-                        break; //eof
-
-                    line = line.TrimStart(' ', '\t');
-
-                    if (line.Length == 0)
-                        continue; //skip empty line
-
-                    if (line.StartsWith("#"))
-                        continue; //skip comment line
-
-                    hostname = PopWord(ref line).Trim('.').ToLower();
-
-                    if (!DnsClient.IsDomainNameValid(hostname))
-                        continue;
-
-                    domains.Enqueue(hostname);
-                }
-            }
+            foreach (dynamic jsonDomain in jsonDomainArray)
+                domains.TryAdd(jsonDomain.Value, null);
 
             return domains;
         }
@@ -147,14 +100,12 @@ namespace NxDomain
         {
             _soaRecord = new DnsSOARecord(dnsServer.ServerDomain, "hostadmin." + dnsServer.ServerDomain, 1, 14400, 3600, 604800, 60);
 
-            Queue<string> domainQueue = ReadDomainNames(config);
-            Dictionary<string, object> blockListZone = new Dictionary<string, object>(domainQueue.Count);
-            object dummyValue = new object();
+            dynamic jsonConfig = JsonConvert.DeserializeObject(config);
 
-            foreach (string domain in domainQueue)
-                blockListZone[domain] = dummyValue;
+            _enableBlocking = jsonConfig.enableBlocking.Value;
+            _allowTxtBlockingReport = jsonConfig.allowTxtBlockingReport.Value;
 
-            _blockListZone = blockListZone;
+            _blockListZone = ReadJsonDomainArray(jsonConfig.blocked);
 
             return Task.CompletedTask;
         }
@@ -166,10 +117,10 @@ namespace NxDomain
             if (!IsZoneBlocked(question.Name, out string blockedDomain))
                 return Task.FromResult<DnsDatagram>(null);
 
-            if (question.Type == DnsResourceRecordType.TXT)
+            if (_allowTxtBlockingReport && (question.Type == DnsResourceRecordType.TXT))
             {
                 //return meta data
-                DnsResourceRecord[] answer = new DnsResourceRecord[] { new DnsResourceRecord(question.Name, DnsResourceRecordType.TXT, question.Class, 60, new DnsTXTRecord("blockList=nx-domain-app; domain=" + blockedDomain)) };
+                DnsResourceRecord[] answer = new DnsResourceRecord[] { new DnsResourceRecord(question.Name, DnsResourceRecordType.TXT, question.Class, 60, new DnsTXTRecord("source=nx-domain-app; domain=" + blockedDomain)) };
 
                 return Task.FromResult(new DnsDatagram(request.Identifier, true, DnsOpcode.StandardQuery, false, false, request.RecursionDesired, isRecursionAllowed, false, false, DnsResponseCode.NoError, request.Question, answer) { Tag = DnsServerResponseType.Blocked });
             }
