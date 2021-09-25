@@ -37,6 +37,8 @@ namespace DnsServerCore
 
         readonly DnsWebService _dnsWebService;
 
+        uint _defaultRecordTtl = 3600;
+
         #endregion
 
         #region constructor
@@ -509,7 +511,7 @@ namespace DnsServerCore
             uint ttl;
             string strTtl = request.QueryString["ttl"];
             if (string.IsNullOrEmpty(strTtl))
-                ttl = 3600;
+                ttl = _defaultRecordTtl;
             else
                 ttl = uint.Parse(strTtl);
 
@@ -1456,7 +1458,7 @@ namespace DnsServerCore
             uint ttl;
             string strTtl = request.QueryString["ttl"];
             if (string.IsNullOrEmpty(strTtl))
-                ttl = 3600;
+                ttl = _defaultRecordTtl;
             else
                 ttl = uint.Parse(strTtl);
 
@@ -1845,6 +1847,16 @@ namespace DnsServerCore
             _dnsWebService.Log.Write(DnsWebService.GetRequestRemoteEndPoint(request), "[" + _dnsWebService.GetSession(request).Username + "] Record was updated for authoritative zone {oldDomain: " + domain + "; domain: " + newDomain + "; type: " + type + "; oldValue: " + value + "; value: " + newValue + "; ttl: " + ttl + "; disabled: " + disable + ";}");
 
             _dnsWebService.DnsServer.AuthZoneManager.SaveZoneFile(zoneInfo.Name);
+        }
+
+        #endregion
+
+        #region properties
+
+        public uint DefaultRecordTtl
+        {
+            get { return _defaultRecordTtl; }
+            set { _defaultRecordTtl = value; }
         }
 
         #endregion
