@@ -234,13 +234,13 @@ namespace DnsServerCore
                 jsonWriter.WriteValue(entry.RCODE.ToString());
 
                 jsonWriter.WritePropertyName("qname");
-                jsonWriter.WriteValue(entry.Question.Name);
+                jsonWriter.WriteValue(entry.Question?.Name);
 
                 jsonWriter.WritePropertyName("qtype");
-                jsonWriter.WriteValue(entry.Question.Type.ToString());
+                jsonWriter.WriteValue(entry.Question?.Type.ToString());
 
                 jsonWriter.WritePropertyName("qclass");
-                jsonWriter.WriteValue(entry.Question.Class.ToString());
+                jsonWriter.WriteValue(entry.Question?.Class.ToString());
 
                 jsonWriter.WritePropertyName("answer");
                 jsonWriter.WriteValue(entry.Answer);
