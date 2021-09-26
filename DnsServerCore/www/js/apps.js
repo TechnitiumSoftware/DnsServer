@@ -54,13 +54,16 @@ function refreshApps() {
                         }
 
                         if (apps[i].dnsApps[j].isRequestController)
-                            labels += "<span class=\"label label-info\">Request Controller</span>";
+                            labels += "<span class=\"label label-info\">Drop Request</span>";
 
                         if (apps[i].dnsApps[j].isAuthoritativeRequestHandler)
                             labels += "<span class=\"label label-info\">Authoritative</span>";
 
                         if (apps[i].dnsApps[j].isQueryLogger)
-                            labels += "<span class=\"label label-info\">Query Logger</span>";
+                            labels += "<span class=\"label label-info\">Query Logs</span>";
+
+                        if (labels == "")
+                            labels = "<span class=\"label label-info\">Generic</span>";
 
                         if (description == null)
                             description = htmlEncode(apps[i].dnsApps[j].description).replace(/\n/g, "<br />");
