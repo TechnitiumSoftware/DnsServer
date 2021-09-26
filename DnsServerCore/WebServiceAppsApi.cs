@@ -134,82 +134,42 @@ namespace DnsServerCore
                         }
                     }
 
-                    jsonWriter.WritePropertyName("appRecordRequestHandlers");
+                    jsonWriter.WritePropertyName("dnsApps");
                     {
                         jsonWriter.WriteStartArray();
 
-                        foreach (KeyValuePair<string, IDnsAppRecordRequestHandler> handler in application.DnsAppRecordRequestHandlers)
+                        foreach (KeyValuePair<string, IDnsApplication> dnsApp in application.DnsApplications)
                         {
                             jsonWriter.WriteStartObject();
 
                             jsonWriter.WritePropertyName("classPath");
-                            jsonWriter.WriteValue(handler.Key);
+                            jsonWriter.WriteValue(dnsApp.Key);
 
                             jsonWriter.WritePropertyName("description");
-                            jsonWriter.WriteValue(handler.Value.Description);
+                            jsonWriter.WriteValue(dnsApp.Value.Description);
 
-                            jsonWriter.WritePropertyName("recordDataTemplate");
-                            jsonWriter.WriteValue(handler.Value.ApplicationRecordDataTemplate);
+                            if (dnsApp.Value is IDnsAppRecordRequestHandler appRecordHandler)
+                            {
+                                jsonWriter.WritePropertyName("isAppRecordRequestHandler");
+                                jsonWriter.WriteValue(true);
 
-                            jsonWriter.WriteEndObject();
-                        }
+                                jsonWriter.WritePropertyName("recordDataTemplate");
+                                jsonWriter.WriteValue(appRecordHandler.ApplicationRecordDataTemplate);
+                            }
+                            else
+                            {
+                                jsonWriter.WritePropertyName("isAppRecordRequestHandler");
+                                jsonWriter.WriteValue(false);
+                            }
 
-                        jsonWriter.WriteEndArray();
-                    }
+                            jsonWriter.WritePropertyName("isRequestController");
+                            jsonWriter.WriteValue(dnsApp.Value is IDnsRequestController);
 
-                    jsonWriter.WritePropertyName("requestControllers");
-                    {
-                        jsonWriter.WriteStartArray();
+                            jsonWriter.WritePropertyName("isAuthoritativeRequestHandler");
+                            jsonWriter.WriteValue(dnsApp.Value is IDnsAuthoritativeRequestHandler);
 
-                        foreach (KeyValuePair<string, IDnsRequestController> controller in application.DnsRequestControllers)
-                        {
-                            jsonWriter.WriteStartObject();
-
-                            jsonWriter.WritePropertyName("classPath");
-                            jsonWriter.WriteValue(controller.Key);
-
-                            jsonWriter.WritePropertyName("description");
-                            jsonWriter.WriteValue(controller.Value.Description);
-
-                            jsonWriter.WriteEndObject();
-                        }
-
-                        jsonWriter.WriteEndArray();
-                    }
-
-                    jsonWriter.WritePropertyName("authoritativeRequestHandlers");
-                    {
-                        jsonWriter.WriteStartArray();
-
-                        foreach (KeyValuePair<string, IDnsAuthoritativeRequestHandler> handler in application.DnsAuthoritativeRequestHandlers)
-                        {
-                            jsonWriter.WriteStartObject();
-
-                            jsonWriter.WritePropertyName("classPath");
-                            jsonWriter.WriteValue(handler.Key);
-
-                            jsonWriter.WritePropertyName("description");
-                            jsonWriter.WriteValue(handler.Value.Description);
-
-                            jsonWriter.WriteEndObject();
-                        }
-
-                        jsonWriter.WriteEndArray();
-                    }
-
-                    jsonWriter.WritePropertyName("loggers");
-                    {
-                        jsonWriter.WriteStartArray();
-
-                        foreach (KeyValuePair<string, IDnsLogger> handler in application.DnsLoggers)
-                        {
-                            jsonWriter.WriteStartObject();
-
-                            jsonWriter.WritePropertyName("classPath");
-                            jsonWriter.WriteValue(handler.Key);
-
-                            jsonWriter.WritePropertyName("description");
-                            jsonWriter.WriteValue(handler.Value.Description);
+                            jsonWriter.WritePropertyName("isQueryLogger");
+                            jsonWriter.WriteValue(dnsApp.Value is IDnsQueryLogger);
 
                             jsonWriter.WriteEndObject();
                         }
