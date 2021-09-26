@@ -29,7 +29,7 @@ using TechnitiumLibrary.Net.Dns.ResourceRecords;
 
 namespace GeoContinent
 {
-    public sealed class CNAME : IDnsAppRecordRequestHandler
+    public sealed class CNAME : IDnsApplication, IDnsAppRecordRequestHandler
     {
         #region variables
 

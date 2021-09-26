@@ -27,7 +27,7 @@ using TechnitiumLibrary.Net.Dns.ResourceRecords;
 
 namespace NxDomain
 {
-    public class App : IDnsAuthoritativeRequestHandler
+    public class App : IDnsApplication, IDnsAuthoritativeRequestHandler
     {
         #region variables
 

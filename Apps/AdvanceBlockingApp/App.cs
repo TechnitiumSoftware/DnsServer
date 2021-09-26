@@ -37,7 +37,7 @@ using TechnitiumLibrary.Net.Dns.ResourceRecords;
 
 namespace AdvanceBlocking
 {
-    public sealed class App : IDnsAuthoritativeRequestHandler
+    public sealed class App : IDnsApplication, IDnsAuthoritativeRequestHandler
     {
         #region variables
 

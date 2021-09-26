@@ -30,7 +30,7 @@ using TechnitiumLibrary.Net.Dns.ResourceRecords;
 
 namespace GeoCountry
 {
-    public sealed class Address : IDnsAppRecordRequestHandler
+    public sealed class Address : IDnsApplication, IDnsAppRecordRequestHandler
     {
         #region variables
 

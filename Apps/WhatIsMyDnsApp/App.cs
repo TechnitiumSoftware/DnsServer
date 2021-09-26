@@ -26,7 +26,7 @@ using TechnitiumLibrary.Net.Dns.ResourceRecords;
 
 namespace WhatIsMyDns
 {
-    public class App : IDnsAppRecordRequestHandler
+    public class App : IDnsApplication, IDnsAppRecordRequestHandler
     {
         #region IDisposable
 

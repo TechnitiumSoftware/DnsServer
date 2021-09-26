@@ -31,7 +31,7 @@ using TechnitiumLibrary.Net.Dns;
 
 namespace QueryLogsSqlite
 {
-    public class App : IDnsLogger
+    public class App : IDnsApplication, IDnsQueryLogger
     {
         #region variables
 

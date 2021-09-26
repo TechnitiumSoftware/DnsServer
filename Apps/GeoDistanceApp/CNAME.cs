@@ -30,7 +30,7 @@ using TechnitiumLibrary.Net.Dns.ResourceRecords;
 
 namespace GeoDistance
 {
-    public sealed class CNAME : IDnsAppRecordRequestHandler
+    public sealed class CNAME : IDnsApplication, IDnsAppRecordRequestHandler
     {
         #region variables
 

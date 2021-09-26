@@ -28,7 +28,7 @@ using TechnitiumLibrary.Net.Dns.ResourceRecords;
 
 namespace Failover
 {
-    public class CNAME : IDnsAppRecordRequestHandler
+    public class CNAME : IDnsApplication, IDnsAppRecordRequestHandler
     {
         #region variables
 

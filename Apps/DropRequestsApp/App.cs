@@ -28,7 +28,7 @@ using TechnitiumLibrary.Net.Dns;
 
 namespace DropRequests
 {
-    public class App : IDnsRequestController
+    public class App : IDnsApplication, IDnsRequestController
     {
         #region variables
 

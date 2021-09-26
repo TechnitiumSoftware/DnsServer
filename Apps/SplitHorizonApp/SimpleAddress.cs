@@ -30,7 +30,7 @@ using TechnitiumLibrary.Net.Dns.ResourceRecords;
 
 namespace SplitHorizon
 {
-    public class SimpleAddress : IDnsAppRecordRequestHandler
+    public class SimpleAddress : IDnsApplication, IDnsAppRecordRequestHandler
     {
         #region IDisposable
 

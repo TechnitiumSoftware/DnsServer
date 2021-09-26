@@ -37,7 +37,7 @@ namespace Failover
         Secondary = 2
     }
 
-    public class Address : IDnsAppRecordRequestHandler
+    public class Address : IDnsApplication, IDnsAppRecordRequestHandler
     {
         #region variables
 
