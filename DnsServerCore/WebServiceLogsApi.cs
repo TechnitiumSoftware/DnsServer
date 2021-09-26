@@ -113,7 +113,7 @@ namespace DnsServerCore
             if (!_dnsWebService.DnsServer.DnsApplicationManager.Applications.TryGetValue(name, out DnsApplication application))
                 throw new DnsWebServiceException("DNS application was not found: " + name);
 
-            if (!application.DnsLoggers.TryGetValue(classPath, out IDnsLogger logger))
+            if (!application.DnsQueryLoggers.TryGetValue(classPath, out IDnsQueryLogger logger))
                 throw new DnsWebServiceException("DNS application '" + classPath + "' class path was not found: " + name);
 
             long pageNumber;
