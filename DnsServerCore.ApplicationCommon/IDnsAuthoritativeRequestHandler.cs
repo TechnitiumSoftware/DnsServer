@@ -17,7 +17,6 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 */
 
-using System;
 using System.Net;
 using System.Threading.Tasks;
 using TechnitiumLibrary.Net.Dns;
@@ -27,15 +26,8 @@ namespace DnsServerCore.ApplicationCommon
     /// <summary>
     /// Lets a DNS App to handle incoming requests for the DNS server's authoritative zone allowing it to act as an authoritative zone by itself and respond to any requests.
     /// </summary>
-    public interface IDnsAuthoritativeRequestHandler : IDisposable
+    public interface IDnsAuthoritativeRequestHandler
     {
-        /// <summary>
-        /// Allows initializing the DNS application with a config. This function is also called when the config is updated to allow reloading.
-        /// </summary>
-        /// <param name="dnsServer">The DNS server interface object that allows access to DNS server properties.</param>
-        /// <param name="config">The DNS application config stored in the <c>dnsApp.config</c> file.</param>
-        Task InitializeAsync(IDnsServer dnsServer, string config);
-
         /// <summary>
         /// Allows a DNS App to respond to an incoming DNS request for the DNS server's authoritative zone. This method is called by the DNS Server's authoritative zone before querying its built in zone database. Response returned may be further processed to resolve CNAME or ANAME records, or referral response.
         /// </summary>
@@ -45,10 +37,5 @@ namespace DnsServerCore.ApplicationCommon
         /// <param name="isRecursionAllowed">Tells if the DNS server is configured to allow recursion for the client making this request.</param>
         /// <returns>The DNS response for the DNS request or <c>null</c> to let the DNS server core process the request as usual.</returns>
         Task<DnsDatagram> ProcessRequestAsync(DnsDatagram request, IPEndPoint remoteEP, DnsTransportProtocol protocol, bool isRecursionAllowed);
-
-        /// <summary>
-        /// The description about this app to be shown in the Apps section of the DNS web console.
-        /// </summary>
-        string Description { get; }
     }
 }

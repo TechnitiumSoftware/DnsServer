@@ -17,7 +17,6 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 */
 
-using System;
 using System.Net;
 using System.Threading.Tasks;
 using TechnitiumLibrary.Net.Dns;
@@ -45,15 +44,8 @@ namespace DnsServerCore.ApplicationCommon
     /// <summary>
     /// Allows a DNS App to inspect and optionally block incoming DNS requests before they are processed by the DNS Server core.
     /// </summary>
-    public interface IDnsRequestController : IDisposable
+    public interface IDnsRequestController
     {
-        /// <summary>
-        /// Allows initializing the DNS application with a config. This function is also called when the config is updated to allow reloading.
-        /// </summary>
-        /// <param name="dnsServer">The DNS server interface object that allows access to DNS server properties.</param>
-        /// <param name="config">The DNS application config stored in the <c>dnsApp.config</c> file.</param>
-        Task InitializeAsync(IDnsServer dnsServer, string config);
-
         /// <summary>
         /// Allows a DNS App to inspect an incoming DNS request and decide whether to allow or block it. This method is called by the DNS Server before an incoming request is processed.
         /// </summary>
@@ -62,10 +54,5 @@ namespace DnsServerCore.ApplicationCommon
         /// <param name="protocol">The protocol using which the request was received.</param>
         /// <returns>The action that must be taken by the DNS server i.e. if the request must be allowed or dropped.</returns>
         Task<DnsRequestControllerAction> GetRequestActionAsync(DnsDatagram request, IPEndPoint remoteEP, DnsTransportProtocol protocol);
-
-        /// <summary>
-        /// The description about this app to be shown in the Apps section of the DNS web console.
-        /// </summary>
-        string Description { get; }
     }
 }

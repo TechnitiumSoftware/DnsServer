@@ -17,7 +17,6 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 */
 
-using System;
 using System.Net;
 using System.Threading.Tasks;
 using TechnitiumLibrary.Net.Dns;
@@ -27,15 +26,8 @@ namespace DnsServerCore.ApplicationCommon
     /// <summary>
     /// Allows a DNS App to handle incoming DNS requests for configured APP records in the DNS server zones.
     /// </summary>
-    public interface IDnsAppRecordRequestHandler : IDisposable
+    public interface IDnsAppRecordRequestHandler
     {
-        /// <summary>
-        /// Allows initializing the DNS application with a config. This function is also called when the config is updated to allow reloading.
-        /// </summary>
-        /// <param name="dnsServer">The DNS server interface object that allows access to DNS server properties.</param>
-        /// <param name="config">The DNS application config stored in the <c>dnsApp.config</c> file.</param>
-        Task InitializeAsync(IDnsServer dnsServer, string config);
-
         /// <summary>
         /// Allows a DNS App to respond to the incoming DNS requests for an APP record in a primary or secondary zone.
         /// </summary>
@@ -48,11 +40,6 @@ namespace DnsServerCore.ApplicationCommon
         /// <param name="appRecordData">The record data in the APP record as required for processing the request.</param>
         /// <returns>The DNS response for the DNS request or <c>null</c> to send no answer response with an SOA authority.</returns>
         Task<DnsDatagram> ProcessRequestAsync(DnsDatagram request, IPEndPoint remoteEP, DnsTransportProtocol protocol, bool isRecursionAllowed, string zoneName, uint appRecordTtl, string appRecordData);
-
-        /// <summary>
-        /// The description about this app to be shown in the Apps section of the DNS web console.
-        /// </summary>
-        string Description { get; }
 
         /// <summary>
         /// A template of the record data format that is required by this app. This template is populated in the UI to allow the user to edit in the expected values. The format could be JSON or any other custom text based format which the app is programmed to parse. This property is optional and can return <c>null</c> if no APP record data is required by the app.

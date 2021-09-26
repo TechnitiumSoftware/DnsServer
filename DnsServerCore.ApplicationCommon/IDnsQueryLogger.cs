@@ -36,15 +36,8 @@ namespace DnsServerCore.ApplicationCommon
     /// <summary>
     /// Allows a DNS App to log incoming DNS requests and their corresponding responses.
     /// </summary>
-    public interface IDnsLogger : IDisposable
+    public interface IDnsQueryLogger
     {
-        /// <summary>
-        /// Allows initializing the DNS application with a config. This function is also called when the config is updated to allow reloading.
-        /// </summary>
-        /// <param name="dnsServer">The DNS server interface object that allows access to DNS server properties.</param>
-        /// <param name="config">The DNS application config stored in the <c>dnsApp.config</c> file.</param>
-        Task InitializeAsync(IDnsServer dnsServer, string config);
-
         /// <summary>
         /// Allows a DNS App to log incoming DNS requests and responses. This method is called by the DNS Server after an incoming request is processed and a response is sent.
         /// </summary>
@@ -71,11 +64,6 @@ namespace DnsServerCore.ApplicationCommon
         /// <param name="qclass">Optional parameter to filter records by the request QCLASS.</param>
         /// <returns>The <code>DnsLogPage</code> object that contains all the entries in the requested page number.</returns>
         Task<DnsLogPage> QueryLogsAsync(long pageNumber, int entriesPerPage, bool descendingOrder, DateTime? start, DateTime? end, IPAddress clientIpAddress, DnsTransportProtocol? protocol, DnsServerResponseType? responseType, DnsResponseCode? rcode, string qname, DnsResourceRecordType? qtype, DnsClass? qclass);
-
-        /// <summary>
-        /// The description about this app to be shown in the Apps section of the DNS web console.
-        /// </summary>
-        string Description { get; }
     }
 
     public class DnsLogPage
