@@ -42,12 +42,12 @@ namespace DnsServerCore.ApplicationCommon
     }
 
     /// <summary>
-    /// Allows a DNS App to inspect and optionally block incoming DNS requests before they are processed by the DNS Server core.
+    /// Allows a DNS App to inspect and optionally drop incoming DNS requests before they are processed by the DNS Server core.
     /// </summary>
     public interface IDnsRequestController
     {
         /// <summary>
-        /// Allows a DNS App to inspect an incoming DNS request and decide whether to allow or block it. This method is called by the DNS Server before an incoming request is processed.
+        /// Allows a DNS App to inspect an incoming DNS request and decide whether to allow or drop it. This method is called by the DNS Server before an incoming request is processed.
         /// </summary>
         /// <param name="request">The incoming DNS request.</param>
         /// <param name="remoteEP">The end point (IP address and port) of the client making the request.</param>
