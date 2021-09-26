@@ -127,7 +127,7 @@ namespace DnsServerCore.Dns
                             statCounter.Update(query, item._response.RCODE, responseType, item._remoteEP.Address);
                         }
 
-                        foreach (IDnsLogger logger in _dnsServer.DnsApplicationManager.DnsLoggers)
+                        foreach (IDnsQueryLogger logger in _dnsServer.DnsApplicationManager.DnsQueryLoggers)
                         {
                             try
                             {
