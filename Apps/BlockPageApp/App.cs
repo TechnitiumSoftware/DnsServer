@@ -33,7 +33,7 @@ using TechnitiumLibrary.IO;
 using TechnitiumLibrary.Net;
 using TechnitiumLibrary.Net.Http;
 
-namespace BlockPageWebServer
+namespace BlockPage
 {
     public class App : IDnsApplication
     {

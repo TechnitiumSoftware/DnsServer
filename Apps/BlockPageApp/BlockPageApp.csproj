@@ -7,8 +7,8 @@
     <Company>Technitium</Company>
     <Product>Technitium DNS Server</Product>
     <Authors>Shreyas Zare</Authors>
-    <AssemblyName>BlockPageWebServerApp</AssemblyName>
-    <RootNamespace>BlockPageWebServer</RootNamespace>
+    <AssemblyName>BlockPageApp</AssemblyName>
+    <RootNamespace>BlockPage</RootNamespace>
     <PackageProjectUrl>https://technitium.com/dns/</PackageProjectUrl>
     <RepositoryUrl>https://github.com/TechnitiumSoftware/DnsServer</RepositoryUrl>
     <GeneratePackageOnBuild>false</GeneratePackageOnBuild>
