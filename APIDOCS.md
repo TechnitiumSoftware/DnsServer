@@ -2167,60 +2167,33 @@ RESPONSE:
 	"response": {
 		"apps": [
 			{
-				"name": "Block List Groups",
+				"name": "Block Page",
 				"version": "1.0",
-				"appRecordRequestHandlers": [],
-				"requestControllers": [],
-				"authoritativeRequestHandlers": [
+				"dnsApps": [
 					{
-						"classPath": "BlockListGroups.App",
-						"description": "Blocks domain names using client's IP address or subnet specific block list URLs."
-					}
-				],
-				"loggers": []
-			},
-			{
-				"name": "NX Domain",
-				"version": "1.0",
-				"appRecordRequestHandlers": [],
-				"requestControllers": [],
-				"authoritativeRequestHandlers": [
-					{
-						"classPath": "NxDomain.App",
-						"description": "Blocks domain names with NX Domain response."
-					}
-				],
-				"loggers": []
-			},
-			{
-				"name": "Query Logs",
-				"version": "1.0",
-				"appRecordRequestHandlers": [],
-				"requestControllers": [],
-				"authoritativeRequestHandlers": [],
-				"loggers": [
-					{
-						"classPath": "QueryLogsSqliteApp.App",
-						"description": "Logs all incoming DNS requests and their responses in a Sqlite database that can be queried from the DNS Server web console."
+						"classPath": "BlockPageWebServer.App",
+						"description": "Serves a block page from a built-in web server that can be displayed to the end user when a website is blocked by the DNS server.\n\nNote: You need to manually configure the custom IP addresses of this built-in web server in the blocking settings for the block page to be served.",
+						"isAppRecordRequestHandler": false,
+						"isRequestController": false,
+						"isAuthoritativeRequestHandler": false,
+						"isQueryLogger": false
 					}
 				]
 			},
 			{
-				"name": "What Is My Dns",
-				"version": "1.1",
-				"updateVersion": "1.1",
-				"updateUrl": "https://download.technitium.com/dns/apps/WhatIsMyDnsApp.zip",
-				"updateAvailable": false,
-				"appRecordRequestHandlers": [
+				"name": "What Is My DNS",
+				"version": "2.0",
+				"dnsApps": [
 					{
 						"classPath": "WhatIsMyDns.App",
 						"description": "Returns the IP address of the user's DNS Server for A, AAAA, and TXT queries.",
-						"recordDataTemplate": null
+						"isAppRecordRequestHandler": true,
+						"recordDataTemplate": null,
+						"isRequestController": false,
+						"isAuthoritativeRequestHandler": false,
+						"isQueryLogger": false
 					}
-				],
-				"requestControllers": [],
-				"authoritativeRequestHandlers": [],
-				"loggers": []
+				]
 			}
 		]
 	},
