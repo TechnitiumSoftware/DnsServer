@@ -35,7 +35,7 @@ using TechnitiumLibrary.Net;
 using TechnitiumLibrary.Net.Dns;
 using TechnitiumLibrary.Net.Dns.ResourceRecords;
 
-namespace AdvanceBlocking
+namespace AdvancedBlocking
 {
     public sealed class App : IDnsApplication, IDnsAuthoritativeRequestHandler
     {
