@@ -104,9 +104,12 @@ $(function () {
 
         for (var i = 0; i < appsList.length; i++) {
             if (appsList[i].name == appName) {
-                for (var j = 0; j < appsList[i].appRecordRequestHandlers.length; j++) {
-                    optClassPaths += "<option>" + appsList[i].appRecordRequestHandlers[j].classPath + "</option>";
+                for (var j = 0; j < appsList[i].dnsApps.length; j++) {
+                    if (appsList[i].dnsApps[j].isAppRecordRequestHandler)
+                        optClassPaths += "<option>" + appsList[i].dnsApps[j].classPath + "</option>";
                 }
+
+                break;
             }
         }
 
@@ -123,9 +126,9 @@ $(function () {
 
         for (var i = 0; i < appsList.length; i++) {
             if (appsList[i].name == appName) {
-                for (var j = 0; j < appsList[i].appRecordRequestHandlers.length; j++) {
-                    if (appsList[i].appRecordRequestHandlers[j].classPath == classPath) {
-                        $("#txtAddEditRecordDataData").val(appsList[i].appRecordRequestHandlers[j].recordDataTemplate);
+                for (var j = 0; j < appsList[i].dnsApps.length; j++) {
+                    if (appsList[i].dnsApps[j].classPath == classPath) {
+                        $("#txtAddEditRecordDataData").val(appsList[i].dnsApps[j].recordDataTemplate);
                         return;
                     }
                 }
@@ -1163,8 +1166,12 @@ function showAddRecordModalNow(apps) {
         var optClassPaths = "<option></option>";
 
         for (var i = 0; i < apps.length; i++) {
-            if (apps[i].appRecordRequestHandlers.length > 0)
-                optApps += "<option>" + apps[i].name + "</option>";
+            for (var j = 0; j < apps[i].dnsApps.length; j++) {
+                if (apps[i].dnsApps[j].isAppRecordRequestHandler) {
+                    optApps += "<option>" + apps[i].name + "</option>";
+                    break;
+                }
+            }
         }
 
         $("#optAddEditRecordDataAppName").html(optApps);
