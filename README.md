@@ -4,8 +4,8 @@
 		<b>Technitium DNS Server</b>
 	</a><br />
 	<br />
-	<b>Get a personal local DNS Server for privacy & security.</b><br />
-	<b>Block Ads at DNS level!</b>
+	<b>Self host a DNS server for privacy & security</b><br />
+	<b>Block ads & malware at DNS level for your entire network!</b>
 </p>
 <p align="center">
 <img src="https://technitium.com/dns/ScreenShot1.png" alt="Technitium DNS Server" />
@@ -23,8 +23,9 @@ Applications of using a locally hosted DNS server is limited only by the user's 
 - Works on Windows, Linux, macOS and Raspberry Pi.
 - Docker image available on [Docker Hub](https://hub.docker.com/r/technitium/dns-server).
 - Installs in just a minute and works out-of-the-box with zero configuration.
-- Block Ads using one or more block list URLs.
-- Run [DNS-over-TLS](https://en.wikipedia.org/wiki/DNS_over_TLS) and [DNS-over-HTTPS](https://en.wikipedia.org/wiki/DNS_over_HTTPS) DNS service on your network.
+- Block ads & malware using one or more block list URLs.
+- High performance DNS server that can serve millions of requests per minute even on a commodity desktop PC hardware (load tested on Intel i7-8700 CPU with more than 100,000 request/second).
+- Self host [DNS-over-TLS](https://en.wikipedia.org/wiki/DNS_over_TLS) and [DNS-over-HTTPS](https://en.wikipedia.org/wiki/DNS_over_HTTPS) DNS service on your network.
 - Use public DNS resolvers like Cloudflare, Google & Quad9 with [DNS-over-TLS](https://en.wikipedia.org/wiki/DNS_over_TLS) and [DNS-over-HTTPS](https://en.wikipedia.org/wiki/DNS_over_HTTPS) protocols as forwarders.
 - Advance caching with features like serve stale, prefetching and auto prefetching.
 - Supports working as an authoritative as well as a recursive DNS server.
@@ -32,13 +33,14 @@ Applications of using a locally hosted DNS server is limited only by the user's 
 - QNAME minimization support in recursive resolver [draft-ietf-dnsop-rfc7816bis-04](https://tools.ietf.org/html/draft-ietf-dnsop-rfc7816bis-04).
 - QNAME randomization support for UDP transport protocol [draft-vixie-dnsext-dns0x20-00](https://tools.ietf.org/html/draft-vixie-dnsext-dns0x20-00).
 - DNAME record [RFC 6672](https://datatracker.ietf.org/doc/html/rfc6672) support.
-- ANAME propriety record support to allow using CNAME like feature at zone root.
+- ANAME propriety record support to allow using CNAME like feature at zone apex.
 - APP propriety record support that allows custom DNS Apps to directly handle DNS requests and return a custom DNS response based on any business logic.
 - Support for features like Split Horizon and Geolocation based responses using DNS Apps feature.
+- Support for REGEX based block lists with different block lists for different client IP addresses or subnet using Advanced Blocking DNS App.
 - Primary, Secondary, Stub, and Conditional Forwarder zone support.
 - Zone transfer over TLS (XFR-over-TLS) [draft-ietf-dprive-xfr-over-tls](https://datatracker.ietf.org/doc/draft-ietf-dprive-xfr-over-tls/) support.
 - Secret key transaction authentication (TSIG) [RFC 8945](https://datatracker.ietf.org/doc/html/rfc8945) support for zone transfers.
-- Host domain names on your own DNS server.
+- Self host your domain names on your own DNS server.
 - Wildcard sub domain support.
 - Enable/disable zones and records to allow testing with ease.
 - Built-in DNS Client with option to import responses to local zone.
