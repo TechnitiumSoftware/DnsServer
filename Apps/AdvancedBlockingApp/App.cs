@@ -44,15 +44,11 @@ namespace AdvancedBlocking
         IDnsServer _dnsServer;
         string _localCacheFolder;
 
-        bool _enableBlocking;
-        bool _allowTxtBlockingReport;
-        bool _blockAsNxDomain;
-        int _blockListUrlUpdateIntervalHours;
-
-        IReadOnlyCollection<DnsARecord> _aRecords;
-        IReadOnlyCollection<DnsAAAARecord> _aaaaRecords;
         DnsSOARecord _soaRecord;
         DnsNSRecord _nsRecord;
+
+        bool _enableBlocking;
+        int _blockListUrlUpdateIntervalHours;
 
         IReadOnlyDictionary<NetworkAddress, string> _networkGroupMap;
         IReadOnlyDictionary<string, Group> _groups;
@@ -224,7 +220,7 @@ namespace AdvancedBlocking
                                         }
                                     }
 
-                                    _dnsServer.WriteLog("Advance Blocking app successfully downloaded " + (isAdblockList ? "adblock" : (isRegexList ? "regex " : "") + (isAllowList ? "allow" : "block")) + " list (" + WebUtilities.GetFormattedSize(new FileInfo(listFilePath).Length) + "): " + listUrl.AbsoluteUri);
+                                    _dnsServer.WriteLog("Advanced Blocking app successfully downloaded " + (isAdblockList ? "adblock" : (isRegexList ? "regex " : "") + (isAllowList ? "allow" : "block")) + " list (" + WebUtilities.GetFormattedSize(new FileInfo(listFilePath).Length) + "): " + listUrl.AbsoluteUri);
                                 }
                                 break;
 
@@ -232,7 +228,7 @@ namespace AdvancedBlocking
                                 {
                                     notModified = true;
 
-                                    _dnsServer.WriteLog("Advance Blocking app successfully checked for a new update of the " + (isAdblockList ? "adblock" : (isRegexList ? "regex " : "") + (isAllowList ? "allow" : "block")) + " list: " + listUrl.AbsoluteUri);
+                                    _dnsServer.WriteLog("Advanced Blocking app successfully checked for a new update of the " + (isAdblockList ? "adblock" : (isRegexList ? "regex " : "") + (isAllowList ? "allow" : "block")) + " list: " + listUrl.AbsoluteUri);
                                 }
                                 break;
 
@@ -243,7 +239,7 @@ namespace AdvancedBlocking
                 }
                 catch (Exception ex)
                 {
-                    _dnsServer.WriteLog("Advance Blocking app failed to download " + (isAdblockList ? "adblock" : (isRegexList ? "regex " : "") + (isAllowList ? "allow" : "block")) + " list and will use previously downloaded file (if available): " + listUrl.AbsoluteUri + "\r\n" + ex.ToString());
+                    _dnsServer.WriteLog("Advanced Blocking app failed to download " + (isAdblockList ? "adblock" : (isRegexList ? "regex " : "") + (isAllowList ? "allow" : "block")) + " list and will use previously downloaded file (if available): " + listUrl.AbsoluteUri + "\r\n" + ex.ToString());
                 }
             }
 
@@ -308,7 +304,7 @@ namespace AdvancedBlocking
 
             try
             {
-                _dnsServer.WriteLog("Advance Blocking app is reading " + (isAllowList ? "allow" : "block") + " list from: " + listUrl.AbsoluteUri);
+                _dnsServer.WriteLog("Advanced Blocking app is reading " + (isAllowList ? "allow" : "block") + " list from: " + listUrl.AbsoluteUri);
 
                 using (FileStream fS = new FileStream(GetListFilePath(listUrl), FileMode.Open, FileAccess.Read))
                 {
@@ -378,11 +374,11 @@ namespace AdvancedBlocking
                     }
                 }
 
-                _dnsServer.WriteLog("Advance Blocking app read " + (isAllowList ? "allow" : "block") + " list file (" + domains.Count + " domains) from: " + listUrl.AbsoluteUri);
+                _dnsServer.WriteLog("Advanced Blocking app read " + (isAllowList ? "allow" : "block") + " list file (" + domains.Count + " domains) from: " + listUrl.AbsoluteUri);
             }
             catch (Exception ex)
             {
-                _dnsServer.WriteLog("Advance Blocking app failed to read " + (isAllowList ? "allow" : "block") + " list from: " + listUrl.AbsoluteUri + "\r\n" + ex.ToString());
+                _dnsServer.WriteLog("Advanced Blocking app failed to read " + (isAllowList ? "allow" : "block") + " list from: " + listUrl.AbsoluteUri + "\r\n" + ex.ToString());
             }
 
             return domains;
@@ -394,7 +390,7 @@ namespace AdvancedBlocking
 
             try
             {
-                _dnsServer.WriteLog("Advance Blocking app is reading regex " + (isAllowList ? "allow" : "block") + " list from: " + listUrl.AbsoluteUri);
+                _dnsServer.WriteLog("Advanced Blocking app is reading regex " + (isAllowList ? "allow" : "block") + " list from: " + listUrl.AbsoluteUri);
 
                 using (FileStream fS = new FileStream(GetListFilePath(listUrl), FileMode.Open, FileAccess.Read))
                 {
@@ -420,11 +416,11 @@ namespace AdvancedBlocking
                     }
                 }
 
-                _dnsServer.WriteLog("Advance Blocking app read regex " + (isAllowList ? "allow" : "block") + " list file (" + regices.Count + " regex patterns) from: " + listUrl.AbsoluteUri);
+                _dnsServer.WriteLog("Advanced Blocking app read regex " + (isAllowList ? "allow" : "block") + " list file (" + regices.Count + " regex patterns) from: " + listUrl.AbsoluteUri);
             }
             catch (Exception ex)
             {
-                _dnsServer.WriteLog("Advance Blocking app failed to read regex " + (isAllowList ? "allow" : "block") + " list from: " + listUrl.AbsoluteUri + "\r\n" + ex.ToString());
+                _dnsServer.WriteLog("Advanced Blocking app failed to read regex " + (isAllowList ? "allow" : "block") + " list from: " + listUrl.AbsoluteUri + "\r\n" + ex.ToString());
             }
 
             return regices;
@@ -437,7 +433,7 @@ namespace AdvancedBlocking
 
             try
             {
-                _dnsServer.WriteLog("Advance Blocking app is reading adblock list from: " + listUrl.AbsoluteUri);
+                _dnsServer.WriteLog("Advanced Blocking app is reading adblock list from: " + listUrl.AbsoluteUri);
 
                 using (FileStream fS = new FileStream(GetListFilePath(listUrl), FileMode.Open, FileAccess.Read))
                 {
@@ -500,11 +496,11 @@ namespace AdvancedBlocking
                     }
                 }
 
-                _dnsServer.WriteLog("Advance Blocking app read adblock list file (" + (allowedDomains.Count + blockedDomains.Count) + " domains) from: " + listUrl.AbsoluteUri);
+                _dnsServer.WriteLog("Advanced Blocking app read adblock list file (" + (allowedDomains.Count + blockedDomains.Count) + " domains) from: " + listUrl.AbsoluteUri);
             }
             catch (Exception ex)
             {
-                _dnsServer.WriteLog("Advance Blocking app failed to read adblock list from: " + listUrl.AbsoluteUri + "\r\n" + ex.ToString());
+                _dnsServer.WriteLog("Advanced Blocking app failed to read adblock list from: " + listUrl.AbsoluteUri + "\r\n" + ex.ToString());
             }
         }
 
@@ -762,7 +758,7 @@ namespace AdvancedBlocking
             if (loadRegexBlockList)
                 group.LoadRegexBlockListZone(allRegexBlockListQueues);
 
-            _dnsServer.WriteLog("Advance Blocking app loaded all zones successfully for group: " + group.Name);
+            _dnsServer.WriteLog("Advanced Blocking app loaded all zones successfully for group: " + group.Name);
         }
 
         private static bool ListsEquals<T>(IReadOnlyList<T> list1, IReadOnlyList<T> list2)
@@ -811,41 +807,13 @@ namespace AdvancedBlocking
 
             Directory.CreateDirectory(_localCacheFolder);
 
+            _soaRecord = new DnsSOARecord(_dnsServer.ServerDomain, "hostadmin." + _dnsServer.ServerDomain, 1, 14400, 3600, 604800, 60);
+            _nsRecord = new DnsNSRecord(_dnsServer.ServerDomain);
+
             dynamic jsonConfig = JsonConvert.DeserializeObject(config);
 
             _enableBlocking = jsonConfig.enableBlocking.Value;
-            _allowTxtBlockingReport = jsonConfig.allowTxtBlockingReport.Value;
-            _blockAsNxDomain = jsonConfig.blockAsNxDomain.Value;
             _blockListUrlUpdateIntervalHours = Convert.ToInt32(jsonConfig.blockListUrlUpdateIntervalHours.Value);
-
-            {
-                List<DnsARecord> aRecords = new List<DnsARecord>();
-                List<DnsAAAARecord> aaaaRecords = new List<DnsAAAARecord>();
-
-                foreach (dynamic jsonBlockingAddress in jsonConfig.blockingAddresses)
-                {
-                    string strAddress = jsonBlockingAddress.Value;
-
-                    if (IPAddress.TryParse(strAddress, out IPAddress address))
-                    {
-                        switch (address.AddressFamily)
-                        {
-                            case AddressFamily.InterNetwork:
-                                aRecords.Add(new DnsARecord(address));
-                                break;
-
-                            case AddressFamily.InterNetworkV6:
-                                aaaaRecords.Add(new DnsAAAARecord(address));
-                                break;
-                        }
-                    }
-                }
-
-                _aRecords = aRecords;
-                _aaaaRecords = aaaaRecords;
-                _soaRecord = new DnsSOARecord(dnsServer.ServerDomain, "hostadmin." + dnsServer.ServerDomain, 1, 14400, 3600, 604800, 60);
-                _nsRecord = new DnsNSRecord(dnsServer.ServerDomain);
-            }
 
             {
                 Dictionary<NetworkAddress, string> networkGroupMap = new Dictionary<NetworkAddress, string>();
@@ -900,7 +868,11 @@ namespace AdvancedBlocking
                         if (loadFlags > 0)
                             updatedGroups.Add(existingGroup, loadFlags);
 
-                        existingGroup.Enabled = group.Enabled;
+                        existingGroup.EnableBlocking = group.EnableBlocking;
+                        existingGroup.AllowTxtBlockingReport = group.AllowTxtBlockingReport;
+                        existingGroup.BlockAsNxDomain = group.BlockAsNxDomain;
+                        existingGroup.ARecords = group.ARecords;
+                        existingGroup.AAAARecords = group.AAAARecords;
 
                         existingGroup.Allowed = group.Allowed;
                         existingGroup.Blocked = group.Blocked;
@@ -996,7 +968,7 @@ namespace AdvancedBlocking
                 }
             }
 
-            if ((groupName is null) || !_groups.TryGetValue(groupName, out Group group) || !group.Enabled)
+            if ((groupName is null) || !_groups.TryGetValue(groupName, out Group group) || !group.EnableBlocking)
                 return Task.FromResult<DnsDatagram>(null);
 
             DnsQuestionRecord question = request.Question[0];
@@ -1005,7 +977,7 @@ namespace AdvancedBlocking
             if (blockListUrls is null)
                 return Task.FromResult<DnsDatagram>(null);
 
-            if (_allowTxtBlockingReport && (question.Type == DnsResourceRecordType.TXT))
+            if (group.AllowTxtBlockingReport && (question.Type == DnsResourceRecordType.TXT))
             {
                 //return meta data
                 DnsResourceRecord[] answer;
@@ -1017,11 +989,11 @@ namespace AdvancedBlocking
                         answer = new DnsResourceRecord[blockListUrls.Count];
 
                         for (int i = 0; i < answer.Length; i++)
-                            answer[i] = new DnsResourceRecord(question.Name, DnsResourceRecordType.TXT, question.Class, 60, new DnsTXTRecord("source=advance-blocking-app; group=" + group.Name + "; blockListUrl=" + blockListUrls[i].AbsoluteUri + "; domain=" + blockedDomain));
+                            answer[i] = new DnsResourceRecord(question.Name, DnsResourceRecordType.TXT, question.Class, 60, new DnsTXTRecord("source=advanced-blocking-app; group=" + group.Name + "; blockListUrl=" + blockListUrls[i].AbsoluteUri + "; domain=" + blockedDomain));
                     }
                     else
                     {
-                        answer = new DnsResourceRecord[] { new DnsResourceRecord(question.Name, DnsResourceRecordType.TXT, question.Class, 60, new DnsTXTRecord("source=advance-blocking-app; group=" + group.Name + "; domain=" + blockedDomain)) };
+                        answer = new DnsResourceRecord[] { new DnsResourceRecord(question.Name, DnsResourceRecordType.TXT, question.Class, 60, new DnsTXTRecord("source=advanced-blocking-app; group=" + group.Name + "; domain=" + blockedDomain)) };
                     }
                 }
                 else
@@ -1031,11 +1003,11 @@ namespace AdvancedBlocking
                         answer = new DnsResourceRecord[blockListUrls.Count];
 
                         for (int i = 0; i < answer.Length; i++)
-                            answer[i] = new DnsResourceRecord(question.Name, DnsResourceRecordType.TXT, question.Class, 60, new DnsTXTRecord("source=advance-blocking-app; group=" + group.Name + "; regexBlockListUrl=" + blockListUrls[i].AbsoluteUri + "; regex=" + blockedRegex));
+                            answer[i] = new DnsResourceRecord(question.Name, DnsResourceRecordType.TXT, question.Class, 60, new DnsTXTRecord("source=advanced-blocking-app; group=" + group.Name + "; regexBlockListUrl=" + blockListUrls[i].AbsoluteUri + "; regex=" + blockedRegex));
                     }
                     else
                     {
-                        answer = new DnsResourceRecord[] { new DnsResourceRecord(question.Name, DnsResourceRecordType.TXT, question.Class, 60, new DnsTXTRecord("source=advance-blocking-app; group=" + group.Name + "; regex=" + blockedRegex)) };
+                        answer = new DnsResourceRecord[] { new DnsResourceRecord(question.Name, DnsResourceRecordType.TXT, question.Class, 60, new DnsTXTRecord("source=advanced-blocking-app; group=" + group.Name + "; regex=" + blockedRegex)) };
                     }
                 }
 
@@ -1047,7 +1019,7 @@ namespace AdvancedBlocking
                 IReadOnlyList<DnsResourceRecord> answer = null;
                 IReadOnlyList<DnsResourceRecord> authority = null;
 
-                if (_blockAsNxDomain)
+                if (group.BlockAsNxDomain)
                 {
                     rcode = DnsResponseCode.NxDomain;
 
@@ -1065,9 +1037,9 @@ namespace AdvancedBlocking
                     {
                         case DnsResourceRecordType.A:
                             {
-                                List<DnsResourceRecord> rrList = new List<DnsResourceRecord>(_aRecords.Count);
+                                List<DnsResourceRecord> rrList = new List<DnsResourceRecord>(group.ARecords.Count);
 
-                                foreach (DnsARecord record in _aRecords)
+                                foreach (DnsARecord record in group.ARecords)
                                     rrList.Add(new DnsResourceRecord(question.Name, DnsResourceRecordType.A, question.Class, 60, record));
 
                                 answer = rrList;
@@ -1076,9 +1048,9 @@ namespace AdvancedBlocking
 
                         case DnsResourceRecordType.AAAA:
                             {
-                                List<DnsResourceRecord> rrList = new List<DnsResourceRecord>(_aaaaRecords.Count);
+                                List<DnsResourceRecord> rrList = new List<DnsResourceRecord>(group.AAAARecords.Count);
 
-                                foreach (DnsAAAARecord record in _aaaaRecords)
+                                foreach (DnsAAAARecord record in group.AAAARecords)
                                     rrList.Add(new DnsResourceRecord(question.Name, DnsResourceRecordType.AAAA, question.Class, 60, record));
 
                                 answer = rrList;
@@ -1119,7 +1091,12 @@ namespace AdvancedBlocking
             readonly App _app;
 
             readonly string _name;
-            bool _enabled;
+            bool _enableBlocking;
+            bool _allowTxtBlockingReport;
+            bool _blockAsNxDomain;
+
+            IReadOnlyCollection<DnsARecord> _aRecords;
+            IReadOnlyCollection<DnsAAAARecord> _aaaaRecords;
 
             IReadOnlyDictionary<string, object> _allowed;
             IReadOnlyDictionary<string, object> _blocked;
@@ -1148,7 +1125,36 @@ namespace AdvancedBlocking
                 _app = app;
 
                 _name = jsonGroup.name.Value;
-                _enabled = jsonGroup.enabled.Value;
+                _enableBlocking = jsonGroup.enableBlocking.Value;
+                _allowTxtBlockingReport = jsonGroup.allowTxtBlockingReport.Value;
+                _blockAsNxDomain = jsonGroup.blockAsNxDomain.Value;
+
+                {
+                    List<DnsARecord> aRecords = new List<DnsARecord>();
+                    List<DnsAAAARecord> aaaaRecords = new List<DnsAAAARecord>();
+
+                    foreach (dynamic jsonBlockingAddress in jsonGroup.blockingAddresses)
+                    {
+                        string strAddress = jsonBlockingAddress.Value;
+
+                        if (IPAddress.TryParse(strAddress, out IPAddress address))
+                        {
+                            switch (address.AddressFamily)
+                            {
+                                case AddressFamily.InterNetwork:
+                                    aRecords.Add(new DnsARecord(address));
+                                    break;
+
+                                case AddressFamily.InterNetworkV6:
+                                    aaaaRecords.Add(new DnsAAAARecord(address));
+                                    break;
+                            }
+                        }
+                    }
+
+                    _aRecords = aRecords;
+                    _aaaaRecords = aaaaRecords;
+                }
 
                 _allowed = ReadJsonDomainArray(jsonGroup.allowed);
                 _blocked = ReadJsonDomainArray(jsonGroup.blocked);
@@ -1444,10 +1450,34 @@ namespace AdvancedBlocking
             public string Name
             { get { return _name; } }
 
-            public bool Enabled
+            public bool EnableBlocking
             {
-                get { return _enabled; }
-                set { _enabled = value; }
+                get { return _enableBlocking; }
+                set { _enableBlocking = value; }
+            }
+
+            public bool AllowTxtBlockingReport
+            {
+                get { return _allowTxtBlockingReport; }
+                set { _allowTxtBlockingReport = value; }
+            }
+
+            public bool BlockAsNxDomain
+            {
+                get { return _blockAsNxDomain; }
+                set { _blockAsNxDomain = value; }
+            }
+
+            public IReadOnlyCollection<DnsARecord> ARecords
+            {
+                get { return _aRecords; }
+                set { _aRecords = value; }
+            }
+
+            public IReadOnlyCollection<DnsAAAARecord> AAAARecords
+            {
+                get { return _aaaaRecords; }
+                set { _aaaaRecords = value; }
             }
 
             public IReadOnlyDictionary<string, object> Allowed
