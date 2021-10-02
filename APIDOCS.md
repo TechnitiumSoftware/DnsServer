@@ -125,8 +125,13 @@ RESPONSE:
 {
 	"response": {
 		"updateAvailable": true,
-		"displayText": "New version available!",
-		"downloadLink": "https://download.technitium.com/dns/DnsServerSetup.zip"
+		"updateVersion": "7.0",
+		"currentVersion": "7.0",
+		"updateTitle": "New Update Available!",
+		"updateMessage": "Follow the instructions from the link below to update the DNS server to the latest version. Read the change logs before installing the update to know if there are any breaking changes.",
+		"downloadLink": "https://download.technitium.com/dns/DnsServerSetup.zip",
+		"instructionsLink": "https://blog.technitium.com/2017/11/running-dns-server-on-ubuntu-linux.html",
+		"changeLogLink": "https://github.com/TechnitiumSoftware/DnsServer/blob/master/CHANGELOG.md"
 	},
 	"status": "ok"
 }
