@@ -43,11 +43,11 @@ namespace DnsServerApp
                 switch (Environment.OSVersion.Platform)
                 {
                     case PlatformID.Win32NT:
-                        updateCheckUri = new Uri("https://go.technitium.com/?id=20");
+                        updateCheckUri = new Uri("https://go.technitium.com/?id=41");
                         break;
 
                     default:
-                        updateCheckUri = new Uri("https://go.technitium.com/?id=21");
+                        updateCheckUri = new Uri("https://go.technitium.com/?id=42");
                         break;
                 }
 
