@@ -46,7 +46,7 @@ function refreshApps() {
 
                     for (var j = 0; j < apps[i].dnsApps.length; j++) {
                         var labels = "";
-                        var description;
+                        var description = null;
 
                         if (apps[i].dnsApps[j].isAppRecordRequestHandler) {
                             labels += "<span class=\"label label-info\">APP Record</span>";
@@ -264,7 +264,7 @@ function updateStoreApp(objBtn, appName, url, isModal) {
 
 function uninstallStoreApp(objBtn, appName) {
     if (!confirm("Are you sure you want to uninstall the DNS application '" + appName + "'?"))
-        return false;
+        return;
 
     var divStoreAppsAlert = $("#divStoreAppsAlert");
     var btn = $(objBtn);
@@ -312,7 +312,7 @@ function installApp() {
     if (fileAppZip[0].files.length === 0) {
         showAlert("warning", "Missing!", "Please select an application zip file to install.", divInstallAppAlert);
         fileAppZip.focus();
-        return false;
+        return;
     }
 
     var formData = new FormData();
@@ -350,7 +350,7 @@ function updateApp() {
     if (fileAppZip[0].files.length === 0) {
         showAlert("warning", "Missing!", "Please select an application zip file to update.", divUpdateAppAlert);
         fileAppZip.focus();
-        return false;
+        return;
     }
 
     var formData = new FormData();
@@ -382,7 +382,7 @@ function updateApp() {
 
 function uninstallApp(objBtn, appName) {
     if (!confirm("Are you sure you want to uninstall the DNS application '" + appName + "'?"))
-        return false;
+        return;
 
     var btn = $(objBtn);
 
