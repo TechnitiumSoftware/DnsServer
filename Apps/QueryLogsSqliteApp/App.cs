@@ -101,8 +101,9 @@ namespace QueryLogsSqlite
                         {
                             using (SqliteCommand command = connection.CreateCommand())
                             {
-                                command.CommandText = "INSERT INTO dns_logs (client_ip, protocol, response_type, rcode, qname, qtype, qclass, answer) VALUES (@client_ip, @protocol, @response_type, @rcode, @qname, @qtype, @qclass, @answer);";
+                                command.CommandText = "INSERT INTO dns_logs (timestamp, client_ip, protocol, response_type, rcode, qname, qtype, qclass, answer) VALUES (@timestamp, @client_ip, @protocol, @response_type, @rcode, @qname, @qtype, @qclass, @answer);";
 
+                                SqliteParameter paramTimestamp = command.Parameters.Add("@timestamp", SqliteType.Text);
                                 SqliteParameter paramClientIp = command.Parameters.Add("@client_ip", SqliteType.Text);
                                 SqliteParameter paramProtocol = command.Parameters.Add("@protocol", SqliteType.Integer);
                                 SqliteParameter paramResponseType = command.Parameters.Add("@response_type", SqliteType.Integer);
@@ -114,6 +115,7 @@ namespace QueryLogsSqlite
 
                                 foreach (LogEntry log in logs)
                                 {
+                                    paramTimestamp.Value = log.Timestamp.ToString("yyyy-MM-dd HH:mm:ss.FFFFFFF");
                                     paramClientIp.Value = log.RemoteEP.Address.ToString();
                                     paramProtocol.Value = (int)log.Protocol;
 
@@ -211,7 +213,7 @@ namespace QueryLogsSqlite
 CREATE TABLE IF NOT EXISTS dns_logs
 (
     dlid INTEGER PRIMARY KEY,
-    timestamp DATETIME NOT NULL DEFAULT (DATETIME('now')),
+    timestamp DATETIME NOT NULL,
     client_ip VARCHAR(39) NOT NULL,
     protocol TINYINT NOT NULL,
     response_type TINYINT NOT NULL,
@@ -379,10 +381,10 @@ CREATE TABLE IF NOT EXISTS dns_logs
             return Task.CompletedTask;
         }
 
-        public Task InsertLogAsync(DnsDatagram request, IPEndPoint remoteEP, DnsTransportProtocol protocol, DnsDatagram response)
+        public Task InsertLogAsync(DateTime timestamp, DnsDatagram request, IPEndPoint remoteEP, DnsTransportProtocol protocol, DnsDatagram response)
         {
             if (_enableLogging)
-                _queuedLogs.Enqueue(new LogEntry(request, remoteEP, protocol, response));
+                _queuedLogs.Enqueue(new LogEntry(timestamp, request, remoteEP, protocol, response));
 
             return Task.CompletedTask;
         }
@@ -556,7 +558,7 @@ WHERE
                             if (reader.IsDBNull(6))
                                 question = null;
                             else
-                                question = new DnsQuestionRecord(reader.GetString(6), (DnsResourceRecordType)reader.GetInt16(7), (DnsClass)reader.GetInt16(8));
+                                question = new DnsQuestionRecord(reader.GetString(6), (DnsResourceRecordType)reader.GetInt32(7), (DnsClass)reader.GetInt32(8));
 
                             string answer;
 
@@ -587,6 +589,7 @@ WHERE
         {
             #region variables
 
+            public readonly DateTime Timestamp;
             public readonly DnsDatagram Request;
             public readonly IPEndPoint RemoteEP;
             public readonly DnsTransportProtocol Protocol;
@@ -596,8 +599,9 @@ WHERE
 
             #region constructor
 
-            public LogEntry(DnsDatagram request, IPEndPoint remoteEP, DnsTransportProtocol protocol, DnsDatagram response)
+            public LogEntry(DateTime timestamp, DnsDatagram request, IPEndPoint remoteEP, DnsTransportProtocol protocol, DnsDatagram response)
             {
+                Timestamp = timestamp;
                 Request = request;
                 RemoteEP = remoteEP;
                 Protocol = protocol;
