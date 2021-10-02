@@ -26,7 +26,6 @@ function htmlDecode(value) {
 }
 
 function HTTPRequest(url, data, success, error, invalidToken, objAlertPlaceholder, objLoaderPlaceholder, dataIsFormData, dataContentType, dontHideAlert, showInnerError) {
-
     var async = false;
     var finalUrl;
 
@@ -163,7 +162,6 @@ function HTTPRequest(url, data, success, error, invalidToken, objAlertPlaceholde
 }
 
 function HTTPGetFileRequest(url, success, error, objAlertPlaceholder, objLoaderPlaceholder, dontHideAlert) {
-
     var async = false;
     var finalUrl;
 
@@ -250,8 +248,6 @@ function showAlert(type, title, message, objAlertPlaceholder) {
             hideAlert(objAlertPlaceholder);
         }, 5000);
     }
-
-    return true;
 }
 
 function hideAlert(objAlertPlaceholder) {
@@ -316,7 +312,6 @@ function sortTable(tableId, n) {
 }
 
 function serializeTableData(table, columns) {
-
     var data = table.find('input:text, select');
     var output = "";
 
