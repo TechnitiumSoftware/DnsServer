@@ -2,7 +2,7 @@
 ; SEE THE DOCUMENTATION FOR DETAILS ON CREATING INNO SETUP SCRIPT FILES!
 
 #define MyAppName "Technitium DNS Server"
-#define MyAppVersion "6.4.1"
+#define MyAppVersion "7.0"
 #define MyAppPublisher "Technitium"
 #define MyAppURL "https://technitium.com/dns/"
 #define MyAppExeName "DnsServerSystemTrayApp.exe"

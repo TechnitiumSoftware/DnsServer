@@ -324,8 +324,8 @@ begin
   begin
     AddDependency('dotnet50desktop' + GetArchitectureSuffix + '.exe',
       '/lcid ' + IntToStr(GetUILanguage) + ' /passive /norestart',
-      '.NET Desktop Runtime 5.0.9' + GetArchitectureTitle,
-      GetString('https://download.visualstudio.microsoft.com/download/pr/d889a1ec-bf19-4915-8d8c-81adda8d558b/fffa6e33af1b4cfcafdca9aac3aef476/windowsdesktop-runtime-5.0.9-win-x86.exe', 'https://download.visualstudio.microsoft.com/download/pr/8bc41df1-cbb4-4da6-944f-6652378e9196/1014aacedc80bbcc030dabb168d2532f/windowsdesktop-runtime-5.0.9-win-x64.exe'),
+      '.NET Desktop Runtime 5.0.10' + GetArchitectureTitle,
+      GetString('https://download.visualstudio.microsoft.com/download/pr/7ed142ef-5738-4eea-bdd3-9210c5dd4973/ce3d680c487b178a828c5c3edd9ec685/windowsdesktop-runtime-5.0.10-win-x86.exe', 'https://download.visualstudio.microsoft.com/download/pr/78fa839b-2d86-4ece-9d97-5b9fe6fb66fa/10d406c0d247470daa80691d3b3460a6/windowsdesktop-runtime-5.0.10-win-x64.exe'),
       '', False, False, False);
   end;
 end;
