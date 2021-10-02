@@ -42,8 +42,8 @@
                 </span>
             </a>
             <ul class="dropdown-menu">
-                <li><a href="#" onclick="return resetChangePasswordModal();" data-toggle="modal" data-target="#modalChangePassword">Change Password</a></li>
-                <li><a href="#" onclick="return logout();">Logout</a></li>
+                <li><a href="#" onclick="resetChangePasswordModal(); return false;" data-toggle="modal" data-target="#modalChangePassword">Change Password</a></li>
+                <li><a href="#" onclick="logout(); return false;">Logout</a></li>
             </ul>
         </div>
     </div>
@@ -75,7 +75,7 @@
 
                             <div class="form-group" style="margin-bottom: 0px;">
                                 <div class="col-sm-offset-3 col-sm-4">
-                                    <button id="btnLogin" type="submit" class="btn btn-primary" data-loading-text="Working..." onclick="return login();">Login</button>
+                                    <button id="btnLogin" type="submit" class="btn btn-primary" data-loading-text="Working..." onclick="login(); return false;">Login</button>
                                 </div>
                                 <div class="col-sm-4" style="padding: 6px; text-align: right;">
                                     <a href="#" data-toggle="modal" data-target="#modalForgotPassword">Forgot Password?</a>
@@ -93,7 +93,7 @@
                             <h3 class="panel-title">DNS Server<span id="lblDnsServerDomain"></span></h3>
                         </div>
                         <div style="float: right;">
-                            <a href="" target="_blank" id="lnkNewVersionAvailable" style="display: none; color: red !important;">New Version Available!</a>
+                            <a href="#" data-toggle="modal" data-target="#modalUpdateAvailable" id="lnkUpdateAvailable" style="display: none; color: red !important;">New Update Available!</a>
                         </div>
                     </div>
 
@@ -258,7 +258,7 @@
                                                 <div class="panel panel-default" style="margin-bottom: 0px;">
                                                     <div class="panel-heading">
                                                         <div class="pull-left">Top Clients</div>
-                                                        <div class="pull-right"><a href="#" onclick="return showTopStats('TopClients', 1000);">[more]</a></div>
+                                                        <div class="pull-right"><a href="#" onclick="showTopStats('TopClients', 1000); return false;">[more]</a></div>
                                                         <div class="clearfix"></div>
                                                     </div>
                                                     <table class="table table-hover">
@@ -269,14 +269,6 @@
                                                             </tr>
                                                         </thead>
                                                         <tbody id="tableTopClients">
-                                                            <tr>
-                                                                <td>127.0.0.1</td>
-                                                                <td>100</td>
-                                                            </tr>
-                                                            <tr>
-                                                                <td>::1</td>
-                                                                <td>10</td>
-                                                            </tr>
                                                         </tbody>
                                                     </table>
                                                 </div>
@@ -290,7 +282,7 @@
                                                 <div class="panel panel-default" style="margin-bottom: 0px;">
                                                     <div class="panel-heading">
                                                         <div class="pull-left">Top Domains</div>
-                                                        <div class="pull-right"><a href="#" onclick="return showTopStats('TopDomains', 1000);">[more]</a></div>
+                                                        <div class="pull-right"><a href="#" onclick="showTopStats('TopDomains', 1000); return false;">[more]</a></div>
                                                         <div class="clearfix"></div>
                                                     </div>
                                                     <table class="table table-hover">
@@ -301,10 +293,6 @@
                                                             </tr>
                                                         </thead>
                                                         <tbody id="tableTopDomains">
-                                                            <tr>
-                                                                <td>example.com</td>
-                                                                <td>10</td>
-                                                            </tr>
                                                         </tbody>
                                                     </table>
                                                 </div>
@@ -314,7 +302,7 @@
                                                 <div class="panel panel-default" style="margin-bottom: 0px;">
                                                     <div class="panel-heading">
                                                         <div class="pull-left">Top Blocked Domains</div>
-                                                        <div class="pull-right"><a href="#" onclick="return showTopStats('TopBlockedDomains', 1000);">[more]</a></div>
+                                                        <div class="pull-right"><a href="#" onclick="showTopStats('TopBlockedDomains', 1000); return false;">[more]</a></div>
                                                         <div class="clearfix"></div>
                                                     </div>
                                                     <table class="table table-hover">
@@ -325,10 +313,6 @@
                                                             </tr>
                                                         </thead>
                                                         <tbody id="tableTopBlockedDomains">
-                                                            <tr>
-                                                                <td>blocked.example.com</td>
-                                                                <td>10</td>
-                                                            </tr>
                                                         </tbody>
                                                     </table>
                                                 </div>
@@ -361,16 +345,9 @@
                                                 </tr>
                                             </thead>
                                             <tbody id="tableZonesBody">
-                                                <tr>
-                                                    <td>localhost</td>
-                                                    <td>Primary</td>
-                                                    <td>Expired</td>
-                                                    <td>Date</td>
-                                                    <td>Edit Disable Delete</td>
-                                                </tr>
                                             </tbody>
                                             <tfoot id="tableZonesFooter">
-                                                <tr><td colspan="5"><b>Total Records: 1</b></td></tr>
+                                                <tr><td colspan="5"><b>Total Records: 0</b></td></tr>
                                             </tfoot>
                                         </table>
                                     </div>
@@ -409,16 +386,9 @@
                                                 </tr>
                                             </thead>
                                             <tbody id="tableEditZoneBody">
-                                                <tr>
-                                                    <td>@</td>
-                                                    <td>A</td>
-                                                    <td>3600</td>
-                                                    <td>127.0.0.1</td>
-                                                    <td>Edit Disable Delete</td>
-                                                </tr>
                                             </tbody>
                                             <tfoot id="tableEditZoneFooter">
-                                                <tr><td><b>Total Records: 1</b></td></tr>
+                                                <tr><td><b>Total Records: 0</b></td></tr>
                                             </tfoot>
                                         </table>
                                     </div>
@@ -432,12 +402,11 @@
                                                 <input type="text" class="form-control" style="width: inherit;" id="txtCacheZone" placeholder="example.com">
                                             </div>
                                             <div class="form-group">
-                                                <button id="btnBrowseCacheZone" type="submit" class="btn btn-primary" data-loading-text="Browse" onclick="return refreshCachedZonesList($('#txtCacheZone').val());">Browse</button>
+                                                <button id="btnBrowseCacheZone" type="submit" class="btn btn-primary" data-loading-text="Browse" onclick="refreshCachedZonesList($('#txtCacheZone').val()); return false;">Browse</button>
                                             </div>
                                         </form>
 
                                         <div id="lstCachedZones" class="zones">
-                                            <div class="zone"><a href="#" onclick="return refreshCachedZonesList('technitium.com');">technitium.com</a></div>
                                         </div>
                                     </div>
 
@@ -446,7 +415,7 @@
                                             <div class="panel-heading" style="height: 36px; padding: 4px 6px;">
                                                 <div id="txtCachedZoneViewerTitle" style="float: left; padding: 4px;">technitium.com</div>
                                                 <div style="float: right;">
-                                                    <button id="btnDeleteCachedZone" type="button" class="btn btn-danger" data-loading-text="Delete" onclick="return deleteCachedZone();" style="font-size: 12px; padding: 4px 6px;">Delete</button>
+                                                    <button id="btnDeleteCachedZone" type="button" class="btn btn-danger" data-loading-text="Delete" onclick="deleteCachedZone();" style="font-size: 12px; padding: 4px 6px;">Delete</button>
                                                 </div>
                                             </div>
 
@@ -468,13 +437,12 @@
                                                 <input type="text" class="form-control" style="width: inherit;" id="txtAllowZone" placeholder="example.com">
                                             </div>
                                             <div class="form-group">
-                                                <button id="btnAllowZone" type="submit" class="btn btn-primary" data-loading-text="Allow" onclick="return allowZone();">Allow</button>
-                                                <button id="btnBrowseAllowZone" type="button" class="btn btn-default" data-loading-text="Browse" onclick="return refreshAllowedZonesList($('#txtAllowZone').val());">Browse</button>
+                                                <button id="btnAllowZone" type="submit" class="btn btn-primary" data-loading-text="Allow" onclick="allowZone(); return false;">Allow</button>
+                                                <button id="btnBrowseAllowZone" type="button" class="btn btn-default" data-loading-text="Browse" onclick="refreshAllowedZonesList($('#txtAllowZone').val());">Browse</button>
                                             </div>
                                         </form>
 
                                         <div id="lstAllowedZones" class="zones">
-                                            <div class="zone"><a href="#" onclick="return refreshAllowedZonesList('technitium.com');">technitium.com</a></div>
                                         </div>
                                     </div>
 
@@ -483,9 +451,9 @@
                                             <div class="panel-heading" style="height: 36px; padding: 4px 6px;">
                                                 <div id="txtAllowedZoneViewerTitle" style="float: left; padding: 4px;">technitium.com</div>
                                                 <div style="float: right;">
-                                                    <button type="button" class="btn btn-default" data-loading-text="Import" onclick="return resetImportAllowedZonesModal();" data-toggle="modal" data-target="#modalImportAllowedZones" style="font-size: 12px; padding: 4px 6px;">Import</button>
-                                                    <button type="button" class="btn btn-default" data-loading-text="Export" onclick="return exportAllowedZones();" style="font-size: 12px; padding: 4px 6px;">Export</button>
-                                                    <button id="btnDeleteAllowedZone" type="button" class="btn btn-danger" data-loading-text="Delete" onclick="return deleteAllowedZone();" style="font-size: 12px; padding: 4px 6px;">Delete</button>
+                                                    <button type="button" class="btn btn-default" data-loading-text="Import" onclick="resetImportAllowedZonesModal();" data-toggle="modal" data-target="#modalImportAllowedZones" style="font-size: 12px; padding: 4px 6px;">Import</button>
+                                                    <button type="button" class="btn btn-default" data-loading-text="Export" onclick="exportAllowedZones();" style="font-size: 12px; padding: 4px 6px;">Export</button>
+                                                    <button id="btnDeleteAllowedZone" type="button" class="btn btn-danger" data-loading-text="Delete" onclick="deleteAllowedZone();" style="font-size: 12px; padding: 4px 6px;">Delete</button>
                                                 </div>
                                             </div>
 
@@ -507,13 +475,12 @@
                                                 <input type="text" class="form-control" style="width: inherit;" id="txtBlockZone" placeholder="example.com">
                                             </div>
                                             <div class="form-group">
-                                                <button id="btnBlockZone" type="submit" class="btn btn-primary" data-loading-text="Block" onclick="return blockZone();">Block</button>
-                                                <button id="btnBrowseBlockZone" type="button" class="btn btn-default" data-loading-text="Browse" onclick="return refreshBlockedZonesList($('#txtBlockZone').val());">Browse</button>
+                                                <button id="btnBlockZone" type="submit" class="btn btn-primary" data-loading-text="Block" onclick="blockZone(); return false;">Block</button>
+                                                <button id="btnBrowseBlockZone" type="button" class="btn btn-default" data-loading-text="Browse" onclick="refreshBlockedZonesList($('#txtBlockZone').val());">Browse</button>
                                             </div>
                                         </form>
 
                                         <div id="lstBlockedZones" class="zones">
-                                            <div class="zone"><a href="#" onclick="return refreshBlockedZonesList('technitium.com');">technitium.com</a></div>
                                         </div>
                                     </div>
 
@@ -522,9 +489,9 @@
                                             <div class="panel-heading" style="height: 36px; padding: 4px 6px;">
                                                 <div id="txtBlockedZoneViewerTitle" style="float: left; padding: 4px;">technitium.com</div>
                                                 <div style="float: right;">
-                                                    <button id="btnImportBlockedZone" type="button" class="btn btn-default" data-loading-text="Import" onclick="return resetImportBlockedZonesModal();" data-toggle="modal" data-target="#modalImportBlockedZones" style="font-size: 12px; padding: 4px 6px;">Import</button>
-                                                    <button id="btnExportBlockedZone" type="button" class="btn btn-default" data-loading-text="Export" onclick="return exportBlockedZones();" style="font-size: 12px; padding: 4px 6px;">Export</button>
-                                                    <button id="btnDeleteBlockedZone" type="button" class="btn btn-danger" data-loading-text="Delete" onclick="return deleteBlockedZone();" style="font-size: 12px; padding: 4px 6px;">Delete</button>
+                                                    <button id="btnImportBlockedZone" type="button" class="btn btn-default" data-loading-text="Import" onclick="resetImportBlockedZonesModal();" data-toggle="modal" data-target="#modalImportBlockedZones" style="font-size: 12px; padding: 4px 6px;">Import</button>
+                                                    <button id="btnExportBlockedZone" type="button" class="btn btn-default" data-loading-text="Export" onclick="exportBlockedZones();" style="font-size: 12px; padding: 4px 6px;">Export</button>
+                                                    <button id="btnDeleteBlockedZone" type="button" class="btn btn-danger" data-loading-text="Delete" onclick="deleteBlockedZone();" style="font-size: 12px; padding: 4px 6px;">Delete</button>
                                                 </div>
                                             </div>
 
@@ -558,13 +525,9 @@
                                                 </tr>
                                             </thead>
                                             <tbody id="tableAppsBody">
-                                                <tr>
-                                                    <td>App Name</td>
-                                                    <td>Config Uninstall</td>
-                                                </tr>
                                             </tbody>
                                             <tfoot id="tableAppsFooter">
-                                                <tr><td colspan="3"><b>Total Apps: 1</b></td></tr>
+                                                <tr><td colspan="3"><b>Total Apps: 0</b></td></tr>
                                             </tfoot>
                                         </table>
                                     </div>
@@ -677,8 +640,8 @@
                                         </div>
 
                                         <div class="form-group">
-                                            <button type="submit" class="btn btn-primary" id="btnDnsClientResolve" data-loading-text="Resolving..." onclick="return resolveQuery();" style="margin-right: 6px;">Resolve</button>
-                                            <button type="button" class="btn btn-warning" id="btnDnsClientImport" data-loading-text="Importing..." onclick="return resolveQuery(true);">Import</button>
+                                            <button type="submit" class="btn btn-primary" id="btnDnsClientResolve" data-loading-text="Resolving..." onclick="resolveQuery(); return false;" style="margin-right: 6px;">Resolve</button>
+                                            <button type="button" class="btn btn-warning" id="btnDnsClientImport" data-loading-text="Importing..." onclick="resolveQuery(true);">Import</button>
                                         </div>
                                     </form>
 
@@ -1160,7 +1123,7 @@
                                                                     <span>minutes</span>
                                                                 </div>
                                                                 <div style="padding-top: 6px;">
-                                                                    <button id="btnTemporaryDisableBlockingNow" type="button" class="btn btn-default" style="padding: 2px 0; width: 170px;" data-loading-text="Disabling..." onclick="return temporaryDisableBlockingNow();">Temporary Disable Now</button>
+                                                                    <button id="btnTemporaryDisableBlockingNow" type="button" class="btn btn-default" style="padding: 2px 0; width: 170px;" data-loading-text="Disabling..." onclick="temporaryDisableBlockingNow();">Temporary Disable Now</button>
                                                                 </div>
                                                             </div>
                                                         </div>
@@ -1252,7 +1215,7 @@
                                                             <label for="lblBlockListNextUpdatedOn" class="col-sm-3 control-label">Block List Next Update On</label>
                                                             <div class="col-sm-6" style="padding-top: 5px;">
                                                                 <span id="lblBlockListNextUpdatedOn" style="margin-right: 15px;"></span>
-                                                                <button id="btnUpdateBlockListsNow" type="button" class="btn btn-default" style="padding: 2px 0; width: 100px;" data-loading-text="Updating..." onclick="return forceUpdateBlockLists();">Update Now</button>
+                                                                <button id="btnUpdateBlockListsNow" type="button" class="btn btn-default" style="padding: 2px 0; width: 100px;" data-loading-text="Updating..." onclick="forceUpdateBlockLists();">Update Now</button>
                                                             </div>
                                                             <div class="col-sm-offset-3 col-sm-8" style="padding-top: 5px;">Click the 'Update Now' button to reset the next update schedule and force download and update of the block lists.</div>
                                                         </div>
@@ -1492,12 +1455,12 @@
 
                                             <div class="form-group" style="margin-bottom: 0px;">
                                                 <div class="pull-left">
-                                                    <button id="btnSaveDnsSettings" type="button" class="btn btn-primary" data-loading-text="Saving..." onclick="return saveDnsSettings();">Save Settings</button>
-                                                    <button id="btnFlushDnsCache" type="button" class="btn btn-warning" data-loading-text="Flushing..." onclick="return flushDnsCache();" style="margin-left: 6px;">Flush Cache</button>
+                                                    <button id="btnSaveDnsSettings" type="button" class="btn btn-primary" data-loading-text="Saving..." onclick="saveDnsSettings();">Save Settings</button>
+                                                    <button id="btnFlushDnsCache" type="button" class="btn btn-warning" data-loading-text="Flushing..." onclick="flushDnsCache();" style="margin-left: 6px;">Flush Cache</button>
                                                 </div>
                                                 <div class="pull-right">
-                                                    <button type="button" class="btn btn-success" onclick="return resetBackupSettingsModal();" data-toggle="modal" data-target="#modalBackupSettings">Backup Settings</button>
-                                                    <button type="button" class="btn btn-warning" onclick="return resetRestoreSettingsModal();" data-toggle="modal" data-target="#modalRestoreSettings" style="margin-left: 6px;">Restore Settings</button>
+                                                    <button type="button" class="btn btn-success" onclick="resetBackupSettingsModal();" data-toggle="modal" data-target="#modalBackupSettings">Backup Settings</button>
+                                                    <button type="button" class="btn btn-warning" onclick="resetRestoreSettingsModal();" data-toggle="modal" data-target="#modalRestoreSettings" style="margin-left: 6px;">Restore Settings</button>
                                                 </div>
                                                 <div class="clearfix"></div>
                                             </div>
@@ -1533,19 +1496,9 @@
                                                         </tr>
                                                     </thead>
                                                     <tbody id="tableDhcpLeasesBody">
-                                                        <tr>
-                                                            <td>Default</td>
-                                                            <td>00-00-00-00-00-00</td>
-                                                            <td>192.168.10.2</td>
-                                                            <td>Dynamic</td>
-                                                            <td>user-pc.local</td>
-                                                            <td>6/14/2019 3:39 PM</td>
-                                                            <td>6/15/2019 3:39 PM</td>
-                                                            <td></td>
-                                                        </tr>
                                                     </tbody>
                                                     <tfoot id="tableDhcpLeasesFooter">
-                                                        <tr><td><b>Total Leases: 1</b></td></tr>
+                                                        <tr><td><b>Total Leases: 0</b></td></tr>
                                                     </tfoot>
                                                 </table>
                                             </div>
@@ -1572,16 +1525,9 @@
                                                         </tr>
                                                     </thead>
                                                     <tbody id="tableDhcpScopesBody">
-                                                        <tr>
-                                                            <td>Default</td>
-                                                            <td>192.168.10.1 - 192.168.10.100</td>
-                                                            <td>192.168.10.0<br />192.168.10.255</td>
-                                                            <td>192.168.10.1</td>
-                                                            <td>Edit Delete</td>
-                                                        </tr>
                                                     </tbody>
                                                     <tfoot id="tableDhcpScopesFooter">
-                                                        <tr><td><b>Total Leases: 1</b></td></tr>
+                                                        <tr><td><b>Total Leases: 0</b></td></tr>
                                                     </tfoot>
                                                 </table>
 
@@ -1877,7 +1823,6 @@
 
                                             <div class="well well-sm log-list-pane">
                                                 <div id="lstLogFiles" class="logs">
-                                                    <div class="log"><a href="#" onclick="return viewLog('20171012');">20171012</a></div>
                                                 </div>
                                             </div>
 
@@ -1886,8 +1831,8 @@
                                                     <div class="panel-heading" style="height: 36px; padding: 4px 6px;">
                                                         <div id="txtLogViewerTitle" style="float: left; padding: 4px;">20171012</div>
                                                         <div style="float: right;">
-                                                            <button type="button" class="btn btn-default" data-loading-text="Download" onclick="return downloadLog();" style="font-size: 12px; padding: 4px 6px;">Download</button>
-                                                            <button id="btnDeleteLog" type="button" class="btn btn-danger" data-loading-text="Delete" onclick="return deleteLog();" style="font-size: 12px; padding: 4px 6px;">Delete</button>
+                                                            <button type="button" class="btn btn-default" data-loading-text="Download" onclick="downloadLog();" style="font-size: 12px; padding: 4px 6px;">Download</button>
+                                                            <button id="btnDeleteLog" type="button" class="btn btn-danger" data-loading-text="Delete" onclick="deleteLog();" style="font-size: 12px; padding: 4px 6px;">Delete</button>
                                                         </div>
                                                     </div>
 
@@ -2027,7 +1972,8 @@
                                                 </div>
 
                                                 <div class="form-group" style="display: block;">
-                                                    <button type="submit" class="btn btn-primary" id="btnQueryLogs" data-loading-text="Loading..." onclick="return queryLogs();" style="margin-right: 6px;">Query</button>
+                                                    <button type="submit" class="btn btn-primary" id="btnQueryLogs" data-loading-text="Loading..." onclick="queryLogs(); return false;" style="margin-right: 6px;">Query</button>
+                                                    <button type="reset" class="btn btn-default">Reset</button>
                                                 </div>
                                             </form>
 
@@ -2178,7 +2124,7 @@
                         </div>
                     </div>
                     <div class="modal-footer">
-                        <button id="btnChangePasswordSave" type="submit" class="btn btn-primary" data-loading-text="Saving..." onclick="return changePassword();">Save</button>
+                        <button id="btnChangePasswordSave" type="submit" class="btn btn-primary" data-loading-text="Saving..." onclick="changePassword(); return false;">Save</button>
                         <button type="button" class="btn btn-default" data-dismiss="modal">Close</button>
                     </div>
                 </div>
@@ -2202,6 +2148,37 @@
                         <li>Just refresh this web page in the web browser to auto login with default credentials and quickly change the password.</li>
                     </ol>
                     <p>Note: To reset 'admin' password, you will need file system access on the server running this DNS Server. </p>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-default" data-dismiss="modal">Close</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="modalUpdateAvailable" class="modal fade" tabindex="-1" role="dialog">
+        <div class="modal-dialog" role="document">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <button type="button" class="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button>
+                    <h4 class="modal-title" id="lblUpdateAvailableTitle">New Update Available</h4>
+                </div>
+                <div class="modal-body">
+                    <div style="margin-bottom: 20px;">
+                        <div id="lblUpdateMessage" style="margin-bottom: 10px;"></div>
+                        <a id="lnkUpdateDownload" href="#" target="_blank" style="font-weight: bold; font-size: 18px;">Download Now!</a>
+                        <a id="lnkUpdateInstructions" href="#" target="_blank" style="font-weight: bold; font-size: 18px;">Update Instructions</a>
+                    </div>
+                    <div style="margin-bottom: 10px;">
+                        <div style="font-weight: bold;">Update Version: <span id="lblUpdateVersion"></span></div>
+                        <div>Current Version: <span id="lblCurrentVersion"></span></div>
+                    </div>
+                    <div style="margin-bottom: 10px;">
+                        <a id="lnkUpdateChangeLog" href="#" target="_blank" style="font-weight: bold;">Read Change Logs</a>
+                    </div>
+                    <div>
+                        Note! It is highly recommended to Backup Settings before installing the update.
+                    </div>
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-default" data-dismiss="modal">Close</button>
@@ -2812,7 +2789,7 @@ ns1.example.com ([2001:db8::])
                     </div>
                 </div>
                 <div class="modal-footer">
-                    <button id="btnSaveZoneOptions" type="submit" class="btn btn-primary" data-loading-text="Saving..." onclick="saveZoneOptions();">Save</button>
+                    <button id="btnSaveZoneOptions" type="submit" class="btn btn-primary" data-loading-text="Saving..." onclick="saveZoneOptions(); return false;">Save</button>
                     <button type="button" class="btn btn-default" data-dismiss="modal">Close</button>
                 </div>
             </div>
@@ -2838,7 +2815,7 @@ ns1.example.com ([2001:db8::])
                     </div>
                 </div>
                 <div class="modal-footer">
-                    <button id="btnImportAllowedZones" type="submit" class="btn btn-primary" data-loading-text="Importing..." onclick="return importAllowedZones();">Import</button>
+                    <button id="btnImportAllowedZones" type="submit" class="btn btn-primary" data-loading-text="Importing..." onclick="importAllowedZones(); return false;">Import</button>
                     <button type="button" class="btn btn-default" data-dismiss="modal">Close</button>
                 </div>
             </div>
@@ -2863,7 +2840,7 @@ ns1.example.com ([2001:db8::])
                     </div>
                 </div>
                 <div class="modal-footer">
-                    <button id="btnImportBlockedZones" type="submit" class="btn btn-primary" data-loading-text="Importing..." onclick="return importBlockedZones();">Import</button>
+                    <button id="btnImportBlockedZones" type="submit" class="btn btn-primary" data-loading-text="Importing..." onclick="importBlockedZones(); return false;">Import</button>
                     <button type="button" class="btn btn-default" data-dismiss="modal">Close</button>
                 </div>
             </div>
@@ -2893,13 +2870,9 @@ ns1.example.com ([2001:db8::])
                                     </tr>
                                 </thead>
                                 <tbody id="tableStoreAppsBody">
-                                    <tr>
-                                        <td>Store App Description</td>
-                                        <td>Install Update</td>
-                                    </tr>
                                 </tbody>
                                 <tfoot id="tableStoreAppsFooter">
-                                    <tr><td colspan="3"><b>Total Apps: 1</b></td></tr>
+                                    <tr><td colspan="3"><b>Total Apps: 0</b></td></tr>
                                 </tfoot>
                             </table>
                         </div>
@@ -3002,7 +2975,7 @@ ns1.example.com ([2001:db8::])
                     <p>Note: The app will reload the config automatically after you save it.</p>
                 </div>
                 <div class="modal-footer">
-                    <button id="btnAppConfig" type="submit" class="btn btn-primary" data-loading-text="Saving..." onclick="return saveAppConfig();">Save</button>
+                    <button id="btnAppConfig" type="submit" class="btn btn-primary" data-loading-text="Saving..." onclick="saveAppConfig(); return false;">Save</button>
                     <button type="button" class="btn btn-default" data-dismiss="modal">Close</button>
                 </div>
             </div>
@@ -3092,7 +3065,7 @@ ns1.example.com ([2001:db8::])
 
                 </div>
                 <div class="modal-footer">
-                    <button type="submit" class="btn btn-primary" data-loading-text="Backup" onclick="return backupSettings();">Backup</button>
+                    <button type="submit" class="btn btn-primary" data-loading-text="Backup" onclick="backupSettings(); return false;">Backup</button>
                     <button type="button" class="btn btn-default" data-dismiss="modal">Close</button>
                 </div>
             </div>
@@ -3200,7 +3173,7 @@ ns1.example.com ([2001:db8::])
                     <p>Warning! The restore process will overwrite existing config files on disk for above selected items and reload new settings including passwords. If you do not remember the password used while creating the backup, you should reset the admin password immediately after restoring the backup. Failing to do so will require you to follow the password reset process.</p>
                 </div>
                 <div class="modal-footer">
-                    <button id="btnRestoreSettings" type="submit" class="btn btn-primary" data-loading-text="Restoring..." onclick="return restoreSettings();">Restore</button>
+                    <button id="btnRestoreSettings" type="submit" class="btn btn-primary" data-loading-text="Restoring..." onclick="restoreSettings(); return false;">Restore</button>
                     <button type="button" class="btn btn-default" data-dismiss="modal">Close</button>
                 </div>
             </div>
@@ -3229,15 +3202,10 @@ ns1.example.com ([2001:db8::])
                                 </tr>
                             </thead>
                             <tbody id="tbodyTopStatsClients">
-                                <tr>
-                                    <td>127.0.0.1</td>
-                                    <td>100</td>
-                                </tr>
-                                <tr>
-                                    <td>::1</td>
-                                    <td>10</td>
-                                </tr>
                             </tbody>
+                            <tfoot>
+                                <tr><th colspan="2" id="tfootTopStatsClients"></th></tr>
+                            </tfoot>
                         </table>
 
                         <table id="tableTopStatsDomains" class="table table-hover">
@@ -3248,11 +3216,10 @@ ns1.example.com ([2001:db8::])
                                 </tr>
                             </thead>
                             <tbody id="tbodyTopStatsDomains">
-                                <tr>
-                                    <td>example.com</td>
-                                    <td>10</td>
-                                </tr>
                             </tbody>
+                            <tfoot>
+                                <tr><th colspan="2" id="tfootTopStatsDomains"></th></tr>
+                            </tfoot>
                         </table>
 
                         <table id="tableTopStatsBlockedDomains" class="table table-hover">
@@ -3263,11 +3230,10 @@ ns1.example.com ([2001:db8::])
                                 </tr>
                             </thead>
                             <tbody id="tbodyTopStatsBlockedDomains">
-                                <tr>
-                                    <td>blocked.example.com</td>
-                                    <td>10</td>
-                                </tr>
                             </tbody>
+                            <tfoot>
+                                <tr><th colspan="2" id="tfootTopStatsBlockedDomains"></th></tr>
+                            </tfoot>
                         </table>
                     </div>
 
