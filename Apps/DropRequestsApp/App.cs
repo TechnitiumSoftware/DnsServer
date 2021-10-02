@@ -145,7 +145,7 @@ namespace DropRequests
         #region properties
 
         public string Description
-        { get { return "Drop incoming DNS requests that match the rules in the config."; } }
+        { get { return "Drops incoming DNS requests that match list of blocked networks or blocked questions."; } }
 
         #endregion
 
