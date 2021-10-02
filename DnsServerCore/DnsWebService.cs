@@ -1047,81 +1047,89 @@ namespace DnsServerCore
 
         #region update api
 
-        public static void CreateUpdateInfo(Stream s, string version, string displayText, string downloadLink)
-        {
-            BinaryWriter bW = new BinaryWriter(s);
-
-            bW.Write(Encoding.ASCII.GetBytes("DU")); //format
-            bW.Write((byte)2); //version
-
-            bW.WriteShortString(version);
-            bW.WriteShortString(displayText);
-            bW.WriteShortString(downloadLink);
-        }
-
         private async Task CheckForUpdateAsync(HttpListenerRequest request, JsonTextWriter jsonWriter)
         {
-            Version updateVersion = null;
-            string displayText = null;
-            string downloadLink = null;
-
-            bool updateAvailable = false;
-
-            if (_updateCheckUri != null)
+            if (_updateCheckUri is null)
             {
-                try
-                {
-                    SocketsHttpHandler handler = new SocketsHttpHandler();
-                    handler.Proxy = _dnsServer.Proxy;
-
-                    using (HttpClient http = new HttpClient(handler))
-                    {
-                        byte[] response = await http.GetByteArrayAsync(_updateCheckUri);
-
-                        using (MemoryStream mS = new MemoryStream(response, false))
-                        {
-                            BinaryReader bR = new BinaryReader(mS);
-
-                            if (Encoding.ASCII.GetString(bR.ReadBytes(2)) != "DU") //format
-                                throw new InvalidDataException("DNS Server update info format is invalid.");
-
-                            switch (bR.ReadByte()) //version
-                            {
-                                case 2:
-                                    updateVersion = new Version(bR.ReadShortString());
-                                    displayText = bR.ReadShortString();
-                                    downloadLink = bR.ReadShortString();
-                                    break;
-
-                                default:
-                                    throw new InvalidDataException("DNS Server update info version not supported.");
-                            }
-
-                            updateAvailable = updateVersion > _currentVersion;
-                        }
-                    }
-
-                    _log.Write(GetRequestRemoteEndPoint(request), "Check for update was done {updateAvailable: " + updateAvailable + "; updateVersion: " + updateVersion + "; displayText: " + displayText + "; downloadLink: " + downloadLink + ";}");
-                }
-                catch (Exception ex)
-                {
-                    _log.Write(GetRequestRemoteEndPoint(request), "Check for update was done {updateAvailable: False;}\r\n" + ex.ToString());
-                }
+                jsonWriter.WritePropertyName("updateAvailable");
+                jsonWriter.WriteValue(false);
+                return;
             }
 
-            jsonWriter.WritePropertyName("updateAvailable");
-            jsonWriter.WriteValue(updateAvailable);
-
-            if (updateAvailable)
+            try
             {
-                if (!string.IsNullOrEmpty(displayText))
-                {
-                    jsonWriter.WritePropertyName("displayText");
-                    jsonWriter.WriteValue(displayText);
-                }
+                SocketsHttpHandler handler = new SocketsHttpHandler();
+                handler.Proxy = _dnsServer.Proxy;
 
-                jsonWriter.WritePropertyName("downloadLink");
-                jsonWriter.WriteValue(downloadLink);
+                using (HttpClient http = new HttpClient(handler))
+                {
+                    string response = await http.GetStringAsync(_updateCheckUri);
+                    dynamic jsonResponse = JsonConvert.DeserializeObject(response);
+
+                    string updateVersion = jsonResponse.updateVersion.Value;
+                    string updateTitle = jsonResponse.updateTitle?.Value;
+                    string updateMessage = jsonResponse.updateMessage?.Value;
+                    string downloadLink = jsonResponse.downloadLink?.Value;
+                    string instructionsLink = jsonResponse.instructionsLink?.Value;
+                    string changeLogLink = jsonResponse.changeLogLink?.Value;
+
+                    bool updateAvailable = new Version(updateVersion) > _currentVersion;
+
+                    jsonWriter.WritePropertyName("updateAvailable");
+                    jsonWriter.WriteValue(updateAvailable);
+
+                    jsonWriter.WritePropertyName("updateVersion");
+                    jsonWriter.WriteValue(updateVersion);
+
+                    jsonWriter.WritePropertyName("currentVersion");
+                    jsonWriter.WriteValue(GetCleanVersion(_currentVersion));
+
+                    if (updateAvailable)
+                    {
+                        jsonWriter.WritePropertyName("updateTitle");
+                        jsonWriter.WriteValue(updateTitle);
+
+                        jsonWriter.WritePropertyName("updateMessage");
+                        jsonWriter.WriteValue(updateMessage);
+
+                        jsonWriter.WritePropertyName("downloadLink");
+                        jsonWriter.WriteValue(downloadLink);
+
+                        jsonWriter.WritePropertyName("instructionsLink");
+                        jsonWriter.WriteValue(instructionsLink);
+
+                        jsonWriter.WritePropertyName("changeLogLink");
+                        jsonWriter.WriteValue(changeLogLink);
+                    }
+
+                    string strLog = "Check for update was done {updateAvailable: " + updateAvailable + "; updateVersion: " + updateVersion + ";";
+
+                    if (!string.IsNullOrEmpty(updateTitle))
+                        strLog += " updateTitle: " + updateTitle + ";";
+
+                    if (!string.IsNullOrEmpty(updateMessage))
+                        strLog += " updateMessage: " + updateMessage + ";";
+
+                    if (!string.IsNullOrEmpty(downloadLink))
+                        strLog += " downloadLink: " + downloadLink + ";";
+
+                    if (!string.IsNullOrEmpty(instructionsLink))
+                        strLog += " instructionsLink: " + instructionsLink + ";";
+
+                    if (!string.IsNullOrEmpty(changeLogLink))
+                        strLog += " changeLogLink: " + changeLogLink + ";";
+
+                    strLog += "}";
+
+                    _log.Write(GetRequestRemoteEndPoint(request), strLog);
+                }
+            }
+            catch (Exception ex)
+            {
+                _log.Write(GetRequestRemoteEndPoint(request), "Check for update was done {updateAvailable: False;}\r\n" + ex.ToString());
+
+                jsonWriter.WritePropertyName("updateAvailable");
+                jsonWriter.WriteValue(false);
             }
         }
 
