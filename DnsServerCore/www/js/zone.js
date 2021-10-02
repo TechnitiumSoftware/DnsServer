@@ -18,7 +18,6 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
 $(function () {
-
     $("input[type=radio][name=rdAddZoneType]").change(function () {
 
         $("#divAddZonePrimaryNameServerAddresses").hide();
@@ -288,7 +287,7 @@ function enableZone(objBtn, domain) {
 
 function disableZone(objBtn, domain) {
     if (!confirm("Are you sure you want to disable the zone '" + domain + "'?"))
-        return false;
+        return;
 
     var btn = $(objBtn);
     var id = btn.attr("data-id");
@@ -318,7 +317,7 @@ function disableZone(objBtn, domain) {
 
 function deleteZone(objBtn, domain, editZone) {
     if (!confirm("Are you sure you want to permanently delete the zone '" + domain + "' and all its records?"))
-        return false;
+        return;
 
     if (editZone == null)
         editZone = false;
@@ -530,14 +529,13 @@ function saveZoneOptions() {
 }
 
 function resyncZone(objBtn, domain) {
-
     if ($("#titleEditZoneType").text() == "Secondary") {
         if (!confirm("The resync action will perform a full zone transfer (AXFR). You will need to check the logs to confirm if the resync action was successful.\r\n\r\nAre you sure you want to resync the '" + domain + "' zone?"))
-            return false;
+            return;
     }
     else {
         if (!confirm("The resync action will perform a full zone refresh. You will need to check the logs to confirm if the resync action was successful.\r\n\r\nAre you sure you want to resync the '" + domain + "' zone?"))
-            return false;
+            return;
     }
 
     var btn = $(objBtn);
@@ -2139,7 +2137,7 @@ function deleteRecord(objBtn) {
         domain = ".";
 
     if (!confirm("Are you sure to permanently delete the " + type + " record '" + domain + "' with value '" + value + "'?"))
-        return false;
+        return;
 
     var apiUrl = "/api/deleteRecord?token=" + token + "&domain=" + domain + "&type=" + type + "&value=" + encodeURIComponent(value);
 
