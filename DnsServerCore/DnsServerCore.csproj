@@ -16,6 +16,7 @@
     <None Remove="dohwww\js\main.js" />
     <None Remove="dohwww\robots.txt" />
     <None Remove="named.root" />
+    <None Remove="www\css\bootstrap-datetimepicker.min.css" />
     <None Remove="www\css\bootstrap-theme.min.css" />
     <None Remove="www\css\bootstrap-theme.min.css.map" />
     <None Remove="www\css\bootstrap.min.css" />
@@ -46,13 +47,17 @@
     <None Remove="www\img\logo25x25.png" />
     <None Remove="www\index.html" />
     <None Remove="www\js\apps.js" />
+    <None Remove="www\js\bootstrap-datetimepicker.min.js" />
     <None Remove="www\js\bootstrap.min.js" />
     <None Remove="www\js\Chart.min.js" />
     <None Remove="www\js\common.js" />
     <None Remove="www\js\dhcp.js" />
     <None Remove="www\js\jquery-ui.min.js" />
     <None Remove="www\js\jquery.min.js" />
+    <None Remove="www\js\logs.js" />
     <None Remove="www\js\main.js" />
+    <None Remove="www\js\moment.min.js" />
+    <None Remove="www\js\other-zones.js" />
     <None Remove="www\js\zone.js" />
     <None Remove="www\robots.txt" />
   </ItemGroup>
@@ -89,6 +94,9 @@
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
     <Content Include="named.root">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="www\css\bootstrap-datetimepicker.min.css">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
     <Content Include="www\css\images\ui-icons_444444_256x240.png">
@@ -175,6 +183,9 @@
     <Content Include="www\js\apps.js">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
+    <Content Include="www\js\bootstrap-datetimepicker.min.js">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
     <Content Include="www\js\bootstrap.min.js">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
@@ -190,7 +201,16 @@
     <Content Include="www\js\jquery.min.js">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
+    <Content Include="www\js\logs.js">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
     <Content Include="www\js\main.js">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="www\js\moment.min.js">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="www\js\other-zones.js">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
     <Content Include="www\js\zone.js">
@@ -224,7 +244,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\DnsApplicationCommon\DnsApplicationCommon.csproj" />
+    <ProjectReference Include="..\DnsServerCore.ApplicationCommon\DnsServerCore.ApplicationCommon.csproj" />
   </ItemGroup>
 
   <PropertyGroup>
@@ -238,7 +258,7 @@
     <RepositoryType></RepositoryType>
     <Description>.NET 5</Description>
     <PackageId>DnsServer</PackageId>
-    <Version>6.4.1</Version>
+    <Version>7.0</Version>
   </PropertyGroup>
 
 </Project>
