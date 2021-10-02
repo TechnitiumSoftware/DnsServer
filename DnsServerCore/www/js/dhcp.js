@@ -49,9 +49,9 @@ function refreshDhcpLeases() {
                     moment(dhcpLeases[i].leaseExpires).local().format("YYYY-MM-DD HH:mm");
 
                 tableHtmlRows += "</td><td><div class=\"dropdown\"><a href=\"#\" id=\"btnDhcpLeaseRowOption" + i + "\" class=\"dropdown-toggle\" data-toggle=\"dropdown\" aria-haspopup=\"true\" aria-expanded=\"true\"><span class=\"glyphicon glyphicon-option-vertical\" aria-hidden=\"true\"></span></a><ul class=\"dropdown-menu dropdown-menu-right\">";
-                tableHtmlRows += "<li id=\"btnDhcpLeaseReserve" + i + "\" style=\"" + (dhcpLeases[i].type === "Dynamic" ? "" : "display: none;") + "\"><a href=\"#\" onclick=\"convertToReservedLease(" + i + ", '" + dhcpLeases[i].scope + "', '" + dhcpLeases[i].hardwareAddress + "');\">Convert To Reserved Lease</a></li>";
-                tableHtmlRows += "<li id=\"btnDhcpLeaseUnreserve" + i + "\" style=\"" + (dhcpLeases[i].type === "Dynamic" ? "display: none;" : "") + "\"><a href=\"#\" onclick=\"convertToDynamicLease(" + i + ", '" + dhcpLeases[i].scope + "', '" + dhcpLeases[i].hardwareAddress + "');\">Convert To Dynamic Lease</a></li>";
-                tableHtmlRows += "<li><a href=\"#\" onclick=\"showRemoveLease(" + i + ", '" + dhcpLeases[i].scope + "', '" + dhcpLeases[i].hardwareAddress + "');\">Remove Lease</a></li>";
+                tableHtmlRows += "<li id=\"btnDhcpLeaseReserve" + i + "\" style=\"" + (dhcpLeases[i].type === "Dynamic" ? "" : "display: none;") + "\"><a href=\"#\" onclick=\"convertToReservedLease(" + i + ", '" + dhcpLeases[i].scope + "', '" + dhcpLeases[i].hardwareAddress + "'); return false;\">Convert To Reserved Lease</a></li>";
+                tableHtmlRows += "<li id=\"btnDhcpLeaseUnreserve" + i + "\" style=\"" + (dhcpLeases[i].type === "Dynamic" ? "display: none;" : "") + "\"><a href=\"#\" onclick=\"convertToDynamicLease(" + i + ", '" + dhcpLeases[i].scope + "', '" + dhcpLeases[i].hardwareAddress + "'); return false;\">Convert To Dynamic Lease</a></li>";
+                tableHtmlRows += "<li><a href=\"#\" onclick=\"showRemoveLease('" + dhcpLeases[i].scope + "', '" + dhcpLeases[i].hardwareAddress + "'); return false;\">Remove Lease</a></li>";
                 tableHtmlRows += "</ul></div></td></tr>";
             }
 
@@ -74,7 +74,7 @@ function refreshDhcpLeases() {
 
 function convertToReservedLease(index, scopeName, hardwareAddress) {
     if (!confirm("Are you sure you want to convert the dynamic lease to reserved lease?"))
-        return false;
+        return;
 
     var btn = $("#btnDhcpLeaseRowOption" + index);
     btn.prop("disabled", true);
@@ -104,7 +104,7 @@ function convertToReservedLease(index, scopeName, hardwareAddress) {
 
 function convertToDynamicLease(index, scopeName, hardwareAddress) {
     if (!confirm("Are you sure you want to convert the reserved lease to dynamic lease?"))
-        return false;
+        return;
 
     var btn = $("#btnDhcpLeaseRowOption" + index);
     btn.prop("disabled", true);
@@ -132,12 +132,12 @@ function convertToDynamicLease(index, scopeName, hardwareAddress) {
     });
 }
 
-function showRemoveLease(index, scopeName, hardwareAddress) {
-    $("#btnRemoveDhcpLease").attr("onclick", "removeLease(this, " + index + ", '" + scopeName + "', '" + hardwareAddress + "');");
+function showRemoveLease(scopeName, hardwareAddress) {
+    $("#btnRemoveDhcpLease").attr("onclick", "removeLease(this, '" + scopeName + "', '" + hardwareAddress + "');");
     $("#modalDhcpRemoveLease").modal("show");
 }
 
-function removeLease(objBtn, index, scopeName, hardwareAddress) {
+function removeLease(objBtn, scopeName, hardwareAddress) {
     var divDhcpRemoveLeaseAlert = $("#divDhcpRemoveLeaseAlert");
     var btn = $(objBtn);
 
@@ -164,7 +164,6 @@ function removeLease(objBtn, index, scopeName, hardwareAddress) {
 }
 
 function refreshDhcpScopes(checkDisplay) {
-
     if (checkDisplay == null)
         checkDisplay = false;
 
@@ -216,7 +215,6 @@ function refreshDhcpScopes(checkDisplay) {
 }
 
 function addDhcpScopeStaticRouteRow(destination, subnetMask, router) {
-
     var id = Math.floor(Math.random() * 10000);
 
     var tableHtmlRows = "<tr id=\"tableDhcpScopeStaticRoutesRow" + id + "\"><td><input type=\"text\" class=\"form-control\" value=\"" + htmlEncode(destination) + "\"></td>";
@@ -228,7 +226,6 @@ function addDhcpScopeStaticRouteRow(destination, subnetMask, router) {
 }
 
 function addDhcpScopeVendorInfoRow(identifier, information) {
-
     var id = Math.floor(Math.random() * 10000);
 
     var tableHtmlRows = "<tr id=\"tableDhcpScopeVendorInfoRow" + id + "\"><td><input type=\"text\" class=\"form-control\" value='" + htmlEncode(identifier) + "' data-optional=\"true\"></td>";
@@ -239,7 +236,6 @@ function addDhcpScopeVendorInfoRow(identifier, information) {
 }
 
 function addDhcpScopeExclusionRow(startingAddress, endingAddress) {
-
     var id = Math.floor(Math.random() * 10000);
 
     var tableHtmlRows = "<tr id=\"tableDhcpScopeExclusionRow" + id + "\"><td><input type=\"text\" class=\"form-control\" value=\"" + htmlEncode(startingAddress) + "\"></td>";
@@ -250,7 +246,6 @@ function addDhcpScopeExclusionRow(startingAddress, endingAddress) {
 }
 
 function addDhcpScopeReservedLeaseRow(hostName, hardwareAddress, address, comments) {
-
     var id = Math.floor(Math.random() * 10000);
 
     var tableHtmlRows = "<tr id=\"tableDhcpScopeReservedLeaseRow" + id + "\">";
@@ -293,7 +288,6 @@ function clearDhcpScopeForm() {
 }
 
 function showAddDhcpScope() {
-
     clearDhcpScopeForm();
 
     $("#titleDhcpEditScope").html("Add Scope");
@@ -399,7 +393,6 @@ function showEditDhcpScope(scopeName) {
 }
 
 function saveDhcpScope() {
-
     var oldName = $("#txtDhcpScopeName").attr("data-name");
     var name = $("#txtDhcpScopeName").val();
     var newName = null;
@@ -477,9 +470,8 @@ function saveDhcpScope() {
 }
 
 function disableDhcpScope(scopeName) {
-
     if (!confirm("Are you sure you want to disable the DHCP scope '" + scopeName + "'?"))
-        return false;
+        return;
 
     var divDhcpViewScopesLoader = $("#divDhcpViewScopesLoader");
     var divDhcpViewScopes = $("#divDhcpViewScopes");
@@ -507,7 +499,6 @@ function disableDhcpScope(scopeName) {
 }
 
 function enableDhcpScope(scopeName) {
-
     var divDhcpViewScopesLoader = $("#divDhcpViewScopesLoader");
     var divDhcpViewScopes = $("#divDhcpViewScopes");
     var divDhcpEditScope = $("#divDhcpEditScope");
@@ -534,9 +525,8 @@ function enableDhcpScope(scopeName) {
 }
 
 function deleteDhcpScope(scopeName) {
-
     if (!confirm("Are you sure you want to delete the DHCP scope '" + scopeName + "'?"))
-        return false;
+        return;
 
     var divDhcpViewScopesLoader = $("#divDhcpViewScopesLoader");
     var divDhcpViewScopes = $("#divDhcpViewScopes");
