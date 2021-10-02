@@ -107,7 +107,7 @@ namespace DnsServerCore.Dns
                 {
                     foreach (StatsQueueItem item in _queue.GetConsumingEnumerable())
                     {
-                        StatCounter statCounter = _lastHourStatCounters[item._dateTime.Minute];
+                        StatCounter statCounter = _lastHourStatCounters[item._timestamp.Minute];
                         if (statCounter is not null)
                         {
                             DnsQuestionRecord query;
@@ -131,7 +131,7 @@ namespace DnsServerCore.Dns
                         {
                             try
                             {
-                                _ = logger.InsertLogAsync(item._request, item._remoteEP, item._protocol, item._response);
+                                _ = logger.InsertLogAsync(item._timestamp, item._request, item._remoteEP, item._protocol, item._response);
                             }
                             catch (Exception ex)
                             {
@@ -1957,7 +1957,7 @@ namespace DnsServerCore.Dns
         {
             #region variables
 
-            public readonly DateTime _dateTime;
+            public readonly DateTime _timestamp;
 
             public readonly DnsDatagram _request;
             public readonly IPEndPoint _remoteEP;
@@ -1970,7 +1970,7 @@ namespace DnsServerCore.Dns
 
             public StatsQueueItem(DnsDatagram request, IPEndPoint remoteEP, DnsTransportProtocol protocol, DnsDatagram response)
             {
-                _dateTime = DateTime.UtcNow;
+                _timestamp = DateTime.UtcNow;
 
                 _request = request;
                 _remoteEP = remoteEP;
