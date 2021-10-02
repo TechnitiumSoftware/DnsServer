@@ -1,5 +1,20 @@
 # Technitium DNS Server Change Log
 
+## Version 7.0
+Release Date: 2 October 2021
+- DNS Apps design updated to allow apps to act as authoritative zones, drop requests, and log queries in addition to the existing APP records in authoritative zones.
+- This release is a major update for DNS Apps design and thus any previously installed apps will fail to load after the update. A manual update is required to install the latest app update from the DNS App Store for these apps to work with this new release.
+- Advanced Blocking App: This new app allows blocking domain names based on IP address or subnet of the clients by creating groups. It also supports blocking using regex and also supports loading blocked domains from Adblock format lists.
+- Block Page App: This new app runs a built-in web server to allow serving a block page to clients when a domain name is blocked.
+- Drop Requests App: This new app allows dropping requests that match the blocked questions in the config allowing to block DNS amplification attacks that use specific domain name and query types.
+- NX Domain App: This new app allows blocking domain names with a NXDOMAIN response.
+- Query Logs (Sqlite): This new app allows logging all queries that the DNS server receives into a Sqlite database. The DNS server web panel adds an Query Logs option to allow querying the app for logged data.
+- Failover App: Implemented under maintenance feature to indicate if an address is taken down for maintenance.
+- Added Ping check option in DHCP scopes to allow detecting if an IP address is already in use before leasing it.
+- Added option to allow removing an allocated DHCP lease.
+- This release updates many API calls which may cause issues in 3rd party clients if they are not updated before deploying this new version. It is recommended to check the API documentation for changes before deploying this new release.
+- Multiple other minor bug fixes and improvements.
+
 ## Version 6.4.1
 Release Date: 21 August 2021
 - Implemented Delegation Revalidation [draft-ietf-dnsop-ns-revalidation-01](https://datatracker.ietf.org/doc/draft-ietf-dnsop-ns-revalidation/) in recursive resolver.
