@@ -20,7 +20,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\..\DnsApplicationCommon\DnsApplicationCommon.csproj">
+    <ProjectReference Include="..\..\DnsServerCore.ApplicationCommon\DnsServerCore.ApplicationCommon.csproj">
       <Private>false</Private>
     </ProjectReference>
   </ItemGroup>
