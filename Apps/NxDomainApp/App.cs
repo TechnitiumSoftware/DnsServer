@@ -141,7 +141,7 @@ namespace NxDomain
         #region properties
 
         public string Description
-        { get { return "Blocks domain names with NX Domain response."; } }
+        { get { return "Blocks configured domain names with a NX Domain response."; } }
 
         #endregion
     }
