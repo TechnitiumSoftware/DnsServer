@@ -59,18 +59,18 @@ function refreshLogFilesList() {
         success: function (responseJSON) {
             var logFiles = responseJSON.response.logFiles;
 
-            var list = "<div class=\"log\" style=\"font-size: 14px; padding-bottom: 6px;\"><a href=\"#\" onclick=\"return deleteAllStats();\"><b>[delete all stats]</b></a></div>";
+            var list = "<div class=\"log\" style=\"font-size: 14px; padding-bottom: 6px;\"><a href=\"#\" onclick=\"deleteAllStats(); return false;\"><b>[delete all stats]</b></a></div>";
 
             if (logFiles.length == 0) {
                 list += "<div class=\"log\">No Log Was Found</div>";
             }
             else {
-                list += "<div class=\"log\" style=\"font-size: 14px; padding-bottom: 6px;\"><a href=\"#\" onclick=\"return deleteAllLogs();\"><b>[delete all logs]</b></a></div>";
+                list += "<div class=\"log\" style=\"font-size: 14px; padding-bottom: 6px;\"><a href=\"#\" onclick=\"deleteAllLogs(); return false;\"><b>[delete all logs]</b></a></div>";
 
                 for (var i = 0; i < logFiles.length; i++) {
                     var logFile = logFiles[i];
 
-                    list += "<div class=\"log\"><a href=\"#\" onclick=\"return viewLog('" + logFile.fileName + "');\">" + logFile.fileName + " [" + logFile.size + "]</a></div>"
+                    list += "<div class=\"log\"><a href=\"#\" onclick=\"viewLog('" + logFile.fileName + "'); return false;\">" + logFile.fileName + " [" + logFile.size + "]</a></div>"
                 }
             }
 
@@ -81,8 +81,6 @@ function refreshLogFilesList() {
         },
         objLoaderPlaceholder: lstLogFiles
     });
-
-    return false;
 }
 
 function viewLog(logFile) {
@@ -108,23 +106,18 @@ function viewLog(logFile) {
         },
         objLoaderPlaceholder: divLogViewerLoader
     });
-
-    return false;
 }
 
 function downloadLog() {
     var logFile = $("#txtLogViewerTitle").text();
-
     window.open("/log/" + logFile + "?token=" + token + "&ts=" + (new Date().getTime()), "_blank");
-
-    return false;
 }
 
 function deleteLog() {
     var logFile = $("#txtLogViewerTitle").text();
 
     if (!confirm("Are you sure you want to permanently delete the log file '" + logFile + "'?"))
-        return false;
+        return;
 
     var btn = $("#btnDeleteLog").button('loading');
 
@@ -146,13 +139,11 @@ function deleteLog() {
             showPageLogin();
         }
     });
-
-    return false;
 }
 
 function deleteAllLogs() {
     if (!confirm("Are you sure you want to permanently delete all log files?"))
-        return false;
+        return;
 
     HTTPRequest({
         url: "/api/deleteAllLogs?token=" + token,
@@ -167,13 +158,11 @@ function deleteAllLogs() {
             showPageLogin();
         }
     });
-
-    return false;
 }
 
 function deleteAllStats() {
     if (!confirm("Are you sure you want to permanently delete all stats files?"))
-        return false;
+        return;
 
     HTTPRequest({
         url: "/api/deleteAllStats?token=" + token,
@@ -184,8 +173,6 @@ function deleteAllStats() {
             showPageLogin();
         }
     });
-
-    return false;
 }
 
 var appsList;
@@ -342,16 +329,16 @@ function queryLogs(pageNumber) {
                     responseJSON.response.entries[i].responseType + "</td><td>" +
                     responseJSON.response.entries[i].rcode + "</td><td style=\"word-break: break-all;\">" +
                     htmlEncode(responseJSON.response.entries[i].qname == "" ? "." : responseJSON.response.entries[i].qname) + "</td><td>" +
-                    responseJSON.response.entries[i].qtype + "</td><td>" +
-                    responseJSON.response.entries[i].qclass + "</td><td style=\"word-break: break-all;\">" +
+                    (responseJSON.response.entries[i].qtype == null ? "" : responseJSON.response.entries[i].qtype) + "</td><td>" +
+                    (responseJSON.response.entries[i].qclass == null ? "" : responseJSON.response.entries[i].qclass) + "</td><td style=\"word-break: break-all;\">" +
                     htmlEncode(responseJSON.response.entries[i].answer) + "</td></tr>"
             }
 
             var paginationHtml = "";
 
             if (responseJSON.response.pageNumber > 1) {
-                paginationHtml += "<li><a href=\"#\" aria-label=\"First\" onClick=\"queryLogs(1);\"><span aria-hidden=\"true\">&laquo;</span></a></li>";
-                paginationHtml += "<li><a href=\"#\" aria-label=\"Previous\" onClick=\"queryLogs(" + (responseJSON.response.pageNumber - 1) + ");\"><span aria-hidden=\"true\">&lsaquo;</span></a></li>";
+                paginationHtml += "<li><a href=\"#\" aria-label=\"First\" onClick=\"queryLogs(1); return false;\"><span aria-hidden=\"true\">&laquo;</span></a></li>";
+                paginationHtml += "<li><a href=\"#\" aria-label=\"Previous\" onClick=\"queryLogs(" + (responseJSON.response.pageNumber - 1) + "); return false;\"><span aria-hidden=\"true\">&lsaquo;</span></a></li>";
             }
 
             var pageStart = responseJSON.response.pageNumber - 5;
@@ -370,14 +357,14 @@ function queryLogs(pageNumber) {
 
             for (var i = pageStart; i <= pageEnd; i++) {
                 if (i == responseJSON.response.pageNumber)
-                    paginationHtml += "<li class=\"active\"><a href=\"#\" onClick=\"queryLogs(" + i + ");\">" + i + "</a></li>";
+                    paginationHtml += "<li class=\"active\"><a href=\"#\" onClick=\"queryLogs(" + i + "); return false;\">" + i + "</a></li>";
                 else
-                    paginationHtml += "<li><a href=\"#\" onClick=\"queryLogs(" + i + ");\">" + i + "</a></li>";
+                    paginationHtml += "<li><a href=\"#\" onClick=\"queryLogs(" + i + "); return false;\">" + i + "</a></li>";
             }
 
             if (responseJSON.response.pageNumber < responseJSON.response.totalPages) {
-                paginationHtml += "<li><a href=\"#\" aria-label=\"Next\" onClick=\"queryLogs(" + (responseJSON.response.pageNumber + 1) + ");\"><span aria-hidden=\"true\">&rsaquo;</span></a></li>";
-                paginationHtml += "<li><a href=\"#\" aria-label=\"Last\" onClick=\"queryLogs(-1);\"><span aria-hidden=\"true\">&raquo;</span></a></li>";
+                paginationHtml += "<li><a href=\"#\" aria-label=\"Next\" onClick=\"queryLogs(" + (responseJSON.response.pageNumber + 1) + "); return false;\"><span aria-hidden=\"true\">&rsaquo;</span></a></li>";
+                paginationHtml += "<li><a href=\"#\" aria-label=\"Last\" onClick=\"queryLogs(-1); return false;\"><span aria-hidden=\"true\">&raquo;</span></a></li>";
             }
 
             $("#tableQueryLogsBody").html(tableHtml);
@@ -407,6 +394,4 @@ function queryLogs(pageNumber) {
         },
         objLoaderPlaceholder: divQueryLogsLoader
     });
-
-    return false;
 }
