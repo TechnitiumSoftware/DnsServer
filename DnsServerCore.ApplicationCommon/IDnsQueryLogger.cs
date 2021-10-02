@@ -41,11 +41,12 @@ namespace DnsServerCore.ApplicationCommon
         /// <summary>
         /// Allows a DNS App to log incoming DNS requests and responses. This method is called by the DNS Server after an incoming request is processed and a response is sent.
         /// </summary>
+        /// <param name="timestamp">The time stamp of the log entry.</param>
         /// <param name="request">The incoming DNS request that was received.</param>
         /// <param name="remoteEP">The end point (IP address and port) of the client making the request.</param>
         /// <param name="protocol">The protocol using which the request was received.</param>
         /// <param name="response">The DNS response that was sent.</param>
-        Task InsertLogAsync(DnsDatagram request, IPEndPoint remoteEP, DnsTransportProtocol protocol, DnsDatagram response);
+        Task InsertLogAsync(DateTime timestamp, DnsDatagram request, IPEndPoint remoteEP, DnsTransportProtocol protocol, DnsDatagram response);
 
         /// <summary>
         /// Allows DNS Server HTTP API to query the logs recorded by the DNS App.
