@@ -496,7 +496,6 @@ $(function () {
 });
 
 function login(username, password) {
-
     var autoLogin = false;
 
     if (username == null) {
@@ -510,13 +509,13 @@ function login(username, password) {
     if ((username === null) || (username === "")) {
         showAlert("warning", "Missing!", "Please enter an username.");
         $("#txtUser").focus();
-        return false;
+        return;
     }
 
     if ((password === null) || (password === "")) {
         showAlert("warning", "Missing!", "Please enter a password.");
         $("#txtPass").focus();
-        return false;
+        return;
     }
 
     var btn = $("#btnLogin").button('loading');
@@ -544,12 +543,9 @@ function login(username, password) {
                 hideAlert();
         }
     });
-
-    return false;
 }
 
 function logout() {
-
     HTTPRequest({
         url: "/api/logout?token=" + token,
         success: function (responseJSON) {
@@ -561,12 +557,9 @@ function logout() {
             showPageLogin();
         }
     });
-
-    return false;
 }
 
 function resetChangePasswordModal() {
-
     $("#divChangePasswordAlert").html("");
     $("#txtChangePasswordNewPassword").val("");
     $("#txtChangePasswordConfirmPassword").val("");
@@ -574,12 +567,9 @@ function resetChangePasswordModal() {
     setTimeout(function () {
         $("#txtChangePasswordNewPassword").focus();
     }, 1000);
-
-    return false;
 }
 
 function changePassword() {
-
     var divChangePasswordAlert = $("#divChangePasswordAlert");
     var newPassword = $("#txtChangePasswordNewPassword").val();
     var confirmPassword = $("#txtChangePasswordConfirmPassword").val();
@@ -587,19 +577,19 @@ function changePassword() {
     if ((newPassword === null) || (newPassword === "")) {
         showAlert("warning", "Missing!", "Please enter new password.", divChangePasswordAlert);
         $("#txtChangePasswordNewPassword").focus();
-        return false;
+        return;
     }
 
     if ((confirmPassword === null) || (confirmPassword === "")) {
         showAlert("warning", "Missing!", "Please enter confirm password.", divChangePasswordAlert);
         $("#txtChangePasswordConfirmPassword").focus();
-        return false;
+        return;
     }
 
     if (newPassword !== confirmPassword) {
         showAlert("warning", "Mismatch!", "Passwords do not match. Please try again.", divChangePasswordAlert);
         $("#txtChangePasswordNewPassword").focus();
-        return false;
+        return;
     }
 
     var btn = $("#btnChangePasswordSave").button('loading');
@@ -621,41 +611,74 @@ function changePassword() {
         },
         objAlertPlaceholder: divChangePasswordAlert
     });
-
-    return false;
 }
 
 function checkForUpdate() {
-
     HTTPRequest({
         url: "/api/checkForUpdate?token=" + token,
         success: function (responseJSON) {
-
-            var lnkNewVersionAvailable = $("#lnkNewVersionAvailable");
+            var lnkUpdateAvailable = $("#lnkUpdateAvailable");
 
             if (responseJSON.response.updateAvailable) {
+                $("#lblUpdateVersion").text(responseJSON.response.updateVersion);
+                $("#lblCurrentVersion").text(responseJSON.response.currentVersion);
 
-                if (responseJSON.response.displayText == null)
-                    responseJSON.response.displayText = "New Version Available!";
+                if (responseJSON.response.updateTitle == null)
+                    responseJSON.response.updateTitle = "New Update Available!";
 
-                lnkNewVersionAvailable.text(responseJSON.response.displayText);
-                lnkNewVersionAvailable.attr("href", responseJSON.response.downloadLink);
-                lnkNewVersionAvailable.show();
+                lnkUpdateAvailable.text(responseJSON.response.updateTitle);
+                $("#lblUpdateAvailableTitle").text(responseJSON.response.updateTitle);
+
+                var lblUpdateMessage = $("#lblUpdateMessage");
+                var lnkUpdateDownload = $("#lnkUpdateDownload");
+                var lnkUpdateInstructions = $("#lnkUpdateInstructions");
+                var lnkUpdateChangeLog = $("#lnkUpdateChangeLog");
+
+                if (responseJSON.response.updateMessage == null) {
+                    lblUpdateMessage.hide();
+                }
+                else {
+                    lblUpdateMessage.text(responseJSON.response.updateMessage);
+                    lblUpdateMessage.show();
+                }
+
+                if (responseJSON.response.downloadLink == null) {
+                    lnkUpdateDownload.hide();
+                }
+                else {
+                    lnkUpdateDownload.attr("href", responseJSON.response.downloadLink);
+                    lnkUpdateDownload.show();
+                }
+
+                if (responseJSON.response.instructionsLink == null) {
+                    lnkUpdateInstructions.hide();
+                }
+                else {
+                    lnkUpdateInstructions.attr("href", responseJSON.response.instructionsLink);
+                    lnkUpdateInstructions.show();
+                }
+
+                if (responseJSON.response.changeLogLink == null) {
+                    lnkUpdateChangeLog.hide();
+                }
+                else {
+                    lnkUpdateChangeLog.attr("href", responseJSON.response.changeLogLink);
+                    lnkUpdateChangeLog.show();
+                }
+
+                lnkUpdateAvailable.show();
             }
             else {
-                lnkNewVersionAvailable.hide();
+                lnkUpdateAvailable.hide();
             }
         },
         invalidToken: function () {
             showPageLogin();
         }
     });
-
-    return false;
 }
 
 function loadDnsSettings() {
-
     var divDnsSettingsLoader = $("#divDnsSettingsLoader");
     var divDnsSettings = $("#divDnsSettings");
 
@@ -993,18 +1016,15 @@ function loadDnsSettings() {
         },
         objLoaderPlaceholder: divDnsSettingsLoader
     });
-
-    return false;
 }
 
 function saveDnsSettings() {
-
     var dnsServerDomain = $("#txtDnsServerDomain").val();
 
     if ((dnsServerDomain === null) || (dnsServerDomain === "")) {
         showAlert("warning", "Missing!", "Please enter server domain name.");
         $("#txtDnsServerDomain").focus();
-        return false;
+        return;
     }
 
     var dnsServerLocalEndPoints = cleanTextList($("#txtDnsServerLocalEndPoints").val());
@@ -1079,35 +1099,35 @@ function saveDnsSettings() {
     if ((qpmLimitRequests == null) || (qpmLimitRequests === "")) {
         showAlert("warning", "Missing!", "Please enter Queries Per Minute (QPM) request limit value.");
         $("#txtQpmLimitRequests").focus();
-        return false;
+        return;
     }
 
     var qpmLimitErrors = $("#txtQpmLimitErrors").val();
     if ((qpmLimitErrors == null) || (qpmLimitErrors === "")) {
         showAlert("warning", "Missing!", "Please enter Queries Per Minute (QPM) error limit value.");
         $("#txtQpmLimitErrors").focus();
-        return false;
+        return;
     }
 
     var qpmLimitSampleMinutes = $("#txtQpmLimitSampleMinutes").val();
     if ((qpmLimitSampleMinutes == null) || (qpmLimitSampleMinutes === "")) {
         showAlert("warning", "Missing!", "Please enter Queries Per Minute (QPM) sample value.");
         $("#txtQpmLimitSampleMinutes").focus();
-        return false;
+        return;
     }
 
     var qpmLimitIPv4PrefixLength = $("#txtQpmLimitIPv4PrefixLength").val();
     if ((qpmLimitIPv4PrefixLength == null) || (qpmLimitIPv4PrefixLength === "")) {
         showAlert("warning", "Missing!", "Please enter Queries Per Minute (QPM) limit IPv4 prefix length.");
         $("#txtQpmLimitIPv4PrefixLength").focus();
-        return false;
+        return;
     }
 
     var qpmLimitIPv6PrefixLength = $("#txtQpmLimitIPv6PrefixLength").val();
     if ((qpmLimitIPv6PrefixLength == null) || (qpmLimitIPv6PrefixLength === "")) {
         showAlert("warning", "Missing!", "Please enter Queries Per Minute (QPM) limit IPv6 prefix length.");
         $("#txtQpmLimitIPv6PrefixLength").focus();
-        return false;
+        return;
     }
 
     var serveStale = $("#chkServeStale").prop("checked");
@@ -1117,56 +1137,56 @@ function saveDnsSettings() {
     if ((cacheMinimumRecordTtl === null) || (cacheMinimumRecordTtl === "")) {
         showAlert("warning", "Missing!", "Please enter cache minimum record TTL value.");
         $("#txtCacheMinimumRecordTtl").focus();
-        return false;
+        return;
     }
 
     var cacheMaximumRecordTtl = $("#txtCacheMaximumRecordTtl").val();
     if ((cacheMaximumRecordTtl === null) || (cacheMaximumRecordTtl === "")) {
         showAlert("warning", "Missing!", "Please enter cache maximum record TTL value.");
         $("#txtCacheMaximumRecordTtl").focus();
-        return false;
+        return;
     }
 
     var cacheNegativeRecordTtl = $("#txtCacheNegativeRecordTtl").val();
     if ((cacheNegativeRecordTtl === null) || (cacheNegativeRecordTtl === "")) {
         showAlert("warning", "Missing!", "Please enter cache negative record TTL value.");
         $("#txtCacheNegativeRecordTtl").focus();
-        return false;
+        return;
     }
 
     var cacheFailureRecordTtl = $("#txtCacheFailureRecordTtl").val();
     if ((cacheFailureRecordTtl === null) || (cacheFailureRecordTtl === "")) {
         showAlert("warning", "Missing!", "Please enter cache failure record TTL value.");
         $("#txtCacheFailureRecordTtl").focus();
-        return false;
+        return;
     }
 
     var cachePrefetchEligibility = $("#txtCachePrefetchEligibility").val();
     if ((cachePrefetchEligibility === null) || (cachePrefetchEligibility === "")) {
         showAlert("warning", "Missing!", "Please enter cache prefetch eligibility value.");
         $("#txtCachePrefetchEligibility").focus();
-        return false;
+        return;
     }
 
     var cachePrefetchTrigger = $("#txtCachePrefetchTrigger").val();
     if ((cachePrefetchTrigger === null) || (cachePrefetchTrigger === "")) {
         showAlert("warning", "Missing!", "Please enter cache prefetch trigger value.");
         $("#txtCachePrefetchTrigger").focus();
-        return false;
+        return;
     }
 
     var cachePrefetchSampleIntervalInMinutes = $("#txtCachePrefetchSampleIntervalInMinutes").val();
     if ((cachePrefetchSampleIntervalInMinutes === null) || (cachePrefetchSampleIntervalInMinutes === "")) {
         showAlert("warning", "Missing!", "Please enter cache auto prefetch sample interval value.");
         $("#txtCachePrefetchSampleIntervalInMinutes").focus();
-        return false;
+        return;
     }
 
     var cachePrefetchSampleEligibilityHitsPerHour = $("#txtCachePrefetchSampleEligibilityHitsPerHour").val();
     if ((cachePrefetchSampleEligibilityHitsPerHour === null) || (cachePrefetchSampleEligibilityHitsPerHour === "")) {
         showAlert("warning", "Missing!", "Please enter cache auto prefetch sample eligibility value.");
         $("#txtCachePrefetchSampleEligibilityHitsPerHour").focus();
-        return false;
+        return;
     }
 
     var proxy;
@@ -1180,7 +1200,7 @@ function saveDnsSettings() {
         if ((proxyAddress === null) || (proxyAddress === "")) {
             showAlert("warning", "Missing!", "Please enter proxy server address.");
             $("#txtProxyAddress").focus();
-            return false;
+            return;
         }
 
         var proxyPort = $("#txtProxyPort").val();
@@ -1188,7 +1208,7 @@ function saveDnsSettings() {
         if ((proxyPort === null) || (proxyPort === "")) {
             showAlert("warning", "Missing!", "Please enter proxy server port.");
             $("#txtProxyPort").focus();
-            return false;
+            return;
         }
 
         var proxyBypass = cleanTextList($("#txtProxyBypassList").val());
@@ -1247,6 +1267,8 @@ function saveDnsSettings() {
             $("#lblDnsServerDomain").text(" - " + responseJSON.response.dnsServerDomain);
             $("#txtDnsServerDomain").val(responseJSON.response.dnsServerDomain);
 
+            $("#txtAddEditRecordTtl").attr("placeholder", responseJSON.response.defaultRecordTtl);
+
             //reload tsig keys
             $("#tableTsigKeys").html("");
 
@@ -1282,8 +1304,6 @@ function saveDnsSettings() {
             showPageLogin();
         }
     });
-
-    return false;
 }
 
 function addTsigKeyRow(keyName, sharedSecret, algorithmName) {
@@ -1363,7 +1383,7 @@ function checkForWebConsoleRedirection(responseJSON) {
 
 function forceUpdateBlockLists() {
     if (!confirm("Are you sure to force download and update the block lists?"))
-        return false;
+        return;
 
     var btn = $("#btnUpdateBlockListsNow").button('loading');
 
@@ -1384,8 +1404,6 @@ function forceUpdateBlockLists() {
             showPageLogin();
         }
     });
-
-    return false;
 }
 
 function temporaryDisableBlockingNow() {
@@ -1394,11 +1412,11 @@ function temporaryDisableBlockingNow() {
     if ((minutes === null) || (minutes === "")) {
         showAlert("warning", "Missing!", "Please enter a value in minutes to temporarily disable blocking.");
         $("#txtTemporaryDisableBlockingMinutes").focus();
-        return false;
+        return;
     }
 
     if (!confirm("Are you sure to temporarily disable blocking for " + minutes + " minute(s)?"))
-        return false;
+        return;
 
     var btn = $("#btnTemporaryDisableBlockingNow").button('loading');
 
@@ -1420,8 +1438,6 @@ function temporaryDisableBlockingNow() {
             showPageLogin();
         }
     });
-
-    return false;
 }
 
 function updateChart(chart, data) {
@@ -1504,7 +1520,6 @@ var chartLegendOnClick = function (e, legendItem) {
 }
 
 function refreshDashboard(hideLoader) {
-
     if (!$("#mainPanelTabPaneDashboard").hasClass("active"))
         return;
 
@@ -1522,14 +1537,14 @@ function refreshDashboard(hideLoader) {
         if (start === null || (start === "")) {
             showAlert("warning", "Missing!", "Please select a start date.");
             $("#dpCustomDayWiseStart").focus();
-            return false;
+            return;
         }
 
         var end = $("#dpCustomDayWiseEnd").val();
         if (end === null || (end === "")) {
             showAlert("warning", "Missing!", "Please select an end date.");
             $("#dpCustomDayWiseEnd").focus();
-            return false;
+            return;
         }
 
         custom = "&start=" + start + "&end=" + end;
@@ -1726,8 +1741,6 @@ function refreshDashboard(hideLoader) {
         objLoaderPlaceholder: divDashboardLoader,
         dontHideAlert: hideLoader
     });
-
-    return false;
 }
 
 function showTopStats(statsType, limit) {
@@ -1763,14 +1776,14 @@ function showTopStats(statsType, limit) {
         if (start === null || (start === "")) {
             showAlert("warning", "Missing!", "Please select a start date.");
             $("#dpCustomDayWiseStart").focus();
-            return false;
+            return;
         }
 
         var end = $("#dpCustomDayWiseEnd").val();
         if (end === null || (end === "")) {
             showAlert("warning", "Missing!", "Please select an end date.");
             $("#dpCustomDayWiseEnd").focus();
-            return false;
+            return;
         }
 
         custom = "&start=" + start + "&end=" + end;
@@ -1797,6 +1810,12 @@ function showTopStats(statsType, limit) {
                 }
 
                 $("#tbodyTopStatsClients").html(tableHtmlRows);
+
+                if (topClients.length > 0)
+                    $("#tfootTopStatsClients").html("Total Clients: " + topClients.length);
+                else
+                    $("#tfootTopStatsClients").html("");
+
                 $("#tableTopStatsClients").show();
             }
             else if (responseJSON.response.topDomains != null) {
@@ -1815,6 +1834,12 @@ function showTopStats(statsType, limit) {
                 }
 
                 $("#tbodyTopStatsDomains").html(tableHtmlRows);
+
+                if (topDomains.length > 0)
+                    $("#tfootTopStatsDomains").html("Total Domains: " + topDomains.length);
+                else
+                    $("#tfootTopStatsDomains").html("");
+
                 $("#tableTopStatsDomains").show();
             }
             else if (responseJSON.response.topBlockedDomains != null) {
@@ -1833,6 +1858,12 @@ function showTopStats(statsType, limit) {
                 }
 
                 $("#tbodyTopStatsBlockedDomains").html(tableHtmlRows);
+
+                if (topBlockedDomains.length > 0)
+                    $("#tfootTopStatsBlockedDomains").html("Total Domains: " + topBlockedDomains.length);
+                else
+                    $("#tfootTopStatsBlockedDomains").html("");
+
                 $("#tableTopStatsBlockedDomains").show();
             }
 
@@ -1844,12 +1875,9 @@ function showTopStats(statsType, limit) {
         objLoaderPlaceholder: divTopStatsLoader,
         objAlertPlaceholder: divTopStatsAlert
     });
-
-    return false;
 }
 
 function resolveQuery(importRecords) {
-
     if (importRecords == null)
         importRecords = false;
 
@@ -1875,13 +1903,13 @@ function resolveQuery(importRecords) {
     if ((server === null) || (server === "")) {
         showAlert("warning", "Missing!", "Please enter a valid Name Server.");
         $("#txtDnsClientNameServer").focus();
-        return false;
+        return;
     }
 
     if ((domain === null) || (domain === "")) {
         showAlert("warning", "Missing!", "Please enter a domain name to query.");
         $("#txtDnsClientDomain").focus();
-        return false;
+        return;
     }
 
     {
@@ -1903,7 +1931,7 @@ function resolveQuery(importRecords) {
 
     if (importRecords) {
         if (!confirm("Importing all the records from the result of this query will overwrite existing records in the zone or if the zone does not exists, a new primary zone '" + domain + "' will be created.\n\nAre you sure you want to import all records?"))
-            return false;
+            return;
     }
 
     var btn = $(importRecords ? "#btnDnsClientImport" : "#btnDnsClientResolve").button('loading');
@@ -1955,9 +1983,7 @@ function resolveQuery(importRecords) {
     });
 
     if (!containsServer)
-        $("#optDnsClientNameServers").prepend('<li><a href="#" onclick="return false;">' + htmlEncode(txtServerName) + '</a></li>');
-
-    return false;
+        $("#optDnsClientNameServers").prepend('<li><a href="#">' + htmlEncode(txtServerName) + '</a></li>');
 }
 
 function resetBackupSettingsModal() {
@@ -1972,8 +1998,6 @@ function resetBackupSettingsModal() {
     $("#chkBackupStats").prop("checked", true);
     $("#chkBackupLogs").prop("checked", false);
     $("#chkBackupBlockLists").prop("checked", true);
-
-    return false;
 }
 
 function backupSettings() {
@@ -1992,15 +2016,13 @@ function backupSettings() {
 
     if (!blockLists && !logs && !scopes && !apps && !stats && !zones && !allowedZones && !blockedZones && !dnsSettings && !logSettings) {
         showAlert("warning", "Missing!", "Please select at least one item to backup.", divBackupSettingsAlert);
-        return false;
+        return;
     }
 
     window.open("/api/backupSettings?token=" + token + "&blockLists=" + blockLists + "&logs=" + logs + "&scopes=" + scopes + "&apps=" + apps + "&stats=" + stats + "&zones=" + zones + "&allowedZones=" + allowedZones + "&blockedZones=" + blockedZones + "&dnsSettings=" + dnsSettings + "&logSettings=" + logSettings + "&ts=" + (new Date().getTime()), "_blank");
 
     $("#modalBackupSettings").modal("hide");
     showAlert("success", "Backed Up!", "Settings were backed up successfully.");
-
-    return false;
 }
 
 function resetRestoreSettingsModal() {
@@ -2018,8 +2040,6 @@ function resetRestoreSettingsModal() {
     $("#chkRestoreLogs").prop("checked", false);
     $("#chkRestoreBlockLists").prop("checked", true);
     $("#chkDeleteExistingFiles").prop("checked", true);
-
-    return false;
 }
 
 function restoreSettings() {
@@ -2030,7 +2050,7 @@ function restoreSettings() {
     if (fileBackupZip[0].files.length === 0) {
         showAlert("warning", "Missing!", "Please select a backup zip file to restore.", divRestoreSettingsAlert);
         fileBackupZip.focus();
-        return false;
+        return;
     }
 
     var blockLists = $("#chkRestoreBlockLists").prop('checked');
@@ -2048,7 +2068,7 @@ function restoreSettings() {
 
     if (!blockLists && !logs && !scopes && !apps && !stats && !zones && !allowedZones && !blockedZones && !dnsSettings && !logSettings) {
         showAlert("warning", "Missing!", "Please select at least one item to restore.", divRestoreSettingsAlert);
-        return false;
+        return;
     }
 
     var formData = new FormData();
@@ -2081,6 +2101,4 @@ function restoreSettings() {
         },
         objAlertPlaceholder: divRestoreSettingsAlert
     });
-
-    return false;
 }
