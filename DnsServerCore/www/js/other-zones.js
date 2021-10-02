@@ -18,9 +18,8 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
 function flushDnsCache() {
-
     if (!confirm("Are you sure to flush the DNS Server cache?"))
-        return false;
+        return;
 
     var btn = $("#btnFlushDnsCache").button('loading');
 
@@ -38,8 +37,6 @@ function flushDnsCache() {
             showPageLogin();
         }
     });
-
-    return false;
 }
 
 function deleteCachedZone() {
@@ -47,7 +44,7 @@ function deleteCachedZone() {
     var domain = $("#txtCachedZoneViewerTitle").text();
 
     if (!confirm("Are you sure you want to delete the cached zone '" + domain + "' and all its records?"))
-        return false;
+        return;
 
     var btn = $("#btnDeleteCachedZone").button('loading');
 
@@ -67,8 +64,6 @@ function deleteCachedZone() {
             showPageLogin();
         }
     });
-
-    return false;
 }
 
 function getParentDomain(domain) {
@@ -89,7 +84,6 @@ function getParentDomain(domain) {
 }
 
 function refreshCachedZonesList(domain, direction) {
-
     if (domain == null)
         domain = "";
 
@@ -108,17 +102,17 @@ function refreshCachedZonesList(domain, direction) {
             var newDomain = responseJSON.response.domain;
             var zones = responseJSON.response.zones;
 
-            var list = "<div class=\"zone\"><a href=\"#\" onclick=\"return refreshCachedZonesList('" + newDomain + "');\"><b>[refresh]</b></a></div>"
+            var list = "<div class=\"zone\"><a href=\"#\" onclick=\"refreshCachedZonesList('" + newDomain + "'); return false;\"><b>[refresh]</b></a></div>"
 
             var parentDomain = getParentDomain(newDomain);
 
             if (parentDomain != null)
-                list += "<div class=\"zone\"><a href=\"#\" onclick=\"return refreshCachedZonesList('" + parentDomain + "', 'up');\"><b>[up]</b></a></div>"
+                list += "<div class=\"zone\"><a href=\"#\" onclick=\"refreshCachedZonesList('" + parentDomain + "', 'up'); return false;\"><b>[up]</b></a></div>"
 
             for (var i = 0; i < zones.length; i++) {
                 var zoneName = htmlEncode(zones[i]);
 
-                list += "<div class=\"zone\"><a href=\"#\" onclick=\"return refreshCachedZonesList('" + zoneName + "');\">" + zoneName + "</a></div>"
+                list += "<div class=\"zone\"><a href=\"#\" onclick=\"refreshCachedZonesList('" + zoneName + "'); return false;\">" + zoneName + "</a></div>"
             }
 
             lstCachedZones.html(list);
@@ -143,22 +137,19 @@ function refreshCachedZonesList(domain, direction) {
             showPageLogin();
         },
         error: function () {
-            lstCachedZones.html("<div class=\"zone\"><a href=\"#\" onclick=\"return refreshCachedZonesList('" + domain + "');\"><b>[refresh]</b></a></div>");
+            lstCachedZones.html("<div class=\"zone\"><a href=\"#\" onclick=\"refreshCachedZonesList('" + domain + "'); return false;\"><b>[refresh]</b></a></div>");
         },
         objLoaderPlaceholder: lstCachedZones
     });
-
-    return false;
 }
 
 function allowZone() {
-
     var domain = $("#txtAllowZone").val();
 
     if ((domain === null) || (domain === "")) {
         showAlert("warning", "Missing!", "Please enter a domain name to allow.");
         $("#txtAllowZone").focus();
-        return false;
+        return;
     }
 
     var btn = $("#btnAllowZone").button('loading');
@@ -181,16 +172,13 @@ function allowZone() {
             showPageLogin();
         }
     });
-
-    return false;
 }
 
 function deleteAllowedZone() {
-
     var domain = $("#txtAllowedZoneViewerTitle").text();
 
     if (!confirm("Are you sure you want to delete the allowed zone '" + domain + "'?"))
-        return false;
+        return;
 
     var btn = $("#btnDeleteAllowedZone").button('loading');
 
@@ -210,12 +198,9 @@ function deleteAllowedZone() {
             showPageLogin();
         }
     });
-
-    return false;
 }
 
 function refreshAllowedZonesList(domain, direction) {
-
     if (domain == null)
         domain = "";
 
@@ -234,17 +219,17 @@ function refreshAllowedZonesList(domain, direction) {
             var newDomain = responseJSON.response.domain;
             var zones = responseJSON.response.zones;
 
-            var list = "<div class=\"zone\"><a href=\"#\" onclick=\"return refreshAllowedZonesList('" + newDomain + "');\"><b>[refresh]</b></a></div>"
+            var list = "<div class=\"zone\"><a href=\"#\" onclick=\"refreshAllowedZonesList('" + newDomain + "'); return false;\"><b>[refresh]</b></a></div>"
 
             var parentDomain = getParentDomain(newDomain);
 
             if (parentDomain != null)
-                list += "<div class=\"zone\"><a href=\"#\" onclick=\"return refreshAllowedZonesList('" + parentDomain + "', 'up');\"><b>[up]</b></a></div>"
+                list += "<div class=\"zone\"><a href=\"#\" onclick=\"refreshAllowedZonesList('" + parentDomain + "', 'up'); return false;\"><b>[up]</b></a></div>"
 
             for (var i = 0; i < zones.length; i++) {
                 var zoneName = htmlEncode(zones[i]);
 
-                list += "<div class=\"zone\"><a href=\"#\" onclick=\"return refreshAllowedZonesList('" + zoneName + "');\">" + zoneName + "</a></div>"
+                list += "<div class=\"zone\"><a href=\"#\" onclick=\"refreshAllowedZonesList('" + zoneName + "'); return false;\">" + zoneName + "</a></div>"
             }
 
             lstAllowedZones.html(list);
@@ -269,22 +254,19 @@ function refreshAllowedZonesList(domain, direction) {
             showPageLogin();
         },
         error: function () {
-            lstAllowedZones.html("<div class=\"zone\"><a href=\"#\" onclick=\"return refreshAllowedZonesList('" + domain + "');\"><b>[refresh]</b></a></div>");
+            lstAllowedZones.html("<div class=\"zone\"><a href=\"#\" onclick=\"refreshAllowedZonesList('" + domain + "'); return false;\"><b>[refresh]</b></a></div>");
         },
         objLoaderPlaceholder: lstAllowedZones
     });
-
-    return false;
 }
 
 function blockZone() {
-
     var domain = $("#txtBlockZone").val();
 
     if ((domain === null) || (domain === "")) {
         showAlert("warning", "Missing!", "Please enter a domain name to block.");
         $("#txtBlockZone").focus();
-        return false;
+        return;
     }
 
     var btn = $("#btnBlockZone").button('loading');
@@ -307,16 +289,13 @@ function blockZone() {
             showPageLogin();
         }
     });
-
-    return false;
 }
 
 function deleteBlockedZone() {
-
     var domain = $("#txtBlockedZoneViewerTitle").text();
 
     if (!confirm("Are you sure you want to delete the blocked zone '" + domain + "'?"))
-        return false;
+        return;
 
     var btn = $("#btnDeleteBlockedZone").button('loading');
 
@@ -336,12 +315,9 @@ function deleteBlockedZone() {
             showPageLogin();
         }
     });
-
-    return false;
 }
 
 function refreshBlockedZonesList(domain, direction) {
-
     if (domain == null)
         domain = "";
 
@@ -360,17 +336,17 @@ function refreshBlockedZonesList(domain, direction) {
             var newDomain = responseJSON.response.domain;
             var zones = responseJSON.response.zones;
 
-            var list = "<div class=\"zone\"><a href=\"#\" onclick=\"return refreshBlockedZonesList('" + newDomain + "');\"><b>[refresh]</b></a></div>"
+            var list = "<div class=\"zone\"><a href=\"#\" onclick=\"refreshBlockedZonesList('" + newDomain + "'); return false;\"><b>[refresh]</b></a></div>"
 
             var parentDomain = getParentDomain(newDomain);
 
             if (parentDomain != null)
-                list += "<div class=\"zone\"><a href=\"#\" onclick=\"return refreshBlockedZonesList('" + parentDomain + "', 'up');\"><b>[up]</b></a></div>"
+                list += "<div class=\"zone\"><a href=\"#\" onclick=\"refreshBlockedZonesList('" + parentDomain + "', 'up'); return false;\"><b>[up]</b></a></div>"
 
             for (var i = 0; i < zones.length; i++) {
                 var zoneName = htmlEncode(zones[i]);
 
-                list += "<div class=\"zone\"><a href=\"#\" onclick=\"return refreshBlockedZonesList('" + zoneName + "');\">" + zoneName + "</a></div>"
+                list += "<div class=\"zone\"><a href=\"#\" onclick=\"refreshBlockedZonesList('" + zoneName + "'); return false;\">" + zoneName + "</a></div>"
             }
 
             lstBlockedZones.html(list);
@@ -395,24 +371,19 @@ function refreshBlockedZonesList(domain, direction) {
             showPageLogin();
         },
         error: function () {
-            lstBlockedZones.html("<div class=\"zone\"><a href=\"#\" onclick=\"return refreshBlockedZonesList('" + domain + "');\"><b>[refresh]</b></a></div>");
+            lstBlockedZones.html("<div class=\"zone\"><a href=\"#\" onclick=\"refreshBlockedZonesList('" + domain + "'); return false;\"><b>[refresh]</b></a></div>");
         },
         objLoaderPlaceholder: lstBlockedZones
     });
-
-    return false;
 }
 
 function resetImportAllowedZonesModal() {
-
     $("#divImportAllowedZonesAlert").html("");
     $("#txtImportAllowedZones").val("");
 
     setTimeout(function () {
         $("#txtImportAllowedZones").focus();
     }, 1000);
-
-    return false;
 }
 
 function importAllowedZones() {
@@ -422,7 +393,7 @@ function importAllowedZones() {
     if ((allowedZones.length === 0) || (allowedZones === ",")) {
         showAlert("warning", "Missing!", "Please enter allowed zones to import.", divImportAllowedZonesAlert);
         $("#txtImportAllowedZones").focus();
-        return false;
+        return;
     }
 
     var btn = $("#btnImportAllowedZones").button('loading');
@@ -445,29 +416,21 @@ function importAllowedZones() {
         },
         objAlertPlaceholder: divImportAllowedZonesAlert
     });
-
-    return false;
 }
 
 function exportAllowedZones() {
-
     window.open("/api/exportAllowedZones?token=" + token, "_blank");
 
     showAlert("success", "Exported!", "Allowed zones were exported successfully.");
-
-    return false;
 }
 
 function resetImportBlockedZonesModal() {
-
     $("#divImportBlockedZonesAlert").html("");
     $("#txtImportBlockedZones").val("");
 
     setTimeout(function () {
         $("#txtImportBlockedZones").focus();
     }, 1000);
-
-    return false;
 }
 
 function importBlockedZones() {
@@ -477,7 +440,7 @@ function importBlockedZones() {
     if ((blockedZones.length === 0) || (blockedZones === ",")) {
         showAlert("warning", "Missing!", "Please enter blocked zones to import.", divImportBlockedZonesAlert);
         $("#txtImportBlockedZones").focus();
-        return false;
+        return;
     }
 
     var btn = $("#btnImportBlockedZones").button('loading');
@@ -500,15 +463,10 @@ function importBlockedZones() {
         },
         objAlertPlaceholder: divImportBlockedZonesAlert
     });
-
-    return false;
 }
 
 function exportBlockedZones() {
-
     window.open("/api/exportBlockedZones?token=" + token, "_blank");
 
     showAlert("success", "Exported!", "Blocked zones were exported successfully.");
-
-    return false;
 }
