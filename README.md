@@ -54,7 +54,6 @@ Applications of using a locally hosted DNS server is limited only by the user's 
 - Open source cross-platform .NET 5 implementation hosted on GitHub.
 
 # Planned Features
-- Query logging support for databases feature as a DNS App.
 - Multi-user role based access.
 - API key to provide long term access token.
 - Clustering support to manage two or more DNS servers.
