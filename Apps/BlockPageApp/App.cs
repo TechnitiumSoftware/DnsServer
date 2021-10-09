@@ -25,6 +25,7 @@ using System.IO;
 using System.Net;
 using System.Net.Security;
 using System.Net.Sockets;
+using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
 using System.Text;
 using System.Threading;
@@ -57,6 +58,7 @@ namespace BlockPage
         IDnsServer _dnsServer;
 
         IReadOnlyList<IPAddress> _webServerLocalAddresses = Array.Empty<IPAddress>();
+        bool _webServerUseSelfSignedTlsCertificate;
         string _webServerTlsCertificateFilePath;
         string _webServerTlsCertificatePassword;
         string _webServerRootPath;
@@ -199,20 +201,20 @@ namespace BlockPage
             _state = ServiceState.Stopped;
         }
 
-        private void LoadWebServiceTlsCertificate()
+        private void LoadWebServiceTlsCertificate(string webServerTlsCertificateFilePath, string webServerTlsCertificatePassword)
         {
-            FileInfo fileInfo = new FileInfo(_webServerTlsCertificateFilePath);
+            FileInfo fileInfo = new FileInfo(webServerTlsCertificateFilePath);
 
             if (!fileInfo.Exists)
-                throw new ArgumentException("Web server TLS certificate file does not exists: " + _webServerTlsCertificateFilePath);
+                throw new ArgumentException("Web server TLS certificate file does not exists: " + webServerTlsCertificateFilePath);
 
-            if (Path.GetExtension(_webServerTlsCertificateFilePath) != ".pfx")
-                throw new ArgumentException("Web server TLS certificate file must be PKCS #12 formatted with .pfx extension: " + _webServerTlsCertificateFilePath);
+            if (Path.GetExtension(webServerTlsCertificateFilePath) != ".pfx")
+                throw new ArgumentException("Web server TLS certificate file must be PKCS #12 formatted with .pfx extension: " + webServerTlsCertificateFilePath);
 
-            _webServerTlsCertificate = new X509Certificate2(_webServerTlsCertificateFilePath, _webServerTlsCertificatePassword);
+            _webServerTlsCertificate = new X509Certificate2(webServerTlsCertificateFilePath, webServerTlsCertificatePassword);
             _webServerTlsCertificateLastModifiedOn = fileInfo.LastWriteTimeUtc;
 
-            _dnsServer.WriteLog("Web server TLS certificate was loaded: " + _webServerTlsCertificateFilePath);
+            _dnsServer.WriteLog("Web server TLS certificate was loaded: " + webServerTlsCertificateFilePath);
         }
 
         private void StartTlsCertificateUpdateTimer()
@@ -228,7 +230,7 @@ namespace BlockPage
                             FileInfo fileInfo = new FileInfo(_webServerTlsCertificateFilePath);
 
                             if (fileInfo.Exists && (fileInfo.LastWriteTimeUtc != _webServerTlsCertificateLastModifiedOn))
-                                LoadWebServiceTlsCertificate();
+                                LoadWebServiceTlsCertificate(_webServerTlsCertificateFilePath, _webServerTlsCertificatePassword);
                         }
                         catch (Exception ex)
                         {
@@ -473,7 +475,7 @@ namespace BlockPage
 
         #region public
 
-        public Task InitializeAsync(IDnsServer dnsServer, string config)
+        public async Task InitializeAsync(IDnsServer dnsServer, string config)
         {
             _dnsServer = dnsServer;
 
@@ -488,19 +490,24 @@ namespace BlockPage
                 _webServerLocalAddresses = webServerLocalAddresses;
             }
 
-            _webServerTlsCertificateFilePath = jsonConfig.webServerTlsCertificateFilePath?.Value;
-            _webServerTlsCertificatePassword = jsonConfig.webServerTlsCertificatePassword?.Value;
+            if (jsonConfig.webServerUseSelfSignedTlsCertificate is null)
+                _webServerUseSelfSignedTlsCertificate = true;
+            else
+                _webServerUseSelfSignedTlsCertificate = jsonConfig.webServerUseSelfSignedTlsCertificate.Value;
 
-            _webServerRootPath = jsonConfig.webServerRootPath?.Value;
+            _webServerTlsCertificateFilePath = jsonConfig.webServerTlsCertificateFilePath.Value;
+            _webServerTlsCertificatePassword = jsonConfig.webServerTlsCertificatePassword.Value;
+
+            _webServerRootPath = jsonConfig.webServerRootPath.Value;
 
             if (!Path.IsPathRooted(_webServerRootPath))
                 _webServerRootPath = Path.Combine(_dnsServer.ApplicationFolder, _webServerRootPath);
 
-            _serveBlockPageFromWebServerRoot = jsonConfig.serveBlockPageFromWebServerRoot?.Value;
+            _serveBlockPageFromWebServerRoot = jsonConfig.serveBlockPageFromWebServerRoot.Value;
 
-            string blockPageTitle = jsonConfig.blockPageTitle?.Value;
-            string blockPageHeading = jsonConfig.blockPageHeading?.Value;
-            string blockPageMessage = jsonConfig.blockPageMessage?.Value;
+            string blockPageTitle = jsonConfig.blockPageTitle.Value;
+            string blockPageHeading = jsonConfig.blockPageHeading.Value;
+            string blockPageMessage = jsonConfig.blockPageMessage.Value;
 
             string blockPageContent = @"<html>
 <head>
@@ -518,14 +525,41 @@ namespace BlockPage
             {
                 StopWebServer();
 
-                if (string.IsNullOrEmpty(_webServerTlsCertificateFilePath))
+                string selfSignedCertificateFilePath = Path.Combine(_dnsServer.ApplicationFolder, "cert.pfx");
+
+                if (_webServerUseSelfSignedTlsCertificate)
                 {
-                    StopTlsCertificateUpdateTimer();
-                    _webServerTlsCertificate = null;
+                    if (!File.Exists(selfSignedCertificateFilePath))
+                    {
+                        RSA rsa = RSA.Create(2048);
+                        CertificateRequest req = new CertificateRequest("cn=" + _dnsServer.ServerDomain, rsa, HashAlgorithmName.SHA256, RSASignaturePadding.Pkcs1);
+                        X509Certificate2 cert = req.CreateSelfSigned(DateTimeOffset.UtcNow, DateTimeOffset.UtcNow.AddYears(5));
+
+                        await File.WriteAllBytesAsync(selfSignedCertificateFilePath, cert.Export(X509ContentType.Pkcs12, null as string));
+                    }
                 }
                 else
                 {
-                    LoadWebServiceTlsCertificate();
+                    File.Delete(selfSignedCertificateFilePath);
+                }
+
+                if (string.IsNullOrEmpty(_webServerTlsCertificateFilePath))
+                {
+                    StopTlsCertificateUpdateTimer();
+
+                    if (_webServerUseSelfSignedTlsCertificate)
+                    {
+                        LoadWebServiceTlsCertificate(selfSignedCertificateFilePath, null);
+                    }
+                    else
+                    {
+                        //disable HTTPS
+                        _webServerTlsCertificate = null;
+                    }
+                }
+                else
+                {
+                    LoadWebServiceTlsCertificate(_webServerTlsCertificateFilePath, _webServerTlsCertificatePassword);
                     StartTlsCertificateUpdateTimer();
                 }
 
@@ -536,7 +570,12 @@ namespace BlockPage
                 _dnsServer.WriteLog(ex);
             }
 
-            return Task.CompletedTask;
+            if (jsonConfig.webServerUseSelfSignedTlsCertificate is null)
+            {
+                config = config.Replace("\"webServerTlsCertificateFilePath\"", "\"webServerUseSelfSignedTlsCertificate\": true,\r\n  \"webServerTlsCertificateFilePath\"");
+
+                await File.WriteAllTextAsync(Path.Combine(dnsServer.ApplicationFolder, "dnsApp.config"), config);
+            }
         }
 
         #endregion
@@ -544,7 +583,7 @@ namespace BlockPage
         #region properties
 
         public string Description
-        { get { return "Serves a block page from a built-in web server that can be displayed to the end user when a website is blocked by the DNS server.\n\nNote: You need to manually configure the custom IP addresses of this built-in web server in the blocking settings for the block page to be served."; } }
+        { get { return "Serves a block page from a built-in web server that can be displayed to the end user when a website is blocked by the DNS server.\n\nNote: You need to manually set the Blocking Type as Custom Address in the blocking settings and configure the current server's IP address as Custom Blocking Addresses for the block page to be served to the users. Use a PKCS #12 certificate (.pfx) for enabling HTTPS support. Enabling HTTPS support will show certificate error to the user which is expected and the user will have to proceed ignoring the certificate error to be able to see the block page."; } }
 
         #endregion
     }
