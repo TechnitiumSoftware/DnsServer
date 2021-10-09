@@ -268,6 +268,9 @@ function clearDhcpScopeForm() {
     $("#txtDhcpScopeLeaseTimeHours").val("0");
     $("#txtDhcpScopeLeaseTimeMinutes").val("0");
     $("#txtDhcpScopeOfferDelayTime").val("0");
+    $("#chkDhcpScopePingCheckEnabled").prop("checked", false);
+    $("#txtDhcpScopePingCheckTimeout").val("1000");
+    $("#txtDhcpScopePingCheckRetries").val("2");
     $("#txtDhcpScopeDomainName").val("");
     $("#txtDhcpScopeDnsTtl").val("900");
     $("#txtDhcpScopeServerAddress").val("");
