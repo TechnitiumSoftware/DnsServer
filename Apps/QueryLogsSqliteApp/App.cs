@@ -558,7 +558,7 @@ WHERE
                             if (reader.IsDBNull(6))
                                 question = null;
                             else
-                                question = new DnsQuestionRecord(reader.GetString(6), (DnsResourceRecordType)reader.GetInt32(7), (DnsClass)reader.GetInt32(8));
+                                question = new DnsQuestionRecord(reader.GetString(6), (DnsResourceRecordType)reader.GetInt32(7), (DnsClass)reader.GetInt32(8), false);
 
                             string answer;
 
