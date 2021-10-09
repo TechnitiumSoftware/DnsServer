@@ -3662,11 +3662,11 @@ namespace DnsServerCore
                 _log.Write("DNS Server config file was not found: " + configFile);
                 _log.Write("DNS Server is restoring default config file.");
 
-                string serverDomain = Environment.GetEnvironmentVariable("DNS_SERVER_DOMAIN");
+                string serverDomain = GetEnvVar("DOMAIN");
                 if (!string.IsNullOrEmpty(serverDomain))
                     _dnsServer.ServerDomain = serverDomain;
 
-                string adminPasswordFile = Environment.GetEnvironmentVariable("DNS_SERVER_ADMIN_PASSWORD_FILE");
+                string adminPasswordFile = GetEnvVar("ADMIN", "PASSWORD", "FILE");
                 if (string.IsNullOrEmpty(adminPasswordFile))
                 {
                     SetCredentials("admin", "admin");
@@ -3689,16 +3689,69 @@ namespace DnsServerCore
                     }
                 }
 
-                string strDnsOverHttp = Environment.GetEnvironmentVariable("DNS_SERVER_OPTIONAL_PROTOCOL_DNS_OVER_HTTP");
+                string strIP6 = GetEnvVar("PREFER","IPV6");
+                if (!string.IsNullOrEmpty(strIP6))
+                    _dnsServer.PreferIPv6 = bool.Parse(strIP6);
+
+                string strDnsOverHttp = GetEnvVar("OPTIONAL", "PROTOCOL", "DNS", "OVER", "HTTP");
                 if (!string.IsNullOrEmpty(strDnsOverHttp))
                     _dnsServer.EnableDnsOverHttp = bool.Parse(strDnsOverHttp);
 
-                string strForwarders = Environment.GetEnvironmentVariable("DNS_SERVER_FORWARDERS");
+                string strDnsRecursion = GetEnvVar("RECURSION");
+                if (!string.IsNullOrEmpty(strDnsRecursion))
+                {
+                    DnsServerRecursion serverRecursion;
+                    serverRecursion = Enum.Parse<DnsServerRecursion>(strDnsRecursion, true);
+                    _dnsServer.Recursion = serverRecursion;
+
+                    //Denied Networks
+                    List<NetworkAddress> deniedNetworks = new List<NetworkAddress>();
+                    string strRecursionDeniedNetworks = GetEnvVar("RECURSION", "DENIED");
+                    if (!string.IsNullOrEmpty(strRecursionDeniedNetworks))
+                    {
+                        string[] strRecursionDeniedNetworkAddresses = strRecursionDeniedNetworks.Split(new char[] { ',' }, StringSplitOptions.RemoveEmptyEntries);
+                        NetworkAddress[] networks = new NetworkAddress[strRecursionDeniedNetworkAddresses.Length];
+
+                        for (int i = 0; i < networks.Length; i++)
+                            networks[i] = NetworkAddress.Parse(strRecursionDeniedNetworkAddresses[i].Trim());
+
+                        _dnsServer.RecursionDeniedNetworks = networks;
+                    }
+
+                    //Allowed Networks
+                    List<NetworkAddress> allowedNetworks = new List<NetworkAddress>();
+                    string strRecursionAllowedNetworks = GetEnvVar("RECURSION", "ALLOWED");
+                    if (!string.IsNullOrEmpty(strRecursionAllowedNetworks))
+                    {
+                        string[] strRecursionAllowedNetworkAddresses = strRecursionAllowedNetworks.Split(new char[] { ',' }, StringSplitOptions.RemoveEmptyEntries);
+                        NetworkAddress[] networks = new NetworkAddress[strRecursionAllowedNetworkAddresses.Length];
+
+                        for (int i = 0; i < networks.Length; i++)
+                            networks[i] = NetworkAddress.Parse(strRecursionAllowedNetworkAddresses[i].Trim());
+
+                        _dnsServer.RecursionAllowedNetworks = networks;
+                    }
+                } 
+                else
+                {
+                    _dnsServer.Recursion = DnsServerRecursion.AllowOnlyForPrivateNetworks; //default for security reasons
+                }
+
+
+                string strBlockingEnable = GetEnvVar("BLOCKING");
+                if (!string.IsNullOrEmpty(strBlockingEnable))
+                    _dnsServer.EnableBlocking = bool.Parse(strBlockingEnable);
+
+                string strBlockingTXTReport = GetEnvVar("BLOCKING", "TXT", "REPORT");
+                if (!string.IsNullOrEmpty(strBlockingTXTReport))
+                    _dnsServer.AllowTxtBlockingReport = bool.Parse(strBlockingTXTReport);
+
+                string strForwarders = GetEnvVar("FORWARDERS");
                 if (!string.IsNullOrEmpty(strForwarders))
                 {
                     DnsTransportProtocol forwarderProtocol;
 
-                    string strForwarderProtocol = Environment.GetEnvironmentVariable("DNS_SERVER_FORWARDER_PROTOCOL");
+                    string strForwarderProtocol = GetEnvVar("FORWARDER", "PROTOCOL");
                     if (string.IsNullOrEmpty(strForwarderProtocol))
                         forwarderProtocol = DnsTransportProtocol.Udp;
                     else
@@ -3713,7 +3766,6 @@ namespace DnsServerCore
                     _dnsServer.Forwarders = forwarders;
                 }
 
-                _dnsServer.Recursion = DnsServerRecursion.AllowOnlyForPrivateNetworks; //default for security reasons
                 _dnsServer.RandomizeName = true; //default true to enable security feature
                 _dnsServer.QnameMinimization = true; //default true to enable privacy feature
                 _dnsServer.NsRevalidation = false; //default false since some badly configured websites fail to load
@@ -3726,6 +3778,22 @@ namespace DnsServerCore
                 _log.Write("Note: You may try deleting the config file to fix this issue. However, you will lose DNS settings but, zone data wont be affected.");
                 throw;
             }
+        }
+
+        private static string GetEnvVar(params string[] variable)
+        {
+            string variablePrefix = "DNS_SERVER_";
+            string variableParts = String.Join("_", variable);
+            string variableExpanded = String.Concat(variablePrefix, variableParts);
+
+            string variableValue;
+            if (OperatingSystem.IsWindows())
+            {
+                variableValue = Environment.GetEnvironmentVariable(variableExpanded, EnvironmentVariableTarget.User);
+            } else {
+                variableValue = Environment.GetEnvironmentVariable(variableExpanded);
+            }
+            return variableValue;
         }
 
         private void SaveConfigFile()

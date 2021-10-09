@@ -67,6 +67,23 @@ Applications of using a locally hosted DNS server is limited only by the user's 
 - **Cross-Platform**: [Download portable app](https://download.technitium.com/dns/DnsServerPortable.tar.gz) to run on any platform that has .NET 5 installed.
 - **Docker**: Pull the official image from [Docker Hub](https://hub.docker.com/r/technitium/dns-server). Use the [docker-compose.yml](https://github.com/TechnitiumSoftware/DnsServer/blob/master/docker-compose.yml) example to create a new container and edit it as required for your deployments. For more details and troubleshooting read the [install instructions](https://blog.technitium.com/2017/11/running-dns-server-on-ubuntu-linux.html).
 
+# Docker Environment Variables
+You can set docker environment variables for default configuration. This will only apply if the configuration file does not already exist.
+
+| Variable                                   | Type    | Description                                                                                    |
+| ------------------------------------------ | ------- | ---------------------------------------------------------------------------------------------- |
+| DNS_SERVER_DOMAIN                          | String  | The DNS Server Domain Name.                                                                    |
+| DNS_SERVER_ADMIN_PASSWORD_FILE             | String  | Path to a file that contains a plaintext password for the admin user account.                  |
+| DNS_SERVER_PREFER_IPV6                     | Boolean | Prefer IPv6.                                                                                   |
+| DNS_SERVER_OPTIONAL_PROTOCOL_DNS_OVER_HTTP | Boolean | Enable DNS over HTTP.                                                                          |
+| DNS_SERVER_RECURSION                       | String  | Recursion mode, one of `deny`, `allow`, `allowonlyforprivatenetworks`, `usespecifiednetworks`. |
+| DNS_SERVER_RECURSION_DENIED                | String  | Denied Networks (CIDR) for `usespecifiednetworks` recursion mode. Comma separated list.        |
+| DNS_SERVER_RECURSION_ALLOWED               | String  | Allowed Networks (CIDR) for `usespecifiednetworks` recursion mode. Comma separated list.       |
+| DNS_SERVER_BLOCKING                        | Boolean | Enable blocking (Blocked Zone, Block List Zone).                                               |
+| DNS_SERVER_BLOCKING_TXT_REPORT             | Boolean | TXT Blocking Report.                                                                           |
+| DNS_SERVER_FORWARDERS                      | String  | Comma separated list of Forwaders. Must be matched to the Forwarder Protocol.                  |
+| DNS_SERVER_FORWARDER_PROTOCOL              | String  | Forwarder protocol, one of `udp`, `tcp`, `tls`, `https`, `httpsjson`.                          |
+
 # API Documentation
 The DNS server HTTP API allows any 3rd party app or script to configure the DNS server. The HTTP API is used by the web console and thus all the actions that the web console does can be performed via the API. Read the [HTTP API documentation](https://github.com/TechnitiumSoftware/DnsServer/blob/master/APIDOCS.md) for complete details.
 
