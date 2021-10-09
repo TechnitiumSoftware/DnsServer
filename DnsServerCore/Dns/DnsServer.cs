@@ -363,27 +363,9 @@ namespace DnsServerCore.Dns
         {
             try
             {
-                DnsDatagram response;
-
-                if (request.ParsingException is null)
-                {
-                    response = await PreProcessQueryAsync(request, remoteEP, DnsTransportProtocol.Udp, IsRecursionAllowed(remoteEP));
-                    if (response is null)
-                        return; //drop request
-                }
-                else
-                {
-                    //format error
-                    if (!(request.ParsingException is IOException))
-                    {
-                        LogManager log = _log;
-                        if (log is not null)
-                            log.Write(remoteEP, DnsTransportProtocol.Udp, request.ParsingException);
-                    }
-
-                    //format error response
-                    response = new DnsDatagram(request.Identifier, true, request.OPCODE, false, false, request.RecursionDesired, IsRecursionAllowed(remoteEP), false, false, DnsResponseCode.FormatError, request.Question) { Tag = DnsServerResponseType.Authoritative };
-                }
+                DnsDatagram response = await PreProcessQueryAsync(request, remoteEP, DnsTransportProtocol.Udp, IsRecursionAllowed(remoteEP));
+                if (response is null)
+                    return; //drop request
 
                 //send response
                 byte[] sendBuffer = new byte[512];
@@ -587,28 +569,11 @@ namespace DnsServerCore.Dns
         {
             try
             {
-                DnsDatagram response;
-
-                if (request.ParsingException is null)
+                DnsDatagram response = await PreProcessQueryAsync(request, remoteEP, protocol, IsRecursionAllowed(remoteEP));
+                if (response is null)
                 {
-                    response = await PreProcessQueryAsync(request, remoteEP, protocol, IsRecursionAllowed(remoteEP));
-                    if (response is null)
-                    {
-                        await stream.DisposeAsync();
-                        return; //drop request
-                    }
-                }
-                else
-                {
-                    //format error
-                    if (!(request.ParsingException is IOException))
-                    {
-                        LogManager log = _log;
-                        if (log is not null)
-                            log.Write(remoteEP, protocol, request.ParsingException);
-                    }
-
-                    response = new DnsDatagram(request.Identifier, true, request.OPCODE, false, false, request.RecursionDesired, IsRecursionAllowed(remoteEP), false, false, DnsResponseCode.FormatError, request.Question) { Tag = DnsServerResponseType.Authoritative };
+                    await stream.DisposeAsync();
+                    return; //drop request
                 }
 
                 //send response
@@ -778,27 +743,9 @@ namespace DnsServerCore.Dns
                                                 throw new NotSupportedException("DoH request type not supported.");
                                         }
 
-                                        DnsDatagram dnsResponse;
-
-                                        if (dnsRequest.ParsingException is null)
-                                        {
-                                            dnsResponse = await PreProcessQueryAsync(dnsRequest, remoteEP, protocol, IsRecursionAllowed(remoteEP));
-                                            if (dnsResponse is null)
-                                                return; //drop request
-                                        }
-                                        else
-                                        {
-                                            //format error
-                                            if (!(dnsRequest.ParsingException is IOException))
-                                            {
-                                                LogManager log = _log;
-                                                if (log is not null)
-                                                    log.Write(remoteEP, protocol, dnsRequest.ParsingException);
-                                            }
-
-                                            //format error response
-                                            dnsResponse = new DnsDatagram(dnsRequest.Identifier, true, dnsRequest.OPCODE, false, false, dnsRequest.RecursionDesired, IsRecursionAllowed(remoteEP), false, false, DnsResponseCode.FormatError, dnsRequest.Question) { Tag = DnsServerResponseType.Authoritative };
-                                        }
+                                        DnsDatagram dnsResponse = await PreProcessQueryAsync(dnsRequest, remoteEP, protocol, IsRecursionAllowed(remoteEP));
+                                        if (dnsResponse is null)
+                                            return; //drop request
 
                                         using (MemoryStream mS = new MemoryStream(512))
                                         {
@@ -1047,6 +994,20 @@ namespace DnsServerCore.Dns
                 }
             }
 
+            if (request.ParsingException is not null)
+            {
+                //format error
+                if (!(request.ParsingException is IOException))
+                {
+                    LogManager log = _log;
+                    if (log is not null)
+                        log.Write(remoteEP, protocol, request.ParsingException);
+                }
+
+                //format error response
+                return new DnsDatagram(request.Identifier, true, request.OPCODE, false, false, request.RecursionDesired, isRecursionAllowed, false, false, DnsResponseCode.FormatError, request.Question) { Tag = DnsServerResponseType.Authoritative };
+            }
+
             if (request.IsSigned)
             {
                 if (!request.VerifySignedRequest(_tsigKeys, out DnsDatagram unsignedRequest, out DnsDatagram errorResponse))
@@ -1069,7 +1030,7 @@ namespace DnsServerCore.Dns
         private async Task<DnsDatagram> ProcessQueryAsync(DnsDatagram request, IPEndPoint remoteEP, DnsTransportProtocol protocol, bool isRecursionAllowed, bool skipDnsAppAuthoritativeRequestHandlers, string tsigAuthenticatedKeyName)
         {
             if (request.IsResponse)
-                return new DnsDatagram(request.Identifier, true, DnsOpcode.StandardQuery, false, false, request.RecursionDesired, false, false, false, DnsResponseCode.FormatError, request.Question) { Tag = DnsServerResponseType.Authoritative };
+                return null; //drop response datagram to avoid loops in rare scenarios
 
             switch (request.OPCODE)
             {
