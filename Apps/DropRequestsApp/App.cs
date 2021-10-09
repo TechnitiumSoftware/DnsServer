@@ -21,6 +21,7 @@ using DnsServerCore.ApplicationCommon;
 using Newtonsoft.Json;
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Net;
 using System.Threading.Tasks;
 using TechnitiumLibrary.Net;
@@ -33,6 +34,7 @@ namespace DropRequests
         #region variables
 
         bool _enableBlocking;
+        bool _dropMalformedRequests;
         IReadOnlyList<NetworkAddress> _allowedNetworks;
         IReadOnlyList<NetworkAddress> _blockedNetworks;
         IReadOnlyList<BlockedQuestion> _blockedQuestions;
@@ -50,11 +52,16 @@ namespace DropRequests
 
         #region public
 
-        public Task InitializeAsync(IDnsServer dnsServer, string config)
+        public async Task InitializeAsync(IDnsServer dnsServer, string config)
         {
             dynamic jsonConfig = JsonConvert.DeserializeObject(config);
 
             _enableBlocking = jsonConfig.enableBlocking.Value;
+
+            if (jsonConfig.dropMalformedRequests is null)
+                _dropMalformedRequests = false;
+            else
+                _dropMalformedRequests = jsonConfig.dropMalformedRequests.Value;
 
             if (jsonConfig.allowedNetworks is null)
             {
@@ -104,13 +111,21 @@ namespace DropRequests
                 _blockedQuestions = blockedQuestions;
             }
 
-            return Task.CompletedTask;
+            if (jsonConfig.dropMalformedRequests is null)
+            {
+                config = config.Replace("\"allowedNetworks\"", "\"dropMalformedRequests\": false,\r\n  \"allowedNetworks\"");
+
+                await File.WriteAllTextAsync(Path.Combine(dnsServer.ApplicationFolder, "dnsApp.config"), config);
+            }
         }
 
         public Task<DnsRequestControllerAction> GetRequestActionAsync(DnsDatagram request, IPEndPoint remoteEP, DnsTransportProtocol protocol)
         {
             if (!_enableBlocking)
                 return Task.FromResult(DnsRequestControllerAction.Allow);
+
+            if (_dropMalformedRequests && (request.ParsingException is not null))
+                return Task.FromResult(DnsRequestControllerAction.DropSilently);
 
             IPAddress remoteIp = remoteEP.Address;
 
