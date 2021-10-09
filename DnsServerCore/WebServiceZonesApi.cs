@@ -1281,13 +1281,24 @@ namespace DnsServerCore
 
                             default:
                                 {
-                                    jsonWriter.WritePropertyName("value");
-
-                                    using (MemoryStream mS = new MemoryStream())
+                                    if (record.RDATA is DnsUnknownRecord)
                                     {
-                                        record.RDATA.WriteTo(mS, new List<DnsDomainOffset>());
+                                        jsonWriter.WritePropertyName("value");
 
-                                        jsonWriter.WriteValue(Convert.ToBase64String(mS.ToArray()));
+                                        using (MemoryStream mS = new MemoryStream())
+                                        {
+                                            record.RDATA.WriteTo(mS, new List<DnsDomainOffset>());
+
+                                            jsonWriter.WriteValue(Convert.ToBase64String(mS.ToArray()));
+                                        }
+                                    }
+                                    else
+                                    {
+                                        jsonWriter.WritePropertyName("dataType");
+                                        jsonWriter.WriteValue(record.RDATA.GetType().Name);
+
+                                        jsonWriter.WritePropertyName("data");
+                                        jsonWriter.WriteValue(record.RDATA.ToString());
                                     }
                                 }
                                 break;
