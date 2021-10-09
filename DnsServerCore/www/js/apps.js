@@ -54,7 +54,7 @@ function refreshApps() {
                         }
 
                         if (apps[i].dnsApps[j].isRequestController)
-                            labels += "<span class=\"label label-info\">Drop Request</span>";
+                            labels += "<span class=\"label label-info\">Access Control</span>";
 
                         if (apps[i].dnsApps[j].isAuthoritativeRequestHandler)
                             labels += "<span class=\"label label-info\">Authoritative</span>";
