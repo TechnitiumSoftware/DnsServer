@@ -151,7 +151,7 @@ RESPONSE:
 ```
 {
 	"response": {
-		"version": "7.0",
+		"version": "7.1",
 		"dnsServerDomain": "server1",
 		"dnsServerLocalEndPoints": [
 			"0.0.0.0:53",
@@ -165,6 +165,7 @@ RESPONSE:
 		"webServiceEnableTls": false,
 		"webServiceHttpToTlsRedirect": false,
 		"webServiceTlsPort": 53443,
+		"webServiceUseSelfSignedTlsCertificate": false,
 		"webServiceTlsCertificatePath": null,
 		"webServiceTlsCertificatePassword": "************",
 		"enableDnsOverHttp": false,
@@ -258,6 +259,7 @@ WHERE:
 - `webServiceHttpPort` (optional): Specify the TCP port number for the web console and this API web service. Default value is `5380`.
 - `webServiceEnableTls` (optional): Set this to `true` to start the HTTPS service to acccess web service.
 - `webServiceTlsPort` (optional): Specified the TCP port number for the web console for HTTPS access.
+- `webServiceUseSelfSignedTlsCertificate` (optional): Set `true` for the web service to use an automatically generated self signed certificate when TLS certificate path is not specified.
 - `webServiceTlsCertificatePath` (optional): Specify a PKCS #12 certificate (.pfx) file path on the server. The certificate must contain private key. This certificate is used by the web console for HTTPS access.
 - `webServiceTlsCertificatePassword` (optional): Enter the certificate (.pfx) password, if any.
 - `enableDnsOverHttp` (optional): Enable this option to accept DNS-over-HTTP requests for both wire and json response formats. It must be used with a TLS terminating reverse proxy like nginx and will work only on private networks.
