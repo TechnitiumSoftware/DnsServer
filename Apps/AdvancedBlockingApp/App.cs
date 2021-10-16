@@ -1254,7 +1254,7 @@ namespace AdvancedBlocking
                     if (regex.Regex.IsMatch(domain))
                     {
                         //found pattern
-                        matchingPattern = regex.ToString();
+                        matchingPattern = regex.Regex.ToString();
                         blockListUrls = regex.BlockListUrls;
                         return true;
                     }
@@ -1320,7 +1320,7 @@ namespace AdvancedBlocking
                 }
 
                 //load regex list patterns from queue
-                Dictionary<string, object> allRegexPatterns = new Dictionary<string, object>(totalRegexPatterns);
+                Dictionary<string, List<Uri>> allRegexPatterns = new Dictionary<string, List<Uri>>(totalRegexPatterns);
 
                 foreach (KeyValuePair<Uri, Queue<string>> regexListQueue in regexListQueues)
                 {
@@ -1330,21 +1330,26 @@ namespace AdvancedBlocking
                     {
                         string regex = queue.Dequeue();
 
-                        if (!allRegexPatterns.TryGetValue(regex, out _))
-                            allRegexPatterns.Add(regex, null);
+                        if (!allRegexPatterns.TryGetValue(regex, out List<Uri> sourceListUrls))
+                        {
+                            sourceListUrls = new List<Uri>(2);
+                            allRegexPatterns.Add(regex, sourceListUrls);
+                        }
+
+                        sourceListUrls.Add(regexListQueue.Key);
                     }
                 }
 
                 //load regex list zone
                 List<RegexItem> regexListZone = new List<RegexItem>(totalRegexPatterns);
 
-                foreach (KeyValuePair<string, object> regexPattern in allRegexPatterns)
+                foreach (KeyValuePair<string, List<Uri>> regexPattern in allRegexPatterns)
                 {
                     try
                     {
                         Regex regex = new Regex(regexPattern.Key, RegexOptions.IgnoreCase | RegexOptions.Singleline | RegexOptions.Compiled);
 
-                        regexListZone.Add(new RegexItem(regex, null));
+                        regexListZone.Add(new RegexItem(regex, regexPattern.Value));
                     }
                     catch (RegexParseException ex)
                     {
