@@ -3754,9 +3754,51 @@ namespace DnsServerCore
                     }
                 }
 
+                string strPreferIPv6 = Environment.GetEnvironmentVariable("DNS_SERVER_PREFER_IPV6");
+                if (!string.IsNullOrEmpty(strPreferIPv6))
+                    _dnsServer.PreferIPv6 = bool.Parse(strPreferIPv6);
+
                 string strDnsOverHttp = Environment.GetEnvironmentVariable("DNS_SERVER_OPTIONAL_PROTOCOL_DNS_OVER_HTTP");
                 if (!string.IsNullOrEmpty(strDnsOverHttp))
                     _dnsServer.EnableDnsOverHttp = bool.Parse(strDnsOverHttp);
+
+                string strRecursion = Environment.GetEnvironmentVariable("DNS_SERVER_RECURSION");
+                if (!string.IsNullOrEmpty(strRecursion))
+                    _dnsServer.Recursion = Enum.Parse<DnsServerRecursion>(strRecursion, true);
+                else
+                    _dnsServer.Recursion = DnsServerRecursion.AllowOnlyForPrivateNetworks; //default for security reasons
+
+                string strRecursionDeniedNetworks = Environment.GetEnvironmentVariable("DNS_SERVER_RECURSION_DENIED_NETWORKS");
+                if (!string.IsNullOrEmpty(strRecursionDeniedNetworks))
+                {
+                    string[] strRecursionDeniedNetworkAddresses = strRecursionDeniedNetworks.Split(new char[] { ',' }, StringSplitOptions.RemoveEmptyEntries);
+                    NetworkAddress[] networks = new NetworkAddress[strRecursionDeniedNetworkAddresses.Length];
+
+                    for (int i = 0; i < networks.Length; i++)
+                        networks[i] = NetworkAddress.Parse(strRecursionDeniedNetworkAddresses[i].Trim());
+
+                    _dnsServer.RecursionDeniedNetworks = networks;
+                }
+
+                string strRecursionAllowedNetworks = Environment.GetEnvironmentVariable("DNS_SERVER_RECURSION_ALLOWED_NETWORKS");
+                if (!string.IsNullOrEmpty(strRecursionAllowedNetworks))
+                {
+                    string[] strRecursionAllowedNetworkAddresses = strRecursionAllowedNetworks.Split(new char[] { ',' }, StringSplitOptions.RemoveEmptyEntries);
+                    NetworkAddress[] networks = new NetworkAddress[strRecursionAllowedNetworkAddresses.Length];
+
+                    for (int i = 0; i < networks.Length; i++)
+                        networks[i] = NetworkAddress.Parse(strRecursionAllowedNetworkAddresses[i].Trim());
+
+                    _dnsServer.RecursionAllowedNetworks = networks;
+                }
+
+                string strEnableBlocking = Environment.GetEnvironmentVariable("DNS_SERVER_ENABLE_BLOCKING");
+                if (!string.IsNullOrEmpty(strEnableBlocking))
+                    _dnsServer.EnableBlocking = bool.Parse(strEnableBlocking);
+
+                string strAllowTxtBlockingReport = Environment.GetEnvironmentVariable("DNS_SERVER_ALLOW_TXT_BLOCKING_REPORT");
+                if (!string.IsNullOrEmpty(strAllowTxtBlockingReport))
+                    _dnsServer.AllowTxtBlockingReport = bool.Parse(strAllowTxtBlockingReport);
 
                 string strForwarders = Environment.GetEnvironmentVariable("DNS_SERVER_FORWARDERS");
                 if (!string.IsNullOrEmpty(strForwarders))
@@ -3778,7 +3820,6 @@ namespace DnsServerCore
                     _dnsServer.Forwarders = forwarders;
                 }
 
-                _dnsServer.Recursion = DnsServerRecursion.AllowOnlyForPrivateNetworks; //default for security reasons
                 _dnsServer.RandomizeName = true; //default true to enable security feature
                 _dnsServer.QnameMinimization = true; //default true to enable privacy feature
                 _dnsServer.NsRevalidation = false; //default false since some badly configured websites fail to load
