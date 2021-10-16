@@ -1375,6 +1375,11 @@ function checkForWebConsoleRedirection(responseJSON) {
         return;
 
     if (location.protocol == "https:") {
+        if (!responseJSON.response.webServiceEnableTls) {
+            window.open("http://" + window.location.hostname + ":" + responseJSON.response.webServiceHttpPort, "_self");
+            return;
+        }
+
         var currentPort = window.location.port;
 
         if ((currentPort == 0) || (currentPort == ""))
@@ -1382,7 +1387,13 @@ function checkForWebConsoleRedirection(responseJSON) {
 
         if (currentPort != responseJSON.response.webServiceTlsPort)
             window.open("https://" + window.location.hostname + ":" + responseJSON.response.webServiceTlsPort, "_self");
-    } else {
+    }
+    else {
+        if (responseJSON.response.webServiceEnableTls && responseJSON.response.webServiceHttpToTlsRedirect) {
+            window.open("https://" + window.location.hostname + ":" + responseJSON.response.webServiceTlsPort, "_self");
+            return;
+        }
+
         var currentPort = window.location.port;
 
         if ((currentPort == 0) || (currentPort == ""))
