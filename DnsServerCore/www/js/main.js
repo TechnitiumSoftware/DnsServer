@@ -166,6 +166,7 @@ $(function () {
     $("#chkWebServiceEnableTls").click(function () {
         var webServiceEnableTls = $("#chkWebServiceEnableTls").prop("checked");
         $("#chkWebServiceHttpToTlsRedirect").prop("disabled", !webServiceEnableTls);
+        $("#chkWebServiceUseSelfSignedTlsCertificate").prop("disabled", !webServiceEnableTls);
         $("#txtWebServiceTlsPort").prop("disabled", !webServiceEnableTls);
         $("#txtWebServiceTlsCertificatePath").prop("disabled", !webServiceEnableTls);
         $("#txtWebServiceTlsCertificatePassword").prop("disabled", !webServiceEnableTls);
@@ -725,11 +726,13 @@ function loadDnsSettings() {
 
             $("#chkWebServiceEnableTls").prop("checked", responseJSON.response.webServiceEnableTls);
             $("#chkWebServiceHttpToTlsRedirect").prop("disabled", !responseJSON.response.webServiceEnableTls);
+            $("#chkWebServiceUseSelfSignedTlsCertificate").prop("disabled", !responseJSON.response.webServiceEnableTls);
             $("#txtWebServiceTlsPort").prop("disabled", !responseJSON.response.webServiceEnableTls);
             $("#txtWebServiceTlsCertificatePath").prop("disabled", !responseJSON.response.webServiceEnableTls);
             $("#txtWebServiceTlsCertificatePassword").prop("disabled", !responseJSON.response.webServiceEnableTls);
 
             $("#chkWebServiceHttpToTlsRedirect").prop("checked", responseJSON.response.webServiceHttpToTlsRedirect);
+            $("#chkWebServiceUseSelfSignedTlsCertificate").prop("checked", responseJSON.response.webServiceUseSelfSignedTlsCertificate);
             $("#txtWebServiceTlsPort").val(responseJSON.response.webServiceTlsPort);
             $("#txtWebServiceTlsCertificatePath").val(responseJSON.response.webServiceTlsCertificatePath);
 
@@ -1048,6 +1051,7 @@ function saveDnsSettings() {
 
     var webServiceEnableTls = $("#chkWebServiceEnableTls").prop("checked");
     var webServiceHttpToTlsRedirect = $("#chkWebServiceHttpToTlsRedirect").prop("checked");
+    var webServiceUseSelfSignedTlsCertificate = $("#chkWebServiceUseSelfSignedTlsCertificate").prop("checked");
     var webServiceTlsPort = $("#txtWebServiceTlsPort").val();
     var webServiceTlsCertificatePath = $("#txtWebServiceTlsCertificatePath").val();
     var webServiceTlsCertificatePassword = $("#txtWebServiceTlsCertificatePassword").val();
@@ -1254,7 +1258,7 @@ function saveDnsSettings() {
 
     HTTPRequest({
         url: "/api/setDnsSettings?token=" + token + "&dnsServerDomain=" + dnsServerDomain + "&dnsServerLocalEndPoints=" + encodeURIComponent(dnsServerLocalEndPoints)
-            + "&webServiceLocalAddresses=" + encodeURIComponent(webServiceLocalAddresses) + "&webServiceHttpPort=" + webServiceHttpPort + "&webServiceEnableTls=" + webServiceEnableTls + "&webServiceHttpToTlsRedirect=" + webServiceHttpToTlsRedirect + "&webServiceTlsPort=" + webServiceTlsPort + "&webServiceTlsCertificatePath=" + encodeURIComponent(webServiceTlsCertificatePath) + "&webServiceTlsCertificatePassword=" + encodeURIComponent(webServiceTlsCertificatePassword)
+            + "&webServiceLocalAddresses=" + encodeURIComponent(webServiceLocalAddresses) + "&webServiceHttpPort=" + webServiceHttpPort + "&webServiceEnableTls=" + webServiceEnableTls + "&webServiceHttpToTlsRedirect=" + webServiceHttpToTlsRedirect + "&webServiceUseSelfSignedTlsCertificate=" + webServiceUseSelfSignedTlsCertificate + "&webServiceTlsPort=" + webServiceTlsPort + "&webServiceTlsCertificatePath=" + encodeURIComponent(webServiceTlsCertificatePath) + "&webServiceTlsCertificatePassword=" + encodeURIComponent(webServiceTlsCertificatePassword)
             + "&enableDnsOverHttp=" + enableDnsOverHttp + "&enableDnsOverTls=" + enableDnsOverTls + "&enableDnsOverHttps=" + enableDnsOverHttps + "&dnsTlsCertificatePath=" + encodeURIComponent(dnsTlsCertificatePath) + "&dnsTlsCertificatePassword=" + encodeURIComponent(dnsTlsCertificatePassword)
             + "&tsigKeys=" + encodeURIComponent(tsigKeys)
             + "&defaultRecordTtl=" + defaultRecordTtl + "&preferIPv6=" + preferIPv6 + "&enableLogging=" + enableLogging + "&logQueries=" + logQueries + "&useLocalTime=" + useLocalTime + "&logFolder=" + encodeURIComponent(logFolder) + "&maxLogFileDays=" + maxLogFileDays + "&maxStatFileDays=" + maxStatFileDays
@@ -1268,6 +1272,14 @@ function saveDnsSettings() {
             $("#txtDnsServerDomain").val(responseJSON.response.dnsServerDomain);
 
             $("#txtAddEditRecordTtl").attr("placeholder", responseJSON.response.defaultRecordTtl);
+
+            //reset tls state
+            $("#chkWebServiceEnableTls").prop("checked", responseJSON.response.webServiceEnableTls);
+            $("#chkWebServiceHttpToTlsRedirect").prop("disabled", !responseJSON.response.webServiceEnableTls);
+            $("#chkWebServiceUseSelfSignedTlsCertificate").prop("disabled", !responseJSON.response.webServiceEnableTls);
+            $("#txtWebServiceTlsPort").prop("disabled", !responseJSON.response.webServiceEnableTls);
+            $("#txtWebServiceTlsCertificatePath").prop("disabled", !responseJSON.response.webServiceEnableTls);
+            $("#txtWebServiceTlsCertificatePassword").prop("disabled", !responseJSON.response.webServiceEnableTls);
 
             //reload tsig keys
             $("#tableTsigKeys").html("");
