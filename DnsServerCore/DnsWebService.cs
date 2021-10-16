@@ -3731,12 +3731,14 @@ namespace DnsServerCore
                 if (!string.IsNullOrEmpty(serverDomain))
                     _dnsServer.ServerDomain = serverDomain;
 
+                string adminPassword = Environment.GetEnvironmentVariable("DNS_SERVER_ADMIN_PASSWORD");
                 string adminPasswordFile = Environment.GetEnvironmentVariable("DNS_SERVER_ADMIN_PASSWORD_FILE");
-                if (string.IsNullOrEmpty(adminPasswordFile))
+
+                if (!string.IsNullOrEmpty(adminPassword))
                 {
-                    SetCredentials("admin", "admin");
+                    SetCredentials("admin", adminPassword);
                 }
-                else
+                else if (!string.IsNullOrEmpty(adminPasswordFile))
                 {
                     try
                     {
@@ -3752,6 +3754,10 @@ namespace DnsServerCore
 
                         SetCredentials("admin", "admin");
                     }
+                }
+                else
+                {
+                    SetCredentials("admin", "admin");
                 }
 
                 string strPreferIPv6 = Environment.GetEnvironmentVariable("DNS_SERVER_PREFER_IPV6");
