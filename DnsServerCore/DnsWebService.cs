@@ -87,6 +87,7 @@ namespace DnsServerCore
         int _webServiceTlsPort = 53443;
         bool _webServiceEnableTls;
         bool _webServiceHttpToTlsRedirect;
+        bool _webServiceUseSelfSignedTlsCertificate;
         string _webServiceTlsCertificatePath;
         string _webServiceTlsCertificatePassword;
         DateTime _webServiceTlsCertificateLastModifiedOn;
@@ -1191,6 +1192,9 @@ namespace DnsServerCore
             jsonWriter.WritePropertyName("webServiceTlsPort");
             jsonWriter.WriteValue(_webServiceTlsPort);
 
+            jsonWriter.WritePropertyName("webServiceUseSelfSignedTlsCertificate");
+            jsonWriter.WriteValue(_webServiceUseSelfSignedTlsCertificate);
+
             jsonWriter.WritePropertyName("webServiceTlsCertificatePath");
             jsonWriter.WriteValue(_webServiceTlsCertificatePath);
 
@@ -1587,6 +1591,10 @@ namespace DnsServerCore
                 if (oldWebServiceTlsPort != _webServiceTlsPort)
                     restartWebService = true;
             }
+
+            string strWebServiceUseSelfSignedTlsCertificate = request.QueryString["webServiceUseSelfSignedTlsCertificate"];
+            if (!string.IsNullOrEmpty(strWebServiceUseSelfSignedTlsCertificate))
+                _webServiceUseSelfSignedTlsCertificate = bool.Parse(strWebServiceUseSelfSignedTlsCertificate);
 
             string strWebServiceTlsCertificatePath = request.QueryString["webServiceTlsCertificatePath"];
             string strWebServiceTlsCertificatePassword = request.QueryString["webServiceTlsCertificatePassword"];
@@ -2073,17 +2081,62 @@ namespace DnsServerCore
                 _blockListUpdateIntervalHours = blockListUpdateIntervalHours;
             }
 
+            if ((_webServiceTlsCertificatePath == null) && (_dnsTlsCertificatePath == null))
+                StopTlsCertificateUpdateTimer();
+
+            SelfSignedCertCheck(true);
+
+            if (_webServiceEnableTls && string.IsNullOrEmpty(_webServiceTlsCertificatePath) && !_webServiceUseSelfSignedTlsCertificate)
+            {
+                //disable TLS
+                _webServiceEnableTls = false;
+                restartWebService = true;
+            }
+
             SaveConfigFile();
             _log.Save();
 
-            _log.Write(GetRequestRemoteEndPoint(request), "[" + GetSession(request).Username + "] DNS Settings were updated {dnsServerDomain: " + _dnsServer.ServerDomain + "; dnsServerLocalEndPoints: " + strDnsServerLocalEndPoints + "; webServiceLocalAddresses: " + strWebServiceLocalAddresses + "; webServiceHttpPort: " + _webServiceHttpPort + "; webServiceEnableTls: " + strWebServiceEnableTls + "; webServiceHttpToTlsRedirect: " + strWebServiceHttpToTlsRedirect + "; webServiceTlsPort: " + strWebServiceTlsPort + "; webServiceTlsCertificatePath: " + strWebServiceTlsCertificatePath + "; enableDnsOverHttp: " + _dnsServer.EnableDnsOverHttp + "; enableDnsOverTls: " + _dnsServer.EnableDnsOverTls + "; enableDnsOverHttps: " + _dnsServer.EnableDnsOverHttps + "; dnsTlsCertificatePath: " + _dnsTlsCertificatePath + "; defaultRecordTtl: " + _zonesApi.DefaultRecordTtl + "; preferIPv6: " + _dnsServer.PreferIPv6 + "; enableLogging: " + strEnableLogging + "; logQueries: " + (_dnsServer.QueryLogManager != null) + "; useLocalTime: " + strUseLocalTime + "; logFolder: " + strLogFolder + "; maxLogFileDays: " + strMaxLogFileDays + "; recursion: " + _dnsServer.Recursion.ToString() + "; randomizeName: " + strRandomizeName + "; qnameMinimization: " + strQnameMinimization + "; serveStale: " + strServeStale + "; serveStaleTtl: " + strServeStaleTtl + "; cachePrefetchEligibility: " + strCachePrefetchEligibility + "; cachePrefetchTrigger: " + strCachePrefetchTrigger + "; cachePrefetchSampleIntervalInMinutes: " + strCachePrefetchSampleIntervalInMinutes + "; cachePrefetchSampleEligibilityHitsPerHour: " + strCachePrefetchSampleEligibilityHitsPerHour + "; proxyType: " + strProxyType + "; forwarders: " + strForwarders + "; forwarderProtocol: " + strForwarderProtocol + "; enableBlocking: " + _dnsServer.EnableBlocking + "; allowTxtBlockingReport: " + _dnsServer.AllowTxtBlockingReport + "; blockingType: " + _dnsServer.BlockingType.ToString() + "; blockListUrl: " + strBlockListUrls + "; blockListUpdateIntervalHours: " + strBlockListUpdateIntervalHours + ";}");
-
-            if ((_webServiceTlsCertificatePath == null) && (_dnsTlsCertificatePath == null))
-                StopTlsCertificateUpdateTimer();
+            _log.Write(GetRequestRemoteEndPoint(request), "[" + GetSession(request).Username + "] DNS Settings were updated {dnsServerDomain: " + _dnsServer.ServerDomain + "; dnsServerLocalEndPoints: " + strDnsServerLocalEndPoints + "; webServiceLocalAddresses: " + strWebServiceLocalAddresses + "; webServiceHttpPort: " + _webServiceHttpPort + "; webServiceEnableTls: " + strWebServiceEnableTls + "; webServiceHttpToTlsRedirect: " + strWebServiceHttpToTlsRedirect + "; webServiceTlsPort: " + strWebServiceTlsPort + "; webServiceUseSelfSignedTlsCertificate: " + _webServiceUseSelfSignedTlsCertificate + "; webServiceTlsCertificatePath: " + strWebServiceTlsCertificatePath + "; enableDnsOverHttp: " + _dnsServer.EnableDnsOverHttp + "; enableDnsOverTls: " + _dnsServer.EnableDnsOverTls + "; enableDnsOverHttps: " + _dnsServer.EnableDnsOverHttps + "; dnsTlsCertificatePath: " + _dnsTlsCertificatePath + "; defaultRecordTtl: " + _zonesApi.DefaultRecordTtl + "; preferIPv6: " + _dnsServer.PreferIPv6 + "; enableLogging: " + strEnableLogging + "; logQueries: " + (_dnsServer.QueryLogManager != null) + "; useLocalTime: " + strUseLocalTime + "; logFolder: " + strLogFolder + "; maxLogFileDays: " + strMaxLogFileDays + "; recursion: " + _dnsServer.Recursion.ToString() + "; randomizeName: " + strRandomizeName + "; qnameMinimization: " + strQnameMinimization + "; serveStale: " + strServeStale + "; serveStaleTtl: " + strServeStaleTtl + "; cachePrefetchEligibility: " + strCachePrefetchEligibility + "; cachePrefetchTrigger: " + strCachePrefetchTrigger + "; cachePrefetchSampleIntervalInMinutes: " + strCachePrefetchSampleIntervalInMinutes + "; cachePrefetchSampleEligibilityHitsPerHour: " + strCachePrefetchSampleEligibilityHitsPerHour + "; proxyType: " + strProxyType + "; forwarders: " + strForwarders + "; forwarderProtocol: " + strForwarderProtocol + "; enableBlocking: " + _dnsServer.EnableBlocking + "; allowTxtBlockingReport: " + _dnsServer.AllowTxtBlockingReport + "; blockingType: " + _dnsServer.BlockingType.ToString() + "; blockListUrl: " + strBlockListUrls + "; blockListUpdateIntervalHours: " + strBlockListUpdateIntervalHours + ";}");
 
             GetDnsSettings(jsonWriter);
 
             RestartService(restartDnsService, restartWebService);
+        }
+
+        private void SelfSignedCertCheck(bool throwException)
+        {
+            string selfSignedCertificateFilePath = Path.Combine(_configFolder, "cert.pfx");
+
+            if (_webServiceUseSelfSignedTlsCertificate)
+            {
+                if (!File.Exists(selfSignedCertificateFilePath))
+                {
+                    RSA rsa = RSA.Create(2048);
+                    CertificateRequest req = new CertificateRequest("cn=" + _dnsServer.ServerDomain, rsa, HashAlgorithmName.SHA256, RSASignaturePadding.Pkcs1);
+                    X509Certificate2 cert = req.CreateSelfSigned(DateTimeOffset.UtcNow, DateTimeOffset.UtcNow.AddYears(5));
+
+                    File.WriteAllBytes(selfSignedCertificateFilePath, cert.Export(X509ContentType.Pkcs12, null as string));
+                }
+
+                if (_webServiceEnableTls && string.IsNullOrEmpty(_webServiceTlsCertificatePath))
+                {
+                    try
+                    {
+                        LoadWebServiceTlsCertificate(selfSignedCertificateFilePath, null);
+                    }
+                    catch (Exception ex)
+                    {
+                        _log.Write("DNS Server encountered an error while loading self signed Web Service TLS certificate: " + selfSignedCertificateFilePath + "\r\n" + ex.ToString());
+
+                        if (throwException)
+                            throw;
+                    }
+                }
+            }
+            else
+            {
+                File.Delete(selfSignedCertificateFilePath);
+            }
         }
 
         private void RestartService(bool restartDnsService, bool restartWebService)
@@ -3154,6 +3207,7 @@ namespace DnsServerCore
                         case 21:
                         case 22:
                         case 23:
+                        case 24:
                             _dnsServer.ServerDomain = bR.ReadShortString();
                             _webServiceHttpPort = bR.ReadInt32();
 
@@ -3630,6 +3684,17 @@ namespace DnsServerCore
                                 _zonesApi.DefaultRecordTtl = 3600;
                             }
 
+                            if (version >= 24)
+                            {
+                                _webServiceUseSelfSignedTlsCertificate = bR.ReadBoolean();
+
+                                SelfSignedCertCheck(false);
+                            }
+                            else
+                            {
+                                _webServiceUseSelfSignedTlsCertificate = false;
+                            }
+
                             break;
 
                         default:
@@ -3738,7 +3803,7 @@ namespace DnsServerCore
                 BinaryWriter bW = new BinaryWriter(mS);
 
                 bW.Write(Encoding.ASCII.GetBytes("DS")); //format
-                bW.Write((byte)23); //version
+                bW.Write((byte)24); //version
 
                 bW.WriteShortString(_dnsServer.ServerDomain);
                 bW.Write(_webServiceHttpPort);
@@ -3935,9 +4000,9 @@ namespace DnsServerCore
                 }
 
                 bW.Write(_dnsServer.NsRevalidation);
-
                 bW.Write(_dnsServer.AllowTxtBlockingReport);
                 bW.Write(_zonesApi.DefaultRecordTtl);
+                bW.Write(_webServiceUseSelfSignedTlsCertificate);
 
                 //write config
                 mS.Position = 0;
