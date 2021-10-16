@@ -1146,9 +1146,16 @@ namespace DnsServerCore.Dns
 
         private async Task<DnsDatagram> ProcessZoneTransferQueryAsync(DnsDatagram request, IPEndPoint remoteEP, DnsTransportProtocol protocol, string tsigAuthenticatedKeyName)
         {
+            LogManager log = _log;
+
             AuthZoneInfo authZoneInfo = _authZoneManager.GetAuthZoneInfo(request.Question[0].Name);
             if ((authZoneInfo is null) || authZoneInfo.Disabled || authZoneInfo.IsExpired)
+            {
+                if (log is not null)
+                    log.Write(remoteEP, protocol, "DNS Server refused a zone transfer request due to zone not found, zone disabled, or zone expired reasons for zone: " + (authZoneInfo.Name == "" ? "<root>" : authZoneInfo.Name));
+
                 return new DnsDatagram(request.Identifier, true, DnsOpcode.StandardQuery, false, false, request.RecursionDesired, false, false, false, DnsResponseCode.Refused, request.Question) { Tag = DnsServerResponseType.Authoritative };
+            }
 
             switch (authZoneInfo.Type)
             {
@@ -1157,6 +1164,9 @@ namespace DnsServerCore.Dns
                     break;
 
                 default:
+                    if (log is not null)
+                        log.Write(remoteEP, protocol, "DNS Server refused a zone transfer request since the DNS server is not authoritative for zone: " + (authZoneInfo.Name == "" ? "<root>" : authZoneInfo.Name));
+
                     return new DnsDatagram(request.Identifier, true, DnsOpcode.StandardQuery, false, false, request.RecursionDesired, false, false, false, DnsResponseCode.Refused, request.Question) { Tag = DnsServerResponseType.Authoritative };
             }
 
@@ -1218,15 +1228,24 @@ namespace DnsServerCore.Dns
             }
 
             if (!isZoneTransferAllowed)
+            {
+                if (log is not null)
+                    log.Write(remoteEP, protocol, "DNS Server refused a zone transfer request since the request IP address is not allowed by the zone: " + (authZoneInfo.Name == "" ? "<root>" : authZoneInfo.Name));
+
                 return new DnsDatagram(request.Identifier, true, DnsOpcode.StandardQuery, false, false, request.RecursionDesired, false, false, false, DnsResponseCode.Refused, request.Question) { Tag = DnsServerResponseType.Authoritative };
+            }
 
             if ((authZoneInfo.TsigKeyNames is not null) && (authZoneInfo.TsigKeyNames.Count > 0))
             {
                 if ((tsigAuthenticatedKeyName is null) || !authZoneInfo.TsigKeyNames.ContainsKey(tsigAuthenticatedKeyName.ToLower()))
+                {
+                    if (log is not null)
+                        log.Write(remoteEP, protocol, "DNS Server refused a zone transfer request since the request is missing TSIG auth required by the zone: " + (authZoneInfo.Name == "" ? "<root>" : authZoneInfo.Name));
+
                     return new DnsDatagram(request.Identifier, true, DnsOpcode.StandardQuery, false, false, request.RecursionDesired, false, false, false, DnsResponseCode.Refused, request.Question) { Tag = DnsServerResponseType.Authoritative };
+                }
             }
 
-            LogManager log = _log;
             if (log is not null)
                 log.Write(remoteEP, protocol, "DNS Server received zone transfer request for zone: " + (authZoneInfo.Name == "" ? "<root>" : authZoneInfo.Name));
 
@@ -2065,6 +2084,12 @@ namespace DnsServerCore.Dns
                     dnsClient.Concurrency = _forwarderConcurrency;
 
                     response = await dnsClient.ResolveAsync(question);
+
+                    if (viaForwarders is not null)
+                        response = SanitizeConditionalForwarderResponseAnswer(response);
+
+                    response = SanitizeForwarderResponseAuthority(response);
+
                     _cacheZoneManager.CacheResponse(response);
                 }
                 else
@@ -2138,6 +2163,62 @@ namespace DnsServerCore.Dns
             {
                 _resolverTasks.TryRemove(GetResolverQueryKey(question), out _);
             }
+        }
+
+        private static DnsDatagram SanitizeConditionalForwarderResponseAnswer(DnsDatagram response)
+        {
+            string qName = response.Question[0].Name;
+
+            for (int i = 0; i < response.Answer.Count; i++)
+            {
+                DnsResourceRecord answer = response.Answer[i];
+
+                if (answer.Name.Equals(qName, StringComparison.OrdinalIgnoreCase))
+                {
+                    switch (answer.Type)
+                    {
+                        case DnsResourceRecordType.CNAME:
+                            if (i < response.Answer.Count - 1)
+                            {
+                                //do not follow CNAME for conditional forwarder response
+                                //truncate answer upto current RR
+                                List<DnsResourceRecord> newAnswers = new List<DnsResourceRecord>(i + 1);
+
+                                for (int j = 0; j <= i; j++)
+                                    newAnswers.Add(response.Answer[j]);
+
+                                return response.Clone(newAnswers, null);
+                            }
+                            break;
+                    }
+                }
+                else if ((answer.Type == DnsResourceRecordType.DNAME) && qName.EndsWith("." + answer.Name, StringComparison.OrdinalIgnoreCase))
+                {
+                    //found DNAME, continue next
+                }
+                else
+                {
+                    //name mismatch
+                    //truncate answer upto previous RR
+
+                    List<DnsResourceRecord> newAnswers = new List<DnsResourceRecord>(i);
+
+                    for (int j = 0; j < i; j++)
+                        newAnswers.Add(response.Answer[j]);
+
+                    return response.Clone(newAnswers, null);
+                }
+            }
+
+            return response;
+        }
+
+        private static DnsDatagram SanitizeForwarderResponseAuthority(DnsDatagram response)
+        {
+            if ((response.Authority.Count > 0) && (response.Authority[0].Type != DnsResourceRecordType.SOA))
+                return response.Clone(null, Array.Empty<DnsResourceRecord>());
+
+            return response;
         }
 
         private static string GetResolverQueryKey(DnsQuestionRecord question)
