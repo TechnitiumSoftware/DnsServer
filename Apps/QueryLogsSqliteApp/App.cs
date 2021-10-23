@@ -499,7 +499,7 @@ CREATE TABLE IF NOT EXISTS dns_logs
 SELECT * FROM (
     SELECT
         ROW_NUMBER() OVER ( 
-            ORDER BY timestamp
+            ORDER BY dlid
         ) row_num,
         timestamp,
         client_ip,
@@ -513,11 +513,10 @@ SELECT * FROM (
     FROM
         dns_logs
 " + (string.IsNullOrEmpty(whereClause) ? "" : "WHERE " + whereClause) + @"
-    ORDER BY row_num" + (descendingOrder ? " DESC" : "") + @"
 ) t
 WHERE 
     row_num > @start_row_num AND row_num <= @end_row_num
-";
+ORDER BY row_num" + (descendingOrder ? " DESC" : "");
 
                     command.Parameters.AddWithValue("@start_row_num", startRowNum);
                     command.Parameters.AddWithValue("@end_row_num", endRowNum);
