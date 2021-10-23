@@ -1914,10 +1914,12 @@ namespace DnsServerCore
 
                     for (int i = 0; i < strForwardersList.Length; i++)
                     {
-                        if ((forwarderProtocol == DnsTransportProtocol.Tls) && IPAddress.TryParse(strForwardersList[i], out _))
-                            strForwardersList[i] += ":853";
+                        NameServerAddress forwarder = new NameServerAddress(strForwardersList[i]);
 
-                        forwarders[i] = new NameServerAddress(strForwardersList[i], forwarderProtocol);
+                        if (forwarder.Protocol != forwarderProtocol)
+                            forwarder = forwarder.ChangeProtocol(forwarderProtocol);
+
+                        forwarders[i] = forwarder;
                     }
 
                     _dnsServer.Forwarders = forwarders;
