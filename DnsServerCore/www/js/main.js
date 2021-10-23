@@ -1303,6 +1303,20 @@ function saveDnsSettings() {
             if (enableBlocking)
                 $("#lblTemporaryDisableBlockingTill").text("Not Set");
 
+            //reload forwarders
+            var forwarders = responseJSON.response.forwarders;
+            if (forwarders == null) {
+                $("#txtForwarders").val("");
+            }
+            else {
+                var value = "";
+
+                for (var i = 0; i < forwarders.length; i++)
+                    value += forwarders[i] + "\r\n";
+
+                $("#txtForwarders").val(value);
+            }
+
             btn.button('reset');
             showAlert("success", "Settings Saved!", "DNS Server settings were saved successfully.");
 
