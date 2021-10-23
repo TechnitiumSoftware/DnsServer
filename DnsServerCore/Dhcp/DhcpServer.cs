@@ -34,16 +34,16 @@ using TechnitiumLibrary.Net.Dns.ResourceRecords;
 namespace DnsServerCore.Dhcp
 {
     //Dynamic Host Configuration Protocol
-    //https://tools.ietf.org/html/rfc2131
+    //https://datatracker.ietf.org/doc/html/rfc2131
 
     //DHCP Options and BOOTP Vendor Extensions
-    //https://tools.ietf.org/html/rfc2132
+    //https://datatracker.ietf.org/doc/html/rfc2132
 
     //Encoding Long Options in the Dynamic Host Configuration Protocol (DHCPv4)
-    //https://tools.ietf.org/html/rfc3396
+    //https://datatracker.ietf.org/doc/html/rfc3396
 
     //Client Fully Qualified Domain Name(FQDN) Option
-    //https://tools.ietf.org/html/rfc4702
+    //https://datatracker.ietf.org/doc/html/rfc4702
 
     public sealed class DhcpServer : IDisposable
     {
