@@ -1,5 +1,17 @@
 # Technitium DNS Server Change Log
 
+## Version 7.1
+Release Date: 23 October 2021
+- Added option in settings to automatically configure a self signed certificate for DNS web service.
+- Fixed cache poisoning vulnerability reported by Xiang Li, [Network and Information Security Lab, Tsinghua University](https://netsec.ccert.edu.cn/) when a conditional forwarder zone uses a forwarder controlled by an attacker or uses UDP/TCP forwarder protocol.
+- Block Page App: Added support for automatic self signed certificate to allow showing block page for HTTPS websites.
+- Drop Requests App: Added option to drop malformed DNS requests.
+- Query Logs App: Fixed minor issue which caused the query logs request to fail when a domain with invalid character was logged in the database.
+- Advanced Blocking App: Fixed bug in loading regex block list which caused the app to not block the domain names as expected.
+- Added logging in DNS server to know why a zone transfer request was refused by the server.
+- Added more environment variables for use with Docker to initialize the DNS server config. Read the [environment variable documentation](https://github.com/TechnitiumSoftware/DnsServer/blob/master/DockerEnvironmentVariables.md) for complete details.
+- Multiple other minor bug fixes and improvements.
+
 ## Version 7.0
 Release Date: 2 October 2021
 - DNS Apps design updated to allow apps to act as authoritative zones, drop requests, and log queries in addition to the existing APP records in authoritative zones.
@@ -159,7 +171,7 @@ Release Date: 14 November 2020
 ## Version 5.4
 Release Date: 18 October 2020
 
-- Implemented QNAME randomization feature [draft-vixie-dnsext-dns0x20](https://tools.ietf.org/html/draft-vixie-dnsext-dns0x20-00).
+- Implemented QNAME randomization feature [draft-vixie-dnsext-dns0x20](https://datatracker.ietf.org/doc/html/draft-vixie-dnsext-dns0x20-00).
 - Fixed bug causing infinite loop in certain conditions when using UDP as transport.
 - Fixed bug in DNS cache querying which caused the server to make unneeded queries when performing recursive resolution.
 - Added Create PTR Zone option when adding A or AAAA records.
@@ -217,10 +229,10 @@ Release Date: 4 July 2020
 - DNS Server performance issues caused by thread contention fixed.
 - CNAME cloaking implemented to block domain names that resolve to CNAME which are blocked.
 - New Block List zone implementation that uses very less memory allowing to load block lists with millions of domain names even on a Raspberry Pi with 1GB RAM.
-- QNAME minimization support in recursive resolver [draft-ietf-dnsop-rfc7816bis-04](https://tools.ietf.org/html/draft-ietf-dnsop-rfc7816bis-04).
+- QNAME minimization support in recursive resolver [draft-ietf-dnsop-rfc7816bis-04](https://datatracker.ietf.org/doc/html/draft-ietf-dnsop-rfc7816bis-04).
 - ANAME propriety record support to allow using CNAME like feature at zone root.
-- Added primary zones with NOTIFY implementation [RFC 1996](https://tools.ietf.org/html/rfc1996).
-- Added secondary zones with NOTIFY implementation [RFC 1996](https://tools.ietf.org/html/rfc1996).
+- Added primary zones with NOTIFY implementation [RFC 1996](https://datatracker.ietf.org/doc/html/rfc1996).
+- Added secondary zones with NOTIFY implementation [RFC 1996](https://datatracker.ietf.org/doc/html/rfc1996).
 - Added stub zones with feature to override records.
 - Added conditional forwarder zones with all protocols including DNS-over-HTTPS and DNS-over-TLS support.
 - Conditional forwarder zones with feature to override records.
