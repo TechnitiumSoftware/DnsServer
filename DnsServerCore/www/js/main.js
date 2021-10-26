@@ -93,7 +93,7 @@ function showPageMain(username) {
 
 $(function () {
     var headerHtml = $("#header").html();
-
+    
     $("#header").html("<div class=\"title\"><a href=\"/\"><img src=\"/img/logo25x25.png\" alt=\"Technitium Logo\" /><span class=\"text\" style=\"color: #ffffff;\">Technitium</span></a>" + headerHtml + "</div>");
     $("#footer").html("<div class=\"content\"><a href=\"https://technitium.com/\" target=\"_blank\">Technitium</a> | <a href=\"https://blog.technitium.com/\" target=\"_blank\">Blog</a> | <a href=\"https://go.technitium.com/?id=35\" target=\"_blank\">Donate</a> | <a href=\"https://dnsclient.net/\" target=\"_blank\">DNS Client</a> | <a href=\"https://github.com/TechnitiumSoftware/DnsServer\" target=\"_blank\"><i class=\"fa fa-github\"></i>&nbsp;GitHub</a> | <a href=\"https://technitium.com/aboutus.html\" target=\"_blank\">About</a></div>");
 
@@ -492,8 +492,23 @@ $(function () {
 
     $("#lblDoHHost").text(window.location.hostname + ":8053");
 
-    showPageLogin();
-    login("admin", "admin");
+    var logincookie = null;
+    logincookie = decodeURIComponent(document.cookie);
+    var user = null;
+    if (logincookie != null) {
+        logincookie = logincookie.split('=');
+        if (logincookie.length == 2) {
+            var token_user = logincookie[1].split(',');
+            token = token_user[0];
+            user = token_user[1];
+        }
+    }
+    if (token != null)
+        showPageMain(user)
+    else {
+        showPageLogin();
+        login("admin", "admin");
+    }
 });
 
 function login(username, password) {
@@ -525,7 +540,7 @@ function login(username, password) {
         url: "/api/login?user=" + encodeURIComponent(username) + "&pass=" + encodeURIComponent(password),
         success: function (responseJSON) {
             token = responseJSON.token;
-
+            document.cookie = 'logincookie=' + token + ',' + encodeURIComponent(username);
             showPageMain(username);
 
             if ((username === "admin") && (password === "admin")) {
