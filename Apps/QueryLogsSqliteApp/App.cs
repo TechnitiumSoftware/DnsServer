@@ -461,7 +461,7 @@ CREATE TABLE IF NOT EXISTS dns_logs
                         command.Parameters.AddWithValue("@rcode", (byte)rcode);
 
                     if (qname is not null)
-                        command.Parameters.Add(new SqliteParameter("@qname", "%"+qname+"%"));
+                        command.Parameters.AddWithValue("@qname", "%"+qname+"%");
 
                     if (qtype is not null)
                         command.Parameters.AddWithValue("@qtype", (ushort)qtype);
