@@ -420,7 +420,7 @@ CREATE TABLE IF NOT EXISTS dns_logs
                 whereClause += "rcode = @rcode AND ";
 
             if (qname is not null)
-                whereClause += "qname = @qname AND ";
+                whereClause += "qname like @qname AND ";
 
             if (qtype is not null)
                 whereClause += "qtype = @qtype AND ";
@@ -461,7 +461,7 @@ CREATE TABLE IF NOT EXISTS dns_logs
                         command.Parameters.AddWithValue("@rcode", (byte)rcode);
 
                     if (qname is not null)
-                        command.Parameters.AddWithValue("@qname", qname);
+                        command.Parameters.Add(new SqliteParameter("@qname", "%"+qname+"%"));
 
                     if (qtype is not null)
                         command.Parameters.AddWithValue("@qtype", (ushort)qtype);
@@ -540,7 +540,7 @@ ORDER BY row_num" + (descendingOrder ? " DESC" : "");
                         command.Parameters.AddWithValue("@rcode", (byte)rcode);
 
                     if (qname is not null)
-                        command.Parameters.AddWithValue("@qname", qname);
+                        command.Parameters.AddWithValue("@qname", "%"+qname+"%");
 
                     if (qtype is not null)
                         command.Parameters.AddWithValue("@qtype", (ushort)qtype);
