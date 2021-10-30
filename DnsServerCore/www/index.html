@@ -720,6 +720,17 @@
 
                                                     <div class="well well-sm form-horizontal">
                                                         <div class="form-group">
+                                                            <label for="txtEdnsUdpPayloadSize" class="col-sm-3 control-label">EDNS UDP Payload Size</label>
+                                                            <div class="col-sm-6">
+                                                                <input type="number" class="form-control" id="txtEdnsUdpPayloadSize" placeholder="size" style="width: 100px; display: inline;">
+                                                                <span>(valid range 512-4096; default 1232)</span>
+                                                            </div>
+                                                            <div class="col-sm-offset-3 col-sm-8" style="padding-top: 5px;">The maximum UDP payload size that can be used to avoid IP fragmentation.</div>
+                                                        </div>
+                                                    </div>
+
+                                                    <div class="well well-sm form-horizontal">
+                                                        <div class="form-group">
                                                             <label for="txtQpmLimitRequests" class="col-sm-3 control-label">Queries Per Minute (QPM) Limit (Requests)</label>
                                                             <div class="col-sm-6">
                                                                 <input type="number" class="form-control" id="txtQpmLimitRequests" placeholder="limit" style="width: 100px; display: inline;">
