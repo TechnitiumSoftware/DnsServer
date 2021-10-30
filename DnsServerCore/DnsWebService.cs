@@ -1248,6 +1248,9 @@ namespace DnsServerCore
             jsonWriter.WritePropertyName("preferIPv6");
             jsonWriter.WriteValue(_dnsServer.PreferIPv6);
 
+            jsonWriter.WritePropertyName("udpPayloadSize");
+            jsonWriter.WriteValue(_dnsServer.UdpPayloadSize);
+
             jsonWriter.WritePropertyName("enableLogging");
             jsonWriter.WriteValue(_log.EnableLogging);
 
@@ -1713,6 +1716,10 @@ namespace DnsServerCore
             string strPreferIPv6 = request.QueryString["preferIPv6"];
             if (!string.IsNullOrEmpty(strPreferIPv6))
                 _dnsServer.PreferIPv6 = bool.Parse(strPreferIPv6);
+
+            string strUdpPayloadSize = request.QueryString["udpPayloadSize"];
+            if (!string.IsNullOrEmpty(strUdpPayloadSize))
+                _dnsServer.UdpPayloadSize = ushort.Parse(strUdpPayloadSize);
 
             string strDefaultRecordTtl = request.QueryString["defaultRecordTtl"];
             if (!string.IsNullOrEmpty(strDefaultRecordTtl))
@@ -2835,6 +2842,7 @@ namespace DnsServerCore
 
             NetProxy proxy = _dnsServer.Proxy;
             bool preferIPv6 = _dnsServer.PreferIPv6;
+            ushort udpPayloadSize = _dnsServer.UdpPayloadSize;
             bool randomizeName = false;
             bool qnameMinimization = _dnsServer.QnameMinimization;
             DnsTransportProtocol protocol = (DnsTransportProtocol)Enum.Parse(typeof(DnsTransportProtocol), strProtocol, true);
@@ -2859,7 +2867,7 @@ namespace DnsServerCore
                 dnsCache.MinimumRecordTtl = 0;
                 dnsCache.MaximumRecordTtl = 7 * 24 * 60 * 60;
 
-                dnsResponse = await DnsClient.RecursiveResolveAsync(question, dnsCache, proxy, preferIPv6, randomizeName, qnameMinimization, false, RETRIES, TIMEOUT);
+                dnsResponse = await DnsClient.RecursiveResolveAsync(question, dnsCache, proxy, preferIPv6, udpPayloadSize, randomizeName, qnameMinimization, false, RETRIES, TIMEOUT);
             }
             else
             {
@@ -2918,7 +2926,20 @@ namespace DnsServerCore
                     }
                 }
 
-                dnsResponse = await new DnsClient(nameServer) { Proxy = proxy, PreferIPv6 = preferIPv6, RandomizeName = randomizeName, Retries = RETRIES, Timeout = TIMEOUT }.ResolveAsync(domain, type);
+                DnsClient dnsClient = new DnsClient(nameServer);
+
+                dnsClient.Proxy = proxy;
+                dnsClient.PreferIPv6 = preferIPv6;
+                dnsClient.RandomizeName = randomizeName;
+                dnsClient.Retries = RETRIES;
+                dnsClient.Timeout = TIMEOUT;
+
+                if (protocol == DnsTransportProtocol.Udp)
+                    dnsClient.UdpPayloadSize = udpPayloadSize;
+                else
+                    dnsClient.UdpPayloadSize = 0;
+
+                dnsResponse = await dnsClient.ResolveAsync(domain, type);
 
                 if (type == DnsResourceRecordType.AXFR)
                     dnsResponse = dnsResponse.Join();
@@ -3210,6 +3231,7 @@ namespace DnsServerCore
                         case 22:
                         case 23:
                         case 24:
+                        case 25:
                             _dnsServer.ServerDomain = bR.ReadShortString();
                             _webServiceHttpPort = bR.ReadInt32();
 
@@ -3697,6 +3719,11 @@ namespace DnsServerCore
                                 _webServiceUseSelfSignedTlsCertificate = false;
                             }
 
+                            if (version >= 25)
+                                _dnsServer.UdpPayloadSize = bR.ReadUInt16();
+                            else
+                                _dnsServer.UdpPayloadSize = DnsDatagram.EDNS_DEFAULT_UDP_PAYLOAD_SIZE;
+
                             break;
 
                         default:
@@ -3852,7 +3879,7 @@ namespace DnsServerCore
                 BinaryWriter bW = new BinaryWriter(mS);
 
                 bW.Write(Encoding.ASCII.GetBytes("DS")); //format
-                bW.Write((byte)24); //version
+                bW.Write((byte)25); //version
 
                 bW.WriteShortString(_dnsServer.ServerDomain);
                 bW.Write(_webServiceHttpPort);
@@ -4052,6 +4079,7 @@ namespace DnsServerCore
                 bW.Write(_dnsServer.AllowTxtBlockingReport);
                 bW.Write(_zonesApi.DefaultRecordTtl);
                 bW.Write(_webServiceUseSelfSignedTlsCertificate);
+                bW.Write(_dnsServer.UdpPayloadSize);
 
                 //write config
                 mS.Position = 0;
