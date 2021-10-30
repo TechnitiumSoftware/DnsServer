@@ -38,6 +38,7 @@ Be it a home network or an organization's network, having a locally running DNS 
 - Primary, Secondary, Stub, and Conditional Forwarder zone support.
 - Zone transfer over TLS (XFR-over-TLS) [draft-ietf-dprive-xfr-over-tls](https://datatracker.ietf.org/doc/draft-ietf-dprive-xfr-over-tls/) support.
 - Secret key transaction authentication (TSIG) [RFC 8945](https://datatracker.ietf.org/doc/html/rfc8945) support for zone transfers.
+- EDNS(0) [RFC6891](https://datatracker.ietf.org/doc/html/rfc6891) support.
 - Self host your domain names on your own DNS server.
 - Wildcard sub domain support.
 - Enable/disable zones and records to allow testing with ease.
@@ -56,7 +57,6 @@ Be it a home network or an organization's network, having a locally running DNS 
 - API key to provide long term access token.
 - Clustering support to manage two or more DNS servers.
 - Dynamic DNS updates.
-- EDNS support.
 - DNSSEC support.
 
 # Installation
