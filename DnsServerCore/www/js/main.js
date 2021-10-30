@@ -769,6 +769,7 @@ function loadDnsSettings() {
             $("#txtAddEditRecordTtl").attr("placeholder", responseJSON.response.defaultRecordTtl);
 
             $("#chkPreferIPv6").prop("checked", responseJSON.response.preferIPv6);
+            $("#txtEdnsUdpPayloadSize").val(responseJSON.response.udpPayloadSize);
 
             $("#chkEnableLogging").prop("checked", responseJSON.response.enableLogging);
             $("#chkLogQueries").prop("disabled", !responseJSON.response.enableLogging);
@@ -1071,6 +1072,7 @@ function saveDnsSettings() {
 
     var defaultRecordTtl = $("#txtDefaultRecordTtl").val();
     var preferIPv6 = $("#chkPreferIPv6").prop('checked');
+    var udpPayloadSize = $("#txtEdnsUdpPayloadSize").val();
 
     var enableLogging = $("#chkEnableLogging").prop('checked');
     var logQueries = $("#chkLogQueries").prop('checked');
@@ -1261,7 +1263,7 @@ function saveDnsSettings() {
             + "&webServiceLocalAddresses=" + encodeURIComponent(webServiceLocalAddresses) + "&webServiceHttpPort=" + webServiceHttpPort + "&webServiceEnableTls=" + webServiceEnableTls + "&webServiceHttpToTlsRedirect=" + webServiceHttpToTlsRedirect + "&webServiceUseSelfSignedTlsCertificate=" + webServiceUseSelfSignedTlsCertificate + "&webServiceTlsPort=" + webServiceTlsPort + "&webServiceTlsCertificatePath=" + encodeURIComponent(webServiceTlsCertificatePath) + "&webServiceTlsCertificatePassword=" + encodeURIComponent(webServiceTlsCertificatePassword)
             + "&enableDnsOverHttp=" + enableDnsOverHttp + "&enableDnsOverTls=" + enableDnsOverTls + "&enableDnsOverHttps=" + enableDnsOverHttps + "&dnsTlsCertificatePath=" + encodeURIComponent(dnsTlsCertificatePath) + "&dnsTlsCertificatePassword=" + encodeURIComponent(dnsTlsCertificatePassword)
             + "&tsigKeys=" + encodeURIComponent(tsigKeys)
-            + "&defaultRecordTtl=" + defaultRecordTtl + "&preferIPv6=" + preferIPv6 + "&enableLogging=" + enableLogging + "&logQueries=" + logQueries + "&useLocalTime=" + useLocalTime + "&logFolder=" + encodeURIComponent(logFolder) + "&maxLogFileDays=" + maxLogFileDays + "&maxStatFileDays=" + maxStatFileDays
+            + "&defaultRecordTtl=" + defaultRecordTtl + "&preferIPv6=" + preferIPv6 + "&udpPayloadSize=" + udpPayloadSize + "&enableLogging=" + enableLogging + "&logQueries=" + logQueries + "&useLocalTime=" + useLocalTime + "&logFolder=" + encodeURIComponent(logFolder) + "&maxLogFileDays=" + maxLogFileDays + "&maxStatFileDays=" + maxStatFileDays
             + "&recursion=" + recursion + "&recursionDeniedNetworks=" + encodeURIComponent(recursionDeniedNetworks) + "&recursionAllowedNetworks=" + encodeURIComponent(recursionAllowedNetworks) + "&randomizeName=" + randomizeName + "&qnameMinimization=" + qnameMinimization + "&nsRevalidation=" + nsRevalidation
             + "&qpmLimitRequests=" + qpmLimitRequests + "&qpmLimitErrors=" + qpmLimitErrors + "&qpmLimitSampleMinutes=" + qpmLimitSampleMinutes + "&qpmLimitIPv4PrefixLength=" + qpmLimitIPv4PrefixLength + "&qpmLimitIPv6PrefixLength=" + qpmLimitIPv6PrefixLength
             + "&serveStale=" + serveStale + "&serveStaleTtl=" + serveStaleTtl + "&cacheMinimumRecordTtl=" + cacheMinimumRecordTtl + "&cacheMaximumRecordTtl=" + cacheMaximumRecordTtl + "&cacheNegativeRecordTtl=" + cacheNegativeRecordTtl + "&cacheFailureRecordTtl=" + cacheFailureRecordTtl + "&cachePrefetchEligibility=" + cachePrefetchEligibility + "&cachePrefetchTrigger=" + cachePrefetchTrigger + "&cachePrefetchSampleIntervalInMinutes=" + cachePrefetchSampleIntervalInMinutes + "&cachePrefetchSampleEligibilityHitsPerHour=" + cachePrefetchSampleEligibilityHitsPerHour
