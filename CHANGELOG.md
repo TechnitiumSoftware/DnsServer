@@ -3,7 +3,7 @@
 ## Version 7.1
 Release Date: 23 October 2021
 - Added option in settings to automatically configure a self signed certificate for DNS web service.
-- Fixed cache poisoning vulnerability reported by Xiang Li, [Network and Information Security Lab, Tsinghua University](https://netsec.ccert.edu.cn/) when a conditional forwarder zone uses a forwarder controlled by an attacker or uses UDP/TCP forwarder protocol.
+- Fixed cache poisoning vulnerability reported by Xiang Li, [Network and Information Security Lab, Tsinghua University](https://netsec.ccert.edu.cn/) and Qifan Zhang, [Data-driven Security and Privacy (DSP) Lab, University of California, Irvine](https://faculty.sites.uci.edu/zhouli/research/) when a conditional forwarder zone uses a forwarder controlled by an attacker or uses UDP/TCP forwarder protocol that the attacker can perform MiTM.
 - Block Page App: Added support for automatic self signed certificate to allow showing block page for HTTPS websites.
 - Drop Requests App: Added option to drop malformed DNS requests.
 - Query Logs App: Fixed minor issue which caused the query logs request to fail when a domain with invalid character was logged in the database.
