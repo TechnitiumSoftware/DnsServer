@@ -151,7 +151,7 @@ RESPONSE:
 ```
 {
 	"response": {
-		"version": "7.1",
+		"version": "7.2",
 		"dnsServerDomain": "server1",
 		"dnsServerLocalEndPoints": [
 			"0.0.0.0:53",
@@ -182,6 +182,7 @@ RESPONSE:
 		],
 		"defaultRecordTtl": 3600,
 		"preferIPv6": false,
+		"udpPayloadSize": 1232,
 		"enableLogging": true,
 		"logQueries": true,
 		"useLocalTime": false,
@@ -271,6 +272,7 @@ WHERE:
 - `tsigKeys` (optional): A pipe `|` separated multi row list of TSIG key name, shared secret, and algorithm. Set this parameter to `false` to remove all existing keys. Supported algorithms are [`hmac-md5.sig-alg.reg.int`, `hmac-sha1`, `hmac-sha256`, `hmac-sha256-128`, `hmac-sha384`, `hmac-sha384-192`, `hmac-sha512`, `hmac-sha512-256`].
 - `defaultRecordTtl` (optional): The default TTL value to use if not specified when adding or updating records in a Zone.
 - `preferIPv6` (optional): DNS Server will use IPv6 for querying whenever possible with this option enabled. Default value is `false`.
+- `udpPayloadSize` (optional): The maximum EDNS UDP payload size that can be used to avoid IP fragmentation. Valid range is 512-4096 bytes. Default value is `1232`.
 - `enableLogging` (optional): Enable this option to log error and audit logs into the log file. Default value is `true`.
 - `logQueries` (optional): Enable this option to log every query received by this DNS Server and the corresponding response answers into the log file.  Default value is `false`.
 - `useLocalTime` (optional): Enable this option to use local time instead of UTC for logging.  Default value is `false`.
