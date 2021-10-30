@@ -45,7 +45,7 @@ Be it a home network or an organization's network, having a locally running DNS 
 - Supports out-of-order DNS request processing for DNS-over-TCP and DNS-over-TLS protocols.
 - Built-in DHCP Server that can work for multiple networks.
 - IPv6 support in DNS server core.
-- HTTP & SOCKS5 proxy support which can be configured to route DNS over [Tor Network](https://www.torproject.org/) or use Cloudflare's hidden DNS resolver.
+- HTTP & SOCKS5 proxy support which can be configured to route DNS over [Tor Network](https://www.torproject.org/) or use [Cloudflare's hidden DNS resolver](https://blog.cloudflare.com/welcome-hidden-resolver/).
 - Web console portal for easy configuration using any web browser.
 - Built in HTTP API to allow 3rd party apps to control and configure the DNS server.
 - Built-in system logging and query logging.
