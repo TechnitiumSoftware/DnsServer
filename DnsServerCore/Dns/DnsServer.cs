@@ -72,6 +72,7 @@ namespace DnsServerCore.Dns
 
         #region variables
 
+        const int UDP_MAX_BUFFER_SIZE = 4096;
         internal const int MAX_CNAME_HOPS = 16;
         const int SERVE_STALE_WAIT_TIME = 1800;
 
@@ -116,6 +117,7 @@ namespace DnsServerCore.Dns
         NetProxy _proxy;
         IReadOnlyList<NameServerAddress> _forwarders;
         bool _preferIPv6;
+        ushort _udpPayloadSize = DnsDatagram.EDNS_DEFAULT_UDP_PAYLOAD_SIZE;
         bool _randomizeName;
         bool _qnameMinimization;
         bool _nsRevalidation;
@@ -266,8 +268,7 @@ namespace DnsServerCore.Dns
 
         private async Task ReadUdpRequestAsync(Socket udpListener)
         {
-            const int BUFFER_SIZE = 512;
-            byte[] recvBuffer = new byte[BUFFER_SIZE];
+            byte[] recvBuffer = new byte[UDP_MAX_BUFFER_SIZE];
             using MemoryStream recvBufferStream = new MemoryStream(recvBuffer);
 
             try
@@ -292,7 +293,7 @@ namespace DnsServerCore.Dns
 
                 while (true)
                 {
-                    recvBufferStream.SetLength(BUFFER_SIZE); //resetting length before using buffer
+                    recvBufferStream.SetLength(UDP_MAX_BUFFER_SIZE); //resetting length before using buffer
 
                     try
                     {
@@ -368,7 +369,15 @@ namespace DnsServerCore.Dns
                     return; //drop request
 
                 //send response
-                byte[] sendBuffer = new byte[512];
+                byte[] sendBuffer;
+
+                if (request.EDNS is null)
+                    sendBuffer = new byte[512];
+                else if (request.EDNS.UdpPayloadSize > UDP_MAX_BUFFER_SIZE)
+                    sendBuffer = new byte[UDP_MAX_BUFFER_SIZE];
+                else
+                    sendBuffer = new byte[request.EDNS.UdpPayloadSize];
+
                 using (MemoryStream sendBufferStream = new MemoryStream(sendBuffer))
                 {
                     try
@@ -990,7 +999,7 @@ namespace DnsServerCore.Dns
                         return null; //drop request
 
                     case DnsRequestControllerAction.DropWithRefused:
-                        return new DnsDatagram(request.Identifier, true, DnsOpcode.StandardQuery, false, false, request.RecursionDesired, isRecursionAllowed, false, false, DnsResponseCode.Refused, request.Question) { Tag = DnsServerResponseType.Authoritative }; //drop request with refused
+                        return new DnsDatagram(request.Identifier, true, DnsOpcode.StandardQuery, false, false, request.RecursionDesired, isRecursionAllowed, false, false, DnsResponseCode.Refused, request.Question, null, null, null, request.EDNS is null ? (ushort)0 : _udpPayloadSize) { Tag = DnsServerResponseType.Authoritative }; //drop request with refused
                 }
             }
 
@@ -1005,7 +1014,7 @@ namespace DnsServerCore.Dns
                 }
 
                 //format error response
-                return new DnsDatagram(request.Identifier, true, request.OPCODE, false, false, request.RecursionDesired, isRecursionAllowed, false, false, DnsResponseCode.FormatError, request.Question) { Tag = DnsServerResponseType.Authoritative };
+                return new DnsDatagram(request.Identifier, true, request.OPCODE, false, false, request.RecursionDesired, isRecursionAllowed, false, false, DnsResponseCode.FormatError, request.Question, null, null, null, request.EDNS is null ? (ushort)0 : _udpPayloadSize) { Tag = DnsServerResponseType.Authoritative };
             }
 
             if (request.IsSigned)
@@ -1020,11 +1029,65 @@ namespace DnsServerCore.Dns
                     return errorResponse;
                 }
 
-                DnsDatagram unsignedResponse = await ProcessQueryAsync(unsignedRequest, remoteEP, protocol, isRecursionAllowed, false, request.TsigKeyName);
+                DnsDatagram unsignedResponse = PostProcessQuery(request, await ProcessQueryAsync(unsignedRequest, remoteEP, protocol, isRecursionAllowed, false, request.TsigKeyName));
                 return unsignedResponse.SignResponse(request, _tsigKeys);
             }
 
-            return await ProcessQueryAsync(request, remoteEP, protocol, isRecursionAllowed, false, null);
+            if (request.EDNS is not null)
+            {
+                if (request.EDNS.Version != 0)
+                    return new DnsDatagram(request.Identifier, true, request.OPCODE, false, false, request.RecursionDesired, isRecursionAllowed, false, false, DnsResponseCode.BADVERS, request.Question, null, null, null, _udpPayloadSize) { Tag = DnsServerResponseType.Authoritative };
+            }
+
+            return PostProcessQuery(request, await ProcessQueryAsync(request, remoteEP, protocol, isRecursionAllowed, false, null));
+        }
+
+        private DnsDatagram PostProcessQuery(DnsDatagram request, DnsDatagram response)
+        {
+            if (request.EDNS is not null)
+            {
+                if (response.Additional.Count == 0)
+                    return response.Clone(null, null, new DnsResourceRecord[] { DnsDatagramEdns.GetOPTFor(_udpPayloadSize, response.RCODE) });
+
+                if (!response.IsSigned)
+                {
+                    DnsResourceRecord[] newAdditional = new DnsResourceRecord[response.Additional.Count + 1];
+
+                    for (int i = 0; i < response.Additional.Count; i++)
+                    {
+                        DnsResourceRecord record = response.Additional[i];
+
+                        if (record.Type == DnsResourceRecordType.OPT)
+                            throw new InvalidOperationException("DnsDatagram already contains an OPT record.");
+
+                        newAdditional[i] = record;
+                    }
+
+                    newAdditional[response.Additional.Count] = DnsDatagramEdns.GetOPTFor(_udpPayloadSize, response.RCODE);
+
+                    return response.Clone(null, null, newAdditional);
+                }
+            }
+
+            return response;
+        }
+
+        private IReadOnlyList<DnsResourceRecord> RemoveOPTFromAdditional(IReadOnlyList<DnsResourceRecord> additional)
+        {
+            if (additional.Count == 0)
+                return additional;
+
+            List<DnsResourceRecord> newAdditional = new List<DnsResourceRecord>(additional.Count - 1);
+
+            foreach (DnsResourceRecord record in additional)
+            {
+                if (record.Type == DnsResourceRecordType.OPT)
+                    continue;
+
+                newAdditional.Add(record);
+            }
+
+            return newAdditional;
         }
 
         private async Task<DnsDatagram> ProcessQueryAsync(DnsDatagram request, IPEndPoint remoteEP, DnsTransportProtocol protocol, bool isRecursionAllowed, bool skipDnsAppAuthoritativeRequestHandlers, string tsigAuthenticatedKeyName)
@@ -1562,7 +1625,11 @@ namespace DnsServerCore.Dns
                             case DnsResourceRecordType.NS:
                             case DnsResourceRecordType.MX:
                             case DnsResourceRecordType.SRV:
-                                additional = newResponse.Additional;
+                                if (newResponse.EDNS is null)
+                                    additional = newResponse.Additional;
+                                else
+                                    additional = RemoveOPTFromAdditional(newResponse.Additional);
+
                                 break;
                         }
                     }
@@ -1918,7 +1985,11 @@ namespace DnsServerCore.Dns
                                     case DnsResourceRecordType.NS:
                                     case DnsResourceRecordType.MX:
                                     case DnsResourceRecordType.SRV:
-                                        additional = lastResponse.Additional;
+                                        if (lastResponse.EDNS is null)
+                                            additional = lastResponse.Additional;
+                                        else
+                                            additional = RemoveOPTFromAdditional(lastResponse.Additional);
+
                                         break;
                                 }
                             }
@@ -1946,7 +2017,11 @@ namespace DnsServerCore.Dns
                         case DnsResourceRecordType.NS:
                         case DnsResourceRecordType.MX:
                         case DnsResourceRecordType.SRV:
-                            additional = response.Additional;
+                            if (response.EDNS is null)
+                                additional = response.Additional;
+                            else
+                                additional = RemoveOPTFromAdditional(response.Additional);
+
                             break;
                     }
                 }
@@ -2069,7 +2144,7 @@ namespace DnsServerCore.Dns
                         foreach (NameServerAddress nameServerAddress in forwarders)
                         {
                             if (nameServerAddress.IsIPEndPointStale) //refresh forwarder IPEndPoint if stale
-                                await nameServerAddress.RecursiveResolveIPAddressAsync(_dnsCache, null, _preferIPv6, _randomizeName, _qnameMinimization, _resolverRetries, _resolverTimeout);
+                                await nameServerAddress.RecursiveResolveIPAddressAsync(_dnsCache, null, _preferIPv6, _udpPayloadSize, _randomizeName, _qnameMinimization, _resolverRetries, _resolverTimeout);
                         }
                     }
 
@@ -2082,6 +2157,11 @@ namespace DnsServerCore.Dns
                     dnsClient.Retries = _forwarderRetries;
                     dnsClient.Timeout = _forwarderTimeout;
                     dnsClient.Concurrency = _forwarderConcurrency;
+
+                    if (forwarders[0].Protocol == DnsTransportProtocol.Udp)
+                        dnsClient.UdpPayloadSize = _udpPayloadSize;
+                    else
+                        dnsClient.UdpPayloadSize = 0;
 
                     response = await dnsClient.ResolveAsync(question);
 
@@ -2102,7 +2182,7 @@ namespace DnsServerCore.Dns
                     else
                         dnsCache = _dnsCache;
 
-                    response = await DnsClient.RecursiveResolveAsync(question, dnsCache, _proxy, _preferIPv6, _randomizeName, _qnameMinimization, _nsRevalidation, _resolverRetries, _resolverTimeout, _resolverMaxStackCount);
+                    response = await DnsClient.RecursiveResolveAsync(question, dnsCache, _proxy, _preferIPv6, _udpPayloadSize, _randomizeName, _qnameMinimization, _nsRevalidation, _resolverRetries, _resolverTimeout, _resolverMaxStackCount);
                 }
 
                 switch (response.RCODE)
@@ -2187,7 +2267,7 @@ namespace DnsServerCore.Dns
                                 for (int j = 0; j <= i; j++)
                                     newAnswers.Add(response.Answer[j]);
 
-                                return response.Clone(newAnswers, null);
+                                return response.Clone(newAnswers, null, null);
                             }
                             break;
                     }
@@ -2206,7 +2286,7 @@ namespace DnsServerCore.Dns
                     for (int j = 0; j < i; j++)
                         newAnswers.Add(response.Answer[j]);
 
-                    return response.Clone(newAnswers, null);
+                    return response.Clone(newAnswers, null, null);
                 }
             }
 
@@ -2216,7 +2296,7 @@ namespace DnsServerCore.Dns
         private static DnsDatagram SanitizeForwarderResponseAuthority(DnsDatagram response)
         {
             if ((response.Authority.Count > 0) && (response.Authority[0].Type != DnsResourceRecordType.SOA))
-                return response.Clone(null, Array.Empty<DnsResourceRecord>());
+                return response.Clone(null, Array.Empty<DnsResourceRecord>(), null);
 
             return response;
         }
@@ -3180,6 +3260,18 @@ namespace DnsServerCore.Dns
         {
             get { return _preferIPv6; }
             set { _preferIPv6 = value; }
+        }
+
+        public ushort UdpPayloadSize
+        {
+            get { return _udpPayloadSize; }
+            set
+            {
+                if ((value < 512) || (value > 4096))
+                    throw new ArgumentOutOfRangeException("Invalid EDNS UDP payload size: valid range is 512-4096 bytes.");
+
+                _udpPayloadSize = value;
+            }
         }
 
         public bool RandomizeName
