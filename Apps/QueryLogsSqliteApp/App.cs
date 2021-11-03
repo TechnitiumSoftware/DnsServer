@@ -420,7 +420,17 @@ CREATE TABLE IF NOT EXISTS dns_logs
                 whereClause += "rcode = @rcode AND ";
 
             if (qname is not null)
-                whereClause += "qname like @qname AND ";
+            {
+                if (qname.Contains("*"))
+                {
+                    whereClause += "qname like @qname AND ";
+                    qname = qname.Replace("*", "%");
+                }
+                else
+                {
+                    whereClause += "qname = @qname AND ";
+                }
+            }
 
             if (qtype is not null)
                 whereClause += "qtype = @qtype AND ";
@@ -461,7 +471,7 @@ CREATE TABLE IF NOT EXISTS dns_logs
                         command.Parameters.AddWithValue("@rcode", (byte)rcode);
 
                     if (qname is not null)
-                        command.Parameters.AddWithValue("@qname", "%"+qname+"%");
+                        command.Parameters.AddWithValue("@qname", qname);
 
                     if (qtype is not null)
                         command.Parameters.AddWithValue("@qtype", (ushort)qtype);
@@ -540,7 +550,7 @@ ORDER BY row_num" + (descendingOrder ? " DESC" : "");
                         command.Parameters.AddWithValue("@rcode", (byte)rcode);
 
                     if (qname is not null)
-                        command.Parameters.AddWithValue("@qname", "%"+qname+"%");
+                        command.Parameters.AddWithValue("@qname", qname);
 
                     if (qtype is not null)
                         command.Parameters.AddWithValue("@qtype", (ushort)qtype);
