@@ -912,6 +912,89 @@ function showEditZone(domain) {
                             "data-record-port=\"" + htmlEncode(records[i].rData.port) + "\" ";
                         break;
 
+                    case "DS":
+                        tableHtmlRows += "<td style=\"overflow-wrap: anywhere;\"><b>Key Tag: </b> " + htmlEncode(records[i].rData.keyTag) +
+                            "<br /><b>Algorithm:</b> " + htmlEncode(records[i].rData.algorithm) +
+                            "<br /><b>Digest Type:</b> " + htmlEncode(records[i].rData.digestType) +
+                            "<br /><b>Digest:</b> " + htmlEncode(records[i].rData.digest);
+
+                        if ((records[i].comments != null) && (records[i].comments.length > 0))
+                            tableHtmlRows += "<br /><br /><b>Comments:</b> <pre>" + htmlEncode(records[i].comments) + "</pre>";
+
+                        tableHtmlRows += "</td>";
+
+                        additionalDataAttributes = "data-record-key-tag=\"" + htmlEncode(records[i].rData.keyTag) + "\" " +
+                            "data-record-algorithm=\"" + htmlEncode(records[i].rData.algorithm) + "\" " +
+                            "data-record-digest-type=\"" + htmlEncode(records[i].rData.digestType) + "\" " +
+                            "data-record-digest=\"" + htmlEncode(records[i].rData.digest) + "\" ";
+                        break;
+
+                    case "RRSIG":
+                        tableHtmlRows += "<td style=\"overflow-wrap: anywhere;\"><b>Type Covered: </b> " + htmlEncode(records[i].rData.typeCovered) +
+                            "<br /><b>Algorithm:</b> " + htmlEncode(records[i].rData.algorithm) +
+                            "<br /><b>Labels:</b> " + htmlEncode(records[i].rData.labels) +
+                            "<br /><b>Original TTL:</b> " + htmlEncode(records[i].rData.originalTtl) +
+                            "<br /><b>Signature Expiration:</b> " + htmlEncode(records[i].rData.signatureExpiration) +
+                            "<br /><b>Signature Inception:</b> " + htmlEncode(records[i].rData.signatureInception) +
+                            "<br /><b>Key Tag:</b> " + htmlEncode(records[i].rData.keyTag) +
+                            "<br /><b>Signer's Name:</b> " + htmlEncode(records[i].rData.signersName) +
+                            "<br /><b>Signature:</b> " + htmlEncode(records[i].rData.signature);
+
+                        if ((records[i].comments != null) && (records[i].comments.length > 0))
+                            tableHtmlRows += "<br /><br /><b>Comments:</b> <pre>" + htmlEncode(records[i].comments) + "</pre>";
+
+                        tableHtmlRows += "</td>";
+
+                        additionalDataAttributes = "data-record-type-covered=\"" + htmlEncode(records[i].rData.typeCovered) + "\" " +
+                            "data-record-algorithm=\"" + htmlEncode(records[i].rData.algorithm) + "\" " +
+                            "data-record-labels=\"" + htmlEncode(records[i].rData.labels) + "\" " +
+                            "data-record-original-ttl=\"" + htmlEncode(records[i].rData.originalTtl) + "\" " +
+                            "data-record-signature-expiration=\"" + htmlEncode(records[i].rData.signatureExpiration) + "\" " +
+                            "data-record-signature-inception=\"" + htmlEncode(records[i].rData.signatureInception) + "\" " +
+                            "data-record-key-tag=\"" + htmlEncode(records[i].rData.keyTag) + "\" " +
+                            "data-record-signers-name=\"" + htmlEncode(records[i].rData.signersName) + "\" " +
+                            "data-record-signature=\"" + htmlEncode(records[i].rData.signature) + "\" ";
+                        break;
+
+                    case "NSEC":
+                        var nsecTypes = null;
+
+                        for (var j = 0; j < records[i].rData.types.length; j++) {
+                            if (nsecTypes == null)
+                                nsecTypes = records[i].rData.types[j];
+                            else
+                                nsecTypes += ", " + records[i].rData.types[j];
+                        }
+
+                        tableHtmlRows += "<td style=\"overflow-wrap: anywhere;\"><b>Next Domain Name: </b> " + htmlEncode(records[i].rData.nextDomainName) +
+                            "<br /><b>Types:</b> " + htmlEncode(nsecTypes);
+
+                        if ((records[i].comments != null) && (records[i].comments.length > 0))
+                            tableHtmlRows += "<br /><br /><b>Comments:</b> <pre>" + htmlEncode(records[i].comments) + "</pre>";
+
+                        tableHtmlRows += "</td>";
+
+                        additionalDataAttributes = "data-record-next-domain-name=\"" + htmlEncode(records[i].rData.nextDomainName) + "\" " +
+                            "data-record-types=\"" + htmlEncode(nsecTypes) + "\" ";
+                        break;
+
+                    case "DNSKEY":
+                        tableHtmlRows += "<td style=\"overflow-wrap: anywhere;\"><b>Flags: </b> " + htmlEncode(records[i].rData.flags) +
+                            "<br /><b>Protocol:</b> " + htmlEncode(records[i].rData.protocol) +
+                            "<br /><b>Algorithm:</b> " + htmlEncode(records[i].rData.algorithm) +
+                            "<br /><b>Public Key:</b> " + htmlEncode(records[i].rData.publicKey);
+
+                        if ((records[i].comments != null) && (records[i].comments.length > 0))
+                            tableHtmlRows += "<br /><br /><b>Comments:</b> <pre>" + htmlEncode(records[i].comments) + "</pre>";
+
+                        tableHtmlRows += "</td>";
+
+                        additionalDataAttributes = "data-record-flags=\"" + htmlEncode(records[i].rData.flags) + "\" " +
+                            "data-record-protocol=\"" + htmlEncode(records[i].rData.protocol) + "\" " +
+                            "data-record-algorithm=\"" + htmlEncode(records[i].rData.algorithm) + "\" " +
+                            "data-record-public-key=\"" + htmlEncode(records[i].rData.publicKey) + "\" ";
+                        break;
+
                     case "CAA":
                         tableHtmlRows += "<td style=\"overflow-wrap: anywhere;\"><b>Flags: </b> " + htmlEncode(records[i].rData.flags) +
                             "<br /><b>Tag:</b> " + htmlEncode(records[i].rData.tag) +
