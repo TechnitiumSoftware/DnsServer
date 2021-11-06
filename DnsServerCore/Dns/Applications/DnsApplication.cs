@@ -230,7 +230,16 @@ namespace DnsServerCore.Dns.Applications
             string config = await GetConfigAsync();
 
             foreach (KeyValuePair<string, IDnsApplication> app in _dnsApplications)
-                await app.Value.InitializeAsync(_dnsServer, config);
+            {
+                try
+                {
+                    await app.Value.InitializeAsync(_dnsServer, config);
+                }
+                catch (Exception ex)
+                {
+                    _dnsServer.WriteLog(ex);
+                }
+            }
         }
 
         #endregion
