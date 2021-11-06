@@ -1208,6 +1208,128 @@ namespace DnsServerCore
                                 }
                                 break;
 
+                            case DnsResourceRecordType.DS:
+                                {
+                                    if (record.RDATA is DnsDSRecord rdata)
+                                    {
+                                        jsonWriter.WritePropertyName("keyTag");
+                                        jsonWriter.WriteValue(rdata.KeyTag);
+
+                                        jsonWriter.WritePropertyName("algorithm");
+                                        jsonWriter.WriteValue(rdata.Algorithm.ToString());
+
+                                        jsonWriter.WritePropertyName("digestType");
+                                        jsonWriter.WriteValue(rdata.DigestType.ToString());
+
+                                        jsonWriter.WritePropertyName("digest");
+                                        jsonWriter.WriteValue(BitConverter.ToString(rdata.Digest).Replace("-", ""));
+                                    }
+                                    else
+                                    {
+                                        jsonWriter.WritePropertyName("dataType");
+                                        jsonWriter.WriteValue(record.RDATA.GetType().Name);
+
+                                        jsonWriter.WritePropertyName("data");
+                                        jsonWriter.WriteValue(record.RDATA.ToString());
+                                    }
+                                }
+                                break;
+
+                            case DnsResourceRecordType.RRSIG:
+                                {
+                                    if (record.RDATA is DnsRRSIGRecord rdata)
+                                    {
+                                        jsonWriter.WritePropertyName("typeCovered");
+                                        jsonWriter.WriteValue(rdata.TypeCovered.ToString());
+
+                                        jsonWriter.WritePropertyName("algorithm");
+                                        jsonWriter.WriteValue(rdata.Algorithm.ToString());
+
+                                        jsonWriter.WritePropertyName("labels");
+                                        jsonWriter.WriteValue(rdata.Labels);
+
+                                        jsonWriter.WritePropertyName("originalTtl");
+                                        jsonWriter.WriteValue(rdata.OriginalTtl);
+
+                                        jsonWriter.WritePropertyName("signatureExpiration");
+                                        jsonWriter.WriteValue(rdata.SignatureExpiration);
+
+                                        jsonWriter.WritePropertyName("signatureInception");
+                                        jsonWriter.WriteValue(rdata.SignatureInception);
+
+                                        jsonWriter.WritePropertyName("keyTag");
+                                        jsonWriter.WriteValue(rdata.KeyTag);
+
+                                        jsonWriter.WritePropertyName("signersName");
+                                        jsonWriter.WriteValue(rdata.SignersName);
+
+                                        jsonWriter.WritePropertyName("signature");
+                                        jsonWriter.WriteValue(Convert.ToBase64String(rdata.Signature));
+                                    }
+                                    else
+                                    {
+                                        jsonWriter.WritePropertyName("dataType");
+                                        jsonWriter.WriteValue(record.RDATA.GetType().Name);
+
+                                        jsonWriter.WritePropertyName("data");
+                                        jsonWriter.WriteValue(record.RDATA.ToString());
+                                    }
+                                }
+                                break;
+
+                            case DnsResourceRecordType.NSEC:
+                                {
+                                    if (record.RDATA is DnsNSECRecord rdata)
+                                    {
+                                        jsonWriter.WritePropertyName("nextDomainName");
+                                        jsonWriter.WriteValue(rdata.NextDomainName);
+
+                                        jsonWriter.WritePropertyName("types");
+                                        jsonWriter.WriteStartArray();
+
+                                        foreach (DnsResourceRecordType type in rdata.Types)
+                                            jsonWriter.WriteValue(type.ToString());
+
+                                        jsonWriter.WriteEndArray();
+                                    }
+                                    else
+                                    {
+                                        jsonWriter.WritePropertyName("dataType");
+                                        jsonWriter.WriteValue(record.RDATA.GetType().Name);
+
+                                        jsonWriter.WritePropertyName("data");
+                                        jsonWriter.WriteValue(record.RDATA.ToString());
+                                    }
+                                }
+                                break;
+
+                            case DnsResourceRecordType.DNSKEY:
+                                {
+                                    if (record.RDATA is DnsDNSKEYRecord rdata)
+                                    {
+                                        jsonWriter.WritePropertyName("flags");
+                                        jsonWriter.WriteValue(rdata.Flags.ToString());
+
+                                        jsonWriter.WritePropertyName("protocol");
+                                        jsonWriter.WriteValue(rdata.Protocol);
+
+                                        jsonWriter.WritePropertyName("algorithm");
+                                        jsonWriter.WriteValue(rdata.Algorithm.ToString());
+
+                                        jsonWriter.WritePropertyName("publicKey");
+                                        jsonWriter.WriteValue(rdata.PublicKey.ToString());
+                                    }
+                                    else
+                                    {
+                                        jsonWriter.WritePropertyName("dataType");
+                                        jsonWriter.WriteValue(record.RDATA.GetType().Name);
+
+                                        jsonWriter.WritePropertyName("data");
+                                        jsonWriter.WriteValue(record.RDATA.ToString());
+                                    }
+                                }
+                                break;
+
                             case DnsResourceRecordType.CAA:
                                 {
                                     if (record.RDATA is DnsCAARecord rdata)
