@@ -28,6 +28,7 @@ using System.Net;
 using System.Threading;
 using System.Threading.Tasks;
 using TechnitiumLibrary.Net.Dns;
+using TechnitiumLibrary.Net.Dns.ResourceRecords;
 
 namespace QueryLogsSqlite
 {
