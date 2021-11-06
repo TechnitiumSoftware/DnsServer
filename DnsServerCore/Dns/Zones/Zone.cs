@@ -23,7 +23,7 @@ using System.Collections.Generic;
 using System.Net;
 using System.Net.Sockets;
 using TechnitiumLibrary.Net;
-using TechnitiumLibrary.Net.Dns;
+using TechnitiumLibrary.Net.Dns.ResourceRecords;
 
 namespace DnsServerCore.Dns.Zones
 {

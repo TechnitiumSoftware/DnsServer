@@ -23,6 +23,7 @@ using DnsServerCore.Dns.ZoneManagers;
 using System.Net;
 using TechnitiumLibrary.IO;
 using TechnitiumLibrary.Net.Dns;
+using TechnitiumLibrary.Net.Dns.ResourceRecords;
 
 namespace DnsServerCore.Dns
 {
