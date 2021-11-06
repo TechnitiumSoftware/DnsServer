@@ -421,7 +421,17 @@ CREATE TABLE IF NOT EXISTS dns_logs
                 whereClause += "rcode = @rcode AND ";
 
             if (qname is not null)
-                whereClause += "qname = @qname AND ";
+            {
+                if (qname.Contains("*"))
+                {
+                    whereClause += "qname like @qname AND ";
+                    qname = qname.Replace("*", "%");
+                }
+                else
+                {
+                    whereClause += "qname = @qname AND ";
+                }
+            }
 
             if (qtype is not null)
                 whereClause += "qtype = @qtype AND ";
