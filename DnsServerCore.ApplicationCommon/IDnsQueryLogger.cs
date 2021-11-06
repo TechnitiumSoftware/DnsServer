@@ -22,6 +22,7 @@ using System.Collections.Generic;
 using System.Net;
 using System.Threading.Tasks;
 using TechnitiumLibrary.Net.Dns;
+using TechnitiumLibrary.Net.Dns.ResourceRecords;
 
 namespace DnsServerCore.ApplicationCommon
 {
