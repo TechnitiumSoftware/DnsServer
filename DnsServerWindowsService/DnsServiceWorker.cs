@@ -20,8 +20,10 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 using DnsServerCore;
 using Microsoft.Extensions.Hosting;
 using System;
+using System.Reflection;
 using System.Threading;
 using System.Threading.Tasks;
+using TechnitiumLibrary.Net.Firewall;
 
 namespace DnsServerWindowsService
 {
@@ -36,7 +38,10 @@ namespace DnsServerWindowsService
 
         public override Task StartAsync(CancellationToken cancellationToken)
         {
+            CheckFirewallEntries();
+
             _service.Start();
+
             return Task.CompletedTask;
         }
 
@@ -55,6 +60,71 @@ namespace DnsServerWindowsService
         protected override Task ExecuteAsync(CancellationToken stoppingToken)
         {
             return Task.CompletedTask;
+        }
+
+        private void CheckFirewallEntries()
+        {
+            string appPath = Assembly.GetEntryAssembly().Location;
+
+            if (appPath.EndsWith(".dll", StringComparison.OrdinalIgnoreCase))
+                appPath = appPath.Substring(0, appPath.Length - 4) + ".exe";
+
+            if (!WindowsFirewallEntryExists(appPath))
+                AddWindowsFirewallEntry(appPath);
+        }
+
+        private bool WindowsFirewallEntryExists(string appPath)
+        {
+            try
+            {
+                return WindowsFirewall.RuleExistsVista("", appPath) == RuleStatus.Allowed;
+            }
+            catch
+            {
+                return false;
+            }
+        }
+
+        private bool AddWindowsFirewallEntry(string appPath)
+        {
+            try
+            {
+                RuleStatus status = WindowsFirewall.RuleExistsVista("", appPath);
+
+                switch (status)
+                {
+                    case RuleStatus.Blocked:
+                    case RuleStatus.Disabled:
+                        WindowsFirewall.RemoveRuleVista("", appPath);
+                        break;
+
+                    case RuleStatus.Allowed:
+                        return true;
+                }
+
+                WindowsFirewall.AddRuleVista("Technitium DNS Server", "Allows incoming connection request to the DNS server.", FirewallAction.Allow, appPath, Protocol.ANY, null, null, null, null, InterfaceTypeFlags.All, true, Direction.Inbound, true);
+
+                //add web console rule
+                try
+                {
+                    WindowsFirewall.RemoveRuleVista("Technitium DNS Server Web Console", "");
+                }
+                catch
+                { }
+
+                try
+                {
+                    WindowsFirewall.AddRuleVista("Technitium DNS Server Web Console", "Allows access to the DNS server web console.", FirewallAction.Allow, null, Protocol.TCP, _service.WebServiceHttpPort + ", " + _service.WebServiceTlsPort, null, null, null, InterfaceTypeFlags.All, true, Direction.Inbound, true);
+                }
+                catch
+                { }
+
+                return true;
+            }
+            catch
+            {
+                return false;
+            }
         }
     }
 }

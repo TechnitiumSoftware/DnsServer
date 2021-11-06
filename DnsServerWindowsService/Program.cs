@@ -19,9 +19,6 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
-using System;
-using System.Reflection;
-using TechnitiumLibrary.Net.Firewall;
 
 namespace DnsServerWindowsService
 {
@@ -29,18 +26,6 @@ namespace DnsServerWindowsService
     {
         public static void Main(string[] args)
         {
-            #region check windows firewall entry
-
-            string appPath = Assembly.GetEntryAssembly().Location;
-
-            if (appPath.EndsWith(".dll", StringComparison.OrdinalIgnoreCase))
-                appPath = appPath.Substring(0, appPath.Length - 4) + ".exe";
-
-            if (!WindowsFirewallEntryExists(appPath))
-                AddWindowsFirewallEntry(appPath);
-
-            #endregion
-
             CreateHostBuilder(args).Build().Run();
         }
 
@@ -53,101 +38,5 @@ namespace DnsServerWindowsService
                 })
                 .UseWindowsService();
         }
-
-        #region private
-
-        private static bool WindowsFirewallEntryExists(string appPath)
-        {
-            switch (Environment.OSVersion.Platform)
-            {
-                case PlatformID.Win32NT:
-                    if (Environment.OSVersion.Version.Major > 5)
-                    {
-                        //vista and above
-                        try
-                        {
-                            return WindowsFirewall.RuleExistsVista("", appPath) == RuleStatus.Allowed;
-                        }
-                        catch
-                        {
-                            return false;
-                        }
-                    }
-                    else
-                    {
-                        try
-                        {
-                            return WindowsFirewall.ApplicationExists(appPath) == RuleStatus.Allowed;
-                        }
-                        catch
-                        {
-                            return false;
-                        }
-                    }
-
-                default:
-                    return false;
-            }
-        }
-
-        private static bool AddWindowsFirewallEntry(string appPath)
-        {
-            switch (Environment.OSVersion.Platform)
-            {
-                case PlatformID.Win32NT:
-                    if (Environment.OSVersion.Version.Major > 5)
-                    {
-                        //vista and above
-                        try
-                        {
-                            RuleStatus status = WindowsFirewall.RuleExistsVista("", appPath);
-
-                            switch (status)
-                            {
-                                case RuleStatus.Blocked:
-                                case RuleStatus.Disabled:
-                                    WindowsFirewall.RemoveRuleVista("", appPath);
-                                    break;
-
-                                case RuleStatus.Allowed:
-                                    return true;
-                            }
-
-                            WindowsFirewall.AddRuleVista("Technitium DNS Server", "Allow incoming connection request to the DNS server.", FirewallAction.Allow, appPath, Protocol.ANY, null, null, null, null, InterfaceTypeFlags.All, true, Direction.Inbound, true);
-                            return true;
-                        }
-                        catch
-                        { }
-                    }
-                    else
-                    {
-                        try
-                        {
-                            RuleStatus status = WindowsFirewall.ApplicationExists(appPath);
-
-                            switch (status)
-                            {
-                                case RuleStatus.Disabled:
-                                    WindowsFirewall.RemoveApplication(appPath);
-                                    break;
-
-                                case RuleStatus.Allowed:
-                                    return true;
-                            }
-
-                            WindowsFirewall.AddApplication("Technitium DNS Server", appPath);
-                            return true;
-                        }
-                        catch
-                        { }
-                    }
-
-                    break;
-            }
-
-            return false;
-        }
-
-        #endregion
     }
 }
