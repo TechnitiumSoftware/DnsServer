@@ -133,10 +133,12 @@ namespace DnsServerCore.Dns.Zones
                 dnsClient.Proxy = secondaryZone._dnsServer.Proxy;
                 dnsClient.PreferIPv6 = secondaryZone._dnsServer.PreferIPv6;
 
+                DnsDatagram soaRequest = new DnsDatagram(0, false, DnsOpcode.StandardQuery, false, false, false, false, false, false, DnsResponseCode.NoError, new DnsQuestionRecord[] { soaQuestion }, null, null, null, DnsDatagram.EDNS_DEFAULT_UDP_PAYLOAD_SIZE);
+
                 if (string.IsNullOrEmpty(tsigKeyName))
-                    soaResponse = await dnsClient.ResolveAsync(soaQuestion);
+                    soaResponse = await dnsClient.ResolveAsync(soaRequest);
                 else if ((dnsServer.TsigKeys is not null) && dnsServer.TsigKeys.TryGetValue(tsigKeyName, out TsigKey key))
-                    soaResponse = await dnsClient.ResolveAsync(soaQuestion, key, REFRESH_TSIG_FUDGE);
+                    soaResponse = await dnsClient.ResolveAsync(soaRequest, key, REFRESH_TSIG_FUDGE);
                 else
                     throw new DnsServerException("No such TSIG key was found configured: " + tsigKeyName);
             }
@@ -406,7 +408,7 @@ namespace DnsServerCore.Dns.Zones
                     client.Retries = REFRESH_RETRIES;
                     client.Concurrency = 1;
 
-                    DnsDatagram soaRequest = new DnsDatagram(0, false, DnsOpcode.StandardQuery, false, false, false, false, false, false, DnsResponseCode.NoError, new DnsQuestionRecord[] { new DnsQuestionRecord(_name, DnsResourceRecordType.SOA, DnsClass.IN) });
+                    DnsDatagram soaRequest = new DnsDatagram(0, false, DnsOpcode.StandardQuery, false, false, false, false, false, false, DnsResponseCode.NoError, new DnsQuestionRecord[] { new DnsQuestionRecord(_name, DnsResourceRecordType.SOA, DnsClass.IN) }, null, null, null, DnsDatagram.EDNS_DEFAULT_UDP_PAYLOAD_SIZE);
                     DnsDatagram soaResponse;
 
                     if (key is null)
@@ -505,8 +507,7 @@ namespace DnsServerCore.Dns.Zones
                         xfrAuthority = null;
                     }
 
-                    DnsDatagram xfrRequest = new DnsDatagram(0, false, DnsOpcode.StandardQuery, false, false, false, false, false, false, DnsResponseCode.NoError, new DnsQuestionRecord[] { xfrQuestion }, null, xfrAuthority);
-
+                    DnsDatagram xfrRequest = new DnsDatagram(0, false, DnsOpcode.StandardQuery, false, false, false, false, false, false, DnsResponseCode.NoError, new DnsQuestionRecord[] { xfrQuestion }, null, xfrAuthority, null, doIXFR ? DnsDatagram.EDNS_DEFAULT_UDP_PAYLOAD_SIZE : (ushort)0);
                     DnsDatagram xfrResponse;
 
                     if (key is null)
