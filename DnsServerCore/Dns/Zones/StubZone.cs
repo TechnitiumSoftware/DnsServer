@@ -93,7 +93,9 @@ namespace DnsServerCore.Dns.Zones
                 dnsClient.Proxy = stubZone._dnsServer.Proxy;
                 dnsClient.PreferIPv6 = stubZone._dnsServer.PreferIPv6;
 
-                soaResponse = await dnsClient.ResolveAsync(soaQuestion);
+                DnsDatagram soaRequest = new DnsDatagram(0, false, DnsOpcode.StandardQuery, false, false, false, false, false, false, DnsResponseCode.NoError, new DnsQuestionRecord[] { soaQuestion }, null, null, null, DnsDatagram.EDNS_DEFAULT_UDP_PAYLOAD_SIZE);
+
+                soaResponse = await dnsClient.ResolveAsync(soaRequest);
             }
 
             if ((soaResponse.Answer.Count == 0) || (soaResponse.Answer[0].Type != DnsResourceRecordType.SOA))
@@ -230,7 +232,7 @@ namespace DnsServerCore.Dns.Zones
                 client.Retries = REFRESH_RETRIES;
                 client.Concurrency = 1;
 
-                DnsDatagram soaRequest = new DnsDatagram(0, false, DnsOpcode.StandardQuery, false, false, false, false, false, false, DnsResponseCode.NoError, new DnsQuestionRecord[] { new DnsQuestionRecord(_name, DnsResourceRecordType.SOA, DnsClass.IN) });
+                DnsDatagram soaRequest = new DnsDatagram(0, false, DnsOpcode.StandardQuery, false, false, false, false, false, false, DnsResponseCode.NoError, new DnsQuestionRecord[] { new DnsQuestionRecord(_name, DnsResourceRecordType.SOA, DnsClass.IN) }, null, null, null, DnsDatagram.EDNS_DEFAULT_UDP_PAYLOAD_SIZE);
                 DnsDatagram soaResponse = await client.ResolveAsync(soaRequest);
 
                 if (soaResponse.RCODE != DnsResponseCode.NoError)
