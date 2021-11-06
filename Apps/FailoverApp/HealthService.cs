@@ -24,7 +24,7 @@ using System.Collections.Generic;
 using System.Net;
 using System.Threading;
 using TechnitiumLibrary.Net;
-using TechnitiumLibrary.Net.Dns;
+using TechnitiumLibrary.Net.Dns.ResourceRecords;
 
 namespace Failover
 {

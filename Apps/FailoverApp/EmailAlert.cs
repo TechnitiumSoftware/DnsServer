@@ -25,6 +25,7 @@ using System.Net.Mail;
 using System.Text;
 using System.Threading.Tasks;
 using TechnitiumLibrary.Net.Dns;
+using TechnitiumLibrary.Net.Dns.ResourceRecords;
 using TechnitiumLibrary.Net.Mail;
 
 namespace Failover
