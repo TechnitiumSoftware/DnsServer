@@ -21,7 +21,7 @@ using DnsServerCore.ApplicationCommon;
 using System;
 using System.Net;
 using System.Threading;
-using TechnitiumLibrary.Net.Dns;
+using TechnitiumLibrary.Net.Dns.ResourceRecords;
 
 namespace Failover
 {
@@ -310,6 +310,10 @@ namespace Failover
             get
             {
                 _lastHealthStatusCheckedOn = DateTime.UtcNow;
+
+                if (_lastHealthCheckResponse is null)
+                    return new HealthCheckResponse(HealthStatus.Unknown);
+
                 return _lastHealthCheckResponse;
             }
         }
