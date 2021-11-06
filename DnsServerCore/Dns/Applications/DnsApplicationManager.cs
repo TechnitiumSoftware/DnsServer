@@ -91,21 +91,16 @@ namespace DnsServerCore.Dns.Applications
 
             DnsApplication application = new DnsApplication(new DnsServerInternal(_dnsServer, applicationName, applicationFolder), applicationName);
 
-            try
-            {
-                await application.InitializeAsync();
+            await application.InitializeAsync();
 
-                if (!_applications.TryAdd(application.Name, application))
-                    throw new DnsServerException("DNS application already exists: " + application.Name);
-
-                if (refreshAppObjectList)
-                    RefreshAppObjectLists();
-            }
-            catch
+            if (!_applications.TryAdd(application.Name, application))
             {
                 application.Dispose();
-                throw;
+                throw new DnsServerException("DNS application already exists: " + application.Name);
             }
+
+            if (refreshAppObjectList)
+                RefreshAppObjectLists();
         }
 
         private void UnloadApplication(string applicationName)
