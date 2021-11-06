@@ -1044,32 +1044,30 @@ namespace DnsServerCore.Dns
 
         private DnsDatagram PostProcessQuery(DnsDatagram request, DnsDatagram response)
         {
-            if (request.EDNS is not null)
+            if (request.EDNS is null)
+                return response;
+
+            if (response.Additional.Count == 0)
+                return response.Clone(null, null, new DnsResourceRecord[] { DnsDatagramEdns.GetOPTFor(_udpPayloadSize, response.RCODE) });
+
+            if (response.IsSigned)
+                return response;
+
+            DnsResourceRecord[] newAdditional = new DnsResourceRecord[response.Additional.Count + 1];
+
+            for (int i = 0; i < response.Additional.Count; i++)
             {
-                if (response.Additional.Count == 0)
-                    return response.Clone(null, null, new DnsResourceRecord[] { DnsDatagramEdns.GetOPTFor(_udpPayloadSize, response.RCODE) });
+                DnsResourceRecord record = response.Additional[i];
 
-                if (!response.IsSigned)
-                {
-                    DnsResourceRecord[] newAdditional = new DnsResourceRecord[response.Additional.Count + 1];
+                if (record.Type == DnsResourceRecordType.OPT)
+                    throw new InvalidOperationException("DnsDatagram already contains an OPT record.");
 
-                    for (int i = 0; i < response.Additional.Count; i++)
-                    {
-                        DnsResourceRecord record = response.Additional[i];
-
-                        if (record.Type == DnsResourceRecordType.OPT)
-                            throw new InvalidOperationException("DnsDatagram already contains an OPT record.");
-
-                        newAdditional[i] = record;
-                    }
-
-                    newAdditional[response.Additional.Count] = DnsDatagramEdns.GetOPTFor(_udpPayloadSize, response.RCODE);
-
-                    return response.Clone(null, null, newAdditional);
-                }
+                newAdditional[i] = record;
             }
 
-            return response;
+            newAdditional[response.Additional.Count] = DnsDatagramEdns.GetOPTFor(_udpPayloadSize, response.RCODE);
+
+            return response.Clone(null, null, newAdditional);
         }
 
         private IReadOnlyList<DnsResourceRecord> RemoveOPTFromAdditional(IReadOnlyList<DnsResourceRecord> additional)
