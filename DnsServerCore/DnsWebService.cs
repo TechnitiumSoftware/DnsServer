@@ -4383,6 +4383,9 @@ namespace DnsServerCore
         public int WebServiceHttpPort
         { get { return _webServiceHttpPort; } }
 
+        public int WebServiceTlsPort
+        { get { return _webServiceTlsPort; } }
+
         public string WebServiceHostname
         { get { return _webServiceHostname; } }
 
