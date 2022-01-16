@@ -1,6 +1,6 @@
 ﻿/*
 Technitium DNS Server
-Copyright (C) 2021  Shreyas Zare (shreyas@technitium.com)
+Copyright (C) 2022  Shreyas Zare (shreyas@technitium.com)
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -43,7 +43,7 @@ namespace DnsServerCore.Dns.Zones
     {
         #region variables
 
-        readonly AuthZone _zone;
+        readonly ApexZone _apexZone;
 
         readonly string _name;
         readonly AuthZoneType _type;
@@ -211,12 +211,12 @@ namespace DnsServerCore.Dns.Zones
             }
         }
 
-        internal AuthZoneInfo(AuthZone zone, bool loadHistory = false)
+        internal AuthZoneInfo(ApexZone apexZone, bool loadHistory = false)
         {
-            _zone = zone;
-            _name = _zone.Name;
+            _apexZone = apexZone;
+            _name = _apexZone.Name;
 
-            if (_zone is PrimaryZone primaryZone)
+            if (_apexZone is PrimaryZone primaryZone)
             {
                 _type = AuthZoneType.Primary;
 
@@ -225,7 +225,7 @@ namespace DnsServerCore.Dns.Zones
 
                 _tsigKeyNames = primaryZone.TsigKeyNames;
             }
-            else if (_zone is SecondaryZone secondaryZone)
+            else if (_apexZone is SecondaryZone secondaryZone)
             {
                 _type = AuthZoneType.Secondary;
 
@@ -235,12 +235,12 @@ namespace DnsServerCore.Dns.Zones
                 _expiry = secondaryZone.Expiry;
                 _tsigKeyNames = secondaryZone.TsigKeyNames;
             }
-            else if (_zone is StubZone stubZone)
+            else if (_apexZone is StubZone stubZone)
             {
                 _type = AuthZoneType.Stub;
                 _expiry = stubZone.Expiry;
             }
-            else if (_zone is ForwarderZone)
+            else if (_apexZone is ForwarderZone)
             {
                 _type = AuthZoneType.Forwarder;
             }
@@ -249,11 +249,11 @@ namespace DnsServerCore.Dns.Zones
                 _type = AuthZoneType.Unknown;
             }
 
-            _disabled = _zone.Disabled;
-            _zoneTransfer = zone.ZoneTransfer;
-            _zoneTransferNameServers = zone.ZoneTransferNameServers;
-            _notify = zone.Notify;
-            _notifyNameServers = zone.NotifyNameServers;
+            _disabled = _apexZone.Disabled;
+            _zoneTransfer = _apexZone.ZoneTransfer;
+            _zoneTransferNameServers = _apexZone.ZoneTransferNameServers;
+            _notify = _apexZone.Notify;
+            _notifyNameServers = _apexZone.NotifyNameServers;
         }
 
         #endregion
@@ -262,25 +262,25 @@ namespace DnsServerCore.Dns.Zones
 
         public IReadOnlyList<DnsResourceRecord> GetRecords(DnsResourceRecordType type)
         {
-            if (_zone == null)
+            if (_apexZone is null)
                 throw new InvalidOperationException();
 
-            return _zone.GetRecords(type);
+            return _apexZone.GetRecords(type);
         }
 
         public void TriggerNotify()
         {
-            if (_zone == null)
+            if (_apexZone is null)
                 throw new InvalidOperationException();
 
             switch (_type)
             {
                 case AuthZoneType.Primary:
-                    (_zone as PrimaryZone).TriggerNotify();
+                    (_apexZone as PrimaryZone).TriggerNotify();
                     break;
 
                 case AuthZoneType.Secondary:
-                    (_zone as SecondaryZone).TriggerNotify();
+                    (_apexZone as SecondaryZone).TriggerNotify();
                     break;
 
                 default:
@@ -290,17 +290,17 @@ namespace DnsServerCore.Dns.Zones
 
         public void TriggerRefresh()
         {
-            if (_zone == null)
+            if (_apexZone is null)
                 throw new InvalidOperationException();
 
             switch (_type)
             {
                 case AuthZoneType.Secondary:
-                    (_zone as SecondaryZone).TriggerRefresh();
+                    (_apexZone as SecondaryZone).TriggerRefresh();
                     break;
 
                 case AuthZoneType.Stub:
-                    (_zone as StubZone).TriggerRefresh();
+                    (_apexZone as StubZone).TriggerRefresh();
                     break;
 
                 default:
@@ -310,17 +310,17 @@ namespace DnsServerCore.Dns.Zones
 
         public void TriggerResync()
         {
-            if (_zone == null)
+            if (_apexZone is null)
                 throw new InvalidOperationException();
 
             switch (_type)
             {
                 case AuthZoneType.Secondary:
-                    (_zone as SecondaryZone).TriggerResync();
+                    (_apexZone as SecondaryZone).TriggerResync();
                     break;
 
                 case AuthZoneType.Stub:
-                    (_zone as StubZone).TriggerResync();
+                    (_apexZone as StubZone).TriggerResync();
                     break;
 
                 default:
@@ -330,23 +330,23 @@ namespace DnsServerCore.Dns.Zones
 
         public Task<IReadOnlyList<NameServerAddress>> GetPrimaryNameServerAddressesAsync(DnsServer dnsServer)
         {
-            if (_zone == null)
+            if (_apexZone is null)
                 throw new InvalidOperationException();
 
-            return _zone.GetPrimaryNameServerAddressesAsync(dnsServer);
+            return _apexZone.GetPrimaryNameServerAddressesAsync(dnsServer);
         }
 
         public Task<IReadOnlyList<NameServerAddress>> GetSecondaryNameServerAddressesAsync(DnsServer dnsServer)
         {
-            if (_zone == null)
+            if (_apexZone is null)
                 throw new InvalidOperationException();
 
-            return _zone.GetSecondaryNameServerAddressesAsync(dnsServer);
+            return _apexZone.GetSecondaryNameServerAddressesAsync(dnsServer);
         }
 
         public void WriteTo(BinaryWriter bW)
         {
-            if (_zone == null)
+            if (_apexZone is null)
                 throw new InvalidOperationException();
 
             bW.Write((byte)4); //version
@@ -483,10 +483,10 @@ namespace DnsServerCore.Dns.Zones
             get { return _disabled; }
             set
             {
-                if (_zone is null)
+                if (_apexZone is null)
                     throw new InvalidOperationException();
 
-                _zone.Disabled = value;
+                _apexZone.Disabled = value;
             }
         }
 
@@ -495,10 +495,10 @@ namespace DnsServerCore.Dns.Zones
             get { return _zoneTransfer; }
             set
             {
-                if (_zone is null)
+                if (_apexZone is null)
                     throw new InvalidOperationException();
 
-                _zone.ZoneTransfer = value;
+                _apexZone.ZoneTransfer = value;
             }
         }
 
@@ -507,10 +507,10 @@ namespace DnsServerCore.Dns.Zones
             get { return _zoneTransferNameServers; }
             set
             {
-                if (_zone is null)
+                if (_apexZone is null)
                     throw new InvalidOperationException();
 
-                _zone.ZoneTransferNameServers = value;
+                _apexZone.ZoneTransferNameServers = value;
             }
         }
 
@@ -519,10 +519,10 @@ namespace DnsServerCore.Dns.Zones
             get { return _notify; }
             set
             {
-                if (_zone is null)
+                if (_apexZone is null)
                     throw new InvalidOperationException();
 
-                _zone.Notify = value;
+                _apexZone.Notify = value;
             }
         }
 
@@ -531,10 +531,10 @@ namespace DnsServerCore.Dns.Zones
             get { return _notifyNameServers; }
             set
             {
-                if (_zone is null)
+                if (_apexZone is null)
                     throw new InvalidOperationException();
 
-                _zone.NotifyNameServers = value;
+                _apexZone.NotifyNameServers = value;
             }
         }
 
@@ -545,16 +545,20 @@ namespace DnsServerCore.Dns.Zones
         {
             get
             {
-                if (_zone == null)
+                if (_apexZone is null)
                     throw new InvalidOperationException();
 
-                if (_zone is SecondaryZone secondaryZone)
-                    return secondaryZone.IsExpired;
+                switch (_type)
+                {
+                    case AuthZoneType.Secondary:
+                        return (_apexZone as SecondaryZone).IsExpired;
 
-                if (_zone is StubZone stubZone)
-                    return stubZone.IsExpired;
+                    case AuthZoneType.Stub:
+                        return (_apexZone as StubZone).IsExpired;
 
-                return false;
+                    default:
+                        return false;
+                }
             }
         }
 
@@ -562,13 +566,17 @@ namespace DnsServerCore.Dns.Zones
         {
             get
             {
-                if (_zone == null)
+                if (_apexZone is null)
                     throw new InvalidOperationException();
 
-                if (_zone is PrimaryZone primaryZone)
-                    return primaryZone.Internal;
+                switch (_type)
+                {
+                    case AuthZoneType.Primary:
+                        return (_apexZone as PrimaryZone).Internal;
 
-                return false;
+                    default:
+                        return false;
+                }
             }
         }
 
@@ -580,17 +588,17 @@ namespace DnsServerCore.Dns.Zones
             get { return _tsigKeyNames; }
             set
             {
-                if (_zone is null)
+                if (_apexZone is null)
                     throw new InvalidOperationException();
 
                 switch (_type)
                 {
                     case AuthZoneType.Primary:
-                        (_zone as PrimaryZone).TsigKeyNames = value;
+                        (_apexZone as PrimaryZone).TsigKeyNames = value;
                         break;
 
                     case AuthZoneType.Secondary:
-                        (_zone as SecondaryZone).TsigKeyNames = value;
+                        (_apexZone as SecondaryZone).TsigKeyNames = value;
                         break;
 
                     default:
