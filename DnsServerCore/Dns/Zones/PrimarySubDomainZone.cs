@@ -1,6 +1,6 @@
 ﻿/*
 Technitium DNS Server
-Copyright (C) 2021  Shreyas Zare (shreyas@technitium.com)
+Copyright (C) 2022  Shreyas Zare (shreyas@technitium.com)
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -94,7 +94,9 @@ namespace DnsServerCore.Dns.Zones
             if (oldRecord.Type != newRecord.Type)
                 throw new InvalidOperationException("Old and new record types do not match.");
 
-            DeleteRecord(oldRecord.Type, oldRecord.RDATA, out DnsResourceRecord deletedRecord);
+            if (!DeleteRecord(oldRecord.Type, oldRecord.RDATA, out DnsResourceRecord deletedRecord))
+                throw new InvalidOperationException("Cannot update record: the record does not exists to be updated.");
+
             base.AddRecord(newRecord);
 
             _primaryZone.CommitAndIncrementSerial(new DnsResourceRecord[] { deletedRecord }, new DnsResourceRecord[] { newRecord });
