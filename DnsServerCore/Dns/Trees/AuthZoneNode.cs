@@ -17,12 +17,13 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 */
 
+using DnsServerCore.Dns.Zones;
 using System;
 using System.Collections.Generic;
 using System.Threading;
 using TechnitiumLibrary.Net.Dns.ResourceRecords;
 
-namespace DnsServerCore.Dns.Zones
+namespace DnsServerCore.Dns.Trees
 {
     class AuthZoneNode : IDisposable
     {

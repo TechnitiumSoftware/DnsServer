@@ -21,7 +21,7 @@ using System;
 using System.Text;
 using TechnitiumLibrary.ByteTree;
 
-namespace DnsServerCore.Dns.Zones
+namespace DnsServerCore.Dns.Trees
 {
     class DomainTree<T> : ByteTree<string, T> where T : class
     {

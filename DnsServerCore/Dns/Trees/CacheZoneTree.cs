@@ -17,9 +17,10 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 */
 
+using DnsServerCore.Dns.Zones;
 using System;
 
-namespace DnsServerCore.Dns.Zones
+namespace DnsServerCore.Dns.Trees
 {
     class CacheZoneTree : ZoneTree<CacheZone, CacheZone, CacheZone>
     {

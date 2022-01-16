@@ -17,11 +17,12 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 */
 
+using DnsServerCore.Dns.Zones;
 using System;
 using System.Collections.Generic;
 using System.Threading;
 
-namespace DnsServerCore.Dns.Zones
+namespace DnsServerCore.Dns.Trees
 {
     abstract class ZoneTree<TNode, TSubDomainZone, TApexZone> : DomainTree<TNode> where TNode : class where TSubDomainZone : Zone where TApexZone : Zone
     {
