@@ -1,6 +1,6 @@
 ﻿/*
 Technitium DNS Server
-Copyright (C) 2021  Shreyas Zare (shreyas@technitium.com)
+Copyright (C) 2022  Shreyas Zare (shreyas@technitium.com)
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -39,42 +39,50 @@ namespace DnsServerCore.Dns.Zones
             _keyMap = new byte[256];
             _reverseKeyMap = new byte[40];
 
+            int keyCode;
+
             for (int i = 0; i < _keyMap.Length; i++)
             {
-                if ((i >= 97) && (i <= 122)) //[a-z]
+                if (i == 46) //[.]
                 {
-                    _keyMap[i] = (byte)(i - 97);
-                    _reverseKeyMap[_keyMap[i]] = (byte)i;
-                }
-                else if ((i >= 65) && (i <= 90)) //[a-z]
-                {
-                    _keyMap[i] = (byte)(i - 65);
-                    _reverseKeyMap[_keyMap[i]] = (byte)i;
-                }
-                else if ((i >= 48) && (i <= 57)) //[0-9]
-                {
-                    _keyMap[i] = (byte)(26 + i - 48);
-                    _reverseKeyMap[_keyMap[i]] = (byte)i;
-                }
-                else if (i == 45) //[-]
-                {
-                    _keyMap[i] = 36;
-                    _reverseKeyMap[36] = 45;
-                }
-                else if (i == 95) //[_]
-                {
-                    _keyMap[i] = 37;
-                    _reverseKeyMap[37] = 95;
+                    keyCode = 0;
+                    _keyMap[i] = (byte)keyCode;
+                    _reverseKeyMap[keyCode] = (byte)i;
                 }
                 else if (i == 42) //[*]
                 {
-                    _keyMap[i] = 0xff; //skipped value 38 for optimization
-                    _reverseKeyMap[38] = 42;
+                    keyCode = 1;
+                    _keyMap[i] = 0xff; //skipped value for optimization
+                    _reverseKeyMap[keyCode] = (byte)i;
                 }
-                else if (i == 46) //[.]
+                else if (i == 45) //[-]
                 {
-                    _keyMap[i] = 39;
-                    _reverseKeyMap[39] = 46;
+                    keyCode = 2;
+                    _keyMap[i] = (byte)keyCode;
+                    _reverseKeyMap[keyCode] = (byte)i;
+                }
+                else if ((i >= 48) && (i <= 57)) //[0-9]
+                {
+                    keyCode = i - 45; //3 - 12
+                    _keyMap[i] = (byte)keyCode;
+                    _reverseKeyMap[keyCode] = (byte)i;
+                }
+                else if (i == 95) //[_]
+                {
+                    keyCode = 13;
+                    _keyMap[i] = (byte)keyCode;
+                    _reverseKeyMap[keyCode] = (byte)i;
+                }
+                else if ((i >= 97) && (i <= 122)) //[a-z]
+                {
+                    keyCode = i - 83; //14 - 39
+                    _keyMap[i] = (byte)keyCode;
+                    _reverseKeyMap[keyCode] = (byte)i;
+                }
+                else if ((i >= 65) && (i <= 90)) //[A-Z]
+                {
+                    keyCode = i - 51; //14 - 39
+                    _keyMap[i] = (byte)keyCode;
                 }
                 else
                 {
@@ -128,9 +136,9 @@ namespace DnsServerCore.Dns.Zones
                 if (domain[labelEnd] == '-')
                     throw new InvalidDomainNameException("Invalid domain name [" + domain + "]: label cannot end with hyphen.");
 
-                if ((labelLength == 1) && (domain[labelStart + 1] == '*'))
+                if ((labelLength == 1) && (domain[labelStart + 1] == '*')) //[*]
                 {
-                    key[keyOffset++] = 38;
+                    key[keyOffset++] = 1;
                 }
                 else
                 {
@@ -148,7 +156,7 @@ namespace DnsServerCore.Dns.Zones
                     }
                 }
 
-                key[keyOffset++] = 39;
+                key[keyOffset++] = 0; //[.]
                 labelEnd = labelStart - 1;
             }
             while (labelStart > -1);
@@ -169,7 +177,7 @@ namespace DnsServerCore.Dns.Zones
             for (i = 0; i < domain.Length; i++)
             {
                 k = key[i + startIndex];
-                if (k == 39)
+                if (k == 0) //[.]
                     break;
 
                 domain[i] = _reverseKeyMap[k];
