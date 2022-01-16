@@ -23,7 +23,7 @@ using System.Threading;
 
 namespace DnsServerCore.Dns.Zones
 {
-    abstract class ZoneTree<TNode, TSubDomainZone, TApexZone> : DomainTree<TNode> where TNode : Zone where TSubDomainZone : Zone where TApexZone : Zone
+    abstract class ZoneTree<TNode, TSubDomainZone, TApexZone> : DomainTree<TNode> where TNode : class where TSubDomainZone : Zone where TApexZone : Zone
     {
         #region private
 
