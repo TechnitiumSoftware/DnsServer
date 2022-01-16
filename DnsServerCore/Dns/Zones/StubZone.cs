@@ -1,6 +1,6 @@
 ﻿/*
 Technitium DNS Server
-Copyright (C) 2021  Shreyas Zare (shreyas@technitium.com)
+Copyright (C) 2022  Shreyas Zare (shreyas@technitium.com)
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -22,13 +22,13 @@ using System;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
-using TechnitiumLibrary.IO;
+using TechnitiumLibrary;
 using TechnitiumLibrary.Net.Dns;
 using TechnitiumLibrary.Net.Dns.ResourceRecords;
 
 namespace DnsServerCore.Dns.Zones
 {
-    class StubZone : AuthZone
+    class StubZone : ApexZone
     {
         #region variables
 
@@ -310,7 +310,7 @@ namespace DnsServerCore.Dns.Zones
 
                 foreach (DnsResourceRecord record in nsResponse.Answer)
                 {
-                    if ((record.Type == DnsResourceRecordType.NS) && record.Name.Equals(_name))
+                    if ((record.Type == DnsResourceRecordType.NS) && record.Name.Equals(_name, StringComparison.OrdinalIgnoreCase))
                     {
                         record.SyncGlueRecords(nsResponse.Additional);
                         nsRecords.Add(record);
@@ -420,7 +420,7 @@ namespace DnsServerCore.Dns.Zones
             throw new InvalidOperationException("Cannot update record in stub zone.");
         }
 
-        public override IReadOnlyList<DnsResourceRecord> QueryRecords(DnsResourceRecordType type)
+        public override IReadOnlyList<DnsResourceRecord> QueryRecords(DnsResourceRecordType type, bool dnssecOk)
         {
             return Array.Empty<DnsResourceRecord>(); //stub zone has no authority so cant return any records as query response to allow generating referral response
         }
