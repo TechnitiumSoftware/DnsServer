@@ -1,6 +1,6 @@
 ﻿/*
 Technitium DNS Server
-Copyright (C) 2021  Shreyas Zare (shreyas@technitium.com)
+Copyright (C) 2022  Shreyas Zare (shreyas@technitium.com)
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -23,66 +23,9 @@ using System.Threading;
 
 namespace DnsServerCore.Dns.Zones
 {
-    class ZoneTree<T> : DomainTree<T> where T : Zone
+    abstract class ZoneTree<TNode, TSubDomainZone, TApexZone> : DomainTree<TNode> where TNode : Zone where TSubDomainZone : Zone where TApexZone : Zone
     {
         #region private
-
-        private static Node GetNextSubDomainZoneNode(Node current, int baseDepth)
-        {
-            int k = 0;
-
-            while ((current is not null) && (current.Depth >= baseDepth))
-            {
-                Node[] children = current.Children;
-                if (children is not null)
-                {
-                    //find child node
-                    Node child = null;
-
-                    for (int i = k; i < children.Length; i++)
-                    {
-                        child = Volatile.Read(ref children[i]);
-                        if (child is not null)
-                        {
-                            NodeValue value = child.Value;
-                            if (value is not null)
-                            {
-                                T zone = value.Value;
-                                if (zone is not null)
-                                {
-                                    if (zone is SubDomainZone)
-                                        return child; //child has value so return it
-
-                                    if ((zone is PrimaryZone) || (zone is SecondaryZone) || (zone is StubZone) || (zone is ForwarderZone))
-                                    {
-                                        //skip to next child to avoid listing this auth zone's sub domains
-                                        child = null; //set null to avoid child being set as current after the loop
-                                        continue;
-                                    }
-                                }
-                            }
-
-                            if (child.Children is not null)
-                                break;
-                        }
-                    }
-
-                    if (child is not null)
-                    {
-                        //make found child as current
-                        k = 0;
-                        current = child;
-                        continue; //start over
-                    }
-                }
-
-                //no child nodes available; move up to parent node
-                k = current.K + 1;
-                current = current.Parent;
-            }
-
-            return null;
-        }
 
         private static Node GetNextChildZoneNode(Node current, int baseDepth)
         {
@@ -90,7 +33,7 @@ namespace DnsServerCore.Dns.Zones
 
             while ((current is not null) && (current.Depth >= baseDepth))
             {
-                if ((current.K != 39) || (current.Depth == baseDepth)) //[.] skip this node's children as its last for current sub zone
+                if ((current.K != 0) || (current.Depth == baseDepth)) //[.] skip this node's children as its last for current sub zone
                 {
                     Node[] children = current.Children;
                     if (children is not null)
@@ -106,7 +49,7 @@ namespace DnsServerCore.Dns.Zones
                                 if (child.Value is not null)
                                     return child; //child has value so return it
 
-                                if (child.K == 39) //[.]
+                                if (child.K == 0) //[.]
                                     return child; //child node is last for current sub zone
 
                                 if (child.Children is not null)
@@ -157,7 +100,7 @@ namespace DnsServerCore.Dns.Zones
 
             while ((i < key1.Length) && (j < key2.Length))
             {
-                if (key1[i] == 38) //[*]
+                if (key1[i] == 1) //[*]
                 {
                     if (i == key1.Length - 2)
                         return true;
@@ -165,7 +108,7 @@ namespace DnsServerCore.Dns.Zones
                     //skip j to next label
                     while (j < key2.Length)
                     {
-                        if (key2[j] == 39) //[.]
+                        if (key2[j] == 0) //[.]
                             break;
 
                         j++;
@@ -175,7 +118,7 @@ namespace DnsServerCore.Dns.Zones
                     continue;
                 }
 
-                if (key2[j] == 38) //[*]
+                if (key2[j] == 1) //[*]
                 {
                     if (j == key2.Length - 2)
                         return true;
@@ -183,7 +126,7 @@ namespace DnsServerCore.Dns.Zones
                     //skip i to next label
                     while (i < key1.Length)
                     {
-                        if (key1[i] == 39) //[.]
+                        if (key1[i] == 0) //[.]
                             break;
 
                         i++;
@@ -203,7 +146,11 @@ namespace DnsServerCore.Dns.Zones
             return (i == key1.Length) && (j == key2.Length);
         }
 
-        private static bool IsKeySubDomain(byte[] mainKey, byte[] testKey)
+        #endregion
+
+        #region protected
+
+        protected static bool IsKeySubDomain(byte[] mainKey, byte[] testKey)
         {
             //com.example.*.
             //com.example.*.www.
@@ -214,7 +161,7 @@ namespace DnsServerCore.Dns.Zones
 
             while ((i < mainKey.Length) && (j < testKey.Length))
             {
-                if (mainKey[i] == 38) //[*]
+                if (mainKey[i] == 1) //[*]
                 {
                     if (i == mainKey.Length - 2)
                         return true;
@@ -222,7 +169,7 @@ namespace DnsServerCore.Dns.Zones
                     //skip j to next label
                     while (j < testKey.Length)
                     {
-                        if (testKey[j] == 39) //[.]
+                        if (testKey[j] == 0) //[.]
                             break;
 
                         j++;
@@ -242,9 +189,10 @@ namespace DnsServerCore.Dns.Zones
             return (i == mainKey.Length) && (j < testKey.Length);
         }
 
-        private T FindZone(byte[] key, out Node closestNode, out T closestSubDomain, out T closestDelegation, out T closestAuthority)
+        protected TNode FindZone(byte[] key, out Node closestNode, out Node closestAuthorityNode, out TSubDomainZone closestSubDomain, out TSubDomainZone closestDelegation, out TApexZone closestAuthority)
         {
             closestNode = _root;
+            closestAuthorityNode = null;
             closestSubDomain = null;
             closestDelegation = null;
             closestAuthority = null;
@@ -258,41 +206,17 @@ namespace DnsServerCore.Dns.Zones
                 NodeValue value = closestNode.Value;
                 if (value is not null)
                 {
-                    T zoneValue = value.Value;
-                    if (zoneValue is not null)
+                    TNode zoneValue = value.Value;
+                    if ((zoneValue is not null) && IsKeySubDomain(value.Key, key))
                     {
-                        if (zoneValue is AuthZone)
+                        TApexZone authority = null;
+
+                        GetClosestValuesForZone(zoneValue, ref closestSubDomain, ref closestDelegation, ref authority);
+
+                        if (authority is not null)
                         {
-                            if ((zoneValue is PrimaryZone) || (zoneValue is SecondaryZone) || (zoneValue is StubZone) || (zoneValue is ForwarderZone))
-                            {
-                                if (IsKeySubDomain(value.Key, key))
-                                {
-                                    //hosted primary/secondary/stub/forwarder zone found
-                                    closestSubDomain = null;
-                                    closestDelegation = null;
-                                    closestAuthority = zoneValue;
-                                }
-                            }
-                            else if (zoneValue is SubDomainZone)
-                            {
-                                if (IsKeySubDomain(value.Key, key))
-                                {
-                                    if ((closestDelegation is null) && zoneValue.ContainsNameServerRecords())
-                                        closestDelegation = zoneValue; //delegated sub domain found
-                                    else
-                                        closestSubDomain = zoneValue;
-                                }
-                            }
-                        }
-                        else if (zoneValue is CacheZone)
-                        {
-                            if (IsKeySubDomain(value.Key, key))
-                            {
-                                if (zoneValue.ContainsNameServerRecords())
-                                    closestDelegation = zoneValue; //ns records found
-                                else
-                                    closestSubDomain = zoneValue;
-                            }
+                            closestAuthority = authority;
+                            closestAuthorityNode = closestNode;
                         }
                     }
                 }
@@ -304,7 +228,7 @@ namespace DnsServerCore.Dns.Zones
                 if (children is null)
                     break;
 
-                Node child = Volatile.Read(ref children[38]); //[*]
+                Node child = Volatile.Read(ref children[1]); //[*]
                 if (child is not null)
                     wildcard = child;
 
@@ -319,7 +243,7 @@ namespace DnsServerCore.Dns.Zones
                     //skip to next label
                     while (++i < key.Length)
                     {
-                        if (key[i] == 39) //[.]
+                        if (key[i] == 0) //[.]
                             break;
                     }
 
@@ -352,7 +276,7 @@ namespace DnsServerCore.Dns.Zones
                     Node[] children = wildcard.Children;
                     if (children is not null)
                     {
-                        Node child = Volatile.Read(ref children[39]); //[.]
+                        Node child = Volatile.Read(ref children[0]); //[.]
                         if (child is not null)
                         {
                             value = child.Value;
@@ -377,144 +301,11 @@ namespace DnsServerCore.Dns.Zones
             return null;
         }
 
-        private static bool SubDomainExists(byte[] key, Node closestNode)
-        {
-            if (!closestNode.HasChildren)
-                return false;
-
-            Node nextSubDomain = GetNextSubDomainZoneNode(closestNode, closestNode.Depth);
-            if (nextSubDomain is null)
-                return false;
-
-            NodeValue value = nextSubDomain.Value;
-            if (value is null)
-                return false;
-
-            return IsKeySubDomain(key, value.Key);
-        }
+        protected abstract void GetClosestValuesForZone(TNode zoneValue, ref TSubDomainZone closestSubDomain, ref TSubDomainZone closestDelegation, ref TApexZone closestAuthority);
 
         #endregion
 
         #region public
-
-        public bool TryAdd(T zone)
-        {
-            return TryAdd(zone.Name, zone);
-        }
-
-        public override bool TryRemove(string domain, out T value)
-        {
-            if (typeof(T) == typeof(CacheZone))
-            {
-                bool removed = TryRemove(domain, out value, out Node closestNode);
-
-                //remove all cache zones under current zone
-                Node current = closestNode;
-
-                do
-                {
-                    current = current.GetNextNodeWithValue(closestNode.Depth);
-                    if (current is null)
-                        break;
-
-                    NodeValue v = current.Value;
-                    if (v is not null)
-                    {
-                        T zone = v.Value;
-                        if (zone is not null)
-                        {
-                            current.RemoveNodeValue(v.Key, out _); //remove node value
-                            current.CleanThisBranch();
-                            removed = true;
-                        }
-                    }
-                }
-                while (true);
-
-                if (removed)
-                    closestNode.CleanThisBranch();
-
-                return removed;
-            }
-            else
-            {
-                if (TryRemove(domain, out value, out Node closestNode))
-                {
-                    if ((value is not null) && ((value is PrimaryZone) || (value is SecondaryZone) || (value is StubZone) || (value is ForwarderZone)))
-                    {
-                        //remove all sub domains under current zone
-                        Node current = closestNode;
-
-                        do
-                        {
-                            current = GetNextSubDomainZoneNode(current, closestNode.Depth);
-                            if (current is null)
-                                break;
-
-                            NodeValue v = current.Value;
-                            if (v is not null)
-                            {
-                                T zone = v.Value;
-                                if (zone is not null)
-                                {
-                                    current.RemoveNodeValue(v.Key, out _); //remove node value
-                                    current.CleanThisBranch();
-                                }
-                            }
-                        }
-                        while (true);
-                    }
-
-                    closestNode.CleanThisBranch();
-                    return true;
-                }
-
-                return false;
-            }
-        }
-
-        public List<T> GetZoneWithSubDomainZones(string domain)
-        {
-            if (domain is null)
-                throw new ArgumentNullException(nameof(domain));
-
-            List<T> zones = new List<T>();
-
-            byte[] bKey = ConvertToByteKey(domain);
-
-            NodeValue nodeValue = _root.FindNodeValue(bKey, out Node closestNode);
-            if (nodeValue is not null)
-            {
-                T zone = nodeValue.Value;
-                if (zone is not null)
-                {
-                    if ((zone is PrimaryZone) || (zone is SecondaryZone) || (zone is StubZone) || (zone is ForwarderZone))
-                    {
-                        zones.Add(zone);
-
-                        Node current = closestNode;
-
-                        do
-                        {
-                            current = GetNextSubDomainZoneNode(current, closestNode.Depth);
-                            if (current is null)
-                                break;
-
-                            NodeValue value = current.Value;
-                            if (value is not null)
-                            {
-                                zone = value.Value;
-                                if (zone is not null)
-                                    zones.Add(zone);
-                            }
-                        }
-                        while (true);
-                    }
-                }
-            }
-
-            return zones;
-        }
 
         public void ListSubDomains(string domain, List<string> subDomains)
         {
@@ -539,7 +330,7 @@ namespace DnsServerCore.Dns.Zones
                             subDomains.Add(label);
                     }
                 }
-                else if ((current.K == 39) && (current.Depth > closestNode.Depth))
+                else if ((current.K == 0) && (current.Depth > closestNode.Depth)) //[.]
                 {
                     byte[] nodeKey = GetNodeKey(current);
                     if (IsKeySubDomain(bKey, nodeKey))
@@ -553,85 +344,6 @@ namespace DnsServerCore.Dns.Zones
                 current = GetNextChildZoneNode(current, closestNode.Depth);
             }
             while (current is not null);
-        }
-
-        public T FindZone(string domain, out T closest, out T delegation, out T authority, out bool hasSubDomains)
-        {
-            if (domain is null)
-                throw new ArgumentNullException(nameof(domain));
-
-            byte[] key = ConvertToByteKey(domain);
-
-            T zoneValue = FindZone(key, out Node closestNode, out T closestSubDomain, out T closestDelegation, out T closestAuthority);
-            if (zoneValue is null)
-            {
-                //zone not found
-                closest = closestSubDomain;
-                delegation = closestDelegation;
-                authority = closestAuthority;
-
-                if (authority is null)
-                {
-                    //no authority so no subdomains
-                    hasSubDomains = false;
-                }
-                else
-                {
-                    //check if current node has sub domains
-                    NodeValue value = closestNode.Value;
-                    if (value is null)
-                        hasSubDomains = SubDomainExists(key, closestNode);
-                    else
-                        hasSubDomains = IsKeySubDomain(key, value.Key);
-                }
-
-                return null;
-            }
-
-            //zone found
-            if (zoneValue is AuthZone)
-            {
-                if ((zoneValue is PrimaryZone) || (zoneValue is SecondaryZone) || (zoneValue is StubZone) || (zoneValue is ForwarderZone))
-                {
-                    closest = null;
-                    delegation = null;
-                    authority = zoneValue;
-                }
-                else
-                {
-                    closest = closestSubDomain;
-
-                    if (closestDelegation is not null)
-                        delegation = closestDelegation;
-                    else if ((zoneValue is SubDomainZone) && zoneValue.ContainsNameServerRecords())
-                        delegation = zoneValue;
-                    else
-                        delegation = null;
-
-                    authority = closestAuthority;
-                }
-
-                hasSubDomains = SubDomainExists(key, closestNode);
-            }
-            else if (zoneValue is CacheZone)
-            {
-                if (zoneValue.ContainsNameServerRecords())
-                    delegation = zoneValue;
-                else if (closestDelegation is not null)
-                    delegation = closestDelegation;
-                else
-                    delegation = null;
-
-                closest = null; //cache does not use this value
-                authority = null; //cache does not use this value
-                hasSubDomains = false; //cache does not use this value
-            }
-            else
-            {
-                throw new InvalidOperationException();
-            }
-
-            return zoneValue;
         }
 
         #endregion
