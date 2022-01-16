@@ -1,6 +1,6 @@
 ﻿/*
 Technitium DNS Server
-Copyright (C) 2021  Shreyas Zare (shreyas@technitium.com)
+Copyright (C) 2022  Shreyas Zare (shreyas@technitium.com)
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -23,13 +23,13 @@ using System.Collections.Generic;
 using System.Net;
 using System.Threading;
 using System.Threading.Tasks;
-using TechnitiumLibrary.IO;
+using TechnitiumLibrary;
 using TechnitiumLibrary.Net.Dns;
 using TechnitiumLibrary.Net.Dns.ResourceRecords;
 
 namespace DnsServerCore.Dns.Zones
 {
-    class SecondaryZone : AuthZone
+    class SecondaryZone : ApexZone
     {
         #region variables
 
@@ -507,7 +507,7 @@ namespace DnsServerCore.Dns.Zones
                         xfrAuthority = null;
                     }
 
-                    DnsDatagram xfrRequest = new DnsDatagram(0, false, DnsOpcode.StandardQuery, false, false, false, false, false, false, DnsResponseCode.NoError, new DnsQuestionRecord[] { xfrQuestion }, null, xfrAuthority, null, doIXFR ? DnsDatagram.EDNS_DEFAULT_UDP_PAYLOAD_SIZE : (ushort)0);
+                    DnsDatagram xfrRequest = new DnsDatagram(0, false, DnsOpcode.StandardQuery, false, false, false, false, false, false, DnsResponseCode.NoError, new DnsQuestionRecord[] { xfrQuestion }, null, xfrAuthority, null, doIXFR ? DnsDatagram.EDNS_DEFAULT_UDP_PAYLOAD_SIZE : ushort.MinValue);
                     DnsDatagram xfrResponse;
 
                     if (key is null)
