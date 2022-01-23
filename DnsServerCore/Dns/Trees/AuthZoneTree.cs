@@ -203,6 +203,27 @@ namespace DnsServerCore.Dns.Trees
             return IsKeySubDomain(key, value.Key);
         }
 
+        private static AuthZone GetAuthZoneFromNode(Node node, string domain, DnsResourceRecordType type)
+        {
+            NodeValue value = node.Value;
+            if (value is not null)
+            {
+                AuthZoneNode zoneNode = value.Value;
+                if (zoneNode is not null)
+                {
+                    ApexZone apexZone = zoneNode.ApexZone;
+                    if ((apexZone is not null) && (type != DnsResourceRecordType.DS) && (DnsNSECRecord.CanonicalComparison(apexZone.Name, domain) < 0))
+                        return apexZone;
+
+                    SubDomainZone parentSideZone = zoneNode.ParentSideZone;
+                    if ((parentSideZone is not null) && (DnsNSECRecord.CanonicalComparison(parentSideZone.Name, domain) < 0))
+                        return parentSideZone;
+                }
+            }
+
+            return null;
+        }
+
         #endregion
 
         #region protected
@@ -511,55 +532,167 @@ namespace DnsServerCore.Dns.Trees
             }
         }
 
-        public IReadOnlyList<DnsResourceRecord> FindProofOfNonExistenceNxDomain(string domain, DnsResourceRecordType type)
+        public IReadOnlyList<DnsResourceRecord> FindNSECProofOfNonExistenceNxDomain(string domain, DnsResourceRecordType type, bool isWildcardAnswer)
         {
             if (domain is null)
                 throw new ArgumentNullException(nameof(domain));
 
-            byte[] key = ConvertToByteKey(domain);
+            List<DnsResourceRecord> nsecRecords = new List<DnsResourceRecord>(2 * 2);
 
-            AuthZoneNode zoneNode = FindZone(key, out Node closestNode, out Node closestAuthorityNode, out _, out _, out _);
-            if (zoneNode is not null)
-                return Array.Empty<DnsResourceRecord>(); //domain exists! cannot prove non existence
-
-            //check for value at closest node
-            NodeValue value = closestNode.Value;
-            if (value is not null)
+            void AddProofOfCoverFor(string domain)
             {
-                AuthZoneNode zNode = value.Value;
-                if (zNode is not null)
-                {
-                    ApexZone apexZone = zNode.ApexZone;
-                    if ((apexZone is not null) && (type != DnsResourceRecordType.DS))
-                        return apexZone.QueryRecords(DnsResourceRecordType.NSEC, true);
+                byte[] key = ConvertToByteKey(domain);
 
-                    SubDomainZone parentSideZone = zNode.ParentSideZone;
-                    if (parentSideZone is not null)
-                        return parentSideZone.QueryRecords(DnsResourceRecordType.NSEC, true);
+                AuthZoneNode zoneNode = FindZone(key, out Node closestNode, out Node closestAuthorityNode, out _, out _, out _);
+                if (zoneNode is not null)
+                    return; //domain exists! cannot prove non-existence
+
+                //check for value at closest node
+                AuthZone authZone = GetAuthZoneFromNode(closestNode, domain, type);
+                if (authZone is null)
+                {
+                    Node previousNode = GetPreviousSubDomainZoneNode(key, closestNode, closestAuthorityNode.Depth);
+                    if (previousNode is not null)
+                        authZone = GetAuthZoneFromNode(previousNode, domain, type);
                 }
-            }
 
-            Node previousNode = GetPreviousSubDomainZoneNode(key, closestNode, closestAuthorityNode.Depth);
-            if (previousNode is not null)
-            {
-                NodeValue pValue = previousNode.Value;
-                if (pValue is not null)
+                if (authZone is not null)
                 {
-                    AuthZoneNode zNode = pValue.Value;
-                    if (zNode is not null)
-                    {
-                        ApexZone apexZone = zNode.ApexZone;
-                        if ((apexZone is not null) && (type != DnsResourceRecordType.DS))
-                            return apexZone.QueryRecords(DnsResourceRecordType.NSEC, true);
+                    IReadOnlyList<DnsResourceRecord> proofOfCoverRecords = authZone.QueryRecords(DnsResourceRecordType.NSEC, true);
 
-                        SubDomainZone parentSideZone = zNode.ParentSideZone;
-                        if (parentSideZone is not null)
-                            return parentSideZone.QueryRecords(DnsResourceRecordType.NSEC, true);
+                    foreach (DnsResourceRecord proofOfCoverRecord in proofOfCoverRecords)
+                    {
+                        if (!nsecRecords.Contains(proofOfCoverRecord))
+                            nsecRecords.Add(proofOfCoverRecord);
                     }
                 }
             }
 
-            return Array.Empty<DnsResourceRecord>();
+            //add proof of cover for domain
+            AddProofOfCoverFor(domain);
+
+            if (isWildcardAnswer)
+                return nsecRecords;
+
+            //add proof of cover for wildcard
+            if ((nsecRecords.Count > 0) && (nsecRecords[0].Type == DnsResourceRecordType.NSEC))
+            {
+                DnsResourceRecord nsecRecord = nsecRecords[0];
+                DnsNSECRecord nsec = nsecRecord.RDATA as DnsNSECRecord;
+
+                if (!nsec.NextDomainName.EndsWith("." + domain, StringComparison.OrdinalIgnoreCase))
+                {
+                    //add wildcard proof to prove that a wildcard expansion was not possible
+                    string wildcardName = DnsNSECRecord.GetWildcardFor(nsecRecord.Name, nsec.NextDomainName);
+
+                    AddProofOfCoverFor(wildcardName);
+                }
+            }
+
+            return nsecRecords;
+        }
+
+        public IReadOnlyList<DnsResourceRecord> FindNSEC3ProofOfNonExistenceNxDomain(string domain, DnsResourceRecordType type, bool isWildcardAnswer)
+        {
+            if (domain is null)
+                throw new ArgumentNullException(nameof(domain));
+
+            List<DnsResourceRecord> nsec3Records = new List<DnsResourceRecord>(3 * 2);
+            string closestEncloser;
+            string hashedNextCloserName;
+            string hashedWildcardDomainName = null;
+
+            //get closest encloser proof
+            {
+                byte[] key = ConvertToByteKey(domain);
+
+                AuthZoneNode zoneNode = FindZone(key, out _, out _, out SubDomainZone closestSubDomain, out _, out ApexZone closestAuthority);
+                if (zoneNode is not null)
+                {
+                    //subdomain that contains only NSEC3 record does not really exists: RFC5155 section 7.2.8
+
+                    //TO DO: check for record types before claiming that domain exists!
+
+                    return nsec3Records; //domain exists! cannot prove non-existence
+                }
+
+                if (closestSubDomain is not null)
+                    closestEncloser = closestSubDomain.Name;
+                else if (closestAuthority is not null)
+                    closestEncloser = closestAuthority.Name;
+                else
+                    return nsec3Records; //cannot find closest encloser
+
+                IReadOnlyList<DnsResourceRecord> nsec3ParamRecords = closestAuthority.GetRecords(DnsResourceRecordType.NSEC3PARAM);
+                if (nsec3ParamRecords.Count == 0)
+                    return nsec3Records; //zone does not have NSEC3 deployed
+
+                DnsNSEC3PARAMRecord nsec3Param = nsec3ParamRecords[0].RDATA as DnsNSEC3PARAMRecord;
+                string hashedClosestEncloser = nsec3Param.GetHashedOwnerName(closestEncloser) + "." + closestAuthority.Name;
+
+                if (!TryGet(closestAuthority.Name, hashedClosestEncloser, out AuthZone authZone))
+                    return nsec3Records;
+
+                IReadOnlyList<DnsResourceRecord> closestEncloserProofRecords = authZone.QueryRecords(DnsResourceRecordType.NSEC3, true);
+                if (closestEncloserProofRecords.Count == 0)
+                    return nsec3Records;
+
+                nsec3Records.AddRange(closestEncloserProofRecords);
+
+                string nextCloserName = DnsNSEC3Record.GetNextCloserName(domain, closestEncloser);
+                hashedNextCloserName = nsec3Param.GetHashedOwnerName(nextCloserName) + "." + closestAuthority.Name;
+
+                if (!isWildcardAnswer)
+                {
+                    string wildcardDomain = closestEncloser.Length > 0 ? "*." + closestEncloser : "*";
+                    hashedWildcardDomainName = nsec3Param.GetHashedOwnerName(wildcardDomain) + "." + closestAuthority.Name;
+                }
+            }
+
+            void AddProofOfCoverFor(string domain)
+            {
+                byte[] key = ConvertToByteKey(domain);
+
+                AuthZoneNode zoneNode = FindZone(key, out Node closestNode, out Node closestAuthorityNode, out _, out _, out _);
+                if (zoneNode is not null)
+                    return; //domain exists! cannot find proof of cover
+
+                while (true)
+                {
+                    AuthZone authZone = GetAuthZoneFromNode(closestNode, domain, type);
+                    if (authZone is not null)
+                    {
+                        IReadOnlyList<DnsResourceRecord> proofOfCoverRecords = authZone.QueryRecords(DnsResourceRecordType.NSEC3, true);
+                        if (proofOfCoverRecords.Count > 0)
+                        {
+                            foreach (DnsResourceRecord proofOfCoverRecord in proofOfCoverRecords)
+                            {
+                                if (!nsec3Records.Contains(proofOfCoverRecord))
+                                    nsec3Records.Add(proofOfCoverRecord);
+                            }
+
+                            break;
+                        }
+                    }
+
+                    Node previousNode = GetPreviousSubDomainZoneNode(key, closestNode, closestAuthorityNode.Depth);
+                    if (previousNode is null)
+                        break;
+
+                    closestNode = previousNode;
+                }
+            }
+
+            //add proof of cover for the hashed next closer name
+            AddProofOfCoverFor(hashedNextCloserName);
+
+            if (isWildcardAnswer)
+                return nsec3Records;
+
+            //add proof of cover to prove that a wildcard expansion was not possible
+            AddProofOfCoverFor(hashedWildcardDomainName);
+
+            return nsec3Records;
         }
 
         #endregion
