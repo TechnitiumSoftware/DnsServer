@@ -204,7 +204,7 @@ namespace DnsServerCore.Dns.ZoneManagers
             });
         }
 
-        private void ValidateZoneNameFor(string zoneName, string domain)
+        private static void ValidateZoneNameFor(string zoneName, string domain)
         {
             if (domain.Equals(zoneName, StringComparison.OrdinalIgnoreCase) || domain.EndsWith("." + zoneName, StringComparison.OrdinalIgnoreCase) || (zoneName.Length == 0))
                 return;
@@ -352,7 +352,7 @@ namespace DnsServerCore.Dns.ZoneManagers
             return new DnsDatagram(request.Identifier, true, DnsOpcode.StandardQuery, false, false, request.RecursionDesired, isRecursionAllowed, false, false, DnsResponseCode.NoError, request.Question, null, authority, additional);
         }
 
-        private IReadOnlyList<DnsResourceRecord> AddProofOfNonExistenceNoData(AuthZone zone, IReadOnlyList<DnsResourceRecord> existingAuthority)
+        private static IReadOnlyList<DnsResourceRecord> AddProofOfNonExistenceNoData(AuthZone zone, IReadOnlyList<DnsResourceRecord> existingAuthority)
         {
             IReadOnlyList<DnsResourceRecord> nsecRecords = zone.QueryRecords(DnsResourceRecordType.NSEC, true);
             if (nsecRecords.Count <= 0)

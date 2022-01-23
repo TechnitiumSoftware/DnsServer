@@ -899,9 +899,7 @@ namespace DnsServerCore.Dhcp
 
             if ((_vendorInfo != null) && (request.VendorClassIdentifier != null))
             {
-                VendorSpecificInformationOption vendorSpecificInformationOption;
-
-                if (_vendorInfo.TryGetValue(request.VendorClassIdentifier.Identifier, out vendorSpecificInformationOption) || _vendorInfo.TryGetValue("", out vendorSpecificInformationOption))
+                if (_vendorInfo.TryGetValue(request.VendorClassIdentifier.Identifier, out VendorSpecificInformationOption vendorSpecificInformationOption) || _vendorInfo.TryGetValue("", out vendorSpecificInformationOption))
                 {
                     options.Add(new VendorClassIdentifierOption(request.VendorClassIdentifier.Identifier));
                     options.Add(vendorSpecificInformationOption);
