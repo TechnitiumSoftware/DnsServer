@@ -1,6 +1,6 @@
 ﻿/*
 Technitium DNS Server
-Copyright (C) 2021  Shreyas Zare (shreyas@technitium.com)
+Copyright (C) 2022  Shreyas Zare (shreyas@technitium.com)
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -29,6 +29,7 @@ using System.Net.Sockets;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
+using TechnitiumLibrary;
 using TechnitiumLibrary.IO;
 using TechnitiumLibrary.Net;
 using TechnitiumLibrary.Net.Dns;
@@ -389,18 +390,18 @@ namespace DnsServerCore.Dhcp
             return AddressStatus.TRUE;
         }
 
-        private bool IsAddressAlreadyAllocated(Lease reservedLease)
+        private bool IsAddressAlreadyAllocated(IPAddress address, ClientIdentifierOption clientIdentifier)
         {
             foreach (KeyValuePair<ClientIdentifierOption, Lease> lease in _leases)
             {
-                if (reservedLease.Address.Equals(lease.Value.Address))
-                    return !lease.Key.Equals(reservedLease.ClientIdentifier);
+                if (address.Equals(lease.Value.Address))
+                    return !lease.Key.Equals(clientIdentifier);
             }
 
             foreach (KeyValuePair<ClientIdentifierOption, Lease> offer in _offers)
             {
-                if (reservedLease.Address.Equals(offer.Value.Address))
-                    return !offer.Key.Equals(reservedLease.ClientIdentifier);
+                if (address.Equals(offer.Value.Address))
+                    return !offer.Key.Equals(clientIdentifier);
             }
 
             return false;
@@ -653,20 +654,15 @@ namespace DnsServerCore.Dhcp
 
         internal Lease GetReservedLease(DhcpMessage request)
         {
-            return GetReservedLease(new ClientIdentifierOption((byte)request.HardwareAddressType, request.ClientHardwareAddress));
+            return GetReservedLease(new ClientIdentifierOption((byte)request.HardwareAddressType, request.ClientHardwareAddress), request.ClientIdentifier);
         }
 
-        internal Lease GetReservedLease(DhcpMessageHardwareAddressType hardwareAddressType, byte[] identifier)
+        private Lease GetReservedLease(ClientIdentifierOption reservedLeasesClientIdentifier, ClientIdentifierOption clientIdentifier)
         {
-            return GetReservedLease(new ClientIdentifierOption((byte)hardwareAddressType, identifier));
-        }
-
-        private Lease GetReservedLease(ClientIdentifierOption clientIdentifier)
-        {
-            if (_reservedLeases.TryGetValue(clientIdentifier, out Lease reservedLease))
+            if (_reservedLeases.TryGetValue(reservedLeasesClientIdentifier, out Lease reservedLease))
             {
                 //reserved address exists
-                if (IsAddressAlreadyAllocated(reservedLease))
+                if (IsAddressAlreadyAllocated(reservedLease.Address, clientIdentifier))
                     return null; //reserved lease address is already allocated so ignore reserved lease
 
                 return reservedLease;
