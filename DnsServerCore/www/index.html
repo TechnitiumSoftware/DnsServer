@@ -539,7 +539,7 @@
                                         <div class="form-group">
                                             <label for="txtDnsClientNameServer">Server</label>
                                             <div class="input-group dropdown">
-                                                <input type="text" class="form-control dropdown-toggle" style="min-width: 250px;" id="txtDnsClientNameServer" value="This Server {this-server}">
+                                                <input type="text" class="form-control dropdown-toggle" style="min-width: 230px;" id="txtDnsClientNameServer" value="This Server {this-server}">
                                                 <ul class="dropdown-menu" id="optDnsClientNameServers">
                                                     <li><a href="#">This Server {this-server}</a></li>
                                                     <li><a href="#">Recursive Query {recursive-resolver}</a></li>
@@ -605,7 +605,7 @@
 
                                         <div class="form-group">
                                             <label for="txtDnsClientDomain">Domain</label>
-                                            <input type="text" class="form-control" style="min-width: 274px;" id="txtDnsClientDomain" placeholder="example.com">
+                                            <input type="text" class="form-control" style="min-width: 240px;" id="txtDnsClientDomain" placeholder="example.com">
                                         </div>
 
                                         <div class="form-group">
@@ -621,6 +621,12 @@
                                                 <option>AAAA</option>
                                                 <option>SRV</option>
                                                 <option>DNAME</option>
+                                                <option>DS</option>
+                                                <option>RRSIG</option>
+                                                <option>NSEC</option>
+                                                <option>DNSKEY</option>
+                                                <option>NSEC3</option>
+                                                <option>NSEC3PARAM</option>
                                                 <option>CAA</option>
                                                 <option>ANY</option>
                                                 <option>AXFR</option>
@@ -629,7 +635,7 @@
                                         </div>
 
                                         <div class="form-group">
-                                            <label for="optDnsClientProtocol">Protocol</label>
+                                            <label for="optDnsClientProtocol">DNS-over-</label>
                                             <select class="form-control" id="optDnsClientProtocol">
                                                 <option>UDP</option>
                                                 <option>TCP</option>
@@ -642,6 +648,12 @@
                                         <div class="form-group">
                                             <button type="submit" class="btn btn-primary" id="btnDnsClientResolve" data-loading-text="Resolving..." onclick="resolveQuery(); return false;" style="margin-right: 6px;">Resolve</button>
                                             <button type="button" class="btn btn-warning" id="btnDnsClientImport" data-loading-text="Importing..." onclick="resolveQuery(true);">Import</button>
+                                        </div>
+
+                                        <div class="form-group checkbox">
+                                            <label>
+                                                <input type="checkbox" id="chkDnsClientDnssecValidation"> Enable DNSSEC Validation
+                                            </label>
                                         </div>
                                     </form>
 
@@ -675,9 +687,9 @@
                                                         <div class="form-group">
                                                             <label for="txtDnsServerDomain" class="col-sm-3 control-label">DNS Server Domain</label>
                                                             <div class="col-sm-6">
-                                                                <input type="text" class="form-control" id="txtDnsServerDomain" placeholder="Domain Name">
+                                                                <input type="text" class="form-control" id="txtDnsServerDomain" placeholder="domain name">
                                                             </div>
-                                                            <div class="col-sm-offset-3 col-sm-8" style="padding-top: 5px;">The primary domain name used by this DNS Server to identify itself.</div>
+                                                            <div class="col-sm-offset-3 col-sm-8" style="padding-top: 5px;">The primary fully qualified domain name used by this DNS Server to identify itself.</div>
                                                         </div>
 
                                                         <div class="form-group">
@@ -695,7 +707,7 @@
                                                         <div class="form-group">
                                                             <label for="txtDefaultRecordTtl" class="col-sm-3 control-label">Default Record TTL</label>
                                                             <div class="col-sm-6">
-                                                                <input type="number" class="form-control" id="txtDefaultRecordTtl" placeholder="ttl" style="width: 100px; display: inline;">
+                                                                <input type="number" class="form-control" id="txtDefaultRecordTtl" placeholder="TTL" style="width: 100px; display: inline;">
                                                                 <span>(default 3600)</span>
                                                             </div>
                                                             <div class="col-sm-offset-3 col-sm-8" style="padding-top: 5px;">The default TTL value to use if not specified when adding or updating records in a Zone.</div>
@@ -726,6 +738,25 @@
                                                                 <span>(valid range 512-4096; default 1232)</span>
                                                             </div>
                                                             <div class="col-sm-offset-3 col-sm-8" style="padding-top: 5px;">The maximum UDP payload size that can be used to avoid IP fragmentation.</div>
+                                                        </div>
+                                                    </div>
+
+                                                    <div class="well well-sm form-horizontal">
+                                                        <div class="form-group">
+                                                            <label class="col-sm-3 control-label">DNSSEC</label>
+                                                            <div class="col-sm-8">
+                                                                <div class="checkbox">
+                                                                    <label>
+                                                                        <input id="chkDnssecValidation" type="checkbox"> Enable DNSSEC Validation
+                                                                    </label>
+                                                                </div>
+                                                                <div style="padding-top: 5px; padding-left: 20px;">DNS Server will validate all responses from name servers or forwarders when this option is enabled.</div>
+                                                            </div>
+                                                        </div>
+
+                                                        <div>
+                                                            <p>Warning! When forwarders are configured, DNSSEC validation will work only if the forwarders are security aware i.e. can respond to DNSSEC requests correctly.</p>
+                                                            <p>Note! Enabling DNSSEC will increase delays in resolving domain names when the cache is initially empty. As the cache fills up, the performance will be normal as expected.</p>
                                                         </div>
                                                     </div>
 
@@ -792,7 +823,7 @@
                                                         <div class="form-group">
                                                             <label for="txtWebServiceHttpPort" class="col-sm-3 control-label">Web Service HTTP Port</label>
                                                             <div class="col-sm-6">
-                                                                <input type="number" class="form-control" id="txtWebServiceHttpPort" placeholder="HTTP Port" style="width: 100px;">
+                                                                <input type="number" class="form-control" id="txtWebServiceHttpPort" placeholder="port" style="width: 100px;">
                                                             </div>
                                                             <div class="col-sm-offset-3 col-sm-8" style="padding-top: 5px;">Specify the TCP port number for this web console over HTTP protocol.</div>
                                                         </div>
@@ -823,7 +854,7 @@
                                                         <div class="form-group">
                                                             <label for="txtWebServiceTlsPort" class="col-sm-3 control-label">Web Service HTTPS Port</label>
                                                             <div class="col-sm-6">
-                                                                <input type="number" class="form-control" id="txtWebServiceTlsPort" placeholder="TLS Port" style="width: 100px;">
+                                                                <input type="number" class="form-control" id="txtWebServiceTlsPort" placeholder="port" style="width: 100px;">
                                                             </div>
                                                             <div class="col-sm-offset-3 col-sm-8" style="padding-top: 5px;">Specify the TCP port number for this web console over TLS protocol.</div>
                                                         </div>
@@ -1269,30 +1300,30 @@
                                                         </div>
 
                                                         <div class="form-group">
-                                                            <label for="txtProxyAddress" class="col-sm-3 control-label">Proxy Address</label>
+                                                            <label for="txtProxyAddress" class="col-sm-3 control-label">Proxy Server Address</label>
                                                             <div class="col-sm-6">
-                                                                <input type="text" class="form-control" id="txtProxyAddress" placeholder="Proxy Server Address">
+                                                                <input type="text" class="form-control" id="txtProxyAddress" placeholder="domain name or IP address">
                                                             </div>
                                                         </div>
 
                                                         <div class="form-group">
-                                                            <label for="txtProxyPort" class="col-sm-3 control-label">Proxy Port</label>
+                                                            <label for="txtProxyPort" class="col-sm-3 control-label">Proxy Server Port</label>
                                                             <div class="col-sm-6">
-                                                                <input type="number" class="form-control" id="txtProxyPort" placeholder="Proxy Server Port" style="width: 170px;">
+                                                                <input type="number" class="form-control" id="txtProxyPort" placeholder="port" style="width: 100px;">
                                                             </div>
                                                         </div>
 
                                                         <div class="form-group">
                                                             <label for="txtProxyUsername" class="col-sm-3 control-label">Username</label>
                                                             <div class="col-sm-6">
-                                                                <input type="text" class="form-control" id="txtProxyUsername" placeholder="Proxy Server Username">
+                                                                <input type="text" class="form-control" id="txtProxyUsername" placeholder="username">
                                                             </div>
                                                         </div>
 
                                                         <div class="form-group">
                                                             <label for="txtProxyPassword" class="col-sm-3 control-label">Password</label>
                                                             <div class="col-sm-6">
-                                                                <input type="password" class="form-control" id="txtProxyPassword" placeholder="Proxy Server Password">
+                                                                <input type="password" class="form-control" id="txtProxyPassword" placeholder="password">
                                                             </div>
                                                         </div>
 
@@ -1449,7 +1480,7 @@
                                                             <label for="txtMaxLogFileDays" class="col-sm-3 control-label">Max Log File Days</label>
                                                             <div class="col-sm-6">
                                                                 <input type="number" class="form-control" id="txtMaxLogFileDays" placeholder="Max Days" style="width: 100px; display: inline;">
-                                                                <span>days (recommended 365, set 0 to disable auto delete)</span>
+                                                                <span>days (default 365, set 0 to disable auto delete)</span>
                                                             </div>
 
                                                             <div class="col-sm-offset-3 col-sm-8" style="padding-top: 5px;">Max number of days to keep the log files. Log files older than the specified number of days will be deleted automatically.</div>
@@ -1459,7 +1490,7 @@
                                                             <label for="txtMaxStatFileDays" class="col-sm-3 control-label">Max Stat File Days</label>
                                                             <div class="col-sm-6">
                                                                 <input type="number" class="form-control" id="txtMaxStatFileDays" placeholder="Max Days" style="width: 100px; display: inline;">
-                                                                <span>days (recommended 365, set 0 to disable auto delete)</span>
+                                                                <span>days (default 365, set 0 to disable auto delete)</span>
                                                             </div>
 
                                                             <div class="col-sm-offset-3 col-sm-8" style="padding-top: 5px;">Max number of days to keep the dashboard stats. Stat files older than the specified number of days will be deleted automatically.</div>
@@ -1989,7 +2020,7 @@
                                                 </div>
 
                                                 <div class="form-group" style="display: block;">
-                                                    <button type="submit" class="btn btn-primary" id="btnQueryLogs" data-loading-text="Loading..." onclick="queryLogs(); return false;" style="margin-right: 6px;">Query</button>
+                                                    <button type="submit" class="btn btn-primary" id="btnQueryLogs" data-loading-text="Querying..." onclick="queryLogs(); return false;" style="margin-right: 6px;">Query</button>
                                                     <button type="reset" class="btn btn-default">Reset</button>
                                                 </div>
                                             </form>
@@ -2216,131 +2247,200 @@
                     <div class="modal-body">
                         <div id="divAddZoneAlert"></div>
 
-                        <div class="form-group">
-                            <label for="txtAddZone" class="col-sm-4 control-label">Zone</label>
-                            <div class="col-sm-7">
-                                <input id="txtAddZone" type="text" class="form-control" placeholder="example.com or 192.168.0.0/24 or 2001:db8::/64">
-                            </div>
-                        </div>
-
-                        <div class="form-group">
-                            <label class="col-sm-4 control-label">Type</label>
-                            <div class="col-sm-7">
-                                <div class="radio">
-                                    <label>
-                                        <input type="radio" name="rdAddZoneType" id="rdAddZoneTypePrimary" value="Primary" checked>
-                                        Primary Zone (default)
-                                    </label>
-                                </div>
-                                <div class="radio">
-                                    <label>
-                                        <input type="radio" name="rdAddZoneType" id="rdAddZoneTypeSecondary" value="Secondary">
-                                        Secondary Zone
-                                    </label>
-                                </div>
-                                <div class="radio">
-                                    <label>
-                                        <input type="radio" name="rdAddZoneType" id="rdAddZoneTypeStub" value="Stub">
-                                        Stub Zone
-                                    </label>
-                                </div>
-                                <div class="radio">
-                                    <label>
-                                        <input type="radio" name="rdAddZoneType" id="rdAddZoneTypeForwarder" value="Forwarder">
-                                        Conditional Forwarder Zone
-                                    </label>
+                        <div style="max-height: 500px; overflow-y: auto; padding: 0 6px; overflow-x: hidden;">
+                            <div class="form-group">
+                                <label for="txtAddZone" class="col-sm-4 control-label">Zone</label>
+                                <div class="col-sm-7">
+                                    <input id="txtAddZone" type="text" class="form-control" placeholder="example.com or 192.168.0.0/24 or 2001:db8::/64">
                                 </div>
                             </div>
-                        </div>
+
+                            <div class="form-group">
+                                <label class="col-sm-4 control-label">Type</label>
+                                <div class="col-sm-7">
+                                    <div class="radio">
+                                        <label>
+                                            <input type="radio" name="rdAddZoneType" id="rdAddZoneTypePrimary" value="Primary" checked>
+                                            Primary Zone (default)
+                                        </label>
+                                    </div>
+                                    <div class="radio">
+                                        <label>
+                                            <input type="radio" name="rdAddZoneType" id="rdAddZoneTypeSecondary" value="Secondary">
+                                            Secondary Zone
+                                        </label>
+                                    </div>
+                                    <div class="radio">
+                                        <label>
+                                            <input type="radio" name="rdAddZoneType" id="rdAddZoneTypeStub" value="Stub">
+                                            Stub Zone
+                                        </label>
+                                    </div>
+                                    <div class="radio">
+                                        <label>
+                                            <input type="radio" name="rdAddZoneType" id="rdAddZoneTypeForwarder" value="Forwarder">
+                                            Conditional Forwarder Zone
+                                        </label>
+                                    </div>
+                                </div>
+                            </div>
 
 
-                        <div class="form-group" id="divAddZonePrimaryNameServerAddresses">
-                            <label for="txtAddZonePrimaryNameServerAddresses" class="col-sm-4 control-label">Primary Name Server Addresses (Optional)</label>
-                            <div class="col-sm-7">
-                                <textarea id="txtAddZonePrimaryNameServerAddresses" class="form-control" rows="3" spellcheck="false" placeholder="192.168.1.1
+                            <div class="form-group" id="divAddZonePrimaryNameServerAddresses">
+                                <label for="txtAddZonePrimaryNameServerAddresses" class="col-sm-4 control-label">Primary Name Server Addresses (Optional)</label>
+                                <div class="col-sm-7">
+                                    <textarea id="txtAddZonePrimaryNameServerAddresses" class="form-control" rows="3" spellcheck="false" placeholder="192.168.1.1
 2001:db8::
 ns1.example.com (192.168.1.1)
 ns1.example.com ([2001:db8::])
 "></textarea>
-                            </div>
-                        </div>
-
-                        <div class="form-group" id="divAddZoneZoneTransferProtocol">
-                            <label class="col-sm-4 control-label">Zone Transfer Protocol</label>
-                            <div class="col-sm-7">
-                                <div class="radio">
-                                    <label>
-                                        <input type="radio" name="rdAddZoneZoneTransferProtocol" id="rdAddZoneZoneTransferProtocolTcp" value="Tcp" checked>
-                                        XFR-over-TCP (default)
-                                    </label>
-                                </div>
-                                <div class="radio">
-                                    <label>
-                                        <input type="radio" name="rdAddZoneZoneTransferProtocol" value="Tls">
-                                        XFR-over-TLS
-                                    </label>
                                 </div>
                             </div>
-                        </div>
 
-
-                        <div class="form-group" id="divAddZoneTsigKeyName">
-                            <label for="optAddZoneTsigKeyName" class="col-sm-4 control-label">TSIG Key Name (Optional)</label>
-                            <div class="col-sm-7">
-                                <select id="optAddZoneTsigKeyName" class="form-control"></select>
-                            </div>
-                        </div>
-
-
-                        <div class="form-group" id="divAddZoneForwarderProtocol">
-                            <label class="col-sm-4 control-label">Protocol</label>
-                            <div class="col-sm-7">
-                                <div class="radio">
-                                    <label>
-                                        <input type="radio" name="rdAddZoneForwarderProtocol" id="rdAddZoneForwarderProtocolUdp" value="Udp" checked>
-                                        DNS-over-UDP (default)
-                                    </label>
-                                </div>
-                                <div class="radio">
-                                    <label>
-                                        <input type="radio" name="rdAddZoneForwarderProtocol" value="Tcp">
-                                        DNS-over-TCP
-                                    </label>
-                                </div>
-                                <div class="radio">
-                                    <label>
-                                        <input type="radio" name="rdAddZoneForwarderProtocol" value="Tls">
-                                        DNS-over-TLS
-                                    </label>
-                                </div>
-                                <div class="radio">
-                                    <label>
-                                        <input type="radio" name="rdAddZoneForwarderProtocol" value="Https">
-                                        DNS-over-HTTPS
-                                    </label>
-                                </div>
-                                <div class="radio">
-                                    <label>
-                                        <input type="radio" name="rdAddZoneForwarderProtocol" value="HttpsJson">
-                                        DNS-over-HTTPS (JSON)
-                                    </label>
+                            <div class="form-group" id="divAddZoneZoneTransferProtocol">
+                                <label class="col-sm-4 control-label">Zone Transfer Protocol</label>
+                                <div class="col-sm-7">
+                                    <div class="radio">
+                                        <label>
+                                            <input type="radio" name="rdAddZoneZoneTransferProtocol" id="rdAddZoneZoneTransferProtocolTcp" value="Tcp" checked>
+                                            XFR-over-TCP (default)
+                                        </label>
+                                    </div>
+                                    <div class="radio">
+                                        <label>
+                                            <input type="radio" name="rdAddZoneZoneTransferProtocol" value="Tls">
+                                            XFR-over-TLS
+                                        </label>
+                                    </div>
                                 </div>
                             </div>
-                        </div>
 
-                        <div class="form-group" id="divAddZoneForwarder">
-                            <label for="txtAddZoneForwarder" class="col-sm-4 control-label">Forwarder</label>
-                            <div class="col-sm-7">
-                                <div class="checkbox" style="margin-bottom: 6px;">
-                                    <label>
-                                        <input id="chkAddZoneForwarderThisServer" type="checkbox" onclick="updateAddZoneFormForwarderThisServer();"> Use This DNS Server
-                                    </label>
+
+                            <div class="form-group" id="divAddZoneTsigKeyName">
+                                <label for="optAddZoneTsigKeyName" class="col-sm-4 control-label">TSIG Key Name (Optional)</label>
+                                <div class="col-sm-7">
+                                    <select id="optAddZoneTsigKeyName" class="form-control"></select>
+                                </div>
+                            </div>
+
+
+                            <div class="form-group" id="divAddZoneForwarderProtocol">
+                                <label class="col-sm-4 control-label">Protocol</label>
+                                <div class="col-sm-7">
+                                    <div class="radio">
+                                        <label>
+                                            <input type="radio" name="rdAddZoneForwarderProtocol" id="rdAddZoneForwarderProtocolUdp" value="Udp" checked>
+                                            DNS-over-UDP (default)
+                                        </label>
+                                    </div>
+                                    <div class="radio">
+                                        <label>
+                                            <input type="radio" name="rdAddZoneForwarderProtocol" value="Tcp">
+                                            DNS-over-TCP
+                                        </label>
+                                    </div>
+                                    <div class="radio">
+                                        <label>
+                                            <input type="radio" name="rdAddZoneForwarderProtocol" value="Tls">
+                                            DNS-over-TLS
+                                        </label>
+                                    </div>
+                                    <div class="radio">
+                                        <label>
+                                            <input type="radio" name="rdAddZoneForwarderProtocol" value="Https">
+                                            DNS-over-HTTPS
+                                        </label>
+                                    </div>
+                                    <div class="radio">
+                                        <label>
+                                            <input type="radio" name="rdAddZoneForwarderProtocol" value="HttpsJson">
+                                            DNS-over-HTTPS (JSON)
+                                        </label>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="form-group" id="divAddZoneForwarder">
+                                <label for="txtAddZoneForwarder" class="col-sm-4 control-label">Forwarder</label>
+                                <div class="col-sm-7">
+                                    <div class="checkbox">
+                                        <label>
+                                            <input id="chkAddZoneForwarderThisServer" type="checkbox" onclick="updateAddZoneFormForwarderThisServer();"> Use "This Server"
+                                        </label>
+                                    </div>
+                                    <div style="padding-top: 5px; padding-left: 20px; padding-bottom: 10px;">
+                                        When using "This Server", if a record does not exists in the zone then the request is forwarded to the DNS server's resolver internally. This allows you to override any record for the forwarded domain name.
+                                    </div>
+
+                                    <input id="txtAddZoneForwarder" type="text" class="form-control" placeholder="8.8.8.8">
+                                </div>
+                            </div>
+
+                            <div class="form-group" id="divAddZoneForwarderDnssecValidation">
+                                <label class="col-sm-4 control-label">DNSSEC</label>
+                                <div class="col-sm-7">
+                                    <div class="checkbox" style="margin-bottom: 6px;">
+                                        <label>
+                                            <input id="chkAddZoneForwarderDnssecValidation" type="checkbox"> Enable DNSSEC Validation
+                                        </label>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div id="divAddZoneForwarderProxy">
+                                <div class="form-group">
+                                    <label class="col-sm-4 control-label">Network Proxy</label>
+                                    <div class="col-sm-7">
+                                        <div class="radio">
+                                            <label>
+                                                <input type="radio" name="rdAddZoneForwarderProxyType" id="rdAddZoneForwarderProxyTypeNone" value="None" checked>
+                                                No Proxy (default)
+                                            </label>
+                                        </div>
+                                        <div class="radio">
+                                            <label>
+                                                <input type="radio" name="rdAddZoneForwarderProxyType" value="Http">
+                                                HTTP Proxy
+                                            </label>
+                                        </div>
+                                        <div class="radio">
+                                            <label>
+                                                <input type="radio" name="rdAddZoneForwarderProxyType" value="Socks5">
+                                                SOCKS5 Proxy
+                                            </label>
+                                        </div>
+                                    </div>
                                 </div>
 
-                                <input id="txtAddZoneForwarder" type="text" class="form-control" placeholder="8.8.8.8">
+                                <div class="form-group">
+                                    <label for="txtAddZoneForwarderProxyAddress" class="col-sm-4 control-label">Proxy Server Address</label>
+                                    <div class="col-sm-7">
+                                        <input id="txtAddZoneForwarderProxyAddress" type="text" class="form-control" placeholder="domain name or IP address">
+                                    </div>
+                                </div>
+
+                                <div class="form-group">
+                                    <label for="txtAddZoneForwarderProxyPort" class="col-sm-4 control-label">Proxy Server Port</label>
+                                    <div class="col-sm-7">
+                                        <input id="txtAddZoneForwarderProxyPort" type="number" class="form-control" placeholder="port" style="width: 100px;">
+                                    </div>
+                                </div>
+
+                                <div class="form-group">
+                                    <label for="txtAddZoneForwarderProxyUsername" class="col-sm-4 control-label">Proxy Server Username</label>
+                                    <div class="col-sm-7">
+                                        <input id="txtAddZoneForwarderProxyUsername" type="text" class="form-control" placeholder="username">
+                                    </div>
+                                </div>
+
+                                <div class="form-group">
+                                    <label for="txtAddZoneForwarderProxyPassword" class="col-sm-4 control-label">Proxy Server Password</label>
+                                    <div class="col-sm-7">
+                                        <input id="txtAddZoneForwarderProxyPassword" type="password" class="form-control" placeholder="password">
+                                    </div>
+                                </div>
                             </div>
                         </div>
-
                     </div>
                     <div class="modal-footer">
                         <button id="btnAddZone" type="submit" class="btn btn-primary" data-loading-text="Adding..." onclick="addZone(); return false;">Add</button>
@@ -2353,7 +2453,7 @@ ns1.example.com ([2001:db8::])
 
     <div id="modalAddEditRecord" class="modal fade" tabindex="-1" role="dialog">
         <form class="form-horizontal">
-            <div class="modal-dialog" role="document">
+            <div class="modal-dialog" role="document" style="width: 780px;">
                 <div class="modal-content">
                     <div class="modal-header">
                         <button type="button" class="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button>
@@ -2362,7 +2462,7 @@ ns1.example.com ([2001:db8::])
                     <div class="modal-body">
                         <div id="divAddEditRecordAlert"></div>
 
-                        <div style="max-height: 630px; overflow-y: auto; padding: 0 15px; overflow-x: hidden;">
+                        <div style="max-height: 500px; overflow-y: auto; padding: 0 15px; overflow-x: hidden;">
 
                             <div class="form-group">
                                 <label for="txtAddEditRecordName" class="col-sm-4 control-label">Name</label>
@@ -2634,13 +2734,79 @@ ns1.example.com ([2001:db8::])
                                 <div class="form-group">
                                     <label for="txtAddEditRecordDataForwarder" class="col-sm-4 control-label">Forwarder</label>
                                     <div class="col-sm-7">
-                                        <div class="checkbox" style="margin-bottom: 6px;">
+                                        <div class="checkbox">
                                             <label>
-                                                <input id="chkAddEditRecordDataForwarderThisServer" type="checkbox" onclick="updateAddEditFormForwarderThisServer();"> Use This DNS Server
+                                                <input id="chkAddEditRecordDataForwarderThisServer" type="checkbox" onclick="updateAddEditFormForwarderThisServer();"> Use "This Server"
                                             </label>
+                                        </div>
+                                        <div style="padding-top: 5px; padding-left: 20px; padding-bottom: 10px;">
+                                            When using "This Server", if a record does not exists in the zone then the request is forwarded to the DNS server's resolver internally. This allows you to override any record for the forwarded domain name.
                                         </div>
 
                                         <input id="txtAddEditRecordDataForwarder" type="text" class="form-control" placeholder="8.8.8.8">
+                                    </div>
+                                </div>
+
+                                <div class="form-group">
+                                    <label class="col-sm-4 control-label">DNSSEC</label>
+                                    <div class="col-sm-7">
+                                        <div class="checkbox" style="margin-bottom: 6px;">
+                                            <label>
+                                                <input id="chkAddEditRecordDataForwarderDnssecValidation" type="checkbox"> Enable DNSSEC Validation
+                                            </label>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="form-group">
+                                    <label class="col-sm-4 control-label">Network Proxy</label>
+                                    <div class="col-sm-7">
+                                        <div class="radio">
+                                            <label>
+                                                <input type="radio" name="rdAddEditRecordDataForwarderProxyType" id="rdAddEditRecordDataForwarderProxyTypeNone" value="None" checked>
+                                                No Proxy (default)
+                                            </label>
+                                        </div>
+                                        <div class="radio">
+                                            <label>
+                                                <input type="radio" name="rdAddEditRecordDataForwarderProxyType" id="rdAddEditRecordDataForwarderProxyTypeHttp" value="Http">
+                                                HTTP Proxy
+                                            </label>
+                                        </div>
+                                        <div class="radio">
+                                            <label>
+                                                <input type="radio" name="rdAddEditRecordDataForwarderProxyType" id="rdAddEditRecordDataForwarderProxyTypeSocks5" value="Socks5">
+                                                SOCKS5 Proxy
+                                            </label>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="form-group">
+                                    <label for="txtAddEditRecordDataForwarderProxyAddress" class="col-sm-4 control-label">Proxy Server Address</label>
+                                    <div class="col-sm-7">
+                                        <input id="txtAddEditRecordDataForwarderProxyAddress" type="text" class="form-control" placeholder="domain name or IP address">
+                                    </div>
+                                </div>
+
+                                <div class="form-group">
+                                    <label for="txtAddEditRecordDataForwarderProxyPort" class="col-sm-4 control-label">Proxy Server Port</label>
+                                    <div class="col-sm-7">
+                                        <input id="txtAddEditRecordDataForwarderProxyPort" type="number" class="form-control" placeholder="port" style="width: 100px;">
+                                    </div>
+                                </div>
+
+                                <div class="form-group">
+                                    <label for="txtAddEditRecordDataForwarderProxyUsername" class="col-sm-4 control-label">Proxy Server Username</label>
+                                    <div class="col-sm-7">
+                                        <input id="txtAddEditRecordDataForwarderProxyUsername" type="text" class="form-control" placeholder="username">
+                                    </div>
+                                </div>
+
+                                <div class="form-group">
+                                    <label for="txtAddEditRecordDataForwarderProxyPassword" class="col-sm-4 control-label">Proxy Server Password</label>
+                                    <div class="col-sm-7">
+                                        <input id="txtAddEditRecordDataForwarderProxyPassword" type="password" class="form-control" placeholder="password">
                                     </div>
                                 </div>
                             </div>
@@ -3187,7 +3353,7 @@ ns1.example.com ([2001:db8::])
 
                     </div>
 
-                    <p>Warning! The restore process will overwrite existing config files on disk for above selected items and reload new settings including passwords. If you do not remember the password used while creating the backup, you should reset the admin password immediately after restoring the backup. Failing to do so will require you to follow the password reset process.</p>
+                    <p>Warning! The restore process will overwrite existing config files on disk for above selected items and reload new settings including passwords. If you do not remember the password used while creating the backup, you should change the admin password immediately after restoring the backup. Failing to do so will require you to follow the password reset process.</p>
                 </div>
                 <div class="modal-footer">
                     <button id="btnRestoreSettings" type="submit" class="btn btn-primary" data-loading-text="Restoring..." onclick="restoreSettings(); return false;">Restore</button>
