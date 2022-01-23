@@ -1,6 +1,6 @@
 ﻿/*
 Technitium DNS Server
-Copyright (C) 2021  Shreyas Zare (shreyas@technitium.com)
+Copyright (C) 2022  Shreyas Zare (shreyas@technitium.com)
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -38,6 +38,9 @@ namespace DnsServerCore.Dns.ResourceRecords
         IReadOnlyList<NameServerAddress> _primaryNameServers;
         DnsTransportProtocol _zoneTransferProtocol;
         string _tsigKeyName = string.Empty;
+
+        IReadOnlyList<DnsResourceRecord> _rrsigRecords; //not serialized
+        IReadOnlyList<DnsResourceRecord> _nsecRecords; //not serialized
 
         #endregion
 
@@ -260,6 +263,18 @@ namespace DnsServerCore.Dns.ResourceRecords
                 else
                     _tsigKeyName = value;
             }
+        }
+
+        public IReadOnlyList<DnsResourceRecord> RRSIGRecords
+        {
+            get { return _rrsigRecords; }
+            set { _rrsigRecords = value; }
+        }
+
+        public IReadOnlyList<DnsResourceRecord> NSECRecords
+        {
+            get { return _nsecRecords; }
+            set { _nsecRecords = value; }
         }
 
         #endregion
