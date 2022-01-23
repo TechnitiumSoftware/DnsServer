@@ -1,6 +1,6 @@
 ﻿/*
 Technitium DNS Server
-Copyright (C) 2021  Shreyas Zare (shreyas@technitium.com)
+Copyright (C) 2022  Shreyas Zare (shreyas@technitium.com)
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -24,7 +24,7 @@ using System.Collections.Generic;
 using System.Globalization;
 using System.Net;
 using System.Threading.Tasks;
-using TechnitiumLibrary.IO;
+using TechnitiumLibrary;
 using TechnitiumLibrary.Net.Dns;
 using TechnitiumLibrary.Net.Dns.ResourceRecords;
 
@@ -91,7 +91,7 @@ namespace DnsServerCore
                 if (IPAddress.IsLoopback(address))
                     return new KeyValuePair<string, string>(ip, "localhost");
 
-                DnsDatagram ptrResponse = await _dnsWebService.DnsServer.DirectQueryAsync(new DnsQuestionRecord(address, DnsClass.IN)).WithTimeout(500);
+                DnsDatagram ptrResponse = await _dnsWebService.DnsServer.DirectQueryAsync(new DnsQuestionRecord(address, DnsClass.IN), 500);
                 if (ptrResponse.Answer.Count > 0)
                 {
                     IReadOnlyList<string> ptrDomains = DnsClient.ParseResponsePTR(ptrResponse);
@@ -481,7 +481,7 @@ namespace DnsServerCore
             if (string.IsNullOrEmpty(strLimit))
                 strLimit = "1000";
 
-            TopStatsType statsType = (TopStatsType)Enum.Parse(typeof(TopStatsType), strStatsType, true);
+            TopStatsType statsType = Enum.Parse<TopStatsType>(strStatsType, true);
             int limit = int.Parse(strLimit);
 
             List<KeyValuePair<string, int>> topStatsData;
