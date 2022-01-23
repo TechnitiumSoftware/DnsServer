@@ -22,7 +22,6 @@ using System;
 using System.Collections.Generic;
 using System.Net;
 using System.Threading.Tasks;
-using TechnitiumLibrary;
 using TechnitiumLibrary.Net.Dns;
 using TechnitiumLibrary.Net.Dns.ResourceRecords;
 
@@ -122,7 +121,7 @@ namespace DnsServerCore.Dns.Zones
         {
             try
             {
-                DnsDatagram response = await dnsServer.DirectQueryAsync(new DnsQuestionRecord(nsDomain, DnsResourceRecordType.A, DnsClass.IN)).WithTimeout(2000);
+                DnsDatagram response = await dnsServer.DirectQueryAsync(new DnsQuestionRecord(nsDomain, DnsResourceRecordType.A, DnsClass.IN));
                 if (response.Answer.Count > 0)
                 {
                     IReadOnlyList<IPAddress> addresses = DnsClient.ParseResponseA(response);
@@ -137,7 +136,7 @@ namespace DnsServerCore.Dns.Zones
             {
                 try
                 {
-                    DnsDatagram response = await dnsServer.DirectQueryAsync(new DnsQuestionRecord(nsDomain, DnsResourceRecordType.AAAA, DnsClass.IN)).WithTimeout(2000);
+                    DnsDatagram response = await dnsServer.DirectQueryAsync(new DnsQuestionRecord(nsDomain, DnsResourceRecordType.AAAA, DnsClass.IN));
                     if (response.Answer.Count > 0)
                     {
                         IReadOnlyList<IPAddress> addresses = DnsClient.ParseResponseAAAA(response);
