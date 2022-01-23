@@ -1,6 +1,6 @@
 ﻿/*
 Technitium DNS Server
-Copyright (C) 2021  Shreyas Zare (shreyas@technitium.com)
+Copyright (C) 2022  Shreyas Zare (shreyas@technitium.com)
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -770,6 +770,7 @@ function loadDnsSettings() {
 
             $("#chkPreferIPv6").prop("checked", responseJSON.response.preferIPv6);
             $("#txtEdnsUdpPayloadSize").val(responseJSON.response.udpPayloadSize);
+            $("#chkDnssecValidation").prop("checked", responseJSON.response.dnssecValidation);
 
             $("#chkEnableLogging").prop("checked", responseJSON.response.enableLogging);
             $("#chkLogQueries").prop("disabled", !responseJSON.response.enableLogging);
@@ -1073,6 +1074,7 @@ function saveDnsSettings() {
     var defaultRecordTtl = $("#txtDefaultRecordTtl").val();
     var preferIPv6 = $("#chkPreferIPv6").prop('checked');
     var udpPayloadSize = $("#txtEdnsUdpPayloadSize").val();
+    var dnssecValidation = $("#chkDnssecValidation").prop('checked');
 
     var enableLogging = $("#chkEnableLogging").prop('checked');
     var logQueries = $("#chkLogQueries").prop('checked');
@@ -1263,7 +1265,7 @@ function saveDnsSettings() {
             + "&webServiceLocalAddresses=" + encodeURIComponent(webServiceLocalAddresses) + "&webServiceHttpPort=" + webServiceHttpPort + "&webServiceEnableTls=" + webServiceEnableTls + "&webServiceHttpToTlsRedirect=" + webServiceHttpToTlsRedirect + "&webServiceUseSelfSignedTlsCertificate=" + webServiceUseSelfSignedTlsCertificate + "&webServiceTlsPort=" + webServiceTlsPort + "&webServiceTlsCertificatePath=" + encodeURIComponent(webServiceTlsCertificatePath) + "&webServiceTlsCertificatePassword=" + encodeURIComponent(webServiceTlsCertificatePassword)
             + "&enableDnsOverHttp=" + enableDnsOverHttp + "&enableDnsOverTls=" + enableDnsOverTls + "&enableDnsOverHttps=" + enableDnsOverHttps + "&dnsTlsCertificatePath=" + encodeURIComponent(dnsTlsCertificatePath) + "&dnsTlsCertificatePassword=" + encodeURIComponent(dnsTlsCertificatePassword)
             + "&tsigKeys=" + encodeURIComponent(tsigKeys)
-            + "&defaultRecordTtl=" + defaultRecordTtl + "&preferIPv6=" + preferIPv6 + "&udpPayloadSize=" + udpPayloadSize + "&enableLogging=" + enableLogging + "&logQueries=" + logQueries + "&useLocalTime=" + useLocalTime + "&logFolder=" + encodeURIComponent(logFolder) + "&maxLogFileDays=" + maxLogFileDays + "&maxStatFileDays=" + maxStatFileDays
+            + "&defaultRecordTtl=" + defaultRecordTtl + "&preferIPv6=" + preferIPv6 + "&udpPayloadSize=" + udpPayloadSize + "&dnssecValidation=" + dnssecValidation + "&enableLogging=" + enableLogging + "&logQueries=" + logQueries + "&useLocalTime=" + useLocalTime + "&logFolder=" + encodeURIComponent(logFolder) + "&maxLogFileDays=" + maxLogFileDays + "&maxStatFileDays=" + maxStatFileDays
             + "&recursion=" + recursion + "&recursionDeniedNetworks=" + encodeURIComponent(recursionDeniedNetworks) + "&recursionAllowedNetworks=" + encodeURIComponent(recursionAllowedNetworks) + "&randomizeName=" + randomizeName + "&qnameMinimization=" + qnameMinimization + "&nsRevalidation=" + nsRevalidation
             + "&qpmLimitRequests=" + qpmLimitRequests + "&qpmLimitErrors=" + qpmLimitErrors + "&qpmLimitSampleMinutes=" + qpmLimitSampleMinutes + "&qpmLimitIPv4PrefixLength=" + qpmLimitIPv4PrefixLength + "&qpmLimitIPv6PrefixLength=" + qpmLimitIPv6PrefixLength
             + "&serveStale=" + serveStale + "&serveStaleTtl=" + serveStaleTtl + "&cacheMinimumRecordTtl=" + cacheMinimumRecordTtl + "&cacheMaximumRecordTtl=" + cacheMaximumRecordTtl + "&cacheNegativeRecordTtl=" + cacheNegativeRecordTtl + "&cacheFailureRecordTtl=" + cacheFailureRecordTtl + "&cachePrefetchEligibility=" + cachePrefetchEligibility + "&cachePrefetchTrigger=" + cachePrefetchTrigger + "&cachePrefetchSampleIntervalInMinutes=" + cachePrefetchSampleIntervalInMinutes + "&cachePrefetchSampleEligibilityHitsPerHour=" + cachePrefetchSampleEligibilityHitsPerHour
@@ -1928,6 +1930,7 @@ function resolveQuery(importRecords) {
     var domain = $("#txtDnsClientDomain").val();
     var type = $("#optDnsClientType").val();
     var protocol = $("#optDnsClientProtocol").val();
+    var dnssecValidation = $("#chkDnsClientDnssecValidation").prop("checked");
 
     {
         var i = server.indexOf("{");
@@ -1969,7 +1972,7 @@ function resolveQuery(importRecords) {
     }
 
     if (importRecords) {
-        if (!confirm("Importing all the records from the result of this query will overwrite existing records in the zone or if the zone does not exists, a new primary zone '" + domain + "' will be created.\n\nAre you sure you want to import all records?"))
+        if (!confirm("Importing all the records from the response of this query will add them into an existing primary or conditional forwarder zone. If a matching zone does not exists, a new primary zone for '" + domain + "' will be created.\n\nAre you sure you want to import all records?"))
             return;
     }
 
@@ -1983,7 +1986,7 @@ function resolveQuery(importRecords) {
     divDnsClientLoader.show();
 
     HTTPRequest({
-        url: "/api/resolveQuery?token=" + token + "&server=" + encodeURIComponent(server) + "&domain=" + encodeURIComponent(domain) + "&type=" + type + "&protocol=" + protocol + (importRecords ? "&import=true" : ""),
+        url: "/api/resolveQuery?token=" + token + "&server=" + encodeURIComponent(server) + "&domain=" + encodeURIComponent(domain) + "&type=" + type + "&protocol=" + protocol + "&dnssec=" + dnssecValidation + (importRecords ? "&import=true" : ""),
         success: function (responseJSON) {
             preDnsClientOutput.text(JSON.stringify(responseJSON.response.result, null, 2));
 
@@ -1993,7 +1996,10 @@ function resolveQuery(importRecords) {
             btn.button('reset');
             btnOther.prop("disabled", false);
 
-            if (importRecords) {
+            if (responseJSON.response.warningMessage != null) {
+                showAlert("warning", "Warning!", responseJSON.response.warningMessage);
+            }
+            else if (importRecords) {
                 showAlert("success", "Records Imported!", "Resource records resolved by this DNS client query were successfully imported into this server.");
             }
         },
