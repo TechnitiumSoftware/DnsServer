@@ -204,14 +204,10 @@ namespace DnsServerCore.Dns.Zones
 
                 foreach (NameServerAddress nameServer in primaryNameServers)
                 {
-                    if (nameServer.IPEndPoint is null)
-                    {
+                    if (nameServer.IsIPEndPointStale)
                         await ResolveNameServerAddressesAsync(dnsServer, nameServer.Host, nameServer.Port, nameServer.Protocol, resolvedNameServers);
-                    }
                     else
-                    {
                         resolvedNameServers.Add(nameServer);
-                    }
                 }
 
                 return resolvedNameServers;
