@@ -512,7 +512,7 @@ namespace DnsServerCore.Dns.Zones
                         xfrAuthority = null;
                     }
 
-                    DnsDatagram xfrRequest = new DnsDatagram(0, false, DnsOpcode.StandardQuery, false, false, false, false, false, false, DnsResponseCode.NoError, new DnsQuestionRecord[] { xfrQuestion }, null, xfrAuthority, null, doIXFR ? DnsDatagram.EDNS_DEFAULT_UDP_PAYLOAD_SIZE : ushort.MinValue);
+                    DnsDatagram xfrRequest = new DnsDatagram(0, false, DnsOpcode.StandardQuery, false, false, false, false, false, false, DnsResponseCode.NoError, new DnsQuestionRecord[] { xfrQuestion }, null, xfrAuthority);
                     DnsDatagram xfrResponse;
 
                     if (key is null)
