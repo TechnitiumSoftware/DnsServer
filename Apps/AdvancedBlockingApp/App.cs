@@ -1,6 +1,6 @@
 ﻿/*
 Technitium DNS Server
-Copyright (C) 2021  Shreyas Zare (shreyas@technitium.com)
+Copyright (C) 2022  Shreyas Zare (shreyas@technitium.com)
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -122,7 +122,7 @@ namespace AdvancedBlocking
         {
             using (HashAlgorithm hash = SHA256.Create())
             {
-                return Path.Combine(_localCacheFolder, BitConverter.ToString(hash.ComputeHash(Encoding.UTF8.GetBytes(listUrl.AbsoluteUri))).Replace("-", "").ToLower());
+                return Path.Combine(_localCacheFolder, Convert.ToHexString(hash.ComputeHash(Encoding.UTF8.GetBytes(listUrl.AbsoluteUri))).ToLower());
             }
         }
 
@@ -918,9 +918,9 @@ namespace AdvancedBlocking
                             foreach (KeyValuePair<Group, int> group in updatedGroups)
                             {
                                 bool loadAllowList = (group.Value & LOAD_ALLOW_LIST_ZONE) > 0;
-                                bool loadBlockList = (group.Value & LOAD_ALLOW_LIST_ZONE) > 0;
+                                bool loadBlockList = (group.Value & LOAD_BLOCK_LIST_ZONE) > 0;
                                 bool loadRegexAllowList = (group.Value & LOAD_REGEX_ALLOW_LIST_ZONE) > 0;
-                                bool loadRegexBlockList = (group.Value & LOAD_REGEX_ALLOW_LIST_ZONE) > 0;
+                                bool loadRegexBlockList = (group.Value & LOAD_REGEX_BLOCK_LIST_ZONE) > 0;
                                 bool loadAdblockList = (group.Value & LOAD_ADBLOCK_LIST_ZONE) > 0;
 
                                 LoadListZones(allowCache, blockCache, group.Key, loadAllowList, loadBlockList, loadRegexAllowList, loadRegexBlockList, loadAdblockList);
