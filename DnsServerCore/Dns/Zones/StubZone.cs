@@ -22,7 +22,6 @@ using System;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
-using TechnitiumLibrary;
 using TechnitiumLibrary.Net.Dns;
 using TechnitiumLibrary.Net.Dns.ResourceRecords;
 
@@ -84,11 +83,17 @@ namespace DnsServerCore.Dns.Zones
 
             if (primaryNameServerAddresses == null)
             {
-                soaResponse = await stubZone._dnsServer.DirectQueryAsync(soaQuestion).WithTimeout(2000);
+                soaResponse = await stubZone._dnsServer.DirectQueryAsync(soaQuestion);
             }
             else
             {
                 DnsClient dnsClient = new DnsClient(primaryNameServerAddresses);
+
+                foreach (NameServerAddress nameServerAddress in dnsClient.Servers)
+                {
+                    if (nameServerAddress.IsIPEndPointStale)
+                        await nameServerAddress.ResolveIPAddressAsync(stubZone._dnsServer, stubZone._dnsServer.PreferIPv6);
+                }
 
                 dnsClient.Proxy = stubZone._dnsServer.Proxy;
                 dnsClient.PreferIPv6 = stubZone._dnsServer.PreferIPv6;
