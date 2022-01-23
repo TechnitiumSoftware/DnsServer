@@ -1,6 +1,6 @@
 ﻿/*
 Technitium DNS Server
-Copyright (C) 2021  Shreyas Zare (shreyas@technitium.com)
+Copyright (C) 2022  Shreyas Zare (shreyas@technitium.com)
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -23,6 +23,7 @@ using System.Collections.Generic;
 using System.Net;
 using System.Net.Mail;
 using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 using TechnitiumLibrary.Net.Dns;
 using TechnitiumLibrary.Net.Dns.ResourceRecords;
@@ -284,7 +285,7 @@ DNS Failover App
 
             message.Subject = "[Alert] Domain [" + domain + "] Status Is " + healthCheckResponse.Status.ToString().ToUpper();
 
-            switch(healthCheckResponse.Status)
+            switch (healthCheckResponse.Status)
             {
                 case HealthStatus.Failed:
                     message.Body = @"Hi,
@@ -399,7 +400,7 @@ DNS Failover App
                 _dnsServer = dnsServer;
             }
 
-            public Task<DnsDatagram> ResolveAsync(DnsQuestionRecord question)
+            public Task<DnsDatagram> ResolveAsync(DnsQuestionRecord question, CancellationToken cancellationToken = default)
             {
                 return _dnsServer.DirectQueryAsync(question);
             }
