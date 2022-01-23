@@ -1,6 +1,6 @@
 ﻿/*
 Technitium DNS Server
-Copyright (C) 2021  Shreyas Zare (shreyas@technitium.com)
+Copyright (C) 2022  Shreyas Zare (shreyas@technitium.com)
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -21,7 +21,7 @@ using DnsServerCore.ApplicationCommon;
 using DnsServerCore.Dns.Applications;
 using DnsServerCore.Dns.ZoneManagers;
 using System.Net;
-using TechnitiumLibrary.IO;
+using TechnitiumLibrary;
 using TechnitiumLibrary.Net.Dns;
 using TechnitiumLibrary.Net.Dns.ResourceRecords;
 
@@ -59,7 +59,7 @@ namespace DnsServerCore.Dns
                 authResponse = requestHandler.ProcessRequestAsync(request, new IPEndPoint(IPAddress.Any, 0), DnsTransportProtocol.Tcp, false).Sync();
                 if (authResponse is not null)
                 {
-                    if ((authResponse.RCODE != DnsResponseCode.NoError) || (authResponse.Answer.Count > 0) || (authResponse.Authority.Count == 0) || (authResponse.Authority[0].Type == DnsResourceRecordType.SOA))
+                    if ((authResponse.RCODE != DnsResponseCode.NoError) || (authResponse.Answer.Count > 0) || (authResponse.Authority.Count == 0) || authResponse.IsFirstAuthoritySOA())
                         return authResponse;
                 }
             }
@@ -69,7 +69,7 @@ namespace DnsServerCore.Dns
                 authResponse = _authZoneManager.Query(request, true);
                 if (authResponse is not null)
                 {
-                    if ((authResponse.RCODE != DnsResponseCode.NoError) || (authResponse.Answer.Count > 0) || (authResponse.Authority.Count == 0) || (authResponse.Authority[0].Type == DnsResourceRecordType.SOA))
+                    if ((authResponse.RCODE != DnsResponseCode.NoError) || (authResponse.Answer.Count > 0) || (authResponse.Authority.Count == 0) || authResponse.IsFirstAuthoritySOA())
                         return authResponse;
                 }
             }
@@ -77,7 +77,7 @@ namespace DnsServerCore.Dns
             DnsDatagram cacheResponse = _cacheZoneManager.Query(request, serveStaleAndResetExpiry, findClosestNameServers);
             if (cacheResponse is not null)
             {
-                if ((cacheResponse.RCODE != DnsResponseCode.NoError) || (cacheResponse.Answer.Count > 0) || (cacheResponse.Authority.Count == 0) || (cacheResponse.Authority[0].Type == DnsResourceRecordType.SOA))
+                if ((cacheResponse.RCODE != DnsResponseCode.NoError) || (cacheResponse.Answer.Count > 0) || (cacheResponse.Authority.Count == 0) || cacheResponse.IsFirstAuthoritySOA())
                     return cacheResponse;
             }
 
@@ -85,7 +85,10 @@ namespace DnsServerCore.Dns
             {
                 if ((cacheResponse is not null) && (cacheResponse.Authority.Count > 0))
                 {
-                    if (cacheResponse.Authority[0].Name.Length > authResponse.Authority[0].Name.Length)
+                    DnsResourceRecord authResponseFirstAuthority = authResponse.FindFirstAuthorityRecord();
+                    DnsResourceRecord cacheResponseFirstAuthority = cacheResponse.FindFirstAuthorityRecord();
+
+                    if (cacheResponseFirstAuthority.Name.Length > authResponseFirstAuthority.Name.Length)
                         return cacheResponse;
                 }
 
@@ -97,9 +100,9 @@ namespace DnsServerCore.Dns
             }
         }
 
-        public void CacheResponse(DnsDatagram response)
+        public void CacheResponse(DnsDatagram response, bool isDnssecBadCache = false)
         {
-            _cacheZoneManager.CacheResponse(response);
+            _cacheZoneManager.CacheResponse(response, isDnssecBadCache);
         }
 
         #endregion
