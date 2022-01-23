@@ -1,6 +1,6 @@
 ﻿/*
 Technitium DNS Server
-Copyright (C) 2021  Shreyas Zare (shreyas@technitium.com)
+Copyright (C) 2022  Shreyas Zare (shreyas@technitium.com)
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -19,12 +19,13 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 $(function () {
     $("input[type=radio][name=rdAddZoneType]").change(function () {
-
         $("#divAddZonePrimaryNameServerAddresses").hide();
         $("#divAddZoneZoneTransferProtocol").hide();
         $("#divAddZoneTsigKeyName").hide();
         $("#divAddZoneForwarderProtocol").hide();
         $("#divAddZoneForwarder").hide();
+        $("#divAddZoneForwarderDnssecValidation").hide();
+        $("#divAddZoneForwarderProxy").hide();
 
         var zoneType = $('input[name=rdAddZoneType]:checked').val();
         switch (zoneType) {
@@ -44,6 +45,8 @@ $(function () {
             case "Forwarder":
                 $("#divAddZoneForwarderProtocol").show();
                 $("#divAddZoneForwarder").show();
+                $("#divAddZoneForwarderDnssecValidation").show();
+                $("#divAddZoneForwarderProxy").show();
                 break;
         }
     });
@@ -65,6 +68,15 @@ $(function () {
                 $("#txtAddZoneForwarder").attr("placeholder", "https://cloudflare-dns.com/dns-query (1.1.1.1)")
                 break;
         }
+    });
+
+    $("input[type=radio][name=rdAddZoneForwarderProxyType]").change(function () {
+        var proxyType = $('input[name=rdAddZoneForwarderProxyType]:checked').val();
+
+        $("#txtAddZoneForwarderProxyAddress").prop("disabled", (proxyType === "None"));
+        $("#txtAddZoneForwarderProxyPort").prop("disabled", (proxyType === "None"));
+        $("#txtAddZoneForwarderProxyUsername").prop("disabled", (proxyType === "None"));
+        $("#txtAddZoneForwarderProxyPassword").prop("disabled", (proxyType === "None"));
     });
 
     $("input[type=radio][name=rdZoneTransfer]").change(function () {
@@ -93,6 +105,8 @@ $(function () {
     });
 
     $("input[type=radio][name=rdAddEditRecordDataForwarderProtocol]").change(updateAddEditFormForwarderPlaceholder);
+
+    $("input[type=radio][name=rdAddEditRecordDataForwarderProxyType]").change(updateAddEditFormForwarderProxyType);
 
     $("#optAddEditRecordDataAppName").change(function () {
         if (appsList == null)
@@ -567,16 +581,28 @@ function showAddZoneModal() {
     $("#optAddZoneTsigKeyName").val("");
     $("input[name=rdAddZoneForwarderProtocol]:radio").attr("disabled", false);
     $("#rdAddZoneForwarderProtocolUdp").prop("checked", true);
-    $("#chkAddZoneForwarderThisServer").prop('checked', false);
+    $("#chkAddZoneForwarderThisServer").prop("checked", false);
     $("#txtAddZoneForwarder").prop("disabled", false);
     $("#txtAddZoneForwarder").attr("placeholder", "8.8.8.8 or [2620:fe::10]")
     $("#txtAddZoneForwarder").val("");
+    $("#chkAddZoneForwarderDnssecValidation").prop("checked", false);
+    $("#rdAddZoneForwarderProxyTypeNone").prop("checked", true);
+    $("#txtAddZoneForwarderProxyAddress").prop("disabled", true);
+    $("#txtAddZoneForwarderProxyPort").prop("disabled", true);
+    $("#txtAddZoneForwarderProxyUsername").prop("disabled", true);
+    $("#txtAddZoneForwarderProxyPassword").prop("disabled", true);
+    $("#txtAddZoneForwarderProxyAddress").val("");
+    $("#txtAddZoneForwarderProxyPort").val("");
+    $("#txtAddZoneForwarderProxyUsername").val("");
+    $("#txtAddZoneForwarderProxyPassword").val("");
 
     $("#divAddZonePrimaryNameServerAddresses").hide();
     $("#divAddZoneZoneTransferProtocol").hide();
     $("#divAddZoneTsigKeyName").hide();
     $("#divAddZoneForwarderProtocol").hide();
     $("#divAddZoneForwarder").hide();
+    $("#divAddZoneForwarderDnssecValidation").hide();
+    $("#divAddZoneForwarderProxy").hide();
 
     $("#btnAddZone").button('reset');
 
@@ -625,7 +651,7 @@ function addZone() {
             var tsigKeyName = $("#optAddZoneTsigKeyName").val();
 
             parameters = "&primaryNameServerAddresses=" + encodeURIComponent(cleanTextList($("#txtAddZonePrimaryNameServerAddresses").val()));
-            parameters += "&zoneTransferProtocol=" + $('input[name=rdAddZoneZoneTransferProtocol]:checked').val();
+            parameters += "&zoneTransferProtocol=" + $("input[name=rdAddZoneZoneTransferProtocol]:checked").val();
             parameters += "&tsigKeyName=" + encodeURIComponent(tsigKeyName);
             break;
 
@@ -635,14 +661,38 @@ function addZone() {
 
         case "Forwarder":
             var forwarder = $("#txtAddZoneForwarder").val();
-
             if ((forwarder == null) || (forwarder === "")) {
                 showAlert("warning", "Missing!", "Please enter a forwarder server name to add zone.", divAddZoneAlert);
-                $("#divAddZoneForwarder").focus();
+                $("#txtAddZoneForwarder").focus();
                 return;
             }
 
-            parameters = "&protocol=" + $('input[name=rdAddZoneForwarderProtocol]:checked').val() + "&forwarder=" + encodeURIComponent(forwarder);
+            var dnssecValidation = $("#chkAddZoneForwarderDnssecValidation").prop("checked");
+            var proxyType = $("input[name=rdAddZoneForwarderProxyType]:checked").val();
+
+            parameters = "&protocol=" + $("input[name=rdAddZoneForwarderProtocol]:checked").val() + "&forwarder=" + encodeURIComponent(forwarder);
+            parameters += "&dnssecValidation=" + dnssecValidation + "&proxyType=" + proxyType;
+
+            if (proxyType != "None") {
+                var proxyAddress = $("#txtAddZoneForwarderProxyAddress").val();
+                var proxyPort = $("#txtAddZoneForwarderProxyPort").val();
+                var proxyUsername = $("#txtAddZoneForwarderProxyUsername").val();
+                var proxyPassword = $("#txtAddZoneForwarderProxyPassword").val();
+
+                if ((proxyAddress == null) || (proxyAddress === "")) {
+                    showAlert("warning", "Missing!", "Please enter a domain name or IP address for Proxy Server Address to add zone.", divAddZoneAlert);
+                    $("#txtAddZoneForwarderProxyAddress").focus();
+                    return;
+                }
+
+                if ((proxyPort == null) || (proxyPort === "")) {
+                    showAlert("warning", "Missing!", "Please enter a port number for Proxy Server Port to add zone.", divAddZoneAlert);
+                    $("#txtAddZoneForwarderProxyPort").focus();
+                    return;
+                }
+
+                parameters += "&proxyAddress=" + encodeURIComponent(proxyAddress) + "&proxyPort=" + proxyPort + "&proxyUsername=" + encodeURIComponent(proxyUsername) + "&proxyPassword=" + encodeURIComponent(proxyPassword);
+            }
             break;
 
         default:
@@ -823,10 +873,10 @@ function showEditZone(domain) {
                     case "NS":
                         tableHtmlRows += "<td style=\"overflow-wrap: anywhere;\"><b>Name Server:</b> " + htmlEncode(records[i].rData.value);
 
-                        if (records[i].rData.glue != null) {
-                            tableHtmlRows += "<br /><b>Glue Addresses:</b> " + records[i].rData.glue;
+                        if (records[i].glueRecords != null) {
+                            tableHtmlRows += "<br /><b>Glue Addresses:</b> " + records[i].glueRecords;
 
-                            additionalDataAttributes = "data-record-glue=\"" + htmlEncode(records[i].rData.glue) + "\" ";
+                            additionalDataAttributes = "data-record-glue=\"" + htmlEncode(records[i].glueRecords) + "\" ";
                         } else {
                             additionalDataAttributes = "data-record-glue=\"\" ";
                         }
@@ -982,7 +1032,8 @@ function showEditZone(domain) {
                         tableHtmlRows += "<td style=\"overflow-wrap: anywhere;\"><b>Flags: </b> " + htmlEncode(records[i].rData.flags) +
                             "<br /><b>Protocol:</b> " + htmlEncode(records[i].rData.protocol) +
                             "<br /><b>Algorithm:</b> " + htmlEncode(records[i].rData.algorithm) +
-                            "<br /><b>Public Key:</b> " + htmlEncode(records[i].rData.publicKey);
+                            "<br /><b>Public Key:</b> " + htmlEncode(records[i].rData.publicKey) +
+                            "<br /><br /><b>Computed Key Tag:</b> " + htmlEncode(records[i].rData.computedKeyTag);
 
                         if ((records[i].comments != null) && (records[i].comments.length > 0))
                             tableHtmlRows += "<br /><br /><b>Comments:</b> <pre>" + htmlEncode(records[i].comments) + "</pre>";
@@ -993,6 +1044,53 @@ function showEditZone(domain) {
                             "data-record-protocol=\"" + htmlEncode(records[i].rData.protocol) + "\" " +
                             "data-record-algorithm=\"" + htmlEncode(records[i].rData.algorithm) + "\" " +
                             "data-record-public-key=\"" + htmlEncode(records[i].rData.publicKey) + "\" ";
+                        break;
+
+                    case "NSEC3":
+                        var nsec3Types = null;
+
+                        for (var j = 0; j < records[i].rData.types.length; j++) {
+                            if (nsec3Types == null)
+                                nsec3Types = records[i].rData.types[j];
+                            else
+                                nsec3Types += ", " + records[i].rData.types[j];
+                        }
+
+                        tableHtmlRows += "<td style=\"overflow-wrap: anywhere;\"><b>Hash Algorithm: </b> " + htmlEncode(records[i].rData.hashAlgorithm) +
+                            "<br /><b>Flags: </b> " + htmlEncode(records[i].rData.flags) +
+                            "<br /><b>Iterations: </b> " + htmlEncode(records[i].rData.iterations) +
+                            "<br /><b>Salt: </b>" + htmlEncode(records[i].rData.salt) +
+                            "<br /><b>Next Hashed Owner Name: </b> " + htmlEncode(records[i].rData.nextHashedOwnerName) +
+                            "<br /><b>Types:</b> " + htmlEncode(nsec3Types);
+
+                        if ((records[i].comments != null) && (records[i].comments.length > 0))
+                            tableHtmlRows += "<br /><br /><b>Comments:</b> <pre>" + htmlEncode(records[i].comments) + "</pre>";
+
+                        tableHtmlRows += "</td>";
+
+                        additionalDataAttributes = "data-record-hash-algorithm=\"" + htmlEncode(records[i].rData.hashAlgorithm) + "\" " +
+                            "data-record-flags=\"" + htmlEncode(records[i].rData.flags) + "\" " +
+                            "data-record-iterations=\"" + htmlEncode(records[i].rData.iterations) + "\" " +
+                            "data-record-salt=\"" + htmlEncode(records[i].rData.salt) + "\" " +
+                            "data-record-next-hashed-owner-name=\"" + htmlEncode(records[i].rData.nextHashedOwnerName) + "\" " +
+                            "data-record-types=\"" + htmlEncode(nsec3Types) + "\" ";
+                        break;
+
+                    case "NSEC3PARAM":
+                        tableHtmlRows += "<td style=\"overflow-wrap: anywhere;\"><b>Hash Algorithm: </b> " + htmlEncode(records[i].rData.hashAlgorithm) +
+                            "<br /><b>Flags: </b> " + htmlEncode(records[i].rData.flags) +
+                            "<br /><b>Iterations: </b> " + htmlEncode(records[i].rData.iterations) +
+                            "<br /><b>Salt: </b>" + htmlEncode(records[i].rData.salt);
+
+                        if ((records[i].comments != null) && (records[i].comments.length > 0))
+                            tableHtmlRows += "<br /><br /><b>Comments:</b> <pre>" + htmlEncode(records[i].comments) + "</pre>";
+
+                        tableHtmlRows += "</td>";
+
+                        additionalDataAttributes = "data-record-hash-algorithm=\"" + htmlEncode(records[i].rData.hashAlgorithm) + "\" " +
+                            "data-record-flags=\"" + htmlEncode(records[i].rData.flags) + "\" " +
+                            "data-record-iterations=\"" + htmlEncode(records[i].rData.iterations) + "\" " +
+                            "data-record-salt=\"" + htmlEncode(records[i].rData.salt) + "\" ";
                         break;
 
                     case "CAA":
@@ -1011,14 +1109,32 @@ function showEditZone(domain) {
 
                     case "FWD":
                         tableHtmlRows += "<td style=\"overflow-wrap: anywhere;\"><b>Protocol: </b> " + htmlEncode(records[i].rData.protocol) +
-                            "<br /><b>Forwarder:</b> " + htmlEncode(records[i].rData.value);
+                            "<br /><b>Forwarder:</b> " + htmlEncode(records[i].rData.value) +
+                            "<br /><b>DNSSEC Validation:</b> " + htmlEncode(records[i].rData.dnssecValidation) +
+                            "<br /><b>Proxy Type:</b> " + htmlEncode(records[i].rData.proxyType);
+
+                        if (records[i].rData.proxyType !== "None") {
+                            tableHtmlRows += "<br /><b>Proxy Address:</b> " + htmlEncode(records[i].rData.proxyAddress) +
+                                "<br /><b>Proxy Port:</b> " + htmlEncode(records[i].rData.proxyPort) +
+                                "<br /><b>Proxy Username:</b> " + htmlEncode(records[i].rData.proxyUsername) +
+                                "<br /><b>Proxy Password:</b> ************";
+                        }
 
                         if ((records[i].comments != null) && (records[i].comments.length > 0))
                             tableHtmlRows += "<br /><br /><b>Comments:</b> <pre>" + htmlEncode(records[i].comments) + "</pre>";
 
                         tableHtmlRows += "</td>";
 
-                        additionalDataAttributes = "data-record-protocol=\"" + htmlEncode(records[i].rData.protocol) + "\" ";
+                        additionalDataAttributes = "data-record-protocol=\"" + htmlEncode(records[i].rData.protocol) + "\" " +
+                            "data-record-dnssec-validation=\"" + htmlEncode(records[i].rData.dnssecValidation) + "\" " +
+                            "data-record-proxy-type=\"" + htmlEncode(records[i].rData.proxyType) + "\" ";
+
+                        if (records[i].rData.proxyType != "None") {
+                            additionalDataAttributes += "data-record-proxy-address=\"" + htmlEncode(records[i].rData.proxyAddress) + "\" " +
+                                "data-record-proxy-port=\"" + htmlEncode(records[i].rData.proxyPort) + "\" " +
+                                "data-record-proxy-username=\"" + htmlEncode(records[i].rData.proxyUsername) + "\" " +
+                                "data-record-proxy-password=\"" + htmlEncode(records[i].rData.proxyPassword) + "\" ";
+                        }
                         break;
 
                     case "APP":
@@ -1078,6 +1194,12 @@ function showEditZone(domain) {
                         switch (records[i].type) {
                             case "SOA":
                                 disableEnableDisableDeleteButtons = true;
+                                break;
+
+                            case "RRSIG":
+                            case "NSEC":
+                            case "NSEC3":
+                                hideActionButtons = true;
                                 break;
                         }
                         break;
@@ -1186,6 +1308,16 @@ function clearAddEditForm() {
     $('#txtAddEditRecordDataForwarder').prop('disabled', false);
     $("#txtAddEditRecordDataForwarder").attr("placeholder", "8.8.8.8 or [2620:fe::10]")
     $("#txtAddEditRecordDataForwarder").val("");
+    $("#chkAddEditRecordDataForwarderDnssecValidation").prop("checked", false);
+    $("#rdAddEditRecordDataForwarderProxyTypeNone").prop("checked", true);
+    $("#txtAddEditRecordDataForwarderProxyAddress").prop("disabled", true);
+    $("#txtAddEditRecordDataForwarderProxyPort").prop("disabled", true);
+    $("#txtAddEditRecordDataForwarderProxyUsername").prop("disabled", true);
+    $("#txtAddEditRecordDataForwarderProxyPassword").prop("disabled", true);
+    $("#txtAddEditRecordDataForwarderProxyAddress").val("");
+    $("#txtAddEditRecordDataForwarderProxyPort").val("");
+    $("#txtAddEditRecordDataForwarderProxyUsername").val("");
+    $("#txtAddEditRecordDataForwarderProxyPassword").val("");
 
     $("#divAddEditRecordDataApplication").hide();
     $("#optAddEditRecordDataAppName").html("");
@@ -1373,6 +1505,16 @@ function modifyAddRecordFormByType() {
             $("#chkAddEditRecordDataForwarderThisServer").prop("checked", false);
             $('#txtAddEditRecordDataForwarder').prop('disabled', false);
             $("#txtAddEditRecordDataForwarder").val("");
+            $("#chkAddEditRecordDataForwarderDnssecValidation").prop("checked", false);
+            $("#rdAddEditRecordDataForwarderProxyTypeNone").prop("checked", true);
+            $("#txtAddEditRecordDataForwarderProxyAddress").prop("disabled", true);
+            $("#txtAddEditRecordDataForwarderProxyPort").prop("disabled", true);
+            $("#txtAddEditRecordDataForwarderProxyUsername").prop("disabled", true);
+            $("#txtAddEditRecordDataForwarderProxyPassword").prop("disabled", true);
+            $("#txtAddEditRecordDataForwarderProxyAddress").val("");
+            $("#txtAddEditRecordDataForwarderProxyPort").val("");
+            $("#txtAddEditRecordDataForwarderProxyUsername").val("");
+            $("#txtAddEditRecordDataForwarderProxyPassword").val("");
             $("#divAddEditRecordDataForwarder").show();
             break;
 
@@ -1389,13 +1531,13 @@ function addRecord() {
     var btn = $("#btnAddEditRecord");
     var divAddEditRecordAlert = $("#divAddEditRecordAlert");
 
+    var zone = $("#titleEditZone").text();
+
     var domain;
     {
         var subDomain = $("#txtAddEditRecordName").val();
         if (subDomain === "")
             subDomain = "@";
-
-        var zone = $("#titleEditZone").text();
 
         if (subDomain === "@")
             domain = zone;
@@ -1408,10 +1550,10 @@ function addRecord() {
     var type = $("#optAddEditRecordType").val();
 
     var ttl = $("#txtAddEditRecordTtl").val();
-    var overwrite = $("#chkAddEditRecordOverwrite").prop('checked');
+    var overwrite = $("#chkAddEditRecordOverwrite").prop("checked");
     var comments = $("#txtAddEditRecordComments").val();
 
-    var apiUrl = "/api/addRecord?token=" + token + "&domain=" + encodeURIComponent(domain) + "&type=" + type + "&ttl=" + ttl + "&overwrite=" + overwrite + "&comments=" + encodeURIComponent(comments);
+    var apiUrl = "/api/addRecord?token=" + token + "&zone=" + encodeURIComponent(zone) + "&domain=" + encodeURIComponent(domain) + "&type=" + type + "&ttl=" + ttl + "&overwrite=" + overwrite + "&comments=" + encodeURIComponent(comments);
 
     switch (type) {
         case "A":
@@ -1561,7 +1703,32 @@ function addRecord() {
                 return;
             }
 
+            var dnssecValidation = $("#chkAddEditRecordDataForwarderDnssecValidation").prop("checked");
+            var proxyType = $("input[name=rdAddEditRecordDataForwarderProxyType]:checked").val();
+
             apiUrl += "&protocol=" + $('input[name=rdAddEditRecordDataForwarderProtocol]:checked').val() + "&value=" + value;
+            apiUrl += "&dnssecValidation=" + dnssecValidation + "&proxyType=" + proxyType;
+
+            if (proxyType != "None") {
+                var proxyAddress = $("#txtAddEditRecordDataForwarderProxyAddress").val();
+                var proxyPort = $("#txtAddEditRecordDataForwarderProxyPort").val();
+                var proxyUsername = $("#txtAddEditRecordDataForwarderProxyUsername").val();
+                var proxyPassword = $("#txtAddEditRecordDataForwarderProxyPassword").val();
+
+                if ((proxyAddress == null) || (proxyAddress === "")) {
+                    showAlert("warning", "Missing!", "Please enter a domain name or IP address for Proxy Server Address to add the record.", divAddEditRecordAlert);
+                    $("#txtAddEditRecordDataForwarderProxyAddress").focus();
+                    return;
+                }
+
+                if ((proxyPort == null) || (proxyPort === "")) {
+                    showAlert("warning", "Missing!", "Please enter a port number for Proxy Server Port to add the record.", divAddEditRecordAlert);
+                    $("#txtAddEditRecordDataForwarderProxyPort").focus();
+                    return;
+                }
+
+                apiUrl += "&proxyAddress=" + encodeURIComponent(proxyAddress) + "&proxyPort=" + proxyPort + "&proxyUsername=" + encodeURIComponent(proxyUsername) + "&proxyPassword=" + encodeURIComponent(proxyPassword);
+            }
             break;
 
         case "APP":
@@ -1623,6 +1790,15 @@ function updateAddEditFormForwarderPlaceholder() {
             $("#txtAddEditRecordDataForwarder").attr("placeholder", "https://cloudflare-dns.com/dns-query (1.1.1.1)")
             break;
     }
+}
+
+function updateAddEditFormForwarderProxyType() {
+    var proxyType = $('input[name=rdAddEditRecordDataForwarderProxyType]:checked').val();
+
+    $("#txtAddEditRecordDataForwarderProxyAddress").prop("disabled", (proxyType === "None"));
+    $("#txtAddEditRecordDataForwarderProxyPort").prop("disabled", (proxyType === "None"));
+    $("#txtAddEditRecordDataForwarderProxyUsername").prop("disabled", (proxyType === "None"));
+    $("#txtAddEditRecordDataForwarderProxyPassword").prop("disabled", (proxyType === "None"));
 }
 
 function updateAddEditFormForwarderThisServer() {
@@ -1815,7 +1991,20 @@ function showEditRecordModal(objBtn) {
             $("#txtAddEditRecordDataForwarder").prop("disabled", (forwarder == "this-server"));
             $("#txtAddEditRecordDataForwarder").val(forwarder);
 
+            $("#chkAddEditRecordDataForwarderDnssecValidation").prop("checked", divData.attr("data-record-dnssec-validation") === "true");
+
+            var proxyType = divData.attr("data-record-proxy-type");
+            $("#rdAddEditRecordDataForwarderProxyType" + proxyType).prop("checked", true);
+
+            if (proxyType !== "None") {
+                $("#txtAddEditRecordDataForwarderProxyAddress").val(divData.attr("data-record-proxy-address"));
+                $("#txtAddEditRecordDataForwarderProxyPort").val(divData.attr("data-record-proxy-port"));
+                $("#txtAddEditRecordDataForwarderProxyUsername").val(divData.attr("data-record-proxy-username"));
+                $("#txtAddEditRecordDataForwarderProxyPassword").val(divData.attr("data-record-proxy-password"));
+            }
+
             updateAddEditFormForwarderPlaceholder();
+            updateAddEditFormForwarderProxyType();
             break;
 
         case "APP":
@@ -1881,7 +2070,7 @@ function updateRecord() {
     var disable = (divData.attr("data-record-disabled") === "true");
     var comments = $("#txtAddEditRecordComments").val();
 
-    var apiUrl = "/api/updateRecord?token=" + token + "&type=" + type + "&domain=" + encodeURIComponent(domain) + "&newDomain=" + encodeURIComponent(newDomain) + "&ttl=" + ttl + "&value=" + encodeURIComponent(value) + "&disable=" + disable + "&comments=" + encodeURIComponent(comments);
+    var apiUrl = "/api/updateRecord?token=" + token + "&zone=" + encodeURIComponent(zone) + "&type=" + type + "&domain=" + encodeURIComponent(domain) + "&newDomain=" + encodeURIComponent(newDomain) + "&ttl=" + ttl + "&value=" + encodeURIComponent(value) + "&disable=" + disable + "&comments=" + encodeURIComponent(comments);
 
     switch (type) {
         case "A":
@@ -2103,7 +2292,32 @@ function updateRecord() {
                 return;
             }
 
+            var dnssecValidation = $("#chkAddEditRecordDataForwarderDnssecValidation").prop("checked");
+            var proxyType = $("input[name=rdAddEditRecordDataForwarderProxyType]:checked").val();
+
             apiUrl += "&protocol=" + $('input[name=rdAddEditRecordDataForwarderProtocol]:checked').val() + "&newValue=" + newValue;
+            apiUrl += "&dnssecValidation=" + dnssecValidation + "&proxyType=" + proxyType;
+
+            if (proxyType != "None") {
+                var proxyAddress = $("#txtAddEditRecordDataForwarderProxyAddress").val();
+                var proxyPort = $("#txtAddEditRecordDataForwarderProxyPort").val();
+                var proxyUsername = $("#txtAddEditRecordDataForwarderProxyUsername").val();
+                var proxyPassword = $("#txtAddEditRecordDataForwarderProxyPassword").val();
+
+                if ((proxyAddress == null) || (proxyAddress === "")) {
+                    showAlert("warning", "Missing!", "Please enter a domain name or IP address for Proxy Server Address to update the record.", divAddEditRecordAlert);
+                    $("#txtAddEditRecordDataForwarderProxyAddress").focus();
+                    return;
+                }
+
+                if ((proxyPort == null) || (proxyPort === "")) {
+                    showAlert("warning", "Missing!", "Please enter a port number for Proxy Server Port to update the record.", divAddEditRecordAlert);
+                    $("#txtAddEditRecordDataForwarderProxyPort").focus();
+                    return;
+                }
+
+                apiUrl += "&proxyAddress=" + encodeURIComponent(proxyAddress) + "&proxyPort=" + proxyPort + "&proxyUsername=" + encodeURIComponent(proxyUsername) + "&proxyPassword=" + encodeURIComponent(proxyPassword);
+            }
             break;
 
         case "APP":
@@ -2212,6 +2426,7 @@ function deleteRecord(objBtn) {
     var id = btn.attr("data-id");
     var divData = $("#data" + id);
 
+    var zone = $("#titleEditZone").text();
     var domain = divData.attr("data-record-name");
     var type = divData.attr("data-record-type");
     var value = divData.attr("data-record-value");
@@ -2222,7 +2437,7 @@ function deleteRecord(objBtn) {
     if (!confirm("Are you sure to permanently delete the " + type + " record '" + domain + "' with value '" + value + "'?"))
         return;
 
-    var apiUrl = "/api/deleteRecord?token=" + token + "&domain=" + domain + "&type=" + type + "&value=" + encodeURIComponent(value);
+    var apiUrl = "/api/deleteRecord?token=" + token + "&zone=" + encodeURIComponent(zone) + "&domain=" + domain + "&type=" + type + "&value=" + encodeURIComponent(value);
 
     switch (type) {
         case "SRV":
