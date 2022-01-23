@@ -1,6 +1,6 @@
 ﻿/*
 Technitium DNS Server
-Copyright (C) 2021  Shreyas Zare (shreyas@technitium.com)
+Copyright (C) 2022  Shreyas Zare (shreyas@technitium.com)
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -78,7 +78,7 @@ namespace DnsServerCore.Dns.ZoneManagers
         {
             using (HashAlgorithm hash = SHA256.Create())
             {
-                return Path.Combine(_localCacheFolder, BitConverter.ToString(hash.ComputeHash(Encoding.UTF8.GetBytes(blockListUrl.AbsoluteUri))).Replace("-", "").ToLower());
+                return Path.Combine(_localCacheFolder, Convert.ToHexString(hash.ComputeHash(Encoding.UTF8.GetBytes(blockListUrl.AbsoluteUri))).ToLower());
             }
         }
 
@@ -197,16 +197,6 @@ namespace DnsServerCore.Dns.ZoneManagers
             return domains;
         }
 
-        internal static string GetParentZone(string domain)
-        {
-            int i = domain.IndexOf('.');
-            if (i > -1)
-                return domain.Substring(i + 1);
-
-            //dont return root zone
-            return null;
-        }
-
         private List<Uri> IsZoneBlocked(string domain, out string blockedDomain)
         {
             domain = domain.ToLower();
@@ -220,7 +210,7 @@ namespace DnsServerCore.Dns.ZoneManagers
                     return blockLists;
                 }
 
-                domain = GetParentZone(domain);
+                domain = AuthZoneManager.GetParentZone(domain);
             }
             while (domain is not null);
 
@@ -235,7 +225,7 @@ namespace DnsServerCore.Dns.ZoneManagers
                 if (allowedDomains.TryGetValue(domain, out _))
                     return true;
 
-                domain = GetParentZone(domain);
+                domain = AuthZoneManager.GetParentZone(domain);
             }
             while (domain is not null);
 
@@ -448,7 +438,7 @@ namespace DnsServerCore.Dns.ZoneManagers
                         break;
 
                     case DnsServerBlockingType.NxDomain:
-                        string parentDomain = GetParentZone(blockedDomain);
+                        string parentDomain = AuthZoneManager.GetParentZone(blockedDomain);
                         if (parentDomain is null)
                             parentDomain = string.Empty;
 
