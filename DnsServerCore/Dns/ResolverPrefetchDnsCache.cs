@@ -1,6 +1,6 @@
 ﻿/*
 Technitium DNS Server
-Copyright (C) 2021  Shreyas Zare (shreyas@technitium.com)
+Copyright (C) 2022  Shreyas Zare (shreyas@technitium.com)
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -21,7 +21,7 @@ using DnsServerCore.ApplicationCommon;
 using DnsServerCore.Dns.Applications;
 using DnsServerCore.Dns.ZoneManagers;
 using System.Net;
-using TechnitiumLibrary.IO;
+using TechnitiumLibrary;
 using TechnitiumLibrary.Net.Dns;
 using TechnitiumLibrary.Net.Dns.ResourceRecords;
 
@@ -31,16 +31,16 @@ namespace DnsServerCore.Dns
     {
         #region variables
 
-        readonly DnsQuestionRecord _prefetchQuery;
+        readonly DnsQuestionRecord _prefetchQuestion;
 
         #endregion
 
         #region constructor
 
-        public ResolverPrefetchDnsCache(DnsApplicationManager dnsApplicationManager, AuthZoneManager authZoneManager, CacheZoneManager cacheZoneManager, DnsQuestionRecord prefetchQuery)
+        public ResolverPrefetchDnsCache(DnsApplicationManager dnsApplicationManager, AuthZoneManager authZoneManager, CacheZoneManager cacheZoneManager, DnsQuestionRecord prefetchQuestion)
             : base(dnsApplicationManager, authZoneManager, cacheZoneManager)
         {
-            _prefetchQuery = prefetchQuery;
+            _prefetchQuestion = prefetchQuestion;
         }
 
         #endregion
@@ -67,7 +67,7 @@ namespace DnsServerCore.Dns
                     {
                         if ((nsResponse.Answer.Count > 0) && (nsResponse.Answer[0].Type == DnsResourceRecordType.NS))
                             return new DnsDatagram(request.Identifier, true, nsResponse.OPCODE, nsResponse.AuthoritativeAnswer, nsResponse.Truncation, nsResponse.RecursionDesired, nsResponse.RecursionAvailable, nsResponse.AuthenticData, nsResponse.CheckingDisabled, nsResponse.RCODE, request.Question, null, nsResponse.Answer, nsResponse.Additional);
-                        else if ((nsResponse.Authority.Count > 0) && (nsResponse.Authority[0].Type == DnsResourceRecordType.NS))
+                        else if ((nsResponse.Authority.Count > 0) && (nsResponse.FindFirstAuthorityType() == DnsResourceRecordType.NS))
                             return new DnsDatagram(request.Identifier, true, nsResponse.OPCODE, nsResponse.AuthoritativeAnswer, nsResponse.Truncation, nsResponse.RecursionDesired, nsResponse.RecursionAvailable, nsResponse.AuthenticData, nsResponse.CheckingDisabled, nsResponse.RCODE, request.Question, null, nsResponse.Authority, nsResponse.Additional);
                     }
                 }
@@ -89,8 +89,13 @@ namespace DnsServerCore.Dns
 
         public override DnsDatagram Query(DnsDatagram request, bool serveStaleAndResetExpiry = false, bool findClosestNameServers = false)
         {
-            if (findClosestNameServers && _prefetchQuery.Equals(request.Question[0]))
+            if (_prefetchQuestion.Equals(request.Question[0]))
             {
+                //request is for prefetch question
+
+                if (!findClosestNameServers)
+                    return null; //dont give answer from cache for prefetch question
+
                 //return closest name servers so that the recursive resolver queries them to refreshes cache instead of returning response from cache
                 DnsDatagram authResponse = DnsApplicationQueryClosestDelegation(request);
                 if (authResponse is null)
@@ -102,7 +107,10 @@ namespace DnsServerCore.Dns
                 {
                     if ((cacheResponse is not null) && (cacheResponse.Authority.Count > 0))
                     {
-                        if (cacheResponse.Authority[0].Name.Length > authResponse.Authority[0].Name.Length)
+                        DnsResourceRecord authResponseFirstAuthority = authResponse.FindFirstAuthorityRecord();
+                        DnsResourceRecord cacheResponseFirstAuthority = cacheResponse.FindFirstAuthorityRecord();
+
+                        if (cacheResponseFirstAuthority.Name.Length > authResponseFirstAuthority.Name.Length)
                             return cacheResponse;
                     }
 
