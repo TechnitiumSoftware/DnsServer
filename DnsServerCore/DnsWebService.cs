@@ -1,6 +1,6 @@
 ﻿/*
 Technitium DNS Server
-Copyright (C) 2021  Shreyas Zare (shreyas@technitium.com)
+Copyright (C) 2022  Shreyas Zare (shreyas@technitium.com)
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -38,6 +38,7 @@ using System.Security.Cryptography.X509Certificates;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
+using TechnitiumLibrary;
 using TechnitiumLibrary.IO;
 using TechnitiumLibrary.Net;
 using TechnitiumLibrary.Net.Dns;
@@ -1251,6 +1252,9 @@ namespace DnsServerCore
             jsonWriter.WritePropertyName("udpPayloadSize");
             jsonWriter.WriteValue(_dnsServer.UdpPayloadSize);
 
+            jsonWriter.WritePropertyName("dnssecValidation");
+            jsonWriter.WriteValue(_dnsServer.DnssecValidation);
+
             jsonWriter.WritePropertyName("enableLogging");
             jsonWriter.WriteValue(_log.EnableLogging);
 
@@ -1721,6 +1725,10 @@ namespace DnsServerCore
             if (!string.IsNullOrEmpty(strUdpPayloadSize))
                 _dnsServer.UdpPayloadSize = ushort.Parse(strUdpPayloadSize);
 
+            string strDnssecValidation = request.QueryString["dnssecValidation"];
+            if (!string.IsNullOrEmpty(strDnssecValidation))
+                _dnsServer.DnssecValidation = bool.Parse(strDnssecValidation);
+
             string strDefaultRecordTtl = request.QueryString["defaultRecordTtl"];
             if (!string.IsNullOrEmpty(strDefaultRecordTtl))
                 _zonesApi.DefaultRecordTtl = uint.Parse(strDefaultRecordTtl);
@@ -1873,7 +1881,7 @@ namespace DnsServerCore
             string strProxyType = request.QueryString["proxyType"];
             if (!string.IsNullOrEmpty(strProxyType))
             {
-                NetProxyType proxyType = (NetProxyType)Enum.Parse(typeof(NetProxyType), strProxyType, true);
+                NetProxyType proxyType = Enum.Parse<NetProxyType>(strProxyType, true);
                 if (proxyType == NetProxyType.None)
                 {
                     _dnsServer.Proxy = null;
@@ -1905,7 +1913,7 @@ namespace DnsServerCore
             DnsTransportProtocol forwarderProtocol = DnsTransportProtocol.Udp;
             string strForwarderProtocol = request.QueryString["forwarderProtocol"];
             if (!string.IsNullOrEmpty(strForwarderProtocol))
-                forwarderProtocol = (DnsTransportProtocol)Enum.Parse(typeof(DnsTransportProtocol), strForwarderProtocol, true);
+                forwarderProtocol = Enum.Parse<DnsTransportProtocol>(strForwarderProtocol, true);
 
             string strForwarders = request.QueryString["forwarders"];
             if (!string.IsNullOrEmpty(strForwarders))
@@ -2835,21 +2843,31 @@ namespace DnsServerCore
             if (string.IsNullOrEmpty(strProtocol))
                 strProtocol = "Udp";
 
-            bool importRecords = false;
+            bool dnssecValidation = false;
+            string strDnssecValidation = request.QueryString["dnssec"];
+            if (!string.IsNullOrEmpty(strDnssecValidation))
+                dnssecValidation = bool.Parse(strDnssecValidation);
+
+            bool importResponse = false;
             string strImport = request.QueryString["import"];
             if (!string.IsNullOrEmpty(strImport))
-                importRecords = bool.Parse(strImport);
+                importResponse = bool.Parse(strImport);
+
+            DnsCache dnsCache = new DnsCache();
+            dnsCache.MinimumRecordTtl = 0;
+            dnsCache.MaximumRecordTtl = 7 * 24 * 60 * 60;
 
             NetProxy proxy = _dnsServer.Proxy;
             bool preferIPv6 = _dnsServer.PreferIPv6;
             ushort udpPayloadSize = _dnsServer.UdpPayloadSize;
             bool randomizeName = false;
             bool qnameMinimization = _dnsServer.QnameMinimization;
-            DnsTransportProtocol protocol = (DnsTransportProtocol)Enum.Parse(typeof(DnsTransportProtocol), strProtocol, true);
+            DnsTransportProtocol protocol = Enum.Parse<DnsTransportProtocol>(strProtocol, true);
             const int RETRIES = 1;
             const int TIMEOUT = 10000;
 
             DnsDatagram dnsResponse;
+            string dnssecErrorMessage = null;
 
             if (server.Equals("recursive-resolver", StringComparison.OrdinalIgnoreCase))
             {
@@ -2863,11 +2881,16 @@ namespace DnsServerCore
                 else
                     question = new DnsQuestionRecord(domain, type, DnsClass.IN);
 
-                DnsCache dnsCache = new DnsCache();
-                dnsCache.MinimumRecordTtl = 0;
-                dnsCache.MaximumRecordTtl = 7 * 24 * 60 * 60;
-
-                dnsResponse = await DnsClient.RecursiveResolveAsync(question, dnsCache, proxy, preferIPv6, udpPayloadSize, randomizeName, qnameMinimization, false, RETRIES, TIMEOUT);
+                try
+                {
+                    dnsResponse = await DnsClient.RecursiveResolveAsync(question, dnsCache, proxy, preferIPv6, udpPayloadSize, randomizeName, qnameMinimization, false, dnssecValidation, RETRIES, TIMEOUT);
+                }
+                catch (DnsClientResponseDnssecValidationException ex)
+                {
+                    dnsResponse = ex.Response;
+                    dnssecErrorMessage = ex.Message;
+                    importResponse = false;
+                }
             }
             else
             {
@@ -2910,10 +2933,10 @@ namespace DnsServerCore
                     if (nameServer.Protocol != protocol)
                         nameServer = nameServer.ChangeProtocol(protocol);
 
-                    if (nameServer.IPEndPoint is null)
+                    if (nameServer.IsIPEndPointStale)
                     {
                         if (proxy is null)
-                            await nameServer.ResolveIPAddressAsync(_dnsServer);
+                            await nameServer.ResolveIPAddressAsync(_dnsServer, _dnsServer.PreferIPv6);
                     }
                     else if (protocol != DnsTransportProtocol.Tls)
                     {
@@ -2928,30 +2951,37 @@ namespace DnsServerCore
 
                 DnsClient dnsClient = new DnsClient(nameServer);
 
+                dnsClient.Cache = dnsCache;
                 dnsClient.Proxy = proxy;
                 dnsClient.PreferIPv6 = preferIPv6;
                 dnsClient.RandomizeName = randomizeName;
                 dnsClient.Retries = RETRIES;
                 dnsClient.Timeout = TIMEOUT;
+                dnsClient.UdpPayloadSize = udpPayloadSize;
+                dnsClient.DnssecValidation = dnssecValidation;
 
-                if (protocol == DnsTransportProtocol.Udp)
-                    dnsClient.UdpPayloadSize = udpPayloadSize;
-                else
-                    dnsClient.UdpPayloadSize = 0;
-
-                dnsResponse = await dnsClient.ResolveAsync(domain, type);
+                try
+                {
+                    dnsResponse = await dnsClient.ResolveAsync(domain, type);
+                }
+                catch (DnsClientResponseDnssecValidationException ex)
+                {
+                    dnsResponse = ex.Response;
+                    dnssecErrorMessage = ex.Message;
+                    importResponse = false;
+                }
 
                 if (type == DnsResourceRecordType.AXFR)
                     dnsResponse = dnsResponse.Join();
             }
 
-            if (importRecords)
+            if (importResponse)
             {
                 AuthZoneInfo zoneInfo = _dnsServer.AuthZoneManager.GetAuthZoneInfo(domain);
-                if ((zoneInfo == null) || zoneInfo.Name.Equals("", StringComparison.OrdinalIgnoreCase))
+                if ((zoneInfo is null) || zoneInfo.Name.Equals("", StringComparison.OrdinalIgnoreCase))
                 {
                     zoneInfo = _dnsServer.AuthZoneManager.CreatePrimaryZone(domain, _dnsServer.ServerDomain, false);
-                    if (zoneInfo == null)
+                    if (zoneInfo is null)
                         throw new DnsServerException("Cannot import records: failed to create primary zone.");
                 }
                 else
@@ -2978,23 +3008,54 @@ namespace DnsServerCore
                 }
                 else
                 {
-                    List<DnsResourceRecord> syncRecords = new List<DnsResourceRecord>(dnsResponse.Answer.Count);
+                    List<DnsResourceRecord> importRecords = new List<DnsResourceRecord>(dnsResponse.Answer.Count + dnsResponse.Authority.Count + dnsResponse.Additional.Count);
 
                     foreach (DnsResourceRecord record in dnsResponse.Answer)
                     {
-                        if (record.Name.Equals(zoneInfo.Name, StringComparison.OrdinalIgnoreCase) || record.Name.EndsWith("." + zoneInfo.Name, StringComparison.OrdinalIgnoreCase))
+                        if (record.Name.Equals(zoneInfo.Name, StringComparison.OrdinalIgnoreCase) || record.Name.EndsWith("." + zoneInfo.Name, StringComparison.OrdinalIgnoreCase) || (zoneInfo.Name.Length == 0))
                         {
                             record.RemoveExpiry();
-                            syncRecords.Add(record);
+                            importRecords.Add(record);
                         }
                     }
 
-                    _dnsServer.AuthZoneManager.LoadRecords(syncRecords);
+                    foreach (DnsResourceRecord record in dnsResponse.Additional)
+                    {
+                        if (record.Name.Equals(zoneInfo.Name, StringComparison.OrdinalIgnoreCase) || record.Name.EndsWith("." + zoneInfo.Name, StringComparison.OrdinalIgnoreCase) || (zoneInfo.Name.Length == 0))
+                        {
+                            record.RemoveExpiry();
+                            importRecords.Add(record);
+                        }
+                    }
+
+                    foreach (DnsResourceRecord record in dnsResponse.Authority)
+                    {
+                        switch (record.Type)
+                        {
+                            case DnsResourceRecordType.OPT:
+                            case DnsResourceRecordType.TSIG:
+                                continue;
+                        }
+
+                        if (record.Name.Equals(zoneInfo.Name, StringComparison.OrdinalIgnoreCase) || record.Name.EndsWith("." + zoneInfo.Name, StringComparison.OrdinalIgnoreCase) || (zoneInfo.Name.Length == 0))
+                        {
+                            record.RemoveExpiry();
+                            importRecords.Add(record);
+                        }
+                    }
+
+                    _dnsServer.AuthZoneManager.ImportRecords(zoneInfo.Name, importRecords);
                 }
 
                 _log.Write(GetRequestRemoteEndPoint(request), "[" + GetSession(request).Username + "] DNS Client imported record(s) for authoritative zone {server: " + server + "; zone: " + zoneInfo.Name + "; type: " + type + ";}");
 
                 _dnsServer.AuthZoneManager.SaveZoneFile(zoneInfo.Name);
+            }
+
+            if (dnssecErrorMessage is not null)
+            {
+                jsonWriter.WritePropertyName("warningMessage");
+                jsonWriter.WriteValue(dnssecErrorMessage);
             }
 
             jsonWriter.WritePropertyName("result");
@@ -3024,7 +3085,7 @@ namespace DnsServerCore
         {
             using (HMAC hmac = new HMACSHA256(Encoding.UTF8.GetBytes(password)))
             {
-                return BitConverter.ToString(hmac.ComputeHash(Encoding.UTF8.GetBytes(username))).Replace("-", "").ToLower();
+                return Convert.ToHexString(hmac.ComputeHash(Encoding.UTF8.GetBytes(username))).ToLower();
             }
         }
 
@@ -3232,6 +3293,7 @@ namespace DnsServerCore
                         case 23:
                         case 24:
                         case 25:
+                        case 26:
                             _dnsServer.ServerDomain = bR.ReadShortString();
                             _webServiceHttpPort = bR.ReadInt32();
 
@@ -3724,6 +3786,11 @@ namespace DnsServerCore
                             else
                                 _dnsServer.UdpPayloadSize = DnsDatagram.EDNS_DEFAULT_UDP_PAYLOAD_SIZE;
 
+                            if (version >= 26)
+                                _dnsServer.DnssecValidation = bR.ReadBoolean();
+                            else
+                                _dnsServer.DnssecValidation = false;
+
                             break;
 
                         default:
@@ -3879,7 +3946,7 @@ namespace DnsServerCore
                 BinaryWriter bW = new BinaryWriter(mS);
 
                 bW.Write(Encoding.ASCII.GetBytes("DS")); //format
-                bW.Write((byte)25); //version
+                bW.Write((byte)26); //version
 
                 bW.WriteShortString(_dnsServer.ServerDomain);
                 bW.Write(_webServiceHttpPort);
@@ -4080,6 +4147,7 @@ namespace DnsServerCore
                 bW.Write(_zonesApi.DefaultRecordTtl);
                 bW.Write(_webServiceUseSelfSignedTlsCertificate);
                 bW.Write(_dnsServer.UdpPayloadSize);
+                bW.Write(_dnsServer.DnssecValidation);
 
                 //write config
                 mS.Position = 0;
