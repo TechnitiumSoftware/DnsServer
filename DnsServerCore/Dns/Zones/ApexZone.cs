@@ -50,6 +50,7 @@ namespace DnsServerCore.Dns.Zones
         protected IReadOnlyCollection<IPAddress> _zoneTransferNameServers;
         protected AuthZoneNotify _notify;
         protected IReadOnlyCollection<IPAddress> _notifyNameServers;
+        protected AuthZoneDnssecStatus _dnssecStatus;
 
         #endregion
 
@@ -189,6 +190,16 @@ namespace DnsServerCore.Dns.Zones
             }
         }
 
+        internal virtual void UpdateDnssecStatus()
+        {
+            if (!_entries.ContainsKey(DnsResourceRecordType.DNSKEY))
+                _dnssecStatus = AuthZoneDnssecStatus.Unsigned;
+            else if (_entries.ContainsKey(DnsResourceRecordType.NSEC3PARAM))
+                _dnssecStatus = AuthZoneDnssecStatus.SignedWithNSEC3;
+            else
+                _dnssecStatus = AuthZoneDnssecStatus.SignedWithNSEC;
+        }
+
         #endregion
 
         #region public
@@ -313,6 +324,9 @@ namespace DnsServerCore.Dns.Zones
                 _notifyNameServers = value;
             }
         }
+
+        public AuthZoneDnssecStatus DnssecStatus
+        { get { return _dnssecStatus; } }
 
         #endregion
     }
