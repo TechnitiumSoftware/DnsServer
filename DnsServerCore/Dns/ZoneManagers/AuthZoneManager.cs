@@ -17,6 +17,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 */
 
+using DnsServerCore.Dns.Dnssec;
 using DnsServerCore.Dns.ResourceRecords;
 using DnsServerCore.Dns.Trees;
 using DnsServerCore.Dns.Zones;
@@ -185,7 +186,7 @@ namespace DnsServerCore.Dns.ZoneManagers
             throw new DnsServerException("Zone already exists: " + zoneInfo.Name);
         }
 
-        private AuthZone GetOrAddSubDomainZone(string zoneName, string domain)
+        internal AuthZone GetOrAddSubDomainZone(string zoneName, string domain)
         {
             return _root.GetOrAddSubDomainZone(zoneName, domain, delegate ()
             {
@@ -315,7 +316,7 @@ namespace DnsServerCore.Dns.ZoneManagers
             }
         }
 
-        private DnsDatagram GetReferralResponse(DnsDatagram request, bool isZoneSigned, AuthZone delegationZone, bool isRecursionAllowed)
+        private DnsDatagram GetReferralResponse(DnsDatagram request, bool dnssecOk, AuthZone delegationZone, bool isRecursionAllowed)
         {
             IReadOnlyList<DnsResourceRecord> authority;
 
@@ -325,9 +326,9 @@ namespace DnsServerCore.Dns.ZoneManagers
             }
             else
             {
-                authority = delegationZone.QueryRecords(DnsResourceRecordType.NS, isZoneSigned);
+                authority = delegationZone.QueryRecords(DnsResourceRecordType.NS, dnssecOk);
 
-                if (isZoneSigned)
+                if (dnssecOk)
                 {
                     IReadOnlyList<DnsResourceRecord> dsRecords = delegationZone.QueryRecords(DnsResourceRecordType.DS, true);
                     if (dsRecords.Count > 0)
@@ -347,7 +348,7 @@ namespace DnsServerCore.Dns.ZoneManagers
                 }
             }
 
-            IReadOnlyList<DnsResourceRecord> additional = GetAdditionalRecords(authority, isZoneSigned);
+            IReadOnlyList<DnsResourceRecord> additional = GetAdditionalRecords(authority, dnssecOk);
 
             return new DnsDatagram(request.Identifier, true, DnsOpcode.StandardQuery, false, false, request.RecursionDesired, isRecursionAllowed, false, false, DnsResponseCode.NoError, request.Question, null, authority, additional);
         }
@@ -578,6 +579,39 @@ namespace DnsServerCore.Dns.ZoneManagers
             return null;
         }
 
+        internal IReadOnlyList<AuthZone> GetZoneWithSubDomainZones(string zoneName)
+        {
+            return _root.GetZoneWithSubDomainZones(zoneName);
+        }
+
+        internal AuthZone FindZone(string domain)
+        {
+            if (_root.TryGet(domain, out AuthZoneNode authZoneNode))
+            {
+                if (authZoneNode.ApexZone is not null)
+                    return authZoneNode.ApexZone;
+
+                return authZoneNode.ParentSideZone;
+            }
+
+            return null;
+        }
+
+        internal AuthZone FindNextSubDomainZone(string domain)
+        {
+            return _root.FindNextSubDomainZone(domain);
+        }
+
+        internal AuthZone FindPreviousSubDomainZone(string domain)
+        {
+            return _root.FindPreviousSubDomainZone(domain);
+        }
+
+        internal void RemoveSubDomainZone(string domain)
+        {
+            _root.TryRemove(domain, out SubDomainZone _);
+        }
+
         #endregion
 
         #region public
@@ -745,6 +779,126 @@ namespace DnsServerCore.Dns.ZoneManagers
             return null;
         }
 
+        public void SignPrimaryZoneWithRsaNSEC(string zoneName, string hashAlgorithm, int kskKeySize, int zskKeySize, uint dnsKeyTtl)
+        {
+            if (!_root.TryGet(zoneName, zoneName, out AuthZone authZone) || (authZone is not PrimaryZone primaryZone) || primaryZone.Internal)
+                throw new DnsServerException("No such primary zone was found: " + zoneName);
+
+            primaryZone.SignZoneWithRsaNSec(hashAlgorithm, kskKeySize, zskKeySize, dnsKeyTtl);
+        }
+
+        public void SignPrimaryZoneWithRsaNSEC3(string zoneName, string hashAlgorithm, int kskKeySize, int zskKeySize, ushort iterations, byte saltLength, uint dnsKeyTtl)
+        {
+            if (!_root.TryGet(zoneName, zoneName, out AuthZone authZone) || (authZone is not PrimaryZone primaryZone) || primaryZone.Internal)
+                throw new DnsServerException("No such primary zone was found: " + zoneName);
+
+            primaryZone.SignZoneWithRsaNSec3(hashAlgorithm, kskKeySize, zskKeySize, iterations, saltLength, dnsKeyTtl);
+        }
+
+        public void SignPrimaryZoneWithEcdsaNSEC(string zoneName, string curve, uint dnsKeyTtl)
+        {
+            if (!_root.TryGet(zoneName, zoneName, out AuthZone authZone) || (authZone is not PrimaryZone primaryZone) || primaryZone.Internal)
+                throw new DnsServerException("No such primary zone was found: " + zoneName);
+
+            primaryZone.SignZoneWithEcdsaNSec(curve, dnsKeyTtl);
+        }
+
+        public void SignPrimaryZoneWithEcdsaNSEC3(string zoneName, string curve, ushort iterations, byte saltLength, uint dnsKeyTtl)
+        {
+            if (!_root.TryGet(zoneName, zoneName, out AuthZone authZone) || (authZone is not PrimaryZone primaryZone) || primaryZone.Internal)
+                throw new DnsServerException("No such primary zone was found: " + zoneName);
+
+            primaryZone.SignZoneWithEcdsaNSec3(curve, iterations, saltLength, dnsKeyTtl);
+        }
+
+        public void UnsignPrimaryZone(string zoneName)
+        {
+            if (!_root.TryGet(zoneName, zoneName, out AuthZone authZone) || (authZone is not PrimaryZone primaryZone) || primaryZone.Internal)
+                throw new DnsServerException("No such primary zone was found: " + zoneName);
+
+            primaryZone.UnsignZone();
+        }
+
+        public void ConvertPrimaryZoneToNSEC(string zoneName)
+        {
+            if (!_root.TryGet(zoneName, zoneName, out AuthZone authZone) || (authZone is not PrimaryZone primaryZone) || primaryZone.Internal)
+                throw new DnsServerException("No such primary zone was found: " + zoneName);
+
+            primaryZone.ConvertToNSec();
+        }
+
+        public void ConvertPrimaryZoneToNSEC3(string zoneName, ushort iterations, byte saltLength)
+        {
+            if (!_root.TryGet(zoneName, zoneName, out AuthZone authZone) || (authZone is not PrimaryZone primaryZone) || primaryZone.Internal)
+                throw new DnsServerException("No such primary zone was found: " + zoneName);
+
+            primaryZone.ConvertToNSec3(iterations, saltLength);
+        }
+
+        public void UpdatePrimaryZoneNSEC3Parameters(string zoneName, ushort iterations, byte saltLength)
+        {
+            if (!_root.TryGet(zoneName, zoneName, out AuthZone authZone) || (authZone is not PrimaryZone primaryZone) || primaryZone.Internal)
+                throw new DnsServerException("No such primary zone was found: " + zoneName);
+
+            primaryZone.UpdateNSec3Parameters(iterations, saltLength);
+        }
+
+        public void UpdatePrimaryZoneDnsKeyTtl(string zoneName, uint dnsKeyTtl)
+        {
+            if (!_root.TryGet(zoneName, zoneName, out AuthZone authZone) || (authZone is not PrimaryZone primaryZone) || primaryZone.Internal)
+                throw new DnsServerException("No such primary zone was found: " + zoneName);
+
+            primaryZone.UpdateDnsKeyTtl(dnsKeyTtl);
+        }
+
+        public void GenerateAndAddPrimaryZoneDnssecRsaPrivateKey(string zoneName, DnssecPrivateKeyType keyType, string hashAlgorithm, int keySize)
+        {
+            if (!_root.TryGet(zoneName, zoneName, out AuthZone authZone) || (authZone is not PrimaryZone primaryZone) || primaryZone.Internal)
+                throw new DnsServerException("No such primary zone was found: " + zoneName);
+
+            primaryZone.GenerateAndAddRsaKey(keyType, hashAlgorithm, keySize);
+        }
+
+        public void GenerateAndAddPrimaryZoneDnssecEcdsaPrivateKey(string zoneName, DnssecPrivateKeyType keyType, string curve)
+        {
+            if (!_root.TryGet(zoneName, zoneName, out AuthZone authZone) || (authZone is not PrimaryZone primaryZone) || primaryZone.Internal)
+                throw new DnsServerException("No such primary zone was found: " + zoneName);
+
+            primaryZone.GenerateAndAddEcdsaKey(keyType, curve);
+        }
+
+        public void DeletePrimaryZoneDnssecPrivateKey(string zoneName, ushort keyTag)
+        {
+            if (!_root.TryGet(zoneName, zoneName, out AuthZone authZone) || (authZone is not PrimaryZone primaryZone) || primaryZone.Internal)
+                throw new DnsServerException("No such primary zone was found: " + zoneName);
+
+            primaryZone.DeletePrivateKey(keyTag);
+        }
+
+        public void PublishAllGeneratedPrimaryZoneDnssecPrivateKeys(string zoneName)
+        {
+            if (!_root.TryGet(zoneName, zoneName, out AuthZone authZone) || (authZone is not PrimaryZone primaryZone) || primaryZone.Internal)
+                throw new DnsServerException("No such primary zone was found: " + zoneName);
+
+            primaryZone.PublishAllGeneratedKeys();
+        }
+
+        public void RolloverPrimaryZoneDnsKey(string zoneName, ushort keyTag)
+        {
+            if (!_root.TryGet(zoneName, zoneName, out AuthZone authZone) || (authZone is not PrimaryZone primaryZone) || primaryZone.Internal)
+                throw new DnsServerException("No such primary zone was found: " + zoneName);
+
+            primaryZone.RolloverDnsKey(keyTag);
+        }
+
+        public void RetirePrimaryZoneDnsKey(string zoneName, ushort keyTag)
+        {
+            if (!_root.TryGet(zoneName, zoneName, out AuthZone authZone) || (authZone is not PrimaryZone primaryZone) || primaryZone.Internal)
+                throw new DnsServerException("No such primary zone was found: " + zoneName);
+
+            primaryZone.RetireDnsKey(keyTag);
+        }
+
         public bool DeleteZone(string zoneName)
         {
             if (_root.TryRemove(zoneName, out ApexZone apexZone))
@@ -758,7 +912,15 @@ namespace DnsServerCore.Dns.ZoneManagers
             return false;
         }
 
-        public AuthZoneInfo GetAuthZoneInfo(string domain, bool loadHistory = false)
+        public AuthZoneInfo GetAuthZoneInfo(string zoneName, bool loadHistory = false)
+        {
+            if (_root.TryGet(zoneName, out AuthZoneNode authZoneNode))
+                return new AuthZoneInfo(authZoneNode.ApexZone, loadHistory);
+
+            return null;
+        }
+
+        public AuthZoneInfo FindAuthZoneInfo(string domain, bool loadHistory = false)
         {
             _ = _root.FindZone(domain, out _, out _, out ApexZone apexZone, out _);
             if (apexZone is null)
@@ -988,6 +1150,9 @@ namespace DnsServerCore.Dns.ZoneManagers
                 else if ((zone is SubDomainZone subDomainZone) && subDomainZone.AuthoritativeZone.Name.Equals(zoneName, StringComparison.OrdinalIgnoreCase))
                     zone.SyncRecords(latestEntries.Value);
             }
+
+            if (_root.TryGet(zoneName, zoneName, out AuthZone authZone))
+                (authZone as ApexZone).UpdateDnssecStatus();
         }
 
         public IReadOnlyList<DnsResourceRecord> SyncIncrementalZoneTransferRecords(string zoneName, IReadOnlyList<DnsResourceRecord> xfrRecords)
@@ -1002,9 +1167,12 @@ namespace DnsServerCore.Dns.ZoneManagers
                 return Array.Empty<DnsResourceRecord>();
             }
 
-            IReadOnlyList<DnsResourceRecord> soaRecords = GetRecords(zoneName, zoneName, DnsResourceRecordType.SOA);
+            if (!_root.TryGet(zoneName, zoneName, out AuthZone authZone))
+                throw new InvalidOperationException("No such zone was found: " + zoneName);
+
+            IReadOnlyList<DnsResourceRecord> soaRecords = authZone.GetRecords(DnsResourceRecordType.SOA);
             if (soaRecords.Count != 1)
-                throw new InvalidOperationException("No authoritative zone was found for the domain.");
+                throw new InvalidOperationException("No authoritative zone was found: " + zoneName);
 
             //process IXFR response
             DnsResourceRecord currentSoaRecord = soaRecords[0];
@@ -1177,6 +1345,8 @@ namespace DnsServerCore.Dns.ZoneManagers
                 addedGlueRecords.Clear();
             }
 
+            (authZone as ApexZone).UpdateDnssecStatus();
+
             //return history
             List<DnsResourceRecord> historyRecords = new List<DnsResourceRecord>(xfrRecords.Count - 2);
 
@@ -1237,6 +1407,8 @@ namespace DnsServerCore.Dns.ZoneManagers
                         subDomainZone.AutoUpdateState();
                 }
             }
+
+            apexZone.UpdateDnssecStatus();
         }
 
         internal void LoadRecords(ApexZone apexZone, IReadOnlyList<DnsResourceRecord> records)
@@ -1261,6 +1433,8 @@ namespace DnsServerCore.Dns.ZoneManagers
                         subDomainZone.AutoUpdateState();
                 }
             }
+
+            apexZone.UpdateDnssecStatus();
         }
 
         public void SetRecords(string zoneName, string domain, DnsResourceRecordType type, uint ttl, DnsResourceRecordData[] records)
@@ -1468,9 +1642,9 @@ namespace DnsServerCore.Dns.ZoneManagers
             _ = _root.FindZone(request.Question[0].Name, out _, out SubDomainZone delegation, out ApexZone apexZone, out _);
             if (delegation is not null)
             {
-                bool isZoneSigned = request.DnssecOk && apexZone.GetRecords(DnsResourceRecordType.DNSKEY).Count > 0;
+                bool dnssecOk = request.DnssecOk && (apexZone.DnssecStatus != AuthZoneDnssecStatus.Unsigned);
 
-                return GetReferralResponse(request, isZoneSigned, delegation, true);
+                return GetReferralResponse(request, dnssecOk, delegation, true);
             }
 
             //no delegation found
@@ -1486,14 +1660,13 @@ namespace DnsServerCore.Dns.ZoneManagers
             if ((apexZone is null) || !apexZone.IsActive)
                 return null; //no authority for requested zone
 
-            bool isZoneSigned = request.DnssecOk && (apexZone.GetRecords(DnsResourceRecordType.DNSKEY).Count > 0);
-            bool isZoneNSEC3 = isZoneSigned && (apexZone.GetRecords(DnsResourceRecordType.NSEC3PARAM).Count > 0);
+            bool dnssecOk = request.DnssecOk && (apexZone.DnssecStatus != AuthZoneDnssecStatus.Unsigned);
 
             if ((zone is null) || !zone.IsActive)
             {
                 //zone not found
                 if ((delegation is not null) && delegation.IsActive && (delegation.Name.Length > apexZone.Name.Length))
-                    return GetReferralResponse(request, isZoneSigned, delegation, isRecursionAllowed);
+                    return GetReferralResponse(request, dnssecOk, delegation, isRecursionAllowed);
 
                 if (apexZone is StubZone)
                     return GetReferralResponse(request, false, apexZone, isRecursionAllowed);
@@ -1507,10 +1680,10 @@ namespace DnsServerCore.Dns.ZoneManagers
 
                 if (closest is not null)
                 {
-                    answer = closest.QueryRecords(DnsResourceRecordType.DNAME, isZoneSigned);
+                    answer = closest.QueryRecords(DnsResourceRecordType.DNAME, dnssecOk);
                     if ((answer.Count > 0) && (answer[0].Type == DnsResourceRecordType.DNAME))
                     {
-                        if (!DoDNAMESubstitution(question, isZoneSigned, answer, out answer))
+                        if (!DoDNAMESubstitution(question, dnssecOk, answer, out answer))
                             rCode = DnsResponseCode.YXDomain;
                     }
                     else
@@ -1522,10 +1695,10 @@ namespace DnsServerCore.Dns.ZoneManagers
 
                 if (((answer is null) || (answer.Count == 0)) && ((authority is null) || (authority.Count == 0)))
                 {
-                    answer = apexZone.QueryRecords(DnsResourceRecordType.DNAME, isZoneSigned);
+                    answer = apexZone.QueryRecords(DnsResourceRecordType.DNAME, dnssecOk);
                     if ((answer.Count > 0) && (answer[0].Type == DnsResourceRecordType.DNAME))
                     {
-                        if (!DoDNAMESubstitution(question, isZoneSigned, answer, out answer))
+                        if (!DoDNAMESubstitution(question, dnssecOk, answer, out answer))
                             rCode = DnsResponseCode.YXDomain;
                     }
                     else
@@ -1537,17 +1710,17 @@ namespace DnsServerCore.Dns.ZoneManagers
                             if (!hasSubDomains)
                                 rCode = DnsResponseCode.NxDomain;
 
-                            authority = apexZone.QueryRecords(DnsResourceRecordType.SOA, isZoneSigned);
+                            authority = apexZone.QueryRecords(DnsResourceRecordType.SOA, dnssecOk);
 
-                            if (isZoneSigned)
+                            if (dnssecOk)
                             {
-                                //add proof of non existence (NXDOMAIN/NODATA) to prove the qname does not exists
+                                //add proof of non existence (NXDOMAIN) to prove the qname does not exists
                                 IReadOnlyList<DnsResourceRecord> nsecRecords;
 
-                                if (isZoneNSEC3)
-                                    nsecRecords = _root.FindNSEC3ProofOfNonExistenceNxDomain(question.Name, question.Type, false);
+                                if (apexZone.DnssecStatus == AuthZoneDnssecStatus.SignedWithNSEC3)
+                                    nsecRecords = _root.FindNSec3ProofOfNonExistenceNxDomain(question.Name, question.Type, false);
                                 else
-                                    nsecRecords = _root.FindNSECProofOfNonExistenceNxDomain(question.Name, question.Type, false);
+                                    nsecRecords = _root.FindNSecProofOfNonExistenceNxDomain(question.Name, question.Type, false);
 
                                 if (nsecRecords.Count > 0)
                                 {
@@ -1579,7 +1752,7 @@ namespace DnsServerCore.Dns.ZoneManagers
                 IReadOnlyList<DnsResourceRecord> authority = null;
                 IReadOnlyList<DnsResourceRecord> additional;
 
-                IReadOnlyList<DnsResourceRecord> answers = zone.QueryRecords(question.Type, isZoneSigned);
+                IReadOnlyList<DnsResourceRecord> answers = zone.QueryRecords(question.Type, dnssecOk);
                 if (answers.Count == 0)
                 {
                     //record type not found
@@ -1603,7 +1776,7 @@ namespace DnsServerCore.Dns.ZoneManagers
                     {
                         //check for delegation, stub & forwarder
                         if ((delegation is not null) && delegation.IsActive && (delegation.Name.Length > apexZone.Name.Length))
-                            return GetReferralResponse(request, isZoneSigned, delegation, isRecursionAllowed);
+                            return GetReferralResponse(request, dnssecOk, delegation, isRecursionAllowed);
 
                         if (apexZone is StubZone)
                             return GetReferralResponse(request, false, apexZone, isRecursionAllowed);
@@ -1623,9 +1796,9 @@ namespace DnsServerCore.Dns.ZoneManagers
                             authority = apexZone.QueryRecords(DnsResourceRecordType.APP, false);
                             if (authority.Count == 0)
                             {
-                                authority = apexZone.QueryRecords(DnsResourceRecordType.SOA, isZoneSigned);
+                                authority = apexZone.QueryRecords(DnsResourceRecordType.SOA, dnssecOk);
 
-                                if (isZoneSigned)
+                                if (dnssecOk)
                                     authority = AddProofOfNonExistenceNoData(zone, authority); //add proof of non existence (NODATA) to prove that no such type or record exists
                             }
                         }
@@ -1647,14 +1820,14 @@ namespace DnsServerCore.Dns.ZoneManagers
                         answers = wildcardAnswers;
 
                         //add proof of non existence (WILDCARD) to prove that the wildcard expansion was legit and the qname actually does not exists
-                        if (isZoneSigned)
+                        if (dnssecOk)
                         {
                             IReadOnlyList<DnsResourceRecord> nsecRecords;
 
-                            if (isZoneNSEC3)
-                                nsecRecords = _root.FindNSEC3ProofOfNonExistenceNxDomain(question.Name, question.Type, true);
+                            if (apexZone.DnssecStatus == AuthZoneDnssecStatus.SignedWithNSEC3)
+                                nsecRecords = _root.FindNSec3ProofOfNonExistenceNxDomain(question.Name, question.Type, true);
                             else
-                                nsecRecords = _root.FindNSECProofOfNonExistenceNxDomain(question.Name, question.Type, true);
+                                nsecRecords = _root.FindNSecProofOfNonExistenceNxDomain(question.Name, question.Type, true);
 
                             if (nsecRecords.Count > 0)
                                 authority = nsecRecords;
@@ -1667,7 +1840,7 @@ namespace DnsServerCore.Dns.ZoneManagers
                         List<DnsResourceRecord> newAnswers = new List<DnsResourceRecord>(answers.Count + 1);
                         newAnswers.AddRange(answers);
 
-                        ResolveCNAME(question, isZoneSigned, lastRR, newAnswers);
+                        ResolveCNAME(question, dnssecOk, lastRR, newAnswers);
 
                         answers = newAnswers;
                     }
@@ -1677,7 +1850,7 @@ namespace DnsServerCore.Dns.ZoneManagers
                         case DnsResourceRecordType.NS:
                         case DnsResourceRecordType.MX:
                         case DnsResourceRecordType.SRV:
-                            additional = GetAdditionalRecords(answers, isZoneSigned);
+                            additional = GetAdditionalRecords(answers, dnssecOk);
                             break;
 
                         default:
