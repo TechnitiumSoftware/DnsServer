@@ -41,66 +41,165 @@ namespace DnsServerCore.Dns.Zones
 
         #endregion
 
+        #region DNSSEC
+
+        internal override IReadOnlyList<DnsResourceRecord> SignRRSet(IReadOnlyList<DnsResourceRecord> records)
+        {
+            return _primaryZone.SignRRSet(records);
+        }
+
+        #endregion
+
         #region public
 
         public override void SetRecords(DnsResourceRecordType type, IReadOnlyList<DnsResourceRecord> records)
         {
-            if (!SetRecords(type, records, out IReadOnlyList<DnsResourceRecord> deletedRecords))
-                throw new DnsServerException("Failed to set records. Please try again.");
+            switch (type)
+            {
+                case DnsResourceRecordType.SOA:
+                    throw new InvalidOperationException("Cannot set SOA record on sub domain.");
 
-            _primaryZone.CommitAndIncrementSerial(deletedRecords, records);
-            _primaryZone.TriggerNotify();
+                case DnsResourceRecordType.DNSKEY:
+                case DnsResourceRecordType.RRSIG:
+                case DnsResourceRecordType.NSEC:
+                case DnsResourceRecordType.NSEC3PARAM:
+                case DnsResourceRecordType.NSEC3:
+                    throw new InvalidOperationException("Cannot set DNSSEC records.");
+
+                default:
+                    if (records[0].OriginalTtlValue > _primaryZone.GetZoneSoaExpire())
+                        throw new DnsServerException("Failed to set records: TTL cannot be greater than SOA EXPIRE.");
+
+                    if (!TrySetRecords(type, records, out IReadOnlyList<DnsResourceRecord> deletedRecords))
+                        throw new DnsServerException("Failed to set records. Please try again.");
+
+                    _primaryZone.CommitAndIncrementSerial(deletedRecords, records);
+
+                    if (_primaryZone.DnssecStatus != AuthZoneDnssecStatus.Unsigned)
+                        _primaryZone.UpdateDnssecRecordsFor(this, type);
+
+                    _primaryZone.TriggerNotify();
+                    break;
+            }
         }
 
         public override void AddRecord(DnsResourceRecord record)
         {
-            base.AddRecord(record);
+            switch (record.Type)
+            {
+                case DnsResourceRecordType.DNSKEY:
+                case DnsResourceRecordType.RRSIG:
+                case DnsResourceRecordType.NSEC:
+                case DnsResourceRecordType.NSEC3PARAM:
+                case DnsResourceRecordType.NSEC3:
+                    throw new InvalidOperationException("Cannot add DNSSEC record.");
 
-            _primaryZone.CommitAndIncrementSerial(null, new DnsResourceRecord[] { record });
-            _primaryZone.TriggerNotify();
+                default:
+                    if (record.OriginalTtlValue > _primaryZone.GetZoneSoaExpire())
+                        throw new DnsServerException("Failed to add record: TTL cannot be greater than SOA EXPIRE.");
+
+                    base.AddRecord(record);
+
+                    _primaryZone.CommitAndIncrementSerial(null, new DnsResourceRecord[] { record });
+
+                    if (_primaryZone.DnssecStatus != AuthZoneDnssecStatus.Unsigned)
+                        _primaryZone.UpdateDnssecRecordsFor(this, record.Type);
+
+                    _primaryZone.TriggerNotify();
+                    break;
+            }
         }
 
         public override bool DeleteRecords(DnsResourceRecordType type)
         {
-            if (_entries.TryRemove(type, out IReadOnlyList<DnsResourceRecord> removedRecords))
+            switch (type)
             {
-                _primaryZone.CommitAndIncrementSerial(removedRecords);
-                _primaryZone.TriggerNotify();
+                case DnsResourceRecordType.DNSKEY:
+                case DnsResourceRecordType.RRSIG:
+                case DnsResourceRecordType.NSEC:
+                case DnsResourceRecordType.NSEC3PARAM:
+                case DnsResourceRecordType.NSEC3:
+                    throw new InvalidOperationException("Cannot delete DNSSEC records.");
 
-                return true;
+                default:
+                    if (_entries.TryRemove(type, out IReadOnlyList<DnsResourceRecord> removedRecords))
+                    {
+                        _primaryZone.CommitAndIncrementSerial(removedRecords);
+
+                        if (_primaryZone.DnssecStatus != AuthZoneDnssecStatus.Unsigned)
+                            _primaryZone.UpdateDnssecRecordsFor(this, type);
+
+                        _primaryZone.TriggerNotify();
+
+                        return true;
+                    }
+
+                    return false;
             }
-
-            return false;
         }
 
         public override bool DeleteRecord(DnsResourceRecordType type, DnsResourceRecordData rdata)
         {
-            if (DeleteRecord(type, rdata, out DnsResourceRecord deletedRecord))
+            switch (type)
             {
-                _primaryZone.CommitAndIncrementSerial(new DnsResourceRecord[] { deletedRecord });
-                _primaryZone.TriggerNotify();
+                case DnsResourceRecordType.DNSKEY:
+                case DnsResourceRecordType.RRSIG:
+                case DnsResourceRecordType.NSEC:
+                case DnsResourceRecordType.NSEC3PARAM:
+                case DnsResourceRecordType.NSEC3:
+                    throw new InvalidOperationException("Cannot delete DNSSEC records.");
 
-                return true;
+                default:
+                    if (TryDeleteRecord(type, rdata, out DnsResourceRecord deletedRecord))
+                    {
+                        _primaryZone.CommitAndIncrementSerial(new DnsResourceRecord[] { deletedRecord });
+
+                        if (_primaryZone.DnssecStatus != AuthZoneDnssecStatus.Unsigned)
+                            _primaryZone.UpdateDnssecRecordsFor(this, type);
+
+                        _primaryZone.TriggerNotify();
+
+                        return true;
+                    }
+
+                    return false;
             }
-
-            return false;
         }
 
         public override void UpdateRecord(DnsResourceRecord oldRecord, DnsResourceRecord newRecord)
         {
-            if (oldRecord.Type == DnsResourceRecordType.SOA)
-                throw new InvalidOperationException("Cannot update record: use SetRecords() for " + oldRecord.Type.ToString() + " record");
+            switch (oldRecord.Type)
+            {
+                case DnsResourceRecordType.SOA:
+                    throw new InvalidOperationException("Cannot update record: use SetRecords() for " + oldRecord.Type.ToString() + " record");
 
-            if (oldRecord.Type != newRecord.Type)
-                throw new InvalidOperationException("Old and new record types do not match.");
+                case DnsResourceRecordType.DNSKEY:
+                case DnsResourceRecordType.RRSIG:
+                case DnsResourceRecordType.NSEC:
+                case DnsResourceRecordType.NSEC3PARAM:
+                case DnsResourceRecordType.NSEC3:
+                    throw new InvalidOperationException("Cannot update DNSSEC records.");
 
-            if (!DeleteRecord(oldRecord.Type, oldRecord.RDATA, out DnsResourceRecord deletedRecord))
-                throw new InvalidOperationException("Cannot update record: the record does not exists to be updated.");
+                default:
+                    if (oldRecord.Type != newRecord.Type)
+                        throw new InvalidOperationException("Old and new record types do not match.");
 
-            base.AddRecord(newRecord);
+                    if (newRecord.OriginalTtlValue > _primaryZone.GetZoneSoaExpire())
+                        throw new DnsServerException("Failed to update record: TTL cannot be greater than SOA EXPIRE.");
 
-            _primaryZone.CommitAndIncrementSerial(new DnsResourceRecord[] { deletedRecord }, new DnsResourceRecord[] { newRecord });
-            _primaryZone.TriggerNotify();
+                    if (!TryDeleteRecord(oldRecord.Type, oldRecord.RDATA, out DnsResourceRecord deletedRecord))
+                        throw new InvalidOperationException("Cannot update record: the record does not exists to be updated.");
+
+                    base.AddRecord(newRecord);
+
+                    _primaryZone.CommitAndIncrementSerial(new DnsResourceRecord[] { deletedRecord }, new DnsResourceRecord[] { newRecord });
+
+                    if (_primaryZone.DnssecStatus != AuthZoneDnssecStatus.Unsigned)
+                        _primaryZone.UpdateDnssecRecordsFor(this, oldRecord.Type);
+
+                    _primaryZone.TriggerNotify();
+                    break;
+            }
         }
 
         #endregion
