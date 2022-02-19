@@ -339,15 +339,16 @@
                                                 <tr>
                                                     <th onclick="sortTable('tableZonesBody', 0);">Zone</th>
                                                     <th onclick="sortTable('tableZonesBody', 1);">Type</th>
-                                                    <th onclick="sortTable('tableZonesBody', 2);">Status</th>
-                                                    <th onclick="sortTable('tableZonesBody', 3);">Expiry</th>
+                                                    <th onclick="sortTable('tableZonesBody', 2);">DNSSEC</th>
+                                                    <th onclick="sortTable('tableZonesBody', 3);">Status</th>
+                                                    <th onclick="sortTable('tableZonesBody', 4);">Expiry</th>
                                                     <th></th>
                                                 </tr>
                                             </thead>
                                             <tbody id="tableZonesBody">
                                             </tbody>
                                             <tfoot id="tableZonesFooter">
-                                                <tr><td colspan="5"><b>Total Records: 0</b></td></tr>
+                                                <tr><td colspan="6"><b>Total Records: 0</b></td></tr>
                                             </tfoot>
                                         </table>
                                     </div>
@@ -361,6 +362,7 @@
                                             <h3 style="margin: 4px 0;"><span id="titleEditZone" style="margin-right: 10px;">example.com</span><a href="#" onclick="showEditZone($('#titleEditZone').text()); return false;"><span class="glyphicon glyphicon-refresh" style="font-size: 20px;" aria-hidden="true"></span></a></h3>
                                             <div style="float: left;">
                                                 <span id="titleEditZoneType" class="label label-default">Primary</span>
+                                                <span id="tdDnssecStatusEditZone" class="label label-default">DNSSEC</span>
                                                 <span id="tdStatusEditZone" data-id="EditZone" class="label label-success">Enabled</span>
                                                 <span id="titleEditZoneExpiry" style="font-size: 10px; font-weight: bold;">Expiry: 01 Jan 2020 00:00:00</span>
                                             </div>
@@ -370,7 +372,17 @@
                                                 <button id="btnDisableZoneEditZone" data-id="EditZone" type="button" class="btn btn-warning" style="padding: 2px 0px; width: 100px;" onclick="disableZone(this, $('#titleEditZone').text());">Disable Zone</button>
                                                 <button id="btnEditZoneDeleteZone" type="button" class="btn btn-danger" style="padding: 2px 0px; width: 100px;" onclick="deleteZone(this, $('#titleEditZone').text(), true);">Delete Zone</button>
                                                 <button id="btnZoneResync" type="button" class="btn btn-primary" style="padding: 2px 0px; width: 100px;" onclick="resyncZone(this, $('#titleEditZone').text());" data-loading-text="Resyncing...">Resync</button>
-                                                <button id="btnZoneOptions" type="button" class="btn btn-primary" style="padding: 2px 0px; width: 100px;" onclick="showZoneOptions($('#titleEditZone').text());">Options</button>
+                                                <button id="btnZoneOptions" type="button" class="btn btn-primary" style="padding: 2px 0px; width: 100px;" onclick="showZoneOptionsModal($('#titleEditZone').text());">Options</button>
+                                                <div id="divZoneDnssecOptions" class="btn-group">
+                                                    <button type="button" class="btn btn-primary dropdown-toggle" style="padding: 2px 0px; width: 100px;" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+                                                        DNSSEC <span class="caret"></span>
+                                                    </button>
+                                                    <ul class="dropdown-menu">
+                                                        <li id="lnkZoneDnssecSignZone"><a href="#" onclick="showSignZoneModal($('#titleEditZone').text()); return false;">Sign Zone</a></li>
+                                                        <li id="lnkZoneDnssecProperties"><a href="#" onclick="showDnssecPropertiesModal($('#titleEditZone').text()); return false;">Properties</a></li>
+                                                        <li id="lnkZoneDnssecUnsignZone"><a href="#" onclick="showUnsignZoneModal($('#titleEditZone').text()); return false;">Unsign Zone</a></li>
+                                                    </ul>
+                                                </div>
                                             </div>
                                             <div style="clear: both;"></div>
                                         </div>
@@ -2097,7 +2109,7 @@
                                         <h1>Technitium DNS Server</h1>
                                         <p>Version <span id="lblAboutVersion"></span></p>
                                         <p style="max-width: 800px; margin: 0 auto 10px auto;">
-                                            Copyright (C) 2021  Shreyas Zare (shreyas@technitium.com)<br />
+                                            Copyright (C) 2022  Shreyas Zare (shreyas@technitium.com)<br />
                                             This program comes with ABSOLUTELY NO WARRANTY. This is free software, and you are welcome to redistribute it under certain conditions.<br />
                                         </p>
                                         <p>Source code available under <a href="https://go.technitium.com/?id=24" target="_blank">GNU General Public License v3.0</a> on <a href="https://github.com/TechnitiumSoftware/DnsServer" target="_blank"><i class="fa fa-github"></i>&nbsp;GitHub</a></p>
@@ -2966,13 +2978,377 @@ ns1.example.com ([2001:db8::])
                                 </div>
                             </div>
 
-                            <div>Note! Entering one or more TSIG key names above will cause the DNS server to authenticate all zone transfer requests. A secondary zone must be configured with one of the above keys to be able to perform a zone transfer.</div>
+                            <div>Note! TSIG key names must be configured from the Settings before using them here. Entering one or more TSIG key names above will cause the DNS server to authenticate all zone transfer requests. A secondary zone must be configured with one of the above keys to be able to perform a zone transfer.</div>
                         </div>
 
                     </div>
                 </div>
                 <div class="modal-footer">
                     <button id="btnSaveZoneOptions" type="submit" class="btn btn-primary" data-loading-text="Saving..." onclick="saveZoneOptions(); return false;">Save</button>
+                    <button type="button" class="btn btn-default" data-dismiss="modal">Close</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="modalDnssecSignZone" class="modal fade" tabindex="-1" role="dialog">
+        <div class="modal-dialog" role="document" style="width: 780px;">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <button type="button" class="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button>
+                    <h4 class="modal-title">Sign Zone - <span id="lblDnssecSignZoneZoneName"></span></h4>
+                </div>
+                <div class="modal-body">
+                    <div id="divDnssecSignZoneAlert"></div>
+
+                    <div class="form-horizontal" style="max-height: 500px; overflow-y: auto; padding: 0 6px; overflow-x: hidden;">
+                        <div class="form-group">
+                            <label class="col-sm-4 control-label">DNSKEY Algorithm</label>
+                            <div class="col-sm-8">
+                                <div class="radio">
+                                    <label>
+                                        <input type="radio" name="rdDnssecSignZoneAlgorithm" id="rdDnssecSignZoneAlgorithmRsa" value="RSA">
+                                        RSA
+                                    </label>
+                                </div>
+                                <div class="radio">
+                                    <label>
+                                        <input type="radio" name="rdDnssecSignZoneAlgorithm" id="rdDnssecSignZoneAlgorithmEcdsa" value="ECDSA">
+                                        ECDSA (Recommended)
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div id="divDnssecSignZoneRsaParameters">
+                            <div class="form-group">
+                                <label for="optDnssecSignZoneRsaHashAlgorithm" class="col-sm-4 control-label">Hash Algorithm</label>
+                                <div class="col-sm-8">
+                                    <select id="optDnssecSignZoneRsaHashAlgorithm" class="form-control" style="width: auto;">
+                                        <option value="MD5">MD5 (obsolete)</option>
+                                        <option>SHA1</option>
+                                        <option value="SHA256">SHA256 (recommended)</option>
+                                        <option>SHA512</option>
+                                    </select>
+                                </div>
+                            </div>
+
+                            <div class="form-group">
+                                <label for="optDnssecSignZoneRsaKSKKeySize" class="col-sm-4 control-label">Key Signing Key (KSK) Size</label>
+                                <div class="col-sm-8">
+                                    <select id="optDnssecSignZoneRsaKSKKeySize" class="form-control" style="width: auto;">
+                                        <option>1024</option>
+                                        <option>1536</option>
+                                        <option value="2048">2048 (recommended)</option>
+                                        <option>3072</option>
+                                        <option>4096</option>
+                                    </select>
+                                </div>
+                            </div>
+
+                            <div class="form-group">
+                                <label for="optDnssecSignZoneRsaZSKKeySize" class="col-sm-4 control-label">Zone Signing Key (ZSK) Size</label>
+                                <div class="col-sm-8">
+                                    <select id="optDnssecSignZoneRsaZSKKeySize" class="form-control" style="width: auto;">
+                                        <option value="1024">1024 (recommended)</option>
+                                        <option>1536</option>
+                                        <option>2048</option>
+                                        <option>3072</option>
+                                        <option>4096</option>
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div id="divDnssecSignZoneEcdsaParameters">
+                            <div class="form-group">
+                                <label for="optDnssecSignZoneEcdsaCurve" class="col-sm-4 control-label">ECDSA Curve</label>
+                                <div class="col-sm-8">
+                                    <select id="optDnssecSignZoneEcdsaCurve" class="form-control" style="width: auto;">
+                                        <option value="P256">P256 (recommended)</option>
+                                        <option>P384</option>
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="form-group">
+                            <label class="col-sm-4 control-label">Proof of Non-Existence</label>
+                            <div class="col-sm-8">
+                                <div class="radio">
+                                    <label>
+                                        <input type="radio" name="rdDnssecSignZoneNxProof" id="rdDnssecSignZoneNxProofNSEC" value="NSEC">
+                                        Next Secure (NSEC) (recommended)
+                                    </label>
+                                    <div style="padding-top: 5px; padding-left: 20px;">
+                                        With NSEC, all the records in your zone can be discovered by anyone using "zone walking" technique. NSEC is recommended if your zone does not contain any private/internal records.
+                                    </div>
+                                </div>
+                                <div class="radio">
+                                    <label>
+                                        <input type="radio" name="rdDnssecSignZoneNxProof" id="rdDnssecSignZoneNxProofNSEC3" value="NSEC3">
+                                        Next Secure 3 (NSEC3)
+                                    </label>
+                                    <div style="padding-top: 5px; padding-left: 20px;">
+                                        NSEC3, makes it difficult to perform "zone walking" since it uses hashing with a random salt. NSEC3 should be used if your zone contains any private/internal records that you do not wish to be enumerable.
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div id="divDnssecSignZoneNSEC3Parameters">
+                            <div class="form-group">
+                                <label for="txtDnssecSignZoneNSEC3Iterations" class="col-sm-4 control-label">NSEC3 Iterations</label>
+                                <div class="col-sm-8">
+                                    <input id="txtDnssecSignZoneNSEC3Iterations" type="number" class="form-control" placeholder="iterations" style="width: 100px; display: inline;">
+                                    <span>(valid range 0-50, recommended 0)</span>
+                                </div>
+                                <div class="col-sm-offset-4 col-sm-8" style="padding-top: 5px;">
+                                    The number of iterations used by NSEC3 for hashing the domain names. It is recommended to use 0 iterations since more iterations will increase computational costs for both the DNS server and resolver while not providing much value against "zone walking" [<a href="https://datatracker.ietf.org/doc/html/draft-ietf-dnsop-nsec3-guidance-03#section-2.3" target="_blank">draft-ietf-dnsop-nsec3-guidance</a>].
+                                </div>
+                            </div>
+
+                            <div class="form-group">
+                                <label for="txtDnssecSignZoneNSEC3SaltLength" class="col-sm-4 control-label">NSEC3 Salt Length</label>
+                                <div class="col-sm-8">
+                                    <input id="txtDnssecSignZoneNSEC3SaltLength" type="number" class="form-control" placeholder="length" style="width: 100px; display: inline;">
+                                    <span>(valid range 0-32, recommended 0)</span>
+                                </div>
+                                <div class="col-sm-offset-4 col-sm-8" style="padding-top: 5px;">
+                                    The number of bytes of random salt to generate to be used with the NSEC3 hash computation. It is recommended to not use salt by setting the length to 0 [<a href="https://datatracker.ietf.org/doc/html/draft-ietf-dnsop-nsec3-guidance-03#section-2.4" target="_blank">draft-ietf-dnsop-nsec3-guidance</a>].
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="txtDnssecSignZoneDnsKeyTtl" class="col-sm-4 control-label">DNSKEY TTL</label>
+                            <div class="col-sm-8">
+                                <input id="txtDnssecSignZoneDnsKeyTtl" type="number" class="form-control" placeholder="ttl" style="width: 100px; display: inline;">
+                                <span>(default 86400)</span>
+                            </div>
+                            <div class="col-sm-offset-4 col-sm-8" style="padding-top: 5px;">
+                                The TTL value to be used for DNSKEY records. A lower value will allow quicker addition or rollover to a new DNS Key at the cost of increased frequency of DNSKEY queries by resolvers.
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button id="btnDnssecSignZone" type="submit" class="btn btn-primary" data-loading-text="Signing..." onclick="signPrimaryZone(); return false;">Sign Zone</button>
+                    <button type="button" class="btn btn-default" data-dismiss="modal">Close</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="modalDnssecUnsignZone" class="modal fade" tabindex="-1" role="dialog">
+        <div class="modal-dialog" role="document">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <button type="button" class="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button>
+                    <h4 class="modal-title">Unsign Zone - <span id="lblDnssecUnsignZoneZoneName"></span></h4>
+                </div>
+                <div class="modal-body">
+                    <div id="divDnssecUnsignZoneAlert"></div>
+
+                    <p><b>WARNING!</b> Unsigning the zone without removing all DS records from its parent zone will cause recursive resolvers to mark the zone as <b>bogus</b> and fail to resolve it.</p>
+
+                    <p><b>WARNING!</b> Make sure that you have removed all of the DS records from the parent zone and sufficient time has passed before unsigning this zone. You MUST wait for at least the number of seconds specified by the DS record's TTL value to elapse before unsigning the zone to ensure that all recursive resolvers would have expired the DS records from its cache. For example, if you have DS records at the parent zone with TTL value set to 86400 seconds then you must wait for 86400 seconds (24 hours) to pass after you delete the DS records from the parent zone. Once you have ensured that you have waited for the appropriate time then you can unsign the zone safely.</p>
+
+                    <p><b>NOTE!</b> You can find out the TTL value of DS records for your zone by querying for DS records using the DNS Client tab.</p>
+
+                    <p><b>WARNING!</b> Unsigning the zone will permanently delete all of the private keys associated with it. Consider taking a backup before proceeding.</p>
+
+                    <p>&nbsp;</p>
+                    <p>Are you sure you want to proceed to unsign the zone now?</p>
+                </div>
+                <div class="modal-footer">
+                    <button id="btnDnssecUnsignZone" type="submit" class="btn btn-danger" data-loading-text="Unsigning..." onclick="unsignPrimaryZone(); return false;">Unsign Zone</button>
+                    <button type="button" class="btn btn-default" data-dismiss="modal">Close</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="modalDnssecProperties" class="modal fade" tabindex="-1" role="dialog">
+        <div class="modal-dialog" role="document" style="width: 840px;">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <button type="button" class="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button>
+                    <h4 class="modal-title">DNSSEC Properties - <span id="lblDnssecPropertiesZoneName"></span></h4>
+                </div>
+                <div class="modal-body">
+                    <div id="divDnssecPropertiesAlert"></div>
+
+                    <div id="divDnssecPropertiesLoader" style="height: 500px;"></div>
+
+                    <div id="divDnssecProperties" style="max-height: 500px; overflow-y: auto; padding: 0 6px; overflow-x: hidden;">
+                        <div class="well well-sm form-horizontal">
+                            <table class="table table-hover" style="margin-bottom: 10px;">
+                                <thead>
+                                    <tr>
+                                        <th onclick="sortTable('tableDnssecPropertiesPrivateKeysBody', 0);">Key Tag</th>
+                                        <th onclick="sortTable('tableDnssecPropertiesPrivateKeysBody', 1);">Key Type</th>
+                                        <th onclick="sortTable('tableDnssecPropertiesPrivateKeysBody', 2);">Algorithm</th>
+                                        <th onclick="sortTable('tableDnssecPropertiesPrivateKeysBody', 3);">State</th>
+                                        <th onclick="sortTable('tableDnssecPropertiesPrivateKeysBody', 4);">State Changed On</th>
+                                        <th style="width: 150px;"></th>
+                                    </tr>
+                                </thead>
+                                <tbody id="tableDnssecPropertiesPrivateKeysBody">
+                                </tbody>
+                            </table>
+
+                            <div>
+                                <button type="button" class="btn btn-primary" style="padding: 2px 0; width: 120px;" data-toggle="collapse" data-target="#divDnssecPropertiesGenerateKey" aria-expanded="false" aria-controls="divDnssecPropertiesGenerateKey">Add Private Key</button>
+                                <button type="button" class="btn btn-warning" style="padding: 2px 0; width: 120px;" data-loading-text="Publishing..." onclick="publishAllDnssecPrivateKeys(this);">Publish All Keys</button>
+                            </div>
+
+                            <div id="divDnssecPropertiesGenerateKey" class="collapse">
+                                <div class="panel panel-default" style="margin-bottom: 0px; margin-top: 10px; padding-top: 15px;">
+                                    <div class="form-group">
+                                        <label for="optDnssecPropertiedGenerateKeyKeyType" class="col-sm-4 control-label">Key Type</label>
+                                        <div class="col-sm-8">
+                                            <select id="optDnssecPropertiedGenerateKeyKeyType" class="form-control" style="width: auto;">
+                                                <option value="KeySigningKey">Key Signing Key (KSK)</option>
+                                                <option value="ZoneSigningKey">Zone Signing Key (ZSK)</option>
+                                            </select>
+                                        </div>
+                                    </div>
+
+                                    <div class="form-group">
+                                        <label for="optDnssecPropertiedGenerateKeyAlgorithm" class="col-sm-4 control-label">Algorithm</label>
+                                        <div class="col-sm-8">
+                                            <select id="optDnssecPropertiedGenerateKeyAlgorithm" class="form-control" style="width: auto;">
+                                                <option>RSA</option>
+                                                <option value="ECDSA">ECDSA (recommended)</option>
+                                            </select>
+                                        </div>
+                                    </div>
+
+                                    <div id="divDnssecPropertiesGenerateKeyRsaParameters">
+                                        <div class="form-group">
+                                            <label for="optDnssecPropertiesGenerateKeyRsaHashAlgorithm" class="col-sm-4 control-label">Hash Algorithm</label>
+                                            <div class="col-sm-8">
+                                                <select id="optDnssecPropertiesGenerateKeyRsaHashAlgorithm" class="form-control" style="width: auto;">
+                                                    <option value="MD5">MD5 (obsolete)</option>
+                                                    <option>SHA1</option>
+                                                    <option value="SHA256">SHA256 (recommended)</option>
+                                                    <option>SHA512</option>
+                                                </select>
+                                            </div>
+                                        </div>
+
+                                        <div class="form-group">
+                                            <label for="optDnssecPropertiesGenerateKeyRsaKeySize" class="col-sm-4 control-label">Key Size</label>
+                                            <div class="col-sm-8">
+                                                <select id="optDnssecPropertiesGenerateKeyRsaKeySize" class="form-control" style="width: auto;">
+                                                    <option>1024</option>
+                                                    <option>1536</option>
+                                                    <option>2048</option>
+                                                    <option>3072</option>
+                                                    <option>4096</option>
+                                                </select>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <div id="divDnssecPropertiesGenerateKeyEcdsaParameters">
+                                        <div class="form-group">
+                                            <label for="optDnssecPropertiesGenerateKeyEcdsaCurve" class="col-sm-4 control-label">ECDSA Curve</label>
+                                            <div class="col-sm-8">
+                                                <select id="optDnssecPropertiesGenerateKeyEcdsaCurve" class="form-control" style="width: auto;">
+                                                    <option value="P256">P256 (recommended)</option>
+                                                    <option>P384</option>
+                                                </select>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <div class="form-group">
+                                        <div class="col-sm-offset-4 col-sm-8">
+                                            <button type="button" class="btn btn-primary" style="padding: 2px 0; width: 150px;" data-loading-text="Generating..." onclick="generateAndAddDnssecPrivateKey(this);">Generate & Add Key</button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="well well-sm form-horizontal">
+                            <div class="form-group">
+                                <label class="col-sm-4 control-label">Proof of Non-Existence</label>
+                                <div class="col-sm-8">
+                                    <div class="radio">
+                                        <label>
+                                            <input type="radio" name="rdDnssecPropertiesNxProof" id="rdDnssecPropertiesNxProofNSEC" value="NSEC">
+                                            Next Secure (NSEC) (recommended)
+                                        </label>
+                                        <div style="padding-top: 5px; padding-left: 20px;">
+                                            With NSEC, all the records in your zone can be discovered by anyone using "zone walking" technique. NSEC is recommended if your zone does not contain any private/internal records.
+                                        </div>
+                                    </div>
+                                    <div class="radio">
+                                        <label>
+                                            <input type="radio" name="rdDnssecPropertiesNxProof" id="rdDnssecPropertiesNxProofNSEC3" value="NSEC3">
+                                            Next Secure 3 (NSEC3)
+                                        </label>
+                                        <div style="padding-top: 5px; padding-left: 20px;">
+                                            NSEC3, makes it difficult to perform "zone walking" since it uses hashing with a random salt. NSEC3 should be used if your zone contains any private/internal records that you do not wish to be enumerable.
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div id="divDnssecPropertiesNSEC3Parameters">
+                                <div class="form-group">
+                                    <label for="txtDnssecPropertiesNSEC3Iterations" class="col-sm-4 control-label">NSEC3 Iterations</label>
+                                    <div class="col-sm-8">
+                                        <input id="txtDnssecPropertiesNSEC3Iterations" type="number" class="form-control" placeholder="iterations" style="width: 100px; display: inline;">
+                                        <span>(valid range 0-50, recommended 0)</span>
+                                    </div>
+                                    <div class="col-sm-offset-4 col-sm-8" style="padding-top: 5px;">
+                                        The number of iterations used by NSEC3 for hashing the domain names. It is recommended to use 0 iterations since more iterations will increase computational costs for both the DNS server and resolver while not providing much value against "zone walking" [<a href="https://datatracker.ietf.org/doc/html/draft-ietf-dnsop-nsec3-guidance-03#section-2.3" target="_blank">draft-ietf-dnsop-nsec3-guidance</a>].
+                                    </div>
+                                </div>
+
+                                <div class="form-group">
+                                    <label for="txtDnssecPropertiesNSEC3SaltLength" class="col-sm-4 control-label">NSEC3 Salt Length</label>
+                                    <div class="col-sm-8">
+                                        <input id="txtDnssecPropertiesNSEC3SaltLength" type="number" class="form-control" placeholder="length" style="width: 100px; display: inline;">
+                                        <span>(valid range 0-32, recommended 0)</span>
+                                    </div>
+                                    <div class="col-sm-offset-4 col-sm-8" style="padding-top: 5px;">
+                                        The number of bytes of random salt to generate to be used with the NSEC3 hash computation. It is recommended to not use salt by setting the length to 0 [<a href="https://datatracker.ietf.org/doc/html/draft-ietf-dnsop-nsec3-guidance-03#section-2.4" target="_blank">draft-ietf-dnsop-nsec3-guidance</a>].
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="form-group" style="margin-bottom: 5px;">
+                                <div class="col-sm-offset-4 col-sm-8">
+                                    <button id="btnDnssecPropertiesChangeNxProof" type="button" class="btn btn-warning" style="padding: 2px 0; width: 100px;" data-loading-text="Changing..." onclick="changeDnssecNxProof(this);">Change</button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="well well-sm form-horizontal">
+                            <div class="form-group" style="margin-bottom: 5px;">
+                                <label for="txtDnssecPropertiesDnsKeyTtl" class="col-sm-4 control-label">DNSKEY TTL</label>
+                                <div class="col-sm-8">
+                                    <div>
+                                        <input id="txtDnssecPropertiesDnsKeyTtl" type="number" class="form-control" placeholder="ttl" style="width: 100px; display: inline;">
+                                        <span>(default 86400)</span>
+                                    </div>
+                                    <div style="margin-top: 10px;">
+                                        <button type="button" class="btn btn-default" style="padding: 2px 0; width: 100px;" data-loading-text="Updating..." onclick="updateDnssecDnsKeyTtl(this);">Update TTL</button>
+                                    </div>
+                                </div>
+                                <div class="col-sm-offset-4 col-sm-8" style="margin-top: 10px;">
+                                    The TTL value to be used for DNSKEY records. A lower value will allow quicker addition or rollover to a new DNS Key at the cost of increased frequency of DNSKEY queries by resolvers.
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
                     <button type="button" class="btn btn-default" data-dismiss="modal">Close</button>
                 </div>
             </div>
@@ -3455,8 +3831,8 @@ ns1.example.com ([2001:db8::])
                     <p>Are you sure you want to remove the DHCP lease now?</p>
                 </div>
                 <div class="modal-footer">
-                    <button type="button" class="btn btn-default" data-dismiss="modal">Close</button>
                     <button id="btnRemoveDhcpLease" type="button" class="btn btn-danger" data-loading-text="Removing...">Remove</button>
+                    <button type="button" class="btn btn-default" data-dismiss="modal">Close</button>
                 </div>
             </div>
         </div>

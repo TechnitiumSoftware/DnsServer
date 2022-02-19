@@ -99,6 +99,62 @@ $(function () {
         }
     });
 
+    $("input[type=radio][name=rdDnssecSignZoneAlgorithm]").change(function () {
+        var algorithm = $("input[name=rdDnssecSignZoneAlgorithm]:checked").val();
+        switch (algorithm) {
+            case "RSA":
+                $("#divDnssecSignZoneRsaParameters").show();
+                $("#divDnssecSignZoneEcdsaParameters").hide();
+                break;
+
+            case "ECDSA":
+                $("#divDnssecSignZoneRsaParameters").hide();
+                $("#divDnssecSignZoneEcdsaParameters").show();
+                break;
+        }
+    });
+
+    $("input[type=radio][name=rdDnssecSignZoneNxProof]").change(function () {
+        var nxProof = $("input[name=rdDnssecSignZoneNxProof]:checked").val();
+        switch (nxProof) {
+            case "NSEC":
+                $("#divDnssecSignZoneNSEC3Parameters").hide();
+                break;
+
+            case "NSEC3":
+                $("#divDnssecSignZoneNSEC3Parameters").show();
+                break;
+        }
+    });
+
+    $("#optDnssecPropertiedGenerateKeyAlgorithm").change(function () {
+        var algorithm = $("#optDnssecPropertiedGenerateKeyAlgorithm").val();
+        switch (algorithm) {
+            case "RSA":
+                $("#divDnssecPropertiesGenerateKeyRsaParameters").show();
+                $("#divDnssecPropertiesGenerateKeyEcdsaParameters").hide();
+                break;
+
+            case "ECDSA":
+                $("#divDnssecPropertiesGenerateKeyRsaParameters").hide();
+                $("#divDnssecPropertiesGenerateKeyEcdsaParameters").show();
+                break;
+        }
+    });
+
+    $("input[type=radio][name=rdDnssecPropertiesNxProof]").change(function () {
+        var nxProof = $("input[name=rdDnssecPropertiesNxProof]:checked").val();
+        switch (nxProof) {
+            case "NSEC":
+                $("#divDnssecPropertiesNSEC3Parameters").hide();
+                break;
+
+            case "NSEC3":
+                $("#divDnssecPropertiesNSEC3Parameters").show();
+                break;
+        }
+    });
+
     $("#chkAddEditRecordDataPtr").click(function () {
         var addPtrRecord = $("#chkAddEditRecordDataPtr").prop('checked');
         $("#chkAddEditRecordDataCreatePtrZone").prop('disabled', !addPtrRecord);
@@ -193,7 +249,7 @@ function refreshZones(checkDisplay) {
     divViewZonesLoader.show();
 
     HTTPRequest({
-        url: "/api/listZones?token=" + token,
+        url: "/api/zone/list?token=" + token,
         success: function (responseJSON) {
             var zones = responseJSON.response.zones;
             var tableHtmlRows = "";
@@ -211,7 +267,17 @@ function refreshZones(checkDisplay) {
                 else
                     type = "<span class=\"label label-primary\">" + zones[i].type + "</span>";
 
-                var status;
+                var dnssecStatus = "";
+
+                switch (zones[i].dnssecStatus) {
+                    case "SignedWithNSEC":
+                    case "SignedWithNSEC3":
+                        dnssecStatus = "<span class=\"label label-default\">DNSSEC</span>";
+                        break;
+                }
+
+                var status = "";
+
                 if (zones[i].disabled)
                     status = "<span id=\"tdStatus" + id + "\" class=\"label label-warning\">Disabled</span>";
                 else if (zones[i].isExpired)
@@ -242,21 +308,22 @@ function refreshZones(checkDisplay) {
 
                 tableHtmlRows += "<tr id=\"trZone" + id + "\"><td>" + htmlEncode(name) + "</td>";
                 tableHtmlRows += "<td>" + type + "</td>";
+                tableHtmlRows += "<td>" + dnssecStatus + "</td>";
                 tableHtmlRows += "<td>" + status + "</td>";
                 tableHtmlRows += "<td>" + expiry + "</td>";
                 tableHtmlRows += "<td align=\"right\" style=\"width: 290px;\"><button type=\"button\" class=\"btn btn-primary\" style=\"font-size: 12px; padding: 2px 0px; width: 60px; margin: 0 6px 0 0;\" onclick=\"showEditZone('" + name + "');\">" + (isReadOnlyZone ? "View" : "Edit") + "</button>";
                 tableHtmlRows += "<button type=\"button\" data-id=\"" + id + "\" id=\"btnEnableZone" + id + "\" class=\"btn btn-default\" style=\"font-size: 12px; padding: 2px 0px; width: 60px; margin: 0 6px 0 0;" + (zones[i].disabled ? "" : " display: none;") + "\" onclick=\"enableZone(this, '" + name + "');\" data-loading-text=\"Enabling...\"" + (zones[i].internal ? " disabled" : "") + ">Enable</button>";
                 tableHtmlRows += "<button type=\"button\" data-id=\"" + id + "\" id=\"btnDisableZone" + id + "\" class=\"btn btn-warning\" style=\"font-size: 12px; padding: 2px 0px; width: 60px; margin: 0 6px 0 0;" + (!zones[i].disabled ? "" : " display: none;") + "\" onclick=\"disableZone(this, '" + name + "');\" data-loading-text=\"Disabling...\"" + (zones[i].internal ? " disabled" : "") + ">Disable</button>";
                 tableHtmlRows += "<button type=\"button\" data-id=\"" + id + "\" class=\"btn btn-danger\" style=\"font-size: 12px; padding: 2px 0px; width: 60px; margin: 0 6px 0 0;\" onclick=\"deleteZone(this, '" + name + "');\" data-loading-text=\"Deleting...\"" + (zones[i].internal ? " disabled" : "") + ">Delete</button>";
-                tableHtmlRows += "<button type=\"button\" class=\"btn btn-primary\" style=\"font-size: 12px; padding: 2px 0px; width: 60px; margin: 0 6px 0 0;\" onclick=\"showZoneOptions('" + name + "');\"" + (disableOptions ? " disabled" : "") + ">Options</button></td></tr>";
+                tableHtmlRows += "<button type=\"button\" class=\"btn btn-primary\" style=\"font-size: 12px; padding: 2px 0px; width: 60px; margin: 0 6px 0 0;\" onclick=\"showZoneOptionsModal('" + name + "');\"" + (disableOptions ? " disabled" : "") + ">Options</button></td></tr>";
             }
 
             $("#tableZonesBody").html(tableHtmlRows);
 
             if (zones.length > 0)
-                $("#tableZonesFooter").html("<tr><td colspan=\"5\"><b>Total Zones: " + zones.length + "</b></td></tr>");
+                $("#tableZonesFooter").html("<tr><td colspan=\"6\"><b>Total Zones: " + zones.length + "</b></td></tr>");
             else
-                $("#tableZonesFooter").html("<tr><td colspan=\"5\" align=\"center\">No Zones Found</td></tr>");
+                $("#tableZonesFooter").html("<tr><td colspan=\"6\" align=\"center\">No Zones Found</td></tr>");
 
             divViewZonesLoader.hide();
             divViewZones.show();
@@ -279,7 +346,7 @@ function enableZone(objBtn, domain) {
     btn.button('loading');
 
     HTTPRequest({
-        url: "/api/enableZone?token=" + token + "&domain=" + domain,
+        url: "/api/zone/enable?token=" + token + "&domain=" + domain,
         success: function (responseJSON) {
             btn.button('reset');
 
@@ -309,7 +376,7 @@ function disableZone(objBtn, domain) {
     btn.button('loading');
 
     HTTPRequest({
-        url: "/api/disableZone?token=" + token + "&domain=" + domain,
+        url: "/api/zone/disable?token=" + token + "&domain=" + domain,
         success: function (responseJSON) {
             btn.button('reset');
 
@@ -342,7 +409,7 @@ function deleteZone(objBtn, domain, editZone) {
     btn.button('loading');
 
     HTTPRequest({
-        url: "/api/deleteZone?token=" + token + "&domain=" + domain,
+        url: "/api/zone/delete?token=" + token + "&domain=" + domain,
         success: function (responseJSON) {
             if (editZone) {
                 btn.button('reset');
@@ -354,9 +421,9 @@ function deleteZone(objBtn, domain, editZone) {
                 var totalZones = $('#tableZones >tbody >tr').length;
 
                 if (totalZones > 0)
-                    $("#tableZonesFooter").html("<tr><td colspan=\"5\"><b>Total Zones: " + totalZones + "</b></td></tr>");
+                    $("#tableZonesFooter").html("<tr><td colspan=\"6\"><b>Total Zones: " + totalZones + "</b></td></tr>");
                 else
-                    $("#tableZonesFooter").html("<tr><td colspan=\"5\" align=\"center\">No Zones Found</td></tr>");
+                    $("#tableZonesFooter").html("<tr><td colspan=\"6\" align=\"center\">No Zones Found</td></tr>");
             }
 
             showAlert("success", "Zone Deleted!", "Zone '" + domain + "' was deleted successfully.");
@@ -370,11 +437,12 @@ function deleteZone(objBtn, domain, editZone) {
     });
 }
 
-function showZoneOptions(domain) {
+function showZoneOptionsModal(domain) {
     var divZoneOptionsAlert = $("#divZoneOptionsAlert");
     var divZoneOptionsLoader = $("#divZoneOptionsLoader");
     var divZoneOptions = $("#divZoneOptions");
 
+    $("#lblZoneOptionsZoneName").text(domain);
     divZoneOptionsLoader.show();
     divZoneOptions.hide();
 
@@ -383,11 +451,6 @@ function showZoneOptions(domain) {
     HTTPRequest({
         url: "/api/zone/options/get?token=" + token + "&domain=" + domain,
         success: function (responseJSON) {
-            if (responseJSON.response.name === "")
-                responseJSON.response.name = ".";
-
-            $("#lblZoneOptionsZoneName").text(responseJSON.response.name);
-
             $("#txtZoneTransferNameServers").prop("disabled", true);
             $("#txtZoneNotifyNameServers").prop("disabled", true);
 
@@ -703,7 +766,7 @@ function addZone() {
     var btn = $("#btnAddZone").button('loading');
 
     HTTPRequest({
-        url: "/api/createZone?token=" + token + "&domain=" + domain + "&type=" + type + parameters,
+        url: "/api/zone/create?token=" + token + "&domain=" + domain + "&type=" + type + parameters,
         success: function (responseJSON) {
             $("#modalAddZone").modal("hide");
             showEditZone(responseJSON.response.domain);
@@ -730,13 +793,24 @@ function showEditZone(domain) {
     divViewZonesLoader.show();
 
     HTTPRequest({
-        url: "/api/getRecords?token=" + token + "&domain=" + domain,
+        url: "/api/zone/getRecords?token=" + token + "&domain=" + domain,
         success: function (responseJSON) {
             var type;
             if (responseJSON.response.zone.internal)
                 type = "Internal";
             else
                 type = responseJSON.response.zone.type;
+
+            switch (responseJSON.response.zone.dnssecStatus) {
+                case "SignedWithNSEC":
+                case "SignedWithNSEC3":
+                    $("#tdDnssecStatusEditZone").show();
+                    break;
+
+                default:
+                    $("#tdDnssecStatusEditZone").hide();
+                    break;
+            }
 
             var status;
             if (responseJSON.response.zone.disabled)
@@ -833,6 +907,31 @@ function showEditZone(domain) {
                     break;
             }
 
+            switch (type) {
+                case "Primary":
+                    $("#divZoneDnssecOptions").show();
+
+                    switch (responseJSON.response.zone.dnssecStatus) {
+                        case "SignedWithNSEC":
+                        case "SignedWithNSEC3":
+                            $("#lnkZoneDnssecSignZone").hide();
+                            $("#lnkZoneDnssecProperties").show();
+                            $("#lnkZoneDnssecUnsignZone").show();
+                            break;
+
+                        default:
+                            $("#lnkZoneDnssecSignZone").show();
+                            $("#lnkZoneDnssecProperties").hide();
+                            $("#lnkZoneDnssecUnsignZone").hide();
+                            break;
+                    }
+                    break;
+
+                default:
+                    $("#divZoneDnssecOptions").hide();
+                    break;
+            }
+
             var records = responseJSON.response.records;
             var tableHtmlRows = "";
 
@@ -862,7 +961,7 @@ function showEditZone(domain) {
                     case "TXT":
                     case "AAAA":
                     case "ANAME":
-                        tableHtmlRows += "<td style=\"overflow-wrap: anywhere;\">" + htmlEncode(records[i].rData.value);
+                        tableHtmlRows += "<td style=\"word-break: break-all;\">" + htmlEncode(records[i].rData.value);
 
                         if ((records[i].comments != null) && (records[i].comments.length > 0))
                             tableHtmlRows += "<br /><br /><b>Comments:</b> <pre>" + htmlEncode(records[i].comments) + "</pre>";
@@ -871,7 +970,7 @@ function showEditZone(domain) {
                         break;
 
                     case "NS":
-                        tableHtmlRows += "<td style=\"overflow-wrap: anywhere;\"><b>Name Server:</b> " + htmlEncode(records[i].rData.value);
+                        tableHtmlRows += "<td style=\"word-break: break-all;\"><b>Name Server:</b> " + htmlEncode(records[i].rData.value);
 
                         if (records[i].glueRecords != null) {
                             tableHtmlRows += "<br /><b>Glue Addresses:</b> " + records[i].glueRecords;
@@ -888,7 +987,7 @@ function showEditZone(domain) {
                         break;
 
                     case "SOA":
-                        tableHtmlRows += "<td style=\"overflow-wrap: anywhere;\"><b>Primary Name Server:</b> " + htmlEncode(records[i].rData.primaryNameServer) +
+                        tableHtmlRows += "<td style=\"word-break: break-all;\"><b>Primary Name Server:</b> " + htmlEncode(records[i].rData.primaryNameServer) +
                             "<br /><b>Responsible Person:</b> " + htmlEncode(records[i].rData.responsiblePerson) +
                             "<br /><b>Serial:</b> " + htmlEncode(records[i].rData.serial) +
                             "<br /><b>Refresh:</b> " + htmlEncode(records[i].rData.refresh) +
@@ -935,7 +1034,7 @@ function showEditZone(domain) {
                         break;
 
                     case "MX":
-                        tableHtmlRows += "<td style=\"overflow-wrap: anywhere;\"><b>Preference: </b> " + htmlEncode(records[i].rData.preference) +
+                        tableHtmlRows += "<td style=\"word-break: break-all;\"><b>Preference: </b> " + htmlEncode(records[i].rData.preference) +
                             "<br /><b>Exchange:</b> " + htmlEncode(records[i].rData.value);
 
                         if ((records[i].comments != null) && (records[i].comments.length > 0))
@@ -947,7 +1046,7 @@ function showEditZone(domain) {
                         break;
 
                     case "SRV":
-                        tableHtmlRows += "<td style=\"overflow-wrap: anywhere;\"><b>Priority: </b> " + htmlEncode(records[i].rData.priority) +
+                        tableHtmlRows += "<td style=\"word-break: break-all;\"><b>Priority: </b> " + htmlEncode(records[i].rData.priority) +
                             "<br /><b>Weight:</b> " + htmlEncode(records[i].rData.weight) +
                             "<br /><b>Port:</b> " + htmlEncode(records[i].rData.port) +
                             "<br /><b>Target:</b> " + htmlEncode(records[i].rData.value);
@@ -963,7 +1062,7 @@ function showEditZone(domain) {
                         break;
 
                     case "DS":
-                        tableHtmlRows += "<td style=\"overflow-wrap: anywhere;\"><b>Key Tag: </b> " + htmlEncode(records[i].rData.keyTag) +
+                        tableHtmlRows += "<td style=\"word-break: break-all;\"><b>Key Tag: </b> " + htmlEncode(records[i].rData.keyTag) +
                             "<br /><b>Algorithm:</b> " + htmlEncode(records[i].rData.algorithm) +
                             "<br /><b>Digest Type:</b> " + htmlEncode(records[i].rData.digestType) +
                             "<br /><b>Digest:</b> " + htmlEncode(records[i].rData.digest);
@@ -980,7 +1079,7 @@ function showEditZone(domain) {
                         break;
 
                     case "RRSIG":
-                        tableHtmlRows += "<td style=\"overflow-wrap: anywhere;\"><b>Type Covered: </b> " + htmlEncode(records[i].rData.typeCovered) +
+                        tableHtmlRows += "<td style=\"word-break: break-all;\"><b>Type Covered: </b> " + htmlEncode(records[i].rData.typeCovered) +
                             "<br /><b>Algorithm:</b> " + htmlEncode(records[i].rData.algorithm) +
                             "<br /><b>Labels:</b> " + htmlEncode(records[i].rData.labels) +
                             "<br /><b>Original TTL:</b> " + htmlEncode(records[i].rData.originalTtl) +
@@ -1016,7 +1115,7 @@ function showEditZone(domain) {
                                 nsecTypes += ", " + records[i].rData.types[j];
                         }
 
-                        tableHtmlRows += "<td style=\"overflow-wrap: anywhere;\"><b>Next Domain Name: </b> " + htmlEncode(records[i].rData.nextDomainName) +
+                        tableHtmlRows += "<td style=\"word-break: break-all;\"><b>Next Domain Name: </b> " + htmlEncode(records[i].rData.nextDomainName) +
                             "<br /><b>Types:</b> " + htmlEncode(nsecTypes);
 
                         if ((records[i].comments != null) && (records[i].comments.length > 0))
@@ -1029,11 +1128,19 @@ function showEditZone(domain) {
                         break;
 
                     case "DNSKEY":
-                        tableHtmlRows += "<td style=\"overflow-wrap: anywhere;\"><b>Flags: </b> " + htmlEncode(records[i].rData.flags) +
+                        tableHtmlRows += "<td style=\"word-break: break-all;\"><b>Flags: </b> " + htmlEncode(records[i].rData.flags) +
                             "<br /><b>Protocol:</b> " + htmlEncode(records[i].rData.protocol) +
                             "<br /><b>Algorithm:</b> " + htmlEncode(records[i].rData.algorithm) +
                             "<br /><b>Public Key:</b> " + htmlEncode(records[i].rData.publicKey) +
                             "<br /><br /><b>Computed Key Tag:</b> " + htmlEncode(records[i].rData.computedKeyTag);
+
+                        if (records[i].rData.digests != null) {
+                            tableHtmlRows += "<br /><br /><b>Computed DS Digests:</b> ";
+
+                            for (var j = 0; j < records[i].rData.digests.length; j++) {
+                                tableHtmlRows += "<br />" + htmlEncode(records[i].rData.digests[j].digestType) + ": " + htmlEncode(records[i].rData.digests[j].digest)
+                            }
+                        }
 
                         if ((records[i].comments != null) && (records[i].comments.length > 0))
                             tableHtmlRows += "<br /><br /><b>Comments:</b> <pre>" + htmlEncode(records[i].comments) + "</pre>";
@@ -1056,7 +1163,7 @@ function showEditZone(domain) {
                                 nsec3Types += ", " + records[i].rData.types[j];
                         }
 
-                        tableHtmlRows += "<td style=\"overflow-wrap: anywhere;\"><b>Hash Algorithm: </b> " + htmlEncode(records[i].rData.hashAlgorithm) +
+                        tableHtmlRows += "<td style=\"word-break: break-all;\"><b>Hash Algorithm: </b> " + htmlEncode(records[i].rData.hashAlgorithm) +
                             "<br /><b>Flags: </b> " + htmlEncode(records[i].rData.flags) +
                             "<br /><b>Iterations: </b> " + htmlEncode(records[i].rData.iterations) +
                             "<br /><b>Salt: </b>" + htmlEncode(records[i].rData.salt) +
@@ -1077,7 +1184,7 @@ function showEditZone(domain) {
                         break;
 
                     case "NSEC3PARAM":
-                        tableHtmlRows += "<td style=\"overflow-wrap: anywhere;\"><b>Hash Algorithm: </b> " + htmlEncode(records[i].rData.hashAlgorithm) +
+                        tableHtmlRows += "<td style=\"word-break: break-all;\"><b>Hash Algorithm: </b> " + htmlEncode(records[i].rData.hashAlgorithm) +
                             "<br /><b>Flags: </b> " + htmlEncode(records[i].rData.flags) +
                             "<br /><b>Iterations: </b> " + htmlEncode(records[i].rData.iterations) +
                             "<br /><b>Salt: </b>" + htmlEncode(records[i].rData.salt);
@@ -1094,7 +1201,7 @@ function showEditZone(domain) {
                         break;
 
                     case "CAA":
-                        tableHtmlRows += "<td style=\"overflow-wrap: anywhere;\"><b>Flags: </b> " + htmlEncode(records[i].rData.flags) +
+                        tableHtmlRows += "<td style=\"word-break: break-all;\"><b>Flags: </b> " + htmlEncode(records[i].rData.flags) +
                             "<br /><b>Tag:</b> " + htmlEncode(records[i].rData.tag) +
                             "<br /><b>Authority:</b> " + htmlEncode(records[i].rData.value);
 
@@ -1108,9 +1215,9 @@ function showEditZone(domain) {
                         break;
 
                     case "FWD":
-                        tableHtmlRows += "<td style=\"overflow-wrap: anywhere;\"><b>Protocol: </b> " + htmlEncode(records[i].rData.protocol) +
+                        tableHtmlRows += "<td style=\"word-break: break-all;\"><b>Protocol: </b> " + htmlEncode(records[i].rData.protocol) +
                             "<br /><b>Forwarder:</b> " + htmlEncode(records[i].rData.value) +
-                            "<br /><b>DNSSEC Validation:</b> " + htmlEncode(records[i].rData.dnssecValidation) +
+                            "<br /><b>Enable DNSSEC Validation:</b> " + htmlEncode(records[i].rData.dnssecValidation) +
                             "<br /><b>Proxy Type:</b> " + htmlEncode(records[i].rData.proxyType);
 
                         if (records[i].rData.proxyType !== "None") {
@@ -1138,7 +1245,7 @@ function showEditZone(domain) {
                         break;
 
                     case "APP":
-                        tableHtmlRows += "<td style=\"overflow-wrap: anywhere;\"><b>App Name: </b> " + htmlEncode(records[i].rData.value) +
+                        tableHtmlRows += "<td style=\"word-break: break-all;\"><b>App Name: </b> " + htmlEncode(records[i].rData.value) +
                             "<br /><b>Class Path:</b> " + htmlEncode(records[i].rData.classPath) +
                             "<br /><b>Record Data:</b> " + (records[i].rData.data == "" ? "" : "<pre>" + htmlEncode(records[i].rData.data) + "</pre>");
 
@@ -1152,7 +1259,7 @@ function showEditZone(domain) {
                         break;
 
                     default:
-                        tableHtmlRows += "<td style=\"overflow-wrap: anywhere;\"><b>RDATA:</b> " + htmlEncode(records[i].rData.value) + "</td>";
+                        tableHtmlRows += "<td style=\"word-break: break-all;\"><b>RDATA:</b> " + htmlEncode(records[i].rData.value) + "</td>";
                         break;
                 }
 
@@ -1196,9 +1303,11 @@ function showEditZone(domain) {
                                 disableEnableDisableDeleteButtons = true;
                                 break;
 
+                            case "DNSKEY":
                             case "RRSIG":
                             case "NSEC":
                             case "NSEC3":
+                            case "NSEC3PARAM":
                                 hideActionButtons = true;
                                 break;
                         }
@@ -1553,7 +1662,7 @@ function addRecord() {
     var overwrite = $("#chkAddEditRecordOverwrite").prop("checked");
     var comments = $("#txtAddEditRecordComments").val();
 
-    var apiUrl = "/api/addRecord?token=" + token + "&zone=" + encodeURIComponent(zone) + "&domain=" + encodeURIComponent(domain) + "&type=" + type + "&ttl=" + ttl + "&overwrite=" + overwrite + "&comments=" + encodeURIComponent(comments);
+    var apiUrl = "/api/zone/addRecord?token=" + token + "&zone=" + encodeURIComponent(zone) + "&domain=" + encodeURIComponent(domain) + "&type=" + type + "&ttl=" + ttl + "&overwrite=" + overwrite + "&comments=" + encodeURIComponent(comments);
 
     switch (type) {
         case "A":
@@ -2070,7 +2179,7 @@ function updateRecord() {
     var disable = (divData.attr("data-record-disabled") === "true");
     var comments = $("#txtAddEditRecordComments").val();
 
-    var apiUrl = "/api/updateRecord?token=" + token + "&zone=" + encodeURIComponent(zone) + "&type=" + type + "&domain=" + encodeURIComponent(domain) + "&newDomain=" + encodeURIComponent(newDomain) + "&ttl=" + ttl + "&value=" + encodeURIComponent(value) + "&disable=" + disable + "&comments=" + encodeURIComponent(comments);
+    var apiUrl = "/api/zone/updateRecord?token=" + token + "&zone=" + encodeURIComponent(zone) + "&type=" + type + "&domain=" + encodeURIComponent(domain) + "&newDomain=" + encodeURIComponent(newDomain) + "&ttl=" + ttl + "&value=" + encodeURIComponent(value) + "&disable=" + disable + "&comments=" + encodeURIComponent(comments);
 
     switch (type) {
         case "A":
@@ -2361,7 +2470,7 @@ function updateRecordState(objBtn, disable) {
     if (disable && !confirm("Are you sure to disable the " + type + " record '" + domain + "' with value '" + value + "'?"))
         return;
 
-    var apiUrl = "/api/updateRecord?token=" + token + "&type=" + type + "&domain=" + encodeURIComponent(domain) + "&ttl=" + ttl + "&value=" + encodeURIComponent(value) + "&disable=" + disable + "&comments=" + encodeURIComponent(comments);
+    var apiUrl = "/api/zone/updateRecord?token=" + token + "&type=" + type + "&domain=" + encodeURIComponent(domain) + "&ttl=" + ttl + "&value=" + encodeURIComponent(value) + "&disable=" + disable + "&comments=" + encodeURIComponent(comments);
 
     switch (type) {
         case "NS":
@@ -2437,7 +2546,7 @@ function deleteRecord(objBtn) {
     if (!confirm("Are you sure to permanently delete the " + type + " record '" + domain + "' with value '" + value + "'?"))
         return;
 
-    var apiUrl = "/api/deleteRecord?token=" + token + "&zone=" + encodeURIComponent(zone) + "&domain=" + domain + "&type=" + type + "&value=" + encodeURIComponent(value);
+    var apiUrl = "/api/zone/deleteRecord?token=" + token + "&zone=" + encodeURIComponent(zone) + "&domain=" + domain + "&type=" + type + "&value=" + encodeURIComponent(value);
 
     switch (type) {
         case "SRV":
@@ -2469,5 +2578,476 @@ function deleteRecord(objBtn) {
         invalidToken: function () {
             showPageLogin();
         }
+    });
+}
+
+function showSignZoneModal(zoneName) {
+    $("#lblDnssecSignZoneZoneName").text(zoneName);
+    $("#rdDnssecSignZoneAlgorithmEcdsa").prop("checked", true);
+
+    $("#divDnssecSignZoneRsaParameters").hide();
+    $("#optDnssecSignZoneRsaHashAlgorithm").val("SHA256");
+    $("#optDnssecSignZoneRsaKSKKeySize").val("2048");
+    $("#optDnssecSignZoneRsaZSKKeySize").val("1024");
+
+    $("#divDnssecSignZoneEcdsaParameters").show();
+    $("#optDnssecSignZoneEcdsaCurve").val("P256");
+
+    $("#rdDnssecSignZoneNxProofNSEC").prop("checked", true);
+
+    $("#divDnssecSignZoneNSEC3Parameters").hide();
+    $("#txtDnssecSignZoneNSEC3Iterations").val("0");
+    $("#txtDnssecSignZoneNSEC3SaltLength").val("0");
+
+    $("#txtDnssecSignZoneDnsKeyTtl").val("86400");
+
+    $("#modalDnssecSignZone").modal("show");
+}
+
+function signPrimaryZone() {
+    var divDnssecSignZoneAlert = $("#divDnssecSignZoneAlert");
+    var zone = $("#lblDnssecSignZoneZoneName").text();
+    var algorithm = $("input[name=rdDnssecSignZoneAlgorithm]:checked").val();
+    var dnsKeyTtl = $("#txtDnssecSignZoneDnsKeyTtl").val();
+    var nxProof = $("input[name=rdDnssecSignZoneNxProof]:checked").val();
+
+    var additionalParameters = "";
+
+    if (nxProof === "NSEC3") {
+        var iterations = $("#txtDnssecSignZoneNSEC3Iterations").val();
+        var saltLength = $("#txtDnssecSignZoneNSEC3SaltLength").val();
+
+        additionalParameters += "&iterations=" + iterations + "&saltLength=" + saltLength;
+    }
+
+    switch (algorithm) {
+        case "RSA":
+            var hashAlgorithm = $("#optDnssecSignZoneRsaHashAlgorithm").val();
+            var kskKeySize = $("#optDnssecSignZoneRsaKSKKeySize").val();
+            var zskKeySize = $("#optDnssecSignZoneRsaZSKKeySize").val();
+
+            additionalParameters += "&hashAlgorithm=" + hashAlgorithm + "&kskKeySize=" + kskKeySize + "&zskKeySize=" + zskKeySize;
+            break;
+
+        case "ECDSA":
+            var curve = $("#optDnssecSignZoneEcdsaCurve").val();
+
+            additionalParameters += "&curve=" + curve;
+            break;
+    }
+
+    var btn = $("#btnDnssecSignZone");
+    btn.button("loading");
+
+    HTTPRequest({
+        url: "/api/zone/dnssec/sign?token=" + token + "&zone=" + encodeURIComponent(zone) + "&algorithm=" + algorithm + "&dnsKeyTtl=" + dnsKeyTtl + "&nxProof=" + nxProof + additionalParameters,
+        success: function (responseJSON) {
+            btn.button('reset');
+            $("#modalDnssecSignZone").modal("hide");
+
+            showEditZone(zone);
+            showAlert("success", "Zone Signed!", "The primary zone was signed successfully.");
+        },
+        error: function () {
+            btn.button("reset");
+        },
+        invalidToken: function () {
+            btn.button("reset");
+            $("#modalDnssecSignZone").modal("hide");
+            showPageLogin();
+        },
+        objAlertPlaceholder: divDnssecSignZoneAlert
+    });
+}
+
+function showUnsignZoneModal(zoneName) {
+    $("#lblDnssecUnsignZoneZoneName").text(zoneName);
+
+    $("#modalDnssecUnsignZone").modal("show");
+}
+
+function unsignPrimaryZone() {
+    var divDnssecUnsignZoneAlert = $("#divDnssecUnsignZoneAlert");
+    var zone = $("#lblDnssecUnsignZoneZoneName").text();
+
+    var btn = $("#btnDnssecUnsignZone");
+    btn.button("loading");
+
+    HTTPRequest({
+        url: "/api/zone/dnssec/unsign?token=" + token + "&zone=" + encodeURIComponent(zone),
+        success: function (responseJSON) {
+            btn.button('reset');
+            $("#modalDnssecUnsignZone").modal("hide");
+
+            showEditZone(zone);
+            showAlert("success", "Zone Unsigned!", "The primary zone was unsigned successfully.");
+        },
+        error: function () {
+            btn.button("reset");
+        },
+        invalidToken: function () {
+            btn.button("reset");
+            $("#modalDnssecUnsignZone").modal("hide");
+            showPageLogin();
+        },
+        objAlertPlaceholder: divDnssecUnsignZoneAlert
+    });
+}
+
+function showDnssecPropertiesModal(zoneName) {
+    var divDnssecPropertiesLoader = $("#divDnssecPropertiesLoader");
+    var divDnssecProperties = $("#divDnssecProperties");
+
+    $("#lblDnssecPropertiesZoneName").text(zoneName);
+
+    $("#divDnssecPropertiesGenerateKey").collapse("hide");
+    $("#optDnssecPropertiedGenerateKeyKeyType").val("KeySigningKey");
+    $("#divDnssecPropertiesGenerateKeyRsaParameters").hide();
+    $("#optDnssecPropertiesGenerateKeyRsaHashAlgorithm").val("SHA256");
+    $("#optDnssecPropertiesGenerateKeyRsaKeySize").val("1024");
+    $("#divDnssecPropertiesGenerateKeyEcdsaParameters").show();
+    $("#optDnssecPropertiedGenerateKeyAlgorithm").val("ECDSA");
+
+    divDnssecPropertiesLoader.show();
+    divDnssecProperties.hide();
+
+    $("#modalDnssecProperties").modal("show");
+
+    refreshDnssecProperties(divDnssecPropertiesLoader);
+}
+
+function refreshDnssecProperties(divDnssecPropertiesLoader) {
+    var divDnssecPropertiesAlert = $("#divDnssecPropertiesAlert");
+    var zone = $("#lblDnssecPropertiesZoneName").text();
+
+    HTTPRequest({
+        url: "/api/zone/dnssec/getProperties?token=" + token + "&zone=" + zone,
+        success: function (responseJSON) {
+            var tableHtmlRows = "";
+
+            for (var i = 0; i < responseJSON.response.dnssecPrivateKeys.length; i++) {
+                var id = Math.floor(Math.random() * 10000);
+
+                tableHtmlRows += "<tr id=\"trDnssecPropertiesPrivateKey" + id + "\">"
+                    + "<td>" + responseJSON.response.dnssecPrivateKeys[i].keyTag + "</td>"
+                    + "<td>" + responseJSON.response.dnssecPrivateKeys[i].keyType + "</td>"
+                    + "<td>" + responseJSON.response.dnssecPrivateKeys[i].algorithm + "</td>"
+                    + "<td>" + responseJSON.response.dnssecPrivateKeys[i].state + "</td>"
+                    + "<td>" + moment(responseJSON.response.dnssecPrivateKeys[i].stateChangedOn).local().format("YYYY-MM-DD HH:mm") + "</td>"
+                    + "<td align=\"right\">";
+
+                switch (responseJSON.response.dnssecPrivateKeys[i].state) {
+                    case "Generated":
+                        tableHtmlRows += "<button type=\"button\" class=\"btn btn-danger\" style=\"font-size: 12px; padding: 2px 0px; width: 60px; margin: 0 6px 0 0;\" data-id=\"" + id + "\" data-loading-text=\"Deleting...\" onclick=\"deleteDnssecPrivateKey(" + responseJSON.response.dnssecPrivateKeys[i].keyTag + ", this);\">Delete</button>";
+                        break;
+
+                    case "Ready":
+                    case "Active":
+                        if (!responseJSON.response.dnssecPrivateKeys[i].isRetiring) {
+                            tableHtmlRows += "<button type=\"button\" class=\"btn btn-warning\" style=\"font-size: 12px; padding: 2px 0px; width: 60px; margin: 0 6px 0 0;\" data-loading-text=\"Rolling...\" onclick=\"rolloverDnssecDnsKey(" + responseJSON.response.dnssecPrivateKeys[i].keyTag + ", this);\">Rollover</button>";
+                            tableHtmlRows += "<button type=\"button\" class=\"btn btn-warning\" style=\"font-size: 12px; padding: 2px 0px; width: 60px; margin: 0 6px 0 0;\" data-loading-text=\"Retiring...\" onclick=\"retireDnssecDnsKey(" + responseJSON.response.dnssecPrivateKeys[i].keyTag + ", this);\">Retire</button>";
+                        }
+                        break;
+                }
+
+                tableHtmlRows += "</td></tr>";
+            }
+
+            $("#tableDnssecPropertiesPrivateKeysBody").html(tableHtmlRows);
+
+            switch (responseJSON.response.dnssecStatus) {
+                case "SignedWithNSEC":
+                    $("#rdDnssecPropertiesNxProofNSEC").prop("checked", true);
+
+                    $("#divDnssecPropertiesNSEC3Parameters").hide();
+                    $("#txtDnssecPropertiesNSEC3Iterations").val(0);
+                    $("#txtDnssecPropertiesNSEC3SaltLength").val(0);
+
+                    $("#btnDnssecPropertiesChangeNxProof").attr("data-nx-proof", "NSEC");
+                    break;
+
+                case "SignedWithNSEC3":
+                    $("#rdDnssecPropertiesNxProofNSEC3").prop("checked", true);
+
+                    $("#divDnssecPropertiesNSEC3Parameters").show();
+                    $("#txtDnssecPropertiesNSEC3Iterations").val(responseJSON.response.nsec3Iterations);
+                    $("#txtDnssecPropertiesNSEC3SaltLength").val(responseJSON.response.nsec3SaltLength);
+
+                    $("#btnDnssecPropertiesChangeNxProof").attr("data-nx-proof", "NSEC3");
+                    $("#btnDnssecPropertiesChangeNxProof").attr("data-nsec3-iterations", responseJSON.response.nsec3Iterations);
+                    $("#btnDnssecPropertiesChangeNxProof").attr("data-nsec3-salt-length", responseJSON.response.nsec3SaltLength);
+                    break;
+            }
+
+            $("#txtDnssecPropertiesDnsKeyTtl").val(responseJSON.response.dnsKeyTtl);
+
+            if (divDnssecPropertiesLoader != null)
+                divDnssecPropertiesLoader.hide();
+
+            $("#divDnssecProperties").show();
+        },
+        error: function () {
+            if (divDnssecPropertiesLoader != null)
+                divDnssecPropertiesLoader.hide();
+        },
+        invalidToken: function () {
+            $("#modalDnssecProperties").modal("hide");
+            showPageLogin();
+        },
+        objAlertPlaceholder: divDnssecPropertiesAlert,
+        objLoaderPlaceholder: divDnssecPropertiesLoader
+    });
+}
+
+function deleteDnssecPrivateKey(keyTag, objBtn) {
+    if (!confirm("Are you sure to permanently delete the private key?"))
+        return;
+
+    var btn = $(objBtn);
+    var id = btn.attr("data-id");
+    var divDnssecPropertiesAlert = $("#divDnssecPropertiesAlert");
+    var zone = $("#lblDnssecPropertiesZoneName").text();
+
+    btn.button('loading');
+
+    HTTPRequest({
+        url: "/api/zone/dnssec/deletePrivateKey?token=" + token + "&zone=" + zone + "&keyTag=" + keyTag,
+        success: function (responseJSON) {
+            $("#trDnssecPropertiesPrivateKey" + id).remove();
+            showAlert("success", "Private Key Deleted!", "The DNSSEC private key was deleted successfully.", divDnssecPropertiesAlert);
+        },
+        error: function () {
+            btn.button('reset');
+        },
+        invalidToken: function () {
+            $("#modalDnssecProperties").modal("hide");
+            showPageLogin();
+        },
+        objAlertPlaceholder: divDnssecPropertiesAlert
+    });
+}
+
+function rolloverDnssecDnsKey(keyTag, objBtn) {
+    if (!confirm("Are you sure you want to rollover the DNS Key?"))
+        return;
+
+    var btn = $(objBtn);
+    var divDnssecPropertiesAlert = $("#divDnssecPropertiesAlert");
+    var zone = $("#lblDnssecPropertiesZoneName").text();
+
+    btn.button('loading');
+
+    HTTPRequest({
+        url: "/api/zone/dnssec/rolloverDnsKey?token=" + token + "&zone=" + zone + "&keyTag=" + keyTag,
+        success: function (responseJSON) {
+            refreshDnssecProperties();
+            showAlert("success", "Rollover Done!", "The DNS Key was rolled over successfully.", divDnssecPropertiesAlert);
+        },
+        error: function () {
+            btn.button('reset');
+        },
+        invalidToken: function () {
+            $("#modalDnssecProperties").modal("hide");
+            showPageLogin();
+        },
+        objAlertPlaceholder: divDnssecPropertiesAlert
+    });
+}
+
+function retireDnssecDnsKey(keyTag, objBtn) {
+    if (!confirm("Are you sure you want to retire the DNS Key?"))
+        return;
+
+    var btn = $(objBtn);
+    var divDnssecPropertiesAlert = $("#divDnssecPropertiesAlert");
+    var zone = $("#lblDnssecPropertiesZoneName").text();
+
+    btn.button('loading');
+
+    HTTPRequest({
+        url: "/api/zone/dnssec/retireDnsKey?token=" + token + "&zone=" + zone + "&keyTag=" + keyTag,
+        success: function (responseJSON) {
+            refreshDnssecProperties();
+            showAlert("success", "DNS Key Retired!", "The DNS Key was retired successfully.", divDnssecPropertiesAlert);
+        },
+        error: function () {
+            btn.button('reset');
+        },
+        invalidToken: function () {
+            $("#modalDnssecProperties").modal("hide");
+            showPageLogin();
+        },
+        objAlertPlaceholder: divDnssecPropertiesAlert
+    });
+}
+
+function publishAllDnssecPrivateKeys(objBtn) {
+    if (!confirm("Are you sure you want to publish all generated DNSSEC private keys?"))
+        return;
+
+    var btn = $(objBtn);
+    var divDnssecPropertiesAlert = $("#divDnssecPropertiesAlert");
+    var zone = $("#lblDnssecPropertiesZoneName").text();
+
+    btn.button('loading');
+
+    HTTPRequest({
+        url: "/api/zone/dnssec/publishAllPrivateKeys?token=" + token + "&zone=" + zone,
+        success: function (responseJSON) {
+            refreshDnssecProperties();
+            btn.button('reset');
+            showAlert("success", "Keys Published!", "All the generated DNSSEC private keys were published successfully.", divDnssecPropertiesAlert);
+        },
+        error: function () {
+            btn.button('reset');
+        },
+        invalidToken: function () {
+            btn.button('reset');
+            $("#modalDnssecProperties").modal("hide");
+            showPageLogin();
+        },
+        objAlertPlaceholder: divDnssecPropertiesAlert
+    });
+}
+
+function generateAndAddDnssecPrivateKey(objBtn) {
+    var btn = $(objBtn);
+    var divDnssecPropertiesAlert = $("#divDnssecPropertiesAlert");
+    var zone = $("#lblDnssecPropertiesZoneName").text();
+    var keyType = $("#optDnssecPropertiedGenerateKeyKeyType").val();
+    var algorithm = $("#optDnssecPropertiedGenerateKeyAlgorithm").val();
+
+    var additionalParameters = "";
+
+    switch (algorithm) {
+        case "RSA":
+            var hashAlgorithm = $("#optDnssecPropertiesGenerateKeyRsaHashAlgorithm").val();
+            var keySize = $("#optDnssecPropertiesGenerateKeyRsaKeySize").val();
+
+            additionalParameters = "&hashAlgorithm=" + hashAlgorithm + "&keySize=" + keySize;
+            break;
+
+        case "ECDSA":
+            var curve = $("#optDnssecPropertiesGenerateKeyEcdsaCurve").val();
+
+            additionalParameters = "&curve=" + curve;
+            break;
+    }
+
+    btn.button('loading');
+
+    HTTPRequest({
+        url: "/api/zone/dnssec/generatePrivateKey?token=" + token + "&zone=" + zone + "&keyType=" + keyType + "&algorithm=" + algorithm + additionalParameters,
+        success: function (responseJSON) {
+            $("#divDnssecPropertiesGenerateKey").collapse("hide");
+            refreshDnssecProperties();
+            btn.button('reset');
+            showAlert("success", "Key Generated!", "The DNSSEC private key was generated successfully.", divDnssecPropertiesAlert);
+        },
+        error: function () {
+            btn.button('reset');
+        },
+        invalidToken: function () {
+            btn.button('reset');
+            $("#modalDnssecProperties").modal("hide");
+            showPageLogin();
+        },
+        objAlertPlaceholder: divDnssecPropertiesAlert
+    });
+}
+
+function changeDnssecNxProof(objBtn) {
+    var btn = $(objBtn);
+    var currentNxProof = btn.attr("data-nx-proof");
+    var nxProof = $("input[name=rdDnssecPropertiesNxProof]:checked").val();
+    var divDnssecPropertiesAlert = $("#divDnssecPropertiesAlert");
+
+    var zone = $("#lblDnssecPropertiesZoneName").text();
+    var apiUrl;
+
+    switch (currentNxProof) {
+        case "NSEC":
+            if (nxProof === "NSEC") {
+                showAlert("success", "Proof Changed!", "The proof of non-existence was changed successfully.", divDnssecPropertiesAlert)
+                return;
+            }
+            else {
+                var iterations = $("#txtDnssecPropertiesNSEC3Iterations").val();
+                var saltLength = $("#txtDnssecPropertiesNSEC3SaltLength").val();
+
+                apiUrl = "/api/zone/dnssec/convertToNSEC3?token=" + token + "&zone=" + zone + "&iterations=" + iterations + "&saltLength=" + saltLength;
+            }
+            break;
+
+        case "NSEC3":
+            if (nxProof === "NSEC3") {
+                var currentIterations = btn.attr("data-nsec3-iterations");
+                var currentSaltLength = btn.attr("data-nsec3-salt-length");
+
+                var iterations = $("#txtDnssecPropertiesNSEC3Iterations").val();
+                var saltLength = $("#txtDnssecPropertiesNSEC3SaltLength").val();
+
+                if ((currentIterations == iterations) && (currentSaltLength == saltLength)) {
+                    showAlert("success", "Proof Changed!", "The proof of non-existence was changed successfully.", divDnssecPropertiesAlert)
+                    return;
+                }
+                else {
+                    apiUrl = "/api/zone/dnssec/updateNSEC3Params?token=" + token + "&zone=" + zone + "&iterations=" + iterations + "&saltLength=" + saltLength;
+                }
+            } else {
+                apiUrl = "/api/zone/dnssec/convertToNSEC?token=" + token + "&zone=" + zone;
+            }
+            break;
+
+        default:
+            return;
+    }
+
+    if (!confirm("Are you sure you want to change the proof of non-existence options for the zone?"))
+        return;
+
+    btn.button('loading');
+
+    HTTPRequest({
+        url: apiUrl,
+        success: function (responseJSON) {
+            btn.button('reset');
+            showAlert("success", "Proof Changed!", "The proof of non-existence was changed successfully.", divDnssecPropertiesAlert);
+        },
+        error: function () {
+            btn.button('reset');
+        },
+        invalidToken: function () {
+            btn.button('reset');
+            $("#modalDnssecProperties").modal("hide");
+            showPageLogin();
+        },
+        objAlertPlaceholder: divDnssecPropertiesAlert
+    });
+}
+
+function updateDnssecDnsKeyTtl(objBtn) {
+    var btn = $(objBtn);
+    var divDnssecPropertiesAlert = $("#divDnssecPropertiesAlert");
+    var zone = $("#lblDnssecPropertiesZoneName").text();
+    var ttl = $("#txtDnssecPropertiesDnsKeyTtl").val();
+
+    btn.button('loading');
+
+    HTTPRequest({
+        url: "/api/zone/dnssec/updateDnsKeyTtl?token=" + token + "&zone=" + zone + "&ttl=" + ttl,
+        success: function (responseJSON) {
+            btn.button('reset');
+            showAlert("success", "TTL Updated!", "The DNSKEY TTL was updated successfully.", divDnssecPropertiesAlert);
+        },
+        error: function () {
+            btn.button('reset');
+        },
+        invalidToken: function () {
+            btn.button('reset');
+            $("#modalDnssecProperties").modal("hide");
+            showPageLogin();
+        },
+        objAlertPlaceholder: divDnssecPropertiesAlert
     });
 }
