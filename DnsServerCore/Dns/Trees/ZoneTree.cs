@@ -190,7 +190,7 @@ namespace DnsServerCore.Dns.Trees
             return (i == mainKey.Length) && (j < testKey.Length);
         }
 
-        protected TNode FindZone(byte[] key, out Node closestNode, out Node closestAuthorityNode, out TSubDomainZone closestSubDomain, out TSubDomainZone closestDelegation, out TApexZone closestAuthority)
+        protected TNode FindZoneNode(byte[] key, out Node closestNode, out Node closestAuthorityNode, out TSubDomainZone closestSubDomain, out TSubDomainZone closestDelegation, out TApexZone closestAuthority)
         {
             closestNode = _root;
             closestAuthorityNode = null;
@@ -263,7 +263,24 @@ namespace DnsServerCore.Dns.Trees
                 {
                     //match exact + wildcard keys
                     if (KeysMatch(key, value.Key))
+                    {
+                        //update authority since the matched zone is apex zone
+                        TNode zoneValue = value.Value;
+                        if (zoneValue is not null)
+                        {
+                            TApexZone authority = null;
+
+                            GetClosestValuesForZone(zoneValue, ref closestSubDomain, ref closestDelegation, ref authority);
+
+                            if (authority is not null)
+                            {
+                                closestAuthority = authority;
+                                closestAuthorityNode = closestNode;
+                            }
+                        }
+
                         return value.Value; //found matching value
+                    }
                 }
             }
 
