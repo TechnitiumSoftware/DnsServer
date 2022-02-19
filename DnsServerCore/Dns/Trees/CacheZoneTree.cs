@@ -78,7 +78,7 @@ namespace DnsServerCore.Dns.Trees
 
             byte[] key = ConvertToByteKey(domain);
 
-            CacheZone zoneValue = FindZone(key, out _, out _, out CacheZone closestSubDomain, out CacheZone closestDelegation, out _);
+            CacheZone zoneValue = FindZoneNode(key, out _, out _, out CacheZone closestSubDomain, out CacheZone closestDelegation, out _);
             if (zoneValue is null)
             {
                 //zone not found
