@@ -17,6 +17,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 */
 
+using DnsServerCore.Dns.Dnssec;
 using DnsServerCore.Dns.ResourceRecords;
 using System;
 using System.Collections.Generic;
@@ -55,6 +56,7 @@ namespace DnsServerCore.Dns.Zones
         readonly DateTime _expiry;
         readonly IReadOnlyList<DnsResourceRecord> _zoneHistory; //for IXFR support
         readonly IReadOnlyDictionary<string, object> _tsigKeyNames;
+        readonly IReadOnlyCollection<DnssecPrivateKey> _dnssecPrivateKeys;
 
         #endregion
 
@@ -89,6 +91,7 @@ namespace DnsServerCore.Dns.Zones
                 case 2:
                 case 3:
                 case 4:
+                case 5:
                     _name = bR.ReadShortString();
                     _type = (AuthZoneType)bR.ReadByte();
                     _disabled = bR.ReadBoolean();
@@ -168,6 +171,20 @@ namespace DnsServerCore.Dns.Zones
 
                                 _tsigKeyNames = tsigKeyNames;
                             }
+
+                            if (version >= 5)
+                            {
+                                int count = bR.ReadByte();
+                                if (count > 0)
+                                {
+                                    List<DnssecPrivateKey> dnssecPrivateKeys = new List<DnssecPrivateKey>(count);
+
+                                    for (int i = 0; i < count; i++)
+                                        dnssecPrivateKeys.Add(DnssecPrivateKey.Parse(bR));
+
+                                    _dnssecPrivateKeys = dnssecPrivateKeys;
+                                }
+                            }
                             break;
 
                         case AuthZoneType.Secondary:
@@ -224,6 +241,7 @@ namespace DnsServerCore.Dns.Zones
                     _zoneHistory = primaryZone.GetHistory();
 
                 _tsigKeyNames = primaryZone.TsigKeyNames;
+                _dnssecPrivateKeys = primaryZone.DnssecPrivateKeys;
             }
             else if (_apexZone is SecondaryZone secondaryZone)
             {
@@ -349,7 +367,7 @@ namespace DnsServerCore.Dns.Zones
             if (_apexZone is null)
                 throw new InvalidOperationException();
 
-            bW.Write((byte)4); //version
+            bW.Write((byte)5); //version
 
             bW.WriteShortString(_name);
             bW.Write((byte)_type);
@@ -412,6 +430,18 @@ namespace DnsServerCore.Dns.Zones
 
                         foreach (KeyValuePair<string, object> tsigKeyName in _tsigKeyNames)
                             bW.WriteShortString(tsigKeyName.Key);
+                    }
+
+                    if (_dnssecPrivateKeys is null)
+                    {
+                        bW.Write((byte)0);
+                    }
+                    else
+                    {
+                        bW.Write(Convert.ToByte(_dnssecPrivateKeys.Count));
+
+                        foreach (DnssecPrivateKey dnssecPrivateKey in _dnssecPrivateKeys)
+                            dnssecPrivateKey.WriteTo(bW);
                     }
 
                     break;
@@ -606,6 +636,38 @@ namespace DnsServerCore.Dns.Zones
                 }
             }
         }
+
+        public AuthZoneDnssecStatus DnssecStatus
+        {
+            get
+            {
+                if (_apexZone is null)
+                    throw new InvalidOperationException();
+
+                return _apexZone.DnssecStatus;
+            }
+        }
+
+        public uint DnsKeyTtl
+        {
+            get
+            {
+                if (_apexZone is null)
+                    throw new InvalidOperationException();
+
+                switch (_type)
+                {
+                    case AuthZoneType.Primary:
+                        return (_apexZone as PrimaryZone).GetDnsKeyTtl();
+
+                    default:
+                        throw new NotSupportedException();
+                }
+            }
+        }
+
+        public IReadOnlyCollection<DnssecPrivateKey> DnssecPrivateKeys
+        { get { return _dnssecPrivateKeys; } }
 
         #endregion
     }
