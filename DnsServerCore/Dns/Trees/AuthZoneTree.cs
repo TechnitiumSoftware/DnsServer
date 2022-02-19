@@ -31,7 +31,19 @@ namespace DnsServerCore.Dns.Trees
 
         private static Node GetPreviousSubDomainZoneNode(byte[] key, Node current, int baseDepth)
         {
-            int k = key[current.Depth];
+            int k;
+
+            if (key is null)
+            {
+                //key belongs to current node so the queried domain exists; move up to parent
+                k = current.K - 1;
+                current = current.Parent;
+            }
+            else
+            {
+                //domain does not exists so find the previous node for the given k at the depth in current node
+                k = key[current.Depth];
+            }
 
             while ((current is not null) && (current.Depth >= baseDepth))
             {
@@ -46,6 +58,9 @@ namespace DnsServerCore.Dns.Trees
                         child = Volatile.Read(ref children[i]);
                         if (child is not null)
                         {
+                            if (child.Children is not null)
+                                break; //child has further children so check them first
+
                             NodeValue value = child.Value;
                             if (value is not null)
                             {
@@ -62,13 +77,9 @@ namespace DnsServerCore.Dns.Trees
                                         //is apex zone
                                         //skip to next child to avoid listing this auth zone's sub domains
                                         child = null; //set null to avoid child being set as current after the loop
-                                        continue;
                                     }
                                 }
                             }
-
-                            if (child.Children is not null)
-                                break;
                         }
                     }
 
@@ -81,7 +92,7 @@ namespace DnsServerCore.Dns.Trees
                     }
                 }
 
-                //no child node found; check for current node value
+                //no child node available; check for current node value
                 {
                     NodeValue value = current.Value;
                     if (value is not null)
@@ -89,17 +100,16 @@ namespace DnsServerCore.Dns.Trees
                         AuthZoneNode zoneNode = value.Value;
                         if (zoneNode is not null)
                         {
-                            ApexZone apexZone = zoneNode.ApexZone;
-                            if (apexZone is not null)
+                            if ((zoneNode.ApexZone is not null) || (zoneNode.ParentSideZone is not null))
                             {
-                                //current contains apex zone; return it
+                                //current node contains apex zone/sub domain zone; return it
                                 return current;
                             }
                         }
                     }
                 }
 
-                //no child nodes available; move up to parent node
+                //move up to parent node for previous sibling
                 k = current.K - 1;
                 current = current.Parent;
             }
@@ -107,9 +117,14 @@ namespace DnsServerCore.Dns.Trees
             return null;
         }
 
-        private static Node GetNextSubDomainZoneNode(Node current, int baseDepth)
+        private static Node GetNextSubDomainZoneNode(byte[] key, Node current, int baseDepth)
         {
-            int k = 0;
+            int k;
+
+            if (key is null)
+                k = 0; //key belongs to current node so the queried domain exists
+            else
+                k = key[current.Depth]; //domain does not exists so find the next node for the given k at the depth
 
             while ((current is not null) && (current.Depth >= baseDepth))
             {
@@ -192,7 +207,7 @@ namespace DnsServerCore.Dns.Trees
             if (!closestNode.HasChildren)
                 return false;
 
-            Node nextSubDomain = GetNextSubDomainZoneNode(closestNode, closestNode.Depth);
+            Node nextSubDomain = GetNextSubDomainZoneNode(key, closestNode, closestNode.Depth);
             if (nextSubDomain is null)
                 return false;
 
@@ -203,7 +218,7 @@ namespace DnsServerCore.Dns.Trees
             return IsKeySubDomain(key, value.Key);
         }
 
-        private static AuthZone GetAuthZoneFromNode(Node node, string domain, DnsResourceRecordType type)
+        private static AuthZone GetAuthZoneFromNode(Node node, DnsResourceRecordType type)
         {
             NodeValue value = node.Value;
             if (value is not null)
@@ -212,11 +227,11 @@ namespace DnsServerCore.Dns.Trees
                 if (zoneNode is not null)
                 {
                     ApexZone apexZone = zoneNode.ApexZone;
-                    if ((apexZone is not null) && (type != DnsResourceRecordType.DS) && (DnsNSECRecord.CanonicalComparison(apexZone.Name, domain) < 0))
+                    if ((apexZone is not null) && (type != DnsResourceRecordType.DS))
                         return apexZone;
 
                     SubDomainZone parentSideZone = zoneNode.ParentSideZone;
-                    if ((parentSideZone is not null) && (DnsNSECRecord.CanonicalComparison(parentSideZone.Name, domain) < 0))
+                    if (parentSideZone is not null)
                         return parentSideZone;
                 }
             }
@@ -352,7 +367,7 @@ namespace DnsServerCore.Dns.Trees
 
             do
             {
-                current = GetNextSubDomainZoneNode(current, closestNode.Depth);
+                current = GetNextSubDomainZoneNode(null, current, closestNode.Depth);
                 if (current is null)
                     break;
 
@@ -420,7 +435,7 @@ namespace DnsServerCore.Dns.Trees
             throw new InvalidOperationException();
         }
 
-        public List<AuthZone> GetZoneWithSubDomainZones(string zoneName)
+        public IReadOnlyList<AuthZone> GetZoneWithSubDomainZones(string zoneName)
         {
             if (zoneName is null)
                 throw new ArgumentNullException(nameof(zoneName));
@@ -444,7 +459,7 @@ namespace DnsServerCore.Dns.Trees
 
                         do
                         {
-                            current = GetNextSubDomainZoneNode(current, closestNode.Depth);
+                            current = GetNextSubDomainZoneNode(null, current, closestNode.Depth);
                             if (current is null)
                                 break;
 
@@ -471,7 +486,7 @@ namespace DnsServerCore.Dns.Trees
 
             byte[] key = ConvertToByteKey(domain);
 
-            AuthZoneNode zoneNode = FindZone(key, out Node closestNode, out _, out SubDomainZone closestSubDomain, out SubDomainZone closestDelegation, out ApexZone closestAuthority);
+            AuthZoneNode zoneNode = FindZoneNode(key, out Node closestNode, out _, out SubDomainZone closestSubDomain, out SubDomainZone closestDelegation, out ApexZone closestAuthority);
             if (zoneNode is null)
             {
                 //zone not found
@@ -532,7 +547,41 @@ namespace DnsServerCore.Dns.Trees
             }
         }
 
-        public IReadOnlyList<DnsResourceRecord> FindNSECProofOfNonExistenceNxDomain(string domain, DnsResourceRecordType type, bool isWildcardAnswer)
+        public AuthZone FindPreviousSubDomainZone(string domain)
+        {
+            byte[] key = ConvertToByteKey(domain);
+
+            AuthZoneNode authZoneNode = FindZoneNode(key, out Node closestNode, out Node closestAuthorityNode, out _, out _, out _);
+
+            Node previousNode = GetPreviousSubDomainZoneNode(authZoneNode is null ? key : null, closestNode, closestAuthorityNode.Depth); //passing key only when zone does not exists
+            if (previousNode is not null)
+            {
+                AuthZone authZone = GetAuthZoneFromNode(previousNode, DnsResourceRecordType.A);
+                if (authZone is not null)
+                    return authZone;
+            }
+
+            return null;
+        }
+
+        public AuthZone FindNextSubDomainZone(string domain)
+        {
+            byte[] key = ConvertToByteKey(domain);
+
+            AuthZoneNode authZoneNode = FindZoneNode(key, out Node closestNode, out Node closestAuthorityNode, out _, out _, out _);
+
+            Node nextNode = GetNextSubDomainZoneNode(authZoneNode is null ? key : null, closestNode, closestAuthorityNode.Depth); //passing key only when zone does not exists
+            if (nextNode is not null)
+            {
+                AuthZone authZone = GetAuthZoneFromNode(nextNode, DnsResourceRecordType.A);
+                if (authZone is not null)
+                    return authZone;
+            }
+
+            return null;
+        }
+
+        public IReadOnlyList<DnsResourceRecord> FindNSecProofOfNonExistenceNxDomain(string domain, DnsResourceRecordType type, bool isWildcardAnswer)
         {
             if (domain is null)
                 throw new ArgumentNullException(nameof(domain));
@@ -543,27 +592,23 @@ namespace DnsServerCore.Dns.Trees
             {
                 byte[] key = ConvertToByteKey(domain);
 
-                AuthZoneNode zoneNode = FindZone(key, out Node closestNode, out Node closestAuthorityNode, out _, out _, out _);
+                AuthZoneNode zoneNode = FindZoneNode(key, out Node closestNode, out Node closestAuthorityNode, out _, out _, out _);
                 if (zoneNode is not null)
-                    return; //domain exists! cannot prove non-existence
+                    throw new InvalidOperationException(); //domain exists! cannot prove non-existence
 
-                //check for value at closest node
-                AuthZone authZone = GetAuthZoneFromNode(closestNode, domain, type);
-                if (authZone is null)
+                Node previousNode = GetPreviousSubDomainZoneNode(key, closestNode, closestAuthorityNode.Depth);
+                if (previousNode is not null)
                 {
-                    Node previousNode = GetPreviousSubDomainZoneNode(key, closestNode, closestAuthorityNode.Depth);
-                    if (previousNode is not null)
-                        authZone = GetAuthZoneFromNode(previousNode, domain, type);
-                }
-
-                if (authZone is not null)
-                {
-                    IReadOnlyList<DnsResourceRecord> proofOfCoverRecords = authZone.QueryRecords(DnsResourceRecordType.NSEC, true);
-
-                    foreach (DnsResourceRecord proofOfCoverRecord in proofOfCoverRecords)
+                    AuthZone authZone = GetAuthZoneFromNode(previousNode, type);
+                    if (authZone is not null)
                     {
-                        if (!nsecRecords.Contains(proofOfCoverRecord))
-                            nsecRecords.Add(proofOfCoverRecord);
+                        IReadOnlyList<DnsResourceRecord> proofOfCoverRecords = authZone.QueryRecords(DnsResourceRecordType.NSEC, true);
+
+                        foreach (DnsResourceRecord proofOfCoverRecord in proofOfCoverRecords)
+                        {
+                            if (!nsecRecords.Contains(proofOfCoverRecord))
+                                nsecRecords.Add(proofOfCoverRecord);
+                        }
                     }
                 }
             }
@@ -592,7 +637,7 @@ namespace DnsServerCore.Dns.Trees
             return nsecRecords;
         }
 
-        public IReadOnlyList<DnsResourceRecord> FindNSEC3ProofOfNonExistenceNxDomain(string domain, DnsResourceRecordType type, bool isWildcardAnswer)
+        public IReadOnlyList<DnsResourceRecord> FindNSec3ProofOfNonExistenceNxDomain(string domain, DnsResourceRecordType type, bool isWildcardAnswer)
         {
             if (domain is null)
                 throw new ArgumentNullException(nameof(domain));
@@ -606,14 +651,12 @@ namespace DnsServerCore.Dns.Trees
             {
                 byte[] key = ConvertToByteKey(domain);
 
-                AuthZoneNode zoneNode = FindZone(key, out _, out _, out SubDomainZone closestSubDomain, out _, out ApexZone closestAuthority);
+                AuthZoneNode zoneNode = FindZoneNode(key, out _, out _, out SubDomainZone closestSubDomain, out _, out ApexZone closestAuthority);
                 if (zoneNode is not null)
                 {
-                    //subdomain that contains only NSEC3 record does not really exists: RFC5155 section 7.2.8
-
-                    //TO DO: check for record types before claiming that domain exists!
-
-                    return nsec3Records; //domain exists! cannot prove non-existence
+                    //subdomain that contains only NSEC3 record does not really exists: RFC5155 section 7.2.8    
+                    if ((zoneNode.ApexZone is not null) || ((zoneNode.ParentSideZone is not null) && !zoneNode.ParentSideZone.HasOnlyNSec3Records()))
+                        throw new InvalidOperationException(); //domain exists! cannot prove non-existence
                 }
 
                 if (closestSubDomain is not null)
@@ -628,7 +671,7 @@ namespace DnsServerCore.Dns.Trees
                     return nsec3Records; //zone does not have NSEC3 deployed
 
                 DnsNSEC3PARAMRecord nsec3Param = nsec3ParamRecords[0].RDATA as DnsNSEC3PARAMRecord;
-                string hashedClosestEncloser = nsec3Param.GetHashedOwnerName(closestEncloser) + "." + closestAuthority.Name;
+                string hashedClosestEncloser = nsec3Param.ComputeHashedOwnerNameBase32HexString(closestEncloser) + "." + closestAuthority.Name;
 
                 if (!TryGet(closestAuthority.Name, hashedClosestEncloser, out AuthZone authZone))
                     return nsec3Records;
@@ -640,12 +683,12 @@ namespace DnsServerCore.Dns.Trees
                 nsec3Records.AddRange(closestEncloserProofRecords);
 
                 string nextCloserName = DnsNSEC3Record.GetNextCloserName(domain, closestEncloser);
-                hashedNextCloserName = nsec3Param.GetHashedOwnerName(nextCloserName) + "." + closestAuthority.Name;
+                hashedNextCloserName = nsec3Param.ComputeHashedOwnerNameBase32HexString(nextCloserName) + "." + closestAuthority.Name;
 
                 if (!isWildcardAnswer)
                 {
                     string wildcardDomain = closestEncloser.Length > 0 ? "*." + closestEncloser : "*";
-                    hashedWildcardDomainName = nsec3Param.GetHashedOwnerName(wildcardDomain) + "." + closestAuthority.Name;
+                    hashedWildcardDomainName = nsec3Param.ComputeHashedOwnerNameBase32HexString(wildcardDomain) + "." + closestAuthority.Name;
                 }
             }
 
@@ -653,13 +696,17 @@ namespace DnsServerCore.Dns.Trees
             {
                 byte[] key = ConvertToByteKey(domain);
 
-                AuthZoneNode zoneNode = FindZone(key, out Node closestNode, out Node closestAuthorityNode, out _, out _, out _);
+                AuthZoneNode zoneNode = FindZoneNode(key, out Node closestNode, out Node closestAuthorityNode, out _, out _, out _);
                 if (zoneNode is not null)
                     return; //domain exists! cannot find proof of cover
 
                 while (true)
                 {
-                    AuthZone authZone = GetAuthZoneFromNode(closestNode, domain, type);
+                    Node previousNode = GetPreviousSubDomainZoneNode(key, closestNode, closestAuthorityNode.Depth);
+                    if (previousNode is null)
+                        break;
+
+                    AuthZone authZone = GetAuthZoneFromNode(previousNode, type);
                     if (authZone is not null)
                     {
                         IReadOnlyList<DnsResourceRecord> proofOfCoverRecords = authZone.QueryRecords(DnsResourceRecordType.NSEC3, true);
@@ -674,10 +721,6 @@ namespace DnsServerCore.Dns.Trees
                             break;
                         }
                     }
-
-                    Node previousNode = GetPreviousSubDomainZoneNode(key, closestNode, closestAuthorityNode.Depth);
-                    if (previousNode is null)
-                        break;
 
                     closestNode = previousNode;
                 }
