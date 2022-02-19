@@ -1419,7 +1419,7 @@ namespace DnsServerCore.Dns
             {
                 if (application.DnsAppRecordRequestHandlers.TryGetValue(appRecord.ClassPath, out IDnsAppRecordRequestHandler appRecordRequestHandler))
                 {
-                    AuthZoneInfo zoneInfo = _authZoneManager.GetAuthZoneInfo(appResourceRecord.Name);
+                    AuthZoneInfo zoneInfo = _authZoneManager.FindAuthZoneInfo(appResourceRecord.Name);
 
                     DnsDatagram appResponse = await appRecordRequestHandler.ProcessRequestAsync(request, remoteEP, protocol, isRecursionAllowed, zoneInfo.Name, appResourceRecord.TtlValue, appRecord.Data);
                     if (appResponse is null)
@@ -1453,7 +1453,7 @@ namespace DnsServerCore.Dns
 
             //return server failure response with SOA
             {
-                AuthZoneInfo zoneInfo = _authZoneManager.GetAuthZoneInfo(request.Question[0].Name);
+                AuthZoneInfo zoneInfo = _authZoneManager.FindAuthZoneInfo(request.Question[0].Name);
                 IReadOnlyList<DnsResourceRecord> authority = zoneInfo.GetRecords(DnsResourceRecordType.SOA);
 
                 return new DnsDatagram(request.Identifier, true, request.OPCODE, false, false, request.RecursionDesired, isRecursionAllowed, false, false, DnsResponseCode.ServerFailure, request.Question, null, authority) { Tag = DnsServerResponseType.Authoritative };
@@ -2198,7 +2198,7 @@ namespace DnsServerCore.Dns
                         break;
 
                     default:
-                        throw new DnsServerException("DNS Server received a response with RCODE=" + response.RCODE.ToString() + " from: " + response.Metadata.NameServer);
+                        throw new DnsServerException("DNS Server received a response with RCODE=" + response.RCODE.ToString() + " from: " + (response.Metadata is null ? "unknown" : response.Metadata.NameServer));
                 }
             }
             catch (Exception ex)
