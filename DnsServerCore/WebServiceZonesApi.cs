@@ -18,6 +18,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
 using DnsServerCore.Dns;
+using DnsServerCore.Dns.Dnssec;
 using DnsServerCore.Dns.ResourceRecords;
 using DnsServerCore.Dns.Zones;
 using Newtonsoft.Json;
@@ -77,9 +78,22 @@ namespace DnsServerCore
                     case AuthZoneType.Primary:
                         jsonWriter.WritePropertyName("internal");
                         jsonWriter.WriteValue(zone.Internal);
+
+                        jsonWriter.WritePropertyName("dnssecStatus");
+                        jsonWriter.WriteValue(zone.DnssecStatus.ToString());
                         break;
 
                     case AuthZoneType.Secondary:
+                        jsonWriter.WritePropertyName("dnssecStatus");
+                        jsonWriter.WriteValue(zone.DnssecStatus.ToString());
+
+                        jsonWriter.WritePropertyName("expiry");
+                        jsonWriter.WriteValue(zone.Expiry);
+
+                        jsonWriter.WritePropertyName("isExpired");
+                        jsonWriter.WriteValue(zone.IsExpired);
+                        break;
+
                     case AuthZoneType.Stub:
                         jsonWriter.WritePropertyName("expiry");
                         jsonWriter.WriteValue(zone.Expiry);
@@ -100,26 +114,29 @@ namespace DnsServerCore
 
         public async Task CreateZoneAsync(HttpListenerRequest request, JsonTextWriter jsonWriter)
         {
-            string domain = request.QueryString["domain"];
-            if (string.IsNullOrEmpty(domain))
-                throw new DnsWebServiceException("Parameter 'domain' missing.");
+            string zoneName = request.QueryString["zone"];
+            if (string.IsNullOrEmpty(zoneName))
+                zoneName = request.QueryString["domain"];
 
-            if (domain.Contains("*"))
+            if (string.IsNullOrEmpty(zoneName))
+                throw new DnsWebServiceException("Parameter 'zone' missing.");
+
+            if (zoneName.Contains("*"))
                 throw new DnsWebServiceException("Domain name for a zone cannot contain wildcard character.");
 
-            if (IPAddress.TryParse(domain, out IPAddress ipAddress))
+            if (IPAddress.TryParse(zoneName, out IPAddress ipAddress))
             {
-                domain = new DnsQuestionRecord(ipAddress, DnsClass.IN).Name.ToLower();
+                zoneName = new DnsQuestionRecord(ipAddress, DnsClass.IN).Name.ToLower();
             }
-            else if (domain.Contains("/"))
+            else if (zoneName.Contains("/"))
             {
-                string[] parts = domain.Split('/');
+                string[] parts = zoneName.Split('/');
                 if ((parts.Length == 2) && IPAddress.TryParse(parts[0], out ipAddress) && int.TryParse(parts[1], out int subnetMaskWidth))
-                    domain = Zone.GetReverseZone(ipAddress, subnetMaskWidth);
+                    zoneName = Zone.GetReverseZone(ipAddress, subnetMaskWidth);
             }
-            else if (domain.EndsWith("."))
+            else if (zoneName.EndsWith("."))
             {
-                domain = domain.Substring(0, domain.Length - 1);
+                zoneName = zoneName.Substring(0, zoneName.Length - 1);
             }
 
             AuthZoneType type = AuthZoneType.Primary;
@@ -130,11 +147,11 @@ namespace DnsServerCore
             switch (type)
             {
                 case AuthZoneType.Primary:
-                    if (_dnsWebService.DnsServer.AuthZoneManager.CreatePrimaryZone(domain, _dnsWebService.DnsServer.ServerDomain, false) is null)
-                        throw new DnsWebServiceException("Zone already exists: " + domain);
+                    if (_dnsWebService.DnsServer.AuthZoneManager.CreatePrimaryZone(zoneName, _dnsWebService.DnsServer.ServerDomain, false) is null)
+                        throw new DnsWebServiceException("Zone already exists: " + zoneName);
 
-                    _dnsWebService.Log.Write(DnsWebService.GetRequestRemoteEndPoint(request), "[" + _dnsWebService.GetSession(request).Username + "] Authoritative primary zone was created: " + domain);
-                    _dnsWebService.DnsServer.AuthZoneManager.SaveZoneFile(domain);
+                    _dnsWebService.Log.Write(DnsWebService.GetRequestRemoteEndPoint(request), "[" + _dnsWebService.GetSession(request).Username + "] Authoritative primary zone was created: " + zoneName);
+                    _dnsWebService.DnsServer.AuthZoneManager.SaveZoneFile(zoneName);
                     break;
 
                 case AuthZoneType.Secondary:
@@ -155,11 +172,11 @@ namespace DnsServerCore
                         if (string.IsNullOrEmpty(tsigKeyName))
                             tsigKeyName = null;
 
-                        if (await _dnsWebService.DnsServer.AuthZoneManager.CreateSecondaryZoneAsync(domain, primaryNameServerAddresses, zoneTransferProtocol, tsigKeyName) is null)
-                            throw new DnsWebServiceException("Zone already exists: " + domain);
+                        if (await _dnsWebService.DnsServer.AuthZoneManager.CreateSecondaryZoneAsync(zoneName, primaryNameServerAddresses, zoneTransferProtocol, tsigKeyName) is null)
+                            throw new DnsWebServiceException("Zone already exists: " + zoneName);
 
-                        _dnsWebService.Log.Write(DnsWebService.GetRequestRemoteEndPoint(request), "[" + _dnsWebService.GetSession(request).Username + "] Authoritative secondary zone was created: " + domain);
-                        _dnsWebService.DnsServer.AuthZoneManager.SaveZoneFile(domain);
+                        _dnsWebService.Log.Write(DnsWebService.GetRequestRemoteEndPoint(request), "[" + _dnsWebService.GetSession(request).Username + "] Authoritative secondary zone was created: " + zoneName);
+                        _dnsWebService.DnsServer.AuthZoneManager.SaveZoneFile(zoneName);
                     }
                     break;
 
@@ -169,11 +186,11 @@ namespace DnsServerCore
                         if (string.IsNullOrEmpty(strPrimaryNameServerAddresses))
                             strPrimaryNameServerAddresses = null;
 
-                        if (await _dnsWebService.DnsServer.AuthZoneManager.CreateStubZoneAsync(domain, strPrimaryNameServerAddresses) is null)
-                            throw new DnsWebServiceException("Zone already exists: " + domain);
+                        if (await _dnsWebService.DnsServer.AuthZoneManager.CreateStubZoneAsync(zoneName, strPrimaryNameServerAddresses) is null)
+                            throw new DnsWebServiceException("Zone already exists: " + zoneName);
 
-                        _dnsWebService.Log.Write(DnsWebService.GetRequestRemoteEndPoint(request), "[" + _dnsWebService.GetSession(request).Username + "] Stub zone was created: " + domain);
-                        _dnsWebService.DnsServer.AuthZoneManager.SaveZoneFile(domain);
+                        _dnsWebService.Log.Write(DnsWebService.GetRequestRemoteEndPoint(request), "[" + _dnsWebService.GetSession(request).Username + "] Stub zone was created: " + zoneName);
+                        _dnsWebService.DnsServer.AuthZoneManager.SaveZoneFile(zoneName);
                     }
                     break;
 
@@ -218,11 +235,11 @@ namespace DnsServerCore
                             proxyPassword = request.QueryString["proxyPassword"];
                         }
 
-                        if (_dnsWebService.DnsServer.AuthZoneManager.CreateForwarderZone(domain, forwarderProtocol, strForwarder, dnssecValidation, proxyType, proxyAddress, proxyPort, proxyUsername, proxyPassword) is null)
-                            throw new DnsWebServiceException("Zone already exists: " + domain);
+                        if (_dnsWebService.DnsServer.AuthZoneManager.CreateForwarderZone(zoneName, forwarderProtocol, strForwarder, dnssecValidation, proxyType, proxyAddress, proxyPort, proxyUsername, proxyPassword) is null)
+                            throw new DnsWebServiceException("Zone already exists: " + zoneName);
 
-                        _dnsWebService.Log.Write(DnsWebService.GetRequestRemoteEndPoint(request), "[" + _dnsWebService.GetSession(request).Username + "] Forwarder zone was created: " + domain);
-                        _dnsWebService.DnsServer.AuthZoneManager.SaveZoneFile(domain);
+                        _dnsWebService.Log.Write(DnsWebService.GetRequestRemoteEndPoint(request), "[" + _dnsWebService.GetSession(request).Username + "] Forwarder zone was created: " + zoneName);
+                        _dnsWebService.DnsServer.AuthZoneManager.SaveZoneFile(zoneName);
                     }
                     break;
 
@@ -231,46 +248,487 @@ namespace DnsServerCore
             }
 
             //delete cache for this zone to allow rebuilding cache data as needed by stub or forwarder zones
-            _dnsWebService.DnsServer.CacheZoneManager.DeleteZone(domain);
+            _dnsWebService.DnsServer.CacheZoneManager.DeleteZone(zoneName);
 
             jsonWriter.WritePropertyName("domain");
-            jsonWriter.WriteValue(string.IsNullOrEmpty(domain) ? "." : domain);
+            jsonWriter.WriteValue(string.IsNullOrEmpty(zoneName) ? "." : zoneName);
         }
 
-        public void DeleteZone(HttpListenerRequest request)
+        public void SignPrimaryZone(HttpListenerRequest request)
         {
-            string domain = request.QueryString["domain"];
-            if (string.IsNullOrEmpty(domain))
-                throw new DnsWebServiceException("Parameter 'domain' missing.");
+            string zoneName = request.QueryString["zone"];
+            if (string.IsNullOrEmpty(zoneName))
+                throw new DnsWebServiceException("Parameter 'zone' missing.");
 
-            domain = domain.TrimEnd('.');
+            zoneName = zoneName.TrimEnd('.');
 
-            AuthZoneInfo zoneInfo = _dnsWebService.DnsServer.AuthZoneManager.GetAuthZoneInfo(domain);
-            if (zoneInfo == null)
-                throw new DnsWebServiceException("No authoritative zone was not found for domain: " + domain);
+            string algorithm = request.QueryString["algorithm"];
+            if (string.IsNullOrEmpty(algorithm))
+                throw new DnsWebServiceException("Parameter 'algorithm' missing.");
+
+            uint dnsKeyTtl;
+            string strDnsKeyTtl = request.QueryString["dnsKeyTtl"];
+            if (string.IsNullOrEmpty(strDnsKeyTtl))
+                dnsKeyTtl = 24 * 60 * 60;
+            else
+                dnsKeyTtl = uint.Parse(strDnsKeyTtl);
+
+            bool useNSEC3 = false;
+            string strNxProof = request.QueryString["nxProof"];
+            if (!string.IsNullOrEmpty(strNxProof))
+            {
+                switch (strNxProof.ToUpper())
+                {
+                    case "NSEC":
+                        useNSEC3 = false;
+                        break;
+
+                    case "NSEC3":
+                        useNSEC3 = true;
+                        break;
+
+                    default:
+                        throw new NotSupportedException("Non-existence proof type is not supported: " + strNxProof);
+                }
+            }
+
+            ushort iterations = 0;
+            byte saltLength = 0;
+
+            if (useNSEC3)
+            {
+                string strIterations = request.QueryString["iterations"];
+                if (!string.IsNullOrEmpty(strIterations))
+                    iterations = ushort.Parse(strIterations);
+
+                string strSaltLength = request.QueryString["saltLength"];
+                if (!string.IsNullOrEmpty(strSaltLength))
+                    saltLength = byte.Parse(strSaltLength);
+            }
+
+            switch (algorithm.ToUpper())
+            {
+                case "RSA":
+                    string hashAlgorithm = request.QueryString["hashAlgorithm"];
+                    if (string.IsNullOrEmpty(hashAlgorithm))
+                        throw new DnsWebServiceException("Parameter 'hashAlgorithm' missing.");
+
+                    string strKSKKeySize = request.QueryString["kskKeySize"];
+                    if (string.IsNullOrEmpty(strKSKKeySize))
+                        throw new DnsWebServiceException("Parameter 'kskKeySize' missing.");
+
+                    string strZSKKeySize = request.QueryString["zskKeySize"];
+                    if (string.IsNullOrEmpty(strZSKKeySize))
+                        throw new DnsWebServiceException("Parameter 'zskKeySize' missing.");
+
+                    int kskKeySize = int.Parse(strKSKKeySize);
+                    int zskKeySize = int.Parse(strZSKKeySize);
+
+                    if (useNSEC3)
+                        _dnsWebService.DnsServer.AuthZoneManager.SignPrimaryZoneWithRsaNSEC3(zoneName, hashAlgorithm, kskKeySize, zskKeySize, iterations, saltLength, dnsKeyTtl);
+                    else
+                        _dnsWebService.DnsServer.AuthZoneManager.SignPrimaryZoneWithRsaNSEC(zoneName, hashAlgorithm, kskKeySize, zskKeySize, dnsKeyTtl);
+
+                    break;
+
+                case "ECDSA":
+                    string curve = request.QueryString["curve"];
+                    if (string.IsNullOrEmpty(curve))
+                        throw new DnsWebServiceException("Parameter 'curve' missing.");
+
+                    if (useNSEC3)
+                        _dnsWebService.DnsServer.AuthZoneManager.SignPrimaryZoneWithEcdsaNSEC3(zoneName, curve, iterations, saltLength, dnsKeyTtl);
+                    else
+                        _dnsWebService.DnsServer.AuthZoneManager.SignPrimaryZoneWithEcdsaNSEC(zoneName, curve, dnsKeyTtl);
+
+                    break;
+
+                default:
+                    throw new NotSupportedException("Algorithm is not supported: " + algorithm);
+            }
+
+            _dnsWebService.Log.Write(DnsWebService.GetRequestRemoteEndPoint(request), "[" + _dnsWebService.GetSession(request).Username + "] Primary zone was signed successfully: " + zoneName);
+
+            _dnsWebService.DnsServer.AuthZoneManager.SaveZoneFile(zoneName);
+        }
+
+        public void UnsignPrimaryZone(HttpListenerRequest request)
+        {
+            string zoneName = request.QueryString["zone"];
+            if (string.IsNullOrEmpty(zoneName))
+                throw new DnsWebServiceException("Parameter 'zone' missing.");
+
+            zoneName = zoneName.TrimEnd('.');
+
+            _dnsWebService.DnsServer.AuthZoneManager.UnsignPrimaryZone(zoneName);
+
+            _dnsWebService.Log.Write(DnsWebService.GetRequestRemoteEndPoint(request), "[" + _dnsWebService.GetSession(request).Username + "] Primary zone was unsigned successfully: " + zoneName);
+
+            _dnsWebService.DnsServer.AuthZoneManager.SaveZoneFile(zoneName);
+        }
+
+        public void GetPrimaryZoneDnssecProperties(HttpListenerRequest request, JsonTextWriter jsonWriter)
+        {
+            string zoneName = request.QueryString["zone"];
+            if (string.IsNullOrEmpty(zoneName))
+                throw new DnsWebServiceException("Parameter 'zone' missing.");
+
+            zoneName = zoneName.TrimEnd('.');
+
+            AuthZoneInfo zoneInfo = _dnsWebService.DnsServer.AuthZoneManager.GetAuthZoneInfo(zoneName);
+            if (zoneInfo is null)
+                throw new DnsWebServiceException("No such zone was found: " + zoneName);
 
             if (zoneInfo.Internal)
                 throw new DnsWebServiceException("Access was denied to manage internal DNS Server zone.");
 
-            if (!_dnsWebService.DnsServer.AuthZoneManager.DeleteZone(domain))
-                throw new DnsWebServiceException("No authoritative zone was not found for domain: " + domain);
+            if (zoneInfo.Type != AuthZoneType.Primary)
+                throw new DnsWebServiceException("The zone must be a primary zone.");
 
-            _dnsWebService.Log.Write(DnsWebService.GetRequestRemoteEndPoint(request), "[" + _dnsWebService.GetSession(request).Username + "] " + zoneInfo.Type.ToString() + " zone was deleted: " + domain);
+            jsonWriter.WritePropertyName("name");
+            jsonWriter.WriteValue(zoneInfo.Name);
+
+            jsonWriter.WritePropertyName("type");
+            jsonWriter.WriteValue(zoneInfo.Type.ToString());
+
+            jsonWriter.WritePropertyName("internal");
+            jsonWriter.WriteValue(zoneInfo.Internal);
+
+            jsonWriter.WritePropertyName("disabled");
+            jsonWriter.WriteValue(zoneInfo.Disabled);
+
+            jsonWriter.WritePropertyName("dnssecStatus");
+            jsonWriter.WriteValue(zoneInfo.DnssecStatus.ToString());
+
+            if (zoneInfo.DnssecStatus == AuthZoneDnssecStatus.SignedWithNSEC3)
+            {
+                IReadOnlyList<DnsResourceRecord> nsec3ParamRecords = zoneInfo.GetRecords(DnsResourceRecordType.NSEC3PARAM);
+                DnsNSEC3PARAMRecord nsec3Param = nsec3ParamRecords[0].RDATA as DnsNSEC3PARAMRecord;
+
+                jsonWriter.WritePropertyName("nsec3Iterations");
+                jsonWriter.WriteValue(nsec3Param.Iterations);
+
+                jsonWriter.WritePropertyName("nsec3SaltLength");
+                jsonWriter.WriteValue(nsec3Param.SaltValue.Length);
+            }
+
+            jsonWriter.WritePropertyName("dnsKeyTtl");
+            jsonWriter.WriteValue(zoneInfo.DnsKeyTtl);
+
+            jsonWriter.WritePropertyName("dnssecPrivateKeys");
+            jsonWriter.WriteStartArray();
+
+            IReadOnlyCollection<DnssecPrivateKey> dnssecPrivateKeys = zoneInfo.DnssecPrivateKeys;
+            if (dnssecPrivateKeys is not null)
+            {
+                List<DnssecPrivateKey> sortedDnssecPrivateKey = new List<DnssecPrivateKey>(dnssecPrivateKeys);
+
+                sortedDnssecPrivateKey.Sort(delegate (DnssecPrivateKey key1, DnssecPrivateKey key2)
+                {
+                    int value = key1.KeyType.CompareTo(key2.KeyType);
+                    if (value == 0)
+                        value = key1.StateChangedOn.CompareTo(key2.StateChangedOn);
+
+                    return value;
+                });
+
+                foreach (DnssecPrivateKey dnssecPrivateKey in sortedDnssecPrivateKey)
+                {
+                    jsonWriter.WriteStartObject();
+
+                    jsonWriter.WritePropertyName("keyTag");
+                    jsonWriter.WriteValue(dnssecPrivateKey.KeyTag);
+
+                    jsonWriter.WritePropertyName("keyType");
+                    jsonWriter.WriteValue(dnssecPrivateKey.KeyType.ToString());
+
+                    jsonWriter.WritePropertyName("algorithm");
+                    switch (dnssecPrivateKey.Algorithm)
+                    {
+                        case DnssecAlgorithm.RSAMD5:
+                        case DnssecAlgorithm.RSASHA1:
+                        case DnssecAlgorithm.RSASHA1_NSEC3_SHA1:
+                        case DnssecAlgorithm.RSASHA256:
+                        case DnssecAlgorithm.RSASHA512:
+                            jsonWriter.WriteValue(dnssecPrivateKey.Algorithm.ToString() + " (" + (dnssecPrivateKey as DnssecRsaPrivateKey).KeySize + " bits)");
+                            break;
+
+                        default:
+                            jsonWriter.WriteValue(dnssecPrivateKey.Algorithm.ToString());
+                            break;
+                    }
+
+                    jsonWriter.WritePropertyName("state");
+                    jsonWriter.WriteValue(dnssecPrivateKey.State.ToString());
+
+                    jsonWriter.WritePropertyName("stateChangedOn");
+                    jsonWriter.WriteValue(dnssecPrivateKey.StateChangedOn);
+
+                    jsonWriter.WritePropertyName("isRetiring");
+                    jsonWriter.WriteValue(dnssecPrivateKey.IsRetiring);
+
+                    jsonWriter.WriteEndObject();
+                }
+            }
+
+            jsonWriter.WriteEndArray();
+        }
+
+        public void ConvertPrimaryZoneToNSEC(HttpListenerRequest request)
+        {
+            string zoneName = request.QueryString["zone"];
+            if (string.IsNullOrEmpty(zoneName))
+                throw new DnsWebServiceException("Parameter 'zone' missing.");
+
+            zoneName = zoneName.TrimEnd('.');
+
+            _dnsWebService.DnsServer.AuthZoneManager.ConvertPrimaryZoneToNSEC(zoneName);
+
+            _dnsWebService.Log.Write(DnsWebService.GetRequestRemoteEndPoint(request), "[" + _dnsWebService.GetSession(request).Username + "] Primary zone was converted to NSEC successfully: " + zoneName);
+
+            _dnsWebService.DnsServer.AuthZoneManager.SaveZoneFile(zoneName);
+        }
+
+        public void ConvertPrimaryZoneToNSEC3(HttpListenerRequest request)
+        {
+            string zoneName = request.QueryString["zone"];
+            if (string.IsNullOrEmpty(zoneName))
+                throw new DnsWebServiceException("Parameter 'zone' missing.");
+
+            zoneName = zoneName.TrimEnd('.');
+
+            ushort iterations = 0;
+            string strIterations = request.QueryString["iterations"];
+            if (!string.IsNullOrEmpty(strIterations))
+                iterations = ushort.Parse(strIterations);
+
+            byte saltLength = 0;
+            string strSaltLength = request.QueryString["saltLength"];
+            if (!string.IsNullOrEmpty(strSaltLength))
+                saltLength = byte.Parse(strSaltLength);
+
+            _dnsWebService.DnsServer.AuthZoneManager.ConvertPrimaryZoneToNSEC3(zoneName, iterations, saltLength);
+
+            _dnsWebService.Log.Write(DnsWebService.GetRequestRemoteEndPoint(request), "[" + _dnsWebService.GetSession(request).Username + "] Primary zone was converted to NSEC3 successfully: " + zoneName);
+
+            _dnsWebService.DnsServer.AuthZoneManager.SaveZoneFile(zoneName);
+        }
+
+        public void UpdatePrimaryZoneNSEC3Parameters(HttpListenerRequest request)
+        {
+            string zoneName = request.QueryString["zone"];
+            if (string.IsNullOrEmpty(zoneName))
+                throw new DnsWebServiceException("Parameter 'zone' missing.");
+
+            zoneName = zoneName.TrimEnd('.');
+
+            ushort iterations = 0;
+            string strIterations = request.QueryString["iterations"];
+            if (!string.IsNullOrEmpty(strIterations))
+                iterations = ushort.Parse(strIterations);
+
+            byte saltLength = 0;
+            string strSaltLength = request.QueryString["saltLength"];
+            if (!string.IsNullOrEmpty(strSaltLength))
+                saltLength = byte.Parse(strSaltLength);
+
+            _dnsWebService.DnsServer.AuthZoneManager.UpdatePrimaryZoneNSEC3Parameters(zoneName, iterations, saltLength);
+
+            _dnsWebService.Log.Write(DnsWebService.GetRequestRemoteEndPoint(request), "[" + _dnsWebService.GetSession(request).Username + "] Primary zone NSEC3 parameters were updated successfully: " + zoneName);
+
+            _dnsWebService.DnsServer.AuthZoneManager.SaveZoneFile(zoneName);
+        }
+
+        public void UpdatePrimaryZoneDnssecDnsKeyTtl(HttpListenerRequest request)
+        {
+            string zoneName = request.QueryString["zone"];
+            if (string.IsNullOrEmpty(zoneName))
+                throw new DnsWebServiceException("Parameter 'zone' missing.");
+
+            zoneName = zoneName.TrimEnd('.');
+
+            string strDnsKeyTtl = request.QueryString["ttl"];
+            if (string.IsNullOrEmpty(strDnsKeyTtl))
+                throw new DnsWebServiceException("Parameter 'ttl' missing.");
+
+            uint dnsKeyTtl = uint.Parse(strDnsKeyTtl);
+
+            _dnsWebService.DnsServer.AuthZoneManager.UpdatePrimaryZoneDnsKeyTtl(zoneName, dnsKeyTtl);
+
+            _dnsWebService.Log.Write(DnsWebService.GetRequestRemoteEndPoint(request), "[" + _dnsWebService.GetSession(request).Username + "] Primary zone DNSKEY TTL was updated successfully: " + zoneName);
+
+            _dnsWebService.DnsServer.AuthZoneManager.SaveZoneFile(zoneName);
+        }
+
+        public void GenerateAndAddPrimaryZoneDnssecPrivateKey(HttpListenerRequest request)
+        {
+            string zoneName = request.QueryString["zone"];
+            if (string.IsNullOrEmpty(zoneName))
+                throw new DnsWebServiceException("Parameter 'zone' missing.");
+
+            zoneName = zoneName.TrimEnd('.');
+
+            string strKeyType = request.QueryString["keyType"];
+            if (string.IsNullOrEmpty(strKeyType))
+                throw new DnsWebServiceException("Parameter 'keyType' missing.");
+
+            DnssecPrivateKeyType keyType = Enum.Parse<DnssecPrivateKeyType>(strKeyType, true);
+
+            string algorithm = request.QueryString["algorithm"];
+            if (string.IsNullOrEmpty(algorithm))
+                throw new DnsWebServiceException("Parameter 'algorithm' missing.");
+
+            switch (algorithm.ToUpper())
+            {
+                case "RSA":
+                    string hashAlgorithm = request.QueryString["hashAlgorithm"];
+                    if (string.IsNullOrEmpty(hashAlgorithm))
+                        throw new DnsWebServiceException("Parameter 'hashAlgorithm' missing.");
+
+                    string strKeySize = request.QueryString["keySize"];
+                    if (string.IsNullOrEmpty(strKeySize))
+                        throw new DnsWebServiceException("Parameter 'keySize' missing.");
+
+                    int keySize = int.Parse(strKeySize);
+
+                    _dnsWebService.DnsServer.AuthZoneManager.GenerateAndAddPrimaryZoneDnssecRsaPrivateKey(zoneName, keyType, hashAlgorithm, keySize);
+                    break;
+
+                case "ECDSA":
+                    string curve = request.QueryString["curve"];
+                    if (string.IsNullOrEmpty(curve))
+                        throw new DnsWebServiceException("Parameter 'curve' missing.");
+
+                    _dnsWebService.DnsServer.AuthZoneManager.GenerateAndAddPrimaryZoneDnssecEcdsaPrivateKey(zoneName, keyType, curve);
+                    break;
+
+                default:
+                    throw new NotSupportedException("Algorithm is not supported: " + algorithm);
+            }
+
+            _dnsWebService.Log.Write(DnsWebService.GetRequestRemoteEndPoint(request), "[" + _dnsWebService.GetSession(request).Username + "] DNSSEC private key was generated and added to the primary zone successfully: " + zoneName);
+
+            _dnsWebService.DnsServer.AuthZoneManager.SaveZoneFile(zoneName);
+        }
+
+        public void DeletePrimaryZoneDnssecPrivateKey(HttpListenerRequest request)
+        {
+            string zoneName = request.QueryString["zone"];
+            if (string.IsNullOrEmpty(zoneName))
+                throw new DnsWebServiceException("Parameter 'zone' missing.");
+
+            zoneName = zoneName.TrimEnd('.');
+
+            string strKeyTag = request.QueryString["keyTag"];
+            if (string.IsNullOrEmpty(strKeyTag))
+                throw new DnsWebServiceException("Parameter 'keyTag' missing.");
+
+            ushort keyTag = ushort.Parse(strKeyTag);
+
+            _dnsWebService.DnsServer.AuthZoneManager.DeletePrimaryZoneDnssecPrivateKey(zoneName, keyTag);
+
+            _dnsWebService.Log.Write(DnsWebService.GetRequestRemoteEndPoint(request), "[" + _dnsWebService.GetSession(request).Username + "] DNSSEC private key was deleted from primary zone successfully: " + zoneName);
+
+            _dnsWebService.DnsServer.AuthZoneManager.SaveZoneFile(zoneName);
+        }
+
+        public void PublishAllGeneratedPrimaryZoneDnssecPrivateKeys(HttpListenerRequest request)
+        {
+            string zoneName = request.QueryString["zone"];
+            if (string.IsNullOrEmpty(zoneName))
+                throw new DnsWebServiceException("Parameter 'zone' missing.");
+
+            zoneName = zoneName.TrimEnd('.');
+
+            _dnsWebService.DnsServer.AuthZoneManager.PublishAllGeneratedPrimaryZoneDnssecPrivateKeys(zoneName);
+
+            _dnsWebService.Log.Write(DnsWebService.GetRequestRemoteEndPoint(request), "[" + _dnsWebService.GetSession(request).Username + "] All DNSSEC private keys from the primary zone were published successfully: " + zoneName);
+
+            _dnsWebService.DnsServer.AuthZoneManager.SaveZoneFile(zoneName);
+        }
+
+        public void RolloverPrimaryZoneDnsKey(HttpListenerRequest request)
+        {
+            string zoneName = request.QueryString["zone"];
+            if (string.IsNullOrEmpty(zoneName))
+                throw new DnsWebServiceException("Parameter 'zone' missing.");
+
+            zoneName = zoneName.TrimEnd('.');
+
+            string strKeyTag = request.QueryString["keyTag"];
+            if (string.IsNullOrEmpty(strKeyTag))
+                throw new DnsWebServiceException("Parameter 'keyTag' missing.");
+
+            ushort keyTag = ushort.Parse(strKeyTag);
+
+            _dnsWebService.DnsServer.AuthZoneManager.RolloverPrimaryZoneDnsKey(zoneName, keyTag);
+
+            _dnsWebService.Log.Write(DnsWebService.GetRequestRemoteEndPoint(request), "[" + _dnsWebService.GetSession(request).Username + "] The DNSKEY (" + keyTag + ") from the primary zone was rolled over successfully: " + zoneName);
+
+            _dnsWebService.DnsServer.AuthZoneManager.SaveZoneFile(zoneName);
+        }
+
+        public void RetirePrimaryZoneDnsKey(HttpListenerRequest request)
+        {
+            string zoneName = request.QueryString["zone"];
+            if (string.IsNullOrEmpty(zoneName))
+                throw new DnsWebServiceException("Parameter 'zone' missing.");
+
+            zoneName = zoneName.TrimEnd('.');
+
+            string strKeyTag = request.QueryString["keyTag"];
+            if (string.IsNullOrEmpty(strKeyTag))
+                throw new DnsWebServiceException("Parameter 'keyTag' missing.");
+
+            ushort keyTag = ushort.Parse(strKeyTag);
+
+            _dnsWebService.DnsServer.AuthZoneManager.RetirePrimaryZoneDnsKey(zoneName, keyTag);
+
+            _dnsWebService.Log.Write(DnsWebService.GetRequestRemoteEndPoint(request), "[" + _dnsWebService.GetSession(request).Username + "] The DNSKEY (" + keyTag + ") from the primary zone was retired successfully: " + zoneName);
+
+            _dnsWebService.DnsServer.AuthZoneManager.SaveZoneFile(zoneName);
+        }
+
+        public void DeleteZone(HttpListenerRequest request)
+        {
+            string zoneName = request.QueryString["zone"];
+            if (string.IsNullOrEmpty(zoneName))
+                zoneName = request.QueryString["domain"];
+
+            if (string.IsNullOrEmpty(zoneName))
+                throw new DnsWebServiceException("Parameter 'zone' missing.");
+
+            zoneName = zoneName.TrimEnd('.');
+
+            AuthZoneInfo zoneInfo = _dnsWebService.DnsServer.AuthZoneManager.GetAuthZoneInfo(zoneName);
+            if (zoneInfo is null)
+                throw new DnsWebServiceException("No such zone was found: " + zoneName);
+
+            if (zoneInfo.Internal)
+                throw new DnsWebServiceException("Access was denied to manage internal DNS Server zone.");
+
+            if (!_dnsWebService.DnsServer.AuthZoneManager.DeleteZone(zoneName))
+                throw new DnsWebServiceException("No authoritative zone was not found for domain: " + zoneName);
+
+            _dnsWebService.Log.Write(DnsWebService.GetRequestRemoteEndPoint(request), "[" + _dnsWebService.GetSession(request).Username + "] " + zoneInfo.Type.ToString() + " zone was deleted: " + zoneName);
 
             _dnsWebService.DnsServer.AuthZoneManager.DeleteZoneFile(zoneInfo.Name);
         }
 
         public void EnableZone(HttpListenerRequest request)
         {
-            string domain = request.QueryString["domain"];
-            if (string.IsNullOrEmpty(domain))
-                throw new DnsWebServiceException("Parameter 'domain' missing.");
+            string zoneName = request.QueryString["zone"];
+            if (string.IsNullOrEmpty(zoneName))
+                zoneName = request.QueryString["domain"];
 
-            domain = domain.TrimEnd('.');
+            if (string.IsNullOrEmpty(zoneName))
+                throw new DnsWebServiceException("Parameter 'zone' missing.");
 
-            AuthZoneInfo zoneInfo = _dnsWebService.DnsServer.AuthZoneManager.GetAuthZoneInfo(domain);
+            zoneName = zoneName.TrimEnd('.');
+
+            AuthZoneInfo zoneInfo = _dnsWebService.DnsServer.AuthZoneManager.GetAuthZoneInfo(zoneName);
             if (zoneInfo == null)
-                throw new DnsWebServiceException("No authoritative zone was not found for domain: " + domain);
+                throw new DnsWebServiceException("No authoritative zone was not found for domain: " + zoneName);
 
             if (zoneInfo.Internal)
                 throw new DnsWebServiceException("Access was denied to manage internal DNS Server zone.");
@@ -287,15 +745,18 @@ namespace DnsServerCore
 
         public void DisableZone(HttpListenerRequest request)
         {
-            string domain = request.QueryString["domain"];
-            if (string.IsNullOrEmpty(domain))
-                throw new DnsWebServiceException("Parameter 'domain' missing.");
+            string zoneName = request.QueryString["zone"];
+            if (string.IsNullOrEmpty(zoneName))
+                zoneName = request.QueryString["domain"];
 
-            domain = domain.TrimEnd('.');
+            if (string.IsNullOrEmpty(zoneName))
+                throw new DnsWebServiceException("Parameter 'zone' missing.");
 
-            AuthZoneInfo zoneInfo = _dnsWebService.DnsServer.AuthZoneManager.GetAuthZoneInfo(domain);
+            zoneName = zoneName.TrimEnd('.');
+
+            AuthZoneInfo zoneInfo = _dnsWebService.DnsServer.AuthZoneManager.GetAuthZoneInfo(zoneName);
             if (zoneInfo == null)
-                throw new DnsWebServiceException("No authoritative zone was not found for domain: " + domain);
+                throw new DnsWebServiceException("No authoritative zone was not found for domain: " + zoneName);
 
             if (zoneInfo.Internal)
                 throw new DnsWebServiceException("Access was denied to manage internal DNS Server zone.");
@@ -309,15 +770,18 @@ namespace DnsServerCore
 
         public void GetZoneOptions(HttpListenerRequest request, JsonTextWriter jsonWriter)
         {
-            string domain = request.QueryString["domain"];
-            if (string.IsNullOrEmpty(domain))
-                throw new DnsWebServiceException("Parameter 'domain' missing.");
+            string zoneName = request.QueryString["zone"];
+            if (string.IsNullOrEmpty(zoneName))
+                zoneName = request.QueryString["domain"];
 
-            domain = domain.TrimEnd('.');
+            if (string.IsNullOrEmpty(zoneName))
+                throw new DnsWebServiceException("Parameter 'zone' missing.");
 
-            AuthZoneInfo zoneInfo = _dnsWebService.DnsServer.AuthZoneManager.GetAuthZoneInfo(domain);
-            if (zoneInfo == null)
-                throw new DnsWebServiceException("No authoritative zone was not found for domain: " + domain);
+            zoneName = zoneName.TrimEnd('.');
+
+            AuthZoneInfo zoneInfo = _dnsWebService.DnsServer.AuthZoneManager.GetAuthZoneInfo(zoneName);
+            if (zoneInfo is null)
+                throw new DnsWebServiceException("No such zone was found: " + zoneName);
 
             if (zoneInfo.Internal)
                 throw new DnsWebServiceException("Access was denied to manage internal DNS Server zone.");
@@ -333,6 +797,14 @@ namespace DnsServerCore
                 case AuthZoneType.Primary:
                     jsonWriter.WritePropertyName("internal");
                     jsonWriter.WriteValue(zoneInfo.Internal);
+
+                    jsonWriter.WritePropertyName("dnssecStatus");
+                    jsonWriter.WriteValue(zoneInfo.DnssecStatus.ToString());
+                    break;
+
+                case AuthZoneType.Secondary:
+                    jsonWriter.WritePropertyName("dnssecStatus");
+                    jsonWriter.WriteValue(zoneInfo.DnssecStatus.ToString());
                     break;
             }
 
@@ -400,15 +872,18 @@ namespace DnsServerCore
 
         public void SetZoneOptions(HttpListenerRequest request)
         {
-            string domain = request.QueryString["domain"];
-            if (string.IsNullOrEmpty(domain))
-                throw new DnsWebServiceException("Parameter 'domain' missing.");
+            string zoneName = request.QueryString["zone"];
+            if (string.IsNullOrEmpty(zoneName))
+                zoneName = request.QueryString["domain"];
 
-            domain = domain.TrimEnd('.');
+            if (string.IsNullOrEmpty(zoneName))
+                throw new DnsWebServiceException("Parameter 'zone' missing.");
 
-            AuthZoneInfo zoneInfo = _dnsWebService.DnsServer.AuthZoneManager.GetAuthZoneInfo(domain);
+            zoneName = zoneName.TrimEnd('.');
+
+            AuthZoneInfo zoneInfo = _dnsWebService.DnsServer.AuthZoneManager.GetAuthZoneInfo(zoneName);
             if (zoneInfo == null)
-                throw new DnsWebServiceException("No authoritative zone was not found for domain: " + domain);
+                throw new DnsWebServiceException("No authoritative zone was not found for domain: " + zoneName);
 
             if (zoneInfo.Internal)
                 throw new DnsWebServiceException("Access was denied to manage internal DNS Server zone.");
@@ -523,7 +998,7 @@ namespace DnsServerCore
             domain = domain.TrimEnd('.');
 
             string zoneName = request.QueryString["zone"];
-            AuthZoneInfo zoneInfo = _dnsWebService.DnsServer.AuthZoneManager.GetAuthZoneInfo(string.IsNullOrEmpty(zoneName) ? domain : zoneName);
+            AuthZoneInfo zoneInfo = _dnsWebService.DnsServer.AuthZoneManager.FindAuthZoneInfo(string.IsNullOrEmpty(zoneName) ? domain : zoneName);
             if (zoneInfo == null)
                 throw new DnsWebServiceException("No authoritative zone was not found for domain: " + domain);
 
@@ -573,7 +1048,7 @@ namespace DnsServerCore
                         {
                             string ptrDomain = Zone.GetReverseZone(ipAddress, type == DnsResourceRecordType.A ? 32 : 128);
 
-                            AuthZoneInfo reverseZoneInfo = _dnsWebService.DnsServer.AuthZoneManager.GetAuthZoneInfo(ptrDomain);
+                            AuthZoneInfo reverseZoneInfo = _dnsWebService.DnsServer.AuthZoneManager.FindAuthZoneInfo(ptrDomain);
                             if (reverseZoneInfo == null)
                             {
                                 bool createPtrZone = false;
@@ -879,7 +1354,7 @@ namespace DnsServerCore
 
             domain = domain.TrimEnd('.');
 
-            AuthZoneInfo zoneInfo = _dnsWebService.DnsServer.AuthZoneManager.GetAuthZoneInfo(domain);
+            AuthZoneInfo zoneInfo = _dnsWebService.DnsServer.AuthZoneManager.FindAuthZoneInfo(domain);
             if (zoneInfo == null)
                 throw new DnsWebServiceException("No authoritative zone was not found for domain: " + domain);
 
@@ -897,9 +1372,22 @@ namespace DnsServerCore
                 case AuthZoneType.Primary:
                     jsonWriter.WritePropertyName("internal");
                     jsonWriter.WriteValue(zoneInfo.Internal);
+
+                    jsonWriter.WritePropertyName("dnssecStatus");
+                    jsonWriter.WriteValue(zoneInfo.DnssecStatus.ToString());
                     break;
 
                 case AuthZoneType.Secondary:
+                    jsonWriter.WritePropertyName("dnssecStatus");
+                    jsonWriter.WriteValue(zoneInfo.DnssecStatus.ToString());
+
+                    jsonWriter.WritePropertyName("expiry");
+                    jsonWriter.WriteValue(zoneInfo.Expiry);
+
+                    jsonWriter.WritePropertyName("isExpired");
+                    jsonWriter.WriteValue(zoneInfo.IsExpired);
+                    break;
+
                 case AuthZoneType.Stub:
                     jsonWriter.WritePropertyName("expiry");
                     jsonWriter.WriteValue(zoneInfo.Expiry);
@@ -1277,7 +1765,7 @@ namespace DnsServerCore
                                         jsonWriter.WriteValue(rdata.KeyTag);
 
                                         jsonWriter.WritePropertyName("signersName");
-                                        jsonWriter.WriteValue(rdata.SignersName);
+                                        jsonWriter.WriteValue(rdata.SignersName.Length == 0 ? "." : rdata.SignersName);
 
                                         jsonWriter.WritePropertyName("signature");
                                         jsonWriter.WriteValue(Convert.ToBase64String(rdata.Signature));
@@ -1337,6 +1825,50 @@ namespace DnsServerCore
 
                                         jsonWriter.WritePropertyName("computedKeyTag");
                                         jsonWriter.WriteValue(rdata.ComputedKeyTag);
+
+                                        if (rdata.Flags.HasFlag(DnsDnsKeyFlag.SecureEntryPoint))
+                                        {
+                                            jsonWriter.WritePropertyName("digests");
+                                            jsonWriter.WriteStartArray();
+
+                                            {
+                                                jsonWriter.WriteStartObject();
+
+                                                jsonWriter.WritePropertyName("digestType");
+                                                jsonWriter.WriteValue("SHA1");
+
+                                                jsonWriter.WritePropertyName("digest");
+                                                jsonWriter.WriteValue(rdata.CreateDS(record.Name, DnssecDigestType.SHA1).Digest);
+
+                                                jsonWriter.WriteEndObject();
+                                            }
+
+                                            {
+                                                jsonWriter.WriteStartObject();
+
+                                                jsonWriter.WritePropertyName("digestType");
+                                                jsonWriter.WriteValue("SHA256");
+
+                                                jsonWriter.WritePropertyName("digest");
+                                                jsonWriter.WriteValue(rdata.CreateDS(record.Name, DnssecDigestType.SHA256).Digest);
+
+                                                jsonWriter.WriteEndObject();
+                                            }
+
+                                            {
+                                                jsonWriter.WriteStartObject();
+
+                                                jsonWriter.WritePropertyName("digestType");
+                                                jsonWriter.WriteValue("SHA384");
+
+                                                jsonWriter.WritePropertyName("digest");
+                                                jsonWriter.WriteValue(rdata.CreateDS(record.Name, DnssecDigestType.SHA384).Digest);
+
+                                                jsonWriter.WriteEndObject();
+                                            }
+
+                                            jsonWriter.WriteEndArray();
+                                        }
                                     }
                                     else
                                     {
@@ -1593,7 +2125,7 @@ namespace DnsServerCore
             domain = domain.TrimEnd('.');
 
             string zoneName = request.QueryString["zone"];
-            AuthZoneInfo zoneInfo = _dnsWebService.DnsServer.AuthZoneManager.GetAuthZoneInfo(string.IsNullOrEmpty(zoneName) ? domain : zoneName);
+            AuthZoneInfo zoneInfo = _dnsWebService.DnsServer.AuthZoneManager.FindAuthZoneInfo(string.IsNullOrEmpty(zoneName) ? domain : zoneName);
             if (zoneInfo == null)
                 throw new DnsWebServiceException("No authoritative zone was not found for domain: " + domain);
 
@@ -1626,7 +2158,7 @@ namespace DnsServerCore
                             _dnsWebService.DnsServer.AuthZoneManager.DeleteRecord(zoneName, domain, type, new DnsAAAARecord(address));
 
                         string ptrDomain = Zone.GetReverseZone(address, type == DnsResourceRecordType.A ? 32 : 128);
-                        AuthZoneInfo reverseZoneInfo = _dnsWebService.DnsServer.AuthZoneManager.GetAuthZoneInfo(ptrDomain);
+                        AuthZoneInfo reverseZoneInfo = _dnsWebService.DnsServer.AuthZoneManager.FindAuthZoneInfo(ptrDomain);
                         if ((reverseZoneInfo != null) && !reverseZoneInfo.Internal && (reverseZoneInfo.Type == AuthZoneType.Primary))
                         {
                             IReadOnlyList<DnsResourceRecord> ptrRecords = _dnsWebService.DnsServer.AuthZoneManager.GetRecords(reverseZoneInfo.Name, ptrDomain, DnsResourceRecordType.PTR);
@@ -1728,7 +2260,7 @@ namespace DnsServerCore
             domain = domain.TrimEnd('.');
 
             string zoneName = request.QueryString["zone"];
-            AuthZoneInfo zoneInfo = _dnsWebService.DnsServer.AuthZoneManager.GetAuthZoneInfo(string.IsNullOrEmpty(zoneName) ? domain : zoneName);
+            AuthZoneInfo zoneInfo = _dnsWebService.DnsServer.AuthZoneManager.FindAuthZoneInfo(string.IsNullOrEmpty(zoneName) ? domain : zoneName);
             if (zoneInfo == null)
                 throw new DnsWebServiceException("No authoritative zone was not found for domain: " + domain);
 
@@ -1781,7 +2313,7 @@ namespace DnsServerCore
                         {
                             string ptrDomain = Zone.GetReverseZone(newIpAddress, type == DnsResourceRecordType.A ? 32 : 128);
 
-                            AuthZoneInfo reverseZoneInfo = _dnsWebService.DnsServer.AuthZoneManager.GetAuthZoneInfo(ptrDomain);
+                            AuthZoneInfo reverseZoneInfo = _dnsWebService.DnsServer.AuthZoneManager.FindAuthZoneInfo(ptrDomain);
                             if (reverseZoneInfo == null)
                             {
                                 bool createPtrZone = false;
@@ -1808,7 +2340,7 @@ namespace DnsServerCore
 
                             string oldPtrDomain = Zone.GetReverseZone(oldIpAddress, type == DnsResourceRecordType.A ? 32 : 128);
 
-                            AuthZoneInfo oldReverseZoneInfo = _dnsWebService.DnsServer.AuthZoneManager.GetAuthZoneInfo(oldPtrDomain);
+                            AuthZoneInfo oldReverseZoneInfo = _dnsWebService.DnsServer.AuthZoneManager.FindAuthZoneInfo(oldPtrDomain);
                             if ((oldReverseZoneInfo != null) && !oldReverseZoneInfo.Internal && (oldReverseZoneInfo.Type == AuthZoneType.Primary))
                             {
                                 //delete old PTR record if any and save old reverse zone
