@@ -1,6 +1,6 @@
 ﻿/*
 Technitium DNS Server
-Copyright (C) 2021  Shreyas Zare (shreyas@technitium.com)
+Copyright (C) 2022  Shreyas Zare (shreyas@technitium.com)
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -58,7 +58,7 @@ namespace DnsServerCore.Dns
 
         readonly Timer _maintenanceTimer;
         const int MAINTENANCE_TIMER_INITIAL_INTERVAL = 10000;
-        const int MAINTENANCE_TIMER_INTERVAL = 10000;
+        const int MAINTENANCE_TIMER_PERIODIC_INTERVAL = 10000;
 
         readonly BlockingCollection<StatsQueueItem> _queue = new BlockingCollection<StatsQueueItem>();
         readonly Thread _consumerThread;
@@ -99,7 +99,7 @@ namespace DnsServerCore.Dns
                     if (log != null)
                         log.Write(ex);
                 }
-            }, null, MAINTENANCE_TIMER_INITIAL_INTERVAL, MAINTENANCE_TIMER_INTERVAL);
+            }, null, MAINTENANCE_TIMER_INITIAL_INTERVAL, MAINTENANCE_TIMER_PERIODIC_INTERVAL);
 
             //stats consumer thread
             _consumerThread = new Thread(delegate ()
@@ -348,6 +348,18 @@ namespace DnsServerCore.Dns
 
                 foreach (DateTime key in _keysToRemove)
                     _hourlyStatsCache.TryRemove(key, out _);
+            }
+
+            //unload minute stats data from hourly stats cache for data older than last hour
+            {
+                DateTime lastHourThreshold = DateTime.UtcNow.AddHours(-1);
+                lastHourThreshold = new DateTime(lastHourThreshold.Year, lastHourThreshold.Month, lastHourThreshold.Day, lastHourThreshold.Hour, 0, 0, DateTimeKind.Utc);
+
+                foreach (KeyValuePair<DateTime, HourlyStats> item in _hourlyStatsCache)
+                {
+                    if (item.Key < lastHourThreshold)
+                        item.Value.UnloadMinuteStats();
+                }
             }
 
             //remove old data from daily stats cache
@@ -1159,7 +1171,7 @@ namespace DnsServerCore.Dns
             #region variables
 
             readonly StatCounter _hourStat; //calculated value
-            readonly StatCounter[] _minuteStats = new StatCounter[60];
+            StatCounter[] _minuteStats = new StatCounter[60];
 
             #endregion
 
@@ -1207,6 +1219,11 @@ namespace DnsServerCore.Dns
 
                 _hourStat.Merge(minuteStat);
                 _minuteStats[dateTime.Minute] = minuteStat;
+            }
+
+            public void UnloadMinuteStats()
+            {
+                _minuteStats = null;
             }
 
             public void WriteTo(BinaryWriter bW)
