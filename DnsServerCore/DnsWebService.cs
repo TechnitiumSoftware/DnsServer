@@ -484,22 +484,75 @@ namespace DnsServerCore
                                                 _otherZonesApi.BlockZone(request);
                                                 break;
 
+                                            case "/api/zone/list":
                                             case "/api/listZones":
                                                 _zonesApi.ListZones(jsonWriter);
                                                 break;
 
+                                            case "/api/zone/create":
                                             case "/api/createZone":
                                                 await _zonesApi.CreateZoneAsync(request, jsonWriter);
                                                 break;
 
+                                            case "/api/zone/dnssec/sign":
+                                                _zonesApi.SignPrimaryZone(request);
+                                                break;
+
+                                            case "/api/zone/dnssec/unsign":
+                                                _zonesApi.UnsignPrimaryZone(request);
+                                                break;
+
+                                            case "/api/zone/dnssec/getProperties":
+                                                _zonesApi.GetPrimaryZoneDnssecProperties(request, jsonWriter);
+                                                break;
+
+                                            case "/api/zone/dnssec/convertToNSEC":
+                                                _zonesApi.ConvertPrimaryZoneToNSEC(request);
+                                                break;
+
+                                            case "/api/zone/dnssec/convertToNSEC3":
+                                                _zonesApi.ConvertPrimaryZoneToNSEC3(request);
+                                                break;
+
+                                            case "/api/zone/dnssec/updateNSEC3Params":
+                                                _zonesApi.UpdatePrimaryZoneNSEC3Parameters(request);
+                                                break;
+
+                                            case "/api/zone/dnssec/updateDnsKeyTtl":
+                                                _zonesApi.UpdatePrimaryZoneDnssecDnsKeyTtl(request);
+                                                break;
+
+                                            case "/api/zone/dnssec/generatePrivateKey":
+                                                _zonesApi.GenerateAndAddPrimaryZoneDnssecPrivateKey(request);
+                                                break;
+
+                                            case "/api/zone/dnssec/deletePrivateKey":
+                                                _zonesApi.DeletePrimaryZoneDnssecPrivateKey(request);
+                                                break;
+
+                                            case "/api/zone/dnssec/publishAllPrivateKeys":
+                                                _zonesApi.PublishAllGeneratedPrimaryZoneDnssecPrivateKeys(request);
+                                                break;
+
+                                            case "/api/zone/dnssec/rolloverDnsKey":
+                                                _zonesApi.RolloverPrimaryZoneDnsKey(request);
+                                                break;
+
+                                            case "/api/zone/dnssec/retireDnsKey":
+                                                _zonesApi.RetirePrimaryZoneDnsKey(request);
+                                                break;
+
+                                            case "/api/zone/delete":
                                             case "/api/deleteZone":
                                                 _zonesApi.DeleteZone(request);
                                                 break;
 
+                                            case "/api/zone/enable":
                                             case "/api/enableZone":
                                                 _zonesApi.EnableZone(request);
                                                 break;
 
+                                            case "/api/zone/disable":
                                             case "/api/disableZone":
                                                 _zonesApi.DisableZone(request);
                                                 break;
@@ -516,18 +569,22 @@ namespace DnsServerCore
                                                 _zonesApi.ResyncZone(request);
                                                 break;
 
+                                            case "/api/zone/addRecord":
                                             case "/api/addRecord":
                                                 _zonesApi.AddRecord(request);
                                                 break;
 
+                                            case "/api/zone/getRecords":
                                             case "/api/getRecords":
                                                 _zonesApi.GetRecords(request, jsonWriter);
                                                 break;
 
+                                            case "/api/zone/deleteRecord":
                                             case "/api/deleteRecord":
                                                 _zonesApi.DeleteRecord(request);
                                                 break;
 
+                                            case "/api/zone/updateRecord":
                                             case "/api/updateRecord":
                                                 _zonesApi.UpdateRecord(request);
                                                 break;
@@ -2853,10 +2910,6 @@ namespace DnsServerCore
             if (!string.IsNullOrEmpty(strImport))
                 importResponse = bool.Parse(strImport);
 
-            DnsCache dnsCache = new DnsCache();
-            dnsCache.MinimumRecordTtl = 0;
-            dnsCache.MaximumRecordTtl = 7 * 24 * 60 * 60;
-
             NetProxy proxy = _dnsServer.Proxy;
             bool preferIPv6 = _dnsServer.PreferIPv6;
             ushort udpPayloadSize = _dnsServer.UdpPayloadSize;
@@ -2880,6 +2933,10 @@ namespace DnsServerCore
                     question = new DnsQuestionRecord(address, DnsClass.IN);
                 else
                     question = new DnsQuestionRecord(domain, type, DnsClass.IN);
+
+                DnsCache dnsCache = new DnsCache();
+                dnsCache.MinimumRecordTtl = 0;
+                dnsCache.MaximumRecordTtl = 7 * 24 * 60 * 60;
 
                 try
                 {
@@ -2951,7 +3008,6 @@ namespace DnsServerCore
 
                 DnsClient dnsClient = new DnsClient(nameServer);
 
-                dnsClient.Cache = dnsCache;
                 dnsClient.Proxy = proxy;
                 dnsClient.PreferIPv6 = preferIPv6;
                 dnsClient.RandomizeName = randomizeName;
@@ -2977,7 +3033,7 @@ namespace DnsServerCore
 
             if (importResponse)
             {
-                AuthZoneInfo zoneInfo = _dnsServer.AuthZoneManager.GetAuthZoneInfo(domain);
+                AuthZoneInfo zoneInfo = _dnsServer.AuthZoneManager.FindAuthZoneInfo(domain);
                 if ((zoneInfo is null) || zoneInfo.Name.Equals("", StringComparison.OrdinalIgnoreCase))
                 {
                     zoneInfo = _dnsServer.AuthZoneManager.CreatePrimaryZone(domain, _dnsServer.ServerDomain, false);
@@ -4355,7 +4411,7 @@ namespace DnsServerCore
                     foreach (string domain in _configDisabledZones)
                     {
                         AuthZoneInfo zoneInfo = _dnsServer.AuthZoneManager.GetAuthZoneInfo(domain);
-                        if (zoneInfo != null)
+                        if (zoneInfo is not null)
                         {
                             zoneInfo.Disabled = true;
                             _dnsServer.AuthZoneManager.SaveZoneFile(zoneInfo.Name);
