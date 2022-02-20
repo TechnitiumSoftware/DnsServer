@@ -339,14 +339,14 @@ function refreshZones(checkDisplay) {
     });
 }
 
-function enableZone(objBtn, domain) {
+function enableZone(objBtn, zone) {
     var btn = $(objBtn);
     var id = btn.attr("data-id");
 
     btn.button('loading');
 
     HTTPRequest({
-        url: "/api/zone/enable?token=" + token + "&domain=" + domain,
+        url: "/api/zone/enable?token=" + token + "&zone=" + zone,
         success: function (responseJSON) {
             btn.button('reset');
 
@@ -355,7 +355,7 @@ function enableZone(objBtn, domain) {
             $("#tdStatus" + id).attr("class", "label label-success");
             $("#tdStatus" + id).html("Enabled");
 
-            showAlert("success", "Zone Enabled!", "Zone '" + domain + "' was enabled successfully.");
+            showAlert("success", "Zone Enabled!", "Zone '" + zone + "' was enabled successfully.");
         },
         error: function () {
             btn.button('reset');
@@ -366,8 +366,8 @@ function enableZone(objBtn, domain) {
     });
 }
 
-function disableZone(objBtn, domain) {
-    if (!confirm("Are you sure you want to disable the zone '" + domain + "'?"))
+function disableZone(objBtn, zone) {
+    if (!confirm("Are you sure you want to disable the zone '" + zone + "'?"))
         return;
 
     var btn = $(objBtn);
@@ -376,7 +376,7 @@ function disableZone(objBtn, domain) {
     btn.button('loading');
 
     HTTPRequest({
-        url: "/api/zone/disable?token=" + token + "&domain=" + domain,
+        url: "/api/zone/disable?token=" + token + "&zone=" + zone,
         success: function (responseJSON) {
             btn.button('reset');
 
@@ -385,7 +385,7 @@ function disableZone(objBtn, domain) {
             $("#tdStatus" + id).attr("class", "label label-warning");
             $("#tdStatus" + id).html("Disabled");
 
-            showAlert("success", "Zone Disabled!", "Zone '" + domain + "' was disabled successfully.");
+            showAlert("success", "Zone Disabled!", "Zone '" + zone + "' was disabled successfully.");
         },
         error: function () {
             btn.button('reset');
@@ -396,8 +396,8 @@ function disableZone(objBtn, domain) {
     });
 }
 
-function deleteZone(objBtn, domain, editZone) {
-    if (!confirm("Are you sure you want to permanently delete the zone '" + domain + "' and all its records?"))
+function deleteZone(objBtn, zone, editZone) {
+    if (!confirm("Are you sure you want to permanently delete the zone '" + zone + "' and all its records?"))
         return;
 
     if (editZone == null)
@@ -409,7 +409,7 @@ function deleteZone(objBtn, domain, editZone) {
     btn.button('loading');
 
     HTTPRequest({
-        url: "/api/zone/delete?token=" + token + "&domain=" + domain,
+        url: "/api/zone/delete?token=" + token + "&zone=" + zone,
         success: function (responseJSON) {
             if (editZone) {
                 btn.button('reset');
@@ -426,7 +426,7 @@ function deleteZone(objBtn, domain, editZone) {
                     $("#tableZonesFooter").html("<tr><td colspan=\"6\" align=\"center\">No Zones Found</td></tr>");
             }
 
-            showAlert("success", "Zone Deleted!", "Zone '" + domain + "' was deleted successfully.");
+            showAlert("success", "Zone Deleted!", "Zone '" + zone + "' was deleted successfully.");
         },
         error: function () {
             btn.button('reset');
@@ -437,19 +437,19 @@ function deleteZone(objBtn, domain, editZone) {
     });
 }
 
-function showZoneOptionsModal(domain) {
+function showZoneOptionsModal(zone) {
     var divZoneOptionsAlert = $("#divZoneOptionsAlert");
     var divZoneOptionsLoader = $("#divZoneOptionsLoader");
     var divZoneOptions = $("#divZoneOptions");
 
-    $("#lblZoneOptionsZoneName").text(domain);
+    $("#lblZoneOptionsZoneName").text(zone);
     divZoneOptionsLoader.show();
     divZoneOptions.hide();
 
     $("#modalZoneOptions").modal("show");
 
     HTTPRequest({
-        url: "/api/zone/options/get?token=" + token + "&domain=" + domain,
+        url: "/api/zone/options/get?token=" + token + "&zone=" + zone,
         success: function (responseJSON) {
             $("#txtZoneTransferNameServers").prop("disabled", true);
             $("#txtZoneNotifyNameServers").prop("disabled", true);
@@ -550,7 +550,7 @@ function showZoneOptionsModal(domain) {
 function saveZoneOptions() {
     var divZoneOptionsAlert = $("#divZoneOptionsAlert");
     var divZoneOptionsLoader = $("#divZoneOptionsLoader");
-    var domain = $("#lblZoneOptionsZoneName").text();
+    var zone = $("#lblZoneOptionsZoneName").text();
 
     var zoneTransfer = $("input[name=rdZoneTransfer]:checked").val();
 
@@ -581,7 +581,7 @@ function saveZoneOptions() {
     btn.button('loading');
 
     HTTPRequest({
-        url: "/api/zone/options/set?token=" + token + "&domain=" + domain
+        url: "/api/zone/options/set?token=" + token + "&zone=" + zone
             + "&zoneTransfer=" + zoneTransfer + "&zoneTransferNameServers=" + encodeURIComponent(zoneTransferNameServers)
             + "&notify=" + notify + "&notifyNameServers=" + encodeURIComponent(notifyNameServers)
             + "&zoneTransferTsigKeyNames=" + encodeURIComponent(zoneTransferTsigKeyNames),
@@ -697,9 +697,9 @@ function updateAddZoneFormForwarderThisServer() {
 
 function addZone() {
     var divAddZoneAlert = $("#divAddZoneAlert");
-    var domain = $("#txtAddZone").val();
+    var zone = $("#txtAddZone").val();
 
-    if ((domain == null) || (domain === "")) {
+    if ((zone == null) || (zone === "")) {
         showAlert("warning", "Missing!", "Please enter a domain name to add zone.", divAddZoneAlert);
         $("#txtAddZone").focus();
         return;
@@ -766,7 +766,7 @@ function addZone() {
     var btn = $("#btnAddZone").button('loading');
 
     HTTPRequest({
-        url: "/api/zone/create?token=" + token + "&domain=" + domain + "&type=" + type + parameters,
+        url: "/api/zone/create?token=" + token + "&zone=" + zone + "&type=" + type + parameters,
         success: function (responseJSON) {
             $("#modalAddZone").modal("hide");
             showEditZone(responseJSON.response.domain);
