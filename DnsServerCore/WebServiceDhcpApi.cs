@@ -1,6 +1,6 @@
 ﻿/*
 Technitium DNS Server
-Copyright (C) 2021  Shreyas Zare (shreyas@technitium.com)
+Copyright (C) 2022  Shreyas Zare (shreyas@technitium.com)
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -380,30 +380,47 @@ namespace DnsServerCore
             }
 
             string strStartingAddress = request.QueryString["startingAddress"];
-            if (string.IsNullOrEmpty(strStartingAddress))
-                throw new DnsWebServiceException("Parameter 'startingAddress' missing.");
-
             string strEndingAddress = request.QueryString["endingAddress"];
-            if (string.IsNullOrEmpty(strEndingAddress))
-                throw new DnsWebServiceException("Parameter 'endingAddress' missing.");
-
             string strSubnetMask = request.QueryString["subnetMask"];
-            if (string.IsNullOrEmpty(strSubnetMask))
-                throw new DnsWebServiceException("Parameter 'subnetMask' missing.");
 
             bool scopeExists;
             Scope scope = _dnsWebService.DhcpServer.GetScope(scopeName);
             if (scope is null)
             {
                 //scope does not exists; create new scope
+                if (string.IsNullOrEmpty(strStartingAddress))
+                    throw new DnsWebServiceException("Parameter 'startingAddress' missing.");
+
+                if (string.IsNullOrEmpty(strEndingAddress))
+                    throw new DnsWebServiceException("Parameter 'endingAddress' missing.");
+
+                if (string.IsNullOrEmpty(strSubnetMask))
+                    throw new DnsWebServiceException("Parameter 'subnetMask' missing.");
+
                 scopeExists = false;
                 scope = new Scope(scopeName, true, IPAddress.Parse(strStartingAddress), IPAddress.Parse(strEndingAddress), IPAddress.Parse(strSubnetMask));
             }
             else
             {
                 scopeExists = true;
-                IPAddress startingAddress = IPAddress.Parse(strStartingAddress);
-                IPAddress endingAddress = IPAddress.Parse(strEndingAddress);
+
+                IPAddress startingAddress;
+                if (string.IsNullOrEmpty(strStartingAddress))
+                    startingAddress = scope.StartingAddress;
+                else
+                    startingAddress = IPAddress.Parse(strStartingAddress);
+
+                IPAddress endingAddress;
+                if (string.IsNullOrEmpty(strEndingAddress))
+                    endingAddress = scope.EndingAddress;
+                else
+                    endingAddress = IPAddress.Parse(strEndingAddress);
+
+                IPAddress subnetMask;
+                if (string.IsNullOrEmpty(strSubnetMask))
+                    subnetMask = scope.SubnetMask;
+                else
+                    subnetMask = IPAddress.Parse(strSubnetMask);
 
                 //validate scope address
                 foreach (KeyValuePair<string, Scope> entry in _dnsWebService.DhcpServer.Scopes)
@@ -417,7 +434,7 @@ namespace DnsServerCore
                         throw new DhcpServerException("Scope with overlapping range already exists: " + existingScope.StartingAddress.ToString() + "-" + existingScope.EndingAddress.ToString());
                 }
 
-                scope.ChangeNetwork(startingAddress, endingAddress, IPAddress.Parse(strSubnetMask));
+                scope.ChangeNetwork(startingAddress, endingAddress, subnetMask);
             }
 
             string strLeaseTimeDays = request.QueryString["leaseTimeDays"];
