@@ -18,7 +18,6 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
 using DnsServerCore.Dns.Zones;
-using System;
 
 namespace DnsServerCore.Dns.Trees
 {
@@ -40,14 +39,14 @@ namespace DnsServerCore.Dns.Trees
 
         public override bool TryRemove(string domain, out CacheZone value)
         {
-            bool removed = TryRemove(domain, out value, out Node closestNode);
+            bool removed = TryRemove(domain, out value, out Node currentNode);
 
             //remove all cache zones under current zone
-            Node current = closestNode;
+            Node current = currentNode;
 
             do
             {
-                current = current.GetNextNodeWithValue(closestNode.Depth);
+                current = current.GetNextNodeWithValue(currentNode.Depth);
                 if (current is null)
                     break;
 
@@ -66,19 +65,16 @@ namespace DnsServerCore.Dns.Trees
             while (true);
 
             if (removed)
-                closestNode.CleanThisBranch();
+                currentNode.CleanThisBranch();
 
             return removed;
         }
 
         public CacheZone FindZone(string domain, out CacheZone closest, out CacheZone delegation)
         {
-            if (domain is null)
-                throw new ArgumentNullException(nameof(domain));
-
             byte[] key = ConvertToByteKey(domain);
 
-            CacheZone zoneValue = FindZoneNode(key, out _, out _, out CacheZone closestSubDomain, out CacheZone closestDelegation, out _);
+            CacheZone zoneValue = FindZoneNode(key, false, out _, out _, out _, out CacheZone closestSubDomain, out CacheZone closestDelegation, out _);
             if (zoneValue is null)
             {
                 //zone not found
