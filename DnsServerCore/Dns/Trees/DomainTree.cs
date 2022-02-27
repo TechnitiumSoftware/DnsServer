@@ -192,9 +192,9 @@ namespace DnsServerCore.Dns.Trees
 
         public override bool TryRemove(string key, out T value)
         {
-            if (TryRemove(key, out value, out Node closestNode))
+            if (TryRemove(key, out value, out Node currentNode))
             {
-                closestNode.CleanThisBranch();
+                currentNode.CleanThisBranch();
                 return true;
             }
 
