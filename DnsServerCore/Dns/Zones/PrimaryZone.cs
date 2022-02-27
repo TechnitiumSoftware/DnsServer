@@ -62,7 +62,7 @@ namespace DnsServerCore.Dns.Zones
         const int DNSSEC_TIMER_INITIAL_INTERVAL = 30000;
         const int DNSSEC_TIMER_PERIODIC_INTERVAL = 300000;
         DateTime _lastSignatureRefreshCheckedOn;
-        readonly object _dnssecNSecUpdateLock = new object();
+        readonly object _dnssecUpdateLock = new object();
 
         #endregion
 
@@ -633,7 +633,7 @@ namespace DnsServerCore.Dns.Zones
                 throw new ArgumentOutOfRangeException(nameof(iterations), "NSEC3 iterations valid range is 0-50");
 
             if (saltLength > 32)
-                throw new ArgumentOutOfRangeException(nameof(iterations), "NSEC3 salt length valid range is 0-32");
+                throw new ArgumentOutOfRangeException(nameof(saltLength), "NSEC3 salt length valid range is 0-32");
 
             //generate private keys
             DnssecAlgorithm algorithm;
@@ -694,7 +694,7 @@ namespace DnsServerCore.Dns.Zones
                 throw new ArgumentOutOfRangeException(nameof(iterations), "NSEC3 iterations valid range is 0-50");
 
             if (saltLength > 32)
-                throw new ArgumentOutOfRangeException(nameof(iterations), "NSEC3 salt length valid range is 0-32");
+                throw new ArgumentOutOfRangeException(nameof(saltLength), "NSEC3 salt length valid range is 0-32");
 
             //generate private keys
             DnssecAlgorithm algorithm;
@@ -773,8 +773,6 @@ namespace DnsServerCore.Dns.Zones
                 }
             }
 
-            CommitAndIncrementSerial(deletedRecords, addedRecords);
-
             if (useNSec3)
             {
                 EnableNSec3(zones, iterations, saltLength);
@@ -785,8 +783,6 @@ namespace DnsServerCore.Dns.Zones
                 EnableNSec(zones);
                 _dnssecStatus = AuthZoneDnssecStatus.SignedWithNSEC;
             }
-
-            TriggerNotify();
 
             //update private key state
             foreach (KeyValuePair<ushort, DnssecPrivateKey> privateKeyEntry in _dnssecPrivateKeys)
@@ -802,6 +798,9 @@ namespace DnsServerCore.Dns.Zones
             }
 
             _dnssecTimer = new Timer(DnssecTimerCallback, null, DNSSEC_TIMER_INITIAL_INTERVAL, Timeout.Infinite);
+
+            CommitAndIncrementSerial(deletedRecords, addedRecords);
+            TriggerNotify();
         }
 
         public void UnsignZone()
@@ -825,9 +824,6 @@ namespace DnsServerCore.Dns.Zones
                 }
             }
 
-            CommitAndIncrementSerial(deletedRecords);
-            TriggerNotify();
-
             Timer dnssecTimer = _dnssecTimer;
             if (dnssecTimer is not null)
             {
@@ -840,6 +836,9 @@ namespace DnsServerCore.Dns.Zones
 
             _dnssecPrivateKeys = null;
             _dnssecStatus = AuthZoneDnssecStatus.Unsigned;
+
+            CommitAndIncrementSerial(deletedRecords);
+            TriggerNotify();
         }
 
         public void ConvertToNSec()
@@ -847,25 +846,22 @@ namespace DnsServerCore.Dns.Zones
             if (_dnssecStatus != AuthZoneDnssecStatus.SignedWithNSEC3)
                 throw new DnsServerException("Cannot convert to NSEC: the zone must be signed with NSEC3 for conversion.");
 
-            lock (_dnssecNSecUpdateLock)
+            lock (_dnssecUpdateLock)
             {
                 IReadOnlyList<AuthZone> zones = _dnsServer.AuthZoneManager.GetZoneWithSubDomainZones(_name);
 
-                List<AuthZone> nsec3Zones = new List<AuthZone>(zones.Count / 2);
-                List<AuthZone> nonNSec3Zones = new List<AuthZone>(zones.Count / 2);
+                DisableNSec3(zones);
 
-                nsec3Zones.Add(zones[0]); //apex zone
+                //since zones were removed when disabling NSEC3; get updated non empty zones list
+                List<AuthZone> nonEmptyZones = new List<AuthZone>(zones.Count);
 
                 foreach (AuthZone zone in zones)
                 {
-                    if (zone.HasOnlyNSec3Records())
-                        nsec3Zones.Add(zone);
-                    else
-                        nonNSec3Zones.Add(zone);
+                    if (!zone.IsEmpty)
+                        nonEmptyZones.Add(zone);
                 }
 
-                EnableNSec(nonNSec3Zones);
-                DisableNSec3(nsec3Zones);
+                EnableNSec(nonEmptyZones);
 
                 _dnssecStatus = AuthZoneDnssecStatus.SignedWithNSEC;
             }
@@ -876,12 +872,18 @@ namespace DnsServerCore.Dns.Zones
             if (_dnssecStatus != AuthZoneDnssecStatus.SignedWithNSEC)
                 throw new DnsServerException("Cannot convert to NSEC3: the zone must be signed with NSEC for conversion.");
 
-            lock (_dnssecNSecUpdateLock)
+            if (iterations > 50)
+                throw new ArgumentOutOfRangeException(nameof(iterations), "NSEC3 iterations valid range is 0-50");
+
+            if (saltLength > 32)
+                throw new ArgumentOutOfRangeException(nameof(saltLength), "NSEC3 salt length valid range is 0-32");
+
+            lock (_dnssecUpdateLock)
             {
                 IReadOnlyList<AuthZone> zones = _dnsServer.AuthZoneManager.GetZoneWithSubDomainZones(_name);
 
-                EnableNSec3(zones, iterations, saltLength);
                 DisableNSec(zones);
+                EnableNSec3(zones, iterations, saltLength);
 
                 _dnssecStatus = AuthZoneDnssecStatus.SignedWithNSEC3;
             }
@@ -892,12 +894,28 @@ namespace DnsServerCore.Dns.Zones
             if (_dnssecStatus != AuthZoneDnssecStatus.SignedWithNSEC3)
                 throw new DnsServerException("Cannot update NSEC3 parameters: the zone must be signed with NSEC3 first.");
 
-            lock (_dnssecNSecUpdateLock)
+            if (iterations > 50)
+                throw new ArgumentOutOfRangeException(nameof(iterations), "NSEC3 iterations valid range is 0-50");
+
+            if (saltLength > 32)
+                throw new ArgumentOutOfRangeException(nameof(saltLength), "NSEC3 salt length valid range is 0-32");
+
+            lock (_dnssecUpdateLock)
             {
                 IReadOnlyList<AuthZone> zones = _dnsServer.AuthZoneManager.GetZoneWithSubDomainZones(_name);
 
                 DisableNSec3(zones);
-                EnableNSec3(zones, iterations, saltLength);
+
+                //since zones were removed when disabling NSEC3; get updated non empty zones list
+                List<AuthZone> nonEmptyZones = new List<AuthZone>(zones.Count);
+
+                foreach (AuthZone zone in zones)
+                {
+                    if (!zone.IsEmpty)
+                        nonEmptyZones.Add(zone);
+                }
+
+                EnableNSec3(nonEmptyZones, iterations, saltLength);
             }
         }
 
@@ -968,28 +986,23 @@ namespace DnsServerCore.Dns.Zones
             //list all partial NSEC3 records
             foreach (AuthZone zone in zones)
             {
-                if (zone.IsEmpty)
-                    continue; //zone was removed when disabling NSEC3
-
                 partialNSec3Records.Add(zone.GetPartialNSec3Record(_name, ttl, iterations, salt));
 
-                if (zone.Name.Length > _name.Length)
+                int zoneLabelCount = DnsRRSIGRecord.GetLabelCount(zone.Name);
+                if ((zoneLabelCount - apexLabelCount) > 1)
                 {
-                    //find empty non-terminal (ENT)
-                    string currentOwnerName = AuthZoneManager.GetParentZone(zone.Name);
-                    int labelCount;
+                    //empty non-terminal (ENT) may exists
+                    string currentOwnerName = zone.Name;
 
-                    while (currentOwnerName.Length > _name.Length)
+                    while (true)
                     {
-                        labelCount = DnsRRSIGRecord.GetLabelCount(currentOwnerName);
-                        if ((labelCount - apexLabelCount) <= 1)
-                            break; //ENT not found
+                        currentOwnerName = AuthZoneManager.GetParentZone(currentOwnerName);
+                        if (currentOwnerName.Equals(_name, StringComparison.OrdinalIgnoreCase))
+                            break;
 
                         //add partial NSEC3 record for ENT
-                        DnsNSEC3Record newNSec3Record = new DnsNSEC3Record(DnssecNSEC3HashAlgorithm.SHA1, DnssecNSEC3Flags.None, iterations, salt, Array.Empty<byte>(), Array.Empty<DnsResourceRecordType>());
-                        partialNSec3Records.Add(new DnsResourceRecord(newNSec3Record.ComputeHashedOwnerName(currentOwnerName) + "." + _name, DnsResourceRecordType.NSEC3, DnsClass.IN, ttl, newNSec3Record));
-
-                        currentOwnerName = AuthZoneManager.GetParentZone(currentOwnerName);
+                        AuthZone entZone = new PrimarySubDomainZone(null, currentOwnerName); //dummy empty non-terminal (ENT) sub domain object
+                        partialNSec3Records.Add(entZone.GetPartialNSec3Record(_name, ttl, iterations, salt));
                     }
                 }
             }
@@ -1028,9 +1041,11 @@ namespace DnsServerCore.Dns.Zones
                                 uniqueTypes.Add(type);
                         }
 
+                        uniqueTypes.Sort();
+
                         //update the next nsec3 record and continue
-                        DnsNSEC3Record mergedNSec3 = new DnsNSEC3Record(DnssecNSEC3HashAlgorithm.SHA1, DnssecNSEC3Flags.None, iterations, salt, Array.Empty<byte>(), uniqueTypes);
-                        partialNSec3Records[i + 1] = new DnsResourceRecord(partialNSec3Record.Name, DnsResourceRecordType.NSEC3, DnsClass.IN, ttl, mergedNSec3);
+                        DnsNSEC3Record mergedPartialNSec3 = new DnsNSEC3Record(DnssecNSEC3HashAlgorithm.SHA1, DnssecNSEC3Flags.None, iterations, salt, Array.Empty<byte>(), uniqueTypes);
+                        partialNSec3Records[i + 1] = new DnsResourceRecord(partialNSec3Record.Name, DnsResourceRecordType.NSEC3, DnsClass.IN, ttl, mergedPartialNSec3);
                         continue;
                     }
                 }
@@ -1708,9 +1723,7 @@ namespace DnsServerCore.Dns.Zones
                 return privateKeys; //zone is root
 
             DnsQuestionRecord dsQuestion = new DnsQuestionRecord(_name, DnsResourceRecordType.DS, DnsClass.IN);
-            ResolverPrefetchDnsCache dnsCache = new ResolverPrefetchDnsCache(_dnsServer.DnsApplicationManager, _dnsServer.AuthZoneManager, _dnsServer.CacheZoneManager, dsQuestion);
-
-            DnsDatagram dsResponse = await DnsClient.RecursiveResolveAsync(dsQuestion, dnsCache, _dnsServer.Proxy, _dnsServer.PreferIPv6, _dnsServer.UdpPayloadSize, _dnsServer.RandomizeName, _dnsServer.QnameMinimization, false, true);
+            DnsDatagram dsResponse = await DnsClient.RecursiveResolveAsync(dsQuestion, _dnsServer.DnsCache, _dnsServer.Proxy, _dnsServer.PreferIPv6, _dnsServer.UdpPayloadSize, _dnsServer.RandomizeName, false, false, false);
             IReadOnlyList<DnsDSRecord> dsRecords = DnsClient.ParseResponseDS(dsResponse);
 
             List<DnssecPrivateKey> activePrivateKeys = new List<DnssecPrivateKey>(dsRecords.Count);
@@ -1825,7 +1838,7 @@ namespace DnsServerCore.Dns.Zones
         internal void UpdateDnssecRecordsFor(AuthZone zone, DnsResourceRecordType type)
         {
             //lock to sync this call since to prevent inconsistent NSEC/NSEC3 updates
-            lock (_dnssecNSecUpdateLock)
+            lock (_dnssecUpdateLock)
             {
                 IReadOnlyList<DnsResourceRecord> records = zone.GetRecords(type);
                 if (records.Count > 0)
@@ -1862,9 +1875,36 @@ namespace DnsServerCore.Dns.Zones
                 }
 
                 if (_dnssecStatus == AuthZoneDnssecStatus.SignedWithNSEC)
+                {
                     UpdateNSecRRSetFor(zone);
+                }
                 else
+                {
                     UpdateNSec3RRSetFor(zone);
+
+                    int apexLabelCount = DnsRRSIGRecord.GetLabelCount(_name);
+                    int zoneLabelCount = DnsRRSIGRecord.GetLabelCount(zone.Name);
+
+                    if ((zoneLabelCount - apexLabelCount) > 1)
+                    {
+                        //empty non-terminal (ENT) may exists
+                        string currentOwnerName = zone.Name;
+
+                        while (true)
+                        {
+                            currentOwnerName = AuthZoneManager.GetParentZone(currentOwnerName);
+                            if (currentOwnerName.Equals(_name, StringComparison.OrdinalIgnoreCase))
+                                break;
+
+                            //update NSEC3 rrset for current owner name
+                            AuthZone entZone = _dnsServer.AuthZoneManager.GetAuthZone(currentOwnerName, _name);
+                            if (entZone is null)
+                                entZone = new PrimarySubDomainZone(null, currentOwnerName); //dummy empty non-terminal (ENT) sub domain object
+
+                            UpdateNSec3RRSetFor(entZone);
+                        }
+                    }
+                }
             }
         }
 
@@ -1922,29 +1962,38 @@ namespace DnsServerCore.Dns.Zones
         private void UpdateNSec3RRSetFor(AuthZone zone)
         {
             uint ttl = GetZoneSoaMinimum();
+            bool noSubDomainExistsForEmptyZone = (zone.IsEmpty || zone.HasOnlyNSec3Records()) && !_dnsServer.AuthZoneManager.SubDomainExists(zone.Name, _name);
 
-            IReadOnlyList<DnsResourceRecord> newNSec3Records = GetUpdatedNSec3RRSetFor(zone, ttl);
+            IReadOnlyList<DnsResourceRecord> newNSec3Records = GetUpdatedNSec3RRSetFor(zone, ttl, noSubDomainExistsForEmptyZone);
             if (newNSec3Records.Count > 0)
             {
                 DnsResourceRecord newNSec3Record = newNSec3Records[0];
-                DnsNSEC3Record newNSec3 = newNSec3Record.RDATA as DnsNSEC3Record;
 
                 AuthZone nsec3Zone = _dnsServer.AuthZoneManager.GetOrAddSubDomainZone(_name, newNSec3Record.Name);
                 if (nsec3Zone is null)
                     throw new InvalidOperationException();
 
-                if (newNSec3.Types.Count == 1)
+                if (noSubDomainExistsForEmptyZone)
                 {
-                    //only RRSIG exists so remove NSEC3
+                    //no records exists in real zone and no sub domain exists, so remove NSEC3
                     IReadOnlyList<DnsResourceRecord> deletedNSec3Records = nsec3Zone.RemoveNSec3RecordsWithRRSig();
                     if (deletedNSec3Records.Count > 0)
                         CommitAndIncrementSerial(deletedNSec3Records);
 
-                    //remove nsec3 sub domain zone since it wont get removed otherwise
-                    if (nsec3Zone is SubDomainZone subDomainZone)
+                    //remove nsec3 sub domain zone if empty since it wont get removed otherwise
+                    if (nsec3Zone is SubDomainZone nsec3SubDomainZone)
                     {
                         if (nsec3Zone.IsEmpty)
                             _dnsServer.AuthZoneManager.RemoveSubDomainZone(nsec3Zone.Name); //remove empty sub zone
+                        else
+                            nsec3SubDomainZone.AutoUpdateState();
+                    }
+
+                    //remove the real zone if empty so that any of the ENT that exists can also be removed later
+                    if (zone is SubDomainZone subDomainZone)
+                    {
+                        if (zone.IsEmpty)
+                            _dnsServer.AuthZoneManager.RemoveSubDomainZone(zone.Name); //remove empty sub zone
                         else
                             subDomainZone.AutoUpdateState();
                     }
@@ -1986,14 +2035,14 @@ namespace DnsServerCore.Dns.Zones
 
         private IReadOnlyList<DnsResourceRecord> GetUpdatedNSecRRSetFor(AuthZone zone, uint ttl)
         {
-            AuthZone nextZone = _dnsServer.AuthZoneManager.FindNextSubDomainZone(zone.Name);
+            AuthZone nextZone = _dnsServer.AuthZoneManager.FindNextSubDomainZone(zone.Name, _name);
             if (nextZone is null)
                 nextZone = this;
 
             return zone.GetUpdatedNSecRRSet(nextZone.Name, ttl);
         }
 
-        private IReadOnlyList<DnsResourceRecord> GetUpdatedNSec3RRSetFor(AuthZone zone, uint ttl)
+        private IReadOnlyList<DnsResourceRecord> GetUpdatedNSec3RRSetFor(AuthZone zone, uint ttl, bool forceGetNewRRSet)
         {
             if (!_entries.TryGetValue(DnsResourceRecordType.NSEC3PARAM, out IReadOnlyList<DnsResourceRecord> nsec3ParamRecords))
                 throw new InvalidOperationException();
@@ -2009,7 +2058,7 @@ namespace DnsServerCore.Dns.Zones
 
             while (true)
             {
-                AuthZone nextZone = _dnsServer.AuthZoneManager.FindNextSubDomainZone(currentOwnerName);
+                AuthZone nextZone = _dnsServer.AuthZoneManager.FindNextSubDomainZone(currentOwnerName, _name);
                 if (nextZone is null)
                     break;
 
@@ -2030,7 +2079,7 @@ namespace DnsServerCore.Dns.Zones
 
                 while (true)
                 {
-                    AuthZone previousZone = _dnsServer.AuthZoneManager.FindPreviousSubDomainZone(currentOwnerName);
+                    AuthZone previousZone = _dnsServer.AuthZoneManager.FindPreviousSubDomainZone(currentOwnerName, _name);
                     if (previousZone is null)
                         break;
 
@@ -2048,12 +2097,21 @@ namespace DnsServerCore.Dns.Zones
             if (nextHashedOwnerName is null)
                 nextHashedOwnerName = DnsNSEC3Record.GetHashedOwnerNameFrom(hashedOwnerName); //only 1 NSEC3 record in zone
 
-            return zone.CreateNSec3RRSet(hashedOwnerName, nextHashedOwnerName, ttl, nsec3Param.Iterations, nsec3Param.SaltValue);
+            IReadOnlyList<DnsResourceRecord> newNSec3Records = zone.CreateNSec3RRSet(hashedOwnerName, nextHashedOwnerName, ttl, nsec3Param.Iterations, nsec3Param.SaltValue);
+
+            if (forceGetNewRRSet)
+                return newNSec3Records;
+
+            AuthZone nsec3Zone = _dnsServer.AuthZoneManager.GetAuthZone(hashedOwnerName, _name);
+            if (nsec3Zone is null)
+                return newNSec3Records;
+
+            return nsec3Zone.GetUpdatedNSec3RRSet(newNSec3Records);
         }
 
         private void RelinkPreviousNSecRRSetFor(DnsResourceRecord currentNSecRecord, uint ttl, bool wasRemoved)
         {
-            AuthZone previousNsecZone = _dnsServer.AuthZoneManager.FindPreviousSubDomainZone(currentNSecRecord.Name);
+            AuthZone previousNsecZone = _dnsServer.AuthZoneManager.FindPreviousSubDomainZone(currentNSecRecord.Name, _name);
             if (previousNsecZone is null)
                 return; //current zone is apex
 
@@ -2099,7 +2157,7 @@ namespace DnsServerCore.Dns.Zones
 
             while (true)
             {
-                previousNSec3Zone = _dnsServer.AuthZoneManager.FindPreviousSubDomainZone(currentOwnerName);
+                previousNSec3Zone = _dnsServer.AuthZoneManager.FindPreviousSubDomainZone(currentOwnerName, _name);
                 if (previousNSec3Zone is null)
                     break;
 
@@ -2115,7 +2173,7 @@ namespace DnsServerCore.Dns.Zones
 
             if (previousNSec3Record is null)
             {
-                //didnt find previous NSEC3 since removed NSEC3 was the first; find the last NSEC3 to update
+                //didnt find previous NSEC3; find the last NSEC3 to update
                 if (wasRemoved)
                     currentOwnerName = currentNSec3.NextHashedOwnerName + "." + _name;
                 else
@@ -2123,7 +2181,7 @@ namespace DnsServerCore.Dns.Zones
 
                 while (true)
                 {
-                    AuthZone nextNSec3Zone = _dnsServer.AuthZoneManager.FindZone(currentOwnerName);
+                    AuthZone nextNSec3Zone = _dnsServer.AuthZoneManager.GetAuthZone(currentOwnerName, _name);
                     if (nextNSec3Zone is null)
                         break;
 
@@ -2270,8 +2328,20 @@ namespace DnsServerCore.Dns.Zones
                     oldSoaRecord.Tag = null; //remove RR info from old SOA to allow creating new RR info for it during SetDeletedOn()
                 }
 
+                DnsResourceRecord[] newSoaRecords = new DnsResourceRecord[] { newSoaRecord };
+
                 //update SOA
-                _entries[DnsResourceRecordType.SOA] = new DnsResourceRecord[] { newSoaRecord };
+                _entries[DnsResourceRecordType.SOA] = newSoaRecords;
+
+                IReadOnlyList<DnsResourceRecord> newRRSigRecords = null;
+                IReadOnlyList<DnsResourceRecord> deletedRRSigRecords = null;
+
+                if (_dnssecStatus != AuthZoneDnssecStatus.Unsigned)
+                {
+                    //sign SOA and update RRSig
+                    newRRSigRecords = SignRRSet(newSoaRecords);
+                    AddOrUpdateRRSigRecords(newRRSigRecords, out deletedRRSigRecords);
+                }
 
                 //start commit
                 oldSoaRecord.SetDeletedOn(DateTime.UtcNow);
@@ -2293,6 +2363,9 @@ namespace DnsServerCore.Dns.Zones
                     }
                 }
 
+                if (deletedRRSigRecords is not null)
+                    _history.AddRange(deletedRRSigRecords);
+
                 //write added
                 _history.Add(newSoaRecord);
 
@@ -2309,6 +2382,9 @@ namespace DnsServerCore.Dns.Zones
                             _history.AddRange(addedRecord.GetGlueRecords());
                     }
                 }
+
+                if (newRRSigRecords is not null)
+                    _history.AddRange(newRRSigRecords);
 
                 //end commit
 
@@ -2340,7 +2416,8 @@ namespace DnsServerCore.Dns.Zones
             switch (type)
             {
                 case DnsResourceRecordType.CNAME:
-                    throw new InvalidOperationException("Cannot set CNAME record to zone root.");
+                case DnsResourceRecordType.DS:
+                    throw new InvalidOperationException("Cannot set " + type.ToString() + " record at zone apex.");
 
                 case DnsResourceRecordType.SOA:
                     if ((records.Count != 1) || !records[0].Name.Equals(_name, StringComparison.OrdinalIgnoreCase))
@@ -2393,6 +2470,9 @@ namespace DnsServerCore.Dns.Zones
             {
                 case DnsResourceRecordType.APP:
                     throw new InvalidOperationException("Cannot add record: use SetRecords() for " + record.Type.ToString() + " record");
+
+                case DnsResourceRecordType.DS:
+                    throw new InvalidOperationException("Cannot set DS record at zone apex.");
 
                 case DnsResourceRecordType.DNSKEY:
                 case DnsResourceRecordType.RRSIG:
