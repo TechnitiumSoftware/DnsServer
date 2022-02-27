@@ -1,6 +1,6 @@
 ﻿/*
 Technitium DNS Server
-Copyright (C) 2021  Shreyas Zare (shreyas@technitium.com)
+Copyright (C) 2022  Shreyas Zare (shreyas@technitium.com)
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -481,15 +481,38 @@ namespace DnsServerCore.Dns.Zones
             return Array.Empty<DnsResourceRecord>();
         }
 
+        internal IReadOnlyList<DnsResourceRecord> GetUpdatedNSec3RRSet(IReadOnlyList<DnsResourceRecord> newNSec3Records)
+        {
+            if (!_entries.TryGetValue(DnsResourceRecordType.NSEC3, out IReadOnlyList<DnsResourceRecord> existingRecords) || !existingRecords[0].RDATA.Equals(newNSec3Records[0].RDATA))
+                return newNSec3Records;
+
+            return Array.Empty<DnsResourceRecord>();
+        }
+
         internal IReadOnlyList<DnsResourceRecord> CreateNSec3RRSet(string hashedOwnerName, byte[] nextHashedOwnerName, uint ttl, ushort iterations, byte[] salt)
         {
             List<DnsResourceRecordType> types = new List<DnsResourceRecordType>(_entries.Count);
 
             foreach (KeyValuePair<DnsResourceRecordType, IReadOnlyList<DnsResourceRecord>> entry in _entries)
-                types.Add(entry.Key);
+            {
+                switch (entry.Key)
+                {
+                    case DnsResourceRecordType.NSEC3:
+                    case DnsResourceRecordType.RRSIG:
+                        continue;
 
-            if (!_entries.ContainsKey(DnsResourceRecordType.RRSIG))
-                types.Add(DnsResourceRecordType.RRSIG);
+                    default:
+                        types.Add(entry.Key);
+                        break;
+                }
+            }
+
+            if (types.Count > 0)
+            {
+                //zone is not an empty non-terminal (ENT)
+                if (!_entries.ContainsKey(DnsResourceRecordType.RRSIG))
+                    types.Add(DnsResourceRecordType.RRSIG);
+            }
 
             types.Sort();
 
@@ -502,10 +525,32 @@ namespace DnsServerCore.Dns.Zones
             List<DnsResourceRecordType> types = new List<DnsResourceRecordType>(_entries.Count);
 
             foreach (KeyValuePair<DnsResourceRecordType, IReadOnlyList<DnsResourceRecord>> entry in _entries)
-                types.Add(entry.Key);
+            {
+                switch (entry.Key)
+                {
+                    case DnsResourceRecordType.NSEC3:
+                    case DnsResourceRecordType.RRSIG:
+                        continue;
 
-            if (!_entries.ContainsKey(DnsResourceRecordType.RRSIG))
-                types.Add(DnsResourceRecordType.RRSIG);
+                    default:
+                        types.Add(entry.Key);
+                        break;
+                }
+            }
+
+            if (_name.Equals(zoneName, StringComparison.OrdinalIgnoreCase))
+            {
+                types.Add(DnsResourceRecordType.NSEC3PARAM); //add NSEC3PARAM type to NSEC3 for unsigned zone apex
+
+                if (!_entries.ContainsKey(DnsResourceRecordType.RRSIG))
+                    types.Add(DnsResourceRecordType.RRSIG);
+            }
+            else if (types.Count > 0)
+            {
+                //zone is not an empty non-terminal (ENT)
+                if (!_entries.ContainsKey(DnsResourceRecordType.RRSIG))
+                    types.Add(DnsResourceRecordType.RRSIG);
+            }
 
             types.Sort();
 
@@ -717,60 +762,88 @@ namespace DnsServerCore.Dns.Zones
 
         public virtual IReadOnlyList<DnsResourceRecord> QueryRecords(DnsResourceRecordType type, bool dnssecOk)
         {
-            if (type == DnsResourceRecordType.ANY)
-            {
-                List<DnsResourceRecord> records = new List<DnsResourceRecord>(_entries.Count * 2);
-
-                foreach (KeyValuePair<DnsResourceRecordType, IReadOnlyList<DnsResourceRecord>> entry in _entries)
-                {
-                    switch (entry.Key)
-                    {
-                        case DnsResourceRecordType.FWD:
-                        case DnsResourceRecordType.APP:
-                            //skip records
-                            continue;
-
-                        default:
-                            records.AddRange(entry.Value);
-                            break;
-                    }
-                }
-
-                return FilterDisabledRecords(type, records);
-            }
-
-            //check for CNAME
-            if (_entries.TryGetValue(DnsResourceRecordType.CNAME, out IReadOnlyList<DnsResourceRecord> existingCNAMERecords))
-            {
-                IReadOnlyList<DnsResourceRecord> filteredRecords = FilterDisabledRecords(type, existingCNAMERecords);
-                if (filteredRecords.Count > 0)
-                {
-                    if (dnssecOk)
-                        return AppendRRSigTo(filteredRecords);
-
-                    return filteredRecords;
-                }
-            }
-
-            if (_entries.TryGetValue(type, out IReadOnlyList<DnsResourceRecord> existingRecords))
-            {
-                IReadOnlyList<DnsResourceRecord> filteredRecords = FilterDisabledRecords(type, existingRecords);
-                if (filteredRecords.Count > 0)
-                {
-                    if (dnssecOk)
-                        return AppendRRSigTo(filteredRecords);
-
-                    return filteredRecords;
-                }
-            }
-
             switch (type)
             {
-                case DnsResourceRecordType.A:
-                case DnsResourceRecordType.AAAA:
-                    if (_entries.TryGetValue(DnsResourceRecordType.ANAME, out IReadOnlyList<DnsResourceRecord> anameRecords))
-                        return FilterDisabledRecords(type, anameRecords);
+                case DnsResourceRecordType.APP:
+                case DnsResourceRecordType.FWD:
+                case DnsResourceRecordType.NSEC:
+                case DnsResourceRecordType.NSEC3:
+                    {
+                        //return only exact type if exists
+                        if (_entries.TryGetValue(type, out IReadOnlyList<DnsResourceRecord> existingRecords))
+                        {
+                            IReadOnlyList<DnsResourceRecord> filteredRecords = FilterDisabledRecords(type, existingRecords);
+                            if (filteredRecords.Count > 0)
+                            {
+                                if (dnssecOk)
+                                    return AppendRRSigTo(filteredRecords);
 
+                                return filteredRecords;
+                            }
+                        }
+                    }
+                    break;
+
+                case DnsResourceRecordType.ANY:
+                    List<DnsResourceRecord> records = new List<DnsResourceRecord>(_entries.Count * 2);
+
+                    foreach (KeyValuePair<DnsResourceRecordType, IReadOnlyList<DnsResourceRecord>> entry in _entries)
+                    {
+                        switch (entry.Key)
+                        {
+                            case DnsResourceRecordType.FWD:
+                            case DnsResourceRecordType.APP:
+                                //skip records
+                                continue;
+
+                            default:
+                                records.AddRange(entry.Value);
+                                break;
+                        }
+                    }
+
+                    return FilterDisabledRecords(type, records);
+
+                default:
+                    {
+                        //check for CNAME
+                        if (_entries.TryGetValue(DnsResourceRecordType.CNAME, out IReadOnlyList<DnsResourceRecord> existingCNAMERecords))
+                        {
+                            IReadOnlyList<DnsResourceRecord> filteredRecords = FilterDisabledRecords(type, existingCNAMERecords);
+                            if (filteredRecords.Count > 0)
+                            {
+                                if (dnssecOk)
+                                    return AppendRRSigTo(filteredRecords);
+
+                                return filteredRecords;
+                            }
+                        }
+
+                        //check for exact type
+                        if (_entries.TryGetValue(type, out IReadOnlyList<DnsResourceRecord> existingRecords))
+                        {
+                            IReadOnlyList<DnsResourceRecord> filteredRecords = FilterDisabledRecords(type, existingRecords);
+                            if (filteredRecords.Count > 0)
+                            {
+                                if (dnssecOk)
+                                    return AppendRRSigTo(filteredRecords);
+
+                                return filteredRecords;
+                            }
+                        }
+
+                        //check special processing
+                        switch (type)
+                        {
+                            case DnsResourceRecordType.A:
+                            case DnsResourceRecordType.AAAA:
+                                //check for ANAME
+                                if (_entries.TryGetValue(DnsResourceRecordType.ANAME, out IReadOnlyList<DnsResourceRecord> anameRecords))
+                                    return FilterDisabledRecords(type, anameRecords);
+
+                                break;
+                        }
+                    }
                     break;
             }
 
