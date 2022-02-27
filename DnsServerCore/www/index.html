@@ -3386,6 +3386,9 @@ ns1.example.com ([2001:db8::])
                                     The TTL value to be used for DNSKEY records. A lower value will allow quicker addition or rollover to a new DNS Key at the cost of increased frequency of DNSKEY queries by resolvers.
                                 </div>
                             </div>
+                            <div style="margin-top: 10px;">
+                                Warning! You MUST wait for at least the number of seconds specified by the the old TTL value to elapse before making any changes to the DNS keys above to ensure that all recursive resolvers would have expired the DNSKEY records from its cache. For example, if the old TTL value was 86400 seconds, then you must wait for 86400 seconds (24 hours) to pass before making any changes to the DNS keys.
+                            </div>
                         </div>
                     </div>
                 </div>

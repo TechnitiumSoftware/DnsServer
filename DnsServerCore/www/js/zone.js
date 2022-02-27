@@ -1131,7 +1131,7 @@ function showEditZone(domain) {
                         tableHtmlRows += "<br /><b>Computed Key Tag:</b> " + htmlEncode(records[i].rData.computedKeyTag);
 
                         if (records[i].rData.computedDigests != null) {
-                            tableHtmlRows += "<br /><b>Computed DS Digests:</b> ";
+                            tableHtmlRows += "<br /><b>Computed Digests:</b> ";
 
                             for (var j = 0; j < records[i].rData.computedDigests.length; j++) {
                                 tableHtmlRows += "<br />" + htmlEncode(records[i].rData.computedDigests[j].digestType) + ": " + htmlEncode(records[i].rData.computedDigests[j].digest)
@@ -3058,7 +3058,13 @@ function generateAndAddDnssecPrivateKey(objBtn) {
 function changeDnssecNxProof(objBtn) {
     var btn = $(objBtn);
     var currentNxProof = btn.attr("data-nx-proof");
+    var currentIterations = btn.attr("data-nsec3-iterations");
+    var currentSaltLength = btn.attr("data-nsec3-salt-length");
+
     var nxProof = $("input[name=rdDnssecPropertiesNxProof]:checked").val();
+    var iterations;
+    var saltLength;
+
     var divDnssecPropertiesAlert = $("#divDnssecPropertiesAlert");
 
     var zone = $("#lblDnssecPropertiesZoneName").text();
@@ -3080,11 +3086,8 @@ function changeDnssecNxProof(objBtn) {
 
         case "NSEC3":
             if (nxProof === "NSEC3") {
-                var currentIterations = btn.attr("data-nsec3-iterations");
-                var currentSaltLength = btn.attr("data-nsec3-salt-length");
-
-                var iterations = $("#txtDnssecPropertiesNSEC3Iterations").val();
-                var saltLength = $("#txtDnssecPropertiesNSEC3SaltLength").val();
+                iterations = $("#txtDnssecPropertiesNSEC3Iterations").val();
+                saltLength = $("#txtDnssecPropertiesNSEC3SaltLength").val();
 
                 if ((currentIterations == iterations) && (currentSaltLength == saltLength)) {
                     showAlert("success", "Proof Changed!", "The proof of non-existence was changed successfully.", divDnssecPropertiesAlert)
@@ -3110,7 +3113,18 @@ function changeDnssecNxProof(objBtn) {
     HTTPRequest({
         url: apiUrl,
         success: function (responseJSON) {
+            btn.attr("data-nx-proof", nxProof);
+
+            if (iterations != null)
+                btn.attr("data-nsec3-iterations", iterations);
+
+            if (saltLength != null)
+                btn.attr("data-nsec3-salt-length", saltLength);
+
             btn.button('reset');
+
+            showEditZone(zone);
+
             showAlert("success", "Proof Changed!", "The proof of non-existence was changed successfully.", divDnssecPropertiesAlert);
         },
         error: function () {
