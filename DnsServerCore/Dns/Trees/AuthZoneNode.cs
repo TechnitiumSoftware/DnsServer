@@ -36,9 +36,6 @@ namespace DnsServerCore.Dns.Trees
 
         #region constructors
 
-        public AuthZoneNode()
-        { }
-
         public AuthZoneNode(SubDomainZone parentSideZone, ApexZone zone)
         {
             _parentSideZone = parentSideZone;
@@ -122,9 +119,31 @@ namespace DnsServerCore.Dns.Trees
             return _apexZone.QueryRecords(type, dnssecOk);
         }
 
+        public AuthZone GetAuthZone(string zoneName)
+        {
+            if ((_apexZone is not null) && _apexZone.Name.Equals(zoneName, StringComparison.OrdinalIgnoreCase))
+                return _apexZone;
+
+            return _parentSideZone;
+        }
+
         #endregion
 
         #region properties
+
+        public string Name
+        {
+            get
+            {
+                if (_parentSideZone is not null)
+                    return _parentSideZone.Name;
+
+                if (_apexZone is not null)
+                    return _apexZone.Name;
+
+                return null;
+            }
+        }
 
         public SubDomainZone ParentSideZone
         { get { return _parentSideZone; } }
