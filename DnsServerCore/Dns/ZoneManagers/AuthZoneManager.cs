@@ -1897,7 +1897,7 @@ namespace DnsServerCore.Dns.ZoneManagers
                 {
                     DnsDNSKEYRecord dnsKey = dnsKeyRecord.RDATA as DnsDNSKEYRecord;
 
-                    if (dnsKey.Flags.HasFlag(DnsDnsKeyFlag.SecureEntryPoint))
+                    if (dnsKey.Flags.HasFlag(DnsDnsKeyFlag.SecureEntryPoint) && !dnsKey.Flags.HasFlag(DnsDnsKeyFlag.Revoke))
                     {
                         DnsDSRecord dsRecord = dnsKey.CreateDS(dnsKeyRecord.Name, DnssecDigestType.SHA256);
                         dnsClient.AddTrustAnchor(zoneInfo.Name, dsRecord);
