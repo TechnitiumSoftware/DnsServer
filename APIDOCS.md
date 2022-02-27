@@ -2273,6 +2273,9 @@ WHERE:
 - `priority` (optional): This parameter is required for adding the `SRV` record.
 - `weight` (optional): This parameter is required for adding the `SRV` record.
 - `port` (optional): This parameter is required for adding the `SRV` record.
+- `keyTag` (optional): This parameter is required for adding `DS` record.
+- `algorithm` (optional): This parameter is required for adding `DS` record.
+- `digestType` (optional): This parameter is required for adding `DS` record.
 - `flags` (optional): This parameter is required for adding the `CAA` record.
 - `tag` (optional): This parameter is required for adding the `CAA` record.
 - `protocol` (optional): This parameter is required for adding the `FWD` record. Valid values are [`Udp`, `Tcp`, `Tls`, `Https`].
@@ -2408,6 +2411,9 @@ WHERE:
 - `type`: The type of the resource record to delete.
 - `value`: The value in the record to delete. This is the same value that was read in the Get Record call.
 - `port` (optional): This is the port parameter in the SRV record. This parameter is required when deleting the SRV record.
+- `keyTag` (optional): This parameter is required when deleting `DS` record.
+- `algorithm` (optional): This parameter is required when deleting `DS` record.
+- `digestType` (optional): This parameter is required when deleting `DS` record.
 - `flags` (optional): This is the flags parameter in the CAA record. This parameter is required when deleting the CAA record.
 - `tag` (optional): This is the tag parameter in the CAA record. This parameter is required when deleting the CAA record.
 - `protocol` (optional): This is the protocol parameter in the FWD record. Valid values are [`Udp`, `Tcp`, `Tls`, `Https`]. This parameter is optional and default value `Udp` will be used when deleting the FWD record.
@@ -2455,6 +2461,12 @@ WHERE:
 - `priority` (optional): This is the priority parameter in the SRV record. This parameter is required when updating the SRV record.
 - `weight` (optional): This is the weight parameter in the SRV record. This parameter is required when updating the SRV record.
 - `newPort` (optional): This is the new value of the port parameter in the SRV record. This parameter is used to update the port parameter in the SRV record.
+- `keyTag` (optional): This parameter is required when updating `DS` record.
+- `algorithm` (optional): This parameter is required when updating `DS` record.
+- `digestType` (optional): This parameter is required when updating `DS` record.
+- `newKeyTag` (optional): This parameter is required when updating `DS` record.
+- `newAlgorithm` (optional): This parameter is required when updating `DS` record.
+- `newDigestType` (optional): This parameter is required when updating `DS` record.
 - `flags` (optional): This is the flags parameter in the CAA record. This parameter is required when updating the CAA record.
 - `tag` (optional): This is the tag parameter in the CAA record. This parameter is required when updating the CAA record.
 - `newFlags` (optional): This is the new value of the flags parameter in the CAA record. This parameter is used to update the flags parameter in the CAA record.
