@@ -53,13 +53,13 @@ namespace DnsServerCore.Dns.Zones
             switch (type)
             {
                 case DnsResourceRecordType.CNAME:
-                    throw new InvalidOperationException("Cannot set CNAME record to zone root.");
+                    throw new InvalidOperationException("Cannot set CNAME record at zone apex.");
 
                 case DnsResourceRecordType.NS:
-                    throw new InvalidOperationException("Cannot set NS record to forwarder zone root.");
+                    throw new InvalidOperationException("Cannot set NS record at forwarder zone apex.");
 
                 case DnsResourceRecordType.SOA:
-                    throw new InvalidOperationException("Cannot set SOA record to forwarder zone root.");
+                    throw new InvalidOperationException("Cannot set SOA record at forwarder zone apex.");
 
                 default:
                     base.SetRecords(type, records);
@@ -72,7 +72,7 @@ namespace DnsServerCore.Dns.Zones
             switch (record.Type)
             {
                 case DnsResourceRecordType.NS:
-                    throw new InvalidOperationException("Cannot add NS record at forwarder zone root.");
+                    throw new InvalidOperationException("Cannot add NS record at forwarder zone apex.");
 
                 default:
                     base.AddRecord(record);
