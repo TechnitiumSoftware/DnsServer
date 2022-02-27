@@ -3016,6 +3016,12 @@ namespace DnsServerCore
                 dnsClient.UdpPayloadSize = udpPayloadSize;
                 dnsClient.DnssecValidation = dnssecValidation;
 
+                if (dnssecValidation)
+                {
+                    //load trust anchors into dns client if domain is locally hosted
+                    _dnsServer.AuthZoneManager.LoadTrustAnchorsTo(dnsClient, domain, type);
+                }
+
                 try
                 {
                     dnsResponse = await dnsClient.ResolveAsync(domain, type);
