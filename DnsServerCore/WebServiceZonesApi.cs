@@ -121,7 +121,7 @@ namespace DnsServerCore
             if (string.IsNullOrEmpty(zoneName))
                 throw new DnsWebServiceException("Parameter 'zone' missing.");
 
-            if (zoneName.Contains("*"))
+            if (zoneName.Contains('*'))
                 throw new DnsWebServiceException("Domain name for a zone cannot contain wildcard character.");
 
             if (IPAddress.TryParse(zoneName, out IPAddress ipAddress))
@@ -1226,6 +1226,32 @@ namespace DnsServerCore
                     }
                     break;
 
+                case DnsResourceRecordType.DS:
+                    {
+                        string strKeyTag = request.QueryString["keyTag"];
+                        if (string.IsNullOrEmpty(strKeyTag))
+                            throw new DnsWebServiceException("Parameter 'keyTag' missing.");
+
+                        string strAlgorithm = request.QueryString["algorithm"];
+                        if (string.IsNullOrEmpty(strAlgorithm))
+                            throw new DnsWebServiceException("Parameter 'algorithm' missing.");
+
+                        string strDigestType = request.QueryString["digestType"];
+                        if (string.IsNullOrEmpty(strDigestType))
+                            throw new DnsWebServiceException("Parameter 'digestType' missing.");
+
+                        DnsResourceRecord newRecord = new DnsResourceRecord(domain, type, DnsClass.IN, ttl, new DnsDSRecord(ushort.Parse(strKeyTag), Enum.Parse<DnssecAlgorithm>(strAlgorithm), Enum.Parse<DnssecDigestType>(strDigestType), Convert.FromHexString(value)));
+
+                        if (!string.IsNullOrEmpty(comments))
+                            newRecord.SetComments(comments);
+
+                        if (overwrite)
+                            _dnsWebService.DnsServer.AuthZoneManager.SetRecord(zoneName, newRecord);
+                        else
+                            _dnsWebService.DnsServer.AuthZoneManager.AddRecord(zoneName, newRecord);
+                    }
+                    break;
+
                 case DnsResourceRecordType.CAA:
                     {
                         string flags = request.QueryString["flags"];
@@ -1405,10 +1431,10 @@ namespace DnsServerCore
             List<DnsResourceRecord> records = new List<DnsResourceRecord>();
             _dnsWebService.DnsServer.AuthZoneManager.ListAllRecords(domain, records);
 
-            WriteRecordsAsJson(records, jsonWriter, true);
+            WriteRecordsAsJson(records, jsonWriter, true, zoneInfo);
         }
 
-        public static void WriteRecordsAsJson(List<DnsResourceRecord> records, JsonTextWriter jsonWriter, bool authoritativeZoneRecords)
+        public static void WriteRecordsAsJson(List<DnsResourceRecord> records, JsonTextWriter jsonWriter, bool authoritativeZoneRecords, AuthZoneInfo zoneInfo = null)
         {
             if (records == null)
             {
@@ -1725,7 +1751,7 @@ namespace DnsServerCore
                                         jsonWriter.WritePropertyName("digestType");
                                         jsonWriter.WriteValue(rdata.DigestType.ToString());
 
-                                        jsonWriter.WritePropertyName("digest");
+                                        jsonWriter.WritePropertyName("value");
                                         jsonWriter.WriteValue(rdata.Digest);
                                     }
                                     else
@@ -1826,48 +1852,61 @@ namespace DnsServerCore
                                         jsonWriter.WritePropertyName("computedKeyTag");
                                         jsonWriter.WriteValue(rdata.ComputedKeyTag);
 
-                                        if (rdata.Flags.HasFlag(DnsDnsKeyFlag.SecureEntryPoint))
+                                        if (authoritativeZoneRecords)
                                         {
-                                            jsonWriter.WritePropertyName("digests");
-                                            jsonWriter.WriteStartArray();
-
+                                            foreach (DnssecPrivateKey dnssecPrivateKey in zoneInfo.DnssecPrivateKeys)
                                             {
-                                                jsonWriter.WriteStartObject();
-
-                                                jsonWriter.WritePropertyName("digestType");
-                                                jsonWriter.WriteValue("SHA1");
-
-                                                jsonWriter.WritePropertyName("digest");
-                                                jsonWriter.WriteValue(rdata.CreateDS(record.Name, DnssecDigestType.SHA1).Digest);
-
-                                                jsonWriter.WriteEndObject();
+                                                if (dnssecPrivateKey.KeyTag == rdata.ComputedKeyTag)
+                                                {
+                                                    jsonWriter.WritePropertyName("dnsKeyState");
+                                                    jsonWriter.WriteValue(dnssecPrivateKey.State.ToString());
+                                                    break;
+                                                }
                                             }
 
+                                            if (rdata.Flags.HasFlag(DnsDnsKeyFlag.SecureEntryPoint))
                                             {
-                                                jsonWriter.WriteStartObject();
+                                                jsonWriter.WritePropertyName("computedDigests");
+                                                jsonWriter.WriteStartArray();
 
-                                                jsonWriter.WritePropertyName("digestType");
-                                                jsonWriter.WriteValue("SHA256");
+                                                {
+                                                    jsonWriter.WriteStartObject();
 
-                                                jsonWriter.WritePropertyName("digest");
-                                                jsonWriter.WriteValue(rdata.CreateDS(record.Name, DnssecDigestType.SHA256).Digest);
+                                                    jsonWriter.WritePropertyName("digestType");
+                                                    jsonWriter.WriteValue("SHA1");
 
-                                                jsonWriter.WriteEndObject();
+                                                    jsonWriter.WritePropertyName("digest");
+                                                    jsonWriter.WriteValue(rdata.CreateDS(record.Name, DnssecDigestType.SHA1).Digest);
+
+                                                    jsonWriter.WriteEndObject();
+                                                }
+
+                                                {
+                                                    jsonWriter.WriteStartObject();
+
+                                                    jsonWriter.WritePropertyName("digestType");
+                                                    jsonWriter.WriteValue("SHA256");
+
+                                                    jsonWriter.WritePropertyName("digest");
+                                                    jsonWriter.WriteValue(rdata.CreateDS(record.Name, DnssecDigestType.SHA256).Digest);
+
+                                                    jsonWriter.WriteEndObject();
+                                                }
+
+                                                {
+                                                    jsonWriter.WriteStartObject();
+
+                                                    jsonWriter.WritePropertyName("digestType");
+                                                    jsonWriter.WriteValue("SHA384");
+
+                                                    jsonWriter.WritePropertyName("digest");
+                                                    jsonWriter.WriteValue(rdata.CreateDS(record.Name, DnssecDigestType.SHA384).Digest);
+
+                                                    jsonWriter.WriteEndObject();
+                                                }
+
+                                                jsonWriter.WriteEndArray();
                                             }
-
-                                            {
-                                                jsonWriter.WriteStartObject();
-
-                                                jsonWriter.WritePropertyName("digestType");
-                                                jsonWriter.WriteValue("SHA384");
-
-                                                jsonWriter.WritePropertyName("digest");
-                                                jsonWriter.WriteValue(rdata.CreateDS(record.Name, DnssecDigestType.SHA384).Digest);
-
-                                                jsonWriter.WriteEndObject();
-                                            }
-
-                                            jsonWriter.WriteEndArray();
                                         }
                                     }
                                     else
@@ -2209,6 +2248,24 @@ namespace DnsServerCore
                             throw new DnsWebServiceException("Parameter 'port' missing.");
 
                         _dnsWebService.DnsServer.AuthZoneManager.DeleteRecord(zoneName, domain, type, new DnsSRVRecord(0, 0, ushort.Parse(port), value));
+                    }
+                    break;
+
+                case DnsResourceRecordType.DS:
+                    {
+                        string strKeyTag = request.QueryString["keyTag"];
+                        if (string.IsNullOrEmpty(strKeyTag))
+                            throw new DnsWebServiceException("Parameter 'keyTag' missing.");
+
+                        string strAlgorithm = request.QueryString["algorithm"];
+                        if (string.IsNullOrEmpty(strAlgorithm))
+                            throw new DnsWebServiceException("Parameter 'algorithm' missing.");
+
+                        string strDigestType = request.QueryString["digestType"];
+                        if (string.IsNullOrEmpty(strDigestType))
+                            throw new DnsWebServiceException("Parameter 'digestType' missing.");
+
+                        _dnsWebService.DnsServer.AuthZoneManager.DeleteRecord(zoneName, domain, type, new DnsDSRecord(ushort.Parse(strKeyTag), Enum.Parse<DnssecAlgorithm>(strAlgorithm), Enum.Parse<DnssecDigestType>(strDigestType), Convert.FromHexString(value)));
                     }
                     break;
 
@@ -2560,6 +2617,45 @@ namespace DnsServerCore
                     {
                         DnsResourceRecord oldRecord = new DnsResourceRecord(domain, type, DnsClass.IN, 0, new DnsDNAMERecord(value));
                         DnsResourceRecord newRecord = new DnsResourceRecord(newDomain, type, DnsClass.IN, ttl, new DnsDNAMERecord(newValue.TrimEnd('.')));
+
+                        if (disable)
+                            newRecord.Disable();
+
+                        if (!string.IsNullOrEmpty(comments))
+                            newRecord.SetComments(comments);
+
+                        _dnsWebService.DnsServer.AuthZoneManager.UpdateRecord(zoneName, oldRecord, newRecord);
+                    }
+                    break;
+
+                case DnsResourceRecordType.DS:
+                    {
+                        string strKeyTag = request.QueryString["keyTag"];
+                        if (string.IsNullOrEmpty(strKeyTag))
+                            throw new DnsWebServiceException("Parameter 'keyTag' missing.");
+
+                        string strAlgorithm = request.QueryString["algorithm"];
+                        if (string.IsNullOrEmpty(strAlgorithm))
+                            throw new DnsWebServiceException("Parameter 'algorithm' missing.");
+
+                        string strDigestType = request.QueryString["digestType"];
+                        if (string.IsNullOrEmpty(strDigestType))
+                            throw new DnsWebServiceException("Parameter 'digestType' missing.");
+
+                        string strNewKeyTag = request.QueryString["newKeyTag"];
+                        if (string.IsNullOrEmpty(strNewKeyTag))
+                            strNewKeyTag = strKeyTag;
+
+                        string strNewAlgorithm = request.QueryString["newAlgorithm"];
+                        if (string.IsNullOrEmpty(strNewAlgorithm))
+                            strNewAlgorithm = strAlgorithm;
+
+                        string strNewDigestType = request.QueryString["newDigestType"];
+                        if (string.IsNullOrEmpty(strNewDigestType))
+                            strNewDigestType = strDigestType;
+
+                        DnsResourceRecord oldRecord = new DnsResourceRecord(domain, type, DnsClass.IN, 0, new DnsDSRecord(ushort.Parse(strKeyTag), Enum.Parse<DnssecAlgorithm>(strAlgorithm), Enum.Parse<DnssecDigestType>(strDigestType), Convert.FromHexString(value)));
+                        DnsResourceRecord newRecord = new DnsResourceRecord(newDomain, type, DnsClass.IN, ttl, new DnsDSRecord(ushort.Parse(strNewKeyTag), Enum.Parse<DnssecAlgorithm>(strNewAlgorithm), Enum.Parse<DnssecDigestType>(strNewDigestType), Convert.FromHexString(newValue)));
 
                         if (disable)
                             newRecord.Disable();
