@@ -205,6 +205,46 @@ namespace DnsServerCore.Dns.ZoneManagers
             });
         }
 
+        internal IReadOnlyList<AuthZone> GetZoneWithSubDomainZones(string zoneName)
+        {
+            return _root.GetZoneWithSubDomainZones(zoneName);
+        }
+
+        internal AuthZone GetAuthZone(string domain, string zoneName)
+        {
+            return _root.GetAuthZone(domain, zoneName);
+        }
+
+        internal AuthZone FindPreviousSubDomainZone(string domain, string zoneName)
+        {
+            return _root.FindPreviousSubDomainZone(domain, zoneName);
+        }
+
+        internal AuthZone FindNextSubDomainZone(string domain, string zoneName)
+        {
+            return _root.FindNextSubDomainZone(domain, zoneName);
+        }
+
+        internal bool SubDomainExists(string domain, string zoneName)
+        {
+            return _root.SubDomainExists(domain, zoneName);
+        }
+
+        internal void RemoveSubDomainZone(string domain)
+        {
+            _root.TryRemove(domain, out SubDomainZone _);
+        }
+
+        internal static string GetParentZone(string domain)
+        {
+            int i = domain.IndexOf('.');
+            if (i > -1)
+                return domain.Substring(i + 1);
+
+            //dont return root zone
+            return null;
+        }
+
         private static void ValidateZoneNameFor(string zoneName, string domain)
         {
             if (domain.Equals(zoneName, StringComparison.OrdinalIgnoreCase) || domain.EndsWith("." + zoneName, StringComparison.OrdinalIgnoreCase) || (zoneName.Length == 0))
@@ -316,7 +356,7 @@ namespace DnsServerCore.Dns.ZoneManagers
             }
         }
 
-        private DnsDatagram GetReferralResponse(DnsDatagram request, bool dnssecOk, AuthZone delegationZone, bool isRecursionAllowed)
+        private DnsDatagram GetReferralResponse(DnsDatagram request, bool dnssecOk, AuthZone delegationZone, ApexZone apexZone, bool isRecursionAllowed)
         {
             IReadOnlyList<DnsResourceRecord> authority;
 
@@ -343,7 +383,22 @@ namespace DnsServerCore.Dns.ZoneManagers
                     else
                     {
                         //add proof of non existence (NODATA) to prove DS record does not exists
-                        authority = AddProofOfNonExistenceNoData(delegationZone, authority);
+                        IReadOnlyList<DnsResourceRecord> nsecRecords;
+
+                        if (apexZone.DnssecStatus == AuthZoneDnssecStatus.SignedWithNSEC3)
+                            nsecRecords = _root.FindNSec3ProofOfNonExistenceNoData(delegationZone, apexZone);
+                        else
+                            nsecRecords = _root.FindNSecProofOfNonExistenceNoData(delegationZone);
+
+                        if (nsecRecords.Count > 0)
+                        {
+                            List<DnsResourceRecord> newAuthority = new List<DnsResourceRecord>(authority.Count + nsecRecords.Count);
+
+                            newAuthority.AddRange(authority);
+                            newAuthority.AddRange(nsecRecords);
+
+                            authority = newAuthority;
+                        }
                     }
                 }
             }
@@ -351,20 +406,6 @@ namespace DnsServerCore.Dns.ZoneManagers
             IReadOnlyList<DnsResourceRecord> additional = GetAdditionalRecords(authority, dnssecOk);
 
             return new DnsDatagram(request.Identifier, true, DnsOpcode.StandardQuery, false, false, request.RecursionDesired, isRecursionAllowed, false, false, DnsResponseCode.NoError, request.Question, null, authority, additional);
-        }
-
-        private static IReadOnlyList<DnsResourceRecord> AddProofOfNonExistenceNoData(AuthZone zone, IReadOnlyList<DnsResourceRecord> existingAuthority)
-        {
-            IReadOnlyList<DnsResourceRecord> nsecRecords = zone.QueryRecords(DnsResourceRecordType.NSEC, true);
-            if (nsecRecords.Count <= 0)
-                return existingAuthority;
-
-            List<DnsResourceRecord> newAuthority = new List<DnsResourceRecord>(existingAuthority.Count + nsecRecords.Count);
-
-            newAuthority.AddRange(existingAuthority);
-            newAuthority.AddRange(nsecRecords);
-
-            return newAuthority;
         }
 
         private static DnsDatagram GetForwarderResponse(DnsDatagram request, AuthZone zone, AuthZone closestZone, AuthZone forwarderZone, bool isRecursionAllowed)
@@ -567,49 +608,6 @@ namespace DnsServerCore.Dns.ZoneManagers
             condensedRecords.Add(lastSoaRecord);
 
             return condensedRecords;
-        }
-
-        internal static string GetParentZone(string domain)
-        {
-            int i = domain.IndexOf('.');
-            if (i > -1)
-                return domain.Substring(i + 1);
-
-            //dont return root zone
-            return null;
-        }
-
-        internal IReadOnlyList<AuthZone> GetZoneWithSubDomainZones(string zoneName)
-        {
-            return _root.GetZoneWithSubDomainZones(zoneName);
-        }
-
-        internal AuthZone FindZone(string domain)
-        {
-            if (_root.TryGet(domain, out AuthZoneNode authZoneNode))
-            {
-                if (authZoneNode.ApexZone is not null)
-                    return authZoneNode.ApexZone;
-
-                return authZoneNode.ParentSideZone;
-            }
-
-            return null;
-        }
-
-        internal AuthZone FindNextSubDomainZone(string domain)
-        {
-            return _root.FindNextSubDomainZone(domain);
-        }
-
-        internal AuthZone FindPreviousSubDomainZone(string domain)
-        {
-            return _root.FindPreviousSubDomainZone(domain);
-        }
-
-        internal void RemoveSubDomainZone(string domain)
-        {
-            _root.TryRemove(domain, out SubDomainZone _);
         }
 
         #endregion
@@ -1644,7 +1642,7 @@ namespace DnsServerCore.Dns.ZoneManagers
             {
                 bool dnssecOk = request.DnssecOk && (apexZone.DnssecStatus != AuthZoneDnssecStatus.Unsigned);
 
-                return GetReferralResponse(request, dnssecOk, delegation, true);
+                return GetReferralResponse(request, dnssecOk, delegation, apexZone, true);
             }
 
             //no delegation found
@@ -1666,10 +1664,10 @@ namespace DnsServerCore.Dns.ZoneManagers
             {
                 //zone not found
                 if ((delegation is not null) && delegation.IsActive && (delegation.Name.Length > apexZone.Name.Length))
-                    return GetReferralResponse(request, dnssecOk, delegation, isRecursionAllowed);
+                    return GetReferralResponse(request, dnssecOk, delegation, apexZone, isRecursionAllowed);
 
                 if (apexZone is StubZone)
-                    return GetReferralResponse(request, false, apexZone, isRecursionAllowed);
+                    return GetReferralResponse(request, false, apexZone, apexZone, isRecursionAllowed);
 
                 if (apexZone is ForwarderZone)
                     return GetForwarderResponse(request, null, closest, apexZone, isRecursionAllowed);
@@ -1718,9 +1716,9 @@ namespace DnsServerCore.Dns.ZoneManagers
                                 IReadOnlyList<DnsResourceRecord> nsecRecords;
 
                                 if (apexZone.DnssecStatus == AuthZoneDnssecStatus.SignedWithNSEC3)
-                                    nsecRecords = _root.FindNSec3ProofOfNonExistenceNxDomain(question.Name, question.Type, false);
+                                    nsecRecords = _root.FindNSec3ProofOfNonExistenceNxDomain(question.Name, false);
                                 else
-                                    nsecRecords = _root.FindNSecProofOfNonExistenceNxDomain(question.Name, question.Type, false);
+                                    nsecRecords = _root.FindNSecProofOfNonExistenceNxDomain(question.Name, false);
 
                                 if (nsecRecords.Count > 0)
                                 {
@@ -1776,10 +1774,10 @@ namespace DnsServerCore.Dns.ZoneManagers
                     {
                         //check for delegation, stub & forwarder
                         if ((delegation is not null) && delegation.IsActive && (delegation.Name.Length > apexZone.Name.Length))
-                            return GetReferralResponse(request, dnssecOk, delegation, isRecursionAllowed);
+                            return GetReferralResponse(request, dnssecOk, delegation, apexZone, isRecursionAllowed);
 
                         if (apexZone is StubZone)
-                            return GetReferralResponse(request, false, apexZone, isRecursionAllowed);
+                            return GetReferralResponse(request, false, apexZone, apexZone, isRecursionAllowed);
 
                         if (apexZone is ForwarderZone)
                             return GetForwarderResponse(request, zone, closest, apexZone, isRecursionAllowed);
@@ -1799,7 +1797,25 @@ namespace DnsServerCore.Dns.ZoneManagers
                                 authority = apexZone.QueryRecords(DnsResourceRecordType.SOA, dnssecOk);
 
                                 if (dnssecOk)
-                                    authority = AddProofOfNonExistenceNoData(zone, authority); //add proof of non existence (NODATA) to prove that no such type or record exists
+                                {
+                                    //add proof of non existence (NODATA) to prove that no such type or record exists
+                                    IReadOnlyList<DnsResourceRecord> nsecRecords;
+
+                                    if (apexZone.DnssecStatus == AuthZoneDnssecStatus.SignedWithNSEC3)
+                                        nsecRecords = _root.FindNSec3ProofOfNonExistenceNoData(zone, apexZone);
+                                    else
+                                        nsecRecords = _root.FindNSecProofOfNonExistenceNoData(zone);
+
+                                    if (nsecRecords.Count > 0)
+                                    {
+                                        List<DnsResourceRecord> newAuthority = new List<DnsResourceRecord>(authority.Count + nsecRecords.Count);
+
+                                        newAuthority.AddRange(authority);
+                                        newAuthority.AddRange(nsecRecords);
+
+                                        authority = newAuthority;
+                                    }
+                                }
                             }
                         }
                     }
@@ -1809,7 +1825,7 @@ namespace DnsServerCore.Dns.ZoneManagers
                 else
                 {
                     //record type found
-                    if (zone.Name.Contains("*"))
+                    if (zone.Name.Contains('*') && !zone.Name.Equals(question.Name, StringComparison.OrdinalIgnoreCase))
                     {
                         //wildcard zone; generate new answer records
                         DnsResourceRecord[] wildcardAnswers = new DnsResourceRecord[answers.Count];
@@ -1825,9 +1841,9 @@ namespace DnsServerCore.Dns.ZoneManagers
                             IReadOnlyList<DnsResourceRecord> nsecRecords;
 
                             if (apexZone.DnssecStatus == AuthZoneDnssecStatus.SignedWithNSEC3)
-                                nsecRecords = _root.FindNSec3ProofOfNonExistenceNxDomain(question.Name, question.Type, true);
+                                nsecRecords = _root.FindNSec3ProofOfNonExistenceNxDomain(question.Name, true);
                             else
-                                nsecRecords = _root.FindNSecProofOfNonExistenceNxDomain(question.Name, question.Type, true);
+                                nsecRecords = _root.FindNSecProofOfNonExistenceNxDomain(question.Name, true);
 
                             if (nsecRecords.Count > 0)
                                 authority = nsecRecords;
@@ -1860,6 +1876,33 @@ namespace DnsServerCore.Dns.ZoneManagers
                 }
 
                 return new DnsDatagram(request.Identifier, true, DnsOpcode.StandardQuery, true, false, request.RecursionDesired, isRecursionAllowed, false, false, DnsResponseCode.NoError, request.Question, answers, authority, additional);
+            }
+        }
+
+        public void LoadTrustAnchorsTo(DnsClient dnsClient, string domain, DnsResourceRecordType type)
+        {
+            if (type == DnsResourceRecordType.DS)
+            {
+                domain = GetParentZone(domain);
+                if (domain is null)
+                    domain = "";
+            }
+
+            AuthZoneInfo zoneInfo = _dnsServer.AuthZoneManager.FindAuthZoneInfo(domain, false);
+            if ((zoneInfo is not null) && (zoneInfo.DnssecStatus != AuthZoneDnssecStatus.Unsigned))
+            {
+                IReadOnlyList<DnsResourceRecord> dnsKeyRecords = zoneInfo.GetRecords(DnsResourceRecordType.DNSKEY);
+
+                foreach (DnsResourceRecord dnsKeyRecord in dnsKeyRecords)
+                {
+                    DnsDNSKEYRecord dnsKey = dnsKeyRecord.RDATA as DnsDNSKEYRecord;
+
+                    if (dnsKey.Flags.HasFlag(DnsDnsKeyFlag.SecureEntryPoint))
+                    {
+                        DnsDSRecord dsRecord = dnsKey.CreateDS(dnsKeyRecord.Name, DnssecDigestType.SHA256);
+                        dnsClient.AddTrustAnchor(zoneInfo.Name, dsRecord);
+                    }
+                }
             }
         }
 
