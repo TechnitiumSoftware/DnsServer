@@ -777,6 +777,7 @@ function addZone() {
             btn.button('reset');
         },
         invalidToken: function () {
+            $("#modalAddZone").modal("hide");
             showPageLogin();
         },
         objAlertPlaceholder: divAddZoneAlert
@@ -858,14 +859,16 @@ function showEditZone(domain) {
 
                 case "Forwarder":
                     $("#btnEditZoneAddRecord").show();
-                    $("#optEditRecordTypeFwd").show();
-                    $("#optEditRecordTypeApp").hide();
+                    $("#optAddEditRecordTypeDs").hide();
+                    $("#optAddEditRecordTypeFwd").show();
+                    $("#optAddEditRecordTypeApp").hide();
                     break;
 
                 default:
                     $("#btnEditZoneAddRecord").show();
-                    $("#optEditRecordTypeFwd").hide();
-                    $("#optEditRecordTypeApp").show();
+                    $("#optAddEditRecordTypeDs").show();
+                    $("#optAddEditRecordTypeFwd").hide();
+                    $("#optAddEditRecordTypeApp").show();
                     break;
             }
 
@@ -1065,7 +1068,7 @@ function showEditZone(domain) {
                         tableHtmlRows += "<td style=\"word-break: break-all;\"><b>Key Tag: </b> " + htmlEncode(records[i].rData.keyTag) +
                             "<br /><b>Algorithm:</b> " + htmlEncode(records[i].rData.algorithm) +
                             "<br /><b>Digest Type:</b> " + htmlEncode(records[i].rData.digestType) +
-                            "<br /><b>Digest:</b> " + htmlEncode(records[i].rData.digest);
+                            "<br /><b>Digest:</b> " + htmlEncode(records[i].rData.value);
 
                         if ((records[i].comments != null) && (records[i].comments.length > 0))
                             tableHtmlRows += "<br /><br /><b>Comments:</b> <pre>" + htmlEncode(records[i].comments) + "</pre>";
@@ -1074,8 +1077,7 @@ function showEditZone(domain) {
 
                         additionalDataAttributes = "data-record-key-tag=\"" + htmlEncode(records[i].rData.keyTag) + "\" " +
                             "data-record-algorithm=\"" + htmlEncode(records[i].rData.algorithm) + "\" " +
-                            "data-record-digest-type=\"" + htmlEncode(records[i].rData.digestType) + "\" " +
-                            "data-record-digest=\"" + htmlEncode(records[i].rData.digest) + "\" ";
+                            "data-record-digest-type=\"" + htmlEncode(records[i].rData.digestType) + "\" ";
                         break;
 
                     case "RRSIG":
@@ -1094,15 +1096,7 @@ function showEditZone(domain) {
 
                         tableHtmlRows += "</td>";
 
-                        additionalDataAttributes = "data-record-type-covered=\"" + htmlEncode(records[i].rData.typeCovered) + "\" " +
-                            "data-record-algorithm=\"" + htmlEncode(records[i].rData.algorithm) + "\" " +
-                            "data-record-labels=\"" + htmlEncode(records[i].rData.labels) + "\" " +
-                            "data-record-original-ttl=\"" + htmlEncode(records[i].rData.originalTtl) + "\" " +
-                            "data-record-signature-expiration=\"" + htmlEncode(records[i].rData.signatureExpiration) + "\" " +
-                            "data-record-signature-inception=\"" + htmlEncode(records[i].rData.signatureInception) + "\" " +
-                            "data-record-key-tag=\"" + htmlEncode(records[i].rData.keyTag) + "\" " +
-                            "data-record-signers-name=\"" + htmlEncode(records[i].rData.signersName) + "\" " +
-                            "data-record-signature=\"" + htmlEncode(records[i].rData.signature) + "\" ";
+                        additionalDataAttributes = "";
                         break;
 
                     case "NSEC":
@@ -1123,22 +1117,24 @@ function showEditZone(domain) {
 
                         tableHtmlRows += "</td>";
 
-                        additionalDataAttributes = "data-record-next-domain-name=\"" + htmlEncode(records[i].rData.nextDomainName) + "\" " +
-                            "data-record-types=\"" + htmlEncode(nsecTypes) + "\" ";
+                        additionalDataAttributes = "";
                         break;
 
                     case "DNSKEY":
                         tableHtmlRows += "<td style=\"word-break: break-all;\"><b>Flags: </b> " + htmlEncode(records[i].rData.flags) +
                             "<br /><b>Protocol:</b> " + htmlEncode(records[i].rData.protocol) +
                             "<br /><b>Algorithm:</b> " + htmlEncode(records[i].rData.algorithm) +
-                            "<br /><b>Public Key:</b> " + htmlEncode(records[i].rData.publicKey) +
-                            "<br /><br /><b>Computed Key Tag:</b> " + htmlEncode(records[i].rData.computedKeyTag);
+                            "<br /><b>Public Key:</b> " + htmlEncode(records[i].rData.publicKey);
 
-                        if (records[i].rData.digests != null) {
-                            tableHtmlRows += "<br /><br /><b>Computed DS Digests:</b> ";
+                        tableHtmlRows += "<br /><br /><b>Key State:</b> " + htmlEncode(records[i].rData.dnsKeyState);
 
-                            for (var j = 0; j < records[i].rData.digests.length; j++) {
-                                tableHtmlRows += "<br />" + htmlEncode(records[i].rData.digests[j].digestType) + ": " + htmlEncode(records[i].rData.digests[j].digest)
+                        tableHtmlRows += "<br /><b>Computed Key Tag:</b> " + htmlEncode(records[i].rData.computedKeyTag);
+
+                        if (records[i].rData.computedDigests != null) {
+                            tableHtmlRows += "<br /><b>Computed DS Digests:</b> ";
+
+                            for (var j = 0; j < records[i].rData.computedDigests.length; j++) {
+                                tableHtmlRows += "<br />" + htmlEncode(records[i].rData.computedDigests[j].digestType) + ": " + htmlEncode(records[i].rData.computedDigests[j].digest)
                             }
                         }
 
@@ -1147,10 +1143,7 @@ function showEditZone(domain) {
 
                         tableHtmlRows += "</td>";
 
-                        additionalDataAttributes = "data-record-flags=\"" + htmlEncode(records[i].rData.flags) + "\" " +
-                            "data-record-protocol=\"" + htmlEncode(records[i].rData.protocol) + "\" " +
-                            "data-record-algorithm=\"" + htmlEncode(records[i].rData.algorithm) + "\" " +
-                            "data-record-public-key=\"" + htmlEncode(records[i].rData.publicKey) + "\" ";
+                        additionalDataAttributes = "";
                         break;
 
                     case "NSEC3":
@@ -1175,12 +1168,7 @@ function showEditZone(domain) {
 
                         tableHtmlRows += "</td>";
 
-                        additionalDataAttributes = "data-record-hash-algorithm=\"" + htmlEncode(records[i].rData.hashAlgorithm) + "\" " +
-                            "data-record-flags=\"" + htmlEncode(records[i].rData.flags) + "\" " +
-                            "data-record-iterations=\"" + htmlEncode(records[i].rData.iterations) + "\" " +
-                            "data-record-salt=\"" + htmlEncode(records[i].rData.salt) + "\" " +
-                            "data-record-next-hashed-owner-name=\"" + htmlEncode(records[i].rData.nextHashedOwnerName) + "\" " +
-                            "data-record-types=\"" + htmlEncode(nsec3Types) + "\" ";
+                        additionalDataAttributes = "";
                         break;
 
                     case "NSEC3PARAM":
@@ -1194,10 +1182,7 @@ function showEditZone(domain) {
 
                         tableHtmlRows += "</td>";
 
-                        additionalDataAttributes = "data-record-hash-algorithm=\"" + htmlEncode(records[i].rData.hashAlgorithm) + "\" " +
-                            "data-record-flags=\"" + htmlEncode(records[i].rData.flags) + "\" " +
-                            "data-record-iterations=\"" + htmlEncode(records[i].rData.iterations) + "\" " +
-                            "data-record-salt=\"" + htmlEncode(records[i].rData.salt) + "\" ";
+                        additionalDataAttributes = "";
                         break;
 
                     case "CAA":
@@ -1404,6 +1389,12 @@ function clearAddEditForm() {
     $("#txtAddEditRecordDataSrvPort").val("");
     $("#txtAddEditRecordDataSrvTarget").val("");
 
+    $("#divAddEditRecordDataDs").hide();
+    $("#txtAddEditRecordDataDsKeyTag").val("");
+    $("#optAddEditRecordDataDsAlgorithm").val("");
+    $("#optAddEditRecordDataDsDigestType").val("");
+    $("#txtAddEditRecordDataDsDigest").val("");
+
     $("#divAddEditRecordDataCaa").hide();
     $("#txtAddEditRecordDataCaaFlags").val("");
     $("#txtAddEditRecordDataCaaTag").val("");
@@ -1522,6 +1513,7 @@ function modifyAddRecordFormByType() {
     $("#divEditRecordDataSoa").hide();
     $("#divAddEditRecordDataMx").hide();
     $("#divAddEditRecordDataSrv").hide();
+    $("#divAddEditRecordDataDs").hide();
     $("#divAddEditRecordDataCaa").hide();
     $("#divAddEditRecordDataForwarder").hide();
     $("#divAddEditRecordDataApplication").hide();
@@ -1597,6 +1589,14 @@ function modifyAddRecordFormByType() {
             $("#txtAddEditRecordDataSrvPort").val("");
             $("#txtAddEditRecordDataSrvTarget").val("");
             $("#divAddEditRecordDataSrv").show();
+            break;
+
+        case "DS":
+            $("#txtAddEditRecordDataDsKeyTag").val("");
+            $("#optAddEditRecordDataDsAlgorithm").val("");
+            $("#optAddEditRecordDataDsDigestType").val("");
+            $("#txtAddEditRecordDataDsDigest").val("");
+            $("#divAddEditRecordDataDs").show();
             break;
 
         case "CAA":
@@ -1785,6 +1785,45 @@ function addRecord() {
             apiUrl += "&value=" + encodeURIComponent(value);
             break;
 
+        case "DS":
+            var subDomainName = $("#txtAddEditRecordName").val();
+            if ((subDomainName === "") || (subDomainName === "@")) {
+                showAlert("warning", "Missing!", "Please enter a name for the DS record.", divAddEditRecordAlert);
+                $("#txtAddEditRecordName").focus();
+                return;
+            }
+
+            var keyTag = $("#txtAddEditRecordDataDsKeyTag").val();
+            if (keyTag === "") {
+                showAlert("warning", "Missing!", "Please enter the Key Tag value to add the record.", divAddEditRecordAlert);
+                $("#txtAddEditRecordDataDsKeyTag").focus();
+                return;
+            }
+
+            var algorithm = $("#optAddEditRecordDataDsAlgorithm").val();
+            if ((algorithm === null) || (algorithm === "")) {
+                showAlert("warning", "Missing!", "Please select an DNSSEC algorithm to add the record.", divAddEditRecordAlert);
+                $("#optAddEditRecordDataDsAlgorithm").focus();
+                return;
+            }
+
+            var digestType = $("#optAddEditRecordDataDsDigestType").val();
+            if ((digestType === null) || (digestType === "")) {
+                showAlert("warning", "Missing!", "Please select a Digest Type to add the record.", divAddEditRecordAlert);
+                $("#optAddEditRecordDataDsDigestType").focus();
+                return;
+            }
+
+            var value = $("#txtAddEditRecordDataDsDigest").val();
+            if (value === "") {
+                showAlert("warning", "Missing!", "Please enter the Digest hash in hex string format to add the record.", divAddEditRecordAlert);
+                $("#txtAddEditRecordDataDsDigest").focus();
+                return;
+            }
+
+            apiUrl += "&keyTag=" + keyTag + "&algorithm=" + algorithm + "&digestType=" + digestType + "&value=" + encodeURIComponent(value);
+            break;
+
         case "CAA":
             var flags = $("#txtAddEditRecordDataCaaFlags").val();
             if (flags === "")
@@ -1876,6 +1915,7 @@ function addRecord() {
             btn.button('reset');
         },
         invalidToken: function () {
+            $("#modalAddEditRecord").modal("hide");
             showPageLogin();
         },
         objAlertPlaceholder: divAddEditRecordAlert
@@ -2080,6 +2120,13 @@ function showEditRecordModal(objBtn) {
             $("#txtAddEditRecordDataSrvWeight").val(divData.attr("data-record-weight"));
             $("#txtAddEditRecordDataSrvPort").val(divData.attr("data-record-port"));
             $("#txtAddEditRecordDataSrvTarget").val(divData.attr("data-record-value"));
+            break;
+
+        case "DS":
+            $("#txtAddEditRecordDataDsKeyTag").val(divData.attr("data-record-key-tag"));
+            $("#optAddEditRecordDataDsAlgorithm").val(divData.attr("data-record-algorithm"));
+            $("#optAddEditRecordDataDsDigestType").val(divData.attr("data-record-digest-type"));
+            $("#txtAddEditRecordDataDsDigest").val(divData.attr("data-record-value"));
             break;
 
         case "CAA":
@@ -2371,6 +2418,49 @@ function updateRecord() {
             apiUrl += "&newValue=" + encodeURIComponent(newValue);
             break;
 
+        case "DS":
+            var subDomainName = $("#txtAddEditRecordName").val();
+            if ((subDomainName === "") || (subDomainName === "@")) {
+                showAlert("warning", "Missing!", "Please enter a name for the DS record.", divAddEditRecordAlert);
+                $("#txtAddEditRecordName").focus();
+                return;
+            }
+
+            var keyTag = divData.attr("data-record-key-tag");
+            var algorithm = divData.attr("data-record-algorithm");
+            var digestType = divData.attr("data-record-digest-type");
+
+            var newKeyTag = $("#txtAddEditRecordDataDsKeyTag").val();
+            if (newKeyTag === "") {
+                showAlert("warning", "Missing!", "Please enter the Key Tag value to update the record.", divAddEditRecordAlert);
+                $("#txtAddEditRecordDataDsKeyTag").focus();
+                return;
+            }
+
+            var newAlgorithm = $("#optAddEditRecordDataDsAlgorithm").val();
+            if ((newAlgorithm === null) || (newAlgorithm === "")) {
+                showAlert("warning", "Missing!", "Please select an DNSSEC algorithm to update the record.", divAddEditRecordAlert);
+                $("#optAddEditRecordDataDsAlgorithm").focus();
+                return;
+            }
+
+            var newDigestType = $("#optAddEditRecordDataDsDigestType").val();
+            if ((newDigestType === null) || (newDigestType === "")) {
+                showAlert("warning", "Missing!", "Please select a Digest Type to update the record.", divAddEditRecordAlert);
+                $("#optAddEditRecordDataDsDigestType").focus();
+                return;
+            }
+
+            var newValue = $("#txtAddEditRecordDataDsDigest").val();
+            if (newValue === "") {
+                showAlert("warning", "Missing!", "Please enter the Digest hash in hex string format to update the record.", divAddEditRecordAlert);
+                $("#txtAddEditRecordDataDsDigest").focus();
+                return;
+            }
+
+            apiUrl += "&keyTag=" + keyTag + "&algorithm=" + algorithm + "&digestType=" + digestType + "&newKeyTag=" + newKeyTag + "&newAlgorithm=" + newAlgorithm + "&newDigestType=" + newDigestType + "&newValue=" + encodeURIComponent(newValue);
+            break;
+
         case "CAA":
             var flags = divData.attr("data-record-flags");
             var tag = divData.attr("data-record-tag");
@@ -2447,6 +2537,7 @@ function updateRecord() {
             btn.button('reset');
         },
         invalidToken: function () {
+            $("#modalAddEditRecord").modal("hide");
             showPageLogin();
         },
         objAlertPlaceholder: divAddEditRecordAlert
@@ -2483,6 +2574,10 @@ function updateRecordState(objBtn, disable) {
 
         case "SRV":
             apiUrl += "&port=" + divData.attr("data-record-port") + "&priority=" + divData.attr("data-record-priority") + "&weight=" + divData.attr("data-record-weight");
+            break;
+
+        case "DS":
+            apiUrl += "&keyTag=" + divData.attr("data-record-key-tag") + "&algorithm=" + divData.attr("data-record-algorithm") + "&digestType=" + divData.attr("data-record-digest-type");
             break;
 
         case "CAA":
@@ -2551,6 +2646,10 @@ function deleteRecord(objBtn) {
     switch (type) {
         case "SRV":
             apiUrl += "&port=" + divData.attr("data-record-port");
+            break;
+
+        case "DS":
+            apiUrl += "&keyTag=" + divData.attr("data-record-key-tag") + "&algorithm=" + divData.attr("data-record-algorithm") + "&digestType=" + divData.attr("data-record-digest-type");
             break;
 
         case "CAA":
