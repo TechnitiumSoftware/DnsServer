@@ -1854,13 +1854,16 @@ namespace DnsServerCore
 
                                         if (authoritativeZoneRecords)
                                         {
-                                            foreach (DnssecPrivateKey dnssecPrivateKey in zoneInfo.DnssecPrivateKeys)
+                                            if (zoneInfo.Type == AuthZoneType.Primary)
                                             {
-                                                if (dnssecPrivateKey.KeyTag == rdata.ComputedKeyTag)
+                                                foreach (DnssecPrivateKey dnssecPrivateKey in zoneInfo.DnssecPrivateKeys)
                                                 {
-                                                    jsonWriter.WritePropertyName("dnsKeyState");
-                                                    jsonWriter.WriteValue(dnssecPrivateKey.State.ToString());
-                                                    break;
+                                                    if (dnssecPrivateKey.KeyTag == rdata.ComputedKeyTag)
+                                                    {
+                                                        jsonWriter.WritePropertyName("dnsKeyState");
+                                                        jsonWriter.WriteValue(dnssecPrivateKey.State.ToString());
+                                                        break;
+                                                    }
                                                 }
                                             }
 
