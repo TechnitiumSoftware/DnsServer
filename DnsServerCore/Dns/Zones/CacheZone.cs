@@ -154,7 +154,7 @@ namespace DnsServerCore.Dns.Zones
                     break;
 
                 case DnsResourceRecordType.ANY:
-                    List<DnsResourceRecord> anyRecords = new List<DnsResourceRecord>();
+                    List<DnsResourceRecord> anyRecords = new List<DnsResourceRecord>(_entries.Count * 2);
 
                     foreach (KeyValuePair<DnsResourceRecordType, IReadOnlyList<DnsResourceRecord>> entry in _entries)
                         anyRecords.AddRange(ValidateRRSet(type, entry.Value, serveStale, true));
