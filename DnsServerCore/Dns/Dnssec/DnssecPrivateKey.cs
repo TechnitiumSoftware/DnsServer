@@ -256,9 +256,9 @@ namespace DnsServerCore.Dns.Dnssec
 
         #endregion
 
-        #region public
+        #region internal
 
-        public DnsResourceRecord SignRRSet(string signersName, IReadOnlyList<DnsResourceRecord> records, uint signatureInceptionOffset, uint signatureValidityPeriod)
+        internal DnsResourceRecord SignRRSet(string signersName, IReadOnlyList<DnsResourceRecord> records, uint signatureInceptionOffset, uint signatureValidityPeriod)
         {
             DnsResourceRecord firstRecord = records[0];
             DnsRRSIGRecord unsignedRRSigRecord = new DnsRRSIGRecord(firstRecord.Type, _algorithm, DnsRRSIGRecord.GetLabelCount(firstRecord.Name), firstRecord.OriginalTtlValue, Convert.ToUInt32((DateTime.UtcNow.AddSeconds(signatureValidityPeriod) - DateTime.UnixEpoch).TotalSeconds), Convert.ToUInt32((DateTime.UtcNow.AddSeconds(-signatureInceptionOffset) - DateTime.UnixEpoch).TotalSeconds), DnsKey.ComputedKeyTag, signersName, null);
@@ -272,7 +272,7 @@ namespace DnsServerCore.Dns.Dnssec
             return new DnsResourceRecord(firstRecord.Name, DnsResourceRecordType.RRSIG, firstRecord.Class, firstRecord.OriginalTtlValue, signedRRSigRecord);
         }
 
-        public void SetState(DnssecPrivateKeyState state)
+        internal void SetState(DnssecPrivateKeyState state)
         {
             if (_state >= state)
                 throw new InvalidOperationException();
@@ -284,12 +284,12 @@ namespace DnsServerCore.Dns.Dnssec
                 InitDnsKey(_dnsKey.PublicKey);
         }
 
-        public void SetToRetire()
+        internal void SetToRetire()
         {
             _isRetiring = true;
         }
 
-        public void WriteTo(BinaryWriter bW)
+        internal void WriteTo(BinaryWriter bW)
         {
             bW.Write(Encoding.ASCII.GetBytes("DK")); //format
             bW.Write((byte)1); //version
