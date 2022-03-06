@@ -2500,7 +2500,7 @@ ns1.example.com ([2001:db8::])
                                         <option>DNAME</option>
                                         <option id="optAddEditRecordTypeDs">DS</option>
                                         <option>CAA</option>
-                                        <option>ANAME</option>
+                                        <option id="optAddEditRecordTypeAName">ANAME</option>
                                         <option id="optAddEditRecordTypeFwd">FWD</option>
                                         <option id="optAddEditRecordTypeApp">APP</option>
                                     </select>
@@ -2800,7 +2800,7 @@ ns1.example.com ([2001:db8::])
                                     </div>
                                 </div>
 
-                                <div class="form-group">
+                                <div class="form-group" id="divAddEditRecordDataForwarderDnssecValidation">
                                     <label class="col-sm-4 control-label">DNSSEC</label>
                                     <div class="col-sm-7">
                                         <div class="checkbox" style="margin-bottom: 6px;">
@@ -2811,55 +2811,57 @@ ns1.example.com ([2001:db8::])
                                     </div>
                                 </div>
 
-                                <div class="form-group">
-                                    <label class="col-sm-4 control-label">Network Proxy</label>
-                                    <div class="col-sm-7">
-                                        <div class="radio">
-                                            <label>
-                                                <input type="radio" name="rdAddEditRecordDataForwarderProxyType" id="rdAddEditRecordDataForwarderProxyTypeNone" value="None" checked>
-                                                No Proxy (default)
-                                            </label>
+                                <div id="divAddEditRecordDataForwarderProxy">
+                                    <div class="form-group">
+                                        <label class="col-sm-4 control-label">Network Proxy</label>
+                                        <div class="col-sm-7">
+                                            <div class="radio">
+                                                <label>
+                                                    <input type="radio" name="rdAddEditRecordDataForwarderProxyType" id="rdAddEditRecordDataForwarderProxyTypeNone" value="None" checked>
+                                                    No Proxy (default)
+                                                </label>
+                                            </div>
+                                            <div class="radio">
+                                                <label>
+                                                    <input type="radio" name="rdAddEditRecordDataForwarderProxyType" id="rdAddEditRecordDataForwarderProxyTypeHttp" value="Http">
+                                                    HTTP Proxy
+                                                </label>
+                                            </div>
+                                            <div class="radio">
+                                                <label>
+                                                    <input type="radio" name="rdAddEditRecordDataForwarderProxyType" id="rdAddEditRecordDataForwarderProxyTypeSocks5" value="Socks5">
+                                                    SOCKS5 Proxy
+                                                </label>
+                                            </div>
                                         </div>
-                                        <div class="radio">
-                                            <label>
-                                                <input type="radio" name="rdAddEditRecordDataForwarderProxyType" id="rdAddEditRecordDataForwarderProxyTypeHttp" value="Http">
-                                                HTTP Proxy
-                                            </label>
-                                        </div>
-                                        <div class="radio">
-                                            <label>
-                                                <input type="radio" name="rdAddEditRecordDataForwarderProxyType" id="rdAddEditRecordDataForwarderProxyTypeSocks5" value="Socks5">
-                                                SOCKS5 Proxy
-                                            </label>
+                                    </div>
+
+                                    <div class="form-group">
+                                        <label for="txtAddEditRecordDataForwarderProxyAddress" class="col-sm-4 control-label">Proxy Server Address</label>
+                                        <div class="col-sm-7">
+                                            <input id="txtAddEditRecordDataForwarderProxyAddress" type="text" class="form-control" placeholder="domain name or IP address">
                                         </div>
                                     </div>
-                                </div>
 
-                                <div class="form-group">
-                                    <label for="txtAddEditRecordDataForwarderProxyAddress" class="col-sm-4 control-label">Proxy Server Address</label>
-                                    <div class="col-sm-7">
-                                        <input id="txtAddEditRecordDataForwarderProxyAddress" type="text" class="form-control" placeholder="domain name or IP address">
+                                    <div class="form-group">
+                                        <label for="txtAddEditRecordDataForwarderProxyPort" class="col-sm-4 control-label">Proxy Server Port</label>
+                                        <div class="col-sm-7">
+                                            <input id="txtAddEditRecordDataForwarderProxyPort" type="number" class="form-control" placeholder="port" style="width: 100px;">
+                                        </div>
                                     </div>
-                                </div>
 
-                                <div class="form-group">
-                                    <label for="txtAddEditRecordDataForwarderProxyPort" class="col-sm-4 control-label">Proxy Server Port</label>
-                                    <div class="col-sm-7">
-                                        <input id="txtAddEditRecordDataForwarderProxyPort" type="number" class="form-control" placeholder="port" style="width: 100px;">
+                                    <div class="form-group">
+                                        <label for="txtAddEditRecordDataForwarderProxyUsername" class="col-sm-4 control-label">Proxy Server Username</label>
+                                        <div class="col-sm-7">
+                                            <input id="txtAddEditRecordDataForwarderProxyUsername" type="text" class="form-control" placeholder="username">
+                                        </div>
                                     </div>
-                                </div>
 
-                                <div class="form-group">
-                                    <label for="txtAddEditRecordDataForwarderProxyUsername" class="col-sm-4 control-label">Proxy Server Username</label>
-                                    <div class="col-sm-7">
-                                        <input id="txtAddEditRecordDataForwarderProxyUsername" type="text" class="form-control" placeholder="username">
-                                    </div>
-                                </div>
-
-                                <div class="form-group">
-                                    <label for="txtAddEditRecordDataForwarderProxyPassword" class="col-sm-4 control-label">Proxy Server Password</label>
-                                    <div class="col-sm-7">
-                                        <input id="txtAddEditRecordDataForwarderProxyPassword" type="password" class="form-control" placeholder="password">
+                                    <div class="form-group">
+                                        <label for="txtAddEditRecordDataForwarderProxyPassword" class="col-sm-4 control-label">Proxy Server Password</label>
+                                        <div class="col-sm-7">
+                                            <input id="txtAddEditRecordDataForwarderProxyPassword" type="password" class="form-control" placeholder="password">
+                                        </div>
                                     </div>
                                 </div>
                             </div>
@@ -3191,7 +3193,7 @@ ns1.example.com ([2001:db8::])
                 <div class="modal-body">
                     <div id="divDnssecUnsignZoneAlert"></div>
 
-                    <p><b>WARNING!</b> Unsigning the zone without removing all DS records from its parent zone will cause recursive resolvers to mark the zone as <b>bogus</b> and fail to resolve it.</p>
+                    <p><b>WARNING!</b> Unsigning the zone without removing all DS records from its parent zone will cause DNSSEC validating recursive resolvers to mark the zone as <b>bogus</b> and fail to resolve it.</p>
 
                     <p><b>WARNING!</b> Make sure that you have removed all of the DS records from the parent zone and sufficient time has passed before unsigning this zone. You MUST wait for at least the number of seconds specified by the DS record's TTL value to elapse before unsigning the zone to ensure that all recursive resolvers would have expired the DS records from its cache. For example, if you have DS records at the parent zone with TTL value set to 86400 seconds then you must wait for 86400 seconds (24 hours) to pass after you delete the DS records from the parent zone. Once you have ensured that you have waited for the appropriate time then you can unsign the zone safely.</p>
 
