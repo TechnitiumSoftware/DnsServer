@@ -54,6 +54,16 @@ namespace DnsServerCore.Dns.Zones
 
         public override void SetRecords(DnsResourceRecordType type, IReadOnlyList<DnsResourceRecord> records)
         {
+            if (_primaryZone.DnssecStatus != AuthZoneDnssecStatus.Unsigned)
+            {
+                switch (type)
+                {
+                    case DnsResourceRecordType.ANAME:
+                    case DnsResourceRecordType.APP:
+                        throw new DnsServerException("The record type is not supported by DNSSEC signed primary zones.");
+                }
+            }
+
             switch (type)
             {
                 case DnsResourceRecordType.SOA:
@@ -65,6 +75,9 @@ namespace DnsServerCore.Dns.Zones
                 case DnsResourceRecordType.NSEC3PARAM:
                 case DnsResourceRecordType.NSEC3:
                     throw new InvalidOperationException("Cannot set DNSSEC records.");
+
+                case DnsResourceRecordType.FWD:
+                    throw new DnsServerException("The record type is not supported by primary zones.");
 
                 default:
                     if (records[0].OriginalTtlValue > _primaryZone.GetZoneSoaExpire())
@@ -85,6 +98,16 @@ namespace DnsServerCore.Dns.Zones
 
         public override void AddRecord(DnsResourceRecord record)
         {
+            if (_primaryZone.DnssecStatus != AuthZoneDnssecStatus.Unsigned)
+            {
+                switch (record.Type)
+                {
+                    case DnsResourceRecordType.ANAME:
+                    case DnsResourceRecordType.APP:
+                        throw new DnsServerException("The record type is not supported by DNSSEC signed primary zones.");
+                }
+            }
+
             switch (record.Type)
             {
                 case DnsResourceRecordType.DNSKEY:
@@ -93,6 +116,9 @@ namespace DnsServerCore.Dns.Zones
                 case DnsResourceRecordType.NSEC3PARAM:
                 case DnsResourceRecordType.NSEC3:
                     throw new InvalidOperationException("Cannot add DNSSEC record.");
+
+                case DnsResourceRecordType.FWD:
+                    throw new DnsServerException("The record type is not supported by primary zones.");
 
                 default:
                     if (record.OriginalTtlValue > _primaryZone.GetZoneSoaExpire())
