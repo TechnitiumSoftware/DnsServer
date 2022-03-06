@@ -369,16 +369,6 @@ namespace DnsServerCore
             if (string.IsNullOrEmpty(scopeName))
                 throw new DnsWebServiceException("Parameter 'name' missing.");
 
-            string newName = request.QueryString["newName"];
-            if (!string.IsNullOrEmpty(newName) && !newName.Equals(scopeName))
-            {
-                _dnsWebService.DhcpServer.RenameScope(scopeName, newName);
-
-                _dnsWebService.Log.Write(DnsWebService.GetRequestRemoteEndPoint(request), "[" + _dnsWebService.GetSession(request).Username + "] DHCP scope was renamed successfully: '" + scopeName + "' to '" + newName + "'");
-
-                scopeName = newName;
-            }
-
             string strStartingAddress = request.QueryString["startingAddress"];
             string strEndingAddress = request.QueryString["endingAddress"];
             string strSubnetMask = request.QueryString["subnetMask"];
@@ -652,6 +642,14 @@ namespace DnsServerCore
                 await _dnsWebService.DhcpServer.AddScopeAsync(scope);
 
                 _dnsWebService.Log.Write(DnsWebService.GetRequestRemoteEndPoint(request), "[" + _dnsWebService.GetSession(request).Username + "] DHCP scope was added successfully: " + scopeName);
+            }
+
+            string newName = request.QueryString["newName"];
+            if (!string.IsNullOrEmpty(newName) && !newName.Equals(scopeName))
+            {
+                _dnsWebService.DhcpServer.RenameScope(scopeName, newName);
+
+                _dnsWebService.Log.Write(DnsWebService.GetRequestRemoteEndPoint(request), "[" + _dnsWebService.GetSession(request).Username + "] DHCP scope was renamed successfully: '" + scopeName + "' to '" + newName + "'");
             }
         }
 
