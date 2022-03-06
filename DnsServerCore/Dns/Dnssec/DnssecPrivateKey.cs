@@ -261,7 +261,7 @@ namespace DnsServerCore.Dns.Dnssec
         internal DnsResourceRecord SignRRSet(string signersName, IReadOnlyList<DnsResourceRecord> records, uint signatureInceptionOffset, uint signatureValidityPeriod)
         {
             DnsResourceRecord firstRecord = records[0];
-            DnsRRSIGRecord unsignedRRSigRecord = new DnsRRSIGRecord(firstRecord.Type, _algorithm, DnsRRSIGRecord.GetLabelCount(firstRecord.Name), firstRecord.OriginalTtlValue, Convert.ToUInt32((DateTime.UtcNow.AddSeconds(signatureValidityPeriod) - DateTime.UnixEpoch).TotalSeconds), Convert.ToUInt32((DateTime.UtcNow.AddSeconds(-signatureInceptionOffset) - DateTime.UnixEpoch).TotalSeconds), DnsKey.ComputedKeyTag, signersName, null);
+            DnsRRSIGRecord unsignedRRSigRecord = new DnsRRSIGRecord(firstRecord.Type, _algorithm, DnsRRSIGRecord.GetLabelCount(firstRecord.Name), firstRecord.OriginalTtlValue, Convert.ToUInt32((DateTime.UtcNow.AddSeconds(signatureValidityPeriod) - DateTime.UnixEpoch).TotalSeconds % uint.MaxValue), Convert.ToUInt32((DateTime.UtcNow.AddSeconds(-signatureInceptionOffset) - DateTime.UnixEpoch).TotalSeconds % uint.MaxValue), DnsKey.ComputedKeyTag, signersName, null);
 
             if (!DnsRRSIGRecord.TryGetRRSetHash(unsignedRRSigRecord, records, out byte[] hash, out EDnsExtendedDnsErrorCode extendedDnsErrorCode))
                 throw new DnsServerException("Failed to sign record set: " + extendedDnsErrorCode.ToString());
