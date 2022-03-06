@@ -1,6 +1,6 @@
 ﻿/*
 Technitium DNS Server
-Copyright (C) 2021  Shreyas Zare (shreyas@technitium.com)
+Copyright (C) 2022  Shreyas Zare (shreyas@technitium.com)
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -51,7 +51,7 @@ function refreshDhcpLeases() {
                 tableHtmlRows += "</td><td><div class=\"dropdown\"><a href=\"#\" id=\"btnDhcpLeaseRowOption" + i + "\" class=\"dropdown-toggle\" data-toggle=\"dropdown\" aria-haspopup=\"true\" aria-expanded=\"true\"><span class=\"glyphicon glyphicon-option-vertical\" aria-hidden=\"true\"></span></a><ul class=\"dropdown-menu dropdown-menu-right\">";
                 tableHtmlRows += "<li id=\"btnDhcpLeaseReserve" + i + "\" style=\"" + (dhcpLeases[i].type === "Dynamic" ? "" : "display: none;") + "\"><a href=\"#\" onclick=\"convertToReservedLease(" + i + ", '" + dhcpLeases[i].scope + "', '" + dhcpLeases[i].hardwareAddress + "'); return false;\">Convert To Reserved Lease</a></li>";
                 tableHtmlRows += "<li id=\"btnDhcpLeaseUnreserve" + i + "\" style=\"" + (dhcpLeases[i].type === "Dynamic" ? "display: none;" : "") + "\"><a href=\"#\" onclick=\"convertToDynamicLease(" + i + ", '" + dhcpLeases[i].scope + "', '" + dhcpLeases[i].hardwareAddress + "'); return false;\">Convert To Dynamic Lease</a></li>";
-                tableHtmlRows += "<li><a href=\"#\" onclick=\"showRemoveLease('" + dhcpLeases[i].scope + "', '" + dhcpLeases[i].hardwareAddress + "'); return false;\">Remove Lease</a></li>";
+                tableHtmlRows += "<li><a href=\"#\" onclick=\"showRemoveLeaseModal('" + dhcpLeases[i].scope + "', '" + dhcpLeases[i].hardwareAddress + "'); return false;\">Remove Lease</a></li>";
                 tableHtmlRows += "</ul></div></td></tr>";
             }
 
@@ -132,7 +132,8 @@ function convertToDynamicLease(index, scopeName, hardwareAddress) {
     });
 }
 
-function showRemoveLease(scopeName, hardwareAddress) {
+function showRemoveLeaseModal(scopeName, hardwareAddress) {
+    $("#divDhcpRemoveLeaseAlert").html("");
     $("#btnRemoveDhcpLease").attr("onclick", "removeLease(this, '" + scopeName + "', '" + hardwareAddress + "');");
     $("#modalDhcpRemoveLease").modal("show");
 }
