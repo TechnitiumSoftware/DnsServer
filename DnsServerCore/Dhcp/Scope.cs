@@ -96,6 +96,8 @@ namespace DnsServerCore.Dhcp
 
         public Scope(string name, bool enabled, IPAddress startingAddress, IPAddress endingAddress, IPAddress subnetMask)
         {
+            ValidateScopeName(name);
+
             _name = name;
             _enabled = enabled;
 
@@ -308,6 +310,15 @@ namespace DnsServerCore.Dhcp
 
         #region static
 
+        public static void ValidateScopeName(string name)
+        {
+            foreach (char invalidChar in Path.GetInvalidFileNameChars())
+            {
+                if (name.Contains(invalidChar))
+                    throw new DhcpServerException("The scope name contains an invalid character: " + invalidChar);
+            }
+        }
+
         public static bool IsAddressInRange(IPAddress address, IPAddress startingAddress, IPAddress endingAddress)
         {
             uint addressNumber = address.ConvertIpToNumber();
@@ -493,11 +504,19 @@ namespace DnsServerCore.Dhcp
                         {
                             //found interface for this scope range
 
-                            //check if interface has dynamic ipv4 address assigned via dhcp
-                            foreach (IPAddress dhcpServerAddress in ipInterface.DhcpServerAddresses)
+                            try
                             {
-                                if (dhcpServerAddress.AddressFamily == AddressFamily.InterNetwork)
-                                    throw new DhcpServerException("DHCP Server requires static IP address to work correctly but the network interface was found to have a dynamic IP address [" + ip.Address.ToString() + "] assigned by another DHCP server: " + dhcpServerAddress.ToString());
+                                //check if interface has dynamic ipv4 address assigned via dhcp
+                                foreach (IPAddress dhcpServerAddress in ipInterface.DhcpServerAddresses)
+                                {
+                                    if (dhcpServerAddress.AddressFamily == AddressFamily.InterNetwork)
+                                        throw new DhcpServerException("DHCP Server requires static IP address to work correctly but the network interface was found to have a dynamic IP address [" + ip.Address.ToString() + "] assigned by another DHCP server: " + dhcpServerAddress.ToString());
+                                }
+                            }
+                            catch (PlatformNotSupportedException)
+                            {
+                                //DhcpServerAddresses() not supported on macOs
+                                //ignore the exception
                             }
 
                             _interfaceAddress = ip.Address;
@@ -508,29 +527,37 @@ namespace DnsServerCore.Dhcp
                 }
             }
 
-            //check if at least one interface has static ip address
-            foreach (NetworkInterface nic in NetworkInterface.GetAllNetworkInterfaces())
+            try
             {
-                if (nic.OperationalStatus != OperationalStatus.Up)
-                    continue;
-
-                IPInterfaceProperties ipInterface = nic.GetIPProperties();
-
-                foreach (UnicastIPAddressInformation ip in ipInterface.UnicastAddresses)
+                //check if at least one interface has static ip address
+                foreach (NetworkInterface nic in NetworkInterface.GetAllNetworkInterfaces())
                 {
-                    if (ip.Address.AddressFamily == AddressFamily.InterNetwork)
+                    if (nic.OperationalStatus != OperationalStatus.Up)
+                        continue;
+
+                    IPInterfaceProperties ipInterface = nic.GetIPProperties();
+
+                    foreach (UnicastIPAddressInformation ip in ipInterface.UnicastAddresses)
                     {
-                        //check if address is static
-                        if (ipInterface.DhcpServerAddresses.Count < 1)
+                        if (ip.Address.AddressFamily == AddressFamily.InterNetwork)
                         {
-                            //found static ip address so this scope can be activated
-                            //using ANY ip address for this scope interface since we dont know the relay agent network 
-                            _interfaceAddress = IPAddress.Any;
-                            _interfaceIndex = -1;
-                            return true;
+                            //check if address is static
+                            if (ipInterface.DhcpServerAddresses.Count < 1)
+                            {
+                                //found static ip address so this scope can be activated
+                                //using ANY ip address for this scope interface since we dont know the relay agent network 
+                                _interfaceAddress = IPAddress.Any;
+                                _interfaceIndex = -1;
+                                return true;
+                            }
                         }
                     }
                 }
+            }
+            catch (PlatformNotSupportedException)
+            {
+                //DhcpServerAddresses() not supported on macOs
+                //ignore the exception
             }
 
             //server has no static ip address configured
@@ -676,11 +703,28 @@ namespace DnsServerCore.Dhcp
             if (_leases.TryGetValue(request.ClientIdentifier, out Lease existingLease))
             {
                 //lease already exists
-                if ((existingLease.Type == LeaseType.Reserved) || !IsAddressExcluded(existingLease.Address))
-                    return existingLease; //existing lease is reserved or dynamic allocation is not excluded
+                if (existingLease.Type == LeaseType.Reserved)
+                {
+                    Lease existingReservedLease = GetReservedLease(request);
+                    if ((existingReservedLease is not null) && (existingReservedLease.Address == existingLease.Address))
+                        return existingLease; //return existing reserved lease
 
-                //remove existing dynamic lease
-                ReleaseLease(existingLease);
+                    //reserved lease address was changed; proceed to offer new lease
+                }
+                else
+                {
+                    //is dynamic lease
+                    if (IsAddressExcluded(existingLease.Address))
+                    {
+                        //remove existing dynamic lease; proceed to offer new lease
+                        ReleaseLease(existingLease);
+                    }
+                    else
+                    {
+                        //return existing dynamic lease
+                        return existingLease;
+                    }
+                }
             }
 
             Lease reservedLease = GetReservedLease(request);
@@ -772,11 +816,12 @@ namespace DnsServerCore.Dhcp
 
         internal Lease GetExistingLeaseOrOffer(DhcpMessage request)
         {
-            if (_leases.TryGetValue(request.ClientIdentifier, out Lease existingLease))
-                return existingLease;
-
+            //check for lease offer first since it may have a different IP address to offer
             if (_offers.TryGetValue(request.ClientIdentifier, out Lease existingOffer))
                 return existingOffer;
+
+            if (_leases.TryGetValue(request.ClientIdentifier, out Lease existingLease))
+                return existingLease;
 
             return null;
         }
@@ -982,8 +1027,13 @@ namespace DnsServerCore.Dhcp
                         if (removedLease.Type == LeaseType.Reserved)
                         {
                             //remove reserved lease
-                            Lease reservedLease = new Lease(LeaseType.Reserved, null, DhcpMessageHardwareAddressType.Ethernet, removedLease.HardwareAddress, removedLease.Address, null);
-                            _reservedLeases.TryRemove(reservedLease.ClientIdentifier, out _);
+                            ClientIdentifierOption reservedLeasesClientIdentifier = new ClientIdentifierOption((byte)DhcpMessageHardwareAddressType.Ethernet, removedLease.HardwareAddress);
+                            if (_reservedLeases.TryGetValue(reservedLeasesClientIdentifier, out Lease existingReservedLease))
+                            {
+                                //remove reserved lease only if the IP addresses match
+                                if (existingReservedLease.Address.Equals(removedLease.Address))
+                                    _reservedLeases.TryRemove(reservedLeasesClientIdentifier, out _);
+                            }
                         }
 
                         return removedLease;
@@ -1355,7 +1405,11 @@ namespace DnsServerCore.Dhcp
         public string Name
         {
             get { return _name; }
-            set { _name = value; }
+            set
+            {
+                ValidateScopeName(value);
+                _name = value;
+            }
         }
 
         public bool Enabled
