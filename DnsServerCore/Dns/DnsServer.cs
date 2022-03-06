@@ -3451,7 +3451,16 @@ namespace DnsServerCore.Dns
         public bool DnssecValidation
         {
             get { return _dnssecValidation; }
-            set { _dnssecValidation = value; }
+            set
+            {
+                if (_dnssecValidation != value)
+                {
+                    if (!_dnssecValidation)
+                        _cacheZoneManager.Flush(); //flush cache to remove non validated data
+
+                    _dnssecValidation = value;
+                }
+            }
         }
 
         public int QpmLimitRequests
