@@ -2263,22 +2263,40 @@ WHERE:
 - `domain`: The domain name of the zone to add record.
 - `zone` (optional): The name of the authoritative zone into which the `domain` exists. When unspecified, the closest authoritative zone will be used.
 - `type`: The DNS resource record type. Supported record types are [`A`, `AAAA`, `MX`, `TXT`, `NS`, `PTR`, `CNAME`, `SRV`, `CAA`] and proprietory types [`ANAME`, `FWD`, `APP`].
-- `value`: The value for the resource record. This parameter is shared among different types of resource records and thus will mean different values as per the type of record. Example, for type A and AAAA record, the value will be an IP address while for type MX, the value will be the exchange domain name and for type TXT the value will be the text data. The `APP` record uses this value as the app name.
 - `ttl`: The DNS resource record TTL value. This is the value in seconds that the DNS resolvers can cache the record for.
 - `overwrite` (optional): This option when set to `true` will overwrite existing resource record set for the selected `type` with the new record. Default value of `false` will add the new record into existing resource record set.
+- `ipAddress` (optional): The IP address for adding `A` or `AAAA` record. A special value of `request-ip-address` can be used to set the record with the IP address of the API HTTP request to help with dynamic DNS update applications. This option is required and used only for `A` and `AAAA` records.
 - `ptr` (optional): Add a reverse PTR record for the IP address in the `A` or `AAAA` record. This option is used only for `A` and `AAAA` records.
 - `createPtrZone` (optional): Create a reverse zone for PTR record. This option is used for `A` and `AAAA` records.
-- `preference` (optional): This is the preference value for MX record type. This option is required for adding `MX` record.
+- `nameServer` (optional): The name server domain name. This option is required for adding `NS` record.
 - `glue` (optional): This is the glue address for the name server in the `NS` record. This optional parameter is used for adding `NS` record.
+- `cname` (optional): The CNAME domain name. This option is required for adding `CNAME` record.
+- `ptrName` (optional): The PTR domain name. This option is required for adding `PTR` record.
+- `exchange` (optional): The exchange domain name. This option is required for adding `MX` record.
+- `preference` (optional): This is the preference value for `MX` record type. This option is required for adding `MX` record.
+- `text` (optional): The text data for `TXT` record. This option is required for adding `TXT` record.
 - `priority` (optional): This parameter is required for adding the `SRV` record.
 - `weight` (optional): This parameter is required for adding the `SRV` record.
 - `port` (optional): This parameter is required for adding the `SRV` record.
+- `target` (optional): This parameter is required for adding the `SRV` record.
+- `dname` (optional): The DNAME domain name. This option is required for adding `DNAME` record.
 - `keyTag` (optional): This parameter is required for adding `DS` record.
 - `algorithm` (optional): This parameter is required for adding `DS` record.
 - `digestType` (optional): This parameter is required for adding `DS` record.
+- `digest` (optional): This parameter is required for adding `DS` record.
 - `flags` (optional): This parameter is required for adding the `CAA` record.
 - `tag` (optional): This parameter is required for adding the `CAA` record.
-- `protocol` (optional): This parameter is required for adding the `FWD` record. Valid values are [`Udp`, `Tcp`, `Tls`, `Https`].
+- `value` (optional): This parameter is required for adding the `CAA` record.
+- `aname` (optional): The ANAME domain name. This option is required for adding `ANAME` record.
+- `protocol` (optional): This parameter is required for adding the `FWD` record. Valid values are [`Udp`, `Tcp`, `Tls`, `Https`, `HttpsJson`].
+- `forwarder` (optional): The forwarder address. A special value of `this-server` can be used to directly forward requests internally to the DNS server. This parameter is required for adding the `FWD` record.
+- `dnssecValidation` (optional): Set this boolean value to indicate if DNSSEC validation must be done. This optional parameter is to be used with FWD records. Default value is `false`.
+- `proxyType` (optional): The type of proxy that must be used for conditional forwarding. This optional parameter is to be used with FWD records. Valid values are [`None`, `Http`, `Socks5`]. Default value `None` is used when this parameter is missing.
+- `proxyAddress` (optional): The proxy server address to use when `proxyType` is configured. This optional parameter is to be used with FWD records.
+- `proxyPort` (optional): The proxy server port to use when `proxyType` is configured. This optional parameter is to be used with FWD records.
+- `proxyUsername` (optional): The proxy server username to use when `proxyType` is configured. This optional parameter is to be used with FWD records.
+- `proxyPassword` (optional): The proxy server password to use when `proxyType` is configured. This optional parameter is to be used with FWD records.
+- `appName` (optional): The name of the DNS app. This parameter is required for adding the `APP` record.
 - `classPath` (optional): This parameter is required for adding the `APP` record.
 - `recordData` (optional): This parameter is used for adding the `APP` record as per the DNS app requirements.
 
@@ -2309,7 +2327,8 @@ RESPONSE:
 			"name": "example.com",
 			"type": "Primary",
 			"internal": false,
-			"disabled": true
+			"dnssecStatus": "SignedWithNSEC3",
+			"disabled": false
 		},
 		"records": [
 			{
@@ -2318,69 +2337,476 @@ RESPONSE:
 				"type": "A",
 				"ttl": 3600,
 				"rData": {
-					"value": "127.0.0.1"
-				}
+					"ipAddress": "1.1.1.1"
+				},
+				"dnssecStatus": "Unknown"
 			},
 			{
 				"disabled": false,
 				"name": "example.com",
 				"type": "NS",
-				"ttl": 14400,
+				"ttl": 3600,
 				"rData": {
-					"value": "server1"
-				}
+					"nameServer": "server1"
+				},
+				"dnssecStatus": "Unknown"
 			},
 			{
 				"disabled": false,
 				"name": "example.com",
 				"type": "SOA",
-				"ttl": 14400,
+				"ttl": 900,
 				"rData": {
 					"primaryNameServer": "server1",
-					"responsiblePerson": "hostadmin.server1",
-					"serial": 7,
-					"refresh": 14400,
-					"retry": 3600,
+					"responsiblePerson": "hostadmin.example.com",
+					"serial": 35,
+					"refresh": 900,
+					"retry": 300,
 					"expire": 604800,
 					"minimum": 900
-				}
+				},
+				"dnssecStatus": "Unknown"
 			},
 			{
 				"disabled": false,
 				"name": "example.com",
-				"type": "MX",
-				"ttl": 3600,
+				"type": "RRSIG",
+				"ttl": 900,
 				"rData": {
-					"preference": 1,
-					"value": "mail.example.com"
-				}
+					"typeCovered": "NSEC3PARAM",
+					"algorithm": "ECDSAP256SHA256",
+					"labels": 2,
+					"originalTtl": 900,
+					"signatureExpiration": "2022-03-15T11:45:31Z",
+					"signatureInception": "2022-03-05T10:45:31Z",
+					"keyTag": 61009,
+					"signersName": "example.com",
+					"signature": "vJ/fXkGKsapdvWjDhcfHsBxpZhSzMRLZv3/bEGJ4N3/K7jiM92Ik336W680SI7g+NyPCQ3gqE7ta/JEL4bht4Q=="
+				},
+				"dnssecStatus": "Unknown"
 			},
 			{
 				"disabled": false,
 				"name": "example.com",
-				"type": "TXT",
-				"ttl": 3600,
+				"type": "RRSIG",
+				"ttl": 900,
 				"rData": {
-					"value": "v=spf1 include:mail.example.com -all"
-				}
+					"typeCovered": "SOA",
+					"algorithm": "ECDSAP256SHA256",
+					"labels": 2,
+					"originalTtl": 900,
+					"signatureExpiration": "2022-03-15T12:53:39Z",
+					"signatureInception": "2022-03-05T11:53:39Z",
+					"keyTag": 61009,
+					"signersName": "example.com",
+					"signature": "9PQHH3ZGCuFRYkn28SoilS8y8zszgeOpCfJpIOAaE5ao+iBPCXudHacr/EpgB2wLzXpRjR+WgiYjmJH17+6bKg=="
+				},
+				"dnssecStatus": "Unknown"
 			},
 			{
 				"disabled": false,
 				"name": "example.com",
-				"type": "AAAA",
+				"type": "RRSIG",
 				"ttl": 3600,
 				"rData": {
-					"value": "::1"
-				}
+					"typeCovered": "A",
+					"algorithm": "ECDSAP256SHA256",
+					"labels": 2,
+					"originalTtl": 3600,
+					"signatureExpiration": "2022-03-15T11:25:35Z",
+					"signatureInception": "2022-03-05T10:25:35Z",
+					"keyTag": 61009,
+					"signersName": "example.com",
+					"signature": "dWjn5hTWuEq57ncwGdVq+kdbMuFtuxLuZhYCcQMdsTxYkM/64RrPY6eYwfYQ7+fY1+QBSX2WudAM4dzbmL/s2A=="
+				},
+				"dnssecStatus": "Unknown"
 			},
 			{
 				"disabled": false,
-				"name": "mail.example.com",
+				"name": "example.com",
+				"type": "RRSIG",
+				"ttl": 3600,
+				"rData": {
+					"typeCovered": "NS",
+					"algorithm": "ECDSAP256SHA256",
+					"labels": 2,
+					"originalTtl": 3600,
+					"signatureExpiration": "2022-03-15T11:25:35Z",
+					"signatureInception": "2022-03-05T10:25:35Z",
+					"keyTag": 61009,
+					"signersName": "example.com",
+					"signature": "Yx+leBcYNFf0gUfN6rECWrUZwCDhJbAGk1BNOJN01nPakS5meSbDApUHJZeAzfSBcPzodK3ddmEuhho1MABaZw=="
+				},
+				"dnssecStatus": "Unknown"
+			},
+			{
+				"disabled": false,
+				"name": "example.com",
+				"type": "RRSIG",
+				"ttl": 86400,
+				"rData": {
+					"typeCovered": "DNSKEY",
+					"algorithm": "ECDSAP256SHA256",
+					"labels": 2,
+					"originalTtl": 86400,
+					"signatureExpiration": "2022-03-15T12:27:09Z",
+					"signatureInception": "2022-03-05T11:27:09Z",
+					"keyTag": 65078,
+					"signersName": "example.com",
+					"signature": "KWAK7o+FjJ2/6ZvX4C1wB41yRzlmec5pR2TTeNWlY/weg0MNKCLRs3uTopSjoTih+uq3IRR7Zx0iOcy7evOitA=="
+				},
+				"dnssecStatus": "Unknown"
+			},
+			{
+				"disabled": false,
+				"name": "example.com",
+				"type": "RRSIG",
+				"ttl": 86400,
+				"rData": {
+					"typeCovered": "DNSKEY",
+					"algorithm": "ECDSAP256SHA256",
+					"labels": 2,
+					"originalTtl": 86400,
+					"signatureExpiration": "2022-03-15T12:27:09Z",
+					"signatureInception": "2022-03-05T11:27:09Z",
+					"keyTag": 52896,
+					"signersName": "example.com",
+					"signature": "oHtt1gUmDXxI5GMfS+LJ6uxKUcuUu+5EELXdhLrbk5V/yganP6sMgA4hGkzokYM22LDowjSdO5qwzCW6IDgKxg=="
+				},
+				"dnssecStatus": "Unknown"
+			},
+			{
+				"disabled": false,
+				"name": "example.com",
+				"type": "DNSKEY",
+				"ttl": 86400,
+				"rData": {
+					"flags": "SecureEntryPoint, ZoneKey",
+					"protocol": 3,
+					"algorithm": "ECDSAP256SHA256",
+					"publicKey": "dMRyc/Pji31mF3iHNrybPzbgvtb2NKtmXhjQq433BHI= ZveDa1z00VxDnugV1x7EDvpt+42TDh8OQwp1kOrpX0E=",
+					"computedKeyTag": 65078,
+					"dnsKeyState": "Ready",
+					"computedDigests": [
+						{
+							"digestType": "SHA1",
+							"digest": "3C2B05EBC20B77D8BC56EB9FFB36A6A1F07983F9"
+						},
+						{
+							"digestType": "SHA256",
+							"digest": "BBE017B17E5CB5FFFF1EC2C7815367DF80D8E7EAEE4832D3ED192159D79B1EEB"
+						},
+						{
+							"digestType": "SHA384",
+							"digest": "0B0C9F1019BD3FE62C8B71F8C80E7A833BA468A7E303ABC819C0CB9BEDE8E26BB50CB1729547BFCCE2AE22390E44CDA3"
+						}
+					]
+				},
+				"dnssecStatus": "Unknown"
+			},
+			{
+				"disabled": false,
+				"name": "example.com",
+				"type": "DNSKEY",
+				"ttl": 86400,
+				"rData": {
+					"flags": "ZoneKey",
+					"protocol": 3,
+					"algorithm": "ECDSAP256SHA256",
+					"publicKey": "IUvzTkf4JPg+7k57cQw7n7SR6/1dH7FaKxu9Cf+kcvo= UU+uoKRWnYAFHDNF0X3U8ZYetUyDF7fcNAwEaSQnIUM=",
+					"computedKeyTag": 61009,
+					"dnsKeyState": "Active"
+				},
+				"dnssecStatus": "Unknown"
+			},
+			{
+				"disabled": false,
+				"name": "example.com",
+				"type": "DNSKEY",
+				"ttl": 86400,
+				"rData": {
+					"flags": "SecureEntryPoint, ZoneKey",
+					"protocol": 3,
+					"algorithm": "ECDSAP256SHA256",
+					"publicKey": "KtXitZeC9ijbghCwQ5kjBfgLxCa0pBOOBGftudxGv/I= hlRGy7/Plea39T8n78xiHPaspYrTcdyidbKz6Z+ZSGw=",
+					"computedKeyTag": 52896,
+					"dnsKeyState": "Published",
+					"computedDigests": [
+						{
+							"digestType": "SHA1",
+							"digest": "767EA31AD77C6AC2ACEB22B3FADB033679A6FB79"
+						},
+						{
+							"digestType": "SHA256",
+							"digest": "BDBDB532C5809F890F8092DC9702D763D51A7318887B195CB52E888882FBE373"
+						},
+						{
+							"digestType": "SHA384",
+							"digest": "A7EA4C7816ED5F011FDF90015D4A37BC7D1C773C22C3440B57D6717FA4ED71C5B95D09592AF48BD3ED59028D214A367E"
+						}
+					]
+				},
+				"dnssecStatus": "Unknown"
+			},
+			{
+				"disabled": false,
+				"name": "example.com",
+				"type": "DNSKEY",
+				"ttl": 86400,
+				"rData": {
+					"flags": "ZoneKey",
+					"protocol": 3,
+					"algorithm": "ECDSAP256SHA256",
+					"publicKey": "337uQ11fdKbr6sKYq9mwwBC2xdnu0geuIkfHcIauKNI= rKk7pfVKlLfcGBOIn5hEVeod2aIRIyUiivdTPzrmpIo=",
+					"computedKeyTag": 4811,
+					"dnsKeyState": "Published"
+				},
+				"dnssecStatus": "Unknown"
+			},
+			{
+				"disabled": false,
+				"name": "example.com",
+				"type": "NSEC3PARAM",
+				"ttl": 900,
+				"rData": {
+					"hashAlgorithm": "SHA1",
+					"flags": "None",
+					"iterations": 0,
+					"salt": ""
+				},
+				"dnssecStatus": "Unknown"
+			},
+			{
+				"disabled": false,
+				"name": "*.example.com",
 				"type": "A",
 				"ttl": 3600,
 				"rData": {
-					"value": "127.0.0.1"
-				}
+					"ipAddress": "7.7.7.7"
+				},
+				"dnssecStatus": "Unknown"
+			},
+			{
+				"disabled": false,
+				"name": "*.example.com",
+				"type": "RRSIG",
+				"ttl": 3600,
+				"rData": {
+					"typeCovered": "A",
+					"algorithm": "ECDSAP256SHA256",
+					"labels": 2,
+					"originalTtl": 3600,
+					"signatureExpiration": "2022-03-15T11:25:35Z",
+					"signatureInception": "2022-03-05T10:25:35Z",
+					"keyTag": 61009,
+					"signersName": "example.com",
+					"signature": "ZoUNNEdb8XWqHHi5o4BcUe7deRVlJZLhQtc3sjRtuJ68DNPDmQ0GfCrNTigJcomspr7CYqWcXfoSOqu6f2AyyQ=="
+				},
+				"dnssecStatus": "Unknown"
+			},
+			{
+				"disabled": false,
+				"name": "4F3CNT8CU22TNGEC382JJ4GDE4RB47UB.example.com",
+				"type": "RRSIG",
+				"ttl": 900,
+				"rData": {
+					"typeCovered": "NSEC3",
+					"algorithm": "ECDSAP256SHA256",
+					"labels": 3,
+					"originalTtl": 900,
+					"signatureExpiration": "2022-03-15T11:45:31Z",
+					"signatureInception": "2022-03-05T10:45:31Z",
+					"keyTag": 61009,
+					"signersName": "example.com",
+					"signature": "piZeLYa6WpHyiJerPlXq2s+JKBjHznNALXHJCOfiQ4o/iTqWILoqYHfKB5AWrLwLmkxXcbKf63CnEMGlinRidg=="
+				},
+				"dnssecStatus": "Unknown"
+			},
+			{
+				"disabled": false,
+				"name": "4F3CNT8CU22TNGEC382JJ4GDE4RB47UB.example.com",
+				"type": "NSEC3",
+				"ttl": 900,
+				"rData": {
+					"hashAlgorithm": "SHA1",
+					"flags": "None",
+					"iterations": 0,
+					"salt": "",
+					"nextHashedOwnerName": "KG19N32806C832KIJDNGLQ8P9M2R5MDJ",
+					"types": [
+						"A"
+					]
+				},
+				"dnssecStatus": "Unknown"
+			},
+			{
+				"disabled": false,
+				"name": "KG19N32806C832KIJDNGLQ8P9M2R5MDJ.example.com",
+				"type": "RRSIG",
+				"ttl": 900,
+				"rData": {
+					"typeCovered": "NSEC3",
+					"algorithm": "ECDSAP256SHA256",
+					"labels": 3,
+					"originalTtl": 900,
+					"signatureExpiration": "2022-03-15T11:45:31Z",
+					"signatureInception": "2022-03-05T10:45:31Z",
+					"keyTag": 61009,
+					"signersName": "example.com",
+					"signature": "i/PMxc1LFA9a8jLxju7SSpoY7y8aZYkAILcCRIxE3lTundPJmzFG0U9kve04kqT7+Klmzj3OzXnCvjTA54+DZA=="
+				},
+				"dnssecStatus": "Unknown"
+			},
+			{
+				"disabled": false,
+				"name": "KG19N32806C832KIJDNGLQ8P9M2R5MDJ.example.com",
+				"type": "NSEC3",
+				"ttl": 900,
+				"rData": {
+					"hashAlgorithm": "SHA1",
+					"flags": "None",
+					"iterations": 0,
+					"salt": "",
+					"nextHashedOwnerName": "MIFDNDT3NFF3OD53O7TLA1HRFF95JKUK",
+					"types": [
+						"NS",
+						"DS"
+					]
+				},
+				"dnssecStatus": "Unknown"
+			},
+			{
+				"disabled": false,
+				"name": "MIFDNDT3NFF3OD53O7TLA1HRFF95JKUK.example.com",
+				"type": "RRSIG",
+				"ttl": 900,
+				"rData": {
+					"typeCovered": "NSEC3",
+					"algorithm": "ECDSAP256SHA256",
+					"labels": 3,
+					"originalTtl": 900,
+					"signatureExpiration": "2022-03-15T11:45:31Z",
+					"signatureInception": "2022-03-05T10:45:31Z",
+					"keyTag": 61009,
+					"signersName": "example.com",
+					"signature": "mr37TDMmWJ3YLNtpYy++S9eAeHIXKajX6jB8zLscJyC1uI0OFnSTuesfhIlLDbj0SDgrzRQWsLmvMKzfq89TJA=="
+				},
+				"dnssecStatus": "Unknown"
+			},
+			{
+				"disabled": false,
+				"name": "MIFDNDT3NFF3OD53O7TLA1HRFF95JKUK.example.com",
+				"type": "NSEC3",
+				"ttl": 900,
+				"rData": {
+					"hashAlgorithm": "SHA1",
+					"flags": "None",
+					"iterations": 0,
+					"salt": "",
+					"nextHashedOwnerName": "ONIB9MGUB9H0RML3CDF5BGRJ59DKJHVK",
+					"types": [
+						"CNAME"
+					]
+				},
+				"dnssecStatus": "Unknown"
+			},
+			{
+				"disabled": false,
+				"name": "ONIB9MGUB9H0RML3CDF5BGRJ59DKJHVK.example.com",
+				"type": "RRSIG",
+				"ttl": 900,
+				"rData": {
+					"typeCovered": "NSEC3",
+					"algorithm": "ECDSAP256SHA256",
+					"labels": 3,
+					"originalTtl": 900,
+					"signatureExpiration": "2022-03-15T11:45:31Z",
+					"signatureInception": "2022-03-05T10:45:31Z",
+					"keyTag": 61009,
+					"signersName": "example.com",
+					"signature": "GGh/KkB6C2D55xRJa0zFbZ8As3DZK9btUamryZVmyo7FaLPyltkeRZor9OExgQ6HC1SLXNGJIfCO9cM4K6P8iw=="
+				},
+				"dnssecStatus": "Unknown"
+			},
+			{
+				"disabled": false,
+				"name": "ONIB9MGUB9H0RML3CDF5BGRJ59DKJHVK.example.com",
+				"type": "NSEC3",
+				"ttl": 900,
+				"rData": {
+					"hashAlgorithm": "SHA1",
+					"flags": "None",
+					"iterations": 0,
+					"salt": "",
+					"nextHashedOwnerName": "4F3CNT8CU22TNGEC382JJ4GDE4RB47UB",
+					"types": [
+						"A",
+						"NS",
+						"SOA",
+						"DNSKEY",
+						"NSEC3PARAM"
+					]
+				},
+				"dnssecStatus": "Unknown"
+			},
+			{
+				"disabled": false,
+				"name": "sub.example.com",
+				"type": "NS",
+				"ttl": 3600,
+				"rData": {
+					"nameServer": "server1"
+				},
+				"dnssecStatus": "Unknown"
+			},
+			{
+				"disabled": false,
+				"name": "sub.example.com",
+				"type": "DS",
+				"ttl": 3600,
+				"rData": {
+					"keyTag": 46125,
+					"algorithm": "ECDSAP384SHA384",
+					"digestType": "SHA1",
+					"digest": "5590E425472785A16DC0F853000557DB5543C39E"
+				},
+				"dnssecStatus": "Unknown"
+			},
+			{
+				"disabled": false,
+				"name": "sub.example.com",
+				"type": "RRSIG",
+				"ttl": 3600,
+				"rData": {
+					"typeCovered": "NS",
+					"algorithm": "ECDSAP256SHA256",
+					"labels": 3,
+					"originalTtl": 3600,
+					"signatureExpiration": "2022-03-15T11:25:35Z",
+					"signatureInception": "2022-03-05T10:25:35Z",
+					"keyTag": 61009,
+					"signersName": "example.com",
+					"signature": "hFzYTL9V0/0UQZlvZpRWCOvu/2udvhswKoxpe4+quNuC6K59W7uCJLuDm/z0aFK5nW8Of4oTk2YjSBZo0nBSlg=="
+				},
+				"dnssecStatus": "Unknown"
+			},
+			{
+				"disabled": false,
+				"name": "sub.example.com",
+				"type": "RRSIG",
+				"ttl": 3600,
+				"rData": {
+					"typeCovered": "DS",
+					"algorithm": "ECDSAP256SHA256",
+					"labels": 3,
+					"originalTtl": 3600,
+					"signatureExpiration": "2022-03-15T12:53:39Z",
+					"signatureInception": "2022-03-05T11:53:39Z",
+					"keyTag": 61009,
+					"signersName": "example.com",
+					"signature": "UYpUKV5Uq7DM3rltg3sPFOwYgRa2yBzT/j9U8xCh5oyXt27fIn3eemvqqe9qV4xeQaAN0QfQPkj9vmOZSAYafg=="
+				},
+				"dnssecStatus": "Unknown"
 			},
 			{
 				"disabled": false,
@@ -2388,8 +2814,27 @@ RESPONSE:
 				"type": "CNAME",
 				"ttl": 3600,
 				"rData": {
-					"value": "example.com"
-				}
+					"cname": "example.com"
+				},
+				"dnssecStatus": "Unknown"
+			},
+			{
+				"disabled": false,
+				"name": "www.example.com",
+				"type": "RRSIG",
+				"ttl": 3600,
+				"rData": {
+					"typeCovered": "CNAME",
+					"algorithm": "ECDSAP256SHA256",
+					"labels": 3,
+					"originalTtl": 3600,
+					"signatureExpiration": "2022-03-15T11:25:35Z",
+					"signatureInception": "2022-03-05T10:25:35Z",
+					"keyTag": 61009,
+					"signersName": "example.com",
+					"signature": "cAbYvDJhZGLS/uI5I4mSrh7S5gEUy6bmX2sY7zEd1XVFPqrUOZHbVZuwXPjA6r9/m0rCaww9RiG90JhNNDLEtA=="
+				},
+				"dnssecStatus": "Unknown"
 			}
 		]
 	},
@@ -2409,14 +2854,23 @@ WHERE:
 - `domain`: The domain name of the zone to delete the record.
 - `zone` (optional): The name of the authoritative zone into which the `domain` exists. When unspecified, the closest authoritative zone will be used.
 - `type`: The type of the resource record to delete.
-- `value`: The value in the record to delete. This is the same value that was read in the Get Record call.
-- `port` (optional): This is the port parameter in the SRV record. This parameter is required when deleting the SRV record.
+- `ipAddress` (optional): This parameter is required when deleting `A` or `AAAA` record.
+- `nameServer` (optional): This parameter is required when deleting `NS` record.
+- `ptrName` (optional): This parameter is required when deleting `PTR` record.
+- `exchange` (optional): This parameter is required when deleting `MX` record.
+- `text` (optional): This parameter is required when deleting `TXT` record.
+- `port` (optional): This is the port parameter in the SRV record. This parameter is required when deleting the `SRV` record.
+- `target` (optional): This parameter is required when deleting the `SRV` record.
 - `keyTag` (optional): This parameter is required when deleting `DS` record.
 - `algorithm` (optional): This parameter is required when deleting `DS` record.
 - `digestType` (optional): This parameter is required when deleting `DS` record.
-- `flags` (optional): This is the flags parameter in the CAA record. This parameter is required when deleting the CAA record.
-- `tag` (optional): This is the tag parameter in the CAA record. This parameter is required when deleting the CAA record.
-- `protocol` (optional): This is the protocol parameter in the FWD record. Valid values are [`Udp`, `Tcp`, `Tls`, `Https`]. This parameter is optional and default value `Udp` will be used when deleting the FWD record.
+- `digest` (optional): This parameter is required when deleting `DS` record.
+- `flags` (optional): This is the flags parameter in the CAA record. This parameter is required when deleting the `CAA` record.
+- `tag` (optional): This is the tag parameter in the CAA record. This parameter is required when deleting the `CAA` record.
+- `value` (optional): This parameter is required when deleting the `CAA` record.
+- `aname` (optional): This parameter is required when deleting the `ANAME` record.
+- `protocol` (optional): This is the protocol parameter in the FWD record. Valid values are [`Udp`, `Tcp`, `Tls`, `Https`, `HttpsJson`]. This parameter is optional and default value `Udp` will be used when deleting the `FWD` record.
+- `forwarder` (optional): This parameter is required when deleting the `FWD` record.
 
 RESPONSE:
 ```
@@ -2440,13 +2894,15 @@ WHERE:
 - `type`: The type of the resource record to update.
 - `newDomain` (optional): The new domain name to be set for the record. To be used to rename sub domain name of the record.
 - `ttl` (optional): The TTL value of the resource record. Default value of `3600` is used when parameter is missing.
-- `value`: The value in the record to be updated. This is the same value that was read in the Get Record call.
-- `newValue` (optional): The new value to be updated into the record. When this parameter is missing, the value in the `value` parameter is used.
 - `disable` (optional): Specifies if the record should be disabled. The default value is `false` when this parameter is missing.
+- `ipAddress` (optional): The current IP address in the `A` or `AAAA` record. This parameter is required when updating `A` or `AAAA` record.
+- `newIpAddress` (optional): The new IP address in the `A` or `AAAA` record. This parameter when missing will use the current value in the record.
 - `ptr` (optional): Specifies if the PTR record associated with the `A` or `AAAA` record must also be updated. This option is used only for `A` and `AAAA` records.
 - `createPtrZone` (optional): Create a reverse zone for PTR record. This option is used only for `A` and `AAAA` records.
-- `preference` (optional): The preference value in an MX record. This parameter when missing will default to `1` value. This parameter is used only when updating MX record.
-- `glue` (optional): The comma separated list of IP addresses set as glue for the NS record. This parameter is used only when updating NS record.
+- `nameServer` (optional): The current name server domain name. This option is required for updating `NS` record.
+- `newNameServer` (optional): The new server domain name. This option is used for updating `NS` record.
+- `glue` (optional): The comma separated list of IP addresses set as glue for the NS record. This parameter is used only when updating `NS` record.
+- `cname` (optional): The CNAME domain name to update in the existing `CNAME` record.
 - `primaryNameServer` (optional): This is the primary name server parameter in the SOA record. This parameter is required when updating the SOA record.
 - `responsiblePerson` (optional): This is the responsible person parameter in the SOA record. This parameter is required when updating the SOA record.
 - `serial` (optional): This is the serial parameter in the SOA record. This parameter is required when updating the SOA record.
@@ -2455,23 +2911,49 @@ WHERE:
 - `expire` (optional): This is the expire parameter in the SOA record. This parameter is required when updating the SOA record.
 - `minimum` (optional): This is the minimum parameter in the SOA record. This parameter is required when updating the SOA record.
 - `primaryAddresses` (optional): This is a comma separated list of IP addresses of the primary name server. This parameter is to be used with secondary and stub zones where the primary name server address is not directly resolveable.
-- `zoneTransferProtocol` (optional): The zone transfer protocol to be used by the secondary zone. Valid values are [`tcp`, `tls`].
-- `tsigKeyName` (optional): The TSIG key name to be used by the secondary zone.
-- `port` (optional): This is the port parameter in the SRV record. This parameter is required when updating the SRV record.
-- `priority` (optional): This is the priority parameter in the SRV record. This parameter is required when updating the SRV record.
-- `weight` (optional): This is the weight parameter in the SRV record. This parameter is required when updating the SRV record.
-- `newPort` (optional): This is the new value of the port parameter in the SRV record. This parameter is used to update the port parameter in the SRV record.
+- `zoneTransferProtocol` (optional): The zone transfer protocol to be used by the secondary zone. Valid values are [`tcp`, `tls`]. This parameter is used with `SOA` record.
+- `tsigKeyName` (optional): The TSIG key name to be used by the secondary zone. This parameter is used with `SOA` record.
+- `ptrName`(optional): The current PTR domain name. This option is required for updating `PTR` record.
+- `newPtrName`(optional): The new PTR domain name. This option is required for updating `PTR` record.
+- `preference` (optional): The preference value in an MX record. This parameter when missing will default to `1` value. This parameter is used only when updating `MX` record.
+- `exchange` (optional): The current exchange domain name. This option is required for updating `MX` record.
+- `newExchange` (optional): The new exchange domain name. This option is required for updating `MX` record.
+- `text` (optional): The current text value. This option is required for updating `TXT` record.
+- `newText` (optional): The new text value. This option is required for updating `TXT` record.
+- `priority` (optional): This is the priority parameter in the SRV record. This parameter is required when updating the `SRV` record.
+- `weight` (optional): This is the weight parameter in the SRV record. This parameter is required when updating the `SRV` record.
+- `port` (optional): This is the port parameter in the SRV record. This parameter is required when updating the `SRV` record.
+- `newPort` (optional): This is the new value of the port parameter in the SRV record. This parameter is used to update the port parameter in the `SRV` record.
+- `target` (optional): The current target value. This parameter is required when updating the `SRV` record.
+- `newTarget` (optional): The new target value. This parameter is required when updating the `SRV` record.
+- `dname` (optional): The DNAME domain name. This parameter is required when updating the `DNAME` record.
 - `keyTag` (optional): This parameter is required when updating `DS` record.
-- `algorithm` (optional): This parameter is required when updating `DS` record.
-- `digestType` (optional): This parameter is required when updating `DS` record.
 - `newKeyTag` (optional): This parameter is required when updating `DS` record.
+- `algorithm` (optional): This parameter is required when updating `DS` record.
 - `newAlgorithm` (optional): This parameter is required when updating `DS` record.
+- `digestType` (optional): This parameter is required when updating `DS` record.
 - `newDigestType` (optional): This parameter is required when updating `DS` record.
-- `flags` (optional): This is the flags parameter in the CAA record. This parameter is required when updating the CAA record.
-- `tag` (optional): This is the tag parameter in the CAA record. This parameter is required when updating the CAA record.
-- `newFlags` (optional): This is the new value of the flags parameter in the CAA record. This parameter is used to update the flags parameter in the CAA record.
-- `newTag` (optional): This is the new value of the tag parameter in the CAA record. This parameter is used to update the tag parameter in the CAA record.
-- `protocol` (optional): This is the protocol parameter in the FWD record. Valid values are [`Udp`, `Tcp`, `Tls`, `Https`]. This parameter is optional and default value `Udp` will be used when updating the FWD record.
+- `digest` (optional): This parameter is required when updating `DS` record.
+- `newDigest` (optional): This parameter is required when updating `DS` record.
+- `flags` (optional): This is the flags parameter in the CAA record. This parameter is required when updating the `CAA` record.
+- `newFlags` (optional): This is the new value of the flags parameter in the CAA record. This parameter is used to update the flags parameter in the `CAA` record.
+- `tag` (optional): This is the tag parameter in the CAA record. This parameter is required when updating the `CAA` record.
+- `newTag` (optional): This is the new value of the tag parameter in the CAA record. This parameter is used to update the tag parameter in the `CAA` record.
+- `value` (optional): The current value in CAA record. This parameter is required when updating the `CAA` record.
+- `newValue` (optional): The new value in CAA record. This parameter is required when updating the `CAA` record.
+- `aname` (optional): The current ANAME domain name. This parameter is required when updating the `ANAME` record.
+- `newAName` (optional): The new ANAME domain name. This parameter is required when updating the `ANAME` record.
+- `protocol` (optional): This is the current protocol value in the FWD record. Valid values are [`Udp`, `Tcp`, `Tls`, `Https`, `HttpsJson`]. This parameter is optional and default value `Udp` will be used when updating the `FWD` record.
+- `newProtocol` (optional): This is the new protocol value in the FWD record. Valid values are [`Udp`, `Tcp`, `Tls`, `Https`, `HttpsJson`]. This parameter is optional and default value `Udp` will be used when updating the `FWD` record.
+- `forwarder` (optional): The current forwarder address. This parameter is required when updating the `FWD` record.
+- `newForwarder` (optional): The new forwarder address. This parameter is required when updating the `FWD` record.
+- `dnssecValidation` (optional): Set this boolean value to indicate if DNSSEC validation must be done. This optional parameter is to be used with FWD records. Default value is `false`.
+- `proxyType` (optional): The type of proxy that must be used for conditional forwarding. This optional parameter is to be used with FWD records. Valid values are [`None`, `Http`, `Socks5`]. Default value `None` is used when this parameter is missing.
+- `proxyAddress` (optional): The proxy server address to use when `proxyType` is configured. This optional parameter is to be used with FWD records.
+- `proxyPort` (optional): The proxy server port to use when `proxyType` is configured. This optional parameter is to be used with FWD records.
+- `proxyUsername` (optional): The proxy server username to use when `proxyType` is configured. This optional parameter is to be used with FWD records.
+- `proxyPassword` (optional): The proxy server password to use when `proxyType` is configured. This optional parameter is to be used with FWD records.
+- `appName` (optional): This parameter is required for updating the `APP` record.
 - `classPath` (optional): This parameter is required for updating the `APP` record.
 - `recordData` (optional): This parameter is used for updating the `APP` record as per the DNS app requirements.
 
