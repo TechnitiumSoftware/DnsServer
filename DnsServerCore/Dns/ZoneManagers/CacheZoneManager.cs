@@ -341,7 +341,20 @@ namespace DnsServerCore.Dns.ZoneManagers
         {
             DnsQuestionRecord question = request.Question[0];
 
-            CacheZone zone = _root.FindZone(question.Name, out CacheZone closest, out CacheZone delegation);
+            CacheZone zone;
+            CacheZone closest = null;
+            CacheZone delegation = null;
+
+            if (findClosestNameServers)
+            {
+                zone = _root.FindZone(question.Name, out closest, out delegation);
+            }
+            else
+            {
+                if (!_root.TryGet(question.Name, out zone))
+                    _ = _root.FindZone(question.Name, out closest, out _); //zone not found; attempt to find closest
+            }
+
             if (zone is not null)
             {
                 //zone found
