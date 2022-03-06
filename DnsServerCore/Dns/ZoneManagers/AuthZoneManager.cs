@@ -190,8 +190,7 @@ namespace DnsServerCore.Dns.ZoneManagers
         {
             return _root.GetOrAddSubDomainZone(zoneName, domain, delegate ()
             {
-                _ = _root.FindZone(zoneName, out _, out _, out ApexZone apexZone, out _);
-                if (apexZone is null)
+                if (!_root.TryGet(zoneName, out ApexZone apexZone))
                     throw new DnsServerException("Zone was not found for domain: " + domain);
 
                 if (apexZone is PrimaryZone primaryZone)
@@ -210,24 +209,24 @@ namespace DnsServerCore.Dns.ZoneManagers
             return _root.GetZoneWithSubDomainZones(zoneName);
         }
 
-        internal AuthZone GetAuthZone(string domain, string zoneName)
+        internal AuthZone GetAuthZone(string zoneName, string domain)
         {
-            return _root.GetAuthZone(domain, zoneName);
+            return _root.GetAuthZone(zoneName, domain);
         }
 
-        internal AuthZone FindPreviousSubDomainZone(string domain, string zoneName)
+        internal AuthZone FindPreviousSubDomainZone(string zoneName, string domain)
         {
-            return _root.FindPreviousSubDomainZone(domain, zoneName);
+            return _root.FindPreviousSubDomainZone(zoneName, domain);
         }
 
-        internal AuthZone FindNextSubDomainZone(string domain, string zoneName)
+        internal AuthZone FindNextSubDomainZone(string zoneName, string domain)
         {
-            return _root.FindNextSubDomainZone(domain, zoneName);
+            return _root.FindNextSubDomainZone(zoneName, domain);
         }
 
-        internal bool SubDomainExists(string domain, string zoneName)
+        internal bool SubDomainExists(string zoneName, string domain)
         {
-            return _root.SubDomainExists(domain, zoneName);
+            return _root.SubDomainExists(zoneName, domain);
         }
 
         internal void RemoveSubDomainZone(string domain)
@@ -779,7 +778,7 @@ namespace DnsServerCore.Dns.ZoneManagers
 
         public void SignPrimaryZoneWithRsaNSEC(string zoneName, string hashAlgorithm, int kskKeySize, int zskKeySize, uint dnsKeyTtl)
         {
-            if (!_root.TryGet(zoneName, zoneName, out AuthZone authZone) || (authZone is not PrimaryZone primaryZone) || primaryZone.Internal)
+            if (!_root.TryGet(zoneName, out ApexZone apexZone) || (apexZone is not PrimaryZone primaryZone) || primaryZone.Internal)
                 throw new DnsServerException("No such primary zone was found: " + zoneName);
 
             primaryZone.SignZoneWithRsaNSec(hashAlgorithm, kskKeySize, zskKeySize, dnsKeyTtl);
@@ -787,7 +786,7 @@ namespace DnsServerCore.Dns.ZoneManagers
 
         public void SignPrimaryZoneWithRsaNSEC3(string zoneName, string hashAlgorithm, int kskKeySize, int zskKeySize, ushort iterations, byte saltLength, uint dnsKeyTtl)
         {
-            if (!_root.TryGet(zoneName, zoneName, out AuthZone authZone) || (authZone is not PrimaryZone primaryZone) || primaryZone.Internal)
+            if (!_root.TryGet(zoneName, out ApexZone apexZone) || (apexZone is not PrimaryZone primaryZone) || primaryZone.Internal)
                 throw new DnsServerException("No such primary zone was found: " + zoneName);
 
             primaryZone.SignZoneWithRsaNSec3(hashAlgorithm, kskKeySize, zskKeySize, iterations, saltLength, dnsKeyTtl);
@@ -795,7 +794,7 @@ namespace DnsServerCore.Dns.ZoneManagers
 
         public void SignPrimaryZoneWithEcdsaNSEC(string zoneName, string curve, uint dnsKeyTtl)
         {
-            if (!_root.TryGet(zoneName, zoneName, out AuthZone authZone) || (authZone is not PrimaryZone primaryZone) || primaryZone.Internal)
+            if (!_root.TryGet(zoneName, out ApexZone apexZone) || (apexZone is not PrimaryZone primaryZone) || primaryZone.Internal)
                 throw new DnsServerException("No such primary zone was found: " + zoneName);
 
             primaryZone.SignZoneWithEcdsaNSec(curve, dnsKeyTtl);
@@ -803,7 +802,7 @@ namespace DnsServerCore.Dns.ZoneManagers
 
         public void SignPrimaryZoneWithEcdsaNSEC3(string zoneName, string curve, ushort iterations, byte saltLength, uint dnsKeyTtl)
         {
-            if (!_root.TryGet(zoneName, zoneName, out AuthZone authZone) || (authZone is not PrimaryZone primaryZone) || primaryZone.Internal)
+            if (!_root.TryGet(zoneName, out ApexZone apexZone) || (apexZone is not PrimaryZone primaryZone) || primaryZone.Internal)
                 throw new DnsServerException("No such primary zone was found: " + zoneName);
 
             primaryZone.SignZoneWithEcdsaNSec3(curve, iterations, saltLength, dnsKeyTtl);
@@ -811,7 +810,7 @@ namespace DnsServerCore.Dns.ZoneManagers
 
         public void UnsignPrimaryZone(string zoneName)
         {
-            if (!_root.TryGet(zoneName, zoneName, out AuthZone authZone) || (authZone is not PrimaryZone primaryZone) || primaryZone.Internal)
+            if (!_root.TryGet(zoneName, out ApexZone apexZone) || (apexZone is not PrimaryZone primaryZone) || primaryZone.Internal)
                 throw new DnsServerException("No such primary zone was found: " + zoneName);
 
             primaryZone.UnsignZone();
@@ -819,7 +818,7 @@ namespace DnsServerCore.Dns.ZoneManagers
 
         public void ConvertPrimaryZoneToNSEC(string zoneName)
         {
-            if (!_root.TryGet(zoneName, zoneName, out AuthZone authZone) || (authZone is not PrimaryZone primaryZone) || primaryZone.Internal)
+            if (!_root.TryGet(zoneName, out ApexZone apexZone) || (apexZone is not PrimaryZone primaryZone) || primaryZone.Internal)
                 throw new DnsServerException("No such primary zone was found: " + zoneName);
 
             primaryZone.ConvertToNSec();
@@ -827,7 +826,7 @@ namespace DnsServerCore.Dns.ZoneManagers
 
         public void ConvertPrimaryZoneToNSEC3(string zoneName, ushort iterations, byte saltLength)
         {
-            if (!_root.TryGet(zoneName, zoneName, out AuthZone authZone) || (authZone is not PrimaryZone primaryZone) || primaryZone.Internal)
+            if (!_root.TryGet(zoneName, out ApexZone apexZone) || (apexZone is not PrimaryZone primaryZone) || primaryZone.Internal)
                 throw new DnsServerException("No such primary zone was found: " + zoneName);
 
             primaryZone.ConvertToNSec3(iterations, saltLength);
@@ -835,7 +834,7 @@ namespace DnsServerCore.Dns.ZoneManagers
 
         public void UpdatePrimaryZoneNSEC3Parameters(string zoneName, ushort iterations, byte saltLength)
         {
-            if (!_root.TryGet(zoneName, zoneName, out AuthZone authZone) || (authZone is not PrimaryZone primaryZone) || primaryZone.Internal)
+            if (!_root.TryGet(zoneName, out ApexZone apexZone) || (apexZone is not PrimaryZone primaryZone) || primaryZone.Internal)
                 throw new DnsServerException("No such primary zone was found: " + zoneName);
 
             primaryZone.UpdateNSec3Parameters(iterations, saltLength);
@@ -843,7 +842,7 @@ namespace DnsServerCore.Dns.ZoneManagers
 
         public void UpdatePrimaryZoneDnsKeyTtl(string zoneName, uint dnsKeyTtl)
         {
-            if (!_root.TryGet(zoneName, zoneName, out AuthZone authZone) || (authZone is not PrimaryZone primaryZone) || primaryZone.Internal)
+            if (!_root.TryGet(zoneName, out ApexZone apexZone) || (apexZone is not PrimaryZone primaryZone) || primaryZone.Internal)
                 throw new DnsServerException("No such primary zone was found: " + zoneName);
 
             primaryZone.UpdateDnsKeyTtl(dnsKeyTtl);
@@ -851,7 +850,7 @@ namespace DnsServerCore.Dns.ZoneManagers
 
         public void GenerateAndAddPrimaryZoneDnssecRsaPrivateKey(string zoneName, DnssecPrivateKeyType keyType, string hashAlgorithm, int keySize)
         {
-            if (!_root.TryGet(zoneName, zoneName, out AuthZone authZone) || (authZone is not PrimaryZone primaryZone) || primaryZone.Internal)
+            if (!_root.TryGet(zoneName, out ApexZone apexZone) || (apexZone is not PrimaryZone primaryZone) || primaryZone.Internal)
                 throw new DnsServerException("No such primary zone was found: " + zoneName);
 
             primaryZone.GenerateAndAddRsaKey(keyType, hashAlgorithm, keySize);
@@ -859,7 +858,7 @@ namespace DnsServerCore.Dns.ZoneManagers
 
         public void GenerateAndAddPrimaryZoneDnssecEcdsaPrivateKey(string zoneName, DnssecPrivateKeyType keyType, string curve)
         {
-            if (!_root.TryGet(zoneName, zoneName, out AuthZone authZone) || (authZone is not PrimaryZone primaryZone) || primaryZone.Internal)
+            if (!_root.TryGet(zoneName, out ApexZone apexZone) || (apexZone is not PrimaryZone primaryZone) || primaryZone.Internal)
                 throw new DnsServerException("No such primary zone was found: " + zoneName);
 
             primaryZone.GenerateAndAddEcdsaKey(keyType, curve);
@@ -867,7 +866,7 @@ namespace DnsServerCore.Dns.ZoneManagers
 
         public void DeletePrimaryZoneDnssecPrivateKey(string zoneName, ushort keyTag)
         {
-            if (!_root.TryGet(zoneName, zoneName, out AuthZone authZone) || (authZone is not PrimaryZone primaryZone) || primaryZone.Internal)
+            if (!_root.TryGet(zoneName, out ApexZone apexZone) || (apexZone is not PrimaryZone primaryZone) || primaryZone.Internal)
                 throw new DnsServerException("No such primary zone was found: " + zoneName);
 
             primaryZone.DeletePrivateKey(keyTag);
@@ -875,7 +874,7 @@ namespace DnsServerCore.Dns.ZoneManagers
 
         public void PublishAllGeneratedPrimaryZoneDnssecPrivateKeys(string zoneName)
         {
-            if (!_root.TryGet(zoneName, zoneName, out AuthZone authZone) || (authZone is not PrimaryZone primaryZone) || primaryZone.Internal)
+            if (!_root.TryGet(zoneName, out ApexZone apexZone) || (apexZone is not PrimaryZone primaryZone) || primaryZone.Internal)
                 throw new DnsServerException("No such primary zone was found: " + zoneName);
 
             primaryZone.PublishAllGeneratedKeys();
@@ -883,7 +882,7 @@ namespace DnsServerCore.Dns.ZoneManagers
 
         public void RolloverPrimaryZoneDnsKey(string zoneName, ushort keyTag)
         {
-            if (!_root.TryGet(zoneName, zoneName, out AuthZone authZone) || (authZone is not PrimaryZone primaryZone) || primaryZone.Internal)
+            if (!_root.TryGet(zoneName, out ApexZone apexZone) || (apexZone is not PrimaryZone primaryZone) || primaryZone.Internal)
                 throw new DnsServerException("No such primary zone was found: " + zoneName);
 
             primaryZone.RolloverDnsKey(keyTag);
@@ -891,7 +890,7 @@ namespace DnsServerCore.Dns.ZoneManagers
 
         public void RetirePrimaryZoneDnsKey(string zoneName, ushort keyTag)
         {
-            if (!_root.TryGet(zoneName, zoneName, out AuthZone authZone) || (authZone is not PrimaryZone primaryZone) || primaryZone.Internal)
+            if (!_root.TryGet(zoneName, out ApexZone apexZone) || (apexZone is not PrimaryZone primaryZone) || primaryZone.Internal)
                 throw new DnsServerException("No such primary zone was found: " + zoneName);
 
             primaryZone.RetireDnsKey(keyTag);
@@ -1149,8 +1148,8 @@ namespace DnsServerCore.Dns.ZoneManagers
                     zone.SyncRecords(latestEntries.Value);
             }
 
-            if (_root.TryGet(zoneName, zoneName, out AuthZone authZone))
-                (authZone as ApexZone).UpdateDnssecStatus();
+            if (_root.TryGet(zoneName, out ApexZone apexZone))
+                apexZone.UpdateDnssecStatus();
         }
 
         public IReadOnlyList<DnsResourceRecord> SyncIncrementalZoneTransferRecords(string zoneName, IReadOnlyList<DnsResourceRecord> xfrRecords)
@@ -1165,10 +1164,10 @@ namespace DnsServerCore.Dns.ZoneManagers
                 return Array.Empty<DnsResourceRecord>();
             }
 
-            if (!_root.TryGet(zoneName, zoneName, out AuthZone authZone))
+            if (!_root.TryGet(zoneName, out ApexZone apexZone))
                 throw new InvalidOperationException("No such zone was found: " + zoneName);
 
-            IReadOnlyList<DnsResourceRecord> soaRecords = authZone.GetRecords(DnsResourceRecordType.SOA);
+            IReadOnlyList<DnsResourceRecord> soaRecords = apexZone.GetRecords(DnsResourceRecordType.SOA);
             if (soaRecords.Count != 1)
                 throw new InvalidOperationException("No authoritative zone was found: " + zoneName);
 
@@ -1343,7 +1342,7 @@ namespace DnsServerCore.Dns.ZoneManagers
                 addedGlueRecords.Clear();
             }
 
-            (authZone as ApexZone).UpdateDnssecStatus();
+            apexZone.UpdateDnssecStatus();
 
             //return history
             List<DnsResourceRecord> historyRecords = new List<DnsResourceRecord>(xfrRecords.Count - 2);
@@ -1506,7 +1505,6 @@ namespace DnsServerCore.Dns.ZoneManagers
             {
                 case DnsResourceRecordType.CNAME:
                 case DnsResourceRecordType.DNAME:
-                case DnsResourceRecordType.PTR:
                 case DnsResourceRecordType.APP:
                     if (oldRecord.Name.Equals(newRecord.Name, StringComparison.OrdinalIgnoreCase))
                     {
@@ -1546,7 +1544,8 @@ namespace DnsServerCore.Dns.ZoneManagers
                     }
                     else
                     {
-                        authZone.DeleteRecord(oldRecord.Type, oldRecord.RDATA);
+                        if (!authZone.DeleteRecord(oldRecord.Type, oldRecord.RDATA))
+                            throw new DnsWebServiceException("Cannot update record: the old record does not exists.");
 
                         if (authZone is SubDomainZone subDomainZone)
                         {
