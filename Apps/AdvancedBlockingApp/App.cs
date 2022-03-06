@@ -44,8 +44,8 @@ namespace AdvancedBlocking
         IDnsServer _dnsServer;
         string _localCacheFolder;
 
-        DnsSOARecord _soaRecord;
-        DnsNSRecord _nsRecord;
+        DnsSOARecordData _soaRecord;
+        DnsNSRecordData _nsRecord;
 
         bool _enableBlocking;
         int _blockListUrlUpdateIntervalHours;
@@ -807,8 +807,8 @@ namespace AdvancedBlocking
 
             Directory.CreateDirectory(_localCacheFolder);
 
-            _soaRecord = new DnsSOARecord(_dnsServer.ServerDomain, "hostadmin." + _dnsServer.ServerDomain, 1, 14400, 3600, 604800, 60);
-            _nsRecord = new DnsNSRecord(_dnsServer.ServerDomain);
+            _soaRecord = new DnsSOARecordData(_dnsServer.ServerDomain, "hostadmin." + _dnsServer.ServerDomain, 1, 14400, 3600, 604800, 60);
+            _nsRecord = new DnsNSRecordData(_dnsServer.ServerDomain);
 
             dynamic jsonConfig = JsonConvert.DeserializeObject(config);
 
@@ -989,11 +989,11 @@ namespace AdvancedBlocking
                         answer = new DnsResourceRecord[blockListUrls.Count];
 
                         for (int i = 0; i < answer.Length; i++)
-                            answer[i] = new DnsResourceRecord(question.Name, DnsResourceRecordType.TXT, question.Class, 60, new DnsTXTRecord("source=advanced-blocking-app; group=" + group.Name + "; blockListUrl=" + blockListUrls[i].AbsoluteUri + "; domain=" + blockedDomain));
+                            answer[i] = new DnsResourceRecord(question.Name, DnsResourceRecordType.TXT, question.Class, 60, new DnsTXTRecordData("source=advanced-blocking-app; group=" + group.Name + "; blockListUrl=" + blockListUrls[i].AbsoluteUri + "; domain=" + blockedDomain));
                     }
                     else
                     {
-                        answer = new DnsResourceRecord[] { new DnsResourceRecord(question.Name, DnsResourceRecordType.TXT, question.Class, 60, new DnsTXTRecord("source=advanced-blocking-app; group=" + group.Name + "; domain=" + blockedDomain)) };
+                        answer = new DnsResourceRecord[] { new DnsResourceRecord(question.Name, DnsResourceRecordType.TXT, question.Class, 60, new DnsTXTRecordData("source=advanced-blocking-app; group=" + group.Name + "; domain=" + blockedDomain)) };
                     }
                 }
                 else
@@ -1003,11 +1003,11 @@ namespace AdvancedBlocking
                         answer = new DnsResourceRecord[blockListUrls.Count];
 
                         for (int i = 0; i < answer.Length; i++)
-                            answer[i] = new DnsResourceRecord(question.Name, DnsResourceRecordType.TXT, question.Class, 60, new DnsTXTRecord("source=advanced-blocking-app; group=" + group.Name + "; regexBlockListUrl=" + blockListUrls[i].AbsoluteUri + "; regex=" + blockedRegex));
+                            answer[i] = new DnsResourceRecord(question.Name, DnsResourceRecordType.TXT, question.Class, 60, new DnsTXTRecordData("source=advanced-blocking-app; group=" + group.Name + "; regexBlockListUrl=" + blockListUrls[i].AbsoluteUri + "; regex=" + blockedRegex));
                     }
                     else
                     {
-                        answer = new DnsResourceRecord[] { new DnsResourceRecord(question.Name, DnsResourceRecordType.TXT, question.Class, 60, new DnsTXTRecord("source=advanced-blocking-app; group=" + group.Name + "; regex=" + blockedRegex)) };
+                        answer = new DnsResourceRecord[] { new DnsResourceRecord(question.Name, DnsResourceRecordType.TXT, question.Class, 60, new DnsTXTRecordData("source=advanced-blocking-app; group=" + group.Name + "; regex=" + blockedRegex)) };
                     }
                 }
 
@@ -1039,7 +1039,7 @@ namespace AdvancedBlocking
                             {
                                 List<DnsResourceRecord> rrList = new List<DnsResourceRecord>(group.ARecords.Count);
 
-                                foreach (DnsARecord record in group.ARecords)
+                                foreach (DnsARecordData record in group.ARecords)
                                     rrList.Add(new DnsResourceRecord(question.Name, DnsResourceRecordType.A, question.Class, 60, record));
 
                                 answer = rrList;
@@ -1050,7 +1050,7 @@ namespace AdvancedBlocking
                             {
                                 List<DnsResourceRecord> rrList = new List<DnsResourceRecord>(group.AAAARecords.Count);
 
-                                foreach (DnsAAAARecord record in group.AAAARecords)
+                                foreach (DnsAAAARecordData record in group.AAAARecords)
                                     rrList.Add(new DnsResourceRecord(question.Name, DnsResourceRecordType.AAAA, question.Class, 60, record));
 
                                 answer = rrList;
@@ -1095,8 +1095,8 @@ namespace AdvancedBlocking
             bool _allowTxtBlockingReport;
             bool _blockAsNxDomain;
 
-            IReadOnlyCollection<DnsARecord> _aRecords;
-            IReadOnlyCollection<DnsAAAARecord> _aaaaRecords;
+            IReadOnlyCollection<DnsARecordData> _aRecords;
+            IReadOnlyCollection<DnsAAAARecordData> _aaaaRecords;
 
             IReadOnlyDictionary<string, object> _allowed;
             IReadOnlyDictionary<string, object> _blocked;
@@ -1130,8 +1130,8 @@ namespace AdvancedBlocking
                 _blockAsNxDomain = jsonGroup.blockAsNxDomain.Value;
 
                 {
-                    List<DnsARecord> aRecords = new List<DnsARecord>();
-                    List<DnsAAAARecord> aaaaRecords = new List<DnsAAAARecord>();
+                    List<DnsARecordData> aRecords = new List<DnsARecordData>();
+                    List<DnsAAAARecordData> aaaaRecords = new List<DnsAAAARecordData>();
 
                     foreach (dynamic jsonBlockingAddress in jsonGroup.blockingAddresses)
                     {
@@ -1142,11 +1142,11 @@ namespace AdvancedBlocking
                             switch (address.AddressFamily)
                             {
                                 case AddressFamily.InterNetwork:
-                                    aRecords.Add(new DnsARecord(address));
+                                    aRecords.Add(new DnsARecordData(address));
                                     break;
 
                                 case AddressFamily.InterNetworkV6:
-                                    aaaaRecords.Add(new DnsAAAARecord(address));
+                                    aaaaRecords.Add(new DnsAAAARecordData(address));
                                     break;
                             }
                         }
@@ -1473,13 +1473,13 @@ namespace AdvancedBlocking
                 set { _blockAsNxDomain = value; }
             }
 
-            public IReadOnlyCollection<DnsARecord> ARecords
+            public IReadOnlyCollection<DnsARecordData> ARecords
             {
                 get { return _aRecords; }
                 set { _aRecords = value; }
             }
 
-            public IReadOnlyCollection<DnsAAAARecord> AAAARecords
+            public IReadOnlyCollection<DnsAAAARecordData> AAAARecords
             {
                 get { return _aaaaRecords; }
                 set { _aaaaRecords = value; }

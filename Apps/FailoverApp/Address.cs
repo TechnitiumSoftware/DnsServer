@@ -82,11 +82,11 @@ namespace Failover
                             switch (response.Status)
                             {
                                 case HealthStatus.Unknown:
-                                    answers.Add(new DnsResourceRecord(question.Name, DnsResourceRecordType.A, question.Class, 30, new DnsARecord(address)));
+                                    answers.Add(new DnsResourceRecord(question.Name, DnsResourceRecordType.A, question.Class, 30, new DnsARecordData(address)));
                                     break;
 
                                 case HealthStatus.Healthy:
-                                    answers.Add(new DnsResourceRecord(question.Name, DnsResourceRecordType.A, question.Class, appRecordTtl, new DnsARecord(address)));
+                                    answers.Add(new DnsResourceRecord(question.Name, DnsResourceRecordType.A, question.Class, appRecordTtl, new DnsARecordData(address)));
                                     break;
                             }
                         }
@@ -104,11 +104,11 @@ namespace Failover
                             switch (response.Status)
                             {
                                 case HealthStatus.Unknown:
-                                    answers.Add(new DnsResourceRecord(question.Name, DnsResourceRecordType.AAAA, question.Class, 30, new DnsAAAARecord(address)));
+                                    answers.Add(new DnsResourceRecord(question.Name, DnsResourceRecordType.AAAA, question.Class, 30, new DnsAAAARecordData(address)));
                                     break;
 
                                 case HealthStatus.Healthy:
-                                    answers.Add(new DnsResourceRecord(question.Name, DnsResourceRecordType.AAAA, question.Class, appRecordTtl, new DnsAAAARecord(address)));
+                                    answers.Add(new DnsResourceRecord(question.Name, DnsResourceRecordType.AAAA, question.Class, appRecordTtl, new DnsAAAARecordData(address)));
                                     break;
                             }
                         }
@@ -132,7 +132,7 @@ namespace Failover
                 if (response.Status == HealthStatus.Failed)
                     text += " failureReason=" + response.FailureReason + ";";
 
-                answers.Add(new DnsResourceRecord(question.Name, DnsResourceRecordType.TXT, question.Class, appRecordTtl, new DnsTXTRecord(text)));
+                answers.Add(new DnsResourceRecord(question.Name, DnsResourceRecordType.TXT, question.Class, appRecordTtl, new DnsTXTRecordData(text)));
             }
         }
 
@@ -196,7 +196,7 @@ namespace Failover
                                             IPAddress address = IPAddress.Parse(jsonAddress.Value);
 
                                             if (address.AddressFamily == AddressFamily.InterNetwork)
-                                                answers.Add(new DnsResourceRecord(question.Name, DnsResourceRecordType.A, question.Class, 30, new DnsARecord(address)));
+                                                answers.Add(new DnsResourceRecord(question.Name, DnsResourceRecordType.A, question.Class, 30, new DnsARecordData(address)));
                                         }
                                     }
                                     else
@@ -206,7 +206,7 @@ namespace Failover
                                             IPAddress address = IPAddress.Parse(jsonAddress.Value);
 
                                             if (address.AddressFamily == AddressFamily.InterNetworkV6)
-                                                answers.Add(new DnsResourceRecord(question.Name, DnsResourceRecordType.AAAA, question.Class, 30, new DnsAAAARecord(address)));
+                                                answers.Add(new DnsResourceRecord(question.Name, DnsResourceRecordType.AAAA, question.Class, 30, new DnsAAAARecordData(address)));
                                         }
                                     }
                                 }

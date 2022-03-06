@@ -53,7 +53,7 @@ namespace DnsServerCore.Dns.ResourceRecords
 
         public static void SetGlueRecords(this DnsResourceRecord record, IReadOnlyList<IPAddress> glueAddresses)
         {
-            if (record.RDATA is not DnsNSRecord nsRecord)
+            if (record.RDATA is not DnsNSRecordData nsRecord)
                 throw new InvalidOperationException();
 
             string domain = nsRecord.NameServer;
@@ -65,11 +65,11 @@ namespace DnsServerCore.Dns.ResourceRecords
                 switch (glueAddresses[i].AddressFamily)
                 {
                     case AddressFamily.InterNetwork:
-                        glueRecords[i] = new DnsResourceRecord(domain, DnsResourceRecordType.A, DnsClass.IN, record.TtlValue, new DnsARecord(glueAddresses[i]));
+                        glueRecords[i] = new DnsResourceRecord(domain, DnsResourceRecordType.A, DnsClass.IN, record.TtlValue, new DnsARecordData(glueAddresses[i]));
                         break;
 
                     case AddressFamily.InterNetworkV6:
-                        glueRecords[i] = new DnsResourceRecord(domain, DnsResourceRecordType.AAAA, DnsClass.IN, record.TtlValue, new DnsAAAARecord(glueAddresses[i]));
+                        glueRecords[i] = new DnsResourceRecord(domain, DnsResourceRecordType.AAAA, DnsClass.IN, record.TtlValue, new DnsAAAARecordData(glueAddresses[i]));
                         break;
                 }
             }
@@ -79,7 +79,7 @@ namespace DnsServerCore.Dns.ResourceRecords
 
         public static void SyncGlueRecords(this DnsResourceRecord record, IReadOnlyList<DnsResourceRecord> allGlueRecords)
         {
-            if (record.RDATA is not DnsNSRecord nsRecord)
+            if (record.RDATA is not DnsNSRecordData nsRecord)
                 throw new InvalidOperationException();
 
             string domain = nsRecord.NameServer;
@@ -107,7 +107,7 @@ namespace DnsServerCore.Dns.ResourceRecords
 
         public static void SyncGlueRecords(this DnsResourceRecord record, IReadOnlyCollection<DnsResourceRecord> deletedGlueRecords, IReadOnlyCollection<DnsResourceRecord> addedGlueRecords)
         {
-            if (record.RDATA is not DnsNSRecord nsRecord)
+            if (record.RDATA is not DnsNSRecordData nsRecord)
                 throw new InvalidOperationException();
 
             bool updated = false;

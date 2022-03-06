@@ -83,11 +83,11 @@ namespace DnsServerCore.Dns.ResourceRecords
                                 switch (glueRecord.Type)
                                 {
                                     case DnsResourceRecordType.A:
-                                        address = (glueRecord.RDATA as DnsARecord).Address;
+                                        address = (glueRecord.RDATA as DnsARecordData).Address;
                                         break;
 
                                     case DnsResourceRecordType.AAAA:
-                                        address = (glueRecord.RDATA as DnsAAAARecord).Address;
+                                        address = (glueRecord.RDATA as DnsAAAARecordData).Address;
                                         break;
 
                                     default:

@@ -102,7 +102,7 @@ namespace DnsServerCore.Dns.Zones
 
                         if (_entries.TryGetValue(DnsResourceRecordType.CNAME, out IReadOnlyList<DnsResourceRecord> existingCNAMERecords))
                         {
-                            if ((existingCNAMERecords.Count > 0) && (existingCNAMERecords[0].RDATA is DnsCNAMERecord) && existingCNAMERecords[0].IsStale)
+                            if ((existingCNAMERecords.Count > 0) && (existingCNAMERecords[0].RDATA is DnsCNAMERecordData) && existingCNAMERecords[0].IsStale)
                             {
                                 //delete CNAME entry only when it contains stale DnsCNAMERecord RDATA and not special cache records
                                 _entries.TryRemove(DnsResourceRecordType.CNAME, out _);
@@ -146,7 +146,7 @@ namespace DnsServerCore.Dns.Zones
                             IReadOnlyList<DnsResourceRecord> rrset = ValidateRRSet(type, existingCNAMERecords, serveStale, skipSpecialCacheRecord);
                             if (rrset.Count > 0)
                             {
-                                if ((type == DnsResourceRecordType.CNAME) || (rrset[0].RDATA is DnsCNAMERecord))
+                                if ((type == DnsResourceRecordType.CNAME) || (rrset[0].RDATA is DnsCNAMERecordData))
                                     return rrset;
                             }
                         }
@@ -168,7 +168,7 @@ namespace DnsServerCore.Dns.Zones
                             IReadOnlyList<DnsResourceRecord> rrset = ValidateRRSet(type, existingCNAMERecords, serveStale, skipSpecialCacheRecord);
                             if (rrset.Count > 0)
                             {
-                                if ((type == DnsResourceRecordType.CNAME) || (rrset[0].RDATA is DnsCNAMERecord))
+                                if ((type == DnsResourceRecordType.CNAME) || (rrset[0].RDATA is DnsCNAMERecordData))
                                     return rrset;
                             }
                         }
@@ -192,7 +192,7 @@ namespace DnsServerCore.Dns.Zones
                 if (record.IsStale)
                     continue;
 
-                if (record.RDATA is DnsNSRecord)
+                if (record.RDATA is DnsNSRecordData)
                     return true;
             }
 

@@ -101,7 +101,7 @@ namespace DnsServerCore.Dns.ZoneManagers
                             continue;
 
                         DnsResourceRecord record = zone.GetRecords(DnsResourceRecordType.SOA)[0];
-                        DnsSOARecord soa = record.RDATA as DnsSOARecord;
+                        DnsSOARecordData soa = record.RDATA as DnsSOARecordData;
 
                         if (soa.PrimaryNameServer.Equals(_serverDomain, StringComparison.OrdinalIgnoreCase))
                         {
@@ -109,16 +109,16 @@ namespace DnsServerCore.Dns.ZoneManagers
                             if (responsiblePerson.EndsWith(_serverDomain))
                                 responsiblePerson = responsiblePerson.Replace(_serverDomain, serverDomain);
 
-                            SetRecords(zone.Name, record.Name, record.Type, record.TtlValue, new DnsResourceRecordData[] { new DnsSOARecord(serverDomain, responsiblePerson, soa.Serial, soa.Refresh, soa.Retry, soa.Expire, soa.Minimum) });
+                            SetRecords(zone.Name, record.Name, record.Type, record.TtlValue, new DnsResourceRecordData[] { new DnsSOARecordData(serverDomain, responsiblePerson, soa.Serial, soa.Refresh, soa.Retry, soa.Expire, soa.Minimum) });
 
                             //update NS records
                             IReadOnlyList<DnsResourceRecord> nsResourceRecords = zone.GetRecords(DnsResourceRecordType.NS);
 
                             foreach (DnsResourceRecord nsResourceRecord in nsResourceRecords)
                             {
-                                if ((nsResourceRecord.RDATA as DnsNSRecord).NameServer.Equals(_serverDomain, StringComparison.OrdinalIgnoreCase))
+                                if ((nsResourceRecord.RDATA as DnsNSRecordData).NameServer.Equals(_serverDomain, StringComparison.OrdinalIgnoreCase))
                                 {
-                                    UpdateRecord(zone.Name, nsResourceRecord, new DnsResourceRecord(nsResourceRecord.Name, nsResourceRecord.Type, nsResourceRecord.Class, nsResourceRecord.TtlValue, new DnsNSRecord(serverDomain)) { Tag = nsResourceRecord.Tag });
+                                    UpdateRecord(zone.Name, nsResourceRecord, new DnsResourceRecord(nsResourceRecord.Name, nsResourceRecord.Type, nsResourceRecord.Class, nsResourceRecord.TtlValue, new DnsNSRecordData(serverDomain)) { Tag = nsResourceRecord.Tag });
                                     break;
                                 }
                             }
@@ -258,7 +258,7 @@ namespace DnsServerCore.Dns.ZoneManagers
 
             do
             {
-                if (!_root.TryGet((lastCNAME.RDATA as DnsCNAMERecord).Domain, out AuthZoneNode zoneNode))
+                if (!_root.TryGet((lastCNAME.RDATA as DnsCNAMERecordData).Domain, out AuthZoneNode zoneNode))
                     break;
 
                 IReadOnlyList<DnsResourceRecord> records = zoneNode.QueryRecords(question.Type, dnssecOk);
@@ -281,11 +281,11 @@ namespace DnsServerCore.Dns.ZoneManagers
         {
             DnsResourceRecord dnameRR = answer[0];
 
-            string result = (dnameRR.RDATA as DnsDNAMERecord).Substitute(question.Name, dnameRR.Name);
+            string result = (dnameRR.RDATA as DnsDNAMERecordData).Substitute(question.Name, dnameRR.Name);
 
             if (DnsClient.IsDomainNameValid(result))
             {
-                DnsResourceRecord cnameRR = new DnsResourceRecord(question.Name, DnsResourceRecordType.CNAME, question.Class, dnameRR.TtlValue, new DnsCNAMERecord(result));
+                DnsResourceRecord cnameRR = new DnsResourceRecord(question.Name, DnsResourceRecordType.CNAME, question.Class, dnameRR.TtlValue, new DnsCNAMERecordData(result));
 
                 List<DnsResourceRecord> list = new List<DnsResourceRecord>(5);
 
@@ -320,16 +320,16 @@ namespace DnsServerCore.Dns.ZoneManagers
                         }
                         else
                         {
-                            ResolveAdditionalRecords((refRecord.RDATA as DnsNSRecord).NameServer, dnssecOk, additionalRecords);
+                            ResolveAdditionalRecords((refRecord.RDATA as DnsNSRecordData).NameServer, dnssecOk, additionalRecords);
                         }
                         break;
 
                     case DnsResourceRecordType.MX:
-                        ResolveAdditionalRecords((refRecord.RDATA as DnsMXRecord).Exchange, dnssecOk, additionalRecords);
+                        ResolveAdditionalRecords((refRecord.RDATA as DnsMXRecordData).Exchange, dnssecOk, additionalRecords);
                         break;
 
                     case DnsResourceRecordType.SRV:
-                        ResolveAdditionalRecords((refRecord.RDATA as DnsSRVRecord).Target, dnssecOk, additionalRecords);
+                        ResolveAdditionalRecords((refRecord.RDATA as DnsSRVRecordData).Target, dnssecOk, additionalRecords);
                         break;
                 }
             }
@@ -444,7 +444,7 @@ namespace DnsServerCore.Dns.ZoneManagers
             //read and apply difference sequences
             int index = 1;
             int count = xfrRecords.Count - 1;
-            DnsSOARecord currentSoa = (DnsSOARecord)currentSoaRecord.RDATA;
+            DnsSOARecordData currentSoa = (DnsSOARecordData)currentSoaRecord.RDATA;
 
             while (index < count)
             {
@@ -582,13 +582,13 @@ namespace DnsServerCore.Dns.ZoneManagers
                 }
 
                 //check sequence soa serial
-                DnsSOARecord deletedSoa = deletedSoaRecord.RDATA as DnsSOARecord;
+                DnsSOARecordData deletedSoa = deletedSoaRecord.RDATA as DnsSOARecordData;
 
                 if (currentSoa.Serial != deletedSoa.Serial)
                     throw new InvalidOperationException("Current SOA serial does not match with the IXFR difference sequence deleted SOA.");
 
                 //check next difference sequence
-                currentSoa = addedSoaRecord.RDATA as DnsSOARecord;
+                currentSoa = addedSoaRecord.RDATA as DnsSOARecordData;
             }
 
             //create condensed records
@@ -653,8 +653,8 @@ namespace DnsServerCore.Dns.ZoneManagers
             {
                 {
                     CreatePrimaryZone("localhost", _dnsServer.ServerDomain, true);
-                    SetRecords("localhost", "localhost", DnsResourceRecordType.A, 3600, new DnsResourceRecordData[] { new DnsARecord(IPAddress.Loopback) });
-                    SetRecords("localhost", "localhost", DnsResourceRecordType.AAAA, 3600, new DnsResourceRecordData[] { new DnsAAAARecord(IPAddress.IPv6Loopback) });
+                    SetRecords("localhost", "localhost", DnsResourceRecordType.A, 3600, new DnsResourceRecordData[] { new DnsARecordData(IPAddress.Loopback) });
+                    SetRecords("localhost", "localhost", DnsResourceRecordType.AAAA, 3600, new DnsResourceRecordData[] { new DnsAAAARecordData(IPAddress.IPv6Loopback) });
                 }
 
                 {
@@ -673,14 +673,14 @@ namespace DnsServerCore.Dns.ZoneManagers
                     string ptrZoneName = "127.in-addr.arpa";
 
                     CreatePrimaryZone(ptrZoneName, _dnsServer.ServerDomain, true);
-                    SetRecords(ptrZoneName, "1.0.0.127.in-addr.arpa", DnsResourceRecordType.PTR, 3600, new DnsResourceRecordData[] { new DnsPTRRecord("localhost") });
+                    SetRecords(ptrZoneName, "1.0.0.127.in-addr.arpa", DnsResourceRecordType.PTR, 3600, new DnsResourceRecordData[] { new DnsPTRRecordData("localhost") });
                 }
 
                 {
                     string ptrZoneName = new DnsQuestionRecord(IPAddress.IPv6Loopback, DnsClass.IN).Name;
 
                     CreatePrimaryZone(ptrZoneName, _dnsServer.ServerDomain, true);
-                    SetRecords(ptrZoneName, ptrZoneName, DnsResourceRecordType.PTR, 3600, new DnsResourceRecordData[] { new DnsPTRRecord("localhost") });
+                    SetRecords(ptrZoneName, ptrZoneName, DnsResourceRecordType.PTR, 3600, new DnsResourceRecordData[] { new DnsPTRRecordData("localhost") });
                 }
             }
 
@@ -709,7 +709,7 @@ namespace DnsServerCore.Dns.ZoneManagers
             }
         }
 
-        internal AuthZoneInfo CreateSpecialPrimaryZone(string zoneName, DnsSOARecord soaRecord, DnsNSRecord ns)
+        internal AuthZoneInfo CreateSpecialPrimaryZone(string zoneName, DnsSOARecordData soaRecord, DnsNSRecordData ns)
         {
             PrimaryZone apexZone = new PrimaryZone(_dnsServer, zoneName, soaRecord, ns);
 
@@ -1005,9 +1005,9 @@ namespace DnsServerCore.Dns.ZoneManagers
                 throw new InvalidOperationException("Zone must be a primary or secondary zone.");
 
             DnsResourceRecord currentSoaRecord = soaRecords[0];
-            uint clientSerial = (clientSoaRecord.RDATA as DnsSOARecord).Serial;
+            uint clientSerial = (clientSoaRecord.RDATA as DnsSOARecordData).Serial;
 
-            if (clientSerial == (currentSoaRecord.RDATA as DnsSOARecord).Serial)
+            if (clientSerial == (currentSoaRecord.RDATA as DnsSOARecordData).Serial)
             {
                 //zone not modified
                 return new DnsResourceRecord[] { currentSoaRecord };
@@ -1020,7 +1020,7 @@ namespace DnsServerCore.Dns.ZoneManagers
             while (index < zoneHistory.Count)
             {
                 //check difference sequence
-                if ((zoneHistory[index].RDATA as DnsSOARecord).Serial == clientSerial)
+                if ((zoneHistory[index].RDATA as DnsSOARecordData).Serial == clientSerial)
                     break; //found history for client's serial
 
                 //skip to next difference sequence
@@ -1173,7 +1173,7 @@ namespace DnsServerCore.Dns.ZoneManagers
 
             //process IXFR response
             DnsResourceRecord currentSoaRecord = soaRecords[0];
-            DnsSOARecord currentSoa = currentSoaRecord.RDATA as DnsSOARecord;
+            DnsSOARecordData currentSoa = currentSoaRecord.RDATA as DnsSOARecordData;
 
             IReadOnlyList<DnsResourceRecord> condensedXfrRecords = CondenseIncrementalZoneTransferRecords(zoneName, currentSoaRecord, xfrRecords);
 
@@ -1287,7 +1287,7 @@ namespace DnsServerCore.Dns.ZoneManagers
                 }
 
                 //check sequence soa serial
-                DnsSOARecord deletedSoa = deletedSoaRecord.RDATA as DnsSOARecord;
+                DnsSOARecordData deletedSoa = deletedSoaRecord.RDATA as DnsSOARecordData;
 
                 if (currentSoa.Serial != deletedSoa.Serial)
                     throw new InvalidOperationException("Current SOA serial does not match with the IXFR difference sequence deleted SOA.");
@@ -1334,7 +1334,7 @@ namespace DnsServerCore.Dns.ZoneManagers
                 }
 
                 //check next difference sequence
-                currentSoa = addedSoaRecord.RDATA as DnsSOARecord;
+                currentSoa = addedSoaRecord.RDATA as DnsSOARecordData;
 
                 deletedRecords.Clear();
                 deletedGlueRecords.Clear();
@@ -1894,11 +1894,11 @@ namespace DnsServerCore.Dns.ZoneManagers
 
                 foreach (DnsResourceRecord dnsKeyRecord in dnsKeyRecords)
                 {
-                    DnsDNSKEYRecord dnsKey = dnsKeyRecord.RDATA as DnsDNSKEYRecord;
+                    DnsDNSKEYRecordData dnsKey = dnsKeyRecord.RDATA as DnsDNSKEYRecordData;
 
                     if (dnsKey.Flags.HasFlag(DnsDnsKeyFlag.SecureEntryPoint) && !dnsKey.Flags.HasFlag(DnsDnsKeyFlag.Revoke))
                     {
-                        DnsDSRecord dsRecord = dnsKey.CreateDS(dnsKeyRecord.Name, DnssecDigestType.SHA256);
+                        DnsDSRecordData dsRecord = dnsKey.CreateDS(dnsKeyRecord.Name, DnssecDigestType.SHA256);
                         dnsClient.AddTrustAnchor(zoneInfo.Name, dsRecord);
                     }
                 }
@@ -1934,7 +1934,7 @@ namespace DnsServerCore.Dns.ZoneManagers
 
                             //make zone info
                             AuthZoneType zoneType;
-                            if (_dnsServer.ServerDomain.Equals((soaRecord.RDATA as DnsSOARecord).PrimaryNameServer, StringComparison.OrdinalIgnoreCase))
+                            if (_dnsServer.ServerDomain.Equals((soaRecord.RDATA as DnsSOARecordData).PrimaryNameServer, StringComparison.OrdinalIgnoreCase))
                                 zoneType = AuthZoneType.Primary;
                             else
                                 zoneType = AuthZoneType.Stub;
@@ -1988,7 +1988,7 @@ namespace DnsServerCore.Dns.ZoneManagers
 
                             //make zone info
                             AuthZoneType zoneType;
-                            if (_dnsServer.ServerDomain.Equals((soaRecord.RDATA as DnsSOARecord).PrimaryNameServer, StringComparison.OrdinalIgnoreCase))
+                            if (_dnsServer.ServerDomain.Equals((soaRecord.RDATA as DnsSOARecordData).PrimaryNameServer, StringComparison.OrdinalIgnoreCase))
                                 zoneType = AuthZoneType.Primary;
                             else
                                 zoneType = AuthZoneType.Stub;

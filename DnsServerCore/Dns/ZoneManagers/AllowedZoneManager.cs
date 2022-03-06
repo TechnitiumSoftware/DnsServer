@@ -36,8 +36,8 @@ namespace DnsServerCore.Dns.ZoneManagers
 
         readonly AuthZoneManager _zoneManager;
 
-        DnsSOARecord _soaRecord;
-        DnsNSRecord _nsRecord;
+        DnsSOARecordData _soaRecord;
+        DnsNSRecordData _nsRecord;
 
         #endregion
 
@@ -58,8 +58,8 @@ namespace DnsServerCore.Dns.ZoneManagers
 
         private void UpdateServerDomain(string serverDomain)
         {
-            _soaRecord = new DnsSOARecord(serverDomain, "hostadmin." + serverDomain, 1, 900, 300, 604800, 60);
-            _nsRecord = new DnsNSRecord(serverDomain);
+            _soaRecord = new DnsSOARecordData(serverDomain, "hostadmin." + serverDomain, 1, 900, 300, 604800, 60);
+            _nsRecord = new DnsNSRecordData(serverDomain);
 
             _zoneManager.ServerDomain = serverDomain;
         }

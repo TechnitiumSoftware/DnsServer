@@ -403,7 +403,7 @@ namespace DnsServerCore
             if (zoneInfo.DnssecStatus == AuthZoneDnssecStatus.SignedWithNSEC3)
             {
                 IReadOnlyList<DnsResourceRecord> nsec3ParamRecords = zoneInfo.GetRecords(DnsResourceRecordType.NSEC3PARAM);
-                DnsNSEC3PARAMRecord nsec3Param = nsec3ParamRecords[0].RDATA as DnsNSEC3PARAMRecord;
+                DnsNSEC3PARAMRecordData nsec3Param = nsec3ParamRecords[0].RDATA as DnsNSEC3PARAMRecordData;
 
                 jsonWriter.WritePropertyName("nsec3Iterations");
                 jsonWriter.WriteValue(nsec3Param.Iterations);
@@ -1084,16 +1084,16 @@ namespace DnsServerCore
                             if (reverseZoneInfo.Type != AuthZoneType.Primary)
                                 throw new DnsServerException("Reverse zone '" + reverseZoneInfo.Name + "' is not a primary zone.");
 
-                            _dnsWebService.DnsServer.AuthZoneManager.SetRecords(reverseZoneInfo.Name, ptrDomain, DnsResourceRecordType.PTR, ttl, new DnsPTRRecord[] { new DnsPTRRecord(domain) });
+                            _dnsWebService.DnsServer.AuthZoneManager.SetRecords(reverseZoneInfo.Name, ptrDomain, DnsResourceRecordType.PTR, ttl, new DnsPTRRecordData[] { new DnsPTRRecordData(domain) });
                             _dnsWebService.DnsServer.AuthZoneManager.SaveZoneFile(reverseZoneInfo.Name);
                         }
 
                         DnsResourceRecord newRecord;
 
                         if (type == DnsResourceRecordType.A)
-                            newRecord = new DnsResourceRecord(domain, type, DnsClass.IN, ttl, new DnsARecord(ipAddress));
+                            newRecord = new DnsResourceRecord(domain, type, DnsClass.IN, ttl, new DnsARecordData(ipAddress));
                         else
-                            newRecord = new DnsResourceRecord(domain, type, DnsClass.IN, ttl, new DnsAAAARecord(ipAddress));
+                            newRecord = new DnsResourceRecord(domain, type, DnsClass.IN, ttl, new DnsAAAARecordData(ipAddress));
 
                         if (!string.IsNullOrEmpty(comments))
                             newRecord.SetComments(comments);
@@ -1120,7 +1120,7 @@ namespace DnsServerCore
                         if (string.IsNullOrEmpty(glueAddresses))
                             glueAddresses = null;
 
-                        DnsResourceRecord newRecord = new DnsResourceRecord(domain, type, DnsClass.IN, ttl, new DnsNSRecord(nameServer.TrimEnd('.')));
+                        DnsResourceRecord newRecord = new DnsResourceRecord(domain, type, DnsClass.IN, ttl, new DnsNSRecordData(nameServer.TrimEnd('.')));
 
                         if (glueAddresses != null)
                             newRecord.SetGlueRecords(glueAddresses);
@@ -1153,7 +1153,7 @@ namespace DnsServerCore
                             cname = value;
                         }
 
-                        DnsResourceRecord newRecord = new DnsResourceRecord(domain, type, DnsClass.IN, ttl, new DnsCNAMERecord(cname.TrimEnd('.')));
+                        DnsResourceRecord newRecord = new DnsResourceRecord(domain, type, DnsClass.IN, ttl, new DnsCNAMERecordData(cname.TrimEnd('.')));
 
                         if (!string.IsNullOrEmpty(comments))
                             newRecord.SetComments(comments);
@@ -1173,7 +1173,7 @@ namespace DnsServerCore
                             ptrName = value;
                         }
 
-                        DnsResourceRecord newRecord = new DnsResourceRecord(domain, type, DnsClass.IN, ttl, new DnsPTRRecord(ptrName.TrimEnd('.')));
+                        DnsResourceRecord newRecord = new DnsResourceRecord(domain, type, DnsClass.IN, ttl, new DnsPTRRecordData(ptrName.TrimEnd('.')));
 
                         if (!string.IsNullOrEmpty(comments))
                             newRecord.SetComments(comments);
@@ -1200,7 +1200,7 @@ namespace DnsServerCore
                         if (string.IsNullOrEmpty(preference))
                             throw new DnsWebServiceException("Parameter 'preference' missing.");
 
-                        DnsResourceRecord newRecord = new DnsResourceRecord(domain, type, DnsClass.IN, ttl, new DnsMXRecord(ushort.Parse(preference), exchange.TrimEnd('.')));
+                        DnsResourceRecord newRecord = new DnsResourceRecord(domain, type, DnsClass.IN, ttl, new DnsMXRecordData(ushort.Parse(preference), exchange.TrimEnd('.')));
 
                         if (!string.IsNullOrEmpty(comments))
                             newRecord.SetComments(comments);
@@ -1223,7 +1223,7 @@ namespace DnsServerCore
                             text = value;
                         }
 
-                        DnsResourceRecord newRecord = new DnsResourceRecord(domain, type, DnsClass.IN, ttl, new DnsTXTRecord(text));
+                        DnsResourceRecord newRecord = new DnsResourceRecord(domain, type, DnsClass.IN, ttl, new DnsTXTRecordData(text));
 
                         if (!string.IsNullOrEmpty(comments))
                             newRecord.SetComments(comments);
@@ -1258,7 +1258,7 @@ namespace DnsServerCore
                             target = value;
                         }
 
-                        DnsResourceRecord newRecord = new DnsResourceRecord(domain, type, DnsClass.IN, ttl, new DnsSRVRecord(ushort.Parse(priority), ushort.Parse(weight), ushort.Parse(port), target.TrimEnd('.')));
+                        DnsResourceRecord newRecord = new DnsResourceRecord(domain, type, DnsClass.IN, ttl, new DnsSRVRecordData(ushort.Parse(priority), ushort.Parse(weight), ushort.Parse(port), target.TrimEnd('.')));
 
                         if (!string.IsNullOrEmpty(comments))
                             newRecord.SetComments(comments);
@@ -1288,7 +1288,7 @@ namespace DnsServerCore
                             dname = value;
                         }
 
-                        DnsResourceRecord newRecord = new DnsResourceRecord(domain, type, DnsClass.IN, ttl, new DnsDNAMERecord(dname.TrimEnd('.')));
+                        DnsResourceRecord newRecord = new DnsResourceRecord(domain, type, DnsClass.IN, ttl, new DnsDNAMERecordData(dname.TrimEnd('.')));
 
                         if (!string.IsNullOrEmpty(comments))
                             newRecord.SetComments(comments);
@@ -1320,7 +1320,7 @@ namespace DnsServerCore
                             digest = value;
                         }
 
-                        DnsResourceRecord newRecord = new DnsResourceRecord(domain, type, DnsClass.IN, ttl, new DnsDSRecord(ushort.Parse(strKeyTag), Enum.Parse<DnssecAlgorithm>(strAlgorithm), Enum.Parse<DnssecDigestType>(strDigestType), Convert.FromHexString(digest)));
+                        DnsResourceRecord newRecord = new DnsResourceRecord(domain, type, DnsClass.IN, ttl, new DnsDSRecordData(ushort.Parse(strKeyTag), Enum.Parse<DnssecAlgorithm>(strAlgorithm), Enum.Parse<DnssecDigestType>(strDigestType), Convert.FromHexString(digest)));
 
                         if (!string.IsNullOrEmpty(comments))
                             newRecord.SetComments(comments);
@@ -1345,7 +1345,7 @@ namespace DnsServerCore
                         if (string.IsNullOrEmpty(value))
                             throw new DnsWebServiceException("Parameter 'value' missing.");
 
-                        DnsResourceRecord newRecord = new DnsResourceRecord(domain, type, DnsClass.IN, ttl, new DnsCAARecord(byte.Parse(flags), tag, value));
+                        DnsResourceRecord newRecord = new DnsResourceRecord(domain, type, DnsClass.IN, ttl, new DnsCAARecordData(byte.Parse(flags), tag, value));
 
                         if (!string.IsNullOrEmpty(comments))
                             newRecord.SetComments(comments);
@@ -1368,7 +1368,7 @@ namespace DnsServerCore
                             aname = value;
                         }
 
-                        DnsResourceRecord newRecord = new DnsResourceRecord(domain, type, DnsClass.IN, ttl, new DnsANAMERecord(aname.TrimEnd('.')));
+                        DnsResourceRecord newRecord = new DnsResourceRecord(domain, type, DnsClass.IN, ttl, new DnsANAMERecordData(aname.TrimEnd('.')));
 
                         if (!string.IsNullOrEmpty(comments))
                             newRecord.SetComments(comments);
@@ -1429,7 +1429,7 @@ namespace DnsServerCore
                             }
                         }
 
-                        DnsResourceRecord newRecord = new DnsResourceRecord(domain, type, DnsClass.IN, 0, new DnsForwarderRecord(protocol, forwarder, dnssecValidation, proxyType, proxyAddress, proxyPort, proxyUsername, proxyPassword));
+                        DnsResourceRecord newRecord = new DnsResourceRecord(domain, type, DnsClass.IN, 0, new DnsForwarderRecordData(protocol, forwarder, dnssecValidation, proxyType, proxyAddress, proxyPort, proxyUsername, proxyPassword));
 
                         if (!string.IsNullOrEmpty(comments))
                             newRecord.SetComments(comments);
@@ -1467,7 +1467,7 @@ namespace DnsServerCore
                                 throw new DnsWebServiceException("Record already exists. Use overwrite option if you wish to overwrite existing records.");
                         }
 
-                        DnsResourceRecord newRecord = new DnsResourceRecord(domain, type, DnsClass.IN, ttl, new DnsApplicationRecord(appName, classPath, recordData));
+                        DnsResourceRecord newRecord = new DnsResourceRecord(domain, type, DnsClass.IN, ttl, new DnsApplicationRecordData(appName, classPath, recordData));
 
                         if (!string.IsNullOrEmpty(comments))
                             newRecord.SetComments(comments);
@@ -1610,7 +1610,7 @@ namespace DnsServerCore
                         {
                             case DnsResourceRecordType.A:
                                 {
-                                    if (record.RDATA is DnsARecord rdata)
+                                    if (record.RDATA is DnsARecordData rdata)
                                     {
                                         jsonWriter.WritePropertyName("ipAddress");
                                         jsonWriter.WriteValue(rdata.IPAddress);
@@ -1628,7 +1628,7 @@ namespace DnsServerCore
 
                             case DnsResourceRecordType.NS:
                                 {
-                                    if (record.RDATA is DnsNSRecord rdata)
+                                    if (record.RDATA is DnsNSRecordData rdata)
                                     {
                                         jsonWriter.WritePropertyName("nameServer");
                                         jsonWriter.WriteValue(rdata.NameServer.Length == 0 ? "." : rdata.NameServer);
@@ -1646,7 +1646,7 @@ namespace DnsServerCore
 
                             case DnsResourceRecordType.CNAME:
                                 {
-                                    if (record.RDATA is DnsCNAMERecord rdata)
+                                    if (record.RDATA is DnsCNAMERecordData rdata)
                                     {
                                         jsonWriter.WritePropertyName("cname");
                                         jsonWriter.WriteValue(rdata.Domain.Length == 0 ? "." : rdata.Domain);
@@ -1664,7 +1664,7 @@ namespace DnsServerCore
 
                             case DnsResourceRecordType.SOA:
                                 {
-                                    if (record.RDATA is DnsSOARecord rdata)
+                                    if (record.RDATA is DnsSOARecordData rdata)
                                     {
                                         jsonWriter.WritePropertyName("primaryNameServer");
                                         jsonWriter.WriteValue(rdata.PrimaryNameServer);
@@ -1732,7 +1732,7 @@ namespace DnsServerCore
 
                             case DnsResourceRecordType.PTR:
                                 {
-                                    if (record.RDATA is DnsPTRRecord rdata)
+                                    if (record.RDATA is DnsPTRRecordData rdata)
                                     {
                                         jsonWriter.WritePropertyName("ptrName");
                                         jsonWriter.WriteValue(rdata.Domain.Length == 0 ? "." : rdata.Domain);
@@ -1750,7 +1750,7 @@ namespace DnsServerCore
 
                             case DnsResourceRecordType.MX:
                                 {
-                                    if (record.RDATA is DnsMXRecord rdata)
+                                    if (record.RDATA is DnsMXRecordData rdata)
                                     {
                                         jsonWriter.WritePropertyName("preference");
                                         jsonWriter.WriteValue(rdata.Preference);
@@ -1772,7 +1772,7 @@ namespace DnsServerCore
 
                             case DnsResourceRecordType.TXT:
                                 {
-                                    if (record.RDATA is DnsTXTRecord rdata)
+                                    if (record.RDATA is DnsTXTRecordData rdata)
                                     {
                                         jsonWriter.WritePropertyName("text");
                                         jsonWriter.WriteValue(rdata.Text);
@@ -1790,7 +1790,7 @@ namespace DnsServerCore
 
                             case DnsResourceRecordType.AAAA:
                                 {
-                                    if (record.RDATA is DnsAAAARecord rdata)
+                                    if (record.RDATA is DnsAAAARecordData rdata)
                                     {
                                         jsonWriter.WritePropertyName("ipAddress");
                                         jsonWriter.WriteValue(rdata.IPAddress);
@@ -1808,7 +1808,7 @@ namespace DnsServerCore
 
                             case DnsResourceRecordType.SRV:
                                 {
-                                    if (record.RDATA is DnsSRVRecord rdata)
+                                    if (record.RDATA is DnsSRVRecordData rdata)
                                     {
                                         jsonWriter.WritePropertyName("priority");
                                         jsonWriter.WriteValue(rdata.Priority);
@@ -1835,7 +1835,7 @@ namespace DnsServerCore
 
                             case DnsResourceRecordType.DNAME:
                                 {
-                                    if (record.RDATA is DnsDNAMERecord rdata)
+                                    if (record.RDATA is DnsDNAMERecordData rdata)
                                     {
                                         jsonWriter.WritePropertyName("dname");
                                         jsonWriter.WriteValue(rdata.Domain.Length == 0 ? "." : rdata.Domain);
@@ -1853,7 +1853,7 @@ namespace DnsServerCore
 
                             case DnsResourceRecordType.DS:
                                 {
-                                    if (record.RDATA is DnsDSRecord rdata)
+                                    if (record.RDATA is DnsDSRecordData rdata)
                                     {
                                         jsonWriter.WritePropertyName("keyTag");
                                         jsonWriter.WriteValue(rdata.KeyTag);
@@ -1880,7 +1880,7 @@ namespace DnsServerCore
 
                             case DnsResourceRecordType.RRSIG:
                                 {
-                                    if (record.RDATA is DnsRRSIGRecord rdata)
+                                    if (record.RDATA is DnsRRSIGRecordData rdata)
                                     {
                                         jsonWriter.WritePropertyName("typeCovered");
                                         jsonWriter.WriteValue(rdata.TypeCovered.ToString());
@@ -1922,7 +1922,7 @@ namespace DnsServerCore
 
                             case DnsResourceRecordType.NSEC:
                                 {
-                                    if (record.RDATA is DnsNSECRecord rdata)
+                                    if (record.RDATA is DnsNSECRecordData rdata)
                                     {
                                         jsonWriter.WritePropertyName("nextDomainName");
                                         jsonWriter.WriteValue(rdata.NextDomainName);
@@ -1948,7 +1948,7 @@ namespace DnsServerCore
 
                             case DnsResourceRecordType.DNSKEY:
                                 {
-                                    if (record.RDATA is DnsDNSKEYRecord rdata)
+                                    if (record.RDATA is DnsDNSKEYRecordData rdata)
                                     {
                                         jsonWriter.WritePropertyName("flags");
                                         jsonWriter.WriteValue(rdata.Flags.ToString());
@@ -2038,7 +2038,7 @@ namespace DnsServerCore
 
                             case DnsResourceRecordType.NSEC3:
                                 {
-                                    if (record.RDATA is DnsNSEC3Record rdata)
+                                    if (record.RDATA is DnsNSEC3RecordData rdata)
                                     {
                                         jsonWriter.WritePropertyName("hashAlgorithm");
                                         jsonWriter.WriteValue(rdata.HashAlgorithm.ToString());
@@ -2076,7 +2076,7 @@ namespace DnsServerCore
 
                             case DnsResourceRecordType.NSEC3PARAM:
                                 {
-                                    if (record.RDATA is DnsNSEC3PARAMRecord rdata)
+                                    if (record.RDATA is DnsNSEC3PARAMRecordData rdata)
                                     {
                                         jsonWriter.WritePropertyName("hashAlgorithm");
                                         jsonWriter.WriteValue(rdata.HashAlgorithm.ToString());
@@ -2103,7 +2103,7 @@ namespace DnsServerCore
 
                             case DnsResourceRecordType.CAA:
                                 {
-                                    if (record.RDATA is DnsCAARecord rdata)
+                                    if (record.RDATA is DnsCAARecordData rdata)
                                     {
                                         jsonWriter.WritePropertyName("flags");
                                         jsonWriter.WriteValue(rdata.Flags);
@@ -2127,7 +2127,7 @@ namespace DnsServerCore
 
                             case DnsResourceRecordType.ANAME:
                                 {
-                                    if (record.RDATA is DnsANAMERecord rdata)
+                                    if (record.RDATA is DnsANAMERecordData rdata)
                                     {
                                         jsonWriter.WritePropertyName("aname");
                                         jsonWriter.WriteValue(rdata.Domain.Length == 0 ? "." : rdata.Domain);
@@ -2145,7 +2145,7 @@ namespace DnsServerCore
 
                             case DnsResourceRecordType.FWD:
                                 {
-                                    if (record.RDATA is DnsForwarderRecord rdata)
+                                    if (record.RDATA is DnsForwarderRecordData rdata)
                                     {
                                         jsonWriter.WritePropertyName("protocol");
                                         jsonWriter.WriteValue(rdata.Protocol.ToString());
@@ -2179,7 +2179,7 @@ namespace DnsServerCore
 
                             case DnsResourceRecordType.APP:
                                 {
-                                    if (record.RDATA is DnsApplicationRecord rdata)
+                                    if (record.RDATA is DnsApplicationRecordData rdata)
                                     {
                                         jsonWriter.WritePropertyName("appName");
                                         jsonWriter.WriteValue(rdata.AppName);
@@ -2195,7 +2195,7 @@ namespace DnsServerCore
 
                             default:
                                 {
-                                    if (record.RDATA is DnsUnknownRecord)
+                                    if (record.RDATA is DnsUnknownRecordData)
                                     {
                                         jsonWriter.WritePropertyName("value");
 
@@ -2315,9 +2315,9 @@ namespace DnsServerCore
                         IPAddress ipAddress = IPAddress.Parse(strIPAddress);
 
                         if (type == DnsResourceRecordType.A)
-                            _dnsWebService.DnsServer.AuthZoneManager.DeleteRecord(zoneName, domain, type, new DnsARecord(ipAddress));
+                            _dnsWebService.DnsServer.AuthZoneManager.DeleteRecord(zoneName, domain, type, new DnsARecordData(ipAddress));
                         else
-                            _dnsWebService.DnsServer.AuthZoneManager.DeleteRecord(zoneName, domain, type, new DnsAAAARecord(ipAddress));
+                            _dnsWebService.DnsServer.AuthZoneManager.DeleteRecord(zoneName, domain, type, new DnsAAAARecordData(ipAddress));
 
                         string ptrDomain = Zone.GetReverseZone(ipAddress, type == DnsResourceRecordType.A ? 32 : 128);
                         AuthZoneInfo reverseZoneInfo = _dnsWebService.DnsServer.AuthZoneManager.FindAuthZoneInfo(ptrDomain);
@@ -2328,7 +2328,7 @@ namespace DnsServerCore
                             {
                                 foreach (DnsResourceRecord ptrRecord in ptrRecords)
                                 {
-                                    if ((ptrRecord.RDATA as DnsPTRRecord).Domain.Equals(domain, StringComparison.OrdinalIgnoreCase))
+                                    if ((ptrRecord.RDATA as DnsPTRRecordData).Domain.Equals(domain, StringComparison.OrdinalIgnoreCase))
                                     {
                                         //delete PTR record and save reverse zone
                                         _dnsWebService.DnsServer.AuthZoneManager.DeleteRecord(reverseZoneInfo.Name, ptrDomain, DnsResourceRecordType.PTR, ptrRecord.RDATA);
@@ -2352,7 +2352,7 @@ namespace DnsServerCore
                             nameServer = value;
                         }
 
-                        _dnsWebService.DnsServer.AuthZoneManager.DeleteRecord(zoneName, domain, type, new DnsNSRecord(nameServer));
+                        _dnsWebService.DnsServer.AuthZoneManager.DeleteRecord(zoneName, domain, type, new DnsNSRecordData(nameServer));
                     }
                     break;
 
@@ -2371,7 +2371,7 @@ namespace DnsServerCore
                             ptrName = value;
                         }
 
-                        _dnsWebService.DnsServer.AuthZoneManager.DeleteRecord(zoneName, domain, type, new DnsPTRRecord(ptrName));
+                        _dnsWebService.DnsServer.AuthZoneManager.DeleteRecord(zoneName, domain, type, new DnsPTRRecordData(ptrName));
                     }
                     break;
 
@@ -2386,7 +2386,7 @@ namespace DnsServerCore
                             exchange = value;
                         }
 
-                        _dnsWebService.DnsServer.AuthZoneManager.DeleteRecord(zoneName, domain, type, new DnsMXRecord(0, exchange));
+                        _dnsWebService.DnsServer.AuthZoneManager.DeleteRecord(zoneName, domain, type, new DnsMXRecordData(0, exchange));
                     }
                     break;
 
@@ -2401,7 +2401,7 @@ namespace DnsServerCore
                             text = value;
                         }
 
-                        _dnsWebService.DnsServer.AuthZoneManager.DeleteRecord(zoneName, domain, type, new DnsTXTRecord(text));
+                        _dnsWebService.DnsServer.AuthZoneManager.DeleteRecord(zoneName, domain, type, new DnsTXTRecordData(text));
                     }
                     break;
 
@@ -2420,7 +2420,7 @@ namespace DnsServerCore
                             target = value;
                         }
 
-                        _dnsWebService.DnsServer.AuthZoneManager.DeleteRecord(zoneName, domain, type, new DnsSRVRecord(0, 0, ushort.Parse(port), target));
+                        _dnsWebService.DnsServer.AuthZoneManager.DeleteRecord(zoneName, domain, type, new DnsSRVRecordData(0, 0, ushort.Parse(port), target));
                     }
                     break;
 
@@ -2451,7 +2451,7 @@ namespace DnsServerCore
                             digest = value;
                         }
 
-                        _dnsWebService.DnsServer.AuthZoneManager.DeleteRecord(zoneName, domain, type, new DnsDSRecord(ushort.Parse(strKeyTag), Enum.Parse<DnssecAlgorithm>(strAlgorithm), Enum.Parse<DnssecDigestType>(strDigestType), Convert.FromHexString(digest)));
+                        _dnsWebService.DnsServer.AuthZoneManager.DeleteRecord(zoneName, domain, type, new DnsDSRecordData(ushort.Parse(strKeyTag), Enum.Parse<DnssecAlgorithm>(strAlgorithm), Enum.Parse<DnssecDigestType>(strDigestType), Convert.FromHexString(digest)));
                     }
                     break;
 
@@ -2468,7 +2468,7 @@ namespace DnsServerCore
                         if (string.IsNullOrEmpty(value))
                             throw new DnsWebServiceException("Parameter 'value' missing.");
 
-                        _dnsWebService.DnsServer.AuthZoneManager.DeleteRecord(zoneName, domain, type, new DnsCAARecord(byte.Parse(flags), tag, value));
+                        _dnsWebService.DnsServer.AuthZoneManager.DeleteRecord(zoneName, domain, type, new DnsCAARecordData(byte.Parse(flags), tag, value));
                     }
                     break;
 
@@ -2483,7 +2483,7 @@ namespace DnsServerCore
                             aname = value;
                         }
 
-                        _dnsWebService.DnsServer.AuthZoneManager.DeleteRecord(zoneName, domain, type, new DnsANAMERecord(aname));
+                        _dnsWebService.DnsServer.AuthZoneManager.DeleteRecord(zoneName, domain, type, new DnsANAMERecordData(aname));
                     }
                     break;
 
@@ -2502,7 +2502,7 @@ namespace DnsServerCore
                             forwarder = value;
                         }
 
-                        _dnsWebService.DnsServer.AuthZoneManager.DeleteRecord(zoneName, domain, type, new DnsForwarderRecord(Enum.Parse<DnsTransportProtocol>(strProtocol, true), forwarder));
+                        _dnsWebService.DnsServer.AuthZoneManager.DeleteRecord(zoneName, domain, type, new DnsForwarderRecordData(Enum.Parse<DnsTransportProtocol>(strProtocol, true), forwarder));
                     }
                     break;
 
@@ -2638,7 +2638,7 @@ namespace DnsServerCore
                             }
 
                             //add new PTR record and save reverse zone
-                            _dnsWebService.DnsServer.AuthZoneManager.SetRecords(reverseZoneInfo.Name, ptrDomain, DnsResourceRecordType.PTR, ttl, new DnsPTRRecord[] { new DnsPTRRecord(domain) });
+                            _dnsWebService.DnsServer.AuthZoneManager.SetRecords(reverseZoneInfo.Name, ptrDomain, DnsResourceRecordType.PTR, ttl, new DnsPTRRecordData[] { new DnsPTRRecordData(domain) });
                             _dnsWebService.DnsServer.AuthZoneManager.SaveZoneFile(reverseZoneInfo.Name);
                         }
 
@@ -2647,13 +2647,13 @@ namespace DnsServerCore
 
                         if (type == DnsResourceRecordType.A)
                         {
-                            oldRecord = new DnsResourceRecord(domain, type, DnsClass.IN, 0, new DnsARecord(oldIpAddress));
-                            newRecord = new DnsResourceRecord(newDomain, type, DnsClass.IN, ttl, new DnsARecord(newIpAddress));
+                            oldRecord = new DnsResourceRecord(domain, type, DnsClass.IN, 0, new DnsARecordData(oldIpAddress));
+                            newRecord = new DnsResourceRecord(newDomain, type, DnsClass.IN, ttl, new DnsARecordData(newIpAddress));
                         }
                         else
                         {
-                            oldRecord = new DnsResourceRecord(domain, type, DnsClass.IN, 0, new DnsAAAARecord(oldIpAddress));
-                            newRecord = new DnsResourceRecord(newDomain, type, DnsClass.IN, ttl, new DnsAAAARecord(newIpAddress));
+                            oldRecord = new DnsResourceRecord(domain, type, DnsClass.IN, 0, new DnsAAAARecordData(oldIpAddress));
+                            newRecord = new DnsResourceRecord(newDomain, type, DnsClass.IN, ttl, new DnsAAAARecordData(newIpAddress));
                         }
 
                         if (disable)
@@ -2686,8 +2686,8 @@ namespace DnsServerCore
                             newNameServer = newValue;
                         }
 
-                        DnsResourceRecord oldRecord = new DnsResourceRecord(domain, type, DnsClass.IN, 0, new DnsNSRecord(nameServer.TrimEnd('.')));
-                        DnsResourceRecord newRecord = new DnsResourceRecord(newDomain, type, DnsClass.IN, ttl, new DnsNSRecord(newNameServer.TrimEnd('.')));
+                        DnsResourceRecord oldRecord = new DnsResourceRecord(domain, type, DnsClass.IN, 0, new DnsNSRecordData(nameServer.TrimEnd('.')));
+                        DnsResourceRecord newRecord = new DnsResourceRecord(newDomain, type, DnsClass.IN, ttl, new DnsNSRecordData(newNameServer.TrimEnd('.')));
 
                         if (disable)
                             newRecord.Disable();
@@ -2714,8 +2714,8 @@ namespace DnsServerCore
                             cname = value;
                         }
 
-                        DnsResourceRecord oldRecord = new DnsResourceRecord(domain, type, DnsClass.IN, 0, new DnsCNAMERecord(cname.TrimEnd('.')));
-                        DnsResourceRecord newRecord = new DnsResourceRecord(newDomain, type, DnsClass.IN, ttl, new DnsCNAMERecord(cname.TrimEnd('.')));
+                        DnsResourceRecord oldRecord = new DnsResourceRecord(domain, type, DnsClass.IN, 0, new DnsCNAMERecordData(cname.TrimEnd('.')));
+                        DnsResourceRecord newRecord = new DnsResourceRecord(newDomain, type, DnsClass.IN, ttl, new DnsCNAMERecordData(cname.TrimEnd('.')));
 
                         if (disable)
                             newRecord.Disable();
@@ -2757,7 +2757,7 @@ namespace DnsServerCore
                         if (string.IsNullOrEmpty(minimum))
                             throw new DnsWebServiceException("Parameter 'minimum' missing.");
 
-                        DnsResourceRecord newSoaRecord = new DnsResourceRecord(domain, type, DnsClass.IN, ttl, new DnsSOARecord(primaryNameServer, responsiblePerson, uint.Parse(serial), uint.Parse(refresh), uint.Parse(retry), uint.Parse(expire), uint.Parse(minimum)));
+                        DnsResourceRecord newSoaRecord = new DnsResourceRecord(domain, type, DnsClass.IN, ttl, new DnsSOARecordData(primaryNameServer, responsiblePerson, uint.Parse(serial), uint.Parse(refresh), uint.Parse(retry), uint.Parse(expire), uint.Parse(minimum)));
 
                         switch (zoneInfo.Type)
                         {
@@ -2812,8 +2812,8 @@ namespace DnsServerCore
                             newPtrName = newValue;
                         }
 
-                        DnsResourceRecord oldRecord = new DnsResourceRecord(domain, type, DnsClass.IN, 0, new DnsPTRRecord(ptrName.TrimEnd('.')));
-                        DnsResourceRecord newRecord = new DnsResourceRecord(newDomain, type, DnsClass.IN, ttl, new DnsPTRRecord(newPtrName.TrimEnd('.')));
+                        DnsResourceRecord oldRecord = new DnsResourceRecord(domain, type, DnsClass.IN, 0, new DnsPTRRecordData(ptrName.TrimEnd('.')));
+                        DnsResourceRecord newRecord = new DnsResourceRecord(newDomain, type, DnsClass.IN, ttl, new DnsPTRRecordData(newPtrName.TrimEnd('.')));
 
                         if (disable)
                             newRecord.Disable();
@@ -2849,8 +2849,8 @@ namespace DnsServerCore
                             newExchange = newValue;
                         }
 
-                        DnsResourceRecord oldRecord = new DnsResourceRecord(domain, type, DnsClass.IN, 0, new DnsMXRecord(0, exchange.TrimEnd('.')));
-                        DnsResourceRecord newRecord = new DnsResourceRecord(newDomain, type, DnsClass.IN, ttl, new DnsMXRecord(ushort.Parse(preference), newExchange.TrimEnd('.')));
+                        DnsResourceRecord oldRecord = new DnsResourceRecord(domain, type, DnsClass.IN, 0, new DnsMXRecordData(0, exchange.TrimEnd('.')));
+                        DnsResourceRecord newRecord = new DnsResourceRecord(newDomain, type, DnsClass.IN, ttl, new DnsMXRecordData(ushort.Parse(preference), newExchange.TrimEnd('.')));
 
                         if (disable)
                             newRecord.Disable();
@@ -2882,8 +2882,8 @@ namespace DnsServerCore
                             newText = newValue;
                         }
 
-                        DnsResourceRecord oldRecord = new DnsResourceRecord(domain, type, DnsClass.IN, 0, new DnsTXTRecord(text));
-                        DnsResourceRecord newRecord = new DnsResourceRecord(newDomain, type, DnsClass.IN, ttl, new DnsTXTRecord(newText));
+                        DnsResourceRecord oldRecord = new DnsResourceRecord(domain, type, DnsClass.IN, 0, new DnsTXTRecordData(text));
+                        DnsResourceRecord newRecord = new DnsResourceRecord(newDomain, type, DnsClass.IN, ttl, new DnsTXTRecordData(newText));
 
                         if (disable)
                             newRecord.Disable();
@@ -2931,8 +2931,8 @@ namespace DnsServerCore
                             newTarget = newValue;
                         }
 
-                        DnsResourceRecord oldRecord = new DnsResourceRecord(domain, type, DnsClass.IN, 0, new DnsSRVRecord(0, 0, ushort.Parse(port), target.TrimEnd('.')));
-                        DnsResourceRecord newRecord = new DnsResourceRecord(newDomain, type, DnsClass.IN, ttl, new DnsSRVRecord(ushort.Parse(priority), ushort.Parse(weight), ushort.Parse(newPort), newTarget.TrimEnd('.')));
+                        DnsResourceRecord oldRecord = new DnsResourceRecord(domain, type, DnsClass.IN, 0, new DnsSRVRecordData(0, 0, ushort.Parse(port), target.TrimEnd('.')));
+                        DnsResourceRecord newRecord = new DnsResourceRecord(newDomain, type, DnsClass.IN, ttl, new DnsSRVRecordData(ushort.Parse(priority), ushort.Parse(weight), ushort.Parse(newPort), newTarget.TrimEnd('.')));
 
                         if (disable)
                             newRecord.Disable();
@@ -2955,8 +2955,8 @@ namespace DnsServerCore
                             dname = value;
                         }
 
-                        DnsResourceRecord oldRecord = new DnsResourceRecord(domain, type, DnsClass.IN, 0, new DnsDNAMERecord(dname.TrimEnd('.')));
-                        DnsResourceRecord newRecord = new DnsResourceRecord(newDomain, type, DnsClass.IN, ttl, new DnsDNAMERecord(dname.TrimEnd('.')));
+                        DnsResourceRecord oldRecord = new DnsResourceRecord(domain, type, DnsClass.IN, 0, new DnsDNAMERecordData(dname.TrimEnd('.')));
+                        DnsResourceRecord newRecord = new DnsResourceRecord(newDomain, type, DnsClass.IN, ttl, new DnsDNAMERecordData(dname.TrimEnd('.')));
 
                         if (disable)
                             newRecord.Disable();
@@ -3012,8 +3012,8 @@ namespace DnsServerCore
                             newDigest = newValue;
                         }
 
-                        DnsResourceRecord oldRecord = new DnsResourceRecord(domain, type, DnsClass.IN, 0, new DnsDSRecord(ushort.Parse(strKeyTag), Enum.Parse<DnssecAlgorithm>(strAlgorithm), Enum.Parse<DnssecDigestType>(strDigestType), Convert.FromHexString(digest)));
-                        DnsResourceRecord newRecord = new DnsResourceRecord(newDomain, type, DnsClass.IN, ttl, new DnsDSRecord(ushort.Parse(strNewKeyTag), Enum.Parse<DnssecAlgorithm>(strNewAlgorithm), Enum.Parse<DnssecDigestType>(strNewDigestType), Convert.FromHexString(newDigest)));
+                        DnsResourceRecord oldRecord = new DnsResourceRecord(domain, type, DnsClass.IN, 0, new DnsDSRecordData(ushort.Parse(strKeyTag), Enum.Parse<DnssecAlgorithm>(strAlgorithm), Enum.Parse<DnssecDigestType>(strDigestType), Convert.FromHexString(digest)));
+                        DnsResourceRecord newRecord = new DnsResourceRecord(newDomain, type, DnsClass.IN, ttl, new DnsDSRecordData(ushort.Parse(strNewKeyTag), Enum.Parse<DnssecAlgorithm>(strNewAlgorithm), Enum.Parse<DnssecDigestType>(strNewDigestType), Convert.FromHexString(newDigest)));
 
                         if (disable)
                             newRecord.Disable();
@@ -3049,8 +3049,8 @@ namespace DnsServerCore
                         if (string.IsNullOrEmpty(newValue))
                             newValue = value;
 
-                        DnsResourceRecord oldRecord = new DnsResourceRecord(domain, type, DnsClass.IN, 0, new DnsCAARecord(byte.Parse(flags), tag, value));
-                        DnsResourceRecord newRecord = new DnsResourceRecord(newDomain, type, DnsClass.IN, ttl, new DnsCAARecord(byte.Parse(newFlags), newTag, newValue));
+                        DnsResourceRecord oldRecord = new DnsResourceRecord(domain, type, DnsClass.IN, 0, new DnsCAARecordData(byte.Parse(flags), tag, value));
+                        DnsResourceRecord newRecord = new DnsResourceRecord(newDomain, type, DnsClass.IN, ttl, new DnsCAARecordData(byte.Parse(newFlags), newTag, newValue));
 
                         if (disable)
                             newRecord.Disable();
@@ -3082,8 +3082,8 @@ namespace DnsServerCore
                             newAName = newValue;
                         }
 
-                        DnsResourceRecord oldRecord = new DnsResourceRecord(domain, type, DnsClass.IN, 0, new DnsANAMERecord(aname.TrimEnd('.')));
-                        DnsResourceRecord newRecord = new DnsResourceRecord(newDomain, type, DnsClass.IN, ttl, new DnsANAMERecord(newAName.TrimEnd('.')));
+                        DnsResourceRecord oldRecord = new DnsResourceRecord(domain, type, DnsClass.IN, 0, new DnsANAMERecordData(aname.TrimEnd('.')));
+                        DnsResourceRecord newRecord = new DnsResourceRecord(newDomain, type, DnsClass.IN, ttl, new DnsANAMERecordData(newAName.TrimEnd('.')));
 
                         if (disable)
                             newRecord.Disable();
@@ -3158,8 +3158,8 @@ namespace DnsServerCore
                             }
                         }
 
-                        DnsResourceRecord oldRecord = new DnsResourceRecord(domain, type, DnsClass.IN, 0, new DnsForwarderRecord(protocol, forwarder));
-                        DnsResourceRecord newRecord = new DnsResourceRecord(domain, type, DnsClass.IN, 0, new DnsForwarderRecord(newProtocol, newForwarder, dnssecValidation, proxyType, proxyAddress, proxyPort, proxyUsername, proxyPassword));
+                        DnsResourceRecord oldRecord = new DnsResourceRecord(domain, type, DnsClass.IN, 0, new DnsForwarderRecordData(protocol, forwarder));
+                        DnsResourceRecord newRecord = new DnsResourceRecord(domain, type, DnsClass.IN, 0, new DnsForwarderRecordData(newProtocol, newForwarder, dnssecValidation, proxyType, proxyAddress, proxyPort, proxyUsername, proxyPassword));
 
                         if (disable)
                             newRecord.Disable();
@@ -3190,8 +3190,8 @@ namespace DnsServerCore
                         if (string.IsNullOrEmpty(recordData))
                             recordData = "";
 
-                        DnsResourceRecord oldRecord = new DnsResourceRecord(domain, type, DnsClass.IN, 0, new DnsApplicationRecord(appName, classPath, recordData));
-                        DnsResourceRecord newRecord = new DnsResourceRecord(newDomain, type, DnsClass.IN, ttl, new DnsApplicationRecord(appName, classPath, recordData));
+                        DnsResourceRecord oldRecord = new DnsResourceRecord(domain, type, DnsClass.IN, 0, new DnsApplicationRecordData(appName, classPath, recordData));
+                        DnsResourceRecord newRecord = new DnsResourceRecord(newDomain, type, DnsClass.IN, ttl, new DnsApplicationRecordData(appName, classPath, recordData));
 
                         if (disable)
                             newRecord.Disable();

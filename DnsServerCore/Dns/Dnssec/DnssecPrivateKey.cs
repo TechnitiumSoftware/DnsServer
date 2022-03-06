@@ -134,7 +134,7 @@ namespace DnsServerCore.Dns.Dnssec
         DateTime _stateChangedOn;
         bool _isRetiring;
 
-        DnsDNSKEYRecord _dnsKey;
+        DnsDNSKEYRecordData _dnsKey;
 
         #endregion
 
@@ -245,7 +245,7 @@ namespace DnsServerCore.Dns.Dnssec
             if (_state == DnssecPrivateKeyState.Revoked)
                 flags |= DnsDnsKeyFlag.Revoke;
 
-            _dnsKey = new DnsDNSKEYRecord(flags, 3, _algorithm, publicKey);
+            _dnsKey = new DnsDNSKEYRecordData(flags, 3, _algorithm, publicKey);
         }
 
         protected abstract byte[] SignHash(byte[] hash);
@@ -261,14 +261,14 @@ namespace DnsServerCore.Dns.Dnssec
         internal DnsResourceRecord SignRRSet(string signersName, IReadOnlyList<DnsResourceRecord> records, uint signatureInceptionOffset, uint signatureValidityPeriod)
         {
             DnsResourceRecord firstRecord = records[0];
-            DnsRRSIGRecord unsignedRRSigRecord = new DnsRRSIGRecord(firstRecord.Type, _algorithm, DnsRRSIGRecord.GetLabelCount(firstRecord.Name), firstRecord.OriginalTtlValue, Convert.ToUInt32((DateTime.UtcNow.AddSeconds(signatureValidityPeriod) - DateTime.UnixEpoch).TotalSeconds % uint.MaxValue), Convert.ToUInt32((DateTime.UtcNow.AddSeconds(-signatureInceptionOffset) - DateTime.UnixEpoch).TotalSeconds % uint.MaxValue), DnsKey.ComputedKeyTag, signersName, null);
+            DnsRRSIGRecordData unsignedRRSigRecord = new DnsRRSIGRecordData(firstRecord.Type, _algorithm, DnsRRSIGRecordData.GetLabelCount(firstRecord.Name), firstRecord.OriginalTtlValue, Convert.ToUInt32((DateTime.UtcNow.AddSeconds(signatureValidityPeriod) - DateTime.UnixEpoch).TotalSeconds % uint.MaxValue), Convert.ToUInt32((DateTime.UtcNow.AddSeconds(-signatureInceptionOffset) - DateTime.UnixEpoch).TotalSeconds % uint.MaxValue), DnsKey.ComputedKeyTag, signersName, null);
 
-            if (!DnsRRSIGRecord.TryGetRRSetHash(unsignedRRSigRecord, records, out byte[] hash, out EDnsExtendedDnsErrorCode extendedDnsErrorCode))
+            if (!DnsRRSIGRecordData.TryGetRRSetHash(unsignedRRSigRecord, records, out byte[] hash, out EDnsExtendedDnsErrorCode extendedDnsErrorCode))
                 throw new DnsServerException("Failed to sign record set: " + extendedDnsErrorCode.ToString());
 
             byte[] signature = SignHash(hash);
 
-            DnsRRSIGRecord signedRRSigRecord = new DnsRRSIGRecord(unsignedRRSigRecord.TypeCovered, unsignedRRSigRecord.Algorithm, unsignedRRSigRecord.Labels, unsignedRRSigRecord.OriginalTtl, unsignedRRSigRecord.SignatureExpirationValue, unsignedRRSigRecord.SignatureInceptionValue, unsignedRRSigRecord.KeyTag, unsignedRRSigRecord.SignersName, signature);
+            DnsRRSIGRecordData signedRRSigRecord = new DnsRRSIGRecordData(unsignedRRSigRecord.TypeCovered, unsignedRRSigRecord.Algorithm, unsignedRRSigRecord.Labels, unsignedRRSigRecord.OriginalTtl, unsignedRRSigRecord.SignatureExpirationValue, unsignedRRSigRecord.SignatureInceptionValue, unsignedRRSigRecord.KeyTag, unsignedRRSigRecord.SignersName, signature);
             return new DnsResourceRecord(firstRecord.Name, DnsResourceRecordType.RRSIG, firstRecord.Class, firstRecord.OriginalTtlValue, signedRRSigRecord);
         }
 
@@ -323,7 +323,7 @@ namespace DnsServerCore.Dns.Dnssec
         public bool IsRetiring
         { get { return _isRetiring; } }
 
-        public DnsDNSKEYRecord DnsKey
+        public DnsDNSKEYRecordData DnsKey
         { get { return _dnsKey; } }
 
         public ushort KeyTag

@@ -111,7 +111,7 @@ namespace DnsServerCore.Dns.Zones
 
             foreach (DnsResourceRecord rrsigRecord in rrsigRecords)
             {
-                if ((rrsigRecord.RDATA as DnsRRSIGRecord).TypeCovered == type)
+                if ((rrsigRecord.RDATA as DnsRRSIGRecordData).TypeCovered == type)
                     newRecords.Add(rrsigRecord);
             }
 
@@ -252,11 +252,11 @@ namespace DnsServerCore.Dns.Zones
                 foreach (DnsResourceRecord existingRecord in existingRecords)
                 {
                     bool found = false;
-                    DnsRRSIGRecord existingRRSig = existingRecord.RDATA as DnsRRSIGRecord;
+                    DnsRRSIGRecordData existingRRSig = existingRecord.RDATA as DnsRRSIGRecordData;
 
                     foreach (DnsResourceRecord newRRSigRecord in newRRSigRecords)
                     {
-                        DnsRRSIGRecord newRRSig = newRRSigRecord.RDATA as DnsRRSIGRecord;
+                        DnsRRSIGRecordData newRRSig = newRRSigRecord.RDATA as DnsRRSIGRecordData;
 
                         if ((newRRSig.TypeCovered == existingRRSig.TypeCovered) && (newRRSig.KeyTag == existingRRSig.KeyTag))
                         {
@@ -340,7 +340,7 @@ namespace DnsServerCore.Dns.Zones
 
                         foreach (DnsResourceRecord rrsigRecord in entry.Value)
                         {
-                            DnsRRSIGRecord rrsig = rrsigRecord.RDATA as DnsRRSIGRecord;
+                            DnsRRSIGRecordData rrsig = rrsigRecord.RDATA as DnsRRSIGRecordData;
                             if (rrsig.TypeCovered == DnsResourceRecordType.NSEC)
                                 recordsToRemove.Add(rrsigRecord);
                         }
@@ -378,7 +378,7 @@ namespace DnsServerCore.Dns.Zones
 
                         foreach (DnsResourceRecord rrsigRecord in entry.Value)
                         {
-                            DnsRRSIGRecord rrsig = rrsigRecord.RDATA as DnsRRSIGRecord;
+                            DnsRRSIGRecordData rrsig = rrsigRecord.RDATA as DnsRRSIGRecordData;
                             switch (rrsig.TypeCovered)
                             {
                                 case DnsResourceRecordType.NSEC3:
@@ -433,7 +433,7 @@ namespace DnsServerCore.Dns.Zones
 
             foreach (DnsResourceRecord rrsigRecord in rrsigRecords)
             {
-                DnsRRSIGRecord rrsig = rrsigRecord.RDATA as DnsRRSIGRecord;
+                DnsRRSIGRecordData rrsig = rrsigRecord.RDATA as DnsRRSIGRecordData;
 
                 uint signatureValidityPeriod = rrsig.SignatureExpirationValue - rrsig.SignatureInceptionValue;
                 uint refreshPeriod = signatureValidityPeriod / 3;
@@ -473,7 +473,7 @@ namespace DnsServerCore.Dns.Zones
 
             types.Sort();
 
-            DnsNSECRecord newNSecRecord = new DnsNSECRecord(nextDomainName, types);
+            DnsNSECRecordData newNSecRecord = new DnsNSECRecordData(nextDomainName, types);
 
             if (!_entries.TryGetValue(DnsResourceRecordType.NSEC, out IReadOnlyList<DnsResourceRecord> existingRecords) || !existingRecords[0].RDATA.Equals(newNSecRecord))
                 return new DnsResourceRecord[] { new DnsResourceRecord(_name, DnsResourceRecordType.NSEC, DnsClass.IN, ttl, newNSecRecord) };
@@ -516,7 +516,7 @@ namespace DnsServerCore.Dns.Zones
 
             types.Sort();
 
-            DnsNSEC3Record newNSec3 = new DnsNSEC3Record(DnssecNSEC3HashAlgorithm.SHA1, DnssecNSEC3Flags.None, iterations, salt, nextHashedOwnerName, types);
+            DnsNSEC3RecordData newNSec3 = new DnsNSEC3RecordData(DnssecNSEC3HashAlgorithm.SHA1, DnssecNSEC3Flags.None, iterations, salt, nextHashedOwnerName, types);
             return new DnsResourceRecord[] { new DnsResourceRecord(hashedOwnerName, DnsResourceRecordType.NSEC3, DnsClass.IN, ttl, newNSec3) };
         }
 
@@ -554,7 +554,7 @@ namespace DnsServerCore.Dns.Zones
 
             types.Sort();
 
-            DnsNSEC3Record newNSec3Record = new DnsNSEC3Record(DnssecNSEC3HashAlgorithm.SHA1, DnssecNSEC3Flags.None, iterations, salt, Array.Empty<byte>(), types);
+            DnsNSEC3RecordData newNSec3Record = new DnsNSEC3RecordData(DnssecNSEC3HashAlgorithm.SHA1, DnssecNSEC3Flags.None, iterations, salt, Array.Empty<byte>(), types);
             return new DnsResourceRecord(newNSec3Record.ComputeHashedOwnerName(_name) + "." + zoneName, DnsResourceRecordType.NSEC3, DnsClass.IN, ttl, newNSec3Record);
         }
 

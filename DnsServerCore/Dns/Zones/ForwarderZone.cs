@@ -39,7 +39,7 @@ namespace DnsServerCore.Dns.Zones
             _zoneTransfer = AuthZoneTransfer.Deny;
             _notify = AuthZoneNotify.None;
 
-            DnsResourceRecord fwdRecord = new DnsResourceRecord(name, DnsResourceRecordType.FWD, DnsClass.IN, 0, new DnsForwarderRecord(forwarderProtocol, forwarder, dnssecValidation, proxyType, proxyAddress, proxyPort, proxyUsername, proxyPassword));
+            DnsResourceRecord fwdRecord = new DnsResourceRecord(name, DnsResourceRecordType.FWD, DnsClass.IN, 0, new DnsForwarderRecordData(forwarderProtocol, forwarder, dnssecValidation, proxyType, proxyAddress, proxyPort, proxyUsername, proxyPassword));
 
             _entries[DnsResourceRecordType.FWD] = new DnsResourceRecord[] { fwdRecord };
         }

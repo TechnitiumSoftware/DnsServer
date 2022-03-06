@@ -42,11 +42,11 @@ namespace DnsServerCore.Dns.ZoneManagers
         readonly List<Uri> _blockListUrls = new List<Uri>();
         IReadOnlyDictionary<string, List<Uri>> _blockListZone = new Dictionary<string, List<Uri>>();
 
-        DnsSOARecord _soaRecord;
-        DnsNSRecord _nsRecord;
+        DnsSOARecordData _soaRecord;
+        DnsNSRecordData _nsRecord;
 
-        readonly IReadOnlyCollection<DnsARecord> _aRecords = new DnsARecord[] { new DnsARecord(IPAddress.Any) };
-        readonly IReadOnlyCollection<DnsAAAARecord> _aaaaRecords = new DnsAAAARecord[] { new DnsAAAARecord(IPAddress.IPv6Any) };
+        readonly IReadOnlyCollection<DnsARecordData> _aRecords = new DnsARecordData[] { new DnsARecordData(IPAddress.Any) };
+        readonly IReadOnlyCollection<DnsAAAARecordData> _aaaaRecords = new DnsAAAARecordData[] { new DnsAAAARecordData(IPAddress.IPv6Any) };
 
         #endregion
 
@@ -70,8 +70,8 @@ namespace DnsServerCore.Dns.ZoneManagers
 
         private void UpdateServerDomain(string serverDomain)
         {
-            _soaRecord = new DnsSOARecord(serverDomain, "hostadmin." + serverDomain, 1, 14400, 3600, 604800, 60);
-            _nsRecord = new DnsNSRecord(serverDomain);
+            _soaRecord = new DnsSOARecordData(serverDomain, "hostadmin." + serverDomain, 1, 14400, 3600, 604800, 60);
+            _nsRecord = new DnsNSRecordData(serverDomain);
         }
 
         private string GetBlockListFilePath(Uri blockListUrl)
@@ -416,14 +416,14 @@ namespace DnsServerCore.Dns.ZoneManagers
                 DnsResourceRecord[] answer = new DnsResourceRecord[blockLists.Count];
 
                 for (int i = 0; i < answer.Length; i++)
-                    answer[i] = new DnsResourceRecord(question.Name, DnsResourceRecordType.TXT, question.Class, 60, new DnsTXTRecord("source=block-list-zone; blockListUrl=" + blockLists[i].AbsoluteUri + "; domain=" + blockedDomain));
+                    answer[i] = new DnsResourceRecord(question.Name, DnsResourceRecordType.TXT, question.Class, 60, new DnsTXTRecordData("source=block-list-zone; blockListUrl=" + blockLists[i].AbsoluteUri + "; domain=" + blockedDomain));
 
                 return new DnsDatagram(request.Identifier, true, DnsOpcode.StandardQuery, false, false, request.RecursionDesired, true, false, false, DnsResponseCode.NoError, request.Question, answer);
             }
             else
             {
-                IReadOnlyCollection<DnsARecord> aRecords;
-                IReadOnlyCollection<DnsAAAARecord> aaaaRecords;
+                IReadOnlyCollection<DnsARecordData> aRecords;
+                IReadOnlyCollection<DnsAAAARecordData> aaaaRecords;
 
                 switch (_dnsServer.BlockingType)
                 {
@@ -457,7 +457,7 @@ namespace DnsServerCore.Dns.ZoneManagers
                         {
                             List<DnsResourceRecord> rrList = new List<DnsResourceRecord>(aRecords.Count);
 
-                            foreach (DnsARecord record in aRecords)
+                            foreach (DnsARecordData record in aRecords)
                                 rrList.Add(new DnsResourceRecord(question.Name, DnsResourceRecordType.A, question.Class, 60, record));
 
                             answer = rrList;
@@ -468,7 +468,7 @@ namespace DnsServerCore.Dns.ZoneManagers
                         {
                             List<DnsResourceRecord> rrList = new List<DnsResourceRecord>(aaaaRecords.Count);
 
-                            foreach (DnsAAAARecord record in aaaaRecords)
+                            foreach (DnsAAAARecordData record in aaaaRecords)
                                 rrList.Add(new DnsResourceRecord(question.Name, DnsResourceRecordType.AAAA, question.Class, 60, record));
 
                             answer = rrList;

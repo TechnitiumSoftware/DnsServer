@@ -75,7 +75,7 @@ namespace DnsServerCore.Dns.Zones
 
         protected void CleanupHistory(List<DnsResourceRecord> history)
         {
-            DnsSOARecord soa = _entries[DnsResourceRecordType.SOA][0].RDATA as DnsSOARecord;
+            DnsSOARecordData soa = _entries[DnsResourceRecordType.SOA][0].RDATA as DnsSOARecordData;
             DateTime expiry = DateTime.UtcNow.AddSeconds(-soa.Expire);
             int index = 0;
 
@@ -156,7 +156,7 @@ namespace DnsServerCore.Dns.Zones
             {
                 case DnsResourceRecordType.NS:
                     {
-                        string nsDomain = (nsRecord.RDATA as DnsNSRecord).NameServer;
+                        string nsDomain = (nsRecord.RDATA as DnsNSRecordData).NameServer;
 
                         IReadOnlyList<DnsResourceRecord> glueRecords = nsRecord.GetGlueRecords();
                         if (glueRecords.Count > 0)
@@ -166,12 +166,12 @@ namespace DnsServerCore.Dns.Zones
                                 switch (glueRecord.Type)
                                 {
                                     case DnsResourceRecordType.A:
-                                        outNameServers.Add(new NameServerAddress(nsDomain, (glueRecord.RDATA as DnsARecord).Address));
+                                        outNameServers.Add(new NameServerAddress(nsDomain, (glueRecord.RDATA as DnsARecordData).Address));
                                         break;
 
                                     case DnsResourceRecordType.AAAA:
                                         if (dnsServer.PreferIPv6)
-                                            outNameServers.Add(new NameServerAddress(nsDomain, (glueRecord.RDATA as DnsAAAARecord).Address));
+                                            outNameServers.Add(new NameServerAddress(nsDomain, (glueRecord.RDATA as DnsAAAARecordData).Address));
 
                                         break;
                                 }
@@ -224,7 +224,7 @@ namespace DnsServerCore.Dns.Zones
                 return resolvedNameServers;
             }
 
-            string primaryNameServer = (soaRecord.RDATA as DnsSOARecord).PrimaryNameServer;
+            string primaryNameServer = (soaRecord.RDATA as DnsSOARecordData).PrimaryNameServer;
             IReadOnlyList<DnsResourceRecord> nsRecords = GetRecords(DnsResourceRecordType.NS); //stub zone has no authority so cant use QueryRecords
 
             List<NameServerAddress> nameServers = new List<NameServerAddress>(nsRecords.Count * 2);
@@ -234,7 +234,7 @@ namespace DnsServerCore.Dns.Zones
                 if (nsRecord.IsDisabled())
                     continue;
 
-                if (primaryNameServer.Equals((nsRecord.RDATA as DnsNSRecord).NameServer, StringComparison.OrdinalIgnoreCase))
+                if (primaryNameServer.Equals((nsRecord.RDATA as DnsNSRecordData).NameServer, StringComparison.OrdinalIgnoreCase))
                 {
                     //found primary NS
                     await ResolveNameServerAddressesAsync(dnsServer, nsRecord, nameServers);
@@ -250,7 +250,7 @@ namespace DnsServerCore.Dns.Zones
 
         public async Task<IReadOnlyList<NameServerAddress>> GetSecondaryNameServerAddressesAsync(DnsServer dnsServer)
         {
-            string primaryNameServer = (_entries[DnsResourceRecordType.SOA][0].RDATA as DnsSOARecord).PrimaryNameServer;
+            string primaryNameServer = (_entries[DnsResourceRecordType.SOA][0].RDATA as DnsSOARecordData).PrimaryNameServer;
             IReadOnlyList<DnsResourceRecord> nsRecords = GetRecords(DnsResourceRecordType.NS); //stub zone has no authority so cant use QueryRecords
 
             List<NameServerAddress> nameServers = new List<NameServerAddress>(nsRecords.Count * 2);
@@ -260,7 +260,7 @@ namespace DnsServerCore.Dns.Zones
                 if (nsRecord.IsDisabled())
                     continue;
 
-                if (primaryNameServer.Equals((nsRecord.RDATA as DnsNSRecord).NameServer, StringComparison.OrdinalIgnoreCase))
+                if (primaryNameServer.Equals((nsRecord.RDATA as DnsNSRecordData).NameServer, StringComparison.OrdinalIgnoreCase))
                     continue; //skip primary name server
 
                 await ResolveNameServerAddressesAsync(dnsServer, nsRecord, nameServers);

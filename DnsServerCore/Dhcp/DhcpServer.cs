@@ -782,7 +782,7 @@ namespace DnsServerCore.Dhcp
                         {
                             foreach (DnsResourceRecord existingRecord in existingRecords)
                             {
-                                if (!(existingRecord.RDATA as DnsARecord).Address.Equals(address))
+                                if (!(existingRecord.RDATA as DnsARecordData).Address.Equals(address))
                                 {
                                     //a DNS record already exists for the specified domain name with a different address
                                     //do not change DNS record for this dynamic lease
@@ -792,7 +792,7 @@ namespace DnsServerCore.Dhcp
                         }
                     }
 
-                    _authZoneManager.SetRecords(zoneName, domain, DnsResourceRecordType.A, scope.DnsTtl, new DnsResourceRecordData[] { new DnsARecord(address) });
+                    _authZoneManager.SetRecords(zoneName, domain, DnsResourceRecordType.A, scope.DnsTtl, new DnsResourceRecordData[] { new DnsARecordData(address) });
                     log?.Write("DHCP Server updated DNS A record '" + domain + "' with IP address [" + address.ToString() + "].");
 
                     //update reverse zone
@@ -818,7 +818,7 @@ namespace DnsServerCore.Dhcp
                     }
 
                     reverseZoneName = reverseZoneInfo.Name;
-                    _authZoneManager.SetRecords(reverseZoneName, reverseDomain, DnsResourceRecordType.PTR, scope.DnsTtl, new DnsResourceRecordData[] { new DnsPTRRecord(domain) });
+                    _authZoneManager.SetRecords(reverseZoneName, reverseDomain, DnsResourceRecordType.PTR, scope.DnsTtl, new DnsResourceRecordData[] { new DnsPTRRecordData(domain) });
                     log?.Write("DHCP Server updated DNS PTR record '" + reverseDomain + "' with domain name '" + domain + "'.");
                 }
                 else
@@ -829,7 +829,7 @@ namespace DnsServerCore.Dhcp
                     {
                         //primary zone exists
                         zoneName = zoneInfo.Name;
-                        _authZoneManager.DeleteRecord(zoneName, domain, DnsResourceRecordType.A, new DnsARecord(address));
+                        _authZoneManager.DeleteRecord(zoneName, domain, DnsResourceRecordType.A, new DnsARecordData(address));
                         log?.Write("DHCP Server deleted DNS A record '" + domain + "' with address [" + address.ToString() + "].");
                     }
 
@@ -839,7 +839,7 @@ namespace DnsServerCore.Dhcp
                     {
                         //primary reverse zone exists
                         reverseZoneName = reverseZoneInfo.Name;
-                        _authZoneManager.DeleteRecord(reverseZoneName, reverseDomain, DnsResourceRecordType.PTR, new DnsPTRRecord(domain));
+                        _authZoneManager.DeleteRecord(reverseZoneName, reverseDomain, DnsResourceRecordType.PTR, new DnsPTRRecordData(domain));
                         log?.Write("DHCP Server deleted DNS PTR record '" + reverseDomain + "' with domain '" + domain + "'.");
                     }
                 }

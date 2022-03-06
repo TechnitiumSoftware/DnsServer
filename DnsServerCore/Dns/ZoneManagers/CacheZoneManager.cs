@@ -163,7 +163,7 @@ namespace DnsServerCore.Dns.ZoneManagers
 
             do
             {
-                if (!_root.TryGet((lastCNAME.RDATA as DnsCNAMERecord).Domain, out CacheZone cacheZone))
+                if (!_root.TryGet((lastCNAME.RDATA as DnsCNAMERecordData).Domain, out CacheZone cacheZone))
                     break;
 
                 IReadOnlyList<DnsResourceRecord> records = cacheZone.QueryRecords(question.Type, serveStale, true);
@@ -186,11 +186,11 @@ namespace DnsServerCore.Dns.ZoneManagers
         {
             DnsResourceRecord dnameRR = answer[0];
 
-            string result = (dnameRR.RDATA as DnsDNAMERecord).Substitute(question.Name, dnameRR.Name);
+            string result = (dnameRR.RDATA as DnsDNAMERecordData).Substitute(question.Name, dnameRR.Name);
 
             if (DnsClient.IsDomainNameValid(result))
             {
-                DnsResourceRecord cnameRR = new DnsResourceRecord(question.Name, DnsResourceRecordType.CNAME, question.Class, dnameRR.TtlValue, new DnsCNAMERecord(result));
+                DnsResourceRecord cnameRR = new DnsResourceRecord(question.Name, DnsResourceRecordType.CNAME, question.Class, dnameRR.TtlValue, new DnsCNAMERecordData(result));
 
                 List<DnsResourceRecord> list = new List<DnsResourceRecord>(5)
                 {
@@ -219,21 +219,21 @@ namespace DnsServerCore.Dns.ZoneManagers
                 switch (refRecord.Type)
                 {
                     case DnsResourceRecordType.NS:
-                        DnsNSRecord nsRecord = refRecord.RDATA as DnsNSRecord;
+                        DnsNSRecordData nsRecord = refRecord.RDATA as DnsNSRecordData;
                         if (nsRecord is not null)
                             ResolveAdditionalRecords(refRecord, nsRecord.NameServer, serveStale, additionalRecords);
 
                         break;
 
                     case DnsResourceRecordType.MX:
-                        DnsMXRecord mxRecord = refRecord.RDATA as DnsMXRecord;
+                        DnsMXRecordData mxRecord = refRecord.RDATA as DnsMXRecordData;
                         if (mxRecord is not null)
                             ResolveAdditionalRecords(refRecord, mxRecord.Exchange, serveStale, additionalRecords);
 
                         break;
 
                     case DnsResourceRecordType.SRV:
-                        DnsSRVRecord srvRecord = refRecord.RDATA as DnsSRVRecord;
+                        DnsSRVRecordData srvRecord = refRecord.RDATA as DnsSRVRecordData;
                         if (srvRecord is not null)
                             ResolveAdditionalRecords(refRecord, srvRecord.Target, serveStale, additionalRecords);
 
@@ -455,7 +455,7 @@ namespace DnsServerCore.Dns.ZoneManagers
 
                                 foreach (DnsResourceRecord rrsigRecord in rrsigRecords)
                                 {
-                                    if (!DnsRRSIGRecord.IsWildcard(rrsigRecord))
+                                    if (!DnsRRSIGRecordData.IsWildcard(rrsigRecord))
                                         continue;
 
                                     //add NSEC/NSEC3 for the wildcard proof

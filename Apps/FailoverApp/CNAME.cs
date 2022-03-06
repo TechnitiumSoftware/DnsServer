@@ -62,15 +62,15 @@ namespace Failover
             {
                 case HealthStatus.Unknown:
                     if (question.Name.Equals(zoneName, StringComparison.OrdinalIgnoreCase)) //check for zone apex
-                        return new DnsResourceRecord[] { new DnsResourceRecord(question.Name, DnsResourceRecordType.ANAME, DnsClass.IN, 30, new DnsANAMERecord(domain)) }; //use ANAME
+                        return new DnsResourceRecord[] { new DnsResourceRecord(question.Name, DnsResourceRecordType.ANAME, DnsClass.IN, 30, new DnsANAMERecordData(domain)) }; //use ANAME
                     else
-                        return new DnsResourceRecord[] { new DnsResourceRecord(question.Name, DnsResourceRecordType.CNAME, DnsClass.IN, 30, new DnsCNAMERecord(domain)) };
+                        return new DnsResourceRecord[] { new DnsResourceRecord(question.Name, DnsResourceRecordType.CNAME, DnsClass.IN, 30, new DnsCNAMERecordData(domain)) };
 
                 case HealthStatus.Healthy:
                     if (question.Name.Equals(zoneName, StringComparison.OrdinalIgnoreCase)) //check for zone apex
-                        return new DnsResourceRecord[] { new DnsResourceRecord(question.Name, DnsResourceRecordType.ANAME, DnsClass.IN, appRecordTtl, new DnsANAMERecord(domain)) }; //use ANAME
+                        return new DnsResourceRecord[] { new DnsResourceRecord(question.Name, DnsResourceRecordType.ANAME, DnsClass.IN, appRecordTtl, new DnsANAMERecordData(domain)) }; //use ANAME
                     else
-                        return new DnsResourceRecord[] { new DnsResourceRecord(question.Name, DnsResourceRecordType.CNAME, DnsClass.IN, appRecordTtl, new DnsCNAMERecord(domain)) };
+                        return new DnsResourceRecord[] { new DnsResourceRecord(question.Name, DnsResourceRecordType.CNAME, DnsClass.IN, appRecordTtl, new DnsCNAMERecordData(domain)) };
             }
 
             return null;
@@ -86,7 +86,7 @@ namespace Failover
                 if (response.Status == HealthStatus.Failed)
                     text += " failureReason=" + response.FailureReason + ";";
 
-                answers.Add(new DnsResourceRecord(question.Name, DnsResourceRecordType.TXT, question.Class, appRecordTtl, new DnsTXTRecord(text)));
+                answers.Add(new DnsResourceRecord(question.Name, DnsResourceRecordType.TXT, question.Class, appRecordTtl, new DnsTXTRecordData(text)));
             }
 
             {
@@ -97,7 +97,7 @@ namespace Failover
                 if (response.Status == HealthStatus.Failed)
                     text += " failureReason=" + response.FailureReason + ";";
 
-                answers.Add(new DnsResourceRecord(question.Name, DnsResourceRecordType.TXT, question.Class, appRecordTtl, new DnsTXTRecord(text)));
+                answers.Add(new DnsResourceRecord(question.Name, DnsResourceRecordType.TXT, question.Class, appRecordTtl, new DnsTXTRecordData(text)));
             }
         }
 
@@ -183,9 +183,9 @@ namespace Failover
                         string serverDown = jsonAppRecordData.serverDown.Value;
 
                         if (question.Name.Equals(zoneName, StringComparison.OrdinalIgnoreCase)) //check for zone apex
-                            answers = new DnsResourceRecord[] { new DnsResourceRecord(question.Name, DnsResourceRecordType.ANAME, DnsClass.IN, 30, new DnsANAMERecord(serverDown)) }; //use ANAME
+                            answers = new DnsResourceRecord[] { new DnsResourceRecord(question.Name, DnsResourceRecordType.ANAME, DnsClass.IN, 30, new DnsANAMERecordData(serverDown)) }; //use ANAME
                         else
-                            answers = new DnsResourceRecord[] { new DnsResourceRecord(question.Name, DnsResourceRecordType.CNAME, DnsClass.IN, 30, new DnsCNAMERecord(serverDown)) };
+                            answers = new DnsResourceRecord[] { new DnsResourceRecord(question.Name, DnsResourceRecordType.CNAME, DnsClass.IN, 30, new DnsCNAMERecordData(serverDown)) };
                     }
                 }
             }

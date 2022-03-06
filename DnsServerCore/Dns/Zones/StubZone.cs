@@ -106,9 +106,9 @@ namespace DnsServerCore.Dns.Zones
             if ((soaResponse.Answer.Count == 0) || (soaResponse.Answer[0].Type != DnsResourceRecordType.SOA))
                 throw new DnsServerException("DNS Server failed to find SOA record for: " + name);
 
-            DnsSOARecord receivedSoa = soaResponse.Answer[0].RDATA as DnsSOARecord;
+            DnsSOARecordData receivedSoa = soaResponse.Answer[0].RDATA as DnsSOARecordData;
 
-            DnsSOARecord soa = new DnsSOARecord(receivedSoa.PrimaryNameServer, receivedSoa.ResponsiblePerson, 0u, receivedSoa.Refresh, receivedSoa.Retry, receivedSoa.Expire, receivedSoa.Minimum);
+            DnsSOARecordData soa = new DnsSOARecordData(receivedSoa.PrimaryNameServer, receivedSoa.ResponsiblePerson, 0u, receivedSoa.Refresh, receivedSoa.Retry, receivedSoa.Expire, receivedSoa.Minimum);
             DnsResourceRecord[] soaRR = new DnsResourceRecord[] { new DnsResourceRecord(stubZone._name, DnsResourceRecordType.SOA, DnsClass.IN, soa.Refresh, soa) };
 
             if (!string.IsNullOrEmpty(primaryNameServerAddresses))
@@ -171,7 +171,7 @@ namespace DnsServerCore.Dns.Zones
                         log.Write("DNS Server could not find name server IP addresses for stub zone: " + (_name == "" ? "<root>" : _name));
 
                     //set timer for retry
-                    DnsSOARecord soa1 = _entries[DnsResourceRecordType.SOA][0].RDATA as DnsSOARecord;
+                    DnsSOARecordData soa1 = _entries[DnsResourceRecordType.SOA][0].RDATA as DnsSOARecordData;
                     ResetRefreshTimer(soa1.Retry * 1000);
                     return;
                 }
@@ -180,7 +180,7 @@ namespace DnsServerCore.Dns.Zones
                 if (await RefreshZoneAsync(nameServers))
                 {
                     //zone refreshed; set timer for refresh
-                    DnsSOARecord latestSoa = _entries[DnsResourceRecordType.SOA][0].RDATA as DnsSOARecord;
+                    DnsSOARecordData latestSoa = _entries[DnsResourceRecordType.SOA][0].RDATA as DnsSOARecordData;
                     ResetRefreshTimer(latestSoa.Refresh * 1000);
 
                     _expiry = DateTime.UtcNow.AddSeconds(latestSoa.Expire);
@@ -191,7 +191,7 @@ namespace DnsServerCore.Dns.Zones
                 }
 
                 //no response from any of the name servers; set timer for retry
-                DnsSOARecord soa = _entries[DnsResourceRecordType.SOA][0].RDATA as DnsSOARecord;
+                DnsSOARecordData soa = _entries[DnsResourceRecordType.SOA][0].RDATA as DnsSOARecordData;
                 ResetRefreshTimer(soa.Retry * 1000);
             }
             catch (Exception ex)
@@ -201,7 +201,7 @@ namespace DnsServerCore.Dns.Zones
                     log.Write(ex);
 
                 //set timer for retry
-                DnsSOARecord soa = _entries[DnsResourceRecordType.SOA][0].RDATA as DnsSOARecord;
+                DnsSOARecordData soa = _entries[DnsResourceRecordType.SOA][0].RDATA as DnsSOARecordData;
                 ResetRefreshTimer(soa.Retry * 1000);
             }
             finally
@@ -261,8 +261,8 @@ namespace DnsServerCore.Dns.Zones
                 DnsResourceRecord currentSoaRecord = _entries[DnsResourceRecordType.SOA][0];
                 DnsResourceRecord receivedSoaRecord = soaResponse.Answer[0];
 
-                DnsSOARecord currentSoa = currentSoaRecord.RDATA as DnsSOARecord;
-                DnsSOARecord receivedSoa = receivedSoaRecord.RDATA as DnsSOARecord;
+                DnsSOARecordData currentSoa = currentSoaRecord.RDATA as DnsSOARecordData;
+                DnsSOARecordData receivedSoa = receivedSoaRecord.RDATA as DnsSOARecordData;
 
                 //compare using sequence space arithmetic
                 if (!_resync && !currentSoa.IsZoneUpdateAvailable(receivedSoa))

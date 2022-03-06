@@ -1496,10 +1496,10 @@ namespace DnsServerCore
             jsonWriter.WritePropertyName("customBlockingAddresses");
             jsonWriter.WriteStartArray();
 
-            foreach (DnsARecord record in _dnsServer.CustomBlockingARecords)
+            foreach (DnsARecordData record in _dnsServer.CustomBlockingARecords)
                 jsonWriter.WriteValue(record.Address.ToString());
 
-            foreach (DnsAAAARecord record in _dnsServer.CustomBlockingAAAARecords)
+            foreach (DnsAAAARecordData record in _dnsServer.CustomBlockingAAAARecords)
                 jsonWriter.WriteValue(record.Address.ToString());
 
             jsonWriter.WriteEndArray();
@@ -2029,8 +2029,8 @@ namespace DnsServerCore
                 {
                     string[] strAddresses = strCustomBlockingAddresses.Split(new char[] { ',' }, StringSplitOptions.RemoveEmptyEntries);
 
-                    List<DnsARecord> dnsARecords = new List<DnsARecord>();
-                    List<DnsAAAARecord> dnsAAAARecords = new List<DnsAAAARecord>();
+                    List<DnsARecordData> dnsARecords = new List<DnsARecordData>();
+                    List<DnsAAAARecordData> dnsAAAARecords = new List<DnsAAAARecordData>();
 
                     foreach (string strAddress in strAddresses)
                     {
@@ -2039,11 +2039,11 @@ namespace DnsServerCore
                             switch (customAddress.AddressFamily)
                             {
                                 case AddressFamily.InterNetwork:
-                                    dnsARecords.Add(new DnsARecord(customAddress));
+                                    dnsARecords.Add(new DnsARecordData(customAddress));
                                     break;
 
                                 case AddressFamily.InterNetworkV6:
-                                    dnsAAAARecords.Add(new DnsAAAARecord(customAddress));
+                                    dnsAAAARecords.Add(new DnsAAAARecordData(customAddress));
                                     break;
                             }
                         }
@@ -3643,8 +3643,8 @@ namespace DnsServerCore
                                 int count = bR.ReadByte();
                                 if (count > 0)
                                 {
-                                    List<DnsARecord> dnsARecords = new List<DnsARecord>();
-                                    List<DnsAAAARecord> dnsAAAARecords = new List<DnsAAAARecord>();
+                                    List<DnsARecordData> dnsARecords = new List<DnsARecordData>();
+                                    List<DnsAAAARecordData> dnsAAAARecords = new List<DnsAAAARecordData>();
 
                                     for (int i = 0; i < count; i++)
                                     {
@@ -3653,11 +3653,11 @@ namespace DnsServerCore
                                         switch (customAddress.AddressFamily)
                                         {
                                             case AddressFamily.InterNetwork:
-                                                dnsARecords.Add(new DnsARecord(customAddress));
+                                                dnsARecords.Add(new DnsARecordData(customAddress));
                                                 break;
 
                                             case AddressFamily.InterNetworkV6:
-                                                dnsAAAARecords.Add(new DnsAAAARecord(customAddress));
+                                                dnsAAAARecords.Add(new DnsAAAARecordData(customAddress));
                                                 break;
                                         }
                                     }
@@ -4141,10 +4141,10 @@ namespace DnsServerCore
                 {
                     bW.Write(Convert.ToByte(_dnsServer.CustomBlockingARecords.Count + _dnsServer.CustomBlockingAAAARecords.Count));
 
-                    foreach (DnsARecord record in _dnsServer.CustomBlockingARecords)
+                    foreach (DnsARecordData record in _dnsServer.CustomBlockingARecords)
                         record.Address.WriteTo(bW);
 
-                    foreach (DnsAAAARecord record in _dnsServer.CustomBlockingAAAARecords)
+                    foreach (DnsAAAARecordData record in _dnsServer.CustomBlockingAAAARecords)
                         record.Address.WriteTo(bW);
                 }
 

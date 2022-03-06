@@ -31,7 +31,7 @@ namespace NxDomain
     {
         #region variables
 
-        DnsSOARecord _soaRecord;
+        DnsSOARecordData _soaRecord;
 
         bool _enableBlocking;
         bool _allowTxtBlockingReport;
@@ -98,7 +98,7 @@ namespace NxDomain
 
         public Task InitializeAsync(IDnsServer dnsServer, string config)
         {
-            _soaRecord = new DnsSOARecord(dnsServer.ServerDomain, "hostadmin." + dnsServer.ServerDomain, 1, 14400, 3600, 604800, 60);
+            _soaRecord = new DnsSOARecordData(dnsServer.ServerDomain, "hostadmin." + dnsServer.ServerDomain, 1, 14400, 3600, 604800, 60);
 
             dynamic jsonConfig = JsonConvert.DeserializeObject(config);
 
@@ -120,7 +120,7 @@ namespace NxDomain
             if (_allowTxtBlockingReport && (question.Type == DnsResourceRecordType.TXT))
             {
                 //return meta data
-                DnsResourceRecord[] answer = new DnsResourceRecord[] { new DnsResourceRecord(question.Name, DnsResourceRecordType.TXT, question.Class, 60, new DnsTXTRecord("source=nx-domain-app; domain=" + blockedDomain)) };
+                DnsResourceRecord[] answer = new DnsResourceRecord[] { new DnsResourceRecord(question.Name, DnsResourceRecordType.TXT, question.Class, 60, new DnsTXTRecordData("source=nx-domain-app; domain=" + blockedDomain)) };
 
                 return Task.FromResult(new DnsDatagram(request.Identifier, true, DnsOpcode.StandardQuery, false, false, request.RecursionDesired, isRecursionAllowed, false, false, DnsResponseCode.NoError, request.Question, answer) { Tag = DnsServerResponseType.Blocked });
             }

@@ -111,8 +111,8 @@ namespace DnsServerCore.Dns
 
         readonly ResolverDnsCache _dnsCache;
 
-        readonly IReadOnlyCollection<DnsARecord> _aRecords = new DnsARecord[] { new DnsARecord(IPAddress.Any) };
-        readonly IReadOnlyCollection<DnsAAAARecord> _aaaaRecords = new DnsAAAARecord[] { new DnsAAAARecord(IPAddress.IPv6Any) };
+        readonly IReadOnlyCollection<DnsARecordData> _aRecords = new DnsARecordData[] { new DnsARecordData(IPAddress.Any) };
+        readonly IReadOnlyCollection<DnsAAAARecordData> _aaaaRecords = new DnsAAAARecordData[] { new DnsAAAARecordData(IPAddress.IPv6Any) };
 
         DnsServerRecursion _recursion;
         IReadOnlyCollection<NetworkAddress> _recursionDeniedNetworks;
@@ -145,8 +145,8 @@ namespace DnsServerCore.Dns
         bool _enableBlocking = true;
         bool _allowTxtBlockingReport = true;
         DnsServerBlockingType _blockingType = DnsServerBlockingType.AnyAddress;
-        IReadOnlyCollection<DnsARecord> _customBlockingARecords = Array.Empty<DnsARecord>();
-        IReadOnlyCollection<DnsAAAARecord> _customBlockingAAAARecords = Array.Empty<DnsAAAARecord>();
+        IReadOnlyCollection<DnsARecordData> _customBlockingARecords = Array.Empty<DnsARecordData>();
+        IReadOnlyCollection<DnsAAAARecordData> _customBlockingAAAARecords = Array.Empty<DnsAAAARecordData>();
         LogManager _queryLog;
         readonly StatsManager _stats;
 
@@ -1183,7 +1183,7 @@ namespace DnsServerCore.Dns
             {
                 IReadOnlyList<DnsResourceRecord> localSoaRecords = authZoneInfo.GetRecords(DnsResourceRecordType.SOA);
 
-                if (!DnsSOARecord.IsZoneUpdateAvailable((localSoaRecords[0].RDATA as DnsSOARecord).Serial, (request.Answer[0].RDATA as DnsSOARecord).Serial))
+                if (!DnsSOARecordData.IsZoneUpdateAvailable((localSoaRecords[0].RDATA as DnsSOARecordData).Serial, (request.Answer[0].RDATA as DnsSOARecordData).Serial))
                 {
                     //no update was available
                     return new DnsDatagram(request.Identifier, true, DnsOpcode.Notify, false, false, request.RecursionDesired, false, false, false, DnsResponseCode.NoError, request.Question) { Tag = DnsServerResponseType.Authoritative };
@@ -1386,7 +1386,7 @@ namespace DnsServerCore.Dns
                                 break;
 
                             case DnsResourceRecordType.FWD:
-                                if ((response.Authority.Count == 1) && (firstAuthority.RDATA as DnsForwarderRecord).Forwarder.Equals("this-server", StringComparison.OrdinalIgnoreCase))
+                                if ((response.Authority.Count == 1) && (firstAuthority.RDATA as DnsForwarderRecordData).Forwarder.Equals("this-server", StringComparison.OrdinalIgnoreCase))
                                 {
                                     //do conditional forwarding via "this-server" 
                                     return await ProcessRecursiveQueryAsync(request, remoteEP, protocol, null, false);
@@ -1413,7 +1413,7 @@ namespace DnsServerCore.Dns
         private async Task<DnsDatagram> ProcessAPPAsync(DnsDatagram request, IPEndPoint remoteEP, DnsDatagram response, bool isRecursionAllowed, DnsTransportProtocol protocol)
         {
             DnsResourceRecord appResourceRecord = response.Authority[0];
-            DnsApplicationRecord appRecord = appResourceRecord.RDATA as DnsApplicationRecord;
+            DnsApplicationRecordData appRecord = appResourceRecord.RDATA as DnsApplicationRecordData;
 
             if (_dnsApplicationManager.Applications.TryGetValue(appRecord.AppName, out DnsApplication application))
             {
@@ -1478,7 +1478,7 @@ namespace DnsServerCore.Dns
                         break;
 
                     case DnsResourceRecordType.RRSIG:
-                        switch ((record.RDATA as DnsRRSIGRecord).TypeCovered)
+                        switch ((record.RDATA as DnsRRSIGRecordData).TypeCovered)
                         {
                             case DnsResourceRecordType.NSEC:
                             case DnsResourceRecordType.NSEC3:
@@ -1497,7 +1497,7 @@ namespace DnsServerCore.Dns
             int queryCount = 0;
             do
             {
-                DnsDatagram newRequest = new DnsDatagram(0, false, DnsOpcode.StandardQuery, false, false, request.RecursionDesired, false, false, false, DnsResponseCode.NoError, new DnsQuestionRecord[] { new DnsQuestionRecord((lastRR.RDATA as DnsCNAMERecord).Domain, request.Question[0].Type, request.Question[0].Class) }, null, null, null, _udpPayloadSize, _dnssecValidation ? EDnsHeaderFlags.DNSSEC_OK : EDnsHeaderFlags.None);
+                DnsDatagram newRequest = new DnsDatagram(0, false, DnsOpcode.StandardQuery, false, false, request.RecursionDesired, false, false, false, DnsResponseCode.NoError, new DnsQuestionRecord[] { new DnsQuestionRecord((lastRR.RDATA as DnsCNAMERecordData).Domain, request.Question[0].Type, request.Question[0].Class) }, null, null, null, _udpPayloadSize, _dnssecValidation ? EDnsHeaderFlags.DNSSEC_OK : EDnsHeaderFlags.None);
 
                 //query authoritative zone first
                 newResponse = _authZoneManager.Query(newRequest, isRecursionAllowed);
@@ -1537,7 +1537,7 @@ namespace DnsServerCore.Dns
                             break;
 
                         case DnsResourceRecordType.FWD:
-                            if ((newResponse.Authority.Count == 1) && (firstAuthority.RDATA as DnsForwarderRecord).Forwarder.Equals("this-server", StringComparison.OrdinalIgnoreCase))
+                            if ((newResponse.Authority.Count == 1) && (firstAuthority.RDATA as DnsForwarderRecordData).Forwarder.Equals("this-server", StringComparison.OrdinalIgnoreCase))
                             {
                                 //do conditional forwarding via "this-server" 
                                 newResponse = await RecursiveResolveAsync(newRequest, null, false, false);
@@ -1620,7 +1620,7 @@ namespace DnsServerCore.Dns
 
             async Task<IReadOnlyList<DnsResourceRecord>> ResolveANAMEAsync(DnsResourceRecord anameRR, int queryCount = 0)
             {
-                string lastDomain = (anameRR.RDATA as DnsANAMERecord).Domain;
+                string lastDomain = (anameRR.RDATA as DnsANAMERecordData).Domain;
 
                 do
                 {
@@ -1645,7 +1645,7 @@ namespace DnsServerCore.Dns
                                 break;
 
                             case DnsResourceRecordType.FWD:
-                                if ((newResponse.Authority.Count == 1) && (firstAuthority.RDATA as DnsForwarderRecord).Forwarder.Equals("this-server", StringComparison.OrdinalIgnoreCase))
+                                if ((newResponse.Authority.Count == 1) && (firstAuthority.RDATA as DnsForwarderRecordData).Forwarder.Equals("this-server", StringComparison.OrdinalIgnoreCase))
                                 {
                                     //do conditional forwarding via "this-server" 
                                     newResponse = await RecursiveResolveAsync(newRequest, null, false, false);
@@ -1693,7 +1693,7 @@ namespace DnsServerCore.Dns
                     {
                         if (newResponse.Answer.Count == 1)
                         {
-                            lastDomain = (lastRR.RDATA as DnsANAMERecord).Domain;
+                            lastDomain = (lastRR.RDATA as DnsANAMERecordData).Domain;
                         }
                         else
                         {
@@ -1708,7 +1708,7 @@ namespace DnsServerCore.Dns
                     }
                     else if (lastRR.Type == DnsResourceRecordType.CNAME)
                     {
-                        lastDomain = (lastRR.RDATA as DnsCNAMERecord).Domain;
+                        lastDomain = (lastRR.RDATA as DnsCNAMERecordData).Domain;
                     }
                     else
                     {
@@ -1783,14 +1783,14 @@ namespace DnsServerCore.Dns
                     else
                         blockedDomain = question.Name;
 
-                    IReadOnlyList<DnsResourceRecord> answer = new DnsResourceRecord[] { new DnsResourceRecord(question.Name, DnsResourceRecordType.TXT, question.Class, 60, new DnsTXTRecord("source=blocked-zone; domain=" + blockedDomain)) };
+                    IReadOnlyList<DnsResourceRecord> answer = new DnsResourceRecord[] { new DnsResourceRecord(question.Name, DnsResourceRecordType.TXT, question.Class, 60, new DnsTXTRecordData("source=blocked-zone; domain=" + blockedDomain)) };
 
                     return new DnsDatagram(request.Identifier, true, DnsOpcode.StandardQuery, false, false, request.RecursionDesired, true, false, false, DnsResponseCode.NoError, request.Question, answer) { Tag = DnsServerResponseType.Blocked };
                 }
                 else
                 {
-                    IReadOnlyCollection<DnsARecord> aRecords;
-                    IReadOnlyCollection<DnsAAAARecord> aaaaRecords;
+                    IReadOnlyCollection<DnsARecordData> aRecords;
+                    IReadOnlyCollection<DnsAAAARecordData> aaaaRecords;
 
                     switch (_blockingType)
                     {
@@ -1832,7 +1832,7 @@ namespace DnsServerCore.Dns
                             {
                                 List<DnsResourceRecord> rrList = new List<DnsResourceRecord>(aRecords.Count);
 
-                                foreach (DnsARecord record in aRecords)
+                                foreach (DnsARecordData record in aRecords)
                                     rrList.Add(new DnsResourceRecord(question.Name, DnsResourceRecordType.A, question.Class, 60, record));
 
                                 answer = rrList;
@@ -1843,7 +1843,7 @@ namespace DnsServerCore.Dns
                             {
                                 List<DnsResourceRecord> rrList = new List<DnsResourceRecord>(aaaaRecords.Count);
 
-                                foreach (DnsAAAARecord record in aaaaRecords)
+                                foreach (DnsAAAARecordData record in aaaaRecords)
                                     rrList.Add(new DnsResourceRecord(question.Name, DnsResourceRecordType.AAAA, question.Class, 60, record));
 
                                 answer = rrList;
@@ -1911,7 +1911,7 @@ namespace DnsServerCore.Dns
                         if (record.Type != DnsResourceRecordType.CNAME)
                             break; //no further CNAME records exists
 
-                        DnsDatagram newRequest = new DnsDatagram(0, false, DnsOpcode.StandardQuery, false, false, true, false, false, false, DnsResponseCode.NoError, new DnsQuestionRecord[] { new DnsQuestionRecord((record.RDATA as DnsCNAMERecord).Domain, request.Question[0].Type, request.Question[0].Class) });
+                        DnsDatagram newRequest = new DnsDatagram(0, false, DnsOpcode.StandardQuery, false, false, true, false, false, false, DnsResponseCode.NoError, new DnsQuestionRecord[] { new DnsQuestionRecord((record.RDATA as DnsCNAMERecordData).Domain, request.Question[0].Type, request.Question[0].Class) });
 
                         //check allowed zone
                         inAllowedZone = (_allowedZoneManager.TotalZonesAllowed > 0) && (_allowedZoneManager.Query(newRequest) is not null);
@@ -2056,7 +2056,7 @@ namespace DnsServerCore.Dns
                         if (conditionalForwarder.Type != DnsResourceRecordType.FWD)
                             continue;
 
-                        DnsForwarderRecord forwarder = conditionalForwarder.RDATA as DnsForwarderRecord;
+                        DnsForwarderRecordData forwarder = conditionalForwarder.RDATA as DnsForwarderRecordData;
 
                         if (forwarder.Forwarder.Equals("this-server", StringComparison.OrdinalIgnoreCase))
                             continue;
@@ -2076,7 +2076,7 @@ namespace DnsServerCore.Dns
                     if (conditionalForwarders.Count == 1)
                     {
                         DnsResourceRecord conditionalForwarder = conditionalForwarders[0];
-                        response = await ConditionalForwarderResolveAsync(question, dnsCache, conditionalForwarder.RDATA as DnsForwarderRecord, conditionalForwarder.Name);
+                        response = await ConditionalForwarderResolveAsync(question, dnsCache, conditionalForwarder.RDATA as DnsForwarderRecordData, conditionalForwarder.Name);
                     }
                     else
                     {
@@ -2090,7 +2090,7 @@ namespace DnsServerCore.Dns
                                 if (conditionalForwarder.Type != DnsResourceRecordType.FWD)
                                     continue;
 
-                                DnsForwarderRecord forwarder = conditionalForwarder.RDATA as DnsForwarderRecord;
+                                DnsForwarderRecordData forwarder = conditionalForwarder.RDATA as DnsForwarderRecordData;
 
                                 if (forwarder.Forwarder.Equals("this-server", StringComparison.OrdinalIgnoreCase))
                                     continue;
@@ -2212,7 +2212,7 @@ namespace DnsServerCore.Dns
                     {
                         foreach (DnsResourceRecord conditionalForwarder in conditionalForwarders)
                         {
-                            NameServerAddress nameServer = (conditionalForwarder.RDATA as DnsForwarderRecord).NameServer;
+                            NameServerAddress nameServer = (conditionalForwarder.RDATA as DnsForwarderRecordData).NameServer;
 
                             if (strForwarders is null)
                                 strForwarders = nameServer.ToString();
@@ -2297,7 +2297,7 @@ namespace DnsServerCore.Dns
             }
         }
 
-        private Task<DnsDatagram> ConditionalForwarderResolveAsync(DnsQuestionRecord question, IDnsCache dnsCache, DnsForwarderRecord forwarder, string conditionalForwardingZoneCut, CancellationToken cancellationToken = default)
+        private Task<DnsDatagram> ConditionalForwarderResolveAsync(DnsQuestionRecord question, IDnsCache dnsCache, DnsForwarderRecordData forwarder, string conditionalForwardingZoneCut, CancellationToken cancellationToken = default)
         {
             NetProxy proxy = forwarder.Proxy;
             if (proxy is null)
@@ -2576,7 +2576,7 @@ namespace DnsServerCore.Dns
                     return null; //too many hops so ignore question
 
                 //follow CNAME chain to inspect TTL further
-                question = new DnsQuestionRecord((lastRR.RDATA as DnsCNAMERecord).Domain, question.Type, question.Class);
+                question = new DnsQuestionRecord((lastRR.RDATA as DnsCNAMERecordData).Domain, question.Type, question.Class);
             }
         }
 
@@ -2638,7 +2638,7 @@ namespace DnsServerCore.Dns
                                 DnsResourceRecord lastRR = response.GetLastAnswerRecord();
                                 if ((lastRR.Type == DnsResourceRecordType.CNAME) && (eligibleQuerySample.Type != DnsResourceRecordType.CNAME))
                                 {
-                                    eligibleQuerySample = new DnsQuestionRecord((lastRR.RDATA as DnsCNAMERecord).Domain, eligibleQuerySample.Type, eligibleQuerySample.Class);
+                                    eligibleQuerySample = new DnsQuestionRecord((lastRR.RDATA as DnsCNAMERecordData).Domain, eligibleQuerySample.Type, eligibleQuerySample.Class);
                                     reQueryAuthZone = true;
                                 }
                             }
@@ -2655,7 +2655,7 @@ namespace DnsServerCore.Dns
                                     case DnsResourceRecordType.FWD: //zone is conditional forwarder
                                         refreshQuery = GetCacheRefreshNeededQuery(eligibleQuerySample, cacheRefreshTrigger);
 
-                                        if ((response.Authority.Count == 1) && (firstAuthority.RDATA as DnsForwarderRecord).Forwarder.Equals("this-server", StringComparison.OrdinalIgnoreCase))
+                                        if ((response.Authority.Count == 1) && (firstAuthority.RDATA as DnsForwarderRecordData).Forwarder.Equals("this-server", StringComparison.OrdinalIgnoreCase))
                                         {
                                             //do conditional forwarding via "this-server"
                                         }
@@ -3690,25 +3690,25 @@ namespace DnsServerCore.Dns
             set { _blockingType = value; }
         }
 
-        public IReadOnlyCollection<DnsARecord> CustomBlockingARecords
+        public IReadOnlyCollection<DnsARecordData> CustomBlockingARecords
         {
             get { return _customBlockingARecords; }
             set
             {
                 if (value is null)
-                    value = Array.Empty<DnsARecord>();
+                    value = Array.Empty<DnsARecordData>();
 
                 _customBlockingARecords = value;
             }
         }
 
-        public IReadOnlyCollection<DnsAAAARecord> CustomBlockingAAAARecords
+        public IReadOnlyCollection<DnsAAAARecordData> CustomBlockingAAAARecords
         {
             get { return _customBlockingAAAARecords; }
             set
             {
                 if (value is null)
-                    value = Array.Empty<DnsAAAARecord>();
+                    value = Array.Empty<DnsAAAARecordData>();
 
                 _customBlockingAAAARecords = value;
             }

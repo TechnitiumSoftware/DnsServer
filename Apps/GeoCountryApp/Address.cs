@@ -106,7 +106,7 @@ namespace GeoCountry
                                 IPAddress address = IPAddress.Parse(jsonAddress.Value);
 
                                 if (address.AddressFamily == AddressFamily.InterNetwork)
-                                    answers.Add(new DnsResourceRecord(question.Name, DnsResourceRecordType.A, DnsClass.IN, appRecordTtl, new DnsARecord(address)));
+                                    answers.Add(new DnsResourceRecord(question.Name, DnsResourceRecordType.A, DnsClass.IN, appRecordTtl, new DnsARecordData(address)));
                             }
                             break;
 
@@ -116,7 +116,7 @@ namespace GeoCountry
                                 IPAddress address = IPAddress.Parse(jsonAddress.Value);
 
                                 if (address.AddressFamily == AddressFamily.InterNetworkV6)
-                                    answers.Add(new DnsResourceRecord(question.Name, DnsResourceRecordType.AAAA, DnsClass.IN, appRecordTtl, new DnsAAAARecord(address)));
+                                    answers.Add(new DnsResourceRecord(question.Name, DnsResourceRecordType.AAAA, DnsClass.IN, appRecordTtl, new DnsAAAARecordData(address)));
                             }
                             break;
                     }

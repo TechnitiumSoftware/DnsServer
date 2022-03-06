@@ -43,14 +43,14 @@ namespace DnsServerCore.Dns.Dnssec
             _keySize = keySize;
             _rsaPrivateKey = rsaPrivateKey;
 
-            _hashAlgorithm = DnsRRSIGRecord.GetHashAlgorithmName(algorithm);
+            _hashAlgorithm = DnsRRSIGRecordData.GetHashAlgorithmName(algorithm);
             InitDnsKey();
         }
 
         internal DnssecRsaPrivateKey(DnssecAlgorithm algorithm, BinaryReader bR)
             : base(algorithm, bR)
         {
-            _hashAlgorithm = DnsRRSIGRecord.GetHashAlgorithmName(algorithm);
+            _hashAlgorithm = DnsRRSIGRecordData.GetHashAlgorithmName(algorithm);
             InitDnsKey();
         }
 
