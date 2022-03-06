@@ -1015,8 +1015,6 @@ namespace DnsServerCore
             DnsResourceRecordType type = (DnsResourceRecordType)Enum.Parse(typeof(DnsResourceRecordType), strType);
 
             string value = request.QueryString["value"];
-            if (string.IsNullOrEmpty(value))
-                throw new DnsWebServiceException("Parameter 'value' missing.");
 
             uint ttl;
             string strTtl = request.QueryString["ttl"];
@@ -1037,7 +1035,21 @@ namespace DnsServerCore
                 case DnsResourceRecordType.A:
                 case DnsResourceRecordType.AAAA:
                     {
-                        IPAddress ipAddress = IPAddress.Parse(value);
+                        string strIPAddress = request.QueryString["ipAddress"];
+                        if (string.IsNullOrEmpty(strIPAddress))
+                        {
+                            if (string.IsNullOrEmpty(value))
+                                throw new DnsWebServiceException("Parameter 'ipAddress' missing.");
+
+                            strIPAddress = value;
+                        }
+
+                        IPAddress ipAddress;
+
+                        if (strIPAddress.Equals("request-ip-address"))
+                            ipAddress = DnsWebService.GetRequestRemoteEndPoint(request).Address;
+                        else
+                            ipAddress = IPAddress.Parse(strIPAddress);
 
                         bool ptr = false;
                         string strPtr = request.QueryString["ptr"];
@@ -1093,45 +1105,22 @@ namespace DnsServerCore
                     }
                     break;
 
-                case DnsResourceRecordType.MX:
-                    {
-                        string preference = request.QueryString["preference"];
-                        if (string.IsNullOrEmpty(preference))
-                            throw new DnsWebServiceException("Parameter 'preference' missing.");
-
-                        DnsResourceRecord newRecord = new DnsResourceRecord(domain, type, DnsClass.IN, ttl, new DnsMXRecord(ushort.Parse(preference), value.TrimEnd('.')));
-
-                        if (!string.IsNullOrEmpty(comments))
-                            newRecord.SetComments(comments);
-
-                        if (overwrite)
-                            _dnsWebService.DnsServer.AuthZoneManager.SetRecord(zoneName, newRecord);
-                        else
-                            _dnsWebService.DnsServer.AuthZoneManager.AddRecord(zoneName, newRecord);
-                    }
-                    break;
-
-                case DnsResourceRecordType.TXT:
-                    {
-                        DnsResourceRecord newRecord = new DnsResourceRecord(domain, type, DnsClass.IN, ttl, new DnsTXTRecord(value));
-
-                        if (!string.IsNullOrEmpty(comments))
-                            newRecord.SetComments(comments);
-
-                        if (overwrite)
-                            _dnsWebService.DnsServer.AuthZoneManager.SetRecord(zoneName, newRecord);
-                        else
-                            _dnsWebService.DnsServer.AuthZoneManager.AddRecord(zoneName, newRecord);
-                    }
-                    break;
-
                 case DnsResourceRecordType.NS:
                     {
+                        string nameServer = request.QueryString["nameServer"];
+                        if (string.IsNullOrEmpty(nameServer))
+                        {
+                            if (string.IsNullOrEmpty(value))
+                                throw new DnsWebServiceException("Parameter 'nameServer' missing.");
+
+                            nameServer = value;
+                        }
+
                         string glueAddresses = request.QueryString["glue"];
                         if (string.IsNullOrEmpty(glueAddresses))
                             glueAddresses = null;
 
-                        DnsResourceRecord newRecord = new DnsResourceRecord(domain, type, DnsClass.IN, ttl, new DnsNSRecord(value.TrimEnd('.')));
+                        DnsResourceRecord newRecord = new DnsResourceRecord(domain, type, DnsClass.IN, ttl, new DnsNSRecord(nameServer.TrimEnd('.')));
 
                         if (glueAddresses != null)
                             newRecord.SetGlueRecords(glueAddresses);
@@ -1146,24 +1135,6 @@ namespace DnsServerCore
                     }
                     break;
 
-                case DnsResourceRecordType.PTR:
-                    {
-                        if (!overwrite)
-                        {
-                            IReadOnlyList<DnsResourceRecord> existingRecords = _dnsWebService.DnsServer.AuthZoneManager.GetRecords(zoneName, domain, type);
-                            if (existingRecords.Count > 0)
-                                throw new DnsWebServiceException("Record already exists. Use overwrite option if you wish to overwrite existing records.");
-                        }
-
-                        DnsResourceRecord newRecord = new DnsResourceRecord(domain, type, DnsClass.IN, ttl, new DnsPTRRecord(value.TrimEnd('.')));
-
-                        if (!string.IsNullOrEmpty(comments))
-                            newRecord.SetComments(comments);
-
-                        _dnsWebService.DnsServer.AuthZoneManager.SetRecord(zoneName, newRecord);
-                    }
-                    break;
-
                 case DnsResourceRecordType.CNAME:
                     {
                         if (!overwrite)
@@ -1173,12 +1144,94 @@ namespace DnsServerCore
                                 throw new DnsWebServiceException("Record already exists. Use overwrite option if you wish to overwrite existing records.");
                         }
 
-                        DnsResourceRecord newRecord = new DnsResourceRecord(domain, type, DnsClass.IN, ttl, new DnsCNAMERecord(value.TrimEnd('.')));
+                        string cname = request.QueryString["cname"];
+                        if (string.IsNullOrEmpty(cname))
+                        {
+                            if (string.IsNullOrEmpty(value))
+                                throw new DnsWebServiceException("Parameter 'cname' missing.");
+
+                            cname = value;
+                        }
+
+                        DnsResourceRecord newRecord = new DnsResourceRecord(domain, type, DnsClass.IN, ttl, new DnsCNAMERecord(cname.TrimEnd('.')));
 
                         if (!string.IsNullOrEmpty(comments))
                             newRecord.SetComments(comments);
 
                         _dnsWebService.DnsServer.AuthZoneManager.SetRecord(zoneName, newRecord);
+                    }
+                    break;
+
+                case DnsResourceRecordType.PTR:
+                    {
+                        string ptrName = request.QueryString["ptrName"];
+                        if (string.IsNullOrEmpty(ptrName))
+                        {
+                            if (string.IsNullOrEmpty(value))
+                                throw new DnsWebServiceException("Parameter 'ptrName' missing.");
+
+                            ptrName = value;
+                        }
+
+                        DnsResourceRecord newRecord = new DnsResourceRecord(domain, type, DnsClass.IN, ttl, new DnsPTRRecord(ptrName.TrimEnd('.')));
+
+                        if (!string.IsNullOrEmpty(comments))
+                            newRecord.SetComments(comments);
+
+                        if (overwrite)
+                            _dnsWebService.DnsServer.AuthZoneManager.SetRecord(zoneName, newRecord);
+                        else
+                            _dnsWebService.DnsServer.AuthZoneManager.AddRecord(zoneName, newRecord);
+                    }
+                    break;
+
+                case DnsResourceRecordType.MX:
+                    {
+                        string exchange = request.QueryString["exchange"];
+                        if (string.IsNullOrEmpty(exchange))
+                        {
+                            if (string.IsNullOrEmpty(value))
+                                throw new DnsWebServiceException("Parameter 'exchange' missing.");
+
+                            exchange = value;
+                        }
+
+                        string preference = request.QueryString["preference"];
+                        if (string.IsNullOrEmpty(preference))
+                            throw new DnsWebServiceException("Parameter 'preference' missing.");
+
+                        DnsResourceRecord newRecord = new DnsResourceRecord(domain, type, DnsClass.IN, ttl, new DnsMXRecord(ushort.Parse(preference), exchange.TrimEnd('.')));
+
+                        if (!string.IsNullOrEmpty(comments))
+                            newRecord.SetComments(comments);
+
+                        if (overwrite)
+                            _dnsWebService.DnsServer.AuthZoneManager.SetRecord(zoneName, newRecord);
+                        else
+                            _dnsWebService.DnsServer.AuthZoneManager.AddRecord(zoneName, newRecord);
+                    }
+                    break;
+
+                case DnsResourceRecordType.TXT:
+                    {
+                        string text = request.QueryString["text"];
+                        if (string.IsNullOrEmpty(text))
+                        {
+                            if (string.IsNullOrEmpty(value))
+                                throw new DnsWebServiceException("Parameter 'text' missing.");
+
+                            text = value;
+                        }
+
+                        DnsResourceRecord newRecord = new DnsResourceRecord(domain, type, DnsClass.IN, ttl, new DnsTXTRecord(text));
+
+                        if (!string.IsNullOrEmpty(comments))
+                            newRecord.SetComments(comments);
+
+                        if (overwrite)
+                            _dnsWebService.DnsServer.AuthZoneManager.SetRecord(zoneName, newRecord);
+                        else
+                            _dnsWebService.DnsServer.AuthZoneManager.AddRecord(zoneName, newRecord);
                     }
                     break;
 
@@ -1196,7 +1249,16 @@ namespace DnsServerCore
                         if (string.IsNullOrEmpty(port))
                             throw new DnsWebServiceException("Parameter 'port' missing.");
 
-                        DnsResourceRecord newRecord = new DnsResourceRecord(domain, type, DnsClass.IN, ttl, new DnsSRVRecord(ushort.Parse(priority), ushort.Parse(weight), ushort.Parse(port), value.TrimEnd('.')));
+                        string target = request.QueryString["target"];
+                        if (string.IsNullOrEmpty(target))
+                        {
+                            if (string.IsNullOrEmpty(value))
+                                throw new DnsWebServiceException("Parameter 'target' missing.");
+
+                            target = value;
+                        }
+
+                        DnsResourceRecord newRecord = new DnsResourceRecord(domain, type, DnsClass.IN, ttl, new DnsSRVRecord(ushort.Parse(priority), ushort.Parse(weight), ushort.Parse(port), target.TrimEnd('.')));
 
                         if (!string.IsNullOrEmpty(comments))
                             newRecord.SetComments(comments);
@@ -1217,7 +1279,16 @@ namespace DnsServerCore
                                 throw new DnsWebServiceException("Record already exists. Use overwrite option if you wish to overwrite existing records.");
                         }
 
-                        DnsResourceRecord newRecord = new DnsResourceRecord(domain, type, DnsClass.IN, ttl, new DnsDNAMERecord(value.TrimEnd('.')));
+                        string dname = request.QueryString["dname"];
+                        if (string.IsNullOrEmpty(dname))
+                        {
+                            if (string.IsNullOrEmpty(value))
+                                throw new DnsWebServiceException("Parameter 'dname' missing.");
+
+                            dname = value;
+                        }
+
+                        DnsResourceRecord newRecord = new DnsResourceRecord(domain, type, DnsClass.IN, ttl, new DnsDNAMERecord(dname.TrimEnd('.')));
 
                         if (!string.IsNullOrEmpty(comments))
                             newRecord.SetComments(comments);
@@ -1240,7 +1311,16 @@ namespace DnsServerCore
                         if (string.IsNullOrEmpty(strDigestType))
                             throw new DnsWebServiceException("Parameter 'digestType' missing.");
 
-                        DnsResourceRecord newRecord = new DnsResourceRecord(domain, type, DnsClass.IN, ttl, new DnsDSRecord(ushort.Parse(strKeyTag), Enum.Parse<DnssecAlgorithm>(strAlgorithm), Enum.Parse<DnssecDigestType>(strDigestType), Convert.FromHexString(value)));
+                        string digest = request.QueryString["digest"];
+                        if (string.IsNullOrEmpty(digest))
+                        {
+                            if (string.IsNullOrEmpty(value))
+                                throw new DnsWebServiceException("Parameter 'digest' missing.");
+
+                            digest = value;
+                        }
+
+                        DnsResourceRecord newRecord = new DnsResourceRecord(domain, type, DnsClass.IN, ttl, new DnsDSRecord(ushort.Parse(strKeyTag), Enum.Parse<DnssecAlgorithm>(strAlgorithm), Enum.Parse<DnssecDigestType>(strDigestType), Convert.FromHexString(digest)));
 
                         if (!string.IsNullOrEmpty(comments))
                             newRecord.SetComments(comments);
@@ -1262,6 +1342,9 @@ namespace DnsServerCore
                         if (string.IsNullOrEmpty(tag))
                             throw new DnsWebServiceException("Parameter 'tag' missing.");
 
+                        if (string.IsNullOrEmpty(value))
+                            throw new DnsWebServiceException("Parameter 'value' missing.");
+
                         DnsResourceRecord newRecord = new DnsResourceRecord(domain, type, DnsClass.IN, ttl, new DnsCAARecord(byte.Parse(flags), tag, value));
 
                         if (!string.IsNullOrEmpty(comments))
@@ -1276,7 +1359,16 @@ namespace DnsServerCore
 
                 case DnsResourceRecordType.ANAME:
                     {
-                        DnsResourceRecord newRecord = new DnsResourceRecord(domain, type, DnsClass.IN, ttl, new DnsANAMERecord(value.TrimEnd('.')));
+                        string aname = request.QueryString["aname"];
+                        if (string.IsNullOrEmpty(aname))
+                        {
+                            if (string.IsNullOrEmpty(value))
+                                throw new DnsWebServiceException("Parameter 'aname' missing.");
+
+                            aname = value;
+                        }
+
+                        DnsResourceRecord newRecord = new DnsResourceRecord(domain, type, DnsClass.IN, ttl, new DnsANAMERecord(aname.TrimEnd('.')));
 
                         if (!string.IsNullOrEmpty(comments))
                             newRecord.SetComments(comments);
@@ -1295,37 +1387,49 @@ namespace DnsServerCore
                         if (!string.IsNullOrEmpty(strProtocol))
                             protocol = Enum.Parse<DnsTransportProtocol>(strProtocol, true);
 
+                        string forwarder = request.QueryString["forwarder"];
+                        if (string.IsNullOrEmpty(forwarder))
+                        {
+                            if (string.IsNullOrEmpty(value))
+                                throw new DnsWebServiceException("Parameter 'forwarder' missing.");
+
+                            forwarder = value;
+                        }
+
                         bool dnssecValidation = false;
-                        string strDnssecValidation = request.QueryString["dnssecValidation"];
-                        if (!string.IsNullOrEmpty(strDnssecValidation))
-                            dnssecValidation = bool.Parse(strDnssecValidation);
-
                         NetProxyType proxyType = NetProxyType.None;
-                        string strProxyType = request.QueryString["proxyType"];
-                        if (!string.IsNullOrEmpty(strProxyType))
-                            proxyType = Enum.Parse<NetProxyType>(strProxyType, true);
-
                         string proxyAddress = null;
                         ushort proxyPort = 0;
                         string proxyUsername = null;
                         string proxyPassword = null;
 
-                        if (proxyType != NetProxyType.None)
+                        if (!forwarder.Equals("this-server"))
                         {
-                            proxyAddress = request.QueryString["proxyAddress"];
-                            if (string.IsNullOrEmpty(proxyAddress))
-                                throw new DnsWebServiceException("Parameter 'proxyAddress' missing.");
+                            string strDnssecValidation = request.QueryString["dnssecValidation"];
+                            if (!string.IsNullOrEmpty(strDnssecValidation))
+                                dnssecValidation = bool.Parse(strDnssecValidation);
 
-                            string strProxyPort = request.QueryString["proxyPort"];
-                            if (string.IsNullOrEmpty(strProxyPort))
-                                throw new DnsWebServiceException("Parameter 'proxyPort' missing.");
+                            string strProxyType = request.QueryString["proxyType"];
+                            if (!string.IsNullOrEmpty(strProxyType))
+                                proxyType = Enum.Parse<NetProxyType>(strProxyType, true);
 
-                            proxyPort = ushort.Parse(strProxyPort);
-                            proxyUsername = request.QueryString["proxyUsername"];
-                            proxyPassword = request.QueryString["proxyPassword"];
+                            if (proxyType != NetProxyType.None)
+                            {
+                                proxyAddress = request.QueryString["proxyAddress"];
+                                if (string.IsNullOrEmpty(proxyAddress))
+                                    throw new DnsWebServiceException("Parameter 'proxyAddress' missing.");
+
+                                string strProxyPort = request.QueryString["proxyPort"];
+                                if (string.IsNullOrEmpty(strProxyPort))
+                                    throw new DnsWebServiceException("Parameter 'proxyPort' missing.");
+
+                                proxyPort = ushort.Parse(strProxyPort);
+                                proxyUsername = request.QueryString["proxyUsername"];
+                                proxyPassword = request.QueryString["proxyPassword"];
+                            }
                         }
 
-                        DnsResourceRecord newRecord = new DnsResourceRecord(domain, type, DnsClass.IN, 0, new DnsForwarderRecord(protocol, value, dnssecValidation, proxyType, proxyAddress, proxyPort, proxyUsername, proxyPassword));
+                        DnsResourceRecord newRecord = new DnsResourceRecord(domain, type, DnsClass.IN, 0, new DnsForwarderRecord(protocol, forwarder, dnssecValidation, proxyType, proxyAddress, proxyPort, proxyUsername, proxyPassword));
 
                         if (!string.IsNullOrEmpty(comments))
                             newRecord.SetComments(comments);
@@ -1339,6 +1443,15 @@ namespace DnsServerCore
 
                 case DnsResourceRecordType.APP:
                     {
+                        string appName = request.QueryString["appName"];
+                        if (string.IsNullOrEmpty(appName))
+                        {
+                            if (string.IsNullOrEmpty(value))
+                                throw new DnsWebServiceException("Parameter 'appName' missing.");
+
+                            appName = value;
+                        }
+
                         string classPath = request.QueryString["classPath"];
                         if (string.IsNullOrEmpty(classPath))
                             throw new DnsWebServiceException("Parameter 'classPath' missing.");
@@ -1354,7 +1467,7 @@ namespace DnsServerCore
                                 throw new DnsWebServiceException("Record already exists. Use overwrite option if you wish to overwrite existing records.");
                         }
 
-                        DnsResourceRecord newRecord = new DnsResourceRecord(domain, type, DnsClass.IN, ttl, new DnsApplicationRecord(value, classPath, recordData));
+                        DnsResourceRecord newRecord = new DnsResourceRecord(domain, type, DnsClass.IN, ttl, new DnsApplicationRecord(appName, classPath, recordData));
 
                         if (!string.IsNullOrEmpty(comments))
                             newRecord.SetComments(comments);
@@ -1381,7 +1494,7 @@ namespace DnsServerCore
             domain = domain.TrimEnd('.');
 
             AuthZoneInfo zoneInfo = _dnsWebService.DnsServer.AuthZoneManager.FindAuthZoneInfo(domain);
-            if (zoneInfo == null)
+            if (zoneInfo is null)
                 throw new DnsWebServiceException("No authoritative zone was not found for domain: " + domain);
 
             jsonWriter.WritePropertyName("zone");
@@ -1436,7 +1549,7 @@ namespace DnsServerCore
 
         public static void WriteRecordsAsJson(List<DnsResourceRecord> records, JsonTextWriter jsonWriter, bool authoritativeZoneRecords, AuthZoneInfo zoneInfo = null)
         {
-            if (records == null)
+            if (records is null)
             {
                 jsonWriter.WritePropertyName("records");
                 jsonWriter.WriteStartArray();
@@ -1499,7 +1612,7 @@ namespace DnsServerCore
                                 {
                                     if (record.RDATA is DnsARecord rdata)
                                     {
-                                        jsonWriter.WritePropertyName("value");
+                                        jsonWriter.WritePropertyName("ipAddress");
                                         jsonWriter.WriteValue(rdata.IPAddress);
                                     }
                                     else
@@ -1513,12 +1626,30 @@ namespace DnsServerCore
                                 }
                                 break;
 
-                            case DnsResourceRecordType.AAAA:
+                            case DnsResourceRecordType.NS:
                                 {
-                                    if (record.RDATA is DnsAAAARecord rdata)
+                                    if (record.RDATA is DnsNSRecord rdata)
                                     {
-                                        jsonWriter.WritePropertyName("value");
-                                        jsonWriter.WriteValue(rdata.IPAddress);
+                                        jsonWriter.WritePropertyName("nameServer");
+                                        jsonWriter.WriteValue(rdata.NameServer.Length == 0 ? "." : rdata.NameServer);
+                                    }
+                                    else
+                                    {
+                                        jsonWriter.WritePropertyName("dataType");
+                                        jsonWriter.WriteValue(record.RDATA.GetType().Name);
+
+                                        jsonWriter.WritePropertyName("data");
+                                        jsonWriter.WriteValue(record.RDATA.ToString());
+                                    }
+                                }
+                                break;
+
+                            case DnsResourceRecordType.CNAME:
+                                {
+                                    if (record.RDATA is DnsCNAMERecord rdata)
+                                    {
+                                        jsonWriter.WritePropertyName("cname");
+                                        jsonWriter.WriteValue(rdata.Domain.Length == 0 ? "." : rdata.Domain);
                                     }
                                     else
                                     {
@@ -1603,7 +1734,7 @@ namespace DnsServerCore
                                 {
                                     if (record.RDATA is DnsPTRRecord rdata)
                                     {
-                                        jsonWriter.WritePropertyName("value");
+                                        jsonWriter.WritePropertyName("ptrName");
                                         jsonWriter.WriteValue(rdata.Domain.Length == 0 ? "." : rdata.Domain);
                                     }
                                     else
@@ -1624,7 +1755,7 @@ namespace DnsServerCore
                                         jsonWriter.WritePropertyName("preference");
                                         jsonWriter.WriteValue(rdata.Preference);
 
-                                        jsonWriter.WritePropertyName("value");
+                                        jsonWriter.WritePropertyName("exchange");
                                         jsonWriter.WriteValue(rdata.Exchange.Length == 0 ? "." : rdata.Exchange);
 
                                     }
@@ -1643,7 +1774,7 @@ namespace DnsServerCore
                                 {
                                     if (record.RDATA is DnsTXTRecord rdata)
                                     {
-                                        jsonWriter.WritePropertyName("value");
+                                        jsonWriter.WritePropertyName("text");
                                         jsonWriter.WriteValue(rdata.Text);
                                     }
                                     else
@@ -1657,30 +1788,12 @@ namespace DnsServerCore
                                 }
                                 break;
 
-                            case DnsResourceRecordType.NS:
+                            case DnsResourceRecordType.AAAA:
                                 {
-                                    if (record.RDATA is DnsNSRecord rdata)
+                                    if (record.RDATA is DnsAAAARecord rdata)
                                     {
-                                        jsonWriter.WritePropertyName("value");
-                                        jsonWriter.WriteValue(rdata.NameServer.Length == 0 ? "." : rdata.NameServer);
-                                    }
-                                    else
-                                    {
-                                        jsonWriter.WritePropertyName("dataType");
-                                        jsonWriter.WriteValue(record.RDATA.GetType().Name);
-
-                                        jsonWriter.WritePropertyName("data");
-                                        jsonWriter.WriteValue(record.RDATA.ToString());
-                                    }
-                                }
-                                break;
-
-                            case DnsResourceRecordType.CNAME:
-                                {
-                                    if (record.RDATA is DnsCNAMERecord rdata)
-                                    {
-                                        jsonWriter.WritePropertyName("value");
-                                        jsonWriter.WriteValue(rdata.Domain.Length == 0 ? "." : rdata.Domain);
+                                        jsonWriter.WritePropertyName("ipAddress");
+                                        jsonWriter.WriteValue(rdata.IPAddress);
                                     }
                                     else
                                     {
@@ -1706,7 +1819,7 @@ namespace DnsServerCore
                                         jsonWriter.WritePropertyName("port");
                                         jsonWriter.WriteValue(rdata.Port);
 
-                                        jsonWriter.WritePropertyName("value");
+                                        jsonWriter.WritePropertyName("target");
                                         jsonWriter.WriteValue(rdata.Target.Length == 0 ? "." : rdata.Target);
                                     }
                                     else
@@ -1724,7 +1837,7 @@ namespace DnsServerCore
                                 {
                                     if (record.RDATA is DnsDNAMERecord rdata)
                                     {
-                                        jsonWriter.WritePropertyName("value");
+                                        jsonWriter.WritePropertyName("dname");
                                         jsonWriter.WriteValue(rdata.Domain.Length == 0 ? "." : rdata.Domain);
                                     }
                                     else
@@ -1751,7 +1864,7 @@ namespace DnsServerCore
                                         jsonWriter.WritePropertyName("digestType");
                                         jsonWriter.WriteValue(rdata.DigestType.ToString());
 
-                                        jsonWriter.WritePropertyName("value");
+                                        jsonWriter.WritePropertyName("digest");
                                         jsonWriter.WriteValue(rdata.Digest);
                                     }
                                     else
@@ -2016,7 +2129,7 @@ namespace DnsServerCore
                                 {
                                     if (record.RDATA is DnsANAMERecord rdata)
                                     {
-                                        jsonWriter.WritePropertyName("value");
+                                        jsonWriter.WritePropertyName("aname");
                                         jsonWriter.WriteValue(rdata.Domain.Length == 0 ? "." : rdata.Domain);
                                     }
                                     else
@@ -2037,7 +2150,7 @@ namespace DnsServerCore
                                         jsonWriter.WritePropertyName("protocol");
                                         jsonWriter.WriteValue(rdata.Protocol.ToString());
 
-                                        jsonWriter.WritePropertyName("value");
+                                        jsonWriter.WritePropertyName("forwarder");
                                         jsonWriter.WriteValue(rdata.Forwarder);
 
                                         jsonWriter.WritePropertyName("dnssecValidation");
@@ -2068,7 +2181,7 @@ namespace DnsServerCore
                                 {
                                     if (record.RDATA is DnsApplicationRecord rdata)
                                     {
-                                        jsonWriter.WritePropertyName("value");
+                                        jsonWriter.WritePropertyName("appName");
                                         jsonWriter.WriteValue(rdata.AppName);
 
                                         jsonWriter.WritePropertyName("classPath");
@@ -2184,22 +2297,29 @@ namespace DnsServerCore
             DnsResourceRecordType type = (DnsResourceRecordType)Enum.Parse(typeof(DnsResourceRecordType), strType);
 
             string value = request.QueryString["value"];
-            if (string.IsNullOrEmpty(value))
-                throw new DnsWebServiceException("Parameter 'value' missing.");
 
             switch (type)
             {
                 case DnsResourceRecordType.A:
                 case DnsResourceRecordType.AAAA:
                     {
-                        IPAddress address = IPAddress.Parse(value);
+                        string strIPAddress = request.QueryString["ipAddress"];
+                        if (string.IsNullOrEmpty(strIPAddress))
+                        {
+                            if (string.IsNullOrEmpty(value))
+                                throw new DnsWebServiceException("Parameter 'ipAddress' missing.");
+
+                            strIPAddress = value;
+                        }
+
+                        IPAddress ipAddress = IPAddress.Parse(strIPAddress);
 
                         if (type == DnsResourceRecordType.A)
-                            _dnsWebService.DnsServer.AuthZoneManager.DeleteRecord(zoneName, domain, type, new DnsARecord(address));
+                            _dnsWebService.DnsServer.AuthZoneManager.DeleteRecord(zoneName, domain, type, new DnsARecord(ipAddress));
                         else
-                            _dnsWebService.DnsServer.AuthZoneManager.DeleteRecord(zoneName, domain, type, new DnsAAAARecord(address));
+                            _dnsWebService.DnsServer.AuthZoneManager.DeleteRecord(zoneName, domain, type, new DnsAAAARecord(ipAddress));
 
-                        string ptrDomain = Zone.GetReverseZone(address, type == DnsResourceRecordType.A ? 32 : 128);
+                        string ptrDomain = Zone.GetReverseZone(ipAddress, type == DnsResourceRecordType.A ? 32 : 128);
                         AuthZoneInfo reverseZoneInfo = _dnsWebService.DnsServer.AuthZoneManager.FindAuthZoneInfo(ptrDomain);
                         if ((reverseZoneInfo != null) && !reverseZoneInfo.Internal && (reverseZoneInfo.Type == AuthZoneType.Primary))
                         {
@@ -2221,27 +2341,68 @@ namespace DnsServerCore
                     }
                     break;
 
-                case DnsResourceRecordType.MX:
-                    _dnsWebService.DnsServer.AuthZoneManager.DeleteRecord(zoneName, domain, type, new DnsMXRecord(0, value));
-                    break;
-
-                case DnsResourceRecordType.TXT:
-                    _dnsWebService.DnsServer.AuthZoneManager.DeleteRecord(zoneName, domain, type, new DnsTXTRecord(value));
-                    break;
-
                 case DnsResourceRecordType.NS:
-                    _dnsWebService.DnsServer.AuthZoneManager.DeleteRecord(zoneName, domain, type, new DnsNSRecord(value));
-                    break;
+                    {
+                        string nameServer = request.QueryString["nameServer"];
+                        if (string.IsNullOrEmpty(nameServer))
+                        {
+                            if (string.IsNullOrEmpty(value))
+                                throw new DnsWebServiceException("Parameter 'nameServer' missing.");
 
-                case DnsResourceRecordType.ANAME:
-                    _dnsWebService.DnsServer.AuthZoneManager.DeleteRecord(zoneName, domain, type, new DnsANAMERecord(value));
+                            nameServer = value;
+                        }
+
+                        _dnsWebService.DnsServer.AuthZoneManager.DeleteRecord(zoneName, domain, type, new DnsNSRecord(nameServer));
+                    }
                     break;
 
                 case DnsResourceRecordType.CNAME:
-                case DnsResourceRecordType.DNAME:
-                case DnsResourceRecordType.PTR:
-                case DnsResourceRecordType.APP:
                     _dnsWebService.DnsServer.AuthZoneManager.DeleteRecords(zoneName, domain, type);
+                    break;
+
+                case DnsResourceRecordType.PTR:
+                    {
+                        string ptrName = request.QueryString["ptrName"];
+                        if (string.IsNullOrEmpty(ptrName))
+                        {
+                            if (string.IsNullOrEmpty(value))
+                                throw new DnsWebServiceException("Parameter 'ptrName' missing.");
+
+                            ptrName = value;
+                        }
+
+                        _dnsWebService.DnsServer.AuthZoneManager.DeleteRecord(zoneName, domain, type, new DnsPTRRecord(ptrName));
+                    }
+                    break;
+
+                case DnsResourceRecordType.MX:
+                    {
+                        string exchange = request.QueryString["exchange"];
+                        if (string.IsNullOrEmpty(exchange))
+                        {
+                            if (string.IsNullOrEmpty(value))
+                                throw new DnsWebServiceException("Parameter 'exchange' missing.");
+
+                            exchange = value;
+                        }
+
+                        _dnsWebService.DnsServer.AuthZoneManager.DeleteRecord(zoneName, domain, type, new DnsMXRecord(0, exchange));
+                    }
+                    break;
+
+                case DnsResourceRecordType.TXT:
+                    {
+                        string text = request.QueryString["text"];
+                        if (string.IsNullOrEmpty(text))
+                        {
+                            if (string.IsNullOrEmpty(value))
+                                throw new DnsWebServiceException("Parameter 'text' missing.");
+
+                            text = value;
+                        }
+
+                        _dnsWebService.DnsServer.AuthZoneManager.DeleteRecord(zoneName, domain, type, new DnsTXTRecord(text));
+                    }
                     break;
 
                 case DnsResourceRecordType.SRV:
@@ -2250,8 +2411,21 @@ namespace DnsServerCore
                         if (string.IsNullOrEmpty(port))
                             throw new DnsWebServiceException("Parameter 'port' missing.");
 
-                        _dnsWebService.DnsServer.AuthZoneManager.DeleteRecord(zoneName, domain, type, new DnsSRVRecord(0, 0, ushort.Parse(port), value));
+                        string target = request.QueryString["target"];
+                        if (string.IsNullOrEmpty(target))
+                        {
+                            if (string.IsNullOrEmpty(value))
+                                throw new DnsWebServiceException("Parameter 'target' missing.");
+
+                            target = value;
+                        }
+
+                        _dnsWebService.DnsServer.AuthZoneManager.DeleteRecord(zoneName, domain, type, new DnsSRVRecord(0, 0, ushort.Parse(port), target));
                     }
+                    break;
+
+                case DnsResourceRecordType.DNAME:
+                    _dnsWebService.DnsServer.AuthZoneManager.DeleteRecords(zoneName, domain, type);
                     break;
 
                 case DnsResourceRecordType.DS:
@@ -2268,7 +2442,16 @@ namespace DnsServerCore
                         if (string.IsNullOrEmpty(strDigestType))
                             throw new DnsWebServiceException("Parameter 'digestType' missing.");
 
-                        _dnsWebService.DnsServer.AuthZoneManager.DeleteRecord(zoneName, domain, type, new DnsDSRecord(ushort.Parse(strKeyTag), Enum.Parse<DnssecAlgorithm>(strAlgorithm), Enum.Parse<DnssecDigestType>(strDigestType), Convert.FromHexString(value)));
+                        string digest = request.QueryString["digest"];
+                        if (string.IsNullOrEmpty(digest))
+                        {
+                            if (string.IsNullOrEmpty(value))
+                                throw new DnsWebServiceException("Parameter 'digest' missing.");
+
+                            digest = value;
+                        }
+
+                        _dnsWebService.DnsServer.AuthZoneManager.DeleteRecord(zoneName, domain, type, new DnsDSRecord(ushort.Parse(strKeyTag), Enum.Parse<DnssecAlgorithm>(strAlgorithm), Enum.Parse<DnssecDigestType>(strDigestType), Convert.FromHexString(digest)));
                     }
                     break;
 
@@ -2282,7 +2465,25 @@ namespace DnsServerCore
                         if (string.IsNullOrEmpty(tag))
                             throw new DnsWebServiceException("Parameter 'tag' missing.");
 
+                        if (string.IsNullOrEmpty(value))
+                            throw new DnsWebServiceException("Parameter 'value' missing.");
+
                         _dnsWebService.DnsServer.AuthZoneManager.DeleteRecord(zoneName, domain, type, new DnsCAARecord(byte.Parse(flags), tag, value));
+                    }
+                    break;
+
+                case DnsResourceRecordType.ANAME:
+                    {
+                        string aname = request.QueryString["aname"];
+                        if (string.IsNullOrEmpty(aname))
+                        {
+                            if (string.IsNullOrEmpty(value))
+                                throw new DnsWebServiceException("Parameter 'aname' missing.");
+
+                            aname = value;
+                        }
+
+                        _dnsWebService.DnsServer.AuthZoneManager.DeleteRecord(zoneName, domain, type, new DnsANAMERecord(aname));
                     }
                     break;
 
@@ -2292,15 +2493,28 @@ namespace DnsServerCore
                         if (string.IsNullOrEmpty(strProtocol))
                             strProtocol = "Udp";
 
-                        _dnsWebService.DnsServer.AuthZoneManager.DeleteRecord(zoneName, domain, type, new DnsForwarderRecord(Enum.Parse<DnsTransportProtocol>(strProtocol, true), value));
+                        string forwarder = request.QueryString["forwarder"];
+                        if (string.IsNullOrEmpty(forwarder))
+                        {
+                            if (string.IsNullOrEmpty(value))
+                                throw new DnsWebServiceException("Parameter 'forwarder' missing.");
+
+                            forwarder = value;
+                        }
+
+                        _dnsWebService.DnsServer.AuthZoneManager.DeleteRecord(zoneName, domain, type, new DnsForwarderRecord(Enum.Parse<DnsTransportProtocol>(strProtocol, true), forwarder));
                     }
+                    break;
+
+                case DnsResourceRecordType.APP:
+                    _dnsWebService.DnsServer.AuthZoneManager.DeleteRecords(zoneName, domain, type);
                     break;
 
                 default:
                     throw new DnsWebServiceException("Type not supported for DeleteRecord().");
             }
 
-            _dnsWebService.Log.Write(DnsWebService.GetRequestRemoteEndPoint(request), "[" + _dnsWebService.GetSession(request).Username + "] Record was deleted from authoritative zone {domain: " + domain + "; type: " + type + "; value: " + value + ";}");
+            _dnsWebService.Log.Write(DnsWebService.GetRequestRemoteEndPoint(request), "[" + _dnsWebService.GetSession(request).Username + "] Record was deleted from authoritative zone {domain: " + domain + "; type: " + type + ";}");
 
             _dnsWebService.DnsServer.AuthZoneManager.SaveZoneFile(zoneInfo.Name);
         }
@@ -2344,10 +2558,7 @@ namespace DnsServerCore
                 ttl = uint.Parse(strTtl);
 
             string value = request.QueryString["value"];
-
             string newValue = request.QueryString["newValue"];
-            if (string.IsNullOrEmpty(newValue))
-                newValue = value;
 
             bool disable = false;
             string strDisable = request.QueryString["disable"];
@@ -2361,8 +2572,26 @@ namespace DnsServerCore
                 case DnsResourceRecordType.A:
                 case DnsResourceRecordType.AAAA:
                     {
-                        IPAddress oldIpAddress = IPAddress.Parse(value);
-                        IPAddress newIpAddress = IPAddress.Parse(newValue);
+                        string strIPAddress = request.QueryString["ipAddress"];
+                        if (string.IsNullOrEmpty(strIPAddress))
+                        {
+                            if (string.IsNullOrEmpty(value))
+                                throw new DnsWebServiceException("Parameter 'ipAddress' missing.");
+
+                            strIPAddress = value;
+                        }
+
+                        IPAddress oldIpAddress = IPAddress.Parse(strIPAddress);
+
+                        string strNewIPAddress = request.QueryString["newIpAddress"];
+                        if (string.IsNullOrEmpty(strNewIPAddress))
+                        {
+                            if (string.IsNullOrEmpty(newValue))
+                                newValue = strIPAddress;
+
+                            strNewIPAddress = newValue;
+                        }
+                        IPAddress newIpAddress = IPAddress.Parse(strNewIPAddress);
 
                         bool ptr = false;
                         string strPtr = request.QueryString["ptr"];
@@ -2437,44 +2666,28 @@ namespace DnsServerCore
                     }
                     break;
 
-                case DnsResourceRecordType.MX:
-                    {
-                        string preference = request.QueryString["preference"];
-                        if (string.IsNullOrEmpty(preference))
-                            preference = "1";
-
-                        DnsResourceRecord oldRecord = new DnsResourceRecord(domain, type, DnsClass.IN, 0, new DnsMXRecord(0, value));
-                        DnsResourceRecord newRecord = new DnsResourceRecord(newDomain, type, DnsClass.IN, ttl, new DnsMXRecord(ushort.Parse(preference), newValue.TrimEnd('.')));
-
-                        if (disable)
-                            newRecord.Disable();
-
-                        if (!string.IsNullOrEmpty(comments))
-                            newRecord.SetComments(comments);
-
-                        _dnsWebService.DnsServer.AuthZoneManager.UpdateRecord(zoneName, oldRecord, newRecord);
-                    }
-                    break;
-
-                case DnsResourceRecordType.TXT:
-                    {
-                        DnsResourceRecord oldRecord = new DnsResourceRecord(domain, type, DnsClass.IN, 0, new DnsTXTRecord(value));
-                        DnsResourceRecord newRecord = new DnsResourceRecord(newDomain, type, DnsClass.IN, ttl, new DnsTXTRecord(newValue));
-
-                        if (disable)
-                            newRecord.Disable();
-
-                        if (!string.IsNullOrEmpty(comments))
-                            newRecord.SetComments(comments);
-
-                        _dnsWebService.DnsServer.AuthZoneManager.UpdateRecord(zoneName, oldRecord, newRecord);
-                    }
-                    break;
-
                 case DnsResourceRecordType.NS:
                     {
-                        DnsResourceRecord oldRecord = new DnsResourceRecord(domain, type, DnsClass.IN, 0, new DnsNSRecord(value));
-                        DnsResourceRecord newRecord = new DnsResourceRecord(newDomain, type, DnsClass.IN, ttl, new DnsNSRecord(newValue.TrimEnd('.')));
+                        string nameServer = request.QueryString["nameServer"];
+                        if (string.IsNullOrEmpty(nameServer))
+                        {
+                            if (string.IsNullOrEmpty(value))
+                                throw new DnsWebServiceException("Parameter 'nameServer' missing.");
+
+                            nameServer = value;
+                        }
+
+                        string newNameServer = request.QueryString["newNameServer"];
+                        if (string.IsNullOrEmpty(newNameServer))
+                        {
+                            if (string.IsNullOrEmpty(newValue))
+                                newValue = nameServer;
+
+                            newNameServer = newValue;
+                        }
+
+                        DnsResourceRecord oldRecord = new DnsResourceRecord(domain, type, DnsClass.IN, 0, new DnsNSRecord(nameServer.TrimEnd('.')));
+                        DnsResourceRecord newRecord = new DnsResourceRecord(newDomain, type, DnsClass.IN, ttl, new DnsNSRecord(newNameServer.TrimEnd('.')));
 
                         if (disable)
                             newRecord.Disable();
@@ -2485,6 +2698,30 @@ namespace DnsServerCore
                         string glueAddresses = request.QueryString["glue"];
                         if (!string.IsNullOrEmpty(glueAddresses))
                             newRecord.SetGlueRecords(glueAddresses);
+
+                        _dnsWebService.DnsServer.AuthZoneManager.UpdateRecord(zoneName, oldRecord, newRecord);
+                    }
+                    break;
+
+                case DnsResourceRecordType.CNAME:
+                    {
+                        string cname = request.QueryString["cname"];
+                        if (string.IsNullOrEmpty(cname))
+                        {
+                            if (string.IsNullOrEmpty(value))
+                                throw new DnsWebServiceException("Parameter 'cname' missing.");
+
+                            cname = value;
+                        }
+
+                        DnsResourceRecord oldRecord = new DnsResourceRecord(domain, type, DnsClass.IN, 0, new DnsCNAMERecord(cname.TrimEnd('.')));
+                        DnsResourceRecord newRecord = new DnsResourceRecord(newDomain, type, DnsClass.IN, ttl, new DnsCNAMERecord(cname.TrimEnd('.')));
+
+                        if (disable)
+                            newRecord.Disable();
+
+                        if (!string.IsNullOrEmpty(comments))
+                            newRecord.SetComments(comments);
 
                         _dnsWebService.DnsServer.AuthZoneManager.UpdateRecord(zoneName, oldRecord, newRecord);
                     }
@@ -2557,8 +2794,26 @@ namespace DnsServerCore
 
                 case DnsResourceRecordType.PTR:
                     {
-                        DnsResourceRecord oldRecord = new DnsResourceRecord(domain, type, DnsClass.IN, 0, new DnsPTRRecord(value));
-                        DnsResourceRecord newRecord = new DnsResourceRecord(newDomain, type, DnsClass.IN, ttl, new DnsPTRRecord(newValue.TrimEnd('.')));
+                        string ptrName = request.QueryString["ptrName"];
+                        if (string.IsNullOrEmpty(ptrName))
+                        {
+                            if (string.IsNullOrEmpty(value))
+                                throw new DnsWebServiceException("Parameter 'ptrName' missing.");
+
+                            ptrName = value;
+                        }
+
+                        string newPtrName = request.QueryString["newPtrName"];
+                        if (string.IsNullOrEmpty(newPtrName))
+                        {
+                            if (string.IsNullOrEmpty(newValue))
+                                newValue = ptrName;
+
+                            newPtrName = newValue;
+                        }
+
+                        DnsResourceRecord oldRecord = new DnsResourceRecord(domain, type, DnsClass.IN, 0, new DnsPTRRecord(ptrName.TrimEnd('.')));
+                        DnsResourceRecord newRecord = new DnsResourceRecord(newDomain, type, DnsClass.IN, ttl, new DnsPTRRecord(newPtrName.TrimEnd('.')));
 
                         if (disable)
                             newRecord.Disable();
@@ -2570,10 +2825,65 @@ namespace DnsServerCore
                     }
                     break;
 
-                case DnsResourceRecordType.CNAME:
+                case DnsResourceRecordType.MX:
                     {
-                        DnsResourceRecord oldRecord = new DnsResourceRecord(domain, type, DnsClass.IN, 0, new DnsCNAMERecord(value));
-                        DnsResourceRecord newRecord = new DnsResourceRecord(newDomain, type, DnsClass.IN, ttl, new DnsCNAMERecord(newValue.TrimEnd('.')));
+                        string preference = request.QueryString["preference"];
+                        if (string.IsNullOrEmpty(preference))
+                            preference = "1";
+
+                        string exchange = request.QueryString["exchange"];
+                        if (string.IsNullOrEmpty(exchange))
+                        {
+                            if (string.IsNullOrEmpty(value))
+                                throw new DnsWebServiceException("Parameter 'exchange' missing.");
+
+                            exchange = value;
+                        }
+
+                        string newExchange = request.QueryString["newExchange"];
+                        if (string.IsNullOrEmpty(newExchange))
+                        {
+                            if (string.IsNullOrEmpty(newValue))
+                                newValue = exchange;
+
+                            newExchange = newValue;
+                        }
+
+                        DnsResourceRecord oldRecord = new DnsResourceRecord(domain, type, DnsClass.IN, 0, new DnsMXRecord(0, exchange.TrimEnd('.')));
+                        DnsResourceRecord newRecord = new DnsResourceRecord(newDomain, type, DnsClass.IN, ttl, new DnsMXRecord(ushort.Parse(preference), newExchange.TrimEnd('.')));
+
+                        if (disable)
+                            newRecord.Disable();
+
+                        if (!string.IsNullOrEmpty(comments))
+                            newRecord.SetComments(comments);
+
+                        _dnsWebService.DnsServer.AuthZoneManager.UpdateRecord(zoneName, oldRecord, newRecord);
+                    }
+                    break;
+
+                case DnsResourceRecordType.TXT:
+                    {
+                        string text = request.QueryString["text"];
+                        if (string.IsNullOrEmpty(text))
+                        {
+                            if (string.IsNullOrEmpty(value))
+                                throw new DnsWebServiceException("Parameter 'text' missing.");
+
+                            text = value;
+                        }
+
+                        string newText = request.QueryString["newText"];
+                        if (string.IsNullOrEmpty(newText))
+                        {
+                            if (string.IsNullOrEmpty(newValue))
+                                newValue = text;
+
+                            newText = newValue;
+                        }
+
+                        DnsResourceRecord oldRecord = new DnsResourceRecord(domain, type, DnsClass.IN, 0, new DnsTXTRecord(text));
+                        DnsResourceRecord newRecord = new DnsResourceRecord(newDomain, type, DnsClass.IN, ttl, new DnsTXTRecord(newText));
 
                         if (disable)
                             newRecord.Disable();
@@ -2587,10 +2897,6 @@ namespace DnsServerCore
 
                 case DnsResourceRecordType.SRV:
                     {
-                        string port = request.QueryString["port"];
-                        if (string.IsNullOrEmpty(port))
-                            throw new DnsWebServiceException("Parameter 'port' missing.");
-
                         string priority = request.QueryString["priority"];
                         if (string.IsNullOrEmpty(priority))
                             throw new DnsWebServiceException("Parameter 'priority' missing.");
@@ -2599,12 +2905,34 @@ namespace DnsServerCore
                         if (string.IsNullOrEmpty(weight))
                             throw new DnsWebServiceException("Parameter 'weight' missing.");
 
+                        string port = request.QueryString["port"];
+                        if (string.IsNullOrEmpty(port))
+                            throw new DnsWebServiceException("Parameter 'port' missing.");
+
                         string newPort = request.QueryString["newPort"];
                         if (string.IsNullOrEmpty(newPort))
                             newPort = port;
 
-                        DnsResourceRecord oldRecord = new DnsResourceRecord(domain, type, DnsClass.IN, 0, new DnsSRVRecord(0, 0, ushort.Parse(port), value));
-                        DnsResourceRecord newRecord = new DnsResourceRecord(newDomain, type, DnsClass.IN, ttl, new DnsSRVRecord(ushort.Parse(priority), ushort.Parse(weight), ushort.Parse(newPort), newValue.TrimEnd('.')));
+                        string target = request.QueryString["target"];
+                        if (string.IsNullOrEmpty(target))
+                        {
+                            if (string.IsNullOrEmpty(value))
+                                throw new DnsWebServiceException("Parameter 'target' missing.");
+
+                            target = value;
+                        }
+
+                        string newTarget = request.QueryString["newTarget"];
+                        if (string.IsNullOrEmpty(newTarget))
+                        {
+                            if (string.IsNullOrEmpty(newValue))
+                                newValue = target;
+
+                            newTarget = newValue;
+                        }
+
+                        DnsResourceRecord oldRecord = new DnsResourceRecord(domain, type, DnsClass.IN, 0, new DnsSRVRecord(0, 0, ushort.Parse(port), target.TrimEnd('.')));
+                        DnsResourceRecord newRecord = new DnsResourceRecord(newDomain, type, DnsClass.IN, ttl, new DnsSRVRecord(ushort.Parse(priority), ushort.Parse(weight), ushort.Parse(newPort), newTarget.TrimEnd('.')));
 
                         if (disable)
                             newRecord.Disable();
@@ -2618,8 +2946,17 @@ namespace DnsServerCore
 
                 case DnsResourceRecordType.DNAME:
                     {
-                        DnsResourceRecord oldRecord = new DnsResourceRecord(domain, type, DnsClass.IN, 0, new DnsDNAMERecord(value));
-                        DnsResourceRecord newRecord = new DnsResourceRecord(newDomain, type, DnsClass.IN, ttl, new DnsDNAMERecord(newValue.TrimEnd('.')));
+                        string dname = request.QueryString["dname"];
+                        if (string.IsNullOrEmpty(dname))
+                        {
+                            if (string.IsNullOrEmpty(value))
+                                throw new DnsWebServiceException("Parameter 'dname' missing.");
+
+                            dname = value;
+                        }
+
+                        DnsResourceRecord oldRecord = new DnsResourceRecord(domain, type, DnsClass.IN, 0, new DnsDNAMERecord(dname.TrimEnd('.')));
+                        DnsResourceRecord newRecord = new DnsResourceRecord(newDomain, type, DnsClass.IN, ttl, new DnsDNAMERecord(dname.TrimEnd('.')));
 
                         if (disable)
                             newRecord.Disable();
@@ -2637,28 +2974,46 @@ namespace DnsServerCore
                         if (string.IsNullOrEmpty(strKeyTag))
                             throw new DnsWebServiceException("Parameter 'keyTag' missing.");
 
-                        string strAlgorithm = request.QueryString["algorithm"];
-                        if (string.IsNullOrEmpty(strAlgorithm))
-                            throw new DnsWebServiceException("Parameter 'algorithm' missing.");
-
-                        string strDigestType = request.QueryString["digestType"];
-                        if (string.IsNullOrEmpty(strDigestType))
-                            throw new DnsWebServiceException("Parameter 'digestType' missing.");
-
                         string strNewKeyTag = request.QueryString["newKeyTag"];
                         if (string.IsNullOrEmpty(strNewKeyTag))
                             strNewKeyTag = strKeyTag;
+
+                        string strAlgorithm = request.QueryString["algorithm"];
+                        if (string.IsNullOrEmpty(strAlgorithm))
+                            throw new DnsWebServiceException("Parameter 'algorithm' missing.");
 
                         string strNewAlgorithm = request.QueryString["newAlgorithm"];
                         if (string.IsNullOrEmpty(strNewAlgorithm))
                             strNewAlgorithm = strAlgorithm;
 
+                        string strDigestType = request.QueryString["digestType"];
+                        if (string.IsNullOrEmpty(strDigestType))
+                            throw new DnsWebServiceException("Parameter 'digestType' missing.");
+
                         string strNewDigestType = request.QueryString["newDigestType"];
                         if (string.IsNullOrEmpty(strNewDigestType))
                             strNewDigestType = strDigestType;
 
-                        DnsResourceRecord oldRecord = new DnsResourceRecord(domain, type, DnsClass.IN, 0, new DnsDSRecord(ushort.Parse(strKeyTag), Enum.Parse<DnssecAlgorithm>(strAlgorithm), Enum.Parse<DnssecDigestType>(strDigestType), Convert.FromHexString(value)));
-                        DnsResourceRecord newRecord = new DnsResourceRecord(newDomain, type, DnsClass.IN, ttl, new DnsDSRecord(ushort.Parse(strNewKeyTag), Enum.Parse<DnssecAlgorithm>(strNewAlgorithm), Enum.Parse<DnssecDigestType>(strNewDigestType), Convert.FromHexString(newValue)));
+                        string digest = request.QueryString["digest"];
+                        if (string.IsNullOrEmpty(digest))
+                        {
+                            if (string.IsNullOrEmpty(value))
+                                throw new DnsWebServiceException("Parameter 'digest' missing.");
+
+                            digest = value;
+                        }
+
+                        string newDigest = request.QueryString["newDigest"];
+                        if (string.IsNullOrEmpty(newDigest))
+                        {
+                            if (string.IsNullOrEmpty(newValue))
+                                newValue = digest;
+
+                            newDigest = newValue;
+                        }
+
+                        DnsResourceRecord oldRecord = new DnsResourceRecord(domain, type, DnsClass.IN, 0, new DnsDSRecord(ushort.Parse(strKeyTag), Enum.Parse<DnssecAlgorithm>(strAlgorithm), Enum.Parse<DnssecDigestType>(strDigestType), Convert.FromHexString(digest)));
+                        DnsResourceRecord newRecord = new DnsResourceRecord(newDomain, type, DnsClass.IN, ttl, new DnsDSRecord(ushort.Parse(strNewKeyTag), Enum.Parse<DnssecAlgorithm>(strNewAlgorithm), Enum.Parse<DnssecDigestType>(strNewDigestType), Convert.FromHexString(newDigest)));
 
                         if (disable)
                             newRecord.Disable();
@@ -2676,17 +3031,23 @@ namespace DnsServerCore
                         if (string.IsNullOrEmpty(flags))
                             throw new DnsWebServiceException("Parameter 'flags' missing.");
 
-                        string tag = request.QueryString["tag"];
-                        if (string.IsNullOrEmpty(tag))
-                            throw new DnsWebServiceException("Parameter 'tag' missing.");
-
                         string newFlags = request.QueryString["newFlags"];
                         if (string.IsNullOrEmpty(newFlags))
                             newFlags = flags;
 
+                        string tag = request.QueryString["tag"];
+                        if (string.IsNullOrEmpty(tag))
+                            throw new DnsWebServiceException("Parameter 'tag' missing.");
+
                         string newTag = request.QueryString["newTag"];
                         if (string.IsNullOrEmpty(newTag))
                             newTag = tag;
+
+                        if (string.IsNullOrEmpty(value))
+                            throw new DnsWebServiceException("Parameter 'value' missing.");
+
+                        if (string.IsNullOrEmpty(newValue))
+                            newValue = value;
 
                         DnsResourceRecord oldRecord = new DnsResourceRecord(domain, type, DnsClass.IN, 0, new DnsCAARecord(byte.Parse(flags), tag, value));
                         DnsResourceRecord newRecord = new DnsResourceRecord(newDomain, type, DnsClass.IN, ttl, new DnsCAARecord(byte.Parse(newFlags), newTag, newValue));
@@ -2703,8 +3064,26 @@ namespace DnsServerCore
 
                 case DnsResourceRecordType.ANAME:
                     {
-                        DnsResourceRecord oldRecord = new DnsResourceRecord(domain, type, DnsClass.IN, 0, new DnsANAMERecord(value));
-                        DnsResourceRecord newRecord = new DnsResourceRecord(newDomain, type, DnsClass.IN, ttl, new DnsANAMERecord(newValue.TrimEnd('.')));
+                        string aname = request.QueryString["aname"];
+                        if (string.IsNullOrEmpty(aname))
+                        {
+                            if (string.IsNullOrEmpty(value))
+                                throw new DnsWebServiceException("Parameter 'aname' missing.");
+
+                            aname = value;
+                        }
+
+                        string newAName = request.QueryString["newAName"];
+                        if (string.IsNullOrEmpty(newAName))
+                        {
+                            if (string.IsNullOrEmpty(newValue))
+                                newValue = aname;
+
+                            newAName = newValue;
+                        }
+
+                        DnsResourceRecord oldRecord = new DnsResourceRecord(domain, type, DnsClass.IN, 0, new DnsANAMERecord(aname.TrimEnd('.')));
+                        DnsResourceRecord newRecord = new DnsResourceRecord(newDomain, type, DnsClass.IN, ttl, new DnsANAMERecord(newAName.TrimEnd('.')));
 
                         if (disable)
                             newRecord.Disable();
@@ -2723,38 +3102,64 @@ namespace DnsServerCore
                         if (!string.IsNullOrEmpty(strProtocol))
                             protocol = Enum.Parse<DnsTransportProtocol>(strProtocol, true);
 
+                        DnsTransportProtocol newProtocol = protocol;
+                        string strNewProtocol = request.QueryString["newProtocol"];
+                        if (!string.IsNullOrEmpty(strNewProtocol))
+                            newProtocol = Enum.Parse<DnsTransportProtocol>(strNewProtocol, true);
+
+                        string forwarder = request.QueryString["forwarder"];
+                        if (string.IsNullOrEmpty(forwarder))
+                        {
+                            if (string.IsNullOrEmpty(value))
+                                throw new DnsWebServiceException("Parameter 'forwarder' missing.");
+
+                            forwarder = value;
+                        }
+
+                        string newForwarder = request.QueryString["newForwarder"];
+                        if (string.IsNullOrEmpty(newForwarder))
+                        {
+                            if (string.IsNullOrEmpty(newValue))
+                                newValue = forwarder;
+
+                            newForwarder = newValue;
+                        }
+
                         bool dnssecValidation = false;
-                        string strDnssecValidation = request.QueryString["dnssecValidation"];
-                        if (!string.IsNullOrEmpty(strDnssecValidation))
-                            dnssecValidation = bool.Parse(strDnssecValidation);
-
                         NetProxyType proxyType = NetProxyType.None;
-                        string strProxyType = request.QueryString["proxyType"];
-                        if (!string.IsNullOrEmpty(strProxyType))
-                            proxyType = Enum.Parse<NetProxyType>(strProxyType, true);
-
                         string proxyAddress = null;
                         ushort proxyPort = 0;
                         string proxyUsername = null;
                         string proxyPassword = null;
 
-                        if (proxyType != NetProxyType.None)
+                        if (!newForwarder.Equals("this-server"))
                         {
-                            proxyAddress = request.QueryString["proxyAddress"];
-                            if (string.IsNullOrEmpty(proxyAddress))
-                                throw new DnsWebServiceException("Parameter 'proxyAddress' missing.");
+                            string strDnssecValidation = request.QueryString["dnssecValidation"];
+                            if (!string.IsNullOrEmpty(strDnssecValidation))
+                                dnssecValidation = bool.Parse(strDnssecValidation);
 
-                            string strProxyPort = request.QueryString["proxyPort"];
-                            if (string.IsNullOrEmpty(strProxyPort))
-                                throw new DnsWebServiceException("Parameter 'proxyPort' missing.");
+                            string strProxyType = request.QueryString["proxyType"];
+                            if (!string.IsNullOrEmpty(strProxyType))
+                                proxyType = Enum.Parse<NetProxyType>(strProxyType, true);
 
-                            proxyPort = ushort.Parse(strProxyPort);
-                            proxyUsername = request.QueryString["proxyUsername"];
-                            proxyPassword = request.QueryString["proxyPassword"];
+                            if (proxyType != NetProxyType.None)
+                            {
+                                proxyAddress = request.QueryString["proxyAddress"];
+                                if (string.IsNullOrEmpty(proxyAddress))
+                                    throw new DnsWebServiceException("Parameter 'proxyAddress' missing.");
+
+                                string strProxyPort = request.QueryString["proxyPort"];
+                                if (string.IsNullOrEmpty(strProxyPort))
+                                    throw new DnsWebServiceException("Parameter 'proxyPort' missing.");
+
+                                proxyPort = ushort.Parse(strProxyPort);
+                                proxyUsername = request.QueryString["proxyUsername"];
+                                proxyPassword = request.QueryString["proxyPassword"];
+                            }
                         }
 
-                        DnsResourceRecord oldRecord = new DnsResourceRecord(domain, type, DnsClass.IN, 0, new DnsForwarderRecord(protocol, value));
-                        DnsResourceRecord newRecord = new DnsResourceRecord(domain, type, DnsClass.IN, 0, new DnsForwarderRecord(protocol, value, dnssecValidation, proxyType, proxyAddress, proxyPort, proxyUsername, proxyPassword));
+                        DnsResourceRecord oldRecord = new DnsResourceRecord(domain, type, DnsClass.IN, 0, new DnsForwarderRecord(protocol, forwarder));
+                        DnsResourceRecord newRecord = new DnsResourceRecord(domain, type, DnsClass.IN, 0, new DnsForwarderRecord(newProtocol, newForwarder, dnssecValidation, proxyType, proxyAddress, proxyPort, proxyUsername, proxyPassword));
 
                         if (disable)
                             newRecord.Disable();
@@ -2768,6 +3173,15 @@ namespace DnsServerCore
 
                 case DnsResourceRecordType.APP:
                     {
+                        string appName = request.QueryString["appName"];
+                        if (string.IsNullOrEmpty(appName))
+                        {
+                            if (string.IsNullOrEmpty(value))
+                                throw new DnsWebServiceException("Parameter 'appName' missing.");
+
+                            appName = value;
+                        }
+
                         string classPath = request.QueryString["classPath"];
                         if (string.IsNullOrEmpty(classPath))
                             throw new DnsWebServiceException("Parameter 'classPath' missing.");
@@ -2776,8 +3190,8 @@ namespace DnsServerCore
                         if (string.IsNullOrEmpty(recordData))
                             recordData = "";
 
-                        DnsResourceRecord oldRecord = new DnsResourceRecord(domain, type, DnsClass.IN, 0, new DnsApplicationRecord(value, classPath, recordData));
-                        DnsResourceRecord newRecord = new DnsResourceRecord(newDomain, type, DnsClass.IN, ttl, new DnsApplicationRecord(newValue, classPath, recordData));
+                        DnsResourceRecord oldRecord = new DnsResourceRecord(domain, type, DnsClass.IN, 0, new DnsApplicationRecord(appName, classPath, recordData));
+                        DnsResourceRecord newRecord = new DnsResourceRecord(newDomain, type, DnsClass.IN, ttl, new DnsApplicationRecord(appName, classPath, recordData));
 
                         if (disable)
                             newRecord.Disable();
