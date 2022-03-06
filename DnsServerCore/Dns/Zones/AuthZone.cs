@@ -712,7 +712,6 @@ namespace DnsServerCore.Dns.Zones
             {
                 case DnsResourceRecordType.CNAME:
                 case DnsResourceRecordType.DNAME:
-                case DnsResourceRecordType.PTR:
                 case DnsResourceRecordType.SOA:
                     throw new InvalidOperationException("Cannot add record: use SetRecords() for " + record.Type.ToString() + " record");
             }
@@ -756,7 +755,9 @@ namespace DnsServerCore.Dns.Zones
             if (oldRecord.Type != newRecord.Type)
                 throw new InvalidOperationException("Old and new record types do not match.");
 
-            DeleteRecord(oldRecord.Type, oldRecord.RDATA);
+            if (!DeleteRecord(oldRecord.Type, oldRecord.RDATA))
+                throw new DnsWebServiceException("Cannot update record: the old record does not exists.");
+
             AddRecord(newRecord);
         }
 
