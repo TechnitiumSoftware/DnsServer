@@ -208,13 +208,12 @@ namespace DnsServerCore.Dns.Trees
 
         protected TNode FindZoneNode(byte[] key, bool matchWildcard, out Node currentNode, out Node closestSubDomainNode, out Node closestAuthorityNode, out TSubDomainZone closestSubDomain, out TSubDomainZone closestDelegation, out TApexZone closestAuthority)
         {
+            currentNode = _root;
             closestSubDomainNode = null;
             closestAuthorityNode = null;
             closestSubDomain = null;
             closestDelegation = null;
             closestAuthority = null;
-
-            currentNode = _root;
             Node wildcard = null;
             int i = 0;
 
@@ -341,7 +340,31 @@ namespace DnsServerCore.Dns.Trees
                             {
                                 //match wildcard keys
                                 if (KeysMatch(key, value.Key, true))
+                                {
+                                    //find closest values
+                                    TNode zoneNode = value.Value;
+                                    if (zoneNode is not null)
+                                    {
+                                        TSubDomainZone subDomain = null;
+                                        TApexZone authority = null;
+
+                                        GetClosestValuesForZone(zoneNode, ref subDomain, ref closestDelegation, ref authority);
+
+                                        if (subDomain is not null)
+                                        {
+                                            closestSubDomain = subDomain;
+                                            closestSubDomainNode = currentNode;
+                                        }
+
+                                        if (authority is not null)
+                                        {
+                                            closestAuthority = authority;
+                                            closestAuthorityNode = currentNode;
+                                        }
+                                    }
+
                                     return value.Value; //found matching wildcard value
+                                }
                             }
                         }
                     }
@@ -350,7 +373,31 @@ namespace DnsServerCore.Dns.Trees
                 {
                     //match wildcard keys
                     if (KeysMatch(key, value.Key, true))
+                    {
+                        //find closest values
+                        TNode zoneNode = value.Value;
+                        if (zoneNode is not null)
+                        {
+                            TSubDomainZone subDomain = null;
+                            TApexZone authority = null;
+
+                            GetClosestValuesForZone(zoneNode, ref subDomain, ref closestDelegation, ref authority);
+
+                            if (subDomain is not null)
+                            {
+                                closestSubDomain = subDomain;
+                                closestSubDomainNode = currentNode;
+                            }
+
+                            if (authority is not null)
+                            {
+                                closestAuthority = authority;
+                                closestAuthorityNode = currentNode;
+                            }
+                        }
+
                         return value.Value; //found matching wildcard value
+                    }
                 }
             }
 
