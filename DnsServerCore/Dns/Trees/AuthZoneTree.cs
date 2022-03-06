@@ -33,8 +33,8 @@ namespace DnsServerCore.Dns.Trees
         {
             int k;
 
-            NodeValue value = currentNode.Value;
-            if (value is null)
+            NodeValue currentValue = currentNode.Value;
+            if (currentValue is null)
             {
                 //key value does not exists
                 if (currentNode.Children is null)
@@ -60,7 +60,7 @@ namespace DnsServerCore.Dns.Trees
             }
             else
             {
-                int x = DnsNSECRecord.CanonicalComparison(value.Key, key);
+                int x = DnsNSECRecord.CanonicalComparison(currentValue.Key, key);
                 if (x == 0)
                 {
                     //current node value matches the key
@@ -89,11 +89,6 @@ namespace DnsServerCore.Dns.Trees
                 }
             }
 
-            return GetPreviousSubDomainZoneNode(k, currentNode, baseDepth);
-        }
-
-        private static Node GetPreviousSubDomainZoneNode(int k, Node currentNode, int baseDepth)
-        {
             //start reverse tree traversal
             while ((currentNode is not null) && (currentNode.Depth >= baseDepth))
             {
@@ -186,17 +181,12 @@ namespace DnsServerCore.Dns.Trees
             return null;
         }
 
-        private static Node GetNextSubDomainZoneNode(Node currentNode, int baseDepth)
-        {
-            return GetNextSubDomainZoneNode(0, currentNode, baseDepth);
-        }
-
         private static Node GetNextSubDomainZoneNode(byte[] key, Node currentNode, int baseDepth)
         {
             int k;
 
-            NodeValue value = currentNode.Value;
-            if (value is null)
+            NodeValue currentValue = currentNode.Value;
+            if (currentValue is null)
             {
                 //key value does not exists
                 if (currentNode.Children is null)
@@ -226,7 +216,7 @@ namespace DnsServerCore.Dns.Trees
 
                 if (currentNode.Depth > baseDepth)
                 {
-                    AuthZoneNode authZoneNode = value.Value;
+                    AuthZoneNode authZoneNode = currentValue.Value;
                     if (authZoneNode is not null)
                     {
                         ApexZone apexZone = authZoneNode.ApexZone;
@@ -243,7 +233,7 @@ namespace DnsServerCore.Dns.Trees
                 }
                 else
                 {
-                    int x = DnsNSECRecord.CanonicalComparison(value.Key, key);
+                    int x = DnsNSECRecord.CanonicalComparison(currentValue.Key, key);
                     if (x == 0)
                     {
                         //current node value matches the key
@@ -262,11 +252,6 @@ namespace DnsServerCore.Dns.Trees
                 }
             }
 
-            return GetNextSubDomainZoneNode(k, currentNode, baseDepth);
-        }
-
-        private static Node GetNextSubDomainZoneNode(int k, Node currentNode, int baseDepth)
-        {
             //start tree traversal
             while ((currentNode is not null) && (currentNode.Depth >= baseDepth))
             {
@@ -406,41 +391,54 @@ namespace DnsServerCore.Dns.Trees
             return false;
         }
 
-        public bool TryRemove(string domain, out ApexZone value)
+        public bool TryGet(string zoneName, out ApexZone apexZone)
         {
-            if (!TryGet(domain, out AuthZoneNode zoneNode, out Node currentNode) || (zoneNode.ApexZone is null))
+            if (TryGet(zoneName, out AuthZoneNode authZoneNode) && (authZoneNode.ApexZone is not null))
             {
-                value = null;
+                apexZone = authZoneNode.ApexZone;
+                return true;
+            }
+
+            apexZone = null;
+            return false;
+        }
+
+        public bool TryRemove(string domain, out ApexZone apexZone)
+        {
+            if (!TryGet(domain, out AuthZoneNode authZoneNode, out Node currentNode) || (authZoneNode.ApexZone is null))
+            {
+                apexZone = null;
                 return false;
             }
 
-            value = zoneNode.ApexZone;
+            apexZone = authZoneNode.ApexZone;
 
-            if (zoneNode.ParentSideZone is null)
+            if (authZoneNode.ParentSideZone is null)
             {
                 //remove complete zone node
                 if (!base.TryRemove(domain, out AuthZoneNode _))
                 {
-                    value = null;
+                    apexZone = null;
                     return false;
                 }
             }
             else
             {
                 //parent side sub domain exists; remove only apex zone from zone node
-                if (!zoneNode.TryRemove(out ApexZone _))
+                if (!authZoneNode.TryRemove(out ApexZone _))
                 {
-                    value = null;
+                    apexZone = null;
                     return false;
                 }
             }
 
             //remove all sub domains under current zone
             Node current = currentNode;
+            byte[] currentKey = ConvertToByteKey(domain);
 
             do
             {
-                current = GetNextSubDomainZoneNode(current, currentNode.Depth);
+                current = GetNextSubDomainZoneNode(currentKey, current, currentNode.Depth);
                 if (current is null)
                     break;
 
@@ -462,6 +460,8 @@ namespace DnsServerCore.Dns.Trees
                             z.TryRemove(out SubDomainZone _);
                         }
                     }
+
+                    currentKey = v.Key;
                 }
             }
             while (true);
@@ -470,22 +470,22 @@ namespace DnsServerCore.Dns.Trees
             return true;
         }
 
-        public bool TryRemove(string domain, out SubDomainZone value)
+        public bool TryRemove(string domain, out SubDomainZone subDomainZone)
         {
             if (!TryGet(domain, out AuthZoneNode zoneNode, out Node currentNode) || (zoneNode.ParentSideZone is null))
             {
-                value = null;
+                subDomainZone = null;
                 return false;
             }
 
-            value = zoneNode.ParentSideZone;
+            subDomainZone = zoneNode.ParentSideZone;
 
             if (zoneNode.ApexZone is null)
             {
                 //remove complete zone node
                 if (!base.TryRemove(domain, out AuthZoneNode _))
                 {
-                    value = null;
+                    subDomainZone = null;
                     return false;
                 }
             }
@@ -494,7 +494,7 @@ namespace DnsServerCore.Dns.Trees
                 //apex zone exists; remove only parent side sub domain from zone node
                 if (!zoneNode.TryRemove(out SubDomainZone _))
                 {
-                    value = null;
+                    subDomainZone = null;
                     return false;
                 }
             }
@@ -503,7 +503,7 @@ namespace DnsServerCore.Dns.Trees
             return true;
         }
 
-        public override bool TryRemove(string key, out AuthZoneNode value)
+        public override bool TryRemove(string key, out AuthZoneNode authZoneNode)
         {
             throw new InvalidOperationException();
         }
@@ -517,28 +517,31 @@ namespace DnsServerCore.Dns.Trees
             NodeValue nodeValue = _root.FindNodeValue(key, out Node currentNode);
             if (nodeValue is not null)
             {
-                AuthZoneNode zoneNode = nodeValue.Value;
-                if (zoneNode is not null)
+                AuthZoneNode authZoneNode = nodeValue.Value;
+                if (authZoneNode is not null)
                 {
-                    ApexZone apexZone = zoneNode.ApexZone;
+                    ApexZone apexZone = authZoneNode.ApexZone;
                     if (apexZone is not null)
                     {
                         zones.Add(apexZone);
 
                         Node current = currentNode;
+                        byte[] currentKey = key;
 
                         do
                         {
-                            current = GetNextSubDomainZoneNode(current, currentNode.Depth);
+                            current = GetNextSubDomainZoneNode(currentKey, current, currentNode.Depth);
                             if (current is null)
                                 break;
 
                             NodeValue value = current.Value;
                             if (value is not null)
                             {
-                                zoneNode = value.Value;
-                                if (zoneNode is not null)
-                                    zones.Add(zoneNode.ParentSideZone);
+                                authZoneNode = value.Value;
+                                if (authZoneNode is not null)
+                                    zones.Add(authZoneNode.ParentSideZone);
+
+                                currentKey = value.Key;
                             }
                         }
                         while (true);
@@ -574,7 +577,7 @@ namespace DnsServerCore.Dns.Trees
             }
         }
 
-        public AuthZone GetAuthZone(string domain, string zoneName)
+        public AuthZone GetAuthZone(string zoneName, string domain)
         {
             if (TryGet(domain, out AuthZoneNode authZoneNode))
                 return authZoneNode.GetAuthZone(zoneName);
@@ -648,7 +651,7 @@ namespace DnsServerCore.Dns.Trees
             }
         }
 
-        public AuthZone FindPreviousSubDomainZone(string domain, string zoneName)
+        public AuthZone FindPreviousSubDomainZone(string zoneName, string domain)
         {
             byte[] key = ConvertToByteKey(domain);
 
@@ -685,7 +688,7 @@ namespace DnsServerCore.Dns.Trees
             return null;
         }
 
-        public AuthZone FindNextSubDomainZone(string domain, string zoneName)
+        public AuthZone FindNextSubDomainZone(string zoneName, string domain)
         {
             byte[] key = ConvertToByteKey(domain);
 
@@ -722,9 +725,9 @@ namespace DnsServerCore.Dns.Trees
             return null;
         }
 
-        public bool SubDomainExists(string domain, string zoneName)
+        public bool SubDomainExists(string zoneName, string domain)
         {
-            AuthZone nextAuthZone = FindNextSubDomainZone(domain, zoneName);
+            AuthZone nextAuthZone = FindNextSubDomainZone(zoneName, domain);
             if (nextAuthZone is null)
                 return false;
 
@@ -793,7 +796,7 @@ namespace DnsServerCore.Dns.Trees
 
                 while (true)
                 {
-                    AuthZone previousNSec3Zone = FindPreviousSubDomainZone(currentOwnerName, zoneName);
+                    AuthZone previousNSec3Zone = FindPreviousSubDomainZone(zoneName, currentOwnerName);
                     if (previousNSec3Zone is null)
                         break;
 
@@ -814,10 +817,10 @@ namespace DnsServerCore.Dns.Trees
 
                     while (true)
                     {
-                        AuthZone nextNSec3Zone = GetAuthZone(currentOwnerName, zoneName);
+                        AuthZone nextNSec3Zone = GetAuthZone(zoneName, currentOwnerName);
                         if (nextNSec3Zone is null)
                         {
-                            nextNSec3Zone = FindNextSubDomainZone(currentOwnerName, zoneName);
+                            nextNSec3Zone = FindNextSubDomainZone(zoneName, currentOwnerName);
                             if (nextNSec3Zone is null)
                                 break;
                         }
@@ -896,7 +899,7 @@ namespace DnsServerCore.Dns.Trees
                 string nextCloserName = DnsNSEC3Record.GetNextCloserName(domain, closestEncloser);
                 hashedNextCloserName = nsec3Param.ComputeHashedOwnerNameBase32HexString(nextCloserName) + "." + closestAuthority.Name;
 
-                AuthZone nsec3Zone = GetAuthZone(hashedNextCloserName, closestAuthority.Name);
+                AuthZone nsec3Zone = GetAuthZone(closestAuthority.Name, hashedNextCloserName);
                 if (nsec3Zone is null)
                     break; //next closer name does not exists
 
@@ -920,7 +923,7 @@ namespace DnsServerCore.Dns.Trees
                 //add closest encloser proof
                 string hashedClosestEncloser = nsec3Param.ComputeHashedOwnerNameBase32HexString(closestEncloser) + "." + closestAuthority.Name;
 
-                AuthZone nsec3Zone = GetAuthZone(hashedClosestEncloser, closestAuthority.Name);
+                AuthZone nsec3Zone = GetAuthZone(closestAuthority.Name, hashedClosestEncloser);
                 if (nsec3Zone is null)
                     throw new InvalidOperationException();
 
@@ -966,7 +969,7 @@ namespace DnsServerCore.Dns.Trees
             DnsNSEC3PARAMRecord nsec3Param = nsec3ParamRecords[0].RDATA as DnsNSEC3PARAMRecord;
             string hashedOwnerName = nsec3Param.ComputeHashedOwnerNameBase32HexString(zone.Name) + "." + apexZone.Name;
 
-            AuthZone nsec3Zone = GetAuthZone(hashedOwnerName, apexZone.Name);
+            AuthZone nsec3Zone = GetAuthZone(apexZone.Name, hashedOwnerName);
             if (nsec3Zone is null)
             {
                 //this is probably since the domain in request is for an nsec3 record owner name
