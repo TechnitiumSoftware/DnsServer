@@ -167,43 +167,60 @@ namespace DnsServerCore.Dns.Trees
 
         #region protected
 
-        protected static bool IsKeySubDomain(byte[] mainKey, byte[] testKey)
+        protected static bool IsKeySubDomain(byte[] mainKey, byte[] testKey, bool matchWildcard)
         {
-            //com.example.*.
-            //com.example.*.www.
-            //com.example.abc.www.
-
-            int i = 0;
-            int j = 0;
-
-            while ((i < mainKey.Length) && (j < testKey.Length))
+            if (matchWildcard)
             {
-                if (mainKey[i] == 1) //[*]
+                //com.example.*.
+                //com.example.*.www.
+                //com.example.abc.www.
+
+                int i = 0;
+                int j = 0;
+
+                while ((i < mainKey.Length) && (j < testKey.Length))
                 {
-                    if (i == mainKey.Length - 2)
-                        return true;
-
-                    //skip j to next label
-                    while (j < testKey.Length)
+                    if (mainKey[i] == 1) //[*]
                     {
-                        if (testKey[j] == 0) //[.]
-                            break;
+                        if (i == mainKey.Length - 2)
+                            return true;
 
-                        j++;
+                        //skip j to next label
+                        while (j < testKey.Length)
+                        {
+                            if (testKey[j] == 0) //[.]
+                                break;
+
+                            j++;
+                        }
+
+                        i++;
+                        continue;
                     }
 
+                    if (mainKey[i] != testKey[j])
+                        return false;
+
                     i++;
-                    continue;
+                    j++;
                 }
 
-                if (mainKey[i] != testKey[j])
+                return (i == mainKey.Length) && (j < testKey.Length);
+            }
+            else
+            {
+                //exact match
+                if (mainKey.Length > testKey.Length)
                     return false;
 
-                i++;
-                j++;
-            }
+                for (int i = 0; i < mainKey.Length; i++)
+                {
+                    if (mainKey[i] != testKey[i])
+                        return false;
+                }
 
-            return (i == mainKey.Length) && (j < testKey.Length);
+                return mainKey.Length < testKey.Length;
+            }
         }
 
         protected TNode FindZoneNode(byte[] key, bool matchWildcard, out Node currentNode, out Node closestSubDomainNode, out Node closestAuthorityNode, out TSubDomainZone closestSubDomain, out TSubDomainZone closestDelegation, out TApexZone closestAuthority)
@@ -224,7 +241,7 @@ namespace DnsServerCore.Dns.Trees
                 if ((value is not null) && (value.Key.Length <= key.Length))
                 {
                     TNode zoneNode = value.Value;
-                    if ((zoneNode is not null) && IsKeySubDomain(value.Key, key))
+                    if ((zoneNode is not null) && IsKeySubDomain(value.Key, key, matchWildcard))
                     {
                         //find closest values
                         TSubDomainZone subDomain = null;
@@ -236,6 +253,8 @@ namespace DnsServerCore.Dns.Trees
                         {
                             closestSubDomain = subDomain;
                             closestSubDomainNode = currentNode;
+
+                            wildcard = null; //clear previous wildcard node
                         }
 
                         if (authority is not null)
@@ -243,7 +262,7 @@ namespace DnsServerCore.Dns.Trees
                             closestAuthority = authority;
                             closestAuthorityNode = currentNode;
 
-                            wildcard = null; //clear previous wildcard node from the previous authority
+                            wildcard = null; //clear previous wildcard node
                         }
                     }
                 }
@@ -318,6 +337,19 @@ namespace DnsServerCore.Dns.Trees
                         }
 
                         return value.Value; //found matching value
+                    }
+
+                    if (wildcard is not null)
+                    {
+                        NodeValue wildcardValue = wildcard.Value;
+                        if (wildcardValue is not null)
+                        {
+                            if (IsKeySubDomain(wildcardValue.Key, value.Key, matchWildcard))
+                            {
+                                //value is a subdomain of wildcard so wildcard is not valid
+                                wildcard = null;
+                            }
+                        }
                     }
                 }
             }
@@ -424,7 +456,7 @@ namespace DnsServerCore.Dns.Trees
                 value = current.Value;
                 if (value is not null)
                 {
-                    if (IsKeySubDomain(bKey, value.Key))
+                    if (IsKeySubDomain(bKey, value.Key, false))
                     {
                         string label = ConvertKeyToLabel(value.Key, bKey.Length);
                         if (label is not null)
@@ -434,7 +466,7 @@ namespace DnsServerCore.Dns.Trees
                 else if ((current.K == 0) && (current.Depth > currentNode.Depth)) //[.]
                 {
                     byte[] nodeKey = GetNodeKey(current);
-                    if (IsKeySubDomain(bKey, nodeKey))
+                    if (IsKeySubDomain(bKey, nodeKey, false))
                     {
                         string label = ConvertKeyToLabel(nodeKey, bKey.Length);
                         if (label is not null)
