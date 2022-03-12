@@ -1,6 +1,6 @@
 ﻿/*
 Technitium DNS Server
-Copyright (C) 2021  Shreyas Zare (shreyas@technitium.com)
+Copyright (C) 2022  Shreyas Zare (shreyas@technitium.com)
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -17,6 +17,9 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 */
 
+using System.Collections.Generic;
+using TechnitiumLibrary.Net.Dns.ResourceRecords;
+
 namespace DnsServerCore.Dns.Zones
 {
     class ForwarderSubDomainZone : SubDomainZone
@@ -26,6 +29,39 @@ namespace DnsServerCore.Dns.Zones
         public ForwarderSubDomainZone(ForwarderZone forwarderZone, string name)
             : base(forwarderZone, name)
         { }
+
+        #endregion
+
+        #region public
+
+        public override void SetRecords(DnsResourceRecordType type, IReadOnlyList<DnsResourceRecord> records)
+        {
+            switch (type)
+            {
+                case DnsResourceRecordType.SOA:
+                case DnsResourceRecordType.DS:
+                case DnsResourceRecordType.APP:
+                    throw new DnsServerException("The record type is not supported by forwarder zones.");
+
+                default:
+                    base.SetRecords(type, records);
+                    break;
+            }
+        }
+
+        public override void AddRecord(DnsResourceRecord record)
+        {
+            switch (record.Type)
+            {
+                case DnsResourceRecordType.DS:
+                case DnsResourceRecordType.APP:
+                    throw new DnsServerException("The record type is not supported by forwarder zones.");
+
+                default:
+                    base.AddRecord(record);
+                    break;
+            }
+        }
 
         #endregion
     }
