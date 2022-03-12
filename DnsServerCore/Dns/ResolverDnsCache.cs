@@ -20,6 +20,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 using DnsServerCore.ApplicationCommon;
 using DnsServerCore.Dns.Applications;
 using DnsServerCore.Dns.ZoneManagers;
+using System;
 using System.Net;
 using TechnitiumLibrary;
 using TechnitiumLibrary.Net.Dns;
@@ -34,16 +35,18 @@ namespace DnsServerCore.Dns
         readonly protected DnsApplicationManager _dnsApplicationManager;
         readonly protected AuthZoneManager _authZoneManager;
         readonly protected CacheZoneManager _cacheZoneManager;
+        readonly protected LogManager _log;
 
         #endregion
 
         #region constructor
 
-        public ResolverDnsCache(DnsApplicationManager dnsApplicationManager, AuthZoneManager authZoneManager, CacheZoneManager cacheZoneManager)
+        public ResolverDnsCache(DnsApplicationManager dnsApplicationManager, AuthZoneManager authZoneManager, CacheZoneManager cacheZoneManager, LogManager log)
         {
             _dnsApplicationManager = dnsApplicationManager;
             _authZoneManager = authZoneManager;
             _cacheZoneManager = cacheZoneManager;
+            _log = log;
         }
 
         #endregion
@@ -56,11 +59,19 @@ namespace DnsServerCore.Dns
 
             foreach (IDnsAuthoritativeRequestHandler requestHandler in _dnsApplicationManager.DnsAuthoritativeRequestHandlers)
             {
-                authResponse = requestHandler.ProcessRequestAsync(request, new IPEndPoint(IPAddress.Any, 0), DnsTransportProtocol.Tcp, false).Sync();
-                if (authResponse is not null)
+                try
                 {
-                    if ((authResponse.RCODE != DnsResponseCode.NoError) || (authResponse.Answer.Count > 0) || (authResponse.Authority.Count == 0) || authResponse.IsFirstAuthoritySOA())
-                        return authResponse;
+                    authResponse = requestHandler.ProcessRequestAsync(request, new IPEndPoint(IPAddress.Any, 0), DnsTransportProtocol.Tcp, false).Sync();
+                    if (authResponse is not null)
+                    {
+                        if ((authResponse.RCODE != DnsResponseCode.NoError) || (authResponse.Answer.Count > 0) || (authResponse.Authority.Count == 0) || authResponse.IsFirstAuthoritySOA())
+                            return authResponse;
+                    }
+                }
+                catch (Exception ex)
+                {
+                    if (_log is not null)
+                        _log.Write(ex);
                 }
             }
 
