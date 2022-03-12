@@ -124,16 +124,16 @@ namespace DnsServerCore.Dns
         bool _randomizeName;
         bool _qnameMinimization;
         bool _nsRevalidation;
-        bool _dnssecValidation;
+        bool _dnssecValidation = true;
         int _qpmLimitRequests = 0;
         int _qpmLimitErrors = 0;
         int _qpmLimitSampleMinutes = 5;
         int _qpmLimitIPv4PrefixLength = 24;
         int _qpmLimitIPv6PrefixLength = 56;
         int _forwarderRetries = 3;
-        int _resolverRetries = 5;
-        int _forwarderTimeout = 4000;
-        int _resolverTimeout = 4000;
+        int _resolverRetries = 3;
+        int _forwarderTimeout = 2000;
+        int _resolverTimeout = 2000;
         int _clientTimeout = 4000;
         int _forwarderConcurrency = 2;
         int _resolverMaxStackCount = 16;
@@ -227,7 +227,7 @@ namespace DnsServerCore.Dns
             _cacheZoneManager = new CacheZoneManager(this);
             _dnsApplicationManager = new DnsApplicationManager(this);
 
-            _dnsCache = new ResolverDnsCache(_dnsApplicationManager, _authZoneManager, _cacheZoneManager);
+            _dnsCache = new ResolverDnsCache(_dnsApplicationManager, _authZoneManager, _cacheZoneManager, _log);
 
             //init stats
             _stats = new StatsManager(this);
@@ -352,6 +352,25 @@ namespace DnsServerCore.Dns
             catch (ObjectDisposedException)
             {
                 //server stopping
+            }
+            catch (SocketException ex)
+            {
+                switch (ex.SocketErrorCode)
+                {
+                    case SocketError.OperationAborted:
+                    case SocketError.Interrupted:
+                        break; //server stopping
+
+                    default:
+                        if ((_state == ServiceState.Stopping) || (_state == ServiceState.Stopped))
+                            return; //server stopping
+
+                        LogManager log = _log;
+                        if (log != null)
+                            log.Write(ex);
+
+                        break;
+                }
             }
             catch (Exception ex)
             {
@@ -1003,14 +1022,23 @@ namespace DnsServerCore.Dns
         {
             foreach (IDnsRequestController requestController in _dnsApplicationManager.DnsRequestControllers)
             {
-                DnsRequestControllerAction action = await requestController.GetRequestActionAsync(request, remoteEP, protocol);
-                switch (action)
+                try
                 {
-                    case DnsRequestControllerAction.DropSilently:
-                        return null; //drop request
+                    DnsRequestControllerAction action = await requestController.GetRequestActionAsync(request, remoteEP, protocol);
+                    switch (action)
+                    {
+                        case DnsRequestControllerAction.DropSilently:
+                            return null; //drop request
 
-                    case DnsRequestControllerAction.DropWithRefused:
-                        return new DnsDatagram(request.Identifier, true, DnsOpcode.StandardQuery, false, false, request.RecursionDesired, isRecursionAllowed, false, false, DnsResponseCode.Refused, request.Question, null, null, null, request.EDNS is null ? ushort.MinValue : _udpPayloadSize, request.DnssecOk ? EDnsHeaderFlags.DNSSEC_OK : EDnsHeaderFlags.None) { Tag = DnsServerResponseType.Authoritative }; //drop request with refused
+                        case DnsRequestControllerAction.DropWithRefused:
+                            return new DnsDatagram(request.Identifier, true, DnsOpcode.StandardQuery, false, false, request.RecursionDesired, isRecursionAllowed, false, false, DnsResponseCode.Refused, request.Question, null, null, null, request.EDNS is null ? ushort.MinValue : _udpPayloadSize, request.DnssecOk ? EDnsHeaderFlags.DNSSEC_OK : EDnsHeaderFlags.None) { Tag = DnsServerResponseType.Authoritative }; //drop request with refused
+                    }
+                }
+                catch (Exception ex)
+                {
+                    LogManager log = _log;
+                    if (log is not null)
+                        log.Write(remoteEP, protocol, ex);
                 }
             }
 
@@ -1128,7 +1156,7 @@ namespace DnsServerCore.Dns
                         if ((question.Type == DnsResourceRecordType.ANY) && (protocol == DnsTransportProtocol.Udp)) //force TCP for ANY request
                             return new DnsDatagram(request.Identifier, true, DnsOpcode.StandardQuery, false, true, request.RecursionDesired, isRecursionAllowed, false, false, DnsResponseCode.NoError, request.Question) { Tag = DnsServerResponseType.Authoritative };
 
-                        return await ProcessRecursiveQueryAsync(request, remoteEP, protocol, null, false);
+                        return await ProcessRecursiveQueryAsync(request, remoteEP, protocol, null, _dnssecValidation, false);
                     }
                     catch (InvalidDomainNameException)
                     {
@@ -1327,13 +1355,22 @@ namespace DnsServerCore.Dns
             {
                 foreach (IDnsAuthoritativeRequestHandler requestHandler in _dnsApplicationManager.DnsAuthoritativeRequestHandlers)
                 {
-                    response = await requestHandler.ProcessRequestAsync(request, remoteEP, protocol, isRecursionAllowed);
-                    if (response is not null)
+                    try
                     {
-                        if (response.Tag is null)
-                            response.Tag = DnsServerResponseType.Authoritative;
+                        response = await requestHandler.ProcessRequestAsync(request, remoteEP, protocol, isRecursionAllowed);
+                        if (response is not null)
+                        {
+                            if (response.Tag is null)
+                                response.Tag = DnsServerResponseType.Authoritative;
 
-                        break;
+                            break;
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        LogManager log = _log;
+                        if (log is not null)
+                            log.Write(remoteEP, protocol, ex);
                     }
                 }
             }
@@ -1380,21 +1417,21 @@ namespace DnsServerCore.Dns
                                 if (request.RecursionDesired && isRecursionAllowed)
                                 {
                                     //do forced recursive resolution using empty conditional forwarders; name servers will be provided via ResolverDnsCache
-                                    return await ProcessRecursiveQueryAsync(request, remoteEP, protocol, Array.Empty<DnsResourceRecord>(), false);
+                                    return await ProcessRecursiveQueryAsync(request, remoteEP, protocol, Array.Empty<DnsResourceRecord>(), _dnssecValidation, false);
                                 }
 
                                 break;
 
                             case DnsResourceRecordType.FWD:
-                                if ((response.Authority.Count == 1) && (firstAuthority.RDATA as DnsForwarderRecordData).Forwarder.Equals("this-server", StringComparison.OrdinalIgnoreCase))
+                                if ((response.Authority.Count == 1) && (firstAuthority.RDATA is DnsForwarderRecordData fwd) && fwd.Forwarder.Equals("this-server", StringComparison.OrdinalIgnoreCase))
                                 {
                                     //do conditional forwarding via "this-server" 
-                                    return await ProcessRecursiveQueryAsync(request, remoteEP, protocol, null, false);
+                                    return await ProcessRecursiveQueryAsync(request, remoteEP, protocol, null, fwd.DnssecValidation, false);
                                 }
                                 else
                                 {
                                     //do conditional forwarding
-                                    return await ProcessRecursiveQueryAsync(request, remoteEP, protocol, response.Authority, false);
+                                    return await ProcessRecursiveQueryAsync(request, remoteEP, protocol, response.Authority, _dnssecValidation, false);
                                 }
 
                             case DnsResourceRecordType.APP:
@@ -1507,7 +1544,7 @@ namespace DnsServerCore.Dns
                     if (newRequest.RecursionDesired && isRecursionAllowed)
                     {
                         //do recursion
-                        newResponse = await RecursiveResolveAsync(newRequest, null, false, cacheRefreshOperation);
+                        newResponse = await RecursiveResolveAsync(newRequest, null, _dnssecValidation, false, cacheRefreshOperation);
                         isAuthoritativeAnswer = false;
                     }
                     else
@@ -1530,23 +1567,23 @@ namespace DnsServerCore.Dns
                             if (newRequest.RecursionDesired && isRecursionAllowed)
                             {
                                 //do forced recursive resolution using empty conditional forwarders; name servers will be provided via ResolveDnsCache
-                                newResponse = await RecursiveResolveAsync(newRequest, Array.Empty<DnsResourceRecord>(), false, false);
+                                newResponse = await RecursiveResolveAsync(newRequest, Array.Empty<DnsResourceRecord>(), _dnssecValidation, false, false);
                                 isAuthoritativeAnswer = false;
                             }
 
                             break;
 
                         case DnsResourceRecordType.FWD:
-                            if ((newResponse.Authority.Count == 1) && (firstAuthority.RDATA as DnsForwarderRecordData).Forwarder.Equals("this-server", StringComparison.OrdinalIgnoreCase))
+                            if ((newResponse.Authority.Count == 1) && (firstAuthority.RDATA is DnsForwarderRecordData fwd) && fwd.Forwarder.Equals("this-server", StringComparison.OrdinalIgnoreCase))
                             {
                                 //do conditional forwarding via "this-server" 
-                                newResponse = await RecursiveResolveAsync(newRequest, null, false, false);
+                                newResponse = await RecursiveResolveAsync(newRequest, null, fwd.DnssecValidation, false, false);
                                 isAuthoritativeAnswer = false;
                             }
                             else
                             {
                                 //do conditional forwarding
-                                newResponse = await RecursiveResolveAsync(newRequest, newResponse.Authority, false, false);
+                                newResponse = await RecursiveResolveAsync(newRequest, newResponse.Authority, _dnssecValidation, false, false);
                                 isAuthoritativeAnswer = false;
                             }
 
@@ -1631,7 +1668,7 @@ namespace DnsServerCore.Dns
                     if (newResponse is null)
                     {
                         //not found in auth zone; do recursion
-                        newResponse = await RecursiveResolveAsync(newRequest, null, false, false);
+                        newResponse = await RecursiveResolveAsync(newRequest, null, _dnssecValidation, false, false);
                     }
                     else if ((newResponse.Answer.Count == 0) && (newResponse.Authority.Count > 0))
                     {
@@ -1641,19 +1678,19 @@ namespace DnsServerCore.Dns
                         {
                             case DnsResourceRecordType.NS:
                                 //do forced recursive resolution using empty conditional forwarders; name servers will be provided via ResolverDnsCache
-                                newResponse = await RecursiveResolveAsync(newRequest, Array.Empty<DnsResourceRecord>(), false, false);
+                                newResponse = await RecursiveResolveAsync(newRequest, Array.Empty<DnsResourceRecord>(), _dnssecValidation, false, false);
                                 break;
 
                             case DnsResourceRecordType.FWD:
-                                if ((newResponse.Authority.Count == 1) && (firstAuthority.RDATA as DnsForwarderRecordData).Forwarder.Equals("this-server", StringComparison.OrdinalIgnoreCase))
+                                if ((newResponse.Authority.Count == 1) && (firstAuthority.RDATA is DnsForwarderRecordData fwd) && fwd.Forwarder.Equals("this-server", StringComparison.OrdinalIgnoreCase))
                                 {
                                     //do conditional forwarding via "this-server" 
-                                    newResponse = await RecursiveResolveAsync(newRequest, null, false, false);
+                                    newResponse = await RecursiveResolveAsync(newRequest, null, fwd.DnssecValidation, false, false);
                                 }
                                 else
                                 {
                                     //do conditional forwarding
-                                    newResponse = await RecursiveResolveAsync(newRequest, newResponse.Authority, false, false);
+                                    newResponse = await RecursiveResolveAsync(newRequest, newResponse.Authority, _dnssecValidation, false, false);
                                 }
 
                                 break;
@@ -1865,7 +1902,7 @@ namespace DnsServerCore.Dns
             }
         }
 
-        private async Task<DnsDatagram> ProcessRecursiveQueryAsync(DnsDatagram request, IPEndPoint remoteEP, DnsTransportProtocol protocol, IReadOnlyList<DnsResourceRecord> conditionalForwarders, bool cacheRefreshOperation)
+        private async Task<DnsDatagram> ProcessRecursiveQueryAsync(DnsDatagram request, IPEndPoint remoteEP, DnsTransportProtocol protocol, IReadOnlyList<DnsResourceRecord> conditionalForwarders, bool dnssecValidation, bool cacheRefreshOperation)
         {
             bool inAllowedZone;
 
@@ -1891,7 +1928,7 @@ namespace DnsServerCore.Dns
                 }
             }
 
-            DnsDatagram response = await RecursiveResolveAsync(request, conditionalForwarders, false, cacheRefreshOperation);
+            DnsDatagram response = await RecursiveResolveAsync(request, conditionalForwarders, dnssecValidation, false, cacheRefreshOperation);
 
             if (response.Answer.Count > 0)
             {
@@ -1942,7 +1979,7 @@ namespace DnsServerCore.Dns
             return response;
         }
 
-        private async Task<DnsDatagram> RecursiveResolveAsync(DnsDatagram request, IReadOnlyList<DnsResourceRecord> conditionalForwarders, bool cachePrefetchOperation, bool cacheRefreshOperation)
+        private async Task<DnsDatagram> RecursiveResolveAsync(DnsDatagram request, IReadOnlyList<DnsResourceRecord> conditionalForwarders, bool dnssecValidation, bool cachePrefetchOperation, bool cacheRefreshOperation)
         {
             if (!cachePrefetchOperation && !cacheRefreshOperation)
             {
@@ -1978,7 +2015,7 @@ namespace DnsServerCore.Dns
                 //got new resolver task added so question is not being resolved; do recursive resolution in another task on resolver thread pool
                 _ = Task.Factory.StartNew(delegate ()
                 {
-                    return RecursiveResolveAsync(question, conditionalForwarders, cachePrefetchOperation, cacheRefreshOperation, resolverTaskCompletionSource);
+                    return RecursiveResolveAsync(question, conditionalForwarders, dnssecValidation, cachePrefetchOperation, cacheRefreshOperation, resolverTaskCompletionSource);
                 }, CancellationToken.None, TaskCreationOptions.DenyChildAttach, _resolverTaskScheduler);
             }
 
@@ -2034,7 +2071,7 @@ namespace DnsServerCore.Dns
             return new DnsDatagram(request.Identifier, true, DnsOpcode.StandardQuery, false, false, request.RecursionDesired, true, false, false, DnsResponseCode.ServerFailure, request.Question, null, null, null, _udpPayloadSize, request.DnssecOk ? EDnsHeaderFlags.DNSSEC_OK : EDnsHeaderFlags.None, options);
         }
 
-        private async Task RecursiveResolveAsync(DnsQuestionRecord question, IReadOnlyList<DnsResourceRecord> conditionalForwarders, bool cachePrefetchOperation, bool cacheRefreshOperation, TaskCompletionSource<RecursiveResolveResponse> taskCompletionSource)
+        private async Task RecursiveResolveAsync(DnsQuestionRecord question, IReadOnlyList<DnsResourceRecord> conditionalForwarders, bool dnssecValidation, bool cachePrefetchOperation, bool cacheRefreshOperation, TaskCompletionSource<RecursiveResolveResponse> taskCompletionSource)
         {
             try
             {
@@ -2042,7 +2079,7 @@ namespace DnsServerCore.Dns
                 IDnsCache dnsCache;
 
                 if (cachePrefetchOperation || cacheRefreshOperation)
-                    dnsCache = new ResolverPrefetchDnsCache(_dnsApplicationManager, _authZoneManager, _cacheZoneManager, question);
+                    dnsCache = new ResolverPrefetchDnsCache(_dnsApplicationManager, _authZoneManager, _cacheZoneManager, _log, question);
                 else
                     dnsCache = _dnsCache;
 
@@ -2179,14 +2216,14 @@ namespace DnsServerCore.Dns
                     dnsClient.Timeout = _forwarderTimeout;
                     dnsClient.Concurrency = _forwarderConcurrency;
                     dnsClient.UdpPayloadSize = _udpPayloadSize;
-                    dnsClient.DnssecValidation = _dnssecValidation;
+                    dnsClient.DnssecValidation = dnssecValidation;
 
                     response = await dnsClient.ResolveAsync(question);
                 }
                 else
                 {
                     //do recursive resolution
-                    response = await DnsClient.RecursiveResolveAsync(question, dnsCache, _proxy, _preferIPv6, _udpPayloadSize, _randomizeName, _qnameMinimization, _nsRevalidation, _dnssecValidation, _resolverRetries, _resolverTimeout, _resolverMaxStackCount, true);
+                    response = await DnsClient.RecursiveResolveAsync(question, dnsCache, _proxy, _preferIPv6, _udpPayloadSize, _randomizeName, _qnameMinimization, _nsRevalidation, dnssecValidation, _resolverRetries, _resolverTimeout, _resolverMaxStackCount, true);
                 }
 
                 switch (response.RCODE)
@@ -2237,18 +2274,18 @@ namespace DnsServerCore.Dns
                 if (_serveStale)
                 {
                     //fetch stale record
-                    DnsDatagram cacheRequest = new DnsDatagram(0, false, DnsOpcode.StandardQuery, false, false, true, false, false, _dnssecValidation, DnsResponseCode.NoError, new DnsQuestionRecord[] { question }, null, null, null, _udpPayloadSize, _dnssecValidation ? EDnsHeaderFlags.DNSSEC_OK : EDnsHeaderFlags.None);
+                    DnsDatagram cacheRequest = new DnsDatagram(0, false, DnsOpcode.StandardQuery, false, false, true, false, false, dnssecValidation, DnsResponseCode.NoError, new DnsQuestionRecord[] { question }, null, null, null, _udpPayloadSize, dnssecValidation ? EDnsHeaderFlags.DNSSEC_OK : EDnsHeaderFlags.None);
                     DnsDatagram staleResponse = QueryCache(cacheRequest, true);
                     if (staleResponse is not null)
                     {
                         //signal stale response
-                        if (!_dnssecValidation || staleResponse.AuthenticData)
+                        if (!dnssecValidation || staleResponse.AuthenticData)
                         {
                             taskCompletionSource.SetResult(new RecursiveResolveResponse(staleResponse, staleResponse));
                         }
                         else
                         {
-                            DnsDatagram failureResponse = new DnsDatagram(0, true, DnsOpcode.StandardQuery, false, false, true, true, false, _dnssecValidation, DnsResponseCode.ServerFailure, new DnsQuestionRecord[] { question });
+                            DnsDatagram failureResponse = new DnsDatagram(0, true, DnsOpcode.StandardQuery, false, false, true, true, false, dnssecValidation, DnsResponseCode.ServerFailure, new DnsQuestionRecord[] { question });
 
                             taskCompletionSource.SetResult(new RecursiveResolveResponse(failureResponse, staleResponse));
                         }
@@ -2273,7 +2310,7 @@ namespace DnsServerCore.Dns
                         options = null;
                     }
 
-                    DnsDatagram failureResponse = new DnsDatagram(0, true, DnsOpcode.StandardQuery, false, false, true, true, false, _dnssecValidation, DnsResponseCode.ServerFailure, new DnsQuestionRecord[] { question }, null, null, null, _udpPayloadSize, EDnsHeaderFlags.DNSSEC_OK, options);
+                    DnsDatagram failureResponse = new DnsDatagram(0, true, DnsOpcode.StandardQuery, false, false, true, true, false, dnssecValidation, DnsResponseCode.ServerFailure, new DnsQuestionRecord[] { question }, null, null, null, _udpPayloadSize, EDnsHeaderFlags.DNSSEC_OK, options);
 
                     if ((ex2.Response.Question.Count > 0) && ex2.Response.Question[0].Equals(question))
                         taskCompletionSource.SetResult(new RecursiveResolveResponse(failureResponse, ex2.Response));
@@ -2286,7 +2323,7 @@ namespace DnsServerCore.Dns
                 {
                     //signal null response to release waiting tasks
                     IReadOnlyList<EDnsOption> options = new EDnsOption[] { new EDnsOption(EDnsOptionCode.EXTENDED_DNS_ERROR, new EDnsExtendedDnsErrorOption(EDnsExtendedDnsErrorCode.Other, "Server Exception")) };
-                    DnsDatagram failureResponse = new DnsDatagram(0, true, DnsOpcode.StandardQuery, false, false, true, true, false, _dnssecValidation, DnsResponseCode.ServerFailure, new DnsQuestionRecord[] { question }, null, null, null, _udpPayloadSize, _dnssecValidation ? EDnsHeaderFlags.DNSSEC_OK : EDnsHeaderFlags.None, options);
+                    DnsDatagram failureResponse = new DnsDatagram(0, true, DnsOpcode.StandardQuery, false, false, true, true, false, dnssecValidation, DnsResponseCode.ServerFailure, new DnsQuestionRecord[] { question }, null, null, null, _udpPayloadSize, dnssecValidation ? EDnsHeaderFlags.DNSSEC_OK : EDnsHeaderFlags.None, options);
 
                     taskCompletionSource.SetResult(new RecursiveResolveResponse(failureResponse, failureResponse));
                 }
@@ -2499,7 +2536,7 @@ namespace DnsServerCore.Dns
         {
             try
             {
-                await RecursiveResolveAsync(request, conditionalForwarders, true, false);
+                await RecursiveResolveAsync(request, conditionalForwarders, _dnssecValidation, true, false);
             }
             catch (Exception ex)
             {
@@ -2515,7 +2552,7 @@ namespace DnsServerCore.Dns
             {
                 //refresh cache
                 DnsDatagram request = new DnsDatagram(0, false, DnsOpcode.StandardQuery, false, false, true, false, false, false, DnsResponseCode.NoError, new DnsQuestionRecord[] { sample.SampleQuestion });
-                DnsDatagram response = await ProcessRecursiveQueryAsync(request, IPENDPOINT_ANY_0, DnsTransportProtocol.Udp, sample.ConditionalForwarders, true);
+                DnsDatagram response = await ProcessRecursiveQueryAsync(request, IPENDPOINT_ANY_0, DnsTransportProtocol.Udp, sample.ConditionalForwarders, _dnssecValidation, true);
 
                 bool addBackToSampleList = false;
                 DateTime utcNow = DateTime.UtcNow;
@@ -3550,8 +3587,10 @@ namespace DnsServerCore.Dns
             get { return _forwarderRetries; }
             set
             {
-                if (value > 0)
-                    _forwarderRetries = value;
+                if ((value < 1) || (value > 10))
+                    throw new ArgumentOutOfRangeException(nameof(ForwarderRetries), "Valid range is from 1 to 10.");
+
+                _forwarderRetries = value;
             }
         }
 
@@ -3560,8 +3599,10 @@ namespace DnsServerCore.Dns
             get { return _resolverRetries; }
             set
             {
-                if (value > 0)
-                    _resolverRetries = value;
+                if ((value < 1) || (value > 10))
+                    throw new ArgumentOutOfRangeException(nameof(ResolverRetries), "Valid range is from 1 to 10.");
+
+                _resolverRetries = value;
             }
         }
 
@@ -3570,8 +3611,10 @@ namespace DnsServerCore.Dns
             get { return _forwarderTimeout; }
             set
             {
-                if (value >= 2000)
-                    _forwarderTimeout = value;
+                if ((value < 1000) || (value > 10000))
+                    throw new ArgumentOutOfRangeException(nameof(ForwarderTimeout), "Valid range is from 1000 to 10000.");
+
+                _forwarderTimeout = value;
             }
         }
 
@@ -3580,8 +3623,10 @@ namespace DnsServerCore.Dns
             get { return _resolverTimeout; }
             set
             {
-                if (value >= 2000)
-                    _resolverTimeout = value;
+                if ((value < 1000) || (value > 10000))
+                    throw new ArgumentOutOfRangeException(nameof(ResolverTimeout), "Valid range is from 1000 to 10000.");
+
+                _resolverTimeout = value;
             }
         }
 
@@ -3590,21 +3635,35 @@ namespace DnsServerCore.Dns
             get { return _clientTimeout; }
             set
             {
-                if (value >= 2000)
-                    _clientTimeout = value;
+                if ((value < 1000) || (value > 10000))
+                    throw new ArgumentOutOfRangeException(nameof(ClientTimeout), "Valid range is from 1000 to 10000.");
+
+                _clientTimeout = value;
             }
         }
 
         public int ForwarderConcurrency
         {
             get { return _forwarderConcurrency; }
-            set { _forwarderConcurrency = value; }
+            set
+            {
+                if ((value < 1) || (value > 10))
+                    throw new ArgumentOutOfRangeException(nameof(ForwarderConcurrency), "Valid range is from 1 to 10.");
+
+                _forwarderConcurrency = value;
+            }
         }
 
         public int ResolverMaxStackCount
         {
             get { return _resolverMaxStackCount; }
-            set { _resolverMaxStackCount = value; }
+            set
+            {
+                if ((value < 10) || (value > 30))
+                    throw new ArgumentOutOfRangeException(nameof(ResolverMaxStackCount), "Valid range is from 10 to 30.");
+
+                _resolverMaxStackCount = value;
+            }
         }
 
         public bool ServeStale
@@ -3732,13 +3791,25 @@ namespace DnsServerCore.Dns
         public int TcpSendTimeout
         {
             get { return _tcpSendTimeout; }
-            set { _tcpSendTimeout = value; }
+            set
+            {
+                if ((value < 1000) || (value > 90000))
+                    throw new ArgumentOutOfRangeException(nameof(TcpSendTimeout), "Valid range is from 1000 to 60000.");
+
+                _tcpSendTimeout = value;
+            }
         }
 
         public int TcpReceiveTimeout
         {
             get { return _tcpReceiveTimeout; }
-            set { _tcpReceiveTimeout = value; }
+            set
+            {
+                if ((value < 1000) || (value > 90000))
+                    throw new ArgumentOutOfRangeException(nameof(TcpReceiveTimeout), "Valid range is from 1000 to 60000.");
+
+                _tcpReceiveTimeout = value;
+            }
         }
 
         #endregion
