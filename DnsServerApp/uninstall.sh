@@ -27,7 +27,7 @@ then
 
 	if [ -d $dotnetDir ]
 	then
-		echo "Uninstalling .NET 5 Runtime..."
+		echo "Uninstalling .NET Runtime..."
 		rm /usr/bin/dotnet >/dev/null 2>&1
 		rm -rf $dotnetDir >/dev/null 2>&1
 	fi
