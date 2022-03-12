@@ -57,10 +57,11 @@ namespace DnsServerCore.Dns.Zones
         const int NOTIFY_RETRIES = 5;
 
         Dictionary<ushort, DnssecPrivateKey> _dnssecPrivateKeys;
+        ushort _zskRolloverDays = 90;
         const uint DNSSEC_SIGNATURE_INCEPTION_OFFSET = 60 * 60;
         Timer _dnssecTimer;
         const int DNSSEC_TIMER_INITIAL_INTERVAL = 30000;
-        const int DNSSEC_TIMER_PERIODIC_INTERVAL = 300000;
+        const int DNSSEC_TIMER_PERIODIC_INTERVAL = 900000;
         DateTime _lastSignatureRefreshCheckedOn;
         readonly object _dnssecUpdateLock = new object();
 
@@ -88,6 +89,8 @@ namespace DnsServerCore.Dns.Zones
                 foreach (DnssecPrivateKey dnssecPrivateKey in dnssecPrivateKeys)
                     _dnssecPrivateKeys.Add(dnssecPrivateKey.KeyTag, dnssecPrivateKey);
             }
+
+            _zskRolloverDays = zoneInfo.ZskRolloverDays;
 
             _notifyTimer = new Timer(NotifyTimerCallback, null, Timeout.Infinite, Timeout.Infinite);
             _notifyList = new List<NameServerAddress>();
@@ -297,6 +300,7 @@ namespace DnsServerCore.Dns.Zones
                 int zskActiveCount = 0;
                 List<DnssecPrivateKey> zskToActivate = null;
                 List<DnssecPrivateKey> zskToRetire = null;
+                List<DnssecPrivateKey> zskToRollover = null;
                 List<DnssecPrivateKey> zskToDeactivateAndUnpublish = null;
 
                 uint dnsKeyTtl = GetDnsKeyTtl();
@@ -425,6 +429,14 @@ namespace DnsServerCore.Dns.Zones
                                     else
                                     {
                                         zskActiveCount++;
+
+                                        if ((_zskRolloverDays > 0) && (DateTime.UtcNow > privateKey.StateChangedOn.AddDays(_zskRolloverDays)))
+                                        {
+                                            if (zskToRollover is null)
+                                                zskToRollover = new List<DnssecPrivateKey>();
+
+                                            zskToRollover.Add(privateKey);
+                                        }
                                     }
                                     break;
 
@@ -572,6 +584,14 @@ namespace DnsServerCore.Dns.Zones
                     }
                 }
 
+                if (zskToRollover is not null)
+                {
+                    foreach (DnssecPrivateKey zskPrivateKey in zskToRollover)
+                        RolloverDnsKey(zskPrivateKey.KeyTag);
+
+                    saveZone = true;
+                }
+
                 if (zskToDeactivateAndUnpublish is not null)
                 {
                     DeactivateZskDnsKeys(zskToDeactivateAndUnpublish);
@@ -611,17 +631,17 @@ namespace DnsServerCore.Dns.Zones
             }
         }
 
-        public void SignZoneWithRsaNSec(string hashAlgorithm, int kskKeySize, int zskKeySize, uint dnsKeyTtl)
+        public void SignZoneWithRsaNSec(string hashAlgorithm, int kskKeySize, int zskKeySize, uint dnsKeyTtl, ushort zskRolloverDays)
         {
-            SignZoneWithRsa(hashAlgorithm, kskKeySize, zskKeySize, false, 0, 0, dnsKeyTtl);
+            SignZoneWithRsa(hashAlgorithm, kskKeySize, zskKeySize, false, 0, 0, dnsKeyTtl, zskRolloverDays);
         }
 
-        public void SignZoneWithRsaNSec3(string hashAlgorithm, int kskKeySize, int zskKeySize, ushort iterations, byte saltLength, uint dnsKeyTtl)
+        public void SignZoneWithRsaNSec3(string hashAlgorithm, int kskKeySize, int zskKeySize, ushort iterations, byte saltLength, uint dnsKeyTtl, ushort zskRolloverDays)
         {
-            SignZoneWithRsa(hashAlgorithm, kskKeySize, zskKeySize, true, iterations, saltLength, dnsKeyTtl);
+            SignZoneWithRsa(hashAlgorithm, kskKeySize, zskKeySize, true, iterations, saltLength, dnsKeyTtl, zskRolloverDays);
         }
 
-        private void SignZoneWithRsa(string hashAlgorithm, int kskKeySize, int zskKeySize, bool useNSec3, ushort iterations, byte saltLength, uint dnsKeyTtl)
+        private void SignZoneWithRsa(string hashAlgorithm, int kskKeySize, int zskKeySize, bool useNSec3, ushort iterations, byte saltLength, uint dnsKeyTtl, ushort zskRolloverDays)
         {
             if (_dnssecStatus != AuthZoneDnssecStatus.Unsigned)
                 throw new DnsServerException("Cannot sign zone: the zone is already signed.");
@@ -666,20 +686,20 @@ namespace DnsServerCore.Dns.Zones
             _dnssecPrivateKeys.Add(zskPrivateKey.KeyTag, zskPrivateKey);
 
             //sign zone
-            SignZone(useNSec3, iterations, saltLength, dnsKeyTtl);
+            SignZone(useNSec3, iterations, saltLength, dnsKeyTtl, zskRolloverDays);
         }
 
-        public void SignZoneWithEcdsaNSec(string curve, uint dnsKeyTtl)
+        public void SignZoneWithEcdsaNSec(string curve, uint dnsKeyTtl, ushort zskRolloverDays)
         {
-            SignZoneWithEcdsa(curve, false, 0, 0, dnsKeyTtl);
+            SignZoneWithEcdsa(curve, false, 0, 0, dnsKeyTtl, zskRolloverDays);
         }
 
-        public void SignZoneWithEcdsaNSec3(string curve, ushort iterations, byte saltLength, uint dnsKeyTtl)
+        public void SignZoneWithEcdsaNSec3(string curve, ushort iterations, byte saltLength, uint dnsKeyTtl, ushort zskRolloverDays)
         {
-            SignZoneWithEcdsa(curve, true, iterations, saltLength, dnsKeyTtl);
+            SignZoneWithEcdsa(curve, true, iterations, saltLength, dnsKeyTtl, zskRolloverDays);
         }
 
-        private void SignZoneWithEcdsa(string curve, bool useNSec3, ushort iterations, byte saltLength, uint dnsKeyTtl)
+        private void SignZoneWithEcdsa(string curve, bool useNSec3, ushort iterations, byte saltLength, uint dnsKeyTtl, ushort zskRolloverDays)
         {
             if (_dnssecStatus != AuthZoneDnssecStatus.Unsigned)
                 throw new DnsServerException("Cannot sign zone: the zone is already signed.");
@@ -716,10 +736,10 @@ namespace DnsServerCore.Dns.Zones
             _dnssecPrivateKeys.Add(zskPrivateKey.KeyTag, zskPrivateKey);
 
             //sign zone
-            SignZone(useNSec3, iterations, saltLength, dnsKeyTtl);
+            SignZone(useNSec3, iterations, saltLength, dnsKeyTtl, zskRolloverDays);
         }
 
-        private void SignZone(bool useNSec3, ushort iterations, byte saltLength, uint dnsKeyTtl)
+        private void SignZone(bool useNSec3, ushort iterations, byte saltLength, uint dnsKeyTtl, ushort zskRolloverDays)
         {
             try
             {
@@ -793,6 +813,8 @@ namespace DnsServerCore.Dns.Zones
                             break;
                     }
                 }
+
+                _zskRolloverDays = zskRolloverDays;
 
                 _dnssecTimer = new Timer(DnssecTimerCallback, null, DNSSEC_TIMER_INITIAL_INTERVAL, Timeout.Infinite);
 
@@ -2064,7 +2086,7 @@ namespace DnsServerCore.Dns.Zones
             DnsResourceRecord nsec3ParamRecord = nsec3ParamRecords[0];
             DnsNSEC3PARAMRecordData nsec3Param = nsec3ParamRecord.RDATA as DnsNSEC3PARAMRecordData;
 
-            string hashedOwnerName = nsec3Param.ComputeHashedOwnerNameBase32HexString(zone.Name) + "." + _name;
+            string hashedOwnerName = nsec3Param.ComputeHashedOwnerNameBase32HexString(zone.Name) + (_name.Length > 0 ? "." + _name : "");
             byte[] nextHashedOwnerName = null;
 
             //find next hashed owner name
@@ -2189,7 +2211,7 @@ namespace DnsServerCore.Dns.Zones
             {
                 //didnt find previous NSEC3; find the last NSEC3 to update
                 if (wasRemoved)
-                    currentOwnerName = currentNSec3.NextHashedOwnerName + "." + _name;
+                    currentOwnerName = currentNSec3.NextHashedOwnerName + (_name.Length > 0 ? "." + _name : "");
                 else
                     currentOwnerName = currentNSec3Record.Name;
 
@@ -2205,7 +2227,7 @@ namespace DnsServerCore.Dns.Zones
                         previousNSec3Record = nextNSec3Records[0];
                         previousNSec3Zone = nextNSec3Zone;
 
-                        string nextHashedOwnerNameString = (previousNSec3Record.RDATA as DnsNSEC3RecordData).NextHashedOwnerName + "." + _name;
+                        string nextHashedOwnerNameString = (previousNSec3Record.RDATA as DnsNSEC3RecordData).NextHashedOwnerName + (_name.Length > 0 ? "." + _name : "");
                         if (DnsNSECRecordData.CanonicalComparison(previousNSec3Record.Name, nextHashedOwnerNameString) >= 0)
                             break; //found last NSEC3
 
@@ -2708,6 +2730,18 @@ namespace DnsServerCore.Dns.Zones
                 {
                     return _dnssecPrivateKeys.Values;
                 }
+            }
+        }
+
+        public ushort ZskRolloverDays
+        {
+            get { return _zskRolloverDays; }
+            set
+            {
+                if (value > 365)
+                    throw new ArgumentOutOfRangeException(nameof(ZskRolloverDays), "Zone Signing Key (ZSK) automatic rollover days valid range is 0-365.");
+
+                _zskRolloverDays = value;
             }
         }
 
