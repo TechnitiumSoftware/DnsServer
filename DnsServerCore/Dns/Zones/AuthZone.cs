@@ -555,7 +555,7 @@ namespace DnsServerCore.Dns.Zones
             types.Sort();
 
             DnsNSEC3RecordData newNSec3Record = new DnsNSEC3RecordData(DnssecNSEC3HashAlgorithm.SHA1, DnssecNSEC3Flags.None, iterations, salt, Array.Empty<byte>(), types);
-            return new DnsResourceRecord(newNSec3Record.ComputeHashedOwnerName(_name) + "." + zoneName, DnsResourceRecordType.NSEC3, DnsClass.IN, ttl, newNSec3Record);
+            return new DnsResourceRecord(newNSec3Record.ComputeHashedOwnerName(_name) + (zoneName.Length > 0 ? "." + zoneName : ""), DnsResourceRecordType.NSEC3, DnsClass.IN, ttl, newNSec3Record);
         }
 
         #endregion
