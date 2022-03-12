@@ -687,7 +687,6 @@ function updateAddZoneFormForwarderThisServer() {
         $("#txtAddZoneForwarder").prop("disabled", true);
         $("#txtAddZoneForwarder").val("this-server");
 
-        $("#divAddZoneForwarderDnssecValidation").hide();
         $("#divAddZoneForwarderProxy").hide();
     }
     else {
@@ -696,7 +695,6 @@ function updateAddZoneFormForwarderThisServer() {
         $("#txtAddZoneForwarder").prop("disabled", false);
         $("#txtAddZoneForwarder").val("");
 
-        $("#divAddZoneForwarderDnssecValidation").show();
         $("#divAddZoneForwarderProxy").show();
     }
 }
@@ -736,13 +734,14 @@ function addZone() {
                 return;
             }
 
-            parameters = "&protocol=" + $("input[name=rdAddZoneForwarderProtocol]:checked").val() + "&forwarder=" + encodeURIComponent(forwarder);
+            var dnssecValidation = $("#chkAddZoneForwarderDnssecValidation").prop("checked");
+
+            parameters = "&protocol=" + $("input[name=rdAddZoneForwarderProtocol]:checked").val() + "&forwarder=" + encodeURIComponent(forwarder) + "&dnssecValidation=" + dnssecValidation;
 
             if (forwarder !== "this-server") {
-                var dnssecValidation = $("#chkAddZoneForwarderDnssecValidation").prop("checked");
                 var proxyType = $("input[name=rdAddZoneForwarderProxyType]:checked").val();
 
-                parameters += "&dnssecValidation=" + dnssecValidation + "&proxyType=" + proxyType;
+                parameters += "&proxyType=" + proxyType;
 
                 if (proxyType != "None") {
                     var proxyAddress = $("#txtAddZoneForwarderProxyAddress").val();
@@ -1706,7 +1705,6 @@ function modifyAddRecordFormByType() {
             $("#txtAddEditRecordDataForwarderProxyUsername").val("");
             $("#txtAddEditRecordDataForwarderProxyPassword").val("");
             $("#divAddEditRecordDataForwarder").show();
-            $("#divAddEditRecordDataForwarderDnssecValidation").show();
             $("#divAddEditRecordDataForwarderProxy").show();
             break;
 
@@ -2064,7 +2062,6 @@ function updateAddEditFormForwarderThisServer() {
         $("#txtAddEditRecordDataForwarder").prop("disabled", true);
         $("#txtAddEditRecordDataForwarder").val("this-server");
 
-        $("#divAddEditRecordDataForwarderDnssecValidation").hide();
         $("#divAddEditRecordDataForwarderProxy").hide();
     }
     else {
@@ -2073,7 +2070,6 @@ function updateAddEditFormForwarderThisServer() {
         $("#txtAddEditRecordDataForwarder").prop("disabled", false);
         $("#txtAddEditRecordDataForwarder").val("");
 
-        $("#divAddEditRecordDataForwarderDnssecValidation").show();
         $("#divAddEditRecordDataForwarderProxy").show();
     }
 }
@@ -2264,12 +2260,10 @@ function showEditRecordModal(objBtn) {
 
             if (forwarder === "this-server") {
                 $("input[name=rdAddEditRecordDataForwarderProtocol]:radio").attr("disabled", true);
-                $("#divAddEditRecordDataForwarderDnssecValidation").hide();
                 $("#divAddEditRecordDataForwarderProxy").hide();
             }
             else {
                 $("input[name=rdAddEditRecordDataForwarderProtocol]:radio").attr("disabled", false);
-                $("#divAddEditRecordDataForwarderDnssecValidation").show();
                 $("#divAddEditRecordDataForwarderProxy").show();
             }
 
@@ -2659,13 +2653,14 @@ function updateRecord() {
                 return;
             }
 
-            apiUrl += "&protocol=" + protocol + "&newProtocol=" + newProtocol + "&forwarder=" + encodeURIComponent(forwarder) + "&newForwarder=" + encodeURIComponent(newForwarder);
+            var dnssecValidation = $("#chkAddEditRecordDataForwarderDnssecValidation").prop("checked");
+
+            apiUrl += "&protocol=" + protocol + "&newProtocol=" + newProtocol + "&forwarder=" + encodeURIComponent(forwarder) + "&newForwarder=" + encodeURIComponent(newForwarder) + "&dnssecValidation=" + dnssecValidation;
 
             if (newForwarder !== "this-server") {
-                var dnssecValidation = $("#chkAddEditRecordDataForwarderDnssecValidation").prop("checked");
                 var proxyType = $("input[name=rdAddEditRecordDataForwarderProxyType]:checked").val();
 
-                apiUrl += "&dnssecValidation=" + dnssecValidation + "&proxyType=" + proxyType;
+                apiUrl += "&proxyType=" + proxyType;
 
                 if (proxyType != "None") {
                     var proxyAddress = $("#txtAddEditRecordDataForwarderProxyAddress").val();
@@ -2927,6 +2922,7 @@ function showSignZoneModal(zoneName) {
     $("#txtDnssecSignZoneNSEC3SaltLength").val("0");
 
     $("#txtDnssecSignZoneDnsKeyTtl").val("86400");
+    $("#txtDnssecSignZoneZskAutoRollover").val("90");
 
     $("#modalDnssecSignZone").modal("show");
 }
@@ -2936,6 +2932,7 @@ function signPrimaryZone() {
     var zone = $("#lblDnssecSignZoneZoneName").text();
     var algorithm = $("input[name=rdDnssecSignZoneAlgorithm]:checked").val();
     var dnsKeyTtl = $("#txtDnssecSignZoneDnsKeyTtl").val();
+    var zskRolloverDays = $("#txtDnssecSignZoneZskAutoRollover").val();
     var nxProof = $("input[name=rdDnssecSignZoneNxProof]:checked").val();
 
     var additionalParameters = "";
@@ -2967,7 +2964,7 @@ function signPrimaryZone() {
     btn.button("loading");
 
     HTTPRequest({
-        url: "/api/zone/dnssec/sign?token=" + token + "&zone=" + encodeURIComponent(zone) + "&algorithm=" + algorithm + "&dnsKeyTtl=" + dnsKeyTtl + "&nxProof=" + nxProof + additionalParameters,
+        url: "/api/zone/dnssec/sign?token=" + token + "&zone=" + encodeURIComponent(zone) + "&algorithm=" + algorithm + "&dnsKeyTtl=" + dnsKeyTtl + "&zskRolloverDays=" + zskRolloverDays + "&nxProof=" + nxProof + additionalParameters,
         success: function (responseJSON) {
             btn.button('reset');
             $("#modalDnssecSignZone").modal("hide");
@@ -3109,6 +3106,7 @@ function refreshDnssecProperties(divDnssecPropertiesLoader) {
             }
 
             $("#txtDnssecPropertiesDnsKeyTtl").val(responseJSON.response.dnsKeyTtl);
+            $("#txtDnssecPropertiesZskAutoRollover").val(responseJSON.response.zskRolloverDays);
 
             if (divDnssecPropertiesLoader != null)
                 divDnssecPropertiesLoader.hide();
@@ -3382,6 +3380,32 @@ function updateDnssecDnsKeyTtl(objBtn) {
         success: function (responseJSON) {
             btn.button('reset');
             showAlert("success", "TTL Updated!", "The DNSKEY TTL was updated successfully.", divDnssecPropertiesAlert);
+        },
+        error: function () {
+            btn.button('reset');
+        },
+        invalidToken: function () {
+            btn.button('reset');
+            $("#modalDnssecProperties").modal("hide");
+            showPageLogin();
+        },
+        objAlertPlaceholder: divDnssecPropertiesAlert
+    });
+}
+
+function updateDnssecDnsKeyAutomaticRollover(objBtn) {
+    var btn = $(objBtn);
+    var divDnssecPropertiesAlert = $("#divDnssecPropertiesAlert");
+    var zone = $("#lblDnssecPropertiesZoneName").text();
+    var zskRolloverDays = $("#txtDnssecPropertiesZskAutoRollover").val();
+
+    btn.button('loading');
+
+    HTTPRequest({
+        url: "/api/zone/dnssec/updateDnsKeyRollover?token=" + token + "&zone=" + zone + "&zskRolloverDays=" + zskRolloverDays,
+        success: function (responseJSON) {
+            btn.button('reset');
+            showAlert("success", "Rollover Updated!", "The DNSKEY automatic rollover config was updated successfully.", divDnssecPropertiesAlert);
         },
         error: function () {
             btn.button('reset');
