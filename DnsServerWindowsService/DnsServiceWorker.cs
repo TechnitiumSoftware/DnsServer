@@ -39,7 +39,7 @@ namespace DnsServerWindowsService
             if (args.Length == 2)
                 configFolder = args[1];
 
-            _service = new DnsWebService(configFolder, new Uri("https://go.technitium.com/?id=43"), new Uri("https://server1.home.zare.im/files/apps/apps.json"));
+            _service = new DnsWebService(configFolder, new Uri("https://go.technitium.com/?id=43"), new Uri("https://go.technitium.com/?id=40"));
         }
 
         public override Task StartAsync(CancellationToken cancellationToken)

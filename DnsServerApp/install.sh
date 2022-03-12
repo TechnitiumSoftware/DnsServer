@@ -3,7 +3,7 @@
 dotnetDir="/opt/dotnet"
 dnsDir="/etc/dns"
 dnsTar="/etc/dns/DnsServerPortable.tar.gz"
-dnsUrl="https://server1.home.zare.im/files/DnsServerPortable.tar.gz"
+dnsUrl="https://download.technitium.com/dns/DnsServerPortable.tar.gz"
 
 mkdir -p $dnsDir
 installLog="$dnsDir/install.log"
