@@ -130,7 +130,7 @@ namespace DnsServerSystemTrayApp
                         catch
                         { }
 
-                        if (!usingLoopbackAsDns && MessageBox.Show("Do you want to update this computer's network connections to use the locally running Technitium DNS Server?\r\n\r\nNote! It is recommended that you use the locally running Technitium DNS Server unless you explicitly want to keep using your existing network DNS configuration.", "Switch Network DNS?", MessageBoxButtons.YesNo, MessageBoxIcon.Question) == DialogResult.Yes)
+                        if (!usingLoopbackAsDns && MessageBox.Show("Do you want to update this computer's network connections to use the locally running Technitium DNS Server?\r\n\r\nNote! It is recommended that you use the locally running Technitium DNS Server unless you explicitly want to keep using your existing network DNS configuration.", "Switch Network DNS? - Technitium DNS Server", MessageBoxButtons.YesNo, MessageBoxIcon.Question) == DialogResult.Yes)
                             SetNetworkDns(new DnsProvider("Technitium", new IPAddress[] { IPAddress.Loopback, IPAddress.IPv6Loopback }));
 
                         break;
