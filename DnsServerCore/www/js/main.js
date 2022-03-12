@@ -772,6 +772,18 @@ function loadDnsSettings() {
             $("#txtEdnsUdpPayloadSize").val(responseJSON.response.udpPayloadSize);
             $("#chkDnssecValidation").prop("checked", responseJSON.response.dnssecValidation);
 
+            $("#txtResolverRetries").val(responseJSON.response.resolverRetries);
+            $("#txtResolverTimeout").val(responseJSON.response.resolverTimeout);
+            $("#txtResolverMaxStackCount").val(responseJSON.response.resolverMaxStackCount);
+
+            $("#txtForwarderRetries").val(responseJSON.response.forwarderRetries);
+            $("#txtForwarderTimeout").val(responseJSON.response.forwarderTimeout);
+            $("#txtForwarderConcurrency").val(responseJSON.response.forwarderConcurrency);
+
+            $("#txtClientTimeout").val(responseJSON.response.clientTimeout);
+            $("#txtTcpSendTimeout").val(responseJSON.response.tcpSendTimeout);
+            $("#txtTcpReceiveTimeout").val(responseJSON.response.tcpReceiveTimeout);
+
             $("#chkEnableLogging").prop("checked", responseJSON.response.enableLogging);
             $("#chkLogQueries").prop("disabled", !responseJSON.response.enableLogging);
             $("#chkUseLocalTime").prop("disabled", !responseJSON.response.enableLogging);
@@ -1076,6 +1088,69 @@ function saveDnsSettings() {
     var udpPayloadSize = $("#txtEdnsUdpPayloadSize").val();
     var dnssecValidation = $("#chkDnssecValidation").prop('checked');
 
+    var resolverRetries = $("#txtResolverRetries").val();
+    if ((resolverRetries == null) || (resolverRetries === "")) {
+        showAlert("warning", "Missing!", "Please enter a value for Resolver Retries.");
+        $("#txtResolverRetries").focus();
+        return;
+    }
+
+    var resolverTimeout = $("#txtResolverTimeout").val();
+    if ((resolverTimeout == null) || (resolverTimeout === "")) {
+        showAlert("warning", "Missing!", "Please enter a value for Resolver Timeout.");
+        $("#txtResolverTimeout").focus();
+        return;
+    }
+
+    var resolverMaxStackCount = $("#txtResolverMaxStackCount").val();
+    if ((resolverMaxStackCount == null) || (resolverMaxStackCount === "")) {
+        showAlert("warning", "Missing!", "Please enter a value for Resolver Max Stack Count.");
+        $("#txtResolverMaxStackCount").focus();
+        return;
+    }
+
+    var forwarderRetries = $("#txtForwarderRetries").val();
+    if ((forwarderRetries == null) || (forwarderRetries === "")) {
+        showAlert("warning", "Missing!", "Please enter a value for Forwarder Retries.");
+        $("#txtForwarderRetries").focus();
+        return;
+    }
+
+    var forwarderTimeout = $("#txtForwarderTimeout").val();
+    if ((forwarderTimeout == null) || (forwarderTimeout === "")) {
+        showAlert("warning", "Missing!", "Please enter a value for Forwarder Timeout.");
+        $("#txtForwarderTimeout").focus();
+        return;
+    }
+
+    var forwarderConcurrency = $("#txtForwarderConcurrency").val();
+    if ((forwarderConcurrency == null) || (forwarderConcurrency === "")) {
+        showAlert("warning", "Missing!", "Please enter a value for Forwarder Concurrency.");
+        $("#txtForwarderConcurrency").focus();
+        return;
+    }
+
+    var clientTimeout = $("#txtClientTimeout").val();
+    if ((clientTimeout == null) || (clientTimeout === "")) {
+        showAlert("warning", "Missing!", "Please enter a value for Client Timeout.");
+        $("#txtClientTimeout").focus();
+        return;
+    }
+
+    var tcpSendTimeout = $("#txtTcpSendTimeout").val();
+    if ((tcpSendTimeout == null) || (tcpSendTimeout === "")) {
+        showAlert("warning", "Missing!", "Please enter a value for TCP Send Timeout.");
+        $("#txtTcpSendTimeout").focus();
+        return;
+    }
+
+    var tcpReceiveTimeout = $("#txtTcpReceiveTimeout").val();
+    if ((tcpReceiveTimeout == null) || (tcpReceiveTimeout === "")) {
+        showAlert("warning", "Missing!", "Please enter a value for TCP Receive Timeout.");
+        $("#txtTcpReceiveTimeout").focus();
+        return;
+    }
+
     var enableLogging = $("#chkEnableLogging").prop('checked');
     var logQueries = $("#chkLogQueries").prop('checked');
     var useLocalTime = $("#chkUseLocalTime").prop('checked');
@@ -1265,7 +1340,11 @@ function saveDnsSettings() {
             + "&webServiceLocalAddresses=" + encodeURIComponent(webServiceLocalAddresses) + "&webServiceHttpPort=" + webServiceHttpPort + "&webServiceEnableTls=" + webServiceEnableTls + "&webServiceHttpToTlsRedirect=" + webServiceHttpToTlsRedirect + "&webServiceUseSelfSignedTlsCertificate=" + webServiceUseSelfSignedTlsCertificate + "&webServiceTlsPort=" + webServiceTlsPort + "&webServiceTlsCertificatePath=" + encodeURIComponent(webServiceTlsCertificatePath) + "&webServiceTlsCertificatePassword=" + encodeURIComponent(webServiceTlsCertificatePassword)
             + "&enableDnsOverHttp=" + enableDnsOverHttp + "&enableDnsOverTls=" + enableDnsOverTls + "&enableDnsOverHttps=" + enableDnsOverHttps + "&dnsTlsCertificatePath=" + encodeURIComponent(dnsTlsCertificatePath) + "&dnsTlsCertificatePassword=" + encodeURIComponent(dnsTlsCertificatePassword)
             + "&tsigKeys=" + encodeURIComponent(tsigKeys)
-            + "&defaultRecordTtl=" + defaultRecordTtl + "&preferIPv6=" + preferIPv6 + "&udpPayloadSize=" + udpPayloadSize + "&dnssecValidation=" + dnssecValidation + "&enableLogging=" + enableLogging + "&logQueries=" + logQueries + "&useLocalTime=" + useLocalTime + "&logFolder=" + encodeURIComponent(logFolder) + "&maxLogFileDays=" + maxLogFileDays + "&maxStatFileDays=" + maxStatFileDays
+            + "&defaultRecordTtl=" + defaultRecordTtl + "&preferIPv6=" + preferIPv6 + "&udpPayloadSize=" + udpPayloadSize + "&dnssecValidation=" + dnssecValidation
+            + "&resolverRetries=" + resolverRetries + "&resolverTimeout=" + resolverTimeout + "&resolverMaxStackCount=" + resolverMaxStackCount
+            + "&forwarderRetries=" + forwarderRetries + "&forwarderTimeout=" + forwarderTimeout + "&forwarderConcurrency=" + forwarderConcurrency
+            + "&clientTimeout=" + clientTimeout + "&tcpSendTimeout=" + tcpSendTimeout + "&tcpReceiveTimeout=" + tcpReceiveTimeout
+            + "&enableLogging=" + enableLogging + "&logQueries=" + logQueries + "&useLocalTime=" + useLocalTime + "&logFolder=" + encodeURIComponent(logFolder) + "&maxLogFileDays=" + maxLogFileDays + "&maxStatFileDays=" + maxStatFileDays
             + "&recursion=" + recursion + "&recursionDeniedNetworks=" + encodeURIComponent(recursionDeniedNetworks) + "&recursionAllowedNetworks=" + encodeURIComponent(recursionAllowedNetworks) + "&randomizeName=" + randomizeName + "&qnameMinimization=" + qnameMinimization + "&nsRevalidation=" + nsRevalidation
             + "&qpmLimitRequests=" + qpmLimitRequests + "&qpmLimitErrors=" + qpmLimitErrors + "&qpmLimitSampleMinutes=" + qpmLimitSampleMinutes + "&qpmLimitIPv4PrefixLength=" + qpmLimitIPv4PrefixLength + "&qpmLimitIPv6PrefixLength=" + qpmLimitIPv6PrefixLength
             + "&serveStale=" + serveStale + "&serveStaleTtl=" + serveStaleTtl + "&cacheMinimumRecordTtl=" + cacheMinimumRecordTtl + "&cacheMaximumRecordTtl=" + cacheMaximumRecordTtl + "&cacheNegativeRecordTtl=" + cacheNegativeRecordTtl + "&cacheFailureRecordTtl=" + cacheFailureRecordTtl + "&cachePrefetchEligibility=" + cachePrefetchEligibility + "&cachePrefetchTrigger=" + cachePrefetchTrigger + "&cachePrefetchSampleIntervalInMinutes=" + cachePrefetchSampleIntervalInMinutes + "&cachePrefetchSampleEligibilityHitsPerHour=" + cachePrefetchSampleEligibilityHitsPerHour
