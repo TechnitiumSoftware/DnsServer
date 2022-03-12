@@ -19,6 +19,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 using DnsServerCore.Dhcp;
 using DnsServerCore.Dns;
+using DnsServerCore.Dns.ResourceRecords;
 using DnsServerCore.Dns.ZoneManagers;
 using DnsServerCore.Dns.Zones;
 using Newtonsoft.Json;
@@ -520,6 +521,10 @@ namespace DnsServerCore
 
                                             case "/api/zone/dnssec/updateDnsKeyTtl":
                                                 _zonesApi.UpdatePrimaryZoneDnssecDnsKeyTtl(request);
+                                                break;
+
+                                            case "/api/zone/dnssec/updateDnsKeyRollover":
+                                                _zonesApi.UpdatePrimaryZoneDnssecDnsKeyRollover(request);
                                                 break;
 
                                             case "/api/zone/dnssec/generatePrivateKey":
@@ -1312,6 +1317,33 @@ namespace DnsServerCore
             jsonWriter.WritePropertyName("dnssecValidation");
             jsonWriter.WriteValue(_dnsServer.DnssecValidation);
 
+            jsonWriter.WritePropertyName("resolverRetries");
+            jsonWriter.WriteValue(_dnsServer.ResolverRetries);
+
+            jsonWriter.WritePropertyName("resolverTimeout");
+            jsonWriter.WriteValue(_dnsServer.ResolverTimeout);
+
+            jsonWriter.WritePropertyName("resolverMaxStackCount");
+            jsonWriter.WriteValue(_dnsServer.ResolverMaxStackCount);
+
+            jsonWriter.WritePropertyName("forwarderRetries");
+            jsonWriter.WriteValue(_dnsServer.ForwarderRetries);
+
+            jsonWriter.WritePropertyName("forwarderTimeout");
+            jsonWriter.WriteValue(_dnsServer.ForwarderTimeout);
+
+            jsonWriter.WritePropertyName("forwarderConcurrency");
+            jsonWriter.WriteValue(_dnsServer.ForwarderConcurrency);
+
+            jsonWriter.WritePropertyName("clientTimeout");
+            jsonWriter.WriteValue(_dnsServer.ClientTimeout);
+
+            jsonWriter.WritePropertyName("tcpSendTimeout");
+            jsonWriter.WriteValue(_dnsServer.TcpSendTimeout);
+
+            jsonWriter.WritePropertyName("tcpReceiveTimeout");
+            jsonWriter.WriteValue(_dnsServer.TcpReceiveTimeout);
+
             jsonWriter.WritePropertyName("enableLogging");
             jsonWriter.WriteValue(_log.EnableLogging);
 
@@ -1774,6 +1806,10 @@ namespace DnsServerCore
                 }
             }
 
+            string strDefaultRecordTtl = request.QueryString["defaultRecordTtl"];
+            if (!string.IsNullOrEmpty(strDefaultRecordTtl))
+                _zonesApi.DefaultRecordTtl = uint.Parse(strDefaultRecordTtl);
+
             string strPreferIPv6 = request.QueryString["preferIPv6"];
             if (!string.IsNullOrEmpty(strPreferIPv6))
                 _dnsServer.PreferIPv6 = bool.Parse(strPreferIPv6);
@@ -1786,9 +1822,41 @@ namespace DnsServerCore
             if (!string.IsNullOrEmpty(strDnssecValidation))
                 _dnsServer.DnssecValidation = bool.Parse(strDnssecValidation);
 
-            string strDefaultRecordTtl = request.QueryString["defaultRecordTtl"];
-            if (!string.IsNullOrEmpty(strDefaultRecordTtl))
-                _zonesApi.DefaultRecordTtl = uint.Parse(strDefaultRecordTtl);
+            string strResolverRetries = request.QueryString["resolverRetries"];
+            if (!string.IsNullOrEmpty(strResolverRetries))
+                _dnsServer.ResolverRetries = int.Parse(strResolverRetries);
+
+            string strResolverTimeout = request.QueryString["resolverTimeout"];
+            if (!string.IsNullOrEmpty(strResolverTimeout))
+                _dnsServer.ResolverTimeout = int.Parse(strResolverTimeout);
+
+            string strResolverMaxStackCount = request.QueryString["resolverMaxStackCount"];
+            if (!string.IsNullOrEmpty(strResolverMaxStackCount))
+                _dnsServer.ResolverMaxStackCount = int.Parse(strResolverMaxStackCount);
+
+            string strForwarderRetries = request.QueryString["forwarderRetries"];
+            if (!string.IsNullOrEmpty(strForwarderRetries))
+                _dnsServer.ForwarderRetries = int.Parse(strForwarderRetries);
+
+            string strForwarderTimeout = request.QueryString["forwarderTimeout"];
+            if (!string.IsNullOrEmpty(strForwarderTimeout))
+                _dnsServer.ForwarderTimeout = int.Parse(strForwarderTimeout);
+
+            string strForwarderConcurrency = request.QueryString["forwarderConcurrency"];
+            if (!string.IsNullOrEmpty(strForwarderConcurrency))
+                _dnsServer.ForwarderConcurrency = int.Parse(strForwarderConcurrency);
+
+            string strClientTimeout = request.QueryString["clientTimeout"];
+            if (!string.IsNullOrEmpty(strClientTimeout))
+                _dnsServer.ClientTimeout = int.Parse(strClientTimeout);
+
+            string strTcpSendTimeout = request.QueryString["tcpSendTimeout"];
+            if (!string.IsNullOrEmpty(strTcpSendTimeout))
+                _dnsServer.TcpSendTimeout = int.Parse(strTcpSendTimeout);
+
+            string strTcpReceiveTimeout = request.QueryString["tcpReceiveTimeout"];
+            if (!string.IsNullOrEmpty(strTcpReceiveTimeout))
+                _dnsServer.TcpReceiveTimeout = int.Parse(strTcpReceiveTimeout);
 
             string strEnableLogging = request.QueryString["enableLogging"];
             if (!string.IsNullOrEmpty(strEnableLogging))
@@ -3040,7 +3108,7 @@ namespace DnsServerCore
             if (importResponse)
             {
                 AuthZoneInfo zoneInfo = _dnsServer.AuthZoneManager.FindAuthZoneInfo(domain);
-                if ((zoneInfo is null) || zoneInfo.Name.Equals("", StringComparison.OrdinalIgnoreCase))
+                if ((zoneInfo is null) || ((zoneInfo.Type == AuthZoneType.Secondary) && !zoneInfo.Name.Equals(domain, StringComparison.OrdinalIgnoreCase)))
                 {
                     zoneInfo = _dnsServer.AuthZoneManager.CreatePrimaryZone(domain, _dnsServer.ServerDomain, false);
                     if (zoneInfo is null)
@@ -3070,7 +3138,7 @@ namespace DnsServerCore
                 }
                 else
                 {
-                    List<DnsResourceRecord> importRecords = new List<DnsResourceRecord>(dnsResponse.Answer.Count + dnsResponse.Authority.Count + dnsResponse.Additional.Count);
+                    List<DnsResourceRecord> importRecords = new List<DnsResourceRecord>(dnsResponse.Answer.Count + dnsResponse.Authority.Count);
 
                     foreach (DnsResourceRecord record in dnsResponse.Answer)
                     {
@@ -3078,31 +3146,21 @@ namespace DnsServerCore
                         {
                             record.RemoveExpiry();
                             importRecords.Add(record);
-                        }
-                    }
 
-                    foreach (DnsResourceRecord record in dnsResponse.Additional)
-                    {
-                        if (record.Name.Equals(zoneInfo.Name, StringComparison.OrdinalIgnoreCase) || record.Name.EndsWith("." + zoneInfo.Name, StringComparison.OrdinalIgnoreCase) || (zoneInfo.Name.Length == 0))
-                        {
-                            record.RemoveExpiry();
-                            importRecords.Add(record);
+                            if (record.Type == DnsResourceRecordType.NS)
+                                record.SyncGlueRecords(dnsResponse.Additional);
                         }
                     }
 
                     foreach (DnsResourceRecord record in dnsResponse.Authority)
                     {
-                        switch (record.Type)
-                        {
-                            case DnsResourceRecordType.OPT:
-                            case DnsResourceRecordType.TSIG:
-                                continue;
-                        }
-
                         if (record.Name.Equals(zoneInfo.Name, StringComparison.OrdinalIgnoreCase) || record.Name.EndsWith("." + zoneInfo.Name, StringComparison.OrdinalIgnoreCase) || (zoneInfo.Name.Length == 0))
                         {
                             record.RemoveExpiry();
                             importRecords.Add(record);
+
+                            if (record.Type == DnsResourceRecordType.NS)
+                                record.SyncGlueRecords(dnsResponse.Additional);
                         }
                     }
 
@@ -3849,9 +3907,37 @@ namespace DnsServerCore
                                 _dnsServer.UdpPayloadSize = DnsDatagram.EDNS_DEFAULT_UDP_PAYLOAD_SIZE;
 
                             if (version >= 26)
+                            {
                                 _dnsServer.DnssecValidation = bR.ReadBoolean();
+
+                                _dnsServer.ResolverRetries = bR.ReadInt32();
+                                _dnsServer.ResolverTimeout = bR.ReadInt32();
+                                _dnsServer.ResolverMaxStackCount = bR.ReadInt32();
+
+                                _dnsServer.ForwarderRetries = bR.ReadInt32();
+                                _dnsServer.ForwarderTimeout = bR.ReadInt32();
+                                _dnsServer.ForwarderConcurrency = bR.ReadInt32();
+
+                                _dnsServer.ClientTimeout = bR.ReadInt32();
+                                _dnsServer.TcpSendTimeout = bR.ReadInt32();
+                                _dnsServer.TcpReceiveTimeout = bR.ReadInt32();
+                            }
                             else
-                                _dnsServer.DnssecValidation = false;
+                            {
+                                _dnsServer.DnssecValidation = true;
+
+                                _dnsServer.ResolverRetries = 3;
+                                _dnsServer.ResolverTimeout = 2000;
+                                _dnsServer.ResolverMaxStackCount = 16;
+
+                                _dnsServer.ForwarderRetries = 3;
+                                _dnsServer.ForwarderTimeout = 2000;
+                                _dnsServer.ForwarderConcurrency = 2;
+
+                                _dnsServer.ClientTimeout = 4000;
+                                _dnsServer.TcpSendTimeout = 10000;
+                                _dnsServer.TcpReceiveTimeout = 10000;
+                            }
 
                             break;
 
@@ -4210,6 +4296,18 @@ namespace DnsServerCore
                 bW.Write(_webServiceUseSelfSignedTlsCertificate);
                 bW.Write(_dnsServer.UdpPayloadSize);
                 bW.Write(_dnsServer.DnssecValidation);
+
+                bW.Write(_dnsServer.ResolverRetries);
+                bW.Write(_dnsServer.ResolverTimeout);
+                bW.Write(_dnsServer.ResolverMaxStackCount);
+
+                bW.Write(_dnsServer.ForwarderRetries);
+                bW.Write(_dnsServer.ForwarderTimeout);
+                bW.Write(_dnsServer.ForwarderConcurrency);
+
+                bW.Write(_dnsServer.ClientTimeout);
+                bW.Write(_dnsServer.TcpSendTimeout);
+                bW.Write(_dnsServer.TcpReceiveTimeout);
 
                 //write config
                 mS.Position = 0;
