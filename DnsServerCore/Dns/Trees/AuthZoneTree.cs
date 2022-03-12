@@ -320,7 +320,7 @@ namespace DnsServerCore.Dns.Trees
             if (value is null)
                 return false;
 
-            return IsKeySubDomain(key, value.Key);
+            return IsKeySubDomain(key, value.Key, false);
         }
 
         private static AuthZone GetAuthZoneFromNode(Node node, string zoneName)
@@ -775,7 +775,7 @@ namespace DnsServerCore.Dns.Trees
                 //add wildcard proof to prove that a wildcard expansion was not possible
                 DnsResourceRecord nsecRecord = nsecRecords[0];
                 DnsNSECRecordData nsec = nsecRecord.RDATA as DnsNSECRecordData;
-                string wildcardName = DnsNSECRecordData.GetWildcardFor(nsecRecord.Name, nsec.NextDomainName);
+                string wildcardName = DnsNSECRecordData.GetWildcardFor(nsecRecord.Name, domain);
 
                 if (!DnsNSECRecordData.IsDomainCovered(nsecRecord.Name, nsec.NextDomainName, wildcardName))
                     AddProofOfCoverFor(wildcardName);
@@ -831,7 +831,7 @@ namespace DnsServerCore.Dns.Trees
                             proofOfCoverRecords = nextNSec3Records;
                             DnsResourceRecord previousNSec3Record = nextNSec3Records[0];
 
-                            string nextHashedOwnerNameString = (previousNSec3Record.RDATA as DnsNSEC3RecordData).NextHashedOwnerName + "." + zoneName;
+                            string nextHashedOwnerNameString = (previousNSec3Record.RDATA as DnsNSEC3RecordData).NextHashedOwnerName + (zoneName.Length > 0 ? "." + zoneName : "");
                             if (DnsNSECRecordData.CanonicalComparison(previousNSec3Record.Name, nextHashedOwnerNameString) >= 0)
                                 break; //found last NSEC3
 
@@ -897,7 +897,7 @@ namespace DnsServerCore.Dns.Trees
             while (true)
             {
                 string nextCloserName = DnsNSEC3RecordData.GetNextCloserName(domain, closestEncloser);
-                hashedNextCloserName = nsec3Param.ComputeHashedOwnerNameBase32HexString(nextCloserName) + "." + closestAuthority.Name;
+                hashedNextCloserName = nsec3Param.ComputeHashedOwnerNameBase32HexString(nextCloserName) + (closestAuthority.Name.Length > 0 ? "." + closestAuthority.Name : "");
 
                 AuthZone nsec3Zone = GetAuthZone(closestAuthority.Name, hashedNextCloserName);
                 if (nsec3Zone is null)
@@ -921,7 +921,7 @@ namespace DnsServerCore.Dns.Trees
             else
             {
                 //add closest encloser proof
-                string hashedClosestEncloser = nsec3Param.ComputeHashedOwnerNameBase32HexString(closestEncloser) + "." + closestAuthority.Name;
+                string hashedClosestEncloser = nsec3Param.ComputeHashedOwnerNameBase32HexString(closestEncloser) + (closestAuthority.Name.Length > 0 ? "." + closestAuthority.Name : "");
 
                 AuthZone nsec3Zone = GetAuthZone(closestAuthority.Name, hashedClosestEncloser);
                 if (nsec3Zone is null)
@@ -937,14 +937,14 @@ namespace DnsServerCore.Dns.Trees
                 DnsNSEC3RecordData closestEncloserProof = closestEncloserProofRecord.RDATA as DnsNSEC3RecordData;
 
                 //add proof of cover for the next closer name
-                if (!DnsNSECRecordData.IsDomainCovered(closestEncloserProofRecord.Name, closestEncloserProof.NextHashedOwnerName + "." + closestAuthority.Name, hashedNextCloserName))
+                if (!DnsNSECRecordData.IsDomainCovered(closestEncloserProofRecord.Name, closestEncloserProof.NextHashedOwnerName + (closestAuthority.Name.Length > 0 ? "." + closestAuthority.Name : ""), hashedNextCloserName))
                     AddProofOfCoverFor(hashedNextCloserName, closestAuthority.Name);
 
                 //add proof of cover to prove that a wildcard expansion was not possible
                 string wildcardDomain = closestEncloser.Length > 0 ? "*." + closestEncloser : "*";
-                string hashedWildcardDomainName = nsec3Param.ComputeHashedOwnerNameBase32HexString(wildcardDomain) + "." + closestAuthority.Name;
+                string hashedWildcardDomainName = nsec3Param.ComputeHashedOwnerNameBase32HexString(wildcardDomain) + (closestAuthority.Name.Length > 0 ? "." + closestAuthority.Name : "");
 
-                if (!DnsNSECRecordData.IsDomainCovered(closestEncloserProofRecord.Name, closestEncloserProof.NextHashedOwnerName + "." + closestAuthority.Name, hashedWildcardDomainName))
+                if (!DnsNSECRecordData.IsDomainCovered(closestEncloserProofRecord.Name, closestEncloserProof.NextHashedOwnerName + (closestAuthority.Name.Length > 0 ? "." + closestAuthority.Name : ""), hashedWildcardDomainName))
                     AddProofOfCoverFor(hashedWildcardDomainName, closestAuthority.Name);
             }
 
@@ -967,7 +967,7 @@ namespace DnsServerCore.Dns.Trees
                 throw new InvalidOperationException("Zone does not have NSEC3 deployed.");
 
             DnsNSEC3PARAMRecordData nsec3Param = nsec3ParamRecords[0].RDATA as DnsNSEC3PARAMRecordData;
-            string hashedOwnerName = nsec3Param.ComputeHashedOwnerNameBase32HexString(zone.Name) + "." + apexZone.Name;
+            string hashedOwnerName = nsec3Param.ComputeHashedOwnerNameBase32HexString(zone.Name) + (apexZone.Name.Length > 0 ? "." + apexZone.Name : "");
 
             AuthZone nsec3Zone = GetAuthZone(apexZone.Name, hashedOwnerName);
             if (nsec3Zone is null)
