@@ -189,7 +189,7 @@ namespace DnsServerCore.Dns
             {
                 ThreadPool.GetMinThreads(out int minWorker, out int minIOC);
 
-                int minThreads = Environment.ProcessorCount * 4;
+                int minThreads = Environment.ProcessorCount * 16;
 
                 if (minWorker < minThreads)
                     minWorker = minThreads;
