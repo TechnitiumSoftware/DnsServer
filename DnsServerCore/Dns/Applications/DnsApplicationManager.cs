@@ -1,6 +1,6 @@
 ﻿/*
 Technitium DNS Server
-Copyright (C) 2021  Shreyas Zare (shreyas@technitium.com)
+Copyright (C) 2022  Shreyas Zare (shreyas@technitium.com)
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -191,6 +191,12 @@ namespace DnsServerCore.Dns.Applications
 
         public async Task InstallApplicationAsync(string applicationName, Stream appStream)
         {
+            foreach (char invalidChar in Path.GetInvalidFileNameChars())
+            {
+                if (applicationName.Contains(invalidChar))
+                    throw new DnsServerException("The application name contains an invalid character: " + invalidChar);
+            }
+
             if (_applications.ContainsKey(applicationName))
                 throw new DnsServerException("DNS application already exists: " + applicationName);
 
