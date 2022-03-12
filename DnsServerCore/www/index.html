@@ -551,7 +551,7 @@
                                         <div class="form-group">
                                             <label for="txtDnsClientNameServer">Server</label>
                                             <div class="input-group dropdown">
-                                                <input type="text" class="form-control dropdown-toggle" style="min-width: 230px;" id="txtDnsClientNameServer" value="This Server {this-server}">
+                                                <input type="text" class="form-control dropdown-toggle" style="min-width: 230px; border-right: 0px;" id="txtDnsClientNameServer" value="This Server {this-server}">
                                                 <ul class="dropdown-menu" id="optDnsClientNameServers">
                                                     <li><a href="#">This Server {this-server}</a></li>
                                                     <li><a href="#">Recursive Query {recursive-resolver}</a></li>
@@ -611,7 +611,7 @@
                                                     <li><a href="#">l.root-servers.net</a></li>
                                                     <li><a href="#">m.root-servers.net</a></li>
                                                 </ul>
-                                                <span role="button" class="input-group-addon dropdown-toggle" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false"><span class="caret"></span></span>
+                                                <span role="button" class="input-group-addon dropdown-toggle" style="background-color: white;" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false"><span class="caret"></span></span>
                                             </div>
                                         </div>
 
@@ -622,7 +622,7 @@
 
                                         <div class="form-group">
                                             <label for="optDnsClientType">Type</label>
-                                            <select class="form-control" id="optDnsClientType">
+                                            <select class="form-control" id="optDnsClientType" style="padding-left: 6px; padding-right: 0px;">
                                                 <option>A</option>
                                                 <option>NS</option>
                                                 <option>CNAME</option>
@@ -648,7 +648,7 @@
 
                                         <div class="form-group">
                                             <label for="optDnsClientProtocol">DNS-over-</label>
-                                            <select class="form-control" id="optDnsClientProtocol">
+                                            <select class="form-control" id="optDnsClientProtocol" style="padding-left: 6px; padding-right: 0px;">
                                                 <option>UDP</option>
                                                 <option>TCP</option>
                                                 <option>TLS</option>
@@ -662,10 +662,12 @@
                                             <button type="button" class="btn btn-warning" id="btnDnsClientImport" data-loading-text="Importing..." onclick="resolveQuery(true);">Import</button>
                                         </div>
 
-                                        <div class="form-group checkbox">
-                                            <label>
-                                                <input type="checkbox" id="chkDnsClientDnssecValidation"> Enable DNSSEC Validation
-                                            </label>
+                                        <div class="form-group">
+                                            <div class="checkbox">
+                                                <label>
+                                                    <input type="checkbox" id="chkDnsClientDnssecValidation"> Enable DNSSEC Validation
+                                                </label>
+                                            </div>
                                         </div>
                                     </form>
 
@@ -720,7 +722,7 @@
                                                             <label for="txtDefaultRecordTtl" class="col-sm-3 control-label">Default Record TTL</label>
                                                             <div class="col-sm-6">
                                                                 <input type="number" class="form-control" id="txtDefaultRecordTtl" placeholder="TTL" style="width: 100px; display: inline;">
-                                                                <span>(default 3600)</span>
+                                                                <span>seconds (default 3600)</span>
                                                             </div>
                                                             <div class="col-sm-offset-3 col-sm-8" style="padding-top: 5px;">The default TTL value to use if not specified when adding or updating records in a Zone.</div>
                                                         </div>
@@ -747,7 +749,7 @@
                                                             <label for="txtEdnsUdpPayloadSize" class="col-sm-3 control-label">EDNS UDP Payload Size</label>
                                                             <div class="col-sm-6">
                                                                 <input type="number" class="form-control" id="txtEdnsUdpPayloadSize" placeholder="size" style="width: 100px; display: inline;">
-                                                                <span>(valid range 512-4096; default 1232)</span>
+                                                                <span>bytes (valid range 512-4096; default 1232)</span>
                                                             </div>
                                                             <div class="col-sm-offset-3 col-sm-8" style="padding-top: 5px;">The maximum UDP payload size that can be used to avoid IP fragmentation.</div>
                                                         </div>
@@ -819,6 +821,35 @@
                                                         </div>
 
                                                         <div>Note! Queries Per Minute (QPM) feature will limit requests from a client subnet based on its IP address and the specified subnet prefix lengths. The QPM limit configured will be compared with the average count from the sample size which means a client may exceed the QPM limit for a given minute but won't exceed for the given sample size in minutes.</div>
+                                                    </div>
+
+                                                    <div class="well well-sm form-horizontal">
+                                                        <div class="form-group">
+                                                            <label for="txtClientTimeout" class="col-sm-3 control-label">Client Timeout</label>
+                                                            <div class="col-sm-6">
+                                                                <input type="number" class="form-control" id="txtClientTimeout" placeholder="timeout" style="width: 100px; display: inline;">
+                                                                <span>milliseconds (valid range 1000-10000; default 4000)</span>
+                                                            </div>
+                                                            <div class="col-sm-offset-3 col-sm-8" style="padding-top: 5px;">The amount of time the DNS server must wait before responding with a <code>ServerFailure</code> response to a client request when no answer is available.</div>
+                                                        </div>
+
+                                                        <div class="form-group">
+                                                            <label for="txtTcpSendTimeout" class="col-sm-3 control-label">TCP Send Timeout</label>
+                                                            <div class="col-sm-6">
+                                                                <input type="number" class="form-control" id="txtTcpSendTimeout" placeholder="timeout" style="width: 100px; display: inline;">
+                                                                <span>milliseconds (valid range 1000-90000; default 10000)</span>
+                                                            </div>
+                                                            <div class="col-sm-offset-3 col-sm-8" style="padding-top: 5px;">The amount of time a TCP socket must wait for an <code>ACK</code> before closing the connection. This option will apply for DNS requests being received by the DNS Server over TCP, TLS, or HTTPS transports.</div>
+                                                        </div>
+
+                                                        <div class="form-group">
+                                                            <label for="txtTcpReceiveTimeout" class="col-sm-3 control-label">TCP Receive Timeout</label>
+                                                            <div class="col-sm-6">
+                                                                <input type="number" class="form-control" id="txtTcpReceiveTimeout" placeholder="timeout" style="width: 100px; display: inline;">
+                                                                <span>milliseconds (valid range 1000-90000; default 10000)</span>
+                                                            </div>
+                                                            <div class="col-sm-offset-3 col-sm-8" style="padding-top: 5px;">The amount of time a TCP socket must wait for data before closing the connection. This option will apply for DNS requests being received by the DNS Server over TCP, TLS, or HTTPS transports.</div>
+                                                        </div>
                                                     </div>
                                                 </div>
 
@@ -1020,6 +1051,10 @@
                                                             </div>
                                                         </div>
 
+                                                        <div>Note! Disable recursion if you wish this server to act only as authoritative name server for the configured zones.</div>
+                                                    </div>
+
+                                                    <div class="well well-sm form-horizontal">
                                                         <div class="form-group">
                                                             <label class="col-sm-3 control-label">Recursive Resolver</label>
                                                             <div class="col-sm-8">
@@ -1045,8 +1080,35 @@
                                                                 <div style="padding-top: 5px; padding-left: 20px;">Enables <a href="https://datatracker.ietf.org/doc/draft-ietf-dnsop-ns-revalidation/" target="_blank">Delegation Revalidation</a> for recursive resolution.</div>
                                                             </div>
                                                         </div>
+                                                    </div>
 
-                                                        <div>Note! Disable recursion if you wish this server to act only as authoritative name server for the configured zones.</div>
+                                                    <div class="well well-sm form-horizontal">
+                                                        <div class="form-group">
+                                                            <label for="txtResolverRetries" class="col-sm-3 control-label">Resolver Retries</label>
+                                                            <div class="col-sm-6">
+                                                                <input type="number" class="form-control" id="txtResolverRetries" placeholder="retries" style="width: 100px; display: inline;">
+                                                                <span>(valid range 1-10; default 3)</span>
+                                                            </div>
+                                                            <div class="col-sm-offset-3 col-sm-8" style="padding-top: 5px;">The total number of retries the recursive resolver must do per name server.</div>
+                                                        </div>
+
+                                                        <div class="form-group">
+                                                            <label for="txtResolverTimeout" class="col-sm-3 control-label">Resolver Timeout</label>
+                                                            <div class="col-sm-6">
+                                                                <input type="number" class="form-control" id="txtResolverTimeout" placeholder="timeout" style="width: 100px; display: inline;">
+                                                                <span>milliseconds (valid range 1000-10000; default 2000)</span>
+                                                            </div>
+                                                            <div class="col-sm-offset-3 col-sm-8" style="padding-top: 5px;">The amount of time the recursive resolver must wait between retries.</div>
+                                                        </div>
+
+                                                        <div class="form-group">
+                                                            <label for="txtResolverMaxStackCount" class="col-sm-3 control-label">Resolver Max Stack Count</label>
+                                                            <div class="col-sm-6">
+                                                                <input type="number" class="form-control" id="txtResolverMaxStackCount" placeholder="count" style="width: 100px; display: inline;">
+                                                                <span>(valid range 10-30; default 16)</span>
+                                                            </div>
+                                                            <div class="col-sm-offset-3 col-sm-8" style="padding-top: 5px;">The maximum stack count the recursive resolver must use for resolving a domain name.</div>
+                                                        </div>
                                                     </div>
                                                 </div>
 
@@ -1068,7 +1130,7 @@
                                                             <label for="txtServeStaleTtl" class="col-sm-3 control-label">Serve Stale TTL</label>
                                                             <div class="col-sm-6">
                                                                 <input type="number" class="form-control" id="txtServeStaleTtl" placeholder="seconds" style="width: 100px; display: inline;">
-                                                                <span>(recommended 259200 seconds i.e. 3 days)</span>
+                                                                <span>seconds (recommended 259200 i.e. 3 days)</span>
                                                             </div>
                                                             <div class="col-sm-offset-3 col-sm-8" style="padding-top: 5px;">The TTL value in seconds which should be used for cached records that are expired. When the serve stale TTL too expires for a stale record, it gets removed from the cache. Recommended value is between 1-3 days and maximum supported value is 7 days.</div>
                                                         </div>
@@ -1079,7 +1141,7 @@
                                                             <label for="txtCacheMinimumRecordTtl" class="col-sm-3 control-label">Cache Minimum TTL</label>
                                                             <div class="col-sm-6">
                                                                 <input type="number" class="form-control" id="txtCacheMinimumRecordTtl" placeholder="min TTL" style="width: 100px; display: inline;">
-                                                                <span>(recommended 10)</span>
+                                                                <span>seconds (recommended 10)</span>
                                                             </div>
                                                             <div class="col-sm-offset-3 col-sm-8" style="padding-top: 5px;">The minimum TTL value that a record can have in the cache. Set a value to make sure that the records with TTL value less than that stays in cache for a minimum duration.</div>
                                                         </div>
@@ -1088,7 +1150,7 @@
                                                             <label for="txtCacheMaximumRecordTtl" class="col-sm-3 control-label">Cache Maximum TTL</label>
                                                             <div class="col-sm-8">
                                                                 <input type="number" class="form-control" id="txtCacheMaximumRecordTtl" placeholder="max TTL" style="width: 100px; display: inline;">
-                                                                <span>(default 604800)</span>
+                                                                <span>seconds (default 604800)</span>
                                                             </div>
                                                             <div class="col-sm-offset-3 col-sm-8" style="padding-top: 5px;">The maximum TTL value that a record can have in the cache. Set a lower value to allow the records to expire early.</div>
                                                         </div>
@@ -1097,7 +1159,7 @@
                                                             <label for="txtCacheNegativeRecordTtl" class="col-sm-3 control-label">Cache Negative TTL</label>
                                                             <div class="col-sm-6">
                                                                 <input type="number" class="form-control" id="txtCacheNegativeRecordTtl" placeholder="-ve TTL" style="width: 100px; display: inline;">
-                                                                <span>(recommended 300)</span>
+                                                                <span>seconds (recommended 300)</span>
                                                             </div>
                                                             <div class="col-sm-offset-3 col-sm-8" style="padding-top: 5px;">The negative TTL value to use when there is no SOA MINIMUM value available.</div>
                                                         </div>
@@ -1106,7 +1168,7 @@
                                                             <label for="txtCacheFailureRecordTtl" class="col-sm-3 control-label">Cache Failure TTL</label>
                                                             <div class="col-sm-6">
                                                                 <input type="number" class="form-control" id="txtCacheFailureRecordTtl" placeholder="fail TTL" style="width: 100px; display: inline;">
-                                                                <span>(recommended 60)</span>
+                                                                <span>seconds (recommended 60)</span>
                                                             </div>
                                                             <div class="col-sm-offset-3 col-sm-8" style="padding-top: 5px;">The failure TTL value to be used for caching failure responses. This allows storing failure record in cache and prevent frequent recursive resolution requests to the name servers that are responding with <code>ServerFailure</code>.</div>
                                                         </div>
@@ -1117,7 +1179,7 @@
                                                             <label for="txtCachePrefetchEligibility" class="col-sm-3 control-label">Prefetch Eligibility</label>
                                                             <div class="col-sm-6">
                                                                 <input type="number" class="form-control" id="txtCachePrefetchEligibility" placeholder="eligibility" style="width: 100px; display: inline;">
-                                                                <span>(recommended 2)</span>
+                                                                <span>seconds (recommended 2)</span>
                                                             </div>
                                                             <div class="col-sm-offset-3 col-sm-8" style="padding-top: 5px;">The minimum initial TTL value of a record needed to be eligible for prefetching.</div>
                                                         </div>
@@ -1126,7 +1188,7 @@
                                                             <label for="txtCachePrefetchTrigger" class="col-sm-3 control-label">Prefetch Trigger</label>
                                                             <div class="col-sm-8">
                                                                 <input type="number" class="form-control" id="txtCachePrefetchTrigger" placeholder="trigger" style="width: 100px; display: inline;">
-                                                                <span>(recommended 9; set 0 to disable prefetching &amp; auto prefetching)</span>
+                                                                <span>seconds (recommended 9; set 0 to disable prefetching &amp; auto prefetching)</span>
                                                             </div>
                                                             <div class="col-sm-offset-3 col-sm-8" style="padding-top: 5px;">A record with TTL value less than trigger value will initiate prefetch operation immediately for itself.</div>
                                                         </div>
@@ -1448,6 +1510,35 @@
 
                                                         <div style="margin-top: 10px;">Forwarders are DNS servers which this DNS Server should use to resolve recursive queries. If no forwarders are configured then this DNS server will use preconfigured ROOT SERVERS to perform recursive resolution.</div>
                                                         <div style="margin-top: 10px;"><a href="https://blog.technitium.com/2018/06/configuring-dns-server-for-privacy.html" target="_blank">Help: Configuring DNS Server For Privacy & Security</a></div>
+                                                    </div>
+
+                                                    <div class="well well-sm form-horizontal">
+                                                        <div class="form-group">
+                                                            <label for="txtForwarderRetries" class="col-sm-3 control-label">Forwarder Retries</label>
+                                                            <div class="col-sm-6">
+                                                                <input type="number" class="form-control" id="txtForwarderRetries" placeholder="retries" style="width: 100px; display: inline;">
+                                                                <span>(valid range 1-10; default 3)</span>
+                                                            </div>
+                                                            <div class="col-sm-offset-3 col-sm-8" style="padding-top: 5px;">The total number of retries the forwarder or conditional forwarder resolver must do per upstream DNS server.</div>
+                                                        </div>
+
+                                                        <div class="form-group">
+                                                            <label for="txtForwarderTimeout" class="col-sm-3 control-label">Forwarder Timeout</label>
+                                                            <div class="col-sm-6">
+                                                                <input type="number" class="form-control" id="txtForwarderTimeout" placeholder="timeout" style="width: 100px; display: inline;">
+                                                                <span>milliseconds (valid range 1000-10000; default 2000)</span>
+                                                            </div>
+                                                            <div class="col-sm-offset-3 col-sm-8" style="padding-top: 5px;">The amount of time the forwarder or conditional forwarder resolver must wait between retries.</div>
+                                                        </div>
+
+                                                        <div class="form-group">
+                                                            <label for="txtForwarderConcurrency" class="col-sm-3 control-label">Forwarder Concurrency</label>
+                                                            <div class="col-sm-6">
+                                                                <input type="number" class="form-control" id="txtForwarderConcurrency" placeholder="count" style="width: 100px; display: inline;">
+                                                                <span>(valid range 1-10; default 2)</span>
+                                                            </div>
+                                                            <div class="col-sm-offset-3 col-sm-8" style="padding-top: 5px;">The number of concurrent requests that the forwarder or conditional forwarder resolver must send when resolving a domain name.</div>
+                                                        </div>
                                                     </div>
                                                 </div>
 
@@ -2381,7 +2472,7 @@ ns1.example.com ([2001:db8::])
                                         </label>
                                     </div>
                                     <div style="padding-top: 5px; padding-left: 20px; padding-bottom: 10px;">
-                                        When using "This Server", if a record does not exists in the zone then the request is forwarded to the DNS server's resolver internally. This allows you to override any record for the forwarded domain name.
+                                        When using "This Server", if a record does not exists in the zone then the request is forwarded to the DNS server's resolver internally. This allows you to override any record for the forwarded domain name or control its DNSSEC validation.
                                     </div>
 
                                     <input id="txtAddZoneForwarder" type="text" class="form-control" placeholder="8.8.8.8">
@@ -2793,14 +2884,14 @@ ns1.example.com ([2001:db8::])
                                             </label>
                                         </div>
                                         <div style="padding-top: 5px; padding-left: 20px; padding-bottom: 10px;">
-                                            When using "This Server", if a record does not exists in the zone then the request is forwarded to the DNS server's resolver internally. This allows you to override any record for the forwarded domain name.
+                                            When using "This Server", if a record does not exists in the zone then the request is forwarded to the DNS server's resolver internally. This allows you to override any record for the forwarded domain name or control its DNSSEC validation.
                                         </div>
 
                                         <input id="txtAddEditRecordDataForwarder" type="text" class="form-control" placeholder="8.8.8.8">
                                     </div>
                                 </div>
 
-                                <div class="form-group" id="divAddEditRecordDataForwarderDnssecValidation">
+                                <div class="form-group">
                                     <label class="col-sm-4 control-label">DNSSEC</label>
                                     <div class="col-sm-7">
                                         <div class="checkbox" style="margin-bottom: 6px;">
@@ -3173,6 +3264,17 @@ ns1.example.com ([2001:db8::])
                                 The TTL value to be used for DNSKEY records. A lower value will allow quicker addition or rollover to a new DNS Key at the cost of increased frequency of DNSKEY queries by resolvers.
                             </div>
                         </div>
+
+                        <div class="form-group">
+                            <label for="txtDnssecSignZoneZskAutoRollover" class="col-sm-4 control-label">ZSK Automatic Rollover</label>
+                            <div class="col-sm-8">
+                                <input id="txtDnssecSignZoneZskAutoRollover" type="number" class="form-control" placeholder="days" style="width: 100px; display: inline;">
+                                <span>days (valid range 0-365; default 90; set 0 to disable)</span>
+                            </div>
+                            <div class="col-sm-offset-4 col-sm-8" style="padding-top: 5px;">
+                                The frequency at which the DNS server must automatically rollover all Zone Signing Key (ZSK) keys.
+                            </div>
+                        </div>
                     </div>
                 </div>
                 <div class="modal-footer">
@@ -3390,6 +3492,24 @@ ns1.example.com ([2001:db8::])
                             </div>
                             <div style="margin-top: 10px;">
                                 Warning! You MUST wait for at least the number of seconds specified by the the old TTL value to elapse before making any changes to the DNS keys above to ensure that all recursive resolvers would have expired the DNSKEY records from its cache. For example, if the old TTL value was 86400 seconds, then you must wait for 86400 seconds (24 hours) to pass before making any changes to the DNS keys.
+                            </div>
+                        </div>
+
+                        <div class="well well-sm form-horizontal">
+                            <div class="form-group" style="margin-bottom: 5px;">
+                                <label for="txtDnssecPropertiesZskAutoRollover" class="col-sm-4 control-label">ZSK Automatic Rollover</label>
+                                <div class="col-sm-8">
+                                    <div>
+                                        <input id="txtDnssecPropertiesZskAutoRollover" type="number" class="form-control" placeholder="days" style="width: 100px; display: inline;">
+                                        <span>days (valid range 0-365; default 90; set 0 to disable)</span>
+                                    </div>
+                                    <div style="margin-top: 10px;">
+                                        <button type="button" class="btn btn-default" style="padding: 2px 0; width: 100px;" data-loading-text="Updating..." onclick="updateDnssecDnsKeyAutomaticRollover(this);">Update</button>
+                                    </div>
+                                </div>
+                                <div class="col-sm-offset-4 col-sm-8" style="margin-top: 10px;">
+                                    The frequency at which the DNS server must automatically rollover all Zone Signing Key (ZSK) keys.
+                                </div>
                             </div>
                         </div>
                     </div>
