@@ -273,6 +273,13 @@ namespace DnsServerCore
             else
                 dnsKeyTtl = uint.Parse(strDnsKeyTtl);
 
+            ushort zskRolloverDays;
+            string strZskDays = request.QueryString["zskRolloverDays"];
+            if (string.IsNullOrEmpty(strZskDays))
+                zskRolloverDays = 90;
+            else
+                zskRolloverDays = ushort.Parse(strZskDays);
+
             bool useNSEC3 = false;
             string strNxProof = request.QueryString["nxProof"];
             if (!string.IsNullOrEmpty(strNxProof))
@@ -325,9 +332,9 @@ namespace DnsServerCore
                     int zskKeySize = int.Parse(strZSKKeySize);
 
                     if (useNSEC3)
-                        _dnsWebService.DnsServer.AuthZoneManager.SignPrimaryZoneWithRsaNSEC3(zoneName, hashAlgorithm, kskKeySize, zskKeySize, iterations, saltLength, dnsKeyTtl);
+                        _dnsWebService.DnsServer.AuthZoneManager.SignPrimaryZoneWithRsaNSEC3(zoneName, hashAlgorithm, kskKeySize, zskKeySize, iterations, saltLength, dnsKeyTtl, zskRolloverDays);
                     else
-                        _dnsWebService.DnsServer.AuthZoneManager.SignPrimaryZoneWithRsaNSEC(zoneName, hashAlgorithm, kskKeySize, zskKeySize, dnsKeyTtl);
+                        _dnsWebService.DnsServer.AuthZoneManager.SignPrimaryZoneWithRsaNSEC(zoneName, hashAlgorithm, kskKeySize, zskKeySize, dnsKeyTtl, zskRolloverDays);
 
                     break;
 
@@ -337,9 +344,9 @@ namespace DnsServerCore
                         throw new DnsWebServiceException("Parameter 'curve' missing.");
 
                     if (useNSEC3)
-                        _dnsWebService.DnsServer.AuthZoneManager.SignPrimaryZoneWithEcdsaNSEC3(zoneName, curve, iterations, saltLength, dnsKeyTtl);
+                        _dnsWebService.DnsServer.AuthZoneManager.SignPrimaryZoneWithEcdsaNSEC3(zoneName, curve, iterations, saltLength, dnsKeyTtl, zskRolloverDays);
                     else
-                        _dnsWebService.DnsServer.AuthZoneManager.SignPrimaryZoneWithEcdsaNSEC(zoneName, curve, dnsKeyTtl);
+                        _dnsWebService.DnsServer.AuthZoneManager.SignPrimaryZoneWithEcdsaNSEC(zoneName, curve, dnsKeyTtl, zskRolloverDays);
 
                     break;
 
@@ -414,6 +421,9 @@ namespace DnsServerCore
 
             jsonWriter.WritePropertyName("dnsKeyTtl");
             jsonWriter.WriteValue(zoneInfo.DnsKeyTtl);
+
+            jsonWriter.WritePropertyName("zskRolloverDays");
+            jsonWriter.WriteValue(zoneInfo.ZskRolloverDays);
 
             jsonWriter.WritePropertyName("dnssecPrivateKeys");
             jsonWriter.WriteStartArray();
@@ -556,6 +566,27 @@ namespace DnsServerCore
             _dnsWebService.DnsServer.AuthZoneManager.UpdatePrimaryZoneDnsKeyTtl(zoneName, dnsKeyTtl);
 
             _dnsWebService.Log.Write(DnsWebService.GetRequestRemoteEndPoint(request), "[" + _dnsWebService.GetSession(request).Username + "] Primary zone DNSKEY TTL was updated successfully: " + zoneName);
+
+            _dnsWebService.DnsServer.AuthZoneManager.SaveZoneFile(zoneName);
+        }
+
+        public void UpdatePrimaryZoneDnssecDnsKeyRollover(HttpListenerRequest request)
+        {
+            string zoneName = request.QueryString["zone"];
+            if (string.IsNullOrEmpty(zoneName))
+                throw new DnsWebServiceException("Parameter 'zone' missing.");
+
+            zoneName = zoneName.TrimEnd('.');
+
+            string strZskRolloverDays = request.QueryString["zskRolloverDays"];
+            if (string.IsNullOrEmpty(strZskRolloverDays))
+                throw new DnsWebServiceException("Parameter 'zskRolloverDays' missing.");
+
+            ushort zskRolloverDays = ushort.Parse(strZskRolloverDays);
+
+            _dnsWebService.DnsServer.AuthZoneManager.UpdatePrimaryZoneDnssecDnsKeyRollover(zoneName, zskRolloverDays);
+
+            _dnsWebService.Log.Write(DnsWebService.GetRequestRemoteEndPoint(request), "[" + _dnsWebService.GetSession(request).Username + "] Primary zone DNSKEY automatic rollover config was updated successfully: " + zoneName);
 
             _dnsWebService.DnsServer.AuthZoneManager.SaveZoneFile(zoneName);
         }
@@ -998,8 +1029,11 @@ namespace DnsServerCore
             domain = domain.TrimEnd('.');
 
             string zoneName = request.QueryString["zone"];
+            if (zoneName is not null)
+                zoneName = zoneName.TrimEnd('.');
+
             AuthZoneInfo zoneInfo = _dnsWebService.DnsServer.AuthZoneManager.FindAuthZoneInfo(string.IsNullOrEmpty(zoneName) ? domain : zoneName);
-            if (zoneInfo == null)
+            if (zoneInfo is null)
                 throw new DnsWebServiceException("No authoritative zone was not found for domain: " + domain);
 
             if (zoneInfo.Internal)
@@ -1397,6 +1431,10 @@ namespace DnsServerCore
                         }
 
                         bool dnssecValidation = false;
+                        string strDnssecValidation = request.QueryString["dnssecValidation"];
+                        if (!string.IsNullOrEmpty(strDnssecValidation))
+                            dnssecValidation = bool.Parse(strDnssecValidation);
+
                         NetProxyType proxyType = NetProxyType.None;
                         string proxyAddress = null;
                         ushort proxyPort = 0;
@@ -1405,10 +1443,6 @@ namespace DnsServerCore
 
                         if (!forwarder.Equals("this-server"))
                         {
-                            string strDnssecValidation = request.QueryString["dnssecValidation"];
-                            if (!string.IsNullOrEmpty(strDnssecValidation))
-                                dnssecValidation = bool.Parse(strDnssecValidation);
-
                             string strProxyType = request.QueryString["proxyType"];
                             if (!string.IsNullOrEmpty(strProxyType))
                                 proxyType = Enum.Parse<NetProxyType>(strProxyType, true);
@@ -2280,8 +2314,11 @@ namespace DnsServerCore
             domain = domain.TrimEnd('.');
 
             string zoneName = request.QueryString["zone"];
+            if (zoneName is not null)
+                zoneName = zoneName.TrimEnd('.');
+
             AuthZoneInfo zoneInfo = _dnsWebService.DnsServer.AuthZoneManager.FindAuthZoneInfo(string.IsNullOrEmpty(zoneName) ? domain : zoneName);
-            if (zoneInfo == null)
+            if (zoneInfo is null)
                 throw new DnsWebServiceException("No authoritative zone was not found for domain: " + domain);
 
             if (zoneInfo.Internal)
@@ -2534,8 +2571,11 @@ namespace DnsServerCore
             domain = domain.TrimEnd('.');
 
             string zoneName = request.QueryString["zone"];
+            if (zoneName is not null)
+                zoneName = zoneName.TrimEnd('.');
+
             AuthZoneInfo zoneInfo = _dnsWebService.DnsServer.AuthZoneManager.FindAuthZoneInfo(string.IsNullOrEmpty(zoneName) ? domain : zoneName);
-            if (zoneInfo == null)
+            if (zoneInfo is null)
                 throw new DnsWebServiceException("No authoritative zone was not found for domain: " + domain);
 
             if (zoneInfo.Internal)
@@ -3126,6 +3166,10 @@ namespace DnsServerCore
                         }
 
                         bool dnssecValidation = false;
+                        string strDnssecValidation = request.QueryString["dnssecValidation"];
+                        if (!string.IsNullOrEmpty(strDnssecValidation))
+                            dnssecValidation = bool.Parse(strDnssecValidation);
+
                         NetProxyType proxyType = NetProxyType.None;
                         string proxyAddress = null;
                         ushort proxyPort = 0;
@@ -3134,10 +3178,6 @@ namespace DnsServerCore
 
                         if (!newForwarder.Equals("this-server"))
                         {
-                            string strDnssecValidation = request.QueryString["dnssecValidation"];
-                            if (!string.IsNullOrEmpty(strDnssecValidation))
-                                dnssecValidation = bool.Parse(strDnssecValidation);
-
                             string strProxyType = request.QueryString["proxyType"];
                             if (!string.IsNullOrEmpty(strProxyType))
                                 proxyType = Enum.Parse<NetProxyType>(strProxyType, true);
