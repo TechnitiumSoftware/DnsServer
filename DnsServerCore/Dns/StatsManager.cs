@@ -96,7 +96,7 @@ namespace DnsServerCore.Dns
                 catch (Exception ex)
                 {
                     LogManager log = dnsServer.LogManager;
-                    if (log != null)
+                    if (log is not null)
                         log.Write(ex);
                 }
             }, null, MAINTENANCE_TIMER_INITIAL_INTERVAL, MAINTENANCE_TIMER_PERIODIC_INTERVAL);
@@ -120,7 +120,7 @@ namespace DnsServerCore.Dns
 
                             DnsServerResponseType responseType;
 
-                            if (item._response.Tag == null)
+                            if (item._response.Tag is null)
                                 responseType = DnsServerResponseType.Recursive;
                             else
                                 responseType = (DnsServerResponseType)item._response.Tag;
@@ -137,7 +137,7 @@ namespace DnsServerCore.Dns
                             catch (Exception ex)
                             {
                                 LogManager log = dnsServer.LogManager;
-                                if (log != null)
+                                if (log is not null)
                                     log.Write(ex);
                             }
                         }
@@ -146,7 +146,7 @@ namespace DnsServerCore.Dns
                 catch (Exception ex)
                 {
                     LogManager log = dnsServer.LogManager;
-                    if (log != null)
+                    if (log is not null)
                         log.Write(ex);
                 }
             });
@@ -224,7 +224,7 @@ namespace DnsServerCore.Dns
                 catch (Exception ex)
                 {
                     LogManager log = dnsServer.LogManager;
-                    if (log != null)
+                    if (log is not null)
                         log.Write(ex);
                 }
             });
