@@ -306,7 +306,7 @@ namespace DnsServerCore.Dns.ZoneManagers
 
         private IReadOnlyList<DnsResourceRecord> GetAdditionalRecords(IReadOnlyList<DnsResourceRecord> refRecords, bool dnssecOk)
         {
-            List<DnsResourceRecord> additionalRecords = new List<DnsResourceRecord>();
+            List<DnsResourceRecord> additionalRecords = new List<DnsResourceRecord>(refRecords.Count);
 
             foreach (DnsResourceRecord refRecord in refRecords)
             {
@@ -407,18 +407,33 @@ namespace DnsServerCore.Dns.ZoneManagers
             return new DnsDatagram(request.Identifier, true, DnsOpcode.StandardQuery, false, false, request.RecursionDesired, isRecursionAllowed, false, false, DnsResponseCode.NoError, request.Question, null, authority, additional);
         }
 
-        private static DnsDatagram GetForwarderResponse(DnsDatagram request, AuthZone zone, AuthZone closestZone, AuthZone forwarderZone, bool isRecursionAllowed)
+        private DnsDatagram GetForwarderResponse(DnsDatagram request, AuthZone zone, AuthZone closestZone, ApexZone forwarderZone, bool isRecursionAllowed)
         {
             IReadOnlyList<DnsResourceRecord> authority = null;
 
             if (zone is not null)
+            {
+                if (zone.ContainsNameServerRecords())
+                    return GetReferralResponse(request, false, zone, forwarderZone, isRecursionAllowed);
+
                 authority = zone.QueryRecords(DnsResourceRecordType.FWD, false);
+            }
 
             if (((authority is null) || (authority.Count == 0)) && (closestZone is not null))
+            {
+                if (closestZone.ContainsNameServerRecords())
+                    return GetReferralResponse(request, false, closestZone, forwarderZone, isRecursionAllowed);
+
                 authority = closestZone.QueryRecords(DnsResourceRecordType.FWD, false);
+            }
 
             if ((authority is null) || (authority.Count == 0))
+            {
+                if (forwarderZone.ContainsNameServerRecords())
+                    return GetReferralResponse(request, false, forwarderZone, forwarderZone, isRecursionAllowed);
+
                 authority = forwarderZone.QueryRecords(DnsResourceRecordType.FWD, false);
+            }
 
             return new DnsDatagram(request.Identifier, true, DnsOpcode.StandardQuery, false, false, request.RecursionDesired, isRecursionAllowed, false, false, DnsResponseCode.NoError, request.Question, null, authority);
         }
@@ -428,7 +443,7 @@ namespace DnsServerCore.Dns.ZoneManagers
             _root.Clear();
         }
 
-        private static IReadOnlyList<DnsResourceRecord> CondenseIncrementalZoneTransferRecords(string domain, DnsResourceRecord currentSoaRecord, IReadOnlyList<DnsResourceRecord> xfrRecords)
+        private static IReadOnlyList<DnsResourceRecord> CondenseIncrementalZoneTransferRecords(string zoneName, DnsResourceRecord currentSoaRecord, IReadOnlyList<DnsResourceRecord> xfrRecords)
         {
             DnsResourceRecord firstSoaRecord = xfrRecords[0];
             DnsResourceRecord lastSoaRecord = xfrRecords[xfrRecords.Count - 1];
@@ -450,7 +465,7 @@ namespace DnsServerCore.Dns.ZoneManagers
             {
                 //read deleted records
                 DnsResourceRecord deletedSoaRecord = xfrRecords[index];
-                if ((deletedSoaRecord.Type != DnsResourceRecordType.SOA) || !deletedSoaRecord.Name.Equals(domain, StringComparison.OrdinalIgnoreCase))
+                if ((deletedSoaRecord.Type != DnsResourceRecordType.SOA) || !deletedSoaRecord.Name.Equals(zoneName, StringComparison.OrdinalIgnoreCase))
                     throw new InvalidOperationException();
 
                 if (firstDeletedSoaRecord is null)
@@ -464,7 +479,7 @@ namespace DnsServerCore.Dns.ZoneManagers
                     if (record.Type == DnsResourceRecordType.SOA)
                         break;
 
-                    if (domain.Length == 0)
+                    if (zoneName.Length == 0)
                     {
                         //root zone case
                         switch (record.Type)
@@ -489,7 +504,7 @@ namespace DnsServerCore.Dns.ZoneManagers
                     }
                     else
                     {
-                        if (record.Name.Equals(domain, StringComparison.OrdinalIgnoreCase) || record.Name.EndsWith("." + domain, StringComparison.OrdinalIgnoreCase))
+                        if (record.Name.Equals(zoneName, StringComparison.OrdinalIgnoreCase) || record.Name.EndsWith("." + zoneName, StringComparison.OrdinalIgnoreCase))
                         {
                             if (addedRecords.Contains(record))
                                 addedRecords.Remove(record);
@@ -517,7 +532,7 @@ namespace DnsServerCore.Dns.ZoneManagers
 
                 //read added records
                 DnsResourceRecord addedSoaRecord = xfrRecords[index];
-                if (!addedSoaRecord.Name.Equals(domain, StringComparison.OrdinalIgnoreCase))
+                if (!addedSoaRecord.Name.Equals(zoneName, StringComparison.OrdinalIgnoreCase))
                     throw new InvalidOperationException();
 
                 lastAddedSoaRecord = addedSoaRecord;
@@ -530,7 +545,7 @@ namespace DnsServerCore.Dns.ZoneManagers
                     if (record.Type == DnsResourceRecordType.SOA)
                         break;
 
-                    if (domain.Length == 0)
+                    if (zoneName.Length == 0)
                     {
                         //root zone case
                         switch (record.Type)
@@ -555,7 +570,7 @@ namespace DnsServerCore.Dns.ZoneManagers
                     }
                     else
                     {
-                        if (record.Name.Equals(domain, StringComparison.OrdinalIgnoreCase) || record.Name.EndsWith("." + domain, StringComparison.OrdinalIgnoreCase))
+                        if (record.Name.Equals(zoneName, StringComparison.OrdinalIgnoreCase) || record.Name.EndsWith("." + zoneName, StringComparison.OrdinalIgnoreCase))
                         {
                             if (deletedRecords.Contains(record))
                                 deletedRecords.Remove(record);
@@ -776,36 +791,36 @@ namespace DnsServerCore.Dns.ZoneManagers
             return null;
         }
 
-        public void SignPrimaryZoneWithRsaNSEC(string zoneName, string hashAlgorithm, int kskKeySize, int zskKeySize, uint dnsKeyTtl)
+        public void SignPrimaryZoneWithRsaNSEC(string zoneName, string hashAlgorithm, int kskKeySize, int zskKeySize, uint dnsKeyTtl, ushort zskRolloverDays)
         {
             if (!_root.TryGet(zoneName, out ApexZone apexZone) || (apexZone is not PrimaryZone primaryZone) || primaryZone.Internal)
                 throw new DnsServerException("No such primary zone was found: " + zoneName);
 
-            primaryZone.SignZoneWithRsaNSec(hashAlgorithm, kskKeySize, zskKeySize, dnsKeyTtl);
+            primaryZone.SignZoneWithRsaNSec(hashAlgorithm, kskKeySize, zskKeySize, dnsKeyTtl, zskRolloverDays);
         }
 
-        public void SignPrimaryZoneWithRsaNSEC3(string zoneName, string hashAlgorithm, int kskKeySize, int zskKeySize, ushort iterations, byte saltLength, uint dnsKeyTtl)
+        public void SignPrimaryZoneWithRsaNSEC3(string zoneName, string hashAlgorithm, int kskKeySize, int zskKeySize, ushort iterations, byte saltLength, uint dnsKeyTtl, ushort zskRolloverDays)
         {
             if (!_root.TryGet(zoneName, out ApexZone apexZone) || (apexZone is not PrimaryZone primaryZone) || primaryZone.Internal)
                 throw new DnsServerException("No such primary zone was found: " + zoneName);
 
-            primaryZone.SignZoneWithRsaNSec3(hashAlgorithm, kskKeySize, zskKeySize, iterations, saltLength, dnsKeyTtl);
+            primaryZone.SignZoneWithRsaNSec3(hashAlgorithm, kskKeySize, zskKeySize, iterations, saltLength, dnsKeyTtl, zskRolloverDays);
         }
 
-        public void SignPrimaryZoneWithEcdsaNSEC(string zoneName, string curve, uint dnsKeyTtl)
+        public void SignPrimaryZoneWithEcdsaNSEC(string zoneName, string curve, uint dnsKeyTtl, ushort zskRolloverDays)
         {
             if (!_root.TryGet(zoneName, out ApexZone apexZone) || (apexZone is not PrimaryZone primaryZone) || primaryZone.Internal)
                 throw new DnsServerException("No such primary zone was found: " + zoneName);
 
-            primaryZone.SignZoneWithEcdsaNSec(curve, dnsKeyTtl);
+            primaryZone.SignZoneWithEcdsaNSec(curve, dnsKeyTtl, zskRolloverDays);
         }
 
-        public void SignPrimaryZoneWithEcdsaNSEC3(string zoneName, string curve, ushort iterations, byte saltLength, uint dnsKeyTtl)
+        public void SignPrimaryZoneWithEcdsaNSEC3(string zoneName, string curve, ushort iterations, byte saltLength, uint dnsKeyTtl, ushort zskRolloverDays)
         {
             if (!_root.TryGet(zoneName, out ApexZone apexZone) || (apexZone is not PrimaryZone primaryZone) || primaryZone.Internal)
                 throw new DnsServerException("No such primary zone was found: " + zoneName);
 
-            primaryZone.SignZoneWithEcdsaNSec3(curve, iterations, saltLength, dnsKeyTtl);
+            primaryZone.SignZoneWithEcdsaNSec3(curve, iterations, saltLength, dnsKeyTtl, zskRolloverDays);
         }
 
         public void UnsignPrimaryZone(string zoneName)
@@ -846,6 +861,14 @@ namespace DnsServerCore.Dns.ZoneManagers
                 throw new DnsServerException("No such primary zone was found: " + zoneName);
 
             primaryZone.UpdateDnsKeyTtl(dnsKeyTtl);
+        }
+
+        public void UpdatePrimaryZoneDnssecDnsKeyRollover(string zoneName, ushort zskRolloverDays)
+        {
+            if (!_root.TryGet(zoneName, out ApexZone apexZone) || (apexZone is not PrimaryZone primaryZone) || primaryZone.Internal)
+                throw new DnsServerException("No such primary zone was found: " + zoneName);
+
+            primaryZone.ZskRolloverDays = zskRolloverDays;
         }
 
         public void GenerateAndAddPrimaryZoneDnssecRsaPrivateKey(string zoneName, DnssecPrivateKeyType keyType, string hashAlgorithm, int keySize)
