@@ -1,6 +1,6 @@
 ﻿/*
 Technitium DNS Server
-Copyright (C) 2021  Shreyas Zare (shreyas@technitium.com)
+Copyright (C) 2022  Shreyas Zare (shreyas@technitium.com)
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -32,7 +32,8 @@ namespace DnsServerCore.Dns
 
         readonly string _applicationFolder;
 
-        readonly List<string> _unmanagedDllTempPaths = new List<string>(1);
+        readonly Dictionary<string, IntPtr> _loadedUnmanagedDlls = new Dictionary<string, IntPtr>();
+        readonly List<string> _unmanagedDllTempPaths = new List<string>();
 
         #endregion
 
@@ -120,20 +121,30 @@ namespace DnsServerCore.Dns
             if (unmanagedDllPath is null)
                 return IntPtr.Zero;
 
-            //copy unmanaged dll into temp file for loading to allow uninstalling/updating app at runtime.
-            string tempPath = Path.GetTempFileName();
-
-            using (FileStream srcFile = new FileStream(unmanagedDllPath, FileMode.Open, FileAccess.Read))
+            lock (_loadedUnmanagedDlls)
             {
-                using (FileStream dstFile = new FileStream(tempPath, FileMode.Create, FileAccess.Write))
+                if (!_loadedUnmanagedDlls.TryGetValue(unmanagedDllPath.ToLower(), out IntPtr value))
                 {
-                    srcFile.CopyTo(dstFile);
+                    //load the unmanaged DLL
+                    //copy unmanaged dll into temp file for loading to allow uninstalling/updating app at runtime.
+                    string tempPath = Path.GetTempFileName();
+
+                    using (FileStream srcFile = new FileStream(unmanagedDllPath, FileMode.Open, FileAccess.Read))
+                    {
+                        using (FileStream dstFile = new FileStream(tempPath, FileMode.Create, FileAccess.Write))
+                        {
+                            srcFile.CopyTo(dstFile);
+                        }
+                    }
+
+                    _unmanagedDllTempPaths.Add(tempPath);
+
+                    value = LoadUnmanagedDllFromPath(tempPath);
+                    _loadedUnmanagedDlls.Add(unmanagedDllPath.ToLower(), value);
                 }
+
+                return value;
             }
-
-            _unmanagedDllTempPaths.Add(tempPath);
-
-            return LoadUnmanagedDllFromPath(tempPath);
         }
 
         #endregion
