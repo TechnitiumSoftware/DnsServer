@@ -289,15 +289,12 @@ namespace DnsServerCore.Dns.Zones
         {
             try
             {
-                int kskReadyCount = 0;
-                int kskActiveCount = 0;
                 List<DnssecPrivateKey> kskToReady = null;
                 List<DnssecPrivateKey> kskToActivate = null;
                 List<DnssecPrivateKey> kskToRetire = null;
                 List<DnssecPrivateKey> kskToRevoke = null;
                 List<DnssecPrivateKey> kskToUnpublish = null;
 
-                int zskActiveCount = 0;
                 List<DnssecPrivateKey> zskToActivate = null;
                 List<DnssecPrivateKey> zskToRetire = null;
                 List<DnssecPrivateKey> zskToRollover = null;
@@ -330,7 +327,6 @@ namespace DnsServerCore.Dns.Zones
                                             kskToActivate = new List<DnssecPrivateKey>();
 
                                         kskToActivate.Add(privateKey);
-                                        kskReadyCount++;
                                     }
                                     break;
 
@@ -348,7 +344,6 @@ namespace DnsServerCore.Dns.Zones
                                             kskToActivate = new List<DnssecPrivateKey>();
 
                                         kskToActivate.Add(privateKey);
-                                        kskReadyCount++;
                                     }
                                     break;
 
@@ -359,10 +354,6 @@ namespace DnsServerCore.Dns.Zones
                                             kskToRetire = new List<DnssecPrivateKey>();
 
                                         kskToRetire.Add(privateKey);
-                                    }
-                                    else
-                                    {
-                                        kskActiveCount++;
                                     }
                                     break;
 
@@ -428,8 +419,6 @@ namespace DnsServerCore.Dns.Zones
                                     }
                                     else
                                     {
-                                        zskActiveCount++;
-
                                         if ((_zskRolloverDays > 0) && (DateTime.UtcNow > privateKey.StateChangedOn.AddDays(_zskRolloverDays)))
                                         {
                                             if (zskToRollover is null)
@@ -489,8 +478,6 @@ namespace DnsServerCore.Dns.Zones
                             foreach (DnssecPrivateKey kskPrivateKey in kskPrivateKeys)
                             {
                                 kskPrivateKey.SetState(DnssecPrivateKeyState.Active);
-                                kskActiveCount++;
-                                kskReadyCount--;
 
                                 if (dnsKeyTags is null)
                                     dnsKeyTags = kskPrivateKey.KeyTag.ToString();
@@ -519,7 +506,31 @@ namespace DnsServerCore.Dns.Zones
 
                     foreach (DnssecPrivateKey kskPrivateKey in kskToRetire)
                     {
-                        bool isSafeToRetire = (kskActiveCount > 0) || ((kskReadyCount > 0) && (kskPrivateKey.State == DnssecPrivateKeyState.Ready));
+                        bool isSafeToRetire = false;
+
+                        lock (_dnssecPrivateKeys)
+                        {
+                            foreach (KeyValuePair<ushort, DnssecPrivateKey> privateKeyEntry in _dnssecPrivateKeys)
+                            {
+                                DnssecPrivateKey privateKey = privateKeyEntry.Value;
+
+                                if ((privateKey.KeyType == DnssecPrivateKeyType.KeySigningKey) && (privateKey.Algorithm == kskPrivateKey.Algorithm) && !privateKey.IsRetiring)
+                                {
+                                    if (privateKey.State == DnssecPrivateKeyState.Active)
+                                    {
+                                        isSafeToRetire = true;
+                                        break;
+                                    }
+
+                                    if ((privateKey.State == DnssecPrivateKeyState.Ready) && (kskPrivateKey.State == DnssecPrivateKeyState.Ready))
+                                    {
+                                        isSafeToRetire = true;
+                                        break;
+                                    }
+                                }
+                            }
+                        }
+
                         if (isSafeToRetire)
                         {
                             kskPrivateKey.SetState(DnssecPrivateKeyState.Retired);
@@ -561,23 +572,40 @@ namespace DnsServerCore.Dns.Zones
 
                 if (zskToRetire is not null)
                 {
-                    bool isSafeToRetire = zskActiveCount > 0;
-                    if (isSafeToRetire)
-                    {
-                        string dnsKeyTags = null;
+                    string dnsKeyTags = null;
 
-                        foreach (DnssecPrivateKey zskPrivateKey in zskToRetire)
+                    foreach (DnssecPrivateKey zskPrivateKey in zskToRetire)
+                    {
+                        bool isSafeToRetire = false;
+
+                        lock (_dnssecPrivateKeys)
+                        {
+                            foreach (KeyValuePair<ushort, DnssecPrivateKey> privateKeyEntry in _dnssecPrivateKeys)
+                            {
+                                DnssecPrivateKey privateKey = privateKeyEntry.Value;
+
+                                if ((privateKey.KeyType == DnssecPrivateKeyType.ZoneSigningKey) && (privateKey.Algorithm == zskPrivateKey.Algorithm) && (privateKey.State == DnssecPrivateKeyState.Active) && !privateKey.IsRetiring)
+                                {
+                                    isSafeToRetire = true;
+                                    break;
+                                }
+                            }
+                        }
+
+                        if (isSafeToRetire)
                         {
                             zskPrivateKey.SetState(DnssecPrivateKeyState.Retired);
+                            saveZone = true;
 
                             if (dnsKeyTags is null)
                                 dnsKeyTags = zskPrivateKey.KeyTag.ToString();
                             else
                                 dnsKeyTags += ", " + zskPrivateKey.KeyTag.ToString();
                         }
+                    }
 
-                        saveZone = true;
-
+                    if (dnsKeyTags is not null)
+                    {
                         LogManager log = _dnsServer.LogManager;
                         if (log is not null)
                             log.Write("The ZSK DNSKEYs (" + dnsKeyTags + ") from the primary zone were retired successfully: " + _name);
