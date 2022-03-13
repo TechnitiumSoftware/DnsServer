@@ -69,13 +69,13 @@ namespace DnsServerCore.Dns.Zones
 
         public void SetRecords(DnsResourceRecordType type, IReadOnlyList<DnsResourceRecord> records, bool serveStale)
         {
-            bool isFailureRecord = (records.Count > 0) && (records[0].RDATA is DnsCache.DnsSpecialCacheRecord splRecord) && (splRecord.Type == DnsCache.DnsSpecialCacheRecordType.FailureCache);
+            bool isFailureRecord = (records.Count > 0) && records[0].RDATA is DnsCache.DnsSpecialCacheRecord splRecord && splRecord.IsFailureOrBadCache;
             if (isFailureRecord)
             {
                 //call trying to cache failure record
                 if (_entries.TryGetValue(type, out IReadOnlyList<DnsResourceRecord> existingRecords))
                 {
-                    if ((existingRecords.Count > 0) && !(existingRecords[0].RDATA is DnsCache.DnsSpecialCacheRecord existingSplRecord && (existingSplRecord.Type == DnsCache.DnsSpecialCacheRecordType.FailureCache)) && !DnsResourceRecord.IsRRSetExpired(existingRecords, serveStale))
+                    if ((existingRecords.Count > 0) && !(existingRecords[0].RDATA is DnsCache.DnsSpecialCacheRecord existingSplRecord && existingSplRecord.IsFailureOrBadCache) && !DnsResourceRecord.IsRRSetExpired(existingRecords, serveStale))
                         return; //skip to avoid overwriting a useful record with a failure record
                 }
             }
