@@ -127,8 +127,23 @@ $(function () {
         }
     });
 
-    $("#optDnssecPropertiedGenerateKeyAlgorithm").change(function () {
-        var algorithm = $("#optDnssecPropertiedGenerateKeyAlgorithm").val();
+    $("#optDnssecPropertiesGenerateKeyKeyType").change(function () {
+        var keyType = $("#optDnssecPropertiesGenerateKeyKeyType").val();
+        switch (keyType) {
+            case "ZoneSigningKey":
+                $("#divDnssecPropertiesGenerateKeyAutomaticRollover").show();
+                $("#txtDnssecPropertiesGenerateKeyAutomaticRollover").val(90);
+                break;
+
+            default:
+                $("#divDnssecPropertiesGenerateKeyAutomaticRollover").hide();
+                $("#txtDnssecPropertiesGenerateKeyAutomaticRollover").val(0);
+                break;
+        }
+    });
+
+    $("#optDnssecPropertiesGenerateKeyAlgorithm").change(function () {
+        var algorithm = $("#optDnssecPropertiesGenerateKeyAlgorithm").val();
         switch (algorithm) {
             case "RSA":
                 $("#divDnssecPropertiesGenerateKeyRsaParameters").show();
@@ -984,7 +999,7 @@ function showEditZone(domain) {
                         tableHtmlRows += "<td style=\"word-break: break-all;\">" + htmlEncode(records[i].rData.ipAddress);
 
                         if ((records[i].comments != null) && (records[i].comments.length > 0))
-                            tableHtmlRows += "<br /><br /><b>Comments:</b> <pre>" + htmlEncode(records[i].comments) + "</pre>";
+                            tableHtmlRows += "<br /><br /><b>Comments:</b> <pre style=\"white-space: pre-wrap;\">" + htmlEncode(records[i].comments) + "</pre>";
 
                         tableHtmlRows += "</td>";
 
@@ -1003,7 +1018,7 @@ function showEditZone(domain) {
                         }
 
                         if ((records[i].comments != null) && (records[i].comments.length > 0))
-                            tableHtmlRows += "<br /><br /><b>Comments:</b> <pre>" + htmlEncode(records[i].comments) + "</pre>";
+                            tableHtmlRows += "<br /><br /><b>Comments:</b> <pre style=\"white-space: pre-wrap;\">" + htmlEncode(records[i].comments) + "</pre>";
 
                         tableHtmlRows += "</td>";
 
@@ -1014,7 +1029,7 @@ function showEditZone(domain) {
                         tableHtmlRows += "<td style=\"word-break: break-all;\">" + htmlEncode(records[i].rData.cname);
 
                         if ((records[i].comments != null) && (records[i].comments.length > 0))
-                            tableHtmlRows += "<br /><br /><b>Comments:</b> <pre>" + htmlEncode(records[i].comments) + "</pre>";
+                            tableHtmlRows += "<br /><br /><b>Comments:</b> <pre style=\"white-space: pre-wrap;\">" + htmlEncode(records[i].comments) + "</pre>";
 
                         tableHtmlRows += "</td>";
 
@@ -1055,7 +1070,7 @@ function showEditZone(domain) {
                         }
 
                         if ((records[i].comments != null) && (records[i].comments.length > 0))
-                            tableHtmlRows += "<br /><br /><b>Comments:</b> <pre>" + htmlEncode(records[i].comments) + "</pre>";
+                            tableHtmlRows += "<br /><br /><b>Comments:</b> <pre style=\"white-space: pre-wrap;\">" + htmlEncode(records[i].comments) + "</pre>";
 
                         tableHtmlRows += "</td>";
 
@@ -1072,7 +1087,7 @@ function showEditZone(domain) {
                         tableHtmlRows += "<td style=\"word-break: break-all;\">" + htmlEncode(records[i].rData.ptrName);
 
                         if ((records[i].comments != null) && (records[i].comments.length > 0))
-                            tableHtmlRows += "<br /><br /><b>Comments:</b> <pre>" + htmlEncode(records[i].comments) + "</pre>";
+                            tableHtmlRows += "<br /><br /><b>Comments:</b> <pre style=\"white-space: pre-wrap;\">" + htmlEncode(records[i].comments) + "</pre>";
 
                         tableHtmlRows += "</td>";
 
@@ -1084,7 +1099,7 @@ function showEditZone(domain) {
                             "<br /><b>Exchange:</b> " + htmlEncode(records[i].rData.exchange);
 
                         if ((records[i].comments != null) && (records[i].comments.length > 0))
-                            tableHtmlRows += "<br /><br /><b>Comments:</b> <pre>" + htmlEncode(records[i].comments) + "</pre>";
+                            tableHtmlRows += "<br /><br /><b>Comments:</b> <pre style=\"white-space: pre-wrap;\">" + htmlEncode(records[i].comments) + "</pre>";
 
                         tableHtmlRows += "</td>";
 
@@ -1096,7 +1111,7 @@ function showEditZone(domain) {
                         tableHtmlRows += "<td style=\"word-break: break-all;\">" + htmlEncode(records[i].rData.text);
 
                         if ((records[i].comments != null) && (records[i].comments.length > 0))
-                            tableHtmlRows += "<br /><br /><b>Comments:</b> <pre>" + htmlEncode(records[i].comments) + "</pre>";
+                            tableHtmlRows += "<br /><br /><b>Comments:</b> <pre style=\"white-space: pre-wrap;\">" + htmlEncode(records[i].comments) + "</pre>";
 
                         tableHtmlRows += "</td>";
 
@@ -1110,7 +1125,7 @@ function showEditZone(domain) {
                             "<br /><b>Target:</b> " + htmlEncode(records[i].rData.target);
 
                         if ((records[i].comments != null) && (records[i].comments.length > 0))
-                            tableHtmlRows += "<br /><br /><b>Comments:</b> <pre>" + htmlEncode(records[i].comments) + "</pre>";
+                            tableHtmlRows += "<br /><br /><b>Comments:</b> <pre style=\"white-space: pre-wrap;\">" + htmlEncode(records[i].comments) + "</pre>";
 
                         tableHtmlRows += "</td>";
 
@@ -1124,7 +1139,7 @@ function showEditZone(domain) {
                         tableHtmlRows += "<td style=\"word-break: break-all;\">" + htmlEncode(records[i].rData.dname);
 
                         if ((records[i].comments != null) && (records[i].comments.length > 0))
-                            tableHtmlRows += "<br /><br /><b>Comments:</b> <pre>" + htmlEncode(records[i].comments) + "</pre>";
+                            tableHtmlRows += "<br /><br /><b>Comments:</b> <pre style=\"white-space: pre-wrap;\">" + htmlEncode(records[i].comments) + "</pre>";
 
                         tableHtmlRows += "</td>";
 
@@ -1138,7 +1153,7 @@ function showEditZone(domain) {
                             "<br /><b>Digest:</b> " + htmlEncode(records[i].rData.digest);
 
                         if ((records[i].comments != null) && (records[i].comments.length > 0))
-                            tableHtmlRows += "<br /><br /><b>Comments:</b> <pre>" + htmlEncode(records[i].comments) + "</pre>";
+                            tableHtmlRows += "<br /><br /><b>Comments:</b> <pre style=\"white-space: pre-wrap;\">" + htmlEncode(records[i].comments) + "</pre>";
 
                         tableHtmlRows += "</td>";
 
@@ -1160,7 +1175,7 @@ function showEditZone(domain) {
                             "<br /><b>Signature:</b> " + htmlEncode(records[i].rData.signature);
 
                         if ((records[i].comments != null) && (records[i].comments.length > 0))
-                            tableHtmlRows += "<br /><br /><b>Comments:</b> <pre>" + htmlEncode(records[i].comments) + "</pre>";
+                            tableHtmlRows += "<br /><br /><b>Comments:</b> <pre style=\"white-space: pre-wrap;\">" + htmlEncode(records[i].comments) + "</pre>";
 
                         tableHtmlRows += "</td>";
 
@@ -1181,7 +1196,7 @@ function showEditZone(domain) {
                             "<br /><b>Types:</b> " + htmlEncode(nsecTypes);
 
                         if ((records[i].comments != null) && (records[i].comments.length > 0))
-                            tableHtmlRows += "<br /><br /><b>Comments:</b> <pre>" + htmlEncode(records[i].comments) + "</pre>";
+                            tableHtmlRows += "<br /><br /><b>Comments:</b> <pre style=\"white-space: pre-wrap;\">" + htmlEncode(records[i].comments) + "</pre>";
 
                         tableHtmlRows += "</td>";
 
@@ -1207,7 +1222,7 @@ function showEditZone(domain) {
                         }
 
                         if ((records[i].comments != null) && (records[i].comments.length > 0))
-                            tableHtmlRows += "<br /><br /><b>Comments:</b> <pre>" + htmlEncode(records[i].comments) + "</pre>";
+                            tableHtmlRows += "<br /><br /><b>Comments:</b> <pre style=\"white-space: pre-wrap;\">" + htmlEncode(records[i].comments) + "</pre>";
 
                         tableHtmlRows += "</td>";
 
@@ -1232,7 +1247,7 @@ function showEditZone(domain) {
                             "<br /><b>Types:</b> " + htmlEncode(nsec3Types);
 
                         if ((records[i].comments != null) && (records[i].comments.length > 0))
-                            tableHtmlRows += "<br /><br /><b>Comments:</b> <pre>" + htmlEncode(records[i].comments) + "</pre>";
+                            tableHtmlRows += "<br /><br /><b>Comments:</b> <pre style=\"white-space: pre-wrap;\">" + htmlEncode(records[i].comments) + "</pre>";
 
                         tableHtmlRows += "</td>";
 
@@ -1246,7 +1261,7 @@ function showEditZone(domain) {
                             "<br /><b>Salt: </b>" + htmlEncode(records[i].rData.salt);
 
                         if ((records[i].comments != null) && (records[i].comments.length > 0))
-                            tableHtmlRows += "<br /><br /><b>Comments:</b> <pre>" + htmlEncode(records[i].comments) + "</pre>";
+                            tableHtmlRows += "<br /><br /><b>Comments:</b> <pre style=\"white-space: pre-wrap;\">" + htmlEncode(records[i].comments) + "</pre>";
 
                         tableHtmlRows += "</td>";
 
@@ -1259,7 +1274,7 @@ function showEditZone(domain) {
                             "<br /><b>Authority:</b> " + htmlEncode(records[i].rData.value);
 
                         if ((records[i].comments != null) && (records[i].comments.length > 0))
-                            tableHtmlRows += "<br /><br /><b>Comments:</b> <pre>" + htmlEncode(records[i].comments) + "</pre>";
+                            tableHtmlRows += "<br /><br /><b>Comments:</b> <pre style=\"white-space: pre-wrap;\">" + htmlEncode(records[i].comments) + "</pre>";
 
                         tableHtmlRows += "</td>";
 
@@ -1272,7 +1287,7 @@ function showEditZone(domain) {
                         tableHtmlRows += "<td style=\"word-break: break-all;\">" + htmlEncode(records[i].rData.aname);
 
                         if ((records[i].comments != null) && (records[i].comments.length > 0))
-                            tableHtmlRows += "<br /><br /><b>Comments:</b> <pre>" + htmlEncode(records[i].comments) + "</pre>";
+                            tableHtmlRows += "<br /><br /><b>Comments:</b> <pre style=\"white-space: pre-wrap;\">" + htmlEncode(records[i].comments) + "</pre>";
 
                         tableHtmlRows += "</td>";
 
@@ -1293,7 +1308,7 @@ function showEditZone(domain) {
                         }
 
                         if ((records[i].comments != null) && (records[i].comments.length > 0))
-                            tableHtmlRows += "<br /><br /><b>Comments:</b> <pre>" + htmlEncode(records[i].comments) + "</pre>";
+                            tableHtmlRows += "<br /><br /><b>Comments:</b> <pre style=\"white-space: pre-wrap;\">" + htmlEncode(records[i].comments) + "</pre>";
 
                         tableHtmlRows += "</td>";
 
@@ -1313,10 +1328,10 @@ function showEditZone(domain) {
                     case "APP":
                         tableHtmlRows += "<td style=\"word-break: break-all;\"><b>App Name: </b> " + htmlEncode(records[i].rData.appName) +
                             "<br /><b>Class Path:</b> " + htmlEncode(records[i].rData.classPath) +
-                            "<br /><b>Record Data:</b> " + (records[i].rData.data == "" ? "" : "<pre>" + htmlEncode(records[i].rData.data) + "</pre>");
+                            "<br /><b>Record Data:</b> " + (records[i].rData.data == "" ? "" : "<pre style=\"white-space: pre-wrap;\">" + htmlEncode(records[i].rData.data) + "</pre>");
 
                         if ((records[i].comments != null) && (records[i].comments.length > 0))
-                            tableHtmlRows += "<br /><br /><b>Comments:</b> <pre>" + htmlEncode(records[i].comments) + "</pre>";
+                            tableHtmlRows += "<br /><br /><b>Comments:</b> <pre style=\"white-space: pre-wrap;\">" + htmlEncode(records[i].comments) + "</pre>";
 
                         tableHtmlRows += "</td>";
 
@@ -3027,12 +3042,14 @@ function showDnssecPropertiesModal(zoneName) {
     $("#lblDnssecPropertiesZoneName").text(zoneName);
 
     $("#divDnssecPropertiesGenerateKey").collapse("hide");
-    $("#optDnssecPropertiedGenerateKeyKeyType").val("KeySigningKey");
+    $("#optDnssecPropertiesGenerateKeyKeyType").val("KeySigningKey");
+    $("#divDnssecPropertiesGenerateKeyAutomaticRollover").hide();
+    $("#txtDnssecPropertiesGenerateKeyAutomaticRollover").val(0);
     $("#divDnssecPropertiesGenerateKeyRsaParameters").hide();
     $("#optDnssecPropertiesGenerateKeyRsaHashAlgorithm").val("SHA256");
     $("#optDnssecPropertiesGenerateKeyRsaKeySize").val("1024");
     $("#divDnssecPropertiesGenerateKeyEcdsaParameters").show();
-    $("#optDnssecPropertiedGenerateKeyAlgorithm").val("ECDSA");
+    $("#optDnssecPropertiesGenerateKeyAlgorithm").val("ECDSA");
 
     divDnssecPropertiesLoader.show();
     divDnssecProperties.hide();
@@ -3060,18 +3077,22 @@ function refreshDnssecProperties(divDnssecPropertiesLoader) {
                     + "<td>" + responseJSON.response.dnssecPrivateKeys[i].algorithm + "</td>"
                     + "<td>" + responseJSON.response.dnssecPrivateKeys[i].state + "</td>"
                     + "<td>" + moment(responseJSON.response.dnssecPrivateKeys[i].stateChangedOn).local().format("YYYY-MM-DD HH:mm") + "</td>"
+                    + "<td>" + (responseJSON.response.dnssecPrivateKeys[i].keyType === "ZoneSigningKey" ?
+                        "<input id=\"txtDnssecPropertiesPrivateKeyAutomaticRollover" + id + "\" type=\"text\" placeholder=\"days\" style=\"width: 40px;\" value=\"" + responseJSON.response.dnssecPrivateKeys[i].rolloverDays + "\" />" +
+                        "<button type=\"button\" class=\"btn btn-default\" style=\"padding: 2px 6px; margin-top: -2px; margin-left: 4px; font-size: 12px; height: 26px; width: 46px;\" data-id=\"" + id + "\" data-loading-text=\"Save\" onclick=\"updateDnssecPrivateKey(" + responseJSON.response.dnssecPrivateKeys[i].keyTag + ", this);\">Save</button>"
+                        : "-") + "</td>"
                     + "<td align=\"right\">";
 
                 switch (responseJSON.response.dnssecPrivateKeys[i].state) {
                     case "Generated":
-                        tableHtmlRows += "<button type=\"button\" class=\"btn btn-danger\" style=\"font-size: 12px; padding: 2px 0px; width: 60px; margin: 0 6px 0 0;\" data-id=\"" + id + "\" data-loading-text=\"Deleting...\" onclick=\"deleteDnssecPrivateKey(" + responseJSON.response.dnssecPrivateKeys[i].keyTag + ", this);\">Delete</button>";
+                        tableHtmlRows += "<button type=\"button\" class=\"btn btn-danger\" style=\"font-size: 12px; padding: 2px 0px; width: 60px;\" data-id=\"" + id + "\" data-loading-text=\"Deleting...\" onclick=\"deleteDnssecPrivateKey(" + responseJSON.response.dnssecPrivateKeys[i].keyTag + ", this);\">Delete</button>";
                         break;
 
                     case "Ready":
                     case "Active":
                         if (!responseJSON.response.dnssecPrivateKeys[i].isRetiring) {
                             tableHtmlRows += "<button type=\"button\" class=\"btn btn-warning\" style=\"font-size: 12px; padding: 2px 0px; width: 60px; margin: 0 6px 0 0;\" data-loading-text=\"Rolling...\" onclick=\"rolloverDnssecDnsKey(" + responseJSON.response.dnssecPrivateKeys[i].keyTag + ", this);\">Rollover</button>";
-                            tableHtmlRows += "<button type=\"button\" class=\"btn btn-warning\" style=\"font-size: 12px; padding: 2px 0px; width: 60px; margin: 0 6px 0 0;\" data-loading-text=\"Retiring...\" onclick=\"retireDnssecDnsKey(" + responseJSON.response.dnssecPrivateKeys[i].keyTag + ", this);\">Retire</button>";
+                            tableHtmlRows += "<button type=\"button\" class=\"btn btn-warning\" style=\"font-size: 12px; padding: 2px 0px; width: 60px;\" data-loading-text=\"Retiring...\" onclick=\"retireDnssecDnsKey(" + responseJSON.response.dnssecPrivateKeys[i].keyTag + ", this);\">Retire</button>";
                         }
                         break;
                 }
@@ -3106,7 +3127,6 @@ function refreshDnssecProperties(divDnssecPropertiesLoader) {
             }
 
             $("#txtDnssecPropertiesDnsKeyTtl").val(responseJSON.response.dnsKeyTtl);
-            $("#txtDnssecPropertiesZskAutoRollover").val(responseJSON.response.zskRolloverDays);
 
             if (divDnssecPropertiesLoader != null)
                 divDnssecPropertiesLoader.hide();
@@ -3123,6 +3143,33 @@ function refreshDnssecProperties(divDnssecPropertiesLoader) {
         },
         objAlertPlaceholder: divDnssecPropertiesAlert,
         objLoaderPlaceholder: divDnssecPropertiesLoader
+    });
+}
+
+function updateDnssecPrivateKey(keyTag, objBtn) {
+    var btn = $(objBtn);
+    var id = btn.attr("data-id");
+    var divDnssecPropertiesAlert = $("#divDnssecPropertiesAlert");
+    var zone = $("#lblDnssecPropertiesZoneName").text();
+    var rolloverDays = $("#txtDnssecPropertiesPrivateKeyAutomaticRollover" + id).val();
+
+    btn.button('loading');
+
+    HTTPRequest({
+        url: "/api/zone/dnssec/updatePrivateKey?token=" + token + "&zone=" + zone + "&keyTag=" + keyTag + "&rolloverDays=" + rolloverDays,
+        success: function (responseJSON) {
+            btn.button('reset');
+            showAlert("success", "Updated!", "The DNSKEY automatic rollover config was updated successfully.", divDnssecPropertiesAlert);
+        },
+        error: function () {
+            btn.button('reset');
+        },
+        invalidToken: function () {
+            btn.button('reset');
+            $("#modalDnssecProperties").modal("hide");
+            showPageLogin();
+        },
+        objAlertPlaceholder: divDnssecPropertiesAlert
     });
 }
 
@@ -3241,8 +3288,9 @@ function generateAndAddDnssecPrivateKey(objBtn) {
     var btn = $(objBtn);
     var divDnssecPropertiesAlert = $("#divDnssecPropertiesAlert");
     var zone = $("#lblDnssecPropertiesZoneName").text();
-    var keyType = $("#optDnssecPropertiedGenerateKeyKeyType").val();
-    var algorithm = $("#optDnssecPropertiedGenerateKeyAlgorithm").val();
+    var keyType = $("#optDnssecPropertiesGenerateKeyKeyType").val();
+    var algorithm = $("#optDnssecPropertiesGenerateKeyAlgorithm").val();
+    var rolloverDays = $("#txtDnssecPropertiesGenerateKeyAutomaticRollover").val();
 
     var additionalParameters = "";
 
@@ -3264,7 +3312,7 @@ function generateAndAddDnssecPrivateKey(objBtn) {
     btn.button('loading');
 
     HTTPRequest({
-        url: "/api/zone/dnssec/generatePrivateKey?token=" + token + "&zone=" + zone + "&keyType=" + keyType + "&algorithm=" + algorithm + additionalParameters,
+        url: "/api/zone/dnssec/generatePrivateKey?token=" + token + "&zone=" + zone + "&keyType=" + keyType + "&rolloverDays=" + rolloverDays + "&algorithm=" + algorithm + additionalParameters,
         success: function (responseJSON) {
             $("#divDnssecPropertiesGenerateKey").collapse("hide");
             refreshDnssecProperties();
@@ -3380,32 +3428,6 @@ function updateDnssecDnsKeyTtl(objBtn) {
         success: function (responseJSON) {
             btn.button('reset');
             showAlert("success", "TTL Updated!", "The DNSKEY TTL was updated successfully.", divDnssecPropertiesAlert);
-        },
-        error: function () {
-            btn.button('reset');
-        },
-        invalidToken: function () {
-            btn.button('reset');
-            $("#modalDnssecProperties").modal("hide");
-            showPageLogin();
-        },
-        objAlertPlaceholder: divDnssecPropertiesAlert
-    });
-}
-
-function updateDnssecDnsKeyAutomaticRollover(objBtn) {
-    var btn = $(objBtn);
-    var divDnssecPropertiesAlert = $("#divDnssecPropertiesAlert");
-    var zone = $("#lblDnssecPropertiesZoneName").text();
-    var zskRolloverDays = $("#txtDnssecPropertiesZskAutoRollover").val();
-
-    btn.button('loading');
-
-    HTTPRequest({
-        url: "/api/zone/dnssec/updateDnsKeyRollover?token=" + token + "&zone=" + zone + "&zskRolloverDays=" + zskRolloverDays,
-        success: function (responseJSON) {
-            btn.button('reset');
-            showAlert("success", "Rollover Updated!", "The DNSKEY automatic rollover config was updated successfully.", divDnssecPropertiesAlert);
         },
         error: function () {
             btn.button('reset');
