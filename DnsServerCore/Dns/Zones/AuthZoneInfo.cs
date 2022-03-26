@@ -57,7 +57,6 @@ namespace DnsServerCore.Dns.Zones
         readonly IReadOnlyList<DnsResourceRecord> _zoneHistory; //for IXFR support
         readonly IReadOnlyDictionary<string, object> _tsigKeyNames;
         readonly IReadOnlyCollection<DnssecPrivateKey> _dnssecPrivateKeys;
-        readonly ushort _zskRolloverDays;
 
         #endregion
 
@@ -93,7 +92,6 @@ namespace DnsServerCore.Dns.Zones
                 case 3:
                 case 4:
                 case 5:
-                case 6:
                     _name = bR.ReadShortString();
                     _type = (AuthZoneType)bR.ReadByte();
                     _disabled = bR.ReadBoolean();
@@ -188,9 +186,6 @@ namespace DnsServerCore.Dns.Zones
                                 }
                             }
 
-                            if (version >= 6)
-                                _zskRolloverDays = bR.ReadUInt16();
-
                             break;
 
                         case AuthZoneType.Secondary:
@@ -248,7 +243,6 @@ namespace DnsServerCore.Dns.Zones
 
                 _tsigKeyNames = primaryZone.TsigKeyNames;
                 _dnssecPrivateKeys = primaryZone.DnssecPrivateKeys;
-                _zskRolloverDays = primaryZone.ZskRolloverDays;
             }
             else if (_apexZone is SecondaryZone secondaryZone)
             {
@@ -374,7 +368,7 @@ namespace DnsServerCore.Dns.Zones
             if (_apexZone is null)
                 throw new InvalidOperationException();
 
-            bW.Write((byte)6); //version
+            bW.Write((byte)5); //version
 
             bW.WriteShortString(_name);
             bW.Write((byte)_type);
@@ -450,8 +444,6 @@ namespace DnsServerCore.Dns.Zones
                         foreach (DnssecPrivateKey dnssecPrivateKey in _dnssecPrivateKeys)
                             dnssecPrivateKey.WriteTo(bW);
                     }
-
-                    bW.Write(_zskRolloverDays);
                     break;
 
                 case AuthZoneType.Secondary:
@@ -676,9 +668,6 @@ namespace DnsServerCore.Dns.Zones
 
         public IReadOnlyCollection<DnssecPrivateKey> DnssecPrivateKeys
         { get { return _dnssecPrivateKeys; } }
-
-        public ushort ZskRolloverDays
-        { get { return _zskRolloverDays; } }
 
         #endregion
     }
