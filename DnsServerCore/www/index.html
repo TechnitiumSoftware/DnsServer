@@ -427,7 +427,8 @@
                                             <div class="panel-heading" style="height: 36px; padding: 4px 6px;">
                                                 <div id="txtCachedZoneViewerTitle" style="float: left; padding: 4px;">technitium.com</div>
                                                 <div style="float: right;">
-                                                    <button id="btnDeleteCachedZone" type="button" class="btn btn-danger" data-loading-text="Delete" onclick="deleteCachedZone();" style="font-size: 12px; padding: 4px 6px;">Delete</button>
+                                                    <button id="btnDeleteCachedZone" type="button" class="btn btn-warning" data-loading-text="Delete" onclick="deleteCachedZone();" style="font-size: 12px; padding: 4px 6px;">Delete</button>
+                                                    <button type="button" class="btn btn-danger" data-loading-text="Delete" onclick="flushDnsCache(this);" style="font-size: 12px; padding: 4px 6px;">Flush</button>
                                                 </div>
                                             </div>
 
@@ -465,7 +466,8 @@
                                                 <div style="float: right;">
                                                     <button type="button" class="btn btn-default" data-loading-text="Import" onclick="resetImportAllowedZonesModal();" data-toggle="modal" data-target="#modalImportAllowedZones" style="font-size: 12px; padding: 4px 6px;">Import</button>
                                                     <button type="button" class="btn btn-default" data-loading-text="Export" onclick="exportAllowedZones();" style="font-size: 12px; padding: 4px 6px;">Export</button>
-                                                    <button id="btnDeleteAllowedZone" type="button" class="btn btn-danger" data-loading-text="Delete" onclick="deleteAllowedZone();" style="font-size: 12px; padding: 4px 6px;">Delete</button>
+                                                    <button id="btnDeleteAllowedZone" type="button" class="btn btn-warning" data-loading-text="Delete" onclick="deleteAllowedZone();" style="font-size: 12px; padding: 4px 6px;">Delete</button>
+                                                    <button id="btnFlushAllowedZone" type="button" class="btn btn-danger" data-loading-text="Flush" onclick="flushAllowedZone();" style="font-size: 12px; padding: 4px 6px;">Flush</button>
                                                 </div>
                                             </div>
 
@@ -503,7 +505,8 @@
                                                 <div style="float: right;">
                                                     <button id="btnImportBlockedZone" type="button" class="btn btn-default" data-loading-text="Import" onclick="resetImportBlockedZonesModal();" data-toggle="modal" data-target="#modalImportBlockedZones" style="font-size: 12px; padding: 4px 6px;">Import</button>
                                                     <button id="btnExportBlockedZone" type="button" class="btn btn-default" data-loading-text="Export" onclick="exportBlockedZones();" style="font-size: 12px; padding: 4px 6px;">Export</button>
-                                                    <button id="btnDeleteBlockedZone" type="button" class="btn btn-danger" data-loading-text="Delete" onclick="deleteBlockedZone();" style="font-size: 12px; padding: 4px 6px;">Delete</button>
+                                                    <button id="btnDeleteBlockedZone" type="button" class="btn btn-warning" data-loading-text="Delete" onclick="deleteBlockedZone();" style="font-size: 12px; padding: 4px 6px;">Delete</button>
+                                                    <button id="btnFlushBlockedZone" type="button" class="btn btn-danger" data-loading-text="Flush" onclick="flushBlockedZone();" style="font-size: 12px; padding: 4px 6px;">Flush</button>
                                                 </div>
                                             </div>
 
@@ -552,7 +555,7 @@
                                             <label for="txtDnsClientNameServer">Server</label>
                                             <div class="input-group dropdown">
                                                 <input type="text" class="form-control dropdown-toggle" style="min-width: 230px; border-right: 0px;" id="txtDnsClientNameServer" value="This Server {this-server}">
-                                                <ul class="dropdown-menu" id="optDnsClientNameServers">
+                                                <ul id="optDnsClientNameServers" class="dropdown-menu" style="max-height: 500px; overflow-y: scroll;">
                                                     <li><a href="#">This Server {this-server}</a></li>
                                                     <li><a href="#">Recursive Query {recursive-resolver}</a></li>
                                                     <li><a href="#">Cloudflare {1.1.1.1}</a></li>
@@ -769,8 +772,9 @@
                                                         </div>
 
                                                         <div>
+                                                            <p>Warning! Devices that do not have a real-time clock and rely on NTP when booting (e.g. Raspberry Pi), enabling DNSSEC validation will cause failure to resolve the NTP server domain name thus causing the DNS server to fail to validate all other domain names too due to invalid system date/time. To fix this issue, just create a Conditional Forwarder zone for the NTP server domain name (e.g. ntp.org) with forwarder set to <code>this-server</code> and Enable DNSSEC Validation option unchecked. This conditional forwarder zone will disable DNSSEC validation for the NTP server domain name and allow the device to update its system data/time on boot.</p>
                                                             <p>Warning! When forwarders are configured, DNSSEC validation will work only if the forwarders are security aware i.e. can respond to DNSSEC requests correctly.</p>
-                                                            <p>Note! Enabling DNSSEC will increase delays in resolving domain names when the cache is initially empty. As the cache fills up, the performance will be normal as expected.</p>
+                                                            <p>Note! Enabling DNSSEC may increase delays in resolving domain names when the cache is initially empty. As the cache fills up, the performance will be normal as expected.</p>
                                                         </div>
                                                     </div>
 
@@ -920,7 +924,7 @@
 
                                                         <div>
                                                             <p>Note! The web service port changes will be automatically applied and so you do not need to manually restart the main service. This web page will be automatically redirected to the new web console URL after saving settings. The HTTPS protocol will be enabled only when a TLS certificate is configured.</p>
-
+                                                            <p>When using a reverse proxy with the Web Service, you need to add <code>X-Real-IP</code> header to the proxy request with the IP address of the client to allow the Web server to know the real IP address of the client originating the request. For example, if you are using nginx as the reverse proxy, you can add <code>proxy_set_header X-Real-IP $remote_addr;</code> to make it work.</p>
                                                             <p>Use the following openssl command to convert your TLS certificate that is in PEM format to PKCS #12 certificate (.pfx) format:</p>
                                                             <pre>openssl pkcs12 -export -out "example.com.pfx" -inkey "privkey.pem" -in "cert.pem" -certfile "chain.pem"</pre>
                                                         </div>
@@ -1607,7 +1611,7 @@
                                             <div class="form-group" style="margin-bottom: 0px;">
                                                 <div class="pull-left">
                                                     <button id="btnSaveDnsSettings" type="button" class="btn btn-primary" data-loading-text="Saving..." onclick="saveDnsSettings();">Save Settings</button>
-                                                    <button id="btnFlushDnsCache" type="button" class="btn btn-warning" data-loading-text="Flushing..." onclick="flushDnsCache();" style="margin-left: 6px;">Flush Cache</button>
+                                                    <button type="button" class="btn btn-danger" data-loading-text="Flushing..." onclick="flushDnsCache(this);" style="margin-left: 6px;">Flush Cache</button>
                                                 </div>
                                                 <div class="pull-right">
                                                     <button type="button" class="btn btn-success" onclick="resetBackupSettingsModal();" data-toggle="modal" data-target="#modalBackupSettings">Backup Settings</button>
@@ -2994,7 +2998,7 @@ ns1.example.com ([2001:db8::])
                             <div class="form-group">
                                 <label for="txtAddEditRecordComments" class="col-sm-4 control-label">Comments</label>
                                 <div class="col-sm-7">
-                                    <textarea id="txtAddEditRecordComments" class="form-control" rows="3"></textarea>
+                                    <textarea id="txtAddEditRecordComments" class="form-control" rows="3" maxlength="255"></textarea>
                                 </div>
                             </div>
 
@@ -3161,7 +3165,7 @@ ns1.example.com ([2001:db8::])
                                     <select id="optDnssecSignZoneRsaHashAlgorithm" class="form-control" style="width: auto;">
                                         <option value="MD5">MD5 (obsolete)</option>
                                         <option>SHA1</option>
-                                        <option value="SHA256">SHA256 (recommended)</option>
+                                        <option value="SHA256">SHA256 (default)</option>
                                         <option>SHA512</option>
                                     </select>
                                 </div>
@@ -3184,7 +3188,7 @@ ns1.example.com ([2001:db8::])
                                 <label for="optDnssecSignZoneRsaZSKKeySize" class="col-sm-4 control-label">Zone Signing Key (ZSK) Size</label>
                                 <div class="col-sm-8">
                                     <select id="optDnssecSignZoneRsaZSKKeySize" class="form-control" style="width: auto;">
-                                        <option value="1024">1024 (recommended)</option>
+                                        <option value="1024">1024 (default)</option>
                                         <option>1536</option>
                                         <option>2048</option>
                                         <option>3072</option>
@@ -3199,7 +3203,7 @@ ns1.example.com ([2001:db8::])
                                 <label for="optDnssecSignZoneEcdsaCurve" class="col-sm-4 control-label">ECDSA Curve</label>
                                 <div class="col-sm-8">
                                     <select id="optDnssecSignZoneEcdsaCurve" class="form-control" style="width: auto;">
-                                        <option value="P256">P256 (recommended)</option>
+                                        <option value="P256">P256 (default)</option>
                                         <option>P384</option>
                                     </select>
                                 </div>
@@ -3315,7 +3319,7 @@ ns1.example.com ([2001:db8::])
     </div>
 
     <div id="modalDnssecProperties" class="modal fade" tabindex="-1" role="dialog">
-        <div class="modal-dialog" role="document" style="width: 840px;">
+        <div class="modal-dialog" role="document" style="width: 940px;">
             <div class="modal-content">
                 <div class="modal-header">
                     <button type="button" class="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button>
@@ -3335,7 +3339,8 @@ ns1.example.com ([2001:db8::])
                                         <th onclick="sortTable('tableDnssecPropertiesPrivateKeysBody', 1);">Key Type</th>
                                         <th onclick="sortTable('tableDnssecPropertiesPrivateKeysBody', 2);">Algorithm</th>
                                         <th onclick="sortTable('tableDnssecPropertiesPrivateKeysBody', 3);">State</th>
-                                        <th onclick="sortTable('tableDnssecPropertiesPrivateKeysBody', 4);">State Changed On</th>
+                                        <th onclick="sortTable('tableDnssecPropertiesPrivateKeysBody', 4);">State Changed</th>
+                                        <th style="width: 108px;" onclick="sortTable('tableDnssecPropertiesPrivateKeysBody', 5);">Rollover</th>
                                         <th style="width: 150px;"></th>
                                     </tr>
                                 </thead>
@@ -3351,9 +3356,9 @@ ns1.example.com ([2001:db8::])
                             <div id="divDnssecPropertiesGenerateKey" class="collapse">
                                 <div class="panel panel-default" style="margin-bottom: 0px; margin-top: 10px; padding-top: 15px;">
                                     <div class="form-group">
-                                        <label for="optDnssecPropertiedGenerateKeyKeyType" class="col-sm-4 control-label">Key Type</label>
+                                        <label for="optDnssecPropertiesGenerateKeyKeyType" class="col-sm-4 control-label">Key Type</label>
                                         <div class="col-sm-8">
-                                            <select id="optDnssecPropertiedGenerateKeyKeyType" class="form-control" style="width: auto;">
+                                            <select id="optDnssecPropertiesGenerateKeyKeyType" class="form-control" style="width: auto;">
                                                 <option value="KeySigningKey">Key Signing Key (KSK)</option>
                                                 <option value="ZoneSigningKey">Zone Signing Key (ZSK)</option>
                                             </select>
@@ -3361,9 +3366,9 @@ ns1.example.com ([2001:db8::])
                                     </div>
 
                                     <div class="form-group">
-                                        <label for="optDnssecPropertiedGenerateKeyAlgorithm" class="col-sm-4 control-label">Algorithm</label>
+                                        <label for="optDnssecPropertiesGenerateKeyAlgorithm" class="col-sm-4 control-label">Algorithm</label>
                                         <div class="col-sm-8">
-                                            <select id="optDnssecPropertiedGenerateKeyAlgorithm" class="form-control" style="width: auto;">
+                                            <select id="optDnssecPropertiesGenerateKeyAlgorithm" class="form-control" style="width: auto;">
                                                 <option>RSA</option>
                                                 <option value="ECDSA">ECDSA (recommended)</option>
                                             </select>
@@ -3377,7 +3382,7 @@ ns1.example.com ([2001:db8::])
                                                 <select id="optDnssecPropertiesGenerateKeyRsaHashAlgorithm" class="form-control" style="width: auto;">
                                                     <option value="MD5">MD5 (obsolete)</option>
                                                     <option>SHA1</option>
-                                                    <option value="SHA256">SHA256 (recommended)</option>
+                                                    <option value="SHA256">SHA256 (default)</option>
                                                     <option>SHA512</option>
                                                 </select>
                                             </div>
@@ -3402,10 +3407,23 @@ ns1.example.com ([2001:db8::])
                                             <label for="optDnssecPropertiesGenerateKeyEcdsaCurve" class="col-sm-4 control-label">ECDSA Curve</label>
                                             <div class="col-sm-8">
                                                 <select id="optDnssecPropertiesGenerateKeyEcdsaCurve" class="form-control" style="width: auto;">
-                                                    <option value="P256">P256 (recommended)</option>
+                                                    <option value="P256">P256 (default)</option>
                                                     <option>P384</option>
                                                 </select>
                                             </div>
+                                        </div>
+                                    </div>
+
+                                    <div id="divDnssecPropertiesGenerateKeyAutomaticRollover" class="form-group">
+                                        <label for="txtDnssecPropertiesGenerateKeyAutomaticRollover" class="col-sm-4 control-label">Automatic Key Rollover</label>
+                                        <div class="col-sm-8">
+                                            <div>
+                                                <input id="txtDnssecPropertiesGenerateKeyAutomaticRollover" type="number" class="form-control" placeholder="days" style="width: 100px; display: inline;">
+                                                <span>days (valid range 0-365; default 90; set 0 to disable)</span>
+                                            </div>
+                                        </div>
+                                        <div class="col-sm-offset-4 col-sm-8" style="margin-top: 10px;">
+                                            The frequency at which the DNS server must automatically rollover the key.
                                         </div>
                                     </div>
 
@@ -3492,24 +3510,6 @@ ns1.example.com ([2001:db8::])
                             </div>
                             <div style="margin-top: 10px;">
                                 Warning! You MUST wait for at least the number of seconds specified by the the old TTL value to elapse before making any changes to the DNS keys above to ensure that all recursive resolvers would have expired the DNSKEY records from its cache. For example, if the old TTL value was 86400 seconds, then you must wait for 86400 seconds (24 hours) to pass before making any changes to the DNS keys.
-                            </div>
-                        </div>
-
-                        <div class="well well-sm form-horizontal">
-                            <div class="form-group" style="margin-bottom: 5px;">
-                                <label for="txtDnssecPropertiesZskAutoRollover" class="col-sm-4 control-label">ZSK Automatic Rollover</label>
-                                <div class="col-sm-8">
-                                    <div>
-                                        <input id="txtDnssecPropertiesZskAutoRollover" type="number" class="form-control" placeholder="days" style="width: 100px; display: inline;">
-                                        <span>days (valid range 0-365; default 90; set 0 to disable)</span>
-                                    </div>
-                                    <div style="margin-top: 10px;">
-                                        <button type="button" class="btn btn-default" style="padding: 2px 0; width: 100px;" data-loading-text="Updating..." onclick="updateDnssecDnsKeyAutomaticRollover(this);">Update</button>
-                                    </div>
-                                </div>
-                                <div class="col-sm-offset-4 col-sm-8" style="margin-top: 10px;">
-                                    The frequency at which the DNS server must automatically rollover all Zone Signing Key (ZSK) keys.
-                                </div>
                             </div>
                         </div>
                     </div>
