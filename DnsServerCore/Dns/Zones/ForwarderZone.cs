@@ -17,6 +17,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 */
 
+using DnsServerCore.Dns.ResourceRecords;
 using System;
 using System.Collections.Generic;
 using TechnitiumLibrary.Net.Dns;
@@ -33,13 +34,16 @@ namespace DnsServerCore.Dns.Zones
             : base(zoneInfo)
         { }
 
-        public ForwarderZone(string name, DnsTransportProtocol forwarderProtocol, string forwarder, bool dnssecValidation, NetProxyType proxyType, string proxyAddress, ushort proxyPort, string proxyUsername, string proxyPassword)
+        public ForwarderZone(string name, DnsTransportProtocol forwarderProtocol, string forwarder, bool dnssecValidation, NetProxyType proxyType, string proxyAddress, ushort proxyPort, string proxyUsername, string proxyPassword, string fwdRecordComments)
             : base(name)
         {
             _zoneTransfer = AuthZoneTransfer.Deny;
             _notify = AuthZoneNotify.None;
 
             DnsResourceRecord fwdRecord = new DnsResourceRecord(name, DnsResourceRecordType.FWD, DnsClass.IN, 0, new DnsForwarderRecordData(forwarderProtocol, forwarder, dnssecValidation, proxyType, proxyAddress, proxyPort, proxyUsername, proxyPassword));
+
+            if (!string.IsNullOrEmpty(fwdRecordComments))
+                fwdRecord.SetComments(fwdRecordComments);
 
             _entries[DnsResourceRecordType.FWD] = new DnsResourceRecord[] { fwdRecord };
         }
