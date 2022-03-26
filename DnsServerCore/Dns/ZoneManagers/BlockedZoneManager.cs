@@ -150,6 +150,11 @@ namespace DnsServerCore.Dns.ZoneManagers
             return false;
         }
 
+        public void Flush()
+        {
+            _zoneManager.Flush();
+        }
+
         public List<AuthZoneInfo> ListZones()
         {
             return _zoneManager.ListZones();
