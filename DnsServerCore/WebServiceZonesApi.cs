@@ -235,7 +235,7 @@ namespace DnsServerCore
                             proxyPassword = request.QueryString["proxyPassword"];
                         }
 
-                        if (_dnsWebService.DnsServer.AuthZoneManager.CreateForwarderZone(zoneName, forwarderProtocol, strForwarder, dnssecValidation, proxyType, proxyAddress, proxyPort, proxyUsername, proxyPassword) is null)
+                        if (_dnsWebService.DnsServer.AuthZoneManager.CreateForwarderZone(zoneName, forwarderProtocol, strForwarder, dnssecValidation, proxyType, proxyAddress, proxyPort, proxyUsername, proxyPassword, null) is null)
                             throw new DnsWebServiceException("Zone already exists: " + zoneName);
 
                         _dnsWebService.Log.Write(DnsWebService.GetRequestRemoteEndPoint(request), "[" + _dnsWebService.GetSession(request).Username + "] Forwarder zone was created: " + zoneName);
@@ -274,11 +274,11 @@ namespace DnsServerCore
                 dnsKeyTtl = uint.Parse(strDnsKeyTtl);
 
             ushort zskRolloverDays;
-            string strZskDays = request.QueryString["zskRolloverDays"];
-            if (string.IsNullOrEmpty(strZskDays))
+            string strZskRolloverDays = request.QueryString["zskRolloverDays"];
+            if (string.IsNullOrEmpty(strZskRolloverDays))
                 zskRolloverDays = 90;
             else
-                zskRolloverDays = ushort.Parse(strZskDays);
+                zskRolloverDays = ushort.Parse(strZskRolloverDays);
 
             bool useNSEC3 = false;
             string strNxProof = request.QueryString["nxProof"];
@@ -422,9 +422,6 @@ namespace DnsServerCore
             jsonWriter.WritePropertyName("dnsKeyTtl");
             jsonWriter.WriteValue(zoneInfo.DnsKeyTtl);
 
-            jsonWriter.WritePropertyName("zskRolloverDays");
-            jsonWriter.WriteValue(zoneInfo.ZskRolloverDays);
-
             jsonWriter.WritePropertyName("dnssecPrivateKeys");
             jsonWriter.WriteStartArray();
 
@@ -476,6 +473,9 @@ namespace DnsServerCore
 
                     jsonWriter.WritePropertyName("isRetiring");
                     jsonWriter.WriteValue(dnssecPrivateKey.IsRetiring);
+
+                    jsonWriter.WritePropertyName("rolloverDays");
+                    jsonWriter.WriteValue(dnssecPrivateKey.RolloverDays);
 
                     jsonWriter.WriteEndObject();
                 }
@@ -570,27 +570,6 @@ namespace DnsServerCore
             _dnsWebService.DnsServer.AuthZoneManager.SaveZoneFile(zoneName);
         }
 
-        public void UpdatePrimaryZoneDnssecDnsKeyRollover(HttpListenerRequest request)
-        {
-            string zoneName = request.QueryString["zone"];
-            if (string.IsNullOrEmpty(zoneName))
-                throw new DnsWebServiceException("Parameter 'zone' missing.");
-
-            zoneName = zoneName.TrimEnd('.');
-
-            string strZskRolloverDays = request.QueryString["zskRolloverDays"];
-            if (string.IsNullOrEmpty(strZskRolloverDays))
-                throw new DnsWebServiceException("Parameter 'zskRolloverDays' missing.");
-
-            ushort zskRolloverDays = ushort.Parse(strZskRolloverDays);
-
-            _dnsWebService.DnsServer.AuthZoneManager.UpdatePrimaryZoneDnssecDnsKeyRollover(zoneName, zskRolloverDays);
-
-            _dnsWebService.Log.Write(DnsWebService.GetRequestRemoteEndPoint(request), "[" + _dnsWebService.GetSession(request).Username + "] Primary zone DNSKEY automatic rollover config was updated successfully: " + zoneName);
-
-            _dnsWebService.DnsServer.AuthZoneManager.SaveZoneFile(zoneName);
-        }
-
         public void GenerateAndAddPrimaryZoneDnssecPrivateKey(HttpListenerRequest request)
         {
             string zoneName = request.QueryString["zone"];
@@ -604,6 +583,13 @@ namespace DnsServerCore
                 throw new DnsWebServiceException("Parameter 'keyType' missing.");
 
             DnssecPrivateKeyType keyType = Enum.Parse<DnssecPrivateKeyType>(strKeyType, true);
+
+            ushort rolloverDays;
+            string strRolloverDays = request.QueryString["rolloverDays"];
+            if (string.IsNullOrEmpty(strRolloverDays))
+                rolloverDays = (ushort)(keyType == DnssecPrivateKeyType.ZoneSigningKey ? 90 : 0);
+            else
+                rolloverDays = ushort.Parse(strRolloverDays);
 
             string algorithm = request.QueryString["algorithm"];
             if (string.IsNullOrEmpty(algorithm))
@@ -622,7 +608,7 @@ namespace DnsServerCore
 
                     int keySize = int.Parse(strKeySize);
 
-                    _dnsWebService.DnsServer.AuthZoneManager.GenerateAndAddPrimaryZoneDnssecRsaPrivateKey(zoneName, keyType, hashAlgorithm, keySize);
+                    _dnsWebService.DnsServer.AuthZoneManager.GenerateAndAddPrimaryZoneDnssecRsaPrivateKey(zoneName, keyType, hashAlgorithm, keySize, rolloverDays);
                     break;
 
                 case "ECDSA":
@@ -630,7 +616,7 @@ namespace DnsServerCore
                     if (string.IsNullOrEmpty(curve))
                         throw new DnsWebServiceException("Parameter 'curve' missing.");
 
-                    _dnsWebService.DnsServer.AuthZoneManager.GenerateAndAddPrimaryZoneDnssecEcdsaPrivateKey(zoneName, keyType, curve);
+                    _dnsWebService.DnsServer.AuthZoneManager.GenerateAndAddPrimaryZoneDnssecEcdsaPrivateKey(zoneName, keyType, curve, rolloverDays);
                     break;
 
                 default:
@@ -638,6 +624,33 @@ namespace DnsServerCore
             }
 
             _dnsWebService.Log.Write(DnsWebService.GetRequestRemoteEndPoint(request), "[" + _dnsWebService.GetSession(request).Username + "] DNSSEC private key was generated and added to the primary zone successfully: " + zoneName);
+
+            _dnsWebService.DnsServer.AuthZoneManager.SaveZoneFile(zoneName);
+        }
+
+        public void UpdatePrimaryZoneDnssecPrivateKey(HttpListenerRequest request)
+        {
+            string zoneName = request.QueryString["zone"];
+            if (string.IsNullOrEmpty(zoneName))
+                throw new DnsWebServiceException("Parameter 'zone' missing.");
+
+            zoneName = zoneName.TrimEnd('.');
+
+            string strKeyTag = request.QueryString["keyTag"];
+            if (string.IsNullOrEmpty(strKeyTag))
+                throw new DnsWebServiceException("Parameter 'keyTag' missing.");
+
+            ushort keyTag = ushort.Parse(strKeyTag);
+
+            string strRolloverDays = request.QueryString["rolloverDays"];
+            if (string.IsNullOrEmpty(strRolloverDays))
+                throw new DnsWebServiceException("Parameter 'rolloverDays' missing.");
+
+            ushort rolloverDays = ushort.Parse(strRolloverDays);
+
+            _dnsWebService.DnsServer.AuthZoneManager.UpdatePrimaryZoneDnssecPrivateKey(zoneName, keyTag, rolloverDays);
+
+            _dnsWebService.Log.Write(DnsWebService.GetRequestRemoteEndPoint(request), "[" + _dnsWebService.GetSession(request).Username + "] Primary zone DNSSEC private key config was updated successfully: " + zoneName);
 
             _dnsWebService.DnsServer.AuthZoneManager.SaveZoneFile(zoneName);
         }
