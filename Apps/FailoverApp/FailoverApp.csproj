@@ -1,49 +1,53 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
-  <PropertyGroup>
-    <TargetFramework>net5.0</TargetFramework>
-    <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
-    <Version>2.0</Version>
-    <Company>Technitium</Company>
-    <Product>Technitium DNS Server</Product>
-    <Authors>Shreyas Zare</Authors>
-    <AssemblyName>FailoverApp</AssemblyName>
-    <RootNamespace>Failover</RootNamespace>
-    <PackageProjectUrl>https://technitium.com/dns/</PackageProjectUrl>
-    <RepositoryUrl>https://github.com/TechnitiumSoftware/DnsServer</RepositoryUrl>
-    <GeneratePackageOnBuild>false</GeneratePackageOnBuild>
-    <OutputType>Library</OutputType>
-  </PropertyGroup>
+	<PropertyGroup>
+		<TargetFramework>net6.0</TargetFramework>
+		<AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
+		<Version>3.0</Version>
+		<Company>Technitium</Company>
+		<Product>Technitium DNS Server</Product>
+		<Authors>Shreyas Zare</Authors>
+		<AssemblyName>FailoverApp</AssemblyName>
+		<RootNamespace>Failover</RootNamespace>
+		<PackageProjectUrl>https://technitium.com/dns/</PackageProjectUrl>
+		<RepositoryUrl>https://github.com/TechnitiumSoftware/DnsServer</RepositoryUrl>
+		<GeneratePackageOnBuild>false</GeneratePackageOnBuild>
+		<OutputType>Library</OutputType>
+	</PropertyGroup>
 
-  <ItemGroup>
-    <PackageReference Include="Newtonsoft.Json" Version="13.0.1" />
-  </ItemGroup>
+	<ItemGroup>
+		<PackageReference Include="Newtonsoft.Json" Version="13.0.1" />
+	</ItemGroup>
 
-  <ItemGroup>
-    <ProjectReference Include="..\..\DnsServerCore.ApplicationCommon\DnsServerCore.ApplicationCommon.csproj">
-      <Private>false</Private>
-    </ProjectReference>
-  </ItemGroup>
+	<ItemGroup>
+		<ProjectReference Include="..\..\DnsServerCore.ApplicationCommon\DnsServerCore.ApplicationCommon.csproj">
+			<Private>false</Private>
+		</ProjectReference>
+	</ItemGroup>
 
-  <ItemGroup>
-    <Reference Include="TechnitiumLibrary.IO">
-      <HintPath>..\..\..\TechnitiumLibrary\bin\TechnitiumLibrary.IO.dll</HintPath>
-      <Private>false</Private>
-    </Reference>
-    <Reference Include="TechnitiumLibrary.Net">
-      <HintPath>..\..\..\TechnitiumLibrary\bin\TechnitiumLibrary.Net.dll</HintPath>
-      <Private>false</Private>
-    </Reference>
-    <Reference Include="TechnitiumLibrary.Net.Mail">
-      <HintPath>..\..\..\TechnitiumLibrary\bin\TechnitiumLibrary.Net.Mail.dll</HintPath>
-      <Private>true</Private>
-    </Reference>
-  </ItemGroup>
+	<ItemGroup>
+		<Reference Include="TechnitiumLibrary">
+			<HintPath>..\..\..\TechnitiumLibrary\bin\TechnitiumLibrary.dll</HintPath>
+			<Private>false</Private>
+		</Reference>
+		<Reference Include="TechnitiumLibrary.IO">
+			<HintPath>..\..\..\TechnitiumLibrary\bin\TechnitiumLibrary.IO.dll</HintPath>
+			<Private>false</Private>
+		</Reference>
+		<Reference Include="TechnitiumLibrary.Net">
+			<HintPath>..\..\..\TechnitiumLibrary\bin\TechnitiumLibrary.Net.dll</HintPath>
+			<Private>false</Private>
+		</Reference>
+		<Reference Include="TechnitiumLibrary.Net.Mail">
+			<HintPath>..\..\..\TechnitiumLibrary\bin\TechnitiumLibrary.Net.Mail.dll</HintPath>
+			<Private>true</Private>
+		</Reference>
+	</ItemGroup>
 
-  <ItemGroup>
-    <None Update="dnsApp.config">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </None>
-  </ItemGroup>
+	<ItemGroup>
+		<None Update="dnsApp.config">
+			<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+		</None>
+	</ItemGroup>
 
 </Project>
