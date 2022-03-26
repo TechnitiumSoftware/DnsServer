@@ -1,6 +1,6 @@
 ﻿/*
 Technitium DNS Server
-Copyright (C) 2021  Shreyas Zare (shreyas@technitium.com)
+Copyright (C) 2022  Shreyas Zare (shreyas@technitium.com)
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -265,6 +265,14 @@ namespace DnsServerCore
             }
         }
 
+        public void FlushAllowedZone(HttpListenerRequest request)
+        {
+            _dnsWebService.DnsServer.AllowedZoneManager.Flush();
+
+            _dnsWebService.Log.Write(DnsWebService.GetRequestRemoteEndPoint(request), "[" + _dnsWebService.GetSession(request).Username + "] Allowed zone was flushed successfully.");
+            _dnsWebService.DnsServer.AllowedZoneManager.SaveZoneFile();
+        }
+
         public void AllowZone(HttpListenerRequest request)
         {
             string domain = request.QueryString["domain"];
@@ -414,6 +422,14 @@ namespace DnsServerCore
                 _dnsWebService.Log.Write(DnsWebService.GetRequestRemoteEndPoint(request), "[" + _dnsWebService.GetSession(request).Username + "] Blocked zone was deleted: " + domain);
                 _dnsWebService.DnsServer.BlockedZoneManager.SaveZoneFile();
             }
+        }
+
+        public void FlushBlockedZone(HttpListenerRequest request)
+        {
+            _dnsWebService.DnsServer.BlockedZoneManager.Flush();
+
+            _dnsWebService.Log.Write(DnsWebService.GetRequestRemoteEndPoint(request), "[" + _dnsWebService.GetSession(request).Username + "] Blocked zone was flushed successfully.");
+            _dnsWebService.DnsServer.BlockedZoneManager.SaveZoneFile();
         }
 
         public void BlockZone(HttpListenerRequest request)
