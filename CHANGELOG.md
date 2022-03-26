@@ -1,5 +1,21 @@
 # Technitium DNS Server Change Log
 
+## Version 8.0
+Release Date: 26 March 2022
+- Added EDNS support [RFC 6891](https://datatracker.ietf.org/doc/html/rfc6891).
+- Added Extended DNS Errors [RFC 8914](https://datatracker.ietf.org/doc/html/rfc8914).
+- Added DNSSEC validation support with RSA & ECDSA algorithms for recursive resolver, forwarders, and conditional forwarders.
+- Added DNSSEC support for all supported DNS transport protocols including encrypted DNS protocols (DoT, DoH, DoH JSON).
+- Added DNSSEC zone signing support with RSA & ECDSA algorithms.
+- Updated DNS Client to support DNSSEC validation.
+- Updated proprietary FWD record which is used with Conditional Forwarder Zones for DNSSEC validation and HTTP/SOCKS5 proxy support.
+- Updated Conditional Forwarder Zones to support working as a static stub zone to force a domain name to resolve via given name servers using NS records.
+- Upgraded codebase to .NET 6 runtime.
+- Query Logs App: Added wildcard search support for domain names.
+- Fixed multiple issues with DHCP server.
+- This release updates many API calls which may cause issues in 3rd party clients if they are not updated before deploying this new version. It is recommended to check the API documentation for changes before deploying this new release.
+- Multiple other minor bug fixes and improvements.
+
 ## Version 7.1
 Release Date: 23 October 2021
 - Added option in settings to automatically configure a self signed certificate for DNS web service.
@@ -70,7 +86,7 @@ Release Date: 6 June 2021
 ## Version 6.2.3
 Release Date: 2 May 2021
 
-- Improved DNS Apps interface to should if updates are available in the installed apps list.
+- Improved DNS Apps interface to show if updates are available in the installed apps list.
 - Updated stats module to truncate daily stats data to optimize memory usage.
 - Fixed issue with QNAME minimization caused due to missing check when response contained no answer and no authority.
 - Fixed issue in logger which would fail to start in certain conditions.
