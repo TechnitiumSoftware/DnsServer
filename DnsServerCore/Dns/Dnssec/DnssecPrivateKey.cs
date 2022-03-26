@@ -133,6 +133,7 @@ namespace DnsServerCore.Dns.Dnssec
         DnssecPrivateKeyState _state;
         DateTime _stateChangedOn;
         bool _isRetiring;
+        ushort _rolloverDays;
 
         DnsDNSKEYRecordData _dnsKey;
 
@@ -157,6 +158,7 @@ namespace DnsServerCore.Dns.Dnssec
             _state = (DnssecPrivateKeyState)bR.ReadByte();
             _stateChangedOn = DateTime.UnixEpoch.AddSeconds(bR.ReadInt64());
             _isRetiring = bR.ReadBoolean();
+            _rolloverDays = bR.ReadUInt16();
 
             ReadPrivateKeyFrom(bR);
         }
@@ -289,6 +291,11 @@ namespace DnsServerCore.Dns.Dnssec
             _isRetiring = true;
         }
 
+        internal bool IsRolloverNeeded()
+        {
+            return (_rolloverDays > 0) && (DateTime.UtcNow > _stateChangedOn.AddDays(_rolloverDays));
+        }
+
         internal void WriteTo(BinaryWriter bW)
         {
             bW.Write(Encoding.ASCII.GetBytes("DK")); //format
@@ -300,6 +307,7 @@ namespace DnsServerCore.Dns.Dnssec
             bW.Write((byte)_state);
             bW.Write(Convert.ToInt64((_stateChangedOn - DateTime.UnixEpoch).TotalSeconds));
             bW.Write(_isRetiring);
+            bW.Write(_rolloverDays);
 
             WritePrivateKeyTo(bW);
         }
@@ -322,6 +330,26 @@ namespace DnsServerCore.Dns.Dnssec
 
         public bool IsRetiring
         { get { return _isRetiring; } }
+
+        public ushort RolloverDays
+        {
+            get { return _rolloverDays; }
+            set
+            {
+                if (_keyType == DnssecPrivateKeyType.ZoneSigningKey)
+                {
+                    if (value > 365)
+                        throw new ArgumentOutOfRangeException(nameof(RolloverDays), "Zone Signing Key (ZSK) automatic rollover days valid range is 0-365.");
+                }
+                else
+                {
+                    if (value != 0)
+                        throw new NotSupportedException("Automatic rollover is not supported for Key Signing Keys (KSK).");
+                }
+
+                _rolloverDays = value;
+            }
+        }
 
         public DnsDNSKEYRecordData DnsKey
         { get { return _dnsKey; } }
