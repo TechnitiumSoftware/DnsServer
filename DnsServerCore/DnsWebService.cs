@@ -461,6 +461,10 @@ namespace DnsServerCore
                                                 _otherZonesApi.DeleteAllowedZone(request);
                                                 break;
 
+                                            case "/api/flushAllowedZone":
+                                                _otherZonesApi.FlushAllowedZone(request);
+                                                break;
+
                                             case "/api/allowZone":
                                                 _otherZonesApi.AllowZone(request);
                                                 break;
@@ -479,6 +483,10 @@ namespace DnsServerCore
 
                                             case "/api/deleteBlockedZone":
                                                 _otherZonesApi.DeleteBlockedZone(request);
+                                                break;
+
+                                            case "/api/flushBlockedZone":
+                                                _otherZonesApi.FlushBlockedZone(request);
                                                 break;
 
                                             case "/api/blockZone":
@@ -523,12 +531,12 @@ namespace DnsServerCore
                                                 _zonesApi.UpdatePrimaryZoneDnssecDnsKeyTtl(request);
                                                 break;
 
-                                            case "/api/zone/dnssec/updateDnsKeyRollover":
-                                                _zonesApi.UpdatePrimaryZoneDnssecDnsKeyRollover(request);
-                                                break;
-
                                             case "/api/zone/dnssec/generatePrivateKey":
                                                 _zonesApi.GenerateAndAddPrimaryZoneDnssecPrivateKey(request);
+                                                break;
+
+                                            case "/api/zone/dnssec/updatePrivateKey":
+                                                _zonesApi.UpdatePrimaryZoneDnssecPrivateKey(request);
                                                 break;
 
                                             case "/api/zone/dnssec/deletePrivateKey":
@@ -3925,6 +3933,7 @@ namespace DnsServerCore
                             else
                             {
                                 _dnsServer.DnssecValidation = true;
+                                CreateForwarderZoneToDisableDnssecForNTP();
 
                                 _dnsServer.ResolverRetries = 3;
                                 _dnsServer.ResolverTimeout = 2000;
@@ -4074,6 +4083,9 @@ namespace DnsServerCore
                 _dnsServer.QnameMinimization = true; //default true to enable privacy feature
                 _dnsServer.NsRevalidation = false; //default false since some badly configured websites fail to load
 
+                _dnsServer.DnssecValidation = true;
+                CreateForwarderZoneToDisableDnssecForNTP();
+
                 SaveConfigFile();
             }
             catch (Exception ex)
@@ -4081,6 +4093,21 @@ namespace DnsServerCore
                 _log.Write("DNS Server encountered an error while loading config file: " + configFile + "\r\n" + ex.ToString());
                 _log.Write("Note: You may try deleting the config file to fix this issue. However, you will lose DNS settings but, zone data wont be affected.");
                 throw;
+            }
+        }
+
+        private void CreateForwarderZoneToDisableDnssecForNTP()
+        {
+            if (Environment.OSVersion.Platform == PlatformID.Unix)
+            {
+                //adding a conditional forwarder zone for disabling DNSSEC validation for ntp.org so that systems with no real-time clock can sync time
+                string ntpDomain = "ntp.org";
+                string fwdRecordComments = "This forwarder zone was automatically created to disable DNSSEC validation for ntp.org to allow systems with no real-time clock (e.g. Raspberry Pi) to sync time via NTP when booting.";
+                if (_dnsServer.AuthZoneManager.CreateForwarderZone(ntpDomain, DnsTransportProtocol.Udp, "this-server", false, NetProxyType.None, null, 0, null, null, fwdRecordComments) is not null)
+                {
+                    Directory.CreateDirectory(Path.Combine(_dnsServer.ConfigFolder, "zones"));
+                    _dnsServer.AuthZoneManager.SaveZoneFile(ntpDomain);
+                }
             }
         }
 
