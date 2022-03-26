@@ -1,4 +1,4 @@
-FROM mcr.microsoft.com/dotnet/runtime:5.0
+FROM mcr.microsoft.com/dotnet/runtime:6.0
 LABEL product="Technitium DNS Server"
 LABEL vendor="Technitium"
 LABEL email="support@technitium.com"
@@ -16,6 +16,7 @@ EXPOSE 67/udp
 EXPOSE 853/tcp
 EXPOSE 443/tcp
 EXPOSE 80/tcp
+EXPOSE 8053/tcp
 
 VOLUME ["/etc/dns/config"]
 
