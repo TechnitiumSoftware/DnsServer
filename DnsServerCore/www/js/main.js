@@ -1456,7 +1456,7 @@ function checkForReverseProxy(responseJSON) {
         if ((currentPort == 0) || (currentPort == ""))
             currentPort = 443;
 
-        reverseProxyDetected = currentPort != responseJSON.response.webServiceTlsPort;
+        reverseProxyDetected = !responseJSON.response.webServiceEnableTls || (currentPort != responseJSON.response.webServiceTlsPort);
     } else {
         var currentPort = window.location.port;
 
