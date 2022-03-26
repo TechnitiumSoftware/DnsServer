@@ -775,7 +775,7 @@ namespace DnsServerCore.Dns.Trees
                 //add wildcard proof to prove that a wildcard expansion was not possible
                 DnsResourceRecord nsecRecord = nsecRecords[0];
                 DnsNSECRecordData nsec = nsecRecord.RDATA as DnsNSECRecordData;
-                string wildcardName = DnsNSECRecordData.GetWildcardFor(nsecRecord.Name, domain);
+                string wildcardName = DnsNSECRecordData.GetWildcardFor(nsecRecord, domain);
 
                 if (!DnsNSECRecordData.IsDomainCovered(nsecRecord.Name, nsec.NextDomainName, wildcardName))
                     AddProofOfCoverFor(wildcardName);
