@@ -1,6 +1,6 @@
 ﻿/*
 Technitium DNS Server
-Copyright (C) 2021  Shreyas Zare (shreyas@technitium.com)
+Copyright (C) 2022  Shreyas Zare (shreyas@technitium.com)
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -448,7 +448,7 @@ namespace DnsServerCore
 
                     if (fS.Length > limit)
                     {
-                        byte[] buffer = Encoding.UTF8.GetBytes("####___TRUNCATED___####");
+                        byte[] buffer = Encoding.UTF8.GetBytes("\r\n####___TRUNCATED___####");
                         s.Write(buffer, 0, buffer.Length);
                     }
                 }
