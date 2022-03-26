@@ -365,7 +365,7 @@ namespace DnsServerCore.Dns.ZoneManagers
             }
             else
             {
-                authority = delegationZone.QueryRecords(DnsResourceRecordType.NS, dnssecOk);
+                authority = delegationZone.QueryRecords(DnsResourceRecordType.NS, false);
 
                 if (dnssecOk)
                 {
@@ -778,9 +778,9 @@ namespace DnsServerCore.Dns.ZoneManagers
             return null;
         }
 
-        public AuthZoneInfo CreateForwarderZone(string zoneName, DnsTransportProtocol forwarderProtocol, string forwarder, bool dnssecValidation, NetProxyType proxyType, string proxyAddress, ushort proxyPort, string proxyUsername, string proxyPassword)
+        public AuthZoneInfo CreateForwarderZone(string zoneName, DnsTransportProtocol forwarderProtocol, string forwarder, bool dnssecValidation, NetProxyType proxyType, string proxyAddress, ushort proxyPort, string proxyUsername, string proxyPassword, string fwdRecordComments)
         {
-            ForwarderZone apexZone = new ForwarderZone(zoneName, forwarderProtocol, forwarder, dnssecValidation, proxyType, proxyAddress, proxyPort, proxyUsername, proxyPassword);
+            ForwarderZone apexZone = new ForwarderZone(zoneName, forwarderProtocol, forwarder, dnssecValidation, proxyType, proxyAddress, proxyPort, proxyUsername, proxyPassword, fwdRecordComments);
 
             if (_root.TryAdd(apexZone))
             {
@@ -863,28 +863,28 @@ namespace DnsServerCore.Dns.ZoneManagers
             primaryZone.UpdateDnsKeyTtl(dnsKeyTtl);
         }
 
-        public void UpdatePrimaryZoneDnssecDnsKeyRollover(string zoneName, ushort zskRolloverDays)
+        public void GenerateAndAddPrimaryZoneDnssecRsaPrivateKey(string zoneName, DnssecPrivateKeyType keyType, string hashAlgorithm, int keySize, ushort rolloverDays)
         {
             if (!_root.TryGet(zoneName, out ApexZone apexZone) || (apexZone is not PrimaryZone primaryZone) || primaryZone.Internal)
                 throw new DnsServerException("No such primary zone was found: " + zoneName);
 
-            primaryZone.ZskRolloverDays = zskRolloverDays;
+            primaryZone.GenerateAndAddRsaKey(keyType, hashAlgorithm, keySize, rolloverDays);
         }
 
-        public void GenerateAndAddPrimaryZoneDnssecRsaPrivateKey(string zoneName, DnssecPrivateKeyType keyType, string hashAlgorithm, int keySize)
+        public void GenerateAndAddPrimaryZoneDnssecEcdsaPrivateKey(string zoneName, DnssecPrivateKeyType keyType, string curve, ushort rolloverDays)
         {
             if (!_root.TryGet(zoneName, out ApexZone apexZone) || (apexZone is not PrimaryZone primaryZone) || primaryZone.Internal)
                 throw new DnsServerException("No such primary zone was found: " + zoneName);
 
-            primaryZone.GenerateAndAddRsaKey(keyType, hashAlgorithm, keySize);
+            primaryZone.GenerateAndAddEcdsaKey(keyType, curve, rolloverDays);
         }
 
-        public void GenerateAndAddPrimaryZoneDnssecEcdsaPrivateKey(string zoneName, DnssecPrivateKeyType keyType, string curve)
+        public void UpdatePrimaryZoneDnssecPrivateKey(string zoneName, ushort keyTag, ushort rolloverDays)
         {
             if (!_root.TryGet(zoneName, out ApexZone apexZone) || (apexZone is not PrimaryZone primaryZone) || primaryZone.Internal)
                 throw new DnsServerException("No such primary zone was found: " + zoneName);
 
-            primaryZone.GenerateAndAddEcdsaKey(keyType, curve);
+            primaryZone.UpdatePrivateKey(keyTag, rolloverDays);
         }
 
         public void DeletePrimaryZoneDnssecPrivateKey(string zoneName, ushort keyTag)
