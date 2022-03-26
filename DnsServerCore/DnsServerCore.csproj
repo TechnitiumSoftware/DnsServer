@@ -1,264 +1,267 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
-  <PropertyGroup>
-    <TargetFramework>net5.0</TargetFramework>
-  </PropertyGroup>
+	<PropertyGroup>
+		<TargetFramework>net6.0</TargetFramework>
+	</PropertyGroup>
 
-  <ItemGroup>
-    <None Remove="dohwww\css\bootstrap.min.css" />
-    <None Remove="dohwww\css\bootstrap.min.css.map" />
-    <None Remove="dohwww\css\main.css" />
-    <None Remove="dohwww\favicon.ico" />
-    <None Remove="dohwww\img\firefox-doh.png" />
-    <None Remove="dohwww\img\logo.png" />
-    <None Remove="dohwww\index.html" />
-    <None Remove="dohwww\js\jquery.min.js" />
-    <None Remove="dohwww\js\main.js" />
-    <None Remove="dohwww\robots.txt" />
-    <None Remove="named.root" />
-    <None Remove="www\css\bootstrap-datetimepicker.min.css" />
-    <None Remove="www\css\bootstrap-theme.min.css" />
-    <None Remove="www\css\bootstrap-theme.min.css.map" />
-    <None Remove="www\css\bootstrap.min.css" />
-    <None Remove="www\css\bootstrap.min.css.map" />
-    <None Remove="www\css\font-awesome.min.css" />
-    <None Remove="www\css\images\ui-icons_444444_256x240.png" />
-    <None Remove="www\css\images\ui-icons_555555_256x240.png" />
-    <None Remove="www\css\images\ui-icons_777620_256x240.png" />
-    <None Remove="www\css\images\ui-icons_777777_256x240.png" />
-    <None Remove="www\css\images\ui-icons_cc0000_256x240.png" />
-    <None Remove="www\css\images\ui-icons_ffffff_256x240.png" />
-    <None Remove="www\css\jquery-ui.min.css" />
-    <None Remove="www\css\main.css" />
-    <None Remove="www\favicon.ico" />
-    <None Remove="www\fonts\fontawesome-webfont.eot" />
-    <None Remove="www\fonts\fontawesome-webfont.svg" />
-    <None Remove="www\fonts\fontawesome-webfont.ttf" />
-    <None Remove="www\fonts\fontawesome-webfont.woff" />
-    <None Remove="www\fonts\fontawesome-webfont.woff2" />
-    <None Remove="www\fonts\FontAwesome.otf" />
-    <None Remove="www\fonts\glyphicons-halflings-regular.eot" />
-    <None Remove="www\fonts\glyphicons-halflings-regular.svg" />
-    <None Remove="www\fonts\glyphicons-halflings-regular.ttf" />
-    <None Remove="www\fonts\glyphicons-halflings-regular.woff" />
-    <None Remove="www\fonts\glyphicons-halflings-regular.woff2" />
-    <None Remove="www\img\loader.gif" />
-    <None Remove="www\img\logo.png" />
-    <None Remove="www\img\logo25x25.png" />
-    <None Remove="www\index.html" />
-    <None Remove="www\js\apps.js" />
-    <None Remove="www\js\bootstrap-datetimepicker.min.js" />
-    <None Remove="www\js\bootstrap.min.js" />
-    <None Remove="www\js\Chart.min.js" />
-    <None Remove="www\js\common.js" />
-    <None Remove="www\js\dhcp.js" />
-    <None Remove="www\js\jquery-ui.min.js" />
-    <None Remove="www\js\jquery.min.js" />
-    <None Remove="www\js\logs.js" />
-    <None Remove="www\js\main.js" />
-    <None Remove="www\js\moment.min.js" />
-    <None Remove="www\js\other-zones.js" />
-    <None Remove="www\js\zone.js" />
-    <None Remove="www\robots.txt" />
-  </ItemGroup>
+	<ItemGroup>
+		<None Remove="dohwww\css\bootstrap.min.css" />
+		<None Remove="dohwww\css\bootstrap.min.css.map" />
+		<None Remove="dohwww\css\main.css" />
+		<None Remove="dohwww\favicon.ico" />
+		<None Remove="dohwww\img\firefox-doh.png" />
+		<None Remove="dohwww\img\logo.png" />
+		<None Remove="dohwww\index.html" />
+		<None Remove="dohwww\js\jquery.min.js" />
+		<None Remove="dohwww\js\main.js" />
+		<None Remove="dohwww\robots.txt" />
+		<None Remove="named.root" />
+		<None Remove="www\css\bootstrap-datetimepicker.min.css" />
+		<None Remove="www\css\bootstrap-theme.min.css" />
+		<None Remove="www\css\bootstrap-theme.min.css.map" />
+		<None Remove="www\css\bootstrap.min.css" />
+		<None Remove="www\css\bootstrap.min.css.map" />
+		<None Remove="www\css\font-awesome.min.css" />
+		<None Remove="www\css\images\ui-icons_444444_256x240.png" />
+		<None Remove="www\css\images\ui-icons_555555_256x240.png" />
+		<None Remove="www\css\images\ui-icons_777620_256x240.png" />
+		<None Remove="www\css\images\ui-icons_777777_256x240.png" />
+		<None Remove="www\css\images\ui-icons_cc0000_256x240.png" />
+		<None Remove="www\css\images\ui-icons_ffffff_256x240.png" />
+		<None Remove="www\css\jquery-ui.min.css" />
+		<None Remove="www\css\main.css" />
+		<None Remove="www\favicon.ico" />
+		<None Remove="www\fonts\fontawesome-webfont.eot" />
+		<None Remove="www\fonts\fontawesome-webfont.svg" />
+		<None Remove="www\fonts\fontawesome-webfont.ttf" />
+		<None Remove="www\fonts\fontawesome-webfont.woff" />
+		<None Remove="www\fonts\fontawesome-webfont.woff2" />
+		<None Remove="www\fonts\FontAwesome.otf" />
+		<None Remove="www\fonts\glyphicons-halflings-regular.eot" />
+		<None Remove="www\fonts\glyphicons-halflings-regular.svg" />
+		<None Remove="www\fonts\glyphicons-halflings-regular.ttf" />
+		<None Remove="www\fonts\glyphicons-halflings-regular.woff" />
+		<None Remove="www\fonts\glyphicons-halflings-regular.woff2" />
+		<None Remove="www\img\loader.gif" />
+		<None Remove="www\img\logo.png" />
+		<None Remove="www\img\logo25x25.png" />
+		<None Remove="www\index.html" />
+		<None Remove="www\js\apps.js" />
+		<None Remove="www\js\bootstrap-datetimepicker.min.js" />
+		<None Remove="www\js\bootstrap.min.js" />
+		<None Remove="www\js\Chart.min.js" />
+		<None Remove="www\js\common.js" />
+		<None Remove="www\js\dhcp.js" />
+		<None Remove="www\js\jquery-ui.min.js" />
+		<None Remove="www\js\jquery.min.js" />
+		<None Remove="www\js\logs.js" />
+		<None Remove="www\js\main.js" />
+		<None Remove="www\js\moment.min.js" />
+		<None Remove="www\js\other-zones.js" />
+		<None Remove="www\js\zone.js" />
+		<None Remove="www\robots.txt" />
+	</ItemGroup>
 
-  <ItemGroup>
-    <Content Include="dohwww\css\bootstrap.min.css">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </Content>
-    <Content Include="dohwww\css\bootstrap.min.css.map">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </Content>
-    <Content Include="dohwww\css\main.css">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </Content>
-    <Content Include="dohwww\favicon.ico">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </Content>
-    <Content Include="dohwww\img\firefox-doh.png">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </Content>
-    <Content Include="dohwww\img\logo.png">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </Content>
-    <Content Include="dohwww\index.html">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </Content>
-    <Content Include="dohwww\js\jquery.min.js">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </Content>
-    <Content Include="dohwww\js\main.js">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </Content>
-    <Content Include="dohwww\robots.txt">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </Content>
-    <Content Include="named.root">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </Content>
-    <Content Include="www\css\bootstrap-datetimepicker.min.css">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </Content>
-    <Content Include="www\css\images\ui-icons_444444_256x240.png">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </Content>
-    <Content Include="www\css\images\ui-icons_555555_256x240.png">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </Content>
-    <Content Include="www\css\images\ui-icons_777620_256x240.png">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </Content>
-    <Content Include="www\css\images\ui-icons_777777_256x240.png">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </Content>
-    <Content Include="www\css\images\ui-icons_cc0000_256x240.png">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </Content>
-    <Content Include="www\css\images\ui-icons_ffffff_256x240.png">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </Content>
-    <Content Include="www\css\jquery-ui.min.css">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </Content>
-    <Content Include="www\favicon.ico">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </Content>
-    <Content Include="www\css\bootstrap.min.css">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </Content>
-    <Content Include="www\css\bootstrap.min.css.map">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </Content>
-    <Content Include="www\css\font-awesome.min.css">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </Content>
-    <Content Include="www\css\main.css">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </Content>
-    <Content Include="www\fonts\fontawesome-webfont.eot">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </Content>
-    <Content Include="www\fonts\fontawesome-webfont.svg">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </Content>
-    <Content Include="www\fonts\fontawesome-webfont.ttf">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </Content>
-    <Content Include="www\fonts\fontawesome-webfont.woff">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </Content>
-    <Content Include="www\fonts\fontawesome-webfont.woff2">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </Content>
-    <Content Include="www\fonts\FontAwesome.otf">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </Content>
-    <Content Include="www\fonts\glyphicons-halflings-regular.eot">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </Content>
-    <Content Include="www\fonts\glyphicons-halflings-regular.svg">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </Content>
-    <Content Include="www\fonts\glyphicons-halflings-regular.ttf">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </Content>
-    <Content Include="www\fonts\glyphicons-halflings-regular.woff">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </Content>
-    <Content Include="www\fonts\glyphicons-halflings-regular.woff2">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </Content>
-    <Content Include="www\img\loader.gif">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </Content>
-    <Content Include="www\img\logo.png">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </Content>
-    <Content Include="www\img\logo25x25.png">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </Content>
-    <Content Include="www\index.html">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </Content>
-    <Content Include="www\js\apps.js">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </Content>
-    <Content Include="www\js\bootstrap-datetimepicker.min.js">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </Content>
-    <Content Include="www\js\bootstrap.min.js">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </Content>
-    <Content Include="www\js\Chart.min.js">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </Content>
-    <Content Include="www\js\common.js">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </Content>
-    <Content Include="www\js\jquery-ui.min.js">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </Content>
-    <Content Include="www\js\jquery.min.js">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </Content>
-    <Content Include="www\js\logs.js">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </Content>
-    <Content Include="www\js\main.js">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </Content>
-    <Content Include="www\js\moment.min.js">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </Content>
-    <Content Include="www\js\other-zones.js">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </Content>
-    <Content Include="www\js\zone.js">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </Content>
-    <Content Include="www\robots.txt">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </Content>
-  </ItemGroup>
+	<ItemGroup>
+		<Content Include="dohwww\css\bootstrap.min.css">
+			<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+		</Content>
+		<Content Include="dohwww\css\bootstrap.min.css.map">
+			<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+		</Content>
+		<Content Include="dohwww\css\main.css">
+			<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+		</Content>
+		<Content Include="dohwww\favicon.ico">
+			<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+		</Content>
+		<Content Include="dohwww\img\firefox-doh.png">
+			<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+		</Content>
+		<Content Include="dohwww\img\logo.png">
+			<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+		</Content>
+		<Content Include="dohwww\index.html">
+			<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+		</Content>
+		<Content Include="dohwww\js\jquery.min.js">
+			<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+		</Content>
+		<Content Include="dohwww\js\main.js">
+			<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+		</Content>
+		<Content Include="dohwww\robots.txt">
+			<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+		</Content>
+		<Content Include="named.root">
+			<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+		</Content>
+		<Content Include="www\css\bootstrap-datetimepicker.min.css">
+			<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+		</Content>
+		<Content Include="www\css\images\ui-icons_444444_256x240.png">
+			<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+		</Content>
+		<Content Include="www\css\images\ui-icons_555555_256x240.png">
+			<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+		</Content>
+		<Content Include="www\css\images\ui-icons_777620_256x240.png">
+			<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+		</Content>
+		<Content Include="www\css\images\ui-icons_777777_256x240.png">
+			<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+		</Content>
+		<Content Include="www\css\images\ui-icons_cc0000_256x240.png">
+			<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+		</Content>
+		<Content Include="www\css\images\ui-icons_ffffff_256x240.png">
+			<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+		</Content>
+		<Content Include="www\css\jquery-ui.min.css">
+			<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+		</Content>
+		<Content Include="www\favicon.ico">
+			<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+		</Content>
+		<Content Include="www\css\bootstrap.min.css">
+			<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+		</Content>
+		<Content Include="www\css\bootstrap.min.css.map">
+			<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+		</Content>
+		<Content Include="www\css\font-awesome.min.css">
+			<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+		</Content>
+		<Content Include="www\css\main.css">
+			<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+		</Content>
+		<Content Include="www\fonts\fontawesome-webfont.eot">
+			<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+		</Content>
+		<Content Include="www\fonts\fontawesome-webfont.svg">
+			<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+		</Content>
+		<Content Include="www\fonts\fontawesome-webfont.ttf">
+			<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+		</Content>
+		<Content Include="www\fonts\fontawesome-webfont.woff">
+			<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+		</Content>
+		<Content Include="www\fonts\fontawesome-webfont.woff2">
+			<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+		</Content>
+		<Content Include="www\fonts\FontAwesome.otf">
+			<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+		</Content>
+		<Content Include="www\fonts\glyphicons-halflings-regular.eot">
+			<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+		</Content>
+		<Content Include="www\fonts\glyphicons-halflings-regular.svg">
+			<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+		</Content>
+		<Content Include="www\fonts\glyphicons-halflings-regular.ttf">
+			<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+		</Content>
+		<Content Include="www\fonts\glyphicons-halflings-regular.woff">
+			<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+		</Content>
+		<Content Include="www\fonts\glyphicons-halflings-regular.woff2">
+			<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+		</Content>
+		<Content Include="www\img\loader.gif">
+			<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+		</Content>
+		<Content Include="www\img\logo.png">
+			<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+		</Content>
+		<Content Include="www\img\logo25x25.png">
+			<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+		</Content>
+		<Content Include="www\index.html">
+			<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+		</Content>
+		<Content Include="www\js\apps.js">
+			<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+		</Content>
+		<Content Include="www\js\bootstrap-datetimepicker.min.js">
+			<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+		</Content>
+		<Content Include="www\js\bootstrap.min.js">
+			<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+		</Content>
+		<Content Include="www\js\Chart.min.js">
+			<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+		</Content>
+		<Content Include="www\js\common.js">
+			<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+		</Content>
+		<Content Include="www\js\jquery-ui.min.js">
+			<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+		</Content>
+		<Content Include="www\js\jquery.min.js">
+			<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+		</Content>
+		<Content Include="www\js\logs.js">
+			<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+		</Content>
+		<Content Include="www\js\main.js">
+			<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+		</Content>
+		<Content Include="www\js\moment.min.js">
+			<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+		</Content>
+		<Content Include="www\js\other-zones.js">
+			<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+		</Content>
+		<Content Include="www\js\zone.js">
+			<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+		</Content>
+		<Content Include="www\robots.txt">
+			<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+		</Content>
+	</ItemGroup>
 
-  <ItemGroup>
-    <PackageReference Include="Newtonsoft.Json" Version="13.0.1" />
-  </ItemGroup>
+	<ItemGroup>
+		<PackageReference Include="Newtonsoft.Json" Version="13.0.1" />
+	</ItemGroup>
 
-  <ItemGroup>
-    <Reference Include="TechnitiumLibrary.ByteTree">
-      <HintPath>..\..\TechnitiumLibrary\bin\TechnitiumLibrary.ByteTree.dll</HintPath>
-    </Reference>
-    <Reference Include="TechnitiumLibrary.IO">
-      <HintPath>..\..\TechnitiumLibrary\bin\TechnitiumLibrary.IO.dll</HintPath>
-    </Reference>
-    <Reference Include="TechnitiumLibrary.Net">
-      <HintPath>..\..\TechnitiumLibrary\bin\TechnitiumLibrary.Net.dll</HintPath>
-    </Reference>
-  </ItemGroup>
+	<ItemGroup>
+		<Reference Include="TechnitiumLibrary">
+			<HintPath>..\..\TechnitiumLibrary\bin\TechnitiumLibrary.dll</HintPath>
+		</Reference>
+		<Reference Include="TechnitiumLibrary.ByteTree">
+			<HintPath>..\..\TechnitiumLibrary\bin\TechnitiumLibrary.ByteTree.dll</HintPath>
+		</Reference>
+		<Reference Include="TechnitiumLibrary.IO">
+			<HintPath>..\..\TechnitiumLibrary\bin\TechnitiumLibrary.IO.dll</HintPath>
+		</Reference>
+		<Reference Include="TechnitiumLibrary.Net">
+			<HintPath>..\..\TechnitiumLibrary\bin\TechnitiumLibrary.Net.dll</HintPath>
+		</Reference>
+	</ItemGroup>
 
-  <ItemGroup>
-    <Content Include="www\js\dhcp.js">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </Content>
-  </ItemGroup>
+	<ItemGroup>
+		<Content Include="www\js\dhcp.js">
+			<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+		</Content>
+	</ItemGroup>
 
-  <ItemGroup>
-    <ProjectReference Include="..\DnsServerCore.ApplicationCommon\DnsServerCore.ApplicationCommon.csproj" />
-  </ItemGroup>
+	<ItemGroup>
+		<ProjectReference Include="..\DnsServerCore.ApplicationCommon\DnsServerCore.ApplicationCommon.csproj" />
+	</ItemGroup>
 
-  <PropertyGroup>
-    <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
-    <CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>
-    <Authors>Shreyas Zare</Authors>
-    <Company>Technitium</Company>
-    <Product>Technitium DNS Server</Product>
-    <PackageProjectUrl>https://technitium.com/dns/</PackageProjectUrl>
-    <RepositoryUrl>https://github.com/TechnitiumSoftware/DnsServer</RepositoryUrl>
-    <RepositoryType></RepositoryType>
-    <Description>.NET 5</Description>
-    <PackageId>DnsServer</PackageId>
-    <Version>7.1</Version>
-  </PropertyGroup>
+	<PropertyGroup>
+		<AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
+		<CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>
+		<Authors>Shreyas Zare</Authors>
+		<Company>Technitium</Company>
+		<Product>Technitium DNS Server</Product>
+		<PackageProjectUrl>https://technitium.com/dns/</PackageProjectUrl>
+		<RepositoryUrl>https://github.com/TechnitiumSoftware/DnsServer</RepositoryUrl>
+		<RepositoryType></RepositoryType>
+		<Description></Description>
+		<PackageId>DnsServer</PackageId>
+		<Version>8.0</Version>
+	</PropertyGroup>
 
 </Project>

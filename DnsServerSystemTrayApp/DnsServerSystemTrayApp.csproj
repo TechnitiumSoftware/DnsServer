@@ -2,7 +2,7 @@
 
   <PropertyGroup>
     <OutputType>WinExe</OutputType>
-    <TargetFramework>net5.0-windows</TargetFramework>
+    <TargetFramework>net6.0-windows</TargetFramework>
     <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
     <CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>
     <UseWindowsForms>true</UseWindowsForms>
@@ -11,10 +11,10 @@
     <AssemblyName>DnsServerSystemTrayApp</AssemblyName>
     <Authors>Shreyas Zare</Authors>
     <ApplicationIcon>logo2.ico</ApplicationIcon>
-    <Version>2.2</Version>
+    <Version>3.0</Version>
     <Company>Technitium</Company>
     <Product>Technitium DNS Server</Product>
-    <Description>.NET 5</Description>
+    <Description></Description>
     <PackageProjectUrl>https://technitium.com/dns/</PackageProjectUrl>
     <RepositoryUrl>https://github.com/TechnitiumSoftware/DnsServer</RepositoryUrl>
   </PropertyGroup>
@@ -37,8 +37,8 @@
     <Content Include="logo2.ico" />
   </ItemGroup>
   <ItemGroup>
-    <PackageReference Include="System.Management" Version="5.0.0" />
-    <PackageReference Include="System.ServiceProcess.ServiceController" Version="5.0.0" />
+    <PackageReference Include="System.Management" Version="6.0.0" />
+    <PackageReference Include="System.ServiceProcess.ServiceController" Version="6.0.0" />
   </ItemGroup>
   <ItemGroup>
     <EmbeddedResource Update="Properties\Resources.resx">

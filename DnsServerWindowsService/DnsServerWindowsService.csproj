@@ -1,18 +1,18 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk.Worker">
 
   <PropertyGroup>
-    <TargetFramework>net5.0</TargetFramework>
+    <TargetFramework>net6.0</TargetFramework>
     <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
     <CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>
     <GenerateAssemblyInfo>true</GenerateAssemblyInfo>
     <RootNamespace>DnsServerWindowsService</RootNamespace>
     <AssemblyName>DnsService</AssemblyName>
     <ApplicationIcon>logo2.ico</ApplicationIcon>
-    <Version>7.1</Version>
+    <Version>8.0</Version>
     <Authors>Shreyas Zare</Authors>
     <Company>Technitium</Company>
     <Product>Technitium DNS Server</Product>
-    <Description>.NET 5</Description>
+    <Description></Description>
     <PackageProjectUrl>https://technitium.com/dns/</PackageProjectUrl>
     <RepositoryUrl>https://github.com/TechnitiumSoftware/DnsServer</RepositoryUrl>
     <PackageId>DnsServerWindowsService</PackageId>
@@ -25,8 +25,8 @@
   </ItemGroup>
 
   <ItemGroup>
-    <PackageReference Include="Microsoft.Extensions.Hosting" Version="5.0.0" />
-    <PackageReference Include="Microsoft.Extensions.Hosting.WindowsServices" Version="5.0.1" />
+    <PackageReference Include="Microsoft.Extensions.Hosting" Version="6.0.1" />
+    <PackageReference Include="Microsoft.Extensions.Hosting.WindowsServices" Version="6.0.0" />
   </ItemGroup>
 
   <ItemGroup>

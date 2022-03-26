@@ -1,7 +1,7 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <TargetFramework>net5.0</TargetFramework>
+    <TargetFramework>net6.0</TargetFramework>
     <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
     <Authors>Shreyas Zare</Authors>
     <Company>Technitium</Company>
@@ -9,9 +9,9 @@
     <PackageProjectUrl>https://technitium.com/dns/</PackageProjectUrl>
     <RepositoryUrl>https://github.com/TechnitiumSoftware/DnsServer</RepositoryUrl>
     <RepositoryType></RepositoryType>
-    <Description>.NET 5</Description>
+    <Description></Description>
     <PackageId>DnsServerCore.ApplicationCommon</PackageId>
-    <Version>2.0</Version>
+    <Version>3.0</Version>
   </PropertyGroup>
 
   <ItemGroup>
