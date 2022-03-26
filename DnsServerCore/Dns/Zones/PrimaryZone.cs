@@ -57,7 +57,6 @@ namespace DnsServerCore.Dns.Zones
         const int NOTIFY_RETRIES = 5;
 
         Dictionary<ushort, DnssecPrivateKey> _dnssecPrivateKeys;
-        ushort _zskRolloverDays = 90;
         const uint DNSSEC_SIGNATURE_INCEPTION_OFFSET = 60 * 60;
         Timer _dnssecTimer;
         const int DNSSEC_TIMER_INITIAL_INTERVAL = 30000;
@@ -89,8 +88,6 @@ namespace DnsServerCore.Dns.Zones
                 foreach (DnssecPrivateKey dnssecPrivateKey in dnssecPrivateKeys)
                     _dnssecPrivateKeys.Add(dnssecPrivateKey.KeyTag, dnssecPrivateKey);
             }
-
-            _zskRolloverDays = zoneInfo.ZskRolloverDays;
 
             _notifyTimer = new Timer(NotifyTimerCallback, null, Timeout.Infinite, Timeout.Infinite);
             _notifyList = new List<NameServerAddress>();
@@ -419,7 +416,7 @@ namespace DnsServerCore.Dns.Zones
                                     }
                                     else
                                     {
-                                        if ((_zskRolloverDays > 0) && (DateTime.UtcNow > privateKey.StateChangedOn.AddDays(_zskRolloverDays)))
+                                        if (privateKey.IsRolloverNeeded())
                                         {
                                             if (zskToRollover is null)
                                                 zskToRollover = new List<DnssecPrivateKey>();
@@ -708,13 +705,15 @@ namespace DnsServerCore.Dns.Zones
             DnssecPrivateKey kskPrivateKey = DnssecPrivateKey.Create(algorithm, DnssecPrivateKeyType.KeySigningKey, kskKeySize);
             DnssecPrivateKey zskPrivateKey = DnssecPrivateKey.Create(algorithm, DnssecPrivateKeyType.ZoneSigningKey, zskKeySize);
 
+            zskPrivateKey.RolloverDays = zskRolloverDays;
+
             _dnssecPrivateKeys = new Dictionary<ushort, DnssecPrivateKey>(4);
 
             _dnssecPrivateKeys.Add(kskPrivateKey.KeyTag, kskPrivateKey);
             _dnssecPrivateKeys.Add(zskPrivateKey.KeyTag, zskPrivateKey);
 
             //sign zone
-            SignZone(useNSec3, iterations, saltLength, dnsKeyTtl, zskRolloverDays);
+            SignZone(useNSec3, iterations, saltLength, dnsKeyTtl);
         }
 
         public void SignZoneWithEcdsaNSec(string curve, uint dnsKeyTtl, ushort zskRolloverDays)
@@ -758,16 +757,18 @@ namespace DnsServerCore.Dns.Zones
             DnssecPrivateKey kskPrivateKey = DnssecPrivateKey.Create(algorithm, DnssecPrivateKeyType.KeySigningKey);
             DnssecPrivateKey zskPrivateKey = DnssecPrivateKey.Create(algorithm, DnssecPrivateKeyType.ZoneSigningKey);
 
+            zskPrivateKey.RolloverDays = zskRolloverDays;
+
             _dnssecPrivateKeys = new Dictionary<ushort, DnssecPrivateKey>(4);
 
             _dnssecPrivateKeys.Add(kskPrivateKey.KeyTag, kskPrivateKey);
             _dnssecPrivateKeys.Add(zskPrivateKey.KeyTag, zskPrivateKey);
 
             //sign zone
-            SignZone(useNSec3, iterations, saltLength, dnsKeyTtl, zskRolloverDays);
+            SignZone(useNSec3, iterations, saltLength, dnsKeyTtl);
         }
 
-        private void SignZone(bool useNSec3, ushort iterations, byte saltLength, uint dnsKeyTtl, ushort zskRolloverDays)
+        private void SignZone(bool useNSec3, ushort iterations, byte saltLength, uint dnsKeyTtl)
         {
             try
             {
@@ -841,8 +842,6 @@ namespace DnsServerCore.Dns.Zones
                             break;
                     }
                 }
-
-                _zskRolloverDays = zskRolloverDays;
 
                 _dnssecTimer = new Timer(DnssecTimerCallback, null, DNSSEC_TIMER_INITIAL_INTERVAL, Timeout.Infinite);
 
@@ -1193,7 +1192,7 @@ namespace DnsServerCore.Dns.Zones
             CommitAndIncrementSerial(deletedRecords);
         }
 
-        public void GenerateAndAddRsaKey(DnssecPrivateKeyType keyType, string hashAlgorithm, int keySize)
+        public void GenerateAndAddRsaKey(DnssecPrivateKeyType keyType, string hashAlgorithm, int keySize, ushort rolloverDays)
         {
             if (_dnssecStatus == AuthZoneDnssecStatus.Unsigned)
                 throw new DnsServerException("The zone must be signed.");
@@ -1222,15 +1221,16 @@ namespace DnsServerCore.Dns.Zones
                     throw new NotSupportedException("Hash algorithm is not supported: " + hashAlgorithm);
             }
 
-            GenerateAndAddRsaKey(keyType, algorithm, keySize);
+            GenerateAndAddRsaKey(keyType, algorithm, keySize, rolloverDays);
         }
 
-        private void GenerateAndAddRsaKey(DnssecPrivateKeyType keyType, DnssecAlgorithm algorithm, int keySize)
+        private void GenerateAndAddRsaKey(DnssecPrivateKeyType keyType, DnssecAlgorithm algorithm, int keySize, ushort rolloverDays)
         {
             int i = 0;
             while (i++ < 5)
             {
                 DnssecPrivateKey privateKey = DnssecPrivateKey.Create(algorithm, keyType, keySize);
+                privateKey.RolloverDays = rolloverDays;
 
                 lock (_dnssecPrivateKeys)
                 {
@@ -1242,7 +1242,7 @@ namespace DnsServerCore.Dns.Zones
             throw new DnsServerException("Failed to add private key: key tag collision.");
         }
 
-        public void GenerateAndAddEcdsaKey(DnssecPrivateKeyType keyType, string curve)
+        public void GenerateAndAddEcdsaKey(DnssecPrivateKeyType keyType, string curve, ushort rolloverDays)
         {
             if (_dnssecStatus == AuthZoneDnssecStatus.Unsigned)
                 throw new DnsServerException("The zone must be signed.");
@@ -1263,15 +1263,16 @@ namespace DnsServerCore.Dns.Zones
                     throw new NotSupportedException("ECDSA curve is not supported: " + curve);
             }
 
-            GenerateAndAddEcdsaKey(keyType, algorithm);
+            GenerateAndAddEcdsaKey(keyType, algorithm, rolloverDays);
         }
 
-        private void GenerateAndAddEcdsaKey(DnssecPrivateKeyType keyType, DnssecAlgorithm algorithm)
+        private void GenerateAndAddEcdsaKey(DnssecPrivateKeyType keyType, DnssecAlgorithm algorithm, ushort rolloverDays)
         {
             int i = 0;
             while (i++ < 5)
             {
                 DnssecPrivateKey privateKey = DnssecPrivateKey.Create(algorithm, keyType);
+                privateKey.RolloverDays = rolloverDays;
 
                 lock (_dnssecPrivateKeys)
                 {
@@ -1281,6 +1282,17 @@ namespace DnsServerCore.Dns.Zones
             }
 
             throw new DnsServerException("Failed to add private key: key tag collision.");
+        }
+
+        public void UpdatePrivateKey(ushort keyTag, ushort rolloverDays)
+        {
+            lock (_dnssecPrivateKeys)
+            {
+                if (!_dnssecPrivateKeys.TryGetValue(keyTag, out DnssecPrivateKey privateKey))
+                    throw new DnsServerException("Cannot update private key: no such private key was found.");
+
+                privateKey.RolloverDays = rolloverDays;
+            }
         }
 
         public void DeletePrivateKey(ushort keyTag)
@@ -1446,12 +1458,12 @@ namespace DnsServerCore.Dns.Zones
                 case DnssecAlgorithm.RSASHA1_NSEC3_SHA1:
                 case DnssecAlgorithm.RSASHA256:
                 case DnssecAlgorithm.RSASHA512:
-                    GenerateAndAddRsaKey(privateKey.KeyType, privateKey.Algorithm, (privateKey as DnssecRsaPrivateKey).KeySize);
+                    GenerateAndAddRsaKey(privateKey.KeyType, privateKey.Algorithm, (privateKey as DnssecRsaPrivateKey).KeySize, privateKey.RolloverDays);
                     break;
 
                 case DnssecAlgorithm.ECDSAP256SHA256:
                 case DnssecAlgorithm.ECDSAP384SHA384:
-                    GenerateAndAddEcdsaKey(privateKey.KeyType, privateKey.Algorithm);
+                    GenerateAndAddEcdsaKey(privateKey.KeyType, privateKey.Algorithm, privateKey.RolloverDays);
                     break;
 
                 default:
@@ -1873,6 +1885,9 @@ namespace DnsServerCore.Dns.Zones
                     throw new DnsServerException("Cannot sign RRSet: The record type [" + rrsetType.ToString() + "] is not supported by DNSSEC signed primary zones.");
 
                 default:
+                    if ((rrsetType == DnsResourceRecordType.NS) && (records[0].Name.Length > _name.Length))
+                        return Array.Empty<DnsResourceRecord>(); //referrer NS records are not signed
+
                     lock (_dnssecPrivateKeys)
                     {
                         foreach (KeyValuePair<ushort, DnssecPrivateKey> privateKeyEntry in _dnssecPrivateKeys)
@@ -1901,7 +1916,7 @@ namespace DnsServerCore.Dns.Zones
 
         internal void UpdateDnssecRecordsFor(AuthZone zone, DnsResourceRecordType type)
         {
-            //lock to sync this call since to prevent inconsistent NSEC/NSEC3 updates
+            //lock to sync this call to prevent inconsistent NSEC/NSEC3 updates
             lock (_dnssecUpdateLock)
             {
                 IReadOnlyList<DnsResourceRecord> records = zone.GetRecords(type);
@@ -2484,6 +2499,15 @@ namespace DnsServerCore.Dns.Zones
                     case DnsResourceRecordType.ANAME:
                     case DnsResourceRecordType.APP:
                         throw new DnsServerException("The record type is not supported by DNSSEC signed primary zones.");
+
+                    default:
+                        foreach (DnsResourceRecord record in records)
+                        {
+                            if (record.IsDisabled())
+                                throw new DnsServerException("Cannot set records: disabling records in a signed zones is not supported.");
+                        }
+
+                        break;
                 }
             }
 
@@ -2550,6 +2574,12 @@ namespace DnsServerCore.Dns.Zones
                     case DnsResourceRecordType.ANAME:
                     case DnsResourceRecordType.APP:
                         throw new DnsServerException("The record type is not supported by DNSSEC signed primary zones.");
+
+                    default:
+                        if (record.IsDisabled())
+                            throw new DnsServerException("Cannot add record: disabling records in a signed zones is not supported.");
+
+                        break;
                 }
             }
 
@@ -2667,8 +2697,11 @@ namespace DnsServerCore.Dns.Zones
                     if (oldRecord.Type != newRecord.Type)
                         throw new InvalidOperationException("Old and new record types do not match.");
 
+                    if ((_dnssecStatus != AuthZoneDnssecStatus.Unsigned) && newRecord.IsDisabled())
+                        throw new DnsServerException("Cannot update record: disabling records in a signed zones is not supported.");
+
                     if (newRecord.OriginalTtlValue > GetZoneSoaExpire())
-                        throw new DnsServerException("Failed to update record: TTL cannot be greater than SOA EXPIRE.");
+                        throw new DnsServerException("Cannot update record: TTL cannot be greater than SOA EXPIRE.");
 
                     if (!TryDeleteRecord(oldRecord.Type, oldRecord.RDATA, out DnsResourceRecord deletedRecord))
                         throw new InvalidOperationException("Cannot update record: the record does not exists to be updated.");
@@ -2758,18 +2791,6 @@ namespace DnsServerCore.Dns.Zones
                 {
                     return _dnssecPrivateKeys.Values;
                 }
-            }
-        }
-
-        public ushort ZskRolloverDays
-        {
-            get { return _zskRolloverDays; }
-            set
-            {
-                if (value > 365)
-                    throw new ArgumentOutOfRangeException(nameof(ZskRolloverDays), "Zone Signing Key (ZSK) automatic rollover days valid range is 0-365.");
-
-                _zskRolloverDays = value;
             }
         }
 
