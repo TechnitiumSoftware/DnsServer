@@ -17,6 +17,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 */
 
+using DnsServerCore.Dns.ResourceRecords;
 using System;
 using System.Collections.Generic;
 using TechnitiumLibrary.Net.Dns.ResourceRecords;
@@ -61,6 +62,15 @@ namespace DnsServerCore.Dns.Zones
                     case DnsResourceRecordType.ANAME:
                     case DnsResourceRecordType.APP:
                         throw new DnsServerException("The record type is not supported by DNSSEC signed primary zones.");
+
+                    default:
+                        foreach (DnsResourceRecord record in records)
+                        {
+                            if (record.IsDisabled())
+                                throw new DnsServerException("Cannot set records: disabling records in a signed zones is not supported.");
+                        }
+
+                        break;
                 }
             }
 
@@ -105,6 +115,12 @@ namespace DnsServerCore.Dns.Zones
                     case DnsResourceRecordType.ANAME:
                     case DnsResourceRecordType.APP:
                         throw new DnsServerException("The record type is not supported by DNSSEC signed primary zones.");
+
+                    default:
+                        if (record.IsDisabled())
+                            throw new DnsServerException("Cannot add record: disabling records in a signed zones is not supported.");
+
+                        break;
                 }
             }
 
@@ -209,6 +225,9 @@ namespace DnsServerCore.Dns.Zones
                 default:
                     if (oldRecord.Type != newRecord.Type)
                         throw new InvalidOperationException("Old and new record types do not match.");
+
+                    if ((_primaryZone.DnssecStatus != AuthZoneDnssecStatus.Unsigned) && newRecord.IsDisabled())
+                        throw new DnsServerException("Cannot update record: disabling records in a signed zones is not supported.");
 
                     if (newRecord.OriginalTtlValue > _primaryZone.GetZoneSoaExpire())
                         throw new DnsServerException("Failed to update record: TTL cannot be greater than SOA EXPIRE.");
