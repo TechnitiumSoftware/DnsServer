@@ -89,7 +89,7 @@ namespace DnsServerCore.Dns.Trees
             return key;
         }
 
-        private static bool KeysMatch(byte[] key1, byte[] key2, bool matchWildcard)
+        private static bool KeysMatch(byte[] mainKey, byte[] testKey, bool matchWildcard)
         {
             if (matchWildcard)
             {
@@ -100,17 +100,17 @@ namespace DnsServerCore.Dns.Trees
                 int i = 0;
                 int j = 0;
 
-                while ((i < key1.Length) && (j < key2.Length))
+                while ((i < mainKey.Length) && (j < testKey.Length))
                 {
-                    if (key1[i] == 1) //[*]
+                    if (mainKey[i] == 1) //[*]
                     {
-                        if (i == key1.Length - 2)
+                        if (i == mainKey.Length - 2)
                             return true;
 
                         //skip j to next label
-                        while (j < key2.Length)
+                        while (j < testKey.Length)
                         {
-                            if (key2[j] == 0) //[.]
+                            if (testKey[j] == 0) //[.]
                                 break;
 
                             j++;
@@ -120,42 +120,24 @@ namespace DnsServerCore.Dns.Trees
                         continue;
                     }
 
-                    if (key2[j] == 1) //[*]
-                    {
-                        if (j == key2.Length - 2)
-                            return true;
-
-                        //skip i to next label
-                        while (i < key1.Length)
-                        {
-                            if (key1[i] == 0) //[.]
-                                break;
-
-                            i++;
-                        }
-
-                        j++;
-                        continue;
-                    }
-
-                    if (key1[i] != key2[j])
+                    if (mainKey[i] != testKey[j])
                         return false;
 
                     i++;
                     j++;
                 }
 
-                return (i == key1.Length) && (j == key2.Length);
+                return (i == mainKey.Length) && (j == testKey.Length);
             }
             else
             {
                 //exact match
-                if (key1.Length != key2.Length)
+                if (mainKey.Length != testKey.Length)
                     return false;
 
-                for (int i = 0; i < key1.Length; i++)
+                for (int i = 0; i < mainKey.Length; i++)
                 {
-                    if (key1[i] != key2[i])
+                    if (mainKey[i] != testKey[i])
                         return false;
                 }
 
@@ -182,9 +164,6 @@ namespace DnsServerCore.Dns.Trees
                 {
                     if (mainKey[i] == 1) //[*]
                     {
-                        if (i == mainKey.Length - 2)
-                            return true;
-
                         //skip j to next label
                         while (j < testKey.Length)
                         {
@@ -245,14 +224,22 @@ namespace DnsServerCore.Dns.Trees
                     {
                         //find closest values
                         TSubDomainZone subDomain = null;
+                        TSubDomainZone delegation = null;
                         TApexZone authority = null;
 
-                        GetClosestValuesForZone(zoneNode, ref subDomain, ref closestDelegation, ref authority);
+                        GetClosestValuesForZone(zoneNode, ref subDomain, ref delegation, ref authority);
 
                         if (subDomain is not null)
                         {
                             closestSubDomain = subDomain;
                             closestSubDomainNode = currentNode;
+
+                            wildcard = null; //clear previous wildcard node
+                        }
+
+                        if (delegation is not null)
+                        {
+                            closestDelegation = delegation;
 
                             wildcard = null; //clear previous wildcard node
                         }
@@ -312,7 +299,7 @@ namespace DnsServerCore.Dns.Trees
                 if (value is not null)
                 {
                     //match exact + wildcard keys
-                    if (KeysMatch(key, value.Key, matchWildcard))
+                    if (KeysMatch(value.Key, key, matchWildcard))
                     {
                         //find closest values since the matched zone may be apex zone
                         TNode zoneNode = value.Value;
@@ -371,7 +358,7 @@ namespace DnsServerCore.Dns.Trees
                             if (value is not null)
                             {
                                 //match wildcard keys
-                                if (KeysMatch(key, value.Key, true))
+                                if (KeysMatch(value.Key, key, true))
                                 {
                                     //find closest values
                                     TNode zoneNode = value.Value;
@@ -404,7 +391,7 @@ namespace DnsServerCore.Dns.Trees
                 else
                 {
                     //match wildcard keys
-                    if (KeysMatch(key, value.Key, true))
+                    if (KeysMatch(value.Key, key, true))
                     {
                         //find closest values
                         TNode zoneNode = value.Value;
