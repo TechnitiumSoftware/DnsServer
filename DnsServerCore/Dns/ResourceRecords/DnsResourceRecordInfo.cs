@@ -222,7 +222,7 @@ namespace DnsServerCore.Dns.ResourceRecords
             get { return _comments; }
             set
             {
-                if (value.Length > 255)
+                if ((value is not null) && (value.Length > 255))
                     throw new ArgumentOutOfRangeException(nameof(Comments), "Resource record comment text cannot exceed 255 characters.");
 
                 _comments = value;
