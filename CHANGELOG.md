@@ -1,5 +1,14 @@
 # Technitium DNS Server Change Log
 
+## Version 8.0.1
+Release Date: 29 March 2022
+- Fixed bug in Conditional Forwarder zones due to zone cut validation causing negative cache entry for CNAME responses which resulted in partial responses.
+- Fixed issue with handling FormatError response that were missing question section for EDNS requests.
+- Fixed minor issue with DNSSEC validation for unsigned zone when forwarder returns empty NXDOMAIN responses.
+- Fixed issue with NODATA response handling for ANAME records.
+- Fixed issue with record comment validation causing error when saving SOA records in zones.
+- Multiple other minor bug fixes and improvements.
+
 ## Version 8.0
 Release Date: 26 March 2022
 - Added EDNS support [RFC 6891](https://datatracker.ietf.org/doc/html/rfc6891).
