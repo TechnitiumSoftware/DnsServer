@@ -16,6 +16,7 @@
 		<None Remove="dohwww\js\main.js" />
 		<None Remove="dohwww\robots.txt" />
 		<None Remove="named.root" />
+		<None Remove="root-anchors.xml" />
 		<None Remove="www\css\bootstrap-datetimepicker.min.css" />
 		<None Remove="www\css\bootstrap-theme.min.css" />
 		<None Remove="www\css\bootstrap-theme.min.css.map" />
@@ -95,6 +96,9 @@
 		</Content>
 		<Content Include="named.root">
 			<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+		</Content>
+		<Content Include="root-anchors.xml">
+		  <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
 		</Content>
 		<Content Include="www\css\bootstrap-datetimepicker.min.css">
 			<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
@@ -261,7 +265,7 @@
 		<RepositoryType></RepositoryType>
 		<Description></Description>
 		<PackageId>DnsServer</PackageId>
-		<Version>8.0</Version>
+		<Version>8.0.1</Version>
 	</PropertyGroup>
 
 </Project>
