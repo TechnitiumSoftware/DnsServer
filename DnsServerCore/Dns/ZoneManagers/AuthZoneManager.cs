@@ -1873,14 +1873,23 @@ namespace DnsServerCore.Dns.ZoneManagers
                     }
 
                     DnsResourceRecord lastRR = answers[answers.Count - 1];
-                    if ((lastRR.Type != question.Type) && (lastRR.Type == DnsResourceRecordType.CNAME) && (question.Type != DnsResourceRecordType.ANY))
+                    if ((lastRR.Type != question.Type) && (question.Type != DnsResourceRecordType.ANY))
                     {
-                        List<DnsResourceRecord> newAnswers = new List<DnsResourceRecord>(answers.Count + 1);
-                        newAnswers.AddRange(answers);
+                        switch (lastRR.Type)
+                        {
+                            case DnsResourceRecordType.CNAME:
+                                List<DnsResourceRecord> newAnswers = new List<DnsResourceRecord>(answers.Count + 1);
+                                newAnswers.AddRange(answers);
 
-                        ResolveCNAME(question, dnssecOk, lastRR, newAnswers);
+                                ResolveCNAME(question, dnssecOk, lastRR, newAnswers);
 
-                        answers = newAnswers;
+                                answers = newAnswers;
+                                break;
+
+                            case DnsResourceRecordType.ANAME:
+                                authority = apexZone.GetRecords(DnsResourceRecordType.SOA); //adding SOA for use with NO DATA response
+                                break;
+                        }
                     }
 
                     switch (question.Type)
