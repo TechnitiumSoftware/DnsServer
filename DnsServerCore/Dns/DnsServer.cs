@@ -1702,8 +1702,11 @@ namespace DnsServerCore.Dns
                     }
 
                     //check new response
+                    if (newResponse.RCODE != DnsResponseCode.NoError)
+                        return null; //cannot proceed to resolve further
+
                     if (newResponse.Answer.Count == 0)
-                        return Array.Empty<DnsResourceRecord>(); //cannot proceed to resolve further
+                        return Array.Empty<DnsResourceRecord>(); //NO DATA
 
                     DnsResourceRecordType questionType = request.Question[0].Type;
                     DnsResourceRecord lastRR = newResponse.GetLastAnswerRecord();
@@ -1756,7 +1759,7 @@ namespace DnsServerCore.Dns
                 while (++queryCount < MAX_CNAME_HOPS);
 
                 //max hops limit crossed
-                return Array.Empty<DnsResourceRecord>();
+                return null;
             }
 
             List<DnsResourceRecord> responseAnswer = new List<DnsResourceRecord>();
@@ -1774,10 +1777,29 @@ namespace DnsServerCore.Dns
                 }
             }
 
-            while (resolveQueue.Count > 0)
-                responseAnswer.AddRange(await resolveQueue.Dequeue());
+            bool foundErrors = false;
 
-            return new DnsDatagram(request.Identifier, true, DnsOpcode.StandardQuery, true, false, request.RecursionDesired, isRecursionAllowed, false, false, responseAnswer.Count > 0 ? DnsResponseCode.NoError : DnsResponseCode.ServerFailure, request.Question, responseAnswer, response.Authority, response.Additional) { Tag = response.Tag };
+            while (resolveQueue.Count > 0)
+            {
+                IReadOnlyList<DnsResourceRecord> records = await resolveQueue.Dequeue();
+                if (records is null)
+                    foundErrors = true;
+                else if (records.Count > 0)
+                    responseAnswer.AddRange(records);
+            }
+
+            DnsResponseCode rcode = DnsResponseCode.NoError;
+            IReadOnlyList<DnsResourceRecord> authority = null;
+
+            if (responseAnswer.Count == 0)
+            {
+                if (foundErrors)
+                    rcode = DnsResponseCode.ServerFailure;
+                else
+                    authority = response.Authority;
+            }
+
+            return new DnsDatagram(request.Identifier, true, DnsOpcode.StandardQuery, true, false, request.RecursionDesired, isRecursionAllowed, false, false, rcode, request.Question, responseAnswer, authority, null) { Tag = response.Tag };
         }
 
         private DnsDatagram ProcessBlockedQuery(DnsDatagram request)
