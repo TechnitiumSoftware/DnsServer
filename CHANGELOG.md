@@ -1,5 +1,12 @@
 # Technitium DNS Server Change Log
 
+## Version 8.0.2
+Release Date: 3 April 2022
+- Fixed bug in Conditional Forwarder zones that would cause ServerFailure responses for some queries.
+- Fixed issue of setting minimum TTL value to NSEC & NSEC3 records in Primary signed zones when SOA value is changed.
+- Fixed issue in parsing DNS-over-HTTPS JSON response for NSEC and NSEC3 records.
+- Multiple other minor bug fixes and improvements.
+
 ## Version 8.0.1
 Release Date: 29 March 2022
 - Fixed bug in Conditional Forwarder zones due to zone cut validation causing negative cache entry for CNAME responses which resulted in partial responses.
