@@ -979,6 +979,40 @@ namespace DnsServerCore.Dns.Zones
             TriggerNotify();
         }
 
+        private void RefreshNSec()
+        {
+            lock (_dnssecUpdateLock)
+            {
+                IReadOnlyList<AuthZone> zones = _dnsServer.AuthZoneManager.GetZoneWithSubDomainZones(_name);
+
+                EnableNSec(zones);
+            }
+        }
+
+        private void RefreshNSec3()
+        {
+            lock (_dnssecUpdateLock)
+            {
+                IReadOnlyList<AuthZone> zones = _dnsServer.AuthZoneManager.GetZoneWithSubDomainZones(_name);
+
+                //get non NSEC3 zones
+                List<AuthZone> nonNSec3Zones = new List<AuthZone>(zones.Count);
+
+                foreach (AuthZone zone in zones)
+                {
+                    if (zone.HasOnlyNSec3Records())
+                        continue;
+
+                    nonNSec3Zones.Add(zone);
+                }
+
+                IReadOnlyList<DnsResourceRecord> nsec3ParamRecords = GetRecords(DnsResourceRecordType.NSEC3PARAM);
+                DnsNSEC3PARAMRecordData nsec3Param = nsec3ParamRecords[0].RDATA as DnsNSEC3PARAMRecordData;
+
+                EnableNSec3(nonNSec3Zones, nsec3Param.Iterations, nsec3Param.SaltValue);
+            }
+        }
+
         private void EnableNSec(IReadOnlyList<AuthZone> zones)
         {
             List<DnsResourceRecord> addedRecords = new List<DnsResourceRecord>();
@@ -1031,6 +1065,24 @@ namespace DnsServerCore.Dns.Zones
 
         private void EnableNSec3(IReadOnlyList<AuthZone> zones, ushort iterations, byte saltLength)
         {
+            byte[] salt;
+
+            if (saltLength > 0)
+            {
+                salt = new byte[saltLength];
+                using RandomNumberGenerator rng = RandomNumberGenerator.Create();
+                rng.GetBytes(salt);
+            }
+            else
+            {
+                salt = Array.Empty<byte>();
+            }
+
+            EnableNSec3(zones, iterations, salt);
+        }
+
+        private void EnableNSec3(IReadOnlyList<AuthZone> zones, ushort iterations, byte[] salt)
+        {
             List<DnsResourceRecord> addedRecords = new List<DnsResourceRecord>();
             List<DnsResourceRecord> deletedRecords = new List<DnsResourceRecord>();
 
@@ -1038,10 +1090,6 @@ namespace DnsServerCore.Dns.Zones
             int apexLabelCount = DnsRRSIGRecordData.GetLabelCount(_name);
 
             uint ttl = GetZoneSoaMinimum();
-
-            byte[] salt = new byte[saltLength];
-            using RandomNumberGenerator rng = RandomNumberGenerator.Create();
-            rng.GetBytes(salt);
 
             //list all partial NSEC3 records
             foreach (AuthZone zone in zones)
@@ -2326,7 +2374,11 @@ namespace DnsServerCore.Dns.Zones
 
         private uint GetZoneSoaMinimum()
         {
-            DnsResourceRecord soaRecord = _entries[DnsResourceRecordType.SOA][0];
+            return GetZoneSoaMinimum(_entries[DnsResourceRecordType.SOA][0]);
+        }
+
+        private uint GetZoneSoaMinimum(DnsResourceRecord soaRecord)
+        {
             return Math.Min((soaRecord.RDATA as DnsSOARecordData).Minimum, soaRecord.OriginalTtlValue);
         }
 
@@ -2532,9 +2584,28 @@ namespace DnsServerCore.Dns.Zones
                     soaRecord.Tag = null;
                     soaRecord.SetComments(comments);
 
+                    uint oldSoaMinimum = GetZoneSoaMinimum();
+
                     base.SetRecords(type, records);
 
                     CommitAndIncrementSerial();
+
+                    uint newSoaMinimum = GetZoneSoaMinimum(soaRecord);
+
+                    if (oldSoaMinimum != newSoaMinimum)
+                    {
+                        switch (_dnssecStatus)
+                        {
+                            case AuthZoneDnssecStatus.SignedWithNSEC:
+                                RefreshNSec();
+                                break;
+
+                            case AuthZoneDnssecStatus.SignedWithNSEC3:
+                                RefreshNSec3();
+                                break;
+                        }
+                    }
+
                     TriggerNotify();
                     break;
 
