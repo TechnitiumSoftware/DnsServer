@@ -22,6 +22,7 @@ using Newtonsoft.Json;
 using System.Collections.Generic;
 using System.IO;
 using System.Net;
+using System.Threading.Tasks;
 using TechnitiumLibrary.Net.Dns;
 using TechnitiumLibrary.Net.Dns.ResourceRecords;
 
@@ -199,7 +200,7 @@ namespace DnsServerCore
             WebServiceZonesApi.WriteRecordsAsJson(new List<DnsResourceRecord>(records), jsonWriter, false);
         }
 
-        public void ImportAllowedZones(HttpListenerRequest request)
+        public async Task ImportAllowedZonesAsync(HttpListenerRequest request)
         {
             if (!request.ContentType.StartsWith("application/x-www-form-urlencoded"))
                 throw new DnsWebServiceException("Invalid content type. Expected application/x-www-form-urlencoded.");
@@ -207,7 +208,7 @@ namespace DnsServerCore
             string formRequest;
             using (StreamReader sR = new StreamReader(request.InputStream, request.ContentEncoding))
             {
-                formRequest = sR.ReadToEnd();
+                formRequest = await sR.ReadToEndAsync();
             }
 
             string[] formParts = formRequest.Split('&');
@@ -358,7 +359,7 @@ namespace DnsServerCore
             WebServiceZonesApi.WriteRecordsAsJson(new List<DnsResourceRecord>(records), jsonWriter, false);
         }
 
-        public void ImportBlockedZones(HttpListenerRequest request)
+        public async Task ImportBlockedZonesAsync(HttpListenerRequest request)
         {
             if (!request.ContentType.StartsWith("application/x-www-form-urlencoded"))
                 throw new DnsWebServiceException("Invalid content type. Expected application/x-www-form-urlencoded.");
@@ -366,7 +367,7 @@ namespace DnsServerCore
             string formRequest;
             using (StreamReader sR = new StreamReader(request.InputStream, request.ContentEncoding))
             {
-                formRequest = sR.ReadToEnd();
+                formRequest = await sR.ReadToEndAsync();
             }
 
             string[] formParts = formRequest.Split('&');
