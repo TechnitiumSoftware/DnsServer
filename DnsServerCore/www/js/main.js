@@ -74,6 +74,7 @@ function showPageMain(username) {
     $("#preDnsClientOutput").hide();
 
     $("#divLogViewer").hide();
+    $("#divQueryLogsTable").hide();
 
     $("#pageMain").show();
 
@@ -1805,7 +1806,7 @@ function refreshDashboard(hideLoader) {
                     tableHtmlRows = "";
 
                     for (var i = 0; i < topClients.length; i++) {
-                        tableHtmlRows += "<tr><td>" + htmlEncode(topClients[i].name) + "<br />" + htmlEncode(topClients[i].domain == "" ? "." : topClients[i].domain) + "</td><td>" + topClients[i].hits.toLocaleString() + "</td></tr>";
+                        tableHtmlRows += "<tr><td style=\"word-wrap: anywhere;\">" + htmlEncode(topClients[i].name) + "<br />" + htmlEncode(topClients[i].domain == "" ? "." : topClients[i].domain) + "</td><td>" + topClients[i].hits.toLocaleString() + "</td></tr>";
                     }
                 }
 
@@ -1824,7 +1825,7 @@ function refreshDashboard(hideLoader) {
                     tableHtmlRows = "";
 
                     for (var i = 0; i < topDomains.length; i++) {
-                        tableHtmlRows += "<tr><td>" + htmlEncode(topDomains[i].name == "" ? "." : topDomains[i].name) + "</td><td>" + topDomains[i].hits.toLocaleString() + "</td></tr>";
+                        tableHtmlRows += "<tr><td style=\"word-wrap: anywhere;\">" + htmlEncode(topDomains[i].name == "" ? "." : topDomains[i].name) + "</td><td>" + topDomains[i].hits.toLocaleString() + "</td></tr>";
                     }
                 }
 
@@ -1843,7 +1844,7 @@ function refreshDashboard(hideLoader) {
                     tableHtmlRows = "";
 
                     for (var i = 0; i < topBlockedDomains.length; i++) {
-                        tableHtmlRows += "<tr><td>" + htmlEncode(topBlockedDomains[i].name == "" ? "." : topBlockedDomains[i].name) + "</td><td>" + topBlockedDomains[i].hits.toLocaleString() + "</td></tr>";
+                        tableHtmlRows += "<tr><td style=\"word-wrap: anywhere;\">" + htmlEncode(topBlockedDomains[i].name == "" ? "." : topBlockedDomains[i].name) + "</td><td>" + topBlockedDomains[i].hits.toLocaleString() + "</td></tr>";
                     }
                 }
 
@@ -1925,7 +1926,7 @@ function showTopStats(statsType, limit) {
                     tableHtmlRows = "";
 
                     for (var i = 0; i < topClients.length; i++) {
-                        tableHtmlRows += "<tr><td>" + htmlEncode(topClients[i].name) + "<br />" + htmlEncode(topClients[i].domain == "" ? "." : topClients[i].domain) + "</td><td>" + topClients[i].hits.toLocaleString() + "</td></tr>";
+                        tableHtmlRows += "<tr><td style=\"word-wrap: anywhere;\">" + htmlEncode(topClients[i].name) + "<br />" + htmlEncode(topClients[i].domain == "" ? "." : topClients[i].domain) + "</td><td>" + topClients[i].hits.toLocaleString() + "</td></tr>";
                     }
                 }
 
@@ -1949,7 +1950,7 @@ function showTopStats(statsType, limit) {
                     tableHtmlRows = "";
 
                     for (var i = 0; i < topDomains.length; i++) {
-                        tableHtmlRows += "<tr><td>" + htmlEncode(topDomains[i].name == "" ? "." : topDomains[i].name) + "</td><td>" + topDomains[i].hits.toLocaleString() + "</td></tr>";
+                        tableHtmlRows += "<tr><td style=\"word-wrap: anywhere;\">" + htmlEncode(topDomains[i].name == "" ? "." : topDomains[i].name) + "</td><td>" + topDomains[i].hits.toLocaleString() + "</td></tr>";
                     }
                 }
 
@@ -1973,7 +1974,7 @@ function showTopStats(statsType, limit) {
                     tableHtmlRows = "";
 
                     for (var i = 0; i < topBlockedDomains.length; i++) {
-                        tableHtmlRows += "<tr><td>" + htmlEncode(topBlockedDomains[i].name == "" ? "." : topBlockedDomains[i].name) + "</td><td>" + topBlockedDomains[i].hits.toLocaleString() + "</td></tr>";
+                        tableHtmlRows += "<tr><td style=\"word-wrap: anywhere;\">" + htmlEncode(topBlockedDomains[i].name == "" ? "." : topBlockedDomains[i].name) + "</td><td>" + topBlockedDomains[i].hits.toLocaleString() + "</td></tr>";
                     }
                 }
 
