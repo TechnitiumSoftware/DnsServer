@@ -22,10 +22,10 @@ Be it a home network or an organization's network, having a locally running DNS 
 - Docker image available on [Docker Hub](https://hub.docker.com/r/technitium/dns-server).
 - Installs in just a minute and works out-of-the-box with zero configuration.
 - Block ads & malware using one or more block list URLs.
-- High performance DNS server based on async IO that can serve millions of requests per minute even on a commodity desktop PC hardware (load tested on Intel i7-8700 CPU with more than 100,000 request/second).
+- High performance DNS server based on async IO that can serve millions of requests per minute even on a commodity desktop PC hardware (load tested on Intel i7-8700 CPU with more than 100,000 request/second over Gigabit Ethernet).
 - Self host [DNS-over-TLS](https://en.wikipedia.org/wiki/DNS_over_TLS) and [DNS-over-HTTPS](https://en.wikipedia.org/wiki/DNS_over_HTTPS) DNS service on your network.
 - Use public DNS resolvers like Cloudflare, Google & Quad9 with [DNS-over-TLS](https://en.wikipedia.org/wiki/DNS_over_TLS) and [DNS-over-HTTPS](https://en.wikipedia.org/wiki/DNS_over_HTTPS) protocols as forwarders.
-- Advance caching with features like serve stale, prefetching and auto prefetching.
+- Advanced caching with features like serve stale, prefetching and auto prefetching.
 - Supports working as an authoritative as well as a recursive DNS server.
 - DNSSEC validation support with RSA & ECDSA algorithms for recursive resolver, forwarders, and conditional forwarders.
 - DNSSEC support for all supported DNS transport protocols including encrypted DNS protocols (DoT, DoH, & DoH JSON).
@@ -89,7 +89,8 @@ Make contribution to Technitium by becoming a Patron and help making new softwar
 [Become a Patron now!](https://www.patreon.com/technitium)
 
 # Blog Posts
-- [Technitium Blog: Running A Root Server Locally On Your DNS Resolver](https://blog.technitium.com/2021/07/running-root-server-locally-on-your-dns.html) (July 2021)
+- [Technitium Blog: Technitium DNS Server v8 Released!](https://blog.technitium.com/2022/03/technitium-dns-server-v8-released.html) (Mar 2022)
+- [Technitium Blog: Running A Root Server Locally On Your DNS Resolver](https://blog.technitium.com/2021/07/running-root-server-locally-on-your-dns.html) (Jul 2021)
 - [Yolan Romailler: Being ad-free on Android without rooting](https://romailler.ch/2021/04/15/misc-pihole_over_dot/) (Apr 2021)
 - [Technitium Blog: Creating And Running DNS Apps On Technitium DNS Server](https://blog.technitium.com/2021/03/creating-and-running-dns-apps-on.html) (Mar 2021)
 - [Technitium Blog: How To Host Your Own DNS-over-HTTPS And DNS-over-TLS Services](https://blog.technitium.com/2020/07/how-to-host-your-own-dns-over-https-and.html) (Oct 2020)
