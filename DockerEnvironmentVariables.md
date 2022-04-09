@@ -20,3 +20,4 @@ The environment variables are described below:
 | DNS_SERVER_ALLOW_TXT_BLOCKING_REPORT       | Boolean | Specifies if the DNS Server should respond with TXT records containing a blocked domain report for TXT type requests.                    |
 | DNS_SERVER_FORWARDERS                      | String  | Comma separated list of forwarder addresses.                                                                                             |
 | DNS_SERVER_FORWARDER_PROTOCOL              | String  | Forwarder protocol options: `Udp`, `Tcp`, `Tls`, `Https`, `HttpsJson`.                                                                   |
+| DNS_SERVER_LOG_USING_LOCAL_TIME            | Boolean | Enable this option to use local time instead of UTC for logging.                                                                         |
