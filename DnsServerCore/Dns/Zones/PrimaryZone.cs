@@ -2374,12 +2374,7 @@ namespace DnsServerCore.Dns.Zones
 
         private uint GetZoneSoaMinimum()
         {
-            return GetZoneSoaMinimum(_entries[DnsResourceRecordType.SOA][0]);
-        }
-
-        private uint GetZoneSoaMinimum(DnsResourceRecord soaRecord)
-        {
-            return Math.Min((soaRecord.RDATA as DnsSOARecordData).Minimum, soaRecord.OriginalTtlValue);
+            return (_entries[DnsResourceRecordType.SOA][0].RDATA as DnsSOARecordData).Minimum;
         }
 
         internal uint GetZoneSoaExpire()
@@ -2590,9 +2585,7 @@ namespace DnsServerCore.Dns.Zones
 
                     CommitAndIncrementSerial();
 
-                    uint newSoaMinimum = GetZoneSoaMinimum(soaRecord);
-
-                    if (oldSoaMinimum != newSoaMinimum)
+                    if (oldSoaMinimum != soa.Minimum)
                     {
                         switch (_dnssecStatus)
                         {
