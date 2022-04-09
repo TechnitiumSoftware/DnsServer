@@ -450,7 +450,7 @@ namespace DnsServerCore
                                                 break;
 
                                             case "/api/importAllowedZones":
-                                                _otherZonesApi.ImportAllowedZones(request);
+                                                await _otherZonesApi.ImportAllowedZonesAsync(request);
                                                 break;
 
                                             case "/api/exportAllowedZones":
@@ -474,7 +474,7 @@ namespace DnsServerCore
                                                 break;
 
                                             case "/api/importBlockedZones":
-                                                _otherZonesApi.ImportBlockedZones(request);
+                                                await _otherZonesApi.ImportBlockedZonesAsync(request);
                                                 break;
 
                                             case "/api/exportBlockedZones":
@@ -2613,12 +2613,9 @@ namespace DnsServerCore
 
             while (crlfCount != 4)
             {
-                byteRead = request.InputStream.ReadByte();
+                byteRead = await request.InputStream.ReadByteValueAsync();
                 switch (byteRead)
                 {
-                    case -1:
-                        throw new EndOfStreamException();
-
                     case 13: //CR
                     case 10: //LF
                         crlfCount++;
@@ -2970,7 +2967,7 @@ namespace DnsServerCore
             if (string.IsNullOrEmpty(strType))
                 throw new DnsWebServiceException("Parameter 'type' missing.");
 
-            DnsResourceRecordType type = (DnsResourceRecordType)Enum.Parse(typeof(DnsResourceRecordType), strType);
+            DnsResourceRecordType type = Enum.Parse<DnsResourceRecordType>(strType, true);
 
             string strProtocol = request.QueryString["protocol"];
             if (string.IsNullOrEmpty(strProtocol))
@@ -4078,6 +4075,10 @@ namespace DnsServerCore
 
                     _dnsServer.Forwarders = forwarders;
                 }
+
+                string strUseLocalTime = Environment.GetEnvironmentVariable("DNS_SERVER_LOG_USING_LOCAL_TIME");
+                if (!string.IsNullOrEmpty(strUseLocalTime))
+                    _log.UseLocalTime = bool.Parse(strUseLocalTime);
 
                 _dnsServer.RandomizeName = true; //default true to enable security feature
                 _dnsServer.QnameMinimization = true; //default true to enable privacy feature
