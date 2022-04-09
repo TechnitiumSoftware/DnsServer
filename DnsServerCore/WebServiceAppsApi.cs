@@ -27,6 +27,7 @@ using System.Net;
 using System.Net.Http;
 using System.Threading.Tasks;
 using TechnitiumLibrary;
+using TechnitiumLibrary.IO;
 
 namespace DnsServerCore
 {
@@ -358,12 +359,9 @@ namespace DnsServerCore
 
             while (crlfCount != 4)
             {
-                byteRead = request.InputStream.ReadByte();
+                byteRead = await request.InputStream.ReadByteValueAsync();
                 switch (byteRead)
                 {
-                    case -1:
-                        throw new EndOfStreamException();
-
                     case 13: //CR
                     case 10: //LF
                         crlfCount++;
@@ -420,12 +418,9 @@ namespace DnsServerCore
 
             while (crlfCount != 4)
             {
-                byteRead = request.InputStream.ReadByte();
+                byteRead = await request.InputStream.ReadByteValueAsync();
                 switch (byteRead)
                 {
-                    case -1:
-                        throw new EndOfStreamException();
-
                     case 13: //CR
                     case 10: //LF
                         crlfCount++;
@@ -510,7 +505,7 @@ namespace DnsServerCore
             string formRequest;
             using (StreamReader sR = new StreamReader(request.InputStream, request.ContentEncoding))
             {
-                formRequest = sR.ReadToEnd();
+                formRequest = await sR.ReadToEndAsync();
             }
 
             string[] formParts = formRequest.Split('&');
