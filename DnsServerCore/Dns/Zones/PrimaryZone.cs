@@ -2442,16 +2442,36 @@ namespace DnsServerCore.Dns.Zones
                 DnsResourceRecord oldSoaRecord = _entries[DnsResourceRecordType.SOA][0];
                 DnsResourceRecord newSoaRecord;
                 {
-                    DnsSOARecordData soa = oldSoaRecord.RDATA as DnsSOARecordData;
+                    DnsSOARecordData oldSoa = oldSoaRecord.RDATA as DnsSOARecordData;
 
-                    uint serial = soa.Serial;
-                    if (serial < uint.MaxValue)
-                        serial++;
+                    if ((addedRecords is not null) && (addedRecords.Count == 1) && (addedRecords[0].Type == DnsResourceRecordType.SOA))
+                    {
+                        DnsResourceRecord addSoaRecord = addedRecords[0];
+                        DnsSOARecordData addSoa = addSoaRecord.RDATA as DnsSOARecordData;
+
+                        uint serial = oldSoa.Serial;
+
+                        if (addSoa.Serial > serial)
+                            serial = addSoa.Serial;
+                        else if (serial < uint.MaxValue)
+                            serial++;
+                        else
+                            serial = 1;
+
+                        newSoaRecord = new DnsResourceRecord(_name, DnsResourceRecordType.SOA, DnsClass.IN, addSoaRecord.TtlValue, new DnsSOARecordData(addSoa.PrimaryNameServer, addSoa.ResponsiblePerson, serial, addSoa.Refresh, addSoa.Retry, addSoa.Expire, addSoa.Minimum)) { Tag = addSoaRecord.Tag };
+                        addedRecords = null;
+                    }
                     else
-                        serial = 1;
+                    {
+                        uint serial = oldSoa.Serial;
 
-                    newSoaRecord = new DnsResourceRecord(oldSoaRecord.Name, oldSoaRecord.Type, oldSoaRecord.Class, oldSoaRecord.TtlValue, new DnsSOARecordData(soa.PrimaryNameServer, soa.ResponsiblePerson, serial, soa.Refresh, soa.Retry, soa.Expire, soa.Minimum)) { Tag = oldSoaRecord.Tag };
-                    oldSoaRecord.Tag = null; //remove RR info from old SOA to allow creating new RR info for it during SetDeletedOn()
+                        if (serial < uint.MaxValue)
+                            serial++;
+                        else
+                            serial = 1;
+
+                        newSoaRecord = new DnsResourceRecord(_name, DnsResourceRecordType.SOA, DnsClass.IN, oldSoaRecord.TtlValue, new DnsSOARecordData(oldSoa.PrimaryNameServer, oldSoa.ResponsiblePerson, serial, oldSoa.Refresh, oldSoa.Retry, oldSoa.Expire, oldSoa.Minimum)) { Tag = oldSoaRecord.Tag };
+                    }
                 }
 
                 DnsResourceRecord[] newSoaRecords = new DnsResourceRecord[] { newSoaRecord };
@@ -2468,6 +2488,9 @@ namespace DnsServerCore.Dns.Zones
                     newRRSigRecords = SignRRSet(newSoaRecords);
                     AddOrUpdateRRSigRecords(newRRSigRecords, out deletedRRSigRecords);
                 }
+
+                //remove RR info from old SOA to allow creating new RR info for it during SetDeletedOn()
+                oldSoaRecord.Tag = null;
 
                 //start commit
                 oldSoaRecord.SetDeletedOn(DateTime.UtcNow);
@@ -2568,24 +2591,23 @@ namespace DnsServerCore.Dns.Zones
                     if ((records.Count != 1) || !records[0].Name.Equals(_name, StringComparison.OrdinalIgnoreCase))
                         throw new InvalidOperationException("Invalid SOA record.");
 
-                    DnsResourceRecord soaRecord = records[0];
-                    DnsSOARecordData soa = soaRecord.RDATA as DnsSOARecordData;
+                    DnsResourceRecord newSoaRecord = records[0];
+                    DnsSOARecordData newSoa = newSoaRecord.RDATA as DnsSOARecordData;
 
-                    if (soaRecord.OriginalTtlValue > soa.Expire)
+                    if (newSoaRecord.OriginalTtlValue > newSoa.Expire)
                         throw new DnsServerException("Failed to set records: TTL cannot be greater than SOA EXPIRE.");
 
                     //remove any resource record info except comments
-                    string comments = soaRecord.GetComments();
-                    soaRecord.Tag = null;
-                    soaRecord.SetComments(comments);
+                    string comments = newSoaRecord.GetComments();
+                    newSoaRecord.Tag = null;
+                    newSoaRecord.SetComments(comments);
 
                     uint oldSoaMinimum = GetZoneSoaMinimum();
 
-                    base.SetRecords(type, records);
+                    //setting new SOA
+                    CommitAndIncrementSerial(null, records);
 
-                    CommitAndIncrementSerial();
-
-                    if (oldSoaMinimum != soa.Minimum)
+                    if (oldSoaMinimum != newSoa.Minimum)
                     {
                         switch (_dnssecStatus)
                         {
