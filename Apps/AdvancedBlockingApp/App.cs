@@ -1023,6 +1023,9 @@ namespace AdvancedBlocking
                 {
                     rcode = DnsResponseCode.NxDomain;
 
+                    if (blockedDomain is null)
+                        blockedDomain = question.Name;
+
                     string parentDomain = GetParentZone(blockedDomain);
                     if (parentDomain is null)
                         parentDomain = string.Empty;
@@ -1058,6 +1061,9 @@ namespace AdvancedBlocking
                             break;
 
                         case DnsResourceRecordType.NS:
+                            if (blockedDomain is null)
+                                blockedDomain = question.Name;
+
                             if (question.Name.Equals(blockedDomain, StringComparison.OrdinalIgnoreCase))
                                 answer = new DnsResourceRecord[] { new DnsResourceRecord(blockedDomain, DnsResourceRecordType.NS, question.Class, 60, _nsRecord) };
                             else
@@ -1065,7 +1071,17 @@ namespace AdvancedBlocking
 
                             break;
 
+                        case DnsResourceRecordType.SOA:
+                            if (blockedDomain is null)
+                                blockedDomain = question.Name;
+
+                            answer = new DnsResourceRecord[] { new DnsResourceRecord(blockedDomain, DnsResourceRecordType.SOA, question.Class, 60, _soaRecord) };
+                            break;
+
                         default:
+                            if (blockedDomain is null)
+                                blockedDomain = question.Name;
+
                             authority = new DnsResourceRecord[] { new DnsResourceRecord(blockedDomain, DnsResourceRecordType.SOA, question.Class, 60, _soaRecord) };
                             break;
                     }
