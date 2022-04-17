@@ -1882,7 +1882,7 @@ namespace DnsServerCore.Dns
                             throw new InvalidOperationException();
                     }
 
-                    IReadOnlyList<DnsResourceRecord> answer = null;
+                    IReadOnlyList<DnsResourceRecord> answer;
                     IReadOnlyList<DnsResourceRecord> authority = null;
 
                     switch (question.Type)
@@ -1909,12 +1909,8 @@ namespace DnsServerCore.Dns
                             }
                             break;
 
-                        case DnsResourceRecordType.NS:
-                            answer = response.Answer;
-                            authority = response.Authority;
-                            break;
-
                         default:
+                            answer = response.Answer;
                             authority = response.Authority;
                             break;
                     }
@@ -2316,6 +2312,7 @@ namespace DnsServerCore.Dns
                     }
                 }
 
+                //signal failure response to release waiting tasks
                 if (ex is DnsClientResponseDnssecValidationException ex2)
                 {
                     List<EDnsOption> options;
@@ -2338,13 +2335,43 @@ namespace DnsServerCore.Dns
                         taskCompletionSource.SetResult(new RecursiveResolveResponse(failureResponse, ex2.Response));
                     else
                         taskCompletionSource.SetResult(new RecursiveResolveResponse(failureResponse, failureResponse));
-
-                    return;
                 }
-
+                else if (ex is DnsClientNoResponseException ex3)
                 {
-                    //signal null response to release waiting tasks
-                    IReadOnlyList<EDnsOption> options = new EDnsOption[] { new EDnsOption(EDnsOptionCode.EXTENDED_DNS_ERROR, new EDnsExtendedDnsErrorOption(EDnsExtendedDnsErrorCode.Other, "Server Exception")) };
+                    IReadOnlyList<EDnsOption> options;
+
+                    if (ex.InnerException is SocketException ex3a)
+                    {
+                        if (ex3a.SocketErrorCode == SocketError.TimedOut)
+                            options = new EDnsOption[] { new EDnsOption(EDnsOptionCode.EXTENDED_DNS_ERROR, new EDnsExtendedDnsErrorOption(EDnsExtendedDnsErrorCode.NoReachableAuthority, "Request timed out")) };
+                        else
+                            options = new EDnsOption[] { new EDnsOption(EDnsOptionCode.EXTENDED_DNS_ERROR, new EDnsExtendedDnsErrorOption(EDnsExtendedDnsErrorCode.NetworkError, "Socket error: " + ex3a.SocketErrorCode.ToString())) };
+                    }
+                    else
+                    {
+                        options = new EDnsOption[] { new EDnsOption(EDnsOptionCode.EXTENDED_DNS_ERROR, new EDnsExtendedDnsErrorOption(EDnsExtendedDnsErrorCode.NoReachableAuthority, "No response for name servers")) };
+                    }
+
+                    DnsDatagram failureResponse = new DnsDatagram(0, true, DnsOpcode.StandardQuery, false, false, true, true, false, dnssecValidation, DnsResponseCode.ServerFailure, new DnsQuestionRecord[] { question }, null, null, null, _udpPayloadSize, dnssecValidation ? EDnsHeaderFlags.DNSSEC_OK : EDnsHeaderFlags.None, options);
+
+                    taskCompletionSource.SetResult(new RecursiveResolveResponse(failureResponse, failureResponse));
+                }
+                else if (ex is SocketException ex4)
+                {
+                    IReadOnlyList<EDnsOption> options;
+
+                    if (ex4.SocketErrorCode == SocketError.TimedOut)
+                        options = new EDnsOption[] { new EDnsOption(EDnsOptionCode.EXTENDED_DNS_ERROR, new EDnsExtendedDnsErrorOption(EDnsExtendedDnsErrorCode.NoReachableAuthority, "Request timed out")) };
+                    else
+                        options = new EDnsOption[] { new EDnsOption(EDnsOptionCode.EXTENDED_DNS_ERROR, new EDnsExtendedDnsErrorOption(EDnsExtendedDnsErrorCode.NetworkError, "Socket error: " + ex4.SocketErrorCode.ToString())) };
+
+                    DnsDatagram failureResponse = new DnsDatagram(0, true, DnsOpcode.StandardQuery, false, false, true, true, false, dnssecValidation, DnsResponseCode.ServerFailure, new DnsQuestionRecord[] { question }, null, null, null, _udpPayloadSize, dnssecValidation ? EDnsHeaderFlags.DNSSEC_OK : EDnsHeaderFlags.None, options);
+
+                    taskCompletionSource.SetResult(new RecursiveResolveResponse(failureResponse, failureResponse));
+                }
+                else
+                {
+                    IReadOnlyList<EDnsOption> options = new EDnsOption[] { new EDnsOption(EDnsOptionCode.EXTENDED_DNS_ERROR, new EDnsExtendedDnsErrorOption(EDnsExtendedDnsErrorCode.Other, "Server exception")) };
                     DnsDatagram failureResponse = new DnsDatagram(0, true, DnsOpcode.StandardQuery, false, false, true, true, false, dnssecValidation, DnsResponseCode.ServerFailure, new DnsQuestionRecord[] { question }, null, null, null, _udpPayloadSize, dnssecValidation ? EDnsHeaderFlags.DNSSEC_OK : EDnsHeaderFlags.None, options);
 
                     taskCompletionSource.SetResult(new RecursiveResolveResponse(failureResponse, failureResponse));
