@@ -483,6 +483,10 @@ namespace DnsServerCore.Dns.ZoneManagers
 
                         break;
 
+                    case DnsResourceRecordType.SOA:
+                        answer = new DnsResourceRecord[] { new DnsResourceRecord(blockedDomain, DnsResourceRecordType.SOA, question.Class, 60, _soaRecord) };
+                        break;
+
                     default:
                         authority = new DnsResourceRecord[] { new DnsResourceRecord(blockedDomain, DnsResourceRecordType.SOA, question.Class, 60, _soaRecord) };
                         break;
