@@ -37,9 +37,13 @@ namespace DnsServerCore.Dns.Trees
 
         #region public
 
-        public override bool TryRemove(string domain, out CacheZone value)
+        public bool TryRemoveTree(string domain, out CacheZone value, out int removedEntries)
         {
             bool removed = TryRemove(domain, out value, out Node currentNode);
+            if (removed)
+                removedEntries = value.TotalEntries;
+            else
+                removedEntries = 0;
 
             //remove all cache zones under current zone
             Node current = currentNode;
@@ -59,6 +63,7 @@ namespace DnsServerCore.Dns.Trees
                         current.RemoveNodeValue(v.Key, out _); //remove node value
                         current.CleanThisBranch();
                         removed = true;
+                        removedEntries += zone.TotalEntries;
                     }
                 }
             }
