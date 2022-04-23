@@ -2235,6 +2235,7 @@ namespace DnsServerCore.Dns
                     dnsClient.Concurrency = _forwarderConcurrency;
                     dnsClient.UdpPayloadSize = _udpPayloadSize;
                     dnsClient.DnssecValidation = dnssecValidation;
+                    dnsClient.ConditionalForwardingZoneCut = question.Name; //adding zone cut to allow CNAME domains to be resolved independently to handle cases when private/forwarder zone is configured for them
 
                     response = await dnsClient.ResolveAsync(question);
                 }
