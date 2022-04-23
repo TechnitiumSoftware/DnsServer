@@ -41,6 +41,7 @@ namespace DnsServerCore.Dns.ResourceRecords
 
         IReadOnlyList<DnsResourceRecord> _rrsigRecords; //not serialized
         IReadOnlyList<DnsResourceRecord> _nsecRecords; //not serialized
+        DateTime _lastUsedOn; //not serialized
 
         #endregion
 
@@ -281,6 +282,12 @@ namespace DnsServerCore.Dns.ResourceRecords
         {
             get { return _nsecRecords; }
             set { _nsecRecords = value; }
+        }
+
+        public DateTime LastUsedOn
+        {
+            get { return _lastUsedOn; }
+            set { _lastUsedOn = value; }
         }
 
         #endregion
