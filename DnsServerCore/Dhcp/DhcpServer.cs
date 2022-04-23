@@ -101,7 +101,7 @@ namespace DnsServerCore.Dhcp
                 scope.Exclusions = new Exclusion[] { new Exclusion(IPAddress.Parse("192.168.1.1"), IPAddress.Parse("192.168.1.10")) };
                 scope.RouterAddress = IPAddress.Parse("192.168.1.1");
                 scope.UseThisDnsServer = true;
-                scope.DomainName = "local";
+                scope.DomainName = "home";
                 scope.LeaseTimeDays = 1;
 
                 SaveScopeFile(scope);
