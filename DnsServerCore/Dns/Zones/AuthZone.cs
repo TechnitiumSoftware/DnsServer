@@ -71,6 +71,9 @@ namespace DnsServerCore.Dns.Zones
                 if (records[0].IsDisabled())
                     return Array.Empty<DnsResourceRecord>(); //record disabled
 
+                //update last used on
+                records[0].GetRecordInfo().LastUsedOn = DateTime.UtcNow;
+
                 return records;
             }
 
@@ -96,6 +99,12 @@ namespace DnsServerCore.Dns.Zones
                 }
             }
 
+            //update last used on
+            DateTime utcNow = DateTime.UtcNow;
+
+            foreach (DnsResourceRecord record in newRecords)
+                record.GetRecordInfo().LastUsedOn = utcNow;
+
             return newRecords;
         }
 
@@ -109,10 +118,15 @@ namespace DnsServerCore.Dns.Zones
             List<DnsResourceRecord> newRecords = new List<DnsResourceRecord>(records.Count + 2);
             newRecords.AddRange(records);
 
+            DateTime utcNow = DateTime.UtcNow;
+
             foreach (DnsResourceRecord rrsigRecord in rrsigRecords)
             {
                 if ((rrsigRecord.RDATA as DnsRRSIGRecordData).TypeCovered == type)
+                {
+                    rrsigRecord.GetRecordInfo().LastUsedOn = utcNow;
                     newRecords.Add(rrsigRecord);
+                }
             }
 
             return newRecords;
