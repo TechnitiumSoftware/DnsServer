@@ -851,6 +851,7 @@ function loadDnsSettings() {
             $("#txtServeStaleTtl").prop("disabled", !responseJSON.response.serveStale);
             $("#txtServeStaleTtl").val(responseJSON.response.serveStaleTtl);
 
+            $("#txtCacheMaximumEntries").val(responseJSON.response.cacheMaximumEntries);
             $("#txtCacheMinimumRecordTtl").val(responseJSON.response.cacheMinimumRecordTtl);
             $("#txtCacheMaximumRecordTtl").val(responseJSON.response.cacheMaximumRecordTtl);
             $("#txtCacheNegativeRecordTtl").val(responseJSON.response.cacheNegativeRecordTtl);
@@ -1217,6 +1218,13 @@ function saveDnsSettings() {
     var serveStale = $("#chkServeStale").prop("checked");
     var serveStaleTtl = $("#txtServeStaleTtl").val();
 
+    var cacheMaximumEntries = $("#txtCacheMaximumEntries").val();
+    if ((cacheMaximumEntries === null) || (cacheMaximumEntries === "")) {
+        showAlert("warning", "Missing!", "Please enter cache maximum entries value.");
+        $("#txtCacheMaximumEntries").focus();
+        return;
+    }
+
     var cacheMinimumRecordTtl = $("#txtCacheMinimumRecordTtl").val();
     if ((cacheMinimumRecordTtl === null) || (cacheMinimumRecordTtl === "")) {
         showAlert("warning", "Missing!", "Please enter cache minimum record TTL value.");
@@ -1348,7 +1356,7 @@ function saveDnsSettings() {
             + "&enableLogging=" + enableLogging + "&logQueries=" + logQueries + "&useLocalTime=" + useLocalTime + "&logFolder=" + encodeURIComponent(logFolder) + "&maxLogFileDays=" + maxLogFileDays + "&maxStatFileDays=" + maxStatFileDays
             + "&recursion=" + recursion + "&recursionDeniedNetworks=" + encodeURIComponent(recursionDeniedNetworks) + "&recursionAllowedNetworks=" + encodeURIComponent(recursionAllowedNetworks) + "&randomizeName=" + randomizeName + "&qnameMinimization=" + qnameMinimization + "&nsRevalidation=" + nsRevalidation
             + "&qpmLimitRequests=" + qpmLimitRequests + "&qpmLimitErrors=" + qpmLimitErrors + "&qpmLimitSampleMinutes=" + qpmLimitSampleMinutes + "&qpmLimitIPv4PrefixLength=" + qpmLimitIPv4PrefixLength + "&qpmLimitIPv6PrefixLength=" + qpmLimitIPv6PrefixLength
-            + "&serveStale=" + serveStale + "&serveStaleTtl=" + serveStaleTtl + "&cacheMinimumRecordTtl=" + cacheMinimumRecordTtl + "&cacheMaximumRecordTtl=" + cacheMaximumRecordTtl + "&cacheNegativeRecordTtl=" + cacheNegativeRecordTtl + "&cacheFailureRecordTtl=" + cacheFailureRecordTtl + "&cachePrefetchEligibility=" + cachePrefetchEligibility + "&cachePrefetchTrigger=" + cachePrefetchTrigger + "&cachePrefetchSampleIntervalInMinutes=" + cachePrefetchSampleIntervalInMinutes + "&cachePrefetchSampleEligibilityHitsPerHour=" + cachePrefetchSampleEligibilityHitsPerHour
+            + "&serveStale=" + serveStale + "&serveStaleTtl=" + serveStaleTtl + "&cacheMaximumEntries=" + cacheMaximumEntries + "&cacheMinimumRecordTtl=" + cacheMinimumRecordTtl + "&cacheMaximumRecordTtl=" + cacheMaximumRecordTtl + "&cacheNegativeRecordTtl=" + cacheNegativeRecordTtl + "&cacheFailureRecordTtl=" + cacheFailureRecordTtl + "&cachePrefetchEligibility=" + cachePrefetchEligibility + "&cachePrefetchTrigger=" + cachePrefetchTrigger + "&cachePrefetchSampleIntervalInMinutes=" + cachePrefetchSampleIntervalInMinutes + "&cachePrefetchSampleEligibilityHitsPerHour=" + cachePrefetchSampleEligibilityHitsPerHour
             + proxy + "&forwarders=" + encodeURIComponent(forwarders) + "&forwarderProtocol=" + forwarderProtocol + "&enableBlocking=" + enableBlocking + "&allowTxtBlockingReport=" + allowTxtBlockingReport + "&blockingType=" + blockingType + "&customBlockingAddresses=" + encodeURIComponent(customBlockingAddresses) + "&blockListUrls=" + encodeURIComponent(blockListUrls) + "&blockListUpdateIntervalHours=" + blockListUpdateIntervalHours,
         success: function (responseJSON) {
             document.title = responseJSON.response.dnsServerDomain + " - " + "Technitium DNS Server v" + responseJSON.response.version;
@@ -1695,6 +1703,7 @@ function refreshDashboard(hideLoader) {
             $("#divDashboardStatsTotalClients").text(responseJSON.response.stats.totalClients.toLocaleString());
 
             $("#divDashboardStatsZones").text(responseJSON.response.stats.zones.toLocaleString());
+            $("#divDashboardStatsCachedEntries").text(responseJSON.response.stats.cachedEntries.toLocaleString());
             $("#divDashboardStatsAllowedZones").text(responseJSON.response.stats.allowedZones.toLocaleString());
             $("#divDashboardStatsBlockedZones").text(responseJSON.response.stats.blockedZones.toLocaleString());
             $("#divDashboardStatsBlockListZones").text(responseJSON.response.stats.blockListZones.toLocaleString());
