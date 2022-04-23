@@ -340,6 +340,18 @@ namespace DnsServerCore.Dns.Dnssec
                 {
                     if (value > 365)
                         throw new ArgumentOutOfRangeException(nameof(RolloverDays), "Zone Signing Key (ZSK) automatic rollover days valid range is 0-365.");
+
+                    switch (_state)
+                    {
+                        case DnssecPrivateKeyState.Generated:
+                        case DnssecPrivateKeyState.Published:
+                        case DnssecPrivateKeyState.Ready:
+                        case DnssecPrivateKeyState.Active:
+                            break;
+
+                        default:
+                            throw new ArgumentOutOfRangeException(nameof(RolloverDays), "Zone Signing Key (ZSK) automatic rollover cannot be set due to invalid key state.");
+                    }
                 }
                 else
                 {
