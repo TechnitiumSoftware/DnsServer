@@ -384,6 +384,8 @@
                                                     </button>
                                                     <ul class="dropdown-menu">
                                                         <li id="lnkZoneDnssecSignZone"><a href="#" onclick="showSignZoneModal($('#titleEditZone').text()); return false;">Sign Zone</a></li>
+                                                        <li id="lnkZoneDnssecHideRecords"><a href="#" onclick="toggleHideDnssecRecords(true); return false;">Hide DNSSEC Records</a></li>
+                                                        <li id="lnkZoneDnssecShowRecords"><a href="#" onclick="toggleHideDnssecRecords(false); return false;">Show DNSSEC Records</a></li>
                                                         <li id="lnkZoneDnssecProperties"><a href="#" onclick="showDnssecPropertiesModal($('#titleEditZone').text()); return false;">Properties</a></li>
                                                         <li id="lnkZoneDnssecUnsignZone"><a href="#" onclick="showUnsignZoneModal($('#titleEditZone').text()); return false;">Unsign Zone</a></li>
                                                     </ul>
