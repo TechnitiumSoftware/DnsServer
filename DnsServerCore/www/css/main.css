@@ -279,35 +279,17 @@ a {
     margin-bottom: 10px;
 }
 
-    .zone-stats-panel .zones {
-        background-color: rgba(51, 122, 183, 0.7);
-        color: #ffffff;
-    }
-
-    .zone-stats-panel .allowed-zones {
-        background-color: rgba(51, 122, 183, 0.7);
-        color: #ffffff;
-    }
-
-    .zone-stats-panel .blocked-zones {
-        background-color: rgba(51, 122, 183, 0.7);
-        color: #ffffff;
-    }
-
-    .zone-stats-panel .block-list-zones {
-        background-color: rgba(51, 122, 183, 0.7);
-        color: #ffffff;
-    }
-
     .zone-stats-panel .stats-item {
-        width: 24%;
+        width: 19.25%;
         float: left;
-        padding: 6px 10px;
-        margin-right: 1%;
+        padding: 6px 4px;
+        margin-right: 0.75%;
+        background-color: rgba(51, 122, 183, 0.7);
+        color: #ffffff;
     }
 
         .zone-stats-panel .stats-item .number {
-            font-size: 16px;
+            font-size: 15px;
             font-weight: bold;
             padding: 6px 0;
         }
