@@ -663,7 +663,7 @@ function showAddZoneModal() {
     $("#txtAddZoneForwarder").prop("disabled", false);
     $("#txtAddZoneForwarder").attr("placeholder", "8.8.8.8 or [2620:fe::10]")
     $("#txtAddZoneForwarder").val("");
-    $("#chkAddZoneForwarderDnssecValidation").prop("checked", false);
+    $("#chkAddZoneForwarderDnssecValidation").prop("checked", $("#chkDnssecValidation").prop("checked"));
     $("#rdAddZoneForwarderProxyTypeNone").prop("checked", true);
     $("#txtAddZoneForwarderProxyAddress").prop("disabled", true);
     $("#txtAddZoneForwarderProxyPort").prop("disabled", true);
@@ -991,6 +991,13 @@ function showEditZone(domain) {
                 tableHtmlRows += "<td>" + records[i].type + "</td>";
                 tableHtmlRows += "<td>" + records[i].ttl + "</td>";
 
+                var lastUsedOn;
+
+                if (records[i].lastUsedOn == "0001-01-01T00:00:00")
+                    lastUsedOn = moment(records[i].lastUsedOn).local().format("YYYY-MM-DD HH:mm:ss") + " (never)";
+                else
+                    lastUsedOn = moment(records[i].lastUsedOn).local().format("YYYY-MM-DD HH:mm:ss") + " (" + moment(records[i].lastUsedOn).fromNow() + ")";
+
                 var additionalDataAttributes = "";
 
                 switch (records[i].type.toUpperCase()) {
@@ -998,8 +1005,10 @@ function showEditZone(domain) {
                     case "AAAA":
                         tableHtmlRows += "<td style=\"word-break: break-all;\">" + htmlEncode(records[i].rData.ipAddress);
 
+                        tableHtmlRows += "<br /><br /><b>Last Used:</b> " + lastUsedOn;
+
                         if ((records[i].comments != null) && (records[i].comments.length > 0))
-                            tableHtmlRows += "<br /><br /><b>Comments:</b> <pre style=\"white-space: pre-wrap;\">" + htmlEncode(records[i].comments) + "</pre>";
+                            tableHtmlRows += "<br /><b>Comments:</b> <pre style=\"white-space: pre-wrap;\">" + htmlEncode(records[i].comments) + "</pre>";
 
                         tableHtmlRows += "</td>";
 
@@ -1017,8 +1026,10 @@ function showEditZone(domain) {
                             additionalDataAttributes = "data-record-glue=\"\" ";
                         }
 
+                        tableHtmlRows += "<br /><br /><b>Last Used:</b> " + lastUsedOn;
+
                         if ((records[i].comments != null) && (records[i].comments.length > 0))
-                            tableHtmlRows += "<br /><br /><b>Comments:</b> <pre style=\"white-space: pre-wrap;\">" + htmlEncode(records[i].comments) + "</pre>";
+                            tableHtmlRows += "<br /><b>Comments:</b> <pre style=\"white-space: pre-wrap;\">" + htmlEncode(records[i].comments) + "</pre>";
 
                         tableHtmlRows += "</td>";
 
@@ -1028,8 +1039,10 @@ function showEditZone(domain) {
                     case "CNAME":
                         tableHtmlRows += "<td style=\"word-break: break-all;\">" + htmlEncode(records[i].rData.cname);
 
+                        tableHtmlRows += "<br /><br /><b>Last Used:</b> " + lastUsedOn;
+
                         if ((records[i].comments != null) && (records[i].comments.length > 0))
-                            tableHtmlRows += "<br /><br /><b>Comments:</b> <pre style=\"white-space: pre-wrap;\">" + htmlEncode(records[i].comments) + "</pre>";
+                            tableHtmlRows += "<br /><b>Comments:</b> <pre style=\"white-space: pre-wrap;\">" + htmlEncode(records[i].comments) + "</pre>";
 
                         tableHtmlRows += "</td>";
 
@@ -1069,8 +1082,10 @@ function showEditZone(domain) {
                             additionalDataAttributes += "data-record-tsigkeyname=\"\" ";
                         }
 
+                        tableHtmlRows += "<br /><br /><b>Last Used:</b> " + lastUsedOn;
+
                         if ((records[i].comments != null) && (records[i].comments.length > 0))
-                            tableHtmlRows += "<br /><br /><b>Comments:</b> <pre style=\"white-space: pre-wrap;\">" + htmlEncode(records[i].comments) + "</pre>";
+                            tableHtmlRows += "<br /><b>Comments:</b> <pre style=\"white-space: pre-wrap;\">" + htmlEncode(records[i].comments) + "</pre>";
 
                         tableHtmlRows += "</td>";
 
@@ -1086,8 +1101,10 @@ function showEditZone(domain) {
                     case "PTR":
                         tableHtmlRows += "<td style=\"word-break: break-all;\">" + htmlEncode(records[i].rData.ptrName);
 
+                        tableHtmlRows += "<br /><br /><b>Last Used:</b> " + lastUsedOn;
+
                         if ((records[i].comments != null) && (records[i].comments.length > 0))
-                            tableHtmlRows += "<br /><br /><b>Comments:</b> <pre style=\"white-space: pre-wrap;\">" + htmlEncode(records[i].comments) + "</pre>";
+                            tableHtmlRows += "<br /><b>Comments:</b> <pre style=\"white-space: pre-wrap;\">" + htmlEncode(records[i].comments) + "</pre>";
 
                         tableHtmlRows += "</td>";
 
@@ -1098,8 +1115,10 @@ function showEditZone(domain) {
                         tableHtmlRows += "<td style=\"word-break: break-all;\"><b>Preference: </b> " + htmlEncode(records[i].rData.preference) +
                             "<br /><b>Exchange:</b> " + htmlEncode(records[i].rData.exchange);
 
+                        tableHtmlRows += "<br /><br /><b>Last Used:</b> " + lastUsedOn;
+
                         if ((records[i].comments != null) && (records[i].comments.length > 0))
-                            tableHtmlRows += "<br /><br /><b>Comments:</b> <pre style=\"white-space: pre-wrap;\">" + htmlEncode(records[i].comments) + "</pre>";
+                            tableHtmlRows += "<br /><b>Comments:</b> <pre style=\"white-space: pre-wrap;\">" + htmlEncode(records[i].comments) + "</pre>";
 
                         tableHtmlRows += "</td>";
 
@@ -1110,8 +1129,10 @@ function showEditZone(domain) {
                     case "TXT":
                         tableHtmlRows += "<td style=\"word-break: break-all;\">" + htmlEncode(records[i].rData.text);
 
+                        tableHtmlRows += "<br /><br /><b>Last Used:</b> " + lastUsedOn;
+
                         if ((records[i].comments != null) && (records[i].comments.length > 0))
-                            tableHtmlRows += "<br /><br /><b>Comments:</b> <pre style=\"white-space: pre-wrap;\">" + htmlEncode(records[i].comments) + "</pre>";
+                            tableHtmlRows += "<br /><b>Comments:</b> <pre style=\"white-space: pre-wrap;\">" + htmlEncode(records[i].comments) + "</pre>";
 
                         tableHtmlRows += "</td>";
 
@@ -1124,8 +1145,10 @@ function showEditZone(domain) {
                             "<br /><b>Port:</b> " + htmlEncode(records[i].rData.port) +
                             "<br /><b>Target:</b> " + htmlEncode(records[i].rData.target);
 
+                        tableHtmlRows += "<br /><br /><b>Last Used:</b> " + lastUsedOn;
+
                         if ((records[i].comments != null) && (records[i].comments.length > 0))
-                            tableHtmlRows += "<br /><br /><b>Comments:</b> <pre style=\"white-space: pre-wrap;\">" + htmlEncode(records[i].comments) + "</pre>";
+                            tableHtmlRows += "<br /><b>Comments:</b> <pre style=\"white-space: pre-wrap;\">" + htmlEncode(records[i].comments) + "</pre>";
 
                         tableHtmlRows += "</td>";
 
@@ -1138,8 +1161,10 @@ function showEditZone(domain) {
                     case "DNAME":
                         tableHtmlRows += "<td style=\"word-break: break-all;\">" + htmlEncode(records[i].rData.dname);
 
+                        tableHtmlRows += "<br /><br /><b>Last Used:</b> " + lastUsedOn;
+
                         if ((records[i].comments != null) && (records[i].comments.length > 0))
-                            tableHtmlRows += "<br /><br /><b>Comments:</b> <pre style=\"white-space: pre-wrap;\">" + htmlEncode(records[i].comments) + "</pre>";
+                            tableHtmlRows += "<br /><b>Comments:</b> <pre style=\"white-space: pre-wrap;\">" + htmlEncode(records[i].comments) + "</pre>";
 
                         tableHtmlRows += "</td>";
 
@@ -1152,8 +1177,10 @@ function showEditZone(domain) {
                             "<br /><b>Digest Type:</b> " + htmlEncode(records[i].rData.digestType) +
                             "<br /><b>Digest:</b> " + htmlEncode(records[i].rData.digest);
 
+                        tableHtmlRows += "<br /><br /><b>Last Used:</b> " + lastUsedOn;
+
                         if ((records[i].comments != null) && (records[i].comments.length > 0))
-                            tableHtmlRows += "<br /><br /><b>Comments:</b> <pre style=\"white-space: pre-wrap;\">" + htmlEncode(records[i].comments) + "</pre>";
+                            tableHtmlRows += "<br /><b>Comments:</b> <pre style=\"white-space: pre-wrap;\">" + htmlEncode(records[i].comments) + "</pre>";
 
                         tableHtmlRows += "</td>";
 
@@ -1168,14 +1195,16 @@ function showEditZone(domain) {
                             "<br /><b>Algorithm:</b> " + htmlEncode(records[i].rData.algorithm) +
                             "<br /><b>Labels:</b> " + htmlEncode(records[i].rData.labels) +
                             "<br /><b>Original TTL:</b> " + htmlEncode(records[i].rData.originalTtl) +
-                            "<br /><b>Signature Expiration:</b> " + htmlEncode(records[i].rData.signatureExpiration) +
-                            "<br /><b>Signature Inception:</b> " + htmlEncode(records[i].rData.signatureInception) +
+                            "<br /><b>Signature Expiration:</b> " + moment(records[i].rData.signatureExpiration).local().format("YYYY-MM-DD HH:mm:ss") +
+                            "<br /><b>Signature Inception:</b> " + moment(records[i].rData.signatureInception).local().format("YYYY-MM-DD HH:mm:ss") +
                             "<br /><b>Key Tag:</b> " + htmlEncode(records[i].rData.keyTag) +
                             "<br /><b>Signer's Name:</b> " + htmlEncode(records[i].rData.signersName) +
                             "<br /><b>Signature:</b> " + htmlEncode(records[i].rData.signature);
 
+                        tableHtmlRows += "<br /><br /><b>Last Used:</b> " + lastUsedOn;
+
                         if ((records[i].comments != null) && (records[i].comments.length > 0))
-                            tableHtmlRows += "<br /><br /><b>Comments:</b> <pre style=\"white-space: pre-wrap;\">" + htmlEncode(records[i].comments) + "</pre>";
+                            tableHtmlRows += "<br /><b>Comments:</b> <pre style=\"white-space: pre-wrap;\">" + htmlEncode(records[i].comments) + "</pre>";
 
                         tableHtmlRows += "</td>";
 
@@ -1195,8 +1224,10 @@ function showEditZone(domain) {
                         tableHtmlRows += "<td style=\"word-break: break-all;\"><b>Next Domain Name: </b> " + htmlEncode(records[i].rData.nextDomainName) +
                             "<br /><b>Types:</b> " + htmlEncode(nsecTypes);
 
+                        tableHtmlRows += "<br /><br /><b>Last Used:</b> " + lastUsedOn;
+
                         if ((records[i].comments != null) && (records[i].comments.length > 0))
-                            tableHtmlRows += "<br /><br /><b>Comments:</b> <pre style=\"white-space: pre-wrap;\">" + htmlEncode(records[i].comments) + "</pre>";
+                            tableHtmlRows += "<br /><b>Comments:</b> <pre style=\"white-space: pre-wrap;\">" + htmlEncode(records[i].comments) + "</pre>";
 
                         tableHtmlRows += "</td>";
 
@@ -1209,7 +1240,10 @@ function showEditZone(domain) {
                             "<br /><b>Algorithm:</b> " + htmlEncode(records[i].rData.algorithm) +
                             "<br /><b>Public Key:</b> " + htmlEncode(records[i].rData.publicKey);
 
-                        tableHtmlRows += "<br /><br /><b>Key State:</b> " + htmlEncode(records[i].rData.dnsKeyState);
+                        if (records[i].rData.dnsKeyState == null)
+                            tableHtmlRows += "<br />";
+                        else
+                            tableHtmlRows += "<br /><br /><b>Key State:</b> " + htmlEncode(records[i].rData.dnsKeyState);
 
                         tableHtmlRows += "<br /><b>Computed Key Tag:</b> " + htmlEncode(records[i].rData.computedKeyTag);
 
@@ -1221,8 +1255,10 @@ function showEditZone(domain) {
                             }
                         }
 
+                        tableHtmlRows += "<br /><br /><b>Last Used:</b> " + lastUsedOn;
+
                         if ((records[i].comments != null) && (records[i].comments.length > 0))
-                            tableHtmlRows += "<br /><br /><b>Comments:</b> <pre style=\"white-space: pre-wrap;\">" + htmlEncode(records[i].comments) + "</pre>";
+                            tableHtmlRows += "<br /><b>Comments:</b> <pre style=\"white-space: pre-wrap;\">" + htmlEncode(records[i].comments) + "</pre>";
 
                         tableHtmlRows += "</td>";
 
@@ -1246,8 +1282,10 @@ function showEditZone(domain) {
                             "<br /><b>Next Hashed Owner Name: </b> " + htmlEncode(records[i].rData.nextHashedOwnerName) +
                             "<br /><b>Types:</b> " + htmlEncode(nsec3Types);
 
+                        tableHtmlRows += "<br /><br /><b>Last Used:</b> " + lastUsedOn;
+
                         if ((records[i].comments != null) && (records[i].comments.length > 0))
-                            tableHtmlRows += "<br /><br /><b>Comments:</b> <pre style=\"white-space: pre-wrap;\">" + htmlEncode(records[i].comments) + "</pre>";
+                            tableHtmlRows += "<br /><b>Comments:</b> <pre style=\"white-space: pre-wrap;\">" + htmlEncode(records[i].comments) + "</pre>";
 
                         tableHtmlRows += "</td>";
 
@@ -1260,8 +1298,10 @@ function showEditZone(domain) {
                             "<br /><b>Iterations: </b> " + htmlEncode(records[i].rData.iterations) +
                             "<br /><b>Salt: </b>" + htmlEncode(records[i].rData.salt);
 
+                        tableHtmlRows += "<br /><br /><b>Last Used:</b> " + lastUsedOn;
+
                         if ((records[i].comments != null) && (records[i].comments.length > 0))
-                            tableHtmlRows += "<br /><br /><b>Comments:</b> <pre style=\"white-space: pre-wrap;\">" + htmlEncode(records[i].comments) + "</pre>";
+                            tableHtmlRows += "<br /><b>Comments:</b> <pre style=\"white-space: pre-wrap;\">" + htmlEncode(records[i].comments) + "</pre>";
 
                         tableHtmlRows += "</td>";
 
@@ -1273,8 +1313,10 @@ function showEditZone(domain) {
                             "<br /><b>Tag:</b> " + htmlEncode(records[i].rData.tag) +
                             "<br /><b>Authority:</b> " + htmlEncode(records[i].rData.value);
 
+                        tableHtmlRows += "<br /><br /><b>Last Used:</b> " + lastUsedOn;
+
                         if ((records[i].comments != null) && (records[i].comments.length > 0))
-                            tableHtmlRows += "<br /><br /><b>Comments:</b> <pre style=\"white-space: pre-wrap;\">" + htmlEncode(records[i].comments) + "</pre>";
+                            tableHtmlRows += "<br /><b>Comments:</b> <pre style=\"white-space: pre-wrap;\">" + htmlEncode(records[i].comments) + "</pre>";
 
                         tableHtmlRows += "</td>";
 
@@ -1286,8 +1328,10 @@ function showEditZone(domain) {
                     case "ANAME":
                         tableHtmlRows += "<td style=\"word-break: break-all;\">" + htmlEncode(records[i].rData.aname);
 
+                        tableHtmlRows += "<br /><br /><b>Last Used:</b> " + lastUsedOn;
+
                         if ((records[i].comments != null) && (records[i].comments.length > 0))
-                            tableHtmlRows += "<br /><br /><b>Comments:</b> <pre style=\"white-space: pre-wrap;\">" + htmlEncode(records[i].comments) + "</pre>";
+                            tableHtmlRows += "<br /><b>Comments:</b> <pre style=\"white-space: pre-wrap;\">" + htmlEncode(records[i].comments) + "</pre>";
 
                         tableHtmlRows += "</td>";
 
@@ -1307,8 +1351,10 @@ function showEditZone(domain) {
                                 "<br /><b>Proxy Password:</b> ************";
                         }
 
+                        tableHtmlRows += "<br /><br /><b>Last Used:</b> " + lastUsedOn;
+
                         if ((records[i].comments != null) && (records[i].comments.length > 0))
-                            tableHtmlRows += "<br /><br /><b>Comments:</b> <pre style=\"white-space: pre-wrap;\">" + htmlEncode(records[i].comments) + "</pre>";
+                            tableHtmlRows += "<br /><b>Comments:</b> <pre style=\"white-space: pre-wrap;\">" + htmlEncode(records[i].comments) + "</pre>";
 
                         tableHtmlRows += "</td>";
 
@@ -1330,8 +1376,10 @@ function showEditZone(domain) {
                             "<br /><b>Class Path:</b> " + htmlEncode(records[i].rData.classPath) +
                             "<br /><b>Record Data:</b> " + (records[i].rData.data == "" ? "" : "<pre style=\"white-space: pre-wrap;\">" + htmlEncode(records[i].rData.data) + "</pre>");
 
+                        tableHtmlRows += "<br /><br /><b>Last Used:</b> " + lastUsedOn;
+
                         if ((records[i].comments != null) && (records[i].comments.length > 0))
-                            tableHtmlRows += "<br /><br /><b>Comments:</b> <pre style=\"white-space: pre-wrap;\">" + htmlEncode(records[i].comments) + "</pre>";
+                            tableHtmlRows += "<br /><b>Comments:</b> <pre style=\"white-space: pre-wrap;\">" + htmlEncode(records[i].comments) + "</pre>";
 
                         tableHtmlRows += "</td>";
 
@@ -1504,7 +1552,7 @@ function clearAddEditForm() {
     $('#txtAddEditRecordDataForwarder').prop('disabled', false);
     $("#txtAddEditRecordDataForwarder").attr("placeholder", "8.8.8.8 or [2620:fe::10]")
     $("#txtAddEditRecordDataForwarder").val("");
-    $("#chkAddEditRecordDataForwarderDnssecValidation").prop("checked", false);
+    $("#chkAddEditRecordDataForwarderDnssecValidation").prop("checked", $("#chkDnssecValidation").prop("checked"));
     $("#rdAddEditRecordDataForwarderProxyTypeNone").prop("checked", true);
     $("#txtAddEditRecordDataForwarderProxyAddress").prop("disabled", true);
     $("#txtAddEditRecordDataForwarderProxyPort").prop("disabled", true);
@@ -1709,7 +1757,7 @@ function modifyAddRecordFormByType() {
             $("#chkAddEditRecordDataForwarderThisServer").prop("checked", false);
             $('#txtAddEditRecordDataForwarder').prop('disabled', false);
             $("#txtAddEditRecordDataForwarder").val("");
-            $("#chkAddEditRecordDataForwarderDnssecValidation").prop("checked", false);
+            $("#chkAddEditRecordDataForwarderDnssecValidation").prop("checked", $("#chkDnssecValidation").prop("checked"));
             $("#rdAddEditRecordDataForwarderProxyTypeNone").prop("checked", true);
             $("#txtAddEditRecordDataForwarderProxyAddress").prop("disabled", true);
             $("#txtAddEditRecordDataForwarderProxyPort").prop("disabled", true);
@@ -3077,11 +3125,29 @@ function refreshDnssecProperties(divDnssecPropertiesLoader) {
                     + "<td>" + responseJSON.response.dnssecPrivateKeys[i].algorithm + "</td>"
                     + "<td>" + responseJSON.response.dnssecPrivateKeys[i].state + "</td>"
                     + "<td>" + moment(responseJSON.response.dnssecPrivateKeys[i].stateChangedOn).local().format("YYYY-MM-DD HH:mm") + "</td>"
-                    + "<td>" + (responseJSON.response.dnssecPrivateKeys[i].keyType === "ZoneSigningKey" ?
-                        "<input id=\"txtDnssecPropertiesPrivateKeyAutomaticRollover" + id + "\" type=\"text\" placeholder=\"days\" style=\"width: 40px;\" value=\"" + responseJSON.response.dnssecPrivateKeys[i].rolloverDays + "\" />" +
-                        "<button type=\"button\" class=\"btn btn-default\" style=\"padding: 2px 6px; margin-top: -2px; margin-left: 4px; font-size: 12px; height: 26px; width: 46px;\" data-id=\"" + id + "\" data-loading-text=\"Save\" onclick=\"updateDnssecPrivateKey(" + responseJSON.response.dnssecPrivateKeys[i].keyTag + ", this);\">Save</button>"
-                        : "-") + "</td>"
-                    + "<td align=\"right\">";
+                    + "<td>";
+
+                if (responseJSON.response.dnssecPrivateKeys[i].keyType === "ZoneSigningKey") {
+                    switch (responseJSON.response.dnssecPrivateKeys[i].state) {
+                        case "Generated":
+                        case "Published":
+                        case "Ready":
+                        case "Active":
+                            tableHtmlRows += "<input id=\"txtDnssecPropertiesPrivateKeyAutomaticRollover" + id + "\" type=\"text\" placeholder=\"days\" style=\"width: 40px;\" value=\"" + responseJSON.response.dnssecPrivateKeys[i].rolloverDays + "\" />" +
+                                "<button type=\"button\" class=\"btn btn-default\" style=\"padding: 2px 6px; margin-top: -2px; margin-left: 4px; font-size: 12px; height: 26px; width: 46px;\" data-id=\"" + id + "\" data-loading-text=\"Save\" onclick=\"updateDnssecPrivateKey(" + responseJSON.response.dnssecPrivateKeys[i].keyTag + ", this);\">Save</button>";
+                            break;
+
+                        default:
+                            tableHtmlRows += "-";
+                            break;
+                    }
+                }
+                else {
+                    tableHtmlRows += "-";
+                }
+
+                tableHtmlRows += "</td>" +
+                    "<td align=\"right\">";
 
                 switch (responseJSON.response.dnssecPrivateKeys[i].state) {
                     case "Generated":
