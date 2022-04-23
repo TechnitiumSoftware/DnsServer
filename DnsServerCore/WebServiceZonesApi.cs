@@ -1059,7 +1059,7 @@ namespace DnsServerCore
             if (string.IsNullOrEmpty(strType))
                 throw new DnsWebServiceException("Parameter 'type' missing.");
 
-            DnsResourceRecordType type = (DnsResourceRecordType)Enum.Parse(typeof(DnsResourceRecordType), strType);
+            DnsResourceRecordType type = Enum.Parse<DnsResourceRecordType>(strType, true);
 
             string value = request.QueryString["value"];
 
@@ -1367,7 +1367,7 @@ namespace DnsServerCore
                             digest = value;
                         }
 
-                        DnsResourceRecord newRecord = new DnsResourceRecord(domain, type, DnsClass.IN, ttl, new DnsDSRecordData(ushort.Parse(strKeyTag), Enum.Parse<DnssecAlgorithm>(strAlgorithm), Enum.Parse<DnssecDigestType>(strDigestType), Convert.FromHexString(digest)));
+                        DnsResourceRecord newRecord = new DnsResourceRecord(domain, type, DnsClass.IN, ttl, new DnsDSRecordData(ushort.Parse(strKeyTag), Enum.Parse<DnssecAlgorithm>(strAlgorithm, true), Enum.Parse<DnssecDigestType>(strDigestType, true), Convert.FromHexString(digest)));
 
                         if (!string.IsNullOrEmpty(comments))
                             newRecord.SetComments(comments);
@@ -2036,18 +2036,6 @@ namespace DnsServerCore
                                                     jsonWriter.WriteStartObject();
 
                                                     jsonWriter.WritePropertyName("digestType");
-                                                    jsonWriter.WriteValue("SHA1");
-
-                                                    jsonWriter.WritePropertyName("digest");
-                                                    jsonWriter.WriteValue(rdata.CreateDS(record.Name, DnssecDigestType.SHA1).Digest);
-
-                                                    jsonWriter.WriteEndObject();
-                                                }
-
-                                                {
-                                                    jsonWriter.WriteStartObject();
-
-                                                    jsonWriter.WritePropertyName("digestType");
                                                     jsonWriter.WriteValue("SHA256");
 
                                                     jsonWriter.WritePropertyName("digest");
@@ -2310,6 +2298,9 @@ namespace DnsServerCore
                         jsonWriter.WritePropertyName("dnssecStatus");
                         jsonWriter.WriteValue(record.DnssecStatus.ToString());
 
+                        jsonWriter.WritePropertyName("lastUsedOn");
+                        jsonWriter.WriteValue(recordInfo.LastUsedOn);
+
                         jsonWriter.WriteEndObject();
                     }
                 }
@@ -2344,7 +2335,7 @@ namespace DnsServerCore
             if (string.IsNullOrEmpty(strType))
                 throw new DnsWebServiceException("Parameter 'type' missing.");
 
-            DnsResourceRecordType type = (DnsResourceRecordType)Enum.Parse(typeof(DnsResourceRecordType), strType);
+            DnsResourceRecordType type = Enum.Parse<DnsResourceRecordType>(strType, true);
 
             string value = request.QueryString["value"];
 
@@ -2501,7 +2492,7 @@ namespace DnsServerCore
                             digest = value;
                         }
 
-                        _dnsWebService.DnsServer.AuthZoneManager.DeleteRecord(zoneName, domain, type, new DnsDSRecordData(ushort.Parse(strKeyTag), Enum.Parse<DnssecAlgorithm>(strAlgorithm), Enum.Parse<DnssecDigestType>(strDigestType), Convert.FromHexString(digest)));
+                        _dnsWebService.DnsServer.AuthZoneManager.DeleteRecord(zoneName, domain, type, new DnsDSRecordData(ushort.Parse(strKeyTag), Enum.Parse<DnssecAlgorithm>(strAlgorithm, true), Enum.Parse<DnssecDigestType>(strDigestType, true), Convert.FromHexString(digest)));
                     }
                     break;
 
@@ -2575,7 +2566,7 @@ namespace DnsServerCore
             if (string.IsNullOrEmpty(strType))
                 throw new DnsWebServiceException("Parameter 'type' missing.");
 
-            DnsResourceRecordType type = (DnsResourceRecordType)Enum.Parse(typeof(DnsResourceRecordType), strType);
+            DnsResourceRecordType type = Enum.Parse<DnsResourceRecordType>(strType, true);
 
             string domain = request.QueryString["domain"];
             if (string.IsNullOrEmpty(domain))
@@ -3065,8 +3056,8 @@ namespace DnsServerCore
                             newDigest = newValue;
                         }
 
-                        DnsResourceRecord oldRecord = new DnsResourceRecord(domain, type, DnsClass.IN, 0, new DnsDSRecordData(ushort.Parse(strKeyTag), Enum.Parse<DnssecAlgorithm>(strAlgorithm), Enum.Parse<DnssecDigestType>(strDigestType), Convert.FromHexString(digest)));
-                        DnsResourceRecord newRecord = new DnsResourceRecord(newDomain, type, DnsClass.IN, ttl, new DnsDSRecordData(ushort.Parse(strNewKeyTag), Enum.Parse<DnssecAlgorithm>(strNewAlgorithm), Enum.Parse<DnssecDigestType>(strNewDigestType), Convert.FromHexString(newDigest)));
+                        DnsResourceRecord oldRecord = new DnsResourceRecord(domain, type, DnsClass.IN, 0, new DnsDSRecordData(ushort.Parse(strKeyTag), Enum.Parse<DnssecAlgorithm>(strAlgorithm, true), Enum.Parse<DnssecDigestType>(strDigestType, true), Convert.FromHexString(digest)));
+                        DnsResourceRecord newRecord = new DnsResourceRecord(newDomain, type, DnsClass.IN, ttl, new DnsDSRecordData(ushort.Parse(strNewKeyTag), Enum.Parse<DnssecAlgorithm>(strNewAlgorithm, true), Enum.Parse<DnssecDigestType>(strNewDigestType, true), Convert.FromHexString(newDigest)));
 
                         if (disable)
                             newRecord.Disable();
