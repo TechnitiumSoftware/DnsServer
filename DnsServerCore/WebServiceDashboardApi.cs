@@ -203,6 +203,9 @@ namespace DnsServerCore
                 jsonWriter.WritePropertyName("zones");
                 jsonWriter.WriteValue(_dnsWebService.DnsServer.AuthZoneManager.TotalZones);
 
+                jsonWriter.WritePropertyName("cachedEntries");
+                jsonWriter.WriteValue(_dnsWebService.DnsServer.CacheZoneManager.TotalEntries);
+
                 jsonWriter.WritePropertyName("allowedZones");
                 jsonWriter.WriteValue(_dnsWebService.DnsServer.AllowedZoneManager.TotalZonesAllowed);
 
