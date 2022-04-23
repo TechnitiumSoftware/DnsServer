@@ -20,7 +20,9 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 using DnsServerCore.Dns.ResourceRecords;
 using DnsServerCore.Dns.Trees;
 using DnsServerCore.Dns.Zones;
+using System;
 using System.Collections.Generic;
+using System.Threading;
 using TechnitiumLibrary.Net.Dns;
 using TechnitiumLibrary.Net.Dns.EDnsOptions;
 using TechnitiumLibrary.Net.Dns.ResourceRecords;
@@ -40,6 +42,9 @@ namespace DnsServerCore.Dns.ZoneManagers
         readonly DnsServer _dnsServer;
 
         readonly CacheZoneTree _root = new CacheZoneTree();
+
+        long _maximumEntries;
+        long _totalEntries;
 
         #endregion
 
@@ -103,12 +108,15 @@ namespace DnsServerCore.Dns.ZoneManagers
                     return new CacheZone(resourceRecord.Name, 1);
                 });
 
-                zone.SetRecords(resourceRecord.Type, resourceRecords, _dnsServer.ServeStale);
+                if (zone.SetRecords(resourceRecord.Type, resourceRecords, _dnsServer.ServeStale))
+                    Interlocked.Increment(ref _totalEntries);
             }
             else
             {
                 Dictionary<string, Dictionary<DnsResourceRecordType, List<DnsResourceRecord>>> groupedByDomainRecords = DnsResourceRecord.GroupRecords(resourceRecords);
                 bool serveStale = _dnsServer.ServeStale;
+
+                int addedEntries = 0;
 
                 //add grouped records
                 foreach (KeyValuePair<string, Dictionary<DnsResourceRecordType, List<DnsResourceRecord>>> groupedByTypeRecords in groupedByDomainRecords)
@@ -119,8 +127,14 @@ namespace DnsServerCore.Dns.ZoneManagers
                     });
 
                     foreach (KeyValuePair<DnsResourceRecordType, List<DnsResourceRecord>> groupedRecords in groupedByTypeRecords.Value)
-                        zone.SetRecords(groupedRecords.Key, groupedRecords.Value, serveStale);
+                    {
+                        if (zone.SetRecords(groupedRecords.Key, groupedRecords.Value, serveStale))
+                            addedEntries++;
+                    }
                 }
+
+                if (addedEntries > 0)
+                    Interlocked.Add(ref _totalEntries, addedEntries);
             }
         }
 
@@ -280,6 +294,56 @@ namespace DnsServerCore.Dns.ZoneManagers
             }
         }
 
+        private int RemoveExpiredRecordsInternal(bool serveStale, long minimumEntriesToRemove)
+        {
+            int removedEntries = 0;
+
+            foreach (CacheZone zone in _root)
+            {
+                removedEntries += zone.RemoveExpiredRecords(serveStale);
+
+                if (zone.IsEmpty)
+                    _root.TryRemove(zone.Name, out _); //remove empty zone
+
+                if ((minimumEntriesToRemove > 0) && (removedEntries >= minimumEntriesToRemove))
+                    break;
+            }
+
+            if (removedEntries > 0)
+            {
+                long totalEntries = Interlocked.Add(ref _totalEntries, -removedEntries);
+                if (totalEntries < 0)
+                    Interlocked.Add(ref _totalEntries, -totalEntries);
+            }
+
+            return removedEntries;
+        }
+
+        private int RemoveLeastUsedRecordsInternal(DateTime cutoff, long minimumEntriesToRemove)
+        {
+            int removedEntries = 0;
+
+            foreach (CacheZone zone in _root)
+            {
+                removedEntries += zone.RemoveLeastUsedRecords(cutoff);
+
+                if (zone.IsEmpty)
+                    _root.TryRemove(zone.Name, out _); //remove empty zone
+
+                if ((minimumEntriesToRemove > 0) && (removedEntries >= minimumEntriesToRemove))
+                    break;
+            }
+
+            if (removedEntries > 0)
+            {
+                long totalEntries = Interlocked.Add(ref _totalEntries, -removedEntries);
+                if (totalEntries < 0)
+                    Interlocked.Add(ref _totalEntries, -totalEntries);
+            }
+
+            return removedEntries;
+        }
+
         #endregion
 
         #region public
@@ -288,23 +352,61 @@ namespace DnsServerCore.Dns.ZoneManagers
         {
             bool serveStale = _dnsServer.ServeStale;
 
-            foreach (CacheZone zone in _root)
-            {
-                zone.RemoveExpiredRecords(serveStale);
+            //remove expired records/expired stale records
+            RemoveExpiredRecordsInternal(serveStale, 0);
 
-                if (zone.IsEmpty)
-                    _root.TryRemove(zone.Name, out _); //remove empty zone
+            if (_maximumEntries < 1)
+                return; //cache limit feature disabled
+
+            //find minimum entries to remove
+            long minimumEntriesToRemove = _totalEntries - _maximumEntries;
+            if (minimumEntriesToRemove < 1)
+                return; //no need to remove
+
+            //remove stale records if they exists
+            if (serveStale)
+                minimumEntriesToRemove -= RemoveExpiredRecordsInternal(false, minimumEntriesToRemove);
+
+            if (minimumEntriesToRemove < 1)
+                return; //task completed
+
+            //remove least recently used records
+            for (int seconds = 86400; seconds > 0; seconds /= 2)
+            {
+                DateTime cutoff = DateTime.UtcNow.AddSeconds(-seconds);
+
+                minimumEntriesToRemove -= RemoveLeastUsedRecordsInternal(cutoff, minimumEntriesToRemove);
+
+                if (minimumEntriesToRemove < 1)
+                    break; //task completed
             }
         }
 
         public override void Flush()
         {
             _root.Clear();
+
+            long totalEntries = _totalEntries;
+            totalEntries = Interlocked.Add(ref _totalEntries, -totalEntries);
+            if (totalEntries < 0)
+                Interlocked.Add(ref _totalEntries, -totalEntries);
         }
 
         public bool DeleteZone(string domain)
         {
-            return _root.TryRemove(domain, out _);
+            if (_root.TryRemoveTree(domain, out _, out int removedEntries))
+            {
+                if (removedEntries > 0)
+                {
+                    long totalEntries = Interlocked.Add(ref _totalEntries, -removedEntries);
+                    if (totalEntries < 0)
+                        Interlocked.Add(ref _totalEntries, -totalEntries);
+                }
+
+                return true;
+            }
+
+            return false;
         }
 
         public void ListSubDomains(string domain, List<string> subDomains)
@@ -572,6 +674,25 @@ namespace DnsServerCore.Dns.ZoneManagers
             //no cached delegation found
             return null;
         }
+
+        #endregion
+
+        #region properties
+
+        public long MaximumEntries
+        {
+            get { return _maximumEntries; }
+            set
+            {
+                if (value < 0)
+                    throw new ArgumentOutOfRangeException(nameof(MaximumEntries), "Invalid cache maximum entries value. Valid range is 0 and above.");
+
+                _maximumEntries = value;
+            }
+        }
+
+        public long TotalEntries
+        { get { return _totalEntries; } }
 
         #endregion
     }
