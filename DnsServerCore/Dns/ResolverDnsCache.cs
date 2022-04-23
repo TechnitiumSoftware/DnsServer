@@ -111,9 +111,9 @@ namespace DnsServerCore.Dns
             }
         }
 
-        public void CacheResponse(DnsDatagram response, bool isDnssecBadCache = false)
+        public void CacheResponse(DnsDatagram response, bool isDnssecBadCache = false, string zoneCut = null)
         {
-            _cacheZoneManager.CacheResponse(response, isDnssecBadCache);
+            _cacheZoneManager.CacheResponse(response, isDnssecBadCache, zoneCut);
         }
 
         #endregion
