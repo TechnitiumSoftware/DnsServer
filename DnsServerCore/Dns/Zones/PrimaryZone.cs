@@ -1680,8 +1680,11 @@ namespace DnsServerCore.Dns.Zones
                 dnsKeyRecords.Add(revokedDnsKeyRecord);
             }
 
-            if (TrySetRecords(DnsResourceRecordType.DNSKEY, dnsKeyRecords, out IReadOnlyList<DnsResourceRecord> deletedDnsKeyRecords))
-                deletedRecords.AddRange(deletedDnsKeyRecords);
+            if (!TrySetRecords(DnsResourceRecordType.DNSKEY, dnsKeyRecords, out IReadOnlyList<DnsResourceRecord> deletedDnsKeyRecords))
+                throw new InvalidOperationException();
+
+            addedRecords.AddRange(dnsKeyRecords);
+            deletedRecords.AddRange(deletedDnsKeyRecords);
 
             IReadOnlyList<DnsResourceRecord> newRRSigRecords = SignRRSet(dnsKeyRecords);
             if (newRRSigRecords.Count > 0)
@@ -1777,8 +1780,11 @@ namespace DnsServerCore.Dns.Zones
             if (dnsKeyRecords.Count < 2)
                 throw new InvalidOperationException();
 
-            if (TrySetRecords(DnsResourceRecordType.DNSKEY, dnsKeyRecords, out IReadOnlyList<DnsResourceRecord> deletedDnsKeyRecords))
-                deletedRecords.AddRange(deletedDnsKeyRecords);
+            if (!TrySetRecords(DnsResourceRecordType.DNSKEY, dnsKeyRecords, out IReadOnlyList<DnsResourceRecord> deletedDnsKeyRecords))
+                throw new InvalidOperationException();
+
+            addedRecords.AddRange(dnsKeyRecords);
+            deletedRecords.AddRange(deletedDnsKeyRecords);
 
             IReadOnlyList<DnsResourceRecord> newRRSigRecords = SignRRSet(dnsKeyRecords);
             if (newRRSigRecords.Count > 0)
