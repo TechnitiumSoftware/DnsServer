@@ -17,6 +17,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 */
 
+using DnsServerCore.Dns.ResourceRecords;
 using System;
 using System.Collections.Generic;
 using TechnitiumLibrary;
@@ -60,6 +61,12 @@ namespace DnsServerCore.Dns.Zones
                 }
             }
 
+            //update last used on
+            DateTime utcNow = DateTime.UtcNow;
+
+            foreach (DnsResourceRecord record in records)
+                record.GetRecordInfo().LastUsedOn = utcNow;
+
             return records;
         }
 
@@ -67,7 +74,7 @@ namespace DnsServerCore.Dns.Zones
 
         #region public
 
-        public void SetRecords(DnsResourceRecordType type, IReadOnlyList<DnsResourceRecord> records, bool serveStale)
+        public bool SetRecords(DnsResourceRecordType type, IReadOnlyList<DnsResourceRecord> records, bool serveStale)
         {
             bool isFailureRecord = (records.Count > 0) && records[0].RDATA is DnsCache.DnsSpecialCacheRecord splRecord && splRecord.IsFailureOrBadCache;
             if (isFailureRecord)
@@ -76,12 +83,24 @@ namespace DnsServerCore.Dns.Zones
                 if (_entries.TryGetValue(type, out IReadOnlyList<DnsResourceRecord> existingRecords))
                 {
                     if ((existingRecords.Count > 0) && !(existingRecords[0].RDATA is DnsCache.DnsSpecialCacheRecord existingSplRecord && existingSplRecord.IsFailureOrBadCache) && !DnsResourceRecord.IsRRSetExpired(existingRecords, serveStale))
-                        return; //skip to avoid overwriting a useful record with a failure record
+                        return false; //skip to avoid overwriting a useful record with a failure record
                 }
             }
 
+            //set last used date time
+            DateTime utcNow = DateTime.UtcNow;
+
+            foreach (DnsResourceRecord record in records)
+                record.GetRecordInfo().LastUsedOn = utcNow;
+
             //set records
-            _entries[type] = records;
+            bool added = true;
+
+            _entries.AddOrUpdate(type, records, delegate (DnsResourceRecordType key, IReadOnlyList<DnsResourceRecord> existingRecords)
+            {
+                added = false;
+                return records;
+            });
 
             if (serveStale && !isFailureRecord)
             {
@@ -111,15 +130,40 @@ namespace DnsServerCore.Dns.Zones
                         break;
                 }
             }
+
+            return added;
         }
 
-        public void RemoveExpiredRecords(bool serveStale)
+        public int RemoveExpiredRecords(bool serveStale)
         {
+            int removedEntries = 0;
+
             foreach (KeyValuePair<DnsResourceRecordType, IReadOnlyList<DnsResourceRecord>> entry in _entries)
             {
                 if (DnsResourceRecord.IsRRSetExpired(entry.Value, serveStale))
-                    _entries.TryRemove(entry.Key, out _); //RR Set is expired; remove entry
+                {
+                    if (_entries.TryRemove(entry.Key, out _)) //RR Set is expired; remove entry
+                        removedEntries++;
+                }
             }
+
+            return removedEntries;
+        }
+
+        public int RemoveLeastUsedRecords(DateTime cutoff)
+        {
+            int removedEntries = 0;
+
+            foreach (KeyValuePair<DnsResourceRecordType, IReadOnlyList<DnsResourceRecord>> entry in _entries)
+            {
+                if ((entry.Value.Count == 0) || (entry.Value[0].GetRecordInfo().LastUsedOn < cutoff))
+                {
+                    if (_entries.TryRemove(entry.Key, out _)) //RR Set was last used before cutoff; remove entry
+                        removedEntries++;
+                }
+            }
+
+            return removedEntries;
         }
 
         public IReadOnlyList<DnsResourceRecord> QueryRecords(DnsResourceRecordType type, bool serveStale, bool skipSpecialCacheRecord)
@@ -198,6 +242,13 @@ namespace DnsServerCore.Dns.Zones
 
             return false;
         }
+
+        #endregion
+
+        #region properties
+
+        public int TotalEntries
+        { get { return _entries.Count; } }
 
         #endregion
     }
