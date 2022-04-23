@@ -24,6 +24,9 @@ var reverseProxyDetected = false;
 function showPageLogin() {
     hideAlert();
 
+    localStorage.removeItem("username");
+    localStorage.removeItem("token");
+
     $("#pageMain").hide();
     $("#mnuUser").hide();
 
@@ -493,8 +496,18 @@ $(function () {
 
     $("#lblDoHHost").text(window.location.hostname + ":8053");
 
-    showPageLogin();
-    login("admin", "admin");
+    token = localStorage.getItem("token");
+    if (token == null) {
+        showPageLogin();
+        login("admin", "admin");
+    }
+    else {
+        username = localStorage.getItem("username");
+        if (username == null)
+            username = "admin";
+
+        showPageMain(username);
+    }
 });
 
 function login(username, password) {
@@ -526,6 +539,9 @@ function login(username, password) {
         url: "/api/login?user=" + encodeURIComponent(username) + "&pass=" + encodeURIComponent(password),
         success: function (responseJSON) {
             token = responseJSON.token;
+
+            localStorage.setItem("username", username);
+            localStorage.setItem("token", token);
 
             showPageMain(username);
 
