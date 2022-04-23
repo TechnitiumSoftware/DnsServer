@@ -807,6 +807,11 @@ function addZone() {
     });
 }
 
+function toggleHideDnssecRecords(hideDnssecRecords) {
+    localStorage.setItem("zoneHideDnssecRecords", hideDnssecRecords);
+    showEditZone($("#titleEditZone").text());
+}
+
 function showEditZone(domain) {
     var divViewZonesLoader = $("#divViewZonesLoader");
     var divViewZones = $("#divViewZones");
@@ -947,6 +952,8 @@ function showEditZone(domain) {
                     break;
             }
 
+            var zoneHideDnssecRecords = (localStorage.getItem("zoneHideDnssecRecords") == "true");
+
             switch (type) {
                 case "Primary":
                     $("#divZoneDnssecOptions").show();
@@ -955,14 +962,53 @@ function showEditZone(domain) {
                         case "SignedWithNSEC":
                         case "SignedWithNSEC3":
                             $("#lnkZoneDnssecSignZone").hide();
+
+                            if (zoneHideDnssecRecords) {
+                                $("#lnkZoneDnssecHideRecords").hide();
+                                $("#lnkZoneDnssecShowRecords").show();
+                            }
+                            else {
+                                $("#lnkZoneDnssecHideRecords").show();
+                                $("#lnkZoneDnssecShowRecords").hide();
+                            }
+
                             $("#lnkZoneDnssecProperties").show();
                             $("#lnkZoneDnssecUnsignZone").show();
                             break;
 
                         default:
                             $("#lnkZoneDnssecSignZone").show();
+                            $("#lnkZoneDnssecHideRecords").hide();
+                            $("#lnkZoneDnssecShowRecords").hide();
                             $("#lnkZoneDnssecProperties").hide();
                             $("#lnkZoneDnssecUnsignZone").hide();
+                            break;
+                    }
+                    break;
+
+                case "Secondary":
+                    switch (responseJSON.response.zone.dnssecStatus) {
+                        case "SignedWithNSEC":
+                        case "SignedWithNSEC3":
+                            $("#divZoneDnssecOptions").show();
+
+                            $("#lnkZoneDnssecSignZone").hide();
+
+                            if (zoneHideDnssecRecords) {
+                                $("#lnkZoneDnssecHideRecords").hide();
+                                $("#lnkZoneDnssecShowRecords").show();
+                            }
+                            else {
+                                $("#lnkZoneDnssecHideRecords").show();
+                                $("#lnkZoneDnssecShowRecords").hide();
+                            }
+
+                            $("#lnkZoneDnssecProperties").hide();
+                            $("#lnkZoneDnssecUnsignZone").hide();
+                            break;
+
+                        default:
+                            $("#divZoneDnssecOptions").hide();
                             break;
                     }
                     break;
@@ -974,8 +1020,21 @@ function showEditZone(domain) {
 
             var records = responseJSON.response.records;
             var tableHtmlRows = "";
+            var recordCount = 0;
 
             for (var i = 0; i < records.length; i++) {
+                if (zoneHideDnssecRecords) {
+                    switch (records[i].type.toUpperCase()) {
+                        case "RRSIG":
+                        case "NSEC":
+                        case "DNSKEY":
+                        case "NSEC3":
+                        case "NSEC3PARAM":
+                            continue;
+                    }
+                }
+
+                recordCount++;
                 var id = Math.floor(Math.random() * 10000);
 
                 var name = records[i].name.toLowerCase();
@@ -1462,8 +1521,8 @@ function showEditZone(domain) {
             $("#titleEditZone").text(domain);
             $("#tableEditZoneBody").html(tableHtmlRows);
 
-            if (records.length > 0)
-                $("#tableEditZoneFooter").html("<tr><td colspan=\"5\"><b>Total Records: " + records.length + "</b></td></tr>");
+            if (recordCount > 0)
+                $("#tableEditZoneFooter").html("<tr><td colspan=\"5\"><b>Total Records: " + recordCount + "</b></td></tr>");
             else
                 $("#tableEditZoneFooter").html("<tr><td colspan=\"5\" align=\"center\">No Records Found</td></tr>");
 
