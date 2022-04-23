@@ -639,7 +639,7 @@ namespace DnsServerCore
                                                 break;
 
                                             case "/api/resolveQuery":
-                                                await ResolveQuery(request, jsonWriter);
+                                                await ResolveQueryAsync(request, jsonWriter);
                                                 break;
 
                                             case "/api/listLogs":
@@ -1429,6 +1429,9 @@ namespace DnsServerCore
             jsonWriter.WritePropertyName("serveStaleTtl");
             jsonWriter.WriteValue(_dnsServer.CacheZoneManager.ServeStaleTtl);
 
+            jsonWriter.WritePropertyName("cacheMaximumEntries");
+            jsonWriter.WriteValue(_dnsServer.CacheZoneManager.MaximumEntries);
+
             jsonWriter.WritePropertyName("cacheMinimumRecordTtl");
             jsonWriter.WriteValue(_dnsServer.CacheZoneManager.MinimumRecordTtl);
 
@@ -1978,6 +1981,10 @@ namespace DnsServerCore
             string strServeStaleTtl = request.QueryString["serveStaleTtl"];
             if (!string.IsNullOrEmpty(strServeStaleTtl))
                 _dnsServer.CacheZoneManager.ServeStaleTtl = uint.Parse(strServeStaleTtl);
+
+            string strCacheMaximumEntries = request.QueryString["cacheMaximumEntries"];
+            if (!string.IsNullOrEmpty(strCacheMaximumEntries))
+                _dnsServer.CacheZoneManager.MaximumEntries = long.Parse(strCacheMaximumEntries);
 
             string strCacheMinimumRecordTtl = request.QueryString["cacheMinimumRecordTtl"];
             if (!string.IsNullOrEmpty(strCacheMinimumRecordTtl))
@@ -2951,7 +2958,7 @@ namespace DnsServerCore
 
         #region dns client api
 
-        private async Task ResolveQuery(HttpListenerRequest request, JsonTextWriter jsonWriter)
+        private async Task ResolveQueryAsync(HttpListenerRequest request, JsonTextWriter jsonWriter)
         {
             string server = request.QueryString["server"];
             if (string.IsNullOrEmpty(server))
@@ -3419,6 +3426,7 @@ namespace DnsServerCore
                         case 24:
                         case 25:
                         case 26:
+                        case 27:
                             _dnsServer.ServerDomain = bR.ReadShortString();
                             _webServiceHttpPort = bR.ReadInt32();
 
@@ -3882,7 +3890,7 @@ namespace DnsServerCore
                             if (version >= 22)
                                 _dnsServer.NsRevalidation = bR.ReadBoolean();
                             else
-                                _dnsServer.NsRevalidation = false; //default false since some badly configured websites fail to load
+                                _dnsServer.NsRevalidation = true; //default true for security reasons
 
                             if (version >= 23)
                             {
@@ -3944,6 +3952,11 @@ namespace DnsServerCore
                                 _dnsServer.TcpSendTimeout = 10000;
                                 _dnsServer.TcpReceiveTimeout = 10000;
                             }
+
+                            if (version >= 27)
+                                _dnsServer.CacheZoneManager.MaximumEntries = bR.ReadInt32();
+                            else
+                                _dnsServer.CacheZoneManager.MaximumEntries = 0;
 
                             break;
 
@@ -4082,7 +4095,7 @@ namespace DnsServerCore
 
                 _dnsServer.RandomizeName = true; //default true to enable security feature
                 _dnsServer.QnameMinimization = true; //default true to enable privacy feature
-                _dnsServer.NsRevalidation = false; //default false since some badly configured websites fail to load
+                _dnsServer.NsRevalidation = false; //default true for security reasons
 
                 _dnsServer.DnssecValidation = true;
                 CreateForwarderZoneToDisableDnssecForNTP();
@@ -4122,7 +4135,7 @@ namespace DnsServerCore
                 BinaryWriter bW = new BinaryWriter(mS);
 
                 bW.Write(Encoding.ASCII.GetBytes("DS")); //format
-                bW.Write((byte)26); //version
+                bW.Write((byte)27); //version
 
                 bW.WriteShortString(_dnsServer.ServerDomain);
                 bW.Write(_webServiceHttpPort);
@@ -4336,6 +4349,8 @@ namespace DnsServerCore
                 bW.Write(_dnsServer.ClientTimeout);
                 bW.Write(_dnsServer.TcpSendTimeout);
                 bW.Write(_dnsServer.TcpReceiveTimeout);
+
+                bW.Write(_dnsServer.CacheZoneManager.MaximumEntries);
 
                 //write config
                 mS.Position = 0;
