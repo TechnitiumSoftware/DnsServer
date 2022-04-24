@@ -1580,12 +1580,16 @@ namespace DnsServerCore
 
         private void SetDnsSettings(HttpListenerRequest request, JsonTextWriter jsonWriter)
         {
+            bool serverDomainChanged = false;
             bool restartDnsService = false;
             bool restartWebService = false;
 
             string strDnsServerDomain = request.QueryString["dnsServerDomain"];
             if (!string.IsNullOrEmpty(strDnsServerDomain))
+            {
+                serverDomainChanged = !_dnsServer.ServerDomain.Equals(strDnsServerDomain, StringComparison.OrdinalIgnoreCase);
                 _dnsServer.ServerDomain = strDnsServerDomain;
+            }
 
             string strDnsServerLocalEndPoints = request.QueryString["dnsServerLocalEndPoints"];
             if (strDnsServerLocalEndPoints != null)
@@ -2241,7 +2245,7 @@ namespace DnsServerCore
             if ((_webServiceTlsCertificatePath == null) && (_dnsTlsCertificatePath == null))
                 StopTlsCertificateUpdateTimer();
 
-            SelfSignedCertCheck(true);
+            SelfSignedCertCheck(serverDomainChanged, true);
 
             if (_webServiceEnableTls && string.IsNullOrEmpty(_webServiceTlsCertificatePath) && !_webServiceUseSelfSignedTlsCertificate)
             {
@@ -2260,13 +2264,13 @@ namespace DnsServerCore
             RestartService(restartDnsService, restartWebService);
         }
 
-        private void SelfSignedCertCheck(bool throwException)
+        private void SelfSignedCertCheck(bool generateNew, bool throwException)
         {
             string selfSignedCertificateFilePath = Path.Combine(_configFolder, "cert.pfx");
 
             if (_webServiceUseSelfSignedTlsCertificate)
             {
-                if (!File.Exists(selfSignedCertificateFilePath))
+                if (generateNew || !File.Exists(selfSignedCertificateFilePath))
                 {
                     RSA rsa = RSA.Create(2048);
                     CertificateRequest req = new CertificateRequest("cn=" + _dnsServer.ServerDomain, rsa, HashAlgorithmName.SHA256, RSASignaturePadding.Pkcs1);
@@ -3907,7 +3911,7 @@ namespace DnsServerCore
                             {
                                 _webServiceUseSelfSignedTlsCertificate = bR.ReadBoolean();
 
-                                SelfSignedCertCheck(false);
+                                SelfSignedCertCheck(false, false);
                             }
                             else
                             {
