@@ -362,6 +362,12 @@ namespace DnsServerCore.Dns.ZoneManagers
             if (delegationZone is StubZone)
             {
                 authority = delegationZone.GetRecords(DnsResourceRecordType.NS); //stub zone has no authority so cant query
+
+                //update last used on
+                DateTime utcNow = DateTime.UtcNow;
+
+                foreach (DnsResourceRecord record in authority)
+                    record.GetRecordInfo().LastUsedOn = utcNow;
             }
             else
             {
