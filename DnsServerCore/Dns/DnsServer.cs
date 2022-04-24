@@ -19,6 +19,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 using DnsServerCore.ApplicationCommon;
 using DnsServerCore.Dns.Applications;
+using DnsServerCore.Dns.ResourceRecords;
 using DnsServerCore.Dns.Trees;
 using DnsServerCore.Dns.ZoneManagers;
 using DnsServerCore.Dns.Zones;
@@ -1794,9 +1795,19 @@ namespace DnsServerCore.Dns
             if (responseAnswer.Count == 0)
             {
                 if (foundErrors)
+                {
                     rcode = DnsResponseCode.ServerFailure;
+                }
                 else
+                {
                     authority = response.Authority;
+
+                    //update last used on
+                    DateTime utcNow = DateTime.UtcNow;
+
+                    foreach (DnsResourceRecord record in authority)
+                        record.GetRecordInfo().LastUsedOn = utcNow;
+                }
             }
 
             return new DnsDatagram(request.Identifier, true, DnsOpcode.StandardQuery, true, false, request.RecursionDesired, isRecursionAllowed, false, false, rcode, request.Question, responseAnswer, authority, null) { Tag = response.Tag };
