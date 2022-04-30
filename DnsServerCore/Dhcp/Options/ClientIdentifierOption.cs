@@ -1,6 +1,6 @@
 ﻿/*
 Technitium DNS Server
-Copyright (C) 2021  Shreyas Zare (shreyas@technitium.com)
+Copyright (C) 2022  Shreyas Zare (shreyas@technitium.com)
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -44,6 +44,16 @@ namespace DnsServerCore.Dhcp.Options
         public ClientIdentifierOption(Stream s)
             : base(DhcpOptionCode.ClientIdentifier, s)
         { }
+
+        #endregion
+
+        #region static
+
+        public static ClientIdentifierOption Parse(string clientIdentifier)
+        {
+            string[] parts = clientIdentifier.Split('-');
+            return new ClientIdentifierOption(byte.Parse(parts[0]), Convert.FromHexString(parts[1]));
+        }
 
         #endregion
 
@@ -109,6 +119,11 @@ namespace DnsServerCore.Dhcp.Options
             hashCode = hashCode * -1521134295 + _type.GetHashCode();
             hashCode = hashCode * -1521134295 + BitConverter.ToInt32(_identifier, 0);
             return hashCode;
+        }
+
+        public override string ToString()
+        {
+            return _type.ToString() + "-" + Convert.ToHexString(_identifier);
         }
 
         #endregion
