@@ -697,13 +697,17 @@ namespace DnsServerCore
             if (string.IsNullOrEmpty(scopeName))
                 throw new DnsWebServiceException("Parameter 'name' missing.");
 
+            Scope scope = _dnsWebService.DhcpServer.GetScope(scopeName);
+            if (scope is null)
+                throw new DnsWebServiceException("DHCP scope does not exists: " + scopeName);
+
             string strClientIdentifier = request.QueryString["clientIdentifier"];
             string strHardwareAddress = request.QueryString["hardwareAddress"];
 
             if (!string.IsNullOrEmpty(strClientIdentifier))
-                _dnsWebService.DhcpServer.RemoveLeaseByClientIdentifier(scopeName, strClientIdentifier);
+                scope.RemoveLease(ClientIdentifierOption.Parse(strClientIdentifier));
             else if (!string.IsNullOrEmpty(strHardwareAddress))
-                _dnsWebService.DhcpServer.RemoveLeaseByHardwareAddress(scopeName, strHardwareAddress);
+                scope.RemoveLease(strHardwareAddress);
             else
                 throw new DnsWebServiceException("Parameter 'hardwareAddress' or 'clientIdentifier' missing. At least one of them must be specified.");
 
@@ -722,11 +726,15 @@ namespace DnsServerCore
             if (scope == null)
                 throw new DnsWebServiceException("DHCP scope does not exists: " + scopeName);
 
+            string strClientIdentifier = request.QueryString["clientIdentifier"];
             string strHardwareAddress = request.QueryString["hardwareAddress"];
-            if (string.IsNullOrEmpty(strHardwareAddress))
-                throw new DnsWebServiceException("Parameter 'hardwareAddress' missing.");
 
-            scope.ConvertToReservedLease(strHardwareAddress);
+            if (!string.IsNullOrEmpty(strClientIdentifier))
+                scope.ConvertToReservedLease(ClientIdentifierOption.Parse(strClientIdentifier));
+            else if (!string.IsNullOrEmpty(strHardwareAddress))
+                scope.ConvertToReservedLease(strHardwareAddress);
+            else
+                throw new DnsWebServiceException("Parameter 'hardwareAddress' or 'clientIdentifier' missing. At least one of them must be specified.");
 
             _dnsWebService.DhcpServer.SaveScope(scopeName);
 
@@ -743,11 +751,15 @@ namespace DnsServerCore
             if (scope == null)
                 throw new DnsWebServiceException("DHCP scope does not exists: " + scopeName);
 
+            string strClientIdentifier = request.QueryString["clientIdentifier"];
             string strHardwareAddress = request.QueryString["hardwareAddress"];
-            if (string.IsNullOrEmpty(strHardwareAddress))
-                throw new DnsWebServiceException("Parameter 'hardwareAddress' missing.");
 
-            scope.ConvertToDynamicLease(strHardwareAddress);
+            if (!string.IsNullOrEmpty(strClientIdentifier))
+                scope.ConvertToDynamicLease(ClientIdentifierOption.Parse(strClientIdentifier));
+            else if (!string.IsNullOrEmpty(strHardwareAddress))
+                scope.ConvertToDynamicLease(strHardwareAddress);
+            else
+                throw new DnsWebServiceException("Parameter 'hardwareAddress' or 'clientIdentifier' missing. At least one of them must be specified.");
 
             _dnsWebService.DhcpServer.SaveScope(scopeName);
 
