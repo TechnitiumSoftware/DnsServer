@@ -584,7 +584,7 @@ namespace DnsServerCore
 
                                             case "/api/zone/addRecord":
                                             case "/api/addRecord":
-                                                _zonesApi.AddRecord(request);
+                                                _zonesApi.AddRecord(request, jsonWriter);
                                                 break;
 
                                             case "/api/zone/getRecords":
@@ -599,7 +599,7 @@ namespace DnsServerCore
 
                                             case "/api/zone/updateRecord":
                                             case "/api/updateRecord":
-                                                _zonesApi.UpdateRecord(request);
+                                                _zonesApi.UpdateRecord(request, jsonWriter);
                                                 break;
 
                                             case "/api/apps/list":
