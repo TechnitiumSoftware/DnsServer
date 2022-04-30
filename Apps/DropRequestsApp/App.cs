@@ -1,6 +1,6 @@
 ﻿/*
 Technitium DNS Server
-Copyright (C) 2021  Shreyas Zare (shreyas@technitium.com)
+Copyright (C) 2022  Shreyas Zare (shreyas@technitium.com)
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -170,6 +170,7 @@ namespace DropRequests
             #region variables
 
             readonly string _name;
+            readonly bool _blockZone;
             readonly DnsResourceRecordType _type;
 
             #endregion
@@ -179,6 +180,11 @@ namespace DropRequests
             public BlockedQuestion(dynamic jsonQuestion)
             {
                 _name = jsonQuestion.name?.Value;
+                if (_name is not null)
+                    _name = _name.TrimEnd('.');
+
+                if (jsonQuestion.blockZone is not null)
+                    _blockZone = jsonQuestion.blockZone.Value;
 
                 string strType = jsonQuestion.type?.Value;
                 if (!string.IsNullOrEmpty(strType) && Enum.TryParse(strType, true, out DnsResourceRecordType type))
@@ -193,8 +199,19 @@ namespace DropRequests
 
             public bool Matches(DnsQuestionRecord question)
             {
-                if ((_name is not null) && !_name.Equals(question.Name, StringComparison.OrdinalIgnoreCase))
-                    return false;
+                if (_name is not null)
+                {
+                    if (_blockZone)
+                    {
+                        if ((_name.Length > 0) && !_name.Equals(question.Name, StringComparison.OrdinalIgnoreCase) && !question.Name.EndsWith("." + _name, StringComparison.OrdinalIgnoreCase))
+                            return false;
+                    }
+                    else
+                    {
+                        if (!_name.Equals(question.Name, StringComparison.OrdinalIgnoreCase))
+                            return false;
+                    }
+                }
 
                 if ((_type != DnsResourceRecordType.Unknown) && (_type != question.Type))
                     return false;
