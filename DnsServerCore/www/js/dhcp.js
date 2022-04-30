@@ -174,13 +174,13 @@ function refreshDhcpScopes(checkDisplay) {
     if (checkDisplay == null)
         checkDisplay = false;
 
-    var divDhcpViewScopes = $("#divDhcpViewScopes");
+    var divDhcpEditScope = $("#divDhcpEditScope");
 
-    if (checkDisplay && (divDhcpViewScopes.css('display') === "none"))
+    if (checkDisplay && (divDhcpEditScope.css("display") != "none"))
         return;
 
+    var divDhcpViewScopes = $("#divDhcpViewScopes");
     var divDhcpViewScopesLoader = $("#divDhcpViewScopesLoader");
-    var divDhcpEditScope = $("#divDhcpEditScope");
 
     divDhcpViewScopes.hide();
     divDhcpEditScope.hide();
@@ -193,7 +193,7 @@ function refreshDhcpScopes(checkDisplay) {
             var tableHtmlRows = "";
 
             for (var i = 0; i < dhcpScopes.length; i++) {
-                tableHtmlRows += "<tr><td>" + htmlEncode(dhcpScopes[i].name) + "</td><td>" + dhcpScopes[i].startingAddress + " - " + dhcpScopes[i].endingAddress + "<br />" + dhcpScopes[i].subnetMask + "</td><td>" + dhcpScopes[i].networkAddress + "<br />" + dhcpScopes[i].broadcastAddress + "</td><td>" + (dhcpScopes[i].interfaceAddress == null ? "" : dhcpScopes[i].interfaceAddress) + "</td>";
+                tableHtmlRows += "<tr id=\"trDhcpScopeRow" + i + "\"><td>" + htmlEncode(dhcpScopes[i].name) + "</td><td>" + dhcpScopes[i].startingAddress + " - " + dhcpScopes[i].endingAddress + "<br />" + dhcpScopes[i].subnetMask + "</td><td>" + dhcpScopes[i].networkAddress + "<br />" + dhcpScopes[i].broadcastAddress + "</td><td>" + (dhcpScopes[i].interfaceAddress == null ? "" : dhcpScopes[i].interfaceAddress) + "</td>";
                 tableHtmlRows += "<td align=\"right\"><button type=\"button\" class=\"btn btn-primary\" style=\"font-size: 12px; padding: 2px 0px; width: 60px; margin: 0 6px 6px 0;\" onclick=\"showEditDhcpScope('" + dhcpScopes[i].name + "');\">Edit</button>";
 
                 if (dhcpScopes[i].enabled)
@@ -201,7 +201,7 @@ function refreshDhcpScopes(checkDisplay) {
                 else
                     tableHtmlRows += "<button type=\"button\" class=\"btn btn-default\" style=\"font-size: 12px; padding: 2px 0px; width: 60px; margin: 0 6px 6px 0;\" onclick=\"enableDhcpScope('" + dhcpScopes[i].name + "');\">Enable</button>";
 
-                tableHtmlRows += "<button type=\"button\" class=\"btn btn-danger\" style=\"font-size: 12px; padding: 2px 0px; width: 60px; margin: 0 6px 6px 0;\" onclick=\"deleteDhcpScope('" + dhcpScopes[i].name + "');\">Delete</button></td></tr>";
+                tableHtmlRows += "<button type=\"button\" class=\"btn btn-danger\" style=\"font-size: 12px; padding: 2px 0px; width: 60px; margin: 0 6px 6px 0;\" onclick=\"deleteDhcpScope(" + i + ", '" + dhcpScopes[i].name + "');\">Delete</button></td></tr>";
             }
 
             $("#tableDhcpScopesBody").html(tableHtmlRows);
@@ -534,7 +534,7 @@ function enableDhcpScope(scopeName) {
     });
 }
 
-function deleteDhcpScope(scopeName) {
+function deleteDhcpScope(index, scopeName) {
     if (!confirm("Are you sure you want to delete the DHCP scope '" + scopeName + "'?"))
         return;
 
@@ -549,7 +549,17 @@ function deleteDhcpScope(scopeName) {
     HTTPRequest({
         url: "/api/deleteDhcpScope?token=" + token + "&name=" + scopeName,
         success: function (responseJSON) {
-            refreshDhcpScopes();
+            $("#trDhcpScopeRow" + index).remove();
+
+            var dhcpLeasesLength = $('#tableDhcpScopesBody >tr').length;
+            if (dhcpLeasesLength > 0)
+                $("#tableDhcpScopesFooter").html("<tr><td colspan=\"5\"><b>Total Scopes: " + dhcpLeasesLength + "</b></td></tr>");
+            else
+                $("#tableDhcpScopesFooter").html("<tr><td colspan=\"5\" align=\"center\">No Scope Found</td></tr>");
+
+            divDhcpViewScopes.show();
+            divDhcpViewScopesLoader.hide();
+
             showAlert("success", "Scope Deleted!", "DHCP Scope was deleted successfully.");
         },
         error: function () {
