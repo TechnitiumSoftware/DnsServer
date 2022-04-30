@@ -86,6 +86,9 @@ namespace DnsServerCore
                     jsonWriter.WritePropertyName("hardwareAddress");
                     jsonWriter.WriteValue(BitConverter.ToString(lease.HardwareAddress));
 
+                    jsonWriter.WritePropertyName("clientIdentifier");
+                    jsonWriter.WriteValue(lease.ClientIdentifier.ToString());
+
                     jsonWriter.WritePropertyName("address");
                     jsonWriter.WriteValue(lease.Address.ToString());
 
@@ -694,11 +697,16 @@ namespace DnsServerCore
             if (string.IsNullOrEmpty(scopeName))
                 throw new DnsWebServiceException("Parameter 'name' missing.");
 
+            string strClientIdentifier = request.QueryString["clientIdentifier"];
             string strHardwareAddress = request.QueryString["hardwareAddress"];
-            if (string.IsNullOrEmpty(strHardwareAddress))
-                throw new DnsWebServiceException("Parameter 'hardwareAddress' missing.");
 
-            _dnsWebService.DhcpServer.RemoveLease(scopeName, strHardwareAddress);
+            if (!string.IsNullOrEmpty(strClientIdentifier))
+                _dnsWebService.DhcpServer.RemoveLeaseByClientIdentifier(scopeName, strClientIdentifier);
+            else if (!string.IsNullOrEmpty(strHardwareAddress))
+                _dnsWebService.DhcpServer.RemoveLeaseByHardwareAddress(scopeName, strHardwareAddress);
+            else
+                throw new DnsWebServiceException("Parameter 'hardwareAddress' or 'clientIdentifier' missing. At least one of them must be specified.");
+
             _dnsWebService.DhcpServer.SaveScope(scopeName);
 
             _dnsWebService.Log.Write(DnsWebService.GetRequestRemoteEndPoint(request), "[" + _dnsWebService.GetSession(request).Username + "] DHCP scope's lease was removed successfully: " + scopeName);
