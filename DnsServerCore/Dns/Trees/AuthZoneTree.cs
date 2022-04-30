@@ -346,7 +346,6 @@ namespace DnsServerCore.Dns.Trees
             if (apexZone is not null)
             {
                 //hosted primary/secondary/stub/forwarder zone found
-                closestSubDomain = null;
                 closestDelegation = zoneValue.ParentSideZone;
                 closestAuthority = apexZone;
             }
@@ -355,7 +354,7 @@ namespace DnsServerCore.Dns.Trees
                 //hosted sub domain
                 SubDomainZone subDomainZone = zoneValue.ParentSideZone;
 
-                if ((closestDelegation is null) && subDomainZone.ContainsNameServerRecords())
+                if (subDomainZone.ContainsNameServerRecords())
                     closestDelegation = subDomainZone; //delegated sub domain found
                 else
                     closestSubDomain = subDomainZone;
