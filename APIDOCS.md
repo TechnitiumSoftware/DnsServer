@@ -2361,6 +2361,26 @@ WHERE:
 RESPONSE:
 ```
 {
+	"response": {
+		"zone": {
+			"name": "example.com",
+			"type": "Primary",
+			"internal": false,
+			"dnssecStatus": "SignedWithNSEC",
+			"disabled": false
+		},
+		"addedRecord": {
+			"disabled": false,
+			"name": "example.com",
+			"type": "A",
+			"ttl": 3600,
+			"rData": {
+				"ipAddress": "3.3.3.3"
+			},
+			"dnssecStatus": "Unknown",
+			"lastUsedOn": "0001-01-01T00:00:00"
+		}
+	},
 	"status": "ok"
 }
 ```
@@ -3018,7 +3038,32 @@ WHERE:
 RESPONSE:
 ```
 {
-	"response": {},
+	"response": {
+		"zone": {
+			"name": "example.com",
+			"type": "Primary",
+			"internal": false,
+			"dnssecStatus": "SignedWithNSEC",
+			"disabled": false
+		},
+		"updatedRecord": {
+			"disabled": false,
+			"name": "example.com",
+			"type": "SOA",
+			"ttl": 900,
+			"rData": {
+				"primaryNameServer": "server1.home",
+				"responsiblePerson": "hostadmin.example.com",
+				"serial": 75,
+				"refresh": 900,
+				"retry": 300,
+				"expire": 604800,
+				"minimum": 900
+			},
+			"dnssecStatus": "Unknown",
+			"lastUsedOn": "0001-01-01T00:00:00"
+		}
+	},
 	"status": "ok"
 }
 ```
