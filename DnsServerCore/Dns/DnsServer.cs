@@ -2423,7 +2423,7 @@ namespace DnsServerCore.Dns
             bool dnssecOk = request.DnssecOk;
 
             if (dnssecOk && request.CheckingDisabled)
-                return new DnsDatagram(request.Identifier, true, DnsOpcode.StandardQuery, false, false, true, true, resolveResponse.CheckingDisabledResponse.AuthenticData, resolveResponse.CheckingDisabledResponse.CheckingDisabled, resolveResponse.CheckingDisabledResponse.RCODE, request.Question, resolveResponse.CheckingDisabledResponse.Answer, resolveResponse.CheckingDisabledResponse.Authority, RemoveOPTFromAdditional(resolveResponse.CheckingDisabledResponse.Additional), _udpPayloadSize, dnssecOk ? EDnsHeaderFlags.DNSSEC_OK : EDnsHeaderFlags.None, resolveResponse.CheckingDisabledResponse.EDNS?.Options);
+                return new DnsDatagram(request.Identifier, true, DnsOpcode.StandardQuery, false, false, true, true, resolveResponse.CheckingDisabledResponse.AuthenticData, resolveResponse.CheckingDisabledResponse.CheckingDisabled, resolveResponse.CheckingDisabledResponse.RCODE, request.Question, resolveResponse.CheckingDisabledResponse.Answer, resolveResponse.CheckingDisabledResponse.Authority, RemoveOPTFromAdditional(resolveResponse.CheckingDisabledResponse.Additional, true), _udpPayloadSize, EDnsHeaderFlags.DNSSEC_OK, resolveResponse.CheckingDisabledResponse.EDNS?.Options);
 
             DnsDatagram response = resolveResponse.Response;
             IReadOnlyList<DnsResourceRecord> answer = response.Answer;
@@ -2528,8 +2528,18 @@ namespace DnsServerCore.Dns
 
                     foreach (DnsResourceRecord record in additional)
                     {
-                        if (record.Type == DnsResourceRecordType.OPT)
-                            continue;
+                        switch (record.Type)
+                        {
+                            case DnsResourceRecordType.OPT:
+                                continue;
+
+                            case DnsResourceRecordType.RRSIG:
+                            case DnsResourceRecordType.DNSKEY:
+                                if (dnssecOk)
+                                    break;
+
+                                continue;
+                        }
 
                         newAdditional.Add(record);
                     }
@@ -2541,14 +2551,14 @@ namespace DnsServerCore.Dns
                 else if (response.EDNS is not null)
                 {
                     //remove OPT from additional
-                    additional = RemoveOPTFromAdditional(additional);
+                    additional = RemoveOPTFromAdditional(additional, dnssecOk);
                 }
             }
 
             return new DnsDatagram(request.Identifier, true, DnsOpcode.StandardQuery, false, false, true, true, response.AuthenticData, response.CheckingDisabled, response.RCODE, request.Question, answer, authority, additional);
         }
 
-        private static IReadOnlyList<DnsResourceRecord> RemoveOPTFromAdditional(IReadOnlyList<DnsResourceRecord> additional)
+        private static IReadOnlyList<DnsResourceRecord> RemoveOPTFromAdditional(IReadOnlyList<DnsResourceRecord> additional, bool dnssecOk)
         {
             if (additional.Count == 0)
                 return additional;
@@ -2560,8 +2570,18 @@ namespace DnsServerCore.Dns
 
             foreach (DnsResourceRecord record in additional)
             {
-                if (record.Type == DnsResourceRecordType.OPT)
-                    continue;
+                switch (record.Type)
+                {
+                    case DnsResourceRecordType.OPT:
+                        continue;
+
+                    case DnsResourceRecordType.RRSIG:
+                    case DnsResourceRecordType.DNSKEY:
+                        if (dnssecOk)
+                            break;
+
+                        continue;
+                }
 
                 newAdditional.Add(record);
             }
@@ -2838,6 +2858,9 @@ namespace DnsServerCore.Dns
             try
             {
                 _cacheZoneManager.RemoveExpiredRecords();
+
+                //force GC collection to remove old cache data from memory quickly
+                GC.Collect();
             }
             catch (Exception ex)
             {
