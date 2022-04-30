@@ -249,6 +249,7 @@ namespace DnsServerCore.Dns.Trees
                             closestAuthority = authority;
                             closestAuthorityNode = currentNode;
 
+                            closestSubDomain = null; //clear previous closest sub domain
                             wildcard = null; //clear previous wildcard node
                         }
                     }
@@ -320,6 +321,8 @@ namespace DnsServerCore.Dns.Trees
                             {
                                 closestAuthority = authority;
                                 closestAuthorityNode = currentNode;
+
+                                closestSubDomain = null; //clear previous closest sub domain
                             }
                         }
 
@@ -379,6 +382,8 @@ namespace DnsServerCore.Dns.Trees
                                         {
                                             closestAuthority = authority;
                                             closestAuthorityNode = currentNode;
+
+                                            closestSubDomain = null; //clear previous closest sub domain
                                         }
                                     }
 
@@ -412,6 +417,8 @@ namespace DnsServerCore.Dns.Trees
                             {
                                 closestAuthority = authority;
                                 closestAuthorityNode = currentNode;
+
+                                closestSubDomain = null; //clear previous closest sub domain
                             }
                         }
 
