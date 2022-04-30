@@ -553,7 +553,7 @@ namespace DnsServerCore.Dhcp
                         //log issue
                         LogManager log = _log;
                         if (log != null)
-                            log.Write(remoteEP, "DHCP Server received DECLINE message: " + lease.GetClientFullIdentifier() + " detected that IP address [" + lease.Address + "] is already in use.");
+                            log.Write(remoteEP, "DHCP Server received DECLINE message: " + lease.GetClientInfo() + " detected that IP address [" + lease.Address + "] is already in use.");
 
                         //update dns
                         UpdateDnsAuthZone(false, scope, lease);
@@ -591,7 +591,7 @@ namespace DnsServerCore.Dhcp
                         //log ip lease release
                         LogManager log = _log;
                         if (log != null)
-                            log.Write(remoteEP, "DHCP Server released IP address [" + lease.Address.ToString() + "] that was leased to " + lease.GetClientFullIdentifier() + ".");
+                            log.Write(remoteEP, "DHCP Server released IP address [" + lease.Address.ToString() + "] that was leased to " + lease.GetClientInfo() + ".");
 
                         //update dns
                         UpdateDnsAuthZone(false, scope, lease);
@@ -1368,13 +1368,23 @@ namespace DnsServerCore.Dhcp
                 SaveScopeFile(scope);
         }
 
-        public void RemoveLease(string scopeName, string hardwareAddress)
+        public void RemoveLeaseByHardwareAddress(string scopeName, string hardwareAddress)
         {
             Scope scope = GetScope(scopeName);
             if (scope == null)
                 throw new DhcpServerException("DHCP scope does not exists: " + scopeName);
 
-            Lease removedLease = scope.RemoveLease(hardwareAddress);
+            Lease removedLease = scope.RemoveLeaseByHardwareAddress(hardwareAddress);
+            UpdateDnsAuthZone(false, scope, removedLease);
+        }
+
+        public void RemoveLeaseByClientIdentifier(string scopeName, string clientIdentifier)
+        {
+            Scope scope = GetScope(scopeName);
+            if (scope == null)
+                throw new DhcpServerException("DHCP scope does not exists: " + scopeName);
+
+            Lease removedLease = scope.RemoveLeaseByClientIdentifier(clientIdentifier);
             UpdateDnsAuthZone(false, scope, removedLease);
         }
 
