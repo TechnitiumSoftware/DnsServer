@@ -224,7 +224,7 @@ namespace DnsServerCore.Dns.ZoneManagers
             }
         }
 
-        private IReadOnlyList<DnsResourceRecord> GetAdditionalRecords(IReadOnlyList<DnsResourceRecord> refRecords, bool serveStale)
+        private IReadOnlyList<DnsResourceRecord> GetAdditionalRecords(IReadOnlyList<DnsResourceRecord> refRecords, bool serveStale, bool dnssecOk)
         {
             List<DnsResourceRecord> additionalRecords = new List<DnsResourceRecord>();
 
@@ -235,21 +235,21 @@ namespace DnsServerCore.Dns.ZoneManagers
                     case DnsResourceRecordType.NS:
                         DnsNSRecordData nsRecord = refRecord.RDATA as DnsNSRecordData;
                         if (nsRecord is not null)
-                            ResolveAdditionalRecords(refRecord, nsRecord.NameServer, serveStale, additionalRecords);
+                            ResolveAdditionalRecords(refRecord, nsRecord.NameServer, serveStale, dnssecOk, additionalRecords);
 
                         break;
 
                     case DnsResourceRecordType.MX:
                         DnsMXRecordData mxRecord = refRecord.RDATA as DnsMXRecordData;
                         if (mxRecord is not null)
-                            ResolveAdditionalRecords(refRecord, mxRecord.Exchange, serveStale, additionalRecords);
+                            ResolveAdditionalRecords(refRecord, mxRecord.Exchange, serveStale, dnssecOk, additionalRecords);
 
                         break;
 
                     case DnsResourceRecordType.SRV:
                         DnsSRVRecordData srvRecord = refRecord.RDATA as DnsSRVRecordData;
                         if (srvRecord is not null)
-                            ResolveAdditionalRecords(refRecord, srvRecord.Target, serveStale, additionalRecords);
+                            ResolveAdditionalRecords(refRecord, srvRecord.Target, serveStale, dnssecOk, additionalRecords);
 
                         break;
                 }
@@ -258,7 +258,7 @@ namespace DnsServerCore.Dns.ZoneManagers
             return additionalRecords;
         }
 
-        private void ResolveAdditionalRecords(DnsResourceRecord refRecord, string domain, bool serveStale, List<DnsResourceRecord> additionalRecords)
+        private void ResolveAdditionalRecords(DnsResourceRecord refRecord, string domain, bool serveStale, bool dnssecOk, List<DnsResourceRecord> additionalRecords)
         {
             IReadOnlyList<DnsResourceRecord> glueRecords = refRecord.GetGlueRecords();
             if (glueRecords.Count > 0)
@@ -271,6 +271,13 @@ namespace DnsServerCore.Dns.ZoneManagers
                     {
                         added = true;
                         additionalRecords.Add(glueRecord);
+
+                        if (dnssecOk)
+                        {
+                            IReadOnlyList<DnsResourceRecord> rrsigRecords = glueRecord.GetRecordInfo().RRSIGRecords;
+                            if (rrsigRecords is not null)
+                                additionalRecords.AddRange(rrsigRecords);
+                        }
                     }
                 }
 
@@ -429,7 +436,7 @@ namespace DnsServerCore.Dns.ZoneManagers
                 IReadOnlyList<DnsResourceRecord> closestAuthority = delegation.QueryRecords(DnsResourceRecordType.NS, false, true);
                 if ((closestAuthority.Count > 0) && (closestAuthority[0].Type == DnsResourceRecordType.NS) && (closestAuthority[0].Name.Length > 0)) //dont trust root name servers from cache!
                 {
-                    IReadOnlyList<DnsResourceRecord> additional = GetAdditionalRecords(closestAuthority, false);
+                    IReadOnlyList<DnsResourceRecord> additional = GetAdditionalRecords(closestAuthority, false, false);
 
                     return new DnsDatagram(request.Identifier, true, DnsOpcode.StandardQuery, false, false, request.RecursionDesired, true, false, false, DnsResponseCode.NoError, request.Question, null, closestAuthority, additional);
                 }
@@ -592,7 +599,7 @@ namespace DnsServerCore.Dns.ZoneManagers
                         case DnsResourceRecordType.NS:
                         case DnsResourceRecordType.MX:
                         case DnsResourceRecordType.SRV:
-                            additional = GetAdditionalRecords(answers, serveStaleAndResetExpiry);
+                            additional = GetAdditionalRecords(answers, serveStaleAndResetExpiry, request.DnssecOk);
                             break;
                     }
 
@@ -618,7 +625,7 @@ namespace DnsServerCore.Dns.ZoneManagers
                         options = new EDnsOption[] { new EDnsOption(EDnsOptionCode.EXTENDED_DNS_ERROR, new EDnsExtendedDnsErrorOption(EDnsExtendedDnsErrorCode.StaleAnswer, null)) };
                     }
 
-                    return new DnsDatagram(request.Identifier, true, DnsOpcode.StandardQuery, false, false, request.RecursionDesired, true, answers[0].DnssecStatus == DnssecStatus.Secure, request.CheckingDisabled, DnsResponseCode.NoError, request.Question, answers, authority, additional, _dnsServer.UdpPayloadSize, ednsFlags, options);
+                    return new DnsDatagram(request.Identifier, true, DnsOpcode.StandardQuery, false, false, request.RecursionDesired, true, answers[0].DnssecStatus == DnssecStatus.Secure, request.CheckingDisabled, DnsResponseCode.NoError, request.Question, answers, authority, additional, request.EDNS is null ? ushort.MinValue : _dnsServer.UdpPayloadSize, ednsFlags, options);
                 }
             }
             else
@@ -665,7 +672,7 @@ namespace DnsServerCore.Dns.ZoneManagers
                     if (request.DnssecOk)
                         closestAuthority = AddDSRecordsTo(delegation, serveStaleAndResetExpiry, closestAuthority);
 
-                    IReadOnlyList<DnsResourceRecord> additional = GetAdditionalRecords(closestAuthority, serveStaleAndResetExpiry);
+                    IReadOnlyList<DnsResourceRecord> additional = GetAdditionalRecords(closestAuthority, serveStaleAndResetExpiry, request.DnssecOk);
 
                     return new DnsDatagram(request.Identifier, true, DnsOpcode.StandardQuery, false, false, request.RecursionDesired, true, closestAuthority[0].DnssecStatus == DnssecStatus.Secure, request.CheckingDisabled, DnsResponseCode.NoError, request.Question, null, closestAuthority, additional);
                 }
