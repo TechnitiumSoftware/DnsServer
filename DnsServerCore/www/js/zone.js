@@ -812,7 +812,7 @@ function toggleHideDnssecRecords(hideDnssecRecords) {
     showEditZone($("#titleEditZone").text());
 }
 
-function showEditZone(domain) {
+function showEditZone(zone) {
     var divViewZonesLoader = $("#divViewZonesLoader");
     var divViewZones = $("#divViewZones");
     var divEditZone = $("#divEditZone");
@@ -822,22 +822,22 @@ function showEditZone(domain) {
     divViewZonesLoader.show();
 
     HTTPRequest({
-        url: "/api/zone/getRecords?token=" + token + "&domain=" + domain,
+        url: "/api/zone/getRecords?token=" + token + "&domain=" + zone,
         success: function (responseJSON) {
-            var type;
+            var zoneType;
             if (responseJSON.response.zone.internal)
-                type = "Internal";
+                zoneType = "Internal";
             else
-                type = responseJSON.response.zone.type;
+                zoneType = responseJSON.response.zone.type;
 
             switch (responseJSON.response.zone.dnssecStatus) {
                 case "SignedWithNSEC":
                 case "SignedWithNSEC3":
-                    $("#tdDnssecStatusEditZone").show();
+                    $("#titleDnssecStatusEditZone").show();
                     break;
 
                 default:
-                    $("#tdDnssecStatusEditZone").hide();
+                    $("#titleDnssecStatusEditZone").hide();
                     break;
             }
 
@@ -855,8 +855,8 @@ function showEditZone(domain) {
             else
                 expiry = "Expiry: " + moment(expiry).local().format("YYYY-MM-DD HH:mm:ss");
 
-            $("#titleEditZoneType").html(type);
-            $("#tdStatusEditZone").html(status);
+            $("#titleEditZoneType").html(zoneType);
+            $("#titleStatusEditZone").html(status);
             $("#titleEditZoneExpiry").html(expiry);
 
             if (responseJSON.response.zone.internal)
@@ -866,19 +866,19 @@ function showEditZone(domain) {
 
             switch (status) {
                 case "Disabled":
-                    $("#tdStatusEditZone").attr("class", "label label-warning");
+                    $("#titleStatusEditZone").attr("class", "label label-warning");
                     break;
 
                 case "Expired":
-                    $("#tdStatusEditZone").attr("class", "label label-danger");
+                    $("#titleStatusEditZone").attr("class", "label label-danger");
                     break;
 
                 case "Enabled":
-                    $("#tdStatusEditZone").attr("class", "label label-success");
+                    $("#titleStatusEditZone").attr("class", "label label-success");
                     break;
             }
 
-            switch (type) {
+            switch (zoneType) {
                 case "Internal":
                 case "Secondary":
                 case "Stub":
@@ -930,7 +930,7 @@ function showEditZone(domain) {
                 $("#btnEditZoneDeleteZone").show();
             }
 
-            switch (type) {
+            switch (zoneType) {
                 case "Secondary":
                 case "Stub":
                     $("#btnZoneResync").show();
@@ -941,7 +941,7 @@ function showEditZone(domain) {
                     break;
             }
 
-            switch (type) {
+            switch (zoneType) {
                 case "Primary":
                 case "Secondary":
                     $("#btnZoneOptions").show();
@@ -954,7 +954,7 @@ function showEditZone(domain) {
 
             var zoneHideDnssecRecords = (localStorage.getItem("zoneHideDnssecRecords") == "true");
 
-            switch (type) {
+            switch (zoneType) {
                 case "Primary":
                     $("#divZoneDnssecOptions").show();
 
@@ -1035,490 +1035,10 @@ function showEditZone(domain) {
                 }
 
                 recordCount++;
-                var id = Math.floor(Math.random() * 10000);
-
-                var name = records[i].name.toLowerCase();
-                if (name === "")
-                    name = ".";
-
-                if (name === domain)
-                    name = "@";
-                else
-                    name = name.replace("." + domain, "");
-
-                tableHtmlRows += "<tr id=\"tr" + id + "\"><td>" + htmlEncode(name) + "</td>";
-                tableHtmlRows += "<td>" + records[i].type + "</td>";
-                tableHtmlRows += "<td>" + records[i].ttl + "</td>";
-
-                var lastUsedOn;
-
-                if (records[i].lastUsedOn == "0001-01-01T00:00:00")
-                    lastUsedOn = moment(records[i].lastUsedOn).local().format("YYYY-MM-DD HH:mm:ss") + " (never)";
-                else
-                    lastUsedOn = moment(records[i].lastUsedOn).local().format("YYYY-MM-DD HH:mm:ss") + " (" + moment(records[i].lastUsedOn).fromNow() + ")";
-
-                var additionalDataAttributes = "";
-
-                switch (records[i].type.toUpperCase()) {
-                    case "A":
-                    case "AAAA":
-                        tableHtmlRows += "<td style=\"word-break: break-all;\">" + htmlEncode(records[i].rData.ipAddress);
-
-                        tableHtmlRows += "<br /><br /><b>Last Used:</b> " + lastUsedOn;
-
-                        if ((records[i].comments != null) && (records[i].comments.length > 0))
-                            tableHtmlRows += "<br /><b>Comments:</b> <pre style=\"white-space: pre-wrap;\">" + htmlEncode(records[i].comments) + "</pre>";
-
-                        tableHtmlRows += "</td>";
-
-                        additionalDataAttributes = "data-record-ip-address=\"" + htmlEncode(records[i].rData.ipAddress) + "\" ";
-                        break;
-
-                    case "NS":
-                        tableHtmlRows += "<td style=\"word-break: break-all;\"><b>Name Server:</b> " + htmlEncode(records[i].rData.nameServer);
-
-                        if (records[i].glueRecords != null) {
-                            tableHtmlRows += "<br /><b>Glue Addresses:</b> " + records[i].glueRecords;
-
-                            additionalDataAttributes = "data-record-glue=\"" + htmlEncode(records[i].glueRecords) + "\" ";
-                        } else {
-                            additionalDataAttributes = "data-record-glue=\"\" ";
-                        }
-
-                        tableHtmlRows += "<br /><br /><b>Last Used:</b> " + lastUsedOn;
-
-                        if ((records[i].comments != null) && (records[i].comments.length > 0))
-                            tableHtmlRows += "<br /><b>Comments:</b> <pre style=\"white-space: pre-wrap;\">" + htmlEncode(records[i].comments) + "</pre>";
-
-                        tableHtmlRows += "</td>";
-
-                        additionalDataAttributes += "data-record-name-server=\"" + htmlEncode(records[i].rData.nameServer) + "\" ";
-                        break;
-
-                    case "CNAME":
-                        tableHtmlRows += "<td style=\"word-break: break-all;\">" + htmlEncode(records[i].rData.cname);
-
-                        tableHtmlRows += "<br /><br /><b>Last Used:</b> " + lastUsedOn;
-
-                        if ((records[i].comments != null) && (records[i].comments.length > 0))
-                            tableHtmlRows += "<br /><b>Comments:</b> <pre style=\"white-space: pre-wrap;\">" + htmlEncode(records[i].comments) + "</pre>";
-
-                        tableHtmlRows += "</td>";
-
-                        additionalDataAttributes = "data-record-cname=\"" + htmlEncode(records[i].rData.cname) + "\" ";
-                        break;
-
-                    case "SOA":
-                        tableHtmlRows += "<td style=\"word-break: break-all;\"><b>Primary Name Server:</b> " + htmlEncode(records[i].rData.primaryNameServer) +
-                            "<br /><b>Responsible Person:</b> " + htmlEncode(records[i].rData.responsiblePerson) +
-                            "<br /><b>Serial:</b> " + htmlEncode(records[i].rData.serial) +
-                            "<br /><b>Refresh:</b> " + htmlEncode(records[i].rData.refresh) +
-                            "<br /><b>Retry:</b> " + htmlEncode(records[i].rData.retry) +
-                            "<br /><b>Expire:</b> " + htmlEncode(records[i].rData.expire) +
-                            "<br /><b>Minimum:</b> " + htmlEncode(records[i].rData.minimum);
-
-                        if (records[i].rData.primaryAddresses != null) {
-                            tableHtmlRows += "<br /><b>Primary Name Server Addresses:</b> " + records[i].rData.primaryAddresses;
-
-                            additionalDataAttributes = "data-record-paddresses=\"" + htmlEncode(records[i].rData.primaryAddresses) + "\" ";
-                        } else {
-                            additionalDataAttributes = "data-record-paddresses=\"\" ";
-                        }
-
-                        if (records[i].rData.zoneTransferProtocol != null) {
-                            tableHtmlRows += "<br /><b>Zone Transfer Protocol:</b> XFR-over-" + records[i].rData.zoneTransferProtocol.toUpperCase();
-
-                            additionalDataAttributes += "data-record-zonetransferprotocol=\"" + htmlEncode(records[i].rData.zoneTransferProtocol) + "\" ";
-                        } else {
-                            additionalDataAttributes += "data-record-zonetransferprotocol=\"\" ";
-                        }
-
-                        if (records[i].rData.tsigKeyName != null) {
-                            tableHtmlRows += "<br /><b>TSIG Key Name:</b> " + records[i].rData.tsigKeyName;
-
-                            additionalDataAttributes += "data-record-tsigkeyname=\"" + htmlEncode(records[i].rData.tsigKeyName) + "\" ";
-                        } else {
-                            additionalDataAttributes += "data-record-tsigkeyname=\"\" ";
-                        }
-
-                        tableHtmlRows += "<br /><br /><b>Last Used:</b> " + lastUsedOn;
-
-                        if ((records[i].comments != null) && (records[i].comments.length > 0))
-                            tableHtmlRows += "<br /><b>Comments:</b> <pre style=\"white-space: pre-wrap;\">" + htmlEncode(records[i].comments) + "</pre>";
-
-                        tableHtmlRows += "</td>";
-
-                        additionalDataAttributes += "data-record-pname=\"" + htmlEncode(records[i].rData.primaryNameServer) + "\" " +
-                            "data-record-rperson=\"" + htmlEncode(records[i].rData.responsiblePerson) + "\" " +
-                            "data-record-serial=\"" + htmlEncode(records[i].rData.serial) + "\" " +
-                            "data-record-refresh=\"" + htmlEncode(records[i].rData.refresh) + "\" " +
-                            "data-record-retry=\"" + htmlEncode(records[i].rData.retry) + "\" " +
-                            "data-record-expire=\"" + htmlEncode(records[i].rData.expire) + "\" " +
-                            "data-record-minimum=\"" + htmlEncode(records[i].rData.minimum) + "\" ";
-                        break;
-
-                    case "PTR":
-                        tableHtmlRows += "<td style=\"word-break: break-all;\">" + htmlEncode(records[i].rData.ptrName);
-
-                        tableHtmlRows += "<br /><br /><b>Last Used:</b> " + lastUsedOn;
-
-                        if ((records[i].comments != null) && (records[i].comments.length > 0))
-                            tableHtmlRows += "<br /><b>Comments:</b> <pre style=\"white-space: pre-wrap;\">" + htmlEncode(records[i].comments) + "</pre>";
-
-                        tableHtmlRows += "</td>";
-
-                        additionalDataAttributes = "data-record-ptr-name=\"" + htmlEncode(records[i].rData.ptrName) + "\" ";
-                        break;
-
-                    case "MX":
-                        tableHtmlRows += "<td style=\"word-break: break-all;\"><b>Preference: </b> " + htmlEncode(records[i].rData.preference) +
-                            "<br /><b>Exchange:</b> " + htmlEncode(records[i].rData.exchange);
-
-                        tableHtmlRows += "<br /><br /><b>Last Used:</b> " + lastUsedOn;
-
-                        if ((records[i].comments != null) && (records[i].comments.length > 0))
-                            tableHtmlRows += "<br /><b>Comments:</b> <pre style=\"white-space: pre-wrap;\">" + htmlEncode(records[i].comments) + "</pre>";
-
-                        tableHtmlRows += "</td>";
-
-                        additionalDataAttributes = "data-record-preference=\"" + htmlEncode(records[i].rData.preference) + "\" " +
-                            "data-record-exchange=\"" + htmlEncode(records[i].rData.exchange) + "\" ";
-                        break;
-
-                    case "TXT":
-                        tableHtmlRows += "<td style=\"word-break: break-all;\">" + htmlEncode(records[i].rData.text);
-
-                        tableHtmlRows += "<br /><br /><b>Last Used:</b> " + lastUsedOn;
-
-                        if ((records[i].comments != null) && (records[i].comments.length > 0))
-                            tableHtmlRows += "<br /><b>Comments:</b> <pre style=\"white-space: pre-wrap;\">" + htmlEncode(records[i].comments) + "</pre>";
-
-                        tableHtmlRows += "</td>";
-
-                        additionalDataAttributes = "data-record-text=\"" + htmlEncode(records[i].rData.text) + "\" ";
-                        break;
-
-                    case "SRV":
-                        tableHtmlRows += "<td style=\"word-break: break-all;\"><b>Priority: </b> " + htmlEncode(records[i].rData.priority) +
-                            "<br /><b>Weight:</b> " + htmlEncode(records[i].rData.weight) +
-                            "<br /><b>Port:</b> " + htmlEncode(records[i].rData.port) +
-                            "<br /><b>Target:</b> " + htmlEncode(records[i].rData.target);
-
-                        tableHtmlRows += "<br /><br /><b>Last Used:</b> " + lastUsedOn;
-
-                        if ((records[i].comments != null) && (records[i].comments.length > 0))
-                            tableHtmlRows += "<br /><b>Comments:</b> <pre style=\"white-space: pre-wrap;\">" + htmlEncode(records[i].comments) + "</pre>";
-
-                        tableHtmlRows += "</td>";
-
-                        additionalDataAttributes = "data-record-priority=\"" + htmlEncode(records[i].rData.priority) + "\" " +
-                            "data-record-weight=\"" + htmlEncode(records[i].rData.weight) + "\" " +
-                            "data-record-port=\"" + htmlEncode(records[i].rData.port) + "\" " +
-                            "data-record-target=\"" + htmlEncode(records[i].rData.target) + "\" ";
-                        break;
-
-                    case "DNAME":
-                        tableHtmlRows += "<td style=\"word-break: break-all;\">" + htmlEncode(records[i].rData.dname);
-
-                        tableHtmlRows += "<br /><br /><b>Last Used:</b> " + lastUsedOn;
-
-                        if ((records[i].comments != null) && (records[i].comments.length > 0))
-                            tableHtmlRows += "<br /><b>Comments:</b> <pre style=\"white-space: pre-wrap;\">" + htmlEncode(records[i].comments) + "</pre>";
-
-                        tableHtmlRows += "</td>";
-
-                        additionalDataAttributes = "data-record-dname=\"" + htmlEncode(records[i].rData.dname) + "\" ";
-                        break;
-
-                    case "DS":
-                        tableHtmlRows += "<td style=\"word-break: break-all;\"><b>Key Tag: </b> " + htmlEncode(records[i].rData.keyTag) +
-                            "<br /><b>Algorithm:</b> " + htmlEncode(records[i].rData.algorithm) +
-                            "<br /><b>Digest Type:</b> " + htmlEncode(records[i].rData.digestType) +
-                            "<br /><b>Digest:</b> " + htmlEncode(records[i].rData.digest);
-
-                        tableHtmlRows += "<br /><br /><b>Last Used:</b> " + lastUsedOn;
-
-                        if ((records[i].comments != null) && (records[i].comments.length > 0))
-                            tableHtmlRows += "<br /><b>Comments:</b> <pre style=\"white-space: pre-wrap;\">" + htmlEncode(records[i].comments) + "</pre>";
-
-                        tableHtmlRows += "</td>";
-
-                        additionalDataAttributes = "data-record-key-tag=\"" + htmlEncode(records[i].rData.keyTag) + "\" " +
-                            "data-record-algorithm=\"" + htmlEncode(records[i].rData.algorithm) + "\" " +
-                            "data-record-digest-type=\"" + htmlEncode(records[i].rData.digestType) + "\" " +
-                            "data-record-digest=\"" + htmlEncode(records[i].rData.digest) + "\" ";
-                        break;
-
-                    case "RRSIG":
-                        tableHtmlRows += "<td style=\"word-break: break-all;\"><b>Type Covered: </b> " + htmlEncode(records[i].rData.typeCovered) +
-                            "<br /><b>Algorithm:</b> " + htmlEncode(records[i].rData.algorithm) +
-                            "<br /><b>Labels:</b> " + htmlEncode(records[i].rData.labels) +
-                            "<br /><b>Original TTL:</b> " + htmlEncode(records[i].rData.originalTtl) +
-                            "<br /><b>Signature Expiration:</b> " + moment(records[i].rData.signatureExpiration).local().format("YYYY-MM-DD HH:mm:ss") +
-                            "<br /><b>Signature Inception:</b> " + moment(records[i].rData.signatureInception).local().format("YYYY-MM-DD HH:mm:ss") +
-                            "<br /><b>Key Tag:</b> " + htmlEncode(records[i].rData.keyTag) +
-                            "<br /><b>Signer's Name:</b> " + htmlEncode(records[i].rData.signersName) +
-                            "<br /><b>Signature:</b> " + htmlEncode(records[i].rData.signature);
-
-                        tableHtmlRows += "<br /><br /><b>Last Used:</b> " + lastUsedOn;
-
-                        if ((records[i].comments != null) && (records[i].comments.length > 0))
-                            tableHtmlRows += "<br /><b>Comments:</b> <pre style=\"white-space: pre-wrap;\">" + htmlEncode(records[i].comments) + "</pre>";
-
-                        tableHtmlRows += "</td>";
-
-                        additionalDataAttributes = "";
-                        break;
-
-                    case "NSEC":
-                        var nsecTypes = null;
-
-                        for (var j = 0; j < records[i].rData.types.length; j++) {
-                            if (nsecTypes == null)
-                                nsecTypes = records[i].rData.types[j];
-                            else
-                                nsecTypes += ", " + records[i].rData.types[j];
-                        }
-
-                        tableHtmlRows += "<td style=\"word-break: break-all;\"><b>Next Domain Name: </b> " + htmlEncode(records[i].rData.nextDomainName) +
-                            "<br /><b>Types:</b> " + htmlEncode(nsecTypes);
-
-                        tableHtmlRows += "<br /><br /><b>Last Used:</b> " + lastUsedOn;
-
-                        if ((records[i].comments != null) && (records[i].comments.length > 0))
-                            tableHtmlRows += "<br /><b>Comments:</b> <pre style=\"white-space: pre-wrap;\">" + htmlEncode(records[i].comments) + "</pre>";
-
-                        tableHtmlRows += "</td>";
-
-                        additionalDataAttributes = "";
-                        break;
-
-                    case "DNSKEY":
-                        tableHtmlRows += "<td style=\"word-break: break-all;\"><b>Flags: </b> " + htmlEncode(records[i].rData.flags) +
-                            "<br /><b>Protocol:</b> " + htmlEncode(records[i].rData.protocol) +
-                            "<br /><b>Algorithm:</b> " + htmlEncode(records[i].rData.algorithm) +
-                            "<br /><b>Public Key:</b> " + htmlEncode(records[i].rData.publicKey);
-
-                        if (records[i].rData.dnsKeyState == null)
-                            tableHtmlRows += "<br />";
-                        else
-                            tableHtmlRows += "<br /><br /><b>Key State:</b> " + htmlEncode(records[i].rData.dnsKeyState);
-
-                        tableHtmlRows += "<br /><b>Computed Key Tag:</b> " + htmlEncode(records[i].rData.computedKeyTag);
-
-                        if (records[i].rData.computedDigests != null) {
-                            tableHtmlRows += "<br /><b>Computed Digests:</b> ";
-
-                            for (var j = 0; j < records[i].rData.computedDigests.length; j++) {
-                                tableHtmlRows += "<br />" + htmlEncode(records[i].rData.computedDigests[j].digestType) + ": " + htmlEncode(records[i].rData.computedDigests[j].digest)
-                            }
-                        }
-
-                        tableHtmlRows += "<br /><br /><b>Last Used:</b> " + lastUsedOn;
-
-                        if ((records[i].comments != null) && (records[i].comments.length > 0))
-                            tableHtmlRows += "<br /><b>Comments:</b> <pre style=\"white-space: pre-wrap;\">" + htmlEncode(records[i].comments) + "</pre>";
-
-                        tableHtmlRows += "</td>";
-
-                        additionalDataAttributes = "";
-                        break;
-
-                    case "NSEC3":
-                        var nsec3Types = null;
-
-                        for (var j = 0; j < records[i].rData.types.length; j++) {
-                            if (nsec3Types == null)
-                                nsec3Types = records[i].rData.types[j];
-                            else
-                                nsec3Types += ", " + records[i].rData.types[j];
-                        }
-
-                        tableHtmlRows += "<td style=\"word-break: break-all;\"><b>Hash Algorithm: </b> " + htmlEncode(records[i].rData.hashAlgorithm) +
-                            "<br /><b>Flags: </b> " + htmlEncode(records[i].rData.flags) +
-                            "<br /><b>Iterations: </b> " + htmlEncode(records[i].rData.iterations) +
-                            "<br /><b>Salt: </b>" + htmlEncode(records[i].rData.salt) +
-                            "<br /><b>Next Hashed Owner Name: </b> " + htmlEncode(records[i].rData.nextHashedOwnerName) +
-                            "<br /><b>Types:</b> " + htmlEncode(nsec3Types);
-
-                        tableHtmlRows += "<br /><br /><b>Last Used:</b> " + lastUsedOn;
-
-                        if ((records[i].comments != null) && (records[i].comments.length > 0))
-                            tableHtmlRows += "<br /><b>Comments:</b> <pre style=\"white-space: pre-wrap;\">" + htmlEncode(records[i].comments) + "</pre>";
-
-                        tableHtmlRows += "</td>";
-
-                        additionalDataAttributes = "";
-                        break;
-
-                    case "NSEC3PARAM":
-                        tableHtmlRows += "<td style=\"word-break: break-all;\"><b>Hash Algorithm: </b> " + htmlEncode(records[i].rData.hashAlgorithm) +
-                            "<br /><b>Flags: </b> " + htmlEncode(records[i].rData.flags) +
-                            "<br /><b>Iterations: </b> " + htmlEncode(records[i].rData.iterations) +
-                            "<br /><b>Salt: </b>" + htmlEncode(records[i].rData.salt);
-
-                        tableHtmlRows += "<br /><br /><b>Last Used:</b> " + lastUsedOn;
-
-                        if ((records[i].comments != null) && (records[i].comments.length > 0))
-                            tableHtmlRows += "<br /><b>Comments:</b> <pre style=\"white-space: pre-wrap;\">" + htmlEncode(records[i].comments) + "</pre>";
-
-                        tableHtmlRows += "</td>";
-
-                        additionalDataAttributes = "";
-                        break;
-
-                    case "CAA":
-                        tableHtmlRows += "<td style=\"word-break: break-all;\"><b>Flags: </b> " + htmlEncode(records[i].rData.flags) +
-                            "<br /><b>Tag:</b> " + htmlEncode(records[i].rData.tag) +
-                            "<br /><b>Authority:</b> " + htmlEncode(records[i].rData.value);
-
-                        tableHtmlRows += "<br /><br /><b>Last Used:</b> " + lastUsedOn;
-
-                        if ((records[i].comments != null) && (records[i].comments.length > 0))
-                            tableHtmlRows += "<br /><b>Comments:</b> <pre style=\"white-space: pre-wrap;\">" + htmlEncode(records[i].comments) + "</pre>";
-
-                        tableHtmlRows += "</td>";
-
-                        additionalDataAttributes = "data-record-flags=\"" + htmlEncode(records[i].rData.flags) + "\" " +
-                            "data-record-tag=\"" + htmlEncode(records[i].rData.tag) + "\" " +
-                            "data-record-value=\"" + htmlEncode(records[i].rData.value) + "\" ";
-                        break;
-
-                    case "ANAME":
-                        tableHtmlRows += "<td style=\"word-break: break-all;\">" + htmlEncode(records[i].rData.aname);
-
-                        tableHtmlRows += "<br /><br /><b>Last Used:</b> " + lastUsedOn;
-
-                        if ((records[i].comments != null) && (records[i].comments.length > 0))
-                            tableHtmlRows += "<br /><b>Comments:</b> <pre style=\"white-space: pre-wrap;\">" + htmlEncode(records[i].comments) + "</pre>";
-
-                        tableHtmlRows += "</td>";
-
-                        additionalDataAttributes = "data-record-aname=\"" + htmlEncode(records[i].rData.aname) + "\" ";
-                        break;
-
-                    case "FWD":
-                        tableHtmlRows += "<td style=\"word-break: break-all;\"><b>Protocol: </b> " + htmlEncode(records[i].rData.protocol) +
-                            "<br /><b>Forwarder:</b> " + htmlEncode(records[i].rData.forwarder) +
-                            "<br /><b>Enable DNSSEC Validation:</b> " + htmlEncode(records[i].rData.dnssecValidation) +
-                            "<br /><b>Proxy Type:</b> " + htmlEncode(records[i].rData.proxyType);
-
-                        if (records[i].rData.proxyType !== "None") {
-                            tableHtmlRows += "<br /><b>Proxy Address:</b> " + htmlEncode(records[i].rData.proxyAddress) +
-                                "<br /><b>Proxy Port:</b> " + htmlEncode(records[i].rData.proxyPort) +
-                                "<br /><b>Proxy Username:</b> " + htmlEncode(records[i].rData.proxyUsername) +
-                                "<br /><b>Proxy Password:</b> ************";
-                        }
-
-                        tableHtmlRows += "<br /><br /><b>Last Used:</b> " + lastUsedOn;
-
-                        if ((records[i].comments != null) && (records[i].comments.length > 0))
-                            tableHtmlRows += "<br /><b>Comments:</b> <pre style=\"white-space: pre-wrap;\">" + htmlEncode(records[i].comments) + "</pre>";
-
-                        tableHtmlRows += "</td>";
-
-                        additionalDataAttributes = "data-record-protocol=\"" + htmlEncode(records[i].rData.protocol) + "\" " +
-                            "data-record-forwarder=\"" + htmlEncode(records[i].rData.forwarder) + "\" " +
-                            "data-record-dnssec-validation=\"" + htmlEncode(records[i].rData.dnssecValidation) + "\" " +
-                            "data-record-proxy-type=\"" + htmlEncode(records[i].rData.proxyType) + "\" ";
-
-                        if (records[i].rData.proxyType != "None") {
-                            additionalDataAttributes += "data-record-proxy-address=\"" + htmlEncode(records[i].rData.proxyAddress) + "\" " +
-                                "data-record-proxy-port=\"" + htmlEncode(records[i].rData.proxyPort) + "\" " +
-                                "data-record-proxy-username=\"" + htmlEncode(records[i].rData.proxyUsername) + "\" " +
-                                "data-record-proxy-password=\"" + htmlEncode(records[i].rData.proxyPassword) + "\" ";
-                        }
-                        break;
-
-                    case "APP":
-                        tableHtmlRows += "<td style=\"word-break: break-all;\"><b>App Name: </b> " + htmlEncode(records[i].rData.appName) +
-                            "<br /><b>Class Path:</b> " + htmlEncode(records[i].rData.classPath) +
-                            "<br /><b>Record Data:</b> " + (records[i].rData.data == "" ? "" : "<pre style=\"white-space: pre-wrap;\">" + htmlEncode(records[i].rData.data) + "</pre>");
-
-                        tableHtmlRows += "<br /><br /><b>Last Used:</b> " + lastUsedOn;
-
-                        if ((records[i].comments != null) && (records[i].comments.length > 0))
-                            tableHtmlRows += "<br /><b>Comments:</b> <pre style=\"white-space: pre-wrap;\">" + htmlEncode(records[i].comments) + "</pre>";
-
-                        tableHtmlRows += "</td>";
-
-                        additionalDataAttributes = "data-record-app-name=\"" + htmlEncode(records[i].rData.appName) + "\" " +
-                            "data-record-classpath=\"" + htmlEncode(records[i].rData.classPath) + "\" " +
-                            "data-record-data=\"" + htmlEncode(records[i].rData.data) + "\"";
-                        break;
-
-                    default:
-                        tableHtmlRows += "<td style=\"word-break: break-all;\"><b>RDATA:</b> " + htmlEncode(records[i].rData.value) + "</td>";
-                        break;
-                }
-
-                var hideActionButtons = false;
-                var disableEnableDisableDeleteButtons = false;
-
-                switch (type) {
-                    case "Internal":
-                        hideActionButtons = true;
-                        break;
-
-                    case "Secondary":
-                        switch (records[i].type) {
-                            case "SOA":
-                                disableEnableDisableDeleteButtons = true;
-                                break;
-
-                            default:
-                                hideActionButtons = true;
-                                break;
-                        }
-                        break;
-
-                    case "Stub":
-                        switch (records[i].type) {
-                            case "SOA":
-                                disableEnableDisableDeleteButtons = true;
-                                break;
-
-                            case "NS":
-                                if (name == "@")
-                                    hideActionButtons = true;
-
-                                break;
-                        }
-                        break;
-
-                    default:
-                        switch (records[i].type) {
-                            case "SOA":
-                                disableEnableDisableDeleteButtons = true;
-                                break;
-
-                            case "DNSKEY":
-                            case "RRSIG":
-                            case "NSEC":
-                            case "NSEC3":
-                            case "NSEC3PARAM":
-                                hideActionButtons = true;
-                                break;
-                        }
-                        break;
-                }
-
-                if (hideActionButtons) {
-                    tableHtmlRows += "<td align=\"right\">&nbsp;</td>";
-                }
-                else {
-                    tableHtmlRows += "<td align=\"right\" style=\"min-width: 220px;\">";
-                    tableHtmlRows += "<div id=\"data" + id + "\" data-record-name=\"" + htmlEncode(records[i].name) + "\" data-record-type=\"" + records[i].type + "\" data-record-ttl=\"" + records[i].ttl + "\" " + additionalDataAttributes + " data-record-disabled=\"" + records[i].disabled + "\" data-record-comments=\"" + htmlEncode(records[i].comments) + "\" style=\"display: none;\"></div>";
-                    tableHtmlRows += "<button type=\"button\" class=\"btn btn-primary\" style=\"font-size: 12px; padding: 2px 0px; width: 60px; margin: 0 6px 0 0;\" data-id=\"" + id + "\" onclick=\"showEditRecordModal(this);\">Edit</button>";
-                    tableHtmlRows += "<button type=\"button\" class=\"btn btn-default\" id=\"btnEnableRecord" + id + "\" style=\"font-size: 12px; padding: 2px 0px; width: 60px; margin: 0 6px 0 0;" + (records[i].disabled ? "" : " display: none;") + "\" data-id=\"" + id + "\" onclick=\"updateRecordState(this, false);\"" + (disableEnableDisableDeleteButtons ? " disabled" : "") + " data-loading-text=\"Enabling...\">Enable</button>";
-                    tableHtmlRows += "<button type=\"button\" class=\"btn btn-warning\" id=\"btnDisableRecord" + id + "\" style=\"font-size: 12px; padding: 2px 0px; width: 60px; margin: 0 6px 0 0;" + (!records[i].disabled ? "" : " display: none;") + "\" data-id=\"" + id + "\" onclick=\"updateRecordState(this, true);\"" + (disableEnableDisableDeleteButtons ? " disabled" : "") + " data-loading-text=\"Disabling...\">Disable</button>";
-                    tableHtmlRows += "<button type=\"button\" class=\"btn btn-danger\" style=\"font-size: 12px; padding: 2px 0px; width: 60px; margin: 0 6px 0 0;\" data-loading-text=\"Deleting...\" data-id=\"" + id + "\" onclick=\"deleteRecord(this);\"" + (disableEnableDisableDeleteButtons ? " disabled" : "") + ">Delete</button></td>";
-                }
-
-                tableHtmlRows += "</tr>";
+                tableHtmlRows += getZoneRecordRowHtml(i, zone, zoneType, records[i]);
             }
 
-            $("#titleEditZone").text(domain);
+            $("#titleEditZone").text(zone);
             $("#tableEditZoneBody").html(tableHtmlRows);
 
             if (recordCount > 0)
@@ -1538,6 +1058,490 @@ function showEditZone(domain) {
         },
         objLoaderPlaceholder: divViewZonesLoader
     });
+}
+
+function getZoneRecordRowHtml(id, zone, zoneType, record) {
+    var name = record.name.toLowerCase();
+    if (name === "")
+        name = ".";
+
+    if (name === zone)
+        name = "@";
+    else
+        name = name.replace("." + zone, "");
+
+    var tableHtmlRow = "<tr id=\"trZoneRecord" + id + "\"><td>" + htmlEncode(name) + "</td>";
+    tableHtmlRow += "<td>" + record.type + "</td>";
+    tableHtmlRow += "<td>" + record.ttl + "</td>";
+
+    var lastUsedOn;
+
+    if (record.lastUsedOn == "0001-01-01T00:00:00")
+        lastUsedOn = moment(record.lastUsedOn).local().format("YYYY-MM-DD HH:mm:ss") + " (never)";
+    else
+        lastUsedOn = moment(record.lastUsedOn).local().format("YYYY-MM-DD HH:mm:ss") + " (" + moment(record.lastUsedOn).fromNow() + ")";
+
+    var additionalDataAttributes = "";
+
+    switch (record.type.toUpperCase()) {
+        case "A":
+        case "AAAA":
+            tableHtmlRow += "<td style=\"word-break: break-all;\">" + htmlEncode(record.rData.ipAddress);
+
+            tableHtmlRow += "<br /><br /><b>Last Used:</b> " + lastUsedOn;
+
+            if ((record.comments != null) && (record.comments.length > 0))
+                tableHtmlRow += "<br /><b>Comments:</b> <pre style=\"white-space: pre-wrap;\">" + htmlEncode(record.comments) + "</pre>";
+
+            tableHtmlRow += "</td>";
+
+            additionalDataAttributes = "data-record-ip-address=\"" + htmlEncode(record.rData.ipAddress) + "\" ";
+            break;
+
+        case "NS":
+            tableHtmlRow += "<td style=\"word-break: break-all;\"><b>Name Server:</b> " + htmlEncode(record.rData.nameServer);
+
+            if (record.glueRecords != null) {
+                tableHtmlRow += "<br /><b>Glue Addresses:</b> " + record.glueRecords;
+
+                additionalDataAttributes = "data-record-glue=\"" + htmlEncode(record.glueRecords) + "\" ";
+            } else {
+                additionalDataAttributes = "data-record-glue=\"\" ";
+            }
+
+            tableHtmlRow += "<br /><br /><b>Last Used:</b> " + lastUsedOn;
+
+            if ((record.comments != null) && (record.comments.length > 0))
+                tableHtmlRow += "<br /><b>Comments:</b> <pre style=\"white-space: pre-wrap;\">" + htmlEncode(record.comments) + "</pre>";
+
+            tableHtmlRow += "</td>";
+
+            additionalDataAttributes += "data-record-name-server=\"" + htmlEncode(record.rData.nameServer) + "\" ";
+            break;
+
+        case "CNAME":
+            tableHtmlRow += "<td style=\"word-break: break-all;\">" + htmlEncode(record.rData.cname);
+
+            tableHtmlRow += "<br /><br /><b>Last Used:</b> " + lastUsedOn;
+
+            if ((record.comments != null) && (record.comments.length > 0))
+                tableHtmlRow += "<br /><b>Comments:</b> <pre style=\"white-space: pre-wrap;\">" + htmlEncode(record.comments) + "</pre>";
+
+            tableHtmlRow += "</td>";
+
+            additionalDataAttributes = "data-record-cname=\"" + htmlEncode(record.rData.cname) + "\" ";
+            break;
+
+        case "SOA":
+            tableHtmlRow += "<td style=\"word-break: break-all;\"><b>Primary Name Server:</b> " + htmlEncode(record.rData.primaryNameServer) +
+                "<br /><b>Responsible Person:</b> " + htmlEncode(record.rData.responsiblePerson) +
+                "<br /><b>Serial:</b> " + htmlEncode(record.rData.serial) +
+                "<br /><b>Refresh:</b> " + htmlEncode(record.rData.refresh) +
+                "<br /><b>Retry:</b> " + htmlEncode(record.rData.retry) +
+                "<br /><b>Expire:</b> " + htmlEncode(record.rData.expire) +
+                "<br /><b>Minimum:</b> " + htmlEncode(record.rData.minimum);
+
+            if (record.rData.primaryAddresses != null) {
+                tableHtmlRow += "<br /><b>Primary Name Server Addresses:</b> " + record.rData.primaryAddresses;
+
+                additionalDataAttributes = "data-record-paddresses=\"" + htmlEncode(record.rData.primaryAddresses) + "\" ";
+            } else {
+                additionalDataAttributes = "data-record-paddresses=\"\" ";
+            }
+
+            if (record.rData.zoneTransferProtocol != null) {
+                tableHtmlRow += "<br /><b>Zone Transfer Protocol:</b> XFR-over-" + record.rData.zoneTransferProtocol.toUpperCase();
+
+                additionalDataAttributes += "data-record-zonetransferprotocol=\"" + htmlEncode(record.rData.zoneTransferProtocol) + "\" ";
+            } else {
+                additionalDataAttributes += "data-record-zonetransferprotocol=\"\" ";
+            }
+
+            if (record.rData.tsigKeyName != null) {
+                tableHtmlRow += "<br /><b>TSIG Key Name:</b> " + record.rData.tsigKeyName;
+
+                additionalDataAttributes += "data-record-tsigkeyname=\"" + htmlEncode(record.rData.tsigKeyName) + "\" ";
+            } else {
+                additionalDataAttributes += "data-record-tsigkeyname=\"\" ";
+            }
+
+            tableHtmlRow += "<br /><br /><b>Last Used:</b> " + lastUsedOn;
+
+            if ((record.comments != null) && (record.comments.length > 0))
+                tableHtmlRow += "<br /><b>Comments:</b> <pre style=\"white-space: pre-wrap;\">" + htmlEncode(record.comments) + "</pre>";
+
+            tableHtmlRow += "</td>";
+
+            additionalDataAttributes += "data-record-pname=\"" + htmlEncode(record.rData.primaryNameServer) + "\" " +
+                "data-record-rperson=\"" + htmlEncode(record.rData.responsiblePerson) + "\" " +
+                "data-record-serial=\"" + htmlEncode(record.rData.serial) + "\" " +
+                "data-record-refresh=\"" + htmlEncode(record.rData.refresh) + "\" " +
+                "data-record-retry=\"" + htmlEncode(record.rData.retry) + "\" " +
+                "data-record-expire=\"" + htmlEncode(record.rData.expire) + "\" " +
+                "data-record-minimum=\"" + htmlEncode(record.rData.minimum) + "\" ";
+            break;
+
+        case "PTR":
+            tableHtmlRow += "<td style=\"word-break: break-all;\">" + htmlEncode(record.rData.ptrName);
+
+            tableHtmlRow += "<br /><br /><b>Last Used:</b> " + lastUsedOn;
+
+            if ((record.comments != null) && (record.comments.length > 0))
+                tableHtmlRow += "<br /><b>Comments:</b> <pre style=\"white-space: pre-wrap;\">" + htmlEncode(record.comments) + "</pre>";
+
+            tableHtmlRow += "</td>";
+
+            additionalDataAttributes = "data-record-ptr-name=\"" + htmlEncode(record.rData.ptrName) + "\" ";
+            break;
+
+        case "MX":
+            tableHtmlRow += "<td style=\"word-break: break-all;\"><b>Preference: </b> " + htmlEncode(record.rData.preference) +
+                "<br /><b>Exchange:</b> " + htmlEncode(record.rData.exchange);
+
+            tableHtmlRow += "<br /><br /><b>Last Used:</b> " + lastUsedOn;
+
+            if ((record.comments != null) && (record.comments.length > 0))
+                tableHtmlRow += "<br /><b>Comments:</b> <pre style=\"white-space: pre-wrap;\">" + htmlEncode(record.comments) + "</pre>";
+
+            tableHtmlRow += "</td>";
+
+            additionalDataAttributes = "data-record-preference=\"" + htmlEncode(record.rData.preference) + "\" " +
+                "data-record-exchange=\"" + htmlEncode(record.rData.exchange) + "\" ";
+            break;
+
+        case "TXT":
+            tableHtmlRow += "<td style=\"word-break: break-all;\">" + htmlEncode(record.rData.text);
+
+            tableHtmlRow += "<br /><br /><b>Last Used:</b> " + lastUsedOn;
+
+            if ((record.comments != null) && (record.comments.length > 0))
+                tableHtmlRow += "<br /><b>Comments:</b> <pre style=\"white-space: pre-wrap;\">" + htmlEncode(record.comments) + "</pre>";
+
+            tableHtmlRow += "</td>";
+
+            additionalDataAttributes = "data-record-text=\"" + htmlEncode(record.rData.text) + "\" ";
+            break;
+
+        case "SRV":
+            tableHtmlRow += "<td style=\"word-break: break-all;\"><b>Priority: </b> " + htmlEncode(record.rData.priority) +
+                "<br /><b>Weight:</b> " + htmlEncode(record.rData.weight) +
+                "<br /><b>Port:</b> " + htmlEncode(record.rData.port) +
+                "<br /><b>Target:</b> " + htmlEncode(record.rData.target);
+
+            tableHtmlRow += "<br /><br /><b>Last Used:</b> " + lastUsedOn;
+
+            if ((record.comments != null) && (record.comments.length > 0))
+                tableHtmlRow += "<br /><b>Comments:</b> <pre style=\"white-space: pre-wrap;\">" + htmlEncode(record.comments) + "</pre>";
+
+            tableHtmlRow += "</td>";
+
+            additionalDataAttributes = "data-record-priority=\"" + htmlEncode(record.rData.priority) + "\" " +
+                "data-record-weight=\"" + htmlEncode(record.rData.weight) + "\" " +
+                "data-record-port=\"" + htmlEncode(record.rData.port) + "\" " +
+                "data-record-target=\"" + htmlEncode(record.rData.target) + "\" ";
+            break;
+
+        case "DNAME":
+            tableHtmlRow += "<td style=\"word-break: break-all;\">" + htmlEncode(record.rData.dname);
+
+            tableHtmlRow += "<br /><br /><b>Last Used:</b> " + lastUsedOn;
+
+            if ((record.comments != null) && (record.comments.length > 0))
+                tableHtmlRow += "<br /><b>Comments:</b> <pre style=\"white-space: pre-wrap;\">" + htmlEncode(record.comments) + "</pre>";
+
+            tableHtmlRow += "</td>";
+
+            additionalDataAttributes = "data-record-dname=\"" + htmlEncode(record.rData.dname) + "\" ";
+            break;
+
+        case "DS":
+            tableHtmlRow += "<td style=\"word-break: break-all;\"><b>Key Tag: </b> " + htmlEncode(record.rData.keyTag) +
+                "<br /><b>Algorithm:</b> " + htmlEncode(record.rData.algorithm) +
+                "<br /><b>Digest Type:</b> " + htmlEncode(record.rData.digestType) +
+                "<br /><b>Digest:</b> " + htmlEncode(record.rData.digest);
+
+            tableHtmlRow += "<br /><br /><b>Last Used:</b> " + lastUsedOn;
+
+            if ((record.comments != null) && (record.comments.length > 0))
+                tableHtmlRow += "<br /><b>Comments:</b> <pre style=\"white-space: pre-wrap;\">" + htmlEncode(record.comments) + "</pre>";
+
+            tableHtmlRow += "</td>";
+
+            additionalDataAttributes = "data-record-key-tag=\"" + htmlEncode(record.rData.keyTag) + "\" " +
+                "data-record-algorithm=\"" + htmlEncode(record.rData.algorithm) + "\" " +
+                "data-record-digest-type=\"" + htmlEncode(record.rData.digestType) + "\" " +
+                "data-record-digest=\"" + htmlEncode(record.rData.digest) + "\" ";
+            break;
+
+        case "RRSIG":
+            tableHtmlRow += "<td style=\"word-break: break-all;\"><b>Type Covered: </b> " + htmlEncode(record.rData.typeCovered) +
+                "<br /><b>Algorithm:</b> " + htmlEncode(record.rData.algorithm) +
+                "<br /><b>Labels:</b> " + htmlEncode(record.rData.labels) +
+                "<br /><b>Original TTL:</b> " + htmlEncode(record.rData.originalTtl) +
+                "<br /><b>Signature Expiration:</b> " + moment(record.rData.signatureExpiration).local().format("YYYY-MM-DD HH:mm:ss") +
+                "<br /><b>Signature Inception:</b> " + moment(record.rData.signatureInception).local().format("YYYY-MM-DD HH:mm:ss") +
+                "<br /><b>Key Tag:</b> " + htmlEncode(record.rData.keyTag) +
+                "<br /><b>Signer's Name:</b> " + htmlEncode(record.rData.signersName) +
+                "<br /><b>Signature:</b> " + htmlEncode(record.rData.signature);
+
+            tableHtmlRow += "<br /><br /><b>Last Used:</b> " + lastUsedOn;
+
+            if ((record.comments != null) && (record.comments.length > 0))
+                tableHtmlRow += "<br /><b>Comments:</b> <pre style=\"white-space: pre-wrap;\">" + htmlEncode(record.comments) + "</pre>";
+
+            tableHtmlRow += "</td>";
+
+            additionalDataAttributes = "";
+            break;
+
+        case "NSEC":
+            var nsecTypes = null;
+
+            for (var j = 0; j < record.rData.types.length; j++) {
+                if (nsecTypes == null)
+                    nsecTypes = record.rData.types[j];
+                else
+                    nsecTypes += ", " + record.rData.types[j];
+            }
+
+            tableHtmlRow += "<td style=\"word-break: break-all;\"><b>Next Domain Name: </b> " + htmlEncode(record.rData.nextDomainName) +
+                "<br /><b>Types:</b> " + htmlEncode(nsecTypes);
+
+            tableHtmlRow += "<br /><br /><b>Last Used:</b> " + lastUsedOn;
+
+            if ((record.comments != null) && (record.comments.length > 0))
+                tableHtmlRow += "<br /><b>Comments:</b> <pre style=\"white-space: pre-wrap;\">" + htmlEncode(record.comments) + "</pre>";
+
+            tableHtmlRow += "</td>";
+
+            additionalDataAttributes = "";
+            break;
+
+        case "DNSKEY":
+            tableHtmlRow += "<td style=\"word-break: break-all;\"><b>Flags: </b> " + htmlEncode(record.rData.flags) +
+                "<br /><b>Protocol:</b> " + htmlEncode(record.rData.protocol) +
+                "<br /><b>Algorithm:</b> " + htmlEncode(record.rData.algorithm) +
+                "<br /><b>Public Key:</b> " + htmlEncode(record.rData.publicKey);
+
+            if (record.rData.dnsKeyState == null)
+                tableHtmlRow += "<br />";
+            else
+                tableHtmlRow += "<br /><br /><b>Key State:</b> " + htmlEncode(record.rData.dnsKeyState);
+
+            tableHtmlRow += "<br /><b>Computed Key Tag:</b> " + htmlEncode(record.rData.computedKeyTag);
+
+            if (record.rData.computedDigests != null) {
+                tableHtmlRow += "<br /><b>Computed Digests:</b> ";
+
+                for (var j = 0; j < record.rData.computedDigests.length; j++) {
+                    tableHtmlRow += "<br />" + htmlEncode(record.rData.computedDigests[j].digestType) + ": " + htmlEncode(record.rData.computedDigests[j].digest)
+                }
+            }
+
+            tableHtmlRow += "<br /><br /><b>Last Used:</b> " + lastUsedOn;
+
+            if ((record.comments != null) && (record.comments.length > 0))
+                tableHtmlRow += "<br /><b>Comments:</b> <pre style=\"white-space: pre-wrap;\">" + htmlEncode(record.comments) + "</pre>";
+
+            tableHtmlRow += "</td>";
+
+            additionalDataAttributes = "";
+            break;
+
+        case "NSEC3":
+            var nsec3Types = null;
+
+            for (var j = 0; j < record.rData.types.length; j++) {
+                if (nsec3Types == null)
+                    nsec3Types = record.rData.types[j];
+                else
+                    nsec3Types += ", " + record.rData.types[j];
+            }
+
+            tableHtmlRow += "<td style=\"word-break: break-all;\"><b>Hash Algorithm: </b> " + htmlEncode(record.rData.hashAlgorithm) +
+                "<br /><b>Flags: </b> " + htmlEncode(record.rData.flags) +
+                "<br /><b>Iterations: </b> " + htmlEncode(record.rData.iterations) +
+                "<br /><b>Salt: </b>" + htmlEncode(record.rData.salt) +
+                "<br /><b>Next Hashed Owner Name: </b> " + htmlEncode(record.rData.nextHashedOwnerName) +
+                "<br /><b>Types:</b> " + htmlEncode(nsec3Types);
+
+            tableHtmlRow += "<br /><br /><b>Last Used:</b> " + lastUsedOn;
+
+            if ((record.comments != null) && (record.comments.length > 0))
+                tableHtmlRow += "<br /><b>Comments:</b> <pre style=\"white-space: pre-wrap;\">" + htmlEncode(record.comments) + "</pre>";
+
+            tableHtmlRow += "</td>";
+
+            additionalDataAttributes = "";
+            break;
+
+        case "NSEC3PARAM":
+            tableHtmlRow += "<td style=\"word-break: break-all;\"><b>Hash Algorithm: </b> " + htmlEncode(record.rData.hashAlgorithm) +
+                "<br /><b>Flags: </b> " + htmlEncode(record.rData.flags) +
+                "<br /><b>Iterations: </b> " + htmlEncode(record.rData.iterations) +
+                "<br /><b>Salt: </b>" + htmlEncode(record.rData.salt);
+
+            tableHtmlRow += "<br /><br /><b>Last Used:</b> " + lastUsedOn;
+
+            if ((record.comments != null) && (record.comments.length > 0))
+                tableHtmlRow += "<br /><b>Comments:</b> <pre style=\"white-space: pre-wrap;\">" + htmlEncode(record.comments) + "</pre>";
+
+            tableHtmlRow += "</td>";
+
+            additionalDataAttributes = "";
+            break;
+
+        case "CAA":
+            tableHtmlRow += "<td style=\"word-break: break-all;\"><b>Flags: </b> " + htmlEncode(record.rData.flags) +
+                "<br /><b>Tag:</b> " + htmlEncode(record.rData.tag) +
+                "<br /><b>Authority:</b> " + htmlEncode(record.rData.value);
+
+            tableHtmlRow += "<br /><br /><b>Last Used:</b> " + lastUsedOn;
+
+            if ((record.comments != null) && (record.comments.length > 0))
+                tableHtmlRow += "<br /><b>Comments:</b> <pre style=\"white-space: pre-wrap;\">" + htmlEncode(record.comments) + "</pre>";
+
+            tableHtmlRow += "</td>";
+
+            additionalDataAttributes = "data-record-flags=\"" + htmlEncode(record.rData.flags) + "\" " +
+                "data-record-tag=\"" + htmlEncode(record.rData.tag) + "\" " +
+                "data-record-value=\"" + htmlEncode(record.rData.value) + "\" ";
+            break;
+
+        case "ANAME":
+            tableHtmlRow += "<td style=\"word-break: break-all;\">" + htmlEncode(record.rData.aname);
+
+            tableHtmlRow += "<br /><br /><b>Last Used:</b> " + lastUsedOn;
+
+            if ((record.comments != null) && (record.comments.length > 0))
+                tableHtmlRow += "<br /><b>Comments:</b> <pre style=\"white-space: pre-wrap;\">" + htmlEncode(record.comments) + "</pre>";
+
+            tableHtmlRow += "</td>";
+
+            additionalDataAttributes = "data-record-aname=\"" + htmlEncode(record.rData.aname) + "\" ";
+            break;
+
+        case "FWD":
+            tableHtmlRow += "<td style=\"word-break: break-all;\"><b>Protocol: </b> " + htmlEncode(record.rData.protocol) +
+                "<br /><b>Forwarder:</b> " + htmlEncode(record.rData.forwarder) +
+                "<br /><b>Enable DNSSEC Validation:</b> " + htmlEncode(record.rData.dnssecValidation) +
+                "<br /><b>Proxy Type:</b> " + htmlEncode(record.rData.proxyType);
+
+            if (record.rData.proxyType !== "None") {
+                tableHtmlRow += "<br /><b>Proxy Address:</b> " + htmlEncode(record.rData.proxyAddress) +
+                    "<br /><b>Proxy Port:</b> " + htmlEncode(record.rData.proxyPort) +
+                    "<br /><b>Proxy Username:</b> " + htmlEncode(record.rData.proxyUsername) +
+                    "<br /><b>Proxy Password:</b> ************";
+            }
+
+            tableHtmlRow += "<br /><br /><b>Last Used:</b> " + lastUsedOn;
+
+            if ((record.comments != null) && (record.comments.length > 0))
+                tableHtmlRow += "<br /><b>Comments:</b> <pre style=\"white-space: pre-wrap;\">" + htmlEncode(record.comments) + "</pre>";
+
+            tableHtmlRow += "</td>";
+
+            additionalDataAttributes = "data-record-protocol=\"" + htmlEncode(record.rData.protocol) + "\" " +
+                "data-record-forwarder=\"" + htmlEncode(record.rData.forwarder) + "\" " +
+                "data-record-dnssec-validation=\"" + htmlEncode(record.rData.dnssecValidation) + "\" " +
+                "data-record-proxy-type=\"" + htmlEncode(record.rData.proxyType) + "\" ";
+
+            if (record.rData.proxyType != "None") {
+                additionalDataAttributes += "data-record-proxy-address=\"" + htmlEncode(record.rData.proxyAddress) + "\" " +
+                    "data-record-proxy-port=\"" + htmlEncode(record.rData.proxyPort) + "\" " +
+                    "data-record-proxy-username=\"" + htmlEncode(record.rData.proxyUsername) + "\" " +
+                    "data-record-proxy-password=\"" + htmlEncode(record.rData.proxyPassword) + "\" ";
+            }
+            break;
+
+        case "APP":
+            tableHtmlRow += "<td style=\"word-break: break-all;\"><b>App Name: </b> " + htmlEncode(record.rData.appName) +
+                "<br /><b>Class Path:</b> " + htmlEncode(record.rData.classPath) +
+                "<br /><b>Record Data:</b> " + (record.rData.data == "" ? "" : "<pre style=\"white-space: pre-wrap;\">" + htmlEncode(record.rData.data) + "</pre>");
+
+            tableHtmlRow += "<br /><br /><b>Last Used:</b> " + lastUsedOn;
+
+            if ((record.comments != null) && (record.comments.length > 0))
+                tableHtmlRow += "<br /><b>Comments:</b> <pre style=\"white-space: pre-wrap;\">" + htmlEncode(record.comments) + "</pre>";
+
+            tableHtmlRow += "</td>";
+
+            additionalDataAttributes = "data-record-app-name=\"" + htmlEncode(record.rData.appName) + "\" " +
+                "data-record-classpath=\"" + htmlEncode(record.rData.classPath) + "\" " +
+                "data-record-data=\"" + htmlEncode(record.rData.data) + "\"";
+            break;
+
+        default:
+            tableHtmlRow += "<td style=\"word-break: break-all;\"><b>RDATA:</b> " + htmlEncode(record.rData.value) + "</td>";
+            break;
+    }
+
+    var hideActionButtons = false;
+    var disableEnableDisableDeleteButtons = false;
+
+    switch (zoneType) {
+        case "Internal":
+            hideActionButtons = true;
+            break;
+
+        case "Secondary":
+            switch (record.type) {
+                case "SOA":
+                    disableEnableDisableDeleteButtons = true;
+                    break;
+
+                default:
+                    hideActionButtons = true;
+                    break;
+            }
+            break;
+
+        case "Stub":
+            switch (record.type) {
+                case "SOA":
+                    disableEnableDisableDeleteButtons = true;
+                    break;
+
+                case "NS":
+                    if (name == "@")
+                        hideActionButtons = true;
+
+                    break;
+            }
+            break;
+
+        default:
+            switch (record.type) {
+                case "SOA":
+                    disableEnableDisableDeleteButtons = true;
+                    break;
+
+                case "DNSKEY":
+                case "RRSIG":
+                case "NSEC":
+                case "NSEC3":
+                case "NSEC3PARAM":
+                    hideActionButtons = true;
+                    break;
+            }
+            break;
+    }
+
+    if (hideActionButtons) {
+        tableHtmlRow += "<td align=\"right\">&nbsp;</td>";
+    }
+    else {
+        tableHtmlRow += "<td align=\"right\" style=\"min-width: 220px;\">";
+        tableHtmlRow += "<div id=\"data" + id + "\" data-record-name=\"" + htmlEncode(record.name) + "\" data-record-type=\"" + record.type + "\" data-record-ttl=\"" + record.ttl + "\" " + additionalDataAttributes + " data-record-disabled=\"" + record.disabled + "\" data-record-comments=\"" + htmlEncode(record.comments) + "\" style=\"display: none;\"></div>";
+        tableHtmlRow += "<button type=\"button\" class=\"btn btn-primary\" style=\"font-size: 12px; padding: 2px 0px; width: 60px; margin: 0 6px 0 0;\" data-id=\"" + id + "\" onclick=\"showEditRecordModal(this);\">Edit</button>";
+        tableHtmlRow += "<button type=\"button\" class=\"btn btn-default\" id=\"btnEnableRecord" + id + "\" style=\"font-size: 12px; padding: 2px 0px; width: 60px; margin: 0 6px 0 0;" + (record.disabled ? "" : " display: none;") + "\" data-id=\"" + id + "\" onclick=\"updateRecordState(this, false);\"" + (disableEnableDisableDeleteButtons ? " disabled" : "") + " data-loading-text=\"Enabling...\">Enable</button>";
+        tableHtmlRow += "<button type=\"button\" class=\"btn btn-warning\" id=\"btnDisableRecord" + id + "\" style=\"font-size: 12px; padding: 2px 0px; width: 60px; margin: 0 6px 0 0;" + (!record.disabled ? "" : " display: none;") + "\" data-id=\"" + id + "\" onclick=\"updateRecordState(this, true);\"" + (disableEnableDisableDeleteButtons ? " disabled" : "") + " data-loading-text=\"Disabling...\">Disable</button>";
+        tableHtmlRow += "<button type=\"button\" class=\"btn btn-danger\" style=\"font-size: 12px; padding: 2px 0px; width: 60px; margin: 0 6px 0 0;\" data-loading-text=\"Deleting...\" data-id=\"" + id + "\" onclick=\"deleteRecord(this);\"" + (disableEnableDisableDeleteButtons ? " disabled" : "") + ">Delete</button></td>";
+    }
+
+    tableHtmlRow += "</tr>";
+
+    return tableHtmlRow;
 }
 
 function clearAddEditForm() {
@@ -2131,7 +2135,22 @@ function addRecord() {
         url: apiUrl,
         success: function (responseJSON) {
             $("#modalAddEditRecord").modal("hide");
-            showEditZone(zone);
+
+            if (overwrite) {
+                showEditZone(zone);
+            }
+            else {
+                var zoneType;
+                if (responseJSON.response.zone.internal)
+                    zoneType = "Internal";
+                else
+                    zoneType = responseJSON.response.zone.type;
+
+                var id = Math.floor(Math.random() * 1000000);
+                var tableHtmlRow = getZoneRecordRowHtml(id, zone, zoneType, responseJSON.response.addedRecord);
+                $("#tableEditZoneBody").prepend(tableHtmlRow);
+            }
+
             showAlert("success", "Record Added!", "Resource record was added successfully.");
         },
         error: function () {
@@ -2818,7 +2837,16 @@ function updateRecord() {
         url: apiUrl,
         success: function (responseJSON) {
             $("#modalAddEditRecord").modal("hide");
-            showEditZone(zone);
+
+            var zoneType;
+            if (responseJSON.response.zone.internal)
+                zoneType = "Internal";
+            else
+                zoneType = responseJSON.response.zone.type;
+
+            var tableHtmlRow = getZoneRecordRowHtml(id, zone, zoneType, responseJSON.response.updatedRecord);
+            $("#trZoneRecord" + id).replaceWith(tableHtmlRow);
+
             showAlert("success", "Record Updated!", "Resource record was updated successfully.");
         },
         error: function () {
@@ -3010,8 +3038,13 @@ function deleteRecord(objBtn) {
     HTTPRequest({
         url: apiUrl,
         success: function (responseJSON) {
-            $("#tr" + id).remove();
-            $("#tableEditZoneFooter").html("<tr><td colspan=\"5\"><b>Total Records: " + $('#tableEditZone >tbody >tr').length + "</b></td></tr>");
+            $("#trZoneRecord" + id).remove();
+
+            var recordCount = $('#tableEditZone >tbody >tr').length;
+            if (recordCount > 0)
+                $("#tableEditZoneFooter").html("<tr><td colspan=\"5\"><b>Total Records: " + recordCount + "</b></td></tr>");
+            else
+                $("#tableEditZoneFooter").html("<tr><td colspan=\"5\" align=\"center\">No Records Found</td></tr>");
 
             showAlert("success", "Record Deleted!", "Resource record was deleted successfully.");
         },
@@ -3091,7 +3124,22 @@ function signPrimaryZone() {
             btn.button('reset');
             $("#modalDnssecSignZone").modal("hide");
 
-            showEditZone(zone);
+            var zoneHideDnssecRecords = (localStorage.getItem("zoneHideDnssecRecords") == "true");
+            if (zoneHideDnssecRecords) {
+                $("#titleDnssecStatusEditZone").show();
+
+                $("#lnkZoneDnssecSignZone").hide();
+
+                $("#lnkZoneDnssecHideRecords").hide();
+                $("#lnkZoneDnssecShowRecords").show();
+
+                $("#lnkZoneDnssecProperties").show();
+                $("#lnkZoneDnssecUnsignZone").show();
+            }
+            else {
+                showEditZone(zone);
+            }
+
             showAlert("success", "Zone Signed!", "The primary zone was signed successfully.");
         },
         error: function () {
@@ -3126,7 +3174,22 @@ function unsignPrimaryZone() {
             btn.button('reset');
             $("#modalDnssecUnsignZone").modal("hide");
 
-            showEditZone(zone);
+            var zoneHideDnssecRecords = (localStorage.getItem("zoneHideDnssecRecords") == "true");
+            if (zoneHideDnssecRecords) {
+                $("#titleDnssecStatusEditZone").hide();
+
+                $("#lnkZoneDnssecSignZone").show();
+
+                $("#lnkZoneDnssecHideRecords").hide();
+                $("#lnkZoneDnssecShowRecords").hide();
+
+                $("#lnkZoneDnssecProperties").hide();
+                $("#lnkZoneDnssecUnsignZone").hide();
+            }
+            else {
+                showEditZone(zone);
+            }
+
             showAlert("success", "Zone Unsigned!", "The primary zone was unsigned successfully.");
         },
         error: function () {
@@ -3524,7 +3587,9 @@ function changeDnssecNxProof(objBtn) {
 
             btn.button('reset');
 
-            showEditZone(zone);
+            var zoneHideDnssecRecords = (localStorage.getItem("zoneHideDnssecRecords") == "true");
+            if (!zoneHideDnssecRecords)
+                showEditZone(zone);
 
             showAlert("success", "Proof Changed!", "The proof of non-existence was changed successfully.", divDnssecPropertiesAlert);
         },
