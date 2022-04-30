@@ -1013,7 +1013,7 @@ namespace DnsServerCore.Dhcp
             _lastModified = DateTime.UtcNow;
         }
 
-        internal Lease RemoveLease(string hardwareAddress)
+        internal Lease RemoveLeaseByHardwareAddress(string hardwareAddress)
         {
             byte[] hardwareAddressBytes = Lease.ParseHardwareAddress(hardwareAddress);
 
@@ -1042,6 +1042,27 @@ namespace DnsServerCore.Dhcp
             }
 
             throw new DhcpServerException("No lease was found for hardware address: " + hardwareAddress);
+        }
+
+        internal Lease RemoveLeaseByClientIdentifier(string clientIdentifier)
+        {
+            //remove lease
+            if (!_leases.TryRemove(ClientIdentifierOption.Parse(clientIdentifier), out Lease removedLease))
+                throw new DhcpServerException("No lease was found for client identifier: " + clientIdentifier);
+
+            if (removedLease.Type == LeaseType.Reserved)
+            {
+                //remove reserved lease
+                ClientIdentifierOption reservedLeasesClientIdentifier = new ClientIdentifierOption((byte)DhcpMessageHardwareAddressType.Ethernet, removedLease.HardwareAddress);
+                if (_reservedLeases.TryGetValue(reservedLeasesClientIdentifier, out Lease existingReservedLease))
+                {
+                    //remove reserved lease only if the IP addresses match
+                    if (existingReservedLease.Address.Equals(removedLease.Address))
+                        _reservedLeases.TryRemove(reservedLeasesClientIdentifier, out _);
+                }
+            }
+
+            return removedLease;
         }
 
         internal void SetEnabled(bool enabled)
