@@ -1368,26 +1368,6 @@ namespace DnsServerCore.Dhcp
                 SaveScopeFile(scope);
         }
 
-        public void RemoveLeaseByHardwareAddress(string scopeName, string hardwareAddress)
-        {
-            Scope scope = GetScope(scopeName);
-            if (scope == null)
-                throw new DhcpServerException("DHCP scope does not exists: " + scopeName);
-
-            Lease removedLease = scope.RemoveLeaseByHardwareAddress(hardwareAddress);
-            UpdateDnsAuthZone(false, scope, removedLease);
-        }
-
-        public void RemoveLeaseByClientIdentifier(string scopeName, string clientIdentifier)
-        {
-            Scope scope = GetScope(scopeName);
-            if (scope == null)
-                throw new DhcpServerException("DHCP scope does not exists: " + scopeName);
-
-            Lease removedLease = scope.RemoveLeaseByClientIdentifier(clientIdentifier);
-            UpdateDnsAuthZone(false, scope, removedLease);
-        }
-
         public IDictionary<string, string> GetAddressHostNameMap()
         {
             Dictionary<string, string> map = new Dictionary<string, string>();
