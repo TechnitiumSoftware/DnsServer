@@ -223,11 +223,7 @@ namespace DnsServerCore.Dns.Trees
                     if ((zoneNode is not null) && IsKeySubDomain(value.Key, key, matchWildcard))
                     {
                         //find closest values
-                        TSubDomainZone subDomain = null;
-                        TSubDomainZone delegation = null;
-                        TApexZone authority = null;
-
-                        GetClosestValuesForZone(zoneNode, ref subDomain, ref delegation, ref authority);
+                        GetClosestValuesForZone(zoneNode, out TSubDomainZone subDomain, out TSubDomainZone delegation, out TApexZone authority);
 
                         if (subDomain is not null)
                         {
@@ -250,6 +246,7 @@ namespace DnsServerCore.Dns.Trees
                             closestAuthorityNode = currentNode;
 
                             closestSubDomain = null; //clear previous closest sub domain
+                            closestSubDomainNode = null;
                             wildcard = null; //clear previous wildcard node
                         }
                     }
@@ -306,10 +303,7 @@ namespace DnsServerCore.Dns.Trees
                         TNode zoneNode = value.Value;
                         if (zoneNode is not null)
                         {
-                            TSubDomainZone subDomain = null;
-                            TApexZone authority = null;
-
-                            GetClosestValuesForZone(zoneNode, ref subDomain, ref closestDelegation, ref authority);
+                            GetClosestValuesForZone(zoneNode, out TSubDomainZone subDomain, out TSubDomainZone delegation, out TApexZone authority);
 
                             if (subDomain is not null)
                             {
@@ -317,12 +311,16 @@ namespace DnsServerCore.Dns.Trees
                                 closestSubDomainNode = currentNode;
                             }
 
+                            if (delegation is not null)
+                                closestDelegation = delegation;
+
                             if (authority is not null)
                             {
                                 closestAuthority = authority;
                                 closestAuthorityNode = currentNode;
 
                                 closestSubDomain = null; //clear previous closest sub domain
+                                closestSubDomainNode = null;
                             }
                         }
 
@@ -367,10 +365,7 @@ namespace DnsServerCore.Dns.Trees
                                     TNode zoneNode = value.Value;
                                     if (zoneNode is not null)
                                     {
-                                        TSubDomainZone subDomain = null;
-                                        TApexZone authority = null;
-
-                                        GetClosestValuesForZone(zoneNode, ref subDomain, ref closestDelegation, ref authority);
+                                        GetClosestValuesForZone(zoneNode, out TSubDomainZone subDomain, out TSubDomainZone delegation, out TApexZone authority);
 
                                         if (subDomain is not null)
                                         {
@@ -378,12 +373,16 @@ namespace DnsServerCore.Dns.Trees
                                             closestSubDomainNode = currentNode;
                                         }
 
+                                        if (delegation is not null)
+                                            closestDelegation = delegation;
+
                                         if (authority is not null)
                                         {
                                             closestAuthority = authority;
                                             closestAuthorityNode = currentNode;
 
                                             closestSubDomain = null; //clear previous closest sub domain
+                                            closestSubDomainNode = null;
                                         }
                                     }
 
@@ -402,10 +401,7 @@ namespace DnsServerCore.Dns.Trees
                         TNode zoneNode = value.Value;
                         if (zoneNode is not null)
                         {
-                            TSubDomainZone subDomain = null;
-                            TApexZone authority = null;
-
-                            GetClosestValuesForZone(zoneNode, ref subDomain, ref closestDelegation, ref authority);
+                            GetClosestValuesForZone(zoneNode, out TSubDomainZone subDomain, out TSubDomainZone delegation, out TApexZone authority);
 
                             if (subDomain is not null)
                             {
@@ -413,12 +409,16 @@ namespace DnsServerCore.Dns.Trees
                                 closestSubDomainNode = currentNode;
                             }
 
+                            if (delegation is not null)
+                                closestDelegation = delegation;
+
                             if (authority is not null)
                             {
                                 closestAuthority = authority;
                                 closestAuthorityNode = currentNode;
 
                                 closestSubDomain = null; //clear previous closest sub domain
+                                closestSubDomainNode = null;
                             }
                         }
 
@@ -431,7 +431,7 @@ namespace DnsServerCore.Dns.Trees
             return null;
         }
 
-        protected abstract void GetClosestValuesForZone(TNode zoneValue, ref TSubDomainZone closestSubDomain, ref TSubDomainZone closestDelegation, ref TApexZone closestAuthority);
+        protected abstract void GetClosestValuesForZone(TNode zoneValue, out TSubDomainZone closestSubDomain, out TSubDomainZone closestDelegation, out TApexZone closestAuthority);
 
         #endregion
 
