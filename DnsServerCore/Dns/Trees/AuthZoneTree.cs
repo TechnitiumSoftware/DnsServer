@@ -340,12 +340,13 @@ namespace DnsServerCore.Dns.Trees
 
         #region protected
 
-        protected override void GetClosestValuesForZone(AuthZoneNode zoneValue, ref SubDomainZone closestSubDomain, ref SubDomainZone closestDelegation, ref ApexZone closestAuthority)
+        protected override void GetClosestValuesForZone(AuthZoneNode zoneValue, out SubDomainZone closestSubDomain, out SubDomainZone closestDelegation, out ApexZone closestAuthority)
         {
             ApexZone apexZone = zoneValue.ApexZone;
             if (apexZone is not null)
             {
                 //hosted primary/secondary/stub/forwarder zone found
+                closestSubDomain = null;
                 closestDelegation = zoneValue.ParentSideZone;
                 closestAuthority = apexZone;
             }
@@ -355,9 +356,18 @@ namespace DnsServerCore.Dns.Trees
                 SubDomainZone subDomainZone = zoneValue.ParentSideZone;
 
                 if (subDomainZone.ContainsNameServerRecords())
-                    closestDelegation = subDomainZone; //delegated sub domain found
+                {
+                    //delegated sub domain found
+                    closestSubDomain = null;
+                    closestDelegation = subDomainZone;
+                }
                 else
+                {
                     closestSubDomain = subDomainZone;
+                    closestDelegation = null;
+                }
+
+                closestAuthority = null;
             }
         }
 
