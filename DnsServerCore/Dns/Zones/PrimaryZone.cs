@@ -1676,7 +1676,6 @@ namespace DnsServerCore.Dns.Zones
                 privateKey.SetState(DnssecPrivateKeyState.Revoked);
 
                 DnsResourceRecord revokedDnsKeyRecord = new DnsResourceRecord(_name, DnsResourceRecordType.DNSKEY, DnsClass.IN, dnsKeyTtl, privateKey.DnsKey);
-                addedRecords.Add(revokedDnsKeyRecord);
                 dnsKeyRecords.Add(revokedDnsKeyRecord);
             }
 
