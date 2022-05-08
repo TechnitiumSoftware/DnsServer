@@ -27,6 +27,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using TechnitiumLibrary.IO;
 using TechnitiumLibrary.Net.Dns;
+using TechnitiumLibrary.Net.Dns.ResourceRecords;
 
 namespace DnsServerCore
 {
@@ -552,6 +553,36 @@ namespace DnsServerCore
                     }
 
                     answer += "]";
+
+                    if (response.Additional.Count > 0)
+                    {
+                        switch (q.Type)
+                        {
+                            case DnsResourceRecordType.NS:
+                            case DnsResourceRecordType.MX:
+                            case DnsResourceRecordType.SRV:
+                                answer += "; ADDITIONAL: [";
+
+                                for (int i = 0; i < response.Additional.Count; i++)
+                                {
+                                    DnsResourceRecord additional = response.Additional[i];
+
+                                    switch (additional.Type)
+                                    {
+                                        case DnsResourceRecordType.A:
+                                        case DnsResourceRecordType.AAAA:
+                                            if (i > 0)
+                                                answer += ", ";
+
+                                            answer += additional.Name + " (" + additional.RDATA.ToString() + ")";
+                                            break;
+                                    }
+                                }
+
+                                answer += "]";
+                                break;
+                        }
+                    }
                 }
 
                 responseInfo = " RCODE: " + response.RCODE.ToString() + "; ANSWER: " + answer;
