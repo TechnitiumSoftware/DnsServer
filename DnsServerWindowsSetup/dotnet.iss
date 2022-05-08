@@ -324,8 +324,8 @@ begin
   begin
     AddDependency('dotnet60desktop' + GetArchitectureSuffix + '.exe',
       '/lcid ' + IntToStr(GetUILanguage) + ' /passive /norestart',
-      '.NET Desktop Runtime 6.0.3' + GetArchitectureTitle,
-      GetString('https://download.visualstudio.microsoft.com/download/pr/33dd62b5-7676-483d-836c-e4cb178e3924/0de6894b5fdb6d130eccd57ab5af4cb8/windowsdesktop-runtime-6.0.3-win-x86.exe', 'https://download.visualstudio.microsoft.com/download/pr/7f3a766e-9516-4579-aaf2-2b150caa465c/d57665f880cdcce816b278a944092965/windowsdesktop-runtime-6.0.3-win-x64.exe'),
+      '.NET Desktop Runtime 6.0.4' + GetArchitectureTitle,
+      GetString('https://download.visualstudio.microsoft.com/download/pr/05b30243-5cd2-48c3-a9bb-6ac83d7d481b/03a25aecb5cf4ba53c8b9cf5194e3c86/windowsdesktop-runtime-6.0.4-win-x86.exe', 'https://download.visualstudio.microsoft.com/download/pr/f13d7b5c-608f-432b-b7ec-8fe84f4030a1/5e06998f9ce23c620b9d6bac2dae6c1d/windowsdesktop-runtime-6.0.4-win-x64.exe'),
       '', False, False, False);
   end;
 end;
