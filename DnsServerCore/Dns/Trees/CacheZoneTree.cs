@@ -25,12 +25,21 @@ namespace DnsServerCore.Dns.Trees
     {
         #region protected
 
-        protected override void GetClosestValuesForZone(CacheZone zoneValue, ref CacheZone closestSubDomain, ref CacheZone closestDelegation, ref CacheZone closestAuthority)
+        protected override void GetClosestValuesForZone(CacheZone zoneValue, out CacheZone closestSubDomain, out CacheZone closestDelegation, out CacheZone closestAuthority)
         {
             if (zoneValue.ContainsNameServerRecords())
-                closestDelegation = zoneValue; //ns records found
+            {
+                //ns records found
+                closestSubDomain = null;
+                closestDelegation = zoneValue;
+            }
             else
+            {
                 closestSubDomain = zoneValue;
+                closestDelegation = null;
+            }
+
+            closestAuthority = null;
         }
 
         #endregion
