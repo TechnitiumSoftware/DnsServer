@@ -2431,7 +2431,7 @@ namespace DnsServerCore.Dns
             IReadOnlyList<DnsResourceRecord> additional = response.Additional;
 
             //answer section checks
-            if (!dnssecOk && (answer.Count > 0))
+            if (!dnssecOk && (answer.Count > 0) && (response.Question[0].Type != DnsResourceRecordType.ANY))
             {
                 //remove RRSIGs from answer
                 bool foundRRSIG = false;
