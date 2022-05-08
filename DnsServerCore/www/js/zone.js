@@ -1142,7 +1142,7 @@ function getZoneRecordRowHtml(id, zone, zoneType, record) {
                 "<br /><b>Minimum:</b> " + htmlEncode(record.rData.minimum);
 
             if (record.rData.primaryAddresses != null) {
-                tableHtmlRow += "<br /><b>Primary Name Server Addresses:</b> " + record.rData.primaryAddresses;
+                tableHtmlRow += "<br /><br /><b>Primary Name Server Addresses:</b> " + record.rData.primaryAddresses;
 
                 additionalDataAttributes = "data-record-paddresses=\"" + htmlEncode(record.rData.primaryAddresses) + "\" ";
             } else {
