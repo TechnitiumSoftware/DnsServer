@@ -4099,7 +4099,7 @@ namespace DnsServerCore
 
                 _dnsServer.RandomizeName = true; //default true to enable security feature
                 _dnsServer.QnameMinimization = true; //default true to enable privacy feature
-                _dnsServer.NsRevalidation = false; //default true for security reasons
+                _dnsServer.NsRevalidation = true; //default true for security reasons
 
                 _dnsServer.DnssecValidation = true;
                 CreateForwarderZoneToDisableDnssecForNTP();
