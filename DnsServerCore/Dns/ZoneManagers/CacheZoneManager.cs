@@ -62,7 +62,9 @@ namespace DnsServerCore.Dns.ZoneManagers
 
         protected override void CacheRecords(IReadOnlyList<DnsResourceRecord> resourceRecords)
         {
-            //read and set glue records from base class
+            List<DnsResourceRecord> dnameRecords = null;
+
+            //read and set glue records from base class; also collect any DNAME records found
             foreach (DnsResourceRecord resourceRecord in resourceRecords)
             {
                 IReadOnlyList<DnsResourceRecord> glueRecords = GetGlueRecordsFrom(resourceRecord);
@@ -97,6 +99,14 @@ namespace DnsServerCore.Dns.ZoneManagers
                         }
                     }
                 }
+
+                if (resourceRecord.Type == DnsResourceRecordType.DNAME)
+                {
+                    if (dnameRecords is null)
+                        dnameRecords = new List<DnsResourceRecord>(1);
+
+                    dnameRecords.Add(resourceRecord);
+                }
             }
 
             if (resourceRecords.Count == 1)
@@ -121,6 +131,23 @@ namespace DnsServerCore.Dns.ZoneManagers
                 //add grouped records
                 foreach (KeyValuePair<string, Dictionary<DnsResourceRecordType, List<DnsResourceRecord>>> groupedByTypeRecords in groupedByDomainRecords)
                 {
+                    if (dnameRecords is not null)
+                    {
+                        bool foundSynthesizedCNAME = false;
+
+                        foreach (DnsResourceRecord dnameRecord in dnameRecords)
+                        {
+                            if (groupedByTypeRecords.Key.EndsWith("." + dnameRecord.Name, StringComparison.OrdinalIgnoreCase))
+                            {
+                                foundSynthesizedCNAME = true;
+                                break;
+                            }
+                        }
+
+                        if (foundSynthesizedCNAME)
+                            continue; //do not cache synthesized CNAME
+                    }
+
                     CacheZone zone = _root.GetOrAdd(groupedByTypeRecords.Key, delegate (string key)
                     {
                         return new CacheZone(groupedByTypeRecords.Key, groupedByTypeRecords.Value.Count);
@@ -427,7 +454,7 @@ namespace DnsServerCore.Dns.ZoneManagers
                 zone.ListAllRecords(records);
         }
 
-        public DnsDatagram QueryClosestDelegation(DnsDatagram request)
+        public override DnsDatagram QueryClosestDelegation(DnsDatagram request)
         {
             _ = _root.FindZone(request.Question[0].Name, out _, out CacheZone delegation);
             if (delegation is not null)
@@ -436,7 +463,10 @@ namespace DnsServerCore.Dns.ZoneManagers
                 IReadOnlyList<DnsResourceRecord> closestAuthority = delegation.QueryRecords(DnsResourceRecordType.NS, false, true);
                 if ((closestAuthority.Count > 0) && (closestAuthority[0].Type == DnsResourceRecordType.NS) && (closestAuthority[0].Name.Length > 0)) //dont trust root name servers from cache!
                 {
-                    IReadOnlyList<DnsResourceRecord> additional = GetAdditionalRecords(closestAuthority, false, false);
+                    if (request.DnssecOk)
+                        closestAuthority = AddDSRecordsTo(delegation, false, closestAuthority);
+
+                    IReadOnlyList<DnsResourceRecord> additional = GetAdditionalRecords(closestAuthority, false, request.DnssecOk);
 
                     return new DnsDatagram(request.Identifier, true, DnsOpcode.StandardQuery, false, false, request.RecursionDesired, true, false, false, DnsResponseCode.NoError, request.Question, null, closestAuthority, additional);
                 }
