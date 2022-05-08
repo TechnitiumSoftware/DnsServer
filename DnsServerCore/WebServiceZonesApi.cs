@@ -27,6 +27,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Net;
 using System.Threading.Tasks;
+using TechnitiumLibrary.Net;
 using TechnitiumLibrary.Net.Dns;
 using TechnitiumLibrary.Net.Dns.ResourceRecords;
 using TechnitiumLibrary.Net.Proxy;
@@ -151,6 +152,17 @@ namespace DnsServerCore
                         {
                             jsonWriter.WritePropertyName("nameServer");
                             jsonWriter.WriteValue(rdata.NameServer.Length == 0 ? "." : rdata.NameServer);
+
+                            if (!authoritativeZoneRecords)
+                            {
+                                if (rdata.IsParentSideTtlSet)
+                                {
+                                    int parentSideTtl = (int)rdata.ParentSideTtl;
+
+                                    jsonWriter.WritePropertyName("parentSideTtl");
+                                    jsonWriter.WriteValue(parentSideTtl + " (" + WebUtilities.GetFormattedTime(parentSideTtl) + ")");
+                                }
+                            }
                         }
                         else
                         {
