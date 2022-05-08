@@ -1,5 +1,15 @@
 # Technitium DNS Server Change Log
 
+## Version 8.1
+Release Date: 8 May 2022
+- Added maximum cache entires option to limit memory usage by removing least recently used data from cache.
+- Implemented NS revalidation to revalidate parent side NS records when their TTL expires.
+- Updated the web console to store session token in local storage to prevent logging out on page reload.
+- DropRequests App: Added support to block entire zone for the configured QNAME.
+- Fixed bug in primary zone IXFR history caused due to missing SOA serial check.
+- Fixed issues with wrong IXFR history entries for DNSKEY records in primary zone.
+- Multiple other minor bug fixes and improvements.
+
 ## Version 8.0.2
 Release Date: 3 April 2022
 - Fixed bug in Conditional Forwarder zones that would cause ServerFailure responses for some queries.
