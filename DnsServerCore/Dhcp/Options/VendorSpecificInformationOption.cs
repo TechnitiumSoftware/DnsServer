@@ -106,7 +106,7 @@ namespace DnsServerCore.Dhcp.Options
 
         public override string ToString()
         {
-            return Convert.ToHexString(_information);
+            return BitConverter.ToString(_information).Replace("-", ":");
         }
 
         #endregion
