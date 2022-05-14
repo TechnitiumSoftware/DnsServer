@@ -368,13 +368,13 @@
                                             <div style="float: left;">
                                                 <span id="titleEditZoneType" class="label label-default">Primary</span>
                                                 <span id="titleDnssecStatusEditZone" class="label label-default">DNSSEC</span>
-                                                <span id="titleStatusEditZone" data-id="EditZone" class="label label-success">Enabled</span>
+                                                <span id="titleStatusEditZone" class="label label-success">Enabled</span>
                                                 <span id="titleEditZoneExpiry" style="font-size: 10px; font-weight: bold;">Expiry: 01 Jan 2020 00:00:00</span>
                                             </div>
                                             <div style="float: right; padding: 2px 0px;">
                                                 <button id="btnEditZoneAddRecord" type="button" class="btn btn-primary" style="padding: 2px 0px; width: 100px;" onclick="showAddRecordModal(this);" data-loading-text="Loading...">Add Record</button>
-                                                <button id="btnEnableZoneEditZone" data-id="EditZone" type="button" class="btn btn-default" style="padding: 2px 0px; width: 100px;" onclick="enableZone(this, $('#titleEditZone').text());">Enable Zone</button>
-                                                <button id="btnDisableZoneEditZone" data-id="EditZone" type="button" class="btn btn-warning" style="padding: 2px 0px; width: 100px;" onclick="disableZone(this, $('#titleEditZone').text());">Disable Zone</button>
+                                                <button id="btnEnableZoneEditZone" type="button" class="btn btn-default" style="padding: 2px 0px; width: 100px;" onclick="enableZone(this, $('#titleEditZone').text(), true);">Enable Zone</button>
+                                                <button id="btnDisableZoneEditZone" type="button" class="btn btn-warning" style="padding: 2px 0px; width: 100px;" onclick="disableZone(this, $('#titleEditZone').text(), true);">Disable Zone</button>
                                                 <button id="btnEditZoneDeleteZone" type="button" class="btn btn-danger" style="padding: 2px 0px; width: 100px;" onclick="deleteZone(this, $('#titleEditZone').text(), true);">Delete Zone</button>
                                                 <button id="btnZoneResync" type="button" class="btn btn-primary" style="padding: 2px 0px; width: 100px;" onclick="resyncZone(this, $('#titleEditZone').text());" data-loading-text="Resyncing...">Resync</button>
                                                 <button id="btnZoneOptions" type="button" class="btn btn-primary" style="padding: 2px 0px; width: 100px;" onclick="showZoneOptionsModal($('#titleEditZone').text());">Options</button>
@@ -3073,16 +3073,27 @@ ns1.example.com ([2001:db8::])
                                             <input type="radio" name="rdZoneTransfer" id="rdZoneTransferAllowOnlySpecifiedNameServers" value="AllowOnlySpecifiedNameServers">
                                             Allow Only Specified Name Servers
                                         </label>
-                                        <div style="padding-top: 5px; padding-left: 20px;">Allows only the name servers with an IP address specified below to perform a zone transfer.</div>
+                                        <div style="padding-top: 5px; padding-left: 20px;">Allows only the specified name servers to perform a zone transfer.</div>
                                     </div>
-                                </div>
-                                <div class="col-sm-offset-3 col-sm-6">
-                                    <label for="txtZoneTransferNameServers" class="control-label">Allowed Name Servers (IP addresses)</label>
-                                    <textarea id="txtZoneTransferNameServers" class="form-control" rows="5" spellcheck="false"></textarea>
+                                    <div class="radio">
+                                        <label>
+                                            <input type="radio" name="rdZoneTransfer" id="rdZoneTransferAllowBothZoneAndSpecifiedNameServers" value="AllowBothZoneAndSpecifiedNameServers">
+                                            Allow Both Zone Name Servers And Specified Name Servers
+                                        </label>
+                                        <div style="padding-top: 5px; padding-left: 20px;">Allows both the zone's name servers and the specified name servers to perform a zone transfer.</div>
+                                    </div>
                                 </div>
                             </div>
 
-                            <div>Note! Zone transfer should be allowed only for trusted name servers to sync their secondary zone. Zone transfer from localhost (127.0.0.1 or ::1) is always allowed.</div>
+                            <div class="form-group">
+                                <label for="txtZoneTransferNameServers" class="col-sm-3 control-label">Specified Name Servers</label>
+                                <div class="col-sm-8">
+                                    <textarea id="txtZoneTransferNameServers" class="form-control" rows="5" spellcheck="false"></textarea>
+                                    <div>Note: Enter only the IP addresses of the name servers above.</div>
+                                </div>
+                            </div>
+
+                            <div>Note! Zone transfer should be allowed only for trusted name servers to sync their secondary zone. Zone transfer from localhost (127.0.0.1 or ::1) is always allowed except when Deny option is configured.</div>
                         </div>
 
                         <div class="well well-sm form-horizontal">
@@ -3108,12 +3119,23 @@ ns1.example.com ([2001:db8::])
                                             <input type="radio" name="rdZoneNotify" id="rdZoneNotifySpecifiedNameServers" value="SpecifiedNameServers">
                                             Specified Name Servers
                                         </label>
-                                        <div style="padding-top: 5px; padding-left: 20px;">Notifies only the name servers with an IP address specified below when the zone is updated.</div>
+                                        <div style="padding-top: 5px; padding-left: 20px;">Notifies only the specified name servers when the zone is updated.</div>
+                                    </div>
+                                    <div class="radio">
+                                        <label>
+                                            <input type="radio" name="rdZoneNotify" id="rdZoneNotifyBothZoneAndSpecifiedNameServers" value="BothZoneAndSpecifiedNameServers">
+                                            Both Zone Name Servers And Specified Name Servers
+                                        </label>
+                                        <div style="padding-top: 5px; padding-left: 20px;">Notifies both the zone's name servers and the specified name servers when the zone is updated.</div>
                                     </div>
                                 </div>
-                                <div class="col-sm-offset-3 col-sm-6">
-                                    <label for="txtZoneNotifyNameServers" class="control-label">Notified Name Servers (IP addresses)</label>
+                            </div>
+
+                            <div class="form-group">
+                                <label for="txtZoneNotifyNameServers" class="col-sm-3 control-label">Specified Name Servers</label>
+                                <div class="col-sm-8">
                                     <textarea id="txtZoneNotifyNameServers" class="form-control" rows="5" spellcheck="false"></textarea>
+                                    <div>Note: Enter only the IP addresses of the name servers above.</div>
                                 </div>
                             </div>
 
@@ -3278,7 +3300,7 @@ ns1.example.com ([2001:db8::])
                             <label for="txtDnssecSignZoneDnsKeyTtl" class="col-sm-4 control-label">DNSKEY TTL</label>
                             <div class="col-sm-8">
                                 <input id="txtDnssecSignZoneDnsKeyTtl" type="number" class="form-control" placeholder="ttl" style="width: 100px; display: inline;">
-                                <span>(default 86400)</span>
+                                <span>(default 3600)</span>
                             </div>
                             <div class="col-sm-offset-4 col-sm-8" style="padding-top: 5px;">
                                 The TTL value to be used for DNSKEY records. A lower value will allow quicker addition or rollover to a new DNS Key at the cost of increased frequency of DNSKEY queries by resolvers.
@@ -3317,7 +3339,7 @@ ns1.example.com ([2001:db8::])
 
                     <p><b>WARNING!</b> Unsigning the zone without removing all DS records from its parent zone will cause DNSSEC validating recursive resolvers to mark the zone as <b>bogus</b> and fail to resolve it.</p>
 
-                    <p><b>WARNING!</b> Make sure that you have removed all of the DS records from the parent zone and sufficient time has passed before unsigning this zone. You MUST wait for at least the number of seconds specified by the DS record's TTL value to elapse before unsigning the zone to ensure that all recursive resolvers would have expired the DS records from its cache. For example, if you have DS records at the parent zone with TTL value set to 86400 seconds then you must wait for 86400 seconds (24 hours) to pass after you delete the DS records from the parent zone. Once you have ensured that you have waited for the appropriate time then you can unsign the zone safely.</p>
+                    <p><b>WARNING!</b> Make sure that you have removed all of the DS records from the parent zone and sufficient time has passed before unsigning this zone. You MUST wait for at least the number of seconds specified by the DS record's TTL value to elapse before unsigning the zone to ensure that all recursive resolvers would have expired the DS records from its cache. For example, if you have DS records at the parent zone with TTL value set to 86400 then you must wait for 86400 seconds (24 hours) to pass after you delete the DS records from the parent zone. Once you have ensured that you have waited for the appropriate time then you can unsign the zone safely.</p>
 
                     <p><b>NOTE!</b> You can find out the TTL value of DS records for your zone by querying for DS records using the DNS Client tab.</p>
 
@@ -3514,7 +3536,7 @@ ns1.example.com ([2001:db8::])
                                 <div class="col-sm-8">
                                     <div>
                                         <input id="txtDnssecPropertiesDnsKeyTtl" type="number" class="form-control" placeholder="ttl" style="width: 100px; display: inline;">
-                                        <span>(default 86400)</span>
+                                        <span>(default 3600)</span>
                                     </div>
                                     <div style="margin-top: 10px;">
                                         <button type="button" class="btn btn-default" style="padding: 2px 0; width: 100px;" data-loading-text="Updating..." onclick="updateDnssecDnsKeyTtl(this);">Update TTL</button>
@@ -3525,7 +3547,7 @@ ns1.example.com ([2001:db8::])
                                 </div>
                             </div>
                             <div style="margin-top: 10px;">
-                                Warning! You MUST wait for at least the number of seconds specified by the the old TTL value to elapse before making any changes to the DNS keys above to ensure that all recursive resolvers would have expired the DNSKEY records from its cache. For example, if the old TTL value was 86400 seconds, then you must wait for 86400 seconds (24 hours) to pass before making any changes to the DNS keys.
+                                Warning! You MUST wait for at least the number of seconds specified by the the old TTL value to elapse before making any changes to the DNS keys above to ensure that all recursive resolvers would have expired the DNSKEY records from its cache. For example, if the old TTL value was 3600, then you must wait for 3600 seconds (1 hour) to pass before making any changes to the DNS keys.
                             </div>
                         </div>
                     </div>
