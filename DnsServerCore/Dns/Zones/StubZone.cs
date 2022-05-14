@@ -130,22 +130,29 @@ namespace DnsServerCore.Dns.Zones
 
         protected override void Dispose(bool disposing)
         {
-            if (_disposed)
-                return;
-
-            if (disposing)
+            try
             {
-                lock (_refreshTimerLock)
+                if (_disposed)
+                    return;
+
+                if (disposing)
                 {
-                    if (_refreshTimer != null)
+                    lock (_refreshTimerLock)
                     {
-                        _refreshTimer.Dispose();
-                        _refreshTimer = null;
+                        if (_refreshTimer != null)
+                        {
+                            _refreshTimer.Dispose();
+                            _refreshTimer = null;
+                        }
                     }
                 }
-            }
 
-            _disposed = true;
+                _disposed = true;
+            }
+            finally
+            {
+                base.Dispose(disposing);
+            }
         }
 
         #endregion
@@ -173,6 +180,7 @@ namespace DnsServerCore.Dns.Zones
                     //set timer for retry
                     DnsSOARecordData soa1 = _entries[DnsResourceRecordType.SOA][0].RDATA as DnsSOARecordData;
                     ResetRefreshTimer(soa1.Retry * 1000);
+                    _syncFailed = true;
                     return;
                 }
 
@@ -182,7 +190,7 @@ namespace DnsServerCore.Dns.Zones
                     //zone refreshed; set timer for refresh
                     DnsSOARecordData latestSoa = _entries[DnsResourceRecordType.SOA][0].RDATA as DnsSOARecordData;
                     ResetRefreshTimer(latestSoa.Refresh * 1000);
-
+                    _syncFailed = false;
                     _expiry = DateTime.UtcNow.AddSeconds(latestSoa.Expire);
                     _isExpired = false;
                     _resync = false;
@@ -193,6 +201,7 @@ namespace DnsServerCore.Dns.Zones
                 //no response from any of the name servers; set timer for retry
                 DnsSOARecordData soa = _entries[DnsResourceRecordType.SOA][0].RDATA as DnsSOARecordData;
                 ResetRefreshTimer(soa.Retry * 1000);
+                _syncFailed = true;
             }
             catch (Exception ex)
             {
@@ -203,6 +212,7 @@ namespace DnsServerCore.Dns.Zones
                 //set timer for retry
                 DnsSOARecordData soa = _entries[DnsResourceRecordType.SOA][0].RDATA as DnsSOARecordData;
                 ResetRefreshTimer(soa.Retry * 1000);
+                _syncFailed = true;
             }
             finally
             {
