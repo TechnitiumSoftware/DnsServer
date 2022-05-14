@@ -1825,6 +1825,7 @@ RESPONSE:
 				"dnssecStatus": "SignedWithNSEC",
 				"expiry": "2022-02-26T07:57:08.1842183Z",
 				"isExpired": false,
+				"syncFailed": false,
 				"disabled": false
 			},
 			{
@@ -1860,6 +1861,7 @@ RESPONSE:
 				"type": "Primary",
 				"internal": false,
 				"dnssecStatus": "SignedWithNSEC",
+				"notifyFailed": false,
 				"disabled": false
 			},
 			{
