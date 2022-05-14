@@ -81,21 +81,29 @@ $(function () {
 
     $("input[type=radio][name=rdZoneTransfer]").change(function () {
         var zoneTransfer = $('input[name=rdZoneTransfer]:checked').val();
-        if (zoneTransfer === "AllowOnlySpecifiedNameServers") {
-            $("#txtZoneTransferNameServers").prop("disabled", false);
-        }
-        else {
-            $("#txtZoneTransferNameServers").prop("disabled", true);
+        switch (zoneTransfer) {
+            case "AllowOnlySpecifiedNameServers":
+            case "AllowBothZoneAndSpecifiedNameServers":
+                $("#txtZoneTransferNameServers").prop("disabled", false);
+                break;
+
+            default:
+                $("#txtZoneTransferNameServers").prop("disabled", true);
+                break;
         }
     });
 
     $("input[type=radio][name=rdZoneNotify]").change(function () {
-        var zoneTransfer = $('input[name=rdZoneNotify]:checked').val();
-        if (zoneTransfer === "SpecifiedNameServers") {
-            $("#txtZoneNotifyNameServers").prop("disabled", false);
-        }
-        else {
-            $("#txtZoneNotifyNameServers").prop("disabled", true);
+        var zoneNotify = $('input[name=rdZoneNotify]:checked').val();
+        switch (zoneNotify) {
+            case "SpecifiedNameServers":
+            case "BothZoneAndSpecifiedNameServers":
+                $("#txtZoneNotifyNameServers").prop("disabled", false);
+                break;
+
+            default:
+                $("#txtZoneNotifyNameServers").prop("disabled", true);
+                break;
         }
     });
 
@@ -294,11 +302,15 @@ function refreshZones(checkDisplay) {
                 var status = "";
 
                 if (zones[i].disabled)
-                    status = "<span id=\"tdStatus" + id + "\" class=\"label label-warning\">Disabled</span>";
+                    status = "<span id=\"tdZoneStatus" + id + "\" class=\"label label-warning\">Disabled</span>";
                 else if (zones[i].isExpired)
-                    status = "<span id=\"tdStatus" + id + "\" class=\"label label-danger\">Expired</span>";
+                    status = "<span id=\"tdZoneStatus" + id + "\" class=\"label label-danger\">Expired</span>";
+                else if (zones[i].syncFailed)
+                    status = "<span id=\"tdZoneStatus" + id + "\" class=\"label label-warning\">Sync Failed</span>";
+                else if (zones[i].notifyFailed)
+                    status = "<span id=\"tdZoneStatus" + id + "\" class=\"label label-warning\">Notify Failed</span>";
                 else
-                    status = "<span id=\"tdStatus" + id + "\" class=\"label label-success\">Enabled</span>";
+                    status = "<span id=\"tdZoneStatus" + id + "\" class=\"label label-success\">Enabled</span>";
 
                 var expiry = zones[i].expiry;
                 if (expiry == null)
@@ -354,9 +366,8 @@ function refreshZones(checkDisplay) {
     });
 }
 
-function enableZone(objBtn, zone) {
+function enableZone(objBtn, zone, editZone) {
     var btn = $(objBtn);
-    var id = btn.attr("data-id");
 
     btn.button('loading');
 
@@ -365,10 +376,20 @@ function enableZone(objBtn, zone) {
         success: function (responseJSON) {
             btn.button('reset');
 
-            $("#btnEnableZone" + id).hide();
-            $("#btnDisableZone" + id).show();
-            $("#tdStatus" + id).attr("class", "label label-success");
-            $("#tdStatus" + id).html("Enabled");
+            if (editZone) {
+                $("#btnEnableZoneEditZone").hide();
+                $("#btnDisableZoneEditZone").show();
+                $("#titleStatusEditZone").attr("class", "label label-success");
+                $("#titleStatusEditZone").html("Enabled");
+            }
+            else {
+                var id = btn.attr("data-id");
+
+                $("#btnEnableZone" + id).hide();
+                $("#btnDisableZone" + id).show();
+                $("#tdZoneStatus" + id).attr("class", "label label-success");
+                $("#tdZoneStatus" + id).html("Enabled");
+            }
 
             showAlert("success", "Zone Enabled!", "Zone '" + zone + "' was enabled successfully.");
         },
@@ -381,12 +402,11 @@ function enableZone(objBtn, zone) {
     });
 }
 
-function disableZone(objBtn, zone) {
+function disableZone(objBtn, zone, editZone) {
     if (!confirm("Are you sure you want to disable the zone '" + zone + "'?"))
         return;
 
     var btn = $(objBtn);
-    var id = btn.attr("data-id");
 
     btn.button('loading');
 
@@ -395,10 +415,20 @@ function disableZone(objBtn, zone) {
         success: function (responseJSON) {
             btn.button('reset');
 
-            $("#btnEnableZone" + id).show();
-            $("#btnDisableZone" + id).hide();
-            $("#tdStatus" + id).attr("class", "label label-warning");
-            $("#tdStatus" + id).html("Disabled");
+            if (editZone) {
+                $("#btnEnableZoneEditZone").show();
+                $("#btnDisableZoneEditZone").hide();
+                $("#titleStatusEditZone").attr("class", "label label-warning");
+                $("#titleStatusEditZone").html("Disabled");
+            }
+            else {
+                var id = btn.attr("data-id");
+
+                $("#btnEnableZone" + id).show();
+                $("#btnDisableZone" + id).hide();
+                $("#tdZoneStatus" + id).attr("class", "label label-warning");
+                $("#tdZoneStatus" + id).html("Disabled");
+            }
 
             showAlert("success", "Zone Disabled!", "Zone '" + zone + "' was disabled successfully.");
         },
@@ -483,6 +513,11 @@ function showZoneOptionsModal(zone) {
                     $("#txtZoneTransferNameServers").prop("disabled", false);
                     break;
 
+                case "AllowBothZoneAndSpecifiedNameServers":
+                    $("#rdZoneTransferAllowBothZoneAndSpecifiedNameServers").prop("checked", true);
+                    $("#txtZoneTransferNameServers").prop("disabled", false);
+                    break;
+
                 case "Deny":
                 default:
                     $("#rdZoneTransferDeny").prop("checked", true);
@@ -505,6 +540,11 @@ function showZoneOptionsModal(zone) {
 
                 case "SpecifiedNameServers":
                     $("#rdZoneNotifySpecifiedNameServers").prop("checked", true);
+                    $("#txtZoneNotifyNameServers").prop("disabled", false);
+                    break;
+
+                case "BothZoneAndSpecifiedNameServers":
+                    $("#rdZoneNotifyBothZoneAndSpecifiedNameServers").prop("checked", true);
                     $("#txtZoneNotifyNameServers").prop("disabled", false);
                     break;
 
@@ -846,6 +886,10 @@ function showEditZone(zone) {
                 status = "Disabled";
             else if (responseJSON.response.zone.isExpired)
                 status = "Expired";
+            else if (responseJSON.response.zone.syncFailed)
+                status = "Sync Failed";
+            else if (responseJSON.response.zone.notifyFailed)
+                status = "Notify Failed";
             else
                 status = "Enabled";
 
@@ -866,6 +910,8 @@ function showEditZone(zone) {
 
             switch (status) {
                 case "Disabled":
+                case "Sync Failed":
+                case "Notify Failed":
                     $("#titleStatusEditZone").attr("class", "label label-warning");
                     break;
 
@@ -3076,7 +3122,7 @@ function showSignZoneModal(zoneName) {
     $("#txtDnssecSignZoneNSEC3Iterations").val("0");
     $("#txtDnssecSignZoneNSEC3SaltLength").val("0");
 
-    $("#txtDnssecSignZoneDnsKeyTtl").val("86400");
+    $("#txtDnssecSignZoneDnsKeyTtl").val("3600");
     $("#txtDnssecSignZoneZskAutoRollover").val("90");
 
     $("#modalDnssecSignZone").modal("show");
