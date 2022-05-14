@@ -53,9 +53,6 @@ namespace DnsServerCore.Dns.Trees
             if (_disposed)
                 return;
 
-            if (_parentSideZone is not null)
-                _parentSideZone.Dispose();
-
             if (_apexZone is not null)
                 _apexZone.Dispose();
 
