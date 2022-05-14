@@ -788,6 +788,67 @@ namespace DnsServerCore
             jsonWriter.WriteEndObject();
         }
 
+        private static void WriteZoneInfoAsJson(AuthZoneInfo zoneInfo, JsonTextWriter jsonWriter)
+        {
+            jsonWriter.WriteStartObject();
+
+            jsonWriter.WritePropertyName("name");
+            jsonWriter.WriteValue(zoneInfo.Name);
+
+            jsonWriter.WritePropertyName("type");
+            jsonWriter.WriteValue(zoneInfo.Type.ToString());
+
+            switch (zoneInfo.Type)
+            {
+                case AuthZoneType.Primary:
+                    jsonWriter.WritePropertyName("internal");
+                    jsonWriter.WriteValue(zoneInfo.Internal);
+
+                    jsonWriter.WritePropertyName("dnssecStatus");
+                    jsonWriter.WriteValue(zoneInfo.DnssecStatus.ToString());
+
+                    if (!zoneInfo.Internal)
+                    {
+                        jsonWriter.WritePropertyName("notifyFailed");
+                        jsonWriter.WriteValue(zoneInfo.NotifyFailed);
+                    }
+                    break;
+
+                case AuthZoneType.Secondary:
+                    jsonWriter.WritePropertyName("dnssecStatus");
+                    jsonWriter.WriteValue(zoneInfo.DnssecStatus.ToString());
+
+                    jsonWriter.WritePropertyName("expiry");
+                    jsonWriter.WriteValue(zoneInfo.Expiry);
+
+                    jsonWriter.WritePropertyName("isExpired");
+                    jsonWriter.WriteValue(zoneInfo.IsExpired);
+
+                    jsonWriter.WritePropertyName("notifyFailed");
+                    jsonWriter.WriteValue(zoneInfo.NotifyFailed);
+
+                    jsonWriter.WritePropertyName("syncFailed");
+                    jsonWriter.WriteValue(zoneInfo.SyncFailed);
+                    break;
+
+                case AuthZoneType.Stub:
+                    jsonWriter.WritePropertyName("expiry");
+                    jsonWriter.WriteValue(zoneInfo.Expiry);
+
+                    jsonWriter.WritePropertyName("isExpired");
+                    jsonWriter.WriteValue(zoneInfo.IsExpired);
+
+                    jsonWriter.WritePropertyName("syncFailed");
+                    jsonWriter.WriteValue(zoneInfo.SyncFailed);
+                    break;
+            }
+
+            jsonWriter.WritePropertyName("disabled");
+            jsonWriter.WriteValue(zoneInfo.Disabled);
+
+            jsonWriter.WriteEndObject();
+        }
+
         #endregion
 
         #region public
@@ -802,50 +863,7 @@ namespace DnsServerCore
             jsonWriter.WriteStartArray();
 
             foreach (AuthZoneInfo zone in zones)
-            {
-                jsonWriter.WriteStartObject();
-
-                jsonWriter.WritePropertyName("name");
-                jsonWriter.WriteValue(zone.Name);
-
-                jsonWriter.WritePropertyName("type");
-                jsonWriter.WriteValue(zone.Type.ToString());
-
-                switch (zone.Type)
-                {
-                    case AuthZoneType.Primary:
-                        jsonWriter.WritePropertyName("internal");
-                        jsonWriter.WriteValue(zone.Internal);
-
-                        jsonWriter.WritePropertyName("dnssecStatus");
-                        jsonWriter.WriteValue(zone.DnssecStatus.ToString());
-                        break;
-
-                    case AuthZoneType.Secondary:
-                        jsonWriter.WritePropertyName("dnssecStatus");
-                        jsonWriter.WriteValue(zone.DnssecStatus.ToString());
-
-                        jsonWriter.WritePropertyName("expiry");
-                        jsonWriter.WriteValue(zone.Expiry);
-
-                        jsonWriter.WritePropertyName("isExpired");
-                        jsonWriter.WriteValue(zone.IsExpired);
-                        break;
-
-                    case AuthZoneType.Stub:
-                        jsonWriter.WritePropertyName("expiry");
-                        jsonWriter.WriteValue(zone.Expiry);
-
-                        jsonWriter.WritePropertyName("isExpired");
-                        jsonWriter.WriteValue(zone.IsExpired);
-                        break;
-                }
-
-                jsonWriter.WritePropertyName("disabled");
-                jsonWriter.WriteValue(zone.Disabled);
-
-                jsonWriter.WriteEndObject();
-            }
+                WriteZoneInfoAsJson(zone, jsonWriter);
 
             jsonWriter.WriteEndArray();
         }
@@ -2270,48 +2288,7 @@ namespace DnsServerCore
             _dnsWebService.DnsServer.AuthZoneManager.SaveZoneFile(zoneInfo.Name);
 
             jsonWriter.WritePropertyName("zone");
-            jsonWriter.WriteStartObject();
-
-            jsonWriter.WritePropertyName("name");
-            jsonWriter.WriteValue(zoneInfo.Name);
-
-            jsonWriter.WritePropertyName("type");
-            jsonWriter.WriteValue(zoneInfo.Type.ToString());
-
-            switch (zoneInfo.Type)
-            {
-                case AuthZoneType.Primary:
-                    jsonWriter.WritePropertyName("internal");
-                    jsonWriter.WriteValue(zoneInfo.Internal);
-
-                    jsonWriter.WritePropertyName("dnssecStatus");
-                    jsonWriter.WriteValue(zoneInfo.DnssecStatus.ToString());
-                    break;
-
-                case AuthZoneType.Secondary:
-                    jsonWriter.WritePropertyName("dnssecStatus");
-                    jsonWriter.WriteValue(zoneInfo.DnssecStatus.ToString());
-
-                    jsonWriter.WritePropertyName("expiry");
-                    jsonWriter.WriteValue(zoneInfo.Expiry);
-
-                    jsonWriter.WritePropertyName("isExpired");
-                    jsonWriter.WriteValue(zoneInfo.IsExpired);
-                    break;
-
-                case AuthZoneType.Stub:
-                    jsonWriter.WritePropertyName("expiry");
-                    jsonWriter.WriteValue(zoneInfo.Expiry);
-
-                    jsonWriter.WritePropertyName("isExpired");
-                    jsonWriter.WriteValue(zoneInfo.IsExpired);
-                    break;
-            }
-
-            jsonWriter.WritePropertyName("disabled");
-            jsonWriter.WriteValue(zoneInfo.Disabled);
-
-            jsonWriter.WriteEndObject();
+            WriteZoneInfoAsJson(zoneInfo, jsonWriter);
 
             jsonWriter.WritePropertyName("addedRecord");
             WriteRecordAsJson(newRecord, jsonWriter, true, null);
@@ -2330,48 +2307,7 @@ namespace DnsServerCore
                 throw new DnsWebServiceException("No authoritative zone was not found for domain: " + domain);
 
             jsonWriter.WritePropertyName("zone");
-            jsonWriter.WriteStartObject();
-
-            jsonWriter.WritePropertyName("name");
-            jsonWriter.WriteValue(zoneInfo.Name);
-
-            jsonWriter.WritePropertyName("type");
-            jsonWriter.WriteValue(zoneInfo.Type.ToString());
-
-            switch (zoneInfo.Type)
-            {
-                case AuthZoneType.Primary:
-                    jsonWriter.WritePropertyName("internal");
-                    jsonWriter.WriteValue(zoneInfo.Internal);
-
-                    jsonWriter.WritePropertyName("dnssecStatus");
-                    jsonWriter.WriteValue(zoneInfo.DnssecStatus.ToString());
-                    break;
-
-                case AuthZoneType.Secondary:
-                    jsonWriter.WritePropertyName("dnssecStatus");
-                    jsonWriter.WriteValue(zoneInfo.DnssecStatus.ToString());
-
-                    jsonWriter.WritePropertyName("expiry");
-                    jsonWriter.WriteValue(zoneInfo.Expiry);
-
-                    jsonWriter.WritePropertyName("isExpired");
-                    jsonWriter.WriteValue(zoneInfo.IsExpired);
-                    break;
-
-                case AuthZoneType.Stub:
-                    jsonWriter.WritePropertyName("expiry");
-                    jsonWriter.WriteValue(zoneInfo.Expiry);
-
-                    jsonWriter.WritePropertyName("isExpired");
-                    jsonWriter.WriteValue(zoneInfo.IsExpired);
-                    break;
-            }
-
-            jsonWriter.WritePropertyName("disabled");
-            jsonWriter.WriteValue(zoneInfo.Disabled);
-
-            jsonWriter.WriteEndObject();
+            WriteZoneInfoAsJson(zoneInfo, jsonWriter);
 
             List<DnsResourceRecord> records = new List<DnsResourceRecord>();
             _dnsWebService.DnsServer.AuthZoneManager.ListAllRecords(domain, records);
@@ -3328,48 +3264,7 @@ namespace DnsServerCore
             _dnsWebService.DnsServer.AuthZoneManager.SaveZoneFile(zoneInfo.Name);
 
             jsonWriter.WritePropertyName("zone");
-            jsonWriter.WriteStartObject();
-
-            jsonWriter.WritePropertyName("name");
-            jsonWriter.WriteValue(zoneInfo.Name);
-
-            jsonWriter.WritePropertyName("type");
-            jsonWriter.WriteValue(zoneInfo.Type.ToString());
-
-            switch (zoneInfo.Type)
-            {
-                case AuthZoneType.Primary:
-                    jsonWriter.WritePropertyName("internal");
-                    jsonWriter.WriteValue(zoneInfo.Internal);
-
-                    jsonWriter.WritePropertyName("dnssecStatus");
-                    jsonWriter.WriteValue(zoneInfo.DnssecStatus.ToString());
-                    break;
-
-                case AuthZoneType.Secondary:
-                    jsonWriter.WritePropertyName("dnssecStatus");
-                    jsonWriter.WriteValue(zoneInfo.DnssecStatus.ToString());
-
-                    jsonWriter.WritePropertyName("expiry");
-                    jsonWriter.WriteValue(zoneInfo.Expiry);
-
-                    jsonWriter.WritePropertyName("isExpired");
-                    jsonWriter.WriteValue(zoneInfo.IsExpired);
-                    break;
-
-                case AuthZoneType.Stub:
-                    jsonWriter.WritePropertyName("expiry");
-                    jsonWriter.WriteValue(zoneInfo.Expiry);
-
-                    jsonWriter.WritePropertyName("isExpired");
-                    jsonWriter.WriteValue(zoneInfo.IsExpired);
-                    break;
-            }
-
-            jsonWriter.WritePropertyName("disabled");
-            jsonWriter.WriteValue(zoneInfo.Disabled);
-
-            jsonWriter.WriteEndObject();
+            WriteZoneInfoAsJson(zoneInfo, jsonWriter);
 
             jsonWriter.WritePropertyName("updatedRecord");
             WriteRecordAsJson(newRecord, jsonWriter, true, null);
