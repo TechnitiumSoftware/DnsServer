@@ -25,7 +25,7 @@ using TechnitiumLibrary.Net.Dns.ResourceRecords;
 
 namespace DnsServerCore.Dns.Zones
 {
-    abstract class AuthZone : Zone, IDisposable
+    abstract class AuthZone : Zone
     {
         #region variables
 
@@ -44,18 +44,6 @@ namespace DnsServerCore.Dns.Zones
         protected AuthZone(string name)
             : base(name)
         { }
-
-        #endregion
-
-        #region IDisposable
-
-        protected virtual void Dispose(bool disposing)
-        { }
-
-        public void Dispose()
-        {
-            Dispose(true);
-        }
 
         #endregion
 
