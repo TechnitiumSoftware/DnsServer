@@ -1249,60 +1249,65 @@ namespace DnsServerCore.Dns
                     return new DnsDatagram(request.Identifier, true, DnsOpcode.StandardQuery, false, false, request.RecursionDesired, false, false, false, DnsResponseCode.Refused, request.Question) { Tag = DnsServerResponseType.Authoritative };
             }
 
+            async Task<bool> isZoneNameServerAllowedAsync()
+            {
+                IPAddress remoteAddress = remoteEP.Address;
+
+                if (IPAddress.IsLoopback(remoteAddress))
+                    return true;
+
+                IReadOnlyList<NameServerAddress> secondaryNameServers = await authZoneInfo.GetSecondaryNameServerAddressesAsync(this);
+
+                foreach (NameServerAddress secondaryNameServer in secondaryNameServers)
+                {
+                    if (secondaryNameServer.IPEndPoint.Address.Equals(remoteAddress))
+                        return true;
+                }
+
+                return false;
+            }
+
+            bool isSpecifiedNameServerAllowed()
+            {
+                IPAddress remoteAddress = remoteEP.Address;
+
+                if (IPAddress.IsLoopback(remoteAddress))
+                    return true;
+
+                IReadOnlyCollection<IPAddress> specifiedNameServers = authZoneInfo.ZoneTransferNameServers;
+                if (specifiedNameServers is not null)
+                {
+                    foreach (IPAddress specifiedNameServer in specifiedNameServers)
+                    {
+                        if (specifiedNameServer.Equals(remoteAddress))
+                            return true;
+                    }
+                }
+
+                return false;
+            }
+
             bool isZoneTransferAllowed = false;
 
             switch (authZoneInfo.ZoneTransfer)
             {
+                case AuthZoneTransfer.Deny:
+                    break;
+
                 case AuthZoneTransfer.Allow:
                     isZoneTransferAllowed = true;
                     break;
 
                 case AuthZoneTransfer.AllowOnlyZoneNameServers:
-                    {
-                        IPAddress remoteAddress = remoteEP.Address;
-
-                        if (IPAddress.IsLoopback(remoteAddress))
-                        {
-                            isZoneTransferAllowed = true;
-                            break;
-                        }
-
-                        IReadOnlyList<NameServerAddress> secondaryNameServers = await authZoneInfo.GetSecondaryNameServerAddressesAsync(this);
-
-                        foreach (NameServerAddress secondaryNameServer in secondaryNameServers)
-                        {
-                            if (secondaryNameServer.IPEndPoint.Address.Equals(remoteAddress))
-                            {
-                                isZoneTransferAllowed = true;
-                                break;
-                            }
-                        }
-                    }
+                    isZoneTransferAllowed = await isZoneNameServerAllowedAsync();
                     break;
 
                 case AuthZoneTransfer.AllowOnlySpecifiedNameServers:
-                    {
-                        IPAddress remoteAddress = remoteEP.Address;
+                    isZoneTransferAllowed = isSpecifiedNameServerAllowed();
+                    break;
 
-                        if (IPAddress.IsLoopback(remoteAddress))
-                        {
-                            isZoneTransferAllowed = true;
-                            break;
-                        }
-
-                        IReadOnlyCollection<IPAddress> specifiedNameServers = authZoneInfo.ZoneTransferNameServers;
-                        if (specifiedNameServers is not null)
-                        {
-                            foreach (IPAddress specifiedNameServer in specifiedNameServers)
-                            {
-                                if (specifiedNameServer.Equals(remoteAddress))
-                                {
-                                    isZoneTransferAllowed = true;
-                                    break;
-                                }
-                            }
-                        }
-                    }
+                case AuthZoneTransfer.AllowBothZoneAndSpecifiedNameServers:
+                    isZoneTransferAllowed = isSpecifiedNameServerAllowed() || await isZoneNameServerAllowedAsync();
                     break;
             }
 
