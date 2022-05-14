@@ -20,7 +20,6 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 using DnsServerCore.Dns.ResourceRecords;
 using System;
 using System.Collections.Generic;
-using System.Net;
 using System.Threading;
 using System.Threading.Tasks;
 using TechnitiumLibrary.Net.Dns;
@@ -36,14 +35,6 @@ namespace DnsServerCore.Dns.Zones
 
         readonly List<DnsResourceRecord> _history; //for IXFR support
         IReadOnlyDictionary<string, object> _tsigKeyNames;
-
-        readonly Timer _notifyTimer;
-        bool _notifyTimerTriggered;
-        const int NOTIFY_TIMER_INTERVAL = 10000;
-        readonly List<NameServerAddress> _notifyList;
-
-        const int NOTIFY_TIMEOUT = 10000;
-        const int NOTIFY_RETRIES = 5;
 
         readonly object _refreshTimerLock = new object();
         Timer _refreshTimer;
@@ -82,8 +73,7 @@ namespace DnsServerCore.Dns.Zones
             _isExpired = DateTime.UtcNow > _expiry;
             _refreshTimer = new Timer(RefreshTimerCallback, null, Timeout.Infinite, Timeout.Infinite);
 
-            _notifyTimer = new Timer(NotifyTimerCallback, null, Timeout.Infinite, Timeout.Infinite);
-            _notifyList = new List<NameServerAddress>();
+            InitNotify(_dnsServer);
         }
 
         private SecondaryZone(DnsServer dnsServer, string name)
@@ -96,8 +86,7 @@ namespace DnsServerCore.Dns.Zones
             _zoneTransfer = AuthZoneTransfer.Deny;
             _notify = AuthZoneNotify.None;
 
-            _notifyTimer = new Timer(NotifyTimerCallback, null, Timeout.Infinite, Timeout.Infinite);
-            _notifyList = new List<NameServerAddress>();
+            InitNotify(_dnsServer);
         }
 
         #endregion
@@ -180,132 +169,34 @@ namespace DnsServerCore.Dns.Zones
 
         protected override void Dispose(bool disposing)
         {
-            if (_disposed)
-                return;
-
-            if (disposing)
+            try
             {
-                if (_notifyTimer is not null)
-                    _notifyTimer.Dispose();
+                if (_disposed)
+                    return;
 
-                lock (_refreshTimerLock)
+                if (disposing)
                 {
-                    if (_refreshTimer != null)
+                    lock (_refreshTimerLock)
                     {
-                        _refreshTimer.Dispose();
-                        _refreshTimer = null;
+                        if (_refreshTimer != null)
+                        {
+                            _refreshTimer.Dispose();
+                            _refreshTimer = null;
+                        }
                     }
                 }
-            }
 
-            _disposed = true;
+                _disposed = true;
+            }
+            finally
+            {
+                base.Dispose(disposing);
+            }
         }
 
         #endregion
 
         #region private
-
-        private async void NotifyTimerCallback(object state)
-        {
-            try
-            {
-                switch (_notify)
-                {
-                    case AuthZoneNotify.ZoneNameServers:
-                        IReadOnlyList<NameServerAddress> secondaryNameServers = await GetSecondaryNameServerAddressesAsync(_dnsServer);
-
-                        foreach (NameServerAddress secondaryNameServer in secondaryNameServers)
-                            _ = NotifyNameServerAsync(secondaryNameServer);
-
-                        break;
-
-                    case AuthZoneNotify.SpecifiedNameServers:
-                        IReadOnlyCollection<IPAddress> specifiedNameServers = _notifyNameServers;
-                        if (specifiedNameServers is not null)
-                        {
-                            foreach (IPAddress specifiedNameServer in specifiedNameServers)
-                                _ = NotifyNameServerAsync(new NameServerAddress(specifiedNameServer));
-                        }
-
-                        break;
-
-                    default:
-                        return;
-                }
-            }
-            catch (Exception ex)
-            {
-                LogManager log = _dnsServer.LogManager;
-                if (log != null)
-                    log.Write(ex);
-            }
-            finally
-            {
-                _notifyTimerTriggered = false;
-            }
-        }
-
-        private async Task NotifyNameServerAsync(NameServerAddress nameServer)
-        {
-            //use notify list to prevent multiple threads from notifying the same name server
-            lock (_notifyList)
-            {
-                if (_notifyList.Contains(nameServer))
-                    return; //already notifying the name server in another thread
-
-                _notifyList.Add(nameServer);
-            }
-
-            try
-            {
-                DnsClient client = new DnsClient(nameServer);
-
-                client.Proxy = _dnsServer.Proxy;
-                client.Timeout = NOTIFY_TIMEOUT;
-                client.Retries = NOTIFY_RETRIES;
-
-                DnsDatagram notifyRequest = new DnsDatagram(0, false, DnsOpcode.Notify, true, false, false, false, false, false, DnsResponseCode.NoError, new DnsQuestionRecord[] { new DnsQuestionRecord(_name, DnsResourceRecordType.SOA, DnsClass.IN) }, _entries[DnsResourceRecordType.SOA]);
-                DnsDatagram response = await client.ResolveAsync(notifyRequest);
-
-                switch (response.RCODE)
-                {
-                    case DnsResponseCode.NoError:
-                    case DnsResponseCode.NotImplemented:
-                        {
-                            //transaction complete
-                            LogManager log = _dnsServer.LogManager;
-                            if (log != null)
-                                log.Write("DNS Server successfully notified name server for '" + (_name == "" ? "<root>" : _name) + "' zone changes: " + nameServer.ToString());
-                        }
-                        break;
-
-                    default:
-                        {
-                            //transaction failed
-                            LogManager log = _dnsServer.LogManager;
-                            if (log != null)
-                                log.Write("DNS Server received RCODE=" + response.RCODE.ToString() + " from name server for '" + (_name == "" ? "<root>" : _name) + "' zone notification: " + nameServer.ToString());
-                        }
-                        break;
-                }
-            }
-            catch (Exception ex)
-            {
-                LogManager log = _dnsServer.LogManager;
-                if (log != null)
-                {
-                    log.Write("DNS Server failed to notify name server for '" + (_name == "" ? "<root>" : _name) + "' zone changes: " + nameServer.ToString());
-                    log.Write(ex);
-                }
-            }
-            finally
-            {
-                lock (_notifyList)
-                {
-                    _notifyList.Remove(nameServer);
-                }
-            }
-        }
 
         private async void RefreshTimerCallback(object state)
         {
@@ -330,6 +221,7 @@ namespace DnsServerCore.Dns.Zones
 
                     //set timer for retry
                     ResetRefreshTimer(currentSoa.Retry * 1000);
+                    _syncFailed = true;
                     return;
                 }
 
@@ -344,6 +236,7 @@ namespace DnsServerCore.Dns.Zones
 
                     //set timer for retry
                     ResetRefreshTimer(currentSoa.Retry * 1000);
+                    _syncFailed = true;
                     return;
                 }
 
@@ -353,7 +246,7 @@ namespace DnsServerCore.Dns.Zones
                     //zone refreshed; set timer for refresh
                     DnsSOARecordData latestSoa = _entries[DnsResourceRecordType.SOA][0].RDATA as DnsSOARecordData;
                     ResetRefreshTimer(latestSoa.Refresh * 1000);
-
+                    _syncFailed = false;
                     _expiry = DateTime.UtcNow.AddSeconds(latestSoa.Expire);
                     _isExpired = false;
                     _resync = false;
@@ -364,6 +257,7 @@ namespace DnsServerCore.Dns.Zones
                 //no response from any of the name servers; set timer for retry
                 DnsSOARecordData soa = _entries[DnsResourceRecordType.SOA][0].RDATA as DnsSOARecordData;
                 ResetRefreshTimer(soa.Retry * 1000);
+                _syncFailed = true;
             }
             catch (Exception ex)
             {
@@ -374,6 +268,7 @@ namespace DnsServerCore.Dns.Zones
                 //set timer for retry
                 DnsSOARecordData soa = _entries[DnsResourceRecordType.SOA][0].RDATA as DnsSOARecordData;
                 ResetRefreshTimer(soa.Retry * 1000);
+                _syncFailed = true;
             }
             finally
             {
@@ -636,21 +531,6 @@ namespace DnsServerCore.Dns.Zones
 
         #region public
 
-        public void TriggerNotify()
-        {
-            if (_disabled)
-                return;
-
-            if (_notify == AuthZoneNotify.None)
-                return;
-
-            if (_notifyTimerTriggered)
-                return;
-
-            _notifyTimer.Change(NOTIFY_TIMER_INTERVAL, Timeout.Infinite);
-            _notifyTimerTriggered = true;
-        }
-
         public void TriggerRefresh(int refreshInterval = REFRESH_TIMER_INTERVAL)
         {
             if (_disabled)
@@ -741,9 +621,15 @@ namespace DnsServerCore.Dns.Zones
                     _disabled = value;
 
                     if (_disabled)
+                    {
+                        DisableNotifyTimer();
                         ResetRefreshTimer(Timeout.Infinite);
+                    }
                     else
+                    {
+                        TriggerNotify();
                         TriggerRefresh();
+                    }
                 }
             }
         }
