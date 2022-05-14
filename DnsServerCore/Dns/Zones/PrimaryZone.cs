@@ -22,7 +22,6 @@ using DnsServerCore.Dns.ResourceRecords;
 using DnsServerCore.Dns.ZoneManagers;
 using System;
 using System.Collections.Generic;
-using System.Net;
 using System.Security.Cryptography;
 using System.Threading;
 using System.Threading.Tasks;
@@ -38,6 +37,12 @@ namespace DnsServerCore.Dns.Zones
         SignedWithNSEC3 = 2,
     }
 
+    //DNSSEC Operational Practices, Version 2
+    //https://datatracker.ietf.org/doc/html/rfc6781
+
+    //DNSSEC Key Rollover Timing Considerations
+    //https://datatracker.ietf.org/doc/html/rfc7583
+
     class PrimaryZone : ApexZone
     {
         #region variables
@@ -47,14 +52,6 @@ namespace DnsServerCore.Dns.Zones
 
         readonly List<DnsResourceRecord> _history; //for IXFR support
         IReadOnlyDictionary<string, object> _tsigKeyNames;
-
-        readonly Timer _notifyTimer;
-        bool _notifyTimerTriggered;
-        const int NOTIFY_TIMER_INTERVAL = 10000;
-        readonly List<NameServerAddress> _notifyList;
-
-        const int NOTIFY_TIMEOUT = 10000;
-        const int NOTIFY_RETRIES = 5;
 
         Dictionary<ushort, DnssecPrivateKey> _dnssecPrivateKeys;
         const uint DNSSEC_SIGNATURE_INCEPTION_OFFSET = 60 * 60;
@@ -89,8 +86,7 @@ namespace DnsServerCore.Dns.Zones
                     _dnssecPrivateKeys.Add(dnssecPrivateKey.KeyTag, dnssecPrivateKey);
             }
 
-            _notifyTimer = new Timer(NotifyTimerCallback, null, Timeout.Infinite, Timeout.Infinite);
-            _notifyList = new List<NameServerAddress>();
+            InitNotify(_dnsServer);
         }
 
         public PrimaryZone(DnsServer dnsServer, string name, string primaryNameServer, bool @internal)
@@ -111,8 +107,7 @@ namespace DnsServerCore.Dns.Zones
 
                 _history = new List<DnsResourceRecord>();
 
-                _notifyTimer = new Timer(NotifyTimerCallback, null, Timeout.Infinite, Timeout.Infinite);
-                _notifyList = new List<NameServerAddress>();
+                InitNotify(_dnsServer);
             }
 
             DnsSOARecordData soa = new DnsSOARecordData(primaryNameServer, _name.Length == 0 ? "hostadmin" : "hostadmin." + _name, 1, 900, 300, 604800, 900);
@@ -142,131 +137,29 @@ namespace DnsServerCore.Dns.Zones
 
         protected override void Dispose(bool disposing)
         {
-            if (_disposed)
-                return;
-
-            if (disposing)
+            try
             {
-                if (_notifyTimer is not null)
-                    _notifyTimer.Dispose();
+                if (_disposed)
+                    return;
 
-                Timer dnssecTimer = _dnssecTimer;
-                if (dnssecTimer is not null)
+                if (disposing)
                 {
-                    lock (dnssecTimer)
+                    Timer dnssecTimer = _dnssecTimer;
+                    if (dnssecTimer is not null)
                     {
-                        dnssecTimer.Dispose();
-                        _dnssecTimer = null;
+                        lock (dnssecTimer)
+                        {
+                            dnssecTimer.Dispose();
+                            _dnssecTimer = null;
+                        }
                     }
                 }
-            }
 
-            _disposed = true;
-        }
-
-        #endregion
-
-        #region private
-
-        private async void NotifyTimerCallback(object state)
-        {
-            try
-            {
-                switch (_notify)
-                {
-                    case AuthZoneNotify.ZoneNameServers:
-                        IReadOnlyList<NameServerAddress> secondaryNameServers = await GetSecondaryNameServerAddressesAsync(_dnsServer);
-
-                        foreach (NameServerAddress secondaryNameServer in secondaryNameServers)
-                            _ = NotifyNameServerAsync(secondaryNameServer);
-
-                        break;
-
-                    case AuthZoneNotify.SpecifiedNameServers:
-                        IReadOnlyCollection<IPAddress> specifiedNameServers = _notifyNameServers;
-                        if (specifiedNameServers is not null)
-                        {
-                            foreach (IPAddress specifiedNameServer in specifiedNameServers)
-                                _ = NotifyNameServerAsync(new NameServerAddress(specifiedNameServer));
-                        }
-
-                        break;
-
-                    default:
-                        return;
-                }
-            }
-            catch (Exception ex)
-            {
-                LogManager log = _dnsServer.LogManager;
-                if (log is not null)
-                    log.Write(ex);
+                _disposed = true;
             }
             finally
             {
-                _notifyTimerTriggered = false;
-            }
-        }
-
-        private async Task NotifyNameServerAsync(NameServerAddress nameServer)
-        {
-            //use notify list to prevent multiple threads from notifying the same name server
-            lock (_notifyList)
-            {
-                if (_notifyList.Contains(nameServer))
-                    return; //already notifying the name server in another thread
-
-                _notifyList.Add(nameServer);
-            }
-
-            try
-            {
-                DnsClient client = new DnsClient(nameServer);
-
-                client.Proxy = _dnsServer.Proxy;
-                client.Timeout = NOTIFY_TIMEOUT;
-                client.Retries = NOTIFY_RETRIES;
-
-                DnsDatagram notifyRequest = new DnsDatagram(0, false, DnsOpcode.Notify, true, false, false, false, false, false, DnsResponseCode.NoError, new DnsQuestionRecord[] { new DnsQuestionRecord(_name, DnsResourceRecordType.SOA, DnsClass.IN) }, _entries[DnsResourceRecordType.SOA]);
-                DnsDatagram response = await client.ResolveAsync(notifyRequest);
-
-                switch (response.RCODE)
-                {
-                    case DnsResponseCode.NoError:
-                    case DnsResponseCode.NotImplemented:
-                        {
-                            //transaction complete
-                            LogManager log = _dnsServer.LogManager;
-                            if (log is not null)
-                                log.Write("DNS Server successfully notified name server for '" + (_name == "" ? "<root>" : _name) + "' zone changes: " + nameServer.ToString());
-                        }
-                        break;
-
-                    default:
-                        {
-                            //transaction failed
-                            LogManager log = _dnsServer.LogManager;
-                            if (log is not null)
-                                log.Write("DNS Server received RCODE=" + response.RCODE.ToString() + " from name server for '" + (_name == "" ? "<root>" : _name) + "' zone notification: " + nameServer.ToString());
-                        }
-                        break;
-                }
-            }
-            catch (Exception ex)
-            {
-                LogManager log = _dnsServer.LogManager;
-                if (log is not null)
-                {
-                    log.Write("DNS Server failed to notify name server for '" + (_name == "" ? "<root>" : _name) + "' zone changes: " + nameServer.ToString());
-                    log.Write(ex);
-                }
-            }
-            finally
-            {
-                lock (_notifyList)
-                {
-                    _notifyList.Remove(nameServer);
-                }
+                base.Dispose(disposing);
             }
         }
 
@@ -298,6 +191,8 @@ namespace DnsServerCore.Dns.Zones
                 List<DnssecPrivateKey> zskToDeactivateAndUnpublish = null;
 
                 uint dnsKeyTtl = GetDnsKeyTtl();
+                DnsSOARecordData soa = _entries[DnsResourceRecordType.SOA][0].RDATA as DnsSOARecordData;
+                uint propagationDelay = soa.Refresh + soa.Retry; //the max time required to sync zone changes to secondaries if NOTIFY fails to trigger a zone transfer
                 bool saveZone = false;
 
                 lock (_dnssecPrivateKeys)
@@ -312,7 +207,7 @@ namespace DnsServerCore.Dns.Zones
                             switch (privateKey.State)
                             {
                                 case DnssecPrivateKeyState.Published:
-                                    if (DateTime.UtcNow > privateKey.StateChangedOn.AddSeconds(dnsKeyTtl))
+                                    if (DateTime.UtcNow > privateKey.StateChangedOn.AddSeconds(dnsKeyTtl + propagationDelay))
                                     {
                                         //long enough time old RRset to expire from caches
                                         if (kskToReady is null)
@@ -355,14 +250,11 @@ namespace DnsServerCore.Dns.Zones
                                     break;
 
                                 case DnssecPrivateKeyState.Retired:
-                                    if (DateTime.UtcNow > privateKey.StateChangedOn.AddSeconds(dnsKeyTtl))
-                                    {
-                                        //KSK needs to be revoked for RFC5011 consideration
-                                        if (kskToRevoke is null)
-                                            kskToRevoke = new List<DnssecPrivateKey>();
+                                    //KSK needs to be revoked for RFC5011 consideration
+                                    if (kskToRevoke is null)
+                                        kskToRevoke = new List<DnssecPrivateKey>();
 
-                                        kskToRevoke.Add(privateKey);
-                                    }
+                                    kskToRevoke.Add(privateKey);
                                     break;
 
                                 case DnssecPrivateKeyState.Revoked:
@@ -387,7 +279,7 @@ namespace DnsServerCore.Dns.Zones
                             switch (privateKey.State)
                             {
                                 case DnssecPrivateKeyState.Published:
-                                    if (DateTime.UtcNow > privateKey.StateChangedOn.AddSeconds(dnsKeyTtl))
+                                    if (DateTime.UtcNow > privateKey.StateChangedOn.AddSeconds(dnsKeyTtl + propagationDelay))
                                     {
                                         //long enough time old RRset to expire from caches
                                         privateKey.SetState(DnssecPrivateKeyState.Ready);
@@ -427,7 +319,7 @@ namespace DnsServerCore.Dns.Zones
                                     break;
 
                                 case DnssecPrivateKeyState.Retired:
-                                    if (DateTime.UtcNow > privateKey.StateChangedOn.AddSeconds(dnsKeyTtl))
+                                    if (DateTime.UtcNow > privateKey.StateChangedOn.AddSeconds(dnsKeyTtl + propagationDelay))
                                     {
                                         //key has been retired for sufficient time
                                         if (zskToDeactivateAndUnpublish is null)
@@ -550,8 +442,87 @@ namespace DnsServerCore.Dns.Zones
 
                 if (kskToRevoke is not null)
                 {
-                    RevokeKskDnsKeys(kskToRevoke);
-                    saveZone = true;
+                    uint dsTtl = 24 * 60 * 60;
+                    uint parentSidePropagationDelay = 24 * 60 * 60;
+
+                    try
+                    {
+                        //find parent side propagation delay and DS ttl
+                        DnsDatagram dsResponse = await _dnsServer.DirectQueryAsync(new DnsQuestionRecord(_name, DnsResourceRecordType.DS, DnsClass.IN), 10000);
+                        if (dsResponse.RCODE == DnsResponseCode.NoError)
+                        {
+                            if (dsResponse.Answer.Count > 0)
+                            {
+                                foreach (DnsResourceRecord answer in dsResponse.Answer)
+                                {
+                                    if (answer.Type == DnsResourceRecordType.DS)
+                                    {
+                                        dsTtl = answer.OriginalTtlValue;
+                                        break;
+                                    }
+                                }
+                            }
+                            else
+                            {
+                                dsTtl = 0; //no DS was found
+                            }
+                        }
+
+                        string parent = AuthZoneManager.GetParentZone(_name);
+                        if (parent is null)
+                            parent = "";
+
+                        DnsDatagram soaResponse = await _dnsServer.DirectQueryAsync(new DnsQuestionRecord(parent, DnsResourceRecordType.SOA, DnsClass.IN), 10000);
+                        if (dsResponse.RCODE == DnsResponseCode.NoError)
+                        {
+                            IReadOnlyList<DnsResourceRecord> records;
+
+                            if (soaResponse.Answer.Count > 0)
+                                records = soaResponse.Answer;
+                            else if (soaResponse.Authority.Count > 0)
+                                records = soaResponse.Authority;
+                            else
+                                records = null;
+
+                            if (records is not null)
+                            {
+                                foreach (DnsResourceRecord record in records)
+                                {
+                                    if (record.Type == DnsResourceRecordType.SOA)
+                                    {
+                                        DnsSOARecordData parentSoa = record.RDATA as DnsSOARecordData;
+                                        parentSidePropagationDelay = parentSoa.Refresh + parentSoa.Retry;
+                                        break;
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        LogManager log = _dnsServer.LogManager;
+                        if (log is not null)
+                            log.Write(ex);
+                    }
+
+                    List<DnssecPrivateKey> revokePrivateKeys = null;
+
+                    foreach (DnssecPrivateKey privateKey in kskToRevoke)
+                    {
+                        if (DateTime.UtcNow > privateKey.StateChangedOn.AddSeconds(dsTtl + parentSidePropagationDelay))
+                        {
+                            if (revokePrivateKeys is null)
+                                revokePrivateKeys = new List<DnssecPrivateKey>();
+
+                            revokePrivateKeys.Add(privateKey);
+                        }
+                    }
+
+                    if (revokePrivateKeys is not null)
+                    {
+                        RevokeKskDnsKeys(revokePrivateKeys);
+                        saveZone = true;
+                    }
                 }
 
                 if (kskToUnpublish is not null)
@@ -1849,6 +1820,9 @@ namespace DnsServerCore.Dns.Zones
             if (_name.Length == 0)
                 return privateKeys; //zone is root
 
+            //delete any existing DS entries from cache to allow resolving latest ones
+            _dnsServer.CacheZoneManager.DeleteZone(_name);
+
             IReadOnlyList<DnsDSRecordData> dsRecords = DnsClient.ParseResponseDS(await _dnsServer.DirectQueryAsync(new DnsQuestionRecord(_name, DnsResourceRecordType.DS, DnsClass.IN)));
 
             List<DnssecPrivateKey> activePrivateKeys = new List<DnssecPrivateKey>(dsRecords.Count);
@@ -2427,10 +2401,26 @@ namespace DnsServerCore.Dns.Zones
                 newDnsKeyRecords[i] = new DnsResourceRecord(dnsKeyRecord.Name, DnsResourceRecordType.DNSKEY, DnsClass.IN, dnsKeyTtl, dnsKeyRecord.RDATA);
             }
 
-            if (!TrySetRecords(DnsResourceRecordType.DNSKEY, newDnsKeyRecords, out IReadOnlyList<DnsResourceRecord> deletedRecords))
+            List<DnsResourceRecord> addedRecords = new List<DnsResourceRecord>();
+            List<DnsResourceRecord> deletedRecords = new List<DnsResourceRecord>();
+
+            if (!TrySetRecords(DnsResourceRecordType.DNSKEY, newDnsKeyRecords, out IReadOnlyList<DnsResourceRecord> deletedDnsKeyRecords))
                 throw new DnsServerException("Failed to update DNSKEY TTL. Please try again.");
 
-            CommitAndIncrementSerial(deletedRecords, newDnsKeyRecords);
+            addedRecords.AddRange(newDnsKeyRecords);
+            deletedRecords.AddRange(deletedDnsKeyRecords);
+
+            IReadOnlyList<DnsResourceRecord> newRRSigRecords = SignRRSet(newDnsKeyRecords);
+            if (newRRSigRecords.Count > 0)
+            {
+                AddOrUpdateRRSigRecords(newRRSigRecords, out IReadOnlyList<DnsResourceRecord> deletedRRSigRecords);
+
+                addedRecords.AddRange(newRRSigRecords);
+                deletedRecords.AddRange(deletedRRSigRecords);
+            }
+
+            CommitAndIncrementSerial(deletedRecords, addedRecords);
+            TriggerNotify();
         }
 
         #endregion
@@ -2549,21 +2539,6 @@ namespace DnsServerCore.Dns.Zones
         #endregion
 
         #region public
-
-        public void TriggerNotify()
-        {
-            if (_disabled)
-                return;
-
-            if (_notify == AuthZoneNotify.None)
-                return;
-
-            if (_notifyTimerTriggered)
-                return;
-
-            _notifyTimer.Change(NOTIFY_TIMER_INTERVAL, Timeout.Infinite);
-            _notifyTimerTriggered = true;
-        }
 
         public override void SetRecords(DnsResourceRecordType type, IReadOnlyList<DnsResourceRecord> records)
         {
@@ -2834,7 +2809,7 @@ namespace DnsServerCore.Dns.Zones
                     _disabled = value;
 
                     if (_disabled)
-                        _notifyTimer.Change(Timeout.Infinite, Timeout.Infinite);
+                        DisableNotifyTimer();
                     else
                         TriggerNotify();
                 }
