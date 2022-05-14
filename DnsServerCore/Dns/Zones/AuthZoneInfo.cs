@@ -58,6 +58,9 @@ namespace DnsServerCore.Dns.Zones
         readonly IReadOnlyDictionary<string, object> _tsigKeyNames;
         readonly IReadOnlyCollection<DnssecPrivateKey> _dnssecPrivateKeys;
 
+        readonly bool _notifyFailed; //not serialized
+        readonly bool _syncFailed; //not serialized
+
         #endregion
 
         #region constructor
@@ -243,6 +246,8 @@ namespace DnsServerCore.Dns.Zones
 
                 _tsigKeyNames = primaryZone.TsigKeyNames;
                 _dnssecPrivateKeys = primaryZone.DnssecPrivateKeys;
+
+                _notifyFailed = primaryZone.NotifyFailed;
             }
             else if (_apexZone is SecondaryZone secondaryZone)
             {
@@ -253,11 +258,16 @@ namespace DnsServerCore.Dns.Zones
 
                 _expiry = secondaryZone.Expiry;
                 _tsigKeyNames = secondaryZone.TsigKeyNames;
+
+                _notifyFailed = secondaryZone.NotifyFailed;
+                _syncFailed = secondaryZone.SyncFailed;
             }
             else if (_apexZone is StubZone stubZone)
             {
                 _type = AuthZoneType.Stub;
                 _expiry = stubZone.Expiry;
+
+                _syncFailed = stubZone.SyncFailed;
             }
             else if (_apexZone is ForwarderZone)
             {
@@ -668,6 +678,12 @@ namespace DnsServerCore.Dns.Zones
 
         public IReadOnlyCollection<DnssecPrivateKey> DnssecPrivateKeys
         { get { return _dnssecPrivateKeys; } }
+
+        public bool NotifyFailed
+        { get { return _notifyFailed; } }
+
+        public bool SyncFailed
+        { get { return _syncFailed; } }
 
         #endregion
     }
