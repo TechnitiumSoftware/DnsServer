@@ -1369,10 +1369,15 @@ function getZoneRecordRowHtml(id, zone, zoneType, record) {
                 "<br /><b>Algorithm:</b> " + htmlEncode(record.rData.algorithm) +
                 "<br /><b>Public Key:</b> " + htmlEncode(record.rData.publicKey);
 
-            if (record.rData.dnsKeyState == null)
+            if (record.rData.dnsKeyState == null) {
                 tableHtmlRow += "<br />";
-            else
-                tableHtmlRow += "<br /><br /><b>Key State:</b> " + htmlEncode(record.rData.dnsKeyState);
+            }
+            else {
+                if (record.rData.dnsKeyStateReadyBy == null)
+                    tableHtmlRow += "<br /><br /><b>Key State:</b> " + htmlEncode(record.rData.dnsKeyState);
+                else
+                    tableHtmlRow += "<br /><br /><b>Key State:</b> " + htmlEncode(record.rData.dnsKeyState) + " (ready by: " + moment(record.rData.dnsKeyStateReadyBy).local().format("YYYY-MM-DD HH:mm") + ")";
+            }
 
             tableHtmlRow += "<br /><b>Computed Key Tag:</b> " + htmlEncode(record.rData.computedKeyTag);
 
@@ -1503,9 +1508,9 @@ function getZoneRecordRowHtml(id, zone, zoneType, record) {
         case "APP":
             tableHtmlRow += "<td style=\"word-break: break-all;\"><b>App Name: </b> " + htmlEncode(record.rData.appName) +
                 "<br /><b>Class Path:</b> " + htmlEncode(record.rData.classPath) +
-                "<br /><b>Record Data:</b> " + (record.rData.data == "" ? "" : "<pre style=\"white-space: pre-wrap;\">" + htmlEncode(record.rData.data) + "</pre>");
+                "<br /><b>Record Data:</b> " + (record.rData.data == "" ? "<br />" : "<pre style=\"white-space: pre-wrap;\">" + htmlEncode(record.rData.data) + "</pre>");
 
-            tableHtmlRow += "<br /><br /><b>Last Used:</b> " + lastUsedOn;
+            tableHtmlRow += "<br /><b>Last Used:</b> " + lastUsedOn;
 
             if ((record.comments != null) && (record.comments.length > 0))
                 tableHtmlRow += "<br /><b>Comments:</b> <pre style=\"white-space: pre-wrap;\">" + htmlEncode(record.comments) + "</pre>";
@@ -3301,8 +3306,13 @@ function refreshDnssecProperties(divDnssecPropertiesLoader) {
                         case "Published":
                         case "Ready":
                         case "Active":
-                            tableHtmlRows += "<input id=\"txtDnssecPropertiesPrivateKeyAutomaticRollover" + id + "\" type=\"text\" placeholder=\"days\" style=\"width: 40px;\" value=\"" + responseJSON.response.dnssecPrivateKeys[i].rolloverDays + "\" />" +
-                                "<button type=\"button\" class=\"btn btn-default\" style=\"padding: 2px 6px; margin-top: -2px; margin-left: 4px; font-size: 12px; height: 26px; width: 46px;\" data-id=\"" + id + "\" data-loading-text=\"Save\" onclick=\"updateDnssecPrivateKey(" + responseJSON.response.dnssecPrivateKeys[i].keyTag + ", this);\">Save</button>";
+                            if (responseJSON.response.dnssecPrivateKeys[i].isRetiring) {
+                                tableHtmlRows += "-";
+                            }
+                            else {
+                                tableHtmlRows += "<input id=\"txtDnssecPropertiesPrivateKeyAutomaticRollover" + id + "\" type=\"text\" placeholder=\"days\" style=\"width: 40px;\" value=\"" + responseJSON.response.dnssecPrivateKeys[i].rolloverDays + "\" />" +
+                                    "<button type=\"button\" class=\"btn btn-default\" style=\"padding: 2px 6px; margin-top: -2px; margin-left: 4px; font-size: 12px; height: 26px; width: 46px;\" data-id=\"" + id + "\" data-loading-text=\"Save\" onclick=\"updateDnssecPrivateKey(" + responseJSON.response.dnssecPrivateKeys[i].keyTag + ", this);\">Save</button>";
+                            }
                             break;
 
                         default:
