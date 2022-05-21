@@ -512,6 +512,9 @@ namespace DnsServerCore.Dns.Zones
 
         #region properties
 
+        internal ApexZone ApexZone
+        { get { return _apexZone; } }
+
         public string Name
         { get { return _name; } }
 
