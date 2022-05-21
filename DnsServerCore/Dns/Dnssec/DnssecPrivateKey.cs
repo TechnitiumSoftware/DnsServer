@@ -347,10 +347,13 @@ namespace DnsServerCore.Dns.Dnssec
                         case DnssecPrivateKeyState.Published:
                         case DnssecPrivateKeyState.Ready:
                         case DnssecPrivateKeyState.Active:
+                            if (_isRetiring)
+                                throw new InvalidOperationException("Zone Signing Key (ZSK) automatic rollover cannot be set since it is set to retire.");
+
                             break;
 
                         default:
-                            throw new ArgumentOutOfRangeException(nameof(RolloverDays), "Zone Signing Key (ZSK) automatic rollover cannot be set due to invalid key state.");
+                            throw new InvalidOperationException("Zone Signing Key (ZSK) automatic rollover cannot be set due to invalid key state.");
                     }
                 }
                 else
