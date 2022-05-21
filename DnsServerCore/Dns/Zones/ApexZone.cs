@@ -541,22 +541,6 @@ namespace DnsServerCore.Dns.Zones
             return nameServers;
         }
 
-        public async Task<IReadOnlyList<NameServerAddress>> GetAllNameServerAddressesAsync(DnsServer dnsServer)
-        {
-            IReadOnlyList<NameServerAddress> primaryNameServers = await GetPrimaryNameServerAddressesAsync(dnsServer);
-            IReadOnlyList<NameServerAddress> secondaryNameServers = await GetSecondaryNameServerAddressesAsync(dnsServer);
-
-            if (secondaryNameServers.Count < 1)
-                return primaryNameServers;
-
-            List<NameServerAddress> allNameServers = new List<NameServerAddress>(primaryNameServers.Count + secondaryNameServers.Count);
-
-            allNameServers.AddRange(primaryNameServers);
-            allNameServers.AddRange(secondaryNameServers);
-
-            return allNameServers;
-        }
-
         #endregion
 
         #region properties
