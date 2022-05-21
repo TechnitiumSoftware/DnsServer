@@ -506,6 +506,12 @@ namespace DnsServerCore
                                         {
                                             jsonWriter.WritePropertyName("dnsKeyState");
                                             jsonWriter.WriteValue(dnssecPrivateKey.State.ToString());
+
+                                            if ((dnssecPrivateKey.KeyType == DnssecPrivateKeyType.KeySigningKey) && (dnssecPrivateKey.State == DnssecPrivateKeyState.Published))
+                                            {
+                                                jsonWriter.WritePropertyName("dnsKeyStateReadyBy");
+                                                jsonWriter.WriteValue((zoneInfo.ApexZone as PrimaryZone).GetDnsKeyStateReadyBy(dnssecPrivateKey));
+                                            }
                                             break;
                                         }
                                     }
@@ -884,7 +890,7 @@ namespace DnsServerCore
             {
                 zoneName = new DnsQuestionRecord(ipAddress, DnsClass.IN).Name.ToLower();
             }
-            else if (zoneName.Contains("/"))
+            else if (zoneName.Contains('/'))
             {
                 string[] parts = zoneName.Split('/');
                 if ((parts.Length == 2) && IPAddress.TryParse(parts[0], out ipAddress) && int.TryParse(parts[1], out int subnetMaskWidth))
