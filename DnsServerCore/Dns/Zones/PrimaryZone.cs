@@ -183,16 +183,13 @@ namespace DnsServerCore.Dns.Zones
                 List<DnssecPrivateKey> kskToActivate = null;
                 List<DnssecPrivateKey> kskToRetire = null;
                 List<DnssecPrivateKey> kskToRevoke = null;
-                List<DnssecPrivateKey> kskToUnpublish = null;
 
                 List<DnssecPrivateKey> zskToActivate = null;
                 List<DnssecPrivateKey> zskToRetire = null;
                 List<DnssecPrivateKey> zskToRollover = null;
-                List<DnssecPrivateKey> zskToDeactivateAndUnpublish = null;
 
-                uint dnsKeyTtl = GetDnsKeyTtl();
-                DnsSOARecordData soa = _entries[DnsResourceRecordType.SOA][0].RDATA as DnsSOARecordData;
-                uint propagationDelay = soa.Refresh + soa.Retry; //the max time required to sync zone changes to secondaries if NOTIFY fails to trigger a zone transfer
+                List<DnssecPrivateKey> keysToUnpublish = null;
+
                 bool saveZone = false;
 
                 lock (_dnssecPrivateKeys)
@@ -207,18 +204,13 @@ namespace DnsServerCore.Dns.Zones
                             switch (privateKey.State)
                             {
                                 case DnssecPrivateKeyState.Published:
-                                    if (DateTime.UtcNow > privateKey.StateChangedOn.AddSeconds(dnsKeyTtl + propagationDelay))
+                                    if (DateTime.UtcNow > GetDnsKeyStateReadyOn(privateKey))
                                     {
-                                        //long enough time old RRset to expire from caches
+                                        //long enough time for old RRsets to expire from caches
                                         if (kskToReady is null)
                                             kskToReady = new List<DnssecPrivateKey>();
 
                                         kskToReady.Add(privateKey);
-
-                                        if (kskToActivate is null)
-                                            kskToActivate = new List<DnssecPrivateKey>();
-
-                                        kskToActivate.Add(privateKey);
                                     }
                                     break;
 
@@ -260,15 +252,15 @@ namespace DnsServerCore.Dns.Zones
                                 case DnssecPrivateKeyState.Revoked:
                                     //rfc7583#section-3.3.4
                                     //modifiedQueryInterval = MAX(1hr, MIN(15 days, TTLkey / 2)) 
-                                    uint modifiedQueryInterval = Math.Max(3600u, Math.Min(15 * 24 * 60 * 60, dnsKeyTtl / 2));
+                                    uint modifiedQueryInterval = Math.Max(3600u, Math.Min(15 * 24 * 60 * 60, GetDnsKeyTtl() / 2));
 
                                     if (DateTime.UtcNow > privateKey.StateChangedOn.AddSeconds(modifiedQueryInterval))
                                     {
                                         //key has been revoked for sufficient time
-                                        if (kskToUnpublish is null)
-                                            kskToUnpublish = new List<DnssecPrivateKey>();
+                                        if (keysToUnpublish is null)
+                                            keysToUnpublish = new List<DnssecPrivateKey>();
 
-                                        kskToUnpublish.Add(privateKey);
+                                        keysToUnpublish.Add(privateKey);
                                     }
                                     break;
                             }
@@ -279,7 +271,7 @@ namespace DnsServerCore.Dns.Zones
                             switch (privateKey.State)
                             {
                                 case DnssecPrivateKeyState.Published:
-                                    if (DateTime.UtcNow > privateKey.StateChangedOn.AddSeconds(dnsKeyTtl + propagationDelay))
+                                    if (DateTime.UtcNow > privateKey.StateChangedOn.AddSeconds(GetDnsKeyTtl() + GetPropagationDelay()))
                                     {
                                         //long enough time old RRset to expire from caches
                                         privateKey.SetState(DnssecPrivateKeyState.Ready);
@@ -319,13 +311,13 @@ namespace DnsServerCore.Dns.Zones
                                     break;
 
                                 case DnssecPrivateKeyState.Retired:
-                                    if (DateTime.UtcNow > privateKey.StateChangedOn.AddSeconds(dnsKeyTtl + propagationDelay))
+                                    if (DateTime.UtcNow > privateKey.StateChangedOn.AddSeconds(GetMaxRRSigTtl() + GetPropagationDelay()))
                                     {
                                         //key has been retired for sufficient time
-                                        if (zskToDeactivateAndUnpublish is null)
-                                            zskToDeactivateAndUnpublish = new List<DnssecPrivateKey>();
+                                        if (keysToUnpublish is null)
+                                            keysToUnpublish = new List<DnssecPrivateKey>();
 
-                                        zskToDeactivateAndUnpublish.Add(privateKey);
+                                        keysToUnpublish.Add(privateKey);
                                     }
                                     break;
                             }
@@ -333,7 +325,8 @@ namespace DnsServerCore.Dns.Zones
                     }
                 }
 
-                //KSK actions
+                #region KSK actions
+
                 if (kskToReady is not null)
                 {
                     string dnsKeyTags = null;
@@ -341,6 +334,11 @@ namespace DnsServerCore.Dns.Zones
                     foreach (DnssecPrivateKey kskPrivateKey in kskToReady)
                     {
                         kskPrivateKey.SetState(DnssecPrivateKeyState.Ready);
+
+                        if (kskToActivate is null)
+                            kskToActivate = new List<DnssecPrivateKey>();
+
+                        kskToActivate.Add(kskPrivateKey);
 
                         if (dnsKeyTags is null)
                             dnsKeyTags = kskPrivateKey.KeyTag.ToString();
@@ -390,148 +388,37 @@ namespace DnsServerCore.Dns.Zones
                 }
 
                 if (kskToRetire is not null)
-                {
-                    string dnsKeyTags = null;
-
-                    foreach (DnssecPrivateKey kskPrivateKey in kskToRetire)
-                    {
-                        bool isSafeToRetire = false;
-
-                        lock (_dnssecPrivateKeys)
-                        {
-                            foreach (KeyValuePair<ushort, DnssecPrivateKey> privateKeyEntry in _dnssecPrivateKeys)
-                            {
-                                DnssecPrivateKey privateKey = privateKeyEntry.Value;
-
-                                if ((privateKey.KeyType == DnssecPrivateKeyType.KeySigningKey) && (privateKey.Algorithm == kskPrivateKey.Algorithm) && !privateKey.IsRetiring)
-                                {
-                                    if (privateKey.State == DnssecPrivateKeyState.Active)
-                                    {
-                                        isSafeToRetire = true;
-                                        break;
-                                    }
-
-                                    if ((privateKey.State == DnssecPrivateKeyState.Ready) && (kskPrivateKey.State == DnssecPrivateKeyState.Ready))
-                                    {
-                                        isSafeToRetire = true;
-                                        break;
-                                    }
-                                }
-                            }
-                        }
-
-                        if (isSafeToRetire)
-                        {
-                            kskPrivateKey.SetState(DnssecPrivateKeyState.Retired);
-                            saveZone = true;
-
-                            if (dnsKeyTags is null)
-                                dnsKeyTags = kskPrivateKey.KeyTag.ToString();
-                            else
-                                dnsKeyTags += ", " + kskPrivateKey.KeyTag.ToString();
-                        }
-                    }
-
-                    if (dnsKeyTags is not null)
-                    {
-                        LogManager log = _dnsServer.LogManager;
-                        if (log is not null)
-                            log.Write("The KSK DNSKEYs (" + dnsKeyTags + ") from the primary zone were retired successfully: " + _name);
-                    }
-                }
+                    saveZone = RetireKskDnsKeys(kskToRetire, false);
 
                 if (kskToRevoke is not null)
                 {
-                    uint dsTtl = 24 * 60 * 60;
-                    uint parentSidePropagationDelay = 24 * 60 * 60;
+                    uint dsTtl = await GetDSTtl();
+                    uint parentSidePropagationDelay = await GetParentSidePropagationDelayAsync();
 
-                    try
-                    {
-                        //find parent side propagation delay and DS ttl
-                        DnsDatagram dsResponse = await _dnsServer.DirectQueryAsync(new DnsQuestionRecord(_name, DnsResourceRecordType.DS, DnsClass.IN), 10000);
-                        if (dsResponse.RCODE == DnsResponseCode.NoError)
-                        {
-                            if (dsResponse.Answer.Count > 0)
-                            {
-                                foreach (DnsResourceRecord answer in dsResponse.Answer)
-                                {
-                                    if (answer.Type == DnsResourceRecordType.DS)
-                                    {
-                                        dsTtl = answer.OriginalTtlValue;
-                                        break;
-                                    }
-                                }
-                            }
-                            else
-                            {
-                                dsTtl = 0; //no DS was found
-                            }
-                        }
-
-                        string parent = AuthZoneManager.GetParentZone(_name);
-                        if (parent is null)
-                            parent = "";
-
-                        DnsDatagram soaResponse = await _dnsServer.DirectQueryAsync(new DnsQuestionRecord(parent, DnsResourceRecordType.SOA, DnsClass.IN), 10000);
-                        if (dsResponse.RCODE == DnsResponseCode.NoError)
-                        {
-                            IReadOnlyList<DnsResourceRecord> records;
-
-                            if (soaResponse.Answer.Count > 0)
-                                records = soaResponse.Answer;
-                            else if (soaResponse.Authority.Count > 0)
-                                records = soaResponse.Authority;
-                            else
-                                records = null;
-
-                            if (records is not null)
-                            {
-                                foreach (DnsResourceRecord record in records)
-                                {
-                                    if (record.Type == DnsResourceRecordType.SOA)
-                                    {
-                                        DnsSOARecordData parentSoa = record.RDATA as DnsSOARecordData;
-                                        parentSidePropagationDelay = parentSoa.Refresh + parentSoa.Retry;
-                                        break;
-                                    }
-                                }
-                            }
-                        }
-                    }
-                    catch (Exception ex)
-                    {
-                        LogManager log = _dnsServer.LogManager;
-                        if (log is not null)
-                            log.Write(ex);
-                    }
-
-                    List<DnssecPrivateKey> revokePrivateKeys = null;
+                    List<DnssecPrivateKey> revokeKskPrivateKeys = null;
 
                     foreach (DnssecPrivateKey privateKey in kskToRevoke)
                     {
                         if (DateTime.UtcNow > privateKey.StateChangedOn.AddSeconds(dsTtl + parentSidePropagationDelay))
                         {
-                            if (revokePrivateKeys is null)
-                                revokePrivateKeys = new List<DnssecPrivateKey>();
+                            if (revokeKskPrivateKeys is null)
+                                revokeKskPrivateKeys = new List<DnssecPrivateKey>();
 
-                            revokePrivateKeys.Add(privateKey);
+                            revokeKskPrivateKeys.Add(privateKey);
                         }
                     }
 
-                    if (revokePrivateKeys is not null)
+                    if (revokeKskPrivateKeys is not null)
                     {
-                        RevokeKskDnsKeys(revokePrivateKeys);
+                        RevokeKskDnsKeys(revokeKskPrivateKeys);
                         saveZone = true;
                     }
                 }
 
-                if (kskToUnpublish is not null)
-                {
-                    UnpublishDnsKeys(kskToUnpublish);
-                    saveZone = true;
-                }
+                #endregion
 
-                //ZSK actions
+                #region ZSK actions
+
                 if (zskToActivate is not null)
                 {
                     ActivateZskDnsKeys(zskToActivate);
@@ -539,46 +426,7 @@ namespace DnsServerCore.Dns.Zones
                 }
 
                 if (zskToRetire is not null)
-                {
-                    string dnsKeyTags = null;
-
-                    foreach (DnssecPrivateKey zskPrivateKey in zskToRetire)
-                    {
-                        bool isSafeToRetire = false;
-
-                        lock (_dnssecPrivateKeys)
-                        {
-                            foreach (KeyValuePair<ushort, DnssecPrivateKey> privateKeyEntry in _dnssecPrivateKeys)
-                            {
-                                DnssecPrivateKey privateKey = privateKeyEntry.Value;
-
-                                if ((privateKey.KeyType == DnssecPrivateKeyType.ZoneSigningKey) && (privateKey.Algorithm == zskPrivateKey.Algorithm) && (privateKey.State == DnssecPrivateKeyState.Active) && !privateKey.IsRetiring)
-                                {
-                                    isSafeToRetire = true;
-                                    break;
-                                }
-                            }
-                        }
-
-                        if (isSafeToRetire)
-                        {
-                            zskPrivateKey.SetState(DnssecPrivateKeyState.Retired);
-                            saveZone = true;
-
-                            if (dnsKeyTags is null)
-                                dnsKeyTags = zskPrivateKey.KeyTag.ToString();
-                            else
-                                dnsKeyTags += ", " + zskPrivateKey.KeyTag.ToString();
-                        }
-                    }
-
-                    if (dnsKeyTags is not null)
-                    {
-                        LogManager log = _dnsServer.LogManager;
-                        if (log is not null)
-                            log.Write("The ZSK DNSKEYs (" + dnsKeyTags + ") from the primary zone were retired successfully: " + _name);
-                    }
-                }
+                    saveZone = RetireZskDnsKeys(zskToRetire, false);
 
                 if (zskToRollover is not null)
                 {
@@ -588,10 +436,11 @@ namespace DnsServerCore.Dns.Zones
                     saveZone = true;
                 }
 
-                if (zskToDeactivateAndUnpublish is not null)
+                #endregion
+
+                if (keysToUnpublish is not null)
                 {
-                    DeactivateZskDnsKeys(zskToDeactivateAndUnpublish);
-                    UnpublishDnsKeys(zskToDeactivateAndUnpublish);
+                    UnpublishDnsKeys(keysToUnpublish);
                     saveZone = true;
                 }
 
@@ -751,7 +600,7 @@ namespace DnsServerCore.Dns.Zones
                     switch (privateKey.KeyType)
                     {
                         case DnssecPrivateKeyType.KeySigningKey:
-                            privateKey.SetState(DnssecPrivateKeyState.Ready);
+                            privateKey.SetState(DnssecPrivateKeyState.Published);
                             break;
 
                         case DnssecPrivateKeyType.ZoneSigningKey:
@@ -1381,6 +1230,10 @@ namespace DnsServerCore.Dns.Zones
                 return dnsKeyRecords;
             });
 
+            //update private key state before signing
+            foreach (DnssecPrivateKey privateKey in generatedPrivateKeys)
+                privateKey.SetState(DnssecPrivateKeyState.Published);
+
             List<DnsResourceRecord> addedRecords = new List<DnsResourceRecord>();
             List<DnsResourceRecord> deletedRecords = new List<DnsResourceRecord>();
 
@@ -1397,10 +1250,6 @@ namespace DnsServerCore.Dns.Zones
 
             CommitAndIncrementSerial(deletedRecords, addedRecords);
             TriggerNotify();
-
-            //update private key state
-            foreach (DnssecPrivateKey privateKey in generatedPrivateKeys)
-                privateKey.SetState(DnssecPrivateKeyState.Published);
         }
 
         private void ActivateZskDnsKeys(IReadOnlyList<DnssecPrivateKey> zskPrivateKeys)
@@ -1506,61 +1355,211 @@ namespace DnsServerCore.Dns.Zones
                     throw new DnsServerException("Cannot retire private key: no such private key was found.");
             }
 
-            switch (privateKeyToRetire.State)
+            switch (privateKeyToRetire.KeyType)
             {
-                case DnssecPrivateKeyState.Ready:
-                case DnssecPrivateKeyState.Active:
-                    int readyCount = 0;
-                    int activeCount = 0;
-
-                    lock (_dnssecPrivateKeys)
+                case DnssecPrivateKeyType.KeySigningKey:
+                    switch (privateKeyToRetire.State)
                     {
-                        foreach (KeyValuePair<ushort, DnssecPrivateKey> privateKeyEntry in _dnssecPrivateKeys)
-                        {
-                            if (privateKeyEntry.Key == privateKeyToRetire.KeyTag)
-                                continue; //skip self
+                        case DnssecPrivateKeyState.Ready:
+                        case DnssecPrivateKeyState.Active:
+                            if (!RetireKskDnsKeys(new DnssecPrivateKey[] { privateKeyToRetire }, true))
+                                throw new DnsServerException("Cannot retire private key: no successor key was found to safely retire the key.");
 
-                            DnssecPrivateKey privateKey = privateKeyEntry.Value;
-                            if (privateKey.KeyType != privateKeyToRetire.KeyType)
-                                continue;
+                            break;
 
-                            switch (privateKey.State)
-                            {
-                                case DnssecPrivateKeyState.Ready:
-                                    if (!privateKey.IsRetiring)
-                                        readyCount++;
-
-                                    break;
-
-                                case DnssecPrivateKeyState.Active:
-                                    if (!privateKey.IsRetiring)
-                                        activeCount++;
-
-                                    break;
-                            }
-                        }
+                        default:
+                            throw new DnsServerException("Cannot retire private key: the KSK private key state must be Ready or Active to be able to retire.");
                     }
+                    break;
 
-                    bool isSafeToRetire;
+                case DnssecPrivateKeyType.ZoneSigningKey:
+                    switch (privateKeyToRetire.State)
+                    {
+                        case DnssecPrivateKeyState.Active:
+                            if (!RetireZskDnsKeys(new DnssecPrivateKey[] { privateKeyToRetire }, true))
+                                throw new DnsServerException("Cannot retire private key: no successor key was found to safely retire the key.");
 
-                    if (privateKeyToRetire.KeyType == DnssecPrivateKeyType.KeySigningKey)
-                        isSafeToRetire = (activeCount > 0) || ((readyCount > 0) && (privateKeyToRetire.State == DnssecPrivateKeyState.Ready));
-                    else
-                        isSafeToRetire = activeCount > 0;
+                            break;
 
-                    if (!isSafeToRetire)
-                        throw new DnsServerException("Cannot retire private key: no successor key was found to safely retire the key.");
-
-                    //update private key state
-                    privateKeyToRetire.SetState(DnssecPrivateKeyState.Retired);
+                        default:
+                            throw new DnsServerException("Cannot retire private key: the ZSK private key state must be Active to be able to retire.");
+                    }
                     break;
 
                 default:
-                    throw new DnsServerException("Cannot retire private key: the private key state must be Ready or Active to be able to retire.");
+                    throw new InvalidOperationException();
             }
         }
 
-        private void DeactivateZskDnsKeys(IReadOnlyList<DnssecPrivateKey> privateKeys)
+        private bool RetireKskDnsKeys(IReadOnlyList<DnssecPrivateKey> kskPrivateKeys, bool ignoreAlgorithm)
+        {
+            string dnsKeyTags = null;
+
+            foreach (DnssecPrivateKey kskPrivateKey in kskPrivateKeys)
+            {
+                bool isSafeToRetire = false;
+
+                lock (_dnssecPrivateKeys)
+                {
+                    foreach (KeyValuePair<ushort, DnssecPrivateKey> privateKeyEntry in _dnssecPrivateKeys)
+                    {
+                        DnssecPrivateKey privateKey = privateKeyEntry.Value;
+
+                        if ((privateKey.KeyType == DnssecPrivateKeyType.KeySigningKey) && (privateKey.KeyTag != kskPrivateKey.KeyTag) && !privateKey.IsRetiring)
+                        {
+                            if (ignoreAlgorithm)
+                            {
+                                //manual retire case
+                                if (privateKey.Algorithm != kskPrivateKey.Algorithm)
+                                {
+                                    //check if the sucessor ksk has a matching zsk
+                                    bool foundMatchingZsk = false;
+
+                                    foreach (KeyValuePair<ushort, DnssecPrivateKey> zskPrivateKeyEntry in _dnssecPrivateKeys)
+                                    {
+                                        DnssecPrivateKey zskPrivateKey = zskPrivateKeyEntry.Value;
+
+                                        if ((zskPrivateKey.KeyType == DnssecPrivateKeyType.ZoneSigningKey) && (zskPrivateKey.Algorithm == privateKey.Algorithm) && (zskPrivateKey.State == DnssecPrivateKeyState.Active) && !zskPrivateKey.IsRetiring)
+                                        {
+                                            foundMatchingZsk = true;
+                                            break;
+                                        }
+                                    }
+
+                                    if (!foundMatchingZsk)
+                                        continue;
+                                }
+                            }
+                            else
+                            {
+                                //rollover case
+                                if (privateKey.Algorithm != kskPrivateKey.Algorithm)
+                                    continue;
+                            }
+
+                            if (privateKey.State == DnssecPrivateKeyState.Active)
+                            {
+                                isSafeToRetire = true;
+                                break;
+                            }
+
+                            if ((privateKey.State == DnssecPrivateKeyState.Ready) && (kskPrivateKey.State == DnssecPrivateKeyState.Ready))
+                            {
+                                isSafeToRetire = true;
+                                break;
+                            }
+                        }
+                    }
+                }
+
+                if (isSafeToRetire)
+                {
+                    kskPrivateKey.SetState(DnssecPrivateKeyState.Retired);
+
+                    if (dnsKeyTags is null)
+                        dnsKeyTags = kskPrivateKey.KeyTag.ToString();
+                    else
+                        dnsKeyTags += ", " + kskPrivateKey.KeyTag.ToString();
+                }
+            }
+
+            if (dnsKeyTags is not null)
+            {
+                LogManager log = _dnsServer.LogManager;
+                if (log is not null)
+                    log.Write("The KSK DNSKEYs (" + dnsKeyTags + ") from the primary zone were retired successfully: " + _name);
+
+                return true;
+            }
+
+            return false;
+        }
+
+        private bool RetireZskDnsKeys(IReadOnlyList<DnssecPrivateKey> zskPrivateKeys, bool ignoreAlgorithm)
+        {
+            string dnsKeyTags = null;
+            List<DnssecPrivateKey> zskToDeactivate = null;
+
+            foreach (DnssecPrivateKey zskPrivateKey in zskPrivateKeys)
+            {
+                bool isSafeToRetire = false;
+
+                lock (_dnssecPrivateKeys)
+                {
+                    foreach (KeyValuePair<ushort, DnssecPrivateKey> privateKeyEntry in _dnssecPrivateKeys)
+                    {
+                        DnssecPrivateKey privateKey = privateKeyEntry.Value;
+
+                        if ((privateKey.KeyType == DnssecPrivateKeyType.ZoneSigningKey) && (privateKey.KeyTag != zskPrivateKey.KeyTag) && (privateKey.State == DnssecPrivateKeyState.Active) && !privateKey.IsRetiring)
+                        {
+                            if (ignoreAlgorithm)
+                            {
+                                //manual retire case
+                                if (privateKey.Algorithm != zskPrivateKey.Algorithm)
+                                {
+                                    //check if the sucessor zsk has a matching ksk
+                                    bool foundMatchingKsk = false;
+
+                                    foreach (KeyValuePair<ushort, DnssecPrivateKey> kskPrivateKeyEntry in _dnssecPrivateKeys)
+                                    {
+                                        DnssecPrivateKey kskPrivateKey = kskPrivateKeyEntry.Value;
+
+                                        if ((kskPrivateKey.KeyType == DnssecPrivateKeyType.KeySigningKey) && (kskPrivateKey.Algorithm == privateKey.Algorithm) && ((kskPrivateKey.State == DnssecPrivateKeyState.Ready) || (kskPrivateKey.State == DnssecPrivateKeyState.Active)) && !kskPrivateKey.IsRetiring)
+                                        {
+                                            foundMatchingKsk = true;
+                                            break;
+                                        }
+                                    }
+
+                                    if (!foundMatchingKsk)
+                                        continue;
+                                }
+                            }
+                            else
+                            {
+                                //rollover case
+                                if (privateKey.Algorithm != zskPrivateKey.Algorithm)
+                                    continue;
+                            }
+
+                            isSafeToRetire = true;
+                            break;
+                        }
+                    }
+                }
+
+                if (isSafeToRetire)
+                {
+                    zskPrivateKey.SetState(DnssecPrivateKeyState.Retired);
+
+                    if (zskToDeactivate is null)
+                        zskToDeactivate = new List<DnssecPrivateKey>();
+
+                    zskToDeactivate.Add(zskPrivateKey);
+
+                    if (dnsKeyTags is null)
+                        dnsKeyTags = zskPrivateKey.KeyTag.ToString();
+                    else
+                        dnsKeyTags += ", " + zskPrivateKey.KeyTag.ToString();
+                }
+            }
+
+            if (zskToDeactivate is not null)
+                DeactivateZskDnsKeys(zskToDeactivate);
+
+            if (dnsKeyTags is not null)
+            {
+                LogManager log = _dnsServer.LogManager;
+                if (log is not null)
+                    log.Write("The ZSK DNSKEYs (" + dnsKeyTags + ") from the primary zone were retired successfully: " + _name);
+
+                return true;
+            }
+
+            return false;
+        }
+
+        private void DeactivateZskDnsKeys(IReadOnlyList<DnssecPrivateKey> zskPrivateKeys)
         {
             //remove all RRSIGs for the DNSKEYs
             List<DnsResourceRecord> deletedRecords = new List<DnsResourceRecord>();
@@ -1576,7 +1575,7 @@ namespace DnsServerCore.Dns.Zones
                 {
                     DnsRRSIGRecordData rrsig = rrsigRecord.RDATA as DnsRRSIGRecordData;
 
-                    foreach (DnssecPrivateKey privateKey in privateKeys)
+                    foreach (DnssecPrivateKey privateKey in zskPrivateKeys)
                     {
                         if (rrsig.KeyTag == privateKey.KeyTag)
                         {
@@ -1593,13 +1592,10 @@ namespace DnsServerCore.Dns.Zones
             CommitAndIncrementSerial(deletedRecords);
             TriggerNotify();
 
-            //update private key state
             string dnsKeyTags = null;
 
-            foreach (DnssecPrivateKey privateKey in privateKeys)
+            foreach (DnssecPrivateKey privateKey in zskPrivateKeys)
             {
-                privateKey.SetState(DnssecPrivateKeyState.Removed);
-
                 if (dnsKeyTags is null)
                     dnsKeyTags = privateKey.KeyTag.ToString();
                 else
@@ -1611,7 +1607,7 @@ namespace DnsServerCore.Dns.Zones
                 log.Write("The ZSK DNSKEYs (" + dnsKeyTags + ") from the primary zone were deactivated successfully: " + _name);
         }
 
-        private void RevokeKskDnsKeys(IReadOnlyList<DnssecPrivateKey> privateKeys)
+        private void RevokeKskDnsKeys(IReadOnlyList<DnssecPrivateKey> kskPrivateKeys)
         {
             if (!_entries.TryGetValue(DnsResourceRecordType.DNSKEY, out IReadOnlyList<DnsResourceRecord> existingDnsKeyRecords))
                 throw new InvalidOperationException();
@@ -1625,7 +1621,7 @@ namespace DnsServerCore.Dns.Zones
             {
                 bool found = false;
 
-                foreach (DnssecPrivateKey privateKey in privateKeys)
+                foreach (DnssecPrivateKey privateKey in kskPrivateKeys)
                 {
                     if (existingDnsKeyRecord.RDATA.Equals(privateKey.DnsKey))
                     {
@@ -1639,9 +1635,9 @@ namespace DnsServerCore.Dns.Zones
             }
 
             uint dnsKeyTtl = existingDnsKeyRecords[0].OriginalTtlValue;
-            List<ushort> keyTagsToRemove = new List<ushort>(privateKeys.Count);
+            List<ushort> keyTagsToRemove = new List<ushort>(kskPrivateKeys.Count);
 
-            foreach (DnssecPrivateKey privateKey in privateKeys)
+            foreach (DnssecPrivateKey privateKey in kskPrivateKeys)
             {
                 keyTagsToRemove.Add(privateKey.KeyTag);
                 privateKey.SetState(DnssecPrivateKeyState.Revoked);
@@ -1711,7 +1707,7 @@ namespace DnsServerCore.Dns.Zones
                 }
 
                 //add new entry
-                foreach (DnssecPrivateKey privateKey in privateKeys)
+                foreach (DnssecPrivateKey privateKey in kskPrivateKeys)
                     _dnssecPrivateKeys.Add(privateKey.KeyTag, privateKey);
             }
 
@@ -1720,7 +1716,7 @@ namespace DnsServerCore.Dns.Zones
                 log.Write("The KSK DNSKEYs (" + dnsKeyTags + ") from the primary zone were revoked successfully: " + _name);
         }
 
-        private void UnpublishDnsKeys(IReadOnlyList<DnssecPrivateKey> privateKeys)
+        private void UnpublishDnsKeys(IReadOnlyList<DnssecPrivateKey> deadPrivateKeys)
         {
             if (!_entries.TryGetValue(DnsResourceRecordType.DNSKEY, out IReadOnlyList<DnsResourceRecord> existingDnsKeyRecords))
                 throw new InvalidOperationException();
@@ -1734,7 +1730,7 @@ namespace DnsServerCore.Dns.Zones
             {
                 bool found = false;
 
-                foreach (DnssecPrivateKey privateKey in privateKeys)
+                foreach (DnssecPrivateKey privateKey in deadPrivateKeys)
                 {
                     if (existingDnsKeyRecord.RDATA.Equals(privateKey.DnsKey))
                     {
@@ -1776,7 +1772,7 @@ namespace DnsServerCore.Dns.Zones
                     if (rrsig.TypeCovered != DnsResourceRecordType.DNSKEY)
                         continue;
 
-                    foreach (DnssecPrivateKey privateKey in privateKeys)
+                    foreach (DnssecPrivateKey privateKey in deadPrivateKeys)
                     {
                         if (rrsig.KeyTag == privateKey.KeyTag)
                         {
@@ -1798,7 +1794,7 @@ namespace DnsServerCore.Dns.Zones
 
             lock (_dnssecPrivateKeys)
             {
-                foreach (DnssecPrivateKey privateKey in privateKeys)
+                foreach (DnssecPrivateKey privateKey in deadPrivateKeys)
                 {
                     if (_dnssecPrivateKeys.Remove(privateKey.KeyTag))
                     {
@@ -1892,7 +1888,6 @@ namespace DnsServerCore.Dns.Zones
 
                             switch (privateKey.State)
                             {
-                                case DnssecPrivateKeyState.Generated:
                                 case DnssecPrivateKeyState.Published:
                                 case DnssecPrivateKeyState.Ready:
                                 case DnssecPrivateKeyState.Active:
@@ -2351,6 +2346,133 @@ namespace DnsServerCore.Dns.Zones
             return (_entries[DnsResourceRecordType.SOA][0].RDATA as DnsSOARecordData).Expire + (3 * 24 * 60 * 60);
         }
 
+        internal DateTime GetDnsKeyStateReadyBy(DnssecPrivateKey privateKey)
+        {
+            return GetDnsKeyStateReadyOn(privateKey).AddMilliseconds(DNSSEC_TIMER_PERIODIC_INTERVAL);
+        }
+
+        private DateTime GetDnsKeyStateReadyOn(DnssecPrivateKey privateKey)
+        {
+            bool foundOldKsk = false;
+
+            lock (_dnssecPrivateKeys)
+            {
+                foreach (KeyValuePair<ushort, DnssecPrivateKey> dnssecPrivateKey in _dnssecPrivateKeys)
+                {
+                    DnssecPrivateKey kskPrivateKey = dnssecPrivateKey.Value;
+                    if (kskPrivateKey.KeyType == DnssecPrivateKeyType.KeySigningKey)
+                    {
+                        if ((kskPrivateKey.State == DnssecPrivateKeyState.Ready) || (kskPrivateKey.State == DnssecPrivateKeyState.Active))
+                        {
+                            foundOldKsk = true;
+                            break;
+                        }
+                    }
+                }
+            }
+
+            if (foundOldKsk)
+                return privateKey.StateChangedOn.AddSeconds(GetDnsKeyTtl() + GetPropagationDelay());
+            else
+                return privateKey.StateChangedOn.AddSeconds(GetMaxRecordTtl() + GetPropagationDelay()); //newly signed zone case
+        }
+
+        private uint GetPropagationDelay()
+        {
+            //the max time required to sync zone changes to secondaries if NOTIFY fails to trigger a zone transfer
+            DnsSOARecordData soa = _entries[DnsResourceRecordType.SOA][0].RDATA as DnsSOARecordData;
+            return soa.Refresh + soa.Retry;
+        }
+
+        private async Task<uint> GetParentSidePropagationDelayAsync()
+        {
+            uint parentSidePropagationDelay = 24 * 60 * 60;
+
+            try
+            {
+                string parent = AuthZoneManager.GetParentZone(_name);
+                if (parent is null)
+                    parent = "";
+
+                DnsDatagram soaResponse = await _dnsServer.DirectQueryAsync(new DnsQuestionRecord(parent, DnsResourceRecordType.SOA, DnsClass.IN), 10000);
+                if (soaResponse.RCODE == DnsResponseCode.NoError)
+                {
+                    IReadOnlyList<DnsResourceRecord> records;
+
+                    if (soaResponse.Answer.Count > 0)
+                        records = soaResponse.Answer;
+                    else if (soaResponse.Authority.Count > 0)
+                        records = soaResponse.Authority;
+                    else
+                        records = null;
+
+                    if (records is not null)
+                    {
+                        foreach (DnsResourceRecord record in records)
+                        {
+                            if (record.Type == DnsResourceRecordType.SOA)
+                            {
+                                DnsSOARecordData parentSoa = record.RDATA as DnsSOARecordData;
+                                parentSidePropagationDelay = parentSoa.Refresh + parentSoa.Retry;
+                                break;
+                            }
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                LogManager log = _dnsServer.LogManager;
+                if (log is not null)
+                    log.Write(ex);
+            }
+
+            return parentSidePropagationDelay;
+        }
+
+        private uint GetMaxRecordTtl()
+        {
+            uint maxTtl = 0;
+
+            foreach (KeyValuePair<DnsResourceRecordType, IReadOnlyList<DnsResourceRecord>> entry in _entries)
+            {
+                if (entry.Key == DnsResourceRecordType.RRSIG)
+                    continue;
+
+                IReadOnlyList<DnsResourceRecord> rrset = entry.Value;
+
+                //find min TTL
+                uint rrsetTtl = 0;
+
+                foreach (DnsResourceRecord rr in rrset)
+                {
+                    if ((rrsetTtl == 0) || (rrsetTtl > rr.OriginalTtlValue))
+                        rrsetTtl = rr.OriginalTtlValue;
+                }
+
+                if (rrsetTtl > maxTtl)
+                    maxTtl = rrsetTtl;
+            }
+
+            return maxTtl;
+        }
+
+        private uint GetMaxRRSigTtl()
+        {
+            uint maxTtl = 0;
+
+            if (!_entries.TryGetValue(DnsResourceRecordType.RRSIG, out IReadOnlyList<DnsResourceRecord> rrsigRecords))
+                throw new InvalidOperationException();
+
+            foreach (DnsResourceRecord rr in rrsigRecords)
+            {
+                if (rr.OriginalTtlValue > maxTtl)
+                    maxTtl = rr.OriginalTtlValue;
+            }
+
+            return maxTtl;
+        }
+
         private uint GetZoneSoaMinimum()
         {
             return (_entries[DnsResourceRecordType.SOA][0].RDATA as DnsSOARecordData).Minimum;
@@ -2359,6 +2481,45 @@ namespace DnsServerCore.Dns.Zones
         internal uint GetZoneSoaExpire()
         {
             return (_entries[DnsResourceRecordType.SOA][0].RDATA as DnsSOARecordData).Expire;
+        }
+
+        private async Task<uint> GetDSTtl()
+        {
+            uint dsTtl = 24 * 60 * 60;
+
+            try
+            {
+                DnsDatagram dsResponse = await _dnsServer.DirectQueryAsync(new DnsQuestionRecord(_name, DnsResourceRecordType.DS, DnsClass.IN), 10000);
+                if (dsResponse.RCODE == DnsResponseCode.NoError)
+                {
+                    if (dsResponse.Answer.Count > 0)
+                    {
+                        //find min TTL
+                        dsTtl = 0;
+
+                        foreach (DnsResourceRecord answer in dsResponse.Answer)
+                        {
+                            if (answer.Type == DnsResourceRecordType.DS)
+                            {
+                                if ((dsTtl == 0) || (dsTtl > answer.OriginalTtlValue))
+                                    dsTtl = answer.OriginalTtlValue;
+                            }
+                        }
+                    }
+                    else
+                    {
+                        dsTtl = 0; //no DS was found
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                LogManager log = _dnsServer.LogManager;
+                if (log is not null)
+                    log.Write(ex);
+            }
+
+            return dsTtl;
         }
 
         public uint GetDnsKeyTtl()
