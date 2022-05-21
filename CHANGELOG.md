@@ -1,5 +1,13 @@
 # Technitium DNS Server Change Log
 
+## Version 8.1.1
+Release Date: 21 May 2022
+- Added Sync Failed and Notify Failed zone status to indicate issues between primary and secondary zones synchronization.
+- Added more options in zone options to configure zone transfer and notify settings.
+- Fixed DNSSEC signed primary zone key rollover timing issues as per [RFC 7583](https://datatracker.ietf.org/doc/html/rfc7583).
+- Fixed issue in recursive resolver by adding zone cut validation for glue records.
+- Multiple other minor bug fixes and improvements.
+
 ## Version 8.1
 Release Date: 8 May 2022
 - Added maximum cache entires option to limit memory usage by removing least recently used data from cache.
