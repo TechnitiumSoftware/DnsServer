@@ -168,14 +168,14 @@ namespace DnsServerCore.Dns.Zones
 
                 _isExpired = DateTime.UtcNow > _expiry;
 
-                //get all name server addresses
-                IReadOnlyList<NameServerAddress> nameServers = await GetAllNameServerAddressesAsync(_dnsServer);
+                //get primary name server addresses
+                IReadOnlyList<NameServerAddress> primaryNameServers = await GetPrimaryNameServerAddressesAsync(_dnsServer);
 
-                if (nameServers.Count == 0)
+                if (primaryNameServers.Count == 0)
                 {
                     LogManager log = _dnsServer.LogManager;
                     if (log != null)
-                        log.Write("DNS Server could not find name server IP addresses for stub zone: " + (_name == "" ? "<root>" : _name));
+                        log.Write("DNS Server could not find primary name server IP addresses for stub zone: " + (_name == "" ? "<root>" : _name));
 
                     //set timer for retry
                     DnsSOARecordData soa1 = _entries[DnsResourceRecordType.SOA][0].RDATA as DnsSOARecordData;
@@ -185,7 +185,7 @@ namespace DnsServerCore.Dns.Zones
                 }
 
                 //refresh zone
-                if (await RefreshZoneAsync(nameServers))
+                if (await RefreshZoneAsync(primaryNameServers))
                 {
                     //zone refreshed; set timer for refresh
                     DnsSOARecordData latestSoa = _entries[DnsResourceRecordType.SOA][0].RDATA as DnsSOARecordData;
