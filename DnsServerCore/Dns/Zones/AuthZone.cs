@@ -732,7 +732,14 @@ namespace DnsServerCore.Dns.Zones
 
                 List<DnsResourceRecord> updatedRecords = new List<DnsResourceRecord>(existingRecords.Count + 1);
 
-                updatedRecords.AddRange(existingRecords);
+                foreach (DnsResourceRecord existingRecord in existingRecords)
+                {
+                    if (existingRecord.OriginalTtlValue == record.OriginalTtlValue)
+                        updatedRecords.Add(existingRecord);
+                    else
+                        updatedRecords.Add(new DnsResourceRecord(existingRecord.Name, existingRecord.Type, existingRecord.Class, record.OriginalTtlValue, existingRecord.RDATA));
+                }
+
                 updatedRecords.Add(record);
 
                 return updatedRecords;
