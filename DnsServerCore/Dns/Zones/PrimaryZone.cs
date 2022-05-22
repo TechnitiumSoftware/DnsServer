@@ -2989,7 +2989,7 @@ namespace DnsServerCore.Dns.Zones
                 if (_internal)
                     throw new InvalidOperationException();
 
-                _zoneTransfer = value;
+                base.ZoneTransfer = value;
             }
         }
 
@@ -3001,7 +3001,7 @@ namespace DnsServerCore.Dns.Zones
                 if (_internal)
                     throw new InvalidOperationException();
 
-                _notify = value;
+                base.Notify = value;
             }
         }
 
