@@ -281,6 +281,60 @@ namespace DnsServerCore.Dns.Zones
             deletedRRSigRecords = deleted;
         }
 
+        internal void AddRecord(DnsResourceRecord record, out IReadOnlyList<DnsResourceRecord> addedRecords, out IReadOnlyList<DnsResourceRecord> deletedRecords)
+        {
+            switch (record.Type)
+            {
+                case DnsResourceRecordType.CNAME:
+                case DnsResourceRecordType.DNAME:
+                case DnsResourceRecordType.SOA:
+                    throw new InvalidOperationException("Cannot add record: use SetRecords() for " + record.Type.ToString() + " record");
+            }
+
+            List<DnsResourceRecord> added = new List<DnsResourceRecord>();
+            List<DnsResourceRecord> deleted = new List<DnsResourceRecord>();
+
+            addedRecords = added;
+            deletedRecords = deleted;
+
+            added.Add(record);
+
+            _entries.AddOrUpdate(record.Type, delegate (DnsResourceRecordType key)
+            {
+                return new DnsResourceRecord[] { record };
+            },
+            delegate (DnsResourceRecordType key, IReadOnlyList<DnsResourceRecord> existingRecords)
+            {
+                foreach (DnsResourceRecord existingRecord in existingRecords)
+                {
+                    if (record.RDATA.Equals(existingRecord.RDATA))
+                        return existingRecords;
+                }
+
+                List<DnsResourceRecord> updatedRecords = new List<DnsResourceRecord>(existingRecords.Count + 1);
+
+                foreach (DnsResourceRecord existingRecord in existingRecords)
+                {
+                    if (existingRecord.OriginalTtlValue == record.OriginalTtlValue)
+                    {
+                        updatedRecords.Add(existingRecord);
+                    }
+                    else
+                    {
+                        DnsResourceRecord updatedExistingRecord = new DnsResourceRecord(existingRecord.Name, existingRecord.Type, existingRecord.Class, record.OriginalTtlValue, existingRecord.RDATA);
+                        updatedRecords.Add(updatedExistingRecord);
+
+                        added.Add(updatedExistingRecord);
+                        deleted.Add(existingRecord);
+                    }
+                }
+
+                updatedRecords.Add(record);
+
+                return updatedRecords;
+            });
+        }
+
         #endregion
 
         #region DNSSEC
@@ -710,40 +764,7 @@ namespace DnsServerCore.Dns.Zones
 
         public virtual void AddRecord(DnsResourceRecord record)
         {
-            switch (record.Type)
-            {
-                case DnsResourceRecordType.CNAME:
-                case DnsResourceRecordType.DNAME:
-                case DnsResourceRecordType.SOA:
-                    throw new InvalidOperationException("Cannot add record: use SetRecords() for " + record.Type.ToString() + " record");
-            }
-
-            _entries.AddOrUpdate(record.Type, delegate (DnsResourceRecordType key)
-            {
-                return new DnsResourceRecord[] { record };
-            },
-            delegate (DnsResourceRecordType key, IReadOnlyList<DnsResourceRecord> existingRecords)
-            {
-                foreach (DnsResourceRecord existingRecord in existingRecords)
-                {
-                    if (record.RDATA.Equals(existingRecord.RDATA))
-                        return existingRecords;
-                }
-
-                List<DnsResourceRecord> updatedRecords = new List<DnsResourceRecord>(existingRecords.Count + 1);
-
-                foreach (DnsResourceRecord existingRecord in existingRecords)
-                {
-                    if (existingRecord.OriginalTtlValue == record.OriginalTtlValue)
-                        updatedRecords.Add(existingRecord);
-                    else
-                        updatedRecords.Add(new DnsResourceRecord(existingRecord.Name, existingRecord.Type, existingRecord.Class, record.OriginalTtlValue, existingRecord.RDATA));
-                }
-
-                updatedRecords.Add(record);
-
-                return updatedRecords;
-            });
+            AddRecord(record, out _, out _);
         }
 
         public virtual bool DeleteRecords(DnsResourceRecordType type)
