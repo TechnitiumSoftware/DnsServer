@@ -2832,9 +2832,9 @@ namespace DnsServerCore.Dns.Zones
                     if (record.OriginalTtlValue > GetZoneSoaExpire())
                         throw new DnsServerException("Failed to add record: TTL cannot be greater than SOA EXPIRE.");
 
-                    base.AddRecord(record);
+                    AddRecord(record, out IReadOnlyList<DnsResourceRecord> addedRecords, out IReadOnlyList<DnsResourceRecord> deletedRecords);
 
-                    CommitAndIncrementSerial(null, new DnsResourceRecord[] { record });
+                    CommitAndIncrementSerial(deletedRecords, addedRecords);
 
                     if (_dnssecStatus != AuthZoneDnssecStatus.Unsigned)
                         UpdateDnssecRecordsFor(this, record.Type);
@@ -2933,9 +2933,13 @@ namespace DnsServerCore.Dns.Zones
                     if (!TryDeleteRecord(oldRecord.Type, oldRecord.RDATA, out DnsResourceRecord deletedRecord))
                         throw new InvalidOperationException("Cannot update record: the record does not exists to be updated.");
 
-                    base.AddRecord(newRecord);
+                    AddRecord(newRecord, out IReadOnlyList<DnsResourceRecord> addedRecords, out IReadOnlyList<DnsResourceRecord> deletedRecords);
 
-                    CommitAndIncrementSerial(new DnsResourceRecord[] { deletedRecord }, new DnsResourceRecord[] { newRecord });
+                    List<DnsResourceRecord> allDeletedRecords = new List<DnsResourceRecord>(deletedRecords.Count + 1);
+                    allDeletedRecords.Add(deletedRecord);
+                    allDeletedRecords.AddRange(deletedRecords);
+
+                    CommitAndIncrementSerial(allDeletedRecords, addedRecords);
 
                     if (_dnssecStatus != AuthZoneDnssecStatus.Unsigned)
                         UpdateDnssecRecordsFor(this, oldRecord.Type);
