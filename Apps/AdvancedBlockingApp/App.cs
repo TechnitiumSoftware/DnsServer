@@ -807,7 +807,7 @@ namespace AdvancedBlocking
 
             Directory.CreateDirectory(_localCacheFolder);
 
-            _soaRecord = new DnsSOARecordData(_dnsServer.ServerDomain, "hostadmin." + _dnsServer.ServerDomain, 1, 14400, 3600, 604800, 60);
+            _soaRecord = new DnsSOARecordData(_dnsServer.ServerDomain, "hostadmin@" + _dnsServer.ServerDomain, 1, 14400, 3600, 604800, 60);
             _nsRecord = new DnsNSRecordData(_dnsServer.ServerDomain);
 
             dynamic jsonConfig = JsonConvert.DeserializeObject(config);
