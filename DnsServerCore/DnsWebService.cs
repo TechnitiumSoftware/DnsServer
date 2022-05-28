@@ -3960,7 +3960,7 @@ namespace DnsServerCore
                             if (version >= 27)
                                 _dnsServer.CacheZoneManager.MaximumEntries = bR.ReadInt32();
                             else
-                                _dnsServer.CacheZoneManager.MaximumEntries = 0;
+                                _dnsServer.CacheZoneManager.MaximumEntries = 10000;
 
                             break;
 
@@ -4103,6 +4103,8 @@ namespace DnsServerCore
 
                 _dnsServer.DnssecValidation = true;
                 CreateForwarderZoneToDisableDnssecForNTP();
+
+                _dnsServer.CacheZoneManager.MaximumEntries = 10000;
 
                 SaveConfigFile();
             }
