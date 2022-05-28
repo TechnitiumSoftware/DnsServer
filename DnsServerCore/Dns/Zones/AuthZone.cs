@@ -297,10 +297,9 @@ namespace DnsServerCore.Dns.Zones
             addedRecords = added;
             deletedRecords = deleted;
 
-            added.Add(record);
-
             _entries.AddOrUpdate(record.Type, delegate (DnsResourceRecordType key)
             {
+                added.Add(record);
                 return new DnsResourceRecord[] { record };
             },
             delegate (DnsResourceRecordType key, IReadOnlyList<DnsResourceRecord> existingRecords)
@@ -331,6 +330,7 @@ namespace DnsServerCore.Dns.Zones
 
                 updatedRecords.Add(record);
 
+                added.Add(record);
                 return updatedRecords;
             });
         }
