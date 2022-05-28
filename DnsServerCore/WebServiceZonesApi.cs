@@ -2430,6 +2430,10 @@ namespace DnsServerCore
 
                 case DnsResourceRecordType.MX:
                     {
+                        string preference = request.QueryString["preference"];
+                        if (string.IsNullOrEmpty(preference))
+                            throw new DnsWebServiceException("Parameter 'preference' missing.");
+
                         string exchange = request.QueryString["exchange"];
                         if (string.IsNullOrEmpty(exchange))
                         {
@@ -2439,7 +2443,7 @@ namespace DnsServerCore
                             exchange = value;
                         }
 
-                        _dnsWebService.DnsServer.AuthZoneManager.DeleteRecord(zoneName, domain, type, new DnsMXRecordData(0, exchange));
+                        _dnsWebService.DnsServer.AuthZoneManager.DeleteRecord(zoneName, domain, type, new DnsMXRecordData(ushort.Parse(preference), exchange));
                     }
                     break;
 
@@ -2460,6 +2464,14 @@ namespace DnsServerCore
 
                 case DnsResourceRecordType.SRV:
                     {
+                        string priority = request.QueryString["priority"];
+                        if (string.IsNullOrEmpty(priority))
+                            throw new DnsWebServiceException("Parameter 'priority' missing.");
+
+                        string weight = request.QueryString["weight"];
+                        if (string.IsNullOrEmpty(weight))
+                            throw new DnsWebServiceException("Parameter 'weight' missing.");
+
                         string port = request.QueryString["port"];
                         if (string.IsNullOrEmpty(port))
                             throw new DnsWebServiceException("Parameter 'port' missing.");
@@ -2473,7 +2485,7 @@ namespace DnsServerCore
                             target = value;
                         }
 
-                        _dnsWebService.DnsServer.AuthZoneManager.DeleteRecord(zoneName, domain, type, new DnsSRVRecordData(0, 0, ushort.Parse(port), target));
+                        _dnsWebService.DnsServer.AuthZoneManager.DeleteRecord(zoneName, domain, type, new DnsSRVRecordData(ushort.Parse(priority), ushort.Parse(weight), ushort.Parse(port), target));
                     }
                     break;
 
@@ -2813,7 +2825,7 @@ namespace DnsServerCore
                         if (string.IsNullOrEmpty(minimum))
                             throw new DnsWebServiceException("Parameter 'minimum' missing.");
 
-                        DnsResourceRecord newSOARecord = new DnsResourceRecord(domain, type, DnsClass.IN, ttl, new DnsSOARecordData(primaryNameServer, responsiblePerson, uint.Parse(serial), uint.Parse(refresh), uint.Parse(retry), uint.Parse(expire), uint.Parse(minimum)));
+                        DnsResourceRecord newSOARecord = new DnsResourceRecord(domain, type, DnsClass.IN, ttl, new DnsSOARecordData(primaryNameServer.TrimEnd('.'), responsiblePerson.TrimEnd('.'), uint.Parse(serial), uint.Parse(refresh), uint.Parse(retry), uint.Parse(expire), uint.Parse(minimum)));
 
                         switch (zoneInfo.Type)
                         {
@@ -2889,6 +2901,10 @@ namespace DnsServerCore
                         if (string.IsNullOrEmpty(preference))
                             preference = "1";
 
+                        string newPreference = request.QueryString["newPreference"];
+                        if (string.IsNullOrEmpty(newPreference))
+                            newPreference = preference;
+
                         string exchange = request.QueryString["exchange"];
                         if (string.IsNullOrEmpty(exchange))
                         {
@@ -2907,8 +2923,8 @@ namespace DnsServerCore
                             newExchange = newValue;
                         }
 
-                        DnsResourceRecord oldRecord = new DnsResourceRecord(domain, type, DnsClass.IN, 0, new DnsMXRecordData(0, exchange.TrimEnd('.')));
-                        newRecord = new DnsResourceRecord(newDomain, type, DnsClass.IN, ttl, new DnsMXRecordData(ushort.Parse(preference), newExchange.TrimEnd('.')));
+                        DnsResourceRecord oldRecord = new DnsResourceRecord(domain, type, DnsClass.IN, 0, new DnsMXRecordData(ushort.Parse(preference), exchange.TrimEnd('.')));
+                        newRecord = new DnsResourceRecord(newDomain, type, DnsClass.IN, ttl, new DnsMXRecordData(ushort.Parse(newPreference), newExchange.TrimEnd('.')));
 
                         if (disable)
                             newRecord.Disable();
@@ -2959,9 +2975,17 @@ namespace DnsServerCore
                         if (string.IsNullOrEmpty(priority))
                             throw new DnsWebServiceException("Parameter 'priority' missing.");
 
+                        string newPriority = request.QueryString["newPriority"];
+                        if (string.IsNullOrEmpty(newPriority))
+                            newPriority = priority;
+
                         string weight = request.QueryString["weight"];
                         if (string.IsNullOrEmpty(weight))
                             throw new DnsWebServiceException("Parameter 'weight' missing.");
+
+                        string newWeight = request.QueryString["newWeight"];
+                        if (string.IsNullOrEmpty(newWeight))
+                            newWeight = weight;
 
                         string port = request.QueryString["port"];
                         if (string.IsNullOrEmpty(port))
@@ -2989,8 +3013,8 @@ namespace DnsServerCore
                             newTarget = newValue;
                         }
 
-                        DnsResourceRecord oldRecord = new DnsResourceRecord(domain, type, DnsClass.IN, 0, new DnsSRVRecordData(0, 0, ushort.Parse(port), target.TrimEnd('.')));
-                        newRecord = new DnsResourceRecord(newDomain, type, DnsClass.IN, ttl, new DnsSRVRecordData(ushort.Parse(priority), ushort.Parse(weight), ushort.Parse(newPort), newTarget.TrimEnd('.')));
+                        DnsResourceRecord oldRecord = new DnsResourceRecord(domain, type, DnsClass.IN, 0, new DnsSRVRecordData(ushort.Parse(priority), ushort.Parse(weight), ushort.Parse(port), target.TrimEnd('.')));
+                        newRecord = new DnsResourceRecord(newDomain, type, DnsClass.IN, ttl, new DnsSRVRecordData(ushort.Parse(newPriority), ushort.Parse(newWeight), ushort.Parse(newPort), newTarget.TrimEnd('.')));
 
                         if (disable)
                             newRecord.Disable();
