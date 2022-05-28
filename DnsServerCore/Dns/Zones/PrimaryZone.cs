@@ -110,7 +110,7 @@ namespace DnsServerCore.Dns.Zones
                 InitNotify(_dnsServer);
             }
 
-            DnsSOARecordData soa = new DnsSOARecordData(primaryNameServer, _name.Length == 0 ? "hostadmin" : "hostadmin." + _name, 1, 900, 300, 604800, 900);
+            DnsSOARecordData soa = new DnsSOARecordData(primaryNameServer, _name.Length == 0 ? "hostadmin@localhost" : "hostadmin@" + _name, 1, 900, 300, 604800, 900);
 
             _entries[DnsResourceRecordType.SOA] = new DnsResourceRecord[] { new DnsResourceRecord(_name, DnsResourceRecordType.SOA, DnsClass.IN, soa.Minimum, soa) };
             _entries[DnsResourceRecordType.NS] = new DnsResourceRecord[] { new DnsResourceRecord(_name, DnsResourceRecordType.NS, DnsClass.IN, 3600, new DnsNSRecordData(soa.PrimaryNameServer)) };
@@ -2834,12 +2834,15 @@ namespace DnsServerCore.Dns.Zones
 
                     AddRecord(record, out IReadOnlyList<DnsResourceRecord> addedRecords, out IReadOnlyList<DnsResourceRecord> deletedRecords);
 
-                    CommitAndIncrementSerial(deletedRecords, addedRecords);
+                    if (addedRecords.Count > 0)
+                    {
+                        CommitAndIncrementSerial(deletedRecords, addedRecords);
 
-                    if (_dnssecStatus != AuthZoneDnssecStatus.Unsigned)
-                        UpdateDnssecRecordsFor(this, record.Type);
+                        if (_dnssecStatus != AuthZoneDnssecStatus.Unsigned)
+                            UpdateDnssecRecordsFor(this, record.Type);
 
-                    TriggerNotify();
+                        TriggerNotify();
+                    }
                     break;
             }
         }
