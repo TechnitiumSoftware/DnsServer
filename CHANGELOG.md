@@ -1,5 +1,13 @@
 # Technitium DNS Server Change Log
 
+## Version 8.1.2
+Release Date: 28 May 2022
+- Fixed issue in Primary zone add and update record IXFR history when RRSet TTL was updated.
+- Fixed issue in DNSSEC validation for MX and SRV records caused due to incorrect comparison of record data.
+- Fixed issue in SOA record responsible person parameter parsing.
+- This release updates delete and update record API calls for MX and SRV records which may cause issues in 3rd party clients if they are not updated before deploying this new version. It is recommended to check the API documentation for changes before deploying this new release.
+- Multiple other minor bug fixes and improvements.
+
 ## Version 8.1.1
 Release Date: 21 May 2022
 - Added Sync Failed and Notify Failed zone status to indicate issues between primary and secondary zones synchronization.
