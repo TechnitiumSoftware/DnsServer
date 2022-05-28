@@ -815,7 +815,7 @@ namespace DnsServerCore.Dns
                                         else
                                             dnssecOk = bool.Parse(strDO);
 
-                                        dnsRequest = new DnsDatagram(0, false, DnsOpcode.StandardQuery, false, false, true, false, false, false, DnsResponseCode.NoError, new DnsQuestionRecord[] { new DnsQuestionRecord(strName, (DnsResourceRecordType)int.Parse(strType), DnsClass.IN) }, null, null, null, _udpPayloadSize, dnssecOk ? EDnsHeaderFlags.DNSSEC_OK : EDnsHeaderFlags.None);
+                                        dnsRequest = new DnsDatagram(0, false, DnsOpcode.StandardQuery, false, false, true, false, false, false, DnsResponseCode.NoError, new DnsQuestionRecord[] { new DnsQuestionRecord(strName.TrimEnd('.'), (DnsResourceRecordType)int.Parse(strType), DnsClass.IN) }, null, null, null, _udpPayloadSize, dnssecOk ? EDnsHeaderFlags.DNSSEC_OK : EDnsHeaderFlags.None);
 
                                         DnsDatagram dnsResponse = await PreProcessQueryAsync(dnsRequest, remoteEP, protocol, IsRecursionAllowed(remoteEP));
                                         if (dnsResponse is null)
@@ -2381,6 +2381,26 @@ namespace DnsServerCore.Dns
                         options = new EDnsOption[] { new EDnsOption(EDnsOptionCode.EXTENDED_DNS_ERROR, new EDnsExtendedDnsErrorOption(EDnsExtendedDnsErrorCode.NoReachableAuthority, "Request timed out")) };
                     else
                         options = new EDnsOption[] { new EDnsOption(EDnsOptionCode.EXTENDED_DNS_ERROR, new EDnsExtendedDnsErrorOption(EDnsExtendedDnsErrorCode.NetworkError, "Socket error: " + ex4.SocketErrorCode.ToString())) };
+
+                    DnsDatagram failureResponse = new DnsDatagram(0, true, DnsOpcode.StandardQuery, false, false, true, true, false, dnssecValidation, DnsResponseCode.ServerFailure, new DnsQuestionRecord[] { question }, null, null, null, _udpPayloadSize, dnssecValidation ? EDnsHeaderFlags.DNSSEC_OK : EDnsHeaderFlags.None, options);
+
+                    taskCompletionSource.SetResult(new RecursiveResolveResponse(failureResponse, failureResponse));
+                }
+                else if (ex is IOException ex5)
+                {
+                    IReadOnlyList<EDnsOption> options;
+
+                    if (ex5.InnerException is SocketException ex5a)
+                    {
+                        if (ex5a.SocketErrorCode == SocketError.TimedOut)
+                            options = new EDnsOption[] { new EDnsOption(EDnsOptionCode.EXTENDED_DNS_ERROR, new EDnsExtendedDnsErrorOption(EDnsExtendedDnsErrorCode.NoReachableAuthority, "Request timed out")) };
+                        else
+                            options = new EDnsOption[] { new EDnsOption(EDnsOptionCode.EXTENDED_DNS_ERROR, new EDnsExtendedDnsErrorOption(EDnsExtendedDnsErrorCode.NetworkError, "Socket error: " + ex5a.SocketErrorCode.ToString())) };
+                    }
+                    else
+                    {
+                        options = new EDnsOption[] { new EDnsOption(EDnsOptionCode.EXTENDED_DNS_ERROR, new EDnsExtendedDnsErrorOption(EDnsExtendedDnsErrorCode.NetworkError, "IO error: " + ex5.Message)) };
+                    }
 
                     DnsDatagram failureResponse = new DnsDatagram(0, true, DnsOpcode.StandardQuery, false, false, true, true, false, dnssecValidation, DnsResponseCode.ServerFailure, new DnsQuestionRecord[] { question }, null, null, null, _udpPayloadSize, dnssecValidation ? EDnsHeaderFlags.DNSSEC_OK : EDnsHeaderFlags.None, options);
 
