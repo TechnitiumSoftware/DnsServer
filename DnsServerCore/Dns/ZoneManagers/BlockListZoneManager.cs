@@ -70,7 +70,7 @@ namespace DnsServerCore.Dns.ZoneManagers
 
         private void UpdateServerDomain(string serverDomain)
         {
-            _soaRecord = new DnsSOARecordData(serverDomain, "hostadmin." + serverDomain, 1, 14400, 3600, 604800, 60);
+            _soaRecord = new DnsSOARecordData(serverDomain, "hostadmin@" + serverDomain, 1, 14400, 3600, 604800, 60);
             _nsRecord = new DnsNSRecordData(serverDomain);
         }
 
