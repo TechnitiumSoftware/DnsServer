@@ -2668,9 +2668,11 @@ function updateRecord() {
             break;
 
         case "MX":
-            var preference = $("#txtAddEditRecordDataMxPreference").val();
-            if (preference === "")
-                preference = 1;
+            var preference = divData.attr("data-record-preference");
+
+            var newPreference = $("#txtAddEditRecordDataMxPreference").val();
+            if (newPreference === "")
+                newPreference = 1;
 
             var exchange = divData.attr("data-record-exchange");
 
@@ -2681,7 +2683,7 @@ function updateRecord() {
                 return;
             }
 
-            apiUrl += "&preference=" + preference + "&exchange=" + encodeURIComponent(exchange) + "&newExchange=" + encodeURIComponent(newExchange);
+            apiUrl += "&preference=" + preference + "&newPreference=" + newPreference + "&exchange=" + encodeURIComponent(exchange) + "&newExchange=" + encodeURIComponent(newExchange);
             break;
 
         case "TXT":
@@ -2704,21 +2706,25 @@ function updateRecord() {
                 return;
             }
 
-            var port = divData.attr("data-record-port");
+            var priority = divData.attr("data-record-priority");
 
-            var priority = $("#txtAddEditRecordDataSrvPriority").val();
-            if (priority === "") {
+            var newPriority = $("#txtAddEditRecordDataSrvPriority").val();
+            if (newPriority === "") {
                 showAlert("warning", "Missing!", "Please enter a suitable priority.", divAddEditRecordAlert);
                 $("#txtAddEditRecordDataSrvPriority").focus();
                 return;
             }
 
-            var weight = $("#txtAddEditRecordDataSrvWeight").val();
-            if (weight === "") {
+            var weight = divData.attr("data-record-weight");
+
+            var newWeight = $("#txtAddEditRecordDataSrvWeight").val();
+            if (newWeight === "") {
                 showAlert("warning", "Missing!", "Please enter a suitable weight.", divAddEditRecordAlert);
                 $("#txtAddEditRecordDataSrvWeight").focus();
                 return;
             }
+
+            var port = divData.attr("data-record-port");
 
             var newPort = $("#txtAddEditRecordDataSrvPort").val();
             if (newPort === "") {
@@ -2736,7 +2742,7 @@ function updateRecord() {
                 return;
             }
 
-            apiUrl += "&priority=" + priority + "&weight=" + weight + "&port=" + port + "&newPort=" + newPort + "&target=" + encodeURIComponent(target) + "&newTarget=" + encodeURIComponent(newTarget);
+            apiUrl += "&priority=" + priority + "&newPriority=" + newPriority + "&weight=" + weight + "&newWeight=" + newWeight + "&port=" + port + "&newPort=" + newPort + "&target=" + encodeURIComponent(target) + "&newTarget=" + encodeURIComponent(newTarget);
             break;
 
         case "DNAME":
@@ -2956,7 +2962,7 @@ function updateRecordState(objBtn, disable) {
             break;
 
         case "SRV":
-            apiUrl += "&port=" + divData.attr("data-record-port") + "&priority=" + divData.attr("data-record-priority") + "&weight=" + divData.attr("data-record-weight") + "&target=" + encodeURIComponent(divData.attr("data-record-target"));
+            apiUrl += "&priority=" + divData.attr("data-record-priority") + "&weight=" + divData.attr("data-record-weight") + "&port=" + divData.attr("data-record-port") + "&target=" + encodeURIComponent(divData.attr("data-record-target"));
             break;
 
         case "DNAME":
@@ -3056,7 +3062,7 @@ function deleteRecord(objBtn) {
             break;
 
         case "MX":
-            apiUrl += "&exchange=" + encodeURIComponent(divData.attr("data-record-exchange"));
+            apiUrl += "&preference=" + divData.attr("data-record-preference") + "&exchange=" + encodeURIComponent(divData.attr("data-record-exchange"));
             break;
 
         case "TXT":
@@ -3064,7 +3070,7 @@ function deleteRecord(objBtn) {
             break;
 
         case "SRV":
-            apiUrl += "&port=" + divData.attr("data-record-port") + "&target=" + encodeURIComponent(divData.attr("data-record-target"));
+            apiUrl += "&priority=" + divData.attr("data-record-priority") + "&weight=" + divData.attr("data-record-weight") + "&port=" + divData.attr("data-record-port") + "&target=" + encodeURIComponent(divData.attr("data-record-target"));
             break;
 
         case "DS":
