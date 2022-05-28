@@ -2937,9 +2937,12 @@ WHERE:
 - `ipAddress` (optional): This parameter is required when deleting `A` or `AAAA` record.
 - `nameServer` (optional): This parameter is required when deleting `NS` record.
 - `ptrName` (optional): This parameter is required when deleting `PTR` record.
+- `preference` (optional): This parameter is required when deleting `MX` record.
 - `exchange` (optional): This parameter is required when deleting `MX` record.
 - `text` (optional): This parameter is required when deleting `TXT` record.
-- `port` (optional): This is the port parameter in the SRV record. This parameter is required when deleting the `SRV` record.
+- `priority` (optional): This parameter is required when deleting the `SRV` record.
+- `weight` (optional): This parameter is required when deleting the `SRV` record.
+- `port` (optional): This parameter is required when deleting the `SRV` record.
 - `target` (optional): This parameter is required when deleting the `SRV` record.
 - `keyTag` (optional): This parameter is required when deleting `DS` record.
 - `algorithm` (optional): This parameter is required when deleting `DS` record.
@@ -2995,17 +2998,20 @@ WHERE:
 - `tsigKeyName` (optional): The TSIG key name to be used by the secondary zone. This parameter is used with `SOA` record.
 - `ptrName`(optional): The current PTR domain name. This option is required for updating `PTR` record.
 - `newPtrName`(optional): The new PTR domain name. This option is required for updating `PTR` record.
-- `preference` (optional): The preference value in an MX record. This parameter when missing will default to `1` value. This parameter is used only when updating `MX` record.
+- `preference` (optional): The current preference value in an MX record. This parameter when missing will default to `1` value. This parameter is used only when updating `MX` record.
+- `newPreference` (optional): The new preference value in an MX record. This parameter when missing will use the old value. This parameter is used only when updating `MX` record.
 - `exchange` (optional): The current exchange domain name. This option is required for updating `MX` record.
 - `newExchange` (optional): The new exchange domain name. This option is required for updating `MX` record.
 - `text` (optional): The current text value. This option is required for updating `TXT` record.
 - `newText` (optional): The new text value. This option is required for updating `TXT` record.
-- `priority` (optional): This is the priority parameter in the SRV record. This parameter is required when updating the `SRV` record.
-- `weight` (optional): This is the weight parameter in the SRV record. This parameter is required when updating the `SRV` record.
+- `priority` (optional): This is the current priority in the SRV record. This parameter is required when updating the `SRV` record.
+- `newPriority` (optional): This is the new priority in the SRV record. This parameter when missing will use the old value. This parameter is used when updating the `SRV` record.
+- `weight` (optional): This is the current weight in the SRV record. This parameter is required when updating the `SRV` record.
+- `newWeight` (optional): This is the new weight in the SRV record. This parameter when missing will use the old value. This parameter is used when updating the `SRV` record.
 - `port` (optional): This is the port parameter in the SRV record. This parameter is required when updating the `SRV` record.
-- `newPort` (optional): This is the new value of the port parameter in the SRV record. This parameter is used to update the port parameter in the `SRV` record.
+- `newPort` (optional): This is the new value of the port parameter in the SRV record. This parameter when missing will use the old value. This parameter is used to update the port parameter in the `SRV` record.
 - `target` (optional): The current target value. This parameter is required when updating the `SRV` record.
-- `newTarget` (optional): The new target value. This parameter is required when updating the `SRV` record.
+- `newTarget` (optional): The new target value. This parameter when missing will use the old value. This parameter is required when updating the `SRV` record.
 - `dname` (optional): The DNAME domain name. This parameter is required when updating the `DNAME` record.
 - `keyTag` (optional): This parameter is required when updating `DS` record.
 - `newKeyTag` (optional): This parameter is required when updating `DS` record.
