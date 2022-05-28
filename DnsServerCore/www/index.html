@@ -1152,7 +1152,7 @@
                                                             <label for="txtCacheMaximumEntries" class="col-sm-3 control-label">Cache Maximum Entries</label>
                                                             <div class="col-sm-6">
                                                                 <input type="number" class="form-control" id="txtCacheMaximumEntries" placeholder="entries" style="width: 125px; display: inline;">
-                                                                <span>(set 0 to disable)</span>
+                                                                <span>(default 10000; set 0 to disable)</span>
                                                             </div>
                                                             <div class="col-sm-offset-3 col-sm-8" style="padding-top: 5px;">The maximum number of entries that the cache can store. A relevant value should be configured by monitoring the Cached Entries value on Dashboard and the server's memory usage to limit the amount of RAM used by the DNS server. A cache entry is a complete Resource Record Set (RR Set) which is a group of records with the same type for a given domain name. When a value is configured, the DNS server will trigger a clean up operation every few minutes and remove least recently used entries to maintain the maximum allowed entries in cache.</div>
                                                         </div>
