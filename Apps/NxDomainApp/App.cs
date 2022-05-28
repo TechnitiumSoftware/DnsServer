@@ -98,7 +98,7 @@ namespace NxDomain
 
         public Task InitializeAsync(IDnsServer dnsServer, string config)
         {
-            _soaRecord = new DnsSOARecordData(dnsServer.ServerDomain, "hostadmin." + dnsServer.ServerDomain, 1, 14400, 3600, 604800, 60);
+            _soaRecord = new DnsSOARecordData(dnsServer.ServerDomain, "hostadmin@" + dnsServer.ServerDomain, 1, 14400, 3600, 604800, 60);
 
             dynamic jsonConfig = JsonConvert.DeserializeObject(config);
 
