@@ -446,10 +446,20 @@ $(function () {
                 $("#rdForwarderProtocolTcp").prop("checked", true);
                 break;
 
+            case "opendns-https":
+                $("#txtForwarders").val("https://doh.opendns.com/dns-query");
+                $("#rdForwarderProtocolHttps").prop("checked", true);
+                break;
+
 
             case "opendns-fs-udp":
                 $("#txtForwarders").val("208.67.222.123\r\n208.67.220.123");
                 $("#rdForwarderProtocolUdp").prop("checked", true);
+                break;
+
+            case "opendns-fs-https":
+                $("#txtForwarders").val("https://doh.familyshield.opendns.com/dns-query");
+                $("#rdForwarderProtocolHttps").prop("checked", true);
                 break;
 
 
