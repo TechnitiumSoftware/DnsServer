@@ -1,5 +1,11 @@
 # Technitium DNS Server Change Log
 
+## Version 8.1.4
+Release Date: 3 July 2022
+- Fixed issue in recursive resolution that caused DNSSEC validation to fail in cases when the name server responds with out-of-bailiwick records.
+- Updated recursive resolver to update addresses async for all NS records to improve performance.
+- Multiple other minor bug fixes and improvements.
+
 ## Version 8.1.3
 Release Date: 11 June 2022
 - Added OpenDNS DoH end points to DNS Client and Forwarder quick select list.
