@@ -3944,7 +3944,7 @@ namespace DnsServerCore
                                 _dnsServer.DnssecValidation = true;
                                 CreateForwarderZoneToDisableDnssecForNTP();
 
-                                _dnsServer.ResolverRetries = 3;
+                                _dnsServer.ResolverRetries = 2;
                                 _dnsServer.ResolverTimeout = 2000;
                                 _dnsServer.ResolverMaxStackCount = 16;
 
