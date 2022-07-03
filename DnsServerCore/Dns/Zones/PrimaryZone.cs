@@ -2738,6 +2738,12 @@ namespace DnsServerCore.Dns.Zones
                     if (newSoaRecord.OriginalTtlValue > newSoa.Expire)
                         throw new DnsServerException("Failed to set records: TTL cannot be greater than SOA EXPIRE.");
 
+                    if (newSoa.Retry > newSoa.Refresh)
+                        throw new DnsServerException("Failed to set records: SOA RETRY cannot be greater than SOA REFRESH.");
+
+                    if (newSoa.Refresh > newSoa.Expire)
+                        throw new DnsServerException("Failed to set records: SOA REFRESH cannot be greater than SOA EXPIRE.");
+
                     //remove any resource record info except comments
                     string comments = newSoaRecord.GetComments();
                     newSoaRecord.Tag = null;
