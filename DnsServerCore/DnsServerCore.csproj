@@ -265,7 +265,7 @@
 		<RepositoryType></RepositoryType>
 		<Description></Description>
 		<PackageId>DnsServer</PackageId>
-		<Version>8.1.3</Version>
+		<Version>8.1.4</Version>
 	</PropertyGroup>
 
 </Project>
