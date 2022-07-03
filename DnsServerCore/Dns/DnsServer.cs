@@ -132,7 +132,7 @@ namespace DnsServerCore.Dns
         int _qpmLimitIPv4PrefixLength = 24;
         int _qpmLimitIPv6PrefixLength = 56;
         int _forwarderRetries = 3;
-        int _resolverRetries = 3;
+        int _resolverRetries = 2;
         int _forwarderTimeout = 2000;
         int _resolverTimeout = 2000;
         int _clientTimeout = 4000;
@@ -2258,7 +2258,7 @@ namespace DnsServerCore.Dns
                 else
                 {
                     //do recursive resolution
-                    response = await DnsClient.RecursiveResolveAsync(question, dnsCache, _proxy, _preferIPv6, _udpPayloadSize, _randomizeName, _qnameMinimization, _nsRevalidation, dnssecValidation, _resolverRetries, _resolverTimeout, _resolverMaxStackCount, true);
+                    response = await DnsClient.RecursiveResolveAsync(question, dnsCache, _proxy, _preferIPv6, _udpPayloadSize, _randomizeName, _qnameMinimization, _nsRevalidation, dnssecValidation, _resolverRetries, _resolverTimeout, _resolverMaxStackCount, true, true);
                 }
 
                 switch (response.RCODE)
