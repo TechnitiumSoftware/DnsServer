@@ -89,6 +89,8 @@ Make contribution to Technitium by becoming a Patron and help making new softwar
 [Become a Patron now!](https://www.patreon.com/technitium)
 
 # Blog Posts
+- [Technitium Blog: How To Secure Your Domain Name With DNSSEC](https://blog.technitium.com/2022/07/how-to-secure-your-domain-name-with-.html) (Jul 2022)
+- [Technitium Blog: How To Self Host Your Own Domain Name](https://blog.technitium.com/2022/06/how-to-self-host-your-own-domain-name.html) (Jun 2022)
 - [Technitium Blog: Technitium DNS Server v8 Released!](https://blog.technitium.com/2022/03/technitium-dns-server-v8-released.html) (Mar 2022)
 - [Technitium Blog: Running A Root Server Locally On Your DNS Resolver](https://blog.technitium.com/2021/07/running-root-server-locally-on-your-dns.html) (Jul 2021)
 - [Yolan Romailler: Being ad-free on Android without rooting](https://romailler.ch/2021/04/15/misc-pihole_over_dot/) (Apr 2021)
