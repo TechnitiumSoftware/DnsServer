@@ -19,6 +19,10 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <RuntimeHostConfigurationOption Include="System.Globalization.Invariant" Value="true" />
+  </ItemGroup>
+
+  <ItemGroup>
     <Reference Include="TechnitiumLibrary.Net.Firewall">
       <HintPath>..\..\TechnitiumLibrary\bin\TechnitiumLibrary.Net.Firewall.dll</HintPath>
     </Reference>
