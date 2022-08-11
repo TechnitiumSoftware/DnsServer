@@ -172,8 +172,8 @@ namespace DnsServerCore.Dns
         Timer _qpmLimitSamplingTimer;
         readonly object _qpmLimitSamplingTimerLock = new object();
         const int QPM_LIMIT_SAMPLING_TIMER_INTERVAL = 10000;
-        IReadOnlyDictionary<IPAddress, int> _qpmLimitClientSubnetStats;
-        IReadOnlyDictionary<IPAddress, int> _qpmLimitErrorClientSubnetStats;
+        IReadOnlyDictionary<IPAddress, long> _qpmLimitClientSubnetStats;
+        IReadOnlyDictionary<IPAddress, long> _qpmLimitErrorClientSubnetStats;
 
         readonly IndependentTaskScheduler _resolverTaskScheduler = new IndependentTaskScheduler(ThreadPriority.AboveNormal);
         readonly DomainTree<Task<RecursiveResolveResponse>> _resolverTasks = new DomainTree<Task<RecursiveResolveResponse>>();
@@ -2746,11 +2746,11 @@ namespace DnsServerCore.Dns
         {
             try
             {
-                List<KeyValuePair<DnsQuestionRecord, int>> eligibleQueries = _stats.GetLastHourEligibleQueries(_cachePrefetchSampleEligibilityHitsPerHour);
+                List<KeyValuePair<DnsQuestionRecord, long>> eligibleQueries = _stats.GetLastHourEligibleQueries(_cachePrefetchSampleEligibilityHitsPerHour);
                 List<CacheRefreshSample> cacheRefreshSampleList = new List<CacheRefreshSample>(eligibleQueries.Count);
                 int cacheRefreshTrigger = (_cachePrefetchSampleIntervalInMinutes + 1) * 60;
 
-                foreach (KeyValuePair<DnsQuestionRecord, int> eligibleQuery in eligibleQueries)
+                foreach (KeyValuePair<DnsQuestionRecord, long> eligibleQuery in eligibleQueries)
                 {
                     DnsQuestionRecord eligibleQuerySample = eligibleQuery.Key;
 
@@ -2964,16 +2964,16 @@ namespace DnsServerCore.Dns
                     throw new NotSupportedException("AddressFamily not supported.");
             }
 
-            if ((_qpmLimitErrors > 0) && (_qpmLimitErrorClientSubnetStats is not null) && _qpmLimitErrorClientSubnetStats.TryGetValue(remoteSubnet, out int errorCountPerSample))
+            if ((_qpmLimitErrors > 0) && (_qpmLimitErrorClientSubnetStats is not null) && _qpmLimitErrorClientSubnetStats.TryGetValue(remoteSubnet, out long errorCountPerSample))
             {
-                int averageErrorCountPerMinute = errorCountPerSample / _qpmLimitSampleMinutes;
+                long averageErrorCountPerMinute = errorCountPerSample / _qpmLimitSampleMinutes;
                 if (averageErrorCountPerMinute >= _qpmLimitErrors)
                     return true;
             }
 
-            if ((_qpmLimitRequests > 0) && (_qpmLimitClientSubnetStats is not null) && _qpmLimitClientSubnetStats.TryGetValue(remoteSubnet, out int countPerSample))
+            if ((_qpmLimitRequests > 0) && (_qpmLimitClientSubnetStats is not null) && _qpmLimitClientSubnetStats.TryGetValue(remoteSubnet, out long countPerSample))
             {
-                int averageCountPerMinute = countPerSample / _qpmLimitSampleMinutes;
+                long averageCountPerMinute = countPerSample / _qpmLimitSampleMinutes;
                 if (averageCountPerMinute >= _qpmLimitRequests)
                     return true;
             }
