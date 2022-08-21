@@ -20,6 +20,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 using DnsServerCore.ApplicationCommon;
 using Newtonsoft.Json;
 using System.Collections.Generic;
+using System.IO;
 using System.Net;
 using System.Net.Sockets;
 using System.Threading.Tasks;
@@ -32,6 +33,12 @@ namespace SplitHorizon
 {
     public class SimpleAddress : IDnsApplication, IDnsAppRecordRequestHandler
     {
+        #region variables
+
+        static IReadOnlyDictionary<string, List<NetworkAddress>> _networks;
+
+        #endregion
+
         #region IDisposable
 
         public void Dispose()
@@ -43,10 +50,54 @@ namespace SplitHorizon
 
         #region public
 
-        public Task InitializeAsync(IDnsServer dnsServer, string config)
+        public async Task InitializeAsync(IDnsServer dnsServer, string config)
         {
-            //no config needed
-            return Task.CompletedTask;
+            if (config.StartsWith('#'))
+            {
+                //replace old config with default config
+                config = @"{
+    ""networks"": {
+        ""custom-networks"": [
+            ""172.16.1.0/24"",
+            ""172.16.10.0/24"",
+            ""172.16.2.1""
+        ]
+    }
+}
+";
+
+                await File.WriteAllTextAsync(Path.Combine(dnsServer.ApplicationFolder, "dnsApp.config"), config);
+            }
+
+            dynamic jsonConfig = JsonConvert.DeserializeObject(config);
+
+            dynamic jsonNetworks = jsonConfig.networks;
+            if (jsonNetworks is null)
+            {
+                _networks = new Dictionary<string, List<NetworkAddress>>(1);
+            }
+            else
+            {
+                Dictionary<string, List<NetworkAddress>> networks = new Dictionary<string, List<NetworkAddress>>();
+
+                foreach (dynamic jsonProperty in jsonNetworks)
+                {
+                    string networkName = jsonProperty.Name;
+
+                    dynamic jsonNetworkAddresses = jsonProperty.Value;
+                    if (jsonNetworkAddresses is not null)
+                    {
+                        List<NetworkAddress> networkAddresses = new List<NetworkAddress>();
+
+                        foreach (dynamic jsonNetworkAddress in jsonNetworkAddresses)
+                            networkAddresses.Add(NetworkAddress.Parse(jsonNetworkAddress.Value));
+
+                        networks.TryAdd(networkName, networkAddresses);
+                    }
+                }
+
+                _networks = networks;
+            }
         }
 
         public Task<DnsDatagram> ProcessRequestAsync(DnsDatagram request, IPEndPoint remoteEP, DnsTransportProtocol protocol, bool isRecursionAllowed, string zoneName, uint appRecordTtl, string appRecordData)
@@ -66,11 +117,27 @@ namespace SplitHorizon
                         if ((name == "public") || (name == "private"))
                             continue;
 
-                        NetworkAddress networkAddress = NetworkAddress.Parse(name);
-                        if (networkAddress.Contains(remoteEP.Address))
+                        if (_networks.TryGetValue(name, out List<NetworkAddress> networkAddresses))
                         {
-                            jsonAddresses = jsonProperty.Value;
-                            break;
+                            foreach (NetworkAddress networkAddress in networkAddresses)
+                            {
+                                if (networkAddress.Contains(remoteEP.Address))
+                                {
+                                    jsonAddresses = jsonProperty.Value;
+                                    break;
+                                }
+                            }
+
+                            if (jsonAddresses is not null)
+                                break;
+                        }
+                        else if (NetworkAddress.TryParse(name, out NetworkAddress networkAddress))
+                        {
+                            if (networkAddress.Contains(remoteEP.Address))
+                            {
+                                jsonAddresses = jsonProperty.Value;
+                                break;
+                            }
                         }
                     }
 
@@ -92,9 +159,7 @@ namespace SplitHorizon
                         case DnsResourceRecordType.A:
                             foreach (dynamic jsonAddress in jsonAddresses)
                             {
-                                IPAddress address = IPAddress.Parse(jsonAddress.Value);
-
-                                if (address.AddressFamily == AddressFamily.InterNetwork)
+                                if (IPAddress.TryParse(jsonAddress.Value, out IPAddress address) && (address.AddressFamily == AddressFamily.InterNetwork))
                                     answers.Add(new DnsResourceRecord(question.Name, DnsResourceRecordType.A, DnsClass.IN, appRecordTtl, new DnsARecordData(address)));
                             }
                             break;
@@ -102,9 +167,7 @@ namespace SplitHorizon
                         case DnsResourceRecordType.AAAA:
                             foreach (dynamic jsonAddress in jsonAddresses)
                             {
-                                IPAddress address = IPAddress.Parse(jsonAddress.Value);
-
-                                if (address.AddressFamily == AddressFamily.InterNetworkV6)
+                                if (IPAddress.TryParse(jsonAddress.Value, out IPAddress address) && (address.AddressFamily == AddressFamily.InterNetworkV6))
                                     answers.Add(new DnsResourceRecord(question.Name, DnsResourceRecordType.AAAA, DnsClass.IN, appRecordTtl, new DnsAAAARecordData(address)));
                             }
                             break;
@@ -127,6 +190,9 @@ namespace SplitHorizon
 
         #region properties
 
+        internal static IReadOnlyDictionary<string, List<NetworkAddress>> Networks
+        { get { return _networks; } }
+
         public string Description
         { get { return "Returns A or AAAA records with different set of IP addresses for clients querying over public, private, or other specified networks."; } }
 
@@ -142,6 +208,9 @@ namespace SplitHorizon
   ""private"": [
     ""192.168.1.1"", 
     ""::1""
+  ],
+  ""custom-networks"": [
+    ""172.16.1.1"", 
   ],
   ""10.0.0.0/8"": [
     ""10.1.1.1""
