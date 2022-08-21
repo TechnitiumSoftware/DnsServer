@@ -1,6 +1,6 @@
 ﻿/*
 Technitium DNS Server
-Copyright (C) 2021  Shreyas Zare (shreyas@technitium.com)
+Copyright (C) 2022  Shreyas Zare (shreyas@technitium.com)
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -44,7 +44,7 @@ namespace SplitHorizon
 
         public Task InitializeAsync(IDnsServer dnsServer, string config)
         {
-            //no config needed
+            //SimpleAddress loads the shared config
             return Task.CompletedTask;
         }
 
@@ -60,11 +60,27 @@ namespace SplitHorizon
                 if ((name == "public") || (name == "private"))
                     continue;
 
-                NetworkAddress networkAddress = NetworkAddress.Parse(name);
-                if (networkAddress.Contains(remoteEP.Address))
+                if (SimpleAddress.Networks.TryGetValue(name, out List<NetworkAddress> networkAddresses))
                 {
-                    jsonCname = jsonProperty.Value;
-                    break;
+                    foreach (NetworkAddress networkAddress in networkAddresses)
+                    {
+                        if (networkAddress.Contains(remoteEP.Address))
+                        {
+                            jsonCname = jsonProperty.Value;
+                            break;
+                        }
+                    }
+
+                    if (jsonCname is not null)
+                        break;
+                }
+                else if (NetworkAddress.TryParse(name, out NetworkAddress networkAddress))
+                {
+                    if (networkAddress.Contains(remoteEP.Address))
+                    {
+                        jsonCname = jsonProperty.Value;
+                        break;
+                    }
                 }
             }
 
@@ -108,6 +124,7 @@ namespace SplitHorizon
                 return @"{
   ""public"": ""api.example.com"",
   ""private"": ""api.example.corp"",
+  ""custom-networks"": ""custom.example.corp"",
   ""10.0.0.0/8"": ""api.intranet.example.corp""
 }";
             }
