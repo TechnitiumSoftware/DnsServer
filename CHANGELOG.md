@@ -29,6 +29,7 @@ Release Date: 21 May 2022
 
 ## Version 8.1
 Release Date: 8 May 2022
+- Fixed two ghost domain issues, CVE-2022-30257 (V1) and CVE-2022-30258 (V2), reported by Xiang Li, [Network and Information Security Lab, Tsinghua University](https://netsec.ccert.edu.cn/). Issue V1 was fixed with some implementation changes in the NS Revalidation feature and thus having this option enabled in Settings will mitigate the issue. Issue V2 was fixed by implementing additional validation checks when caching NS records.
 - Added maximum cache entires option to limit memory usage by removing least recently used data from cache.
 - Implemented NS revalidation to revalidate parent side NS records when their TTL expires.
 - Updated the web console to store session token in local storage to prevent logging out on page reload.
