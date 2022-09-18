@@ -321,6 +321,7 @@ namespace DnsServerCore.Dns.ZoneManagers
 
                     SocketsHttpHandler handler = new SocketsHttpHandler();
                     handler.Proxy = _dnsServer.Proxy;
+                    handler.UseProxy = _dnsServer.Proxy is not null;
                     handler.AutomaticDecompression = DecompressionMethods.GZip | DecompressionMethods.Deflate;
 
                     using (HttpClient http = new HttpClient(handler))
