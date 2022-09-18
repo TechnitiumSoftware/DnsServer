@@ -1,6 +1,6 @@
 ﻿/*
 Technitium DNS Server
-Copyright (C) 2021  Shreyas Zare (shreyas@technitium.com)
+Copyright (C) 2022  Shreyas Zare (shreyas@technitium.com)
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -25,25 +25,20 @@ function htmlDecode(value) {
     return $('<div/>').html(value).text();
 }
 
-function HTTPRequest(url, data, success, error, invalidToken, objAlertPlaceholder, objLoaderPlaceholder, dataIsFormData, dataContentType, dontHideAlert, showInnerError) {
-    var async = false;
+function HTTPRequest(url, data, success, error, invalidToken, objAlertPlaceholder, objLoaderPlaceholder, processData, dataContentType, dontHideAlert, showInnerError) {
     var finalUrl;
 
     finalUrl = arguments[0].url;
 
-    if (data == null)
+    if (data == null) {
         if (arguments[0].data == null)
             data = "";
         else
             data = arguments[0].data;
+    }
 
-    if (success != null)
-        async = true;
-    else
-        if (arguments[0].success != null) {
-            async = true;
-            success = arguments[0].success;
-        }
+    if (success == null)
+        success = arguments[0].success;
 
     if (error == null)
         error = arguments[0].error;
@@ -69,8 +64,8 @@ function HTTPRequest(url, data, success, error, invalidToken, objAlertPlaceholde
     if (objLoaderPlaceholder == null)
         objLoaderPlaceholder = arguments[0].objLoaderPlaceholder;
 
-    if (dataIsFormData == null)
-        dataIsFormData = arguments[0].dataIsFormData;
+    if (processData == null)
+        processData = arguments[0].processData;
 
     if (dataContentType == null)
         dataContentType = arguments[0].dataContentType;
@@ -78,22 +73,12 @@ function HTTPRequest(url, data, success, error, invalidToken, objAlertPlaceholde
     if (objLoaderPlaceholder != null)
         objLoaderPlaceholder.html("<div style='width: 64px; height: inherit; margin: auto;'><div style='height: inherit; display: table-cell; vertical-align: middle;'><img src='/img/loader.gif'/></div></div>");
 
-    var successFlag = false;
-    var processData;
-
-    if (dataIsFormData != null) {
-        if (dataIsFormData == true) {
-            processData = false;
-            dataContentType = false;
-        }
-    }
-
     $.ajax({
         type: "POST",
         url: finalUrl,
         data: data,
         dataType: "json",
-        async: async,
+        async: true,
         cache: false,
         processData: processData,
         contentType: dataContentType,
@@ -157,8 +142,6 @@ function HTTPRequest(url, data, success, error, invalidToken, objAlertPlaceholde
             showAlert("danger", "Error!", msg, objAlertPlaceholder);
         }
     });
-
-    return successFlag;
 }
 
 function HTTPGetFileRequest(url, success, error, objAlertPlaceholder, objLoaderPlaceholder, dontHideAlert) {
@@ -312,7 +295,7 @@ function sortTable(tableId, n) {
 }
 
 function serializeTableData(table, columns) {
-    var data = table.find('input:text, select');
+    var data = table.find('input:text, input:checkbox, input:hidden, select');
     var output = "";
 
     for (var i = 0; i < data.length; i += columns) {
@@ -324,19 +307,28 @@ function serializeTableData(table, columns) {
                 output += "|";
 
             var cell = $(data[i + j]);
-            var cellValue = cell.val();
-            var optional = (cell.attr("data-optional") === "true");
 
-            if ((cellValue === "") && !optional) {
-                showAlert("warning", "Missing!", "Please enter a valid value in the text field in focus.");
-                cell.focus();
-                return false;
+            var cellValue;
+
+            if (cell.attr("type") == "checkbox") {
+                cellValue = cell.prop("checked").toString();
             }
+            else {
+                cellValue = cell.val();
 
-            if (cellValue.includes("|")) {
-                showAlert("warning", "Invalid Character!", "Please edit the value in the text field in focus to remove '|' character.");
-                cell.focus();
-                return false;
+                var optional = (cell.attr("data-optional") === "true");
+
+                if ((cellValue === "") && !optional) {
+                    showAlert("warning", "Missing!", "Please enter a valid value in the text field in focus.");
+                    cell.focus();
+                    return false;
+                }
+
+                if (cellValue.includes("|")) {
+                    showAlert("warning", "Invalid Character!", "Please edit the value in the text field in focus to remove '|' character.");
+                    cell.focus();
+                    return false;
+                }
             }
 
             output += htmlDecode(cellValue);
