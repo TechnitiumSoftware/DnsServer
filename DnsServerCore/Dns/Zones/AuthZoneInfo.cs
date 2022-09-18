@@ -110,7 +110,7 @@ namespace DnsServerCore.Dns.Zones
                                 IPAddress[] nameServers = new IPAddress[count];
 
                                 for (int i = 0; i < count; i++)
-                                    nameServers[i] = IPAddressExtension.Parse(bR);
+                                    nameServers[i] = IPAddressExtension.ReadFrom(bR);
 
                                 _zoneTransferNameServers = nameServers;
                             }
@@ -125,7 +125,7 @@ namespace DnsServerCore.Dns.Zones
                                 IPAddress[] nameServers = new IPAddress[count];
 
                                 for (int i = 0; i < count; i++)
-                                    nameServers[i] = IPAddressExtension.Parse(bR);
+                                    nameServers[i] = IPAddressExtension.ReadFrom(bR);
 
                                 _notifyNameServers = nameServers;
                             }
