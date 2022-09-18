@@ -1697,9 +1697,6 @@ namespace DnsServerCore.Dns.ZoneManagers
                 if (apexZone is StubZone)
                     return GetReferralResponse(request, false, apexZone, apexZone, isRecursionAllowed);
 
-                if (apexZone is ForwarderZone)
-                    return GetForwarderResponse(request, null, closest, apexZone, isRecursionAllowed);
-
                 DnsResponseCode rCode = DnsResponseCode.NoError;
                 IReadOnlyList<DnsResourceRecord> answer = null;
                 IReadOnlyList<DnsResourceRecord> authority = null;
@@ -1733,6 +1730,9 @@ namespace DnsServerCore.Dns.ZoneManagers
                         authority = apexZone.QueryRecords(DnsResourceRecordType.APP, false);
                         if (authority.Count == 0)
                         {
+                            if (apexZone is ForwarderZone)
+                                return GetForwarderResponse(request, null, closest, apexZone, isRecursionAllowed); //no DNAME or APP record available so process FWD response
+
                             if (!hasSubDomains)
                                 rCode = DnsResponseCode.NxDomain;
 
@@ -1767,12 +1767,20 @@ namespace DnsServerCore.Dns.ZoneManagers
             else
             {
                 //zone found
-                if ((question.Type == DnsResourceRecordType.DS) && (zone is ApexZone))
+                if (question.Type == DnsResourceRecordType.DS)
                 {
-                    if (delegation is null || !delegation.IsActive || (delegation.Name.Length > apexZone.Name.Length))
-                        return null; //no authoritative parent side delegation zone available to answer for DS
+                    if (zone is ApexZone)
+                    {
+                        if (delegation is null || !delegation.IsActive || (delegation.Name.Length > apexZone.Name.Length))
+                            return null; //no authoritative parent side delegation zone available to answer for DS
 
-                    zone = delegation; //switch zone to parent side sub domain delegation zone for DS record
+                        zone = delegation; //switch zone to parent side sub domain delegation zone for DS record
+                    }
+                }
+                else if (zone.Equals(delegation))
+                {
+                    //zone is delegation
+                    return GetReferralResponse(request, dnssecOk, delegation, apexZone, isRecursionAllowed);
                 }
 
                 IReadOnlyList<DnsResourceRecord> authority = null;
@@ -1806,9 +1814,6 @@ namespace DnsServerCore.Dns.ZoneManagers
 
                         if (apexZone is StubZone)
                             return GetReferralResponse(request, false, apexZone, apexZone, isRecursionAllowed);
-
-                        if (apexZone is ForwarderZone)
-                            return GetForwarderResponse(request, zone, closest, apexZone, isRecursionAllowed);
                     }
 
                     authority = zone.QueryRecords(DnsResourceRecordType.APP, false);
@@ -1822,6 +1827,9 @@ namespace DnsServerCore.Dns.ZoneManagers
                             authority = apexZone.QueryRecords(DnsResourceRecordType.APP, false);
                             if (authority.Count == 0)
                             {
+                                if (apexZone is ForwarderZone)
+                                    return GetForwarderResponse(request, zone, closest, apexZone, isRecursionAllowed); //no APP record available so process FWD response
+
                                 authority = apexZone.QueryRecords(DnsResourceRecordType.SOA, dnssecOk);
 
                                 if (dnssecOk)
