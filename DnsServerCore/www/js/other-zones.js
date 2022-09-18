@@ -25,7 +25,7 @@ function flushDnsCache(objBtn) {
     btn.button('loading');
 
     HTTPRequest({
-        url: "/api/flushDnsCache?token=" + token,
+        url: "/api/cache/flush?token=" + sessionData.token,
         success: function (responseJSON) {
             $("#lstCachedZones").html("<div class=\"zone\"><a href=\"#\" onclick=\"refreshCachedZonesList(); return false;\"><b>[refresh]</b></a></div>");
             $("#txtCachedZoneViewerTitle").text("<ROOT>");
@@ -55,7 +55,7 @@ function deleteCachedZone() {
     var btn = $("#btnDeleteCachedZone").button('loading');
 
     HTTPRequest({
-        url: "/api/deleteCachedZone?token=" + token + "&domain=" + domain,
+        url: "/api/cache/delete?token=" + sessionData.token + "&domain=" + domain,
         success: function (responseJSON) {
             refreshCachedZonesList(getParentDomain(domain), "up");
 
@@ -103,7 +103,7 @@ function refreshCachedZonesList(domain, direction) {
     preCachedZoneViewerBody.hide();
 
     HTTPRequest({
-        url: "/api/listCachedZones?token=" + token + "&domain=" + domain + ((direction == null) ? "" : "&direction=" + direction),
+        url: "/api/cache/list?token=" + sessionData.token + "&domain=" + domain + ((direction == null) ? "" : "&direction=" + direction),
         success: function (responseJSON) {
             var newDomain = responseJSON.response.domain;
             var zones = responseJSON.response.zones;
@@ -161,7 +161,7 @@ function allowZone() {
     var btn = $("#btnAllowZone").button('loading');
 
     HTTPRequest({
-        url: "/api/allowZone?token=" + token + "&domain=" + domain,
+        url: "/api/allowed/add?token=" + sessionData.token + "&domain=" + domain,
         success: function (responseJSON) {
             refreshAllowedZonesList(domain);
 
@@ -189,7 +189,7 @@ function deleteAllowedZone() {
     var btn = $("#btnDeleteAllowedZone").button('loading');
 
     HTTPRequest({
-        url: "/api/deleteAllowedZone?token=" + token + "&domain=" + domain,
+        url: "/api/allowed/delete?token=" + sessionData.token + "&domain=" + domain,
         success: function (responseJSON) {
             refreshAllowedZonesList(getParentDomain(domain), "up");
 
@@ -213,7 +213,7 @@ function flushAllowedZone() {
     var btn = $("#btnFlushAllowedZone").button('loading');
 
     HTTPRequest({
-        url: "/api/flushAllowedZone?token=" + token,
+        url: "/api/allowed/flush?token=" + sessionData.token,
         success: function (responseJSON) {
             $("#lstAllowedZones").html("<div class=\"zone\"><a href=\"#\" onclick=\"refreshAllowedZonesList(); return false;\"><b>[refresh]</b></a></div>");
             $("#txtAllowedZoneViewerTitle").text("<ROOT>");
@@ -247,7 +247,7 @@ function refreshAllowedZonesList(domain, direction) {
     preAllowedZoneViewerBody.hide();
 
     HTTPRequest({
-        url: "/api/listAllowedZones?token=" + token + "&domain=" + domain + ((direction == null) ? "" : "&direction=" + direction),
+        url: "/api/allowed/list?token=" + sessionData.token + "&domain=" + domain + ((direction == null) ? "" : "&direction=" + direction),
         success: function (responseJSON) {
             var newDomain = responseJSON.response.domain;
             var zones = responseJSON.response.zones;
@@ -306,7 +306,7 @@ function blockZone() {
     var btn = $("#btnBlockZone").button('loading');
 
     HTTPRequest({
-        url: "/api/blockZone?token=" + token + "&domain=" + domain,
+        url: "/api/blocked/add?token=" + sessionData.token + "&domain=" + domain,
         success: function (responseJSON) {
             refreshBlockedZonesList(domain);
 
@@ -334,7 +334,7 @@ function deleteBlockedZone() {
     var btn = $("#btnDeleteBlockedZone").button('loading');
 
     HTTPRequest({
-        url: "/api/deleteBlockedZone?token=" + token + "&domain=" + domain,
+        url: "/api/blocked/delete?token=" + sessionData.token + "&domain=" + domain,
         success: function (responseJSON) {
             refreshBlockedZonesList(getParentDomain(domain), "up");
 
@@ -358,7 +358,7 @@ function flushBlockedZone() {
     var btn = $("#btnFlushBlockedZone").button('loading');
 
     HTTPRequest({
-        url: "/api/flushBlockedZone?token=" + token,
+        url: "/api/blocked/flush?token=" + sessionData.token,
         success: function (responseJSON) {
             $("#lstBlockedZones").html("<div class=\"zone\"><a href=\"#\" onclick=\"refreshBlockedZonesList(); return false;\"><b>[refresh]</b></a></div>");
             $("#txtBlockedZoneViewerTitle").text("<ROOT>");
@@ -392,7 +392,7 @@ function refreshBlockedZonesList(domain, direction) {
     preBlockedZoneViewerBody.hide();
 
     HTTPRequest({
-        url: "/api/listBlockedZones?token=" + token + "&domain=" + domain + ((direction == null) ? "" : "&direction=" + direction),
+        url: "/api/blocked/list?token=" + sessionData.token + "&domain=" + domain + ((direction == null) ? "" : "&direction=" + direction),
         success: function (responseJSON) {
             var newDomain = responseJSON.response.domain;
             var zones = responseJSON.response.zones;
@@ -461,8 +461,9 @@ function importAllowedZones() {
     var btn = $("#btnImportAllowedZones").button('loading');
 
     HTTPRequest({
-        url: "/api/importAllowedZones?token=" + token,
-        data: "allowedZones=" + allowedZones,
+        url: "/api/allowed/import?token=" + sessionData.token,
+        data: "allowedZones=" + encodeURIComponent(allowedZones),
+        processData: false,
         success: function (responseJSON) {
             $("#modalImportAllowedZones").modal("hide");
             btn.button('reset');
@@ -481,7 +482,7 @@ function importAllowedZones() {
 }
 
 function exportAllowedZones() {
-    window.open("/api/exportAllowedZones?token=" + token, "_blank");
+    window.open("/api/allowed/export?token=" + sessionData.token, "_blank");
 
     showAlert("success", "Exported!", "Allowed zones were exported successfully.");
 }
@@ -508,8 +509,9 @@ function importBlockedZones() {
     var btn = $("#btnImportBlockedZones").button('loading');
 
     HTTPRequest({
-        url: "/api/importBlockedZones?token=" + token,
-        data: "blockedZones=" + blockedZones,
+        url: "/api/blocked/import?token=" + sessionData.token,
+        data: "blockedZones=" + encodeURIComponent(blockedZones),
+        processData: false,
         success: function (responseJSON) {
             $("#modalImportBlockedZones").modal("hide");
             btn.button('reset');
@@ -528,7 +530,7 @@ function importBlockedZones() {
 }
 
 function exportBlockedZones() {
-    window.open("/api/exportBlockedZones?token=" + token, "_blank");
+    window.open("/api/blocked/export?token=" + sessionData.token, "_blank");
 
     showAlert("success", "Exported!", "Blocked zones were exported successfully.");
 }
