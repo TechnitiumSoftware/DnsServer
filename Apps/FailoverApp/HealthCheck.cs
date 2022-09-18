@@ -127,6 +127,7 @@ namespace Failover
                         httpHandler.ConnectTimeout = TimeSpan.FromMilliseconds(_timeout);
                         httpHandler.PooledConnectionIdleTimeout = TimeSpan.FromMilliseconds(Math.Max(10000, _timeout));
                         httpHandler.Proxy = proxy;
+                        httpHandler.UseProxy = proxy is not null;
                         httpHandler.AllowAutoRedirect = true;
                         httpHandler.MaxAutomaticRedirections = 10;
 
@@ -141,6 +142,7 @@ namespace Failover
                             httpHandler.ConnectTimeout = TimeSpan.FromMilliseconds(_timeout);
                             httpHandler.PooledConnectionIdleTimeout = TimeSpan.FromMilliseconds(Math.Max(10000, _timeout));
                             httpHandler.Proxy = proxy;
+                            httpHandler.UseProxy = proxy is not null;
                             httpHandler.AllowAutoRedirect = true;
                             httpHandler.MaxAutomaticRedirections = 10;
 

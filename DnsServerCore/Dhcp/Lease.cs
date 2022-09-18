@@ -88,7 +88,7 @@ namespace DnsServerCore.Dhcp
                         _hostName = null;
 
                     _hardwareAddress = bR.ReadBuffer();
-                    _address = IPAddressExtension.Parse(bR);
+                    _address = IPAddressExtension.ReadFrom(bR);
 
                     if (version >= 2)
                     {

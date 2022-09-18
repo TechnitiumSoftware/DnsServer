@@ -61,7 +61,6 @@ namespace DnsServerCore.Dns.Zones
 
                 case DnsResourceRecordType.SOA:
                 case DnsResourceRecordType.DS:
-                case DnsResourceRecordType.APP:
                     throw new DnsServerException("The record type is not supported by forwarder zones.");
 
                 default:
@@ -75,7 +74,6 @@ namespace DnsServerCore.Dns.Zones
             switch (record.Type)
             {
                 case DnsResourceRecordType.DS:
-                case DnsResourceRecordType.APP:
                     throw new DnsServerException("The record type is not supported by forwarder zones.");
 
                 default:

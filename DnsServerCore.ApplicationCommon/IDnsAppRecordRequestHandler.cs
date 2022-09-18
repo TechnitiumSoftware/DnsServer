@@ -1,6 +1,6 @@
 ﻿/*
 Technitium DNS Server
-Copyright (C) 2021  Shreyas Zare (shreyas@technitium.com)
+Copyright (C) 2022  Shreyas Zare (shreyas@technitium.com)
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -36,10 +36,11 @@ namespace DnsServerCore.ApplicationCommon
         /// <param name="protocol">The protocol using which the request was received.</param>
         /// <param name="isRecursionAllowed">Tells if the DNS server is configured to allow recursion for the client making this request.</param>
         /// <param name="zoneName">The name of the application zone that the APP record belongs to.</param>
+        /// <param name="appRecordName">The domain name of the APP record.</param>
         /// <param name="appRecordTtl">The TTL value set in the APP record.</param>
         /// <param name="appRecordData">The record data in the APP record as required for processing the request.</param>
         /// <returns>The DNS response for the DNS request or <c>null</c> to send no answer response with an SOA authority.</returns>
-        Task<DnsDatagram> ProcessRequestAsync(DnsDatagram request, IPEndPoint remoteEP, DnsTransportProtocol protocol, bool isRecursionAllowed, string zoneName, uint appRecordTtl, string appRecordData);
+        Task<DnsDatagram> ProcessRequestAsync(DnsDatagram request, IPEndPoint remoteEP, DnsTransportProtocol protocol, bool isRecursionAllowed, string zoneName, string appRecordName, uint appRecordTtl, string appRecordData);
 
         /// <summary>
         /// A template of the record data format that is required by this app. This template is populated in the UI to allow the user to edit in the expected values. The format could be JSON or any other custom text based format which the app is programmed to parse. This property is optional and can return <c>null</c> if no APP record data is required by the app.

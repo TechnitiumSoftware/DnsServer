@@ -25,6 +25,7 @@
     <link href="/css/main.css" rel="stylesheet" />
     <script src="/js/common.js"></script>
     <script src="/js/main.js"></script>
+    <script src="/js/auth.js"></script>
     <script src="/js/zone.js"></script>
     <script src="/js/other-zones.js"></script>
     <script src="/js/apps.js"></script>
@@ -42,7 +43,10 @@
                 </span>
             </a>
             <ul class="dropdown-menu">
-                <li><a href="#" onclick="resetChangePasswordModal(); return false;" data-toggle="modal" data-target="#modalChangePassword">Change Password</a></li>
+                <li><a href="#" onclick="showMyProfileModal(); return false;">My Profile</a></li>
+                <li><a href="#" onclick="showCreateMyApiTokenModal(); return false;">Create API Token</a></li>
+                <li><a href="#" onclick="showChangePasswordModal(); return false;">Change Password</a></li>
+                <li role="separator" class="divider"></li>
                 <li><a href="#" onclick="logout(); return false;">Logout</a></li>
             </ul>
         </div>
@@ -109,6 +113,7 @@
                                 <li id="mainPanelTabListDnsClient" role="presentation"><a href="#mainPanelTabPaneDnsClient" aria-controls="mainPanelTabPaneDnsClient" role="tab" data-toggle="tab">DNS Client</a></li>
                                 <li id="mainPanelTabListSettings" role="presentation"><a href="#mainPanelTabPaneSettings" aria-controls="mainPanelTabPaneSettings" role="tab" data-toggle="tab" onclick="loadDnsSettings();">Settings</a></li>
                                 <li id="mainPanelTabListDhcp" role="presentation"><a href="#mainPanelTabPaneDhcp" aria-controls="mainPanelTabPaneDhcp" role="tab" data-toggle="tab" onclick="refreshDhcpTab();">DHCP</a></li>
+                                <li id="mainPanelTabListAdmin" role="presentation"><a href="#mainPanelTabPaneAdmin" aria-controls="mainPanelTabPaneAdmin" role="tab" data-toggle="tab" onclick="refreshAdminTab();">Administration</a></li>
                                 <li id="mainPanelTabListLogs" role="presentation"><a href="#mainPanelTabPaneLogs" aria-controls="mainPanelTabPaneLogs" role="tab" data-toggle="tab" onclick="refreshLogsTab();">Logs</a></li>
                                 <li id="mainPanelTabListAbout" role="presentation"><a href="#mainPanelTabPaneAbout" aria-controls="mainPanelTabPaneAbout" role="tab" data-toggle="tab">About</a></li>
                             </ul>
@@ -347,7 +352,7 @@
                                                     <th onclick="sortTable('tableZonesBody', 2);">DNSSEC</th>
                                                     <th onclick="sortTable('tableZonesBody', 3);">Status</th>
                                                     <th onclick="sortTable('tableZonesBody', 4);">Expiry</th>
-                                                    <th></th>
+                                                    <th style="width: 36px;"></th>
                                                 </tr>
                                             </thead>
                                             <tbody id="tableZonesBody">
@@ -364,7 +369,7 @@
                                         </ul>
 
                                         <div style="padding: 10px 0px;">
-                                            <h3 style="margin: 4px 0;"><span id="titleEditZone" style="margin-right: 10px;">example.com</span><a href="#" onclick="showEditZone($('#titleEditZone').text()); return false;"><span class="glyphicon glyphicon-refresh" style="font-size: 20px;" aria-hidden="true"></span></a></h3>
+                                            <h3 style="margin: 4px 0;"><span id="titleEditZone" style="margin-right: 10px;">example.com</span><a href="#" onclick="showEditZone($('#titleEditZone').attr('data-zone')); return false;"><span class="glyphicon glyphicon-refresh" style="font-size: 20px;" aria-hidden="true"></span></a></h3>
                                             <div style="float: left;">
                                                 <span id="titleEditZoneType" class="label label-default">Primary</span>
                                                 <span id="titleDnssecStatusEditZone" class="label label-default">DNSSEC</span>
@@ -373,21 +378,22 @@
                                             </div>
                                             <div style="float: right; padding: 2px 0px;">
                                                 <button id="btnEditZoneAddRecord" type="button" class="btn btn-primary" style="padding: 2px 0px; width: 100px;" onclick="showAddRecordModal(this);" data-loading-text="Loading...">Add Record</button>
-                                                <button id="btnEnableZoneEditZone" type="button" class="btn btn-default" style="padding: 2px 0px; width: 100px;" onclick="enableZone(this, $('#titleEditZone').text(), true);">Enable Zone</button>
-                                                <button id="btnDisableZoneEditZone" type="button" class="btn btn-warning" style="padding: 2px 0px; width: 100px;" onclick="disableZone(this, $('#titleEditZone').text(), true);">Disable Zone</button>
-                                                <button id="btnEditZoneDeleteZone" type="button" class="btn btn-danger" style="padding: 2px 0px; width: 100px;" onclick="deleteZone(this, $('#titleEditZone').text(), true);">Delete Zone</button>
-                                                <button id="btnZoneResync" type="button" class="btn btn-primary" style="padding: 2px 0px; width: 100px;" onclick="resyncZone(this, $('#titleEditZone').text());" data-loading-text="Resyncing...">Resync</button>
-                                                <button id="btnZoneOptions" type="button" class="btn btn-primary" style="padding: 2px 0px; width: 100px;" onclick="showZoneOptionsModal($('#titleEditZone').text());">Options</button>
+                                                <button id="btnEnableZoneEditZone" type="button" class="btn btn-default" style="padding: 2px 0px; width: 100px;" onclick="enableZone(this);">Enable Zone</button>
+                                                <button id="btnDisableZoneEditZone" type="button" class="btn btn-warning" style="padding: 2px 0px; width: 100px;" onclick="disableZone(this);">Disable Zone</button>
+                                                <button id="btnEditZoneDeleteZone" type="button" class="btn btn-danger" style="padding: 2px 0px; width: 100px;" onclick="deleteZone(this);">Delete Zone</button>
+                                                <button id="btnZoneResync" type="button" class="btn btn-primary" style="padding: 2px 0px; width: 100px;" onclick="resyncZone(this, $('#titleEditZone').attr('data-zone'));" data-loading-text="Resyncing...">Resync</button>
+                                                <button id="btnZoneOptions" type="button" class="btn btn-primary" style="padding: 2px 0px; width: 100px;" onclick="showZoneOptionsModal($('#titleEditZone').attr('data-zone'));">Options</button>
+                                                <button id="btnZonePermissions" type="button" class="btn btn-primary" style="padding: 2px 0px; width: 100px;" onclick="showZonePermissionsModal($('#titleEditZone').attr('data-zone'));">Permissions</button>
                                                 <div id="divZoneDnssecOptions" class="btn-group">
                                                     <button type="button" class="btn btn-primary dropdown-toggle" style="padding: 2px 0px; width: 100px;" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
                                                         DNSSEC <span class="caret"></span>
                                                     </button>
                                                     <ul class="dropdown-menu">
-                                                        <li id="lnkZoneDnssecSignZone"><a href="#" onclick="showSignZoneModal($('#titleEditZone').text()); return false;">Sign Zone</a></li>
+                                                        <li id="lnkZoneDnssecSignZone"><a href="#" onclick="showSignZoneModal($('#titleEditZone').attr('data-zone')); return false;">Sign Zone</a></li>
                                                         <li id="lnkZoneDnssecHideRecords"><a href="#" onclick="toggleHideDnssecRecords(true); return false;">Hide DNSSEC Records</a></li>
                                                         <li id="lnkZoneDnssecShowRecords"><a href="#" onclick="toggleHideDnssecRecords(false); return false;">Show DNSSEC Records</a></li>
-                                                        <li id="lnkZoneDnssecProperties"><a href="#" onclick="showDnssecPropertiesModal($('#titleEditZone').text()); return false;">Properties</a></li>
-                                                        <li id="lnkZoneDnssecUnsignZone"><a href="#" onclick="showUnsignZoneModal($('#titleEditZone').text()); return false;">Unsign Zone</a></li>
+                                                        <li id="lnkZoneDnssecProperties"><a href="#" onclick="showDnssecPropertiesModal($('#titleEditZone').attr('data-zone')); return false;">Properties</a></li>
+                                                        <li id="lnkZoneDnssecUnsignZone"><a href="#" onclick="showUnsignZoneModal($('#titleEditZone').attr('data-zone')); return false;">Unsign Zone</a></li>
                                                     </ul>
                                                 </div>
                                             </div>
@@ -738,6 +744,18 @@
                                                             </div>
                                                             <div class="col-sm-offset-3 col-sm-8" style="padding-top: 5px;">The default TTL value to use if not specified when adding or updating records in a Zone.</div>
                                                         </div>
+
+                                                        <div class="form-group">
+                                                            <label for="txtDefaultRecordTtl" class="col-sm-3 control-label">DNS Apps</label>
+                                                            <div class="col-sm-8">
+                                                                <div class="checkbox">
+                                                                    <label>
+                                                                        <input id="chkDnsAppsEnableAutomaticUpdate" type="checkbox"> Enable Automatic Update
+                                                                    </label>
+                                                                </div>
+                                                                <div style="padding-top: 5px; padding-left: 20px;">DNS server will check for DNS Apps update every day and will automatically download and install the updates.</div>
+                                                            </div>
+                                                        </div>
                                                     </div>
 
                                                     <div class="well well-sm form-horizontal">
@@ -1008,7 +1026,7 @@
                                                                             <th>Key Name</th>
                                                                             <th>Shared Secret</th>
                                                                             <th>Algorithm</th>
-                                                                            <th><button type="button" class="btn btn-default" style="padding: 0px 20px;" onclick="addTsigKeyRow('', '', 'hmac-sha256');">Add</button></th>
+                                                                            <th style="width: 84px;"><button type="button" class="btn btn-default" style="padding: 0px 20px;" onclick="addTsigKeyRow('', '', 'hmac-sha256');">Add</button></th>
                                                                         </tr>
                                                                     </thead>
                                                                     <tbody id="tableTsigKeys"></tbody>
@@ -1350,7 +1368,7 @@
                                                             <label for="txtBlockListUpdateIntervalHours" class="col-sm-3 control-label">Block List Update Interval</label>
                                                             <div class="col-sm-6">
                                                                 <input type="number" class="form-control" id="txtBlockListUpdateIntervalHours" placeholder="hours" style="width: 100px; display: inline;">
-                                                                <span>hours (default 24, valid range 1-168)</span>
+                                                                <span>hours (valid range 0-168; default 24; set 0 to disable)</span>
                                                             </div>
                                                             <div class="col-sm-offset-3 col-sm-8" style="padding-top: 5px;">The interval in hours to automatically download and update the block lists.</div>
                                                         </div>
@@ -1667,7 +1685,7 @@
                                                             <th onclick="sortTable('tableDhcpLeasesBody', 4);">Host Name</th>
                                                             <th onclick="sortTable('tableDhcpLeasesBody', 5);">Lease Obtained</th>
                                                             <th onclick="sortTable('tableDhcpLeasesBody', 6);">Lease Expires</th>
-                                                            <th style="width: 30px;" align="right"></th>
+                                                            <th style="width: 36px;"></th>
                                                         </tr>
                                                     </thead>
                                                     <tbody id="tableDhcpLeasesBody">
@@ -1917,7 +1935,7 @@
                                                                         <tr>
                                                                             <th>Vendor Class Identifier</th>
                                                                             <th>Vendor Specific Information</th>
-                                                                            <th><button type="button" class="btn btn-default" style="padding: 0px 20px;" onclick="addDhcpScopeVendorInfoRow('', '');">Add</button></th>
+                                                                            <th style="width: 84px;"><button type="button" class="btn btn-default" style="padding: 0px 20px;" onclick="addDhcpScopeVendorInfoRow('', '');">Add</button></th>
                                                                         </tr>
                                                                     </thead>
                                                                     <tbody id="tableDhcpScopeVendorInfo"></tbody>
@@ -1936,7 +1954,7 @@
                                                                         <tr>
                                                                             <th>Starting Address</th>
                                                                             <th>Ending Address</th>
-                                                                            <th><button type="button" class="btn btn-default" style="padding: 0px 20px;" onclick="addDhcpScopeExclusionRow('', '');">Add</button></th>
+                                                                            <th style="width: 84px;"><button type="button" class="btn btn-default" style="padding: 0px 20px;" onclick="addDhcpScopeExclusionRow('', '');">Add</button></th>
                                                                         </tr>
                                                                     </thead>
                                                                     <tbody id="tableDhcpScopeExclusions"></tbody>
@@ -1984,6 +2002,130 @@
                                             </div>
                                         </div>
                                     </div>
+                                </div>
+
+                                <div id="mainPanelTabPaneAdmin" role="tabpanel" class="tab-pane" style="padding: 10px 0 0 0;">
+
+                                    <ul class="nav nav-tabs" role="tablist">
+                                        <li id="adminTabListSessions" role="presentation" class="active"><a href="#adminTabPaneSessions" aria-controls="adminTabPaneSessions" role="tab" data-toggle="tab" onclick="refreshAdminSessions();">Sessions</a></li>
+                                        <li id="adminTabListUsers" role="presentation"><a href="#adminTabPaneUsers" aria-controls="adminTabPaneUsers" role="tab" data-toggle="tab" onclick="refreshAdminUsers();">Users</a></li>
+                                        <li id="adminTabListGroups" role="presentation"><a href="#adminTabPaneGroups" aria-controls="adminTabPaneGroups" role="tab" data-toggle="tab" onclick="refreshAdminGroups();">Groups</a></li>
+                                        <li id="adminTabListPermissions" role="presentation"><a href="#adminTabPanePermissions" aria-controls="adminTabPanePermissions" role="tab" data-toggle="tab" onclick="refreshAdminPermissions();">Permissions</a></li>
+                                    </ul>
+
+                                    <div class="tab-content">
+
+                                        <div id="adminTabPaneSessions" class="tab-pane active">
+                                            <div id="divAdminSessionsLoader" style="margin-top: 10px; height: 350px;"></div>
+
+                                            <div id="divAdminSessionsView" style="margin-top: 10px;">
+                                                <div style="float: right; padding: 2px 0px;">
+                                                    <button type="button" class="btn btn-primary" style="padding: 2px 0px; width: 100px;" onclick="showCreateApiTokenModal();">Create Token</button>
+                                                </div>
+
+                                                <div style="clear: both;"></div>
+
+                                                <table id="tableAdminSessions" class="table table-hover">
+                                                    <thead>
+                                                        <tr>
+                                                            <th onclick="sortTable('tbodyAdminSessions', 0);">Username</th>
+                                                            <th onclick="sortTable('tbodyAdminSessions', 1);">Session</th>
+                                                            <th onclick="sortTable('tbodyAdminSessions', 2);">Last Seen</th>
+                                                            <th onclick="sortTable('tbodyAdminSessions', 3);">Remote Address</th>
+                                                            <th onclick="sortTable('tbodyAdminSessions', 4);">User Agent</th>
+                                                            <th style="width: 36px;"></th>
+                                                        </tr>
+                                                    </thead>
+                                                    <tbody id="tbodyAdminSessions">
+                                                    </tbody>
+                                                    <tfoot>
+                                                        <tr><th colspan="6" id="tfootAdminSessions"></th></tr>
+                                                    </tfoot>
+                                                </table>
+                                            </div>
+                                        </div>
+
+                                        <div id="adminTabPaneUsers" class="tab-pane">
+                                            <div id="divAdminUsersLoader" style="margin-top: 10px; height: 350px;"></div>
+
+                                            <div id="divAdminUsersView" style="margin-top: 10px;">
+                                                <div style="float: right; padding: 2px 0px;">
+                                                    <button type="button" class="btn btn-primary" style="padding: 2px 0px; width: 100px;" onclick="showAddUserModal();">Add User</button>
+                                                </div>
+
+                                                <div style="clear: both;"></div>
+
+                                                <table id="tableAdminUsers" class="table table-hover">
+                                                    <thead>
+                                                        <tr>
+                                                            <th onclick="sortTable('tbodyAdminUsers', 0);">Username</th>
+                                                            <th onclick="sortTable('tbodyAdminUsers', 1);">Display Name</th>
+                                                            <th onclick="sortTable('tbodyAdminUsers', 2);">Status</th>
+                                                            <th onclick="sortTable('tbodyAdminUsers', 3);">Previous Login</th>
+                                                            <th onclick="sortTable('tbodyAdminUsers', 4);">Recent Login</th>
+                                                            <th style="width: 36px;"></th>
+                                                        </tr>
+                                                    </thead>
+                                                    <tbody id="tbodyAdminUsers">
+                                                    </tbody>
+                                                    <tfoot>
+                                                        <tr><th colspan="6" id="tfootAdminUsers"></th></tr>
+                                                    </tfoot>
+                                                </table>
+                                            </div>
+                                        </div>
+
+                                        <div id="adminTabPaneGroups" class="tab-pane">
+                                            <div id="divAdminGroupsLoader" style="margin-top: 10px; height: 350px;"></div>
+
+                                            <div id="divAdminGroupsView" style="margin-top: 10px;">
+                                                <div style="float: right; padding: 2px 0px;">
+                                                    <button type="button" class="btn btn-primary" style="padding: 2px 0px; width: 100px;" onclick="showAddGroupModal();">Add Group</button>
+                                                </div>
+
+                                                <div style="clear: both;"></div>
+
+                                                <table id="tableAdminGroups" class="table table-hover">
+                                                    <thead>
+                                                        <tr>
+                                                            <th onclick="sortTable('tbodyAdminGroups', 0);">Name</th>
+                                                            <th onclick="sortTable('tbodyAdminGroups', 1);">Description</th>
+                                                            <th style="width: 36px;"></th>
+                                                        </tr>
+                                                    </thead>
+                                                    <tbody id="tbodyAdminGroups">
+                                                    </tbody>
+                                                    <tfoot>
+                                                        <tr><th colspan="3" id="tfootAdminGroups"></th></tr>
+                                                    </tfoot>
+                                                </table>
+                                            </div>
+                                        </div>
+
+                                        <div id="adminTabPanePermissions" class="tab-pane">
+                                            <div id="divAdminPermissionsLoader" style="margin-top: 10px; height: 350px;"></div>
+
+                                            <div id="divAdminPermissionsView" style="margin-top: 10px;">
+                                                <table id="tableAdminPermissions" class="table table-hover">
+                                                    <thead>
+                                                        <tr>
+                                                            <th onclick="sortTable('tbodyAdminPermissions', 0);">Section</th>
+                                                            <th>User Permissions</th>
+                                                            <th>Group Permissions</th>
+                                                            <th style="width: 36px;"></th>
+                                                        </tr>
+                                                    </thead>
+                                                    <tbody id="tbodyAdminPermissions">
+                                                    </tbody>
+                                                    <tfoot>
+                                                        <tr><th colspan="4" id="tfootAdminPermissions"></th></tr>
+                                                    </tfoot>
+                                                </table>
+                                            </div>
+                                        </div>
+
+                                    </div>
+
                                 </div>
 
                                 <div id="mainPanelTabPaneLogs" role="tabpanel" class="tab-pane" style="padding: 10px 0 0 0;">
@@ -2154,7 +2296,7 @@
 
                                             <div id="divQueryLogsLoader" style="margin-top: 20px; height: 300px;"></div>
 
-                                            <div id="divQueryLogsTable">
+                                            <div id="divQueryLogsTable" style="display: none;">
                                                 <div>
                                                     <div class="pull-left" style="padding: 8px;">
                                                         <b id="tableQueryLogsTopStatus">Found: 0 logs</b>
@@ -2266,13 +2408,171 @@
         </div>
     </div>
 
+    <div id="modalMyProfile" class="modal fade" tabindex="-1" role="dialog">
+        <form class="form-horizontal">
+            <div class="modal-dialog" role="document" style="width: 940px;">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <button type="button" class="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button>
+                        <h4 class="modal-title">My Profile</h4>
+                    </div>
+                    <div class="modal-body">
+                        <div id="divMyProfileAlert"></div>
+
+                        <div id="divMyProfileLoader" style="height: 500px;"></div>
+
+                        <div id="divMyProfileViewer" style="max-height: 500px; overflow-y: auto; padding: 0 6px; overflow-x: hidden;">
+                            <div class="form-group">
+                                <label for="txtMyProfileDisplayName" class="col-sm-4 control-label">Display Name</label>
+                                <div class="col-sm-7">
+                                    <input id="txtMyProfileDisplayName" type="text" class="form-control" placeholder="display name" maxlength="255">
+                                </div>
+                            </div>
+
+                            <div class="form-group">
+                                <label for="txtMyProfileUsername" class="col-sm-4 control-label">Username</label>
+                                <div class="col-sm-7">
+                                    <input id="txtMyProfileUsername" type="text" class="form-control" placeholder="username" disabled>
+                                </div>
+                            </div>
+
+                            <div class="form-group">
+                                <label for="txtMyProfileSessionTimeout" class="col-sm-4 control-label">Session Timeout</label>
+                                <div class="col-sm-7">
+                                    <input id="txtMyProfileSessionTimeout" type="number" class="form-control" placeholder="1800" style="width: 100px; display: inline;">
+                                    <span>seconds (valid range 0-604800; default 1800; set 0 to disable)</span>
+                                </div>
+                            </div>
+
+                            <div class="form-group">
+                                <label class="col-sm-4 control-label">Member Of</label>
+                                <div class="col-sm-7">
+                                    <table class="table table-hover" style="margin-bottom: 0px;">
+                                        <thead>
+                                            <tr>
+                                                <th onclick="sortTable('tbodyMyProfileMemberOf', 0);">Group</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody id="tbodyMyProfileMemberOf">
+                                        </tbody>
+                                        <tfoot>
+                                            <tr><th colspan="1" id="tfootMyProfileMemberOf"></th></tr>
+                                        </tfoot>
+                                    </table>
+                                </div>
+                            </div>
+
+                            <div class="well well-sm" style="background-color: #fbfbfb;">
+                                <p style="font-size: 16px; font-weight: bold;">Active Sessions</p>
+                                <table id="tableMyProfileActiveSessions" class="table table-hover" style="margin-bottom: 0px;">
+                                    <thead>
+                                        <tr>
+                                            <th onclick="sortTable('tbodyMyProfileActiveSessions', 0);">Session</th>
+                                            <th onclick="sortTable('tbodyMyProfileActiveSessions', 1);">Last Seen</th>
+                                            <th onclick="sortTable('tbodyMyProfileActiveSessions', 2);">Remote Address</th>
+                                            <th onclick="sortTable('tbodyMyProfileActiveSessions', 3);">User Agent</th>
+                                            <th style="width: 36px;"></th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="tbodyMyProfileActiveSessions">
+                                    </tbody>
+                                    <tfoot>
+                                        <tr><th colspan="5" id="tfootMyProfileActiveSessions"></th></tr>
+                                    </tfoot>
+                                </table>
+                            </div>
+
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="submit" class="btn btn-primary" data-loading-text="Saving..." onclick="saveMyProfile(this); return false;">Save</button>
+                        <button type="button" class="btn btn-default" data-dismiss="modal">Close</button>
+                    </div>
+                </div>
+            </div>
+        </form>
+    </div>
+
+    <div id="modalCreateApiToken" class="modal fade" tabindex="-1" role="dialog">
+        <form class="form-horizontal">
+            <div class="modal-dialog" role="document" style="width: 780px;">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <button type="button" class="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button>
+                        <h4 class="modal-title">Create API Token</h4>
+                    </div>
+                    <div class="modal-body">
+                        <div id="divCreateApiTokenAlert"></div>
+
+                        <div id="divCreateApiTokenLoader" style="height: 350px;"></div>
+
+                        <div id="divCreateApiTokenForm">
+                            <div class="form-group">
+                                <label for="txtCreateApiTokenUsername" class="col-sm-4 control-label">Username</label>
+                                <div class="col-sm-7">
+                                    <input id="txtCreateApiTokenUsername" type="text" class="form-control" placeholder="username" disabled>
+                                    <select id="optCreateApiTokenUsername" class="form-control"></select>
+                                </div>
+                            </div>
+
+                            <div class="form-group" id="divCreateApiTokenPassword">
+                                <label for="txtCreateApiTokenPassword" class="col-sm-4 control-label">Password</label>
+                                <div class="col-sm-7">
+                                    <input id="txtCreateApiTokenPassword" type="password" class="form-control" placeholder="password" maxlength="255">
+                                </div>
+                            </div>
+
+                            <div class="form-group">
+                                <label for="txtCreateApiTokenName" class="col-sm-4 control-label">Token Name</label>
+                                <div class="col-sm-7">
+                                    <input id="txtCreateApiTokenName" type="text" class="form-control" placeholder="token name" maxlength="255">
+                                </div>
+                            </div>
+                        </div>
+
+                        <div id="divCreateApiTokenOutput">
+                            <div class="form-group">
+                                <label class="col-sm-3 control-label">Username</label>
+                                <div class="col-sm-9">
+                                    <div id="lblCreateApiTokenOutputUsername" style="padding-top: 7px;"></div>
+                                </div>
+                            </div>
+
+                            <div class="form-group">
+                                <label class="col-sm-3 control-label">Token Name</label>
+                                <div class="col-sm-9">
+                                    <div id="lblCreateApiTokenOutputTokenName" style="padding-top: 7px; word-wrap: anywhere;"></div>
+                                </div>
+                            </div>
+
+                            <div class="form-group">
+                                <label class="col-sm-3 control-label">Token</label>
+                                <div class="col-sm-9">
+                                    <div id="lblCreateApiTokenOutputToken" style="padding-top: 7px;"></div>
+                                </div>
+                            </div>
+
+                            <p>
+                                <b>WARNING!</b> The token value shown above will not be displayed later. You must copy the token value immediately and save it for use later.
+                            </p>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button id="btnCreateApiToken" type="submit" class="btn btn-primary" data-loading-text="Creating...">Create</button>
+                        <button type="button" class="btn btn-default" data-dismiss="modal">Close</button>
+                    </div>
+                </div>
+            </div>
+        </form>
+    </div>
+
     <div id="modalChangePassword" class="modal fade" tabindex="-1" role="dialog">
         <form class="form-horizontal">
             <div class="modal-dialog" role="document">
                 <div class="modal-content">
                     <div class="modal-header">
                         <button type="button" class="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button>
-                        <h4 class="modal-title">Change Password</h4>
+                        <h4 id="titleChangePassword" class="modal-title">Change Password</h4>
                     </div>
                     <div class="modal-body">
                         <div id="divChangePasswordAlert"></div>
@@ -2287,19 +2587,19 @@
                         <div class="form-group">
                             <label for="txtChangePasswordNewPassword" class="col-sm-4 control-label">New Password</label>
                             <div class="col-sm-7">
-                                <input id="txtChangePasswordNewPassword" type="password" class="form-control" placeholder="new password">
+                                <input id="txtChangePasswordNewPassword" type="password" class="form-control" placeholder="new password" maxlength="255">
                             </div>
                         </div>
 
                         <div class="form-group">
                             <label for="txtChangePasswordConfirmPassword" class="col-sm-4 control-label">Confirm Password</label>
                             <div class="col-sm-7">
-                                <input id="txtChangePasswordConfirmPassword" type="password" class="form-control" placeholder="confirm password">
+                                <input id="txtChangePasswordConfirmPassword" type="password" class="form-control" placeholder="confirm password" maxlength="255">
                             </div>
                         </div>
                     </div>
                     <div class="modal-footer">
-                        <button id="btnChangePasswordSave" type="submit" class="btn btn-primary" data-loading-text="Saving..." onclick="changePassword(); return false;">Save</button>
+                        <button id="btnChangePassword" type="submit" class="btn btn-primary" data-loading-text="Working...">Change</button>
                         <button type="button" class="btn btn-default" data-dismiss="modal">Close</button>
                     </div>
                 </div>
@@ -2315,14 +2615,16 @@
                     <h4 class="modal-title">Forgot Password?</h4>
                 </div>
                 <div class="modal-body">
-                    <p>Follow these steps to reset 'admin' password:</p>
+                    <p>To reset your password, you need to contact the DNS server administrator.</p>
+                    <p>If you are an administrator, follow these steps to reset the 'admin' user's password:</p>
                     <ol>
-                        <li>Find the DNS Server config folder and locate the <b>dns.config</b> file. The config folder will be found where the DNS Server is installed.</li>
-                        <li>Rename the <b>dns.config</b> file as <b>reset.config</b></li>
-                        <li>Restart the DNS Server to complete the password reset process.</li>
+                        <li>Stop the DNS server.</li>
+                        <li>Find the DNS Server config folder and locate the <b>auth.config</b> file. The config folder will be found where the DNS Server is installed.</li>
+                        <li>Rename the <b>auth.config</b> file as <b>resetadmin.config</b></li>
+                        <li>Start the DNS Server to complete the password reset process.</li>
                         <li>Just refresh this web page in the web browser to auto login with default credentials and quickly change the password.</li>
                     </ol>
-                    <p>Note: To reset 'admin' password, you will need file system access on the server running this DNS Server. </p>
+                    <p>Note: To reset 'admin' password, you will need file system access on the server running this DNS Server. If the 'admin' user does not exists then it will be created automatically.</p>
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-default" data-dismiss="modal">Close</button>
@@ -2378,7 +2680,7 @@
                             <div class="form-group">
                                 <label for="txtAddZone" class="col-sm-4 control-label">Zone</label>
                                 <div class="col-sm-7">
-                                    <input id="txtAddZone" type="text" class="form-control" placeholder="example.com or 192.168.0.0/24 or 2001:db8::/64">
+                                    <input id="txtAddZone" type="text" class="form-control" placeholder="example.com or 192.168.0.0/24 or 2001:db8::/64" maxlength="255">
                                 </div>
                             </div>
 
@@ -3289,7 +3591,7 @@ ns1.example.com ([2001:db8::])
                                     <span>(valid range 0-50, recommended 0)</span>
                                 </div>
                                 <div class="col-sm-offset-4 col-sm-8" style="padding-top: 5px;">
-                                    The number of iterations used by NSEC3 for hashing the domain names. It is recommended to use 0 iterations since more iterations will increase computational costs for both the DNS server and resolver while not providing much value against "zone walking" [<a href="https://datatracker.ietf.org/doc/html/draft-ietf-dnsop-nsec3-guidance-03#section-2.3" target="_blank">draft-ietf-dnsop-nsec3-guidance</a>].
+                                    The number of iterations used by NSEC3 for hashing the domain names. It is recommended to use 0 iterations since more iterations will increase computational costs for both the DNS server and resolver while not providing much value against "zone walking" [<a href="https://www.rfc-editor.org/rfc/rfc9276.html#name-iterations" target="_blank">RFC 9276</a>].
                                 </div>
                             </div>
 
@@ -3300,7 +3602,7 @@ ns1.example.com ([2001:db8::])
                                     <span>(valid range 0-32, recommended 0)</span>
                                 </div>
                                 <div class="col-sm-offset-4 col-sm-8" style="padding-top: 5px;">
-                                    The number of bytes of random salt to generate to be used with the NSEC3 hash computation. It is recommended to not use salt by setting the length to 0 [<a href="https://datatracker.ietf.org/doc/html/draft-ietf-dnsop-nsec3-guidance-03#section-2.4" target="_blank">draft-ietf-dnsop-nsec3-guidance</a>].
+                                    The number of bytes of random salt to generate to be used with the NSEC3 hash computation. It is recommended to not use salt by setting the length to 0 [<a href="https://www.rfc-editor.org/rfc/rfc9276.html#name-salt" target="_blank">RFC 9276</a>].
                                 </div>
                             </div>
                         </div>
@@ -3402,7 +3704,7 @@ ns1.example.com ([2001:db8::])
 
                             <div>
                                 <button type="button" class="btn btn-primary" style="padding: 2px 0; width: 120px;" data-toggle="collapse" data-target="#divDnssecPropertiesGenerateKey" aria-expanded="false" aria-controls="divDnssecPropertiesGenerateKey">Add Private Key</button>
-                                <button type="button" class="btn btn-warning" style="padding: 2px 0; width: 120px;" data-loading-text="Publishing..." onclick="publishAllDnssecPrivateKeys(this);">Publish All Keys</button>
+                                <button id="btnDnssecPropertiesPublishKeys" type="button" class="btn btn-warning" style="padding: 2px 0; width: 120px;" data-loading-text="Publishing..." onclick="publishAllDnssecPrivateKeys(this);">Publish All Keys</button>
                             </div>
 
                             <div id="divDnssecPropertiesGenerateKey" class="collapse">
@@ -3521,7 +3823,7 @@ ns1.example.com ([2001:db8::])
                                         <span>(valid range 0-50, recommended 0)</span>
                                     </div>
                                     <div class="col-sm-offset-4 col-sm-8" style="padding-top: 5px;">
-                                        The number of iterations used by NSEC3 for hashing the domain names. It is recommended to use 0 iterations since more iterations will increase computational costs for both the DNS server and resolver while not providing much value against "zone walking" [<a href="https://datatracker.ietf.org/doc/html/draft-ietf-dnsop-nsec3-guidance-03#section-2.3" target="_blank">draft-ietf-dnsop-nsec3-guidance</a>].
+                                        The number of iterations used by NSEC3 for hashing the domain names. It is recommended to use 0 iterations since more iterations will increase computational costs for both the DNS server and resolver while not providing much value against "zone walking" [<a href="https://www.rfc-editor.org/rfc/rfc9276.html#name-iterations" target="_blank">RFC 9276</a>].
                                     </div>
                                 </div>
 
@@ -3532,7 +3834,7 @@ ns1.example.com ([2001:db8::])
                                         <span>(valid range 0-32, recommended 0)</span>
                                     </div>
                                     <div class="col-sm-offset-4 col-sm-8" style="padding-top: 5px;">
-                                        The number of bytes of random salt to generate to be used with the NSEC3 hash computation. It is recommended to not use salt by setting the length to 0 [<a href="https://datatracker.ietf.org/doc/html/draft-ietf-dnsop-nsec3-guidance-03#section-2.4" target="_blank">draft-ietf-dnsop-nsec3-guidance</a>].
+                                        The number of bytes of random salt to generate to be used with the NSEC3 hash computation. It is recommended to not use salt by setting the length to 0 [<a href="https://www.rfc-editor.org/rfc/rfc9276.html#name-salt" target="_blank">RFC 9276</a>].
                                     </div>
                                 </div>
                             </div>
@@ -3777,6 +4079,12 @@ ns1.example.com ([2001:db8::])
                             <div style="padding-left: 40px;">
                                 <div class="checkbox">
                                     <label>
+                                        <input id="chkBackupAuthConfig" type="checkbox" checked> Authentication Config File (auth.config)
+                                    </label>
+                                </div>
+
+                                <div class="checkbox">
+                                    <label>
                                         <input id="chkBackupDnsSettings" type="checkbox" checked> DNS Settings File (dns.config)
                                     </label>
                                 </div>
@@ -3871,6 +4179,12 @@ ns1.example.com ([2001:db8::])
 
                         <div class="form-group">
                             <div style="padding-left: 40px;">
+                                <div class="checkbox">
+                                    <label>
+                                        <input id="chkRestoreAuthConfig" type="checkbox" checked> Authentication Config File (auth.config)
+                                    </label>
+                                </div>
+
                                 <div class="checkbox">
                                     <label>
                                         <input id="chkRestoreDnsSettings" type="checkbox" checked> DNS Settings File (dns.config)
@@ -4054,6 +4368,290 @@ ns1.example.com ([2001:db8::])
                 </div>
             </div>
         </div>
+    </div>
+
+
+    <div id="modalAddUser" class="modal fade" tabindex="-1" role="dialog">
+        <form class="form-horizontal">
+            <div class="modal-dialog" role="document">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <button type="button" class="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button>
+                        <h4 class="modal-title">Add User</h4>
+                    </div>
+                    <div class="modal-body">
+                        <div id="divAddUserAlert"></div>
+
+                        <div class="form-group">
+                            <label for="txtAddUserDisplayName" class="col-sm-4 control-label">Display Name</label>
+                            <div class="col-sm-7">
+                                <input id="txtAddUserDisplayName" type="text" class="form-control" placeholder="display name" maxlength="255">
+                            </div>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="txtAddUserUsername" class="col-sm-4 control-label">Username</label>
+                            <div class="col-sm-7">
+                                <input id="txtAddUserUsername" type="text" class="form-control" placeholder="username" maxlength="255">
+                            </div>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="txtAddUserPassword" class="col-sm-4 control-label">Password</label>
+                            <div class="col-sm-7">
+                                <input id="txtAddUserPassword" type="password" class="form-control" placeholder="password" maxlength="255">
+                            </div>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="txtAddUserConfirmPassword" class="col-sm-4 control-label">Confirm Password</label>
+                            <div class="col-sm-7">
+                                <input id="txtAddUserConfirmPassword" type="password" class="form-control" placeholder="confirm password" maxlength="255">
+                            </div>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button id="btnAddUser" type="submit" class="btn btn-primary" data-loading-text="Adding..." onclick="addUser(this); return false;">Add</button>
+                        <button type="button" class="btn btn-default" data-dismiss="modal">Close</button>
+                    </div>
+                </div>
+            </div>
+        </form>
+    </div>
+
+    <div id="modalUserDetails" class="modal fade" tabindex="-1" role="dialog">
+        <form class="form-horizontal">
+            <div class="modal-dialog" role="document" style="width: 940px;">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <button type="button" class="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button>
+                        <h4 class="modal-title">User Details</h4>
+                    </div>
+                    <div class="modal-body">
+                        <div id="divUserDetailsAlert"></div>
+
+                        <div id="divUserDetailsLoader" style="height: 500px;"></div>
+
+                        <div id="divUserDetailsViewer" style="max-height: 500px; overflow-y: auto; padding: 0 6px; overflow-x: hidden;">
+                            <div class="form-group">
+                                <label for="txtUserDetailsDisplayName" class="col-sm-4 control-label">Display Name</label>
+                                <div class="col-sm-7">
+                                    <input id="txtUserDetailsDisplayName" type="text" class="form-control" placeholder="display name" maxlength="255">
+                                </div>
+                            </div>
+
+                            <div class="form-group">
+                                <label for="txtUserDetailsUsername" class="col-sm-4 control-label">Username</label>
+                                <div class="col-sm-7">
+                                    <input id="txtUserDetailsUsername" type="text" class="form-control" placeholder="username" maxlength="255">
+                                </div>
+                            </div>
+
+                            <div class="form-group">
+                                <div class="col-sm-offset-4 col-sm-7">
+                                    <div class="checkbox">
+                                        <label>
+                                            <input id="chkUserDetailsDisableAccount" type="checkbox"> Disable User Account
+                                        </label>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="form-group">
+                                <label for="txtUserDetailsSessionTimeout" class="col-sm-4 control-label">Session Timeout</label>
+                                <div class="col-sm-7">
+                                    <input id="txtUserDetailsSessionTimeout" type="number" class="form-control" placeholder="1800" style="width: 100px; display: inline;">
+                                    <span>seconds (valid range 0-604800; default 1800; set 0 to disable)</span>
+                                </div>
+                            </div>
+
+                            <div class="form-group">
+                                <label class="col-sm-4 control-label">Member Of</label>
+                                <div class="col-sm-7">
+                                    <textarea id="txtUserDetailsMemberOf" class="form-control" rows="5"></textarea>
+                                    <label class="control-label" for="optUserDetailsGroupList">Add Group</label>
+                                    <select id="optUserDetailsGroupList" class="form-control"></select>
+                                </div>
+                            </div>
+
+                            <div class="well well-sm" style="background-color: #fbfbfb;">
+                                <p style="font-size: 16px; font-weight: bold;">Active Sessions</p>
+                                <table id="tableUserDetailsActiveSessions" class="table table-hover" style="margin-bottom: 0px;">
+                                    <thead>
+                                        <tr>
+                                            <th onclick="sortTable('tbodyUserDetailsActiveSessions', 0);">Session</th>
+                                            <th onclick="sortTable('tbodyUserDetailsActiveSessions', 1);">Last Seen</th>
+                                            <th onclick="sortTable('tbodyUserDetailsActiveSessions', 2);">Remote Address</th>
+                                            <th onclick="sortTable('tbodyUserDetailsActiveSessions', 3);">User Agent</th>
+                                            <th style="width: 36px;"></th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="tbodyUserDetailsActiveSessions">
+                                    </tbody>
+                                    <tfoot>
+                                        <tr><th colspan="5" id="tfootUserDetailsActiveSessions"></th></tr>
+                                    </tfoot>
+                                </table>
+                            </div>
+
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button id="btnUserDetailsSave" type="submit" class="btn btn-primary" data-loading-text="Saving..." onclick="saveUserDetails(this); return false;">Save</button>
+                        <button type="button" class="btn btn-default" data-dismiss="modal">Close</button>
+                    </div>
+                </div>
+            </div>
+        </form>
+    </div>
+
+    <div id="modalAddGroup" class="modal fade" tabindex="-1" role="dialog">
+        <form class="form-horizontal">
+            <div class="modal-dialog" role="document">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <button type="button" class="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button>
+                        <h4 class="modal-title">Add Group</h4>
+                    </div>
+                    <div class="modal-body">
+                        <div id="divAddGroupAlert"></div>
+
+                        <div class="form-group">
+                            <label for="txtAddGroupName" class="col-sm-4 control-label">Name</label>
+                            <div class="col-sm-7">
+                                <input id="txtAddGroupName" type="text" class="form-control" placeholder="group name" maxlength="255">
+                            </div>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="txtAddGroupDescription" class="col-sm-4 control-label">Description</label>
+                            <div class="col-sm-7">
+                                <textarea id="txtAddGroupDescription" class="form-control" rows="5" maxlength="255"></textarea>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button id="btnAddGroup" type="submit" class="btn btn-primary" data-loading-text="Adding..." onclick="addGroup(this); return false;">Add</button>
+                        <button type="button" class="btn btn-default" data-dismiss="modal">Close</button>
+                    </div>
+                </div>
+            </div>
+        </form>
+    </div>
+
+    <div id="modalGroupDetails" class="modal fade" tabindex="-1" role="dialog">
+        <form class="form-horizontal">
+            <div class="modal-dialog" role="document">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <button type="button" class="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button>
+                        <h4 class="modal-title">Group Details</h4>
+                    </div>
+                    <div class="modal-body">
+                        <div id="divGroupDetailsAlert"></div>
+
+                        <div id="divGroupDetailsLoader" style="height: 500px;"></div>
+
+                        <div id="divGroupDetailsViewer" style="max-height: 500px; overflow-y: auto; padding: 0 6px; overflow-x: hidden;">
+                            <div class="form-group">
+                                <label for="txtGroupDetailsName" class="col-sm-4 control-label">Name</label>
+                                <div class="col-sm-7">
+                                    <input id="txtGroupDetailsName" type="text" class="form-control" placeholder="group name" maxlength="255">
+                                </div>
+                            </div>
+
+                            <div class="form-group">
+                                <label for="txtGroupDetailsDescription" class="col-sm-4 control-label">Description</label>
+                                <div class="col-sm-7">
+                                    <textarea id="txtGroupDetailsDescription" class="form-control" rows="3" maxlength="255"></textarea>
+                                </div>
+                            </div>
+
+                            <div class="form-group">
+                                <label class="col-sm-4 control-label">Members</label>
+                                <div class="col-sm-7">
+                                    <textarea id="txtGroupDetailsMembers" class="form-control" rows="7"></textarea>
+                                    <label class="control-label" for="optGroupDetailsUserList">Add User</label>
+                                    <select id="optGroupDetailsUserList" class="form-control"></select>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button id="btnGroupDetailsSave" type="submit" class="btn btn-primary" data-loading-text="Saving..." onclick="saveGroupDetails(this); return false;">Save</button>
+                        <button type="button" class="btn btn-default" data-dismiss="modal">Close</button>
+                    </div>
+                </div>
+            </div>
+        </form>
+    </div>
+
+    <div id="modalEditPermissions" class="modal fade" tabindex="-1" role="dialog">
+        <form class="form-horizontal">
+            <div class="modal-dialog" role="document" style="width: 780px;">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <button type="button" class="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button>
+                        <h4 class="modal-title">Edit Permissions - <span id="lblEditPermissionsName"></span></h4>
+                    </div>
+                    <div class="modal-body">
+                        <div id="divEditPermissionsAlert"></div>
+
+                        <div id="divEditPermissionsLoader" style="height: 500px;"></div>
+
+                        <div id="divEditPermissionsViewer" style="max-height: 500px; overflow-y: auto; padding: 0 6px; overflow-x: hidden;">
+                            <div class="well well-sm" style="background-color: #fbfbfb;">
+                                <div class="form-group">
+                                    <label class="col-sm-3 control-label">User Permissions</label>
+                                    <div class="col-sm-9">
+                                        <table id="tableEditPermissionsUser" class="table table-hover">
+                                            <thead>
+                                                <tr>
+                                                    <th onclick="sortTable('tbodyEditPermissionsUser', 0);">User</th>
+                                                    <th onclick="sortTable('tbodyEditPermissionsUser', 0);" style="width: 65px;">View</th>
+                                                    <th onclick="sortTable('tbodyEditPermissionsUser', 0);" style="width: 65px;">Modify</th>
+                                                    <th onclick="sortTable('tbodyEditPermissionsUser', 0);" style="width: 65px;">Delete</th>
+                                                    <th style="width: 76px;"></th>
+                                                </tr>
+                                            </thead>
+                                            <tbody id="tbodyEditPermissionsUser"></tbody>
+                                        </table>
+                                        <label class="control-label" for="optEditPermissionsUserList">Add User</label>
+                                        <select id="optEditPermissionsUserList" class="form-control"></select>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="well well-sm" style="background-color: #fbfbfb;">
+                                <div class="form-group">
+                                    <label class="col-sm-3 control-label">Group Permissions</label>
+                                    <div class="col-sm-9">
+                                        <table id="tableEditPermissionsGroup" class="table table-hover">
+                                            <thead>
+                                                <tr>
+                                                    <th onclick="sortTable('tbodyEditPermissionsGroup', 0);">Group</th>
+                                                    <th onclick="sortTable('tbodyEditPermissionsGroup', 0);" style="width: 65px;">View</th>
+                                                    <th onclick="sortTable('tbodyEditPermissionsGroup', 0);" style="width: 65px;">Modify</th>
+                                                    <th onclick="sortTable('tbodyEditPermissionsGroup', 0);" style="width: 65px;">Delete</th>
+                                                    <th style="width: 76px;"></th>
+                                                </tr>
+                                            </thead>
+                                            <tbody id="tbodyEditPermissionsGroup"></tbody>
+                                        </table>
+                                        <label class="control-label" for="optEditPermissionsGroupList">Add Group</label>
+                                        <select id="optEditPermissionsGroupList" class="form-control"></select>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button id="btnEditPermissionsSave" type="submit" class="btn btn-primary" data-loading-text="Saving...">Save</button>
+                        <button type="button" class="btn btn-default" data-dismiss="modal">Close</button>
+                    </div>
+                </div>
+            </div>
+        </form>
     </div>
 
     <div id="footer"></div>

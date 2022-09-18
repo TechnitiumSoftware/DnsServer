@@ -120,7 +120,7 @@ namespace DnsServerCore.Dhcp
                     _name = bR.ReadShortString();
                     _enabled = bR.ReadBoolean();
 
-                    ChangeNetwork(IPAddressExtension.Parse(bR), IPAddressExtension.Parse(bR), IPAddressExtension.Parse(bR));
+                    ChangeNetwork(IPAddressExtension.ReadFrom(bR), IPAddressExtension.ReadFrom(bR), IPAddressExtension.ReadFrom(bR));
 
                     _leaseTimeDays = bR.ReadUInt16();
                     _leaseTimeHours = bR.ReadByte();
@@ -143,7 +143,7 @@ namespace DnsServerCore.Dhcp
 
                     if (version >= 2)
                     {
-                        _serverAddress = IPAddressExtension.Parse(bR);
+                        _serverAddress = IPAddressExtension.ReadFrom(bR);
                         if (_serverAddress.Equals(IPAddress.Any))
                             _serverAddress = null;
                     }
@@ -159,7 +159,7 @@ namespace DnsServerCore.Dhcp
                             _bootFileName = null;
                     }
 
-                    _routerAddress = IPAddressExtension.Parse(bR);
+                    _routerAddress = IPAddressExtension.ReadFrom(bR);
                     if (_routerAddress.Equals(IPAddress.Any))
                         _routerAddress = null;
 
@@ -177,7 +177,7 @@ namespace DnsServerCore.Dhcp
                                 IPAddress[] dnsServers = new IPAddress[count];
 
                                 for (int i = 0; i < count; i++)
-                                    dnsServers[i] = IPAddressExtension.Parse(bR);
+                                    dnsServers[i] = IPAddressExtension.ReadFrom(bR);
 
                                 _dnsServers = dnsServers;
                             }
@@ -191,7 +191,7 @@ namespace DnsServerCore.Dhcp
                             IPAddress[] winsServers = new IPAddress[count];
 
                             for (int i = 0; i < count; i++)
-                                winsServers[i] = IPAddressExtension.Parse(bR);
+                                winsServers[i] = IPAddressExtension.ReadFrom(bR);
 
                             _winsServers = winsServers;
                         }
@@ -204,7 +204,7 @@ namespace DnsServerCore.Dhcp
                             IPAddress[] ntpServers = new IPAddress[count];
 
                             for (int i = 0; i < count; i++)
-                                ntpServers[i] = IPAddressExtension.Parse(bR);
+                                ntpServers[i] = IPAddressExtension.ReadFrom(bR);
 
                             _ntpServers = ntpServers;
                         }
@@ -249,7 +249,7 @@ namespace DnsServerCore.Dhcp
                             Exclusion[] exclusions = new Exclusion[count];
 
                             for (int i = 0; i < count; i++)
-                                exclusions[i] = new Exclusion(IPAddressExtension.Parse(bR), IPAddressExtension.Parse(bR));
+                                exclusions[i] = new Exclusion(IPAddressExtension.ReadFrom(bR), IPAddressExtension.ReadFrom(bR));
 
                             _exclusions = exclusions;
                         }
@@ -455,7 +455,7 @@ namespace DnsServerCore.Dhcp
 
                 clientDomainName = request.HostName.HostName + "." + _domainName;
             }
-            else if (request.ClientFullyQualifiedDomainName.DomainName.Contains("."))
+            else if (request.ClientFullyQualifiedDomainName.DomainName.Contains('.'))
             {
                 //client domain is fqdn
                 if (request.ClientFullyQualifiedDomainName.DomainName.EndsWith("." + _domainName, StringComparison.OrdinalIgnoreCase))
@@ -1161,6 +1161,19 @@ namespace DnsServerCore.Dhcp
             }
         }
 
+        public bool AddReservedLease(Lease reservedLease)
+        {
+            return _reservedLeases.TryAdd(reservedLease.ClientIdentifier, reservedLease);
+        }
+
+        public bool RemoveReservedLease(string hardwareAddress)
+        {
+            byte[] hardwareAddressBytes = Lease.ParseHardwareAddress(hardwareAddress);
+            ClientIdentifierOption reservedLeaseClientIdentifier = new ClientIdentifierOption((byte)DhcpMessageHardwareAddressType.Ethernet, hardwareAddressBytes);
+
+            return _reservedLeases.TryRemove(reservedLeaseClientIdentifier, out _);
+        }
+
         public Lease RemoveLease(string hardwareAddress)
         {
             byte[] hardwareAddressBytes = Lease.ParseHardwareAddress(hardwareAddress);
@@ -1182,12 +1195,12 @@ namespace DnsServerCore.Dhcp
             if (removedLease.Type == LeaseType.Reserved)
             {
                 //remove reserved lease
-                ClientIdentifierOption reservedLeasesClientIdentifier = new ClientIdentifierOption((byte)DhcpMessageHardwareAddressType.Ethernet, removedLease.HardwareAddress);
-                if (_reservedLeases.TryGetValue(reservedLeasesClientIdentifier, out Lease existingReservedLease))
+                ClientIdentifierOption reservedLeaseClientIdentifier = new ClientIdentifierOption((byte)DhcpMessageHardwareAddressType.Ethernet, removedLease.HardwareAddress);
+                if (_reservedLeases.TryGetValue(reservedLeaseClientIdentifier, out Lease existingReservedLease))
                 {
                     //remove reserved lease only if the IP addresses match
                     if (existingReservedLease.Address.Equals(removedLease.Address))
-                        _reservedLeases.TryRemove(reservedLeasesClientIdentifier, out _);
+                        _reservedLeases.TryRemove(reservedLeaseClientIdentifier, out _);
                 }
             }
 

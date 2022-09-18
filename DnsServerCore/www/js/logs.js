@@ -1,6 +1,6 @@
 ﻿/*
 Technitium DNS Server
-Copyright (C) 2021  Shreyas Zare (shreyas@technitium.com)
+Copyright (C) 2022  Shreyas Zare (shreyas@technitium.com)
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -55,7 +55,7 @@ function refreshLogFilesList() {
     var lstLogFiles = $("#lstLogFiles");
 
     HTTPRequest({
-        url: "/api/listLogs?token=" + token,
+        url: "/api/logs/list?token=" + sessionData.token,
         success: function (responseJSON) {
             var logFiles = responseJSON.response.logFiles;
 
@@ -96,7 +96,7 @@ function viewLog(logFile) {
     divLogViewer.show();
 
     HTTPGetFileRequest({
-        url: "/log/" + logFile + "?limit=2&token=" + token,
+        url: "/api/logs/download?token=" + sessionData.token + "&fileName=" + encodeURIComponent(logFile) + "&limit=2",
         success: function (response) {
 
             divLogViewerLoader.hide();
@@ -110,7 +110,7 @@ function viewLog(logFile) {
 
 function downloadLog() {
     var logFile = $("#txtLogViewerTitle").text();
-    window.open("/log/" + logFile + "?token=" + token + "&ts=" + (new Date().getTime()), "_blank");
+    window.open("/api/logs/download?token=" + sessionData.token + "&fileName=" + encodeURIComponent(logFile) + "&ts=" + (new Date().getTime()), "_blank");
 }
 
 function deleteLog() {
@@ -122,7 +122,7 @@ function deleteLog() {
     var btn = $("#btnDeleteLog").button('loading');
 
     HTTPRequest({
-        url: "/api/deleteLog?token=" + token + "&log=" + logFile,
+        url: "/api/logs/delete?token=" + sessionData.token + "&log=" + logFile,
         success: function (responseJSON) {
             refreshLogFilesList();
 
@@ -146,7 +146,7 @@ function deleteAllLogs() {
         return;
 
     HTTPRequest({
-        url: "/api/deleteAllLogs?token=" + token,
+        url: "/api/logs/deleteAll?token=" + sessionData.token,
         success: function (responseJSON) {
             refreshLogFilesList();
 
@@ -165,7 +165,7 @@ function deleteAllStats() {
         return;
 
     HTTPRequest({
-        url: "/api/deleteAllStats?token=" + token,
+        url: "/api/dashboard/stats/deleteAll?token=" + sessionData.token,
         success: function (responseJSON) {
             showAlert("success", "Stats Deleted!", "All stats files were deleted successfully.");
         },
@@ -180,7 +180,6 @@ var appsList;
 function refreshQueryLogsTab() {
     var frmQueryLogs = $("#frmQueryLogs");
     var divQueryLogsLoader = $("#divQueryLogsLoader");
-    var divQueryLogsTable = $("#divQueryLogsTable");
 
     var optQueryLogsAppName = $("#optQueryLogsAppName");
     var optQueryLogsClassPath = $("#optQueryLogsClassPath");
@@ -191,7 +190,6 @@ function refreshQueryLogsTab() {
 
     if (appsList == null) {
         frmQueryLogs.hide();
-        divQueryLogsTable.hide();
         loader = divQueryLogsLoader;
     }
     else {
@@ -200,7 +198,7 @@ function refreshQueryLogsTab() {
     }
 
     HTTPRequest({
-        url: "/api/apps/list?token=" + token,
+        url: "/api/apps/list?token=" + sessionData.token,
         success: function (responseJSON) {
             var apps = responseJSON.response.apps;
 
@@ -254,7 +252,6 @@ function refreshQueryLogsTab() {
         error: function () {
             if (appsList == null) {
                 frmQueryLogs.show();
-                divQueryLogsTable.show();
             }
             else {
                 optQueryLogsAppName.prop('disabled', false);
@@ -315,7 +312,7 @@ function queryLogs(pageNumber) {
     btn.button('loading');
 
     HTTPRequest({
-        url: "/api/queryLogs?token=" + token + "&name=" + encodeURIComponent(name) + "&classPath=" + encodeURIComponent(classPath) + "&pageNumber=" + pageNumber + "&entriesPerPage=" + entriesPerPage + "&descendingOrder=" + descendingOrder +
+        url: "/api/logs/query?token=" + sessionData.token + "&name=" + encodeURIComponent(name) + "&classPath=" + encodeURIComponent(classPath) + "&pageNumber=" + pageNumber + "&entriesPerPage=" + entriesPerPage + "&descendingOrder=" + descendingOrder +
             "&start=" + encodeURIComponent(start) + "&end=" + encodeURIComponent(end) + "&clientIpAddress=" + encodeURIComponent(clientIpAddress) + "&protocol=" + protocol + "&responseType=" + responseType + "&rcode=" + rcode +
             "&qname=" + encodeURIComponent(qname) + "&qtype=" + qtype + "&qclass=" + qclass,
         success: function (responseJSON) {
