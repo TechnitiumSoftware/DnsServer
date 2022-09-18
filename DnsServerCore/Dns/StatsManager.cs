@@ -1445,7 +1445,7 @@ namespace DnsServerCore.Dns
                             _clientIpAddresses = new ConcurrentDictionary<IPAddress, Counter>(1, count);
 
                             for (int i = 0; i < count; i++)
-                                _clientIpAddresses.TryAdd(IPAddressExtension.Parse(bR), new Counter(bR.ReadInt64()));
+                                _clientIpAddresses.TryAdd(IPAddressExtension.ReadFrom(bR), new Counter(bR.ReadInt64()));
                         }
 
                         {
@@ -1461,7 +1461,7 @@ namespace DnsServerCore.Dns
                             _errorIpAddresses = new ConcurrentDictionary<IPAddress, Counter>(1, count);
 
                             for (int i = 0; i < count; i++)
-                                _errorIpAddresses.TryAdd(IPAddressExtension.Parse(bR), new Counter(bR.ReadInt64()));
+                                _errorIpAddresses.TryAdd(IPAddressExtension.ReadFrom(bR), new Counter(bR.ReadInt64()));
                         }
 
                         break;
