@@ -592,11 +592,15 @@ namespace DnsServerSystemTrayApp
                     BinaryReader bR = new BinaryReader(fS);
 
                     if (Encoding.ASCII.GetString(bR.ReadBytes(2)) != "DS") //format
-                        throw new InvalidDataException("DnsServer config file format is invalid.");
+                        throw new InvalidDataException("DNS Server config file format is invalid.");
 
                     int version = bR.ReadByte();
 
-                    if (version > 1)
+                    if (version >= 28)
+                    {
+                        port = bR.ReadInt32();
+                    }
+                    else if (version > 1)
                     {
                         string serverDomain = bR.ReadShortString();
                         port = bR.ReadInt32();
