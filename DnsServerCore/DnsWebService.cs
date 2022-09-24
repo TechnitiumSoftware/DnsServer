@@ -3741,12 +3741,17 @@ namespace DnsServerCore
 
             try
             {
+                int version;
+
                 using (FileStream fS = new FileStream(configFile, FileMode.Open, FileAccess.Read))
                 {
-                    ReadConfigFrom(new BinaryReader(fS));
+                    version = ReadConfigFrom(new BinaryReader(fS));
                 }
 
                 _log.Write("DNS Server config file was loaded: " + configFile);
+
+                if (version <= 27)
+                    SaveConfigFile(); //save as new config version to avoid loading old version next time
             }
             catch (FileNotFoundException)
             {
@@ -3956,7 +3961,7 @@ namespace DnsServerCore
             _authManager.SaveConfigFile();
         }
 
-        private void ReadConfigFrom(BinaryReader bR)
+        private int ReadConfigFrom(BinaryReader bR)
         {
             if (Encoding.ASCII.GetString(bR.ReadBytes(2)) != "DS") //format
                 throw new InvalidDataException("DNS Server config file format is invalid.");
@@ -3973,14 +3978,13 @@ namespace DnsServerCore
 
                 //new default settings
                 _appsApi.EnableAutomaticUpdate = true;
-
-                //save as new config version to avoid loading old version next time
-                SaveConfigFile();
             }
             else
             {
                 throw new InvalidDataException("DNS Server config version not supported.");
             }
+
+            return version;
         }
 
         private void ReadConfigFrom(BinaryReader bR, int version)
