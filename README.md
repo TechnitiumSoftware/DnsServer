@@ -44,6 +44,7 @@ Be it a home network or an organization's network, having a locally running DNS 
 - Secret key transaction authentication (TSIG) [RFC 8945](https://datatracker.ietf.org/doc/html/rfc8945) support for zone transfers.
 - EDNS(0) [RFC6891](https://datatracker.ietf.org/doc/html/rfc6891) support.
 - Extended DNS Errors [RFC 8914](https://datatracker.ietf.org/doc/html/rfc8914) support.
+- Multi-user role based access with non-expiring API token support.
 - Self host your domain names on your own DNS server.
 - Wildcard sub domain support.
 - Enable/disable zones and records to allow testing with ease.
@@ -58,8 +59,6 @@ Be it a home network or an organization's network, having a locally running DNS 
 - Open source cross-platform .NET 6 implementation hosted on GitHub.
 
 # Planned Features
-- Multi-user role based access.
-- API key to provide long term access token.
 - Clustering support to manage two or more DNS servers.
 - Dynamic DNS updates.
 
