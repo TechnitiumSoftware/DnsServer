@@ -42,7 +42,7 @@ namespace DnsServerCore.Auth
 
         static readonly RandomNumberGenerator _rng = RandomNumberGenerator.Create();
 
-        public const int DEFAULT_ITERATIONS = 1000000;
+        public const int DEFAULT_ITERATIONS = 100000;
 
         string _displayName;
         string _username;
