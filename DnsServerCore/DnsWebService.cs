@@ -3741,17 +3741,12 @@ namespace DnsServerCore
 
             try
             {
-                int version;
-
                 using (FileStream fS = new FileStream(configFile, FileMode.Open, FileAccess.Read))
                 {
-                    version = ReadConfigFrom(new BinaryReader(fS));
+                    ReadConfigFrom(new BinaryReader(fS));
                 }
 
                 _log.Write("DNS Server config file was loaded: " + configFile);
-
-                if (version <= 27)
-                    SaveConfigFile(); //save as new config version to avoid loading old version next time
             }
             catch (FileNotFoundException)
             {
@@ -3961,7 +3956,7 @@ namespace DnsServerCore
             _authManager.SaveConfigFile();
         }
 
-        private int ReadConfigFrom(BinaryReader bR)
+        private void ReadConfigFrom(BinaryReader bR)
         {
             if (Encoding.ASCII.GetString(bR.ReadBytes(2)) != "DS") //format
                 throw new InvalidDataException("DNS Server config file format is invalid.");
@@ -3978,13 +3973,14 @@ namespace DnsServerCore
 
                 //new default settings
                 _appsApi.EnableAutomaticUpdate = true;
+
+                //save as new config version to avoid loading old version next time
+                SaveConfigFile();
             }
             else
             {
                 throw new InvalidDataException("DNS Server config version not supported.");
             }
-
-            return version;
         }
 
         private void ReadConfigFrom(BinaryReader bR, int version)
@@ -4013,6 +4009,25 @@ namespace DnsServerCore
 
                 _webServiceTlsCertificatePath = bR.ReadShortString();
                 _webServiceTlsCertificatePassword = bR.ReadShortString();
+
+                if (_webServiceTlsCertificatePath.Length == 0)
+                    _webServiceTlsCertificatePath = null;
+
+                if (_webServiceTlsCertificatePath != null)
+                {
+                    try
+                    {
+                        LoadWebServiceTlsCertificate(_webServiceTlsCertificatePath, _webServiceTlsCertificatePassword);
+                    }
+                    catch (Exception ex)
+                    {
+                        _log.Write("DNS Server encountered an error while loading Web Service TLS certificate: " + _webServiceTlsCertificatePath + "\r\n" + ex.ToString());
+                    }
+
+                    StartTlsCertificateUpdateTimer();
+                }
+
+                SelfSignedCertCheck(false, false);
             }
 
             //dns
@@ -4074,10 +4089,6 @@ namespace DnsServerCore
 
                     StartTlsCertificateUpdateTimer();
                 }
-                else
-                {
-                    StopTlsCertificateUpdateTimer();
-                }
 
                 //tsig
                 {
@@ -4111,7 +4122,6 @@ namespace DnsServerCore
                         _dnsServer.RecursionDeniedNetworks = networks;
                     }
                 }
-
 
                 {
                     int count = bR.ReadByte();
@@ -4253,6 +4263,9 @@ namespace DnsServerCore
 
                 _dnsServer.StatsManager.MaxStatFileDays = bR.ReadInt32();
             }
+
+            if ((_webServiceTlsCertificatePath == null) && (_dnsTlsCertificatePath == null))
+                StopTlsCertificateUpdateTimer();
         }
 
         private void ReadOldConfigFrom(BinaryReader bR, int version)
