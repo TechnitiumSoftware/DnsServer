@@ -43,11 +43,13 @@
 		<None Remove="www\fonts\glyphicons-halflings-regular.ttf" />
 		<None Remove="www\fonts\glyphicons-halflings-regular.woff" />
 		<None Remove="www\fonts\glyphicons-halflings-regular.woff2" />
+		<None Remove="www\img\loader-small.gif" />
 		<None Remove="www\img\loader.gif" />
 		<None Remove="www\img\logo.png" />
 		<None Remove="www\img\logo25x25.png" />
 		<None Remove="www\index.html" />
 		<None Remove="www\js\apps.js" />
+		<None Remove="www\js\auth.js" />
 		<None Remove="www\js\bootstrap-datetimepicker.min.js" />
 		<None Remove="www\js\bootstrap.min.js" />
 		<None Remove="www\js\Chart.min.js" />
@@ -172,6 +174,9 @@
 		<Content Include="www\fonts\glyphicons-halflings-regular.woff2">
 			<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
 		</Content>
+		<Content Include="www\img\loader-small.gif">
+		  <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+		</Content>
 		<Content Include="www\img\loader.gif">
 			<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
 		</Content>
@@ -186,6 +191,9 @@
 		</Content>
 		<Content Include="www\js\apps.js">
 			<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+		</Content>
+		<Content Include="www\js\auth.js">
+		  <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
 		</Content>
 		<Content Include="www\js\bootstrap-datetimepicker.min.js">
 			<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
@@ -265,7 +273,7 @@
 		<RepositoryType></RepositoryType>
 		<Description></Description>
 		<PackageId>DnsServer</PackageId>
-		<Version>8.1.4</Version>
+		<Version>9.0</Version>
 	</PropertyGroup>
 
 </Project>

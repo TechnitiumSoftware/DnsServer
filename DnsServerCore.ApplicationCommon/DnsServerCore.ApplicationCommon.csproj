@@ -11,7 +11,7 @@
     <RepositoryType></RepositoryType>
     <Description></Description>
     <PackageId>DnsServerCore.ApplicationCommon</PackageId>
-    <Version>3.0</Version>
+    <Version>4.0</Version>
   </PropertyGroup>
 
   <ItemGroup>
