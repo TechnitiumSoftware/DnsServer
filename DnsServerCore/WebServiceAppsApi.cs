@@ -89,6 +89,8 @@ namespace DnsServerCore
                         if (_dnsWebService.DnsServer.DnsApplicationManager.Applications.Count < 1)
                             return;
 
+                        _dnsWebService.Log.Write("DNS Server has started automatic update check for DNS Apps.");
+
                         string storeAppsJsonData = await GetStoreAppsJsonData().WithTimeout(5000);
                         dynamic jsonStoreAppsArray = JsonConvert.DeserializeObject(storeAppsJsonData);
 
