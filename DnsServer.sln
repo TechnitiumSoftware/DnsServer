@@ -37,6 +37,8 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "NxDomainApp", "Apps\NxDomai
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "BlockPageApp", "Apps\BlockPageApp\BlockPageApp.csproj", "{45C6F9AD-57D6-4D6D-9498-10B5C828E47E}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "WildIpApp", "Apps\WildIpApp\WildIpApp.csproj", "{8B6BEB00-0AC2-4680-A848-31AD8A0FCD82}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -107,6 +109,10 @@ Global
 		{45C6F9AD-57D6-4D6D-9498-10B5C828E47E}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{45C6F9AD-57D6-4D6D-9498-10B5C828E47E}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{45C6F9AD-57D6-4D6D-9498-10B5C828E47E}.Release|Any CPU.Build.0 = Release|Any CPU
+		{8B6BEB00-0AC2-4680-A848-31AD8A0FCD82}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{8B6BEB00-0AC2-4680-A848-31AD8A0FCD82}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{8B6BEB00-0AC2-4680-A848-31AD8A0FCD82}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{8B6BEB00-0AC2-4680-A848-31AD8A0FCD82}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -123,6 +129,7 @@ Global
 		{A4C31093-CA65-42D4-928A-11907076C0DE} = {938BF8EF-74B9-4FE0-B46F-11EBB7A4B3D2}
 		{BB0010FC-20E9-4397-BF9B-C9955D9AD339} = {938BF8EF-74B9-4FE0-B46F-11EBB7A4B3D2}
 		{45C6F9AD-57D6-4D6D-9498-10B5C828E47E} = {938BF8EF-74B9-4FE0-B46F-11EBB7A4B3D2}
+		{8B6BEB00-0AC2-4680-A848-31AD8A0FCD82} = {938BF8EF-74B9-4FE0-B46F-11EBB7A4B3D2}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {6747BB6D-2826-4356-A213-805FBCCF9201}
