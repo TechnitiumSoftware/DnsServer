@@ -4165,7 +4165,7 @@ ns1.example.com ([2001:db8::])
                         </div>
                     </div>
 
-                    <p>Note! It may take several minutes to generate the backup zip file if log files are selected to be backed up which will depend on the size of the log files on the disk.</p>
+                    <p><b>Note!</b> It may take several minutes to generate the backup zip file if log files are selected to be backed up which will depend on the size of the log files on the disk.</p>
 
                 </div>
                 <div class="modal-footer">
@@ -4280,7 +4280,7 @@ ns1.example.com ([2001:db8::])
 
                     </div>
 
-                    <p>Warning! The restore process will overwrite existing config files on disk for above selected items and reload new settings including passwords. If you do not remember the password used while creating the backup, you should change the admin password immediately after restoring the backup. Failing to do so will require you to follow the password reset process.</p>
+                    <p><b>Warning!</b> The restore process will overwrite existing config files on disk for above selected items and reload new settings including user accounts from the backup. The current logged in user account and current session will be added automatically.</p>
                 </div>
                 <div class="modal-footer">
                     <button id="btnRestoreSettings" type="submit" class="btn btn-primary" data-loading-text="Restoring..." onclick="restoreSettings(); return false;">Restore</button>
