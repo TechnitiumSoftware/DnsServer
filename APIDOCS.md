@@ -1545,7 +1545,7 @@ OBSOLETE PATH:\
 `/api/listZones`
 
 PERMISSIONS:\
-Zones: View
+Zones: View\
 Zone: View
 
 WHERE:
@@ -1669,7 +1669,7 @@ OBSOLETE PATH:\
 `/api/enableZone`
 
 PERMISSIONS:\
-Zones: Modify
+Zones: Modify\
 Zone: Modify
 
 WHERE:
@@ -1695,7 +1695,7 @@ OBSOLETE PATH:\
 `/api/disableZone`
 
 PERMISSIONS:\
-Zones: Modify
+Zones: Modify\
 Zone: Modify
 
 WHERE:
@@ -1721,7 +1721,7 @@ OBSOLETE PATH:\
 `/api/deleteZone`
 
 PERMISSIONS:\
-Zones: Delete
+Zones: Delete\
 Zone: Delete
 
 WHERE:
@@ -1746,7 +1746,7 @@ OBSOLETE PATH:\
 `/api/zone/resync`
 
 PERMISSIONS:\
-Zones: Modify
+Zones: Modify\
 Zone: Modify
 
 WHERE:
@@ -1771,7 +1771,7 @@ OBSOLETE PATH:\
 `/api/zone/options`
 
 PERMISSIONS:\
-Zones: Modify
+Zones: Modify\
 Zone: View
 
 WHERE:
@@ -1812,7 +1812,7 @@ OBSOLETE PATH:\
 `/api/zone/options`
 
 PERMISSIONS:\
-Zones: Modify
+Zones: Modify\
 Zone: Delete
 
 WHERE:
@@ -1840,7 +1840,7 @@ URL:\
 `http://localhost:5380/api/zones/permissions/get?token=x&zone=example.com&includeUsersAndGroups=true`
 
 PERMISSIONS:\
-Zones: Modify
+Zones: Modify\
 Zone: View
 
 WHERE:
@@ -1899,7 +1899,7 @@ URL:\
 `http://localhost:5380/api/zones/permissions/set?token=x&zone=example.com&userPermissions=admin|true|true|true&groupPermissions=Administrators|true|true|true|DNS%20Administrators|true|true|true`
 
 PERMISSIONS:\
-Zones: Modify
+Zones: Modify\
 Zone: Delete
 
 WHERE:
@@ -1952,7 +1952,7 @@ OBSOLETE PATH:\
 `/api/zone/dnssec/sign`
 
 PERMISSONS:
-Zones: Modify
+Zones: Modify\
 Zone: Delete
 
 WHERE:
@@ -1987,7 +1987,7 @@ OBSOLETE PATH:\
 `/api/zone/dnssec/unsign`
 
 PERMISSIONS:\
-Zones: Modify
+Zones: Modify\
 Zone: Delete
 
 WHERE:
@@ -2012,7 +2012,7 @@ OBSOLETE PATH:\
 `/api/zone/dnssec/getProperties`
 
 PERMISSIONS:\
-Zones: Modify
+Zones: Modify\
 Zone: View
 
 WHERE:
@@ -2065,7 +2065,7 @@ OBSOLETE PATH:\
 `/api/zone/dnssec/convertToNSEC`
 
 PERMISSIONS:\
-Zones: Modify
+Zones: Modify\
 Zone: Delete
 
 WHERE:
@@ -2090,7 +2090,7 @@ OBSOLETE PATH:\
 `/api/zone/dnssec/convertToNSEC3`
 
 PERMISSIONS:\
-Zones: Modify
+Zones: Modify\
 Zone: Delete
 
 WHERE:
@@ -2115,7 +2115,7 @@ OBSOLETE PATH:\
 `/api/zone/dnssec/updateNSEC3Params`
 
 PERMISSIONS:\
-Zones: Modify
+Zones: Modify\
 Zone: Delete
 
 WHERE:
@@ -2142,7 +2142,7 @@ OBSOLETE PATH:\
 `/api/zone/dnssec/updateDnsKeyTtl`
 
 PERMISSIONS:\
-Zones: Modify
+Zones: Modify\
 Zone: Delete
 
 WHERE:
@@ -2168,7 +2168,7 @@ OBSOLETE PATH:\
 `/api/zone/dnssec/generatePrivateKey`
 
 PERMISSIONS:\
-Zones: Modify
+Zones: Modify\
 Zone: Delete
 
 WHERE:
@@ -2199,7 +2199,7 @@ OBSOLETE PATH:\
 `/api/zone/dnssec/updatePrivateKey`
 
 PERMISSIONS:\
-Zones: Modify
+Zones: Modify\
 Zone: Delete
 
 WHERE:
@@ -2226,7 +2226,7 @@ OBSOLETE PATH:\
 `/api/zone/dnssec/deletePrivateKey`
 
 PERMISSIONS:\
-Zones: Modify
+Zones: Modify\
 Zone: Delete
 
 WHERE:
@@ -2252,7 +2252,7 @@ OBSOLETE PATH:\
 `/api/zone/dnssec/publishAllPrivateKeys`
 
 PERMISSIONS:\
-Zones: Modify
+Zones: Modify\
 Zone: Delete
 
 WHERE:
@@ -2277,7 +2277,7 @@ OBSOLETE PATH:\
 `/api/zone/dnssec/rolloverDnsKey`
 
 PERMISSIONS:\
-Zones: Modify
+Zones: Modify\
 Zone: Delete
 
 WHERE:
@@ -2303,7 +2303,7 @@ OBSOLETE PATH:\
 `/api/zone/dnssec/retireDnsKey`
 
 PERMISSIONS:\
-Zones: Modify
+Zones: Modify\
 Zone: Delete
 
 WHERE:
@@ -2330,7 +2330,7 @@ OBSOLETE PATH:\
 `/api/addRecord`
 
 PERMISSIONS:\
-Zones: None
+Zones: None\
 Zone: Modify
 
 WHERE:
@@ -2414,7 +2414,7 @@ OBSOLETE PATH:\
 `/api/getRecords`
 
 PERMISSIONS:\
-Zones: None
+Zones: None\
 Zone: View
 
 WHERE:
@@ -2957,7 +2957,7 @@ OBSOLETE PATH:\
 `/api/updateRecord`
 
 PERMISSIONS:\
-Zones: None
+Zones: None\
 Zone: Modify
 
 WHERE:
@@ -3078,7 +3078,7 @@ OBSOLETE PATH:\
 `/api/deleteRecord`
 
 PERMISSIONS:\
-Zones: None
+Zones: None\
 Zone: Delete
 
 WHERE:
