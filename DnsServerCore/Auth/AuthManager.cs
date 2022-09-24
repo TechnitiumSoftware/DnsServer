@@ -210,17 +210,27 @@ namespace DnsServerCore.Auth
 
                 if (implantSession is not null)
                 {
-                    UserSession newSession;
-
                     using (MemoryStream mS = new MemoryStream())
                     {
+                        //implant current user
+                        implantSession.User.WriteTo(new BinaryWriter(mS));
+
+                        mS.Position = 0;
+                        User newUser = new User(new BinaryReader(mS), this);
+                        newUser.AddToGroup(GetGroup(Group.ADMINISTRATORS));
+                        _users[newUser.Username] = newUser;
+
+                        //implant current session
+                        mS.SetLength(0);
                         implantSession.WriteTo(new BinaryWriter(mS));
 
                         mS.Position = 0;
-                        newSession = new UserSession(new BinaryReader(mS), this);
-                    }
+                        UserSession newSession = new UserSession(new BinaryReader(mS), this);
+                        _sessions.TryAdd(newSession.Token, newSession);
 
-                    _sessions.TryAdd(newSession.Token, newSession);
+                        //save config
+                        SaveConfigFileInternal();
+                    }
                 }
 
                 _log.Write("DNS Server auth config file was loaded: " + configFile);
