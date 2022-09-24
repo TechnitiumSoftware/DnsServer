@@ -399,6 +399,7 @@ function showEditDhcpScope(scopeName) {
             }
 
             $("#chkAllowOnlyReservedLeases").prop("checked", responseJSON.response.allowOnlyReservedLeases);
+            $("#chkBlockLocallyAdministeredMacAddresses").prop("checked", responseJSON.response.blockLocallyAdministeredMacAddresses);
 
             divDhcpViewScopesLoader.hide();
             divDhcpEditScope.show();
@@ -463,6 +464,7 @@ function saveDhcpScope() {
         return;
 
     var allowOnlyReservedLeases = $("#chkAllowOnlyReservedLeases").prop('checked');
+    var blockLocallyAdministeredMacAddresses = $("#chkBlockLocallyAdministeredMacAddresses").prop('checked');
 
     var btn = $("#btnSaveDhcpScope").button('loading');
 
@@ -471,7 +473,7 @@ function saveDhcpScope() {
             "&leaseTimeDays=" + leaseTimeDays + "&leaseTimeHours=" + leaseTimeHours + "&leaseTimeMinutes=" + leaseTimeMinutes + "&offerDelayTime=" + offerDelayTime + "&pingCheckEnabled=" + pingCheckEnabled + "&pingCheckTimeout=" + pingCheckTimeout + "&pingCheckRetries=" + pingCheckRetries +
             "&domainName=" + encodeURIComponent(domainName) + "&dnsTtl=" + dnsTtl + "&serverAddress=" + encodeURIComponent(serverAddress) + "&serverHostName=" + encodeURIComponent(serverHostName) + "&bootFileName=" + encodeURIComponent(bootFileName) +
             "&routerAddress=" + encodeURIComponent(routerAddress) + "&useThisDnsServer=" + useThisDnsServer + (useThisDnsServer ? "" : "&dnsServers=" + encodeURIComponent(dnsServers)) + "&winsServers=" + encodeURIComponent(winsServers) + "&ntpServers=" + encodeURIComponent(ntpServers) +
-            "&staticRoutes=" + encodeURIComponent(staticRoutes) + "&vendorInfo=" + encodeURIComponent(vendorInfo) + "&exclusions=" + encodeURIComponent(exclusions) + "&reservedLeases=" + encodeURIComponent(reservedLeases) + "&allowOnlyReservedLeases=" + allowOnlyReservedLeases,
+            "&staticRoutes=" + encodeURIComponent(staticRoutes) + "&vendorInfo=" + encodeURIComponent(vendorInfo) + "&exclusions=" + encodeURIComponent(exclusions) + "&reservedLeases=" + encodeURIComponent(reservedLeases) + "&allowOnlyReservedLeases=" + allowOnlyReservedLeases + "&blockLocallyAdministeredMacAddresses=" + blockLocallyAdministeredMacAddresses,
         success: function (responseJSON) {
             refreshDhcpScopes();
             btn.button('reset');
