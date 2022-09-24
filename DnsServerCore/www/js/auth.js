@@ -443,7 +443,7 @@ function showMyProfileModal() {
                             break;
                     }
 
-                    sessionHtmlRows += "<tr id=\"trMyProfileActiveSessions" + i + "\"><td style=\"min-width: 150px; word-wrap: anywhere;\">" + session + "</td><td>" +
+                    sessionHtmlRows += "<tr id=\"trMyProfileActiveSessions" + i + "\"><td style=\"min-width: 155px; word-wrap: anywhere;\">" + session + "</td><td>" +
                         htmlEncode(moment(responseJSON.response.sessions[i].lastSeen).local().format("YYYY-MM-DD HH:mm:ss")) + "<br />" + htmlEncode("(" + moment(responseJSON.response.sessions[i].lastSeen).fromNow() + ")") + "</td><td>" +
                         htmlEncode(responseJSON.response.sessions[i].lastSeenRemoteAddress) + "</td><td style=\"word-wrap: anywhere;\">" +
                         htmlEncode(responseJSON.response.sessions[i].lastSeenUserAgent);
@@ -604,7 +604,7 @@ function refreshAdminSessions() {
                         break;
                 }
 
-                tableHtmlRows += "<tr id=\"trAdminSessions" + i + "\"><td>" + htmlEncode(responseJSON.response.sessions[i].username) + "</td><td style=\"min-width: 150px; word-wrap: anywhere;\">" +
+                tableHtmlRows += "<tr id=\"trAdminSessions" + i + "\"><td>" + htmlEncode(responseJSON.response.sessions[i].username) + "</td><td style=\"min-width: 155px; word-wrap: anywhere;\">" +
                     session + "</td><td>" +
                     htmlEncode(moment(responseJSON.response.sessions[i].lastSeen).local().format("YYYY-MM-DD HH:mm:ss")) + "<br />" + htmlEncode("(" + moment(responseJSON.response.sessions[i].lastSeen).fromNow() + ")") + "</td><td>" +
                     htmlEncode(responseJSON.response.sessions[i].lastSeenRemoteAddress) + "</td><td style=\"word-wrap: anywhere;\">" +
@@ -965,7 +965,7 @@ function showUserDetailsModal(objMenuItem) {
                         break;
                 }
 
-                sessionHtmlRows += "<tr id=\"trUserDetailsActiveSessions" + i + "\"><td style=\"min-width: 150px; word-wrap: anywhere;\">" + session + "</td><td>" +
+                sessionHtmlRows += "<tr id=\"trUserDetailsActiveSessions" + i + "\"><td style=\"min-width: 155px; word-wrap: anywhere;\">" + session + "</td><td>" +
                     htmlEncode(moment(responseJSON.response.sessions[i].lastSeen).local().format("YYYY-MM-DD HH:mm:ss")) + "<br />" + htmlEncode("(" + moment(responseJSON.response.sessions[i].lastSeen).fromNow() + ")") + "</td><td>" +
                     htmlEncode(responseJSON.response.sessions[i].lastSeenRemoteAddress) + "</td><td style=\"word-wrap: anywhere;\">" +
                     htmlEncode(responseJSON.response.sessions[i].lastSeenUserAgent);
@@ -1528,7 +1528,7 @@ function refreshAdminPermissions() {
 }
 
 function getAdminPermissionsRowHtml(id, permission) {
-    var userPermissionsHtml = "<table class=\"table\" style=\"background: transparent;\"><thead><tr><th>User</th><th style=\"width: 70px;\">View</th><th style=\"width: 70px;\">Modify</th><th style=\"width: 70px;\">Delete</th></tr></thead><tbody>";
+    var userPermissionsHtml = "<table class=\"table\" style=\"background: transparent;\"><thead><tr><th>Username</th><th style=\"width: 70px;\">View</th><th style=\"width: 70px;\">Modify</th><th style=\"width: 70px;\">Delete</th></tr></thead><tbody>";
 
     for (var i = 0; i < permission.userPermissions.length; i++) {
         userPermissionsHtml += "<tr><td style=\"word-wrap: anywhere;\">" + htmlEncode(permission.userPermissions[i].username) + "</td><td>" +
