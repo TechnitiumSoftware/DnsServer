@@ -1541,7 +1541,7 @@ URL:\
 `http://localhost:5380/api/zones/list?token=x`
 
 OBSOLETE PATH:\
-`/api/zone/list`
+`/api/zone/list`\
 `/api/listZones`
 
 PERMISSIONS:\
@@ -1622,7 +1622,7 @@ URL:\
 `http://localhost:5380/api/zones/create?token=x&zone=example.com&type=Primary`
 
 OBSOLETE PATH:\
-`/api/zone/create`
+`/api/zone/create`\
 `/api/createZone`
 
 PERMISSIONS:\
@@ -1665,7 +1665,7 @@ URL:\
 `http://localhost:5380/api/zones/enable?token=x&zone=example.com`
 
 OBSOLETE PATH:\
-`/api/zone/enable`
+`/api/zone/enable`\
 `/api/enableZone`
 
 PERMISSIONS:\
@@ -1691,7 +1691,7 @@ URL:\
 `http://localhost:5380/api/zones/disable?token=x&zone=example.com`
 
 OBSOLETE PATH:\
-`/api/zone/disable`
+`/api/zone/disable`\
 `/api/disableZone`
 
 PERMISSIONS:\
@@ -1717,7 +1717,7 @@ URL:\
 `http://localhost:5380/api/zones/delete?token=x&zone=example.com`
 
 OBSOLETE PATH:\
-`/api/zone/delete`
+`/api/zone/delete`\
 `/api/deleteZone`
 
 PERMISSIONS:\
@@ -2326,7 +2326,7 @@ URL:\
 `http://localhost:5380/api/zones/records/add?token=x&domain=example.com&zone=example.com`
 
 OBSOLETE PATH:\
-`/api/zone/addRecord`
+`/api/zone/addRecord`\
 `/api/addRecord`
 
 PERMISSIONS:\
@@ -2410,7 +2410,7 @@ URL:\
 `http://localhost:5380/api/zones/records/get?token=x&domain=example.com&zone=example.com`
 
 OBSOLETE PATH:\
-`/api/zone/getRecords`
+`/api/zone/getRecords`\
 `/api/getRecords`
 
 PERMISSIONS:\
@@ -2953,7 +2953,7 @@ URL:\
 `http://localhost:5380/api/zones/records/update?token=x&domain=mail.example.com&zone=example.com&type=A&value=127.0.0.1&newValue=127.0.0.2&ptr=false`
 
 OBSOLETE PATH:\
-`/api/zone/updateRecord`
+`/api/zone/updateRecord`\
 `/api/updateRecord`
 
 PERMISSIONS:\
@@ -3074,7 +3074,7 @@ URL:\
 `http://localhost:5380/api/zones/records/delete?token=x&domain=example.com&zone=example.com&type=A&value=127.0.0.1`
 
 OBSOLETE PATH:\
-`/api/zone/deleteRecord`
+`/api/zone/deleteRecord`\
 `/api/deleteRecord`
 
 PERMISSIONS:\
