@@ -18,6 +18,7 @@ The environment variables are described below:
 | DNS_SERVER_RECURSION_ALLOWED_NETWORKS      | String  | Comma separated list of IP addresses or network addresses to allow recursion. Valid only for `UseSpecifiedNetworks` recursion option.    |
 | DNS_SERVER_ENABLE_BLOCKING                 | Boolean | Sets the DNS server to block domain names using Blocked Zone and Block List Zone.                                                        |
 | DNS_SERVER_ALLOW_TXT_BLOCKING_REPORT       | Boolean | Specifies if the DNS Server should respond with TXT records containing a blocked domain report for TXT type requests.                    |
+| DNS_SERVER_BLOCK_LIST_URLS                 | String  | A comma separated list of block list URLs.                                                                                               |
 | DNS_SERVER_FORWARDERS                      | String  | Comma separated list of forwarder addresses.                                                                                             |
 | DNS_SERVER_FORWARDER_PROTOCOL              | String  | Forwarder protocol options: `Udp`, `Tcp`, `Tls`, `Https`, `HttpsJson`.                                                                   |
 | DNS_SERVER_LOG_USING_LOCAL_TIME            | Boolean | Enable this option to use local time instead of UTC for logging.                                                                         |
