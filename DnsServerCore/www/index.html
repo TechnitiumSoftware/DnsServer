@@ -1890,7 +1890,7 @@
                                                                             <th>Destination</th>
                                                                             <th>Subnet Mask</th>
                                                                             <th>Router</th>
-                                                                            <th><button type="button" class="btn btn-default" style="padding: 0px 20px;" onclick="addDhcpScopeStaticRouteRow('', '', '');">Add</button></th>
+                                                                            <th style="width: 84px;"><button type="button" class="btn btn-default" style="padding: 0px 20px;" onclick="addDhcpScopeStaticRouteRow('', '', '');">Add</button></th>
                                                                         </tr>
                                                                     </thead>
                                                                     <tbody id="tableDhcpScopeStaticRoutes"></tbody>
@@ -1966,8 +1966,8 @@
                                                     </div>
 
                                                     <div class="well well-sm form-horizontal">
-                                                        <div class="form-group" style="margin-bottom: 0px;">
-                                                            <label for="tableDhcpScopeReservedLeases" class="col-sm-3 control-label">Reserved Leases</label>
+                                                        <div class="form-group">
+                                                            <label for="tableDhcpScopeReservedLeases" class="col-sm-3 control-label">Advanced Options</label>
                                                             <div class="col-sm-6">
                                                                 <div class="checkbox">
                                                                     <label>
@@ -1976,7 +1976,22 @@
                                                                 </div>
                                                             </div>
                                                             <div class="col-sm-offset-3 col-sm-8" style="padding-top: 5px;">Enable this option to stop dynamic IP address allocation and allocate only reserved IP addresses.</div>
-                                                            <div class="col-sm-offset-3 col-sm-9">
+
+                                                            <div class="col-sm-offset-3 col-sm-6">
+                                                                <div class="checkbox">
+                                                                    <label>
+                                                                        <input id="chkBlockLocallyAdministeredMacAddresses" type="checkbox"> Block Locally Administered MAC Addresses
+                                                                    </label>
+                                                                </div>
+                                                            </div>
+                                                            <div class="col-sm-offset-3 col-sm-8" style="padding-top: 5px;">Enable this option to stop dynamic IP address allocation for clients with locally administered MAC addresses. MAC address with 0x02 bit set in the first octet indicate a <a href="https://en.wikipedia.org/wiki/MAC_address" target="_blank">locally administered</a> MAC address which usually means that the device is not using its original MAC address.</div>
+                                                        </div>
+                                                    </div>
+
+                                                    <div class="well well-sm form-horizontal">
+                                                        <div class="form-group" style="margin-bottom: 0px;">
+                                                            <label for="tableDhcpScopeReservedLeases" class="col-sm-3 control-label">Reserved Leases</label>
+                                                            <div class="col-sm-9">
                                                                 <table class="table table-hover" style="margin-bottom: 0px;">
                                                                     <thead>
                                                                         <tr>
@@ -1984,7 +1999,7 @@
                                                                             <th>MAC Address</th>
                                                                             <th>IP Address</th>
                                                                             <th>Comments</th>
-                                                                            <th><button type="button" class="btn btn-default" style="padding: 0px 20px;" onclick="addDhcpScopeReservedLeaseRow('', '', '', '');">Add</button></th>
+                                                                            <th style="width: 84px;"><button type="button" class="btn btn-default" style="padding: 0px 20px;" onclick="addDhcpScopeReservedLeaseRow('', '', '', '');">Add</button></th>
                                                                         </tr>
                                                                     </thead>
                                                                     <tbody id="tableDhcpScopeReservedLeases"></tbody>
@@ -2528,6 +2543,10 @@
                                     <input id="txtCreateApiTokenName" type="text" class="form-control" placeholder="token name" maxlength="255">
                                 </div>
                             </div>
+
+                            <div>
+                                <b>WARNING!</b> The token allows access to API calls with the same privileges as that of the user account. Thus its recommended to create a separate user account with limited permissions as required by the specific task that the token will be used for. The token cannot be used to change the user's password, or update the user profile details.
+                            </div>
                         </div>
 
                         <div id="divCreateApiTokenOutput">
@@ -2552,9 +2571,9 @@
                                 </div>
                             </div>
 
-                            <p>
-                                <b>WARNING!</b> The token value shown above will not be displayed later. You must copy the token value immediately and save it for use later.
-                            </p>
+                            <div>
+                                <b>WARNING!</b> The token value above will not be displayed later. You must copy the token value immediately and save it for later use.
+                            </div>
                         </div>
                     </div>
                     <div class="modal-footer">
@@ -4607,7 +4626,7 @@ ns1.example.com ([2001:db8::])
                                         <table id="tableEditPermissionsUser" class="table table-hover">
                                             <thead>
                                                 <tr>
-                                                    <th onclick="sortTable('tbodyEditPermissionsUser', 0);">User</th>
+                                                    <th onclick="sortTable('tbodyEditPermissionsUser', 0);">Username</th>
                                                     <th onclick="sortTable('tbodyEditPermissionsUser', 0);" style="width: 65px;">View</th>
                                                     <th onclick="sortTable('tbodyEditPermissionsUser', 0);" style="width: 65px;">Modify</th>
                                                     <th onclick="sortTable('tbodyEditPermissionsUser', 0);" style="width: 65px;">Delete</th>
