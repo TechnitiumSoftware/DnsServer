@@ -578,8 +578,6 @@ namespace DnsServerCore.Dns.ZoneManagers
                             }
                         }
 
-                        IReadOnlyList<EDnsOption> specialOptions = null;
-
                         if (serveStaleAndResetExpiry)
                         {
                             if (firstRR.IsStale)
@@ -593,20 +591,27 @@ namespace DnsServerCore.Dns.ZoneManagers
                                         record.ResetExpiry(30); //reset expiry by 30 seconds so that resolver tries again only after 30 seconds as per draft-ietf-dnsop-serve-stale-04
                                 }
                             }
-
-                            if (dnsSpecialCacheRecord.RCODE == DnsResponseCode.NxDomain)
-                            {
-                                List<EDnsOption> newOptions = new List<EDnsOption>(dnsSpecialCacheRecord.EDnsOptions.Count + 1);
-
-                                newOptions.AddRange(dnsSpecialCacheRecord.EDnsOptions);
-                                newOptions.Add(new EDnsOption(EDnsOptionCode.EXTENDED_DNS_ERROR, new EDnsExtendedDnsErrorOption(EDnsExtendedDnsErrorCode.StaleNxDomainAnswer, null)));
-
-                                specialOptions = newOptions;
-                            }
                         }
 
-                        if (specialOptions is null)
+                        IReadOnlyList<EDnsOption> specialOptions;
+
+                        if (firstRR.WasExpiryReset)
+                        {
+                            List<EDnsOption> newOptions = new List<EDnsOption>(dnsSpecialCacheRecord.EDnsOptions.Count + 1);
+
+                            newOptions.AddRange(dnsSpecialCacheRecord.EDnsOptions);
+
+                            if (dnsSpecialCacheRecord.RCODE == DnsResponseCode.NxDomain)
+                                newOptions.Add(new EDnsOption(EDnsOptionCode.EXTENDED_DNS_ERROR, new EDnsExtendedDnsErrorOption(EDnsExtendedDnsErrorCode.StaleNxDomainAnswer, null)));
+                            else
+                                newOptions.Add(new EDnsOption(EDnsOptionCode.EXTENDED_DNS_ERROR, new EDnsExtendedDnsErrorOption(EDnsExtendedDnsErrorCode.StaleAnswer, null)));
+
+                            specialOptions = newOptions;
+                        }
+                        else
+                        {
                             specialOptions = dnsSpecialCacheRecord.EDnsOptions;
+                        }
 
                         if (request.DnssecOk)
                         {
@@ -695,6 +700,17 @@ namespace DnsServerCore.Dns.ZoneManagers
 
                         options = new EDnsOption[] { new EDnsOption(EDnsOptionCode.EXTENDED_DNS_ERROR, new EDnsExtendedDnsErrorOption(EDnsExtendedDnsErrorCode.StaleAnswer, null)) };
                     }
+                    else
+                    {
+                        foreach (DnsResourceRecord record in answer)
+                        {
+                            if (record.WasExpiryReset)
+                            {
+                                options = new EDnsOption[] { new EDnsOption(EDnsOptionCode.EXTENDED_DNS_ERROR, new EDnsExtendedDnsErrorOption(EDnsExtendedDnsErrorCode.StaleAnswer, null)) };
+                                break;
+                            }
+                        }
+                    }
 
                     return new DnsDatagram(request.Identifier, true, DnsOpcode.StandardQuery, false, false, request.RecursionDesired, true, answer[0].DnssecStatus == DnssecStatus.Secure, request.CheckingDisabled, DnsResponseCode.NoError, request.Question, answer, authority, additional, request.EDNS is null ? ushort.MinValue : _dnsServer.UdpPayloadSize, ednsFlags, options);
                 }
@@ -744,6 +760,17 @@ namespace DnsServerCore.Dns.ZoneManagers
                             }
 
                             options = new EDnsOption[] { new EDnsOption(EDnsOptionCode.EXTENDED_DNS_ERROR, new EDnsExtendedDnsErrorOption(EDnsExtendedDnsErrorCode.StaleAnswer, null)) };
+                        }
+                        else
+                        {
+                            foreach (DnsResourceRecord record in answer)
+                            {
+                                if (record.WasExpiryReset)
+                                {
+                                    options = new EDnsOption[] { new EDnsOption(EDnsOptionCode.EXTENDED_DNS_ERROR, new EDnsExtendedDnsErrorOption(EDnsExtendedDnsErrorCode.StaleAnswer, null)) };
+                                    break;
+                                }
+                            }
                         }
 
                         return new DnsDatagram(request.Identifier, true, DnsOpcode.StandardQuery, false, false, request.RecursionDesired, true, answer[0].DnssecStatus == DnssecStatus.Secure, request.CheckingDisabled, rCode, request.Question, answer, authority, null, request.EDNS is null ? ushort.MinValue : _dnsServer.UdpPayloadSize, ednsFlags, options);
