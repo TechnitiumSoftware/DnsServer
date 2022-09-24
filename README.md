@@ -88,6 +88,7 @@ Make contribution to Technitium by becoming a Patron and help making new softwar
 [Become a Patron now!](https://www.patreon.com/technitium)
 
 # Blog Posts
+- [Technitium Blog: Technitium DNS Server v9 Released!](https://blog.technitium.com/2022/09/technitium-dns-server-v9-released.html) (Sept 2022)
 - [Technitium Blog: How To Secure Your Domain Name With DNSSEC](https://blog.technitium.com/2022/07/how-to-secure-your-domain-name-with-.html) (Jul 2022)
 - [Technitium Blog: How To Self Host Your Own Domain Name](https://blog.technitium.com/2022/06/how-to-self-host-your-own-domain-name.html) (Jun 2022)
 - [Technitium Blog: Technitium DNS Server v8 Released!](https://blog.technitium.com/2022/03/technitium-dns-server-v8-released.html) (Mar 2022)
