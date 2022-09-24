@@ -73,6 +73,7 @@ namespace DnsServerCore.Dhcp
         IReadOnlyCollection<Exclusion> _exclusions;
         readonly ConcurrentDictionary<ClientIdentifierOption, Lease> _reservedLeases = new ConcurrentDictionary<ClientIdentifierOption, Lease>();
         bool _allowOnlyReservedLeases;
+        bool _blockLocallyAdministeredMacAddresses;
 
         //leases
         readonly ConcurrentDictionary<ClientIdentifierOption, Lease> _leases = new ConcurrentDictionary<ClientIdentifierOption, Lease>();
@@ -117,6 +118,7 @@ namespace DnsServerCore.Dhcp
                 case 3:
                 case 4:
                 case 5:
+                case 6:
                     _name = bR.ReadShortString();
                     _enabled = bR.ReadBoolean();
 
@@ -268,6 +270,11 @@ namespace DnsServerCore.Dhcp
 
                         _allowOnlyReservedLeases = bR.ReadBoolean();
                     }
+
+                    if (version >= 6)
+                        _blockLocallyAdministeredMacAddresses = bR.ReadBoolean();
+                    else
+                        _blockLocallyAdministeredMacAddresses = false;
 
                     {
                         int count = bR.ReadInt32();
@@ -790,6 +797,12 @@ namespace DnsServerCore.Dhcp
             if (_allowOnlyReservedLeases)
                 throw new DhcpServerException("DHCP Server failed to offer IP address to " + request.GetClientFullIdentifier() + ": scope allows only reserved lease allocations.");
 
+            if (_blockLocallyAdministeredMacAddresses)
+            {
+                if ((request.HardwareAddressType == DhcpMessageHardwareAddressType.Ethernet) && ((request.ClientHardwareAddress[0] & 0x02) > 0))
+                    throw new DhcpServerException("DHCP Server failed to offer IP address to " + request.GetClientFullIdentifier() + ": scope does not allow locally administered MAC addresses.");
+            }
+
             Lease dummyOffer = new Lease(LeaseType.None, null, null, null, null, null, 0);
             Lease existingOffer = _offers.GetOrAdd(request.ClientIdentifier, dummyOffer);
 
@@ -1262,7 +1275,7 @@ namespace DnsServerCore.Dhcp
         public void WriteTo(BinaryWriter bW)
         {
             bW.Write(Encoding.ASCII.GetBytes("SC"));
-            bW.Write((byte)5); //version
+            bW.Write((byte)6); //version
 
             bW.WriteShortString(_name);
             bW.Write(_enabled);
@@ -1393,6 +1406,7 @@ namespace DnsServerCore.Dhcp
                 reservedLease.Value.WriteTo(bW);
 
             bW.Write(_allowOnlyReservedLeases);
+            bW.Write(_blockLocallyAdministeredMacAddresses);
 
             {
                 bW.Write(_leases.Count);
@@ -1693,6 +1707,12 @@ namespace DnsServerCore.Dhcp
         {
             get { return _allowOnlyReservedLeases; }
             set { _allowOnlyReservedLeases = value; }
+        }
+
+        public bool BlockLocallyAdministeredMacAddresses
+        {
+            get { return _blockLocallyAdministeredMacAddresses; }
+            set { _blockLocallyAdministeredMacAddresses = value; }
         }
 
         public IReadOnlyDictionary<ClientIdentifierOption, Lease> Leases
