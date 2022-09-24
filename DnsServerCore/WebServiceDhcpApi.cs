@@ -364,6 +364,9 @@ namespace DnsServerCore
 
             jsonWriter.WritePropertyName("allowOnlyReservedLeases");
             jsonWriter.WriteValue(scope.AllowOnlyReservedLeases);
+
+            jsonWriter.WritePropertyName("blockLocallyAdministeredMacAddresses");
+            jsonWriter.WriteValue(scope.BlockLocallyAdministeredMacAddresses);
         }
 
         public async Task SetDhcpScopeAsync(HttpListenerRequest request)
@@ -633,6 +636,10 @@ namespace DnsServerCore
             string strAllowOnlyReservedLeases = request.QueryString["allowOnlyReservedLeases"];
             if (!string.IsNullOrEmpty(strAllowOnlyReservedLeases))
                 scope.AllowOnlyReservedLeases = bool.Parse(strAllowOnlyReservedLeases);
+
+            string strBlockLocallyAdministeredMacAddresses = request.QueryString["blockLocallyAdministeredMacAddresses"];
+            if (!string.IsNullOrEmpty(strBlockLocallyAdministeredMacAddresses))
+                scope.BlockLocallyAdministeredMacAddresses = bool.Parse(strBlockLocallyAdministeredMacAddresses);
 
             if (scopeExists)
             {
