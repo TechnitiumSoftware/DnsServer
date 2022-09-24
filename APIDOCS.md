@@ -51,13 +51,13 @@ These API calls allow to a user to login, logout, perform account management, et
 
 This call authenticates with the server and generates a session token to be used for subsequent API calls. The session token expires as per the user's session expiry timeout value (default 30 minutes) from the last API call.
 
-URL:
+URL: 
 `http://localhost:5380/api/user/login?user=admin&pass=admin&includeInfo=true`
 
-OBSOLETE PATH:
+OBSOLETE PATH: 
 `/api/login`
 
-PERMISSIONS:
+PERMISSIONS: 
 None
 
 WHERE:
@@ -144,7 +144,7 @@ WHERE:
 
 ### Create API Token
 
-Allows creating a non-expiring API token that can be used with automation scripts to make API calls. The token allows access to API calls with the same privileges as that of the user and thus its advised to create a separate user with limited permissions required for creating the API token. The token cannot be used to change the user's password, or update the user profile details.
+Allows creating a non-expiring API token that can be used with automation scripts to make API calls. The token allows access to API calls with the same privileges as that of the user account. Thus its recommended to create a separate user account with limited permissions as required by the specific task that the token will be used for. The token cannot be used to change the user's password, or update the user profile details.
 
 URL:
 `http://localhost:5380/api/user/createToken?user=admin&pass=admin&tokenName=MyToken1&includeInfo=true`
