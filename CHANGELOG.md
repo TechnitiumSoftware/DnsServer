@@ -1,5 +1,24 @@
 # Technitium DNS Server Change Log
 
+## Version 9.0
+Release Date: 24 September 2022
+
+- Added multi-user role based access support. This allows creating multiple users and multiple role based groups with permission based access controls.
+- Added support for non-expiring API tokens to use with automation scripts.
+- Added zone level permissions support to allow access only to selected users or group members.
+- User profile options available to update each user's session timeout values.
+- HTTP API: The API has been updated extensively keeping backward compatibility. Any implementation that uses the API must test with new update before deploying to production. Using the non-expiring API tokens is recommended.
+- Updated Conditional Forwarder zones to support APP records to allow using DNS Apps in these zones.
+- Option added in Settings to stop block list URL automatic update.
+- DNS Apps: There is a breaking change in the IDnsAppRecordRequestHandler.ProcessRequestAsync() method. If you have any custom DNS app deployed, you need to recompile it with the latest DnsServerCore.ApplicationCommon.dll before updating to this new release.
+- DNS Apps now support automatic updates. The DNS server will check for updates and install them automatically every 24 hours.
+- Split Horizon App: Added feature to configure collection of networks to use with APP record data.
+- Wild IP App: Added new DNS App that returns a response A or AAAA queries with the IP address that is embedded in the subdomain name of the query. This app works similar to [sslip.io](https://sslip.io/).
+- Fixed minor issues in DNSSEC validation for DNAME responses and for wildcard NO DATA responses.
+- DHCP scopes now support updating DNS records in both Primary and Forwarder zones.
+- DHCP scopes now support blocking dynamic allocations to devices with locally administered MAC address.
+- Multiple other minor bug fixes and improvements.
+
 ## Version 8.1.4
 Release Date: 3 July 2022
 - Fixed issue in recursive resolution that caused DNSSEC validation to fail in cases when the name server responds with out-of-bailiwick records.
