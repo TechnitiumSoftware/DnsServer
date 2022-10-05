@@ -479,6 +479,12 @@ namespace DnsServerCore.Dns.Zones
             set { throw new InvalidOperationException(); }
         }
 
+        public override AuthZoneUpdate Update
+        {
+            get { return _update; }
+            set { throw new InvalidOperationException(); }
+        }
+
         public override bool IsActive
         {
             get { return !_disabled && !_isExpired; }
