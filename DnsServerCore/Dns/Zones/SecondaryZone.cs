@@ -33,9 +33,6 @@ namespace DnsServerCore.Dns.Zones
 
         readonly DnsServer _dnsServer;
 
-        readonly List<DnsResourceRecord> _history; //for IXFR support
-        IReadOnlyDictionary<string, object> _tsigKeyNames;
-
         readonly object _refreshTimerLock = new object();
         Timer _refreshTimer;
         bool _refreshTimerTriggered;
@@ -61,13 +58,6 @@ namespace DnsServerCore.Dns.Zones
         {
             _dnsServer = dnsServer;
 
-            if (zoneInfo.ZoneHistory is null)
-                _history = new List<DnsResourceRecord>();
-            else
-                _history = new List<DnsResourceRecord>(zoneInfo.ZoneHistory);
-
-            _tsigKeyNames = zoneInfo.TsigKeyNames;
-
             _expiry = zoneInfo.Expiry;
 
             _isExpired = DateTime.UtcNow > _expiry;
@@ -81,10 +71,9 @@ namespace DnsServerCore.Dns.Zones
         {
             _dnsServer = dnsServer;
 
-            _history = new List<DnsResourceRecord>();
-
             _zoneTransfer = AuthZoneTransfer.Deny;
             _notify = AuthZoneNotify.None;
+            _update = AuthZoneUpdate.Deny;
 
             InitNotify(_dnsServer);
         }
@@ -456,14 +445,14 @@ namespace DnsServerCore.Dns.Zones
                         {
                             IReadOnlyList<DnsResourceRecord> historyRecords = _dnsServer.AuthZoneManager.SyncIncrementalZoneTransferRecords(_name, xfrResponse.Answer);
                             if (historyRecords.Count > 0)
-                                CommitHistory(historyRecords);
+                                CommitZoneHistory(historyRecords);
                             else
-                                ClearHistory(); //AXFR response was received
+                                ClearZoneHistory(); //AXFR response was received
                         }
                         else
                         {
                             _dnsServer.AuthZoneManager.SyncZoneTransferRecords(_name, xfrResponse.Answer);
-                            ClearHistory();
+                            ClearZoneHistory();
                         }
 
                         //trigger notify
@@ -506,24 +495,24 @@ namespace DnsServerCore.Dns.Zones
             }
         }
 
-        private void CommitHistory(IReadOnlyList<DnsResourceRecord> historyRecords)
+        private void CommitZoneHistory(IReadOnlyList<DnsResourceRecord> historyRecords)
         {
-            lock (_history)
+            lock (_zoneHistory)
             {
                 historyRecords[0].SetDeletedOn(DateTime.UtcNow);
 
                 //write history
-                _history.AddRange(historyRecords);
+                _zoneHistory.AddRange(historyRecords);
 
-                CleanupHistory(_history);
+                CleanupHistory(_zoneHistory);
             }
         }
 
-        private void ClearHistory()
+        private void ClearZoneHistory()
         {
-            lock (_history)
+            lock (_zoneHistory)
             {
-                _history.Clear();
+                _zoneHistory.Clear();
             }
         }
 
@@ -593,14 +582,6 @@ namespace DnsServerCore.Dns.Zones
             throw new InvalidOperationException("Cannot update record in secondary zone.");
         }
 
-        public IReadOnlyList<DnsResourceRecord> GetHistory()
-        {
-            lock (_history)
-            {
-                return _history.ToArray();
-            }
-        }
-
         #endregion
 
         #region properties
@@ -637,12 +618,6 @@ namespace DnsServerCore.Dns.Zones
         public override bool IsActive
         {
             get { return !_disabled && !_isExpired; }
-        }
-
-        public IReadOnlyDictionary<string, object> TsigKeyNames
-        {
-            get { return _tsigKeyNames; }
-            set { _tsigKeyNames = value; }
         }
 
         #endregion
