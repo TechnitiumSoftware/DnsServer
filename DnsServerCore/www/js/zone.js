@@ -107,6 +107,20 @@ $(function () {
         }
     });
 
+    $("input[type=radio][name=rdDynamicUpdate]").change(function () {
+        var dynamicUpdate = $('input[name=rdDynamicUpdate]:checked').val();
+        switch (dynamicUpdate) {
+            case "AllowOnlySpecifiedIpAddresses":
+            case "AllowBothZoneNameServersAndSpecifiedIpAddresses":
+                $("#txtDynamicUpdateIpAddresses").prop("disabled", false);
+                break;
+
+            default:
+                $("#txtDynamicUpdateIpAddresses").prop("disabled", true);
+                break;
+        }
+    });
+
     $("input[type=radio][name=rdDnssecSignZoneAlgorithm]").change(function () {
         var algorithm = $("input[name=rdDnssecSignZoneAlgorithm]:checked").val();
         switch (algorithm) {
@@ -231,9 +245,7 @@ $(function () {
     });
 
     $("#optZoneOptionsQuickTsigKeyNames").change(function () {
-
         var selectedOption = $("#optZoneOptionsQuickTsigKeyNames").val();
-
         switch (selectedOption) {
             case "blank":
                 break;
@@ -248,6 +260,28 @@ $(function () {
                 if (existingList.indexOf(selectedOption) < 0) {
                     existingList += selectedOption + "\n";
                     $("#txtZoneOptionsZoneTransferTsigKeyNames").val(existingList);
+                }
+
+                break;
+        }
+    });
+
+    $("#optZoneOptionsQuickTsigKeyNames2").change(function () {
+        var selectedOption = $("#optZoneOptionsQuickTsigKeyNames2").val();
+        switch (selectedOption) {
+            case "blank":
+                break;
+
+            case "none":
+                $("#txtDynamicUpdateTsigKeyNames").val("");
+                break;
+
+            default:
+                var existingList = $("#txtDynamicUpdateTsigKeyNames").val();
+
+                if (existingList.indexOf(selectedOption) < 0) {
+                    existingList += selectedOption + "\n";
+                    $("#txtDynamicUpdateTsigKeyNames").val(existingList);
                 }
 
                 break;
@@ -589,11 +623,13 @@ function showZoneOptionsModal(zone) {
     $("#modalZoneOptions").modal("show");
 
     HTTPRequest({
-        url: "/api/zones/options/get?token=" + sessionData.token + "&zone=" + zone,
+        url: "/api/zones/options/get?token=" + sessionData.token + "&zone=" + zone + "&includeAvailableTsigKeyNames=true",
         success: function (responseJSON) {
             $("#txtZoneTransferNameServers").prop("disabled", true);
             $("#txtZoneNotifyNameServers").prop("disabled", true);
+            $("#txtDynamicUpdateIpAddresses").prop("disabled", true);
 
+            //zone transfer
             switch (responseJSON.response.zoneTransfer) {
                 case "Allow":
                     $("#rdZoneTransferAllow").prop("checked", true);
@@ -628,6 +664,31 @@ function showZoneOptionsModal(zone) {
                 $("#txtZoneTransferNameServers").val(value);
             }
 
+            {
+                var value = "";
+
+                if (responseJSON.response.zoneTransferTsigKeyNames != null) {
+                    for (var i = 0; i < responseJSON.response.zoneTransferTsigKeyNames.length; i++) {
+                        value += responseJSON.response.zoneTransferTsigKeyNames[i] + "\r\n";
+                    }
+                }
+
+                $("#txtZoneOptionsZoneTransferTsigKeyNames").val(value);
+            }
+
+            {
+                var options = "<option value=\"blank\" selected></option><option value=\"none\">None</option>";
+
+                if (responseJSON.response.availableTsigKeyNames != null) {
+                    for (var i = 0; i < responseJSON.response.availableTsigKeyNames.length; i++) {
+                        options += "<option>" + htmlEncode(responseJSON.response.availableTsigKeyNames[i]) + "</option>";
+                    }
+                }
+
+                $("#optZoneOptionsQuickTsigKeyNames").html(options);
+            }
+
+            //notify
             switch (responseJSON.response.notify) {
                 case "ZoneNameServers":
                     $("#rdZoneNotifyZoneNameServers").prop("checked", true);
@@ -658,16 +719,51 @@ function showZoneOptionsModal(zone) {
                 $("#txtZoneNotifyNameServers").val(value);
             }
 
+            //dynamic update
+            switch (responseJSON.response.update) {
+                case "Allow":
+                    $("#rdDynamicUpdateAllow").prop("checked", true);
+                    break;
+
+                case "AllowOnlyZoneNameServers":
+                    $("#rdDynamicUpdateAllowOnlyZoneNameServers").prop("checked", true);
+                    break;
+
+                case "AllowOnlySpecifiedIpAddresses":
+                    $("#rdDynamicUpdateAllowOnlySpecifiedIpAddresses").prop("checked", true);
+                    $("#txtDynamicUpdateIpAddresses").prop("disabled", false);
+                    break;
+
+                case "AllowBothZoneNameServersAndSpecifiedIpAddresses":
+                    $("#rdDynamicUpdateAllowBothZoneNameServersAndSpecifiedIpAddresses").prop("checked", true);
+                    $("#txtDynamicUpdateIpAddresses").prop("disabled", false);
+                    break;
+
+                case "Deny":
+                default:
+                    $("#rdDynamicUpdateDeny").prop("checked", true);
+                    break;
+            }
+
             {
                 var value = "";
 
-                if (responseJSON.response.zoneTransferTsigKeyNames != null) {
-                    for (var i = 0; i < responseJSON.response.zoneTransferTsigKeyNames.length; i++) {
-                        value += responseJSON.response.zoneTransferTsigKeyNames[i] + "\r\n";
+                for (var i = 0; i < responseJSON.response.updateIpAddresses.length; i++)
+                    value += responseJSON.response.updateIpAddresses[i] + "\r\n";
+
+                $("#txtDynamicUpdateIpAddresses").val(value);
+            }
+
+            {
+                var value = "";
+
+                if (responseJSON.response.updateTsigKeyNames != null) {
+                    for (var i = 0; i < responseJSON.response.updateTsigKeyNames.length; i++) {
+                        value += responseJSON.response.updateTsigKeyNames[i] + "\r\n";
                     }
                 }
 
-                $("#txtZoneOptionsZoneTransferTsigKeyNames").val(value);
+                $("#txtDynamicUpdateTsigKeyNames").val(value);
             }
 
             {
@@ -679,8 +775,15 @@ function showZoneOptionsModal(zone) {
                     }
                 }
 
-                $("#optZoneOptionsQuickTsigKeyNames").html(options);
+                $("#optZoneOptionsQuickTsigKeyNames2").html(options);
             }
+
+            $("#tabListZoneOptionsZoneTranfer").addClass("active");
+            $("#tabPaneZoneOptionsZoneTransfer").addClass("active");
+            $("#tabListZoneOptionsNotify").removeClass("active");
+            $("#tabPaneZoneOptionsNotify").removeClass("active");
+            $("#tabListZoneOptionsUpdate").removeClass("active");
+            $("#tabPaneZoneOptionsUpdate").removeClass("active");
 
             divZoneOptionsLoader.hide();
             divZoneOptions.show();
@@ -702,6 +805,7 @@ function saveZoneOptions() {
     var divZoneOptionsLoader = $("#divZoneOptionsLoader");
     var zone = $("#lblZoneOptionsZoneName").attr("data-zone");
 
+    //zone transfer
     var zoneTransfer = $("input[name=rdZoneTransfer]:checked").val();
 
     var zoneTransferNameServers = cleanTextList($("#txtZoneTransferNameServers").val());
@@ -711,6 +815,14 @@ function saveZoneOptions() {
     else
         $("#txtZoneTransferNameServers").val(zoneTransferNameServers.replace(/,/g, "\n"));
 
+    var zoneTransferTsigKeyNames = cleanTextList($("#txtZoneOptionsZoneTransferTsigKeyNames").val());
+
+    if ((zoneTransferTsigKeyNames.length === 0) || (zoneTransferTsigKeyNames === ","))
+        zoneTransferTsigKeyNames = false;
+    else
+        $("#txtZoneOptionsZoneTransferTsigKeyNames").val(zoneTransferTsigKeyNames.replace(/,/g, "\n"));
+
+    //notify
     var notify = $("input[name=rdZoneNotify]:checked").val();
 
     var notifyNameServers = cleanTextList($("#txtZoneNotifyNameServers").val());
@@ -720,21 +832,31 @@ function saveZoneOptions() {
     else
         $("#txtZoneNotifyNameServers").val(notifyNameServers.replace(/,/g, "\n"));
 
-    var zoneTransferTsigKeyNames = cleanTextList($("#txtZoneOptionsZoneTransferTsigKeyNames").val());
+    //dynamic update
+    var update = $("input[name=rdDynamicUpdate]:checked").val();
 
-    if ((zoneTransferTsigKeyNames.length === 0) || (zoneTransferTsigKeyNames === ","))
-        zoneTransferTsigKeyNames = false;
+    var updateIpAddresses = cleanTextList($("#txtDynamicUpdateIpAddresses").val());
+
+    if ((updateIpAddresses.length === 0) || (updateIpAddresses === ","))
+        updateIpAddresses = false;
     else
-        $("#txtZoneOptionsZoneTransferTsigKeyNames").val(zoneTransferTsigKeyNames.replace(/,/g, "\n"));
+        $("#txtDynamicUpdateIpAddresses").val(updateIpAddresses.replace(/,/g, "\n"));
+
+    var updateTsigKeyNames = cleanTextList($("#txtDynamicUpdateTsigKeyNames").val());
+
+    if ((updateTsigKeyNames.length === 0) || (updateTsigKeyNames === ","))
+        updateTsigKeyNames = false;
+    else
+        $("#txtDynamicUpdateTsigKeyNames").val(updateTsigKeyNames.replace(/,/g, "\n"));
 
     var btn = $("#btnSaveZoneOptions");
     btn.button('loading');
 
     HTTPRequest({
         url: "/api/zones/options/set?token=" + sessionData.token + "&zone=" + zone
-            + "&zoneTransfer=" + zoneTransfer + "&zoneTransferNameServers=" + encodeURIComponent(zoneTransferNameServers)
+            + "&zoneTransfer=" + zoneTransfer + "&zoneTransferNameServers=" + encodeURIComponent(zoneTransferNameServers) + "&zoneTransferTsigKeyNames=" + encodeURIComponent(zoneTransferTsigKeyNames)
             + "&notify=" + notify + "&notifyNameServers=" + encodeURIComponent(notifyNameServers)
-            + "&zoneTransferTsigKeyNames=" + encodeURIComponent(zoneTransferTsigKeyNames),
+            + "&update=" + update + "&updateIpAddresses=" + encodeURIComponent(updateIpAddresses) + "&updateTsigKeyNames=" + encodeURIComponent(updateTsigKeyNames),
         success: function (responseJSON) {
             btn.button('reset');
             $("#modalZoneOptions").modal("hide");
