@@ -889,6 +889,11 @@ namespace DnsServerCore.Dns.Zones
             return Array.Empty<DnsResourceRecord>();
         }
 
+        public IReadOnlyDictionary<DnsResourceRecordType, IReadOnlyList<DnsResourceRecord>> GetAllRecords()
+        {
+            return _entries;
+        }
+
         public override bool ContainsNameServerRecords()
         {
             if (!_entries.TryGetValue(DnsResourceRecordType.NS, out IReadOnlyList<DnsResourceRecord> records))
