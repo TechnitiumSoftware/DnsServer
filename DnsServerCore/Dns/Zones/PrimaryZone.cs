@@ -50,9 +50,6 @@ namespace DnsServerCore.Dns.Zones
         readonly DnsServer _dnsServer;
         readonly bool _internal;
 
-        readonly List<DnsResourceRecord> _history; //for IXFR support
-        IReadOnlyDictionary<string, object> _tsigKeyNames;
-
         Dictionary<ushort, DnssecPrivateKey> _dnssecPrivateKeys;
         const uint DNSSEC_SIGNATURE_INCEPTION_OFFSET = 60 * 60;
         Timer _dnssecTimer;
@@ -69,13 +66,6 @@ namespace DnsServerCore.Dns.Zones
             : base(zoneInfo)
         {
             _dnsServer = dnsServer;
-
-            if (zoneInfo.ZoneHistory is null)
-                _history = new List<DnsResourceRecord>();
-            else
-                _history = new List<DnsResourceRecord>(zoneInfo.ZoneHistory);
-
-            _tsigKeyNames = zoneInfo.TsigKeyNames;
 
             IReadOnlyCollection<DnssecPrivateKey> dnssecPrivateKeys = zoneInfo.DnssecPrivateKeys;
             if (dnssecPrivateKeys is not null)
@@ -99,13 +89,13 @@ namespace DnsServerCore.Dns.Zones
             {
                 _zoneTransfer = AuthZoneTransfer.Deny;
                 _notify = AuthZoneNotify.None;
+                _update = AuthZoneUpdate.Deny;
             }
             else
             {
                 _zoneTransfer = AuthZoneTransfer.AllowOnlyZoneNameServers;
                 _notify = AuthZoneNotify.ZoneNameServers;
-
-                _history = new List<DnsResourceRecord>();
+                _update = AuthZoneUpdate.Deny;
 
                 InitNotify(_dnsServer);
             }
@@ -124,6 +114,7 @@ namespace DnsServerCore.Dns.Zones
 
             _zoneTransfer = AuthZoneTransfer.Deny;
             _notify = AuthZoneNotify.None;
+            _update = AuthZoneUpdate.Deny;
 
             _entries[DnsResourceRecordType.SOA] = new DnsResourceRecord[] { new DnsResourceRecord(_name, DnsResourceRecordType.SOA, DnsClass.IN, soa.Minimum, soa) };
             _entries[DnsResourceRecordType.NS] = new DnsResourceRecord[] { new DnsResourceRecord(_name, DnsResourceRecordType.NS, DnsClass.IN, 3600, ns) };
@@ -2593,7 +2584,7 @@ namespace DnsServerCore.Dns.Zones
             if (_internal)
                 return;
 
-            lock (_history)
+            lock (_zoneHistory)
             {
                 DnsResourceRecord oldSoaRecord = _entries[DnsResourceRecordType.SOA][0];
                 DnsResourceRecord newSoaRecord;
@@ -2652,7 +2643,7 @@ namespace DnsServerCore.Dns.Zones
                 oldSoaRecord.SetDeletedOn(DateTime.UtcNow);
 
                 //write removed
-                _history.Add(oldSoaRecord);
+                _zoneHistory.Add(oldSoaRecord);
 
                 if (deletedRecords is not null)
                 {
@@ -2661,18 +2652,18 @@ namespace DnsServerCore.Dns.Zones
                         if (deletedRecord.IsDisabled())
                             continue;
 
-                        _history.Add(deletedRecord);
+                        _zoneHistory.Add(deletedRecord);
 
                         if (deletedRecord.Type == DnsResourceRecordType.NS)
-                            _history.AddRange(deletedRecord.GetGlueRecords());
+                            _zoneHistory.AddRange(deletedRecord.GetGlueRecords());
                     }
                 }
 
                 if (deletedRRSigRecords is not null)
-                    _history.AddRange(deletedRRSigRecords);
+                    _zoneHistory.AddRange(deletedRRSigRecords);
 
                 //write added
-                _history.Add(newSoaRecord);
+                _zoneHistory.Add(newSoaRecord);
 
                 if (addedRecords is not null)
                 {
@@ -2681,19 +2672,19 @@ namespace DnsServerCore.Dns.Zones
                         if (addedRecord.IsDisabled())
                             continue;
 
-                        _history.Add(addedRecord);
+                        _zoneHistory.Add(addedRecord);
 
                         if (addedRecord.Type == DnsResourceRecordType.NS)
-                            _history.AddRange(addedRecord.GetGlueRecords());
+                            _zoneHistory.AddRange(addedRecord.GetGlueRecords());
                     }
                 }
 
                 if (newRRSigRecords is not null)
-                    _history.AddRange(newRRSigRecords);
+                    _zoneHistory.AddRange(newRRSigRecords);
 
                 //end commit
 
-                CleanupHistory(_history);
+                CleanupHistory(_zoneHistory);
             }
         }
 
@@ -2958,14 +2949,6 @@ namespace DnsServerCore.Dns.Zones
             }
         }
 
-        public IReadOnlyList<DnsResourceRecord> GetHistory()
-        {
-            lock (_history)
-            {
-                return _history.ToArray();
-            }
-        }
-
         #endregion
 
         #region properties
@@ -3014,10 +2997,16 @@ namespace DnsServerCore.Dns.Zones
             }
         }
 
-        public IReadOnlyDictionary<string, object> TsigKeyNames
+        public override AuthZoneUpdate Update
         {
-            get { return _tsigKeyNames; }
-            set { _tsigKeyNames = value; }
+            get { return _update; }
+            set
+            {
+                if (_internal)
+                    throw new InvalidOperationException();
+
+                base.Update = value;
+            }
         }
 
         public IReadOnlyCollection<DnssecPrivateKey> DnssecPrivateKeys
