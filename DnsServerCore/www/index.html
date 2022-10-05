@@ -3373,120 +3373,202 @@ ns1.example.com ([2001:db8::])
 
                     <div id="divZoneOptions" style="max-height: 500px; overflow-y: auto; padding: 0 6px; overflow-x: hidden;">
 
-                        <div class="well well-sm form-horizontal">
-                            <div class="form-group">
-                                <label class="col-sm-3 control-label">Zone Transfer</label>
-                                <div class="col-sm-8">
-                                    <div class="radio">
-                                        <label>
-                                            <input type="radio" name="rdZoneTransfer" id="rdZoneTransferDeny" value="Deny">
-                                            Deny
-                                        </label>
-                                        <div style="padding-top: 5px; padding-left: 20px;">Denies everyone from performing a zone transfer.</div>
+                        <div>
+                            <ul class="nav nav-tabs" role="tablist">
+                                <li id="tabListZoneOptionsZoneTranfer" role="presentation" class="active"><a href="#tabPaneZoneOptionsZoneTransfer" aria-controls="tabPaneZoneOptionsZoneTransfer" role="tab" data-toggle="tab">Zone Transfer</a></li>
+                                <li id="tabListZoneOptionsNotify" role="presentation"><a href="#tabPaneZoneOptionsNotify" aria-controls="tabPaneZoneOptionsNotify" role="tab" data-toggle="tab">Notify</a></li>
+                                <li id="tabListZoneOptionsUpdate" role="presentation"><a href="#tabPaneZoneOptionsUpdate" aria-controls="tabPaneZoneOptionsUpdate" role="tab" data-toggle="tab">Dynamic Updates</a></li>
+                            </ul>
+
+                            <div class="tab-content">
+                                <div id="tabPaneZoneOptionsZoneTransfer" role="tabpanel" class="tab-pane active" style="padding: 10px 0 0 0;">
+                                    <div class="well well-sm form-horizontal">
+                                        <div class="form-group">
+                                            <label class="col-sm-3 control-label">Zone Transfer</label>
+                                            <div class="col-sm-8">
+                                                <div class="radio">
+                                                    <label>
+                                                        <input type="radio" name="rdZoneTransfer" id="rdZoneTransferDeny" value="Deny">
+                                                        Deny
+                                                    </label>
+                                                    <div style="padding-top: 5px; padding-left: 20px;">Denies everyone from performing a zone transfer.</div>
+                                                </div>
+                                                <div class="radio">
+                                                    <label>
+                                                        <input type="radio" name="rdZoneTransfer" id="rdZoneTransferAllow" value="Allow">
+                                                        Allow
+                                                    </label>
+                                                    <div style="padding-top: 5px; padding-left: 20px;">Allows everyone to perform a zone transfer.</div>
+                                                </div>
+                                                <div class="radio">
+                                                    <label>
+                                                        <input type="radio" name="rdZoneTransfer" id="rdZoneTransferAllowOnlyZoneNameServers" value="AllowOnlyZoneNameServers">
+                                                        Allow Only Name Servers In Zone (default)
+                                                    </label>
+                                                    <div style="padding-top: 5px; padding-left: 20px;">Allows only the name servers with an NS record in the zone to perform a zone transfer.</div>
+                                                </div>
+                                                <div class="radio">
+                                                    <label>
+                                                        <input type="radio" name="rdZoneTransfer" id="rdZoneTransferAllowOnlySpecifiedNameServers" value="AllowOnlySpecifiedNameServers">
+                                                        Allow Only Specified Name Servers
+                                                    </label>
+                                                    <div style="padding-top: 5px; padding-left: 20px;">Allows only the specified name servers to perform a zone transfer.</div>
+                                                </div>
+                                                <div class="radio">
+                                                    <label>
+                                                        <input type="radio" name="rdZoneTransfer" id="rdZoneTransferAllowBothZoneAndSpecifiedNameServers" value="AllowBothZoneAndSpecifiedNameServers">
+                                                        Allow Both Zone Name Servers And Specified Name Servers
+                                                    </label>
+                                                    <div style="padding-top: 5px; padding-left: 20px;">Allows both the zone's name servers and the specified name servers to perform a zone transfer.</div>
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        <div class="form-group">
+                                            <label for="txtZoneTransferNameServers" class="col-sm-3 control-label">Specified Name Servers</label>
+                                            <div class="col-sm-8">
+                                                <textarea id="txtZoneTransferNameServers" class="form-control" rows="5" spellcheck="false"></textarea>
+                                                <div>Note: Enter only the IP addresses of the name servers above.</div>
+                                            </div>
+                                        </div>
+
+                                        <div>Note! Zone transfer should be allowed only for trusted name servers to sync their secondary zone.</div>
                                     </div>
-                                    <div class="radio">
-                                        <label>
-                                            <input type="radio" name="rdZoneTransfer" id="rdZoneTransferAllow" value="Allow">
-                                            Allow
-                                        </label>
-                                        <div style="padding-top: 5px; padding-left: 20px;">Allows everyone to perform a zone transfer.</div>
+
+                                    <div class="well well-sm form-horizontal">
+                                        <div class="form-group">
+                                            <label for="txtZoneOptionsZoneTransferTsigKeyNames" class="col-sm-3 control-label">Zone Transfer TSIG Key Names</label>
+                                            <div class="col-sm-6">
+                                                <textarea id="txtZoneOptionsZoneTransferTsigKeyNames" class="form-control" rows="3" spellcheck="false"></textarea>
+
+                                                <label for="optZoneOptionsQuickTsigKeyNames" class="control-label">Quick Add</label>
+                                                <select id="optZoneOptionsQuickTsigKeyNames" class="form-control">
+                                                </select>
+                                            </div>
+                                        </div>
+
+                                        <div>Note! TSIG key names must be configured from the Settings before using them here. Entering one or more TSIG key names above will cause the DNS server to authenticate all zone transfer requests. A secondary zone must be configured with one of the above keys to be able to perform a zone transfer.</div>
                                     </div>
-                                    <div class="radio">
-                                        <label>
-                                            <input type="radio" name="rdZoneTransfer" id="rdZoneTransferAllowOnlyZoneNameServers" value="AllowOnlyZoneNameServers">
-                                            Allow Only Name Servers In Zone (default)
-                                        </label>
-                                        <div style="padding-top: 5px; padding-left: 20px;">Allows only the name servers with an NS record in the zone to perform a zone transfer.</div>
+                                </div>
+
+                                <div id="tabPaneZoneOptionsNotify" role="tabpanel" class="tab-pane" style="padding: 10px 0 0 0;">
+                                    <div class="well well-sm form-horizontal">
+                                        <div class="form-group">
+                                            <label class="col-sm-3 control-label">Notify</label>
+                                            <div class="col-sm-8">
+                                                <div class="radio">
+                                                    <label>
+                                                        <input type="radio" name="rdZoneNotify" id="rdZoneNotifyNone" value="None">
+                                                        None
+                                                    </label>
+                                                    <div style="padding-top: 5px; padding-left: 20px;">Does not notify any name server when the zone is updated.</div>
+                                                </div>
+                                                <div class="radio">
+                                                    <label>
+                                                        <input type="radio" name="rdZoneNotify" id="rdZoneNotifyZoneNameServers" value="ZoneNameServers">
+                                                        Name Servers In Zone (default)
+                                                    </label>
+                                                    <div style="padding-top: 5px; padding-left: 20px;">Notifies only the name servers with an NS record in the zone when the zone is updated.</div>
+                                                </div>
+                                                <div class="radio">
+                                                    <label>
+                                                        <input type="radio" name="rdZoneNotify" id="rdZoneNotifySpecifiedNameServers" value="SpecifiedNameServers">
+                                                        Specified Name Servers
+                                                    </label>
+                                                    <div style="padding-top: 5px; padding-left: 20px;">Notifies only the specified name servers when the zone is updated.</div>
+                                                </div>
+                                                <div class="radio">
+                                                    <label>
+                                                        <input type="radio" name="rdZoneNotify" id="rdZoneNotifyBothZoneAndSpecifiedNameServers" value="BothZoneAndSpecifiedNameServers">
+                                                        Both Zone Name Servers And Specified Name Servers
+                                                    </label>
+                                                    <div style="padding-top: 5px; padding-left: 20px;">Notifies both the zone's name servers and the specified name servers when the zone is updated.</div>
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        <div class="form-group">
+                                            <label for="txtZoneNotifyNameServers" class="col-sm-3 control-label">Specified Name Servers</label>
+                                            <div class="col-sm-8">
+                                                <textarea id="txtZoneNotifyNameServers" class="form-control" rows="5" spellcheck="false"></textarea>
+                                                <div>Note: Enter only the IP addresses of the name servers above.</div>
+                                            </div>
+                                        </div>
+
+                                        <div>Note! Notification must be enabled to allow other name servers to trigger a zone transfer immediately when the zone is updated.</div>
                                     </div>
-                                    <div class="radio">
-                                        <label>
-                                            <input type="radio" name="rdZoneTransfer" id="rdZoneTransferAllowOnlySpecifiedNameServers" value="AllowOnlySpecifiedNameServers">
-                                            Allow Only Specified Name Servers
-                                        </label>
-                                        <div style="padding-top: 5px; padding-left: 20px;">Allows only the specified name servers to perform a zone transfer.</div>
+                                </div>
+
+                                <div id="tabPaneZoneOptionsUpdate" role="tabpanel" class="tab-pane" style="padding: 10px 0 0 0;">
+                                    <div class="well well-sm form-horizontal">
+                                        <div class="form-group">
+                                            <label class="col-sm-3 control-label">Dynamic Update</label>
+                                            <div class="col-sm-8">
+                                                <div class="radio">
+                                                    <label>
+                                                        <input type="radio" name="rdDynamicUpdate" id="rdDynamicUpdateDeny" value="Deny">
+                                                        Deny (default)
+                                                    </label>
+                                                    <div style="padding-top: 5px; padding-left: 20px;">Denies everyone from performing dynamic updates.</div>
+                                                </div>
+                                                <div class="radio">
+                                                    <label>
+                                                        <input type="radio" name="rdDynamicUpdate" id="rdDynamicUpdateAllow" value="Allow">
+                                                        Allow
+                                                    </label>
+                                                    <div style="padding-top: 5px; padding-left: 20px;">Allows everyone to perform dynamic updates. Should be used only when TSIG is configured.</div>
+                                                </div>
+                                                <div class="radio">
+                                                    <label>
+                                                        <input type="radio" name="rdDynamicUpdate" id="rdDynamicUpdateAllowOnlyZoneNameServers" value="AllowOnlyZoneNameServers">
+                                                        Allow Only Name Servers In Zone
+                                                    </label>
+                                                    <div style="padding-top: 5px; padding-left: 20px;">Allows only the name servers with an NS record in the zone to perform dynamic updates. Those name servers will have to be configured separately for accepting dynamic update requests for the zone.</div>
+                                                </div>
+                                                <div class="radio">
+                                                    <label>
+                                                        <input type="radio" name="rdDynamicUpdate" id="rdDynamicUpdateAllowOnlySpecifiedIpAddresses" value="AllowOnlySpecifiedIpAddresses">
+                                                        Allow Only Specified IP Addresses
+                                                    </label>
+                                                    <div style="padding-top: 5px; padding-left: 20px;">Allows only the specified IP addresses to perform dynamic updates.</div>
+                                                </div>
+                                                <div class="radio">
+                                                    <label>
+                                                        <input type="radio" name="rdDynamicUpdate" id="rdDynamicUpdateAllowBothZoneNameServersAndSpecifiedIpAddresses" value="AllowBothZoneNameServersAndSpecifiedIpAddresses">
+                                                        Allow Both Zone Name Servers And Specified IP addresses
+                                                    </label>
+                                                    <div style="padding-top: 5px; padding-left: 20px;">Allows both the zone's name servers and the specified IP addresses to perform dynamic updates.</div>
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        <div class="form-group">
+                                            <label for="txtDynamicUpdateIpAddresses" class="col-sm-3 control-label">Specified IP Addresses</label>
+                                            <div class="col-sm-8">
+                                                <textarea id="txtDynamicUpdateIpAddresses" class="form-control" rows="5" spellcheck="false"></textarea>
+                                            </div>
+                                        </div>
+
+                                        <div>Note! Dynamic updates should be allowed only to trusted IP addresses since they will be able to create, modify, or delete records in the zone.</div>
                                     </div>
-                                    <div class="radio">
-                                        <label>
-                                            <input type="radio" name="rdZoneTransfer" id="rdZoneTransferAllowBothZoneAndSpecifiedNameServers" value="AllowBothZoneAndSpecifiedNameServers">
-                                            Allow Both Zone Name Servers And Specified Name Servers
-                                        </label>
-                                        <div style="padding-top: 5px; padding-left: 20px;">Allows both the zone's name servers and the specified name servers to perform a zone transfer.</div>
+
+                                    <div class="well well-sm form-horizontal">
+                                        <div class="form-group">
+                                            <label for="txtDynamicUpdateTsigKeyNames" class="col-sm-3 control-label">Dynamic Update TSIG Key Names</label>
+                                            <div class="col-sm-6">
+                                                <textarea id="txtDynamicUpdateTsigKeyNames" class="form-control" rows="3" spellcheck="false"></textarea>
+
+                                                <label for="optZoneOptionsQuickTsigKeyNames2" class="control-label">Quick Add</label>
+                                                <select id="optZoneOptionsQuickTsigKeyNames2" class="form-control">
+                                                </select>
+                                            </div>
+                                        </div>
+
+                                        <div>Note! TSIG key names must be configured from the Settings before using them here. Entering one or more TSIG key names above will cause the DNS server to authenticate all dynamic update requests.</div>
                                     </div>
                                 </div>
                             </div>
-
-                            <div class="form-group">
-                                <label for="txtZoneTransferNameServers" class="col-sm-3 control-label">Specified Name Servers</label>
-                                <div class="col-sm-8">
-                                    <textarea id="txtZoneTransferNameServers" class="form-control" rows="5" spellcheck="false"></textarea>
-                                    <div>Note: Enter only the IP addresses of the name servers above.</div>
-                                </div>
-                            </div>
-
-                            <div>Note! Zone transfer should be allowed only for trusted name servers to sync their secondary zone. Zone transfer from localhost (127.0.0.1 or ::1) is always allowed except when Deny option is configured.</div>
                         </div>
-
-                        <div class="well well-sm form-horizontal">
-                            <div class="form-group">
-                                <label class="col-sm-3 control-label">Notify</label>
-                                <div class="col-sm-8">
-                                    <div class="radio">
-                                        <label>
-                                            <input type="radio" name="rdZoneNotify" id="rdZoneNotifyNone" value="None">
-                                            None
-                                        </label>
-                                        <div style="padding-top: 5px; padding-left: 20px;">Does not notify any name server when the zone is updated.</div>
-                                    </div>
-                                    <div class="radio">
-                                        <label>
-                                            <input type="radio" name="rdZoneNotify" id="rdZoneNotifyZoneNameServers" value="ZoneNameServers">
-                                            Name Servers In Zone (default)
-                                        </label>
-                                        <div style="padding-top: 5px; padding-left: 20px;">Notifies only the name servers with an NS record in the zone when the zone is updated.</div>
-                                    </div>
-                                    <div class="radio">
-                                        <label>
-                                            <input type="radio" name="rdZoneNotify" id="rdZoneNotifySpecifiedNameServers" value="SpecifiedNameServers">
-                                            Specified Name Servers
-                                        </label>
-                                        <div style="padding-top: 5px; padding-left: 20px;">Notifies only the specified name servers when the zone is updated.</div>
-                                    </div>
-                                    <div class="radio">
-                                        <label>
-                                            <input type="radio" name="rdZoneNotify" id="rdZoneNotifyBothZoneAndSpecifiedNameServers" value="BothZoneAndSpecifiedNameServers">
-                                            Both Zone Name Servers And Specified Name Servers
-                                        </label>
-                                        <div style="padding-top: 5px; padding-left: 20px;">Notifies both the zone's name servers and the specified name servers when the zone is updated.</div>
-                                    </div>
-                                </div>
-                            </div>
-
-                            <div class="form-group">
-                                <label for="txtZoneNotifyNameServers" class="col-sm-3 control-label">Specified Name Servers</label>
-                                <div class="col-sm-8">
-                                    <textarea id="txtZoneNotifyNameServers" class="form-control" rows="5" spellcheck="false"></textarea>
-                                    <div>Note: Enter only the IP addresses of the name servers above.</div>
-                                </div>
-                            </div>
-
-                            <div>Note! Notification must be enabled to allow other name servers to trigger a zone transfer immediately when the zone is updated.</div>
-                        </div>
-
-                        <div class="well well-sm form-horizontal">
-                            <div class="form-group">
-                                <label for="txtZoneOptionsZoneTransferTsigKeyNames" class="col-sm-3 control-label">Zone Transfer TSIG Key Names</label>
-                                <div class="col-sm-6">
-                                    <textarea id="txtZoneOptionsZoneTransferTsigKeyNames" class="form-control" rows="3" spellcheck="false"></textarea>
-
-                                    <label for="optZoneOptionsQuickTsigKeyNames" class="control-label">Quick Add</label>
-                                    <select id="optZoneOptionsQuickTsigKeyNames" class="form-control">
-                                    </select>
-                                </div>
-                            </div>
-
-                            <div>Note! TSIG key names must be configured from the Settings before using them here. Entering one or more TSIG key names above will cause the DNS server to authenticate all zone transfer requests. A secondary zone must be configured with one of the above keys to be able to perform a zone transfer.</div>
-                        </div>
-
                     </div>
                 </div>
                 <div class="modal-footer">
