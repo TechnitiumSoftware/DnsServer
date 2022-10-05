@@ -940,7 +940,7 @@ namespace DnsServerCore.Dns.ZoneManagers
 
         public AuthZoneInfo GetAuthZoneInfo(string zoneName, bool loadHistory = false)
         {
-            if (_root.TryGet(zoneName, out AuthZoneNode authZoneNode))
+            if (_root.TryGet(zoneName, out AuthZoneNode authZoneNode) && (authZoneNode.ApexZone is not null))
                 return new AuthZoneInfo(authZoneNode.ApexZone, loadHistory);
 
             return null;
@@ -953,6 +953,13 @@ namespace DnsServerCore.Dns.ZoneManagers
                 return null;
 
             return new AuthZoneInfo(apexZone, loadHistory);
+        }
+
+        public bool NameExists(string zoneName, string domain)
+        {
+            ValidateZoneNameFor(zoneName, domain);
+
+            return _root.TryGet(zoneName, domain, out _);
         }
 
         public void ListAllRecords(string zoneName, List<DnsResourceRecord> records)
@@ -969,6 +976,16 @@ namespace DnsServerCore.Dns.ZoneManagers
                 return authZone.GetRecords(type);
 
             return Array.Empty<DnsResourceRecord>();
+        }
+
+        public IReadOnlyDictionary<DnsResourceRecordType, IReadOnlyList<DnsResourceRecord>> GetAllRecords(string zoneName, string domain)
+        {
+            ValidateZoneNameFor(zoneName, domain);
+
+            if (_root.TryGet(zoneName, domain, out AuthZone authZone))
+                return authZone.GetAllRecords();
+
+            return new Dictionary<DnsResourceRecordType, IReadOnlyList<DnsResourceRecord>>(1);
         }
 
         public IReadOnlyList<DnsResourceRecord> QueryZoneTransferRecords(string zoneName)
@@ -1475,6 +1492,28 @@ namespace DnsServerCore.Dns.ZoneManagers
             AuthZone authZone = GetOrAddSubDomainZone(zoneName, domain);
 
             authZone.SetRecords(type, resourceRecords);
+
+            if (authZone is SubDomainZone subDomainZone)
+                subDomainZone.AutoUpdateState();
+        }
+
+        public void SetRecords(string zoneName, IReadOnlyList<DnsResourceRecord> records)
+        {
+            for (int i = 1; i < records.Count; i++)
+            {
+                if (!records[i].Name.Equals(records[0].Name, StringComparison.OrdinalIgnoreCase))
+                    throw new InvalidOperationException();
+
+                if (records[i].Type != records[0].Type)
+                    throw new InvalidOperationException();
+
+                if (records[i].Class != records[0].Class)
+                    throw new InvalidOperationException();
+            }
+
+            AuthZone authZone = GetOrAddSubDomainZone(zoneName, records[0].Name);
+
+            authZone.SetRecords(records[0].Type, records);
 
             if (authZone is SubDomainZone subDomainZone)
                 subDomainZone.AutoUpdateState();
