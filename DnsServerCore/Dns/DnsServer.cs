@@ -1176,6 +1176,9 @@ namespace DnsServerCore.Dns
                 case DnsOpcode.Notify:
                     return await ProcessNotifyQueryAsync(request, remoteEP, protocol);
 
+                case DnsOpcode.Update:
+                    return await ProcessUpdateQueryAsync(request, remoteEP, protocol, tsigAuthenticatedKeyName);
+
                 default:
                     return new DnsDatagram(request.Identifier, true, request.OPCODE, false, false, request.RecursionDesired, isRecursionAllowed, false, false, DnsResponseCode.NotImplemented, request.Question) { Tag = DnsServerResponseType.Authoritative };
             }
@@ -1223,6 +1226,537 @@ namespace DnsServerCore.Dns
             return new DnsDatagram(request.Identifier, true, DnsOpcode.Notify, false, false, request.RecursionDesired, false, false, false, DnsResponseCode.NoError, request.Question) { Tag = DnsServerResponseType.Authoritative };
         }
 
+        private async Task<DnsDatagram> ProcessUpdateQueryAsync(DnsDatagram request, IPEndPoint remoteEP, DnsTransportProtocol protocol, string tsigAuthenticatedKeyName)
+        {
+            if ((request.Question.Count != 1) || (request.Question[0].Type != DnsResourceRecordType.SOA))
+                return new DnsDatagram(request.Identifier, true, DnsOpcode.Update, false, false, request.RecursionDesired, false, false, false, DnsResponseCode.FormatError, request.Question) { Tag = DnsServerResponseType.Authoritative };
+
+            if (request.Question[0].Class != DnsClass.IN)
+                return new DnsDatagram(request.Identifier, true, DnsOpcode.Update, false, false, request.RecursionDesired, false, false, false, DnsResponseCode.NotAuth, request.Question) { Tag = DnsServerResponseType.Authoritative };
+
+            AuthZoneInfo authZoneInfo = _authZoneManager.GetAuthZoneInfo(request.Question[0].Name);
+            if ((authZoneInfo is null) || authZoneInfo.Disabled)
+                return new DnsDatagram(request.Identifier, true, DnsOpcode.Update, false, false, request.RecursionDesired, false, false, false, DnsResponseCode.NotAuth, request.Question) { Tag = DnsServerResponseType.Authoritative };
+
+            LogManager log = _log;
+            if (log is not null)
+                log.Write(remoteEP, protocol, "DNS Server received UPDATE request for zone: " + (authZoneInfo.Name == "" ? "<root>" : authZoneInfo.Name));
+
+            switch (authZoneInfo.Type)
+            {
+                case AuthZoneType.Primary:
+                    //update zone
+                    {
+                        //process prerequisite section
+                        {
+                            Dictionary<string, Dictionary<DnsResourceRecordType, List<DnsResourceRecord>>> temp = new Dictionary<string, Dictionary<DnsResourceRecordType, List<DnsResourceRecord>>>();
+
+                            foreach (DnsResourceRecord prRecord in request.Answer)
+                            {
+                                if (prRecord.TtlValue != 0)
+                                    return new DnsDatagram(request.Identifier, true, DnsOpcode.Update, false, false, request.RecursionDesired, false, false, false, DnsResponseCode.FormatError, request.Question) { Tag = DnsServerResponseType.Authoritative };
+
+                                AuthZoneInfo prAuthZoneInfo = _authZoneManager.FindAuthZoneInfo(prRecord.Name);
+                                if ((prAuthZoneInfo is null) || !prAuthZoneInfo.Name.Equals(authZoneInfo.Name, StringComparison.OrdinalIgnoreCase))
+                                    return new DnsDatagram(request.Identifier, true, DnsOpcode.Update, false, false, request.RecursionDesired, false, false, false, DnsResponseCode.NotZone, request.Question) { Tag = DnsServerResponseType.Authoritative };
+
+                                if (prRecord.Class == DnsClass.ANY)
+                                {
+                                    if (prRecord.RDATA.RDLENGTH != 0)
+                                        return new DnsDatagram(request.Identifier, true, DnsOpcode.Update, false, false, request.RecursionDesired, false, false, false, DnsResponseCode.FormatError, request.Question) { Tag = DnsServerResponseType.Authoritative };
+
+                                    if (prRecord.Type == DnsResourceRecordType.ANY)
+                                    {
+                                        //check if name is in use
+                                        if (!_authZoneManager.NameExists(authZoneInfo.Name, prRecord.Name))
+                                            return new DnsDatagram(request.Identifier, true, DnsOpcode.Update, false, false, request.RecursionDesired, false, false, false, DnsResponseCode.NxDomain, request.Question) { Tag = DnsServerResponseType.Authoritative };
+                                    }
+                                    else
+                                    {
+                                        //check if RRSet exists (value independent)
+                                        IReadOnlyList<DnsResourceRecord> rrset = _authZoneManager.GetRecords(authZoneInfo.Name, prRecord.Name, prRecord.Type);
+                                        if (rrset.Count == 0)
+                                            return new DnsDatagram(request.Identifier, true, DnsOpcode.Update, false, false, request.RecursionDesired, false, false, false, DnsResponseCode.NXRRSet, request.Question) { Tag = DnsServerResponseType.Authoritative };
+                                    }
+                                }
+                                else if (prRecord.Class == DnsClass.NONE)
+                                {
+                                    if (prRecord.RDATA.RDLENGTH != 0)
+                                        return new DnsDatagram(request.Identifier, true, DnsOpcode.Update, false, false, request.RecursionDesired, false, false, false, DnsResponseCode.FormatError, request.Question) { Tag = DnsServerResponseType.Authoritative };
+
+                                    if (prRecord.Type == DnsResourceRecordType.ANY)
+                                    {
+                                        //check if name is not in use
+                                        if (_authZoneManager.NameExists(authZoneInfo.Name, prRecord.Name))
+                                            return new DnsDatagram(request.Identifier, true, DnsOpcode.Update, false, false, request.RecursionDesired, false, false, false, DnsResponseCode.YXDomain, request.Question) { Tag = DnsServerResponseType.Authoritative };
+                                    }
+                                    else
+                                    {
+                                        //check if RRSet does not exists
+                                        IReadOnlyList<DnsResourceRecord> rrset = _authZoneManager.GetRecords(authZoneInfo.Name, prRecord.Name, prRecord.Type);
+                                        if (rrset.Count > 0)
+                                            return new DnsDatagram(request.Identifier, true, DnsOpcode.Update, false, false, request.RecursionDesired, false, false, false, DnsResponseCode.YXRRSet, request.Question) { Tag = DnsServerResponseType.Authoritative };
+                                    }
+                                }
+                                else if (prRecord.Class == request.Question[0].Class)
+                                {
+                                    //check if RRSet exists (value dependent)
+                                    //add to temp for later comparison
+                                    string recordName = prRecord.Name.ToLower();
+
+                                    if (!temp.TryGetValue(recordName, out Dictionary<DnsResourceRecordType, List<DnsResourceRecord>> rrsetEntry))
+                                    {
+                                        rrsetEntry = new Dictionary<DnsResourceRecordType, List<DnsResourceRecord>>();
+                                        temp.Add(recordName, rrsetEntry);
+                                    }
+
+                                    if (!rrsetEntry.TryGetValue(prRecord.Type, out List<DnsResourceRecord> rrset))
+                                    {
+                                        rrset = new List<DnsResourceRecord>();
+                                        rrsetEntry.Add(prRecord.Type, rrset);
+                                    }
+
+                                    rrset.Add(prRecord);
+                                }
+                                else
+                                {
+                                    //FORMERR
+                                    return new DnsDatagram(request.Identifier, true, DnsOpcode.Update, false, false, request.RecursionDesired, false, false, false, DnsResponseCode.FormatError, request.Question) { Tag = DnsServerResponseType.Authoritative };
+                                }
+                            }
+
+                            //compare collected RRSets in temp
+                            foreach (KeyValuePair<string, Dictionary<DnsResourceRecordType, List<DnsResourceRecord>>> zoneEntry in temp)
+                            {
+                                foreach (KeyValuePair<DnsResourceRecordType, List<DnsResourceRecord>> rrsetEntry in zoneEntry.Value)
+                                {
+                                    IReadOnlyList<DnsResourceRecord> prRRSet = rrsetEntry.Value;
+                                    IReadOnlyList<DnsResourceRecord> rrset = _authZoneManager.GetRecords(authZoneInfo.Name, zoneEntry.Key, rrsetEntry.Key);
+
+                                    //check if RRSet exists (value dependent)
+                                    //compare RRSets
+
+                                    if (prRRSet.Count != rrset.Count)
+                                        return new DnsDatagram(request.Identifier, true, DnsOpcode.Update, false, false, request.RecursionDesired, false, false, false, DnsResponseCode.NXRRSet, request.Question) { Tag = DnsServerResponseType.Authoritative };
+
+                                    foreach (DnsResourceRecord prRecord in prRRSet)
+                                    {
+                                        bool found = false;
+
+                                        foreach (DnsResourceRecord record in rrset)
+                                        {
+                                            if (
+                                                prRecord.Name.Equals(record.Name, StringComparison.OrdinalIgnoreCase) &&
+                                                (prRecord.Class == record.Class) &&
+                                                (prRecord.Type == record.Type) &&
+                                                (prRecord.RDATA.RDLENGTH == record.RDATA.RDLENGTH) &&
+                                                prRecord.RDATA.Equals(record.RDATA)
+                                               )
+                                            {
+                                                found = true;
+                                                break;
+                                            }
+                                        }
+
+                                        if (!found)
+                                            return new DnsDatagram(request.Identifier, true, DnsOpcode.Update, false, false, request.RecursionDesired, false, false, false, DnsResponseCode.NXRRSet, request.Question) { Tag = DnsServerResponseType.Authoritative };
+                                    }
+                                }
+                            }
+                        }
+
+                        //check for permissions
+                        {
+                            async Task<bool> isZoneNameServerAllowedAsync()
+                            {
+                                IPAddress remoteAddress = remoteEP.Address;
+                                IReadOnlyList<NameServerAddress> secondaryNameServers = await authZoneInfo.GetSecondaryNameServerAddressesAsync(this);
+
+                                foreach (NameServerAddress secondaryNameServer in secondaryNameServers)
+                                {
+                                    if (secondaryNameServer.IPEndPoint.Address.Equals(remoteAddress))
+                                        return true;
+                                }
+
+                                return false;
+                            }
+
+                            bool isSpecifiedIpAddressAllowed()
+                            {
+                                IPAddress remoteAddress = remoteEP.Address;
+                                IReadOnlyCollection<IPAddress> specifiedIpAddresses = authZoneInfo.UpdateIpAddresses;
+                                if (specifiedIpAddresses is not null)
+                                {
+                                    foreach (IPAddress specifiedIpAddress in specifiedIpAddresses)
+                                    {
+                                        if (specifiedIpAddress.Equals(remoteAddress))
+                                            return true;
+                                    }
+                                }
+
+                                return false;
+                            }
+
+                            bool isUpdateAllowed = false;
+
+                            switch (authZoneInfo.Update)
+                            {
+                                case AuthZoneUpdate.Deny:
+                                    break;
+
+                                case AuthZoneUpdate.Allow:
+                                    isUpdateAllowed = true;
+                                    break;
+
+                                case AuthZoneUpdate.AllowOnlyZoneNameServers:
+                                    isUpdateAllowed = await isZoneNameServerAllowedAsync();
+                                    break;
+
+                                case AuthZoneUpdate.AllowOnlySpecifiedIpAddresses:
+                                    isUpdateAllowed = isSpecifiedIpAddressAllowed();
+                                    break;
+
+                                case AuthZoneUpdate.AllowBothZoneNameServersAndSpecifiedIpAddresses:
+                                    isUpdateAllowed = isSpecifiedIpAddressAllowed() || await isZoneNameServerAllowedAsync();
+                                    break;
+                            }
+
+                            if (!isUpdateAllowed)
+                            {
+                                if (log is not null)
+                                    log.Write(remoteEP, protocol, "DNS Server refused an UPDATE request since the request IP address is not allowed by the zone: " + (authZoneInfo.Name == "" ? "<root>" : authZoneInfo.Name));
+
+                                return new DnsDatagram(request.Identifier, true, DnsOpcode.Update, false, false, request.RecursionDesired, false, false, false, DnsResponseCode.Refused, request.Question) { Tag = DnsServerResponseType.Authoritative };
+                            }
+
+                            if ((authZoneInfo.UpdateTsigKeyNames is not null) && (authZoneInfo.UpdateTsigKeyNames.Count > 0))
+                            {
+                                if ((tsigAuthenticatedKeyName is null) || !authZoneInfo.UpdateTsigKeyNames.ContainsKey(tsigAuthenticatedKeyName.ToLower()))
+                                {
+                                    if (log is not null)
+                                        log.Write(remoteEP, protocol, "DNS Server refused a zone UPDATE request since the request is missing TSIG auth required by the zone: " + (authZoneInfo.Name == "" ? "<root>" : authZoneInfo.Name));
+
+                                    return new DnsDatagram(request.Identifier, true, DnsOpcode.Update, false, false, request.RecursionDesired, false, false, false, DnsResponseCode.Refused, request.Question) { Tag = DnsServerResponseType.Authoritative };
+                                }
+                            }
+                        }
+
+                        //process update section
+                        {
+                            //prescan
+                            foreach (DnsResourceRecord uRecord in request.Authority)
+                            {
+                                AuthZoneInfo prAuthZoneInfo = _authZoneManager.FindAuthZoneInfo(uRecord.Name);
+                                if ((prAuthZoneInfo is null) || !prAuthZoneInfo.Name.Equals(authZoneInfo.Name, StringComparison.OrdinalIgnoreCase))
+                                    return new DnsDatagram(request.Identifier, true, DnsOpcode.Update, false, false, request.RecursionDesired, false, false, false, DnsResponseCode.NotZone, request.Question) { Tag = DnsServerResponseType.Authoritative };
+
+                                if (uRecord.Class == request.Question[0].Class)
+                                {
+                                    switch (uRecord.Type)
+                                    {
+                                        case DnsResourceRecordType.ANY:
+                                        case DnsResourceRecordType.AXFR:
+                                        case DnsResourceRecordType.MAILA:
+                                        case DnsResourceRecordType.MAILB:
+                                        case DnsResourceRecordType.IXFR:
+                                            return new DnsDatagram(request.Identifier, true, DnsOpcode.Update, false, false, request.RecursionDesired, false, false, false, DnsResponseCode.FormatError, request.Question) { Tag = DnsServerResponseType.Authoritative };
+                                    }
+                                }
+                                else if (uRecord.Class == DnsClass.ANY)
+                                {
+                                    if ((uRecord.TtlValue != 0) || (uRecord.RDATA.RDLENGTH != 0))
+                                        return new DnsDatagram(request.Identifier, true, DnsOpcode.Update, false, false, request.RecursionDesired, false, false, false, DnsResponseCode.FormatError, request.Question) { Tag = DnsServerResponseType.Authoritative };
+
+                                    switch (uRecord.Type)
+                                    {
+                                        case DnsResourceRecordType.AXFR:
+                                        case DnsResourceRecordType.MAILA:
+                                        case DnsResourceRecordType.MAILB:
+                                        case DnsResourceRecordType.IXFR:
+                                            return new DnsDatagram(request.Identifier, true, DnsOpcode.Update, false, false, request.RecursionDesired, false, false, false, DnsResponseCode.FormatError, request.Question) { Tag = DnsServerResponseType.Authoritative };
+                                    }
+                                }
+                                else if (uRecord.Class == DnsClass.NONE)
+                                {
+                                    if (uRecord.TtlValue != 0)
+                                        return new DnsDatagram(request.Identifier, true, DnsOpcode.Update, false, false, request.RecursionDesired, false, false, false, DnsResponseCode.FormatError, request.Question) { Tag = DnsServerResponseType.Authoritative };
+
+                                    switch (uRecord.Type)
+                                    {
+                                        case DnsResourceRecordType.ANY:
+                                        case DnsResourceRecordType.AXFR:
+                                        case DnsResourceRecordType.MAILA:
+                                        case DnsResourceRecordType.MAILB:
+                                        case DnsResourceRecordType.IXFR:
+                                            return new DnsDatagram(request.Identifier, true, DnsOpcode.Update, false, false, request.RecursionDesired, false, false, false, DnsResponseCode.FormatError, request.Question) { Tag = DnsServerResponseType.Authoritative };
+                                    }
+                                }
+                                else
+                                {
+                                    //FORMERR
+                                    return new DnsDatagram(request.Identifier, true, DnsOpcode.Update, false, false, request.RecursionDesired, false, false, false, DnsResponseCode.FormatError, request.Question) { Tag = DnsServerResponseType.Authoritative };
+                                }
+                            }
+
+                            //update
+                            Dictionary<string, Dictionary<DnsResourceRecordType, IReadOnlyList<DnsResourceRecord>>> originalRRSets = new Dictionary<string, Dictionary<DnsResourceRecordType, IReadOnlyList<DnsResourceRecord>>>();
+
+                            void AddToOriginalRRSets(string domain, DnsResourceRecordType type, IReadOnlyList<DnsResourceRecord> existingRRSet)
+                            {
+                                if (!originalRRSets.TryGetValue(domain, out Dictionary<DnsResourceRecordType, IReadOnlyList<DnsResourceRecord>> originalRRSetEntries))
+                                {
+                                    originalRRSetEntries = new Dictionary<DnsResourceRecordType, IReadOnlyList<DnsResourceRecord>>();
+                                    originalRRSets.Add(domain, originalRRSetEntries);
+                                }
+
+                                originalRRSetEntries.TryAdd(type, existingRRSet);
+                            }
+
+                            try
+                            {
+                                foreach (DnsResourceRecord uRecord in request.Authority)
+                                {
+                                    if (uRecord.Class == request.Question[0].Class)
+                                    {
+                                        //Add to an RRset
+                                        if (uRecord.Type == DnsResourceRecordType.CNAME)
+                                        {
+                                            if (_authZoneManager.NameExists(authZoneInfo.Name, uRecord.Name) && (_authZoneManager.GetRecords(authZoneInfo.Name, uRecord.Name, DnsResourceRecordType.CNAME).Count == 0))
+                                                continue; //current name exists and has non-CNAME records so cannot add CNAME record
+
+                                            IReadOnlyList<DnsResourceRecord> existingRRSet = _authZoneManager.GetRecords(authZoneInfo.Name, uRecord.Name, uRecord.Type);
+                                            AddToOriginalRRSets(uRecord.Name, uRecord.Type, existingRRSet);
+
+                                            _authZoneManager.SetRecord(authZoneInfo.Name, uRecord);
+                                        }
+                                        else if (uRecord.Type == DnsResourceRecordType.DNAME)
+                                        {
+                                            IReadOnlyList<DnsResourceRecord> existingRRSet = _authZoneManager.GetRecords(authZoneInfo.Name, uRecord.Name, uRecord.Type);
+                                            AddToOriginalRRSets(uRecord.Name, uRecord.Type, existingRRSet);
+
+                                            _authZoneManager.SetRecord(authZoneInfo.Name, uRecord);
+                                        }
+                                        else if (uRecord.Type == DnsResourceRecordType.SOA)
+                                        {
+                                            if (!uRecord.Name.Equals(authZoneInfo.Name, StringComparison.OrdinalIgnoreCase))
+                                                continue; //can add SOA only to apex
+
+                                            IReadOnlyList<DnsResourceRecord> existingRRSet = _authZoneManager.GetRecords(authZoneInfo.Name, uRecord.Name, uRecord.Type);
+                                            AddToOriginalRRSets(uRecord.Name, uRecord.Type, existingRRSet);
+
+                                            _authZoneManager.SetRecord(authZoneInfo.Name, uRecord);
+                                        }
+                                        else
+                                        {
+                                            if (_authZoneManager.GetRecords(authZoneInfo.Name, uRecord.Name, DnsResourceRecordType.CNAME).Count > 0)
+                                                continue; //current name contains CNAME so cannot add non-CNAME record
+
+                                            IReadOnlyList<DnsResourceRecord> existingRRSet = _authZoneManager.GetRecords(authZoneInfo.Name, uRecord.Name, uRecord.Type);
+                                            AddToOriginalRRSets(uRecord.Name, uRecord.Type, existingRRSet);
+
+                                            if (uRecord.Type == DnsResourceRecordType.NS)
+                                                uRecord.SyncGlueRecords(request.Additional);
+
+                                            _authZoneManager.AddRecord(authZoneInfo.Name, uRecord);
+                                        }
+                                    }
+                                    else if (uRecord.Class == DnsClass.ANY)
+                                    {
+                                        if (uRecord.Type == DnsResourceRecordType.ANY)
+                                        {
+                                            //Delete all RRsets from a name
+                                            IReadOnlyDictionary<DnsResourceRecordType, IReadOnlyList<DnsResourceRecord>> existingRRSets = _authZoneManager.GetAllRecords(authZoneInfo.Name, uRecord.Name);
+
+                                            if (uRecord.Name.Equals(authZoneInfo.Name, StringComparison.OrdinalIgnoreCase))
+                                            {
+                                                foreach (KeyValuePair<DnsResourceRecordType, IReadOnlyList<DnsResourceRecord>> existingRRSet in existingRRSets)
+                                                {
+                                                    switch (existingRRSet.Key)
+                                                    {
+                                                        case DnsResourceRecordType.SOA:
+                                                        case DnsResourceRecordType.NS:
+                                                        case DnsResourceRecordType.DNSKEY:
+                                                        case DnsResourceRecordType.RRSIG:
+                                                        case DnsResourceRecordType.NSEC:
+                                                        case DnsResourceRecordType.NSEC3PARAM:
+                                                        case DnsResourceRecordType.NSEC3:
+                                                            continue; //no apex SOA/NS can be deleted; skip DNSSEC rrsets
+                                                    }
+
+                                                    AddToOriginalRRSets(uRecord.Name, existingRRSet.Key, existingRRSet.Value);
+
+                                                    _authZoneManager.DeleteRecords(authZoneInfo.Name, uRecord.Name, existingRRSet.Key);
+                                                }
+                                            }
+                                            else
+                                            {
+                                                foreach (KeyValuePair<DnsResourceRecordType, IReadOnlyList<DnsResourceRecord>> existingRRSet in existingRRSets)
+                                                {
+                                                    switch (existingRRSet.Key)
+                                                    {
+                                                        case DnsResourceRecordType.DNSKEY:
+                                                        case DnsResourceRecordType.RRSIG:
+                                                        case DnsResourceRecordType.NSEC:
+                                                        case DnsResourceRecordType.NSEC3PARAM:
+                                                        case DnsResourceRecordType.NSEC3:
+                                                            continue; //skip DNSSEC rrsets
+                                                    }
+
+                                                    AddToOriginalRRSets(uRecord.Name, existingRRSet.Key, existingRRSet.Value);
+
+                                                    _authZoneManager.DeleteRecords(authZoneInfo.Name, uRecord.Name, existingRRSet.Key);
+                                                }
+                                            }
+                                        }
+                                        else
+                                        {
+                                            //Delete an RRset
+                                            if (uRecord.Name.Equals(authZoneInfo.Name, StringComparison.OrdinalIgnoreCase))
+                                            {
+                                                switch (uRecord.Type)
+                                                {
+                                                    case DnsResourceRecordType.SOA:
+                                                    case DnsResourceRecordType.NS:
+                                                    case DnsResourceRecordType.DNSKEY:
+                                                    case DnsResourceRecordType.RRSIG:
+                                                    case DnsResourceRecordType.NSEC:
+                                                    case DnsResourceRecordType.NSEC3PARAM:
+                                                    case DnsResourceRecordType.NSEC3:
+                                                        continue; //no apex SOA/NS can be deleted; skip DNSSEC rrsets
+                                                }
+                                            }
+
+                                            IReadOnlyList<DnsResourceRecord> existingRRSet = _authZoneManager.GetRecords(authZoneInfo.Name, uRecord.Name, uRecord.Type);
+                                            AddToOriginalRRSets(uRecord.Name, uRecord.Type, existingRRSet);
+
+                                            _authZoneManager.DeleteRecords(authZoneInfo.Name, uRecord.Name, uRecord.Type);
+                                        }
+                                    }
+                                    else if (uRecord.Class == DnsClass.NONE)
+                                    {
+                                        //Delete an RR from an RRset
+
+                                        switch (uRecord.Type)
+                                        {
+                                            case DnsResourceRecordType.SOA:
+                                            case DnsResourceRecordType.DNSKEY:
+                                            case DnsResourceRecordType.RRSIG:
+                                            case DnsResourceRecordType.NSEC:
+                                            case DnsResourceRecordType.NSEC3PARAM:
+                                            case DnsResourceRecordType.NSEC3:
+                                                continue; //no SOA can be deleted; skip DNSSEC rrsets
+                                        }
+
+                                        IReadOnlyList<DnsResourceRecord> existingRRSet = _authZoneManager.GetRecords(authZoneInfo.Name, uRecord.Name, uRecord.Type);
+
+                                        if ((uRecord.Type == DnsResourceRecordType.NS) && (existingRRSet.Count == 1) && uRecord.Name.Equals(authZoneInfo.Name, StringComparison.OrdinalIgnoreCase))
+                                            continue; //no apex NS can be deleted if only 1 NS exists
+
+                                        AddToOriginalRRSets(uRecord.Name, uRecord.Type, existingRRSet);
+
+                                        _authZoneManager.DeleteRecord(authZoneInfo.Name, uRecord.Name, uRecord.Type, uRecord.RDATA);
+                                    }
+                                }
+                            }
+                            catch
+                            {
+                                //revert
+                                foreach (KeyValuePair<string, Dictionary<DnsResourceRecordType, IReadOnlyList<DnsResourceRecord>>> originalRRSetEntries in originalRRSets)
+                                {
+                                    foreach (KeyValuePair<DnsResourceRecordType, IReadOnlyList<DnsResourceRecord>> originalRRSet in originalRRSetEntries.Value)
+                                    {
+                                        if (originalRRSet.Value.Count == 0)
+                                            _authZoneManager.DeleteRecords(authZoneInfo.Name, originalRRSetEntries.Key, originalRRSet.Key);
+                                        else
+                                            _authZoneManager.SetRecords(authZoneInfo.Name, originalRRSet.Value);
+                                    }
+                                }
+
+                                throw;
+                            }
+                        }
+
+                        _authZoneManager.SaveZoneFile(authZoneInfo.Name);
+
+                        if (log is not null)
+                            log.Write(remoteEP, protocol, "DNS Server processes UPDATE request for zone: " + (authZoneInfo.Name == "" ? "<root>" : authZoneInfo.Name));
+
+                        //NOERROR
+                        return new DnsDatagram(request.Identifier, true, DnsOpcode.Update, false, false, request.RecursionDesired, false, false, false, DnsResponseCode.NoError, request.Question) { Tag = DnsServerResponseType.Authoritative };
+                    }
+
+                case AuthZoneType.Secondary:
+                    //forward to primary
+                    {
+                        IReadOnlyList<NameServerAddress> primaryNameServers = await authZoneInfo.GetPrimaryNameServerAddressesAsync(this);
+
+                        DnsResourceRecord soaRecord = authZoneInfo.GetRecords(DnsResourceRecordType.SOA)[0];
+                        DnsResourceRecordInfo recordInfo = soaRecord.GetRecordInfo();
+
+                        if (recordInfo.ZoneTransferProtocol == DnsTransportProtocol.Tls)
+                        {
+                            //change name server protocol to TLS
+                            List<NameServerAddress> tcpNameServers = new List<NameServerAddress>(primaryNameServers.Count);
+
+                            foreach (NameServerAddress primaryNameServer in primaryNameServers)
+                            {
+                                if (primaryNameServer.Protocol == DnsTransportProtocol.Tls)
+                                    tcpNameServers.Add(primaryNameServer);
+                                else
+                                    tcpNameServers.Add(primaryNameServer.ChangeProtocol(DnsTransportProtocol.Tls));
+                            }
+
+                            primaryNameServers = tcpNameServers;
+                        }
+                        else if (protocol == DnsTransportProtocol.Tcp)
+                        {
+                            //change name server protocol to TCP
+                            List<NameServerAddress> tcpNameServers = new List<NameServerAddress>(primaryNameServers.Count);
+
+                            foreach (NameServerAddress primaryNameServer in primaryNameServers)
+                            {
+                                if (primaryNameServer.Protocol == DnsTransportProtocol.Tcp)
+                                    tcpNameServers.Add(primaryNameServer);
+                                else
+                                    tcpNameServers.Add(primaryNameServer.ChangeProtocol(DnsTransportProtocol.Tcp));
+                            }
+
+                            primaryNameServers = tcpNameServers;
+                        }
+
+                        TsigKey key = null;
+
+                        if (!string.IsNullOrEmpty(recordInfo.TsigKeyName) && ((_tsigKeys is null) || !_tsigKeys.TryGetValue(recordInfo.TsigKeyName, out key)))
+                            throw new DnsServerException("DNS Server does not have TSIG key '" + recordInfo.TsigKeyName + "' configured for refreshing secondary zone: " + (authZoneInfo.Name == "" ? "<root>" : authZoneInfo.Name));
+
+                        DnsClient dnsClient = new DnsClient(primaryNameServers);
+
+                        dnsClient.Proxy = _proxy;
+                        dnsClient.PreferIPv6 = _preferIPv6;
+                        dnsClient.Retries = _forwarderRetries;
+                        dnsClient.Timeout = _forwarderTimeout;
+                        dnsClient.Concurrency = 1;
+
+                        DnsDatagram newRequest = request.Clone();
+                        newRequest.SetRandomIdentifier();
+
+                        DnsDatagram newResponse;
+
+                        if (key is null)
+                            newResponse = await dnsClient.ResolveAsync(newRequest);
+                        else
+                            newResponse = await dnsClient.ResolveAsync(newRequest, key);
+
+                        newResponse.SetIdentifier(request.Identifier);
+
+                        return newResponse;
+                    }
+
+                default:
+                    return new DnsDatagram(request.Identifier, true, DnsOpcode.Update, false, false, request.RecursionDesired, false, false, false, DnsResponseCode.NotAuth, request.Question) { Tag = DnsServerResponseType.Authoritative };
+            }
+        }
+
         private async Task<DnsDatagram> ProcessZoneTransferQueryAsync(DnsDatagram request, IPEndPoint remoteEP, DnsTransportProtocol protocol, string tsigAuthenticatedKeyName)
         {
             LogManager log = _log;
@@ -1252,10 +1786,6 @@ namespace DnsServerCore.Dns
             async Task<bool> isZoneNameServerAllowedAsync()
             {
                 IPAddress remoteAddress = remoteEP.Address;
-
-                if (IPAddress.IsLoopback(remoteAddress))
-                    return true;
-
                 IReadOnlyList<NameServerAddress> secondaryNameServers = await authZoneInfo.GetSecondaryNameServerAddressesAsync(this);
 
                 foreach (NameServerAddress secondaryNameServer in secondaryNameServers)
@@ -1270,10 +1800,6 @@ namespace DnsServerCore.Dns
             bool isSpecifiedNameServerAllowed()
             {
                 IPAddress remoteAddress = remoteEP.Address;
-
-                if (IPAddress.IsLoopback(remoteAddress))
-                    return true;
-
                 IReadOnlyCollection<IPAddress> specifiedNameServers = authZoneInfo.ZoneTransferNameServers;
                 if (specifiedNameServers is not null)
                 {
@@ -1319,9 +1845,9 @@ namespace DnsServerCore.Dns
                 return new DnsDatagram(request.Identifier, true, DnsOpcode.StandardQuery, false, false, request.RecursionDesired, false, false, false, DnsResponseCode.Refused, request.Question) { Tag = DnsServerResponseType.Authoritative };
             }
 
-            if ((authZoneInfo.TsigKeyNames is not null) && (authZoneInfo.TsigKeyNames.Count > 0))
+            if ((authZoneInfo.ZoneTransferTsigKeyNames is not null) && (authZoneInfo.ZoneTransferTsigKeyNames.Count > 0))
             {
-                if ((tsigAuthenticatedKeyName is null) || !authZoneInfo.TsigKeyNames.ContainsKey(tsigAuthenticatedKeyName.ToLower()))
+                if ((tsigAuthenticatedKeyName is null) || !authZoneInfo.ZoneTransferTsigKeyNames.ContainsKey(tsigAuthenticatedKeyName.ToLower()))
                 {
                     if (log is not null)
                         log.Write(remoteEP, protocol, "DNS Server refused a zone transfer request since the request is missing TSIG auth required by the zone: " + (authZoneInfo.Name == "" ? "<root>" : authZoneInfo.Name));
@@ -2366,7 +2892,7 @@ namespace DnsServerCore.Dns
                     }
                     else
                     {
-                        options = new EDnsOption[] { new EDnsOption(EDnsOptionCode.EXTENDED_DNS_ERROR, new EDnsExtendedDnsErrorOption(EDnsExtendedDnsErrorCode.NoReachableAuthority, "No response for name servers")) };
+                        options = new EDnsOption[] { new EDnsOption(EDnsOptionCode.EXTENDED_DNS_ERROR, new EDnsExtendedDnsErrorOption(EDnsExtendedDnsErrorCode.NoReachableAuthority, "No response from name servers for " + question.ToString())) };
                     }
 
                     DnsDatagram failureResponse = new DnsDatagram(0, true, DnsOpcode.StandardQuery, false, false, true, true, false, dnssecValidation, DnsResponseCode.ServerFailure, new DnsQuestionRecord[] { question }, null, null, null, _udpPayloadSize, dnssecValidation ? EDnsHeaderFlags.DNSSEC_OK : EDnsHeaderFlags.None, options);
