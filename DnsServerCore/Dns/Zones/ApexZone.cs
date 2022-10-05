@@ -45,6 +45,15 @@ namespace DnsServerCore.Dns.Zones
         BothZoneAndSpecifiedNameServers = 3
     }
 
+    public enum AuthZoneUpdate : byte
+    {
+        Deny = 0,
+        Allow = 1,
+        AllowOnlyZoneNameServers = 2,
+        AllowOnlySpecifiedIpAddresses = 3,
+        AllowBothZoneNameServersAndSpecifiedIpAddresses = 4
+    }
+
     abstract class ApexZone : AuthZone, IDisposable
     {
         #region variables
@@ -53,6 +62,11 @@ namespace DnsServerCore.Dns.Zones
         protected IReadOnlyCollection<IPAddress> _zoneTransferNameServers;
         protected AuthZoneNotify _notify;
         protected IReadOnlyCollection<IPAddress> _notifyNameServers;
+        protected AuthZoneUpdate _update;
+        protected IReadOnlyCollection<IPAddress> _updateIpAddresses;
+        protected List<DnsResourceRecord> _zoneHistory; //for IXFR support
+        protected IReadOnlyDictionary<string, object> _zoneTransferTsigKeyNames;
+        protected IReadOnlyDictionary<string, object> _updateTsigKeyNames;
         protected AuthZoneDnssecStatus _dnssecStatus;
 
         Timer _notifyTimer;
@@ -76,11 +90,23 @@ namespace DnsServerCore.Dns.Zones
             _zoneTransferNameServers = zoneInfo.ZoneTransferNameServers;
             _notify = zoneInfo.Notify;
             _notifyNameServers = zoneInfo.NotifyNameServers;
+            _update = zoneInfo.Update;
+            _updateIpAddresses = zoneInfo.UpdateIpAddresses;
+
+            if (zoneInfo.ZoneHistory is null)
+                _zoneHistory = new List<DnsResourceRecord>();
+            else
+                _zoneHistory = new List<DnsResourceRecord>(zoneInfo.ZoneHistory);
+
+            _zoneTransferTsigKeyNames = zoneInfo.ZoneTransferTsigKeyNames;
+            _updateTsigKeyNames = zoneInfo.UpdateTsigKeyNames;
         }
 
         protected ApexZone(string name)
             : base(name)
-        { }
+        {
+            _zoneHistory = new List<DnsResourceRecord>();
+        }
 
         #endregion
 
@@ -445,6 +471,14 @@ namespace DnsServerCore.Dns.Zones
 
         #region public
 
+        public IReadOnlyList<DnsResourceRecord> GetZoneHistory()
+        {
+            lock (_zoneHistory)
+            {
+                return _zoneHistory.ToArray();
+            }
+        }
+
         public void TriggerNotify()
         {
             if (_disabled)
@@ -598,6 +632,36 @@ namespace DnsServerCore.Dns.Zones
                     }
                 }
             }
+        }
+
+        public virtual AuthZoneUpdate Update
+        {
+            get { return _update; }
+            set { _update = value; }
+        }
+
+        public IReadOnlyCollection<IPAddress> UpdateIpAddresses
+        {
+            get { return _updateIpAddresses; }
+            set
+            {
+                if ((value is not null) && (value.Count > byte.MaxValue))
+                    throw new ArgumentOutOfRangeException(nameof(ZoneTransferNameServers), "IP addresses cannot be more than 255.");
+
+                _updateIpAddresses = value;
+            }
+        }
+
+        public IReadOnlyDictionary<string, object> ZoneTransferTsigKeyNames
+        {
+            get { return _zoneTransferTsigKeyNames; }
+            set { _zoneTransferTsigKeyNames = value; }
+        }
+
+        public IReadOnlyDictionary<string, object> UpdateTsigKeyNames
+        {
+            get { return _updateTsigKeyNames; }
+            set { _updateTsigKeyNames = value; }
         }
 
         public bool NotifyFailed
