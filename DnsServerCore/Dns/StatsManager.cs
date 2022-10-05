@@ -580,7 +580,7 @@ namespace DnsServerCore.Dns
             for (int minute = 0; minute < 60; minute++)
             {
                 DateTime lastDateTime = lastHourDateTime.AddMinutes(minute);
-                string label = lastDateTime.ToLocalTime().ToString("HH:mm");
+                string label = lastDateTime.AddMinutes(1).ToLocalTime().ToString("HH:mm");
 
                 StatCounter statCounter = _lastHourStatCountersCopy[lastDateTime.Minute];
                 if ((statCounter != null) && statCounter.IsLocked)
@@ -799,7 +799,7 @@ namespace DnsServerCore.Dns
             for (int hour = 0; hour < hours; hour++)
             {
                 DateTime lastDateTime = startDate.AddHours(hour);
-                string label = lastDateTime.ToLocalTime().ToString("MM/dd HH") + ":00";
+                string label = lastDateTime.AddHours(1).ToLocalTime().ToString("MM/dd HH") + ":00";
 
                 HourlyStats hourlyStats = LoadHourlyStats(lastDateTime);
                 StatCounter hourlyStatCounter = hourlyStats.HourStat;
