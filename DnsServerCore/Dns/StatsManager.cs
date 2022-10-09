@@ -556,7 +556,7 @@ namespace DnsServerCore.Dns
             _queue.Add(new StatsQueueItem(request, remoteEP, protocol, response));
         }
 
-        public Dictionary<string, List<KeyValuePair<string, long>>> GetLastHourMinuteWiseStats()
+        public Dictionary<string, List<KeyValuePair<string, long>>> GetLastHourMinuteWiseStats(bool utcFormat)
         {
             StatCounter totalStatCounter = new StatCounter();
             totalStatCounter.Lock();
@@ -580,7 +580,12 @@ namespace DnsServerCore.Dns
             for (int minute = 0; minute < 60; minute++)
             {
                 DateTime lastDateTime = lastHourDateTime.AddMinutes(minute);
-                string label = lastDateTime.AddMinutes(1).ToLocalTime().ToString("HH:mm");
+                string label;
+
+                if (utcFormat)
+                    label = lastDateTime.AddMinutes(1).ToString("O");
+                else
+                    label = lastDateTime.AddMinutes(1).ToLocalTime().ToString("HH:mm");
 
                 StatCounter statCounter = _lastHourStatCountersCopy[lastDateTime.Minute];
                 if ((statCounter != null) && statCounter.IsLocked)
@@ -659,22 +664,22 @@ namespace DnsServerCore.Dns
             return data;
         }
 
-        public Dictionary<string, List<KeyValuePair<string, long>>> GetLastDayHourWiseStats()
+        public Dictionary<string, List<KeyValuePair<string, long>>> GetLastDayHourWiseStats(bool utcFormat)
         {
-            return GetHourWiseStats(DateTime.UtcNow.AddHours(-24), 24);
+            return GetHourWiseStats(DateTime.UtcNow.AddHours(-24), 24, utcFormat);
         }
 
-        public Dictionary<string, List<KeyValuePair<string, long>>> GetLastWeekDayWiseStats()
+        public Dictionary<string, List<KeyValuePair<string, long>>> GetLastWeekDayWiseStats(bool utcFormat)
         {
-            return GetDayWiseStats(DateTime.UtcNow.AddDays(-7).Date, 7);
+            return GetDayWiseStats(DateTime.UtcNow.AddDays(-7).Date, 7, utcFormat);
         }
 
-        public Dictionary<string, List<KeyValuePair<string, long>>> GetLastMonthDayWiseStats()
+        public Dictionary<string, List<KeyValuePair<string, long>>> GetLastMonthDayWiseStats(bool utcFormat)
         {
-            return GetDayWiseStats(DateTime.UtcNow.AddDays(-31).Date, 31);
+            return GetDayWiseStats(DateTime.UtcNow.AddDays(-31).Date, 31, utcFormat);
         }
 
-        public Dictionary<string, List<KeyValuePair<string, long>>> GetLastYearMonthWiseStats()
+        public Dictionary<string, List<KeyValuePair<string, long>>> GetLastYearMonthWiseStats(bool utcFormat)
         {
             StatCounter totalStatCounter = new StatCounter();
             totalStatCounter.Lock();
@@ -701,7 +706,12 @@ namespace DnsServerCore.Dns
                 monthlyStatCounter.Lock();
 
                 DateTime lastMonthDateTime = lastYearDateTime.AddMonths(month);
-                string label = lastMonthDateTime.ToLocalTime().ToString("MM/yyyy");
+                string label;
+
+                if (utcFormat)
+                    label = lastMonthDateTime.ToString("O");
+                else
+                    label = lastMonthDateTime.ToLocalTime().ToString("MM/yyyy");
 
                 int days = DateTime.DaysInMonth(lastMonthDateTime.Year, lastMonthDateTime.Month);
 
@@ -769,16 +779,16 @@ namespace DnsServerCore.Dns
             return data;
         }
 
-        public Dictionary<string, List<KeyValuePair<string, long>>> GetHourWiseStats(DateTime startDate, DateTime endDate)
+        public Dictionary<string, List<KeyValuePair<string, long>>> GetHourWiseStats(DateTime startDate, DateTime endDate, bool utcFormat)
         {
             int hours = Convert.ToInt32((endDate - startDate).TotalHours) + 1;
             if (hours < 24)
                 hours = 24;
 
-            return GetHourWiseStats(startDate, hours);
+            return GetHourWiseStats(startDate, hours, utcFormat);
         }
 
-        public Dictionary<string, List<KeyValuePair<string, long>>> GetHourWiseStats(DateTime startDate, int hours)
+        public Dictionary<string, List<KeyValuePair<string, long>>> GetHourWiseStats(DateTime startDate, int hours, bool utcFormat)
         {
             StatCounter totalStatCounter = new StatCounter();
             totalStatCounter.Lock();
@@ -799,7 +809,12 @@ namespace DnsServerCore.Dns
             for (int hour = 0; hour < hours; hour++)
             {
                 DateTime lastDateTime = startDate.AddHours(hour);
-                string label = lastDateTime.AddHours(1).ToLocalTime().ToString("MM/dd HH") + ":00";
+                string label;
+
+                if (utcFormat)
+                    label = lastDateTime.AddHours(1).ToString("O");
+                else
+                    label = lastDateTime.AddHours(1).ToLocalTime().ToString("MM/dd HH") + ":00";
 
                 HourlyStats hourlyStats = LoadHourlyStats(lastDateTime);
                 StatCounter hourlyStatCounter = hourlyStats.HourStat;
@@ -862,12 +877,12 @@ namespace DnsServerCore.Dns
             return data;
         }
 
-        public Dictionary<string, List<KeyValuePair<string, long>>> GetDayWiseStats(DateTime startDate, DateTime endDate)
+        public Dictionary<string, List<KeyValuePair<string, long>>> GetDayWiseStats(DateTime startDate, DateTime endDate, bool utcFormat)
         {
-            return GetDayWiseStats(startDate, Convert.ToInt32((endDate - startDate).TotalDays) + 1);
+            return GetDayWiseStats(startDate, Convert.ToInt32((endDate - startDate).TotalDays) + 1, utcFormat);
         }
 
-        public Dictionary<string, List<KeyValuePair<string, long>>> GetDayWiseStats(DateTime startDate, int days)
+        public Dictionary<string, List<KeyValuePair<string, long>>> GetDayWiseStats(DateTime startDate, int days, bool utcFormat)
         {
             StatCounter totalStatCounter = new StatCounter();
             totalStatCounter.Lock();
@@ -888,7 +903,12 @@ namespace DnsServerCore.Dns
             for (int day = 0; day < days; day++) //days
             {
                 DateTime lastDayDateTime = startDate.AddDays(day);
-                string label = lastDayDateTime.ToLocalTime().ToString("MM/dd");
+                string label;
+
+                if (utcFormat)
+                    label = lastDayDateTime.ToString("O");
+                else
+                    label = lastDayDateTime.ToLocalTime().ToString("MM/dd");
 
                 StatCounter dailyStatCounter = LoadDailyStats(lastDayDateTime);
                 totalStatCounter.Merge(dailyStatCounter, true);
