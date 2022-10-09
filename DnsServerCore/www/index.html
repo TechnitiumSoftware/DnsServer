@@ -300,6 +300,7 @@
                                                             <tr>
                                                                 <th>Domain</th>
                                                                 <th>Hits</th>
+                                                                <th style="width: 36px;"></th>
                                                             </tr>
                                                         </thead>
                                                         <tbody id="tableTopDomains">
@@ -320,6 +321,7 @@
                                                             <tr>
                                                                 <th>Domain</th>
                                                                 <th>Hits</th>
+                                                                <th style="width: 36px;"></th>
                                                             </tr>
                                                         </thead>
                                                         <tbody id="tableTopBlockedDomains">
@@ -377,7 +379,7 @@
                                                 <span id="titleEditZoneExpiry" style="font-size: 10px; font-weight: bold;">Expiry: 01 Jan 2020 00:00:00</span>
                                             </div>
                                             <div style="float: right; padding: 2px 0px;">
-                                                <button id="btnEditZoneAddRecord" type="button" class="btn btn-primary" style="padding: 2px 0px; width: 100px;" onclick="showAddRecordModal(this);" data-loading-text="Loading...">Add Record</button>
+                                                <button id="btnEditZoneAddRecord" type="button" class="btn btn-primary" style="padding: 2px 0px; width: 100px;" onclick="showAddRecordModal();">Add Record</button>
                                                 <button id="btnEnableZoneEditZone" type="button" class="btn btn-default" style="padding: 2px 0px; width: 100px;" onclick="enableZone(this);">Enable Zone</button>
                                                 <button id="btnDisableZoneEditZone" type="button" class="btn btn-warning" style="padding: 2px 0px; width: 100px;" onclick="disableZone(this);">Disable Zone</button>
                                                 <button id="btnEditZoneDeleteZone" type="button" class="btn btn-danger" style="padding: 2px 0px; width: 100px;" onclick="deleteZone(this);">Delete Zone</button>
@@ -2928,7 +2930,7 @@ ns1.example.com ([2001:db8::])
                             <div class="form-group">
                                 <label for="optAddEditRecordType" class="col-sm-4 control-label">Type</label>
                                 <div class="col-sm-7">
-                                    <select id="optAddEditRecordType" class="form-control" onchange="modifyAddRecordFormByType();" style="width: auto;">
+                                    <select id="optAddEditRecordType" class="form-control" onchange="modifyAddRecordFormByType(true);" style="width: auto;">
                                         <option>A</option>
                                         <option>NS</option>
                                         <option id="optEditRecordTypeSoa">SOA</option>
@@ -3523,7 +3525,7 @@ ns1.example.com ([2001:db8::])
                                                         <input type="radio" name="rdDynamicUpdate" id="rdDynamicUpdateAllowOnlyZoneNameServers" value="AllowOnlyZoneNameServers">
                                                         Allow Only Name Servers In Zone
                                                     </label>
-                                                    <div style="padding-top: 5px; padding-left: 20px;">Allows only the name servers with an NS record in the zone to perform dynamic updates. Those name servers will have to be configured separately for accepting dynamic update requests for the zone.</div>
+                                                    <div style="padding-top: 5px; padding-left: 20px;">Allows only the name servers with an NS record in the zone to perform dynamic updates. Those name servers may have to be configured separately for accepting dynamic update requests for the zone.</div>
                                                 </div>
                                                 <div class="radio">
                                                     <label>
@@ -3564,7 +3566,7 @@ ns1.example.com ([2001:db8::])
                                             </div>
                                         </div>
 
-                                        <div>Note! TSIG key names must be configured from the Settings before using them here. Entering one or more TSIG key names above will cause the DNS server to authenticate all dynamic update requests.</div>
+                                        <div>Note! TSIG key names must be configured from the Settings before using them here. Entering one or more TSIG key names above will cause the DNS server to authenticate all dynamic update requests. Both primary and secondary zones must be configured to use the same dynamic update TSIG keys to allow dynamic updates via secondary zones.</div>
                                     </div>
                                 </div>
                             </div>
@@ -4405,12 +4407,13 @@ ns1.example.com ([2001:db8::])
                                 <tr>
                                     <th>Domain</th>
                                     <th>Hits</th>
+                                    <th style="width: 36px;"></th>
                                 </tr>
                             </thead>
                             <tbody id="tbodyTopStatsDomains">
                             </tbody>
                             <tfoot>
-                                <tr><th colspan="2" id="tfootTopStatsDomains"></th></tr>
+                                <tr><th colspan="3" id="tfootTopStatsDomains"></th></tr>
                             </tfoot>
                         </table>
 
@@ -4419,12 +4422,13 @@ ns1.example.com ([2001:db8::])
                                 <tr>
                                     <th>Domain</th>
                                     <th>Hits</th>
+                                    <th style="width: 36px;"></th>
                                 </tr>
                             </thead>
                             <tbody id="tbodyTopStatsBlockedDomains">
                             </tbody>
                             <tfoot>
-                                <tr><th colspan="2" id="tfootTopStatsBlockedDomains"></th></tr>
+                                <tr><th colspan="3" id="tfootTopStatsBlockedDomains"></th></tr>
                             </tfoot>
                         </table>
                     </div>
