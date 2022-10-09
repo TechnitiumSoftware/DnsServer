@@ -41,6 +41,7 @@ Be it a home network or an organization's network, having a locally running DNS 
 - Static stub zone support implemented in Conditional Forwarder zone to force a domain name to resolve via given name servers using NS records.
 - DNSSEC signed zones support with RSA & ECDSA algorithms.
 - Zone transfer over TLS (XFR-over-TLS) [draft-ietf-dprive-xfr-over-tls](https://datatracker.ietf.org/doc/draft-ietf-dprive-xfr-over-tls/) support.
+- Dynamic DNS Updates [RFC 2136](https://www.rfc-editor.org/rfc/rfc2136) support.
 - Secret key transaction authentication (TSIG) [RFC 8945](https://datatracker.ietf.org/doc/html/rfc8945) support for zone transfers.
 - EDNS(0) [RFC6891](https://datatracker.ietf.org/doc/html/rfc6891) support.
 - Extended DNS Errors [RFC 8914](https://datatracker.ietf.org/doc/html/rfc8914) support.
@@ -60,7 +61,6 @@ Be it a home network or an organization's network, having a locally running DNS 
 
 # Planned Features
 - Clustering support to manage two or more DNS servers.
-- Dynamic DNS updates.
 
 # Installation
 - **Windows**: [Download setup installer](https://download.technitium.com/dns/DnsServerSetup.zip) for easy installation.
