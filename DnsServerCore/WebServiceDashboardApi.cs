@@ -134,28 +134,41 @@ namespace DnsServerCore
             if (string.IsNullOrEmpty(strType))
                 strType = "lastHour";
 
+            bool utcFormat;
+            string strUtcFormat = request.QueryString["utc"];
+            if (string.IsNullOrEmpty(strUtcFormat))
+                utcFormat = false;
+            else
+                utcFormat = bool.Parse(strUtcFormat);
+
             Dictionary<string, List<KeyValuePair<string, long>>> data;
+            string labelFormat;
 
             switch (strType)
             {
                 case "lastHour":
-                    data = _dnsWebService.DnsServer.StatsManager.GetLastHourMinuteWiseStats();
+                    data = _dnsWebService.DnsServer.StatsManager.GetLastHourMinuteWiseStats(utcFormat);
+                    labelFormat = "HH:mm";
                     break;
 
                 case "lastDay":
-                    data = _dnsWebService.DnsServer.StatsManager.GetLastDayHourWiseStats();
+                    data = _dnsWebService.DnsServer.StatsManager.GetLastDayHourWiseStats(utcFormat);
+                    labelFormat = "MM/DD HH:00";
                     break;
 
                 case "lastWeek":
-                    data = _dnsWebService.DnsServer.StatsManager.GetLastWeekDayWiseStats();
+                    data = _dnsWebService.DnsServer.StatsManager.GetLastWeekDayWiseStats(utcFormat);
+                    labelFormat = "MM/DD";
                     break;
 
                 case "lastMonth":
-                    data = _dnsWebService.DnsServer.StatsManager.GetLastMonthDayWiseStats();
+                    data = _dnsWebService.DnsServer.StatsManager.GetLastMonthDayWiseStats(utcFormat);
+                    labelFormat = "MM/DD";
                     break;
 
                 case "lastYear":
-                    data = _dnsWebService.DnsServer.StatsManager.GetLastYearMonthWiseStats();
+                    labelFormat = "MM/YYYY";
+                    data = _dnsWebService.DnsServer.StatsManager.GetLastYearMonthWiseStats(utcFormat);
                     break;
 
                 case "custom":
@@ -177,9 +190,15 @@ namespace DnsServerCore
                         throw new DnsWebServiceException("Start date must be less than or equal to end date.");
 
                     if ((Convert.ToInt32((endDate - startDate).TotalDays) + 1) > 7)
-                        data = _dnsWebService.DnsServer.StatsManager.GetDayWiseStats(startDate, endDate);
+                    {
+                        data = _dnsWebService.DnsServer.StatsManager.GetDayWiseStats(startDate, endDate, utcFormat);
+                        labelFormat = "MM/DD";
+                    }
                     else
-                        data = _dnsWebService.DnsServer.StatsManager.GetHourWiseStats(startDate, endDate);
+                    {
+                        data = _dnsWebService.DnsServer.StatsManager.GetHourWiseStats(startDate, endDate, utcFormat);
+                        labelFormat = "MM/DD HH:00";
+                    }
 
                     break;
 
@@ -222,6 +241,12 @@ namespace DnsServerCore
             {
                 jsonWriter.WritePropertyName("mainChartData");
                 jsonWriter.WriteStartObject();
+
+                //label format
+                {
+                    jsonWriter.WritePropertyName("labelFormat");
+                    jsonWriter.WriteValue(labelFormat);
+                }
 
                 //label
                 {
