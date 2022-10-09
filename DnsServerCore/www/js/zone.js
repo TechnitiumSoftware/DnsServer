@@ -36,6 +36,8 @@ $(function () {
                 $("#divAddZonePrimaryNameServerAddresses").show();
                 $("#divAddZoneZoneTransferProtocol").show();
                 $("#divAddZoneTsigKeyName").show();
+
+                loadTsigKeyNames($("#optAddZoneTsigKeyName"), null, $("#divAddZoneAlert"));
                 break;
 
             case "Stub":
@@ -1050,6 +1052,48 @@ function showAddZoneModal() {
     }, 1000);
 }
 
+function loadTsigKeyNames(jqDropDown, currentValue, divAlertPlaceholder) {
+    jqDropDown.prop("disabled", true);
+
+    if (currentValue == null)
+        currentValue = "";
+
+    if (currentValue.length == 0) {
+        jqDropDown.html("<option selected></option>");
+    }
+    else {
+        jqDropDown.html("<option></option><option selected>" + htmlEncode(currentValue) + "</option>");
+        jqDropDown.val(currentValue);
+    }
+
+    HTTPRequest({
+        url: "/api/settings/getTsigKeyNames?token=" + sessionData.token,
+        success: function (responseJSON) {
+            var optionsHtml;
+
+            if (currentValue.length == 0)
+                optionsHtml = "<option selected></option>";
+            else
+                optionsHtml = "<option></option>";
+
+            for (var i = 0; i < responseJSON.response.tsigKeyNames.length; i++) {
+                optionsHtml += "<option" + (responseJSON.response.tsigKeyNames[i] === currentValue ? " selected" : "") + ">" + htmlEncode(responseJSON.response.tsigKeyNames[i]) + "</option>";
+            }
+
+            jqDropDown.html(optionsHtml);
+            jqDropDown.prop("disabled", false);
+        },
+        error: function () {
+            jqDropDown.prop("disabled", false);
+        },
+        invalidToken: function () {
+            jqDropDown.prop("disabled", false);
+            showPageLogin();
+        },
+        objAlertPlaceholder: divAlertPlaceholder
+    });
+}
+
 function updateAddZoneFormForwarderThisServer() {
     var useThisServer = $("#chkAddZoneForwarderThisServer").prop('checked');
 
@@ -2025,36 +2069,7 @@ function clearAddEditForm() {
     $("#btnAddEditRecord").button("reset");
 }
 
-function showAddRecordModal(objBtn) {
-    var zoneType = $("#titleEditZoneType").text();
-    if ((zoneType === "Primary") || (zoneType === "Forwarder")) {
-        var btn = $(objBtn);
-
-        btn.button('loading');
-
-        HTTPRequest({
-            url: "/api/apps/list?token=" + sessionData.token,
-            success: function (responseJSON) {
-                btn.button('reset');
-
-                showAddRecordModalNow(responseJSON.response.apps);
-            },
-            error: function () {
-                btn.button('reset');
-            },
-            invalidToken: function () {
-                showPageLogin();
-            }
-        });
-    }
-    else {
-        showAddRecordModalNow(null);
-    }
-}
-
-var appsList;
-
-function showAddRecordModalNow(apps) {
+function showAddRecordModal() {
     var zone = $("#titleEditZone").attr("data-zone");
 
     clearAddEditForm();
@@ -2064,25 +2079,6 @@ function showAddRecordModalNow(apps) {
     $("#optEditRecordTypeSoa").hide();
     $("#btnAddEditRecord").attr("onclick", "addRecord(); return false;");
 
-    appsList = apps;
-    if (apps != null) {
-        var optApps = "<option></option>";
-        var optClassPaths = "<option></option>";
-
-        for (var i = 0; i < apps.length; i++) {
-            for (var j = 0; j < apps[i].dnsApps.length; j++) {
-                if (apps[i].dnsApps[j].isAppRecordRequestHandler) {
-                    optApps += "<option>" + apps[i].name + "</option>";
-                    break;
-                }
-            }
-        }
-
-        $("#optAddEditRecordDataAppName").html(optApps);
-        $("#optAddEditRecordDataClassPath").html(optClassPaths);
-        $("#txtAddEditRecordDataData").val("");
-    }
-
     $("#modalAddEditRecord").modal("show");
 
     setTimeout(function () {
@@ -2090,7 +2086,54 @@ function showAddRecordModalNow(apps) {
     }, 1000);
 }
 
-function modifyAddRecordFormByType() {
+var appsList;
+
+function loadAddRecordModalAppNames() {
+    var optAddEditRecordDataAppName = $("#optAddEditRecordDataAppName");
+    var optAddEditRecordDataClassPath = $("#optAddEditRecordDataClassPath");
+    var txtAddEditRecordDataData = $("#txtAddEditRecordDataData");
+    var divAddEditRecordAlert = $("#divAddEditRecordAlert");
+
+    optAddEditRecordDataAppName.prop("disabled", true);
+    optAddEditRecordDataClassPath.prop("disabled", true);
+    txtAddEditRecordDataData.prop("disabled", true);
+
+    optAddEditRecordDataAppName.html("");
+    optAddEditRecordDataClassPath.html("");
+    txtAddEditRecordDataData.val("");
+
+    HTTPRequest({
+        url: "/api/apps/list?token=" + sessionData.token,
+        success: function (responseJSON) {
+            appsList = responseJSON.response.apps;
+
+            var optApps = "<option></option>";
+            var optClassPaths = "<option></option>";
+
+            for (var i = 0; i < appsList.length; i++) {
+                for (var j = 0; j < appsList[i].dnsApps.length; j++) {
+                    if (appsList[i].dnsApps[j].isAppRecordRequestHandler) {
+                        optApps += "<option>" + appsList[i].name + "</option>";
+                        break;
+                    }
+                }
+            }
+
+            $("#optAddEditRecordDataAppName").html(optApps);
+            $("#optAddEditRecordDataClassPath").html(optClassPaths);
+
+            optAddEditRecordDataAppName.prop("disabled", false);
+            optAddEditRecordDataClassPath.prop("disabled", false);
+            txtAddEditRecordDataData.prop("disabled", false);
+        },
+        invalidToken: function () {
+            showPageLogin();
+        },
+        objAlertPlaceholder: divAddEditRecordAlert
+    });
+}
+
+function modifyAddRecordFormByType(addMode) {
     $("#divAddEditRecordAlert").html("");
 
     $("#txtAddEditRecordName").prop("placeholder", "@");
@@ -2223,6 +2266,10 @@ function modifyAddRecordFormByType() {
             $("#optAddEditRecordDataClassPath").val("");
             $("#txtAddEditRecordDataData").val("");
             $("#divAddEditRecordDataApplication").show();
+
+            if (addMode)
+                loadAddRecordModalAppNames();
+
             break;
     }
 }
@@ -2533,6 +2580,12 @@ function addRecord() {
                 var id = Math.floor(Math.random() * 1000000);
                 var tableHtmlRow = getZoneRecordRowHtml(id, zone, zoneType, responseJSON.response.addedRecord);
                 $("#tableEditZoneBody").prepend(tableHtmlRow);
+
+                var recordCount = $('#tableEditZone >tbody >tr').length;
+                if (recordCount > 0)
+                    $("#tableEditZoneFooter").html("<tr><td colspan=\"5\"><b>Total Records: " + recordCount + "</b></td></tr>");
+                else
+                    $("#tableEditZoneFooter").html("<tr><td colspan=\"5\" align=\"center\">No Records Found</td></tr>");
             }
 
             showAlert("success", "Record Added!", "Resource record was added successfully.");
@@ -2621,7 +2674,7 @@ function showEditRecordModal(objBtn) {
     $("#optEditRecordTypeSoa").show();
     $("#optAddEditRecordType").val(type);
     $("#divAddEditRecordOverwrite").hide();
-    modifyAddRecordFormByType();
+    modifyAddRecordFormByType(false);
 
     $("#txtAddEditRecordName").val(name);
     $("#txtAddEditRecordTtl").val(ttl)
@@ -2700,8 +2753,6 @@ function showEditRecordModal(objBtn) {
                     break;
             }
 
-            $("#optEditRecordDataSoaTsigKeyName").val(divData.attr("data-record-tsigkeyname"));
-
             $("#txtAddEditRecordName").prop("disabled", true);
 
             if (disableSoaRecordModalFields) {
@@ -2728,6 +2779,8 @@ function showEditRecordModal(objBtn) {
             } else {
                 $("#divEditRecordDataSoaZoneTransferProtocol").show();
                 $("#divEditRecordDataSoaTsigKeyName").show();
+
+                loadTsigKeyNames($("#optEditRecordDataSoaTsigKeyName"), divData.attr("data-record-tsigkeyname"), $("#divAddEditRecordAlert"));
             }
 
             break;
