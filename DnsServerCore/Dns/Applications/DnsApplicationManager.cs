@@ -85,7 +85,7 @@ namespace DnsServerCore.Dns.Applications
 
         #region private
 
-        private async Task LoadApplicationAsync(string applicationFolder, bool refreshAppObjectList)
+        private async Task<DnsApplication> LoadApplicationAsync(string applicationFolder, bool refreshAppObjectList)
         {
             string applicationName = Path.GetFileName(applicationFolder);
 
@@ -101,6 +101,8 @@ namespace DnsServerCore.Dns.Applications
 
             if (refreshAppObjectList)
                 RefreshAppObjectLists();
+
+            return application;
         }
 
         private void UnloadApplication(string applicationName)
@@ -172,7 +174,7 @@ namespace DnsServerCore.Dns.Applications
                 {
                     try
                     {
-                        await LoadApplicationAsync(applicationFolder, false);
+                        _ = await LoadApplicationAsync(applicationFolder, false);
                         RefreshAppObjectLists();
 
                         LogManager log = _dnsServer.LogManager;
@@ -189,7 +191,7 @@ namespace DnsServerCore.Dns.Applications
             }
         }
 
-        public async Task InstallApplicationAsync(string applicationName, Stream appStream)
+        public async Task<DnsApplication> InstallApplicationAsync(string applicationName, Stream appStream)
         {
             foreach (char invalidChar in Path.GetInvalidFileNameChars())
             {
@@ -211,7 +213,7 @@ namespace DnsServerCore.Dns.Applications
                 {
                     appZip.ExtractToDirectory(applicationFolder, true);
 
-                    await LoadApplicationAsync(applicationFolder, true);
+                    return await LoadApplicationAsync(applicationFolder, true);
                 }
                 catch
                 {
@@ -223,7 +225,7 @@ namespace DnsServerCore.Dns.Applications
             }
         }
 
-        public async Task UpdateApplicationAsync(string applicationName, Stream appStream)
+        public async Task<DnsApplication> UpdateApplicationAsync(string applicationName, Stream appStream)
         {
             if (!_applications.ContainsKey(applicationName))
                 throw new DnsServerException("DNS application does not exists: " + applicationName);
@@ -251,7 +253,7 @@ namespace DnsServerCore.Dns.Applications
                     entry.ExtractToFile(filePath, true);
                 }
 
-                await LoadApplicationAsync(applicationFolder, true);
+                return await LoadApplicationAsync(applicationFolder, true);
             }
         }
 
