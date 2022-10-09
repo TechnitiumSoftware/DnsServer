@@ -783,9 +783,11 @@ namespace DnsServerCore
                                                 return;
 
                                             case "/api/apps/list":
-                                                if (_authManager.IsPermitted(PermissionSection.Apps, session.User, PermissionFlag.View) ||
+                                                if (
+                                                    _authManager.IsPermitted(PermissionSection.Apps, session.User, PermissionFlag.View) ||
                                                     _authManager.IsPermitted(PermissionSection.Zones, session.User, PermissionFlag.View) ||
-                                                    _authManager.IsPermitted(PermissionSection.Logs, session.User, PermissionFlag.View))
+                                                    _authManager.IsPermitted(PermissionSection.Logs, session.User, PermissionFlag.View)
+                                                   )
                                                 {
                                                     await _appsApi.ListInstalledAppsAsync(jsonWriter);
                                                 }
@@ -807,28 +809,28 @@ namespace DnsServerCore
                                                 if (!_authManager.IsPermitted(PermissionSection.Apps, session.User, PermissionFlag.Delete))
                                                     throw new DnsWebServiceException("Access was denied.");
 
-                                                await _appsApi.DownloadAndInstallAppAsync(request);
+                                                await _appsApi.DownloadAndInstallAppAsync(request, jsonWriter);
                                                 break;
 
                                             case "/api/apps/downloadAndUpdate":
                                                 if (!_authManager.IsPermitted(PermissionSection.Apps, session.User, PermissionFlag.Delete))
                                                     throw new DnsWebServiceException("Access was denied.");
 
-                                                await _appsApi.DownloadAndUpdateAppAsync(request);
+                                                await _appsApi.DownloadAndUpdateAppAsync(request, jsonWriter);
                                                 break;
 
                                             case "/api/apps/install":
                                                 if (!_authManager.IsPermitted(PermissionSection.Apps, session.User, PermissionFlag.Delete))
                                                     throw new DnsWebServiceException("Access was denied.");
 
-                                                await _appsApi.InstallAppAsync(request);
+                                                await _appsApi.InstallAppAsync(request, jsonWriter);
                                                 break;
 
                                             case "/api/apps/update":
                                                 if (!_authManager.IsPermitted(PermissionSection.Apps, session.User, PermissionFlag.Delete))
                                                     throw new DnsWebServiceException("Access was denied.");
 
-                                                await _appsApi.UpdateAppAsync(request);
+                                                await _appsApi.UpdateAppAsync(request, jsonWriter);
                                                 break;
 
                                             case "/api/apps/uninstall":
@@ -876,6 +878,21 @@ namespace DnsServerCore
                                                     throw new DnsWebServiceException("Access was denied.");
 
                                                 SetDnsSettings(request, jsonWriter);
+                                                break;
+
+                                            case "/api/settings/getTsigKeyNames":
+                                                if (
+                                                    _authManager.IsPermitted(PermissionSection.Settings, session.User, PermissionFlag.View) ||
+                                                    _authManager.IsPermitted(PermissionSection.Zones, session.User, PermissionFlag.Modify)
+                                                   )
+                                                {
+                                                    GetTsigKeyNames(jsonWriter);
+                                                }
+                                                else
+                                                {
+                                                    throw new DnsWebServiceException("Access was denied.");
+                                                }
+
                                                 break;
 
                                             case "/api/settings/forceUpdateBlockLists":
@@ -2592,6 +2609,22 @@ namespace DnsServerCore
             GetDnsSettings(jsonWriter);
 
             RestartService(restartDnsService, restartWebService);
+        }
+
+        private void GetTsigKeyNames(JsonTextWriter jsonWriter)
+        {
+            jsonWriter.WritePropertyName("tsigKeyNames");
+            {
+                jsonWriter.WriteStartArray();
+
+                if (_dnsServer.TsigKeys is not null)
+                {
+                    foreach (KeyValuePair<string, TsigKey> tsigKey in _dnsServer.TsigKeys)
+                        jsonWriter.WriteValue(tsigKey.Key);
+                }
+
+                jsonWriter.WriteEndArray();
+            }
         }
 
         private void SelfSignedCertCheck(bool generateNew, bool throwException)
