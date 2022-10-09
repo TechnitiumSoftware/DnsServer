@@ -782,8 +782,6 @@ function loadDnsSettings() {
                 for (var i = 0; i < responseJSON.response.tsigKeys.length; i++) {
                     addTsigKeyRow(responseJSON.response.tsigKeys[i].keyName, responseJSON.response.tsigKeys[i].sharedSecret, responseJSON.response.tsigKeys[i].algorithmName);
                 }
-
-                updateTsigKeyNamesDropdowns(responseJSON.response.tsigKeys);
             }
 
             $("#txtDefaultRecordTtl").val(responseJSON.response.defaultRecordTtl);
@@ -1402,8 +1400,6 @@ function saveDnsSettings() {
                 for (var i = 0; i < responseJSON.response.tsigKeys.length; i++) {
                     addTsigKeyRow(responseJSON.response.tsigKeys[i].keyName, responseJSON.response.tsigKeys[i].sharedSecret, responseJSON.response.tsigKeys[i].algorithmName);
                 }
-
-                updateTsigKeyNamesDropdowns(responseJSON.response.tsigKeys);
             }
 
             //fix custom block list url in case port changes
@@ -1481,17 +1477,6 @@ function addTsigKeyRow(keyName, sharedSecret, algorithmName) {
     tableHtmlRows += "<td><button type=\"button\" class=\"btn btn-danger\" onclick=\"$('#tableTsigKeyRow" + id + "').remove();\">Delete</button></td></tr>";
 
     $("#tableTsigKeys").append(tableHtmlRows);
-}
-
-function updateTsigKeyNamesDropdowns(tsigKeys) {
-    var optionsHtml = "<option selected></option>";
-
-    for (var i = 0; i < tsigKeys.length; i++) {
-        optionsHtml += "<option>" + htmlEncode(tsigKeys[i].keyName) + "</option>";
-    }
-
-    $("#optAddZoneTsigKeyName").html(optionsHtml);
-    $("#optEditRecordDataSoaTsigKeyName").html(optionsHtml);
 }
 
 function checkForReverseProxy(responseJSON) {
@@ -1721,7 +1706,7 @@ function refreshDashboard(hideLoader) {
     }
 
     HTTPRequest({
-        url: "/api/dashboard/stats/get?token=" + sessionData.token + "&type=" + type + custom,
+        url: "/api/dashboard/stats/get?token=" + sessionData.token + "&type=" + type +"&utc=true" + custom,
         success: function (responseJSON) {
 
             //stats
@@ -1768,6 +1753,12 @@ function refreshDashboard(hideLoader) {
             }
 
             //main chart
+
+            //fix labels
+            for (var i = 0; i < responseJSON.response.mainChartData.labels.length; i++) {
+                responseJSON.response.mainChartData.labels[i] = moment(responseJSON.response.mainChartData.labels[i]).local().format(responseJSON.response.mainChartData.labelFormat);
+            }
+
             if (window.chartDashboardMain == null) {
                 var contextDashboardMain = document.getElementById("canvasDashboardMain").getContext('2d');
 
@@ -1864,13 +1855,16 @@ function refreshDashboard(hideLoader) {
                 var topDomains = responseJSON.response.topDomains;
 
                 if (topDomains.length < 1) {
-                    tableHtmlRows = "<tr><td colspan=\"2\" align=\"center\">No Data</td></tr>";
+                    tableHtmlRows = "<tr><td colspan=\"3\" align=\"center\">No Data</td></tr>";
                 }
                 else {
                     tableHtmlRows = "";
 
                     for (var i = 0; i < topDomains.length; i++) {
-                        tableHtmlRows += "<tr><td style=\"word-wrap: anywhere;\">" + htmlEncode(topDomains[i].name == "" ? "." : topDomains[i].name) + "</td><td>" + topDomains[i].hits.toLocaleString() + "</td></tr>";
+                        tableHtmlRows += "<tr><td style=\"word-wrap: anywhere;\">" + htmlEncode(topDomains[i].name == "" ? "." : topDomains[i].name) + "</td><td>" + topDomains[i].hits.toLocaleString();
+                        tableHtmlRows += "</td><td align=\"right\"><div class=\"dropdown\"><a href=\"#\" id=\"btnDashboardTopDomainsRowOption" + i + "\" class=\"dropdown-toggle\" data-toggle=\"dropdown\" aria-haspopup=\"true\" aria-expanded=\"true\"><span class=\"glyphicon glyphicon-option-vertical\" aria-hidden=\"true\"></span></a><ul class=\"dropdown-menu dropdown-menu-right\">";
+                        tableHtmlRows += "<li><a href=\"#\" data-id=\"" + i + "\" data-domain=\"" + htmlEncode(topDomains[i].name) + "\" onclick=\"blockDomain(this, 'btnDashboardTopDomainsRowOption'); return false;\">Block Domain</a></li>";
+                        tableHtmlRows += "</ul></div></td></tr>";
                     }
                 }
 
@@ -1883,13 +1877,16 @@ function refreshDashboard(hideLoader) {
                 var topBlockedDomains = responseJSON.response.topBlockedDomains;
 
                 if (topBlockedDomains.length < 1) {
-                    tableHtmlRows = "<tr><td colspan=\"2\" align=\"center\">No Data</td></tr>";
+                    tableHtmlRows = "<tr><td colspan=\"3\" align=\"center\">No Data</td></tr>";
                 }
                 else {
                     tableHtmlRows = "";
 
                     for (var i = 0; i < topBlockedDomains.length; i++) {
-                        tableHtmlRows += "<tr><td style=\"word-wrap: anywhere;\">" + htmlEncode(topBlockedDomains[i].name == "" ? "." : topBlockedDomains[i].name) + "</td><td>" + topBlockedDomains[i].hits.toLocaleString() + "</td></tr>";
+                        tableHtmlRows += "<tr><td style=\"word-wrap: anywhere;\">" + htmlEncode(topBlockedDomains[i].name == "" ? "." : topBlockedDomains[i].name) + "</td><td>" + topBlockedDomains[i].hits.toLocaleString();
+                        tableHtmlRows += "</td><td align=\"right\"><div class=\"dropdown\"><a href=\"#\" id=\"btnDashboardTopBlockedDomainsRowOption" + i + "\" class=\"dropdown-toggle\" data-toggle=\"dropdown\" aria-haspopup=\"true\" aria-expanded=\"true\"><span class=\"glyphicon glyphicon-option-vertical\" aria-hidden=\"true\"></span></a><ul class=\"dropdown-menu dropdown-menu-right\">";
+                        tableHtmlRows += "<li><a href=\"#\" data-id=\"" + i + "\" data-domain=\"" + htmlEncode(topBlockedDomains[i].name) + "\" onclick=\"allowDomain(this, 'btnDashboardTopBlockedDomainsRowOption'); return false;\">Allow Domain</a></li>";
+                        tableHtmlRows += "</ul></div></td></tr>";
                     }
                 }
 
@@ -1989,13 +1986,16 @@ function showTopStats(statsType, limit) {
                 var topDomains = responseJSON.response.topDomains;
 
                 if (topDomains.length < 1) {
-                    tableHtmlRows = "<tr><td colspan=\"2\" align=\"center\">No Data</td></tr>";
+                    tableHtmlRows = "<tr><td colspan=\"3\" align=\"center\">No Data</td></tr>";
                 }
                 else {
                     tableHtmlRows = "";
 
                     for (var i = 0; i < topDomains.length; i++) {
-                        tableHtmlRows += "<tr><td style=\"word-wrap: anywhere;\">" + htmlEncode(topDomains[i].name == "" ? "." : topDomains[i].name) + "</td><td>" + topDomains[i].hits.toLocaleString() + "</td></tr>";
+                        tableHtmlRows += "<tr><td style=\"word-wrap: anywhere;\">" + htmlEncode(topDomains[i].name == "" ? "." : topDomains[i].name) + "</td><td>" + topDomains[i].hits.toLocaleString();
+                        tableHtmlRows += "</td><td align=\"right\"><div class=\"dropdown\"><a href=\"#\" id=\"btnDashboardTopStatsDomainsRowOption" + i + "\" class=\"dropdown-toggle\" data-toggle=\"dropdown\" aria-haspopup=\"true\" aria-expanded=\"true\"><span class=\"glyphicon glyphicon-option-vertical\" aria-hidden=\"true\"></span></a><ul class=\"dropdown-menu dropdown-menu-right\">";
+                        tableHtmlRows += "<li><a href=\"#\" data-id=\"" + i + "\" data-domain=\"" + htmlEncode(topDomains[i].name) + "\" onclick=\"blockDomain(this, 'btnDashboardTopStatsDomainsRowOption', 'divTopStatsAlert'); return false;\">Block Domain</a></li>";
+                        tableHtmlRows += "</ul></div></td></tr>";
                     }
                 }
 
@@ -2013,13 +2013,16 @@ function showTopStats(statsType, limit) {
                 var topBlockedDomains = responseJSON.response.topBlockedDomains;
 
                 if (topBlockedDomains.length < 1) {
-                    tableHtmlRows = "<tr><td colspan=\"2\" align=\"center\">No Data</td></tr>";
+                    tableHtmlRows = "<tr><td colspan=\"3\" align=\"center\">No Data</td></tr>";
                 }
                 else {
                     tableHtmlRows = "";
 
                     for (var i = 0; i < topBlockedDomains.length; i++) {
-                        tableHtmlRows += "<tr><td style=\"word-wrap: anywhere;\">" + htmlEncode(topBlockedDomains[i].name == "" ? "." : topBlockedDomains[i].name) + "</td><td>" + topBlockedDomains[i].hits.toLocaleString() + "</td></tr>";
+                        tableHtmlRows += "<tr><td style=\"word-wrap: anywhere;\">" + htmlEncode(topBlockedDomains[i].name == "" ? "." : topBlockedDomains[i].name) + "</td><td>" + topBlockedDomains[i].hits.toLocaleString();
+                        tableHtmlRows += "</td><td align=\"right\"><div class=\"dropdown\"><a href=\"#\" id=\"btnDashboardTopStatsBlockedDomainsRowOption" + i + "\" class=\"dropdown-toggle\" data-toggle=\"dropdown\" aria-haspopup=\"true\" aria-expanded=\"true\"><span class=\"glyphicon glyphicon-option-vertical\" aria-hidden=\"true\"></span></a><ul class=\"dropdown-menu dropdown-menu-right\">";
+                        tableHtmlRows += "<li><a href=\"#\" data-id=\"" + i + "\" data-domain=\"" + htmlEncode(topBlockedDomains[i].name) + "\" onclick=\"allowDomain(this, 'btnDashboardTopStatsBlockedDomainsRowOption', 'divTopStatsAlert'); return false;\">Allow Domain</a></li>";
+                        tableHtmlRows += "</ul></div></td></tr>";
                     }
                 }
 
