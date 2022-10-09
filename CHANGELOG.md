@@ -1,5 +1,13 @@
 # Technitium DNS Server Change Log
 
+## Version 9.1
+Release Date: 9 October 2022
+
+- Added Dynamic Updates [RFC 2136](https://www.rfc-editor.org/rfc/rfc2136) support. This allows using tools like `nsupdate`, allow 3rd party DHCP servers to update DNS records, and use certbot [certbot-dns-rfc2136](https://certbot-dns-rfc2136.readthedocs.io/en/stable/) plugin for automatic TLS certificate renewal using DNS challenge.
+- Updated dashboard to display main chart using client's local time instead of server's local time.
+- Fixed bug that caused error while adding new secondary zone.
+- Multiple other minor bug fixes and improvements.
+
 ## Version 9.0
 Release Date: 24 September 2022
 
