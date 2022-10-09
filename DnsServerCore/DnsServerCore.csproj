@@ -273,7 +273,7 @@
 		<RepositoryType></RepositoryType>
 		<Description></Description>
 		<PackageId>DnsServer</PackageId>
-		<Version>9.0</Version>
+		<Version>9.1</Version>
 	</PropertyGroup>
 
 </Project>
