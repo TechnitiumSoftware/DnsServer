@@ -143,6 +143,13 @@ namespace DnsServerCore
 
             Dictionary<string, List<KeyValuePair<string, long>>> data;
             string labelFormat;
+            bool isLanguageEnUs;
+
+            string acceptLanguage = request.Headers["Accept-Language"];
+            if (string.IsNullOrEmpty(acceptLanguage))
+                isLanguageEnUs = true;
+            else
+                isLanguageEnUs = acceptLanguage.StartsWith("en-us", StringComparison.OrdinalIgnoreCase);
 
             switch (strType)
             {
@@ -153,17 +160,32 @@ namespace DnsServerCore
 
                 case "lastDay":
                     data = _dnsWebService.DnsServer.StatsManager.GetLastDayHourWiseStats(utcFormat);
-                    labelFormat = "MM/DD HH:00";
+
+                    if (isLanguageEnUs)
+                        labelFormat = "MM/DD HH:00";
+                    else
+                        labelFormat = "DD/MM HH:00";
+
                     break;
 
                 case "lastWeek":
                     data = _dnsWebService.DnsServer.StatsManager.GetLastWeekDayWiseStats(utcFormat);
-                    labelFormat = "MM/DD";
+
+                    if (isLanguageEnUs)
+                        labelFormat = "MM/DD";
+                    else
+                        labelFormat = "DD/MM";
+
                     break;
 
                 case "lastMonth":
                     data = _dnsWebService.DnsServer.StatsManager.GetLastMonthDayWiseStats(utcFormat);
-                    labelFormat = "MM/DD";
+
+                    if (isLanguageEnUs)
+                        labelFormat = "MM/DD";
+                    else
+                        labelFormat = "DD/MM";
+
                     break;
 
                 case "lastYear":
@@ -192,12 +214,20 @@ namespace DnsServerCore
                     if ((Convert.ToInt32((endDate - startDate).TotalDays) + 1) > 7)
                     {
                         data = _dnsWebService.DnsServer.StatsManager.GetDayWiseStats(startDate, endDate, utcFormat);
-                        labelFormat = "MM/DD";
+
+                        if (isLanguageEnUs)
+                            labelFormat = "MM/DD";
+                        else
+                            labelFormat = "DD/MM";
                     }
                     else
                     {
                         data = _dnsWebService.DnsServer.StatsManager.GetHourWiseStats(startDate, endDate, utcFormat);
-                        labelFormat = "MM/DD HH:00";
+
+                        if (isLanguageEnUs)
+                            labelFormat = "MM/DD HH:00";
+                        else
+                            labelFormat = "DD/MM HH:00";
                     }
 
                     break;
