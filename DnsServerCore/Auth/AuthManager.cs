@@ -133,12 +133,8 @@ namespace DnsServerCore.Auth
             SetPermission(PermissionSection.Apps, dnsAdminGroup, PermissionFlag.ViewModifyDelete);
             SetPermission(PermissionSection.DnsClient, dnsAdminGroup, PermissionFlag.ViewModifyDelete);
             SetPermission(PermissionSection.Settings, dnsAdminGroup, PermissionFlag.ViewModifyDelete);
-            SetPermission(PermissionSection.Logs, dnsAdminGroup, PermissionFlag.View);
 
-            SetPermission(PermissionSection.Zones, dhcpAdminGroup, PermissionFlag.View);
-            SetPermission(PermissionSection.DnsClient, dhcpAdminGroup, PermissionFlag.View);
             SetPermission(PermissionSection.DhcpServer, dhcpAdminGroup, PermissionFlag.ViewModifyDelete);
-            SetPermission(PermissionSection.Logs, dhcpAdminGroup, PermissionFlag.View);
 
             SetPermission(PermissionSection.Dashboard, everyoneGroup, PermissionFlag.View);
             SetPermission(PermissionSection.Zones, everyoneGroup, PermissionFlag.View);
