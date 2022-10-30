@@ -294,7 +294,7 @@ function sortTable(tableId, n) {
     }
 }
 
-function serializeTableData(table, columns) {
+function serializeTableData(table, columns, objAlertPlaceholder) {
     var data = table.find('input:text, input:checkbox, input:hidden, select');
     var output = "";
 
@@ -319,13 +319,13 @@ function serializeTableData(table, columns) {
                 var optional = (cell.attr("data-optional") === "true");
 
                 if ((cellValue === "") && !optional) {
-                    showAlert("warning", "Missing!", "Please enter a valid value in the text field in focus.");
+                    showAlert("warning", "Missing!", "Please enter a valid value in the text field in focus.", objAlertPlaceholder);
                     cell.focus();
                     return false;
                 }
 
                 if (cellValue.includes("|")) {
-                    showAlert("warning", "Invalid Character!", "Please edit the value in the text field in focus to remove '|' character.");
+                    showAlert("warning", "Invalid Character!", "Please edit the value in the text field in focus to remove '|' character.", objAlertPlaceholder);
                     cell.focus();
                     return false;
                 }
