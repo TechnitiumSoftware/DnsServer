@@ -394,7 +394,7 @@ namespace DnsServerCore
                     throw new DnsWebServiceException("Parameter 'subnetMask' missing.");
 
                 scopeExists = false;
-                scope = new Scope(scopeName, true, IPAddress.Parse(strStartingAddress), IPAddress.Parse(strEndingAddress), IPAddress.Parse(strSubnetMask));
+                scope = new Scope(scopeName, true, IPAddress.Parse(strStartingAddress), IPAddress.Parse(strEndingAddress), IPAddress.Parse(strSubnetMask), _dnsWebService.Log);
             }
             else
             {
