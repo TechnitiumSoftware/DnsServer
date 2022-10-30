@@ -574,6 +574,16 @@ $(function () {
                 $("#rdForwarderProtocolTcp").prop("checked", true);
                 break;
 
+            case "opendns-tls":
+                $("#txtForwarders").val("dns.opendns.com (208.67.222.222:853)\r\ndns.opendns.com (208.67.220.220:853)");
+                $("#rdForwarderProtocolTls").prop("checked", true);
+                break;
+
+            case "opendns-tls-ipv6":
+                $("#txtForwarders").val("dns.opendns.com ([2620:0:ccc::2]:853)\r\ndns.opendns.com ([2620:0:ccd::2]:853)");
+                $("#rdForwarderProtocolTls").prop("checked", true);
+                break;
+
             case "opendns-https":
                 $("#txtForwarders").val("https://doh.opendns.com/dns-query");
                 $("#rdForwarderProtocolHttps").prop("checked", true);
@@ -583,6 +593,31 @@ $(function () {
             case "opendns-fs-udp":
                 $("#txtForwarders").val("208.67.222.123\r\n208.67.220.123");
                 $("#rdForwarderProtocolUdp").prop("checked", true);
+                break;
+
+            case "opendns-fs-udp-ipv6":
+                $("#txtForwarders").val("[2620:119:35::123]\r\n[2620:119:53::123]");
+                $("#rdForwarderProtocolUdp").prop("checked", true);
+                break;
+
+            case "opendns-fs-tcp":
+                $("#txtForwarders").val("208.67.222.123\r\n208.67.220.123");
+                $("#rdForwarderProtocolTcp").prop("checked", true);
+                break;
+
+            case "opendns-fs-tcp-ipv6":
+                $("#txtForwarders").val("[2620:119:35::123]\r\n[2620:119:53::123]");
+                $("#rdForwarderProtocolTcp").prop("checked", true);
+                break;
+
+            case "opendns-fs-tls":
+                $("#txtForwarders").val("dns.opendns.com (208.67.222.123:853)\r\ndns.opendns.com (208.67.220.123:853)");
+                $("#rdForwarderProtocolTls").prop("checked", true);
+                break;
+
+            case "opendns-fs-tls-ipv6":
+                $("#txtForwarders").val("dns.opendns.com ([2620:119:35::123]:853)\r\ndns.opendns.com ([2620:119:53::123]:853)");
+                $("#rdForwarderProtocolTls").prop("checked", true);
                 break;
 
             case "opendns-fs-https":
@@ -1697,7 +1732,10 @@ function refreshDashboard(hideLoader) {
             return;
         }
 
-        custom = "&start=" + start + "&end=" + end;
+        start = moment(start, "YYYY-MM-DD").toISOString();
+        end = moment(end, "YYYY-MM-DD").toISOString();
+
+        custom = "&start=" + encodeURIComponent(start) + "&end=" + encodeURIComponent(end);
     }
 
     if (!hideLoader) {
@@ -1706,7 +1744,7 @@ function refreshDashboard(hideLoader) {
     }
 
     HTTPRequest({
-        url: "/api/dashboard/stats/get?token=" + sessionData.token + "&type=" + type +"&utc=true" + custom,
+        url: "/api/dashboard/stats/get?token=" + sessionData.token + "&type=" + type + "&utc=true" + custom,
         success: function (responseJSON) {
 
             //stats
