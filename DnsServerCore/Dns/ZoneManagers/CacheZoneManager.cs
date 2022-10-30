@@ -249,19 +249,34 @@ namespace DnsServerCore.Dns.ZoneManagers
 
             do
             {
-                if (!_root.TryGet((lastCNAME.RDATA as DnsCNAMERecordData).Domain, out CacheZone cacheZone))
+                string cnameDomain = (lastCNAME.RDATA as DnsCNAMERecordData).Domain;
+                if (lastCNAME.Name.Equals(cnameDomain, StringComparison.OrdinalIgnoreCase))
+                    break; //loop detected
+
+                if (!_root.TryGet(cnameDomain, out CacheZone cacheZone))
                     break;
 
                 IReadOnlyList<DnsResourceRecord> records = cacheZone.QueryRecords(question.Type, serveStale, true);
                 if (records.Count < 1)
                     break;
 
-                answerRecords.AddRange(records);
-
                 DnsResourceRecord lastRR = records[records.Count - 1];
-
                 if (lastRR.Type != DnsResourceRecordType.CNAME)
+                {
+                    answerRecords.AddRange(records);
                     break;
+                }
+
+                foreach (DnsResourceRecord answerRecord in answerRecords)
+                {
+                    if (answerRecord.Type != DnsResourceRecordType.CNAME)
+                        continue;
+
+                    if (answerRecord.RDATA.Equals(lastRR.RDATA))
+                        return; //loop detected
+                }
+
+                answerRecords.AddRange(records);
 
                 lastCNAME = lastRR;
             }
@@ -567,7 +582,7 @@ namespace DnsServerCore.Dns.ZoneManagers
                     //answer found in cache
                     DnsResourceRecord firstRR = answer[0];
 
-                    if (firstRR.RDATA is DnsSpecialCacheRecord dnsSpecialCacheRecord)
+                    if (firstRR.RDATA is DnsSpecialCacheRecordData dnsSpecialCacheRecord)
                     {
                         if (request.DnssecOk)
                         {
