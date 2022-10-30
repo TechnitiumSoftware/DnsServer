@@ -68,6 +68,7 @@ namespace DnsServerCore.Dns.Zones
 
             _zoneTransfer = AuthZoneTransfer.Deny;
             _notify = AuthZoneNotify.None;
+            _update = AuthZoneUpdate.Deny;
         }
 
         #endregion
