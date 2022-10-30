@@ -202,10 +202,10 @@ namespace DnsServerCore
                     if (string.IsNullOrEmpty(strEndDate))
                         throw new DnsWebServiceException("Parameter 'end' missing.");
 
-                    if (!DateTime.TryParseExact(strStartDate, "yyyy-M-d", CultureInfo.InvariantCulture, DateTimeStyles.AssumeLocal | DateTimeStyles.AdjustToUniversal, out DateTime startDate))
+                    if (!DateTime.TryParse(strStartDate, CultureInfo.InvariantCulture, DateTimeStyles.AssumeUniversal | DateTimeStyles.AdjustToUniversal, out DateTime startDate))
                         throw new DnsWebServiceException("Invalid start date format.");
 
-                    if (!DateTime.TryParseExact(strEndDate, "yyyy-M-d", CultureInfo.InvariantCulture, DateTimeStyles.AssumeLocal | DateTimeStyles.AdjustToUniversal, out DateTime endDate))
+                    if (!DateTime.TryParse(strEndDate, CultureInfo.InvariantCulture, DateTimeStyles.AssumeUniversal | DateTimeStyles.AdjustToUniversal, out DateTime endDate))
                         throw new DnsWebServiceException("Invalid end date format.");
 
                     if (startDate > endDate)
