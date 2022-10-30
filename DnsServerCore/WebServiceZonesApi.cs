@@ -410,6 +410,30 @@ namespace DnsServerCore
                     }
                     break;
 
+                case DnsResourceRecordType.SSHFP:
+                    {
+                        if (record.RDATA is DnsSSHFPRecordData rdata)
+                        {
+                            jsonWriter.WritePropertyName("algorithm");
+                            jsonWriter.WriteValue(rdata.Algorithm.ToString());
+
+                            jsonWriter.WritePropertyName("fingerprintType");
+                            jsonWriter.WriteValue(rdata.FingerprintType.ToString());
+
+                            jsonWriter.WritePropertyName("fingerprint");
+                            jsonWriter.WriteValue(rdata.Fingerprint);
+                        }
+                        else
+                        {
+                            jsonWriter.WritePropertyName("dataType");
+                            jsonWriter.WriteValue(record.RDATA.GetType().Name);
+
+                            jsonWriter.WritePropertyName("data");
+                            jsonWriter.WriteValue(record.RDATA.ToString());
+                        }
+                    }
+                    break;
+
                 case DnsResourceRecordType.RRSIG:
                     {
                         if (record.RDATA is DnsRRSIGRecordData rdata)
@@ -615,6 +639,33 @@ namespace DnsServerCore
 
                             jsonWriter.WritePropertyName("salt");
                             jsonWriter.WriteValue(rdata.Salt);
+                        }
+                        else
+                        {
+                            jsonWriter.WritePropertyName("dataType");
+                            jsonWriter.WriteValue(record.RDATA.GetType().Name);
+
+                            jsonWriter.WritePropertyName("data");
+                            jsonWriter.WriteValue(record.RDATA.ToString());
+                        }
+                    }
+                    break;
+
+                case DnsResourceRecordType.TLSA:
+                    {
+                        if (record.RDATA is DnsTLSARecordData rdata)
+                        {
+                            jsonWriter.WritePropertyName("certificateUsage");
+                            jsonWriter.WriteValue(rdata.CertificateUsage.ToString());
+
+                            jsonWriter.WritePropertyName("selector");
+                            jsonWriter.WriteValue(rdata.Selector.ToString());
+
+                            jsonWriter.WritePropertyName("matchingType");
+                            jsonWriter.WriteValue(rdata.MatchingType.ToString());
+
+                            jsonWriter.WritePropertyName("certificateAssociationData");
+                            jsonWriter.WriteValue(rdata.CertificateAssociationData);
                         }
                         else
                         {
@@ -1758,78 +1809,111 @@ namespace DnsServerCore
             jsonWriter.WritePropertyName("disabled");
             jsonWriter.WriteValue(zoneInfo.Disabled);
 
-            jsonWriter.WritePropertyName("zoneTransfer");
-            jsonWriter.WriteValue(zoneInfo.ZoneTransfer.ToString());
-
-            jsonWriter.WritePropertyName("zoneTransferNameServers");
+            switch (zoneInfo.Type)
             {
-                jsonWriter.WriteStartArray();
+                case AuthZoneType.Primary:
+                case AuthZoneType.Secondary:
+                    jsonWriter.WritePropertyName("zoneTransfer");
+                    jsonWriter.WriteValue(zoneInfo.ZoneTransfer.ToString());
 
-                if (zoneInfo.ZoneTransferNameServers is not null)
-                {
-                    foreach (IPAddress nameServer in zoneInfo.ZoneTransferNameServers)
-                        jsonWriter.WriteValue(nameServer.ToString());
-                }
+                    jsonWriter.WritePropertyName("zoneTransferNameServers");
+                    {
+                        jsonWriter.WriteStartArray();
 
-                jsonWriter.WriteEndArray();
+                        if (zoneInfo.ZoneTransferNameServers is not null)
+                        {
+                            foreach (IPAddress nameServer in zoneInfo.ZoneTransferNameServers)
+                                jsonWriter.WriteValue(nameServer.ToString());
+                        }
+
+                        jsonWriter.WriteEndArray();
+                    }
+
+                    jsonWriter.WritePropertyName("zoneTransferTsigKeyNames");
+                    {
+                        jsonWriter.WriteStartArray();
+
+                        if (zoneInfo.ZoneTransferTsigKeyNames is not null)
+                        {
+                            foreach (KeyValuePair<string, object> tsigKeyName in zoneInfo.ZoneTransferTsigKeyNames)
+                                jsonWriter.WriteValue(tsigKeyName.Key);
+                        }
+
+                        jsonWriter.WriteEndArray();
+                    }
+
+                    jsonWriter.WritePropertyName("notify");
+                    jsonWriter.WriteValue(zoneInfo.Notify.ToString());
+
+                    jsonWriter.WritePropertyName("notifyNameServers");
+                    {
+                        jsonWriter.WriteStartArray();
+
+                        if (zoneInfo.NotifyNameServers is not null)
+                        {
+                            foreach (IPAddress nameServer in zoneInfo.NotifyNameServers)
+                                jsonWriter.WriteValue(nameServer.ToString());
+                        }
+
+                        jsonWriter.WriteEndArray();
+                    }
+
+                    break;
             }
 
-            jsonWriter.WritePropertyName("zoneTransferTsigKeyNames");
+            switch (zoneInfo.Type)
             {
-                jsonWriter.WriteStartArray();
+                case AuthZoneType.Primary:
+                    jsonWriter.WritePropertyName("update");
+                    jsonWriter.WriteValue(zoneInfo.Update.ToString());
 
-                if (zoneInfo.ZoneTransferTsigKeyNames is not null)
-                {
-                    foreach (KeyValuePair<string, object> tsigKeyName in zoneInfo.ZoneTransferTsigKeyNames)
-                        jsonWriter.WriteValue(tsigKeyName.Key);
-                }
+                    jsonWriter.WritePropertyName("updateIpAddresses");
+                    {
+                        jsonWriter.WriteStartArray();
 
-                jsonWriter.WriteEndArray();
-            }
+                        if (zoneInfo.UpdateIpAddresses is not null)
+                        {
+                            foreach (IPAddress updateIpAddress in zoneInfo.UpdateIpAddresses)
+                                jsonWriter.WriteValue(updateIpAddress.ToString());
+                        }
 
-            jsonWriter.WritePropertyName("notify");
-            jsonWriter.WriteValue(zoneInfo.Notify.ToString());
+                        jsonWriter.WriteEndArray();
+                    }
 
-            jsonWriter.WritePropertyName("notifyNameServers");
-            {
-                jsonWriter.WriteStartArray();
+                    jsonWriter.WritePropertyName("updateSecurityPolicies");
+                    {
+                        jsonWriter.WriteStartArray();
 
-                if (zoneInfo.NotifyNameServers is not null)
-                {
-                    foreach (IPAddress nameServer in zoneInfo.NotifyNameServers)
-                        jsonWriter.WriteValue(nameServer.ToString());
-                }
+                        if (zoneInfo.UpdateSecurityPolicies is not null)
+                        {
+                            foreach (KeyValuePair<string, IReadOnlyDictionary<string, IReadOnlyList<DnsResourceRecordType>>> updateSecurityPolicy in zoneInfo.UpdateSecurityPolicies)
+                            {
+                                foreach (KeyValuePair<string, IReadOnlyList<DnsResourceRecordType>> policy in updateSecurityPolicy.Value)
+                                {
+                                    jsonWriter.WriteStartObject();
 
-                jsonWriter.WriteEndArray();
-            }
+                                    jsonWriter.WritePropertyName("tsigKeyName");
+                                    jsonWriter.WriteValue(updateSecurityPolicy.Key);
 
-            jsonWriter.WritePropertyName("update");
-            jsonWriter.WriteValue(zoneInfo.Update.ToString());
+                                    jsonWriter.WritePropertyName("domain");
+                                    jsonWriter.WriteValue(policy.Key);
 
-            jsonWriter.WritePropertyName("updateIpAddresses");
-            {
-                jsonWriter.WriteStartArray();
+                                    jsonWriter.WritePropertyName("allowedTypes");
+                                    jsonWriter.WriteStartArray();
 
-                if (zoneInfo.UpdateIpAddresses is not null)
-                {
-                    foreach (IPAddress updateIpAddress in zoneInfo.UpdateIpAddresses)
-                        jsonWriter.WriteValue(updateIpAddress.ToString());
-                }
+                                    foreach (DnsResourceRecordType allowedType in policy.Value)
+                                        jsonWriter.WriteValue(allowedType.ToString());
 
-                jsonWriter.WriteEndArray();
-            }
+                                    jsonWriter.WriteEndArray();
 
-            jsonWriter.WritePropertyName("updateTsigKeyNames");
-            {
-                jsonWriter.WriteStartArray();
+                                    jsonWriter.WriteEndObject();
+                                }
+                            }
+                        }
 
-                if (zoneInfo.UpdateTsigKeyNames is not null)
-                {
-                    foreach (KeyValuePair<string, object> tsigKeyName in zoneInfo.UpdateTsigKeyNames)
-                        jsonWriter.WriteValue(tsigKeyName.Key);
-                }
-
-                jsonWriter.WriteEndArray();
+                        jsonWriter.WriteEndArray();
+                    }
+                    break;
             }
 
             if (includeAvailableTsigKeyNames)
@@ -1876,111 +1960,144 @@ namespace DnsServerCore
             if (!string.IsNullOrEmpty(strDisabled))
                 zoneInfo.Disabled = bool.Parse(strDisabled);
 
-            string strZoneTransfer = request.QueryString["zoneTransfer"];
-            if (!string.IsNullOrEmpty(strZoneTransfer))
-                zoneInfo.ZoneTransfer = Enum.Parse<AuthZoneTransfer>(strZoneTransfer, true);
-
-            string strZoneTransferNameServers = request.QueryString["zoneTransferNameServers"];
-            if (!string.IsNullOrEmpty(strZoneTransferNameServers))
+            switch (zoneInfo.Type)
             {
-                if (strZoneTransferNameServers == "false")
-                {
-                    zoneInfo.ZoneTransferNameServers = null;
-                }
-                else
-                {
-                    string[] strNameServers = strZoneTransferNameServers.Split(new char[] { ',' }, StringSplitOptions.RemoveEmptyEntries);
-                    IPAddress[] nameServers = new IPAddress[strNameServers.Length];
+                case AuthZoneType.Primary:
+                case AuthZoneType.Secondary:
+                    string strZoneTransfer = request.QueryString["zoneTransfer"];
+                    if (!string.IsNullOrEmpty(strZoneTransfer))
+                        zoneInfo.ZoneTransfer = Enum.Parse<AuthZoneTransfer>(strZoneTransfer, true);
 
-                    for (int i = 0; i < strNameServers.Length; i++)
-                        nameServers[i] = IPAddress.Parse(strNameServers[i]);
+                    string strZoneTransferNameServers = request.QueryString["zoneTransferNameServers"];
+                    if (!string.IsNullOrEmpty(strZoneTransferNameServers))
+                    {
+                        if (strZoneTransferNameServers == "false")
+                        {
+                            zoneInfo.ZoneTransferNameServers = null;
+                        }
+                        else
+                        {
+                            string[] strNameServers = strZoneTransferNameServers.Split(new char[] { ',' }, StringSplitOptions.RemoveEmptyEntries);
+                            IPAddress[] nameServers = new IPAddress[strNameServers.Length];
 
-                    zoneInfo.ZoneTransferNameServers = nameServers;
-                }
+                            for (int i = 0; i < strNameServers.Length; i++)
+                                nameServers[i] = IPAddress.Parse(strNameServers[i]);
+
+                            zoneInfo.ZoneTransferNameServers = nameServers;
+                        }
+                    }
+
+                    string strZoneTransferTsigKeyNames = request.QueryString["zoneTransferTsigKeyNames"];
+                    if (!string.IsNullOrEmpty(strZoneTransferTsigKeyNames))
+                    {
+                        if (strZoneTransferTsigKeyNames == "false")
+                        {
+                            zoneInfo.ZoneTransferTsigKeyNames = null;
+                        }
+                        else
+                        {
+                            string[] strZoneTransferTsigKeyNamesParts = strZoneTransferTsigKeyNames.Split(new char[] { ',' }, StringSplitOptions.RemoveEmptyEntries);
+                            Dictionary<string, object> zoneTransferTsigKeyNames = new Dictionary<string, object>(strZoneTransferTsigKeyNamesParts.Length);
+
+                            for (int i = 0; i < strZoneTransferTsigKeyNamesParts.Length; i++)
+                                zoneTransferTsigKeyNames.Add(strZoneTransferTsigKeyNamesParts[i].ToLower(), null);
+
+                            zoneInfo.ZoneTransferTsigKeyNames = zoneTransferTsigKeyNames;
+                        }
+                    }
+
+                    string strNotify = request.QueryString["notify"];
+                    if (!string.IsNullOrEmpty(strNotify))
+                        zoneInfo.Notify = Enum.Parse<AuthZoneNotify>(strNotify, true);
+
+                    string strNotifyNameServers = request.QueryString["notifyNameServers"];
+                    if (!string.IsNullOrEmpty(strNotifyNameServers))
+                    {
+                        if (strNotifyNameServers == "false")
+                        {
+                            zoneInfo.NotifyNameServers = null;
+                        }
+                        else
+                        {
+                            string[] strNameServers = strNotifyNameServers.Split(new char[] { ',' }, StringSplitOptions.RemoveEmptyEntries);
+                            IPAddress[] nameServers = new IPAddress[strNameServers.Length];
+
+                            for (int i = 0; i < strNameServers.Length; i++)
+                                nameServers[i] = IPAddress.Parse(strNameServers[i]);
+
+                            zoneInfo.NotifyNameServers = nameServers;
+                        }
+                    }
+                    break;
             }
 
-            string strZoneTransferTsigKeyNames = request.QueryString["zoneTransferTsigKeyNames"];
-            if (!string.IsNullOrEmpty(strZoneTransferTsigKeyNames))
+            switch (zoneInfo.Type)
             {
-                if (strZoneTransferTsigKeyNames == "false")
-                {
-                    zoneInfo.ZoneTransferTsigKeyNames = null;
-                }
-                else
-                {
-                    string[] strZoneTransferTsigKeyNamesParts = strZoneTransferTsigKeyNames.Split(new char[] { ',' }, StringSplitOptions.RemoveEmptyEntries);
-                    Dictionary<string, object> zoneTransferTsigKeyNames = new Dictionary<string, object>(strZoneTransferTsigKeyNamesParts.Length);
+                case AuthZoneType.Primary:
+                    string strUpdate = request.QueryString["update"];
+                    if (!string.IsNullOrEmpty(strUpdate))
+                        zoneInfo.Update = Enum.Parse<AuthZoneUpdate>(strUpdate, true);
 
-                    for (int i = 0; i < strZoneTransferTsigKeyNamesParts.Length; i++)
-                        zoneTransferTsigKeyNames.Add(strZoneTransferTsigKeyNamesParts[i].ToLower(), null);
+                    string strUpdateIpAddresses = request.QueryString["updateIpAddresses"];
+                    if (!string.IsNullOrEmpty(strUpdateIpAddresses))
+                    {
+                        if (strUpdateIpAddresses == "false")
+                        {
+                            zoneInfo.UpdateIpAddresses = null;
+                        }
+                        else
+                        {
+                            string[] strIpAddresses = strUpdateIpAddresses.Split(new char[] { ',' }, StringSplitOptions.RemoveEmptyEntries);
+                            IPAddress[] ipAddresses = new IPAddress[strIpAddresses.Length];
 
-                    zoneInfo.ZoneTransferTsigKeyNames = zoneTransferTsigKeyNames;
-                }
-            }
+                            for (int i = 0; i < strIpAddresses.Length; i++)
+                                ipAddresses[i] = IPAddress.Parse(strIpAddresses[i]);
 
-            string strNotify = request.QueryString["notify"];
-            if (!string.IsNullOrEmpty(strNotify))
-                zoneInfo.Notify = Enum.Parse<AuthZoneNotify>(strNotify, true);
+                            zoneInfo.UpdateIpAddresses = ipAddresses;
+                        }
+                    }
 
-            string strNotifyNameServers = request.QueryString["notifyNameServers"];
-            if (!string.IsNullOrEmpty(strNotifyNameServers))
-            {
-                if (strNotifyNameServers == "false")
-                {
-                    zoneInfo.NotifyNameServers = null;
-                }
-                else
-                {
-                    string[] strNameServers = strNotifyNameServers.Split(new char[] { ',' }, StringSplitOptions.RemoveEmptyEntries);
-                    IPAddress[] nameServers = new IPAddress[strNameServers.Length];
+                    string strUpdateSecurityPolicies = request.QueryString["updateSecurityPolicies"];
+                    if (!string.IsNullOrEmpty(strUpdateSecurityPolicies))
+                    {
+                        if (strUpdateSecurityPolicies == "false")
+                        {
+                            zoneInfo.UpdateSecurityPolicies = null;
+                        }
+                        else
+                        {
+                            string[] strUpdateSecurityPoliciesParts = strUpdateSecurityPolicies.Split(new char[] { '|' }, StringSplitOptions.RemoveEmptyEntries);
+                            Dictionary<string, IReadOnlyDictionary<string, IReadOnlyList<DnsResourceRecordType>>> updateSecurityPolicies = new Dictionary<string, IReadOnlyDictionary<string, IReadOnlyList<DnsResourceRecordType>>>(strUpdateSecurityPoliciesParts.Length);
 
-                    for (int i = 0; i < strNameServers.Length; i++)
-                        nameServers[i] = IPAddress.Parse(strNameServers[i]);
+                            for (int i = 0; i < strUpdateSecurityPoliciesParts.Length; i += 3)
+                            {
+                                string tsigKeyName = strUpdateSecurityPoliciesParts[i].ToLower();
+                                string domain = strUpdateSecurityPoliciesParts[i + 1].ToLower();
+                                string strTypes = strUpdateSecurityPoliciesParts[i + 2];
 
-                    zoneInfo.NotifyNameServers = nameServers;
-                }
-            }
+                                if (!domain.Equals(zoneInfo.Name, StringComparison.OrdinalIgnoreCase) && !domain.EndsWith("." + zoneInfo.Name, StringComparison.OrdinalIgnoreCase))
+                                    throw new DnsWebServiceException("Cannot set Dynamic Updates security policies: the domain '" + domain + "' must be part of the current zone.");
 
-            string strUpdate = request.QueryString["update"];
-            if (!string.IsNullOrEmpty(strUpdate))
-                zoneInfo.Update = Enum.Parse<AuthZoneUpdate>(strUpdate, true);
+                                if (!updateSecurityPolicies.TryGetValue(tsigKeyName, out IReadOnlyDictionary<string, IReadOnlyList<DnsResourceRecordType>> policyMap))
+                                {
+                                    policyMap = new Dictionary<string, IReadOnlyList<DnsResourceRecordType>>();
+                                    updateSecurityPolicies.Add(tsigKeyName, policyMap);
+                                }
 
-            string strUpdateIpAddresses = request.QueryString["updateIpAddresses"];
-            if (!string.IsNullOrEmpty(strUpdateIpAddresses))
-            {
-                if (strUpdateIpAddresses == "false")
-                {
-                    zoneInfo.UpdateIpAddresses = null;
-                }
-                else
-                {
-                    string[] strIpAddresses = strUpdateIpAddresses.Split(new char[] { ',' }, StringSplitOptions.RemoveEmptyEntries);
-                    IPAddress[] ipAddresses = new IPAddress[strIpAddresses.Length];
+                                if (!policyMap.TryGetValue(domain, out IReadOnlyList<DnsResourceRecordType> types))
+                                {
+                                    types = new List<DnsResourceRecordType>();
+                                    (policyMap as Dictionary<string, IReadOnlyList<DnsResourceRecordType>>).Add(domain, types);
+                                }
 
-                    for (int i = 0; i < strIpAddresses.Length; i++)
-                        ipAddresses[i] = IPAddress.Parse(strIpAddresses[i]);
+                                foreach (string strType in strTypes.Split(new char[] { ',', ' ' }, StringSplitOptions.RemoveEmptyEntries))
+                                    (types as List<DnsResourceRecordType>).Add(Enum.Parse<DnsResourceRecordType>(strType, true));
+                            }
 
-                    zoneInfo.UpdateIpAddresses = ipAddresses;
-                }
-            }
-
-            string strUpdateTsigKeyNames = request.QueryString["updateTsigKeyNames"];
-            if (!string.IsNullOrEmpty(strUpdateTsigKeyNames))
-            {
-                if (strUpdateTsigKeyNames == "false")
-                {
-                    zoneInfo.UpdateTsigKeyNames = null;
-                }
-                else
-                {
-                    string[] strUpdateTsigKeyNamesParts = strUpdateTsigKeyNames.Split(new char[] { ',' }, StringSplitOptions.RemoveEmptyEntries);
-                    Dictionary<string, object> updateTsigKeyNames = new Dictionary<string, object>(strUpdateTsigKeyNamesParts.Length);
-
-                    for (int i = 0; i < strUpdateTsigKeyNamesParts.Length; i++)
-                        updateTsigKeyNames.Add(strUpdateTsigKeyNamesParts[i].ToLower(), null);
-
-                    zoneInfo.UpdateTsigKeyNames = updateTsigKeyNames;
-                }
+                            zoneInfo.UpdateSecurityPolicies = updateSecurityPolicies;
+                        }
+                    }
+                    break;
             }
 
             _dnsWebService.Log.Write(DnsWebService.GetRequestRemoteEndPoint(request), "[" + session.User.Username + "] " + zoneInfo.Type.ToString() + " zone options were updated successfully: " + zoneInfo.Name);
@@ -2376,6 +2493,18 @@ namespace DnsServerCore
                             _dnsWebService.DnsServer.AuthZoneManager.AddRecord(zoneInfo.Name, newRecord);
                     }
                     break;
+
+                //case DnsResourceRecordType.SSHFP:
+                //    {
+
+                //    }
+                //    break;
+
+                //case DnsResourceRecordType.TLSA:
+                //    {
+
+                //    }
+                //    break;
 
                 case DnsResourceRecordType.CAA:
                     {
