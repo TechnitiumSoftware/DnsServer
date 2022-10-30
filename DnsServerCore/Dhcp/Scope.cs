@@ -51,6 +51,8 @@ namespace DnsServerCore.Dhcp
         byte _leaseTimeMinutes = 0;
         ushort _offerDelayTime;
 
+        readonly LogManager _log;
+
         bool _pingCheckEnabled;
         ushort _pingCheckTimeout = 1000;
         byte _pingCheckRetries = 2;
@@ -95,7 +97,7 @@ namespace DnsServerCore.Dhcp
 
         #region constructor
 
-        public Scope(string name, bool enabled, IPAddress startingAddress, IPAddress endingAddress, IPAddress subnetMask)
+        public Scope(string name, bool enabled, IPAddress startingAddress, IPAddress endingAddress, IPAddress subnetMask, LogManager log)
         {
             ValidateScopeName(name);
 
@@ -103,9 +105,11 @@ namespace DnsServerCore.Dhcp
             _enabled = enabled;
 
             ChangeNetwork(startingAddress, endingAddress, subnetMask);
+
+            _log = log;
         }
 
-        public Scope(BinaryReader bR)
+        public Scope(BinaryReader bR, LogManager log)
         {
             if (Encoding.ASCII.GetString(bR.ReadBytes(2)) != "SC")
                 throw new InvalidDataException("DhcpServer scope file format is invalid.");
@@ -294,6 +298,8 @@ namespace DnsServerCore.Dhcp
                 default:
                     throw new InvalidDataException("Scope data format version not supported.");
             }
+
+            _log = log;
         }
 
         #endregion
@@ -749,7 +755,14 @@ namespace DnsServerCore.Dhcp
             {
                 //reserved address exists
                 if (IsAddressAlreadyAllocated(reservedLease.Address, clientIdentifier))
-                    return null; //reserved lease address is already allocated so ignore reserved lease
+                {
+                    //reserved lease address is already allocated so ignore reserved lease
+
+                    if (_log is not null)
+                        _log.Write("DHCP Server cannot allocate reserved lease [" + reservedLease.Address.ToString() + "] to " + BitConverter.ToString(reservedLeasesClientIdentifier.Identifier) + " for scope '" + _name + "': The IP address is already allocated.");
+
+                    return null;
+                }
 
                 return reservedLease;
             }
@@ -795,12 +808,22 @@ namespace DnsServerCore.Dhcp
             }
 
             if (_allowOnlyReservedLeases)
-                throw new DhcpServerException("DHCP Server failed to offer IP address to " + request.GetClientFullIdentifier() + ": scope allows only reserved lease allocations.");
+            {
+                if (_log is not null)
+                    _log.Write("DHCP Server failed to offer IP address to " + request.GetClientFullIdentifier() + " for scope '" + _name + "': the scope allows only reserved lease allocations.");
+
+                return null;
+            }
 
             if (_blockLocallyAdministeredMacAddresses)
             {
                 if ((request.HardwareAddressType == DhcpMessageHardwareAddressType.Ethernet) && ((request.ClientHardwareAddress[0] & 0x02) > 0))
-                    throw new DhcpServerException("DHCP Server failed to offer IP address to " + request.GetClientFullIdentifier() + ": scope does not allow locally administered MAC addresses.");
+                {
+                    if (_log is not null)
+                        _log.Write("DHCP Server failed to offer IP address to " + request.GetClientFullIdentifier() + " for scope '" + _name + "': the scope does not allow locally administered MAC addresses.");
+
+                    return null;
+                }
             }
 
             Lease dummyOffer = new Lease(LeaseType.None, null, null, null, null, null, 0);
@@ -850,7 +873,12 @@ namespace DnsServerCore.Dhcp
                         if (nextOfferAddressNumber > endingAddressNumber)
                         {
                             if (offerAddressWasResetFromEnd)
-                                throw new DhcpServerException("DHCP Server failed to offer IP address to " + request.GetClientFullIdentifier() + ": address unavailable due to address pool exhaustion.");
+                            {
+                                if (_log is not null)
+                                    _log.Write("DHCP Server failed to offer IP address to " + request.GetClientFullIdentifier() + " for scope '" + _name + "': address unavailable due to address pool exhaustion.");
+
+                                return null;
+                            }
 
                             offerAddress = IPAddressExtension.ConvertNumberToIp(_startingAddress.ConvertIpToNumber() - 1u);
                             offerAddressWasResetFromEnd = true;
@@ -1035,6 +1063,9 @@ namespace DnsServerCore.Dhcp
                                 continue;
 
                             if (!int.TryParse(parts[1], out int length))
+                                continue;
+
+                            if ((startIndex + length) > request.VendorClassIdentifier.Identifier.Length)
                                 continue;
 
                             int j = entry.Key.IndexOf("==", i);
