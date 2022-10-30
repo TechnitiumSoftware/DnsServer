@@ -586,6 +586,12 @@ namespace DnsServerCore.Dns.Zones
 
         #region properties
 
+        public override AuthZoneUpdate Update
+        {
+            get { return _update; }
+            set { throw new InvalidOperationException(); }
+        }
+
         public DateTime Expiry
         { get { return _expiry; } }
 
