@@ -58,7 +58,7 @@ namespace DnsServerCore.Dns.Zones
         readonly DateTime _expiry;
         readonly IReadOnlyList<DnsResourceRecord> _zoneHistory; //for IXFR support
         readonly IReadOnlyDictionary<string, object> _zoneTransferTsigKeyNames;
-        readonly IReadOnlyDictionary<string, object> _updateTsigKeyNames;
+        readonly IReadOnlyDictionary<string, IReadOnlyDictionary<string, IReadOnlyList<DnsResourceRecordType>>> _updateSecurityPolicies;
         readonly IReadOnlyCollection<DnssecPrivateKey> _dnssecPrivateKeys;
 
         readonly bool _notifyFailed; //not serialized
@@ -101,6 +101,7 @@ namespace DnsServerCore.Dns.Zones
                 case 4:
                 case 5:
                 case 6:
+                case 7:
                     _name = bR.ReadShortString();
                     _type = (AuthZoneType)bR.ReadByte();
                     _disabled = bR.ReadBoolean();
@@ -199,15 +200,55 @@ namespace DnsServerCore.Dns.Zones
                                 _zoneTransferTsigKeyNames = tsigKeyNames;
                             }
 
-                            if (version >= 6)
+                            if (version >= 7)
                             {
                                 int count = bR.ReadByte();
-                                Dictionary<string, object> tsigKeyNames = new Dictionary<string, object>(count);
+                                Dictionary<string, IReadOnlyDictionary<string, IReadOnlyList<DnsResourceRecordType>>> updateSecurityPolicies = new Dictionary<string, IReadOnlyDictionary<string, IReadOnlyList<DnsResourceRecordType>>>(count);
 
                                 for (int i = 0; i < count; i++)
-                                    tsigKeyNames.Add(bR.ReadShortString(), null);
+                                {
+                                    string tsigKeyName = bR.ReadShortString().ToLower();
 
-                                _updateTsigKeyNames = tsigKeyNames;
+                                    if (!updateSecurityPolicies.TryGetValue(tsigKeyName, out IReadOnlyDictionary<string, IReadOnlyList<DnsResourceRecordType>> policyMap))
+                                    {
+                                        policyMap = new Dictionary<string, IReadOnlyList<DnsResourceRecordType>>();
+                                        updateSecurityPolicies.Add(tsigKeyName, policyMap);
+                                    }
+
+                                    int policyCount = bR.ReadByte();
+
+                                    for (int j = 0; j < policyCount; j++)
+                                    {
+                                        string domain = bR.ReadShortString().ToLower();
+
+                                        if (!policyMap.TryGetValue(domain, out IReadOnlyList<DnsResourceRecordType> types))
+                                        {
+                                            types = new List<DnsResourceRecordType>();
+                                            (policyMap as Dictionary<string, IReadOnlyList<DnsResourceRecordType>>).Add(domain, types);
+                                        }
+
+                                        int typeCount = bR.ReadByte();
+
+                                        for (int k = 0; k < typeCount; k++)
+                                            (types as List<DnsResourceRecordType>).Add((DnsResourceRecordType)bR.ReadUInt16());
+                                    }
+                                }
+
+                                _updateSecurityPolicies = updateSecurityPolicies;
+                            }
+                            else if (version >= 6)
+                            {
+                                int count = bR.ReadByte();
+                                Dictionary<string, IReadOnlyDictionary<string, IReadOnlyList<DnsResourceRecordType>>> updateSecurityPolicies = new Dictionary<string, IReadOnlyDictionary<string, IReadOnlyList<DnsResourceRecordType>>>(count);
+
+                                Dictionary<string, IReadOnlyList<DnsResourceRecordType>> defaultAllowPolicy = new Dictionary<string, IReadOnlyList<DnsResourceRecordType>>(1);
+                                defaultAllowPolicy.Add(_name, new List<DnsResourceRecordType>() { DnsResourceRecordType.ANY });
+                                defaultAllowPolicy.Add("*." + _name, new List<DnsResourceRecordType>() { DnsResourceRecordType.ANY });
+
+                                for (int i = 0; i < count; i++)
+                                    updateSecurityPolicies.Add(bR.ReadShortString().ToLower(), defaultAllowPolicy);
+
+                                _updateSecurityPolicies = updateSecurityPolicies;
                             }
 
                             if (version >= 5)
@@ -254,15 +295,14 @@ namespace DnsServerCore.Dns.Zones
                                 _zoneTransferTsigKeyNames = tsigKeyNames;
                             }
 
-                            if (version >= 6)
+                            if (version == 6)
                             {
+                                //MUST skip old version data
                                 int count = bR.ReadByte();
                                 Dictionary<string, object> tsigKeyNames = new Dictionary<string, object>(count);
 
                                 for (int i = 0; i < count; i++)
                                     tsigKeyNames.Add(bR.ReadShortString(), null);
-
-                                _updateTsigKeyNames = tsigKeyNames;
                             }
 
                             break;
@@ -292,7 +332,7 @@ namespace DnsServerCore.Dns.Zones
                     _zoneHistory = primaryZone.GetZoneHistory();
 
                 _zoneTransferTsigKeyNames = primaryZone.ZoneTransferTsigKeyNames;
-                _updateTsigKeyNames = primaryZone.UpdateTsigKeyNames;
+                _updateSecurityPolicies = primaryZone.UpdateSecurityPolicies;
                 _dnssecPrivateKeys = primaryZone.DnssecPrivateKeys;
 
                 _notifyFailed = primaryZone.NotifyFailed;
@@ -306,7 +346,6 @@ namespace DnsServerCore.Dns.Zones
 
                 _expiry = secondaryZone.Expiry;
                 _zoneTransferTsigKeyNames = secondaryZone.ZoneTransferTsigKeyNames;
-                _updateTsigKeyNames = secondaryZone.UpdateTsigKeyNames;
 
                 _notifyFailed = secondaryZone.NotifyFailed;
                 _syncFailed = secondaryZone.SyncFailed;
@@ -429,7 +468,7 @@ namespace DnsServerCore.Dns.Zones
             if (_apexZone is null)
                 throw new InvalidOperationException();
 
-            bW.Write((byte)6); //version
+            bW.Write((byte)7); //version
 
             bW.WriteShortString(_name);
             bW.Write((byte)_type);
@@ -507,16 +546,28 @@ namespace DnsServerCore.Dns.Zones
                             bW.WriteShortString(tsigKeyName.Key);
                     }
 
-                    if (_updateTsigKeyNames is null)
+                    if (_updateSecurityPolicies is null)
                     {
                         bW.Write((byte)0);
                     }
                     else
                     {
-                        bW.Write(Convert.ToByte(_updateTsigKeyNames.Count));
+                        bW.Write(Convert.ToByte(_updateSecurityPolicies.Count));
 
-                        foreach (KeyValuePair<string, object> tsigKeyName in _updateTsigKeyNames)
-                            bW.WriteShortString(tsigKeyName.Key);
+                        foreach (KeyValuePair<string, IReadOnlyDictionary<string, IReadOnlyList<DnsResourceRecordType>>> updateSecurityPolicy in _updateSecurityPolicies)
+                        {
+                            bW.WriteShortString(updateSecurityPolicy.Key);
+                            bW.Write(Convert.ToByte(updateSecurityPolicy.Value.Count));
+
+                            foreach (KeyValuePair<string, IReadOnlyList<DnsResourceRecordType>> policyMap in updateSecurityPolicy.Value)
+                            {
+                                bW.WriteShortString(policyMap.Key);
+                                bW.Write(Convert.ToByte(policyMap.Value.Count));
+
+                                foreach (DnsResourceRecordType type in policyMap.Value)
+                                    bW.Write((ushort)type);
+                            }
+                        }
                     }
 
                     if (_dnssecPrivateKeys is null)
@@ -563,18 +614,6 @@ namespace DnsServerCore.Dns.Zones
                         bW.Write(Convert.ToByte(_zoneTransferTsigKeyNames.Count));
 
                         foreach (KeyValuePair<string, object> tsigKeyName in _zoneTransferTsigKeyNames)
-                            bW.WriteShortString(tsigKeyName.Key);
-                    }
-
-                    if (_updateTsigKeyNames is null)
-                    {
-                        bW.Write((byte)0);
-                    }
-                    else
-                    {
-                        bW.Write(Convert.ToByte(_updateTsigKeyNames.Count));
-
-                        foreach (KeyValuePair<string, object> tsigKeyName in _updateTsigKeyNames)
                             bW.WriteShortString(tsigKeyName.Key);
                     }
 
@@ -759,9 +798,9 @@ namespace DnsServerCore.Dns.Zones
             }
         }
 
-        public IReadOnlyDictionary<string, object> UpdateTsigKeyNames
+        public IReadOnlyDictionary<string, IReadOnlyDictionary<string, IReadOnlyList<DnsResourceRecordType>>> UpdateSecurityPolicies
         {
-            get { return _updateTsigKeyNames; }
+            get { return _updateSecurityPolicies; }
             set
             {
                 if (_apexZone is null)
@@ -770,8 +809,7 @@ namespace DnsServerCore.Dns.Zones
                 switch (_type)
                 {
                     case AuthZoneType.Primary:
-                    case AuthZoneType.Secondary:
-                        _apexZone.UpdateTsigKeyNames = value;
+                        _apexZone.UpdateSecurityPolicies = value;
                         break;
 
                     default:
