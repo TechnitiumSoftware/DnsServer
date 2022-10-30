@@ -292,11 +292,11 @@ function queryLogs(pageNumber) {
 
     var start = $("#txtQueryLogStart").val();
     if (start != "")
-        start = moment(start).format("YYYY-MM-DD HH:mm:ss");
+        start = moment(start).toISOString();
 
     var end = $("#txtQueryLogEnd").val();
     if (end != "")
-        end = moment(end).format("YYYY-MM-DD HH:mm:ss");
+        end = moment(end).toISOString();
 
     var clientIpAddress = $("#txtQueryLogClientIpAddress").val();
     var protocol = $("#optQueryLogsProtocol").val();
