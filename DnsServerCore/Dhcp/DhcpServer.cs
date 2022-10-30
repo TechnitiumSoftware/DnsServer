@@ -99,7 +99,7 @@ namespace DnsServerCore.Dhcp
                 Directory.CreateDirectory(_scopesFolder);
 
                 //create default scope
-                Scope scope = new Scope("Default", false, IPAddress.Parse("192.168.1.1"), IPAddress.Parse("192.168.1.254"), IPAddress.Parse("255.255.255.0"));
+                Scope scope = new Scope("Default", false, IPAddress.Parse("192.168.1.1"), IPAddress.Parse("192.168.1.254"), IPAddress.Parse("255.255.255.0"), _log);
                 scope.Exclusions = new Exclusion[] { new Exclusion(IPAddress.Parse("192.168.1.1"), IPAddress.Parse("192.168.1.10")) };
                 scope.RouterAddress = IPAddress.Parse("192.168.1.1");
                 scope.UseThisDnsServer = true;
@@ -345,7 +345,7 @@ namespace DnsServerCore.Dhcp
                         //log ip offer
                         LogManager log = _log;
                         if (log != null)
-                            log.Write(remoteEP, "DHCP Server offered IP address [" + offer.Address.ToString() + "] to " + request.GetClientFullIdentifier() + ".");
+                            log.Write(remoteEP, "DHCP Server offered IP address [" + offer.Address.ToString() + "] to " + request.GetClientFullIdentifier() + " for scope: " + scope.Name);
 
                         return DhcpMessage.CreateReply(request, offer.Address, scope.ServerAddress ?? serverIdentifierAddress, scope.ServerHostName, scope.BootFileName, options);
                     }
@@ -483,7 +483,7 @@ namespace DnsServerCore.Dhcp
                         //log ip lease
                         LogManager log = _log;
                         if (log != null)
-                            log.Write(remoteEP, "DHCP Server leased IP address [" + leaseOffer.Address.ToString() + "] to " + request.GetClientFullIdentifier() + ".");
+                            log.Write(remoteEP, "DHCP Server leased IP address [" + leaseOffer.Address.ToString() + "] to " + request.GetClientFullIdentifier() + " for scope: " + scope.Name);
 
                         if (string.IsNullOrWhiteSpace(scope.DomainName))
                         {
@@ -555,7 +555,7 @@ namespace DnsServerCore.Dhcp
                         //log issue
                         LogManager log = _log;
                         if (log != null)
-                            log.Write(remoteEP, "DHCP Server received DECLINE message: " + lease.GetClientInfo() + " detected that IP address [" + lease.Address + "] is already in use.");
+                            log.Write(remoteEP, "DHCP Server received DECLINE message for scope '" + scope.Name + "': " + lease.GetClientInfo() + " detected that IP address [" + lease.Address + "] is already in use.");
 
                         //update dns
                         UpdateDnsAuthZone(false, scope, lease);
@@ -593,7 +593,7 @@ namespace DnsServerCore.Dhcp
                         //log ip lease release
                         LogManager log = _log;
                         if (log != null)
-                            log.Write(remoteEP, "DHCP Server released IP address [" + lease.Address.ToString() + "] that was leased to " + lease.GetClientInfo() + ".");
+                            log.Write(remoteEP, "DHCP Server released IP address [" + lease.Address.ToString() + "] that was leased to " + lease.GetClientInfo() + " for scope: " + scope.Name);
 
                         //update dns
                         UpdateDnsAuthZone(false, scope, lease);
@@ -615,7 +615,7 @@ namespace DnsServerCore.Dhcp
                         //log inform
                         LogManager log = _log;
                         if (log != null)
-                            log.Write(remoteEP, "DHCP Server received INFORM message from " + request.GetClientFullIdentifier() + ".");
+                            log.Write(remoteEP, "DHCP Server received INFORM message from " + request.GetClientFullIdentifier() + " for scope: " + scope.Name);
 
                         List<DhcpOption> options = scope.GetOptions(request, serverIdentifierAddress, null);
                         if (options == null)
@@ -1185,7 +1185,7 @@ namespace DnsServerCore.Dhcp
             {
                 using (FileStream fS = new FileStream(scopeFile, FileMode.Open, FileAccess.Read))
                 {
-                    await LoadScopeAsync(new Scope(new BinaryReader(fS)), true);
+                    await LoadScopeAsync(new Scope(new BinaryReader(fS), _log), true);
                 }
 
                 LogManager log = _log;
