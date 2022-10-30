@@ -66,7 +66,7 @@ namespace DnsServerCore.Dns.Zones
         protected IReadOnlyCollection<IPAddress> _updateIpAddresses;
         protected List<DnsResourceRecord> _zoneHistory; //for IXFR support
         protected IReadOnlyDictionary<string, object> _zoneTransferTsigKeyNames;
-        protected IReadOnlyDictionary<string, object> _updateTsigKeyNames;
+        protected IReadOnlyDictionary<string, IReadOnlyDictionary<string, IReadOnlyList<DnsResourceRecordType>>> _updateSecurityPolicies;
         protected AuthZoneDnssecStatus _dnssecStatus;
 
         Timer _notifyTimer;
@@ -99,7 +99,7 @@ namespace DnsServerCore.Dns.Zones
                 _zoneHistory = new List<DnsResourceRecord>(zoneInfo.ZoneHistory);
 
             _zoneTransferTsigKeyNames = zoneInfo.ZoneTransferTsigKeyNames;
-            _updateTsigKeyNames = zoneInfo.UpdateTsigKeyNames;
+            _updateSecurityPolicies = zoneInfo.UpdateSecurityPolicies;
         }
 
         protected ApexZone(string name)
@@ -658,10 +658,10 @@ namespace DnsServerCore.Dns.Zones
             set { _zoneTransferTsigKeyNames = value; }
         }
 
-        public IReadOnlyDictionary<string, object> UpdateTsigKeyNames
+        public IReadOnlyDictionary<string, IReadOnlyDictionary<string, IReadOnlyList<DnsResourceRecordType>>> UpdateSecurityPolicies
         {
-            get { return _updateTsigKeyNames; }
-            set { _updateTsigKeyNames = value; }
+            get { return _updateSecurityPolicies; }
+            set { _updateSecurityPolicies = value; }
         }
 
         public bool NotifyFailed
