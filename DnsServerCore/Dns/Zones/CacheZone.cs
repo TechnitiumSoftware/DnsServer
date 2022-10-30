@@ -45,7 +45,7 @@ namespace DnsServerCore.Dns.Zones
                 if (record.IsExpired(serveStale))
                     return Array.Empty<DnsResourceRecord>(); //RR Set is expired
 
-                if (skipSpecialCacheRecord && (record.RDATA is DnsCache.DnsSpecialCacheRecord))
+                if (skipSpecialCacheRecord && (record.RDATA is DnsCache.DnsSpecialCacheRecordData))
                     return Array.Empty<DnsResourceRecord>(); //RR Set is special cache record
             }
 
@@ -80,7 +80,7 @@ namespace DnsServerCore.Dns.Zones
 
             if (records.Count > 0)
             {
-                if (records[0].RDATA is DnsCache.DnsSpecialCacheRecord splRecord)
+                if (records[0].RDATA is DnsCache.DnsSpecialCacheRecordData splRecord)
                 {
                     if (splRecord.IsFailureOrBadCache)
                     {
@@ -89,7 +89,7 @@ namespace DnsServerCore.Dns.Zones
 
                         if (_entries.TryGetValue(type, out IReadOnlyList<DnsResourceRecord> existingRecords))
                         {
-                            if ((existingRecords.Count > 0) && !(existingRecords[0].RDATA is DnsCache.DnsSpecialCacheRecord existingSplRecord && existingSplRecord.IsFailureOrBadCache) && !DnsResourceRecord.IsRRSetExpired(existingRecords, serveStale))
+                            if ((existingRecords.Count > 0) && !(existingRecords[0].RDATA is DnsCache.DnsSpecialCacheRecordData existingSplRecord && existingSplRecord.IsFailureOrBadCache) && !DnsResourceRecord.IsRRSetExpired(existingRecords, serveStale))
                                 return false; //skip to avoid overwriting a useful record with a failure record
                         }
                     }
