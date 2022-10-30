@@ -159,14 +159,14 @@ namespace DnsServerCore
             if (string.IsNullOrEmpty(strStart))
                 start = null;
             else
-                start = DateTime.ParseExact(strStart, "yyyy-MM-dd HH:mm:ss", CultureInfo.InvariantCulture, DateTimeStyles.AssumeLocal | DateTimeStyles.AdjustToUniversal);
+                start = DateTime.Parse(strStart, CultureInfo.InvariantCulture, DateTimeStyles.AssumeUniversal | DateTimeStyles.AdjustToUniversal);
 
             DateTime? end;
             string strEnd = request.QueryString["end"];
             if (string.IsNullOrEmpty(strEnd))
                 end = null;
             else
-                end = DateTime.ParseExact(strEnd, "yyyy-MM-dd HH:mm:ss", CultureInfo.InvariantCulture, DateTimeStyles.AssumeLocal | DateTimeStyles.AdjustToUniversal);
+                end = DateTime.Parse(strEnd, CultureInfo.InvariantCulture, DateTimeStyles.AssumeUniversal | DateTimeStyles.AdjustToUniversal);
 
             IPAddress clientIpAddress;
             string strClientIpAddress = request.QueryString["clientIpAddress"];
