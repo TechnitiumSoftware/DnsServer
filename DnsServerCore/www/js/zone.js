@@ -17,6 +17,8 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 */
 
+var zoneOptionsAvailableTsigKeyNames;
+
 $(function () {
     $("input[type=radio][name=rdAddZoneType]").change(function () {
         $("#divAddZonePrimaryNameServerAddresses").hide();
@@ -262,28 +264,6 @@ $(function () {
                 if (existingList.indexOf(selectedOption) < 0) {
                     existingList += selectedOption + "\n";
                     $("#txtZoneOptionsZoneTransferTsigKeyNames").val(existingList);
-                }
-
-                break;
-        }
-    });
-
-    $("#optZoneOptionsQuickTsigKeyNames2").change(function () {
-        var selectedOption = $("#optZoneOptionsQuickTsigKeyNames2").val();
-        switch (selectedOption) {
-            case "blank":
-                break;
-
-            case "none":
-                $("#txtDynamicUpdateTsigKeyNames").val("");
-                break;
-
-            default:
-                var existingList = $("#txtDynamicUpdateTsigKeyNames").val();
-
-                if (existingList.indexOf(selectedOption) < 0) {
-                    existingList += selectedOption + "\n";
-                    $("#txtDynamicUpdateTsigKeyNames").val(existingList);
                 }
 
                 break;
@@ -612,6 +592,50 @@ function deleteZone(objBtn) {
     });
 }
 
+function addZoneOptionsDynamicUpdatesSecurityPolicyRow(id, tsigKeyName, domain, allowedTypes) {
+    var tbodyDynamicUpdateSecurityPolicy = $("#tbodyDynamicUpdateSecurityPolicy");
+
+    if (id == null) {
+        id = Math.floor(Math.random() * 10000);
+
+        if (tbodyDynamicUpdateSecurityPolicy.is(":empty")) {
+            tsigKeyName = null;
+            domain = $("#lblZoneOptionsZoneName").attr("data-zone");
+            allowedTypes = 'A,AAAA'.split(',');
+        }
+    }
+
+    var tableHtmlRow = "<tr id=\"trDynamicUpdateSecurityPolicyRow" + id + "\"><td style=\"word-wrap: anywhere;\"><select class=\"form-control\">";
+
+    if (tsigKeyName != null)
+        tableHtmlRow += "<option selected>" + htmlEncode(tsigKeyName) + "</option>";
+
+    for (var i = 0; i < zoneOptionsAvailableTsigKeyNames.length; i++) {
+        if (zoneOptionsAvailableTsigKeyNames[i] === tsigKeyName)
+            continue;
+
+        tableHtmlRow += "<option>" + htmlEncode(zoneOptionsAvailableTsigKeyNames[i]) + "</option>";
+    }
+
+    tableHtmlRow += "</select></td>";
+    tableHtmlRow += "<td><input class=\"form-control\" type=\"text\" value=\"" + htmlEncode(domain) + "\"></td>";
+    tableHtmlRow += "<td><input class=\"form-control\" type=\"text\" value=\"";
+
+    if (allowedTypes != null) {
+        for (var i = 0; i < allowedTypes.length; i++) {
+            if (i == 0)
+                tableHtmlRow += htmlEncode(allowedTypes[i]);
+            else
+                tableHtmlRow += ", " + htmlEncode(allowedTypes[i]);
+        }
+    }
+
+    tableHtmlRow += "\"></td>";
+    tableHtmlRow += "<td align=\"right\"><button type=\"button\" class=\"btn btn-warning\" style=\"padding: 5px 7px;\" onclick=\"$('#trDynamicUpdateSecurityPolicyRow" + id + "').remove();\">Remove</button></td></tr>";
+
+    tbodyDynamicUpdateSecurityPolicy.append(tableHtmlRow);
+}
+
 function showZoneOptionsModal(zone) {
     var divZoneOptionsAlert = $("#divZoneOptionsAlert");
     var divZoneOptionsLoader = $("#divZoneOptionsLoader");
@@ -721,63 +745,59 @@ function showZoneOptionsModal(zone) {
                 $("#txtZoneNotifyNameServers").val(value);
             }
 
-            //dynamic update
-            switch (responseJSON.response.update) {
-                case "Allow":
-                    $("#rdDynamicUpdateAllow").prop("checked", true);
-                    break;
+            if (responseJSON.response.type == "Primary") {
+                //dynamic update
+                switch (responseJSON.response.update) {
+                    case "Allow":
+                        $("#rdDynamicUpdateAllow").prop("checked", true);
+                        break;
 
-                case "AllowOnlyZoneNameServers":
-                    $("#rdDynamicUpdateAllowOnlyZoneNameServers").prop("checked", true);
-                    break;
+                    case "AllowOnlyZoneNameServers":
+                        $("#rdDynamicUpdateAllowOnlyZoneNameServers").prop("checked", true);
+                        break;
 
-                case "AllowOnlySpecifiedIpAddresses":
-                    $("#rdDynamicUpdateAllowOnlySpecifiedIpAddresses").prop("checked", true);
-                    $("#txtDynamicUpdateIpAddresses").prop("disabled", false);
-                    break;
+                    case "AllowOnlySpecifiedIpAddresses":
+                        $("#rdDynamicUpdateAllowOnlySpecifiedIpAddresses").prop("checked", true);
+                        $("#txtDynamicUpdateIpAddresses").prop("disabled", false);
+                        break;
 
-                case "AllowBothZoneNameServersAndSpecifiedIpAddresses":
-                    $("#rdDynamicUpdateAllowBothZoneNameServersAndSpecifiedIpAddresses").prop("checked", true);
-                    $("#txtDynamicUpdateIpAddresses").prop("disabled", false);
-                    break;
+                    case "AllowBothZoneNameServersAndSpecifiedIpAddresses":
+                        $("#rdDynamicUpdateAllowBothZoneNameServersAndSpecifiedIpAddresses").prop("checked", true);
+                        $("#txtDynamicUpdateIpAddresses").prop("disabled", false);
+                        break;
 
-                case "Deny":
-                default:
-                    $("#rdDynamicUpdateDeny").prop("checked", true);
-                    break;
-            }
+                    case "Deny":
+                    default:
+                        $("#rdDynamicUpdateDeny").prop("checked", true);
+                        break;
+                }
 
-            {
-                var value = "";
+                {
+                    var value = "";
 
-                for (var i = 0; i < responseJSON.response.updateIpAddresses.length; i++)
-                    value += responseJSON.response.updateIpAddresses[i] + "\r\n";
+                    for (var i = 0; i < responseJSON.response.updateIpAddresses.length; i++)
+                        value += responseJSON.response.updateIpAddresses[i] + "\r\n";
 
-                $("#txtDynamicUpdateIpAddresses").val(value);
-            }
+                    $("#txtDynamicUpdateIpAddresses").val(value);
+                }
 
-            {
-                var value = "";
+                {
+                    $("#tbodyDynamicUpdateSecurityPolicy").html("");
+                    zoneOptionsAvailableTsigKeyNames = responseJSON.response.availableTsigKeyNames;
 
-                if (responseJSON.response.updateTsigKeyNames != null) {
-                    for (var i = 0; i < responseJSON.response.updateTsigKeyNames.length; i++) {
-                        value += responseJSON.response.updateTsigKeyNames[i] + "\r\n";
+                    if (responseJSON.response.updateSecurityPolicies != null) {
+                        for (var i = 0; i < responseJSON.response.updateSecurityPolicies.length; i++)
+                            addZoneOptionsDynamicUpdatesSecurityPolicyRow(i, responseJSON.response.updateSecurityPolicies[i].tsigKeyName, responseJSON.response.updateSecurityPolicies[i].domain, responseJSON.response.updateSecurityPolicies[i].allowedTypes);
                     }
                 }
 
-                $("#txtDynamicUpdateTsigKeyNames").val(value);
+                $("#tabListZoneOptionsUpdate").show();
             }
-
-            {
-                var options = "<option value=\"blank\" selected></option><option value=\"none\">None</option>";
-
-                if (responseJSON.response.availableTsigKeyNames != null) {
-                    for (var i = 0; i < responseJSON.response.availableTsigKeyNames.length; i++) {
-                        options += "<option>" + htmlEncode(responseJSON.response.availableTsigKeyNames[i]) + "</option>";
-                    }
-                }
-
-                $("#optZoneOptionsQuickTsigKeyNames2").html(options);
+            else {
+                $("#tabListZoneOptionsUpdate").hide();
+                $("#rdDynamicUpdateDeny").prop("checked", true);
+                $("#txtDynamicUpdateIpAddresses").val("");
+                $("#tbodyDynamicUpdateSecurityPolicy").html("");
             }
 
             $("#tabListZoneOptionsZoneTranfer").addClass("active");
@@ -844,12 +864,12 @@ function saveZoneOptions() {
     else
         $("#txtDynamicUpdateIpAddresses").val(updateIpAddresses.replace(/,/g, "\n"));
 
-    var updateTsigKeyNames = cleanTextList($("#txtDynamicUpdateTsigKeyNames").val());
+    var updateSecurityPolicies = serializeTableData($("#tableDynamicUpdateSecurityPolicy"), 3, divZoneOptionsAlert);
+    if (updateSecurityPolicies === false)
+        return;
 
-    if ((updateTsigKeyNames.length === 0) || (updateTsigKeyNames === ","))
-        updateTsigKeyNames = false;
-    else
-        $("#txtDynamicUpdateTsigKeyNames").val(updateTsigKeyNames.replace(/,/g, "\n"));
+    if (updateSecurityPolicies.length === 0)
+        updateSecurityPolicies = false;
 
     var btn = $("#btnSaveZoneOptions");
     btn.button('loading');
@@ -858,7 +878,7 @@ function saveZoneOptions() {
         url: "/api/zones/options/set?token=" + sessionData.token + "&zone=" + zone
             + "&zoneTransfer=" + zoneTransfer + "&zoneTransferNameServers=" + encodeURIComponent(zoneTransferNameServers) + "&zoneTransferTsigKeyNames=" + encodeURIComponent(zoneTransferTsigKeyNames)
             + "&notify=" + notify + "&notifyNameServers=" + encodeURIComponent(notifyNameServers)
-            + "&update=" + update + "&updateIpAddresses=" + encodeURIComponent(updateIpAddresses) + "&updateTsigKeyNames=" + encodeURIComponent(updateTsigKeyNames),
+            + "&update=" + update + "&updateIpAddresses=" + encodeURIComponent(updateIpAddresses) + "&updateSecurityPolicies=" + encodeURIComponent(updateSecurityPolicies),
         success: function (responseJSON) {
             btn.button('reset');
             $("#modalZoneOptions").modal("hide");
