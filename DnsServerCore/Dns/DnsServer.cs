@@ -1242,7 +1242,7 @@ namespace DnsServerCore.Dns
             if (log is not null)
                 log.Write(remoteEP, protocol, "DNS Server received UPDATE request for zone: " + (authZoneInfo.Name == "" ? "<root>" : authZoneInfo.Name));
 
-            async Task<bool> isZoneNameServerAllowedAsync()
+            async Task<bool> IsZoneNameServerAllowedAsync()
             {
                 IPAddress remoteAddress = remoteEP.Address;
                 IReadOnlyList<NameServerAddress> secondaryNameServers = await authZoneInfo.GetSecondaryNameServerAddressesAsync(this);
@@ -1256,7 +1256,7 @@ namespace DnsServerCore.Dns
                 return false;
             }
 
-            bool isSpecifiedIpAddressAllowed()
+            bool IsSpecifiedIpAddressAllowed()
             {
                 IPAddress remoteAddress = remoteEP.Address;
                 IReadOnlyCollection<IPAddress> specifiedIpAddresses = authZoneInfo.UpdateIpAddresses;
@@ -1272,29 +1272,31 @@ namespace DnsServerCore.Dns
                 return false;
             }
 
-            async Task<DnsDatagram> CheckForPermissionsAsync()
+            async Task<bool> IsUpdatePermittedAsync()
             {
-                bool isUpdateAllowed = false;
+                bool isUpdateAllowed;
 
                 switch (authZoneInfo.Update)
                 {
-                    case AuthZoneUpdate.Deny:
-                        break;
-
                     case AuthZoneUpdate.Allow:
                         isUpdateAllowed = true;
                         break;
 
                     case AuthZoneUpdate.AllowOnlyZoneNameServers:
-                        isUpdateAllowed = await isZoneNameServerAllowedAsync();
+                        isUpdateAllowed = await IsZoneNameServerAllowedAsync();
                         break;
 
                     case AuthZoneUpdate.AllowOnlySpecifiedIpAddresses:
-                        isUpdateAllowed = isSpecifiedIpAddressAllowed();
+                        isUpdateAllowed = IsSpecifiedIpAddressAllowed();
                         break;
 
                     case AuthZoneUpdate.AllowBothZoneNameServersAndSpecifiedIpAddresses:
-                        isUpdateAllowed = isSpecifiedIpAddressAllowed() || await isZoneNameServerAllowedAsync();
+                        isUpdateAllowed = IsSpecifiedIpAddressAllowed() || await IsZoneNameServerAllowedAsync();
+                        break;
+
+                    case AuthZoneUpdate.Deny:
+                    default:
+                        isUpdateAllowed = false;
                         break;
                 }
 
@@ -1303,21 +1305,52 @@ namespace DnsServerCore.Dns
                     if (log is not null)
                         log.Write(remoteEP, protocol, "DNS Server refused an UPDATE request since the request IP address is not allowed by the zone: " + (authZoneInfo.Name == "" ? "<root>" : authZoneInfo.Name));
 
-                    return new DnsDatagram(request.Identifier, true, DnsOpcode.Update, false, false, request.RecursionDesired, false, false, false, DnsResponseCode.Refused, request.Question) { Tag = DnsServerResponseType.Authoritative };
+                    return false;
                 }
 
-                if ((authZoneInfo.UpdateTsigKeyNames is not null) && (authZoneInfo.UpdateTsigKeyNames.Count > 0))
+                //check security policies
+                if ((authZoneInfo.UpdateSecurityPolicies is not null) && (authZoneInfo.UpdateSecurityPolicies.Count > 0))
                 {
-                    if ((tsigAuthenticatedKeyName is null) || !authZoneInfo.UpdateTsigKeyNames.ContainsKey(tsigAuthenticatedKeyName.ToLower()))
+                    if ((tsigAuthenticatedKeyName is null) || !authZoneInfo.UpdateSecurityPolicies.TryGetValue(tsigAuthenticatedKeyName.ToLower(), out IReadOnlyDictionary<string, IReadOnlyList<DnsResourceRecordType>> policyMap))
                     {
                         if (log is not null)
                             log.Write(remoteEP, protocol, "DNS Server refused a zone UPDATE request since the request is missing TSIG auth required by the zone: " + (authZoneInfo.Name == "" ? "<root>" : authZoneInfo.Name));
 
-                        return new DnsDatagram(request.Identifier, true, DnsOpcode.Update, false, false, request.RecursionDesired, false, false, false, DnsResponseCode.Refused, request.Question) { Tag = DnsServerResponseType.Authoritative };
+                        return false;
+                    }
+
+                    //check policy
+                    foreach (DnsResourceRecord uRecord in request.Authority)
+                    {
+                        bool isPermitted = false;
+
+                        foreach (KeyValuePair<string, IReadOnlyList<DnsResourceRecordType>> policy in policyMap)
+                        {
+                            if (
+                                  uRecord.Name.Equals(policy.Key, StringComparison.OrdinalIgnoreCase) ||
+                                  (policy.Key.StartsWith("*.") && uRecord.Name.EndsWith(policy.Key.Substring(1), StringComparison.OrdinalIgnoreCase))
+                               )
+                            {
+                                foreach (DnsResourceRecordType allowedType in policy.Value)
+                                {
+                                    if ((allowedType == DnsResourceRecordType.ANY) || (allowedType == uRecord.Type))
+                                    {
+                                        isPermitted = true;
+                                        break;
+                                    }
+                                }
+
+                                if (isPermitted)
+                                    break;
+                            }
+                        }
+
+                        if (!isPermitted)
+                            return false;
                     }
                 }
 
-                return null;
+                return true;
             }
 
             switch (authZoneInfo.Type)
@@ -1444,9 +1477,8 @@ namespace DnsServerCore.Dns
                         }
 
                         //check for permissions
-                        DnsDatagram errorResponse = await CheckForPermissionsAsync();
-                        if (errorResponse is not null)
-                            return errorResponse;
+                        if (!await IsUpdatePermittedAsync())
+                            return new DnsDatagram(request.Identifier, true, DnsOpcode.Update, false, false, request.RecursionDesired, false, false, false, DnsResponseCode.Refused, request.Question) { Tag = DnsServerResponseType.Authoritative };
 
                         //process update section
                         {
@@ -1693,78 +1725,70 @@ namespace DnsServerCore.Dns
                     }
 
                 case AuthZoneType.Secondary:
-                    //forward
+                    //forward to primary
                     {
-                        //check for permissions
-                        DnsDatagram errorResponse = await CheckForPermissionsAsync();
-                        if (errorResponse is not null)
-                            return errorResponse;
+                        IReadOnlyList<NameServerAddress> primaryNameServers = await authZoneInfo.GetPrimaryNameServerAddressesAsync(this);
 
-                        //forward to primary
+                        DnsResourceRecord soaRecord = authZoneInfo.GetRecords(DnsResourceRecordType.SOA)[0];
+                        DnsResourceRecordInfo recordInfo = soaRecord.GetRecordInfo();
+
+                        if (recordInfo.ZoneTransferProtocol == DnsTransportProtocol.Tls)
                         {
-                            IReadOnlyList<NameServerAddress> primaryNameServers = await authZoneInfo.GetPrimaryNameServerAddressesAsync(this);
+                            //change name server protocol to TLS
+                            List<NameServerAddress> tcpNameServers = new List<NameServerAddress>(primaryNameServers.Count);
 
-                            DnsResourceRecord soaRecord = authZoneInfo.GetRecords(DnsResourceRecordType.SOA)[0];
-                            DnsResourceRecordInfo recordInfo = soaRecord.GetRecordInfo();
-
-                            if (recordInfo.ZoneTransferProtocol == DnsTransportProtocol.Tls)
+                            foreach (NameServerAddress primaryNameServer in primaryNameServers)
                             {
-                                //change name server protocol to TLS
-                                List<NameServerAddress> tcpNameServers = new List<NameServerAddress>(primaryNameServers.Count);
-
-                                foreach (NameServerAddress primaryNameServer in primaryNameServers)
-                                {
-                                    if (primaryNameServer.Protocol == DnsTransportProtocol.Tls)
-                                        tcpNameServers.Add(primaryNameServer);
-                                    else
-                                        tcpNameServers.Add(primaryNameServer.ChangeProtocol(DnsTransportProtocol.Tls));
-                                }
-
-                                primaryNameServers = tcpNameServers;
-                            }
-                            else if (protocol == DnsTransportProtocol.Tcp)
-                            {
-                                //change name server protocol to TCP
-                                List<NameServerAddress> tcpNameServers = new List<NameServerAddress>(primaryNameServers.Count);
-
-                                foreach (NameServerAddress primaryNameServer in primaryNameServers)
-                                {
-                                    if (primaryNameServer.Protocol == DnsTransportProtocol.Tcp)
-                                        tcpNameServers.Add(primaryNameServer);
-                                    else
-                                        tcpNameServers.Add(primaryNameServer.ChangeProtocol(DnsTransportProtocol.Tcp));
-                                }
-
-                                primaryNameServers = tcpNameServers;
+                                if (primaryNameServer.Protocol == DnsTransportProtocol.Tls)
+                                    tcpNameServers.Add(primaryNameServer);
+                                else
+                                    tcpNameServers.Add(primaryNameServer.ChangeProtocol(DnsTransportProtocol.Tls));
                             }
 
-                            TsigKey key = null;
-
-                            if (!string.IsNullOrEmpty(tsigAuthenticatedKeyName) && ((_tsigKeys is null) || !_tsigKeys.TryGetValue(tsigAuthenticatedKeyName, out key)))
-                                throw new DnsServerException("DNS Server does not have TSIG key '" + tsigAuthenticatedKeyName + "' configured for refreshing secondary zone: " + (authZoneInfo.Name == "" ? "<root>" : authZoneInfo.Name));
-
-                            DnsClient dnsClient = new DnsClient(primaryNameServers);
-
-                            dnsClient.Proxy = _proxy;
-                            dnsClient.PreferIPv6 = _preferIPv6;
-                            dnsClient.Retries = _forwarderRetries;
-                            dnsClient.Timeout = _forwarderTimeout;
-                            dnsClient.Concurrency = 1;
-
-                            DnsDatagram newRequest = request.Clone();
-                            newRequest.SetRandomIdentifier();
-
-                            DnsDatagram newResponse;
-
-                            if (key is null)
-                                newResponse = await dnsClient.ResolveAsync(newRequest);
-                            else
-                                newResponse = await dnsClient.ResolveAsync(newRequest, key);
-
-                            newResponse.SetIdentifier(request.Identifier);
-
-                            return newResponse;
+                            primaryNameServers = tcpNameServers;
                         }
+                        else if (protocol == DnsTransportProtocol.Tcp)
+                        {
+                            //change name server protocol to TCP
+                            List<NameServerAddress> tcpNameServers = new List<NameServerAddress>(primaryNameServers.Count);
+
+                            foreach (NameServerAddress primaryNameServer in primaryNameServers)
+                            {
+                                if (primaryNameServer.Protocol == DnsTransportProtocol.Tcp)
+                                    tcpNameServers.Add(primaryNameServer);
+                                else
+                                    tcpNameServers.Add(primaryNameServer.ChangeProtocol(DnsTransportProtocol.Tcp));
+                            }
+
+                            primaryNameServers = tcpNameServers;
+                        }
+
+                        TsigKey key = null;
+
+                        if (!string.IsNullOrEmpty(tsigAuthenticatedKeyName) && ((_tsigKeys is null) || !_tsigKeys.TryGetValue(tsigAuthenticatedKeyName, out key)))
+                            throw new DnsServerException("DNS Server does not have TSIG key '" + tsigAuthenticatedKeyName + "' configured to authenticate dynamic updates for secondary zone: " + (authZoneInfo.Name == "" ? "<root>" : authZoneInfo.Name));
+
+                        DnsClient dnsClient = new DnsClient(primaryNameServers);
+
+                        dnsClient.Proxy = _proxy;
+                        dnsClient.PreferIPv6 = _preferIPv6;
+                        dnsClient.Retries = _forwarderRetries;
+                        dnsClient.Timeout = _forwarderTimeout;
+                        dnsClient.Concurrency = 1;
+
+                        DnsDatagram newRequest = request.Clone();
+                        newRequest.SetRandomIdentifier();
+
+                        DnsDatagram newResponse;
+
+                        if (key is null)
+                            newResponse = await dnsClient.ResolveAsync(newRequest);
+                        else
+                            newResponse = await dnsClient.ResolveAsync(newRequest, key);
+
+                        newResponse.SetIdentifier(request.Identifier);
+
+                        return newResponse;
                     }
 
                 default:
@@ -1798,7 +1822,7 @@ namespace DnsServerCore.Dns
                     return new DnsDatagram(request.Identifier, true, DnsOpcode.StandardQuery, false, false, request.RecursionDesired, false, false, false, DnsResponseCode.Refused, request.Question) { Tag = DnsServerResponseType.Authoritative };
             }
 
-            async Task<bool> isZoneNameServerAllowedAsync()
+            async Task<bool> IsZoneNameServerAllowedAsync()
             {
                 IPAddress remoteAddress = remoteEP.Address;
                 IReadOnlyList<NameServerAddress> secondaryNameServers = await authZoneInfo.GetSecondaryNameServerAddressesAsync(this);
@@ -1812,7 +1836,7 @@ namespace DnsServerCore.Dns
                 return false;
             }
 
-            bool isSpecifiedNameServerAllowed()
+            bool IsSpecifiedNameServerAllowed()
             {
                 IPAddress remoteAddress = remoteEP.Address;
                 IReadOnlyCollection<IPAddress> specifiedNameServers = authZoneInfo.ZoneTransferNameServers;
@@ -1840,15 +1864,15 @@ namespace DnsServerCore.Dns
                     break;
 
                 case AuthZoneTransfer.AllowOnlyZoneNameServers:
-                    isZoneTransferAllowed = await isZoneNameServerAllowedAsync();
+                    isZoneTransferAllowed = await IsZoneNameServerAllowedAsync();
                     break;
 
                 case AuthZoneTransfer.AllowOnlySpecifiedNameServers:
-                    isZoneTransferAllowed = isSpecifiedNameServerAllowed();
+                    isZoneTransferAllowed = IsSpecifiedNameServerAllowed();
                     break;
 
                 case AuthZoneTransfer.AllowBothZoneAndSpecifiedNameServers:
-                    isZoneTransferAllowed = isSpecifiedNameServerAllowed() || await isZoneNameServerAllowedAsync();
+                    isZoneTransferAllowed = IsSpecifiedNameServerAllowed() || await IsZoneNameServerAllowedAsync();
                     break;
             }
 
@@ -2076,12 +2100,16 @@ namespace DnsServerCore.Dns
             DnsDatagram lastResponse = response;
             bool isAuthoritativeAnswer = response.AuthoritativeAnswer;
             DnsResourceRecord lastRR = response.GetLastAnswerRecord();
-            DnsDatagram newResponse;
+            DnsDatagram newResponse = null;
 
             int queryCount = 0;
             do
             {
-                DnsDatagram newRequest = new DnsDatagram(0, false, DnsOpcode.StandardQuery, false, false, request.RecursionDesired, false, false, false, DnsResponseCode.NoError, new DnsQuestionRecord[] { new DnsQuestionRecord((lastRR.RDATA as DnsCNAMERecordData).Domain, request.Question[0].Type, request.Question[0].Class) }, null, null, null, _udpPayloadSize, request.DnssecOk ? EDnsHeaderFlags.DNSSEC_OK : EDnsHeaderFlags.None);
+                string cnameDomain = (lastRR.RDATA as DnsCNAMERecordData).Domain;
+                if (lastRR.Name.Equals(cnameDomain, StringComparison.OrdinalIgnoreCase))
+                    break; //loop detected
+
+                DnsDatagram newRequest = new DnsDatagram(0, false, DnsOpcode.StandardQuery, false, false, request.RecursionDesired, false, false, false, DnsResponseCode.NoError, new DnsQuestionRecord[] { new DnsQuestionRecord(cnameDomain, request.Question[0].Type, request.Question[0].Class) }, null, null, null, _udpPayloadSize, request.DnssecOk ? EDnsHeaderFlags.DNSSEC_OK : EDnsHeaderFlags.None);
 
                 //query authoritative zone first
                 newResponse = _authZoneManager.Query(newRequest, isRecursionAllowed);
@@ -2146,12 +2174,31 @@ namespace DnsServerCore.Dns
                 if (newResponse.Answer.Count == 0)
                     break; //cannot proceed to resolve further
 
-                newAnswer.AddRange(newResponse.Answer);
-
                 lastRR = newResponse.GetLastAnswerRecord();
-
                 if (lastRR.Type != DnsResourceRecordType.CNAME)
+                {
+                    newAnswer.AddRange(newResponse.Answer);
                     break; //cname was resolved
+                }
+
+                bool foundRepeat = false;
+
+                foreach (DnsResourceRecord answerRecord in newAnswer)
+                {
+                    if (answerRecord.Type != DnsResourceRecordType.CNAME)
+                        continue;
+
+                    if (answerRecord.RDATA.Equals(lastRR.RDATA))
+                    {
+                        foundRepeat = true;
+                        break;
+                    }
+                }
+
+                if (foundRepeat)
+                    break; //loop detected
+
+                newAnswer.AddRange(newResponse.Answer);
 
                 lastResponse = newResponse;
             }
@@ -2205,6 +2252,8 @@ namespace DnsServerCore.Dns
             async Task<IReadOnlyList<DnsResourceRecord>> ResolveANAMEAsync(DnsResourceRecord anameRR, int queryCount = 0)
             {
                 string lastDomain = (anameRR.RDATA as DnsANAMERecordData).Domain;
+                if (anameRR.Name.Equals(lastDomain, StringComparison.OrdinalIgnoreCase))
+                    return null; //loop detected
 
                 do
                 {
