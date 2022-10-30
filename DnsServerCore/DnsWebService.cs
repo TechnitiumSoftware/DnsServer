@@ -3487,7 +3487,7 @@ namespace DnsServerCore
                         if (proxy is null)
                             await nameServer.ResolveIPAddressAsync(_dnsServer, _dnsServer.PreferIPv6);
                     }
-                    else if (protocol != DnsTransportProtocol.Tls)
+                    else if ((nameServer.DomainEndPoint is null) && ((protocol == DnsTransportProtocol.Udp) || (protocol == DnsTransportProtocol.Tcp)))
                     {
                         try
                         {
