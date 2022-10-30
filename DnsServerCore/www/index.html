@@ -607,9 +607,19 @@
                                                     <li><a href="#">OpenDNS {208.67.220.220}</a></li>
                                                     <li><a href="#">OpenDNS {[2620:0:ccc::2]}</a></li>
                                                     <li><a href="#">OpenDNS {[2620:0:ccd::2]}</a></li>
+                                                    <li><a href="#">OpenDNS TLS {dns.opendns.com (208.67.222.222:853)}</a></li>
+                                                    <li><a href="#">OpenDNS TLS {dns.opendns.com (208.67.220.220:853)}</a></li>
+                                                    <li><a href="#">OpenDNS TLS {dns.opendns.com ([2620:0:ccc::2]:853)}</a></li>
+                                                    <li><a href="#">OpenDNS TLS {dns.opendns.com ([2620:0:ccd::2]:853)}</a></li>
                                                     <li><a href="#">OpenDNS HTTPS {https://doh.opendns.com/dns-query}</a></li>
                                                     <li><a href="#">OpenDNS FamilyShield {208.67.222.123}</a></li>
                                                     <li><a href="#">OpenDNS FamilyShield {208.67.220.123}</a></li>
+                                                    <li><a href="#">OpenDNS FamilyShield {[2620:119:35::123]}</a></li>
+                                                    <li><a href="#">OpenDNS FamilyShield {[2620:119:53::123]}</a></li>
+                                                    <li><a href="#">OpenDNS TLS {familyshield.opendns.com (208.67.222.123:853)}</a></li>
+                                                    <li><a href="#">OpenDNS TLS {familyshield.opendns.com (208.67.220.123:853)}</a></li>
+                                                    <li><a href="#">OpenDNS TLS {familyshield.opendns.com ([2620:119:35::123]:853)}</a></li>
+                                                    <li><a href="#">OpenDNS TLS {familyshield.opendns.com ([2620:119:53::123]:853)}</a></li>
                                                     <li><a href="#">OpenDNS FamilyShield HTTPS {https://doh.familyshield.opendns.com/dns-query}</a></li>
                                                     <li><a href="#">Level3 {4.2.2.1}</a></li>
                                                     <li><a href="#">Level3 {4.2.2.2}</a></li>
@@ -654,11 +664,13 @@
                                                 <option>SRV</option>
                                                 <option>DNAME</option>
                                                 <option>DS</option>
+                                                <option>SSHFP</option>
                                                 <option>RRSIG</option>
                                                 <option>NSEC</option>
                                                 <option>DNSKEY</option>
                                                 <option>NSEC3</option>
                                                 <option>NSEC3PARAM</option>
+                                                <option>TLSA</option>
                                                 <option>CAA</option>
                                                 <option>ANY</option>
                                                 <option>AXFR</option>
@@ -1504,9 +1516,16 @@
                                                                     <option value="opendns-udp-ipv6">OpenDNS (DNS-over-UDP IPv6)</option>
                                                                     <option value="opendns-tcp">OpenDNS (DNS-over-TCP)</option>
                                                                     <option value="opendns-tcp-ipv6">OpenDNS (DNS-over-TCP IPv6)</option>
+                                                                    <option value="opendns-tls">OpenDNS (DNS-over-TLS)</option>
+                                                                    <option value="opendns-tls-ipv6">OpenDNS (DNS-over-TLS IPv6)</option>
                                                                     <option value="opendns-https">OpenDNS (DNS-over-HTTPS)</option>
 
                                                                     <option value="opendns-fs-udp">OpenDNS FamilyShield (DNS-over-UDP)</option>
+                                                                    <option value="opendns-fs-udp-ipv6">OpenDNS FamilyShield (DNS-over-UDP IPv6)</option>
+                                                                    <option value="opendns-fs-tcp">OpenDNS FamilyShield (DNS-over-TCP)</option>
+                                                                    <option value="opendns-fs-tcp-ipv6">OpenDNS FamilyShield (DNS-over-TCP IPv6)</option>
+                                                                    <option value="opendns-fs-tls">OpenDNS FamilyShield (DNS-over-TLS)</option>
+                                                                    <option value="opendns-fs-tls-ipv6">OpenDNS FamilyShield (DNS-over-TLS IPv6)</option>
                                                                     <option value="opendns-fs-https">OpenDNS FamilyShield (DNS-over-HTTPS)</option>
                                                                 </select>
 
@@ -3373,7 +3392,7 @@ ns1.example.com ([2001:db8::])
 
                     <div id="divZoneOptionsLoader" style="height: 500px;"></div>
 
-                    <div id="divZoneOptions" style="max-height: 500px; overflow-y: auto; padding: 0 6px; overflow-x: hidden;">
+                    <div id="divZoneOptions" style="max-height: 500px;">
 
                         <div>
                             <ul class="nav nav-tabs" role="tablist">
@@ -3383,7 +3402,7 @@ ns1.example.com ([2001:db8::])
                             </ul>
 
                             <div class="tab-content">
-                                <div id="tabPaneZoneOptionsZoneTransfer" role="tabpanel" class="tab-pane active" style="padding: 10px 0 0 0;">
+                                <div id="tabPaneZoneOptionsZoneTransfer" role="tabpanel" class="tab-pane active" style="padding: 0 6px 0 0; max-height: 450px; margin: 10px 0 0 0; overflow-y: auto; overflow-x: hidden;">
                                     <div class="well well-sm form-horizontal">
                                         <div class="form-group">
                                             <label class="col-sm-3 control-label">Zone Transfer</label>
@@ -3453,7 +3472,7 @@ ns1.example.com ([2001:db8::])
                                     </div>
                                 </div>
 
-                                <div id="tabPaneZoneOptionsNotify" role="tabpanel" class="tab-pane" style="padding: 10px 0 0 0;">
+                                <div id="tabPaneZoneOptionsNotify" role="tabpanel" class="tab-pane" style="padding: 0 6px 0 0; max-height: 450px; margin: 10px 0 0 0; overflow-y: auto; overflow-x: hidden; ">
                                     <div class="well well-sm form-horizontal">
                                         <div class="form-group">
                                             <label class="col-sm-3 control-label">Notify</label>
@@ -3501,10 +3520,10 @@ ns1.example.com ([2001:db8::])
                                     </div>
                                 </div>
 
-                                <div id="tabPaneZoneOptionsUpdate" role="tabpanel" class="tab-pane" style="padding: 10px 0 0 0;">
+                                <div id="tabPaneZoneOptionsUpdate" role="tabpanel" class="tab-pane" style="padding: 0 6px 0 0; max-height: 450px; margin: 10px 0 0 0; overflow-y: auto; overflow-x: hidden;">
                                     <div class="well well-sm form-horizontal">
                                         <div class="form-group">
-                                            <label class="col-sm-3 control-label">Dynamic Update</label>
+                                            <label class="col-sm-3 control-label">Dynamic Updates</label>
                                             <div class="col-sm-8">
                                                 <div class="radio">
                                                     <label>
@@ -3518,7 +3537,7 @@ ns1.example.com ([2001:db8::])
                                                         <input type="radio" name="rdDynamicUpdate" id="rdDynamicUpdateAllow" value="Allow">
                                                         Allow
                                                     </label>
-                                                    <div style="padding-top: 5px; padding-left: 20px;">Allows everyone to perform dynamic updates. Should be used only when TSIG is configured.</div>
+                                                    <div style="padding-top: 5px; padding-left: 20px;">Allows everyone to perform dynamic updates.</div>
                                                 </div>
                                                 <div class="radio">
                                                     <label>
@@ -3551,22 +3570,27 @@ ns1.example.com ([2001:db8::])
                                             </div>
                                         </div>
 
-                                        <div>Note! Dynamic updates should be allowed only to trusted IP addresses since they will be able to create, modify, or delete records in the zone.</div>
+                                        <div>Note! Dynamic updates should be allowed only to trusted IP addresses since they will be able to add/delete records in the zone. Setting up a security policy below is highly recommended.</div>
                                     </div>
 
                                     <div class="well well-sm form-horizontal">
-                                        <div class="form-group">
-                                            <label for="txtDynamicUpdateTsigKeyNames" class="col-sm-3 control-label">Dynamic Update TSIG Key Names</label>
-                                            <div class="col-sm-6">
-                                                <textarea id="txtDynamicUpdateTsigKeyNames" class="form-control" rows="3" spellcheck="false"></textarea>
+                                        <p style="font-size: 16px; font-weight: bold;">Security Policy</p>
 
-                                                <label for="optZoneOptionsQuickTsigKeyNames2" class="control-label">Quick Add</label>
-                                                <select id="optZoneOptionsQuickTsigKeyNames2" class="form-control">
-                                                </select>
-                                            </div>
-                                        </div>
+                                        <table id="tableDynamicUpdateSecurityPolicy" class="table table-hover">
+                                            <thead>
+                                                <tr>
+                                                    <th>TSIG Key Name</th>
+                                                    <th>Domain Name</th>
+                                                    <th>Allowed Record Types</th>
+                                                    <th style="width: 84px;">
+                                                        <button type="button" class="btn btn-default" style="padding: 0px 20px;" onclick="addZoneOptionsDynamicUpdatesSecurityPolicyRow();">Add</button>
+                                                    </th>
+                                                </tr>
+                                            </thead>
+                                            <tbody id="tbodyDynamicUpdateSecurityPolicy"></tbody>
+                                        </table>
 
-                                        <div>Note! TSIG key names must be configured from the Settings before using them here. Entering one or more TSIG key names above will cause the DNS server to authenticate all dynamic update requests. Both primary and secondary zones must be configured to use the same dynamic update TSIG keys to allow dynamic updates via secondary zones.</div>
+                                        <div>Note! Configuring a security policy above will cause the DNS server to authenticate all dynamic update requests. A TSIG key can add/delete records only for the specified domain name and allowed record types. TSIG key names must be configured from the Settings before using them here. Use wildcard domain name to specify all sub domain names. Use a comma separator to specify more than one record type. Use ANY to specify all record types.</div>
                                     </div>
                                 </div>
                             </div>
