@@ -39,6 +39,8 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "BlockPageApp", "Apps\BlockP
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "WildIpApp", "Apps\WildIpApp\WildIpApp.csproj", "{8B6BEB00-0AC2-4680-A848-31AD8A0FCD82}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DnsServerNew", "DnsServerNew\DnsServerNew.csproj", "{87F93E0D-4ADC-42DD-8665-A1E97FC55042}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -113,6 +115,10 @@ Global
 		{8B6BEB00-0AC2-4680-A848-31AD8A0FCD82}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{8B6BEB00-0AC2-4680-A848-31AD8A0FCD82}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{8B6BEB00-0AC2-4680-A848-31AD8A0FCD82}.Release|Any CPU.Build.0 = Release|Any CPU
+		{87F93E0D-4ADC-42DD-8665-A1E97FC55042}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{87F93E0D-4ADC-42DD-8665-A1E97FC55042}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{87F93E0D-4ADC-42DD-8665-A1E97FC55042}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{87F93E0D-4ADC-42DD-8665-A1E97FC55042}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

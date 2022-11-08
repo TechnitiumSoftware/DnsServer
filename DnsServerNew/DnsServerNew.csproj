@@ -1,0 +1,38 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
+    <CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net6.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <Version>9.1</Version>
+    <Company>Technitium</Company>
+    <Product>Technitium DNS Server</Product>
+    <Authors>Shreyas Zare</Authors>
+    <AssemblyName>DnsServerNew</AssemblyName>
+    <RootNamespace>DnsServerNew</RootNamespace>
+    <StartupObject>DnsServerNew.Program</StartupObject>
+    <PackageProjectUrl>https://technitium.com/dns/</PackageProjectUrl>
+    <RepositoryUrl>https://github.com/TechnitiumSoftware/DnsServer</RepositoryUrl>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <RuntimeHostConfigurationOption Include="System.Globalization.Invariant" Value="true" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\DnsServerCore\DnsServerCore.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Reference Include="TechnitiumLibrary.Net">
+      <HintPath>..\..\TechnitiumLibrary\bin\TechnitiumLibrary.Net.dll</HintPath>
+    </Reference>
+  </ItemGroup>
+
+</Project>

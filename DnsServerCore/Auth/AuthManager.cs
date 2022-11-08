@@ -28,7 +28,7 @@ using System.Threading.Tasks;
 
 namespace DnsServerCore.Auth
 {
-    sealed class AuthManager : IDisposable
+    internal sealed class AuthManager : IDisposable
     {
         #region variables
 
