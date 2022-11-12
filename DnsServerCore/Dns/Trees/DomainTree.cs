@@ -37,7 +37,7 @@ namespace DnsServerCore.Dns.Trees
         static DomainTree()
         {
             _keyMap = new byte[256];
-            _reverseKeyMap = new byte[40];
+            _reverseKeyMap = new byte[41];
 
             int keyCode;
 
@@ -61,27 +61,33 @@ namespace DnsServerCore.Dns.Trees
                     _keyMap[i] = (byte)keyCode;
                     _reverseKeyMap[keyCode] = (byte)i;
                 }
+                else if (i == 47) //[/]
+                {
+                    keyCode = 3;
+                    _keyMap[i] = (byte)keyCode;
+                    _reverseKeyMap[keyCode] = (byte)i;
+                }
                 else if ((i >= 48) && (i <= 57)) //[0-9]
                 {
-                    keyCode = i - 45; //3 - 12
+                    keyCode = i - 44; //4 - 13
                     _keyMap[i] = (byte)keyCode;
                     _reverseKeyMap[keyCode] = (byte)i;
                 }
                 else if (i == 95) //[_]
                 {
-                    keyCode = 13;
+                    keyCode = 14;
                     _keyMap[i] = (byte)keyCode;
                     _reverseKeyMap[keyCode] = (byte)i;
                 }
                 else if ((i >= 97) && (i <= 122)) //[a-z]
                 {
-                    keyCode = i - 83; //14 - 39
+                    keyCode = i - 82; //15 - 40
                     _keyMap[i] = (byte)keyCode;
                     _reverseKeyMap[keyCode] = (byte)i;
                 }
                 else if ((i >= 65) && (i <= 90)) //[A-Z]
                 {
-                    keyCode = i - 51; //14 - 39
+                    keyCode = i - 50; //15 - 40
                     _keyMap[i] = (byte)keyCode;
                 }
                 else
@@ -92,7 +98,7 @@ namespace DnsServerCore.Dns.Trees
         }
 
         public DomainTree()
-            : base(40)
+            : base(41)
         { }
 
         #endregion
