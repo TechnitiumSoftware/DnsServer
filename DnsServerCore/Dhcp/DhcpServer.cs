@@ -1010,7 +1010,7 @@ namespace DnsServerCore.Dhcp
             return false;
         }
 
-        private async Task<bool> ActivateScopeAsync(Scope scope, bool waitForInterface)
+        private async Task<bool> ActivateScopeAsync(Scope scope, bool waitForInterface, bool throwException = false)
         {
             IPEndPoint dhcpEP = null;
 
@@ -1085,14 +1085,17 @@ namespace DnsServerCore.Dhcp
             catch (Exception ex)
             {
                 LogManager log = _log;
-                if (log != null)
+                if (log is not null)
                     log.Write(dhcpEP, "DHCP Server failed to activate scope: " + scope.Name + "\r\n" + ex.ToString());
+
+                if (throwException)
+                    throw;
             }
 
             return false;
         }
 
-        private bool DeactivateScope(Scope scope)
+        private bool DeactivateScope(Scope scope, bool throwException = false)
         {
             IPEndPoint dhcpEP = null;
 
@@ -1122,8 +1125,11 @@ namespace DnsServerCore.Dhcp
             catch (Exception ex)
             {
                 LogManager log = _log;
-                if (log != null)
+                if (log is not null)
                     log.Write(dhcpEP, "DHCP Server failed to deactivate scope: " + scope.Name + "\r\n" + ex.ToString());
+
+                if (throwException)
+                    throw;
             }
 
             return false;
@@ -1384,11 +1390,11 @@ namespace DnsServerCore.Dhcp
             }
         }
 
-        public async Task<bool> EnableScopeAsync(string name)
+        public async Task<bool> EnableScopeAsync(string name, bool throwException = false)
         {
             if (_scopes.TryGetValue(name, out Scope scope))
             {
-                if (!scope.Enabled && await ActivateScopeAsync(scope, false))
+                if (!scope.Enabled && await ActivateScopeAsync(scope, false, throwException))
                 {
                     scope.SetEnabled(true);
                     SaveScopeFile(scope);
@@ -1400,11 +1406,11 @@ namespace DnsServerCore.Dhcp
             return false;
         }
 
-        public bool DisableScope(string name)
+        public bool DisableScope(string name, bool throwException = false)
         {
             if (_scopes.TryGetValue(name, out Scope scope))
             {
-                if (scope.Enabled && DeactivateScope(scope))
+                if (scope.Enabled && DeactivateScope(scope, throwException))
                 {
                     scope.SetEnabled(false);
                     SaveScopeFile(scope);
