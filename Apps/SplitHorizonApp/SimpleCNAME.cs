@@ -53,6 +53,8 @@ namespace SplitHorizon
             dynamic jsonAppRecordData = JsonConvert.DeserializeObject(appRecordData);
             dynamic jsonCname = null;
 
+            NetworkAddress selectedNetwork = null;
+
             foreach (dynamic jsonProperty in jsonAppRecordData)
             {
                 string name = jsonProperty.Name;
@@ -76,10 +78,10 @@ namespace SplitHorizon
                 }
                 else if (NetworkAddress.TryParse(name, out NetworkAddress networkAddress))
                 {
-                    if (networkAddress.Contains(remoteEP.Address))
+                    if (networkAddress.Contains(remoteEP.Address) && ((selectedNetwork is null) || (networkAddress.PrefixLength > selectedNetwork.PrefixLength)))
                     {
+                        selectedNetwork = networkAddress;
                         jsonCname = jsonProperty.Value;
-                        break;
                     }
                 }
             }
