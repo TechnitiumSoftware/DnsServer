@@ -70,28 +70,31 @@ function getAppRowHtml(app) {
 
     //dnsApps
     if (app.dnsApps.length > 0) {
-        dnsAppsTable = "<table class=\"table\"><thead><th>Class Path</th><th>Description</th></thead><tbody>";
+        dnsAppsTable = "<table class=\"table\" style=\"background: transparent;\"><thead><th>Class Path</th><th>Description</th></thead><tbody>";
 
         for (var j = 0; j < app.dnsApps.length; j++) {
             var labels = "";
             var description = null;
 
             if (app.dnsApps[j].isAppRecordRequestHandler) {
-                labels += "<span class=\"label label-info\">APP Record</span>";
+                labels += "<span class=\"label label-info\" style=\"margin-right: 4px;\">APP Record</span>";
                 description = "<p>" + htmlEncode(app.dnsApps[j].description).replace(/\n/g, "<br />") + "</p>" + (app.dnsApps[j].recordDataTemplate == null ? "" : "<div><b>Record Data Template</b><pre>" + htmlEncode(app.dnsApps[j].recordDataTemplate) + "</pre></div>");
             }
 
             if (app.dnsApps[j].isRequestController)
-                labels += "<span class=\"label label-info\">Access Control</span>";
+                labels += "<span class=\"label label-info\" style=\"margin-right: 4px;\">Access Control</span>";
 
             if (app.dnsApps[j].isAuthoritativeRequestHandler)
-                labels += "<span class=\"label label-info\">Authoritative</span>";
+                labels += "<span class=\"label label-info\" style=\"margin-right: 4px;\">Authoritative</span>";
 
             if (app.dnsApps[j].isQueryLogger)
-                labels += "<span class=\"label label-info\">Query Logs</span>";
+                labels += "<span class=\"label label-info\" style=\"margin-right: 4px;\">Query Logs</span>";
+
+            if (app.dnsApps[j].isPostProcessor)
+                labels += "<span class=\"label label-info\" style=\"margin-right: 4px;\">Post Processor</span>";
 
             if (labels == "")
-                labels = "<span class=\"label label-info\">Generic</span>";
+                labels = "<span class=\"label label-info\" style=\"margin-right: 4px;\">Generic</span>";
 
             if (description == null)
                 description = htmlEncode(app.dnsApps[j].description).replace(/\n/g, "<br />");
