@@ -41,6 +41,7 @@ namespace DnsServerCore.Dns.Applications
         IReadOnlyList<IDnsRequestController> _dnsRequestControllers = Array.Empty<IDnsRequestController>();
         IReadOnlyList<IDnsAuthoritativeRequestHandler> _dnsAuthoritativeRequestHandlers = Array.Empty<IDnsAuthoritativeRequestHandler>();
         IReadOnlyList<IDnsQueryLogger> _dnsQueryLoggers = Array.Empty<IDnsQueryLogger>();
+        IReadOnlyList<IDnsPostProcessor> _dnsPostProcessors = Array.Empty<IDnsPostProcessor>();
 
         #endregion
 
@@ -120,6 +121,7 @@ namespace DnsServerCore.Dns.Applications
             List<IDnsRequestController> dnsRequestControllers = new List<IDnsRequestController>(1);
             List<IDnsAuthoritativeRequestHandler> dnsAuthoritativeRequestHandlers = new List<IDnsAuthoritativeRequestHandler>(1);
             List<IDnsQueryLogger> dnsQueryLoggers = new List<IDnsQueryLogger>(1);
+            List<IDnsPostProcessor> dnsPostProcessors = new List<IDnsPostProcessor>(1);
 
             foreach (KeyValuePair<string, DnsApplication> application in _applications)
             {
@@ -131,11 +133,15 @@ namespace DnsServerCore.Dns.Applications
 
                 foreach (KeyValuePair<string, IDnsQueryLogger> logger in application.Value.DnsQueryLoggers)
                     dnsQueryLoggers.Add(logger.Value);
+
+                foreach (KeyValuePair<string, IDnsPostProcessor> processor in application.Value.DnsPostProcessors)
+                    dnsPostProcessors.Add(processor.Value);
             }
 
             _dnsRequestControllers = dnsRequestControllers;
             _dnsAuthoritativeRequestHandlers = dnsAuthoritativeRequestHandlers;
             _dnsQueryLoggers = dnsQueryLoggers;
+            _dnsPostProcessors = dnsPostProcessors;
         }
 
         #endregion
@@ -162,6 +168,7 @@ namespace DnsServerCore.Dns.Applications
             _dnsRequestControllers = Array.Empty<IDnsRequestController>();
             _dnsAuthoritativeRequestHandlers = Array.Empty<IDnsAuthoritativeRequestHandler>();
             _dnsQueryLoggers = Array.Empty<IDnsQueryLogger>();
+            _dnsPostProcessors = Array.Empty<IDnsPostProcessor>();
         }
 
         public void LoadAllApplications()
@@ -285,6 +292,9 @@ namespace DnsServerCore.Dns.Applications
 
         public IReadOnlyList<IDnsQueryLogger> DnsQueryLoggers
         { get { return _dnsQueryLoggers; } }
+
+        public IReadOnlyList<IDnsPostProcessor> DnsPostProcessors
+        { get { return _dnsPostProcessors; } }
 
         #endregion
     }
