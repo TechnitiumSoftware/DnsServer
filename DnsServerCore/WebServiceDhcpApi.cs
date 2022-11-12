@@ -209,6 +209,20 @@ namespace DnsServerCore
                 jsonWriter.WriteValue(scope.DomainName);
             }
 
+            if (scope.DomainSearchList is not null)
+            {
+                jsonWriter.WritePropertyName("domainSearchList");
+                jsonWriter.WriteStartArray();
+
+                foreach (string domainSearchString in scope.DomainSearchList)
+                    jsonWriter.WriteValue(domainSearchString);
+
+                jsonWriter.WriteEndArray();
+            }
+
+            jsonWriter.WritePropertyName("dnsUpdates");
+            jsonWriter.WriteValue(scope.DnsUpdates);
+
             jsonWriter.WritePropertyName("dnsTtl");
             jsonWriter.WriteValue(scope.DnsTtl);
 
@@ -272,6 +286,17 @@ namespace DnsServerCore
                 jsonWriter.WriteEndArray();
             }
 
+            if (scope.NtpServerDomainNames is not null)
+            {
+                jsonWriter.WritePropertyName("ntpServerDomainNames");
+                jsonWriter.WriteStartArray();
+
+                foreach (string ntpServerDomainName in scope.NtpServerDomainNames)
+                    jsonWriter.WriteValue(ntpServerDomainName);
+
+                jsonWriter.WriteEndArray();
+            }
+
             if (scope.StaticRoutes != null)
             {
                 jsonWriter.WritePropertyName("staticRoutes");
@@ -313,6 +338,17 @@ namespace DnsServerCore
 
                     jsonWriter.WriteEndObject();
                 }
+
+                jsonWriter.WriteEndArray();
+            }
+
+            if (scope.CAPWAPAcIpAddresses is not null)
+            {
+                jsonWriter.WritePropertyName("capwapAcIpAddresses");
+                jsonWriter.WriteStartArray();
+
+                foreach (IPAddress acIpAddress in scope.CAPWAPAcIpAddresses)
+                    jsonWriter.WriteValue(acIpAddress.ToString());
 
                 jsonWriter.WriteEndArray();
             }
@@ -465,6 +501,19 @@ namespace DnsServerCore
             if (strDomainName != null)
                 scope.DomainName = strDomainName.Length == 0 ? null : strDomainName;
 
+            string strDomainSearchList = request.QueryString["domainSearchList"];
+            if (strDomainSearchList is not null)
+            {
+                if (strDomainSearchList.Length == 0)
+                    scope.DomainSearchList = null;
+                else
+                    scope.DomainSearchList = strDomainSearchList.Split(new char[] { ',' }, StringSplitOptions.RemoveEmptyEntries);
+            }
+
+            string strDnsUpdates = request.QueryString["dnsUpdates"];
+            if (!string.IsNullOrEmpty(strDnsUpdates))
+                scope.DnsUpdates = bool.Parse(strDnsUpdates);
+
             string strDnsTtl = request.QueryString["dnsTtl"];
             if (!string.IsNullOrEmpty(strDnsTtl))
                 scope.DnsTtl = uint.Parse(strDnsTtl);
@@ -549,6 +598,15 @@ namespace DnsServerCore
                 }
             }
 
+            string strNtpServerDomainNames = request.QueryString["ntpServerDomainNames"];
+            if (strNtpServerDomainNames is not null)
+            {
+                if (strNtpServerDomainNames.Length == 0)
+                    scope.NtpServerDomainNames = null;
+                else
+                    scope.NtpServerDomainNames = strNtpServerDomainNames.Split(new char[] { ',' }, StringSplitOptions.RemoveEmptyEntries);
+            }
+
             string strStaticRoutes = request.QueryString["staticRoutes"];
             if (strStaticRoutes != null)
             {
@@ -588,6 +646,25 @@ namespace DnsServerCore
                     }
 
                     scope.VendorInfo = vendorInfo;
+                }
+            }
+
+            string strCAPWAPAcIpAddresses = request.QueryString["capwapAcIpAddresses"];
+            if (strCAPWAPAcIpAddresses is not null)
+            {
+                if (strCAPWAPAcIpAddresses.Length == 0)
+                {
+                    scope.CAPWAPAcIpAddresses = null;
+                }
+                else
+                {
+                    string[] strCAPWAPAcIpAddressesParts = strCAPWAPAcIpAddresses.Split(new char[] { ',' }, StringSplitOptions.RemoveEmptyEntries);
+                    IPAddress[] capwapAcIpAddresses = new IPAddress[strCAPWAPAcIpAddressesParts.Length];
+
+                    for (int i = 0; i < strCAPWAPAcIpAddressesParts.Length; i++)
+                        capwapAcIpAddresses[i] = IPAddress.Parse(strCAPWAPAcIpAddressesParts[i]);
+
+                    scope.CAPWAPAcIpAddresses = capwapAcIpAddresses;
                 }
             }
 
