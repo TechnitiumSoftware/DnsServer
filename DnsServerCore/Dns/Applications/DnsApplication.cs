@@ -66,20 +66,23 @@ namespace DnsServerCore.Dns.Applications
 
                 foreach (Assembly loadedAssembly in loadedAssemblies)
                 {
-                    AssemblyName assemblyName = loadedAssembly.GetName();
-
-                    if (assemblyName.CodeBase != null)
+                    if (!string.IsNullOrEmpty(loadedAssembly.Location))
                     {
-                        if (Path.GetFileNameWithoutExtension(assemblyName.CodeBase).Equals(dllFileName, StringComparison.OrdinalIgnoreCase))
+                        if (Path.GetFileNameWithoutExtension(loadedAssembly.Location).Equals(dllFileName, StringComparison.OrdinalIgnoreCase))
                         {
                             isLoaded = true;
                             break;
                         }
                     }
-                    else if ((assemblyName.Name != null) && assemblyName.Name.Equals(dllFileName, StringComparison.OrdinalIgnoreCase))
+                    else
                     {
-                        isLoaded = true;
-                        break;
+                        AssemblyName assemblyName = loadedAssembly.GetName();
+
+                        if ((assemblyName.Name != null) && assemblyName.Name.Equals(dllFileName, StringComparison.OrdinalIgnoreCase))
+                        {
+                            isLoaded = true;
+                            break;
+                        }
                     }
                 }
 
