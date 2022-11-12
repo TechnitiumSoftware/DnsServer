@@ -1,6 +1,6 @@
 ﻿/*
 Technitium DNS Server
-Copyright (C) 2021  Shreyas Zare (shreyas@technitium.com)
+Copyright (C) 2022  Shreyas Zare (shreyas@technitium.com)
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -41,6 +41,7 @@ namespace DnsServerCore.Dns.Applications
         readonly IReadOnlyDictionary<string, IDnsRequestController> _dnsRequestControllers;
         readonly IReadOnlyDictionary<string, IDnsAuthoritativeRequestHandler> _dnsAuthoritativeRequestHandlers;
         readonly IReadOnlyDictionary<string, IDnsQueryLogger> _dnsQueryLoggers;
+        readonly IReadOnlyDictionary<string, IDnsPostProcessor> _dnsPostProcessors;
 
         #endregion
 
@@ -119,6 +120,7 @@ namespace DnsServerCore.Dns.Applications
             Dictionary<string, IDnsRequestController> dnsRequestControllers = new Dictionary<string, IDnsRequestController>(1);
             Dictionary<string, IDnsAuthoritativeRequestHandler> dnsAuthoritativeRequestHandlers = new Dictionary<string, IDnsAuthoritativeRequestHandler>(1);
             Dictionary<string, IDnsQueryLogger> dnsQueryLoggers = new Dictionary<string, IDnsQueryLogger>(1);
+            Dictionary<string, IDnsPostProcessor> dnsPostProcessors = new Dictionary<string, IDnsPostProcessor>(1);
 
             Type dnsApplicationInterface = typeof(IDnsApplication);
 
@@ -159,6 +161,9 @@ namespace DnsServerCore.Dns.Applications
                                 if (app is IDnsQueryLogger logger)
                                     dnsQueryLoggers.Add(classType.FullName, logger);
 
+                                if (app is IDnsPostProcessor postProcessor)
+                                    dnsPostProcessors.Add(classType.FullName, postProcessor);
+
                                 if (_version is null)
                                     _version = appAssembly.GetName().Version;
                             }
@@ -188,6 +193,7 @@ namespace DnsServerCore.Dns.Applications
             _dnsRequestControllers = dnsRequestControllers;
             _dnsAuthoritativeRequestHandlers = dnsAuthoritativeRequestHandlers;
             _dnsQueryLoggers = dnsQueryLoggers;
+            _dnsPostProcessors = dnsPostProcessors;
         }
 
         #endregion
@@ -296,6 +302,9 @@ namespace DnsServerCore.Dns.Applications
 
         public IReadOnlyDictionary<string, IDnsQueryLogger> DnsQueryLoggers
         { get { return _dnsQueryLoggers; } }
+
+        public IReadOnlyDictionary<string, IDnsPostProcessor> DnsPostProcessors
+        { get { return _dnsPostProcessors; } }
 
         #endregion
     }
