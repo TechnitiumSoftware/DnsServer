@@ -89,6 +89,9 @@ namespace DnsServerCore.Dns.Applications
         public bool PreferIPv6
         { get { return _dnsServer.PreferIPv6; } }
 
+        public ushort UdpPayloadSize
+        { get { return _dnsServer.UdpPayloadSize; } }
+
         #endregion
     }
 }
