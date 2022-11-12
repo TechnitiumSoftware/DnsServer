@@ -26,6 +26,7 @@ using System.Net.Sockets;
 using System.Threading.Tasks;
 using TechnitiumLibrary;
 using TechnitiumLibrary.Net.Dns;
+using TechnitiumLibrary.Net.Dns.EDnsOptions;
 using TechnitiumLibrary.Net.Dns.ResourceRecords;
 
 namespace GeoCountry
@@ -34,6 +35,7 @@ namespace GeoCountry
     {
         #region variables
 
+        IDnsServer _dnsServer;
         MaxMind _maxMind;
 
         #endregion
@@ -67,6 +69,7 @@ namespace GeoCountry
 
         public Task InitializeAsync(IDnsServer dnsServer, string config)
         {
+            _dnsServer = dnsServer;
             _maxMind = MaxMind.Create(dnsServer);
 
             return Task.CompletedTask;
@@ -80,20 +83,47 @@ namespace GeoCountry
                 case DnsResourceRecordType.A:
                 case DnsResourceRecordType.AAAA:
                     dynamic jsonAppRecordData = JsonConvert.DeserializeObject(appRecordData);
-                    dynamic jsonCountry;
+                    dynamic jsonCountry = null;
 
-                    if (_maxMind.DatabaseReader.TryCountry(remoteEP.Address, out CountryResponse response))
+                    EDnsClientSubnetOptionData clientSubnet = null;
+
+                    if (request.EDNS is not null)
                     {
-                        jsonCountry = jsonAppRecordData[response.Country.IsoCode];
-                        if (jsonCountry == null)
+                        foreach (EDnsOption option in request.EDNS.Options)
+                        {
+                            if (option.Code == EDnsOptionCode.EDNS_CLIENT_SUBNET)
+                            {
+                                EDnsClientSubnetOptionData cs = option.Data as EDnsClientSubnetOptionData;
+
+                                if (_maxMind.DatabaseReader.TryCountry(cs.Address, out CountryResponse csResponse))
+                                {
+                                    jsonCountry = jsonAppRecordData[csResponse.Country.IsoCode];
+                                    if (jsonCountry is null)
+                                        jsonCountry = jsonAppRecordData["default"];
+                                    else
+                                        clientSubnet = cs;
+                                }
+
+                                break;
+                            }
+                        }
+                    }
+
+                    if (jsonCountry is null)
+                    {
+                        if (_maxMind.DatabaseReader.TryCountry(remoteEP.Address, out CountryResponse response))
+                        {
+                            jsonCountry = jsonAppRecordData[response.Country.IsoCode];
+                            if (jsonCountry is null)
+                                jsonCountry = jsonAppRecordData["default"];
+                        }
+                        else
+                        {
                             jsonCountry = jsonAppRecordData["default"];
-                    }
-                    else
-                    {
-                        jsonCountry = jsonAppRecordData["default"];
+                        }
                     }
 
-                    if (jsonCountry == null)
+                    if (jsonCountry is null)
                         return Task.FromResult<DnsDatagram>(null);
 
                     List<DnsResourceRecord> answers = new List<DnsResourceRecord>();
@@ -127,7 +157,17 @@ namespace GeoCountry
                     if (answers.Count > 1)
                         answers.Shuffle();
 
-                    return Task.FromResult(new DnsDatagram(request.Identifier, true, request.OPCODE, true, false, request.RecursionDesired, isRecursionAllowed, false, false, DnsResponseCode.NoError, request.Question, answers));
+                    EDnsOption[] options = null;
+
+                    if (clientSubnet is not null)
+                    {
+                        options = new EDnsOption[]
+                        {
+                            new EDnsOption(EDnsOptionCode.EDNS_CLIENT_SUBNET, new EDnsClientSubnetOptionData(clientSubnet.SourcePrefixLength, clientSubnet.SourcePrefixLength, clientSubnet.Address))
+                        };
+                    }
+
+                    return Task.FromResult(new DnsDatagram(request.Identifier, true, request.OPCODE, true, false, request.RecursionDesired, isRecursionAllowed, false, false, DnsResponseCode.NoError, request.Question, answers, null, null, _dnsServer.UdpPayloadSize, EDnsHeaderFlags.None, options));
 
                 default:
                     return Task.FromResult<DnsDatagram>(null);
