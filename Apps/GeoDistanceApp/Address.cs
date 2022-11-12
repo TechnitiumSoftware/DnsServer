@@ -28,6 +28,7 @@ using System.Net.Sockets;
 using System.Threading.Tasks;
 using TechnitiumLibrary;
 using TechnitiumLibrary.Net.Dns;
+using TechnitiumLibrary.Net.Dns.EDnsOptions;
 using TechnitiumLibrary.Net.Dns.ResourceRecords;
 
 namespace GeoDistance
@@ -36,6 +37,7 @@ namespace GeoDistance
     {
         #region variables
 
+        IDnsServer _dnsServer;
         MaxMind _maxMind;
 
         #endregion
@@ -84,6 +86,7 @@ namespace GeoDistance
 
         public Task InitializeAsync(IDnsServer dnsServer, string config)
         {
+            _dnsServer = dnsServer;
             _maxMind = MaxMind.Create(dnsServer);
 
             return Task.CompletedTask;
@@ -98,13 +101,34 @@ namespace GeoDistance
                 case DnsResourceRecordType.AAAA:
                     Location location = null;
 
-                    if (_maxMind.DatabaseReader.TryCity(remoteEP.Address, out CityResponse response))
+                    EDnsClientSubnetOptionData clientSubnet = null;
+
+                    if (request.EDNS is not null)
+                    {
+                        foreach (EDnsOption option in request.EDNS.Options)
+                        {
+                            if (option.Code == EDnsOptionCode.EDNS_CLIENT_SUBNET)
+                            {
+                                EDnsClientSubnetOptionData cs = option.Data as EDnsClientSubnetOptionData;
+
+                                if (_maxMind.DatabaseReader.TryCity(cs.Address, out CityResponse csResponse) && csResponse.Location.HasCoordinates)
+                                {
+                                    location = csResponse.Location;
+                                    clientSubnet = cs;
+                                }
+
+                                break;
+                            }
+                        }
+                    }
+
+                    if ((location is null) && _maxMind.DatabaseReader.TryCity(remoteEP.Address, out CityResponse response) && response.Location.HasCoordinates)
                         location = response.Location;
 
                     dynamic jsonAppRecordData = JsonConvert.DeserializeObject(appRecordData);
                     dynamic jsonClosestServer = null;
 
-                    if ((location == null) || !location.HasCoordinates)
+                    if (location is null)
                     {
                         jsonClosestServer = jsonAppRecordData[0];
                     }
@@ -127,7 +151,7 @@ namespace GeoDistance
                         }
                     }
 
-                    if (jsonClosestServer == null)
+                    if (jsonClosestServer is null)
                         return Task.FromResult<DnsDatagram>(null);
 
                     List<DnsResourceRecord> answers = new List<DnsResourceRecord>();
@@ -161,7 +185,17 @@ namespace GeoDistance
                     if (answers.Count > 1)
                         answers.Shuffle();
 
-                    return Task.FromResult(new DnsDatagram(request.Identifier, true, request.OPCODE, true, false, request.RecursionDesired, isRecursionAllowed, false, false, DnsResponseCode.NoError, request.Question, answers));
+                    EDnsOption[] options = null;
+
+                    if (clientSubnet is not null)
+                    {
+                        options = new EDnsOption[]
+                        {
+                            new EDnsOption(EDnsOptionCode.EDNS_CLIENT_SUBNET, new EDnsClientSubnetOptionData(clientSubnet.SourcePrefixLength, clientSubnet.SourcePrefixLength, clientSubnet.Address))
+                        };
+                    }
+
+                    return Task.FromResult(new DnsDatagram(request.Identifier, true, request.OPCODE, true, false, request.RecursionDesired, isRecursionAllowed, false, false, DnsResponseCode.NoError, request.Question, answers, null, null, _dnsServer.UdpPayloadSize, EDnsHeaderFlags.None, options));
 
                 default:
                     return Task.FromResult<DnsDatagram>(null);
