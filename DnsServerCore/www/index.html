@@ -1846,7 +1846,27 @@
                                                             <div class="col-sm-6">
                                                                 <input type="text" class="form-control" id="txtDhcpScopeDomainName" placeholder="Domain Name">
                                                             </div>
-                                                            <div class="col-sm-offset-3 col-sm-8" style="padding-top: 5px;">The domain name for this network to allow updating DNS forward and reverse records for all clients. Use a domain name that you own or that is not in common use like 'home' or 'lan' so that you don't block out an existing domain name.</div>
+                                                            <div class="col-sm-offset-3 col-sm-8" style="padding-top: 5px;">The domain name for this network to allow assigning a fully qualified domain name to clients. Use a domain name that you own or that is not in common use like 'home' or 'lan' so that you don't block out an existing domain name. (Option 15)</div>
+                                                        </div>
+
+                                                        <div class="form-group">
+                                                            <label for="txtDhcpScopeDomainSearchStrings" class="col-sm-3 control-label">Domain Search List</label>
+                                                            <div class="col-sm-3">
+                                                                <textarea id="txtDhcpScopeDomainSearchStrings" class="form-control" rows="2" spellcheck="false"></textarea>
+                                                            </div>
+                                                            <div class="col-sm-offset-3 col-sm-8" style="padding-top: 5px;">The list of domain names that the clients can use as a suffix when searching a domain name. (Option 119)</div>
+                                                        </div>
+
+                                                        <div class="form-group">
+                                                            <label for="chkDhcpScopeDnsUpdates" class="col-sm-3 control-label">DNS Updates</label>
+                                                            <div class="col-sm-6">
+                                                                <div class="checkbox">
+                                                                    <label>
+                                                                        <input id="chkDhcpScopeDnsUpdates" type="checkbox"> Enable DNS Updates
+                                                                    </label>
+                                                                </div>
+                                                            </div>
+                                                            <div class="col-sm-offset-3 col-sm-8" style="padding-top: 5px; margin-bottom: 10px;">Enable this option to allow the DHCP server to automatically update forward and reverse DNS entries for clients.</div>
                                                         </div>
 
                                                         <div class="form-group">
@@ -1865,7 +1885,7 @@
                                                             <div class="col-sm-3">
                                                                 <input type="text" class="form-control" id="txtDhcpScopeRouterAddress" placeholder="Router Address">
                                                             </div>
-                                                            <div class="col-sm-offset-3 col-sm-8" style="padding-top: 5px;">The default gateway IP address to be used by the clients.</div>
+                                                            <div class="col-sm-offset-3 col-sm-8" style="padding-top: 5px;">The default gateway IP address to be used by the clients. (Option 3)</div>
                                                         </div>
 
                                                         <div class="form-group">
@@ -1881,7 +1901,7 @@
                                                             <div class="col-sm-offset-3 col-sm-3">
                                                                 <textarea id="txtDhcpScopeDnsServers" class="form-control" rows="2" spellcheck="false"></textarea>
                                                             </div>
-                                                            <div class="col-sm-offset-3 col-sm-8" style="padding-top: 5px;">The DNS server IP addresses to be used by the clients.</div>
+                                                            <div class="col-sm-offset-3 col-sm-8" style="padding-top: 5px;">The DNS server IP addresses to be used by the clients. (Option 6)</div>
                                                         </div>
 
                                                         <div class="form-group">
@@ -1889,7 +1909,7 @@
                                                             <div class="col-sm-3">
                                                                 <textarea id="txtDhcpScopeWinsServers" class="form-control" rows="2" spellcheck="false"></textarea>
                                                             </div>
-                                                            <div class="col-sm-offset-3 col-sm-8" style="padding-top: 5px;">The NBNS/WINS server IP addresses to be used by the clients.</div>
+                                                            <div class="col-sm-offset-3 col-sm-8" style="padding-top: 5px;">The NBNS/WINS server IP addresses to be used by the clients. (Option 44)</div>
                                                         </div>
 
                                                         <div class="form-group">
@@ -1897,7 +1917,15 @@
                                                             <div class="col-sm-3">
                                                                 <textarea id="txtDhcpScopeNtpServers" class="form-control" rows="2" spellcheck="false"></textarea>
                                                             </div>
-                                                            <div class="col-sm-offset-3 col-sm-8" style="padding-top: 5px;">The Network Time Protocol (NTP) server IP addresses to be used by the clients.</div>
+                                                            <div class="col-sm-offset-3 col-sm-8" style="padding-top: 5px;">The Network Time Protocol (NTP) server IP addresses to be used by the clients. (Option 42)</div>
+                                                        </div>
+
+                                                        <div class="form-group">
+                                                            <label for="txtDhcpScopeNtpServerDomainNames" class="col-sm-3 control-label">NTP Server Domain Names</label>
+                                                            <div class="col-sm-3">
+                                                                <textarea id="txtDhcpScopeNtpServerDomainNames" class="form-control" rows="2" spellcheck="false"></textarea>
+                                                            </div>
+                                                            <div class="col-sm-offset-3 col-sm-8" style="padding-top: 5px;">Enter NTP server domain names (e.g. pool.ntp.org) above that the DHCP server should automatically resolve and pass the resolved IP addresses to clients as NTP server option. (Option 42)</div>
                                                         </div>
                                                     </div>
 
@@ -1917,7 +1945,7 @@
                                                                     <tbody id="tableDhcpScopeStaticRoutes"></tbody>
                                                                 </table>
                                                             </div>
-                                                            <div class="col-sm-offset-3 col-sm-8" style="padding-top: 5px;">The static routes to be used by the clients for accessing specified destination networks.</div>
+                                                            <div class="col-sm-offset-3 col-sm-8" style="padding-top: 5px;">The static routes to be used by the clients for accessing specified destination networks. (Option 121)</div>
                                                         </div>
                                                     </div>
 
@@ -1963,6 +1991,16 @@
                                                                 </table>
                                                             </div>
                                                             <div class="col-sm-offset-3 col-sm-8" style="padding-top: 5px;">The vendor specific information option (43) to be sent to the clients that match the vendor class identifier option (60) in the request. The vendor class identifier can be empty string to match any identifier, or matched exactly, or match a substring, for example <code>substring(vendor-class-identifier,0,9)=="PXEClient"</code>. The vendor specific information must be a colon (:) separated hex string, for example <code>06:01:03:0A:04:00:50:58:45:09:14:00:00:11:52:61:73:70:62:65:72:72:79:20:50:69:20:42:6F:6F:74:FF</code>.</div>
+                                                        </div>
+                                                    </div>
+
+                                                    <div class="well well-sm form-horizontal">
+                                                        <div class="form-group">
+                                                            <label for="txtDhcpScopeCAPWAPApIpAddresses" class="col-sm-3 control-label">CAPWAP Access Controller Addresses</label>
+                                                            <div class="col-sm-3">
+                                                                <textarea id="txtDhcpScopeCAPWAPApIpAddresses" class="form-control" rows="2" spellcheck="false"></textarea>
+                                                            </div>
+                                                            <div class="col-sm-offset-3 col-sm-8" style="padding-top: 5px;">The Control And Provisioning of Wireless Access Points (CAPWAP) Access Controller IP addresses to be used by Wireless Termination Points to discover the Access Controllers to which it is to connect. (Option 138)</div>
                                                         </div>
                                                     </div>
 
@@ -2297,7 +2335,10 @@
                                                         <option value="NotImplemented">Not Implemented</option>
                                                         <option value="Refused">Refused</option>
                                                         <option value="YXDomain">YX Domain</option>
-                                                        <option value="NotAuthorized">Not Authorized</option>
+                                                        <option value="YXRRSet">YX RRSet</option>
+                                                        <option value="NXRRSet">NX RRSet</option>
+                                                        <option value="NotAuth">Not Auth</option>
+                                                        <option value="NotZone">Not Zone</option>
                                                     </select>
                                                 </div>
 
@@ -2961,6 +3002,8 @@ ns1.example.com ([2001:db8::])
                                         <option>SRV</option>
                                         <option>DNAME</option>
                                         <option id="optAddEditRecordTypeDs">DS</option>
+                                        <option id="optAddEditRecordTypeSshfp">SSHFP</option>
+                                        <option id="optAddEditRecordTypeTlsa">TLSA</option>
                                         <option>CAA</option>
                                         <option id="optAddEditRecordTypeAName">ANAME</option>
                                         <option id="optAddEditRecordTypeFwd">FWD</option>
@@ -3186,6 +3229,84 @@ ns1.example.com ([2001:db8::])
                                     </div>
                                 </div>
                             </div>
+
+
+                            <div id="divAddEditRecordDataSshfp" style="display: none;">
+                                <div class="form-group">
+                                    <label for="optAddEditRecordDataSshfpAlgorithm" class="col-sm-4 control-label">Algorithm</label>
+                                    <div class="col-sm-7">
+                                        <select id="optAddEditRecordDataSshfpAlgorithm" class="form-control">
+                                            <option>RSA</option>
+                                            <option>DSA</option>
+                                            <option>ECDSA</option>
+                                            <option>Ed25519</option>
+                                            <option>Ed448</option>
+                                        </select>
+                                    </div>
+                                </div>
+                                <div class="form-group">
+                                    <label for="optAddEditRecordDataSshfpFingerprintType" class="col-sm-4 control-label">Fingerprint Type</label>
+                                    <div class="col-sm-7">
+                                        <select id="optAddEditRecordDataSshfpFingerprintType" class="form-control">
+                                            <option>SHA1</option>
+                                            <option>SHA256</option>
+                                        </select>
+                                    </div>
+                                </div>
+                                <div class="form-group">
+                                    <label for="txtAddEditRecordDataSshfpFingerprint" class="col-sm-4 control-label">Fingerprint</label>
+                                    <div class="col-sm-7">
+                                        <input type="text" class="form-control" id="txtAddEditRecordDataSshfpFingerprint" placeholder="hash string">
+                                    </div>
+                                </div>
+                            </div>
+
+
+                            <div id="divAddEditRecordDataTlsa" style="display: none;">
+                                <div class="form-group">
+                                    <label for="optAddEditRecordDataTlsaCertificateUsage" class="col-sm-4 control-label">Certificate Usage</label>
+                                    <div class="col-sm-7">
+                                        <select id="optAddEditRecordDataTlsaCertificateUsage" class="form-control">
+                                            <option>PKIX-TA</option>
+                                            <option>PKIX-EE</option>
+                                            <option>DANE-TA</option>
+                                            <option>DANE-EE</option>
+                                        </select>
+                                    </div>
+                                </div>
+                                <div class="form-group">
+                                    <label for="optAddEditRecordDataTlsaSelector" class="col-sm-4 control-label">Selector</label>
+                                    <div class="col-sm-7">
+                                        <select id="optAddEditRecordDataTlsaSelector" class="form-control">
+                                            <option>Cert</option>
+                                            <option>SPKI</option>
+                                        </select>
+                                    </div>
+                                </div>
+                                <div class="form-group">
+                                    <label for="optAddEditRecordDataTlsaMatchingType" class="col-sm-4 control-label">Matching Type</label>
+                                    <div class="col-sm-7">
+                                        <select id="optAddEditRecordDataTlsaMatchingType" class="form-control">
+                                            <option>Full</option>
+                                            <option>SHA2-256</option>
+                                            <option>SHA2-512</option>
+                                        </select>
+                                    </div>
+                                </div>
+                                <div class="form-group">
+                                    <label for="txtAddEditRecordDataTlsaCertificateAssociationData" class="col-sm-4 control-label">Certificate Association Data</label>
+                                    <div class="col-sm-7">
+                                        <textarea id="txtAddEditRecordDataTlsaCertificateAssociationData" class="form-control" rows="6" spellcheck="false" placeholder="5F95253A20A0957648DEBAAEB032F7C5720CD4F0DCF928840C55650687921DAE
+          OR
+-----BEGIN CERTIFICATE-----
+MII...
+-----END CERTIFICATE-----
+"></textarea>
+                                        <div>Note: Enter either a hash value that you have independently generated, OR enter the certificate in PEM format to automatically generate the association data based on the Selector and Matching Type values.</div>
+                                    </div>
+                                </div>
+                            </div>
+
 
                             <div id="divAddEditRecordDataCaa" style="display: none;">
                                 <div class="form-group">
@@ -3652,6 +3773,7 @@ ns1.example.com ([2001:db8::])
                                 <div class="col-sm-8">
                                     <select id="optDnssecSignZoneRsaKSKKeySize" class="form-control" style="width: auto;">
                                         <option>1024</option>
+                                        <option>1280</option>
                                         <option>1536</option>
                                         <option value="2048">2048 (recommended)</option>
                                         <option>3072</option>
@@ -3664,7 +3786,8 @@ ns1.example.com ([2001:db8::])
                                 <label for="optDnssecSignZoneRsaZSKKeySize" class="col-sm-4 control-label">Zone Signing Key (ZSK) Size</label>
                                 <div class="col-sm-8">
                                     <select id="optDnssecSignZoneRsaZSKKeySize" class="form-control" style="width: auto;">
-                                        <option value="1024">1024 (default)</option>
+                                        <option>1024</option>
+                                        <option value="1280">1280 (default)</option>
                                         <option>1536</option>
                                         <option>2048</option>
                                         <option>3072</option>
@@ -3874,6 +3997,7 @@ ns1.example.com ([2001:db8::])
                                             <div class="col-sm-8">
                                                 <select id="optDnssecPropertiesGenerateKeyRsaKeySize" class="form-control" style="width: auto;">
                                                     <option>1024</option>
+                                                    <option>1280</option>
                                                     <option>1536</option>
                                                     <option>2048</option>
                                                     <option>3072</option>
