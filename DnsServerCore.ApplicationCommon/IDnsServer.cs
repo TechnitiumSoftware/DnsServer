@@ -78,5 +78,10 @@ namespace DnsServerCore.ApplicationCommon
         /// Tells if the DNS server prefers using IPv6 as per the settings.
         /// </summary>
         bool PreferIPv6 { get; }
+
+        /// <summary>
+        /// Returns the UDP payload size configured in the settings.
+        /// </summary>
+        public ushort UdpPayloadSize { get; }
     }
 }
