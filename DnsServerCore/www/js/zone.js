@@ -1317,6 +1317,8 @@ function showEditZone(zone) {
                 case "Forwarder":
                     $("#btnEditZoneAddRecord").show();
                     $("#optAddEditRecordTypeDs").hide();
+                    $("#optAddEditRecordTypeSshfp").hide();
+                    $("#optAddEditRecordTypeTlsa").hide();
                     $("#optAddEditRecordTypeAName").show();
                     $("#optAddEditRecordTypeFwd").show();
                     $("#optAddEditRecordTypeApp").show();
@@ -1330,12 +1332,16 @@ function showEditZone(zone) {
                         case "SignedWithNSEC":
                         case "SignedWithNSEC3":
                             $("#optAddEditRecordTypeDs").show();
+                            $("#optAddEditRecordTypeSshfp").show();
+                            $("#optAddEditRecordTypeTlsa").show();
                             $("#optAddEditRecordTypeAName").hide();
                             $("#optAddEditRecordTypeApp").hide();
                             break;
 
                         default:
                             $("#optAddEditRecordTypeDs").hide();
+                            $("#optAddEditRecordTypeSshfp").hide();
+                            $("#optAddEditRecordTypeTlsa").hide();
                             $("#optAddEditRecordTypeAName").show();
                             $("#optAddEditRecordTypeApp").show();
                             break;
@@ -1716,6 +1722,23 @@ function getZoneRecordRowHtml(id, zone, zoneType, record) {
                 "data-record-digest=\"" + htmlEncode(record.rData.digest) + "\" ";
             break;
 
+        case "SSHFP":
+            tableHtmlRow += "<td style=\"word-break: break-all;\"><b>Algorithm:</b> " + htmlEncode(record.rData.algorithm) +
+                "<br /><b>Fingerprint Type:</b> " + htmlEncode(record.rData.fingerprintType) +
+                "<br /><b>Fingerprint:</b> " + htmlEncode(record.rData.fingerprint);
+
+            tableHtmlRow += "<br /><br /><b>Last Used:</b> " + lastUsedOn;
+
+            if ((record.comments != null) && (record.comments.length > 0))
+                tableHtmlRow += "<br /><b>Comments:</b> <pre style=\"white-space: pre-wrap;\">" + htmlEncode(record.comments) + "</pre>";
+
+            tableHtmlRow += "</td>";
+
+            additionalDataAttributes = "data-record-algorithm=\"" + htmlEncode(record.rData.algorithm) + "\" " +
+                "data-record-fingerprint-type=\"" + htmlEncode(record.rData.fingerprintType) + "\" " +
+                "data-record-fingerprint=\"" + htmlEncode(record.rData.fingerprint) + "\" ";
+            break;
+
         case "RRSIG":
             tableHtmlRow += "<td style=\"word-break: break-all;\"><b>Type Covered: </b> " + htmlEncode(record.rData.typeCovered) +
                 "<br /><b>Algorithm:</b> " + htmlEncode(record.rData.algorithm) +
@@ -1837,6 +1860,25 @@ function getZoneRecordRowHtml(id, zone, zoneType, record) {
             tableHtmlRow += "</td>";
 
             additionalDataAttributes = "";
+            break;
+
+        case "TLSA":
+            tableHtmlRow += "<td style=\"word-break: break-all;\"><b>Certificate Usage: </b> " + htmlEncode(record.rData.certificateUsage) +
+                "<br /><b>Selector: </b> " + htmlEncode(record.rData.selector) +
+                "<br /><b>Matching Type: </b> " + htmlEncode(record.rData.matchingType) +
+                "<br /><b>Certificate Association Data:</b> " + (record.rData.certificateAssociationData == "" ? "<br />" : "<pre style=\"white-space: pre-wrap;\">" + htmlEncode(record.rData.certificateAssociationData) + "</pre>");
+
+            tableHtmlRow += "<br /><b>Last Used:</b> " + lastUsedOn;
+
+            if ((record.comments != null) && (record.comments.length > 0))
+                tableHtmlRow += "<br /><b>Comments:</b> <pre style=\"white-space: pre-wrap;\">" + htmlEncode(record.comments) + "</pre>";
+
+            tableHtmlRow += "</td>";
+
+            additionalDataAttributes = "data-record-certificate-usage=\"" + htmlEncode(record.rData.certificateUsage) + "\" " +
+                "data-record-selector=\"" + htmlEncode(record.rData.selector) + "\" " +
+                "data-record-matching-type=\"" + htmlEncode(record.rData.matchingType) + "\" " +
+                "data-record-certificate-association-data=\"" + htmlEncode(record.rData.certificateAssociationData) + "\" ";
             break;
 
         case "CAA":
@@ -1992,7 +2034,7 @@ function getZoneRecordRowHtml(id, zone, zoneType, record) {
     return tableHtmlRow;
 }
 
-function clearAddEditForm() {
+function clearAddEditRecordForm() {
     $("#divAddEditRecordAlert").html("");
 
     $("#txtAddEditRecordName").prop("placeholder", "@");
@@ -2051,6 +2093,17 @@ function clearAddEditForm() {
     $("#optAddEditRecordDataDsDigestType").val("");
     $("#txtAddEditRecordDataDsDigest").val("");
 
+    $("#divAddEditRecordDataSshfp").hide();
+    $("#optAddEditRecordDataSshfpAlgorithm").val("");
+    $("#optAddEditRecordDataSshfpFingerprintType").val("");
+    $("#txtAddEditRecordDataSshfpFingerprint").val("");
+
+    $("#divAddEditRecordDataTlsa").hide();
+    $("#optAddEditRecordDataTlsaCertificateUsage").val("");
+    $("#optAddEditRecordDataTlsaSelector").val("");
+    $("#optAddEditRecordDataTlsaMatchingType").val("");
+    $("#txtAddEditRecordDataTlsaCertificateAssociationData").val("");
+
     $("#divAddEditRecordDataCaa").hide();
     $("#txtAddEditRecordDataCaaFlags").val("");
     $("#txtAddEditRecordDataCaaTag").val("");
@@ -2092,7 +2145,7 @@ function clearAddEditForm() {
 function showAddRecordModal() {
     var zone = $("#titleEditZone").attr("data-zone");
 
-    clearAddEditForm();
+    clearAddEditRecordForm();
 
     $("#titleAddEditRecord").text("Add Record");
     $("#lblAddEditRecordZoneName").text(zone === "." ? "" : zone);
@@ -2168,7 +2221,9 @@ function modifyAddRecordFormByType(addMode) {
     $("#divAddEditRecordDataMx").hide();
     $("#divAddEditRecordDataSrv").hide();
     $("#divAddEditRecordDataDs").hide();
-    $("#divAddEditRecordDataCaa").hide();
+    $("#divAddEditRecordDataDs").hide();
+    $("#divAddEditRecordDataSshfp").hide();
+    $("#divAddEditRecordDataTlsa").hide();
     $("#divAddEditRecordDataForwarder").hide();
     $("#divAddEditRecordDataApplication").hide();
 
@@ -2251,6 +2306,22 @@ function modifyAddRecordFormByType(addMode) {
             $("#optAddEditRecordDataDsDigestType").val("");
             $("#txtAddEditRecordDataDsDigest").val("");
             $("#divAddEditRecordDataDs").show();
+            break;
+
+        case "SSHFP":
+            $("#optAddEditRecordDataSshfpAlgorithm").val("");
+            $("#optAddEditRecordDataSshfpFingerprintType").val("");
+            $("#txtAddEditRecordDataSshfpFingerprint").val("");
+            $("#divAddEditRecordDataSshfp").show();
+            break;
+
+        case "TLSA":
+            $("#txtAddEditRecordName").prop("placeholder", "_port._protocol.name");
+            $("#optAddEditRecordDataTlsaCertificateUsage").val("");
+            $("#optAddEditRecordDataTlsaSelector").val("");
+            $("#optAddEditRecordDataTlsaMatchingType").val("");
+            $("#txtAddEditRecordDataTlsaCertificateAssociationData").val("");
+            $("#divAddEditRecordDataTlsa").show();
             break;
 
         case "CAA":
@@ -2491,6 +2562,69 @@ function addRecord() {
             apiUrl += "&keyTag=" + keyTag + "&algorithm=" + algorithm + "&digestType=" + digestType + "&digest=" + encodeURIComponent(digest);
             break;
 
+        case "SSHFP":
+            var sshfpAlgorithm = $("#optAddEditRecordDataSshfpAlgorithm").val();
+            if ((sshfpAlgorithm === null) || (sshfpAlgorithm === "")) {
+                showAlert("warning", "Missing!", "Please select an Algorithm to add the record.", divAddEditRecordAlert);
+                $("#optAddEditRecordDataSshfpAlgorithm").focus();
+                return;
+            }
+
+            var sshfpFingerprintType = $("#optAddEditRecordDataSshfpFingerprintType").val();
+            if ((sshfpFingerprintType === null) || (sshfpFingerprintType === "")) {
+                showAlert("warning", "Missing!", "Please select a Fingerprint Type to add the record.", divAddEditRecordAlert);
+                $("#optAddEditRecordDataSshfpFingerprintType").focus();
+                return;
+            }
+
+            var sshfpFingerprint = $("#txtAddEditRecordDataSshfpFingerprint").val();
+            if (sshfpFingerprint === "") {
+                showAlert("warning", "Missing!", "Please enter the Fingerprint hash in hex string format to add the record.", divAddEditRecordAlert);
+                $("#txtAddEditRecordDataSshfpFingerprint").focus();
+                return;
+            }
+
+            apiUrl += "&sshfpAlgorithm=" + sshfpAlgorithm + "&sshfpFingerprintType=" + sshfpFingerprintType + "&sshfpFingerprint=" + encodeURIComponent(sshfpFingerprint);
+            break;
+
+        case "TLSA":
+            var tlsaCertificateUsage = $("#optAddEditRecordDataTlsaCertificateUsage").val();
+            if ((tlsaCertificateUsage === null) || (tlsaCertificateUsage === "")) {
+                showAlert("warning", "Missing!", "Please select a Certificate Usage to add the record.", divAddEditRecordAlert);
+                $("#optAddEditRecordDataTlsaCertificateUsage").focus();
+                return;
+            }
+
+            var tlsaSelector = $("#optAddEditRecordDataTlsaSelector").val();
+            if ((tlsaSelector === null) || (tlsaSelector === "")) {
+                showAlert("warning", "Missing!", "Please select a Selector to add the record.", divAddEditRecordAlert);
+                $("#optAddEditRecordDataTlsaSelector").focus();
+                return;
+            }
+
+            var tlsaMatchingType = $("#optAddEditRecordDataTlsaMatchingType").val();
+            if ((tlsaMatchingType === null) || (tlsaMatchingType === "")) {
+                showAlert("warning", "Missing!", "Please select a Matching Type to add the record.", divAddEditRecordAlert);
+                $("#optAddEditRecordDataTlsaMatchingType").focus();
+                return;
+            }
+
+            var tlsaCertificateAssociationData = $("#txtAddEditRecordDataTlsaCertificateAssociationData").val();
+            if (tlsaCertificateAssociationData === "") {
+                showAlert("warning", "Missing!", "Please enter the Certificate Association Data to add the record.", divAddEditRecordAlert);
+                $("#txtAddEditRecordDataTlsaCertificateAssociationData").focus();
+                return;
+            }
+
+            if ((tlsaMatchingType === "Full") && !tlsaCertificateAssociationData.startsWith("-")) {
+                showAlert("warning", "Missing!", "Please enter a complete certificate in PEM format as the Certificate Association Data to add the record.", divAddEditRecordAlert);
+                $("#txtAddEditRecordDataTlsaCertificateAssociationData").focus();
+                return;
+            }
+
+            apiUrl += "&tlsaCertificateUsage=" + tlsaCertificateUsage + "&tlsaSelector=" + tlsaSelector + "&tlsaMatchingType=" + tlsaMatchingType + "&tlsaCertificateAssociationData=" + encodeURIComponent(tlsaCertificateAssociationData);
+            break;
+
         case "CAA":
             var flags = $("#txtAddEditRecordDataCaaFlags").val();
             if (flags === "")
@@ -2688,7 +2822,7 @@ function showEditRecordModal(objBtn) {
     else
         name = name.replace("." + zone, "");
 
-    clearAddEditForm();
+    clearAddEditRecordForm();
     $("#titleAddEditRecord").text("Edit Record");
     $("#lblAddEditRecordZoneName").text(zone === "." ? "" : zone);
     $("#optEditRecordTypeSoa").show();
@@ -2834,6 +2968,19 @@ function showEditRecordModal(objBtn) {
             $("#optAddEditRecordDataDsAlgorithm").val(divData.attr("data-record-algorithm"));
             $("#optAddEditRecordDataDsDigestType").val(divData.attr("data-record-digest-type"));
             $("#txtAddEditRecordDataDsDigest").val(divData.attr("data-record-digest"));
+            break;
+
+        case "SSHFP":
+            $("#optAddEditRecordDataSshfpAlgorithm").val(divData.attr("data-record-algorithm"));
+            $("#optAddEditRecordDataSshfpFingerprintType").val(divData.attr("data-record-fingerprint-type"));
+            $("#txtAddEditRecordDataSshfpFingerprint").val(divData.attr("data-record-fingerprint"));
+            break;
+
+        case "TLSA":
+            $("#optAddEditRecordDataTlsaCertificateUsage").val(divData.attr("data-record-certificate-usage"));
+            $("#optAddEditRecordDataTlsaSelector").val(divData.attr("data-record-selector"));
+            $("#optAddEditRecordDataTlsaMatchingType").val(divData.attr("data-record-matching-type"));
+            $("#txtAddEditRecordDataTlsaCertificateAssociationData").val(divData.attr("data-record-certificate-association-data"));
             break;
 
         case "CAA":
@@ -3207,6 +3354,72 @@ function updateRecord() {
             apiUrl += "&keyTag=" + keyTag + "&algorithm=" + algorithm + "&digestType=" + digestType + "&newKeyTag=" + newKeyTag + "&newAlgorithm=" + newAlgorithm + "&newDigestType=" + newDigestType + "&digest=" + encodeURIComponent(digest) + "&newDigest=" + encodeURIComponent(newDigest);
             break;
 
+        case "SSHFP":
+            var sshfpAlgorithm = divData.attr("data-record-algorithm");
+            var sshfpFingerprintType = divData.attr("data-record-fingerprint-type");
+            var sshfpFingerprint = divData.attr("data-record-fingerprint");
+
+            var newSshfpAlgorithm = $("#optAddEditRecordDataSshfpAlgorithm").val();
+            if ((newSshfpAlgorithm === null) || (newSshfpAlgorithm === "")) {
+                showAlert("warning", "Missing!", "Please select an Algorithm to add the record.", divAddEditRecordAlert);
+                $("#optAddEditRecordDataSshfpAlgorithm").focus();
+                return;
+            }
+
+            var newSshfpFingerprintType = $("#optAddEditRecordDataSshfpFingerprintType").val();
+            if ((newSshfpFingerprintType === null) || (newSshfpFingerprintType === "")) {
+                showAlert("warning", "Missing!", "Please select a Fingerprint Type to add the record.", divAddEditRecordAlert);
+                $("#optAddEditRecordDataSshfpFingerprintType").focus();
+                return;
+            }
+
+            var newSshfpFingerprint = $("#txtAddEditRecordDataSshfpFingerprint").val();
+            if (newSshfpFingerprint === "") {
+                showAlert("warning", "Missing!", "Please enter the Fingerprint hash in hex string format to add the record.", divAddEditRecordAlert);
+                $("#txtAddEditRecordDataSshfpFingerprint").focus();
+                return;
+            }
+
+            apiUrl += "&sshfpAlgorithm=" + sshfpAlgorithm + "&newSshfpAlgorithm=" + newSshfpAlgorithm + "&sshfpFingerprintType=" + sshfpFingerprintType + "&newSshfpFingerprintType=" + newSshfpFingerprintType + "&sshfpFingerprint=" + encodeURIComponent(sshfpFingerprint) + "&newSshfpFingerprint=" + encodeURIComponent(newSshfpFingerprint);
+            break;
+
+        case "TLSA":
+            var tlsaCertificateUsage = divData.attr("data-record-certificate-usage");
+            var tlsaSelector = divData.attr("data-record-selector");
+            var tlsaMatchingType = divData.attr("data-record-matching-type");
+            var tlsaCertificateAssociationData = divData.attr("data-record-certificate-association-data");
+
+            var newTlsaCertificateUsage = $("#optAddEditRecordDataTlsaCertificateUsage").val();
+            if ((newTlsaCertificateUsage === null) || (newTlsaCertificateUsage === "")) {
+                showAlert("warning", "Missing!", "Please select a Certificate Usage to add the record.", divAddEditRecordAlert);
+                $("#optAddEditRecordDataTlsaCertificateUsage").focus();
+                return;
+            }
+
+            var newTlsaSelector = $("#optAddEditRecordDataTlsaSelector").val();
+            if ((newTlsaSelector === null) || (newTlsaSelector === "")) {
+                showAlert("warning", "Missing!", "Please select a Selector to add the record.", divAddEditRecordAlert);
+                $("#optAddEditRecordDataTlsaSelector").focus();
+                return;
+            }
+
+            var newTlsaMatchingType = $("#optAddEditRecordDataTlsaMatchingType").val();
+            if ((newTlsaMatchingType === null) || (newTlsaMatchingType === "")) {
+                showAlert("warning", "Missing!", "Please select a Matching Type to add the record.", divAddEditRecordAlert);
+                $("#optAddEditRecordDataTlsaMatchingType").focus();
+                return;
+            }
+
+            var newTlsaCertificateAssociationData = $("#txtAddEditRecordDataTlsaCertificateAssociationData").val();
+            if (newTlsaCertificateAssociationData === "") {
+                showAlert("warning", "Missing!", "Please enter the Certificate Association Data to add the record.", divAddEditRecordAlert);
+                $("#txtAddEditRecordDataTlsaCertificateAssociationData").focus();
+                return;
+            }
+
+            apiUrl += "&tlsaCertificateUsage=" + tlsaCertificateUsage + "&newTlsaCertificateUsage=" + newTlsaCertificateUsage + "&tlsaSelector=" + tlsaSelector + "&newTlsaSelector=" + newTlsaSelector + "&tlsaMatchingType=" + tlsaMatchingType + "&newTlsaMatchingType=" + newTlsaMatchingType + "&tlsaCertificateAssociationData=" + encodeURIComponent(tlsaCertificateAssociationData) + "&newTlsaCertificateAssociationData=" + encodeURIComponent(newTlsaCertificateAssociationData);
+            break;
+
         case "CAA":
             var flags = divData.attr("data-record-flags");
             var tag = divData.attr("data-record-tag");
@@ -3379,6 +3592,14 @@ function updateRecordState(objBtn, disable) {
             apiUrl += "&keyTag=" + divData.attr("data-record-key-tag") + "&algorithm=" + divData.attr("data-record-algorithm") + "&digestType=" + divData.attr("data-record-digest-type") + "&digest=" + encodeURIComponent(divData.attr("data-record-digest"));
             break;
 
+        case "SSHFP":
+            apiUrl += "&sshfpAlgorithm=" + divData.attr("data-record-algorithm") + "&sshfpFingerprintType=" + divData.attr("data-record-fingerprint-type") + "&sshfpFingerprint=" + encodeURIComponent(divData.attr("data-record-fingerprint"));
+            break;
+
+        case "TLSA":
+            apiUrl += "&tlsaCertificateUsage=" + divData.attr("data-record-certificate-usage") + "&tlsaSelector=" + divData.attr("data-record-selector") + "&tlsaMatchingType=" + divData.attr("data-record-matching-type") + "&tlsaCertificateAssociationData=" + encodeURIComponent(divData.attr("data-record-certificate-association-data"));
+            break;
+
         case "CAA":
             apiUrl += "&flags=" + divData.attr("data-record-flags") + "&tag=" + encodeURIComponent(divData.attr("data-record-tag")) + "&value=" + encodeURIComponent(divData.attr("data-record-value"));
             break;
@@ -3483,6 +3704,14 @@ function deleteRecord(objBtn) {
             apiUrl += "&keyTag=" + divData.attr("data-record-key-tag") + "&algorithm=" + divData.attr("data-record-algorithm") + "&digestType=" + divData.attr("data-record-digest-type") + "&digest=" + encodeURIComponent(divData.attr("data-record-digest"));
             break;
 
+        case "SSHFP":
+            apiUrl += "&sshfpAlgorithm=" + divData.attr("data-record-algorithm") + "&sshfpFingerprintType=" + divData.attr("data-record-fingerprint-type") + "&sshfpFingerprint=" + encodeURIComponent(divData.attr("data-record-fingerprint"));
+            break;
+
+        case "TLSA":
+            apiUrl += "&tlsaCertificateUsage=" + divData.attr("data-record-certificate-usage") + "&tlsaSelector=" + divData.attr("data-record-selector") + "&tlsaMatchingType=" + divData.attr("data-record-matching-type") + "&tlsaCertificateAssociationData=" + encodeURIComponent(divData.attr("data-record-certificate-association-data"));
+            break;
+
         case "CAA":
             apiUrl += "&flags=" + divData.attr("data-record-flags") + "&tag=" + encodeURIComponent(divData.attr("data-record-tag")) + "&value=" + encodeURIComponent(divData.attr("data-record-value"));
             break;
@@ -3529,7 +3758,7 @@ function showSignZoneModal(zoneName) {
     $("#divDnssecSignZoneRsaParameters").hide();
     $("#optDnssecSignZoneRsaHashAlgorithm").val("SHA256");
     $("#optDnssecSignZoneRsaKSKKeySize").val("2048");
-    $("#optDnssecSignZoneRsaZSKKeySize").val("1024");
+    $("#optDnssecSignZoneRsaZSKKeySize").val("1280");
 
     $("#divDnssecSignZoneEcdsaParameters").show();
     $("#optDnssecSignZoneEcdsaCurve").val("P256");
@@ -3599,6 +3828,12 @@ function signPrimaryZone() {
 
                 $("#lnkZoneDnssecProperties").show();
                 $("#lnkZoneDnssecUnsignZone").show();
+
+                $("#optAddEditRecordTypeDs").show();
+                $("#optAddEditRecordTypeSshfp").show();
+                $("#optAddEditRecordTypeTlsa").show();
+                $("#optAddEditRecordTypeAName").hide();
+                $("#optAddEditRecordTypeApp").hide();
             }
             else {
                 showEditZone(zone);
@@ -3650,6 +3885,12 @@ function unsignPrimaryZone() {
 
                 $("#lnkZoneDnssecProperties").hide();
                 $("#lnkZoneDnssecUnsignZone").hide();
+
+                $("#optAddEditRecordTypeDs").hide();
+                $("#optAddEditRecordTypeSshfp").hide();
+                $("#optAddEditRecordTypeTlsa").hide();
+                $("#optAddEditRecordTypeAName").show();
+                $("#optAddEditRecordTypeApp").show();
             }
             else {
                 showEditZone(zone);
