@@ -1099,7 +1099,12 @@ namespace DnsServerCore.Dns
             }
 
             if (request.EDNS is null)
+            {
+                if (response.EDNS is not null)
+                    response = response.CloneWithoutEDns();
+
                 return response;
+            }
 
             if (response.EDNS is not null)
                 return response;
