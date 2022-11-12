@@ -287,6 +287,8 @@ function clearDhcpScopeForm() {
     $("#txtDhcpScopePingCheckTimeout").val("1000");
     $("#txtDhcpScopePingCheckRetries").val("2");
     $("#txtDhcpScopeDomainName").val("");
+    $("#txtDhcpScopeDomainSearchStrings").val("");
+    $("#chkDhcpScopeDnsUpdates").prop("checked", true);
     $("#txtDhcpScopeDnsTtl").val("900");
     $("#txtDhcpScopeServerAddress").val("");
     $("#txtDhcpScopeServerHostName").val("");
@@ -297,8 +299,10 @@ function clearDhcpScopeForm() {
     $("#txtDhcpScopeDnsServers").val("");
     $("#txtDhcpScopeWinsServers").val("");
     $("#txtDhcpScopeNtpServers").val("");
+    $("#txtDhcpScopeNtpServerDomainNames").val("");
     $("#tableDhcpScopeStaticRoutes").html("");
     $("#tableDhcpScopeVendorInfo").html("");
+    $("#txtDhcpScopeCAPWAPApIpAddresses").val("");
     $("#tableDhcpScopeExclusions").html("");
     $("#tableDhcpScopeReservedLeases").html("");
     $("#chkAllowOnlyReservedLeases").prop("checked", false);
@@ -348,6 +352,10 @@ function showEditDhcpScope(scopeName) {
             if (responseJSON.response.domainName != null)
                 $("#txtDhcpScopeDomainName").val(responseJSON.response.domainName);
 
+            if (responseJSON.response.domainSearchList != null)
+                $("#txtDhcpScopeDomainSearchStrings").val(responseJSON.response.domainSearchList.join("\n"));
+
+            $("#chkDhcpScopeDnsUpdates").prop("checked", responseJSON.response.dnsUpdates);
             $("#txtDhcpScopeDnsTtl").val(responseJSON.response.dnsTtl);
 
             if (responseJSON.response.serverAddress != null)
@@ -374,6 +382,9 @@ function showEditDhcpScope(scopeName) {
             if (responseJSON.response.ntpServers != null)
                 $("#txtDhcpScopeNtpServers").val(responseJSON.response.ntpServers.join("\n"));
 
+            if (responseJSON.response.ntpServerDomainNames != null)
+                $("#txtDhcpScopeNtpServerDomainNames").val(responseJSON.response.ntpServerDomainNames.join("\n"));
+
             if (responseJSON.response.staticRoutes != null) {
                 for (var i = 0; i < responseJSON.response.staticRoutes.length; i++) {
                     addDhcpScopeStaticRouteRow(responseJSON.response.staticRoutes[i].destination, responseJSON.response.staticRoutes[i].subnetMask, responseJSON.response.staticRoutes[i].router);
@@ -385,6 +396,9 @@ function showEditDhcpScope(scopeName) {
                     addDhcpScopeVendorInfoRow(responseJSON.response.vendorInfo[i].identifier, responseJSON.response.vendorInfo[i].information)
                 }
             }
+
+            if (responseJSON.response.capwapAcIpAddresses != null)
+                $("#txtDhcpScopeCAPWAPApIpAddresses").val(responseJSON.response.capwapAcIpAddresses.join("\n"));
 
             if (responseJSON.response.exclusions != null) {
                 for (var i = 0; i < responseJSON.response.exclusions.length; i++) {
@@ -435,6 +449,8 @@ function saveDhcpScope() {
     var pingCheckRetries = $("#txtDhcpScopePingCheckRetries").val();
 
     var domainName = $("#txtDhcpScopeDomainName").val();
+    var domainSearchList = cleanTextList($("#txtDhcpScopeDomainSearchStrings").val());
+    var dnsUpdates = $("#chkDhcpScopeDnsUpdates").prop("checked");
     var dnsTtl = $("#txtDhcpScopeDnsTtl").val();
 
     var serverAddress = $("#txtDhcpScopeServerAddress").val();
@@ -446,6 +462,7 @@ function saveDhcpScope() {
     var dnsServers = cleanTextList($("#txtDhcpScopeDnsServers").val());
     var winsServers = cleanTextList($("#txtDhcpScopeWinsServers").val());
     var ntpServers = cleanTextList($("#txtDhcpScopeNtpServers").val());
+    var ntpServerDomainNames = cleanTextList($("#txtDhcpScopeNtpServerDomainNames").val());
 
     var staticRoutes = serializeTableData($("#tableDhcpScopeStaticRoutes"), 3);
     if (staticRoutes === false)
@@ -454,6 +471,8 @@ function saveDhcpScope() {
     var vendorInfo = serializeTableData($("#tableDhcpScopeVendorInfo"), 2);
     if (vendorInfo === false)
         return;
+
+    var capwapAcIpAddresses = cleanTextList($("#txtDhcpScopeCAPWAPApIpAddresses").val());
 
     var exclusions = serializeTableData($("#tableDhcpScopeExclusions"), 2);
     if (exclusions === false)
@@ -471,9 +490,9 @@ function saveDhcpScope() {
     HTTPRequest({
         url: "/api/dhcp/scopes/set?token=" + sessionData.token + "&name=" + encodeURIComponent(name) + (newName == null ? "" : "&newName=" + encodeURIComponent(newName)) + "&startingAddress=" + encodeURIComponent(startingAddress) + "&endingAddress=" + encodeURIComponent(endingAddress) + "&subnetMask=" + encodeURIComponent(subnetMask) +
             "&leaseTimeDays=" + leaseTimeDays + "&leaseTimeHours=" + leaseTimeHours + "&leaseTimeMinutes=" + leaseTimeMinutes + "&offerDelayTime=" + offerDelayTime + "&pingCheckEnabled=" + pingCheckEnabled + "&pingCheckTimeout=" + pingCheckTimeout + "&pingCheckRetries=" + pingCheckRetries +
-            "&domainName=" + encodeURIComponent(domainName) + "&dnsTtl=" + dnsTtl + "&serverAddress=" + encodeURIComponent(serverAddress) + "&serverHostName=" + encodeURIComponent(serverHostName) + "&bootFileName=" + encodeURIComponent(bootFileName) +
-            "&routerAddress=" + encodeURIComponent(routerAddress) + "&useThisDnsServer=" + useThisDnsServer + (useThisDnsServer ? "" : "&dnsServers=" + encodeURIComponent(dnsServers)) + "&winsServers=" + encodeURIComponent(winsServers) + "&ntpServers=" + encodeURIComponent(ntpServers) +
-            "&staticRoutes=" + encodeURIComponent(staticRoutes) + "&vendorInfo=" + encodeURIComponent(vendorInfo) + "&exclusions=" + encodeURIComponent(exclusions) + "&reservedLeases=" + encodeURIComponent(reservedLeases) + "&allowOnlyReservedLeases=" + allowOnlyReservedLeases + "&blockLocallyAdministeredMacAddresses=" + blockLocallyAdministeredMacAddresses,
+            "&domainName=" + encodeURIComponent(domainName) + "&domainSearchList=" + encodeURIComponent(domainSearchList) + "&dnsUpdates=" + dnsUpdates + "&dnsTtl=" + dnsTtl + "&serverAddress=" + encodeURIComponent(serverAddress) + "&serverHostName=" + encodeURIComponent(serverHostName) + "&bootFileName=" + encodeURIComponent(bootFileName) +
+            "&routerAddress=" + encodeURIComponent(routerAddress) + "&useThisDnsServer=" + useThisDnsServer + (useThisDnsServer ? "" : "&dnsServers=" + encodeURIComponent(dnsServers)) + "&winsServers=" + encodeURIComponent(winsServers) + "&ntpServers=" + encodeURIComponent(ntpServers) + "&ntpServerDomainNames=" + encodeURIComponent(ntpServerDomainNames) +
+            "&staticRoutes=" + encodeURIComponent(staticRoutes) + "&vendorInfo=" + encodeURIComponent(vendorInfo) + "&capwapAcIpAddresses=" + encodeURIComponent(capwapAcIpAddresses) + "&exclusions=" + encodeURIComponent(exclusions) + "&reservedLeases=" + encodeURIComponent(reservedLeases) + "&allowOnlyReservedLeases=" + allowOnlyReservedLeases + "&blockLocallyAdministeredMacAddresses=" + blockLocallyAdministeredMacAddresses,
         success: function (responseJSON) {
             refreshDhcpScopes();
             btn.button('reset');
