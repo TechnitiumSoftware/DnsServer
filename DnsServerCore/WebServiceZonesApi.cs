@@ -656,13 +656,13 @@ namespace DnsServerCore
                         if (record.RDATA is DnsTLSARecordData rdata)
                         {
                             jsonWriter.WritePropertyName("certificateUsage");
-                            jsonWriter.WriteValue(rdata.CertificateUsage.ToString());
+                            jsonWriter.WriteValue(rdata.CertificateUsage.ToString().Replace('_', '-'));
 
                             jsonWriter.WritePropertyName("selector");
                             jsonWriter.WriteValue(rdata.Selector.ToString());
 
                             jsonWriter.WritePropertyName("matchingType");
-                            jsonWriter.WriteValue(rdata.MatchingType.ToString());
+                            jsonWriter.WriteValue(rdata.MatchingType.ToString().Replace('_', '-'));
 
                             jsonWriter.WritePropertyName("certificateAssociationData");
                             jsonWriter.WriteValue(rdata.CertificateAssociationData);
@@ -1284,7 +1284,7 @@ namespace DnsServerCore
 
             if (zoneInfo.DnssecStatus == AuthZoneDnssecStatus.SignedWithNSEC3)
             {
-                IReadOnlyList<DnsResourceRecord> nsec3ParamRecords = zoneInfo.GetRecords(DnsResourceRecordType.NSEC3PARAM);
+                IReadOnlyList<DnsResourceRecord> nsec3ParamRecords = zoneInfo.GetApexRecords(DnsResourceRecordType.NSEC3PARAM);
                 DnsNSEC3PARAMRecordData nsec3Param = nsec3ParamRecords[0].RDATA as DnsNSEC3PARAMRecordData;
 
                 jsonWriter.WritePropertyName("nsec3Iterations");
@@ -2494,17 +2494,61 @@ namespace DnsServerCore
                     }
                     break;
 
-                //case DnsResourceRecordType.SSHFP:
-                //    {
+                case DnsResourceRecordType.SSHFP:
+                    {
+                        string strAlgorithm = request.QueryString["sshfpAlgorithm"];
+                        if (string.IsNullOrEmpty(strAlgorithm))
+                            throw new DnsWebServiceException("Parameter 'sshfpAlgorithm' missing.");
 
-                //    }
-                //    break;
+                        string strFingerprintType = request.QueryString["sshfpFingerprintType"];
+                        if (string.IsNullOrEmpty(strFingerprintType))
+                            throw new DnsWebServiceException("Parameter 'sshfpFingerprintType' missing.");
 
-                //case DnsResourceRecordType.TLSA:
-                //    {
+                        string strFingerprint = request.QueryString["sshfpFingerprint"];
+                        if (string.IsNullOrEmpty(strFingerprint))
+                            throw new DnsWebServiceException("Parameter 'sshfpFingerprint' missing.");
 
-                //    }
-                //    break;
+                        newRecord = new DnsResourceRecord(domain, type, DnsClass.IN, ttl, new DnsSSHFPRecordData(Enum.Parse<DnsSSHFPAlgorithm>(strAlgorithm, true), Enum.Parse<DnsSSHFPFingerprintType>(strFingerprintType, true), Convert.FromHexString(strFingerprint)));
+
+                        if (!string.IsNullOrEmpty(comments))
+                            newRecord.SetComments(comments);
+
+                        if (overwrite)
+                            _dnsWebService.DnsServer.AuthZoneManager.SetRecord(zoneInfo.Name, newRecord);
+                        else
+                            _dnsWebService.DnsServer.AuthZoneManager.AddRecord(zoneInfo.Name, newRecord);
+                    }
+                    break;
+
+                case DnsResourceRecordType.TLSA:
+                    {
+                        string strCertificateUsage = request.QueryString["tlsaCertificateUsage"];
+                        if (string.IsNullOrEmpty(strCertificateUsage))
+                            throw new DnsWebServiceException("Parameter 'tlsaCertificateUsage' missing.");
+
+                        string strSelector = request.QueryString["tlsaSelector"];
+                        if (string.IsNullOrEmpty(strSelector))
+                            throw new DnsWebServiceException("Parameter 'tlsaSelector' missing.");
+
+                        string strMatchingType = request.QueryString["tlsaMatchingType"];
+                        if (string.IsNullOrEmpty(strMatchingType))
+                            throw new DnsWebServiceException("Parameter 'tlsaMatchingType' missing.");
+
+                        string strCertificateAssociationData = request.QueryString["tlsaCertificateAssociationData"];
+                        if (string.IsNullOrEmpty(strCertificateAssociationData))
+                            throw new DnsWebServiceException("Parameter 'tlsaCertificateAssociationData' missing.");
+
+                        newRecord = new DnsResourceRecord(domain, type, DnsClass.IN, ttl, new DnsTLSARecordData(Enum.Parse<DnsTLSACertificateUsage>(strCertificateUsage.Replace('-', '_'), true), Enum.Parse<DnsTLSASelector>(strSelector, true), Enum.Parse<DnsTLSAMatchingType>(strMatchingType.Replace('-', '_'), true), strCertificateAssociationData));
+
+                        if (!string.IsNullOrEmpty(comments))
+                            newRecord.SetComments(comments);
+
+                        if (overwrite)
+                            _dnsWebService.DnsServer.AuthZoneManager.SetRecord(zoneInfo.Name, newRecord);
+                        else
+                            _dnsWebService.DnsServer.AuthZoneManager.AddRecord(zoneInfo.Name, newRecord);
+                    }
+                    break;
 
                 case DnsResourceRecordType.CAA:
                     {
@@ -2892,6 +2936,46 @@ namespace DnsServerCore
                     }
                     break;
 
+                case DnsResourceRecordType.SSHFP:
+                    {
+                        string strAlgorithm = request.QueryString["sshfpAlgorithm"];
+                        if (string.IsNullOrEmpty(strAlgorithm))
+                            throw new DnsWebServiceException("Parameter 'sshfpAlgorithm' missing.");
+
+                        string strFingerprintType = request.QueryString["sshfpFingerprintType"];
+                        if (string.IsNullOrEmpty(strFingerprintType))
+                            throw new DnsWebServiceException("Parameter 'sshfpFingerprintType' missing.");
+
+                        string strFingerprint = request.QueryString["sshfpFingerprint"];
+                        if (string.IsNullOrEmpty(strFingerprint))
+                            throw new DnsWebServiceException("Parameter 'sshfpFingerprint' missing.");
+
+                        _dnsWebService.DnsServer.AuthZoneManager.DeleteRecord(zoneInfo.Name, domain, type, new DnsSSHFPRecordData(Enum.Parse<DnsSSHFPAlgorithm>(strAlgorithm, true), Enum.Parse<DnsSSHFPFingerprintType>(strFingerprintType, true), Convert.FromHexString(strFingerprint)));
+                    }
+                    break;
+
+                case DnsResourceRecordType.TLSA:
+                    {
+                        string strCertificateUsage = request.QueryString["tlsaCertificateUsage"];
+                        if (string.IsNullOrEmpty(strCertificateUsage))
+                            throw new DnsWebServiceException("Parameter 'tlsaCertificateUsage' missing.");
+
+                        string strSelector = request.QueryString["tlsaSelector"];
+                        if (string.IsNullOrEmpty(strSelector))
+                            throw new DnsWebServiceException("Parameter 'tlsaSelector' missing.");
+
+                        string strMatchingType = request.QueryString["tlsaMatchingType"];
+                        if (string.IsNullOrEmpty(strMatchingType))
+                            throw new DnsWebServiceException("Parameter 'tlsaMatchingType' missing.");
+
+                        string strCertificateAssociationData = request.QueryString["tlsaCertificateAssociationData"];
+                        if (string.IsNullOrEmpty(strCertificateAssociationData))
+                            throw new DnsWebServiceException("Parameter 'tlsaCertificateAssociationData' missing.");
+
+                        _dnsWebService.DnsServer.AuthZoneManager.DeleteRecord(zoneInfo.Name, domain, type, new DnsTLSARecordData(Enum.Parse<DnsTLSACertificateUsage>(strCertificateUsage.Replace('-', '_'), true), Enum.Parse<DnsTLSASelector>(strSelector, true), Enum.Parse<DnsTLSAMatchingType>(strMatchingType.Replace('-', '_'), true), strCertificateAssociationData));
+                    }
+                    break;
+
                 case DnsResourceRecordType.CAA:
                     {
                         string flags = request.QueryString["flags"];
@@ -3238,7 +3322,7 @@ namespace DnsServerCore
 
                         _dnsWebService.DnsServer.AuthZoneManager.SetRecord(zoneInfo.Name, newSOARecord);
 
-                        newRecord = zoneInfo.GetRecords(DnsResourceRecordType.SOA)[0];
+                        newRecord = zoneInfo.GetApexRecords(DnsResourceRecordType.SOA)[0];
                     }
                     break;
 
@@ -3476,6 +3560,92 @@ namespace DnsServerCore
 
                         DnsResourceRecord oldRecord = new DnsResourceRecord(domain, type, DnsClass.IN, 0, new DnsDSRecordData(ushort.Parse(strKeyTag), Enum.Parse<DnssecAlgorithm>(strAlgorithm, true), Enum.Parse<DnssecDigestType>(strDigestType, true), Convert.FromHexString(digest)));
                         newRecord = new DnsResourceRecord(newDomain, type, DnsClass.IN, ttl, new DnsDSRecordData(ushort.Parse(strNewKeyTag), Enum.Parse<DnssecAlgorithm>(strNewAlgorithm, true), Enum.Parse<DnssecDigestType>(strNewDigestType, true), Convert.FromHexString(newDigest)));
+
+                        if (disable)
+                            newRecord.Disable();
+
+                        if (!string.IsNullOrEmpty(comments))
+                            newRecord.SetComments(comments);
+
+                        _dnsWebService.DnsServer.AuthZoneManager.UpdateRecord(zoneInfo.Name, oldRecord, newRecord);
+                    }
+                    break;
+
+                case DnsResourceRecordType.SSHFP:
+                    {
+                        string strAlgorithm = request.QueryString["sshfpAlgorithm"];
+                        if (string.IsNullOrEmpty(strAlgorithm))
+                            throw new DnsWebServiceException("Parameter 'sshfpAlgorithm' missing.");
+
+                        string strNewAlgorithm = request.QueryString["newSshfpAlgorithm"];
+                        if (string.IsNullOrEmpty(strNewAlgorithm))
+                            strNewAlgorithm = strAlgorithm;
+
+                        string strFingerprintType = request.QueryString["sshfpFingerprintType"];
+                        if (string.IsNullOrEmpty(strFingerprintType))
+                            throw new DnsWebServiceException("Parameter 'sshfpFingerprintType' missing.");
+
+                        string strNewFingerprintType = request.QueryString["newSshfpFingerprintType"];
+                        if (string.IsNullOrEmpty(strNewFingerprintType))
+                            strNewFingerprintType = strFingerprintType;
+
+                        string strFingerprint = request.QueryString["sshfpFingerprint"];
+                        if (string.IsNullOrEmpty(strFingerprint))
+                            throw new DnsWebServiceException("Parameter 'sshfpFingerprint' missing.");
+
+                        string strNewFingerprint = request.QueryString["newSshfpFingerprint"];
+                        if (string.IsNullOrEmpty(strNewFingerprint))
+                            strNewFingerprint = strFingerprint;
+
+                        DnsResourceRecord oldRecord = new DnsResourceRecord(domain, type, DnsClass.IN, 0, new DnsSSHFPRecordData(Enum.Parse<DnsSSHFPAlgorithm>(strAlgorithm, true), Enum.Parse<DnsSSHFPFingerprintType>(strFingerprintType, true), Convert.FromHexString(strFingerprint)));
+                        newRecord = new DnsResourceRecord(newDomain, type, DnsClass.IN, ttl, new DnsSSHFPRecordData(Enum.Parse<DnsSSHFPAlgorithm>(strNewAlgorithm, true), Enum.Parse<DnsSSHFPFingerprintType>(strNewFingerprintType, true), Convert.FromHexString(strNewFingerprint)));
+
+                        if (disable)
+                            newRecord.Disable();
+
+                        if (!string.IsNullOrEmpty(comments))
+                            newRecord.SetComments(comments);
+
+                        _dnsWebService.DnsServer.AuthZoneManager.UpdateRecord(zoneInfo.Name, oldRecord, newRecord);
+                    }
+                    break;
+
+                case DnsResourceRecordType.TLSA:
+                    {
+                        string strCertificateUsage = request.QueryString["tlsaCertificateUsage"];
+                        if (string.IsNullOrEmpty(strCertificateUsage))
+                            throw new DnsWebServiceException("Parameter 'tlsaCertificateUsage' missing.");
+
+                        string strNewCertificateUsage = request.QueryString["newTlsaCertificateUsage"];
+                        if (string.IsNullOrEmpty(strNewCertificateUsage))
+                            strNewCertificateUsage = strCertificateUsage;
+
+                        string strSelector = request.QueryString["tlsaSelector"];
+                        if (string.IsNullOrEmpty(strSelector))
+                            throw new DnsWebServiceException("Parameter 'tlsaSelector' missing.");
+
+                        string strNewSelector = request.QueryString["newTlsaSelector"];
+                        if (string.IsNullOrEmpty(strNewSelector))
+                            strNewSelector = strSelector;
+
+                        string strMatchingType = request.QueryString["tlsaMatchingType"];
+                        if (string.IsNullOrEmpty(strMatchingType))
+                            throw new DnsWebServiceException("Parameter 'tlsaMatchingType' missing.");
+
+                        string strNewMatchingType = request.QueryString["newTlsaMatchingType"];
+                        if (string.IsNullOrEmpty(strNewMatchingType))
+                            strNewMatchingType = strMatchingType;
+
+                        string strCertificateAssociationData = request.QueryString["tlsaCertificateAssociationData"];
+                        if (string.IsNullOrEmpty(strCertificateAssociationData))
+                            throw new DnsWebServiceException("Parameter 'tlsaCertificateAssociationData' missing.");
+
+                        string strNewCertificateAssociationData = request.QueryString["newTlsaCertificateAssociationData"];
+                        if (string.IsNullOrEmpty(strNewCertificateAssociationData))
+                            strNewCertificateAssociationData = strCertificateAssociationData;
+
+                        DnsResourceRecord oldRecord = new DnsResourceRecord(domain, type, DnsClass.IN, 0, new DnsTLSARecordData(Enum.Parse<DnsTLSACertificateUsage>(strCertificateUsage.Replace('-', '_'), true), Enum.Parse<DnsTLSASelector>(strSelector, true), Enum.Parse<DnsTLSAMatchingType>(strMatchingType.Replace('-', '_'), true), strCertificateAssociationData));
+                        newRecord = new DnsResourceRecord(newDomain, type, DnsClass.IN, ttl, new DnsTLSARecordData(Enum.Parse<DnsTLSACertificateUsage>(strNewCertificateUsage.Replace('-', '_'), true), Enum.Parse<DnsTLSASelector>(strNewSelector, true), Enum.Parse<DnsTLSAMatchingType>(strNewMatchingType.Replace('-', '_'), true), strNewCertificateAssociationData));
 
                         if (disable)
                             newRecord.Disable();
