@@ -5259,7 +5259,7 @@ namespace DnsServerCore
 
                 //init dhcp server
                 _dhcpServer = new DhcpServer(Path.Combine(_configFolder, "scopes"), _log);
-                _dhcpServer.AuthZoneManager = _dnsServer.AuthZoneManager;
+                _dhcpServer.DnsServer = _dnsServer;
                 _dhcpServer.AuthManager = _authManager;
 
                 //load auth config
