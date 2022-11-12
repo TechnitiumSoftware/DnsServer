@@ -1,6 +1,6 @@
 ﻿/*
 Technitium DNS Server
-Copyright (C) 2021  Shreyas Zare (shreyas@technitium.com)
+Copyright (C) 2022  Shreyas Zare (shreyas@technitium.com)
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -62,17 +62,31 @@ namespace DnsServerSystemTrayApp
 
             _app = new Mutex(true, MUTEX_NAME, out bool createdNewMutex);
 
+            bool exitApp = false;
+
             if (!createdNewMutex)
             {
-                MessageBox.Show("Technitium DNS Server system tray app is already running.", "Already Running!", MessageBoxButtons.OK, MessageBoxIcon.Information);
-                return;
+                if (args.Length == 0)
+                {
+                    MessageBox.Show("Technitium DNS Server system tray app is already running.", "Already Running!", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                    return;
+                }
+                else
+                {
+                    exitApp = true;
+                }
             }
 
             #endregion
 
             string configFile = Path.Combine(Path.GetDirectoryName(APP_PATH), "SystemTrayApp.config");
 
-            Application.Run(new MainApplicationContext(configFile, args));
+            MainApplicationContext mainApp = new MainApplicationContext(configFile, args, ref exitApp);
+
+            if (exitApp)
+                mainApp.Dispose();
+            else
+                Application.Run(mainApp);
         }
 
         public static void RunAsAdmin(string args)
