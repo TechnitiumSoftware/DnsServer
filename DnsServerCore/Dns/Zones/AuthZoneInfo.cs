@@ -379,7 +379,7 @@ namespace DnsServerCore.Dns.Zones
 
         #region public
 
-        public IReadOnlyList<DnsResourceRecord> GetRecords(DnsResourceRecordType type)
+        public IReadOnlyList<DnsResourceRecord> GetApexRecords(DnsResourceRecordType type)
         {
             if (_apexZone is null)
                 throw new InvalidOperationException();
