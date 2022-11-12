@@ -641,10 +641,13 @@ namespace DnsServerCore.Dhcp
                             try
                             {
                                 //check if interface has dynamic ipv4 address assigned via dhcp
-                                foreach (IPAddress dhcpServerAddress in ipInterface.DhcpServerAddresses)
+                                if (!OperatingSystem.IsMacOS())
                                 {
-                                    if (dhcpServerAddress.AddressFamily == AddressFamily.InterNetwork)
-                                        throw new DhcpServerException("DHCP Server requires static IP address to work correctly but the network interface was found to have a dynamic IP address [" + ip.Address.ToString() + "] assigned by another DHCP server: " + dhcpServerAddress.ToString());
+                                    foreach (IPAddress dhcpServerAddress in ipInterface.DhcpServerAddresses)
+                                    {
+                                        if (dhcpServerAddress.AddressFamily == AddressFamily.InterNetwork)
+                                            throw new DhcpServerException("DHCP Server requires static IP address to work correctly but the network interface was found to have a dynamic IP address [" + ip.Address.ToString() + "] assigned by another DHCP server: " + dhcpServerAddress.ToString());
+                                    }
                                 }
                             }
                             catch (PlatformNotSupportedException)
@@ -663,26 +666,29 @@ namespace DnsServerCore.Dhcp
 
             try
             {
-                //check if at least one interface has static ip address
-                foreach (NetworkInterface nic in NetworkInterface.GetAllNetworkInterfaces())
+                if (!OperatingSystem.IsMacOS())
                 {
-                    if (nic.OperationalStatus != OperationalStatus.Up)
-                        continue;
-
-                    IPInterfaceProperties ipInterface = nic.GetIPProperties();
-
-                    foreach (UnicastIPAddressInformation ip in ipInterface.UnicastAddresses)
+                    //check if at least one interface has static ip address
+                    foreach (NetworkInterface nic in NetworkInterface.GetAllNetworkInterfaces())
                     {
-                        if (ip.Address.AddressFamily == AddressFamily.InterNetwork)
+                        if (nic.OperationalStatus != OperationalStatus.Up)
+                            continue;
+
+                        IPInterfaceProperties ipInterface = nic.GetIPProperties();
+
+                        foreach (UnicastIPAddressInformation ip in ipInterface.UnicastAddresses)
                         {
-                            //check if address is static
-                            if (ipInterface.DhcpServerAddresses.Count < 1)
+                            if (ip.Address.AddressFamily == AddressFamily.InterNetwork)
                             {
-                                //found static ip address so this scope can be activated
-                                //using ANY ip address for this scope interface since we dont know the relay agent network 
-                                _interfaceAddress = IPAddress.Any;
-                                _interfaceIndex = -1;
-                                return true;
+                                //check if address is static
+                                if (ipInterface.DhcpServerAddresses.Count < 1)
+                                {
+                                    //found static ip address so this scope can be activated
+                                    //using ANY ip address for this scope interface since we dont know the relay agent network 
+                                    _interfaceAddress = IPAddress.Any;
+                                    _interfaceIndex = -1;
+                                    return true;
+                                }
                             }
                         }
                     }
