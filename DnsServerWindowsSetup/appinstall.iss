@@ -17,6 +17,16 @@ begin
 end;
 
 {
+    Resets Network DNS to default
+}
+procedure ResetNetworkDNS;
+var
+    ResultCode: Integer;
+begin
+    Exec(ExpandConstant('{app}\{#TRAYAPP_FILENAME}'), '--network-dns-default-exit', '', SW_HIDE, ewWaitUntilTerminated, ResultCode);
+end;
+
+{
   Stops the service
 }
 procedure DoStopService();
@@ -107,7 +117,7 @@ begin
     Log('Service: Already installed, skip install service');
   end else begin 
     Log('Service: Begin Install');
-    InstallSuccess := InstallService(ExpandConstant('{app}\DnsService.exe'), '{#SERVICE_NAME}', '{#SERVICE_DISPLAY_NAME}', '{#SERVICE_DESCRIPTION}', SERVICE_WIN32_OWN_PROCESS, SERVICE_AUTO_START);
+    InstallSuccess := InstallService(ExpandConstant('"{app}\DnsService.exe"'), '{#SERVICE_NAME}', '{#SERVICE_DISPLAY_NAME}', '{#SERVICE_DESCRIPTION}', SERVICE_WIN32_OWN_PROCESS, SERVICE_AUTO_START);
     if not InstallSuccess then
     begin
       Log('Service: Install Fail ' + ServiceErrorToMessage(GetLastError()));

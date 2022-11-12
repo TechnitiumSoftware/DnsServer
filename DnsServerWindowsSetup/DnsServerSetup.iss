@@ -104,6 +104,9 @@ procedure CurUninstallStepChanged(CurUninstallStep: TUninstallStep);
 begin
   if CurUninstallStep = usUninstall then //Step happens before processing uninstall log
   begin
+    UninstallProgressForm.StatusLabel.Caption := 'Resetting Network DNS...';
+    ResetNetworkDNS(); //Reset Network DNS to default
+
     UninstallProgressForm.StatusLabel.Caption := 'Stopping Tray App...';
     KillTrayApp(); //Stop the tray app if running
 
