@@ -312,6 +312,9 @@ namespace DnsServerCore
                     jsonWriter.WritePropertyName("isQueryLogger");
                     jsonWriter.WriteValue(dnsApp.Value is IDnsQueryLogger);
 
+                    jsonWriter.WritePropertyName("isPostProcessor");
+                    jsonWriter.WriteValue(dnsApp.Value is IDnsPostProcessor);
+
                     jsonWriter.WriteEndObject();
                 }
 
