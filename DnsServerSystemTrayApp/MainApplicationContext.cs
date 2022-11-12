@@ -62,7 +62,7 @@ namespace DnsServerSystemTrayApp
 
         #region constructor
 
-        public MainApplicationContext(string configFile, string[] args)
+        public MainApplicationContext(string configFile, string[] args, ref bool exitApp)
         {
             _configFile = configFile;
             LoadConfig();
@@ -73,8 +73,13 @@ namespace DnsServerSystemTrayApp
             {
                 switch (args[0])
                 {
+                    case "--network-dns-default-exit":
+                        SetNetworkDnsToDefault(true);
+                        exitApp = true;
+                        break;
+
                     case "--network-dns-default":
-                        DefaultNetworkDnsMenuItem_Click(this, EventArgs.Empty);
+                        SetNetworkDnsToDefault();
                         break;
 
                     case "--network-dns-item":
@@ -620,9 +625,16 @@ namespace DnsServerSystemTrayApp
 
         private void DefaultNetworkDnsMenuItem_Click(object sender, EventArgs e)
         {
+            SetNetworkDnsToDefault();
+        }
+
+        private void SetNetworkDnsToDefault(bool silent = false)
+        {
             if (!Program.IsAdmin)
             {
-                Program.RunAsAdmin("--network-dns-default");
+                if (!silent)
+                    Program.RunAsAdmin("--network-dns-default");
+
                 return;
             }
 
@@ -656,11 +668,13 @@ namespace DnsServerSystemTrayApp
                     { }
                 }
 
-                MessageBox.Show("The network DNS servers were set to default successfully.", "Default DNS Set - " + Resources.ServiceName, MessageBoxButtons.OK, MessageBoxIcon.Information);
+                if (!silent)
+                    MessageBox.Show("The network DNS servers were set to default successfully.", "Default DNS Set - " + Resources.ServiceName, MessageBoxButtons.OK, MessageBoxIcon.Information);
             }
             catch (Exception ex)
             {
-                MessageBox.Show("Error occured while setting default network DNS servers. " + ex.Message, "Error - " + Resources.ServiceName, MessageBoxButtons.OK, MessageBoxIcon.Error);
+                if (!silent)
+                    MessageBox.Show("Error occured while setting default network DNS servers. " + ex.Message, "Error - " + Resources.ServiceName, MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
         }
 
