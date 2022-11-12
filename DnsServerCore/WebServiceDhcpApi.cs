@@ -800,8 +800,7 @@ namespace DnsServerCore
             if (string.IsNullOrEmpty(scopeName))
                 throw new DnsWebServiceException("Parameter 'name' missing.");
 
-            if (!await _dnsWebService.DhcpServer.EnableScopeAsync(scopeName))
-                throw new DnsWebServiceException("Failed to enable DHCP scope, please check logs for details: " + scopeName);
+            await _dnsWebService.DhcpServer.EnableScopeAsync(scopeName, true);
 
             _dnsWebService.Log.Write(DnsWebService.GetRequestRemoteEndPoint(request), "[" + _dnsWebService.GetSession(request).User.Username + "] DHCP scope was enabled successfully: " + scopeName);
         }
@@ -812,8 +811,7 @@ namespace DnsServerCore
             if (string.IsNullOrEmpty(scopeName))
                 throw new DnsWebServiceException("Parameter 'name' missing.");
 
-            if (!_dnsWebService.DhcpServer.DisableScope(scopeName))
-                throw new DnsWebServiceException("Failed to disable DHCP scope, please check logs for details: " + scopeName);
+            _dnsWebService.DhcpServer.DisableScope(scopeName, true);
 
             _dnsWebService.Log.Write(DnsWebService.GetRequestRemoteEndPoint(request), "[" + _dnsWebService.GetSession(request).User.Username + "] DHCP scope was disabled successfully: " + scopeName);
         }
