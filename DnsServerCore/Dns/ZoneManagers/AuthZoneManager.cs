@@ -100,7 +100,7 @@ namespace DnsServerCore.Dns.ZoneManagers
                         if (zone.Type != AuthZoneType.Primary)
                             continue;
 
-                        DnsResourceRecord record = zone.GetRecords(DnsResourceRecordType.SOA)[0];
+                        DnsResourceRecord record = zone.GetApexRecords(DnsResourceRecordType.SOA)[0];
                         DnsSOARecordData soa = record.RDATA as DnsSOARecordData;
 
                         if (soa.PrimaryNameServer.Equals(_serverDomain, StringComparison.OrdinalIgnoreCase))
@@ -112,7 +112,7 @@ namespace DnsServerCore.Dns.ZoneManagers
                             SetRecords(zone.Name, record.Name, record.Type, record.TtlValue, new DnsResourceRecordData[] { new DnsSOARecordData(serverDomain, responsiblePerson, soa.Serial, soa.Refresh, soa.Retry, soa.Expire, soa.Minimum) });
 
                             //update NS records
-                            IReadOnlyList<DnsResourceRecord> nsResourceRecords = zone.GetRecords(DnsResourceRecordType.NS);
+                            IReadOnlyList<DnsResourceRecord> nsResourceRecords = zone.GetApexRecords(DnsResourceRecordType.NS);
 
                             foreach (DnsResourceRecord nsResourceRecord in nsResourceRecords)
                             {
@@ -1010,7 +1010,7 @@ namespace DnsServerCore.Dns.ZoneManagers
                 throw new InvalidOperationException("Zone was not found: " + zoneName);
 
             //only primary and secondary zones support zone transfer
-            IReadOnlyList<DnsResourceRecord> soaRecords = authZone.GetRecords(DnsResourceRecordType.SOA);
+            IReadOnlyList<DnsResourceRecord> soaRecords = authZone.GetApexRecords(DnsResourceRecordType.SOA);
             if (soaRecords.Count != 1)
                 throw new InvalidOperationException("Zone must be a primary or secondary zone.");
 
@@ -1061,7 +1061,7 @@ namespace DnsServerCore.Dns.ZoneManagers
                 throw new InvalidOperationException("Zone was not found: " + zoneName);
 
             //only primary and secondary zones support zone transfer
-            IReadOnlyList<DnsResourceRecord> soaRecords = authZone.GetRecords(DnsResourceRecordType.SOA);
+            IReadOnlyList<DnsResourceRecord> soaRecords = authZone.GetApexRecords(DnsResourceRecordType.SOA);
             if (soaRecords.Count != 1)
                 throw new InvalidOperationException("Zone must be a primary or secondary zone.");
 
@@ -1990,7 +1990,7 @@ namespace DnsServerCore.Dns.ZoneManagers
             AuthZoneInfo zoneInfo = _dnsServer.AuthZoneManager.FindAuthZoneInfo(domain, false);
             if ((zoneInfo is not null) && (zoneInfo.DnssecStatus != AuthZoneDnssecStatus.Unsigned))
             {
-                IReadOnlyList<DnsResourceRecord> dnsKeyRecords = zoneInfo.GetRecords(DnsResourceRecordType.DNSKEY);
+                IReadOnlyList<DnsResourceRecord> dnsKeyRecords = zoneInfo.GetApexRecords(DnsResourceRecordType.DNSKEY);
 
                 foreach (DnsResourceRecord dnsKeyRecord in dnsKeyRecords)
                 {
