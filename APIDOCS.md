@@ -4056,7 +4056,7 @@ RESPONSE:
 ```
 {
 	"response": {
-		"version": "9.0",
+		"version": "10.0",
 		"dnsServerDomain": "server1",
 		"dnsServerLocalEndPoints": [
 			"0.0.0.0:53",
@@ -4084,6 +4084,9 @@ RESPONSE:
 		"preferIPv6": false,
 		"udpPayloadSize": 1232,
 		"dnssecValidation": true,
+		"eDnsClientSubnet": false,
+		"eDnsClientSubnetIPv4PrefixLength": 24,
+		"eDnsClientSubnetIPv6PrefixLength": 56,
 		"resolverRetries": 2,
 		"resolverTimeout": 2000,
 		"resolverMaxStackCount": 16,
@@ -4170,6 +4173,9 @@ WHERE:
 - `preferIPv6` (optional): DNS Server will use IPv6 for querying whenever possible with this option enabled. Default value is `false`.
 - `udpPayloadSize` (optional): The maximum EDNS UDP payload size that can be used to avoid IP fragmentation. Valid range is 512-4096 bytes. Default value is `1232`.
 - `dnssecValidation` (optional): Set this to `true` to enable DNSSEC validation. DNS Server will validate all responses from name servers or forwarders when this option is enabled.
+- `eDnsClientSubnet` (optional): Set this to `true` to enable EDNS Client Subnet. DNS Server will use the public IP address of the request with a prefix length, or the existing Client Subnet option from the request while resolving requests.
+- `eDnsClientSubnetIPv4PrefixLength` (optional): The EDNS Client Subnet IPv4 prefix length to define the client subnet. Default value is `24`.
+- `eDnsClientSubnetIPv6PrefixLength` (optional): The EDNS Client Subnet IPv6 prefix length to define the client subnet. Default value is `56`.
 - `resolverRetries` (optional): The number of retries that the recursive resolver must do.
 - `resolverTimeout` (optional): The timeout value in milliseconds for the recursive resolver.
 - `resolverMaxStackCount` (optional): The max stack count that the recursive resolver must use.
