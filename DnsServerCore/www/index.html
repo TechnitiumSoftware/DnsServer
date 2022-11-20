@@ -582,7 +582,6 @@
                                                     <li><a href="#">Cloudflare TLS {cloudflare-dns.com ([2606:4700:4700::1111]:853)}</a></li>
                                                     <li><a href="#">Cloudflare TLS {cloudflare-dns.com ([2606:4700:4700::1001]:853)}</a></li>
                                                     <li><a href="#">Cloudflare HTTPS {https://cloudflare-dns.com/dns-query (1.1.1.1)}</a></li>
-                                                    <li><a href="#">Cloudflare HTTPS-JSON {https://cloudflare-dns.com/dns-query (1.1.1.1)}</a></li>
                                                     <li><a href="#">Google {8.8.8.8}</a></li>
                                                     <li><a href="#">Google {8.8.4.4}</a></li>
                                                     <li><a href="#">Google {[2001:4860:4860::8888]}</a></li>
@@ -816,6 +815,44 @@
                                                             <p>Warning! Devices that do not have a real-time clock and rely on NTP when booting (e.g. Raspberry Pi), enabling DNSSEC validation will cause failure to resolve the NTP server domain name thus causing the DNS server to fail to validate all other domain names too due to invalid system date/time. To fix this issue, just create a Conditional Forwarder zone for the NTP server domain name (e.g. ntp.org) with forwarder set to <code>this-server</code> and Enable DNSSEC Validation option unchecked. This conditional forwarder zone will disable DNSSEC validation for the NTP server domain name and allow the device to update its system data/time on boot.</p>
                                                             <p>Warning! When forwarders are configured, DNSSEC validation will work only if the forwarders are security aware i.e. can respond to DNSSEC requests correctly.</p>
                                                             <p>Note! Enabling DNSSEC may increase delays in resolving domain names when the cache is initially empty. As the cache fills up, the performance will be normal as expected.</p>
+                                                        </div>
+                                                    </div>
+
+                                                    <div class="well well-sm form-horizontal">
+                                                        <div class="form-group">
+                                                            <label class="col-sm-3 control-label">EDNS Client Subnet (ECS)</label>
+                                                            <div class="col-sm-8">
+                                                                <div class="checkbox">
+                                                                    <label>
+                                                                        <input id="chkEDnsClientSubnet" type="checkbox"> Enable EDNS Client Subnet
+                                                                    </label>
+                                                                </div>
+                                                                <div style="padding-top: 5px; padding-left: 20px;">DNS Server will use the public IP address of the request with a prefix length, or the existing Client Subnet option from the request.</div>
+                                                            </div>
+                                                        </div>
+
+                                                        <div class="form-group">
+                                                            <label for="txtEDnsClientSubnetIPv4PrefixLength" class="col-sm-3 control-label">ECS IPv4 Prefix Length</label>
+                                                            <div class="col-sm-6">
+                                                                <input type="number" class="form-control" id="txtEDnsClientSubnetIPv4PrefixLength" placeholder="prefix" style="width: 100px; display: inline;">
+                                                                <span>(valid range 0-32; default 24)</span>
+                                                            </div>
+                                                            <div class="col-sm-offset-3 col-sm-8" style="padding-top: 5px;">The IPv4 prefix length to define the client subnet.</div>
+                                                        </div>
+
+                                                        <div class="form-group">
+                                                            <label for="txtEDnsClientSubnetIPv6PrefixLength" class="col-sm-3 control-label">ECS IPv6 Prefix Length</label>
+                                                            <div class="col-sm-6">
+                                                                <input type="number" class="form-control" id="txtEDnsClientSubnetIPv6PrefixLength" placeholder="prefix" style="width: 100px; display: inline;">
+                                                                <span>(valid range 0-64; default 56)</span>
+                                                            </div>
+                                                            <div class="col-sm-offset-3 col-sm-8" style="padding-top: 5px;">The IPv6 prefix length to define the client subnet.</div>
+                                                        </div>
+
+                                                        <div>
+                                                            <p>Warning! EDNS Client Subnet (ECS) option when enabled will compromises user's privacy since the DNS server will send the user's public IP network subnet to name servers or forwarders when resolving requests. When not using encrypted DNS protocols, this information can also be read passively by anyone on the network.</p>
+                                                            <p>Note! EDNS Client Subnet (ECS) option allows passing the user's client subnet information to name servers or forwarders so that the response may contain IP addresses of servers closer to the user's geographic region. EDNS Client Subnet (ECS) option thus is only useful when the DNS server is hosted in a geographically different region compared to the users that are configured to use it.</p>
+                                                            <p>Note! Enabling EDNS Client Subnet (ECS) option will significantly increase the DNS server's memory usage since the server will have to cache data for each client subnet separately. It will also increase cache misses since DNS server will have to resolve requests and cache them for each client subnet separately.</p>
                                                         </div>
                                                     </div>
 
@@ -1484,7 +1521,6 @@
                                                                     <option value="cloudflare-tls">Cloudflare (DNS-over-TLS)</option>
                                                                     <option value="cloudflare-tls-ipv6">Cloudflare (DNS-over-TLS IPv6)</option>
                                                                     <option value="cloudflare-https">Cloudflare (DNS-over-HTTPS)</option>
-                                                                    <option value="cloudflare-json">Cloudflare (DNS-over-HTTPS-JSON)</option>
                                                                     <option value="cloudflare-tor">Cloudflare (DNS-over-TOR!)</option>
 
                                                                     <option value="google-udp">Google (DNS-over-UDP)</option>
