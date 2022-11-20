@@ -840,6 +840,13 @@ namespace DnsServerCore
             jsonWriter.WritePropertyName("dnssecStatus");
             jsonWriter.WriteValue(record.DnssecStatus.ToString());
 
+            NetworkAddress eDnsClientSubnet = recordInfo.EDnsClientSubnet;
+            if (eDnsClientSubnet is not null)
+            {
+                jsonWriter.WritePropertyName("eDnsClientSubnet");
+                jsonWriter.WriteValue(eDnsClientSubnet.ToString());
+            }
+
             jsonWriter.WritePropertyName("lastUsedOn");
             jsonWriter.WriteValue(recordInfo.LastUsedOn);
 
