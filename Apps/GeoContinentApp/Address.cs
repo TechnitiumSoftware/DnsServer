@@ -85,27 +85,16 @@ namespace GeoContinent
                     dynamic jsonAppRecordData = JsonConvert.DeserializeObject(appRecordData);
                     dynamic jsonContinent = null;
 
-                    EDnsClientSubnetOptionData clientSubnet = null;
-
-                    if (request.EDNS is not null)
+                    bool ecsUsed = false;
+                    EDnsClientSubnetOptionData requestECS = request.GetEDnsClientSubnetOption();
+                    if (requestECS is not null)
                     {
-                        foreach (EDnsOption option in request.EDNS.Options)
+                        if (_maxMind.DatabaseReader.TryCountry(requestECS.Address, out CountryResponse csResponse))
                         {
-                            if (option.Code == EDnsOptionCode.EDNS_CLIENT_SUBNET)
-                            {
-                                EDnsClientSubnetOptionData cs = option.Data as EDnsClientSubnetOptionData;
-
-                                if (_maxMind.DatabaseReader.TryCountry(cs.Address, out CountryResponse csResponse))
-                                {
-                                    jsonContinent = jsonAppRecordData[csResponse.Continent.Code];
-                                    if (jsonContinent is null)
-                                        jsonContinent = jsonAppRecordData["default"];
-                                    else
-                                        clientSubnet = cs;
-                                }
-
-                                break;
-                            }
+                            ecsUsed = true;
+                            jsonContinent = jsonAppRecordData[csResponse.Continent.Code];
+                            if (jsonContinent is null)
+                                jsonContinent = jsonAppRecordData["default"];
                         }
                     }
 
@@ -157,14 +146,18 @@ namespace GeoContinent
                     if (answers.Count > 1)
                         answers.Shuffle();
 
-                    EDnsOption[] options = null;
+                    EDnsOption[] options;
 
-                    if (clientSubnet is not null)
+                    if (requestECS is null)
                     {
-                        options = new EDnsOption[]
-                        {
-                            new EDnsOption(EDnsOptionCode.EDNS_CLIENT_SUBNET, new EDnsClientSubnetOptionData(clientSubnet.SourcePrefixLength, clientSubnet.SourcePrefixLength, clientSubnet.Address))
-                        };
+                        options = null;
+                    }
+                    else
+                    {
+                        if (ecsUsed)
+                            options = EDnsClientSubnetOptionData.GetEDnsClientSubnetOption(requestECS.SourcePrefixLength, requestECS.SourcePrefixLength, requestECS.Address);
+                        else
+                            options = EDnsClientSubnetOptionData.GetEDnsClientSubnetOption(requestECS.SourcePrefixLength, 0, requestECS.Address);
                     }
 
                     return Task.FromResult(new DnsDatagram(request.Identifier, true, request.OPCODE, true, false, request.RecursionDesired, isRecursionAllowed, false, false, DnsResponseCode.NoError, request.Question, answers, null, null, _dnsServer.UdpPayloadSize, EDnsHeaderFlags.None, options));
