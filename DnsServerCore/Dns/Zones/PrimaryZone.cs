@@ -581,6 +581,9 @@ namespace DnsServerCore.Dns.Zones
 
         private void SignZone(bool useNSec3, ushort iterations, byte saltLength, uint dnsKeyTtl)
         {
+            List<DnsResourceRecord> addedRecords = new List<DnsResourceRecord>();
+            List<DnsResourceRecord> deletedRecords = new List<DnsResourceRecord>();
+
             try
             {
                 //update private key state
@@ -599,9 +602,6 @@ namespace DnsServerCore.Dns.Zones
                             break;
                     }
                 }
-
-                List<DnsResourceRecord> addedRecords = new List<DnsResourceRecord>();
-                List<DnsResourceRecord> deletedRecords = new List<DnsResourceRecord>();
 
                 //add DNSKEYs
                 List<DnsResourceRecord> dnsKeyRecords = new List<DnsResourceRecord>(_dnssecPrivateKeys.Count);
@@ -663,6 +663,12 @@ namespace DnsServerCore.Dns.Zones
             {
                 _dnssecStatus = AuthZoneDnssecStatus.Unsigned;
                 _dnssecPrivateKeys = null;
+
+                foreach (DnsResourceRecord addedRecord in addedRecords)
+                    TryDeleteRecord(addedRecord.Type, addedRecord.RDATA, out _);
+
+                foreach (DnsResourceRecord deletedRecord in deletedRecords)
+                    AddRecord(deletedRecord, out _, out _);
 
                 throw;
             }
