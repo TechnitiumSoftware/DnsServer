@@ -94,24 +94,14 @@ namespace GeoDistance
         {
             Location location = null;
 
-            EDnsClientSubnetOptionData clientSubnet = null;
-
-            if (request.EDNS is not null)
+            bool ecsUsed = false;
+            EDnsClientSubnetOptionData requestECS = request.GetEDnsClientSubnetOption();
+            if (requestECS is not null)
             {
-                foreach (EDnsOption option in request.EDNS.Options)
+                if (_maxMind.DatabaseReader.TryCity(requestECS.Address, out CityResponse csResponse) && csResponse.Location.HasCoordinates)
                 {
-                    if (option.Code == EDnsOptionCode.EDNS_CLIENT_SUBNET)
-                    {
-                        EDnsClientSubnetOptionData cs = option.Data as EDnsClientSubnetOptionData;
-
-                        if (_maxMind.DatabaseReader.TryCity(cs.Address, out CityResponse csResponse) && csResponse.Location.HasCoordinates)
-                        {
-                            location = csResponse.Location;
-                            clientSubnet = cs;
-                        }
-
-                        break;
-                    }
+                    ecsUsed = true;
+                    location = csResponse.Location;
                 }
             }
 
@@ -162,14 +152,18 @@ namespace GeoDistance
             else
                 answers = new DnsResourceRecord[] { new DnsResourceRecord(request.Question[0].Name, DnsResourceRecordType.CNAME, DnsClass.IN, appRecordTtl, new DnsCNAMERecordData(cname)) };
 
-            EDnsOption[] options = null;
+            EDnsOption[] options;
 
-            if (clientSubnet is not null)
+            if (requestECS is null)
             {
-                options = new EDnsOption[]
-                {
-                    new EDnsOption(EDnsOptionCode.EDNS_CLIENT_SUBNET, new EDnsClientSubnetOptionData(clientSubnet.SourcePrefixLength, clientSubnet.SourcePrefixLength, clientSubnet.Address))
-                };
+                options = null;
+            }
+            else
+            {
+                if (ecsUsed)
+                    options = EDnsClientSubnetOptionData.GetEDnsClientSubnetOption(requestECS.SourcePrefixLength, requestECS.SourcePrefixLength, requestECS.Address);
+                else
+                    options = EDnsClientSubnetOptionData.GetEDnsClientSubnetOption(requestECS.SourcePrefixLength, 0, requestECS.Address);
             }
 
             return Task.FromResult(new DnsDatagram(request.Identifier, true, request.OPCODE, true, false, request.RecursionDesired, isRecursionAllowed, false, false, DnsResponseCode.NoError, request.Question, answers, null, null, _dnsServer.UdpPayloadSize, EDnsHeaderFlags.None, options));
