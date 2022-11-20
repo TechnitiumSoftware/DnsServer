@@ -27,6 +27,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using TechnitiumLibrary.IO;
 using TechnitiumLibrary.Net.Dns;
+using TechnitiumLibrary.Net.Dns.EDnsOptions;
 using TechnitiumLibrary.Net.Dns.ResourceRecords;
 
 namespace DnsServerCore
@@ -584,6 +585,10 @@ namespace DnsServerCore
                         }
                     }
                 }
+
+                EDnsClientSubnetOptionData responseECS = response.GetEDnsClientSubnetOption();
+                if (responseECS is not null)
+                    answer += "; ECS: " + responseECS.Address.ToString() + "/" + responseECS.SourcePrefixLength;
 
                 responseInfo = " RCODE: " + response.RCODE.ToString() + "; ANSWER: " + answer;
             }
