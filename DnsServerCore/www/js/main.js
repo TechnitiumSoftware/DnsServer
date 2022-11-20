@@ -420,11 +420,6 @@ $(function () {
                 $("#rdForwarderProtocolHttps").prop("checked", true);
                 break;
 
-            case "cloudflare-json":
-                $("#txtForwarders").val("https://cloudflare-dns.com/dns-query (1.1.1.1)\r\nhttps://cloudflare-dns.com/dns-query (1.0.0.1)");
-                $("#rdForwarderProtocolHttpsJson").prop("checked", true);
-                break;
-
             case "cloudflare-tor":
                 $("#txtForwarders").val("dns4torpnlfs2ifuz2s2yf3fc7rdmsbhm6rw75euj35pac6ap25zgqad.onion");
                 $("#rdForwarderProtocolTcp").prop("checked", true);
@@ -827,6 +822,10 @@ function loadDnsSettings() {
             $("#txtEdnsUdpPayloadSize").val(responseJSON.response.udpPayloadSize);
             $("#chkDnssecValidation").prop("checked", responseJSON.response.dnssecValidation);
 
+            $("#chkEDnsClientSubnet").prop("checked", responseJSON.response.eDnsClientSubnet);
+            $("#txtEDnsClientSubnetIPv4PrefixLength").val(responseJSON.response.eDnsClientSubnetIPv4PrefixLength);
+            $("#txtEDnsClientSubnetIPv6PrefixLength").val(responseJSON.response.eDnsClientSubnetIPv6PrefixLength);
+
             $("#txtResolverRetries").val(responseJSON.response.resolverRetries);
             $("#txtResolverTimeout").val(responseJSON.response.resolverTimeout);
             $("#txtResolverMaxStackCount").val(responseJSON.response.resolverMaxStackCount);
@@ -1145,6 +1144,22 @@ function saveDnsSettings() {
     var udpPayloadSize = $("#txtEdnsUdpPayloadSize").val();
     var dnssecValidation = $("#chkDnssecValidation").prop('checked');
 
+    var eDnsClientSubnet = $("#chkEDnsClientSubnet").prop("checked");
+
+    var eDnsClientSubnetIPv4PrefixLength = $("#txtEDnsClientSubnetIPv4PrefixLength").val();
+    if ((eDnsClientSubnetIPv4PrefixLength == null) || (eDnsClientSubnetIPv4PrefixLength === "")) {
+        showAlert("warning", "Missing!", "Please enter EDNS Client Subnet IPv4 prefix length.");
+        $("#txtEDnsClientSubnetIPv4PrefixLength").focus();
+        return;
+    }
+
+    var eDnsClientSubnetIPv6PrefixLength = $("#txtEDnsClientSubnetIPv6PrefixLength").val();
+    if ((eDnsClientSubnetIPv6PrefixLength == null) || (eDnsClientSubnetIPv6PrefixLength === "")) {
+        showAlert("warning", "Missing!", "Please enter EDNS Client Subnet IPv6 prefix length.");
+        $("#txtEDnsClientSubnetIPv6PrefixLength").focus();
+        return;
+    }
+
     var resolverRetries = $("#txtResolverRetries").val();
     if ((resolverRetries == null) || (resolverRetries === "")) {
         showAlert("warning", "Missing!", "Please enter a value for Resolver Retries.");
@@ -1405,6 +1420,7 @@ function saveDnsSettings() {
             + "&enableDnsOverHttp=" + enableDnsOverHttp + "&enableDnsOverTls=" + enableDnsOverTls + "&enableDnsOverHttps=" + enableDnsOverHttps + "&dnsTlsCertificatePath=" + encodeURIComponent(dnsTlsCertificatePath) + "&dnsTlsCertificatePassword=" + encodeURIComponent(dnsTlsCertificatePassword)
             + "&tsigKeys=" + encodeURIComponent(tsigKeys)
             + "&defaultRecordTtl=" + defaultRecordTtl + "&dnsAppsEnableAutomaticUpdate=" + dnsAppsEnableAutomaticUpdate + "&preferIPv6=" + preferIPv6 + "&udpPayloadSize=" + udpPayloadSize + "&dnssecValidation=" + dnssecValidation
+            + "&eDnsClientSubnet=" + eDnsClientSubnet + "&eDnsClientSubnetIPv4PrefixLength=" + eDnsClientSubnetIPv4PrefixLength + "&eDnsClientSubnetIPv6PrefixLength=" + eDnsClientSubnetIPv6PrefixLength
             + "&resolverRetries=" + resolverRetries + "&resolverTimeout=" + resolverTimeout + "&resolverMaxStackCount=" + resolverMaxStackCount
             + "&forwarderRetries=" + forwarderRetries + "&forwarderTimeout=" + forwarderTimeout + "&forwarderConcurrency=" + forwarderConcurrency
             + "&clientTimeout=" + clientTimeout + "&tcpSendTimeout=" + tcpSendTimeout + "&tcpReceiveTimeout=" + tcpReceiveTimeout
