@@ -22,6 +22,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Net;
 using TechnitiumLibrary.IO;
+using TechnitiumLibrary.Net;
 using TechnitiumLibrary.Net.Dns;
 using TechnitiumLibrary.Net.Dns.ResourceRecords;
 
@@ -41,6 +42,7 @@ namespace DnsServerCore.Dns.ResourceRecords
 
         IReadOnlyList<DnsResourceRecord> _rrsigRecords; //not serialized
         IReadOnlyList<DnsResourceRecord> _nsecRecords; //not serialized
+        NetworkAddress _eDnsClientSubnet; //not serialized
         DateTime _lastUsedOn; //not serialized
 
         #endregion
@@ -282,6 +284,12 @@ namespace DnsServerCore.Dns.ResourceRecords
         {
             get { return _nsecRecords; }
             set { _nsecRecords = value; }
+        }
+
+        public NetworkAddress EDnsClientSubnet
+        {
+            get { return _eDnsClientSubnet; }
+            set { _eDnsClientSubnet = value; }
         }
 
         public DateTime LastUsedOn
