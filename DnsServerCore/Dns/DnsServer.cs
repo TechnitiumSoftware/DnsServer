@@ -25,6 +25,7 @@ using DnsServerCore.Dns.ZoneManagers;
 using DnsServerCore.Dns.Zones;
 using Newtonsoft.Json;
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.IO;
 using System.Net;
@@ -126,6 +127,9 @@ namespace DnsServerCore.Dns
         bool _qnameMinimization;
         bool _nsRevalidation;
         bool _dnssecValidation = true;
+        bool _eDnsClientSubnet;
+        byte _eDnsClientSubnetIPv4PrefixLength = 24;
+        byte _eDnsClientSubnetIPv6PrefixLength = 56;
         int _qpmLimitRequests = 0;
         int _qpmLimitErrors = 0;
         int _qpmLimitSampleMinutes = 5;
@@ -176,7 +180,7 @@ namespace DnsServerCore.Dns
         IReadOnlyDictionary<IPAddress, long> _qpmLimitErrorClientSubnetStats;
 
         readonly IndependentTaskScheduler _resolverTaskScheduler = new IndependentTaskScheduler(ThreadPriority.AboveNormal);
-        readonly DomainTree<Task<RecursiveResolveResponse>> _resolverTasks = new DomainTree<Task<RecursiveResolveResponse>>();
+        readonly ConcurrentDictionary<string, Task<RecursiveResolveResponse>> _resolverTasks = new ConcurrentDictionary<string, Task<RecursiveResolveResponse>>();
 
         volatile ServiceState _state = ServiceState.Stopped;
 
@@ -1109,8 +1113,14 @@ namespace DnsServerCore.Dns
             if (response.EDNS is not null)
                 return response;
 
+            IReadOnlyList<EDnsOption> options = null;
+
+            EDnsClientSubnetOptionData requestECS = request.GetEDnsClientSubnetOption();
+            if ((requestECS is not null) && (request.Question.Count == 1) && CacheZone.IsTypeSupportedForEDnsClientSubnet(request.Question[0].Type))
+                options = EDnsClientSubnetOptionData.GetEDnsClientSubnetOption(requestECS.SourcePrefixLength, 0, requestECS.Address);
+
             if (response.Additional.Count == 0)
-                return response.Clone(null, null, new DnsResourceRecord[] { DnsDatagramEdns.GetOPTFor(_udpPayloadSize, response.RCODE, 0, request.DnssecOk ? EDnsHeaderFlags.DNSSEC_OK : EDnsHeaderFlags.None, null) });
+                return response.Clone(null, null, new DnsResourceRecord[] { DnsDatagramEdns.GetOPTFor(_udpPayloadSize, response.RCODE, 0, request.DnssecOk ? EDnsHeaderFlags.DNSSEC_OK : EDnsHeaderFlags.None, options) });
 
             if (response.IsSigned)
                 return response;
@@ -1120,7 +1130,7 @@ namespace DnsServerCore.Dns
             for (int i = 0; i < response.Additional.Count; i++)
                 newAdditional[i] = response.Additional[i];
 
-            newAdditional[response.Additional.Count] = DnsDatagramEdns.GetOPTFor(_udpPayloadSize, response.RCODE, 0, request.DnssecOk ? EDnsHeaderFlags.DNSSEC_OK : EDnsHeaderFlags.None, null);
+            newAdditional[response.Additional.Count] = DnsDatagramEdns.GetOPTFor(_udpPayloadSize, response.RCODE, 0, request.DnssecOk ? EDnsHeaderFlags.DNSSEC_OK : EDnsHeaderFlags.None, options);
 
             return response.Clone(null, null, newAdditional);
         }
@@ -2137,7 +2147,15 @@ namespace DnsServerCore.Dns
             DnsDatagram lastResponse = response;
             bool isAuthoritativeAnswer = response.AuthoritativeAnswer;
             DnsResourceRecord lastRR = response.GetLastAnswerRecord();
+            EDnsOption[] eDnsClientSubnetOption = null;
             DnsDatagram newResponse = null;
+
+            if (_eDnsClientSubnet)
+            {
+                EDnsClientSubnetOptionData requestECS = request.GetEDnsClientSubnetOption();
+                if (requestECS is not null)
+                    eDnsClientSubnetOption = new EDnsOption[] { new EDnsOption(EDnsOptionCode.EDNS_CLIENT_SUBNET, requestECS) };
+            }
 
             int queryCount = 0;
             do
@@ -2146,7 +2164,7 @@ namespace DnsServerCore.Dns
                 if (lastRR.Name.Equals(cnameDomain, StringComparison.OrdinalIgnoreCase))
                     break; //loop detected
 
-                DnsDatagram newRequest = new DnsDatagram(0, false, DnsOpcode.StandardQuery, false, false, request.RecursionDesired, false, false, false, DnsResponseCode.NoError, new DnsQuestionRecord[] { new DnsQuestionRecord(cnameDomain, request.Question[0].Type, request.Question[0].Class) }, null, null, null, _udpPayloadSize, request.DnssecOk ? EDnsHeaderFlags.DNSSEC_OK : EDnsHeaderFlags.None);
+                DnsDatagram newRequest = new DnsDatagram(0, false, DnsOpcode.StandardQuery, false, false, request.RecursionDesired, false, false, false, DnsResponseCode.NoError, new DnsQuestionRecord[] { new DnsQuestionRecord(cnameDomain, request.Question[0].Type, request.Question[0].Class) }, null, null, null, _udpPayloadSize, request.DnssecOk ? EDnsHeaderFlags.DNSSEC_OK : EDnsHeaderFlags.None, eDnsClientSubnetOption);
 
                 //query authoritative zone first
                 newResponse = _authZoneManager.Query(newRequest, isRecursionAllowed);
@@ -2156,7 +2174,7 @@ namespace DnsServerCore.Dns
                     if (newRequest.RecursionDesired && isRecursionAllowed)
                     {
                         //do recursion
-                        newResponse = await RecursiveResolveAsync(newRequest, null, _dnssecValidation, false, cacheRefreshOperation);
+                        newResponse = await RecursiveResolveAsync(newRequest, remoteEP, null, _dnssecValidation, false, cacheRefreshOperation);
                         isAuthoritativeAnswer = false;
                     }
                     else
@@ -2179,7 +2197,7 @@ namespace DnsServerCore.Dns
                             if (newRequest.RecursionDesired && isRecursionAllowed)
                             {
                                 //do forced recursive resolution using empty conditional forwarders; name servers will be provided via ResolveDnsCache
-                                newResponse = await RecursiveResolveAsync(newRequest, Array.Empty<DnsResourceRecord>(), _dnssecValidation, false, false);
+                                newResponse = await RecursiveResolveAsync(newRequest, remoteEP, Array.Empty<DnsResourceRecord>(), _dnssecValidation, false, false);
                                 isAuthoritativeAnswer = false;
                             }
 
@@ -2189,13 +2207,13 @@ namespace DnsServerCore.Dns
                             if ((newResponse.Authority.Count == 1) && (firstAuthority.RDATA is DnsForwarderRecordData fwd) && fwd.Forwarder.Equals("this-server", StringComparison.OrdinalIgnoreCase))
                             {
                                 //do conditional forwarding via "this-server" 
-                                newResponse = await RecursiveResolveAsync(newRequest, null, fwd.DnssecValidation, false, false);
+                                newResponse = await RecursiveResolveAsync(newRequest, remoteEP, null, fwd.DnssecValidation, false, false);
                                 isAuthoritativeAnswer = false;
                             }
                             else
                             {
                                 //do conditional forwarding
-                                newResponse = await RecursiveResolveAsync(newRequest, newResponse.Authority, _dnssecValidation, false, false);
+                                newResponse = await RecursiveResolveAsync(newRequest, remoteEP, newResponse.Authority, _dnssecValidation, false, false);
                                 isAuthoritativeAnswer = false;
                             }
 
@@ -2284,6 +2302,15 @@ namespace DnsServerCore.Dns
 
         private async Task<DnsDatagram> ProcessANAMEAsync(DnsDatagram request, IPEndPoint remoteEP, DnsDatagram response, bool isRecursionAllowed, DnsTransportProtocol protocol)
         {
+            EDnsOption[] eDnsClientSubnetOption = null;
+
+            if (_eDnsClientSubnet)
+            {
+                EDnsClientSubnetOptionData requestECS = request.GetEDnsClientSubnetOption();
+                if (requestECS is not null)
+                    eDnsClientSubnetOption = new EDnsOption[] { new EDnsOption(EDnsOptionCode.EDNS_CLIENT_SUBNET, requestECS) };
+            }
+
             Queue<Task<IReadOnlyList<DnsResourceRecord>>> resolveQueue = new Queue<Task<IReadOnlyList<DnsResourceRecord>>>();
 
             async Task<IReadOnlyList<DnsResourceRecord>> ResolveANAMEAsync(DnsResourceRecord anameRR, int queryCount = 0)
@@ -2294,14 +2321,14 @@ namespace DnsServerCore.Dns
 
                 do
                 {
-                    DnsDatagram newRequest = new DnsDatagram(0, false, DnsOpcode.StandardQuery, false, false, request.RecursionDesired, false, false, false, DnsResponseCode.NoError, new DnsQuestionRecord[] { new DnsQuestionRecord(lastDomain, request.Question[0].Type, request.Question[0].Class) });
+                    DnsDatagram newRequest = new DnsDatagram(0, false, DnsOpcode.StandardQuery, false, false, request.RecursionDesired, false, false, false, DnsResponseCode.NoError, new DnsQuestionRecord[] { new DnsQuestionRecord(lastDomain, request.Question[0].Type, request.Question[0].Class) }, null, null, null, _udpPayloadSize, request.DnssecOk ? EDnsHeaderFlags.DNSSEC_OK : EDnsHeaderFlags.None, eDnsClientSubnetOption);
 
                     //query authoritative zone first
                     DnsDatagram newResponse = _authZoneManager.Query(newRequest, isRecursionAllowed);
                     if (newResponse is null)
                     {
                         //not found in auth zone; do recursion
-                        newResponse = await RecursiveResolveAsync(newRequest, null, _dnssecValidation, false, false);
+                        newResponse = await RecursiveResolveAsync(newRequest, remoteEP, null, _dnssecValidation, false, false);
                     }
                     else if ((newResponse.Answer.Count == 0) && (newResponse.Authority.Count > 0))
                     {
@@ -2311,19 +2338,19 @@ namespace DnsServerCore.Dns
                         {
                             case DnsResourceRecordType.NS:
                                 //do forced recursive resolution using empty conditional forwarders; name servers will be provided via ResolverDnsCache
-                                newResponse = await RecursiveResolveAsync(newRequest, Array.Empty<DnsResourceRecord>(), _dnssecValidation, false, false);
+                                newResponse = await RecursiveResolveAsync(newRequest, remoteEP, Array.Empty<DnsResourceRecord>(), _dnssecValidation, false, false);
                                 break;
 
                             case DnsResourceRecordType.FWD:
                                 if ((newResponse.Authority.Count == 1) && (firstAuthority.RDATA is DnsForwarderRecordData fwd) && fwd.Forwarder.Equals("this-server", StringComparison.OrdinalIgnoreCase))
                                 {
                                     //do conditional forwarding via "this-server" 
-                                    newResponse = await RecursiveResolveAsync(newRequest, null, fwd.DnssecValidation, false, false);
+                                    newResponse = await RecursiveResolveAsync(newRequest, remoteEP, null, fwd.DnssecValidation, false, false);
                                 }
                                 else
                                 {
                                     //do conditional forwarding
-                                    newResponse = await RecursiveResolveAsync(newRequest, newResponse.Authority, _dnssecValidation, false, false);
+                                    newResponse = await RecursiveResolveAsync(newRequest, remoteEP, newResponse.Authority, _dnssecValidation, false, false);
                                 }
 
                                 break;
@@ -2589,7 +2616,7 @@ namespace DnsServerCore.Dns
                 }
             }
 
-            DnsDatagram response = await RecursiveResolveAsync(request, conditionalForwarders, dnssecValidation, false, cacheRefreshOperation);
+            DnsDatagram response = await RecursiveResolveAsync(request, remoteEP, conditionalForwarders, dnssecValidation, false, cacheRefreshOperation);
 
             if (response.Answer.Count > 0)
             {
@@ -2640,8 +2667,68 @@ namespace DnsServerCore.Dns
             return response;
         }
 
-        private async Task<DnsDatagram> RecursiveResolveAsync(DnsDatagram request, IReadOnlyList<DnsResourceRecord> conditionalForwarders, bool dnssecValidation, bool cachePrefetchOperation, bool cacheRefreshOperation)
+        private async Task<DnsDatagram> RecursiveResolveAsync(DnsDatagram request, IPEndPoint remoteEP, IReadOnlyList<DnsResourceRecord> conditionalForwarders, bool dnssecValidation, bool cachePrefetchOperation, bool cacheRefreshOperation)
         {
+            NetworkAddress eDnsClientSubnet = null;
+
+            if (_eDnsClientSubnet)
+            {
+                EDnsClientSubnetOptionData requestECS = request.GetEDnsClientSubnetOption();
+                if (requestECS is null)
+                {
+                    if (!NetUtilities.IsPrivateIP(remoteEP.Address))
+                    {
+                        //set shadow ECS option
+                        switch (remoteEP.AddressFamily)
+                        {
+                            case AddressFamily.InterNetwork:
+                                eDnsClientSubnet = new NetworkAddress(remoteEP.Address, _eDnsClientSubnetIPv4PrefixLength);
+                                request.SetShadowEDnsClientSubnetOption(eDnsClientSubnet);
+                                break;
+
+                            case AddressFamily.InterNetworkV6:
+                                eDnsClientSubnet = new NetworkAddress(remoteEP.Address, _eDnsClientSubnetIPv6PrefixLength);
+                                request.SetShadowEDnsClientSubnetOption(eDnsClientSubnet);
+                                break;
+
+                            default:
+                                request.ShadowHideEDnsClientSubnetOption();
+                                break;
+                        }
+                    }
+                }
+                else if ((requestECS.Family != EDnsClientSubnetAddressFamily.IPv4) && (requestECS.Family != EDnsClientSubnetAddressFamily.IPv6))
+                {
+                    return new DnsDatagram(request.Identifier, true, DnsOpcode.StandardQuery, false, false, request.RecursionDesired, true, false, false, DnsResponseCode.FormatError, request.Question) { Tag = DnsServerResponseType.Authoritative };
+                }
+                else if ((requestECS.SourcePrefixLength == 0) || NetUtilities.IsPrivateIP(requestECS.Address))
+                {
+                    //disable ECS option
+                    request.ShadowHideEDnsClientSubnetOption();
+                }
+                else
+                {
+                    //use ECS from client request
+                    switch (requestECS.Family)
+                    {
+                        case EDnsClientSubnetAddressFamily.IPv4:
+                            eDnsClientSubnet = new NetworkAddress(requestECS.Address, Math.Min(requestECS.SourcePrefixLength, _eDnsClientSubnetIPv4PrefixLength));
+                            request.SetShadowEDnsClientSubnetOption(eDnsClientSubnet);
+                            break;
+
+                        case EDnsClientSubnetAddressFamily.IPv6:
+                            eDnsClientSubnet = new NetworkAddress(requestECS.Address, Math.Min(requestECS.SourcePrefixLength, _eDnsClientSubnetIPv6PrefixLength));
+                            request.SetShadowEDnsClientSubnetOption(eDnsClientSubnet);
+                            break;
+                    }
+                }
+            }
+            else
+            {
+                //hide ECS option
+                request.ShadowHideEDnsClientSubnetOption();
+            }
+
             if (!cachePrefetchOperation && !cacheRefreshOperation)
             {
                 //query cache zone to see if answer available
@@ -2656,7 +2743,7 @@ namespace DnsServerCore.Dns
                             if ((answer.OriginalTtlValue >= _cachePrefetchEligibility) && (answer.TtlValue <= _cachePrefetchTrigger))
                             {
                                 //trigger prefetch async
-                                _ = PrefetchCacheAsync(request, conditionalForwarders);
+                                _ = PrefetchCacheAsync(request, remoteEP, conditionalForwarders);
                                 break;
                             }
                         }
@@ -2669,14 +2756,14 @@ namespace DnsServerCore.Dns
             //recursion with locking
             DnsQuestionRecord question = request.Question[0];
             TaskCompletionSource<RecursiveResolveResponse> resolverTaskCompletionSource = new TaskCompletionSource<RecursiveResolveResponse>();
-            Task<RecursiveResolveResponse> resolverTask = _resolverTasks.GetOrAdd(GetResolverQueryKey(question), resolverTaskCompletionSource.Task);
+            Task<RecursiveResolveResponse> resolverTask = _resolverTasks.GetOrAdd(GetResolverQueryKey(question, eDnsClientSubnet), resolverTaskCompletionSource.Task);
 
             if (resolverTask.Equals(resolverTaskCompletionSource.Task))
             {
                 //got new resolver task added so question is not being resolved; do recursive resolution in another task on resolver thread pool
                 _ = Task.Factory.StartNew(delegate ()
                 {
-                    return RecursiveResolveAsync(question, conditionalForwarders, dnssecValidation, cachePrefetchOperation, cacheRefreshOperation, resolverTaskCompletionSource);
+                    return RecursiveResolveAsync(question, eDnsClientSubnet, conditionalForwarders, dnssecValidation, cachePrefetchOperation, cacheRefreshOperation, resolverTaskCompletionSource);
                 }, CancellationToken.None, TaskCreationOptions.DenyChildAttach, _resolverTaskScheduler);
             }
 
@@ -2732,7 +2819,7 @@ namespace DnsServerCore.Dns
             return new DnsDatagram(request.Identifier, true, DnsOpcode.StandardQuery, false, false, request.RecursionDesired, true, false, false, DnsResponseCode.ServerFailure, request.Question, null, null, null, _udpPayloadSize, request.DnssecOk ? EDnsHeaderFlags.DNSSEC_OK : EDnsHeaderFlags.None, options);
         }
 
-        private async Task RecursiveResolveAsync(DnsQuestionRecord question, IReadOnlyList<DnsResourceRecord> conditionalForwarders, bool dnssecValidation, bool cachePrefetchOperation, bool cacheRefreshOperation, TaskCompletionSource<RecursiveResolveResponse> taskCompletionSource)
+        private async Task RecursiveResolveAsync(DnsQuestionRecord question, NetworkAddress eDnsClientSubnet, IReadOnlyList<DnsResourceRecord> conditionalForwarders, bool dnssecValidation, bool cachePrefetchOperation, bool cacheRefreshOperation, TaskCompletionSource<RecursiveResolveResponse> taskCompletionSource)
         {
             try
             {
@@ -2774,7 +2861,7 @@ namespace DnsServerCore.Dns
                     if (conditionalForwarders.Count == 1)
                     {
                         DnsResourceRecord conditionalForwarder = conditionalForwarders[0];
-                        response = await ConditionalForwarderResolveAsync(question, dnsCache, conditionalForwarder.RDATA as DnsForwarderRecordData, conditionalForwarder.Name);
+                        response = await ConditionalForwarderResolveAsync(question, eDnsClientSubnet, dnsCache, conditionalForwarder.RDATA as DnsForwarderRecordData, conditionalForwarder.Name);
                     }
                     else
                     {
@@ -2795,7 +2882,7 @@ namespace DnsServerCore.Dns
 
                                 tasks.Add(Task.Factory.StartNew(delegate ()
                                 {
-                                    return ConditionalForwarderResolveAsync(question, dnsCache, forwarder, conditionalForwarder.Name, cancellationTokenSource.Token);
+                                    return ConditionalForwarderResolveAsync(question, eDnsClientSubnet, dnsCache, forwarder, conditionalForwarder.Name, cancellationTokenSource.Token);
                                 }, CancellationToken.None, TaskCreationOptions.DenyChildAttach, TaskScheduler.Current).Unwrap());
                             }
 
@@ -2885,7 +2972,7 @@ namespace DnsServerCore.Dns
                 else
                 {
                     //do recursive resolution
-                    response = await DnsClient.RecursiveResolveAsync(question, dnsCache, _proxy, _preferIPv6, _udpPayloadSize, _randomizeName, _qnameMinimization, _nsRevalidation, dnssecValidation, _resolverRetries, _resolverTimeout, _resolverMaxStackCount, true, true);
+                    response = await DnsClient.RecursiveResolveAsync(question, dnsCache, _proxy, _preferIPv6, _udpPayloadSize, _randomizeName, _qnameMinimization, _nsRevalidation, dnssecValidation, eDnsClientSubnet, _resolverRetries, _resolverTimeout, _resolverMaxStackCount, true, true);
                 }
 
                 switch (response.RCODE)
@@ -2936,7 +3023,7 @@ namespace DnsServerCore.Dns
                 if (_serveStale)
                 {
                     //fetch stale record
-                    DnsDatagram cacheRequest = new DnsDatagram(0, false, DnsOpcode.StandardQuery, false, false, true, false, false, dnssecValidation, DnsResponseCode.NoError, new DnsQuestionRecord[] { question }, null, null, null, _udpPayloadSize, dnssecValidation ? EDnsHeaderFlags.DNSSEC_OK : EDnsHeaderFlags.None);
+                    DnsDatagram cacheRequest = new DnsDatagram(0, false, DnsOpcode.StandardQuery, false, false, true, false, false, dnssecValidation, DnsResponseCode.NoError, new DnsQuestionRecord[] { question }, null, null, null, _udpPayloadSize, dnssecValidation ? EDnsHeaderFlags.DNSSEC_OK : EDnsHeaderFlags.None, EDnsClientSubnetOptionData.GetEDnsClientSubnetOption(eDnsClientSubnet));
                     DnsDatagram staleResponse = QueryCache(cacheRequest, true);
                     if (staleResponse is not null)
                     {
@@ -3043,11 +3130,11 @@ namespace DnsServerCore.Dns
             }
             finally
             {
-                _resolverTasks.TryRemove(GetResolverQueryKey(question), out _);
+                _resolverTasks.TryRemove(GetResolverQueryKey(question, eDnsClientSubnet), out _);
             }
         }
 
-        private Task<DnsDatagram> ConditionalForwarderResolveAsync(DnsQuestionRecord question, IDnsCache dnsCache, DnsForwarderRecordData forwarder, string conditionalForwardingZoneCut, CancellationToken cancellationToken = default)
+        private Task<DnsDatagram> ConditionalForwarderResolveAsync(DnsQuestionRecord question, NetworkAddress eDnsClientSubnet, IDnsCache dnsCache, DnsForwarderRecordData forwarder, string conditionalForwardingZoneCut, CancellationToken cancellationToken = default)
         {
             NetProxy proxy = forwarder.Proxy;
             if (proxy is null)
@@ -3064,6 +3151,7 @@ namespace DnsServerCore.Dns
             dnsClient.Concurrency = _forwarderConcurrency;
             dnsClient.UdpPayloadSize = _udpPayloadSize;
             dnsClient.DnssecValidation = forwarder.DnssecValidation;
+            dnsClient.EDnsClientSubnet = eDnsClientSubnet;
             dnsClient.ConditionalForwardingZoneCut = conditionalForwardingZoneCut;
 
             return dnsClient.ResolveAsync(question, cancellationToken);
@@ -3196,7 +3284,42 @@ namespace DnsServerCore.Dns
                         newAdditional.Add(record);
                     }
 
-                    newAdditional.Add(DnsDatagramEdns.GetOPTFor(_udpPayloadSize, response.RCODE, 0, request.DnssecOk ? EDnsHeaderFlags.DNSSEC_OK : EDnsHeaderFlags.None, response.EDNS.Options));
+                    IReadOnlyList<EDnsOption> options;
+
+                    if (response.GetEDnsClientSubnetOption() is not null)
+                    {
+                        //response contains ECS
+                        if (CacheZone.IsTypeSupportedForEDnsClientSubnet(request.Question[0].Type))
+                        {
+                            options = response.EDNS.Options;
+                        }
+                        else
+                        {
+                            //cache does not support the qtype so remove ECS from response
+                            if (response.EDNS.Options.Count == 1)
+                            {
+                                options = Array.Empty<EDnsOption>();
+                            }
+                            else
+                            {
+                                List<EDnsOption> newOptions = new List<EDnsOption>(response.EDNS.Options.Count);
+
+                                foreach (EDnsOption option in response.EDNS.Options)
+                                {
+                                    if (option.Code != EDnsOptionCode.EDNS_CLIENT_SUBNET)
+                                        newOptions.Add(option);
+                                }
+
+                                options = newOptions;
+                            }
+                        }
+                    }
+                    else
+                    {
+                        options = response.EDNS.Options;
+                    }
+
+                    newAdditional.Add(DnsDatagramEdns.GetOPTFor(_udpPayloadSize, response.RCODE, 0, request.DnssecOk ? EDnsHeaderFlags.DNSSEC_OK : EDnsHeaderFlags.None, options));
 
                     additional = newAdditional;
                 }
@@ -3241,12 +3364,12 @@ namespace DnsServerCore.Dns
             return newAdditional;
         }
 
-        private static string GetResolverQueryKey(DnsQuestionRecord question)
+        private static string GetResolverQueryKey(DnsQuestionRecord question, NetworkAddress eDnsClientSubnet)
         {
-            if (string.IsNullOrEmpty(question.Name))
-                return question.Type + "." + question.Class;
+            if (eDnsClientSubnet is null)
+                return question.ToString();
 
-            return question.Name + "." + question.Type + "." + question.Class;
+            return question.ToString() + " " + eDnsClientSubnet.ToString();
         }
 
         private DnsDatagram QueryCache(DnsDatagram request, bool serveStaleAndResetExpiry)
@@ -3265,11 +3388,11 @@ namespace DnsServerCore.Dns
             return null;
         }
 
-        private async Task PrefetchCacheAsync(DnsDatagram request, IReadOnlyList<DnsResourceRecord> conditionalForwarders)
+        private async Task PrefetchCacheAsync(DnsDatagram request, IPEndPoint remoteEP, IReadOnlyList<DnsResourceRecord> conditionalForwarders)
         {
             try
             {
-                await RecursiveResolveAsync(request, conditionalForwarders, _dnssecValidation, true, false);
+                await RecursiveResolveAsync(request, remoteEP, conditionalForwarders, _dnssecValidation, true, false);
             }
             catch (Exception ex)
             {
@@ -4233,6 +4356,47 @@ namespace DnsServerCore.Dns
 
                     _dnssecValidation = value;
                 }
+            }
+        }
+
+        public bool EDnsClientSubnet
+        {
+            get { return _eDnsClientSubnet; }
+            set
+            {
+                _eDnsClientSubnet = value;
+
+                if (!_eDnsClientSubnet)
+                {
+                    ThreadPool.QueueUserWorkItem(delegate (object state)
+                    {
+                        _cacheZoneManager.DeleteEDnsClientSubnetData();
+                    });
+                }
+            }
+        }
+
+        public byte EDnsClientSubnetIPv4PrefixLength
+        {
+            get { return _eDnsClientSubnetIPv4PrefixLength; }
+            set
+            {
+                if (value > 32)
+                    throw new ArgumentOutOfRangeException(nameof(EDnsClientSubnetIPv4PrefixLength), "EDNS Client Subnet IPv4 prefix length cannot be greater than 32.");
+
+                _eDnsClientSubnetIPv4PrefixLength = value;
+            }
+        }
+
+        public byte EDnsClientSubnetIPv6PrefixLength
+        {
+            get { return _eDnsClientSubnetIPv6PrefixLength; }
+            set
+            {
+                if (value > 64)
+                    throw new ArgumentOutOfRangeException(nameof(EDnsClientSubnetIPv6PrefixLength), "EDNS Client Subnet IPv6 prefix length cannot be greater than 64.");
+
+                _eDnsClientSubnetIPv6PrefixLength = value;
             }
         }
 
