@@ -92,7 +92,7 @@ namespace DnsServerCore.Dns.Zones
 
         #region public
 
-        public void ListAllRecords(List<DnsResourceRecord> records)
+        public virtual void ListAllRecords(List<DnsResourceRecord> records)
         {
             foreach (KeyValuePair<DnsResourceRecordType, IReadOnlyList<DnsResourceRecord>> entry in _entries)
                 records.AddRange(entry.Value);
@@ -107,7 +107,7 @@ namespace DnsServerCore.Dns.Zones
         public string Name
         { get { return _name; } }
 
-        public bool IsEmpty
+        public virtual bool IsEmpty
         { get { return _entries.IsEmpty; } }
 
         #endregion
