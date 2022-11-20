@@ -1661,6 +1661,15 @@ namespace DnsServerCore
             jsonWriter.WritePropertyName("dnssecValidation");
             jsonWriter.WriteValue(_dnsServer.DnssecValidation);
 
+            jsonWriter.WritePropertyName("eDnsClientSubnet");
+            jsonWriter.WriteValue(_dnsServer.EDnsClientSubnet);
+
+            jsonWriter.WritePropertyName("eDnsClientSubnetIPv4PrefixLength");
+            jsonWriter.WriteValue(_dnsServer.EDnsClientSubnetIPv4PrefixLength);
+
+            jsonWriter.WritePropertyName("eDnsClientSubnetIPv6PrefixLength");
+            jsonWriter.WriteValue(_dnsServer.EDnsClientSubnetIPv6PrefixLength);
+
             jsonWriter.WritePropertyName("resolverRetries");
             jsonWriter.WriteValue(_dnsServer.ResolverRetries);
 
@@ -2176,6 +2185,18 @@ namespace DnsServerCore
             string strDnssecValidation = request.QueryString["dnssecValidation"];
             if (!string.IsNullOrEmpty(strDnssecValidation))
                 _dnsServer.DnssecValidation = bool.Parse(strDnssecValidation);
+
+            string strEDnsClientSubnet = request.QueryString["eDnsClientSubnet"];
+            if (!string.IsNullOrEmpty(strEDnsClientSubnet))
+                _dnsServer.EDnsClientSubnet = bool.Parse(strEDnsClientSubnet);
+
+            string strEDnsClientSubnetIPv4PrefixLength = request.QueryString["eDnsClientSubnetIPv4PrefixLength"];
+            if (!string.IsNullOrEmpty(strEDnsClientSubnetIPv4PrefixLength))
+                _dnsServer.EDnsClientSubnetIPv4PrefixLength = byte.Parse(strEDnsClientSubnetIPv4PrefixLength);
+
+            string strEDnsClientSubnetIPv6PrefixLength = request.QueryString["eDnsClientSubnetIPv6PrefixLength"];
+            if (!string.IsNullOrEmpty(strEDnsClientSubnetIPv6PrefixLength))
+                _dnsServer.EDnsClientSubnetIPv6PrefixLength = byte.Parse(strEDnsClientSubnetIPv6PrefixLength);
 
             string strResolverRetries = request.QueryString["resolverRetries"];
             if (!string.IsNullOrEmpty(strResolverRetries))
@@ -3432,7 +3453,7 @@ namespace DnsServerCore
 
                 try
                 {
-                    dnsResponse = await DnsClient.RecursiveResolveAsync(question, dnsCache, proxy, preferIPv6, udpPayloadSize, randomizeName, qnameMinimization, false, dnssecValidation, RETRIES, TIMEOUT);
+                    dnsResponse = await DnsClient.RecursiveResolveAsync(question, dnsCache, proxy, preferIPv6, udpPayloadSize, randomizeName, qnameMinimization, false, dnssecValidation, null, RETRIES, TIMEOUT);
                 }
                 catch (DnsClientResponseDnssecValidationException ex)
                 {
@@ -4001,7 +4022,7 @@ namespace DnsServerCore
 
             int version = bR.ReadByte();
 
-            if (version == 28)
+            if ((version >= 28) && (version <= 29))
             {
                 ReadConfigFrom(bR, version);
             }
@@ -4091,6 +4112,19 @@ namespace DnsServerCore
                 _dnsServer.PreferIPv6 = bR.ReadBoolean();
                 _dnsServer.UdpPayloadSize = bR.ReadUInt16();
                 _dnsServer.DnssecValidation = bR.ReadBoolean();
+
+                if (version >= 29)
+                {
+                    _dnsServer.EDnsClientSubnet = bR.ReadBoolean();
+                    _dnsServer.EDnsClientSubnetIPv4PrefixLength = bR.ReadByte();
+                    _dnsServer.EDnsClientSubnetIPv6PrefixLength = bR.ReadByte();
+                }
+                else
+                {
+                    _dnsServer.EDnsClientSubnet = false;
+                    _dnsServer.EDnsClientSubnetIPv4PrefixLength = 24;
+                    _dnsServer.EDnsClientSubnetIPv6PrefixLength = 56;
+                }
 
                 _dnsServer.QpmLimitRequests = bR.ReadInt32();
                 _dnsServer.QpmLimitErrors = bR.ReadInt32();
@@ -4860,7 +4894,7 @@ namespace DnsServerCore
         private void WriteConfigTo(BinaryWriter bW)
         {
             bW.Write(Encoding.ASCII.GetBytes("DS")); //format
-            bW.Write((byte)28); //version
+            bW.Write((byte)29); //version
 
             //web service
             {
@@ -4907,6 +4941,10 @@ namespace DnsServerCore
                 bW.Write(_dnsServer.PreferIPv6);
                 bW.Write(_dnsServer.UdpPayloadSize);
                 bW.Write(_dnsServer.DnssecValidation);
+
+                bW.Write(_dnsServer.EDnsClientSubnet);
+                bW.Write(_dnsServer.EDnsClientSubnetIPv4PrefixLength);
+                bW.Write(_dnsServer.EDnsClientSubnetIPv6PrefixLength);
 
                 bW.Write(_dnsServer.QpmLimitRequests);
                 bW.Write(_dnsServer.QpmLimitErrors);
