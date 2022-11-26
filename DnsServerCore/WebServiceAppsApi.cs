@@ -225,6 +225,9 @@ namespace DnsServerCore
 
             jsonWriter.WritePropertyName("name");
             jsonWriter.WriteValue(application.Name);
+            
+            jsonWriter.WritePropertyName("description");
+            jsonWriter.WriteValue(application.Description);
 
             jsonWriter.WritePropertyName("version");
             jsonWriter.WriteValue(DnsWebService.GetCleanVersion(application.Version));
