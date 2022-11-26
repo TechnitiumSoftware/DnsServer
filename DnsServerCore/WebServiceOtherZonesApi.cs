@@ -24,7 +24,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Net;
 using System.Threading.Tasks;
-using TechnitiumLibrary.Net.Dns;
+using TechnitiumLibrary.Net;
 using TechnitiumLibrary.Net.Dns.ResourceRecords;
 
 namespace DnsServerCore
@@ -283,7 +283,7 @@ namespace DnsServerCore
                 throw new DnsWebServiceException("Parameter 'domain' missing.");
 
             if (IPAddress.TryParse(domain, out IPAddress ipAddress))
-                domain = (new DnsQuestionRecord(ipAddress, DnsClass.IN)).Name;
+                domain = ipAddress.GetReverseDomain();
 
             if (_dnsWebService.DnsServer.AllowedZoneManager.AllowZone(domain))
             {
@@ -443,7 +443,7 @@ namespace DnsServerCore
                 throw new DnsWebServiceException("Parameter 'domain' missing.");
 
             if (IPAddress.TryParse(domain, out IPAddress ipAddress))
-                domain = (new DnsQuestionRecord(ipAddress, DnsClass.IN)).Name;
+                domain = ipAddress.GetReverseDomain();
 
             if (_dnsWebService.DnsServer.BlockedZoneManager.BlockZone(domain))
             {
