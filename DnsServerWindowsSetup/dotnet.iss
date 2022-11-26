@@ -310,7 +310,7 @@ var
   ResultCode: Integer;
 begin
   Result := false;
-  Exec('cmd.exe', '/c dotnet --list-runtimes | find /n "Microsoft.WindowsDesktop.App 6.0.9"', '', SW_HIDE, ewWaitUntilTerminated, ResultCode);
+  Exec('cmd.exe', '/c dotnet --list-runtimes | find /n "Microsoft.WindowsDesktop.App 7.0.0"', '', SW_HIDE, ewWaitUntilTerminated, ResultCode);
   if ResultCode = 0 then 
   begin 
     Result := true;
@@ -322,10 +322,10 @@ procedure CheckDotnetDependency;
 begin
   if not IsDotNetDesktopInstalled then
   begin
-    AddDependency('dotnet60desktop' + GetArchitectureSuffix + '.exe',
+    AddDependency('dotnet70desktop' + GetArchitectureSuffix + '.exe',
       '/lcid ' + IntToStr(GetUILanguage) + ' /passive /norestart',
-      '.NET Desktop Runtime 6.0.9' + GetArchitectureTitle,
-      GetString('https://download.visualstudio.microsoft.com/download/pr/925f9407-2767-4341-857a-43cdfad71e17/0b84db913bdbb1dcf02db937a3cd3f63/windowsdesktop-runtime-6.0.9-win-x86.exe', 'https://download.visualstudio.microsoft.com/download/pr/fe8415d4-8a35-4af9-80a5-51306a96282d/05f9b2a1b4884238e69468e49b3a5453/windowsdesktop-runtime-6.0.9-win-x64.exe'),
+      '.NET Desktop Runtime 7.0.0' + GetArchitectureTitle,
+      GetString('https://download.visualstudio.microsoft.com/download/pr/d05a833c-2cf9-4d06-89ae-a0f3e10c5c91/c668ff42e23c2f67aa3d80227860585f/windowsdesktop-runtime-7.0.0-win-x86.exe', 'https://download.visualstudio.microsoft.com/download/pr/5b2fbe00-507e-450e-8b52-43ab052aadf2/79d54c3a19ce3fce314f2367cf4e3b21/windowsdesktop-runtime-7.0.0-win-x64.exe'),
       '', False, False, False);
   end;
 end;
