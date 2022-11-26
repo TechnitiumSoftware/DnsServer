@@ -21,7 +21,6 @@ using DnsServerCore.ApplicationCommon;
 using Newtonsoft.Json;
 using System;
 using System.Collections.Generic;
-using System.Globalization;
 using System.Net;
 using System.Net.Sockets;
 using System.Threading.Tasks;
@@ -51,24 +50,6 @@ namespace Dns64
         public void Dispose()
         {
             //do nothing
-        }
-
-        #endregion
-
-        #region private
-
-        private static IPAddress GetIpv6AddressFromPtrDomain(string ptrDomain)
-        {
-            //B.E.3.0.B.3.B.8.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.B.9.F.F.4.6.0.0.ip6.arpa
-            //64:ff9b::8b3b:3eb
-
-            string[] parts = ptrDomain.Split('.');
-            byte[] buffer = new byte[16];
-
-            for (int i = 0, j = parts.Length - 3; (i < 16) && (j > 0); i++, j -= 2)
-                buffer[i] = (byte)(byte.Parse(parts[j], NumberStyles.HexNumber) << 4 | byte.Parse(parts[j - 1], NumberStyles.HexNumber));
-
-            return new IPAddress(buffer);
         }
 
         #endregion
@@ -152,7 +133,7 @@ namespace Dns64
             if ((groupName is null) || !_groups.TryGetValue(groupName, out Group group) || !group.EnableDns64)
                 return response;
 
-            List<DnsResourceRecord> newAnswer = new List<DnsResourceRecord>();
+            List<DnsResourceRecord> newAnswer = new List<DnsResourceRecord>(response.Answer.Count);
 
             bool synthesizeAAAA = true;
 
@@ -248,7 +229,10 @@ namespace Dns64
             if ((groupName is null) || !_groups.TryGetValue(groupName, out Group group) || !group.EnableDns64)
                 return Task.FromResult<DnsDatagram>(null);
 
-            IPAddress ipv6Address = GetIpv6AddressFromPtrDomain(question.Name);
+            IPAddress ipv6Address = IPAddressExtension.ParseReverseDomain(question.Name);
+            if (ipv6Address.AddressFamily != AddressFamily.InterNetworkV6)
+                return Task.FromResult<DnsDatagram>(null);
+
             NetworkAddress dns64Prefix = null;
 
             foreach (KeyValuePair<NetworkAddress, NetworkAddress> dns64PrefixEntry in group.Dns64PrefixMap)
@@ -264,8 +248,7 @@ namespace Dns64
                 return Task.FromResult<DnsDatagram>(null);
 
             IPAddress ipv4Address = ipv6Address.MapToIPv4(dns64Prefix.PrefixLength);
-            DnsQuestionRecord dummyPtrQuestion = new DnsQuestionRecord(ipv4Address, question.Class);
-            IReadOnlyList<DnsResourceRecord> answer = new DnsResourceRecord[] { new DnsResourceRecord(question.Name, DnsResourceRecordType.CNAME, question.Class, 600, new DnsCNAMERecordData(dummyPtrQuestion.Name)) };
+            IReadOnlyList<DnsResourceRecord> answer = new DnsResourceRecord[] { new DnsResourceRecord(question.Name, DnsResourceRecordType.CNAME, question.Class, 600, new DnsCNAMERecordData(ipv4Address.GetReverseDomain())) };
 
             return Task.FromResult(new DnsDatagram(request.Identifier, true, request.OPCODE, true, false, request.RecursionDesired, isRecursionAllowed, false, false, DnsResponseCode.NoError, request.Question, answer));
         }
@@ -275,7 +258,7 @@ namespace Dns64
         #region properties
 
         public string Description
-        { get { return "Enabled DNS64 function for both authoritative and recursive resolver responses."; } }
+        { get { return "Enables DNS64 function for both authoritative and recursive resolver responses for use by IPv6 only clients."; } }
 
         #endregion
 
