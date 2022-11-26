@@ -89,6 +89,8 @@ namespace DnsServerCore
                                 WriteLog(DateTime.UtcNow, e.ExceptionObject.ToString());
                         }
                     }
+                    catch (ObjectDisposedException)
+                    { }
                     catch (Exception ex)
                     {
                         Console.WriteLine(e.ExceptionObject.ToString());
@@ -243,6 +245,8 @@ namespace DnsServerCore
                             }
                         }
                     }
+                    catch (ObjectDisposedException)
+                    { }
                     catch (OperationCanceledException)
                     { }
                     finally
