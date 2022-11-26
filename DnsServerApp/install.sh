@@ -14,7 +14,7 @@ echo "==============================="
 echo "Technitium DNS Server Installer"
 echo "==============================="
 
-if dotnet --list-runtimes 2> /dev/null | grep -q "Microsoft.NETCore.App 6.0."; 
+if dotnet --list-runtimes 2> /dev/null | grep -q "Microsoft.NETCore.App 7.0."; 
 then
 	dotnetFound="yes"
 else
@@ -24,36 +24,36 @@ fi
 if [ ! -d $dotnetDir ] && [ "$dotnetFound" = "yes" ]
 then
 	echo ""
-	echo ".NET 6 Runtime is already installed."
+	echo ".NET 7 Runtime is already installed."
 else
 	echo ""
 
 	if [ -d $dotnetDir ] && [ "$dotnetFound" = "yes" ]
 	then
 		dotnetUpdate="yes"
-		echo "Updating .NET 6 Runtime..."
+		echo "Updating .NET 7 Runtime..."
 	else
 		dotnetUpdate="no"
-		echo "Installing .NET 6 Runtime..."
+		echo "Installing .NET 7 Runtime..."
 	fi
 
-	curl -sSL https://dot.net/v1/dotnet-install.sh | bash /dev/stdin -c 6.0 --runtime dotnet --no-path --install-dir $dotnetDir --verbose >> $installLog 2>&1
+	curl -sSL https://dot.net/v1/dotnet-install.sh | bash /dev/stdin -c 7.0 --runtime dotnet --no-path --install-dir $dotnetDir --verbose >> $installLog 2>&1
 
 	if [ ! -f "/usr/bin/dotnet" ]
 	then
 		ln -s $dotnetDir/dotnet /usr/bin >> $installLog 2>&1
 	fi
 
-	if dotnet --list-runtimes 2> /dev/null | grep -q "Microsoft.NETCore.App 6.0."; 
+	if dotnet --list-runtimes 2> /dev/null | grep -q "Microsoft.NETCore.App 7.0."; 
 	then
 		if [ "$dotnetUpdate" = "yes" ]
 		then
-			echo ".NET 6 Runtime was updated successfully!"
+			echo ".NET 7 Runtime was updated successfully!"
 		else
-			echo ".NET 6 Runtime was installed successfully!"
+			echo ".NET 7 Runtime was installed successfully!"
 		fi
 	else
-		echo "Failed to install .NET 6 Runtime. Please try again."
+		echo "Failed to install .NET 7 Runtime. Please try again."
 		exit 1
 	fi
 fi
