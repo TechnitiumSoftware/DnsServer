@@ -28,6 +28,7 @@ using System.Net;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
+using TechnitiumLibrary.Net;
 using TechnitiumLibrary.Net.Dns;
 using TechnitiumLibrary.Net.Dns.ResourceRecords;
 using TechnitiumLibrary.Net.Proxy;
@@ -713,7 +714,7 @@ namespace DnsServerCore.Dns.ZoneManagers
                 }
 
                 {
-                    string ptrZoneName = new DnsQuestionRecord(IPAddress.IPv6Loopback, DnsClass.IN).Name;
+                    string ptrZoneName = IPAddress.IPv6Loopback.GetReverseDomain();
 
                     CreatePrimaryZone(ptrZoneName, _dnsServer.ServerDomain, true);
                     SetRecords(ptrZoneName, ptrZoneName, DnsResourceRecordType.PTR, 3600, new DnsResourceRecordData[] { new DnsPTRRecordData("localhost") });
