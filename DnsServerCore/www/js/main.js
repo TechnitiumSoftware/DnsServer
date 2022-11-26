@@ -2309,6 +2309,7 @@ function restoreSettings() {
 
     HTTPRequest({
         url: "/api/settings/restore?token=" + sessionData.token + "&blockLists=" + blockLists + "&logs=" + logs + "&scopes=" + scopes + "&apps=" + apps + "&stats=" + stats + "&zones=" + zones + "&allowedZones=" + allowedZones + "&blockedZones=" + blockedZones + "&dnsSettings=" + dnsSettings + "&authConfig=" + authConfig + "&logSettings=" + logSettings + "&deleteExistingFiles=" + deleteExistingFiles,
+        method: "POST",
         data: formData,
         processData: false,
         success: function (responseJSON) {
