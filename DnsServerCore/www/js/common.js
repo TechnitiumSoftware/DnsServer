@@ -25,10 +25,19 @@ function htmlDecode(value) {
     return $('<div/>').html(value).text();
 }
 
-function HTTPRequest(url, data, success, error, invalidToken, objAlertPlaceholder, objLoaderPlaceholder, processData, dataContentType, dontHideAlert, showInnerError) {
+function HTTPRequest(url, method, data, isTextResponse, success, error, invalidToken, objAlertPlaceholder, objLoaderPlaceholder, processData, dataContentType, dontHideAlert, showInnerError) {
     var finalUrl;
 
-    finalUrl = arguments[0].url;
+    if ((url != null) && (url.url != null))
+        finalUrl = arguments[0].url;
+    else
+        finalUrl = url;
+
+    if (method == null)
+        method = arguments[0].method;
+
+    if (method == null)
+        method = "GET";
 
     if (data == null) {
         if (arguments[0].data == null)
@@ -37,8 +46,18 @@ function HTTPRequest(url, data, success, error, invalidToken, objAlertPlaceholde
             data = arguments[0].data;
     }
 
+    if (isTextResponse == null)
+        isTextResponse = arguments[0].isTextResponse;
+
+    if (isTextResponse == null)
+        isTextResponse = false;
+
+    var dataType = isTextResponse ? null : "json";
+
     if (success == null)
         success = arguments[0].success;
+
+    var async = success != null;
 
     if (error == null)
         error = arguments[0].error;
@@ -73,128 +92,66 @@ function HTTPRequest(url, data, success, error, invalidToken, objAlertPlaceholde
     if (objLoaderPlaceholder != null)
         objLoaderPlaceholder.html("<div style='width: 64px; height: inherit; margin: auto;'><div style='height: inherit; display: table-cell; vertical-align: middle;'><img src='/img/loader.gif'/></div></div>");
 
-    $.ajax({
-        type: "POST",
-        url: finalUrl,
-        data: data,
-        dataType: "json",
-        async: true,
-        cache: false,
-        processData: processData,
-        contentType: dataContentType,
-        success: function (responseJson, status, jqXHR) {
-
-            if (objLoaderPlaceholder != null)
-                objLoaderPlaceholder.html("");
-
-            switch (responseJson.status) {
-                case "ok":
-                    if (success == null)
-                        successFlag = true;
-                    else
-                        success(responseJson);
-
-                    break;
-
-                case "invalid-token":
-                    if (invalidToken != null)
-                        invalidToken();
-                    else if (error != null)
-                        error();
-                    else
-                        window.location = "/";
-
-                    break;
-
-                case "error":
-                    showAlert("danger", "Error!", responseJson.errorMessage + (showInnerError && (responseJson.innerErrorMessage != null) ? " " + responseJson.innerErrorMessage : ""), objAlertPlaceholder);
-
-                    if (error != null)
-                        error();
-
-                    break;
-
-                default:
-                    showAlert("danger", "Invalid Response!", "Server returned invalid response status: " + responseJson.status, objAlertPlaceholder);
-
-                    if (error != null)
-                        error();
-
-                    break;
-            }
-
-        },
-        error: function (jqXHR, textStatus, errorThrown) {
-
-            if (objLoaderPlaceholder != null)
-                objLoaderPlaceholder.html("");
-
-            if (error != null)
-                error();
-
-            var msg;
-
-            if ((textStatus === "error") && (errorThrown === ""))
-                msg = "Unable to connect to the server. Please try again."
-            else
-                msg = textStatus + " - " + errorThrown;
-
-            showAlert("danger", "Error!", msg, objAlertPlaceholder);
-        }
-    });
-}
-
-function HTTPGetFileRequest(url, success, error, objAlertPlaceholder, objLoaderPlaceholder, dontHideAlert) {
-    var async = false;
-    var finalUrl;
-
-    finalUrl = arguments[0].url;
-
-    if (success != null)
-        async = true;
-    else
-        if (arguments[0].success != null) {
-            async = true;
-            success = arguments[0].success;
-        }
-
-    if (error == null)
-        error = arguments[0].error;
-
-    if (objAlertPlaceholder == null)
-        objAlertPlaceholder = arguments[0].objAlertPlaceholder;
-
-    if (dontHideAlert == null)
-        dontHideAlert = arguments[0].dontHideAlert;
-
-    if ((dontHideAlert == null) || !dontHideAlert)
-        hideAlert(objAlertPlaceholder);
-
-    if (objLoaderPlaceholder == null)
-        objLoaderPlaceholder = arguments[0].objLoaderPlaceholder;
-
-    if (objLoaderPlaceholder != null)
-        objLoaderPlaceholder.html("<div style='width: 64px; height: inherit; margin: auto;'><div style='height: inherit; display: table-cell; vertical-align: middle;'><img src='/img/loader.gif'/></div></div>");
-
     var successFlag = false;
 
     $.ajax({
-        type: "GET",
+        type: method,
         url: finalUrl,
+        data: data,
+        dataType: dataType,
         async: async,
         cache: false,
+        processData: processData,
+        contentType: dataContentType,
         success: function (response, status, jqXHR) {
-
             if (objLoaderPlaceholder != null)
                 objLoaderPlaceholder.html("");
 
-            if (success == null)
-                successFlag = true;
-            else
-                success(response);
+            if (isTextResponse) {
+                if (success == null)
+                    successFlag = true;
+                else
+                    success(response);
+            }
+            else {
+                switch (response.status) {
+                    case "ok":
+                        if (success == null)
+                            successFlag = true;
+                        else
+                            success(response);
+
+                        break;
+
+                    case "invalid-token":
+                        if (invalidToken != null)
+                            invalidToken();
+                        else if (error != null)
+                            error();
+                        else
+                            window.location = "/";
+
+                        break;
+
+                    case "error":
+                        showAlert("danger", "Error!", response.errorMessage + (showInnerError && (response.innerErrorMessage != null) ? " " + response.innerErrorMessage : ""), objAlertPlaceholder);
+
+                        if (error != null)
+                            error();
+
+                        break;
+
+                    default:
+                        showAlert("danger", "Invalid Response!", "Server returned invalid response status: " + response.status, objAlertPlaceholder);
+
+                        if (error != null)
+                            error();
+
+                        break;
+                }
+            }
         },
         error: function (jqXHR, textStatus, errorThrown) {
-
             if (objLoaderPlaceholder != null)
                 objLoaderPlaceholder.html("");
 
