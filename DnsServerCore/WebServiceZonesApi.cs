@@ -953,7 +953,7 @@ namespace DnsServerCore
 
             if (IPAddress.TryParse(zoneName, out IPAddress ipAddress))
             {
-                zoneName = new DnsQuestionRecord(ipAddress, DnsClass.IN).Name.ToLower();
+                zoneName = ipAddress.GetReverseDomain().ToLower();
             }
             else if (zoneName.Contains('/'))
             {
