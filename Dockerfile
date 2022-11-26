@@ -1,4 +1,4 @@
-FROM mcr.microsoft.com/dotnet/runtime:6.0
+FROM mcr.microsoft.com/dotnet/runtime:7.0
 LABEL product="Technitium DNS Server"
 LABEL vendor="Technitium"
 LABEL email="support@technitium.com"
