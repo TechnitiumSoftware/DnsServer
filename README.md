@@ -29,35 +29,39 @@ Be it a home network or an organization's network, having a locally running DNS 
 - Supports working as an authoritative as well as a recursive DNS server.
 - DNSSEC validation support with RSA & ECDSA algorithms for recursive resolver, forwarders, and conditional forwarders.
 - DNSSEC support for all supported DNS transport protocols including encrypted DNS protocols (DoT, DoH, & DoH JSON).
+- DANE TLSA [RFC 6698](https://datatracker.ietf.org/doc/html/rfc6698) record type support. This includes support for automatically generating the hash values using certificates in PEM format.
+- SSHFP [RFC 4255](https://www.rfc-editor.org/rfc/rfc4255.html) record type support.
 - CNAME cloaking feature to block domain names that resolve to CNAME which are blocked.
-- QNAME minimization support in recursive resolver [draft-ietf-dnsop-rfc7816bis-04](https://datatracker.ietf.org/doc/html/draft-ietf-dnsop-rfc7816bis-04).
+- QNAME minimization support in recursive resolver [RFC 9156](https://www.rfc-editor.org/rfc/rfc9156.html).
 - QNAME randomization support for UDP transport protocol [draft-vixie-dnsext-dns0x20-00](https://datatracker.ietf.org/doc/html/draft-vixie-dnsext-dns0x20-00).
 - DNAME record [RFC 6672](https://datatracker.ietf.org/doc/html/rfc6672) support.
-- ANAME propriety record support to allow using CNAME like feature at zone apex. Supports multiple ANAME records at both zone apex and sub domains.
+- ANAME propriety record support to allow using CNAME like feature at zone apex (CNAME flattening). Supports multiple ANAME records at both zone apex and sub domains.
 - APP propriety record support that allows custom DNS Apps to directly handle DNS requests and return a custom DNS response based on any business logic.
 - Support for features like Split Horizon and Geolocation based responses using DNS Apps feature.
 - Support for REGEX based block lists with different block lists for different client IP addresses or subnet using Advanced Blocking DNS App.
 - Primary, Secondary, Stub, and Conditional Forwarder zone support.
 - Static stub zone support implemented in Conditional Forwarder zone to force a domain name to resolve via given name servers using NS records.
 - DNSSEC signed zones support with RSA & ECDSA algorithms.
-- Zone transfer over TLS (XFR-over-TLS) [draft-ietf-dprive-xfr-over-tls](https://datatracker.ietf.org/doc/draft-ietf-dprive-xfr-over-tls/) support.
-- Dynamic DNS Updates [RFC 2136](https://www.rfc-editor.org/rfc/rfc2136) support.
+- Zone transfer over TLS (XFR-over-TLS) [RFC 9103](https://www.rfc-editor.org/rfc/rfc9103.html) support.
+- Dynamic DNS Updates [RFC 2136](https://www.rfc-editor.org/rfc/rfc2136) support with security policy.
 - Secret key transaction authentication (TSIG) [RFC 8945](https://datatracker.ietf.org/doc/html/rfc8945) support for zone transfers.
 - EDNS(0) [RFC6891](https://datatracker.ietf.org/doc/html/rfc6891) support.
+- EDNS Client Subnet (ECS) [RFC 7871](https://datatracker.ietf.org/doc/html/rfc7871) support for recursive resolution and forwarding.
 - Extended DNS Errors [RFC 8914](https://datatracker.ietf.org/doc/html/rfc8914) support.
+- DNS64 function [RFC 6147](https://www.rfc-editor.org/rfc/rfc6147) support for use by IPv6 only clients using the DNS64 App.
 - Multi-user role based access with non-expiring API token support.
 - Self host your domain names on your own DNS server.
 - Wildcard sub domain support.
 - Enable/disable zones and records to allow testing with ease.
 - Built-in DNS Client with option to import responses to local zone.
-- Supports out-of-order DNS request processing for DNS-over-TCP and DNS-over-TLS protocols.
+- Supports out-of-order DNS request processing for DNS-over-TCP and DNS-over-TLS protocols [RFC 7766](https://www.rfc-editor.org/rfc/rfc7766#section-7).
 - Built-in DHCP Server that can work for multiple networks.
 - IPv6 support in DNS server core.
 - HTTP & SOCKS5 proxy support which can be configured to route DNS over [Tor Network](https://www.torproject.org/) or use [Cloudflare's hidden DNS resolver](https://blog.cloudflare.com/welcome-hidden-resolver/).
 - Web console portal for easy configuration using any web browser.
 - Built in HTTP API to allow 3rd party apps to control and configure the DNS server.
 - Built-in system logging and query logging.
-- Open source cross-platform .NET 6 implementation hosted on GitHub.
+- Open source cross-platform .NET 7 implementation hosted on GitHub.
 
 # Planned Features
 - Clustering support to manage two or more DNS servers.
@@ -65,7 +69,7 @@ Be it a home network or an organization's network, having a locally running DNS 
 # Installation
 - **Windows**: [Download setup installer](https://download.technitium.com/dns/DnsServerSetup.zip) for easy installation.
 - **Linux & Raspberry Pi**: Follow install instructions from [this blog post](https://blog.technitium.com/2017/11/running-dns-server-on-ubuntu-linux.html).
-- **Cross-Platform**: [Download portable app](https://download.technitium.com/dns/DnsServerPortable.tar.gz) to run on any platform that has .NET 6 installed.
+- **Cross-Platform**: [Download portable app](https://download.technitium.com/dns/DnsServerPortable.tar.gz) to run on any platform that has .NET 7 installed.
 - **Docker**: Pull the official image from [Docker Hub](https://hub.docker.com/r/technitium/dns-server). Use the [docker-compose.yml](https://github.com/TechnitiumSoftware/DnsServer/blob/master/docker-compose.yml) example to create a new container and edit it as required for your deployments. For more details and troubleshooting read the [install instructions](https://blog.technitium.com/2017/11/running-dns-server-on-ubuntu-linux.html).
 
 # Docker Environment Variables
