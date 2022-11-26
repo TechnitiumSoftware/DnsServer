@@ -1,9 +1,9 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
 	<PropertyGroup>
-		<TargetFramework>net6.0</TargetFramework>
+		<TargetFramework>net7.0</TargetFramework>
 		<AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
-		<Version>3.0</Version>
+		<Version>4.0</Version>
 		<Company>Technitium</Company>
 		<Product>Technitium DNS Server</Product>
 		<Authors>Shreyas Zare</Authors>
@@ -11,6 +11,7 @@
 		<RootNamespace>AdvancedBlocking</RootNamespace>
 		<PackageProjectUrl>https://technitium.com/dns/</PackageProjectUrl>
 		<RepositoryUrl>https://github.com/TechnitiumSoftware/DnsServer</RepositoryUrl>
+		<Description>Blocks domain names using block lists and regex block lists. Supports creating groups based on client's IP address or subnet to enforce different block lists and regex block lists for each group.</Description>
 		<GeneratePackageOnBuild>false</GeneratePackageOnBuild>
 		<OutputType>Library</OutputType>
 	</PropertyGroup>

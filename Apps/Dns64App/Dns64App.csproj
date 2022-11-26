@@ -1,21 +1,24 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
+<Project Sdk="Microsoft.NET.Sdk">
 
 	<PropertyGroup>
 		<TargetFramework>net7.0</TargetFramework>
 		<AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
-		<CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>
-		<Version>2.0</Version>
+		<Version>1.0</Version>
 		<Company>Technitium</Company>
 		<Product>Technitium DNS Server</Product>
 		<Authors>Shreyas Zare</Authors>
-		<AssemblyName>WildIpApp</AssemblyName>
-		<RootNamespace>WildIp</RootNamespace>
+		<AssemblyName>Dns64App</AssemblyName>
+		<RootNamespace>Dns64</RootNamespace>
 		<PackageProjectUrl>https://technitium.com/dns/</PackageProjectUrl>
 		<RepositoryUrl>https://github.com/TechnitiumSoftware/DnsServer</RepositoryUrl>
-		<Description>Allows creating APP records in a primary zone that can return the IP address embedded in the subdomain name for A and AAAA queries. It works similar to sslip.io.</Description>
+		<Description>Enables DNS64 function for both authoritative and recursive resolver responses for use by IPv6 only clients.</Description>
 		<GeneratePackageOnBuild>false</GeneratePackageOnBuild>
 		<OutputType>Library</OutputType>
 	</PropertyGroup>
+
+	<ItemGroup>
+		<PackageReference Include="Newtonsoft.Json" Version="13.0.1" />
+	</ItemGroup>
 
 	<ItemGroup>
 		<ProjectReference Include="..\..\DnsServerCore.ApplicationCommon\DnsServerCore.ApplicationCommon.csproj">

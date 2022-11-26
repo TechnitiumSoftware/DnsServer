@@ -3,19 +3,22 @@
 	<PropertyGroup>
 		<TargetFramework>net7.0</TargetFramework>
 		<AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
-		<CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>
-		<Version>2.0</Version>
+		<Version>1.0</Version>
 		<Company>Technitium</Company>
 		<Product>Technitium DNS Server</Product>
 		<Authors>Shreyas Zare</Authors>
-		<AssemblyName>WildIpApp</AssemblyName>
-		<RootNamespace>WildIp</RootNamespace>
+		<AssemblyName>NoDataApp</AssemblyName>
+		<RootNamespace>NoData</RootNamespace>
 		<PackageProjectUrl>https://technitium.com/dns/</PackageProjectUrl>
 		<RepositoryUrl>https://github.com/TechnitiumSoftware/DnsServer</RepositoryUrl>
-		<Description>Allows creating APP records in a primary zone that can return the IP address embedded in the subdomain name for A and AAAA queries. It works similar to sslip.io.</Description>
+		<Description>Allows creating APP records in a conditional forwarder zone that can returns a NO DATA response for requests that match the configured query type (QTYPE) to allow blocking records.</Description>
 		<GeneratePackageOnBuild>false</GeneratePackageOnBuild>
 		<OutputType>Library</OutputType>
 	</PropertyGroup>
+
+	<ItemGroup>
+		<PackageReference Include="Newtonsoft.Json" Version="13.0.1" />
+	</ItemGroup>
 
 	<ItemGroup>
 		<ProjectReference Include="..\..\DnsServerCore.ApplicationCommon\DnsServerCore.ApplicationCommon.csproj">

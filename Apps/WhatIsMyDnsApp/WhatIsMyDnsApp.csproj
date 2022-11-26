@@ -1,38 +1,39 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
-  <PropertyGroup>
-    <TargetFramework>net6.0</TargetFramework>
-    <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
-    <CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>
-    <Version>4.0</Version>
-    <Company>Technitium</Company>
-    <Product>Technitium DNS Server</Product>
-    <Authors>Shreyas Zare</Authors>
-    <AssemblyName>WhatIsMyDnsApp</AssemblyName>
-    <RootNamespace>WhatIsMyDns</RootNamespace>
-    <PackageProjectUrl>https://technitium.com/dns/</PackageProjectUrl>
-    <RepositoryUrl>https://github.com/TechnitiumSoftware/DnsServer</RepositoryUrl>
-    <GeneratePackageOnBuild>false</GeneratePackageOnBuild>
-    <OutputType>Library</OutputType>
-  </PropertyGroup>
+	<PropertyGroup>
+		<TargetFramework>net7.0</TargetFramework>
+		<AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
+		<CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>
+		<Version>5.0</Version>
+		<Company>Technitium</Company>
+		<Product>Technitium DNS Server</Product>
+		<Authors>Shreyas Zare</Authors>
+		<AssemblyName>WhatIsMyDnsApp</AssemblyName>
+		<RootNamespace>WhatIsMyDns</RootNamespace>
+		<PackageProjectUrl>https://technitium.com/dns/</PackageProjectUrl>
+		<RepositoryUrl>https://github.com/TechnitiumSoftware/DnsServer</RepositoryUrl>
+		<Description>Allows creating APP records in a primary zone that can return the IP address of the user's DNS Server for A, AAAA, and TXT queries.</Description>
+		<GeneratePackageOnBuild>false</GeneratePackageOnBuild>
+		<OutputType>Library</OutputType>
+	</PropertyGroup>
 
-  <ItemGroup>
-    <ProjectReference Include="..\..\DnsServerCore.ApplicationCommon\DnsServerCore.ApplicationCommon.csproj">
-      <Private>false</Private>
-    </ProjectReference>
-  </ItemGroup>
+	<ItemGroup>
+		<ProjectReference Include="..\..\DnsServerCore.ApplicationCommon\DnsServerCore.ApplicationCommon.csproj">
+			<Private>false</Private>
+		</ProjectReference>
+	</ItemGroup>
 
-  <ItemGroup>
-    <Reference Include="TechnitiumLibrary.Net">
-      <HintPath>..\..\..\TechnitiumLibrary\bin\TechnitiumLibrary.Net.dll</HintPath>
-      <Private>false</Private>
-    </Reference>
-  </ItemGroup>
+	<ItemGroup>
+		<Reference Include="TechnitiumLibrary.Net">
+			<HintPath>..\..\..\TechnitiumLibrary\bin\TechnitiumLibrary.Net.dll</HintPath>
+			<Private>false</Private>
+		</Reference>
+	</ItemGroup>
 
-  <ItemGroup>
-    <None Update="dnsApp.config">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </None>
-  </ItemGroup>
+	<ItemGroup>
+		<None Update="dnsApp.config">
+			<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+		</None>
+	</ItemGroup>
 
 </Project>

@@ -1,10 +1,10 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
 	<PropertyGroup>
-		<TargetFramework>net6.0</TargetFramework>
+		<TargetFramework>net7.0</TargetFramework>
 		<AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
 		<CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>
-		<Version>4.0</Version>
+		<Version>5.0</Version>
 		<Company>Technitium</Company>
 		<Product>Technitium DNS Server</Product>
 		<Authors>Shreyas Zare</Authors>
@@ -12,6 +12,7 @@
 		<RootNamespace>GeoDistance</RootNamespace>
 		<PackageProjectUrl>https://technitium.com/dns/</PackageProjectUrl>
 		<RepositoryUrl>https://github.com/TechnitiumSoftware/DnsServer</RepositoryUrl>
+		<Description>Allows creating APP records in a primary zone that can return A or AAAA records, or CNAME record of the server located geographically closest to the client using MaxMind GeoIP2 City database. Supports EDNS Client Subnet (ECS). This app requires MaxMind GeoIP2 database and includes the GeoLite2 version for trial. \n\nTo update the MaxMind GeoIP2 database for your app, download the GeoIP2-City.mmdb file from MaxMind and zip it. Use the zip file with the manual Update option.</Description>
 		<GeneratePackageOnBuild>false</GeneratePackageOnBuild>
 		<OutputType>Library</OutputType>
 	</PropertyGroup>
