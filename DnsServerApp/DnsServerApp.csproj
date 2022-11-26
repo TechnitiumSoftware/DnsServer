@@ -4,9 +4,9 @@
     <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
     <CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>
     <OutputType>Exe</OutputType>
-    <TargetFramework>net6.0</TargetFramework>
+    <TargetFramework>net7.0</TargetFramework>
     <ApplicationIcon>logo2.ico</ApplicationIcon>
-    <Version>9.1</Version>
+    <Version>10.0</Version>
     <Company>Technitium</Company>
     <Product>Technitium DNS Server</Product>
     <Authors>Shreyas Zare</Authors>

@@ -1,7 +1,7 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
 	<PropertyGroup>
-		<TargetFramework>net6.0</TargetFramework>
+		<TargetFramework>net7.0</TargetFramework>
 	</PropertyGroup>
 
 	<ItemGroup>
@@ -273,7 +273,7 @@
 		<RepositoryType></RepositoryType>
 		<Description></Description>
 		<PackageId>DnsServer</PackageId>
-		<Version>9.1</Version>
+		<Version>10.0</Version>
 	</PropertyGroup>
 
 </Project>
