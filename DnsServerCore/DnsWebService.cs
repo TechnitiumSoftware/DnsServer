@@ -3918,7 +3918,14 @@ namespace DnsServerCore
                     string[] strForwardersAddresses = strForwarders.Split(new char[] { ',' }, StringSplitOptions.RemoveEmptyEntries);
 
                     foreach (string strForwarderAddress in strForwardersAddresses)
-                        forwarders.Add(new NameServerAddress(strForwarderAddress.Trim(), forwarderProtocol));
+                    {
+                        NameServerAddress forwarder = new NameServerAddress(strForwarderAddress.Trim());
+
+                        if (forwarder.Protocol != forwarderProtocol)
+                            forwarder = forwarder.ChangeProtocol(forwarderProtocol);
+
+                        forwarders.Add(forwarder);
+                    }
 
                     _dnsServer.Forwarders = forwarders;
                 }
