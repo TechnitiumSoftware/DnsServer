@@ -461,6 +461,7 @@ function importAllowedZones() {
 
     HTTPRequest({
         url: "/api/allowed/import?token=" + sessionData.token,
+        method: "POST",
         data: "allowedZones=" + encodeURIComponent(allowedZones),
         processData: false,
         success: function (responseJSON) {
@@ -509,6 +510,7 @@ function importBlockedZones() {
 
     HTTPRequest({
         url: "/api/blocked/import?token=" + sessionData.token,
+        method: "POST",
         data: "blockedZones=" + encodeURIComponent(blockedZones),
         processData: false,
         success: function (responseJSON) {
