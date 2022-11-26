@@ -22,6 +22,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Reflection;
+using System.Runtime.Loader;
 using System.Threading.Tasks;
 
 namespace DnsServerCore.Dns.Applications
@@ -35,6 +36,7 @@ namespace DnsServerCore.Dns.Applications
 
         readonly DnsApplicationAssemblyLoadContext _appContext;
 
+        readonly string _description;
         readonly Version _version;
         readonly IReadOnlyDictionary<string, IDnsApplication> _dnsApplications;
         readonly IReadOnlyDictionary<string, IDnsAppRecordRequestHandler> _dnsAppRecordRequestHandlers;
@@ -55,7 +57,7 @@ namespace DnsServerCore.Dns.Applications
             _appContext = new DnsApplicationAssemblyLoadContext(_dnsServer.ApplicationFolder);
 
             //load app assemblies
-            Assembly[] loadedAssemblies = AppDomain.CurrentDomain.GetAssemblies();
+            IEnumerable<Assembly> loadedAssemblies = AssemblyLoadContext.Default.Assemblies;
             List<Assembly> appAssemblies = new List<Assembly>();
 
             foreach (string dllFile in Directory.GetFiles(_dnsServer.ApplicationFolder, "*.dll", SearchOption.TopDirectoryOnly))
@@ -166,6 +168,13 @@ namespace DnsServerCore.Dns.Applications
 
                                 if (app is IDnsPostProcessor postProcessor)
                                     dnsPostProcessors.Add(classType.FullName, postProcessor);
+
+                                if (_description is null)
+                                {
+                                    AssemblyDescriptionAttribute attribute = appAssembly.GetCustomAttribute<AssemblyDescriptionAttribute>();
+                                    if (attribute is not null)
+                                        _description = attribute.Description.Replace("\\n", "\n");
+                                }
 
                                 if (_version is null)
                                     _version = appAssembly.GetName().Version;
@@ -287,6 +296,9 @@ namespace DnsServerCore.Dns.Applications
 
         public string Name
         { get { return _name; } }
+
+        public string Description
+        { get { return _description; } }
 
         public Version Version
         { get { return _version; } }
