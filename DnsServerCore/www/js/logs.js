@@ -95,10 +95,10 @@ function viewLog(logFile) {
     divLogViewerLoader.show();
     divLogViewer.show();
 
-    HTTPGetFileRequest({
+    HTTPRequest({
         url: "/api/logs/download?token=" + sessionData.token + "&fileName=" + encodeURIComponent(logFile) + "&limit=2",
+        isTextResponse: true,
         success: function (response) {
-
             divLogViewerLoader.hide();
 
             preLogViewerBody.text(response);
