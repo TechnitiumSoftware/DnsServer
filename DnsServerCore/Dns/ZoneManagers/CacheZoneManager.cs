@@ -588,10 +588,11 @@ namespace DnsServerCore.Dns.ZoneManagers
             DnsQuestionRecord question = request.Question[0];
 
             NetworkAddress eDnsClientSubnet = null;
-
-            EDnsClientSubnetOptionData requestECS = request.GetEDnsClientSubnetOption();
-            if (requestECS is not null)
-                eDnsClientSubnet = new NetworkAddress(requestECS.Address, requestECS.SourcePrefixLength);
+            {
+                EDnsClientSubnetOptionData requestECS = request.GetEDnsClientSubnetOption();
+                if (requestECS is not null)
+                    eDnsClientSubnet = new NetworkAddress(requestECS.AddressValue, requestECS.SourcePrefixLength);
+            }
 
             CacheZone zone;
             CacheZone closest = null;
@@ -660,6 +661,33 @@ namespace DnsServerCore.Dns.ZoneManagers
                         else
                         {
                             specialOptions = dnsSpecialCacheRecord.EDnsOptions;
+                        }
+
+                        if (eDnsClientSubnet is not null)
+                        {
+                            EDnsClientSubnetOptionData requestECS = request.GetEDnsClientSubnetOption(true);
+                            if (requestECS is not null)
+                            {
+                                NetworkAddress recordECS = firstRR.GetRecordInfo().EDnsClientSubnet;
+                                if (recordECS is not null)
+                                {
+                                    EDnsOption[] ecsOption = EDnsClientSubnetOptionData.GetEDnsClientSubnetOption(requestECS.SourcePrefixLength, recordECS.PrefixLength, requestECS.AddressValue);
+
+                                    if ((specialOptions is null) || (specialOptions.Count == 0))
+                                    {
+                                        specialOptions = ecsOption;
+                                    }
+                                    else
+                                    {
+                                        List<EDnsOption> newOptions = new List<EDnsOption>(specialOptions.Count + 1);
+
+                                        newOptions.AddRange(specialOptions);
+                                        newOptions.Add(ecsOption[0]);
+
+                                        specialOptions = newOptions;
+                                    }
+                                }
+                            }
                         }
 
                         if (request.DnssecOk)
@@ -761,36 +789,40 @@ namespace DnsServerCore.Dns.ZoneManagers
                         }
                     }
 
-                    if (requestECS is not null)
+                    if (eDnsClientSubnet is not null)
                     {
-                        NetworkAddress suitableECS = null;
-
-                        foreach (DnsResourceRecord record in answer)
+                        EDnsClientSubnetOptionData requestECS = request.GetEDnsClientSubnetOption(true);
+                        if (requestECS is not null)
                         {
-                            NetworkAddress recordECS = record.GetRecordInfo().EDnsClientSubnet;
-                            if (recordECS is not null)
+                            NetworkAddress suitableECS = null;
+
+                            foreach (DnsResourceRecord record in answer)
                             {
-                                if ((suitableECS is null) || (recordECS.PrefixLength > suitableECS.PrefixLength))
-                                    suitableECS = recordECS;
+                                NetworkAddress recordECS = record.GetRecordInfo().EDnsClientSubnet;
+                                if (recordECS is not null)
+                                {
+                                    if ((suitableECS is null) || (recordECS.PrefixLength > suitableECS.PrefixLength))
+                                        suitableECS = recordECS;
+                                }
                             }
-                        }
 
-                        if (suitableECS is not null)
-                        {
-                            EDnsOption[] ecsOption = EDnsClientSubnetOptionData.GetEDnsClientSubnetOption(requestECS.SourcePrefixLength, suitableECS.PrefixLength, requestECS.Address);
-
-                            if (options is null)
+                            if (suitableECS is not null)
                             {
-                                options = ecsOption;
-                            }
-                            else
-                            {
-                                List<EDnsOption> newOptions = new List<EDnsOption>(options.Count + ecsOption.Length);
+                                EDnsOption[] ecsOption = EDnsClientSubnetOptionData.GetEDnsClientSubnetOption(requestECS.SourcePrefixLength, suitableECS.PrefixLength, requestECS.AddressValue);
 
-                                newOptions.AddRange(options);
-                                newOptions.AddRange(ecsOption);
+                                if (options is null)
+                                {
+                                    options = ecsOption;
+                                }
+                                else
+                                {
+                                    List<EDnsOption> newOptions = new List<EDnsOption>(options.Count + 1);
 
-                                options = newOptions;
+                                    newOptions.AddRange(options);
+                                    newOptions.Add(ecsOption[0]);
+
+                                    options = newOptions;
+                                }
                             }
                         }
                     }
