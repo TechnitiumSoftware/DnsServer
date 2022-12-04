@@ -18,7 +18,11 @@ Nobody really bothers about domain name resolution since it works automatically 
 Be it a home network or an organization's network, having a locally running DNS server gives you more insights into your network and helps to understand it better using the DNS logs and stats. It improves overall performance since most queries are served from the DNS cache making web sites load faster by not having to wait for frequent DNS resolutions. It also gives you an additional control over your network allowing you to block domain names network wide and also allows you to route your DNS traffic securely using encrypted DNS protocols.
 
 # Sponsored By
-<p><a href="https://www.eltris.com/" target="_blank"><img src="https://technitium.com/img/logo-eltris.svg" alt="ELTRIS - European Managed Web Hosting Platform" title="ELTRIS - European Managed Web Hosting Platform"></a></p>
+<p align="center">
+	<a href="https://www.eltris.com/" target="_blank">
+		<img src="https://technitium.com/img/logo-eltris.svg" alt="ELTRIS - European Managed Web Hosting Platform" title="ELTRIS - European Managed Web Hosting Platform" />
+	</a>
+</p>
 
 # Features
 - Works on Windows, Linux, macOS and Raspberry Pi.
