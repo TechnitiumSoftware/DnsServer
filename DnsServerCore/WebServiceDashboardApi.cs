@@ -151,14 +151,14 @@ namespace DnsServerCore
             else
                 isLanguageEnUs = acceptLanguage.StartsWith("en-us", StringComparison.OrdinalIgnoreCase);
 
-            switch (strType)
+            switch (strType.ToLower())
             {
-                case "lastHour":
+                case "lasthour":
                     data = _dnsWebService.DnsServer.StatsManager.GetLastHourMinuteWiseStats(utcFormat);
                     labelFormat = "HH:mm";
                     break;
 
-                case "lastDay":
+                case "lastday":
                     data = _dnsWebService.DnsServer.StatsManager.GetLastDayHourWiseStats(utcFormat);
 
                     if (isLanguageEnUs)
@@ -168,7 +168,7 @@ namespace DnsServerCore
 
                     break;
 
-                case "lastWeek":
+                case "lastweek":
                     data = _dnsWebService.DnsServer.StatsManager.GetLastWeekDayWiseStats(utcFormat);
 
                     if (isLanguageEnUs)
@@ -178,7 +178,7 @@ namespace DnsServerCore
 
                     break;
 
-                case "lastMonth":
+                case "lastmonth":
                     data = _dnsWebService.DnsServer.StatsManager.GetLastMonthDayWiseStats(utcFormat);
 
                     if (isLanguageEnUs)
@@ -188,7 +188,7 @@ namespace DnsServerCore
 
                     break;
 
-                case "lastYear":
+                case "lastyear":
                     labelFormat = "MM/YYYY";
                     data = _dnsWebService.DnsServer.StatsManager.GetLastYearMonthWiseStats(utcFormat);
                     break;
@@ -543,25 +543,25 @@ namespace DnsServerCore
 
             List<KeyValuePair<string, long>> topStatsData;
 
-            switch (strType)
+            switch (strType.ToLower())
             {
-                case "lastHour":
+                case "lasthour":
                     topStatsData = _dnsWebService.DnsServer.StatsManager.GetLastHourTopStats(statsType, limit);
                     break;
 
-                case "lastDay":
+                case "lastday":
                     topStatsData = _dnsWebService.DnsServer.StatsManager.GetLastDayTopStats(statsType, limit);
                     break;
 
-                case "lastWeek":
+                case "lastweek":
                     topStatsData = _dnsWebService.DnsServer.StatsManager.GetLastWeekTopStats(statsType, limit);
                     break;
 
-                case "lastMonth":
+                case "lastmonth":
                     topStatsData = _dnsWebService.DnsServer.StatsManager.GetLastMonthTopStats(statsType, limit);
                     break;
 
-                case "lastYear":
+                case "lastyear":
                     topStatsData = _dnsWebService.DnsServer.StatsManager.GetLastYearTopStats(statsType, limit);
                     break;
 
