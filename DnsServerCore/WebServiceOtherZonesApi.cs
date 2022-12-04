@@ -64,6 +64,8 @@ namespace DnsServerCore
                 domain = "";
 
             string direction = request.QueryString["direction"];
+            if (direction is not null)
+                direction = direction.ToLower();
 
             List<string> subZones = new List<string>();
             List<DnsResourceRecord> records = new List<DnsResourceRecord>();
@@ -143,6 +145,8 @@ namespace DnsServerCore
                 domain = "";
 
             string direction = request.QueryString["direction"];
+            if (direction is not null)
+                direction = direction.ToLower();
 
             List<string> subZones = new List<string>();
             List<DnsResourceRecord> records = new List<DnsResourceRecord>();
@@ -303,6 +307,8 @@ namespace DnsServerCore
                 domain = "";
 
             string direction = request.QueryString["direction"];
+            if (direction is not null)
+                direction = direction.ToLower();
 
             List<string> subZones = new List<string>();
             List<DnsResourceRecord> records = new List<DnsResourceRecord>();
