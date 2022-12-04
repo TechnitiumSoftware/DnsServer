@@ -446,6 +446,9 @@ namespace DnsServerCore.Auth
 
         public User CreateUser(string displayName, string username, string password, int iterations = User.DEFAULT_ITERATIONS)
         {
+            if (_users.Count >= byte.MaxValue)
+                throw new DnsWebServiceException("Cannot create more than 255 users.");
+
             username = username.ToLower();
 
             User user = new User(displayName, username, password, iterations);
@@ -534,6 +537,9 @@ namespace DnsServerCore.Auth
 
         public Group CreateGroup(string name, string description)
         {
+            if (_groups.Count >= byte.MaxValue)
+                throw new DnsWebServiceException("Cannot create more than 255 groups.");
+
             Group group = new Group(name, description);
 
             if (_groups.TryAdd(name.ToLower(), group))
