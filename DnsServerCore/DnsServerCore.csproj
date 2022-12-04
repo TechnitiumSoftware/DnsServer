@@ -2,6 +2,17 @@
 
 	<PropertyGroup>
 		<TargetFramework>net7.0</TargetFramework>
+		<AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
+		<CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>
+		<Authors>Shreyas Zare</Authors>
+		<Company>Technitium</Company>
+		<Product>Technitium DNS Server</Product>
+		<PackageProjectUrl>https://technitium.com/dns/</PackageProjectUrl>
+		<RepositoryUrl>https://github.com/TechnitiumSoftware/DnsServer</RepositoryUrl>
+		<RepositoryType></RepositoryType>
+		<Description></Description>
+		<PackageId>DnsServer</PackageId>
+		<Version>10.0.1</Version>
 	</PropertyGroup>
 
 	<ItemGroup>
@@ -100,7 +111,7 @@
 			<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
 		</Content>
 		<Content Include="root-anchors.xml">
-		  <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+			<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
 		</Content>
 		<Content Include="www\css\bootstrap-datetimepicker.min.css">
 			<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
@@ -175,7 +186,7 @@
 			<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
 		</Content>
 		<Content Include="www\img\loader-small.gif">
-		  <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+			<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
 		</Content>
 		<Content Include="www\img\loader.gif">
 			<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
@@ -193,7 +204,7 @@
 			<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
 		</Content>
 		<Content Include="www\js\auth.js">
-		  <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+			<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
 		</Content>
 		<Content Include="www\js\bootstrap-datetimepicker.min.js">
 			<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
@@ -228,13 +239,16 @@
 		<Content Include="www\js\zone.js">
 			<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
 		</Content>
+		<Content Include="www\js\dhcp.js">
+			<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+		</Content>
 		<Content Include="www\robots.txt">
 			<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
 		</Content>
 	</ItemGroup>
 
 	<ItemGroup>
-		<PackageReference Include="Newtonsoft.Json" Version="13.0.1" />
+		<PackageReference Include="Newtonsoft.Json" Version="13.0.2" />
 	</ItemGroup>
 
 	<ItemGroup>
@@ -253,27 +267,7 @@
 	</ItemGroup>
 
 	<ItemGroup>
-		<Content Include="www\js\dhcp.js">
-			<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-		</Content>
-	</ItemGroup>
-
-	<ItemGroup>
 		<ProjectReference Include="..\DnsServerCore.ApplicationCommon\DnsServerCore.ApplicationCommon.csproj" />
 	</ItemGroup>
-
-	<PropertyGroup>
-		<AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
-		<CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>
-		<Authors>Shreyas Zare</Authors>
-		<Company>Technitium</Company>
-		<Product>Technitium DNS Server</Product>
-		<PackageProjectUrl>https://technitium.com/dns/</PackageProjectUrl>
-		<RepositoryUrl>https://github.com/TechnitiumSoftware/DnsServer</RepositoryUrl>
-		<RepositoryType></RepositoryType>
-		<Description></Description>
-		<PackageId>DnsServer</PackageId>
-		<Version>10.0</Version>
-	</PropertyGroup>
 
 </Project>

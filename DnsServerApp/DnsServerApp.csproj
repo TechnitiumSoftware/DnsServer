@@ -1,46 +1,46 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
-  <PropertyGroup>
-    <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
-    <CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>
-    <OutputType>Exe</OutputType>
-    <TargetFramework>net7.0</TargetFramework>
-    <ApplicationIcon>logo2.ico</ApplicationIcon>
-    <Version>10.0</Version>
-    <Company>Technitium</Company>
-    <Product>Technitium DNS Server</Product>
-    <Authors>Shreyas Zare</Authors>
-    <AssemblyName>DnsServerApp</AssemblyName>
-    <RootNamespace>DnsServerApp</RootNamespace>
-    <StartupObject>DnsServerApp.Program</StartupObject>
-    <PackageProjectUrl>https://technitium.com/dns/</PackageProjectUrl>
-    <RepositoryUrl>https://github.com/TechnitiumSoftware/DnsServer</RepositoryUrl>
-  </PropertyGroup>
+	<PropertyGroup>
+		<AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
+		<CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>
+		<OutputType>Exe</OutputType>
+		<TargetFramework>net7.0</TargetFramework>
+		<ApplicationIcon>logo2.ico</ApplicationIcon>
+		<Version>10.0.1</Version>
+		<Company>Technitium</Company>
+		<Product>Technitium DNS Server</Product>
+		<Authors>Shreyas Zare</Authors>
+		<AssemblyName>DnsServerApp</AssemblyName>
+		<RootNamespace>DnsServerApp</RootNamespace>
+		<StartupObject>DnsServerApp.Program</StartupObject>
+		<PackageProjectUrl>https://technitium.com/dns/</PackageProjectUrl>
+		<RepositoryUrl>https://github.com/TechnitiumSoftware/DnsServer</RepositoryUrl>
+	</PropertyGroup>
 
-  <ItemGroup>
-    <RuntimeHostConfigurationOption Include="System.Globalization.Invariant" Value="true" />
-  </ItemGroup>
+	<ItemGroup>
+		<RuntimeHostConfigurationOption Include="System.Globalization.Invariant" Value="true" />
+	</ItemGroup>
 
-  <ItemGroup>
-    <None Remove="start.bat" />
-    <None Remove="start.sh" />
-    <None Remove="systemd.service" />
-  </ItemGroup>
+	<ItemGroup>
+		<None Remove="start.bat" />
+		<None Remove="start.sh" />
+		<None Remove="systemd.service" />
+	</ItemGroup>
 
-  <ItemGroup>
-    <Content Include="start.bat">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </Content>
-    <Content Include="start.sh">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </Content>
-    <Content Include="systemd.service">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </Content>
-  </ItemGroup>
+	<ItemGroup>
+		<Content Include="start.bat">
+			<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+		</Content>
+		<Content Include="start.sh">
+			<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+		</Content>
+		<Content Include="systemd.service">
+			<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+		</Content>
+	</ItemGroup>
 
-  <ItemGroup>
-    <ProjectReference Include="..\DnsServerCore\DnsServerCore.csproj" />
-  </ItemGroup>
+	<ItemGroup>
+		<ProjectReference Include="..\DnsServerCore\DnsServerCore.csproj" />
+	</ItemGroup>
 
 </Project>
