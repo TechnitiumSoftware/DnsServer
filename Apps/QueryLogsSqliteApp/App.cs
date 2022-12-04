@@ -72,6 +72,7 @@ namespace QueryLogsSqlite
             }
 
             BulkInsertLogs(); //flush any pending logs
+            SqliteConnection.ClearAllPools(); //close db file
         }
 
         #endregion
