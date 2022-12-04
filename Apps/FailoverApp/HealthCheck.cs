@@ -159,6 +159,7 @@ namespace Failover
                         HttpClient httpClient = new HttpClient(_httpHandler);
                         httpClient.Timeout = TimeSpan.FromMilliseconds(_timeout);
                         httpClient.DefaultRequestHeaders.UserAgent.ParseAdd(HTTP_HEALTH_CHECK_USER_AGENT);
+                        httpClient.DefaultRequestHeaders.ConnectionClose = true;
 
                         _httpClient = httpClient;
                     }
@@ -169,6 +170,7 @@ namespace Failover
                             HttpClient httpClient = new HttpClient(_httpHandler);
                             httpClient.Timeout = TimeSpan.FromMilliseconds(_timeout);
                             httpClient.DefaultRequestHeaders.UserAgent.ParseAdd(HTTP_HEALTH_CHECK_USER_AGENT);
+                            httpClient.DefaultRequestHeaders.ConnectionClose = true;
 
                             HttpClient oldHttpClient = _httpClient;
                             _httpClient = httpClient;
