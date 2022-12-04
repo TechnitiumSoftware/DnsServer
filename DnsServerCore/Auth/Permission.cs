@@ -81,9 +81,11 @@ namespace DnsServerCore.Auth
 
         public Permission(BinaryReader bR, AuthManager authManager)
         {
-            switch (bR.ReadByte())
+            byte version = bR.ReadByte();
+            switch (version)
             {
                 case 1:
+                case 2:
                     _section = (PermissionSection)bR.ReadByte();
 
                     {
@@ -115,7 +117,13 @@ namespace DnsServerCore.Auth
                     }
 
                     {
-                        int count = bR.ReadByte();
+                        int count;
+
+                        if (version >= 2)
+                            count = bR.ReadInt32();
+                        else
+                            count = bR.ReadByte();
+
                         _subItemPermissions = new ConcurrentDictionary<string, Permission>(1, count);
 
                         for (int i = 0; i < count; i++)
@@ -276,7 +284,7 @@ namespace DnsServerCore.Auth
 
         public void WriteTo(BinaryWriter bW)
         {
-            bW.Write((byte)1);
+            bW.Write((byte)2);
             bW.Write((byte)_section);
 
             {
@@ -300,7 +308,7 @@ namespace DnsServerCore.Auth
             }
 
             {
-                bW.Write(Convert.ToByte(_subItemPermissions.Count));
+                bW.Write(_subItemPermissions.Count);
 
                 foreach (KeyValuePair<string, Permission> subItemPermission in _subItemPermissions)
                 {
