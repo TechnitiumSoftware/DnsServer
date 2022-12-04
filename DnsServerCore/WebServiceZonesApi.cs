@@ -2489,7 +2489,7 @@ namespace DnsServerCore
                             digest = value;
                         }
 
-                        newRecord = new DnsResourceRecord(domain, type, DnsClass.IN, ttl, new DnsDSRecordData(ushort.Parse(strKeyTag), Enum.Parse<DnssecAlgorithm>(strAlgorithm, true), Enum.Parse<DnssecDigestType>(strDigestType, true), Convert.FromHexString(digest)));
+                        newRecord = new DnsResourceRecord(domain, type, DnsClass.IN, ttl, new DnsDSRecordData(ushort.Parse(strKeyTag), Enum.Parse<DnssecAlgorithm>(strAlgorithm.Replace('-', '_'), true), Enum.Parse<DnssecDigestType>(strDigestType.Replace('-', '_'), true), Convert.FromHexString(digest)));
 
                         if (!string.IsNullOrEmpty(comments))
                             newRecord.SetComments(comments);
@@ -2939,7 +2939,7 @@ namespace DnsServerCore
                             digest = value;
                         }
 
-                        _dnsWebService.DnsServer.AuthZoneManager.DeleteRecord(zoneInfo.Name, domain, type, new DnsDSRecordData(ushort.Parse(strKeyTag), Enum.Parse<DnssecAlgorithm>(strAlgorithm, true), Enum.Parse<DnssecDigestType>(strDigestType, true), Convert.FromHexString(digest)));
+                        _dnsWebService.DnsServer.AuthZoneManager.DeleteRecord(zoneInfo.Name, domain, type, new DnsDSRecordData(ushort.Parse(strKeyTag), Enum.Parse<DnssecAlgorithm>(strAlgorithm.Replace('-', '_'), true), Enum.Parse<DnssecDigestType>(strDigestType.Replace('-', '_'), true), Convert.FromHexString(digest)));
                     }
                     break;
 
@@ -3565,8 +3565,8 @@ namespace DnsServerCore
                             newDigest = newValue;
                         }
 
-                        DnsResourceRecord oldRecord = new DnsResourceRecord(domain, type, DnsClass.IN, 0, new DnsDSRecordData(ushort.Parse(strKeyTag), Enum.Parse<DnssecAlgorithm>(strAlgorithm, true), Enum.Parse<DnssecDigestType>(strDigestType, true), Convert.FromHexString(digest)));
-                        newRecord = new DnsResourceRecord(newDomain, type, DnsClass.IN, ttl, new DnsDSRecordData(ushort.Parse(strNewKeyTag), Enum.Parse<DnssecAlgorithm>(strNewAlgorithm, true), Enum.Parse<DnssecDigestType>(strNewDigestType, true), Convert.FromHexString(newDigest)));
+                        DnsResourceRecord oldRecord = new DnsResourceRecord(domain, type, DnsClass.IN, 0, new DnsDSRecordData(ushort.Parse(strKeyTag), Enum.Parse<DnssecAlgorithm>(strAlgorithm.Replace('-', '_'), true), Enum.Parse<DnssecDigestType>(strDigestType.Replace('-', '_'), true), Convert.FromHexString(digest)));
+                        newRecord = new DnsResourceRecord(newDomain, type, DnsClass.IN, ttl, new DnsDSRecordData(ushort.Parse(strNewKeyTag), Enum.Parse<DnssecAlgorithm>(strNewAlgorithm.Replace('-', '_'), true), Enum.Parse<DnssecDigestType>(strNewDigestType.Replace('-', '_'), true), Convert.FromHexString(newDigest)));
 
                         if (disable)
                             newRecord.Disable();
