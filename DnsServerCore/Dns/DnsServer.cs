@@ -1115,9 +1115,9 @@ namespace DnsServerCore.Dns
 
             IReadOnlyList<EDnsOption> options = null;
 
-            EDnsClientSubnetOptionData requestECS = request.GetEDnsClientSubnetOption();
+            EDnsClientSubnetOptionData requestECS = request.GetEDnsClientSubnetOption(true);
             if ((requestECS is not null) && (request.Question.Count == 1) && CacheZone.IsTypeSupportedForEDnsClientSubnet(request.Question[0].Type))
-                options = EDnsClientSubnetOptionData.GetEDnsClientSubnetOption(requestECS.SourcePrefixLength, 0, requestECS.Address);
+                options = EDnsClientSubnetOptionData.GetEDnsClientSubnetOption(requestECS.SourcePrefixLength, 0, requestECS.AddressValue);
 
             if (response.Additional.Count == 0)
                 return response.Clone(null, null, new DnsResourceRecord[] { DnsDatagramEdns.GetOPTFor(_udpPayloadSize, response.RCODE, 0, request.DnssecOk ? EDnsHeaderFlags.DNSSEC_OK : EDnsHeaderFlags.None, options) });
@@ -2669,9 +2669,10 @@ namespace DnsServerCore.Dns
 
         private async Task<DnsDatagram> RecursiveResolveAsync(DnsDatagram request, IPEndPoint remoteEP, IReadOnlyList<DnsResourceRecord> conditionalForwarders, bool dnssecValidation, bool cachePrefetchOperation, bool cacheRefreshOperation)
         {
+            DnsQuestionRecord question = request.Question[0];
             NetworkAddress eDnsClientSubnet = null;
 
-            if (_eDnsClientSubnet)
+            if (_eDnsClientSubnet && CacheZone.IsTypeSupportedForEDnsClientSubnet(question.Type))
             {
                 EDnsClientSubnetOptionData requestECS = request.GetEDnsClientSubnetOption();
                 if (requestECS is null)
@@ -2701,7 +2702,7 @@ namespace DnsServerCore.Dns
                 {
                     return new DnsDatagram(request.Identifier, true, DnsOpcode.StandardQuery, false, false, request.RecursionDesired, true, false, false, DnsResponseCode.FormatError, request.Question) { Tag = DnsServerResponseType.Authoritative };
                 }
-                else if ((requestECS.SourcePrefixLength == 0) || NetUtilities.IsPrivateIP(requestECS.Address))
+                else if ((requestECS.SourcePrefixLength == 0) || NetUtilities.IsPrivateIP(requestECS.AddressValue))
                 {
                     //disable ECS option
                     request.ShadowHideEDnsClientSubnetOption();
@@ -2712,12 +2713,12 @@ namespace DnsServerCore.Dns
                     switch (requestECS.Family)
                     {
                         case EDnsClientSubnetAddressFamily.IPv4:
-                            eDnsClientSubnet = new NetworkAddress(requestECS.Address, Math.Min(requestECS.SourcePrefixLength, _eDnsClientSubnetIPv4PrefixLength));
+                            eDnsClientSubnet = new NetworkAddress(requestECS.AddressValue, Math.Min(requestECS.SourcePrefixLength, _eDnsClientSubnetIPv4PrefixLength));
                             request.SetShadowEDnsClientSubnetOption(eDnsClientSubnet);
                             break;
 
                         case EDnsClientSubnetAddressFamily.IPv6:
-                            eDnsClientSubnet = new NetworkAddress(requestECS.Address, Math.Min(requestECS.SourcePrefixLength, _eDnsClientSubnetIPv6PrefixLength));
+                            eDnsClientSubnet = new NetworkAddress(requestECS.AddressValue, Math.Min(requestECS.SourcePrefixLength, _eDnsClientSubnetIPv6PrefixLength));
                             request.SetShadowEDnsClientSubnetOption(eDnsClientSubnet);
                             break;
                     }
@@ -2754,7 +2755,6 @@ namespace DnsServerCore.Dns
             }
 
             //recursion with locking
-            DnsQuestionRecord question = request.Question[0];
             TaskCompletionSource<RecursiveResolveResponse> resolverTaskCompletionSource = new TaskCompletionSource<RecursiveResolveResponse>();
             Task<RecursiveResolveResponse> resolverTask = _resolverTasks.GetOrAdd(GetResolverQueryKey(question, eDnsClientSubnet), resolverTaskCompletionSource.Task);
 
@@ -2965,6 +2965,7 @@ namespace DnsServerCore.Dns
                     dnsClient.Concurrency = _forwarderConcurrency;
                     dnsClient.UdpPayloadSize = _udpPayloadSize;
                     dnsClient.DnssecValidation = dnssecValidation;
+                    dnsClient.EDnsClientSubnet = eDnsClientSubnet;
                     dnsClient.ConditionalForwardingZoneCut = question.Name; //adding zone cut to allow CNAME domains to be resolved independently to handle cases when private/forwarder zone is configured for them
 
                     response = await dnsClient.ResolveAsync(question);
@@ -3286,11 +3287,12 @@ namespace DnsServerCore.Dns
 
                     IReadOnlyList<EDnsOption> options;
 
-                    if (response.GetEDnsClientSubnetOption() is not null)
+                    if (response.GetEDnsClientSubnetOption(true) is not null)
                     {
                         //response contains ECS
-                        if (CacheZone.IsTypeSupportedForEDnsClientSubnet(request.Question[0].Type))
+                        if ((request.GetEDnsClientSubnetOption(true) is not null) && CacheZone.IsTypeSupportedForEDnsClientSubnet(request.Question[0].Type))
                         {
+                            //request has ECS and type is supported; keep ECS in response
                             options = response.EDNS.Options;
                         }
                         else
