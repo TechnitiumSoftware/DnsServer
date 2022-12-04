@@ -1,5 +1,14 @@
 # Technitium DNS Server Change Log
 
+## Version 10.0.1
+Release Date: 4 December 2022
+
+- Fixed multiple issues in EDNS Client Subnet (ECS) implementation.
+- Fixed issue with serialization when saving permission data when there are more than 255 zones.
+- Failover App: Fixed issue with idle connection for HTTP/HTTPS probes.
+- QueryLogs (Sqlite) App: Fixes issue of open db file on windows installations.
+- Multiple other minor bug fixes and improvements.
+
 ## Version 10.0
 Release Date: 26 November 2022
 
