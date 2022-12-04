@@ -271,10 +271,10 @@ namespace DnsServerCore.Dns.Applications
                 RefreshAppObjectLists();
 
                 app.Dispose();
-            }
 
-            if (Directory.Exists(app.DnsServer.ApplicationFolder))
-                Directory.Delete(app.DnsServer.ApplicationFolder, true);
+                if (Directory.Exists(app.DnsServer.ApplicationFolder))
+                    Directory.Delete(app.DnsServer.ApplicationFolder, true);
+            }
         }
 
         #endregion
