@@ -41,7 +41,7 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "WildIpApp", "Apps\WildIpApp
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "NoDataApp", "Apps\NoDataApp\NoDataApp.csproj", "{BE08D981-DDB0-4314-A571-D68EDF0F3971}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Dns64App", "Apps\Dns64App\Dns64App.csproj", "{3514C4B4-78C1-46A1-82D5-4E676DD114FA}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Dns64App", "Apps\Dns64App\Dns64App.csproj", "{3514C4B4-78C1-46A1-82D5-4E676DD114FA}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
