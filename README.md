@@ -20,7 +20,7 @@ Be it a home network or an organization's network, having a locally running DNS 
 # Sponsored By
 <p align="center">
 	<a href="https://www.eltris.com/" target="_blank">
-		<img src="https://technitium.com/img/logo-eltris-github.svg" width="200" alt="ELTRIS - European Managed Web Hosting Platform" title="ELTRIS - European Managed Web Hosting Platform" />
+		<img src="https://technitium.com/img/logo-eltris-bg.svg" width="200" alt="ELTRIS - European Managed Web Hosting Platform" title="ELTRIS - European Managed Web Hosting Platform" />
 	</a>
 </p>
 
