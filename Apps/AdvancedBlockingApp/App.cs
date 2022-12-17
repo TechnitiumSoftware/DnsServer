@@ -18,7 +18,6 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
 using DnsServerCore.ApplicationCommon;
-using Newtonsoft.Json;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -27,9 +26,11 @@ using System.Net.Http;
 using System.Net.Sockets;
 using System.Security.Cryptography;
 using System.Text;
+using System.Text.Json;
 using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
+using TechnitiumLibrary;
 using TechnitiumLibrary.Net;
 using TechnitiumLibrary.Net.Dns;
 using TechnitiumLibrary.Net.Dns.ResourceRecords;
@@ -252,29 +253,21 @@ namespace AdvancedBlocking
             _soaRecord = new DnsSOARecordData(_dnsServer.ServerDomain, "hostadmin@" + _dnsServer.ServerDomain, 1, 14400, 3600, 604800, 60);
             _nsRecord = new DnsNSRecordData(_dnsServer.ServerDomain);
 
-            dynamic jsonConfig = JsonConvert.DeserializeObject(config);
+            using JsonDocument jsonDocument = JsonDocument.Parse(config);
+            JsonElement jsonConfig = jsonDocument.RootElement;
 
-            _enableBlocking = jsonConfig.enableBlocking.Value;
-            _blockListUrlUpdateIntervalHours = Convert.ToInt32(jsonConfig.blockListUrlUpdateIntervalHours.Value);
+            _enableBlocking = jsonConfig.GetProperty("enableBlocking").GetBoolean();
+            _blockListUrlUpdateIntervalHours = jsonConfig.GetProperty("blockListUrlUpdateIntervalHours").GetInt32();
+
+            _networkGroupMap = jsonConfig.ReadObjectAsMap("networkGroupMap", delegate (string network, JsonElement jsonGroup)
+            {
+                if (!NetworkAddress.TryParse(network, out NetworkAddress networkAddress))
+                    throw new InvalidOperationException("Network group map contains an invalid network address: " + network);
+
+                return new Tuple<NetworkAddress, string>(networkAddress, jsonGroup.GetString());
+            });
 
             {
-                Dictionary<NetworkAddress, string> networkGroupMap = new Dictionary<NetworkAddress, string>();
-
-                foreach (dynamic jsonProperty in jsonConfig.networkGroupMap)
-                {
-                    string network = jsonProperty.Name;
-                    string group = jsonProperty.Value;
-
-                    if (NetworkAddress.TryParse(network, out NetworkAddress networkAddress))
-                        networkGroupMap.Add(networkAddress, group);
-                }
-
-                _networkGroupMap = networkGroupMap;
-            }
-
-            {
-                Dictionary<string, Group> groups = new Dictionary<string, Group>();
-
                 Dictionary<Uri, BlockList> allAllowListZones = new Dictionary<Uri, BlockList>(0);
                 Dictionary<Uri, BlockList> allBlockListZones = new Dictionary<Uri, BlockList>(0);
 
@@ -283,11 +276,9 @@ namespace AdvancedBlocking
 
                 Dictionary<Uri, AdBlockList> allAdBlockListZones = new Dictionary<Uri, AdBlockList>(0);
 
-                foreach (dynamic jsonGroup in jsonConfig.groups)
+                _groups = jsonConfig.ReadArrayAsMap("groups", delegate (JsonElement jsonGroup)
                 {
                     Group group = new Group(this, jsonGroup);
-                    if (!groups.TryAdd(group.Name, group))
-                        continue;
 
                     foreach (Uri allowListUrl in group.AllowListUrls)
                     {
@@ -343,9 +334,9 @@ namespace AdvancedBlocking
                                 allAdBlockListZones.Add(adblockListUrl, new AdBlockList(_dnsServer, adblockListUrl));
                         }
                     }
-                }
 
-                _groups = groups;
+                    return new Tuple<string, Group>(group.Name, group);
+                });
 
                 _allAllowListZones = allAllowListZones;
                 _allBlockListZones = allBlockListZones;
@@ -600,22 +591,23 @@ namespace AdvancedBlocking
 
             #region constructor
 
-            public Group(App app, dynamic jsonGroup)
+            public Group(App app, JsonElement jsonGroup)
             {
                 _app = app;
 
-                _name = jsonGroup.name.Value;
-                _enableBlocking = jsonGroup.enableBlocking.Value;
-                _allowTxtBlockingReport = jsonGroup.allowTxtBlockingReport.Value;
-                _blockAsNxDomain = jsonGroup.blockAsNxDomain.Value;
+                _name = jsonGroup.GetProperty("name").GetString();
+                _enableBlocking = jsonGroup.GetProperty("enableBlocking").GetBoolean();
+                _allowTxtBlockingReport = jsonGroup.GetProperty("allowTxtBlockingReport").GetBoolean();
+                _blockAsNxDomain = jsonGroup.GetProperty("blockAsNxDomain").GetBoolean();
 
                 {
+                    JsonElement jsonBlockingAddresses = jsonGroup.GetProperty("blockingAddresses");
                     List<DnsARecordData> aRecords = new List<DnsARecordData>();
                     List<DnsAAAARecordData> aaaaRecords = new List<DnsAAAARecordData>();
 
-                    foreach (dynamic jsonBlockingAddress in jsonGroup.blockingAddresses)
+                    foreach (JsonElement jsonBlockingAddress in jsonBlockingAddresses.EnumerateArray())
                     {
-                        string strAddress = jsonBlockingAddress.Value;
+                        string strAddress = jsonBlockingAddress.GetString();
 
                         if (IPAddress.TryParse(strAddress, out IPAddress address))
                         {
@@ -636,59 +628,36 @@ namespace AdvancedBlocking
                     _aaaaRecords = aaaaRecords;
                 }
 
-                _allowed = ReadJsonDomainArray(jsonGroup.allowed);
-                _blocked = ReadJsonDomainArray(jsonGroup.blocked);
-                _allowListUrls = ReadJsonUrlArray(jsonGroup.allowListUrls);
-                _blockListUrls = ReadJsonUrlArray(jsonGroup.blockListUrls);
+                _allowed = jsonGroup.ReadArrayAsMap("allowed", GetMapEntry);
+                _blocked = jsonGroup.ReadArrayAsMap("blocked", GetMapEntry);
+                _allowListUrls = jsonGroup.ReadArray("allowListUrls", GetUriEntry);
+                _blockListUrls = jsonGroup.ReadArray("blockListUrls", GetUriEntry);
 
-                _allowedRegex = ReadJsonRegexArray(jsonGroup.allowedRegex);
-                _blockedRegex = ReadJsonRegexArray(jsonGroup.blockedRegex);
-                _regexAllowListUrls = ReadJsonUrlArray(jsonGroup.regexAllowListUrls);
-                _regexBlockListUrls = ReadJsonUrlArray(jsonGroup.regexBlockListUrls);
+                _allowedRegex = jsonGroup.ReadArray("allowedRegex", GetRegexEntry);
+                _blockedRegex = jsonGroup.ReadArray("blockedRegex", GetRegexEntry);
+                _regexAllowListUrls = jsonGroup.ReadArray("regexAllowListUrls", GetUriEntry);
+                _regexBlockListUrls = jsonGroup.ReadArray("regexBlockListUrls", GetUriEntry);
 
-                _adblockListUrls = ReadJsonUrlArray(jsonGroup.adblockListUrls);
+                _adblockListUrls = jsonGroup.ReadArray("adblockListUrls", GetUriEntry);
             }
 
             #endregion
 
             #region private
 
-            private static IReadOnlyDictionary<string, object> ReadJsonDomainArray(dynamic jsonDomainArray)
+            private static Tuple<string, object> GetMapEntry(JsonElement jsonElement)
             {
-                Dictionary<string, object> domains = new Dictionary<string, object>(jsonDomainArray.Count);
-
-                foreach (dynamic jsonDomain in jsonDomainArray)
-                    domains.TryAdd(jsonDomain.Value, null);
-
-                return domains;
+                return new Tuple<string, object>(jsonElement.GetString(), null);
             }
 
-            private static IReadOnlyList<Regex> ReadJsonRegexArray(dynamic jsonRegexArray)
+            private static Uri GetUriEntry(string uriString)
             {
-                List<Regex> regices = new List<Regex>(jsonRegexArray.Count);
-
-                foreach (dynamic jsonRegex in jsonRegexArray)
-                {
-                    string regexPattern = jsonRegex.Value;
-
-                    regices.Add(new Regex(regexPattern, RegexOptions.IgnoreCase | RegexOptions.Singleline | RegexOptions.Compiled));
-                }
-
-                return regices;
+                return new Uri(uriString);
             }
 
-            private static IReadOnlyList<Uri> ReadJsonUrlArray(dynamic jsonUrlArray)
+            private static Regex GetRegexEntry(string pattern)
             {
-                List<Uri> urls = new List<Uri>(jsonUrlArray.Count);
-
-                foreach (dynamic jsonUrl in jsonUrlArray)
-                {
-                    string strUrl = jsonUrl.Value;
-
-                    urls.Add(new Uri(strUrl));
-                }
-
-                return urls;
+                return new Regex(pattern, RegexOptions.IgnoreCase | RegexOptions.Singleline | RegexOptions.Compiled);
             }
 
             #endregion
