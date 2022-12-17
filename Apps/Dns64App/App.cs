@@ -18,12 +18,13 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
 using DnsServerCore.ApplicationCommon;
-using Newtonsoft.Json;
 using System;
 using System.Collections.Generic;
 using System.Net;
 using System.Net.Sockets;
+using System.Text.Json;
 using System.Threading.Tasks;
+using TechnitiumLibrary;
 using TechnitiumLibrary.Net;
 using TechnitiumLibrary.Net.Dns;
 using TechnitiumLibrary.Net.Dns.ResourceRecords;
@@ -60,41 +61,27 @@ namespace Dns64
         {
             _dnsServer = dnsServer;
 
-            dynamic jsonConfig = JsonConvert.DeserializeObject(config);
+            using JsonDocument jsonDocument = JsonDocument.Parse(config);
+            JsonElement jsonConfig = jsonDocument.RootElement;
 
-            _enableDns64 = jsonConfig.enableDns64.Value;
+            _enableDns64 = jsonConfig.GetProperty("enableDns64").GetBoolean();
 
+            _networkGroupMap = jsonConfig.ReadObjectAsMap("networkGroupMap", delegate (string network, JsonElement group)
             {
-                Dictionary<NetworkAddress, string> networkGroupMap = new Dictionary<NetworkAddress, string>();
+                if (!NetworkAddress.TryParse(network, out NetworkAddress networkAddress))
+                    throw new InvalidOperationException("Network group map contains an invalid network address: " + network);
 
-                foreach (dynamic jsonProperty in jsonConfig.networkGroupMap)
-                {
-                    string network = jsonProperty.Name;
-                    string group = jsonProperty.Value;
+                if (networkAddress.Address.AddressFamily == AddressFamily.InterNetwork)
+                    throw new InvalidOperationException("Network group map can only have IPv6 network addresses: " + network);
 
-                    if (!NetworkAddress.TryParse(network, out NetworkAddress networkAddress))
-                        throw new InvalidOperationException("Network group map contains an invalid network address: " + network);
+                return new Tuple<NetworkAddress, string>(networkAddress, group.GetString());
+            });
 
-                    if (networkAddress.Address.AddressFamily == AddressFamily.InterNetwork)
-                        throw new InvalidOperationException("Network group map can only have IPv6 network addresses: " + network);
-
-                    networkGroupMap.Add(networkAddress, group);
-                }
-
-                _networkGroupMap = networkGroupMap;
-            }
-
+            _groups = jsonConfig.ReadArrayAsMap("groups", delegate (JsonElement jsonGroup)
             {
-                Dictionary<string, Group> groups = new Dictionary<string, Group>();
-
-                foreach (dynamic jsonGroup in jsonConfig.groups)
-                {
-                    Group group = new Group(jsonGroup);
-                    groups.Add(group.Name, group);
-                }
-
-                _groups = groups;
-            }
+                Group group = new Group(jsonGroup);
+                return new Tuple<string, Group>(group.Name, group);
+            });
 
             return Task.CompletedTask;
         }
@@ -275,61 +262,48 @@ namespace Dns64
 
             #region constructor
 
-            public Group(dynamic jsonGroup)
+            public Group(JsonElement jsonGroup)
             {
-                _name = jsonGroup.name.Value;
-                _enableDns64 = jsonGroup.enableDns64.Value;
+                _name = jsonGroup.GetProperty("name").GetString();
+                _enableDns64 = jsonGroup.GetProperty("enableDns64").GetBoolean();
 
+                _dns64PrefixMap = jsonGroup.ReadObjectAsMap("dns64PrefixMap", delegate (string strNetwork, JsonElement jsonDns64Prefix)
                 {
-                    Dictionary<NetworkAddress, NetworkAddress> dns64PrefixMap = new Dictionary<NetworkAddress, NetworkAddress>();
+                    string strDns64Prefix = jsonDns64Prefix.GetString();
 
-                    foreach (dynamic jsonProperty in jsonGroup.dns64PrefixMap)
+                    NetworkAddress network = NetworkAddress.Parse(strNetwork);
+                    NetworkAddress dns64Prefix = null;
+
+                    if (strDns64Prefix is not null)
                     {
-                        string strNetwork = jsonProperty.Name;
-                        string strDns64Prefix = jsonProperty.Value;
+                        dns64Prefix = NetworkAddress.Parse(strDns64Prefix);
 
-                        NetworkAddress network = NetworkAddress.Parse(strNetwork);
-                        NetworkAddress dns64Prefix = null;
-
-                        if (strDns64Prefix is not null)
+                        switch (dns64Prefix.PrefixLength)
                         {
-                            dns64Prefix = NetworkAddress.Parse(strDns64Prefix);
+                            case 32:
+                            case 40:
+                            case 48:
+                            case 56:
+                            case 64:
+                            case 96:
+                                break;
 
-                            switch (dns64Prefix.PrefixLength)
-                            {
-                                case 32:
-                                case 40:
-                                case 48:
-                                case 56:
-                                case 64:
-                                case 96:
-                                    break;
-
-                                default:
-                                    throw new NotSupportedException("DNS64 prefix can have only the following prefixes: 32, 40, 48, 56, 64, or 96.");
-                            }
+                            default:
+                                throw new NotSupportedException("DNS64 prefix can have only the following prefixes: 32, 40, 48, 56, 64, or 96.");
                         }
-
-                        dns64PrefixMap.Add(network, dns64Prefix);
                     }
 
-                    _dns64PrefixMap = dns64PrefixMap;
-                }
+                    return new Tuple<NetworkAddress, NetworkAddress>(network, dns64Prefix);
+                });
 
+                _excludedIpv6 = jsonGroup.ReadArray("excludedIpv6", delegate (string strNetworkAddress)
                 {
-                    List<NetworkAddress> excludedIpv6 = new List<NetworkAddress>();
+                    NetworkAddress networkAddress = NetworkAddress.Parse(strNetworkAddress);
+                    if (networkAddress.Address.AddressFamily != AddressFamily.InterNetworkV6)
+                        throw new InvalidOperationException("An IPv6 network address is expected for 'excludedIpv6' array.");
 
-                    foreach (dynamic jsonItem in jsonGroup.excludedIpv6)
-                    {
-                        NetworkAddress networkAddress = NetworkAddress.Parse(jsonItem.Value);
-                        if (networkAddress.Address.AddressFamily != AddressFamily.InterNetworkV6)
-                            throw new InvalidOperationException("An IPv6 network address is expected for 'excludedIpv6' array.");
-
-                        excludedIpv6.Add(networkAddress);
-                    }
-
-                    _excludedIpv6 = excludedIpv6;
-                }
+                    return networkAddress;
+                });
             }
 
             #endregion
