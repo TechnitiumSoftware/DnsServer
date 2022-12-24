@@ -64,36 +64,35 @@ namespace DnsServerCore
 
         #region variables
 
-        readonly static RandomNumberGenerator _rng = RandomNumberGenerator.Create();
-
-        readonly LogManager _log;
-        readonly AuthManager _authManager;
-
-        readonly WebServiceAuthApi _authApi;
-        readonly WebServiceDashboardApi _dashboardApi;
-        readonly WebServiceZonesApi _zonesApi;
-        readonly WebServiceOtherZonesApi _otherZonesApi;
-        readonly WebServiceAppsApi _appsApi;
-        readonly WebServiceDhcpApi _dhcpApi;
-        readonly WebServiceLogsApi _logsApi;
-
-        readonly Version _currentVersion;
+        internal readonly Version _currentVersion;
         readonly string _appFolder;
-        readonly string _configFolder;
+        internal readonly string _configFolder;
         readonly Uri _updateCheckUri;
 
-        DnsServer _dnsServer;
-        DhcpServer _dhcpServer;
+        internal readonly LogManager _log;
+        internal readonly AuthManager _authManager;
 
-        IReadOnlyList<IPAddress> _webServiceLocalAddresses = new IPAddress[] { IPAddress.Any, IPAddress.IPv6Any };
-        int _webServiceHttpPort = 5380;
-        int _webServiceTlsPort = 53443;
-        bool _webServiceEnableTls;
-        bool _webServiceHttpToTlsRedirect;
-        bool _webServiceUseSelfSignedTlsCertificate;
-        string _webServiceTlsCertificatePath;
-        string _webServiceTlsCertificatePassword;
-        DateTime _webServiceTlsCertificateLastModifiedOn;
+        internal readonly WebServiceSettingsApi _settingsApi;
+        internal readonly WebServiceAuthApi _authApi;
+        internal readonly WebServiceDashboardApi _dashboardApi;
+        internal readonly WebServiceZonesApi _zonesApi;
+        internal readonly WebServiceOtherZonesApi _otherZonesApi;
+        internal readonly WebServiceAppsApi _appsApi;
+        internal readonly WebServiceDhcpApi _dhcpApi;
+        internal readonly WebServiceLogsApi _logsApi;
+
+        internal DnsServer _dnsServer;
+        internal DhcpServer _dhcpServer;
+
+        internal IReadOnlyList<IPAddress> _webServiceLocalAddresses = new IPAddress[] { IPAddress.Any, IPAddress.IPv6Any };
+        internal int _webServiceHttpPort = 5380;
+        internal int _webServiceTlsPort = 53443;
+        internal bool _webServiceEnableTls;
+        internal bool _webServiceHttpToTlsRedirect;
+        internal bool _webServiceUseSelfSignedTlsCertificate;
+        internal string _webServiceTlsCertificatePath;
+        internal string _webServiceTlsCertificatePassword;
+        internal DateTime _webServiceTlsCertificateLastModifiedOn;
 
         HttpListener _webService;
         IReadOnlyList<Socket> _webServiceTlsListeners;
@@ -102,8 +101,8 @@ namespace DnsServerCore
         string _webServiceHostname;
         IPEndPoint _webServiceHttpEP;
 
-        string _dnsTlsCertificatePath;
-        string _dnsTlsCertificatePassword;
+        internal string _dnsTlsCertificatePath;
+        internal string _dnsTlsCertificatePassword;
         DateTime _dnsTlsCertificateLastModifiedOn;
 
         Timer _tlsCertificateUpdateTimer;
@@ -111,15 +110,6 @@ namespace DnsServerCore
         const int TLS_CERTIFICATE_UPDATE_TIMER_INTERVAL = 60000;
 
         volatile ServiceState _state = ServiceState.Stopped;
-
-        Timer _blockListUpdateTimer;
-        DateTime _blockListLastUpdatedOn;
-        int _blockListUpdateIntervalHours = 24;
-        const int BLOCK_LIST_UPDATE_TIMER_INITIAL_INTERVAL = 5000;
-        const int BLOCK_LIST_UPDATE_TIMER_PERIODIC_INTERVAL = 900000;
-
-        Timer _temporaryDisableBlockingTimer;
-        DateTime _temporaryDisableBlockingTill;
 
         List<string> _configDisabledZones;
 
@@ -139,14 +129,15 @@ namespace DnsServerCore
             else
                 _configFolder = configFolder;
 
-            if (!Directory.Exists(_configFolder))
-                Directory.CreateDirectory(_configFolder);
-
             _updateCheckUri = updateCheckUri;
+
+            Directory.CreateDirectory(_configFolder);
+            Directory.CreateDirectory(Path.Combine(_configFolder, "blocklists"));
 
             _log = new LogManager(_configFolder);
             _authManager = new AuthManager(_configFolder, _log);
 
+            _settingsApi = new WebServiceSettingsApi(this);
             _authApi = new WebServiceAuthApi(this);
             _dashboardApi = new WebServiceDashboardApi(this);
             _zonesApi = new WebServiceZonesApi(this);
@@ -154,11 +145,6 @@ namespace DnsServerCore
             _appsApi = new WebServiceAppsApi(this, appStoreUri);
             _dhcpApi = new WebServiceDhcpApi(this);
             _logsApi = new WebServiceLogsApi(this);
-
-            string blockListsFolder = Path.Combine(_configFolder, "blocklists");
-
-            if (!Directory.Exists(blockListsFolder))
-                Directory.CreateDirectory(blockListsFolder);
         }
 
         #endregion
@@ -173,6 +159,9 @@ namespace DnsServerCore
                 return;
 
             Stop();
+
+            if (_settingsApi is not null)
+                _settingsApi.Dispose();
 
             if (_appsApi is not null)
                 _appsApi.Dispose();
@@ -868,7 +857,7 @@ namespace DnsServerCore
                                                 if (!_authManager.IsPermitted(PermissionSection.Settings, session.User, PermissionFlag.View))
                                                     throw new DnsWebServiceException("Access was denied.");
 
-                                                GetDnsSettings(jsonWriter);
+                                                _settingsApi.GetDnsSettings(jsonWriter);
                                                 break;
 
                                             case "/api/settings/set":
@@ -876,7 +865,7 @@ namespace DnsServerCore
                                                 if (!_authManager.IsPermitted(PermissionSection.Settings, session.User, PermissionFlag.Modify))
                                                     throw new DnsWebServiceException("Access was denied.");
 
-                                                SetDnsSettings(request, jsonWriter);
+                                                _settingsApi.SetDnsSettings(request, jsonWriter);
                                                 break;
 
                                             case "/api/settings/getTsigKeyNames":
@@ -885,7 +874,7 @@ namespace DnsServerCore
                                                     _authManager.IsPermitted(PermissionSection.Zones, session.User, PermissionFlag.Modify)
                                                    )
                                                 {
-                                                    GetTsigKeyNames(jsonWriter);
+                                                    _settingsApi.GetTsigKeyNames(jsonWriter);
                                                 }
                                                 else
                                                 {
@@ -899,7 +888,7 @@ namespace DnsServerCore
                                                 if (!_authManager.IsPermitted(PermissionSection.Settings, session.User, PermissionFlag.Modify))
                                                     throw new DnsWebServiceException("Access was denied.");
 
-                                                ForceUpdateBlockLists(request);
+                                                _settingsApi.ForceUpdateBlockLists(request);
                                                 break;
 
                                             case "/api/settings/temporaryDisableBlocking":
@@ -907,7 +896,7 @@ namespace DnsServerCore
                                                 if (!_authManager.IsPermitted(PermissionSection.Settings, session.User, PermissionFlag.Modify))
                                                     throw new DnsWebServiceException("Access was denied.");
 
-                                                TemporaryDisableBlocking(request, jsonWriter);
+                                                _settingsApi.TemporaryDisableBlocking(request, jsonWriter);
                                                 break;
 
                                             case "/api/settings/backup":
@@ -915,7 +904,7 @@ namespace DnsServerCore
                                                 if (!_authManager.IsPermitted(PermissionSection.Settings, session.User, PermissionFlag.Delete))
                                                     throw new DnsWebServiceException("Access was denied.");
 
-                                                await BackupSettingsAsync(request, response);
+                                                await _settingsApi.BackupSettingsAsync(request, response);
                                                 return;
 
                                             case "/api/settings/restore":
@@ -923,7 +912,7 @@ namespace DnsServerCore
                                                 if (!_authManager.IsPermitted(PermissionSection.Settings, session.User, PermissionFlag.Delete))
                                                     throw new DnsWebServiceException("Access was denied.");
 
-                                                await RestoreSettingsAsync(request, jsonWriter);
+                                                await _settingsApi.RestoreSettingsAsync(request, jsonWriter);
                                                 break;
 
                                             case "/api/dhcp/leases/list":
@@ -1525,1763 +1514,6 @@ namespace DnsServerCore
 
         #endregion
 
-        #region settings api
-
-        private void GetDnsSettings(Utf8JsonWriter jsonWriter)
-        {
-            //general
-            jsonWriter.WriteString("version", GetServerVersion());
-            jsonWriter.WriteString("dnsServerDomain", _dnsServer.ServerDomain);
-
-            jsonWriter.WritePropertyName("dnsServerLocalEndPoints");
-            jsonWriter.WriteStartArray();
-
-            foreach (IPEndPoint localEP in _dnsServer.LocalEndPoints)
-                jsonWriter.WriteStringValue(localEP.ToString());
-
-            jsonWriter.WriteEndArray();
-
-            jsonWriter.WriteNumber("defaultRecordTtl", _zonesApi.DefaultRecordTtl);
-            jsonWriter.WriteBoolean("dnsAppsEnableAutomaticUpdate", _appsApi.EnableAutomaticUpdate);
-
-            jsonWriter.WriteBoolean("preferIPv6", _dnsServer.PreferIPv6);
-
-            jsonWriter.WriteNumber("udpPayloadSize", _dnsServer.UdpPayloadSize);
-
-            jsonWriter.WriteBoolean("dnssecValidation", _dnsServer.DnssecValidation);
-
-            jsonWriter.WriteBoolean("eDnsClientSubnet", _dnsServer.EDnsClientSubnet);
-            jsonWriter.WriteNumber("eDnsClientSubnetIPv4PrefixLength", _dnsServer.EDnsClientSubnetIPv4PrefixLength);
-            jsonWriter.WriteNumber("eDnsClientSubnetIPv6PrefixLength", _dnsServer.EDnsClientSubnetIPv6PrefixLength);
-
-            jsonWriter.WriteNumber("qpmLimitRequests", _dnsServer.QpmLimitRequests);
-            jsonWriter.WriteNumber("qpmLimitErrors", _dnsServer.QpmLimitErrors);
-            jsonWriter.WriteNumber("qpmLimitSampleMinutes", _dnsServer.QpmLimitSampleMinutes);
-            jsonWriter.WriteNumber("qpmLimitIPv4PrefixLength", _dnsServer.QpmLimitIPv4PrefixLength);
-            jsonWriter.WriteNumber("qpmLimitIPv6PrefixLength", _dnsServer.QpmLimitIPv6PrefixLength);
-
-            jsonWriter.WriteNumber("clientTimeout", _dnsServer.ClientTimeout);
-            jsonWriter.WriteNumber("tcpSendTimeout", _dnsServer.TcpSendTimeout);
-            jsonWriter.WriteNumber("tcpReceiveTimeout", _dnsServer.TcpReceiveTimeout);
-
-            //web service
-            jsonWriter.WritePropertyName("webServiceLocalAddresses");
-            jsonWriter.WriteStartArray();
-
-            foreach (IPAddress localAddress in _webServiceLocalAddresses)
-            {
-                if (localAddress.AddressFamily == AddressFamily.InterNetworkV6)
-                    jsonWriter.WriteStringValue("[" + localAddress.ToString() + "]");
-                else
-                    jsonWriter.WriteStringValue(localAddress.ToString());
-            }
-
-            jsonWriter.WriteEndArray();
-
-            jsonWriter.WriteNumber("webServiceHttpPort", _webServiceHttpPort);
-            jsonWriter.WriteBoolean("webServiceEnableTls", _webServiceEnableTls);
-            jsonWriter.WriteBoolean("webServiceHttpToTlsRedirect", _webServiceHttpToTlsRedirect);
-            jsonWriter.WriteBoolean("webServiceUseSelfSignedTlsCertificate", _webServiceUseSelfSignedTlsCertificate);
-            jsonWriter.WriteNumber("webServiceTlsPort", _webServiceTlsPort);
-            jsonWriter.WriteString("webServiceTlsCertificatePath", _webServiceTlsCertificatePath);
-            jsonWriter.WriteString("webServiceTlsCertificatePassword", "************");
-
-            //optional protocols
-            jsonWriter.WriteBoolean("enableDnsOverHttp", _dnsServer.EnableDnsOverHttp);
-            jsonWriter.WriteBoolean("enableDnsOverTls", _dnsServer.EnableDnsOverTls);
-            jsonWriter.WriteBoolean("enableDnsOverHttps", _dnsServer.EnableDnsOverHttps);
-            jsonWriter.WriteString("dnsTlsCertificatePath", _dnsTlsCertificatePath);
-            jsonWriter.WriteString("dnsTlsCertificatePassword", "************");
-
-            //tsig
-            jsonWriter.WritePropertyName("tsigKeys");
-            {
-                jsonWriter.WriteStartArray();
-
-                if (_dnsServer.TsigKeys is not null)
-                {
-                    foreach (KeyValuePair<string, TsigKey> tsigKey in _dnsServer.TsigKeys)
-                    {
-                        jsonWriter.WriteStartObject();
-
-                        jsonWriter.WriteString("keyName", tsigKey.Key);
-                        jsonWriter.WriteString("sharedSecret", tsigKey.Value.SharedSecret);
-                        jsonWriter.WriteString("algorithmName", tsigKey.Value.AlgorithmName);
-
-                        jsonWriter.WriteEndObject();
-                    }
-                }
-
-                jsonWriter.WriteEndArray();
-            }
-
-            //recursion
-            jsonWriter.WriteString("recursion", _dnsServer.Recursion.ToString());
-
-            jsonWriter.WritePropertyName("recursionDeniedNetworks");
-            {
-                jsonWriter.WriteStartArray();
-
-                if (_dnsServer.RecursionDeniedNetworks is not null)
-                {
-                    foreach (NetworkAddress networkAddress in _dnsServer.RecursionDeniedNetworks)
-                        jsonWriter.WriteStringValue(networkAddress.ToString());
-                }
-
-                jsonWriter.WriteEndArray();
-            }
-
-            jsonWriter.WritePropertyName("recursionAllowedNetworks");
-            {
-                jsonWriter.WriteStartArray();
-
-                if (_dnsServer.RecursionAllowedNetworks is not null)
-                {
-                    foreach (NetworkAddress networkAddress in _dnsServer.RecursionAllowedNetworks)
-                        jsonWriter.WriteStringValue(networkAddress.ToString());
-                }
-
-                jsonWriter.WriteEndArray();
-            }
-
-            jsonWriter.WriteBoolean("randomizeName", _dnsServer.RandomizeName);
-            jsonWriter.WriteBoolean("qnameMinimization", _dnsServer.QnameMinimization);
-            jsonWriter.WriteBoolean("nsRevalidation", _dnsServer.NsRevalidation);
-
-            jsonWriter.WriteNumber("resolverRetries", _dnsServer.ResolverRetries);
-            jsonWriter.WriteNumber("resolverTimeout", _dnsServer.ResolverTimeout);
-            jsonWriter.WriteNumber("resolverMaxStackCount", _dnsServer.ResolverMaxStackCount);
-
-            //cache
-            jsonWriter.WriteBoolean("serveStale", _dnsServer.ServeStale);
-            jsonWriter.WriteNumber("serveStaleTtl", _dnsServer.CacheZoneManager.ServeStaleTtl);
-
-            jsonWriter.WriteNumber("cacheMaximumEntries", _dnsServer.CacheZoneManager.MaximumEntries);
-            jsonWriter.WriteNumber("cacheMinimumRecordTtl", _dnsServer.CacheZoneManager.MinimumRecordTtl);
-            jsonWriter.WriteNumber("cacheMaximumRecordTtl", _dnsServer.CacheZoneManager.MaximumRecordTtl);
-            jsonWriter.WriteNumber("cacheNegativeRecordTtl", _dnsServer.CacheZoneManager.NegativeRecordTtl);
-            jsonWriter.WriteNumber("cacheFailureRecordTtl", _dnsServer.CacheZoneManager.FailureRecordTtl);
-
-            jsonWriter.WriteNumber("cachePrefetchEligibility", _dnsServer.CachePrefetchEligibility);
-            jsonWriter.WriteNumber("cachePrefetchTrigger", _dnsServer.CachePrefetchTrigger);
-            jsonWriter.WriteNumber("cachePrefetchSampleIntervalInMinutes", _dnsServer.CachePrefetchSampleIntervalInMinutes);
-            jsonWriter.WriteNumber("cachePrefetchSampleEligibilityHitsPerHour", _dnsServer.CachePrefetchSampleEligibilityHitsPerHour);
-
-            //blocking
-            jsonWriter.WriteBoolean("enableBlocking", _dnsServer.EnableBlocking);
-            jsonWriter.WriteBoolean("allowTxtBlockingReport", _dnsServer.AllowTxtBlockingReport);
-
-            if (!_dnsServer.EnableBlocking && (DateTime.UtcNow < _temporaryDisableBlockingTill))
-                jsonWriter.WriteString("temporaryDisableBlockingTill", _temporaryDisableBlockingTill);
-
-            jsonWriter.WriteString("blockingType", _dnsServer.BlockingType.ToString());
-
-            jsonWriter.WritePropertyName("customBlockingAddresses");
-            jsonWriter.WriteStartArray();
-
-            foreach (DnsARecordData record in _dnsServer.CustomBlockingARecords)
-                jsonWriter.WriteStringValue(record.Address.ToString());
-
-            foreach (DnsAAAARecordData record in _dnsServer.CustomBlockingAAAARecords)
-                jsonWriter.WriteStringValue(record.Address.ToString());
-
-            jsonWriter.WriteEndArray();
-
-            jsonWriter.WritePropertyName("blockListUrls");
-
-            if ((_dnsServer.BlockListZoneManager.AllowListUrls.Count == 0) && (_dnsServer.BlockListZoneManager.BlockListUrls.Count == 0))
-            {
-                jsonWriter.WriteNullValue();
-            }
-            else
-            {
-                jsonWriter.WriteStartArray();
-
-                foreach (Uri allowListUrl in _dnsServer.BlockListZoneManager.AllowListUrls)
-                    jsonWriter.WriteStringValue("!" + allowListUrl.AbsoluteUri);
-
-                foreach (Uri blockListUrl in _dnsServer.BlockListZoneManager.BlockListUrls)
-                    jsonWriter.WriteStringValue(blockListUrl.AbsoluteUri);
-
-                jsonWriter.WriteEndArray();
-            }
-
-            jsonWriter.WriteNumber("blockListUpdateIntervalHours", _blockListUpdateIntervalHours);
-
-            if (_blockListUpdateTimer is not null)
-            {
-                DateTime blockListNextUpdatedOn = _blockListLastUpdatedOn.AddHours(_blockListUpdateIntervalHours);
-
-                jsonWriter.WriteString("blockListNextUpdatedOn", blockListNextUpdatedOn);
-            }
-
-            //proxy & forwarders
-            jsonWriter.WritePropertyName("proxy");
-            if (_dnsServer.Proxy == null)
-            {
-                jsonWriter.WriteNullValue();
-            }
-            else
-            {
-                jsonWriter.WriteStartObject();
-
-                NetProxy proxy = _dnsServer.Proxy;
-
-                jsonWriter.WriteString("type", proxy.Type.ToString());
-                jsonWriter.WriteString("address", proxy.Address);
-                jsonWriter.WriteNumber("port", proxy.Port);
-
-                NetworkCredential credential = proxy.Credential;
-                if (credential != null)
-                {
-                    jsonWriter.WriteString("username", credential.UserName);
-                    jsonWriter.WriteString("password", credential.Password);
-                }
-
-                jsonWriter.WritePropertyName("bypass");
-                jsonWriter.WriteStartArray();
-
-                foreach (NetProxyBypassItem item in proxy.BypassList)
-                    jsonWriter.WriteStringValue(item.Value);
-
-                jsonWriter.WriteEndArray();
-
-                jsonWriter.WriteEndObject();
-            }
-
-            jsonWriter.WritePropertyName("forwarders");
-
-            DnsTransportProtocol forwarderProtocol = DnsTransportProtocol.Udp;
-
-            if (_dnsServer.Forwarders == null)
-            {
-                jsonWriter.WriteNullValue();
-            }
-            else
-            {
-                forwarderProtocol = _dnsServer.Forwarders[0].Protocol;
-
-                jsonWriter.WriteStartArray();
-
-                foreach (NameServerAddress forwarder in _dnsServer.Forwarders)
-                    jsonWriter.WriteStringValue(forwarder.OriginalAddress);
-
-                jsonWriter.WriteEndArray();
-            }
-
-            jsonWriter.WriteString("forwarderProtocol", forwarderProtocol.ToString());
-
-            jsonWriter.WriteNumber("forwarderRetries", _dnsServer.ForwarderRetries);
-            jsonWriter.WriteNumber("forwarderTimeout", _dnsServer.ForwarderTimeout);
-            jsonWriter.WriteNumber("forwarderConcurrency", _dnsServer.ForwarderConcurrency);
-
-            //logging
-            jsonWriter.WriteBoolean("enableLogging", _log.EnableLogging);
-            jsonWriter.WriteBoolean("logQueries", _dnsServer.QueryLogManager != null);
-            jsonWriter.WriteBoolean("useLocalTime", _log.UseLocalTime);
-            jsonWriter.WriteString("logFolder", _log.LogFolder);
-            jsonWriter.WriteNumber("maxLogFileDays", _log.MaxLogFileDays);
-            jsonWriter.WriteNumber("maxStatFileDays", _dnsServer.StatsManager.MaxStatFileDays);
-        }
-
-        private void SetDnsSettings(HttpListenerRequest request, Utf8JsonWriter jsonWriter)
-        {
-            bool serverDomainChanged = false;
-            bool restartDnsService = false;
-            bool restartWebService = false;
-            int oldWebServiceHttpPort = _webServiceHttpPort;
-
-            //general
-            string strDnsServerDomain = request.QueryString["dnsServerDomain"];
-            if (!string.IsNullOrEmpty(strDnsServerDomain))
-            {
-                serverDomainChanged = !_dnsServer.ServerDomain.Equals(strDnsServerDomain, StringComparison.OrdinalIgnoreCase);
-                _dnsServer.ServerDomain = strDnsServerDomain;
-            }
-
-            string strDnsServerLocalEndPoints = request.QueryString["dnsServerLocalEndPoints"];
-            if (strDnsServerLocalEndPoints != null)
-            {
-                if (string.IsNullOrEmpty(strDnsServerLocalEndPoints))
-                    strDnsServerLocalEndPoints = "0.0.0.0:53,[::]:53";
-
-                string[] strLocalEndPoints = strDnsServerLocalEndPoints.Split(new char[] { ',' }, StringSplitOptions.RemoveEmptyEntries);
-                List<IPEndPoint> localEndPoints = new List<IPEndPoint>(strLocalEndPoints.Length);
-
-                for (int i = 0; i < strLocalEndPoints.Length; i++)
-                {
-                    NameServerAddress nameServer = new NameServerAddress(strLocalEndPoints[i]);
-                    if (nameServer.IPEndPoint != null)
-                        localEndPoints.Add(nameServer.IPEndPoint);
-                }
-
-                if (localEndPoints.Count > 0)
-                {
-                    if (_dnsServer.LocalEndPoints.Count != localEndPoints.Count)
-                    {
-                        restartDnsService = true;
-                    }
-                    else
-                    {
-                        foreach (IPEndPoint currentLocalEP in _dnsServer.LocalEndPoints)
-                        {
-                            if (!localEndPoints.Contains(currentLocalEP))
-                            {
-                                restartDnsService = true;
-                                break;
-                            }
-                        }
-                    }
-
-                    _dnsServer.LocalEndPoints = localEndPoints;
-                }
-            }
-
-            string strDefaultRecordTtl = request.QueryString["defaultRecordTtl"];
-            if (!string.IsNullOrEmpty(strDefaultRecordTtl))
-                _zonesApi.DefaultRecordTtl = uint.Parse(strDefaultRecordTtl);
-
-            string strDnsAppsEnableAutomaticUpdate = request.QueryString["dnsAppsEnableAutomaticUpdate"];
-            if (!string.IsNullOrEmpty(strDnsAppsEnableAutomaticUpdate))
-                _appsApi.EnableAutomaticUpdate = bool.Parse(strDnsAppsEnableAutomaticUpdate);
-
-            string strPreferIPv6 = request.QueryString["preferIPv6"];
-            if (!string.IsNullOrEmpty(strPreferIPv6))
-                _dnsServer.PreferIPv6 = bool.Parse(strPreferIPv6);
-
-            string strUdpPayloadSize = request.QueryString["udpPayloadSize"];
-            if (!string.IsNullOrEmpty(strUdpPayloadSize))
-                _dnsServer.UdpPayloadSize = ushort.Parse(strUdpPayloadSize);
-
-            string strDnssecValidation = request.QueryString["dnssecValidation"];
-            if (!string.IsNullOrEmpty(strDnssecValidation))
-                _dnsServer.DnssecValidation = bool.Parse(strDnssecValidation);
-
-            string strEDnsClientSubnet = request.QueryString["eDnsClientSubnet"];
-            if (!string.IsNullOrEmpty(strEDnsClientSubnet))
-                _dnsServer.EDnsClientSubnet = bool.Parse(strEDnsClientSubnet);
-
-            string strEDnsClientSubnetIPv4PrefixLength = request.QueryString["eDnsClientSubnetIPv4PrefixLength"];
-            if (!string.IsNullOrEmpty(strEDnsClientSubnetIPv4PrefixLength))
-                _dnsServer.EDnsClientSubnetIPv4PrefixLength = byte.Parse(strEDnsClientSubnetIPv4PrefixLength);
-
-            string strEDnsClientSubnetIPv6PrefixLength = request.QueryString["eDnsClientSubnetIPv6PrefixLength"];
-            if (!string.IsNullOrEmpty(strEDnsClientSubnetIPv6PrefixLength))
-                _dnsServer.EDnsClientSubnetIPv6PrefixLength = byte.Parse(strEDnsClientSubnetIPv6PrefixLength);
-
-            string strQpmLimitRequests = request.QueryString["qpmLimitRequests"];
-            if (!string.IsNullOrEmpty(strQpmLimitRequests))
-                _dnsServer.QpmLimitRequests = int.Parse(strQpmLimitRequests);
-
-            string strQpmLimitErrors = request.QueryString["qpmLimitErrors"];
-            if (!string.IsNullOrEmpty(strQpmLimitErrors))
-                _dnsServer.QpmLimitErrors = int.Parse(strQpmLimitErrors);
-
-            string strQpmLimitSampleMinutes = request.QueryString["qpmLimitSampleMinutes"];
-            if (!string.IsNullOrEmpty(strQpmLimitSampleMinutes))
-                _dnsServer.QpmLimitSampleMinutes = int.Parse(strQpmLimitSampleMinutes);
-
-            string strQpmLimitIPv4PrefixLength = request.QueryString["qpmLimitIPv4PrefixLength"];
-            if (!string.IsNullOrEmpty(strQpmLimitIPv4PrefixLength))
-                _dnsServer.QpmLimitIPv4PrefixLength = int.Parse(strQpmLimitIPv4PrefixLength);
-
-            string strQpmLimitIPv6PrefixLength = request.QueryString["qpmLimitIPv6PrefixLength"];
-            if (!string.IsNullOrEmpty(strQpmLimitIPv6PrefixLength))
-                _dnsServer.QpmLimitIPv6PrefixLength = int.Parse(strQpmLimitIPv6PrefixLength);
-
-            string strClientTimeout = request.QueryString["clientTimeout"];
-            if (!string.IsNullOrEmpty(strClientTimeout))
-                _dnsServer.ClientTimeout = int.Parse(strClientTimeout);
-
-            string strTcpSendTimeout = request.QueryString["tcpSendTimeout"];
-            if (!string.IsNullOrEmpty(strTcpSendTimeout))
-                _dnsServer.TcpSendTimeout = int.Parse(strTcpSendTimeout);
-
-            string strTcpReceiveTimeout = request.QueryString["tcpReceiveTimeout"];
-            if (!string.IsNullOrEmpty(strTcpReceiveTimeout))
-                _dnsServer.TcpReceiveTimeout = int.Parse(strTcpReceiveTimeout);
-
-            //web service
-            string strWebServiceLocalAddresses = request.QueryString["webServiceLocalAddresses"];
-            if (strWebServiceLocalAddresses != null)
-            {
-                if (string.IsNullOrEmpty(strWebServiceLocalAddresses))
-                    strWebServiceLocalAddresses = "0.0.0.0,[::]";
-
-                string[] strLocalAddresses = strWebServiceLocalAddresses.Split(new char[] { ',' }, StringSplitOptions.RemoveEmptyEntries);
-                List<IPAddress> localAddresses = new List<IPAddress>(strLocalAddresses.Length);
-
-                for (int i = 0; i < strLocalAddresses.Length; i++)
-                {
-                    if (IPAddress.TryParse(strLocalAddresses[i], out IPAddress localAddress))
-                        localAddresses.Add(localAddress);
-                }
-
-                if (localAddresses.Count > 0)
-                {
-                    if (_webServiceLocalAddresses.Count != localAddresses.Count)
-                    {
-                        restartWebService = true;
-                    }
-                    else
-                    {
-                        foreach (IPAddress currentlocalAddress in _webServiceLocalAddresses)
-                        {
-                            if (!localAddresses.Contains(currentlocalAddress))
-                            {
-                                restartWebService = true;
-                                break;
-                            }
-                        }
-                    }
-
-                    _webServiceLocalAddresses = localAddresses;
-                }
-            }
-
-            string strWebServiceHttpPort = request.QueryString["webServiceHttpPort"];
-            if (!string.IsNullOrEmpty(strWebServiceHttpPort))
-            {
-                _webServiceHttpPort = int.Parse(strWebServiceHttpPort);
-
-                if (oldWebServiceHttpPort != _webServiceHttpPort)
-                    restartWebService = true;
-            }
-
-            string strWebServiceEnableTls = request.QueryString["webServiceEnableTls"];
-            if (!string.IsNullOrEmpty(strWebServiceEnableTls))
-            {
-                bool oldWebServiceEnableTls = _webServiceEnableTls;
-
-                _webServiceEnableTls = bool.Parse(strWebServiceEnableTls);
-
-                if (oldWebServiceEnableTls != _webServiceEnableTls)
-                    restartWebService = true;
-            }
-
-            string strWebServiceHttpToTlsRedirect = request.QueryString["webServiceHttpToTlsRedirect"];
-            if (!string.IsNullOrEmpty(strWebServiceHttpToTlsRedirect))
-                _webServiceHttpToTlsRedirect = bool.Parse(strWebServiceHttpToTlsRedirect);
-
-            string strWebServiceUseSelfSignedTlsCertificate = request.QueryString["webServiceUseSelfSignedTlsCertificate"];
-            if (!string.IsNullOrEmpty(strWebServiceUseSelfSignedTlsCertificate))
-                _webServiceUseSelfSignedTlsCertificate = bool.Parse(strWebServiceUseSelfSignedTlsCertificate);
-
-            string strWebServiceTlsPort = request.QueryString["webServiceTlsPort"];
-            if (!string.IsNullOrEmpty(strWebServiceTlsPort))
-            {
-                int oldWebServiceTlsPort = _webServiceTlsPort;
-
-                _webServiceTlsPort = int.Parse(strWebServiceTlsPort);
-
-                if (oldWebServiceTlsPort != _webServiceTlsPort)
-                    restartWebService = true;
-            }
-
-            string strWebServiceTlsCertificatePath = request.QueryString["webServiceTlsCertificatePath"];
-            string strWebServiceTlsCertificatePassword = request.QueryString["webServiceTlsCertificatePassword"];
-            if (string.IsNullOrEmpty(strWebServiceTlsCertificatePath))
-            {
-                _webServiceTlsCertificatePath = null;
-                _webServiceTlsCertificatePassword = "";
-            }
-            else
-            {
-                if (strWebServiceTlsCertificatePassword == "************")
-                    strWebServiceTlsCertificatePassword = _webServiceTlsCertificatePassword;
-
-                if ((strWebServiceTlsCertificatePath != _webServiceTlsCertificatePath) || (strWebServiceTlsCertificatePassword != _webServiceTlsCertificatePassword))
-                {
-                    LoadWebServiceTlsCertificate(strWebServiceTlsCertificatePath, strWebServiceTlsCertificatePassword);
-
-                    _webServiceTlsCertificatePath = strWebServiceTlsCertificatePath;
-                    _webServiceTlsCertificatePassword = strWebServiceTlsCertificatePassword;
-
-                    StartTlsCertificateUpdateTimer();
-                }
-            }
-
-            //optional protocols
-            string enableDnsOverHttp = request.QueryString["enableDnsOverHttp"];
-            if (!string.IsNullOrEmpty(enableDnsOverHttp))
-            {
-                bool oldEnableDnsOverHttp = _dnsServer.EnableDnsOverHttp;
-
-                _dnsServer.EnableDnsOverHttp = bool.Parse(enableDnsOverHttp);
-
-                if (oldEnableDnsOverHttp != _dnsServer.EnableDnsOverHttp)
-                    restartDnsService = true;
-            }
-
-            string strEnableDnsOverTls = request.QueryString["enableDnsOverTls"];
-            if (!string.IsNullOrEmpty(strEnableDnsOverTls))
-            {
-                bool oldEnableDnsOverTls = _dnsServer.EnableDnsOverTls;
-
-                _dnsServer.EnableDnsOverTls = bool.Parse(strEnableDnsOverTls);
-
-                if (oldEnableDnsOverTls != _dnsServer.EnableDnsOverTls)
-                    restartDnsService = true;
-            }
-
-            string strEnableDnsOverHttps = request.QueryString["enableDnsOverHttps"];
-            if (!string.IsNullOrEmpty(strEnableDnsOverHttps))
-            {
-                bool oldEnableDnsOverHttps = _dnsServer.EnableDnsOverHttps;
-
-                _dnsServer.EnableDnsOverHttps = bool.Parse(strEnableDnsOverHttps);
-
-                if (oldEnableDnsOverHttps != _dnsServer.EnableDnsOverHttps)
-                    restartDnsService = true;
-            }
-
-            string strDnsTlsCertificatePath = request.QueryString["dnsTlsCertificatePath"];
-            string strDnsTlsCertificatePassword = request.QueryString["dnsTlsCertificatePassword"];
-            if (string.IsNullOrEmpty(strDnsTlsCertificatePath))
-            {
-                _dnsTlsCertificatePath = null;
-                _dnsTlsCertificatePassword = "";
-            }
-            else
-            {
-                if (strDnsTlsCertificatePassword == "************")
-                    strDnsTlsCertificatePassword = _dnsTlsCertificatePassword;
-
-                if ((strDnsTlsCertificatePath != _dnsTlsCertificatePath) || (strDnsTlsCertificatePassword != _dnsTlsCertificatePassword))
-                {
-                    LoadDnsTlsCertificate(strDnsTlsCertificatePath, strDnsTlsCertificatePassword);
-
-                    _dnsTlsCertificatePath = strDnsTlsCertificatePath;
-                    _dnsTlsCertificatePassword = strDnsTlsCertificatePassword;
-
-                    StartTlsCertificateUpdateTimer();
-                }
-            }
-
-            //tsig
-            string strTsigKeys = request.QueryString["tsigKeys"];
-            if (!string.IsNullOrEmpty(strTsigKeys))
-            {
-                if (strTsigKeys == "false")
-                {
-                    _dnsServer.TsigKeys = null;
-                }
-                else
-                {
-                    string[] strTsigKeyParts = strTsigKeys.Split('|');
-                    Dictionary<string, TsigKey> tsigKeys = new Dictionary<string, TsigKey>(strTsigKeyParts.Length);
-
-                    for (int i = 0; i < strTsigKeyParts.Length; i += 3)
-                    {
-                        string keyName = strTsigKeyParts[i + 0].ToLower();
-                        string sharedSecret = strTsigKeyParts[i + 1];
-                        string algorithmName = strTsigKeyParts[i + 2];
-
-                        if (sharedSecret.Length == 0)
-                        {
-                            byte[] key = new byte[32];
-                            _rng.GetBytes(key);
-
-                            tsigKeys.Add(keyName, new TsigKey(keyName, Convert.ToBase64String(key), algorithmName));
-                        }
-                        else
-                        {
-                            tsigKeys.Add(keyName, new TsigKey(keyName, sharedSecret, algorithmName));
-                        }
-                    }
-
-                    _dnsServer.TsigKeys = tsigKeys;
-                }
-            }
-
-            //recursion
-            string strRecursion = request.QueryString["recursion"];
-            if (!string.IsNullOrEmpty(strRecursion))
-                _dnsServer.Recursion = Enum.Parse<DnsServerRecursion>(strRecursion, true);
-
-            string strRecursionDeniedNetworks = request.QueryString["recursionDeniedNetworks"];
-            if (!string.IsNullOrEmpty(strRecursionDeniedNetworks))
-            {
-                if (strRecursionDeniedNetworks == "false")
-                {
-                    _dnsServer.RecursionDeniedNetworks = null;
-                }
-                else
-                {
-                    string[] strNetworks = strRecursionDeniedNetworks.Split(new char[] { ',' }, StringSplitOptions.RemoveEmptyEntries);
-
-                    NetworkAddress[] networks = new NetworkAddress[strNetworks.Length];
-
-                    for (int i = 0; i < networks.Length; i++)
-                        networks[i] = NetworkAddress.Parse(strNetworks[i]);
-
-                    _dnsServer.RecursionDeniedNetworks = networks;
-                }
-            }
-
-            string strRecursionAllowedNetworks = request.QueryString["recursionAllowedNetworks"];
-            if (!string.IsNullOrEmpty(strRecursionAllowedNetworks))
-            {
-                if (strRecursionAllowedNetworks == "false")
-                {
-                    _dnsServer.RecursionAllowedNetworks = null;
-                }
-                else
-                {
-                    string[] strNetworks = strRecursionAllowedNetworks.Split(new char[] { ',' }, StringSplitOptions.RemoveEmptyEntries);
-
-                    NetworkAddress[] networks = new NetworkAddress[strNetworks.Length];
-
-                    for (int i = 0; i < networks.Length; i++)
-                        networks[i] = NetworkAddress.Parse(strNetworks[i]);
-
-                    _dnsServer.RecursionAllowedNetworks = networks;
-                }
-            }
-
-            string strRandomizeName = request.QueryString["randomizeName"];
-            if (!string.IsNullOrEmpty(strRandomizeName))
-                _dnsServer.RandomizeName = bool.Parse(strRandomizeName);
-
-            string strQnameMinimization = request.QueryString["qnameMinimization"];
-            if (!string.IsNullOrEmpty(strQnameMinimization))
-                _dnsServer.QnameMinimization = bool.Parse(strQnameMinimization);
-
-            string strNsRevalidation = request.QueryString["nsRevalidation"];
-            if (!string.IsNullOrEmpty(strNsRevalidation))
-                _dnsServer.NsRevalidation = bool.Parse(strNsRevalidation);
-
-            string strResolverRetries = request.QueryString["resolverRetries"];
-            if (!string.IsNullOrEmpty(strResolverRetries))
-                _dnsServer.ResolverRetries = int.Parse(strResolverRetries);
-
-            string strResolverTimeout = request.QueryString["resolverTimeout"];
-            if (!string.IsNullOrEmpty(strResolverTimeout))
-                _dnsServer.ResolverTimeout = int.Parse(strResolverTimeout);
-
-            string strResolverMaxStackCount = request.QueryString["resolverMaxStackCount"];
-            if (!string.IsNullOrEmpty(strResolverMaxStackCount))
-                _dnsServer.ResolverMaxStackCount = int.Parse(strResolverMaxStackCount);
-
-            //cache
-            string strServeStale = request.QueryString["serveStale"];
-            if (!string.IsNullOrEmpty(strServeStale))
-                _dnsServer.ServeStale = bool.Parse(strServeStale);
-
-            string strServeStaleTtl = request.QueryString["serveStaleTtl"];
-            if (!string.IsNullOrEmpty(strServeStaleTtl))
-                _dnsServer.CacheZoneManager.ServeStaleTtl = uint.Parse(strServeStaleTtl);
-
-            string strCacheMaximumEntries = request.QueryString["cacheMaximumEntries"];
-            if (!string.IsNullOrEmpty(strCacheMaximumEntries))
-                _dnsServer.CacheZoneManager.MaximumEntries = long.Parse(strCacheMaximumEntries);
-
-            string strCacheMinimumRecordTtl = request.QueryString["cacheMinimumRecordTtl"];
-            if (!string.IsNullOrEmpty(strCacheMinimumRecordTtl))
-                _dnsServer.CacheZoneManager.MinimumRecordTtl = uint.Parse(strCacheMinimumRecordTtl);
-
-            string strCacheMaximumRecordTtl = request.QueryString["cacheMaximumRecordTtl"];
-            if (!string.IsNullOrEmpty(strCacheMaximumRecordTtl))
-                _dnsServer.CacheZoneManager.MaximumRecordTtl = uint.Parse(strCacheMaximumRecordTtl);
-
-            string strCacheNegativeRecordTtl = request.QueryString["cacheNegativeRecordTtl"];
-            if (!string.IsNullOrEmpty(strCacheNegativeRecordTtl))
-                _dnsServer.CacheZoneManager.NegativeRecordTtl = uint.Parse(strCacheNegativeRecordTtl);
-
-            string strCacheFailureRecordTtl = request.QueryString["cacheFailureRecordTtl"];
-            if (!string.IsNullOrEmpty(strCacheFailureRecordTtl))
-                _dnsServer.CacheZoneManager.FailureRecordTtl = uint.Parse(strCacheFailureRecordTtl);
-
-            string strCachePrefetchEligibility = request.QueryString["cachePrefetchEligibility"];
-            if (!string.IsNullOrEmpty(strCachePrefetchEligibility))
-                _dnsServer.CachePrefetchEligibility = int.Parse(strCachePrefetchEligibility);
-
-            string strCachePrefetchTrigger = request.QueryString["cachePrefetchTrigger"];
-            if (!string.IsNullOrEmpty(strCachePrefetchTrigger))
-                _dnsServer.CachePrefetchTrigger = int.Parse(strCachePrefetchTrigger);
-
-            string strCachePrefetchSampleIntervalInMinutes = request.QueryString["cachePrefetchSampleIntervalInMinutes"];
-            if (!string.IsNullOrEmpty(strCachePrefetchSampleIntervalInMinutes))
-                _dnsServer.CachePrefetchSampleIntervalInMinutes = int.Parse(strCachePrefetchSampleIntervalInMinutes);
-
-            string strCachePrefetchSampleEligibilityHitsPerHour = request.QueryString["cachePrefetchSampleEligibilityHitsPerHour"];
-            if (!string.IsNullOrEmpty(strCachePrefetchSampleEligibilityHitsPerHour))
-                _dnsServer.CachePrefetchSampleEligibilityHitsPerHour = int.Parse(strCachePrefetchSampleEligibilityHitsPerHour);
-
-            //blocking
-            string strEnableBlocking = request.QueryString["enableBlocking"];
-            if (!string.IsNullOrEmpty(strEnableBlocking))
-            {
-                _dnsServer.EnableBlocking = bool.Parse(strEnableBlocking);
-                if (_dnsServer.EnableBlocking)
-                {
-                    if (_temporaryDisableBlockingTimer is not null)
-                        _temporaryDisableBlockingTimer.Dispose();
-                }
-            }
-
-            string strAllowTxtBlockingReport = request.QueryString["allowTxtBlockingReport"];
-            if (!string.IsNullOrEmpty(strAllowTxtBlockingReport))
-                _dnsServer.AllowTxtBlockingReport = bool.Parse(strAllowTxtBlockingReport);
-
-            string strBlockingType = request.QueryString["blockingType"];
-            if (!string.IsNullOrEmpty(strBlockingType))
-                _dnsServer.BlockingType = Enum.Parse<DnsServerBlockingType>(strBlockingType, true);
-
-            string strCustomBlockingAddresses = request.QueryString["customBlockingAddresses"];
-            if (!string.IsNullOrEmpty(strCustomBlockingAddresses))
-            {
-                if (strCustomBlockingAddresses == "false")
-                {
-                    _dnsServer.CustomBlockingARecords = null;
-                    _dnsServer.CustomBlockingAAAARecords = null;
-                }
-                else
-                {
-                    string[] strAddresses = strCustomBlockingAddresses.Split(new char[] { ',' }, StringSplitOptions.RemoveEmptyEntries);
-
-                    List<DnsARecordData> dnsARecords = new List<DnsARecordData>();
-                    List<DnsAAAARecordData> dnsAAAARecords = new List<DnsAAAARecordData>();
-
-                    foreach (string strAddress in strAddresses)
-                    {
-                        if (IPAddress.TryParse(strAddress, out IPAddress customAddress))
-                        {
-                            switch (customAddress.AddressFamily)
-                            {
-                                case AddressFamily.InterNetwork:
-                                    dnsARecords.Add(new DnsARecordData(customAddress));
-                                    break;
-
-                                case AddressFamily.InterNetworkV6:
-                                    dnsAAAARecords.Add(new DnsAAAARecordData(customAddress));
-                                    break;
-                            }
-                        }
-                    }
-
-                    _dnsServer.CustomBlockingARecords = dnsARecords;
-                    _dnsServer.CustomBlockingAAAARecords = dnsAAAARecords;
-                }
-            }
-
-            bool blockListUrlsUpdated = false;
-            string strBlockListUrls = request.QueryString["blockListUrls"];
-            if (!string.IsNullOrEmpty(strBlockListUrls))
-            {
-                if (strBlockListUrls == "false")
-                {
-                    _dnsServer.BlockListZoneManager.AllowListUrls.Clear();
-                    _dnsServer.BlockListZoneManager.BlockListUrls.Clear();
-                    _dnsServer.BlockListZoneManager.Flush();
-                }
-                else
-                {
-                    string[] strBlockListUrlList = strBlockListUrls.Split(new char[] { ',' }, StringSplitOptions.RemoveEmptyEntries);
-
-                    if (oldWebServiceHttpPort != _webServiceHttpPort)
-                    {
-                        for (int i = 0; i < strBlockListUrlList.Length; i++)
-                        {
-                            if (strBlockListUrlList[i].Contains("http://localhost:" + oldWebServiceHttpPort + "/blocklist.txt"))
-                            {
-                                strBlockListUrlList[i] = "http://localhost:" + _webServiceHttpPort + "/blocklist.txt";
-                                blockListUrlsUpdated = true;
-                                break;
-                            }
-                        }
-                    }
-
-                    if (!blockListUrlsUpdated)
-                    {
-                        if (strBlockListUrlList.Length != (_dnsServer.BlockListZoneManager.AllowListUrls.Count + _dnsServer.BlockListZoneManager.BlockListUrls.Count))
-                        {
-                            blockListUrlsUpdated = true;
-                        }
-                        else
-                        {
-                            foreach (string strBlockListUrl in strBlockListUrlList)
-                            {
-                                if (strBlockListUrl.StartsWith("!"))
-                                {
-                                    string strAllowListUrl = strBlockListUrl.Substring(1);
-
-                                    if (!_dnsServer.BlockListZoneManager.AllowListUrls.Contains(new Uri(strAllowListUrl)))
-                                    {
-                                        blockListUrlsUpdated = true;
-                                        break;
-                                    }
-                                }
-                                else
-                                {
-                                    if (!_dnsServer.BlockListZoneManager.BlockListUrls.Contains(new Uri(strBlockListUrl)))
-                                    {
-                                        blockListUrlsUpdated = true;
-                                        break;
-                                    }
-                                }
-                            }
-                        }
-                    }
-
-                    if (blockListUrlsUpdated)
-                    {
-                        _dnsServer.BlockListZoneManager.AllowListUrls.Clear();
-                        _dnsServer.BlockListZoneManager.BlockListUrls.Clear();
-
-                        foreach (string strBlockListUrl in strBlockListUrlList)
-                        {
-                            if (strBlockListUrl.StartsWith("!"))
-                            {
-                                Uri allowListUrl = new Uri(strBlockListUrl.Substring(1));
-
-                                if (!_dnsServer.BlockListZoneManager.AllowListUrls.Contains(allowListUrl))
-                                    _dnsServer.BlockListZoneManager.AllowListUrls.Add(allowListUrl);
-                            }
-                            else
-                            {
-                                Uri blockListUrl = new Uri(strBlockListUrl);
-
-                                if (!_dnsServer.BlockListZoneManager.BlockListUrls.Contains(blockListUrl))
-                                    _dnsServer.BlockListZoneManager.BlockListUrls.Add(blockListUrl);
-                            }
-                        }
-                    }
-                }
-            }
-
-            string strBlockListUpdateIntervalHours = request.QueryString["blockListUpdateIntervalHours"];
-            if (!string.IsNullOrEmpty(strBlockListUpdateIntervalHours))
-            {
-                int blockListUpdateIntervalHours = int.Parse(strBlockListUpdateIntervalHours);
-
-                if ((blockListUpdateIntervalHours < 0) || (blockListUpdateIntervalHours > 168))
-                    throw new DnsWebServiceException("Parameter `blockListUpdateIntervalHours` must be between 1 hour and 168 hours (7 days) or 0 to disable automatic update.");
-
-                _blockListUpdateIntervalHours = blockListUpdateIntervalHours;
-            }
-
-            if ((_blockListUpdateIntervalHours > 0) && ((_dnsServer.BlockListZoneManager.AllowListUrls.Count + _dnsServer.BlockListZoneManager.BlockListUrls.Count) > 0))
-            {
-                if (blockListUrlsUpdated || (_blockListUpdateTimer is null))
-                    ForceUpdateBlockLists();
-
-                StartBlockListUpdateTimer();
-            }
-            else
-            {
-                StopBlockListUpdateTimer();
-            }
-
-            //proxy & forwarders
-            string strProxyType = request.QueryString["proxyType"];
-            if (!string.IsNullOrEmpty(strProxyType))
-            {
-                NetProxyType proxyType = Enum.Parse<NetProxyType>(strProxyType, true);
-                if (proxyType == NetProxyType.None)
-                {
-                    _dnsServer.Proxy = null;
-                }
-                else
-                {
-                    NetworkCredential credential = null;
-
-                    string strUsername = request.QueryString["proxyUsername"];
-                    if (!string.IsNullOrEmpty(strUsername))
-                        credential = new NetworkCredential(strUsername, request.QueryString["proxyPassword"]);
-
-                    _dnsServer.Proxy = NetProxy.CreateProxy(proxyType, request.QueryString["proxyAddress"], int.Parse(request.QueryString["proxyPort"]), credential);
-
-                    string strProxyBypass = request.QueryString["proxyBypass"];
-                    if (!string.IsNullOrEmpty(strProxyBypass))
-                    {
-                        string[] strBypassList = strProxyBypass.Split(new char[] { ',' }, StringSplitOptions.RemoveEmptyEntries);
-                        List<NetProxyBypassItem> bypassList = new List<NetProxyBypassItem>(strBypassList.Length);
-
-                        for (int i = 0; i < strBypassList.Length; i++)
-                            bypassList.Add(new NetProxyBypassItem(strBypassList[i]));
-
-                        _dnsServer.Proxy.BypassList = bypassList;
-                    }
-                }
-            }
-
-            DnsTransportProtocol forwarderProtocol = DnsTransportProtocol.Udp;
-            string strForwarderProtocol = request.QueryString["forwarderProtocol"];
-            if (!string.IsNullOrEmpty(strForwarderProtocol))
-            {
-                forwarderProtocol = Enum.Parse<DnsTransportProtocol>(strForwarderProtocol, true);
-                if (forwarderProtocol == DnsTransportProtocol.HttpsJson)
-                    forwarderProtocol = DnsTransportProtocol.Https;
-            }
-
-            string strForwarders = request.QueryString["forwarders"];
-            if (!string.IsNullOrEmpty(strForwarders))
-            {
-                if (strForwarders == "false")
-                {
-                    _dnsServer.Forwarders = null;
-                }
-                else
-                {
-                    string[] strForwardersList = strForwarders.Split(new char[] { ',' }, StringSplitOptions.RemoveEmptyEntries);
-                    NameServerAddress[] forwarders = new NameServerAddress[strForwardersList.Length];
-
-                    for (int i = 0; i < strForwardersList.Length; i++)
-                    {
-                        NameServerAddress forwarder = new NameServerAddress(strForwardersList[i]);
-
-                        if (forwarder.Protocol != forwarderProtocol)
-                            forwarder = forwarder.ChangeProtocol(forwarderProtocol);
-
-                        forwarders[i] = forwarder;
-                    }
-
-                    _dnsServer.Forwarders = forwarders;
-                }
-            }
-
-            string strForwarderRetries = request.QueryString["forwarderRetries"];
-            if (!string.IsNullOrEmpty(strForwarderRetries))
-                _dnsServer.ForwarderRetries = int.Parse(strForwarderRetries);
-
-            string strForwarderTimeout = request.QueryString["forwarderTimeout"];
-            if (!string.IsNullOrEmpty(strForwarderTimeout))
-                _dnsServer.ForwarderTimeout = int.Parse(strForwarderTimeout);
-
-            string strForwarderConcurrency = request.QueryString["forwarderConcurrency"];
-            if (!string.IsNullOrEmpty(strForwarderConcurrency))
-                _dnsServer.ForwarderConcurrency = int.Parse(strForwarderConcurrency);
-
-            //logging
-            string strEnableLogging = request.QueryString["enableLogging"];
-            if (!string.IsNullOrEmpty(strEnableLogging))
-                _log.EnableLogging = bool.Parse(strEnableLogging);
-
-            string strLogQueries = request.QueryString["logQueries"];
-            if (!string.IsNullOrEmpty(strLogQueries))
-            {
-                if (bool.Parse(strLogQueries))
-                    _dnsServer.QueryLogManager = _log;
-                else
-                    _dnsServer.QueryLogManager = null;
-            }
-
-            string strUseLocalTime = request.QueryString["useLocalTime"];
-            if (!string.IsNullOrEmpty(strUseLocalTime))
-                _log.UseLocalTime = bool.Parse(strUseLocalTime);
-
-            string strLogFolder = request.QueryString["logFolder"];
-            if (!string.IsNullOrEmpty(strLogFolder))
-                _log.LogFolder = strLogFolder;
-
-            string strMaxLogFileDays = request.QueryString["maxLogFileDays"];
-            if (!string.IsNullOrEmpty(strMaxLogFileDays))
-                _log.MaxLogFileDays = int.Parse(strMaxLogFileDays);
-
-            string strMaxStatFileDays = request.QueryString["maxStatFileDays"];
-            if (!string.IsNullOrEmpty(strMaxStatFileDays))
-                _dnsServer.StatsManager.MaxStatFileDays = int.Parse(strMaxStatFileDays);
-
-            //TLS actions
-            if ((_webServiceTlsCertificatePath == null) && (_dnsTlsCertificatePath == null))
-                StopTlsCertificateUpdateTimer();
-
-            SelfSignedCertCheck(serverDomainChanged, true);
-
-            if (_webServiceEnableTls && string.IsNullOrEmpty(_webServiceTlsCertificatePath) && !_webServiceUseSelfSignedTlsCertificate)
-            {
-                //disable TLS
-                _webServiceEnableTls = false;
-                restartWebService = true;
-            }
-
-            //save config
-            SaveConfigFile();
-            _log.Save();
-
-            _log.Write(GetRequestRemoteEndPoint(request), "[" + GetSession(request).User.Username + "] DNS Settings were updated {dnsServerDomain: " + _dnsServer.ServerDomain + "; dnsServerLocalEndPoints: " + strDnsServerLocalEndPoints + "; webServiceLocalAddresses: " + strWebServiceLocalAddresses + "; webServiceHttpPort: " + _webServiceHttpPort + "; webServiceEnableTls: " + strWebServiceEnableTls + "; webServiceHttpToTlsRedirect: " + strWebServiceHttpToTlsRedirect + "; webServiceTlsPort: " + strWebServiceTlsPort + "; webServiceUseSelfSignedTlsCertificate: " + _webServiceUseSelfSignedTlsCertificate + "; webServiceTlsCertificatePath: " + strWebServiceTlsCertificatePath + "; enableDnsOverHttp: " + _dnsServer.EnableDnsOverHttp + "; enableDnsOverTls: " + _dnsServer.EnableDnsOverTls + "; enableDnsOverHttps: " + _dnsServer.EnableDnsOverHttps + "; dnsTlsCertificatePath: " + _dnsTlsCertificatePath + "; defaultRecordTtl: " + _zonesApi.DefaultRecordTtl + "; preferIPv6: " + _dnsServer.PreferIPv6 + "; enableLogging: " + strEnableLogging + "; logQueries: " + (_dnsServer.QueryLogManager != null) + "; useLocalTime: " + strUseLocalTime + "; logFolder: " + strLogFolder + "; maxLogFileDays: " + strMaxLogFileDays + "; recursion: " + _dnsServer.Recursion.ToString() + "; randomizeName: " + strRandomizeName + "; qnameMinimization: " + strQnameMinimization + "; serveStale: " + strServeStale + "; serveStaleTtl: " + strServeStaleTtl + "; cachePrefetchEligibility: " + strCachePrefetchEligibility + "; cachePrefetchTrigger: " + strCachePrefetchTrigger + "; cachePrefetchSampleIntervalInMinutes: " + strCachePrefetchSampleIntervalInMinutes + "; cachePrefetchSampleEligibilityHitsPerHour: " + strCachePrefetchSampleEligibilityHitsPerHour + "; proxyType: " + strProxyType + "; forwarders: " + strForwarders + "; forwarderProtocol: " + strForwarderProtocol + "; enableBlocking: " + _dnsServer.EnableBlocking + "; allowTxtBlockingReport: " + _dnsServer.AllowTxtBlockingReport + "; blockingType: " + _dnsServer.BlockingType.ToString() + "; blockListUrl: " + strBlockListUrls + "; blockListUpdateIntervalHours: " + strBlockListUpdateIntervalHours + ";}");
-
-            GetDnsSettings(jsonWriter);
-
-            RestartService(restartDnsService, restartWebService);
-        }
-
-        private void GetTsigKeyNames(Utf8JsonWriter jsonWriter)
-        {
-            jsonWriter.WritePropertyName("tsigKeyNames");
-            {
-                jsonWriter.WriteStartArray();
-
-                if (_dnsServer.TsigKeys is not null)
-                {
-                    foreach (KeyValuePair<string, TsigKey> tsigKey in _dnsServer.TsigKeys)
-                        jsonWriter.WriteStringValue(tsigKey.Key);
-                }
-
-                jsonWriter.WriteEndArray();
-            }
-        }
-
-        private void SelfSignedCertCheck(bool generateNew, bool throwException)
-        {
-            string selfSignedCertificateFilePath = Path.Combine(_configFolder, "cert.pfx");
-
-            if (_webServiceUseSelfSignedTlsCertificate)
-            {
-                if (generateNew || !File.Exists(selfSignedCertificateFilePath))
-                {
-                    RSA rsa = RSA.Create(2048);
-                    CertificateRequest req = new CertificateRequest("cn=" + _dnsServer.ServerDomain, rsa, HashAlgorithmName.SHA256, RSASignaturePadding.Pkcs1);
-                    X509Certificate2 cert = req.CreateSelfSigned(DateTimeOffset.UtcNow, DateTimeOffset.UtcNow.AddYears(5));
-
-                    File.WriteAllBytes(selfSignedCertificateFilePath, cert.Export(X509ContentType.Pkcs12, null as string));
-                }
-
-                if (_webServiceEnableTls && string.IsNullOrEmpty(_webServiceTlsCertificatePath))
-                {
-                    try
-                    {
-                        LoadWebServiceTlsCertificate(selfSignedCertificateFilePath, null);
-                    }
-                    catch (Exception ex)
-                    {
-                        _log.Write("DNS Server encountered an error while loading self signed Web Service TLS certificate: " + selfSignedCertificateFilePath + "\r\n" + ex.ToString());
-
-                        if (throwException)
-                            throw;
-                    }
-                }
-            }
-            else
-            {
-                File.Delete(selfSignedCertificateFilePath);
-            }
-        }
-
-        private void RestartService(bool restartDnsService, bool restartWebService)
-        {
-            if (restartDnsService)
-            {
-                _ = Task.Run(delegate ()
-                {
-                    _log.Write("Attempting to restart DNS service.");
-
-                    try
-                    {
-                        _dnsServer.Stop();
-                        _dnsServer.Start();
-
-                        _log.Write("DNS service was restarted successfully.");
-                    }
-                    catch (Exception ex)
-                    {
-                        _log.Write("Failed to restart DNS service.");
-                        _log.Write(ex);
-                    }
-                });
-            }
-
-            if (restartWebService)
-            {
-                _ = Task.Run(async delegate ()
-                {
-                    await Task.Delay(2000); //wait for this HTTP response to be delivered before stopping web server
-
-                    _log.Write("Attempting to restart web service.");
-
-                    try
-                    {
-                        StopDnsWebService();
-                        StartDnsWebService();
-
-                        _log.Write("Web service was restarted successfully.");
-                    }
-                    catch (Exception ex)
-                    {
-                        _log.Write("Failed to restart web service.");
-                        _log.Write(ex);
-                    }
-                });
-            }
-        }
-
-        private async Task BackupSettingsAsync(HttpListenerRequest request, HttpListenerResponse response)
-        {
-            bool blockLists = false;
-            bool logs = false;
-            bool scopes = false;
-            bool apps = false;
-            bool stats = false;
-            bool zones = false;
-            bool allowedZones = false;
-            bool blockedZones = false;
-            bool dnsSettings = false;
-            bool authConfig = false;
-            bool logSettings = false;
-
-            string strBlockLists = request.QueryString["blockLists"];
-            if (!string.IsNullOrEmpty(strBlockLists))
-                blockLists = bool.Parse(strBlockLists);
-
-            string strLogs = request.QueryString["logs"];
-            if (!string.IsNullOrEmpty(strLogs))
-                logs = bool.Parse(strLogs);
-
-            string strScopes = request.QueryString["scopes"];
-            if (!string.IsNullOrEmpty(strScopes))
-                scopes = bool.Parse(strScopes);
-
-            string strApps = request.QueryString["apps"];
-            if (!string.IsNullOrEmpty(strApps))
-                apps = bool.Parse(strApps);
-
-            string strStats = request.QueryString["stats"];
-            if (!string.IsNullOrEmpty(strStats))
-                stats = bool.Parse(strStats);
-
-            string strZones = request.QueryString["zones"];
-            if (!string.IsNullOrEmpty(strZones))
-                zones = bool.Parse(strZones);
-
-            string strAllowedZones = request.QueryString["allowedZones"];
-            if (!string.IsNullOrEmpty(strAllowedZones))
-                allowedZones = bool.Parse(strAllowedZones);
-
-            string strBlockedZones = request.QueryString["blockedZones"];
-            if (!string.IsNullOrEmpty(strBlockedZones))
-                blockedZones = bool.Parse(strBlockedZones);
-
-            string strDnsSettings = request.QueryString["dnsSettings"];
-            if (!string.IsNullOrEmpty(strDnsSettings))
-                dnsSettings = bool.Parse(strDnsSettings);
-
-            string strAuthConfig = request.QueryString["authConfig"];
-            if (!string.IsNullOrEmpty(strAuthConfig))
-                authConfig = bool.Parse(strAuthConfig);
-
-            string strLogSettings = request.QueryString["logSettings"];
-            if (!string.IsNullOrEmpty(strLogSettings))
-                logSettings = bool.Parse(strLogSettings);
-
-            string tmpFile = Path.GetTempFileName();
-            try
-            {
-                using (FileStream backupZipStream = new FileStream(tmpFile, FileMode.Create, FileAccess.ReadWrite))
-                {
-                    //create backup zip
-                    using (ZipArchive backupZip = new ZipArchive(backupZipStream, ZipArchiveMode.Create, true, Encoding.UTF8))
-                    {
-                        if (blockLists)
-                        {
-                            string[] blockListFiles = Directory.GetFiles(Path.Combine(_configFolder, "blocklists"), "*", SearchOption.TopDirectoryOnly);
-                            foreach (string blockListFile in blockListFiles)
-                            {
-                                string entryName = "blocklists/" + Path.GetFileName(blockListFile);
-                                backupZip.CreateEntryFromFile(blockListFile, entryName);
-                            }
-                        }
-
-                        if (logs)
-                        {
-                            string[] logFiles = Directory.GetFiles(_log.LogFolderAbsolutePath, "*.log", SearchOption.TopDirectoryOnly);
-                            foreach (string logFile in logFiles)
-                            {
-                                string entryName = "logs/" + Path.GetFileName(logFile);
-
-                                if (logFile.Equals(_log.CurrentLogFile, StringComparison.OrdinalIgnoreCase))
-                                {
-                                    await CreateBackupEntryFromFileAsync(backupZip, logFile, entryName);
-                                }
-                                else
-                                {
-                                    backupZip.CreateEntryFromFile(logFile, entryName);
-                                }
-                            }
-                        }
-
-                        if (scopes)
-                        {
-                            string[] scopeFiles = Directory.GetFiles(Path.Combine(_configFolder, "scopes"), "*.scope", SearchOption.TopDirectoryOnly);
-                            foreach (string scopeFile in scopeFiles)
-                            {
-                                string entryName = "scopes/" + Path.GetFileName(scopeFile);
-                                backupZip.CreateEntryFromFile(scopeFile, entryName);
-                            }
-                        }
-
-                        if (apps)
-                        {
-                            string[] appFiles = Directory.GetFiles(Path.Combine(_configFolder, "apps"), "*", SearchOption.AllDirectories);
-                            foreach (string appFile in appFiles)
-                            {
-                                string entryName = appFile.Substring(_configFolder.Length);
-
-                                if (Path.DirectorySeparatorChar != '/')
-                                    entryName = entryName.Replace(Path.DirectorySeparatorChar, '/');
-
-                                entryName = entryName.TrimStart('/');
-
-                                await CreateBackupEntryFromFileAsync(backupZip, appFile, entryName);
-                            }
-                        }
-
-                        if (stats)
-                        {
-                            string[] hourlyStatsFiles = Directory.GetFiles(Path.Combine(_configFolder, "stats"), "*.stat", SearchOption.TopDirectoryOnly);
-                            foreach (string hourlyStatsFile in hourlyStatsFiles)
-                            {
-                                string entryName = "stats/" + Path.GetFileName(hourlyStatsFile);
-                                backupZip.CreateEntryFromFile(hourlyStatsFile, entryName);
-                            }
-
-                            string[] dailyStatsFiles = Directory.GetFiles(Path.Combine(_configFolder, "stats"), "*.dstat", SearchOption.TopDirectoryOnly);
-                            foreach (string dailyStatsFile in dailyStatsFiles)
-                            {
-                                string entryName = "stats/" + Path.GetFileName(dailyStatsFile);
-                                backupZip.CreateEntryFromFile(dailyStatsFile, entryName);
-                            }
-                        }
-
-                        if (zones)
-                        {
-                            string[] zoneFiles = Directory.GetFiles(Path.Combine(_configFolder, "zones"), "*.zone", SearchOption.TopDirectoryOnly);
-                            foreach (string zoneFile in zoneFiles)
-                            {
-                                string entryName = "zones/" + Path.GetFileName(zoneFile);
-                                backupZip.CreateEntryFromFile(zoneFile, entryName);
-                            }
-                        }
-
-                        if (allowedZones)
-                        {
-                            string allowedZonesFile = Path.Combine(_configFolder, "allowed.config");
-
-                            if (File.Exists(allowedZonesFile))
-                                backupZip.CreateEntryFromFile(allowedZonesFile, "allowed.config");
-                        }
-
-                        if (blockedZones)
-                        {
-                            string blockedZonesFile = Path.Combine(_configFolder, "blocked.config");
-
-                            if (File.Exists(blockedZonesFile))
-                                backupZip.CreateEntryFromFile(blockedZonesFile, "blocked.config");
-                        }
-
-                        if (dnsSettings)
-                        {
-                            string dnsSettingsFile = Path.Combine(_configFolder, "dns.config");
-
-                            if (File.Exists(dnsSettingsFile))
-                                backupZip.CreateEntryFromFile(dnsSettingsFile, "dns.config");
-                        }
-
-                        if (authConfig)
-                        {
-                            string authSettingsFile = Path.Combine(_configFolder, "auth.config");
-
-                            if (File.Exists(authSettingsFile))
-                                backupZip.CreateEntryFromFile(authSettingsFile, "auth.config");
-                        }
-
-                        if (logSettings)
-                        {
-                            string logSettingsFile = Path.Combine(_configFolder, "log.config");
-
-                            if (File.Exists(logSettingsFile))
-                                backupZip.CreateEntryFromFile(logSettingsFile, "log.config");
-                        }
-                    }
-
-                    //send zip file
-                    backupZipStream.Position = 0;
-
-                    response.ContentType = "application/zip";
-                    response.ContentLength64 = backupZipStream.Length;
-                    response.AddHeader("Content-Disposition", "attachment;filename=DnsServerBackup.zip");
-
-                    using (Stream output = response.OutputStream)
-                    {
-                        await backupZipStream.CopyToAsync(output);
-                    }
-                }
-            }
-            finally
-            {
-                try
-                {
-                    File.Delete(tmpFile);
-                }
-                catch (Exception ex)
-                {
-                    _log.Write(ex);
-                }
-            }
-
-            _log.Write(GetRequestRemoteEndPoint(request), "[" + GetSession(request).User.Username + "] Settings backup zip file was exported.");
-        }
-
-        private static async Task CreateBackupEntryFromFileAsync(ZipArchive backupZip, string sourceFileName, string entryName)
-        {
-            using (FileStream fS = new FileStream(sourceFileName, FileMode.Open, FileAccess.Read, FileShare.ReadWrite))
-            {
-                ZipArchiveEntry entry = backupZip.CreateEntry(entryName);
-
-                DateTime lastWrite = File.GetLastWriteTime(sourceFileName);
-
-                // If file to be archived has an invalid last modified time, use the first datetime representable in the Zip timestamp format
-                // (midnight on January 1, 1980):
-                if (lastWrite.Year < 1980 || lastWrite.Year > 2107)
-                    lastWrite = new DateTime(1980, 1, 1, 0, 0, 0);
-
-                entry.LastWriteTime = lastWrite;
-
-                using (Stream sE = entry.Open())
-                {
-                    await fS.CopyToAsync(sE);
-                }
-            }
-        }
-
-        private async Task RestoreSettingsAsync(HttpListenerRequest request, Utf8JsonWriter jsonWriter)
-        {
-            bool blockLists = false;
-            bool logs = false;
-            bool scopes = false;
-            bool apps = false;
-            bool stats = false;
-            bool zones = false;
-            bool allowedZones = false;
-            bool blockedZones = false;
-            bool dnsSettings = false;
-            bool authConfig = false;
-            bool logSettings = false;
-
-            bool deleteExistingFiles = false;
-
-            string strBlockLists = request.QueryString["blockLists"];
-            if (!string.IsNullOrEmpty(strBlockLists))
-                blockLists = bool.Parse(strBlockLists);
-
-            string strLogs = request.QueryString["logs"];
-            if (!string.IsNullOrEmpty(strLogs))
-                logs = bool.Parse(strLogs);
-
-            string strScopes = request.QueryString["scopes"];
-            if (!string.IsNullOrEmpty(strScopes))
-                scopes = bool.Parse(strScopes);
-
-            string strApps = request.QueryString["apps"];
-            if (!string.IsNullOrEmpty(strApps))
-                apps = bool.Parse(strApps);
-
-            string strStats = request.QueryString["stats"];
-            if (!string.IsNullOrEmpty(strStats))
-                stats = bool.Parse(strStats);
-
-            string strZones = request.QueryString["zones"];
-            if (!string.IsNullOrEmpty(strZones))
-                zones = bool.Parse(strZones);
-
-            string strAllowedZones = request.QueryString["allowedZones"];
-            if (!string.IsNullOrEmpty(strAllowedZones))
-                allowedZones = bool.Parse(strAllowedZones);
-
-            string strBlockedZones = request.QueryString["blockedZones"];
-            if (!string.IsNullOrEmpty(strBlockedZones))
-                blockedZones = bool.Parse(strBlockedZones);
-
-            string strDnsSettings = request.QueryString["dnsSettings"];
-            if (!string.IsNullOrEmpty(strDnsSettings))
-                dnsSettings = bool.Parse(strDnsSettings);
-
-            string strAuthConfig = request.QueryString["authConfig"];
-            if (!string.IsNullOrEmpty(strAuthConfig))
-                authConfig = bool.Parse(strAuthConfig);
-
-            string strLogSettings = request.QueryString["logSettings"];
-            if (!string.IsNullOrEmpty(strLogSettings))
-                logSettings = bool.Parse(strLogSettings);
-
-            string strDeleteExistingFiles = request.QueryString["deleteExistingFiles"];
-            if (!string.IsNullOrEmpty(strDeleteExistingFiles))
-                deleteExistingFiles = bool.Parse(strDeleteExistingFiles);
-
-            #region skip to content
-
-            int crlfCount = 0;
-            int byteRead;
-
-            while (crlfCount != 4)
-            {
-                byteRead = await request.InputStream.ReadByteValueAsync();
-                switch (byteRead)
-                {
-                    case 13: //CR
-                    case 10: //LF
-                        crlfCount++;
-                        break;
-
-                    default:
-                        crlfCount = 0;
-                        break;
-                }
-            }
-
-            #endregion
-
-            //write to temp file
-            string tmpFile = Path.GetTempFileName();
-            try
-            {
-                using (FileStream fS = new FileStream(tmpFile, FileMode.Create, FileAccess.ReadWrite))
-                {
-                    await request.InputStream.CopyToAsync(fS);
-
-                    fS.Position = 0;
-                    using (ZipArchive backupZip = new ZipArchive(fS, ZipArchiveMode.Read, false, Encoding.UTF8))
-                    {
-                        UserSession session = GetSession(request);
-
-                        if (logSettings || logs)
-                        {
-                            //stop logging
-                            _log.StopLogging();
-                        }
-
-                        try
-                        {
-                            if (logSettings)
-                            {
-                                ZipArchiveEntry entry = backupZip.GetEntry("log.config");
-                                if (entry != null)
-                                    entry.ExtractToFile(Path.Combine(_configFolder, entry.Name), true);
-
-                                //reload config
-                                _log.LoadConfig();
-                            }
-
-                            if (logs)
-                            {
-                                if (deleteExistingFiles)
-                                {
-                                    //delete existing log files
-                                    string[] logFiles = Directory.GetFiles(_log.LogFolderAbsolutePath, "*.log", SearchOption.TopDirectoryOnly);
-                                    foreach (string logFile in logFiles)
-                                    {
-                                        File.Delete(logFile);
-                                    }
-                                }
-
-                                //extract log files from backup
-                                foreach (ZipArchiveEntry entry in backupZip.Entries)
-                                {
-                                    if (entry.FullName.StartsWith("logs/"))
-                                        entry.ExtractToFile(Path.Combine(_log.LogFolderAbsolutePath, entry.Name), true);
-                                }
-                            }
-                        }
-                        finally
-                        {
-                            if (logSettings || logs)
-                            {
-                                //start logging
-                                if (_log.EnableLogging)
-                                    _log.StartLogging();
-                            }
-                        }
-
-                        if (authConfig)
-                        {
-                            ZipArchiveEntry entry = backupZip.GetEntry("auth.config");
-                            if (entry != null)
-                                entry.ExtractToFile(Path.Combine(_configFolder, entry.Name), true);
-
-                            //reload auth config
-                            _authManager.LoadConfigFile(session);
-                        }
-
-                        if (blockLists)
-                        {
-                            if (deleteExistingFiles)
-                            {
-                                //delete existing block list files
-                                string[] blockListFiles = Directory.GetFiles(Path.Combine(_configFolder, "blocklists"), "*", SearchOption.TopDirectoryOnly);
-                                foreach (string blockListFile in blockListFiles)
-                                {
-                                    File.Delete(blockListFile);
-                                }
-                            }
-
-                            //extract block list files from backup
-                            foreach (ZipArchiveEntry entry in backupZip.Entries)
-                            {
-                                if (entry.FullName.StartsWith("blocklists/"))
-                                    entry.ExtractToFile(Path.Combine(_configFolder, "blocklists", entry.Name), true);
-                            }
-                        }
-
-                        if (dnsSettings)
-                        {
-                            ZipArchiveEntry entry = backupZip.GetEntry("dns.config");
-                            if (entry != null)
-                                entry.ExtractToFile(Path.Combine(_configFolder, entry.Name), true);
-
-                            //reload settings and block list zone
-                            LoadConfigFile();
-
-                            if ((_blockListUpdateIntervalHours > 0) && (_dnsServer.BlockListZoneManager.BlockListUrls.Count > 0))
-                            {
-                                ThreadPool.QueueUserWorkItem(delegate (object state)
-                                {
-                                    try
-                                    {
-                                        _dnsServer.BlockListZoneManager.LoadBlockLists();
-                                        StartBlockListUpdateTimer();
-                                    }
-                                    catch (Exception ex)
-                                    {
-                                        _log.Write(ex);
-                                    }
-                                });
-                            }
-                            else
-                            {
-                                StopBlockListUpdateTimer();
-                            }
-                        }
-
-                        if (apps)
-                        {
-                            //unload apps
-                            _dnsServer.DnsApplicationManager.UnloadAllApplications();
-
-                            if (deleteExistingFiles)
-                            {
-                                //delete existing apps
-                                string appFolder = Path.Combine(_configFolder, "apps");
-                                if (Directory.Exists(appFolder))
-                                    Directory.Delete(appFolder, true);
-
-                                //create apps folder
-                                Directory.CreateDirectory(appFolder);
-                            }
-
-                            //extract apps files from backup
-                            foreach (ZipArchiveEntry entry in backupZip.Entries)
-                            {
-                                if (entry.FullName.StartsWith("apps/"))
-                                {
-                                    string entryPath = entry.FullName;
-
-                                    if (Path.DirectorySeparatorChar != '/')
-                                        entryPath = entryPath.Replace('/', '\\');
-
-                                    string filePath = Path.Combine(_configFolder, entryPath);
-
-                                    Directory.CreateDirectory(Path.GetDirectoryName(filePath));
-
-                                    entry.ExtractToFile(filePath, true);
-                                }
-                            }
-
-                            //reload apps
-                            _dnsServer.DnsApplicationManager.LoadAllApplications();
-                        }
-
-                        if (zones)
-                        {
-                            if (deleteExistingFiles)
-                            {
-                                //delete existing zone files
-                                string[] zoneFiles = Directory.GetFiles(Path.Combine(_configFolder, "zones"), "*.zone", SearchOption.TopDirectoryOnly);
-                                foreach (string zoneFile in zoneFiles)
-                                {
-                                    File.Delete(zoneFile);
-                                }
-                            }
-
-                            //extract zone files from backup
-                            foreach (ZipArchiveEntry entry in backupZip.Entries)
-                            {
-                                if (entry.FullName.StartsWith("zones/"))
-                                    entry.ExtractToFile(Path.Combine(_configFolder, "zones", entry.Name), true);
-                            }
-
-                            //reload zones
-                            _dnsServer.AuthZoneManager.LoadAllZoneFiles();
-                            InspectAndFixZonePermissions();
-                        }
-
-                        if (allowedZones)
-                        {
-                            ZipArchiveEntry entry = backupZip.GetEntry("allowed.config");
-                            if (entry == null)
-                            {
-                                string fileName = Path.Combine(_configFolder, "allowed.config");
-                                if (File.Exists(fileName))
-                                    File.Delete(fileName);
-                            }
-                            else
-                            {
-                                entry.ExtractToFile(Path.Combine(_configFolder, entry.Name), true);
-                            }
-
-                            //reload
-                            _dnsServer.AllowedZoneManager.LoadAllowedZoneFile();
-                        }
-
-                        if (blockedZones)
-                        {
-                            ZipArchiveEntry entry = backupZip.GetEntry("blocked.config");
-                            if (entry == null)
-                            {
-                                string fileName = Path.Combine(_configFolder, "allowed.config");
-                                if (File.Exists(fileName))
-                                    File.Delete(fileName);
-                            }
-                            else
-                            {
-                                entry.ExtractToFile(Path.Combine(_configFolder, entry.Name), true);
-                            }
-
-                            //reload
-                            _dnsServer.BlockedZoneManager.LoadBlockedZoneFile();
-                        }
-
-                        if (scopes)
-                        {
-                            //stop dhcp server
-                            _dhcpServer.Stop();
-
-                            try
-                            {
-                                if (deleteExistingFiles)
-                                {
-                                    //delete existing scope files
-                                    string[] scopeFiles = Directory.GetFiles(Path.Combine(_configFolder, "scopes"), "*.scope", SearchOption.TopDirectoryOnly);
-                                    foreach (string scopeFile in scopeFiles)
-                                    {
-                                        File.Delete(scopeFile);
-                                    }
-                                }
-
-                                //extract scope files from backup
-                                foreach (ZipArchiveEntry entry in backupZip.Entries)
-                                {
-                                    if (entry.FullName.StartsWith("scopes/"))
-                                        entry.ExtractToFile(Path.Combine(_configFolder, "scopes", entry.Name), true);
-                                }
-                            }
-                            finally
-                            {
-                                //start dhcp server
-                                _dhcpServer.Start();
-                            }
-                        }
-
-                        if (stats)
-                        {
-                            if (deleteExistingFiles)
-                            {
-                                //delete existing stats files
-                                string[] hourlyStatsFiles = Directory.GetFiles(Path.Combine(_configFolder, "stats"), "*.stat", SearchOption.TopDirectoryOnly);
-                                foreach (string hourlyStatsFile in hourlyStatsFiles)
-                                {
-                                    File.Delete(hourlyStatsFile);
-                                }
-
-                                string[] dailyStatsFiles = Directory.GetFiles(Path.Combine(_configFolder, "stats"), "*.dstat", SearchOption.TopDirectoryOnly);
-                                foreach (string dailyStatsFile in dailyStatsFiles)
-                                {
-                                    File.Delete(dailyStatsFile);
-                                }
-                            }
-
-                            //extract stats files from backup
-                            foreach (ZipArchiveEntry entry in backupZip.Entries)
-                            {
-                                if (entry.FullName.StartsWith("stats/"))
-                                    entry.ExtractToFile(Path.Combine(_configFolder, "stats", entry.Name), true);
-                            }
-
-                            //reload stats
-                            _dnsServer.StatsManager.ReloadStats();
-                        }
-
-                        _log.Write(GetRequestRemoteEndPoint(request), "[" + session.User.Username + "] Settings backup zip file was restored.");
-                    }
-                }
-            }
-            finally
-            {
-                try
-                {
-                    File.Delete(tmpFile);
-                }
-                catch (Exception ex)
-                {
-                    _log.Write(ex);
-                }
-            }
-
-            if (dnsSettings)
-                RestartService(true, true);
-
-            GetDnsSettings(jsonWriter);
-        }
-
-        private void ForceUpdateBlockLists(HttpListenerRequest request)
-        {
-            ForceUpdateBlockLists();
-            _log.Write(GetRequestRemoteEndPoint(request), "[" + GetSession(request).User.Username + "] Block list update was triggered.");
-        }
-
-        private void TemporaryDisableBlocking(HttpListenerRequest request, Utf8JsonWriter jsonWriter)
-        {
-            string strMinutes = request.QueryString["minutes"];
-            if (string.IsNullOrEmpty(strMinutes))
-                throw new DnsWebServiceException("Parameter 'minutes' missing.");
-
-            int minutes = int.Parse(strMinutes);
-
-            Timer temporaryDisableBlockingTimer = _temporaryDisableBlockingTimer;
-            if (temporaryDisableBlockingTimer is not null)
-                temporaryDisableBlockingTimer.Dispose();
-
-            Timer newTemporaryDisableBlockingTimer = new Timer(delegate (object state)
-            {
-                try
-                {
-                    _dnsServer.EnableBlocking = true;
-                    _log.Write(GetRequestRemoteEndPoint(request), "[" + GetSession(request).User.Username + "] Blocking was enabled after " + minutes + " minute(s) being temporarily disabled.");
-                }
-                catch (Exception ex)
-                {
-                    _log.Write(ex);
-                }
-            });
-
-            Timer originalTimer = Interlocked.CompareExchange(ref _temporaryDisableBlockingTimer, newTemporaryDisableBlockingTimer, temporaryDisableBlockingTimer);
-            if (ReferenceEquals(originalTimer, temporaryDisableBlockingTimer))
-            {
-                newTemporaryDisableBlockingTimer.Change(minutes * 60 * 1000, Timeout.Infinite);
-                _dnsServer.EnableBlocking = false;
-                _temporaryDisableBlockingTill = DateTime.UtcNow.AddMinutes(minutes);
-
-                _log.Write(GetRequestRemoteEndPoint(request), "[" + GetSession(request).User.Username + "] Blocking was temporarily disabled for " + minutes + " minute(s).");
-            }
-            else
-            {
-                newTemporaryDisableBlockingTimer.Dispose();
-            }
-
-            jsonWriter.WriteString("temporaryDisableBlockingTill", _temporaryDisableBlockingTill);
-        }
-
-        #endregion
-
         #region dns client api
 
         private async Task ResolveQueryAsync(HttpListenerRequest request, Utf8JsonWriter jsonWriter)
@@ -3530,64 +1762,9 @@ namespace DnsServerCore
 
         #endregion
 
-        #region block list
-
-        private void ForceUpdateBlockLists()
-        {
-            Task.Run(async delegate ()
-            {
-                if (await _dnsServer.BlockListZoneManager.UpdateBlockListsAsync())
-                {
-                    //block lists were updated
-                    //save last updated on time
-                    _blockListLastUpdatedOn = DateTime.UtcNow;
-                    SaveConfigFile();
-                }
-            });
-        }
-
-        private void StartBlockListUpdateTimer()
-        {
-            if (_blockListUpdateTimer is null)
-            {
-                _blockListUpdateTimer = new Timer(async delegate (object state)
-                {
-                    try
-                    {
-                        if (DateTime.UtcNow > _blockListLastUpdatedOn.AddHours(_blockListUpdateIntervalHours))
-                        {
-                            if (await _dnsServer.BlockListZoneManager.UpdateBlockListsAsync())
-                            {
-                                //block lists were updated
-                                //save last updated on time
-                                _blockListLastUpdatedOn = DateTime.UtcNow;
-                                SaveConfigFile();
-                            }
-                        }
-                    }
-                    catch (Exception ex)
-                    {
-                        _log.Write("DNS Server encountered an error while updating block lists.\r\n" + ex.ToString());
-                    }
-
-                }, null, BLOCK_LIST_UPDATE_TIMER_INITIAL_INTERVAL, BLOCK_LIST_UPDATE_TIMER_PERIODIC_INTERVAL);
-            }
-        }
-
-        private void StopBlockListUpdateTimer()
-        {
-            if (_blockListUpdateTimer is not null)
-            {
-                _blockListUpdateTimer.Dispose();
-                _blockListUpdateTimer = null;
-            }
-        }
-
-        #endregion
-
         #region tls
 
-        private void StartTlsCertificateUpdateTimer()
+        internal void StartTlsCertificateUpdateTimer()
         {
             if (_tlsCertificateUpdateTimer == null)
             {
@@ -3627,7 +1804,7 @@ namespace DnsServerCore
             }
         }
 
-        private void StopTlsCertificateUpdateTimer()
+        internal void StopTlsCertificateUpdateTimer()
         {
             if (_tlsCertificateUpdateTimer != null)
             {
@@ -3636,7 +1813,7 @@ namespace DnsServerCore
             }
         }
 
-        private void LoadWebServiceTlsCertificate(string tlsCertificatePath, string tlsCertificatePassword)
+        internal void LoadWebServiceTlsCertificate(string tlsCertificatePath, string tlsCertificatePassword)
         {
             FileInfo fileInfo = new FileInfo(tlsCertificatePath);
 
@@ -3654,7 +1831,7 @@ namespace DnsServerCore
             _log.Write("Web Service TLS certificate was loaded: " + tlsCertificatePath);
         }
 
-        private void LoadDnsTlsCertificate(string tlsCertificatePath, string tlsCertificatePassword)
+        internal void LoadDnsTlsCertificate(string tlsCertificatePath, string tlsCertificatePassword)
         {
             FileInfo fileInfo = new FileInfo(tlsCertificatePath);
 
@@ -3672,11 +1849,47 @@ namespace DnsServerCore
             _log.Write("DNS Server TLS certificate was loaded: " + tlsCertificatePath);
         }
 
+        internal void SelfSignedCertCheck(bool generateNew, bool throwException)
+        {
+            string selfSignedCertificateFilePath = Path.Combine(_configFolder, "cert.pfx");
+
+            if (_webServiceUseSelfSignedTlsCertificate)
+            {
+                if (generateNew || !File.Exists(selfSignedCertificateFilePath))
+                {
+                    RSA rsa = RSA.Create(2048);
+                    CertificateRequest req = new CertificateRequest("cn=" + _dnsServer.ServerDomain, rsa, HashAlgorithmName.SHA256, RSASignaturePadding.Pkcs1);
+                    X509Certificate2 cert = req.CreateSelfSigned(DateTimeOffset.UtcNow, DateTimeOffset.UtcNow.AddYears(5));
+
+                    File.WriteAllBytes(selfSignedCertificateFilePath, cert.Export(X509ContentType.Pkcs12, null as string));
+                }
+
+                if (_webServiceEnableTls && string.IsNullOrEmpty(_webServiceTlsCertificatePath))
+                {
+                    try
+                    {
+                        LoadWebServiceTlsCertificate(selfSignedCertificateFilePath, null);
+                    }
+                    catch (Exception ex)
+                    {
+                        _log.Write("DNS Server encountered an error while loading self signed Web Service TLS certificate: " + selfSignedCertificateFilePath + "\r\n" + ex.ToString());
+
+                        if (throwException)
+                            throw;
+                    }
+                }
+            }
+            else
+            {
+                File.Delete(selfSignedCertificateFilePath);
+            }
+        }
+
         #endregion
 
         #region config
 
-        private void LoadConfigFile()
+        internal void LoadConfigFile()
         {
             string configFile = Path.Combine(_configFolder, "dns.config");
 
@@ -3858,7 +2071,7 @@ namespace DnsServerCore
             }
         }
 
-        private void SaveConfigFile()
+        internal void SaveConfigFile()
         {
             string configFile = Path.Combine(_configFolder, "dns.config");
 
@@ -3879,7 +2092,7 @@ namespace DnsServerCore
             _log.Write("DNS Server config file was saved: " + configFile);
         }
 
-        private void InspectAndFixZonePermissions()
+        internal void InspectAndFixZonePermissions()
         {
             Permission permission = _authManager.GetPermission(PermissionSection.Zones);
             IReadOnlyDictionary<string, Permission> subItemPermissions = permission.SubItemPermissions;
@@ -4179,8 +2392,8 @@ namespace DnsServerCore
                             _dnsServer.BlockListZoneManager.BlockListUrls.Add(new Uri(listUrl));
                     }
 
-                    _blockListUpdateIntervalHours = bR.ReadInt32();
-                    _blockListLastUpdatedOn = bR.ReadDateTime();
+                    _settingsApi.BlockListUpdateIntervalHours = bR.ReadInt32();
+                    _settingsApi.BlockListLastUpdatedOn = bR.ReadDateTime();
                 }
 
                 //proxy & forwarders
@@ -4601,17 +2814,17 @@ namespace DnsServerCore
                         _dnsServer.BlockListZoneManager.BlockListUrls.Add(new Uri(listUrl));
                 }
 
-                _blockListLastUpdatedOn = bR.ReadDateTime();
+                _settingsApi.BlockListLastUpdatedOn = bR.ReadDateTime();
 
                 if (version >= 13)
-                    _blockListUpdateIntervalHours = bR.ReadInt32();
+                    _settingsApi.BlockListUpdateIntervalHours = bR.ReadInt32();
             }
             else
             {
                 _dnsServer.BlockListZoneManager.AllowListUrls.Clear();
                 _dnsServer.BlockListZoneManager.BlockListUrls.Clear();
-                _blockListLastUpdatedOn = DateTime.MinValue;
-                _blockListUpdateIntervalHours = 24;
+                _settingsApi.BlockListLastUpdatedOn = DateTime.MinValue;
+                _settingsApi.BlockListUpdateIntervalHours = 24;
             }
 
             if (version >= 11)
@@ -4972,8 +3185,8 @@ namespace DnsServerCore
                     foreach (Uri blockListUrl in _dnsServer.BlockListZoneManager.BlockListUrls)
                         bW.WriteShortString(blockListUrl.AbsoluteUri);
 
-                    bW.Write(_blockListUpdateIntervalHours);
-                    bW.Write(_blockListLastUpdatedOn);
+                    bW.Write(_settingsApi.BlockListUpdateIntervalHours);
+                    bW.Write(_settingsApi.BlockListLastUpdatedOn);
                 }
 
                 //proxy & forwarders
@@ -5035,7 +3248,7 @@ namespace DnsServerCore
 
         #region web service start stop
 
-        private void StartDnsWebService()
+        internal void StartDnsWebService()
         {
             int acceptTasks = Math.Max(1, Environment.ProcessorCount);
 
@@ -5167,7 +3380,7 @@ namespace DnsServerCore
             }
         }
 
-        private void StopDnsWebService()
+        internal void StopDnsWebService()
         {
             _webService.Stop();
 
@@ -5189,7 +3402,7 @@ namespace DnsServerCore
         public void Start()
         {
             if (_disposed)
-                throw new ObjectDisposedException("WebService");
+                throw new ObjectDisposedException(nameof(DnsWebService));
 
             if (_state != ServiceState.Stopped)
                 throw new InvalidOperationException("Web Service is already running.");
@@ -5243,14 +3456,14 @@ namespace DnsServerCore
                 _dnsServer.BlockedZoneManager.LoadBlockedZoneFile();
 
                 //load block list zone async
-                if ((_blockListUpdateIntervalHours > 0) && (_dnsServer.BlockListZoneManager.BlockListUrls.Count > 0))
+                if ((_settingsApi.BlockListUpdateIntervalHours > 0) && (_dnsServer.BlockListZoneManager.BlockListUrls.Count > 0))
                 {
                     ThreadPool.QueueUserWorkItem(delegate (object state)
                     {
                         try
                         {
                             _dnsServer.BlockListZoneManager.LoadBlockLists();
-                            StartBlockListUpdateTimer();
+                            _settingsApi.StartBlockListUpdateTimer();
                         }
                         catch (Exception ex)
                         {
@@ -5290,11 +3503,9 @@ namespace DnsServerCore
                 _dnsServer.Dispose();
                 _dhcpServer.Dispose();
 
-                StopBlockListUpdateTimer();
+                _settingsApi.StopBlockListUpdateTimer();
+                _settingsApi.StopTemporaryDisableBlockingTimer();
                 StopTlsCertificateUpdateTimer();
-
-                if (_temporaryDisableBlockingTimer is not null)
-                    _temporaryDisableBlockingTimer.Dispose();
 
                 _state = ServiceState.Stopped;
 
@@ -5310,24 +3521,6 @@ namespace DnsServerCore
         #endregion
 
         #region properties
-
-        internal LogManager Log
-        { get { return _log; } }
-
-        internal AuthManager AuthManager
-        { get { return _authManager; } }
-
-        internal WebServiceZonesApi ZonesApi
-        { get { return _zonesApi; } }
-
-        internal DnsServer DnsServer
-        { get { return _dnsServer; } }
-
-        internal DhcpServer DhcpServer
-        { get { return _dhcpServer; } }
-
-        internal Version ServerVersion
-        { get { return _currentVersion; } }
 
         public string ConfigFolder
         { get { return _configFolder; } }
