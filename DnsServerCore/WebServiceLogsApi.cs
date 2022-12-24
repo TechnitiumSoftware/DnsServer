@@ -19,11 +19,11 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 using DnsServerCore.ApplicationCommon;
 using DnsServerCore.Dns.Applications;
-using Newtonsoft.Json;
 using System;
 using System.Globalization;
 using System.IO;
 using System.Net;
+using System.Text.Json;
 using System.Threading.Tasks;
 using TechnitiumLibrary.Net;
 using TechnitiumLibrary.Net.Dns;
@@ -50,7 +50,7 @@ namespace DnsServerCore
 
         #region public
 
-        public void ListLogs(JsonTextWriter jsonWriter)
+        public void ListLogs(Utf8JsonWriter jsonWriter)
         {
             string[] logFiles = _dnsWebService.Log.ListLogFiles();
 
@@ -64,11 +64,8 @@ namespace DnsServerCore
             {
                 jsonWriter.WriteStartObject();
 
-                jsonWriter.WritePropertyName("fileName");
-                jsonWriter.WriteValue(Path.GetFileNameWithoutExtension(logFile));
-
-                jsonWriter.WritePropertyName("size");
-                jsonWriter.WriteValue(WebUtilities.GetFormattedSize(new FileInfo(logFile).Length));
+                jsonWriter.WriteString("fileName", Path.GetFileNameWithoutExtension(logFile));
+                jsonWriter.WriteString("size", WebUtilities.GetFormattedSize(new FileInfo(logFile).Length));
 
                 jsonWriter.WriteEndObject();
             }
@@ -117,7 +114,7 @@ namespace DnsServerCore
             _dnsWebService.Log.Write(DnsWebService.GetRequestRemoteEndPoint(request), "[" + _dnsWebService.GetSession(request).User.Username + "] All stats files were deleted.");
         }
 
-        public async Task QueryLogsAsync(HttpListenerRequest request, JsonTextWriter jsonWriter)
+        public async Task QueryLogsAsync(HttpListenerRequest request, Utf8JsonWriter jsonWriter)
         {
             string name = request.QueryString["name"];
             if (string.IsNullOrEmpty(name))
@@ -216,14 +213,9 @@ namespace DnsServerCore
 
             DnsLogPage page = await logger.QueryLogsAsync(pageNumber, entriesPerPage, descendingOrder, start, end, clientIpAddress, protocol, responseType, rcode, qname, qtype, qclass);
 
-            jsonWriter.WritePropertyName("pageNumber");
-            jsonWriter.WriteValue(page.PageNumber);
-
-            jsonWriter.WritePropertyName("totalPages");
-            jsonWriter.WriteValue(page.TotalPages);
-
-            jsonWriter.WritePropertyName("totalEntries");
-            jsonWriter.WriteValue(page.TotalEntries);
+            jsonWriter.WriteNumber("pageNumber", page.PageNumber);
+            jsonWriter.WriteNumber("totalPages", page.TotalPages);
+            jsonWriter.WriteNumber("totalEntries", page.TotalEntries);
 
             jsonWriter.WritePropertyName("entries");
             jsonWriter.WriteStartArray();
@@ -232,35 +224,16 @@ namespace DnsServerCore
             {
                 jsonWriter.WriteStartObject();
 
-                jsonWriter.WritePropertyName("rowNumber");
-                jsonWriter.WriteValue(entry.RowNumber);
-
-                jsonWriter.WritePropertyName("timestamp");
-                jsonWriter.WriteValue(entry.Timestamp);
-
-                jsonWriter.WritePropertyName("clientIpAddress");
-                jsonWriter.WriteValue(entry.ClientIpAddress.ToString());
-
-                jsonWriter.WritePropertyName("protocol");
-                jsonWriter.WriteValue(entry.Protocol.ToString());
-
-                jsonWriter.WritePropertyName("responseType");
-                jsonWriter.WriteValue(entry.ResponseType.ToString());
-
-                jsonWriter.WritePropertyName("rcode");
-                jsonWriter.WriteValue(entry.RCODE.ToString());
-
-                jsonWriter.WritePropertyName("qname");
-                jsonWriter.WriteValue(entry.Question?.Name);
-
-                jsonWriter.WritePropertyName("qtype");
-                jsonWriter.WriteValue(entry.Question?.Type.ToString());
-
-                jsonWriter.WritePropertyName("qclass");
-                jsonWriter.WriteValue(entry.Question?.Class.ToString());
-
-                jsonWriter.WritePropertyName("answer");
-                jsonWriter.WriteValue(entry.Answer);
+                jsonWriter.WriteNumber("rowNumber", entry.RowNumber);
+                jsonWriter.WriteString("timestamp", entry.Timestamp);
+                jsonWriter.WriteString("clientIpAddress", entry.ClientIpAddress.ToString());
+                jsonWriter.WriteString("protocol", entry.Protocol.ToString());
+                jsonWriter.WriteString("responseType", entry.ResponseType.ToString());
+                jsonWriter.WriteString("rcode", entry.RCODE.ToString());
+                jsonWriter.WriteString("qname", entry.Question?.Name);
+                jsonWriter.WriteString("qtype", entry.Question?.Type.ToString());
+                jsonWriter.WriteString("qclass", entry.Question?.Class.ToString());
+                jsonWriter.WriteString("answer", entry.Answer);
 
                 jsonWriter.WriteEndObject();
             }
