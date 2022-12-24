@@ -252,7 +252,7 @@ function sortTable(tableId, n) {
 }
 
 function serializeTableData(table, columns, objAlertPlaceholder) {
-    var data = table.find('input:text, input:checkbox, input:hidden, select');
+    var data = table.find('input:text, :input[type="number"], input:checkbox, input:hidden, select');
     var output = "";
 
     for (var i = 0; i < data.length; i += columns) {
