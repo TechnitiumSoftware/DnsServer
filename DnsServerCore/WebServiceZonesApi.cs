@@ -22,11 +22,11 @@ using DnsServerCore.Dns;
 using DnsServerCore.Dns.Dnssec;
 using DnsServerCore.Dns.ResourceRecords;
 using DnsServerCore.Dns.Zones;
-using Newtonsoft.Json;
 using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Net;
+using System.Text.Json;
 using System.Threading.Tasks;
 using TechnitiumLibrary.Net;
 using TechnitiumLibrary.Net.Dns;
@@ -56,7 +56,7 @@ namespace DnsServerCore
 
         #region static
 
-        public static void WriteRecordsAsJson(List<DnsResourceRecord> records, JsonTextWriter jsonWriter, bool authoritativeZoneRecords, AuthZoneInfo zoneInfo = null)
+        public static void WriteRecordsAsJson(List<DnsResourceRecord> records, Utf8JsonWriter jsonWriter, bool authoritativeZoneRecords, AuthZoneInfo zoneInfo = null)
         {
             if (records is null)
             {
@@ -90,36 +90,28 @@ namespace DnsServerCore
 
         #region private
 
-        private static void WriteRecordAsJson(DnsResourceRecord record, JsonTextWriter jsonWriter, bool authoritativeZoneRecords, AuthZoneInfo zoneInfo = null)
+        private static void WriteRecordAsJson(DnsResourceRecord record, Utf8JsonWriter jsonWriter, bool authoritativeZoneRecords, AuthZoneInfo zoneInfo = null)
         {
             jsonWriter.WriteStartObject();
 
             if (authoritativeZoneRecords)
-            {
-                jsonWriter.WritePropertyName("disabled");
-                jsonWriter.WriteValue(record.IsDisabled());
-            }
+                jsonWriter.WriteBoolean("disabled", record.IsDisabled());
 
-            jsonWriter.WritePropertyName("name");
-            jsonWriter.WriteValue(record.Name);
+            jsonWriter.WriteString("name", record.Name);
 
-            jsonWriter.WritePropertyName("type");
-            jsonWriter.WriteValue(record.Type.ToString());
+            jsonWriter.WriteString("type", record.Type.ToString());
 
             jsonWriter.WritePropertyName("ttl");
             if (authoritativeZoneRecords)
-                jsonWriter.WriteValue(record.TtlValue);
+                jsonWriter.WriteNumberValue(record.TTL);
             else
-                jsonWriter.WriteValue(record.TTL);
+                jsonWriter.WriteStringValue(record.TTL + " (" + WebUtilities.GetFormattedTime((int)record.TTL) + ")");
 
             if (authoritativeZoneRecords)
             {
                 string comments = record.GetComments();
                 if (!string.IsNullOrEmpty(comments))
-                {
-                    jsonWriter.WritePropertyName("comments");
-                    jsonWriter.WriteValue(comments);
-                }
+                    jsonWriter.WriteString("comments", comments);
             }
 
             jsonWriter.WritePropertyName("rData");
@@ -133,16 +125,12 @@ namespace DnsServerCore
                     {
                         if (record.RDATA is DnsARecordData rdata)
                         {
-                            jsonWriter.WritePropertyName("ipAddress");
-                            jsonWriter.WriteValue(rdata.IPAddress);
+                            jsonWriter.WriteString("ipAddress", rdata.Address.ToString());
                         }
                         else
                         {
-                            jsonWriter.WritePropertyName("dataType");
-                            jsonWriter.WriteValue(record.RDATA.GetType().Name);
-
-                            jsonWriter.WritePropertyName("data");
-                            jsonWriter.WriteValue(record.RDATA.ToString());
+                            jsonWriter.WriteString("dataType", record.RDATA.GetType().Name);
+                            jsonWriter.WriteString("data", record.RDATA.ToString());
                         }
                     }
                     break;
@@ -151,27 +139,18 @@ namespace DnsServerCore
                     {
                         if (record.RDATA is DnsNSRecordData rdata)
                         {
-                            jsonWriter.WritePropertyName("nameServer");
-                            jsonWriter.WriteValue(rdata.NameServer.Length == 0 ? "." : rdata.NameServer);
+                            jsonWriter.WriteString("nameServer", rdata.NameServer.Length == 0 ? "." : rdata.NameServer);
 
                             if (!authoritativeZoneRecords)
                             {
                                 if (rdata.IsParentSideTtlSet)
-                                {
-                                    int parentSideTtl = (int)rdata.ParentSideTtl;
-
-                                    jsonWriter.WritePropertyName("parentSideTtl");
-                                    jsonWriter.WriteValue(parentSideTtl + " (" + WebUtilities.GetFormattedTime(parentSideTtl) + ")");
-                                }
+                                    jsonWriter.WriteString("parentSideTtl", rdata.ParentSideTtl + " (" + WebUtilities.GetFormattedTime((int)rdata.ParentSideTtl) + ")");
                             }
                         }
                         else
                         {
-                            jsonWriter.WritePropertyName("dataType");
-                            jsonWriter.WriteValue(record.RDATA.GetType().Name);
-
-                            jsonWriter.WritePropertyName("data");
-                            jsonWriter.WriteValue(record.RDATA.ToString());
+                            jsonWriter.WriteString("dataType", record.RDATA.GetType().Name);
+                            jsonWriter.WriteString("data", record.RDATA.ToString());
                         }
                     }
                     break;
@@ -180,16 +159,12 @@ namespace DnsServerCore
                     {
                         if (record.RDATA is DnsCNAMERecordData rdata)
                         {
-                            jsonWriter.WritePropertyName("cname");
-                            jsonWriter.WriteValue(rdata.Domain.Length == 0 ? "." : rdata.Domain);
+                            jsonWriter.WriteString("cname", rdata.Domain.Length == 0 ? "." : rdata.Domain);
                         }
                         else
                         {
-                            jsonWriter.WritePropertyName("dataType");
-                            jsonWriter.WriteValue(record.RDATA.GetType().Name);
-
-                            jsonWriter.WritePropertyName("data");
-                            jsonWriter.WriteValue(record.RDATA.ToString());
+                            jsonWriter.WriteString("dataType", record.RDATA.GetType().Name);
+                            jsonWriter.WriteString("data", record.RDATA.ToString());
                         }
                     }
                     break;
@@ -198,34 +173,18 @@ namespace DnsServerCore
                     {
                         if (record.RDATA is DnsSOARecordData rdata)
                         {
-                            jsonWriter.WritePropertyName("primaryNameServer");
-                            jsonWriter.WriteValue(rdata.PrimaryNameServer);
-
-                            jsonWriter.WritePropertyName("responsiblePerson");
-                            jsonWriter.WriteValue(rdata.ResponsiblePerson);
-
-                            jsonWriter.WritePropertyName("serial");
-                            jsonWriter.WriteValue(rdata.Serial);
-
-                            jsonWriter.WritePropertyName("refresh");
-                            jsonWriter.WriteValue(rdata.Refresh);
-
-                            jsonWriter.WritePropertyName("retry");
-                            jsonWriter.WriteValue(rdata.Retry);
-
-                            jsonWriter.WritePropertyName("expire");
-                            jsonWriter.WriteValue(rdata.Expire);
-
-                            jsonWriter.WritePropertyName("minimum");
-                            jsonWriter.WriteValue(rdata.Minimum);
+                            jsonWriter.WriteString("primaryNameServer", rdata.PrimaryNameServer);
+                            jsonWriter.WriteString("responsiblePerson", rdata.ResponsiblePerson);
+                            jsonWriter.WriteNumber("serial", rdata.Serial);
+                            jsonWriter.WriteNumber("refresh", rdata.Refresh);
+                            jsonWriter.WriteNumber("retry", rdata.Retry);
+                            jsonWriter.WriteNumber("expire", rdata.Expire);
+                            jsonWriter.WriteNumber("minimum", rdata.Minimum);
                         }
                         else
                         {
-                            jsonWriter.WritePropertyName("dataType");
-                            jsonWriter.WriteValue(record.RDATA.GetType().Name);
-
-                            jsonWriter.WritePropertyName("data");
-                            jsonWriter.WriteValue(record.RDATA.ToString());
+                            jsonWriter.WriteString("dataType", record.RDATA.GetType().Name);
+                            jsonWriter.WriteString("data", record.RDATA.ToString());
                         }
 
                         if (authoritativeZoneRecords)
@@ -243,21 +202,14 @@ namespace DnsServerCore
                                         primaryAddresses = primaryAddresses + ", " + primaryNameServer.OriginalAddress;
                                 }
 
-                                jsonWriter.WritePropertyName("primaryAddresses");
-                                jsonWriter.WriteValue(primaryAddresses);
+                                jsonWriter.WriteString("primaryAddresses", primaryAddresses);
                             }
 
                             if (recordInfo.ZoneTransferProtocol != DnsTransportProtocol.Udp)
-                            {
-                                jsonWriter.WritePropertyName("zoneTransferProtocol");
-                                jsonWriter.WriteValue(recordInfo.ZoneTransferProtocol.ToString());
-                            }
+                                jsonWriter.WriteString("zoneTransferProtocol", recordInfo.ZoneTransferProtocol.ToString());
 
                             if (!string.IsNullOrEmpty(recordInfo.TsigKeyName))
-                            {
-                                jsonWriter.WritePropertyName("tsigKeyName");
-                                jsonWriter.WriteValue(recordInfo.TsigKeyName);
-                            }
+                                jsonWriter.WriteString("tsigKeyName", recordInfo.TsigKeyName);
                         }
                     }
                     break;
@@ -266,16 +218,12 @@ namespace DnsServerCore
                     {
                         if (record.RDATA is DnsPTRRecordData rdata)
                         {
-                            jsonWriter.WritePropertyName("ptrName");
-                            jsonWriter.WriteValue(rdata.Domain.Length == 0 ? "." : rdata.Domain);
+                            jsonWriter.WriteString("ptrName", rdata.Domain.Length == 0 ? "." : rdata.Domain);
                         }
                         else
                         {
-                            jsonWriter.WritePropertyName("dataType");
-                            jsonWriter.WriteValue(record.RDATA.GetType().Name);
-
-                            jsonWriter.WritePropertyName("data");
-                            jsonWriter.WriteValue(record.RDATA.ToString());
+                            jsonWriter.WriteString("dataType", record.RDATA.GetType().Name);
+                            jsonWriter.WriteString("data", record.RDATA.ToString());
                         }
                     }
                     break;
@@ -284,20 +232,13 @@ namespace DnsServerCore
                     {
                         if (record.RDATA is DnsMXRecordData rdata)
                         {
-                            jsonWriter.WritePropertyName("preference");
-                            jsonWriter.WriteValue(rdata.Preference);
-
-                            jsonWriter.WritePropertyName("exchange");
-                            jsonWriter.WriteValue(rdata.Exchange.Length == 0 ? "." : rdata.Exchange);
-
+                            jsonWriter.WriteNumber("preference", rdata.Preference);
+                            jsonWriter.WriteString("exchange", rdata.Exchange.Length == 0 ? "." : rdata.Exchange);
                         }
                         else
                         {
-                            jsonWriter.WritePropertyName("dataType");
-                            jsonWriter.WriteValue(record.RDATA.GetType().Name);
-
-                            jsonWriter.WritePropertyName("data");
-                            jsonWriter.WriteValue(record.RDATA.ToString());
+                            jsonWriter.WriteString("dataType", record.RDATA.GetType().Name);
+                            jsonWriter.WriteString("data", record.RDATA.ToString());
                         }
                     }
                     break;
@@ -306,16 +247,12 @@ namespace DnsServerCore
                     {
                         if (record.RDATA is DnsTXTRecordData rdata)
                         {
-                            jsonWriter.WritePropertyName("text");
-                            jsonWriter.WriteValue(rdata.Text);
+                            jsonWriter.WriteString("text", rdata.Text);
                         }
                         else
                         {
-                            jsonWriter.WritePropertyName("dataType");
-                            jsonWriter.WriteValue(record.RDATA.GetType().Name);
-
-                            jsonWriter.WritePropertyName("data");
-                            jsonWriter.WriteValue(record.RDATA.ToString());
+                            jsonWriter.WriteString("dataType", record.RDATA.GetType().Name);
+                            jsonWriter.WriteString("data", record.RDATA.ToString());
                         }
                     }
                     break;
@@ -324,16 +261,12 @@ namespace DnsServerCore
                     {
                         if (record.RDATA is DnsAAAARecordData rdata)
                         {
-                            jsonWriter.WritePropertyName("ipAddress");
-                            jsonWriter.WriteValue(rdata.IPAddress);
+                            jsonWriter.WriteString("ipAddress", rdata.Address.ToString());
                         }
                         else
                         {
-                            jsonWriter.WritePropertyName("dataType");
-                            jsonWriter.WriteValue(record.RDATA.GetType().Name);
-
-                            jsonWriter.WritePropertyName("data");
-                            jsonWriter.WriteValue(record.RDATA.ToString());
+                            jsonWriter.WriteString("dataType", record.RDATA.GetType().Name);
+                            jsonWriter.WriteString("data", record.RDATA.ToString());
                         }
                     }
                     break;
@@ -342,25 +275,15 @@ namespace DnsServerCore
                     {
                         if (record.RDATA is DnsSRVRecordData rdata)
                         {
-                            jsonWriter.WritePropertyName("priority");
-                            jsonWriter.WriteValue(rdata.Priority);
-
-                            jsonWriter.WritePropertyName("weight");
-                            jsonWriter.WriteValue(rdata.Weight);
-
-                            jsonWriter.WritePropertyName("port");
-                            jsonWriter.WriteValue(rdata.Port);
-
-                            jsonWriter.WritePropertyName("target");
-                            jsonWriter.WriteValue(rdata.Target.Length == 0 ? "." : rdata.Target);
+                            jsonWriter.WriteNumber("priority", rdata.Priority);
+                            jsonWriter.WriteNumber("weight", rdata.Weight);
+                            jsonWriter.WriteNumber("port", rdata.Port);
+                            jsonWriter.WriteString("target", rdata.Target.Length == 0 ? "." : rdata.Target);
                         }
                         else
                         {
-                            jsonWriter.WritePropertyName("dataType");
-                            jsonWriter.WriteValue(record.RDATA.GetType().Name);
-
-                            jsonWriter.WritePropertyName("data");
-                            jsonWriter.WriteValue(record.RDATA.ToString());
+                            jsonWriter.WriteString("dataType", record.RDATA.GetType().Name);
+                            jsonWriter.WriteString("data", record.RDATA.ToString());
                         }
                     }
                     break;
@@ -369,16 +292,12 @@ namespace DnsServerCore
                     {
                         if (record.RDATA is DnsDNAMERecordData rdata)
                         {
-                            jsonWriter.WritePropertyName("dname");
-                            jsonWriter.WriteValue(rdata.Domain.Length == 0 ? "." : rdata.Domain);
+                            jsonWriter.WriteString("dname", rdata.Domain.Length == 0 ? "." : rdata.Domain);
                         }
                         else
                         {
-                            jsonWriter.WritePropertyName("dataType");
-                            jsonWriter.WriteValue(record.RDATA.GetType().Name);
-
-                            jsonWriter.WritePropertyName("data");
-                            jsonWriter.WriteValue(record.RDATA.ToString());
+                            jsonWriter.WriteString("dataType", record.RDATA.GetType().Name);
+                            jsonWriter.WriteString("data", record.RDATA.ToString());
                         }
                     }
                     break;
@@ -387,25 +306,15 @@ namespace DnsServerCore
                     {
                         if (record.RDATA is DnsDSRecordData rdata)
                         {
-                            jsonWriter.WritePropertyName("keyTag");
-                            jsonWriter.WriteValue(rdata.KeyTag);
-
-                            jsonWriter.WritePropertyName("algorithm");
-                            jsonWriter.WriteValue(rdata.Algorithm.ToString());
-
-                            jsonWriter.WritePropertyName("digestType");
-                            jsonWriter.WriteValue(rdata.DigestType.ToString());
-
-                            jsonWriter.WritePropertyName("digest");
-                            jsonWriter.WriteValue(rdata.Digest);
+                            jsonWriter.WriteNumber("keyTag", rdata.KeyTag);
+                            jsonWriter.WriteString("algorithm", rdata.Algorithm.ToString());
+                            jsonWriter.WriteString("digestType", rdata.DigestType.ToString());
+                            jsonWriter.WriteString("digest", Convert.ToHexString(rdata.Digest));
                         }
                         else
                         {
-                            jsonWriter.WritePropertyName("dataType");
-                            jsonWriter.WriteValue(record.RDATA.GetType().Name);
-
-                            jsonWriter.WritePropertyName("data");
-                            jsonWriter.WriteValue(record.RDATA.ToString());
+                            jsonWriter.WriteString("dataType", record.RDATA.GetType().Name);
+                            jsonWriter.WriteString("data", record.RDATA.ToString());
                         }
                     }
                     break;
@@ -414,22 +323,14 @@ namespace DnsServerCore
                     {
                         if (record.RDATA is DnsSSHFPRecordData rdata)
                         {
-                            jsonWriter.WritePropertyName("algorithm");
-                            jsonWriter.WriteValue(rdata.Algorithm.ToString());
-
-                            jsonWriter.WritePropertyName("fingerprintType");
-                            jsonWriter.WriteValue(rdata.FingerprintType.ToString());
-
-                            jsonWriter.WritePropertyName("fingerprint");
-                            jsonWriter.WriteValue(rdata.Fingerprint);
+                            jsonWriter.WriteString("algorithm", rdata.Algorithm.ToString());
+                            jsonWriter.WriteString("fingerprintType", rdata.FingerprintType.ToString());
+                            jsonWriter.WriteString("fingerprint", Convert.ToHexString(rdata.Fingerprint));
                         }
                         else
                         {
-                            jsonWriter.WritePropertyName("dataType");
-                            jsonWriter.WriteValue(record.RDATA.GetType().Name);
-
-                            jsonWriter.WritePropertyName("data");
-                            jsonWriter.WriteValue(record.RDATA.ToString());
+                            jsonWriter.WriteString("dataType", record.RDATA.GetType().Name);
+                            jsonWriter.WriteString("data", record.RDATA.ToString());
                         }
                     }
                     break;
@@ -438,40 +339,20 @@ namespace DnsServerCore
                     {
                         if (record.RDATA is DnsRRSIGRecordData rdata)
                         {
-                            jsonWriter.WritePropertyName("typeCovered");
-                            jsonWriter.WriteValue(rdata.TypeCovered.ToString());
-
-                            jsonWriter.WritePropertyName("algorithm");
-                            jsonWriter.WriteValue(rdata.Algorithm.ToString());
-
-                            jsonWriter.WritePropertyName("labels");
-                            jsonWriter.WriteValue(rdata.Labels);
-
-                            jsonWriter.WritePropertyName("originalTtl");
-                            jsonWriter.WriteValue(rdata.OriginalTtl);
-
-                            jsonWriter.WritePropertyName("signatureExpiration");
-                            jsonWriter.WriteValue(rdata.SignatureExpiration);
-
-                            jsonWriter.WritePropertyName("signatureInception");
-                            jsonWriter.WriteValue(rdata.SignatureInception);
-
-                            jsonWriter.WritePropertyName("keyTag");
-                            jsonWriter.WriteValue(rdata.KeyTag);
-
-                            jsonWriter.WritePropertyName("signersName");
-                            jsonWriter.WriteValue(rdata.SignersName.Length == 0 ? "." : rdata.SignersName);
-
-                            jsonWriter.WritePropertyName("signature");
-                            jsonWriter.WriteValue(Convert.ToBase64String(rdata.Signature));
+                            jsonWriter.WriteString("typeCovered", rdata.TypeCovered.ToString());
+                            jsonWriter.WriteString("algorithm", rdata.Algorithm.ToString());
+                            jsonWriter.WriteNumber("labels", rdata.Labels);
+                            jsonWriter.WriteNumber("originalTtl", rdata.OriginalTtl);
+                            jsonWriter.WriteString("signatureExpiration", DateTime.UnixEpoch.AddSeconds(rdata.SignatureExpiration));
+                            jsonWriter.WriteString("signatureInception", DateTime.UnixEpoch.AddSeconds(rdata.SignatureInception));
+                            jsonWriter.WriteNumber("keyTag", rdata.KeyTag);
+                            jsonWriter.WriteString("signersName", rdata.SignersName.Length == 0 ? "." : rdata.SignersName);
+                            jsonWriter.WriteString("signature", Convert.ToBase64String(rdata.Signature));
                         }
                         else
                         {
-                            jsonWriter.WritePropertyName("dataType");
-                            jsonWriter.WriteValue(record.RDATA.GetType().Name);
-
-                            jsonWriter.WritePropertyName("data");
-                            jsonWriter.WriteValue(record.RDATA.ToString());
+                            jsonWriter.WriteString("dataType", record.RDATA.GetType().Name);
+                            jsonWriter.WriteString("data", record.RDATA.ToString());
                         }
                     }
                     break;
@@ -480,24 +361,20 @@ namespace DnsServerCore
                     {
                         if (record.RDATA is DnsNSECRecordData rdata)
                         {
-                            jsonWriter.WritePropertyName("nextDomainName");
-                            jsonWriter.WriteValue(rdata.NextDomainName);
+                            jsonWriter.WriteString("nextDomainName", rdata.NextDomainName);
 
                             jsonWriter.WritePropertyName("types");
                             jsonWriter.WriteStartArray();
 
                             foreach (DnsResourceRecordType type in rdata.Types)
-                                jsonWriter.WriteValue(type.ToString());
+                                jsonWriter.WriteStringValue(type.ToString());
 
                             jsonWriter.WriteEndArray();
                         }
                         else
                         {
-                            jsonWriter.WritePropertyName("dataType");
-                            jsonWriter.WriteValue(record.RDATA.GetType().Name);
-
-                            jsonWriter.WritePropertyName("data");
-                            jsonWriter.WriteValue(record.RDATA.ToString());
+                            jsonWriter.WriteString("dataType", record.RDATA.GetType().Name);
+                            jsonWriter.WriteString("data", record.RDATA.ToString());
                         }
                     }
                     break;
@@ -506,20 +383,11 @@ namespace DnsServerCore
                     {
                         if (record.RDATA is DnsDNSKEYRecordData rdata)
                         {
-                            jsonWriter.WritePropertyName("flags");
-                            jsonWriter.WriteValue(rdata.Flags.ToString());
-
-                            jsonWriter.WritePropertyName("protocol");
-                            jsonWriter.WriteValue(rdata.Protocol);
-
-                            jsonWriter.WritePropertyName("algorithm");
-                            jsonWriter.WriteValue(rdata.Algorithm.ToString());
-
-                            jsonWriter.WritePropertyName("publicKey");
-                            jsonWriter.WriteValue(rdata.PublicKey.ToString());
-
-                            jsonWriter.WritePropertyName("computedKeyTag");
-                            jsonWriter.WriteValue(rdata.ComputedKeyTag);
+                            jsonWriter.WriteString("flags", rdata.Flags.ToString());
+                            jsonWriter.WriteNumber("protocol", rdata.Protocol);
+                            jsonWriter.WriteString("algorithm", rdata.Algorithm.ToString());
+                            jsonWriter.WriteString("publicKey", rdata.PublicKey.ToString());
+                            jsonWriter.WriteNumber("computedKeyTag", rdata.ComputedKeyTag);
 
                             if (authoritativeZoneRecords)
                             {
@@ -529,14 +397,11 @@ namespace DnsServerCore
                                     {
                                         if (dnssecPrivateKey.KeyTag == rdata.ComputedKeyTag)
                                         {
-                                            jsonWriter.WritePropertyName("dnsKeyState");
-                                            jsonWriter.WriteValue(dnssecPrivateKey.State.ToString());
+                                            jsonWriter.WriteString("dnsKeyState", dnssecPrivateKey.State.ToString());
 
                                             if ((dnssecPrivateKey.KeyType == DnssecPrivateKeyType.KeySigningKey) && (dnssecPrivateKey.State == DnssecPrivateKeyState.Published))
-                                            {
-                                                jsonWriter.WritePropertyName("dnsKeyStateReadyBy");
-                                                jsonWriter.WriteValue((zoneInfo.ApexZone as PrimaryZone).GetDnsKeyStateReadyBy(dnssecPrivateKey));
-                                            }
+                                                jsonWriter.WriteString("dnsKeyStateReadyBy", (zoneInfo.ApexZone as PrimaryZone).GetDnsKeyStateReadyBy(dnssecPrivateKey));
+
                                             break;
                                         }
                                     }
@@ -550,11 +415,8 @@ namespace DnsServerCore
                                     {
                                         jsonWriter.WriteStartObject();
 
-                                        jsonWriter.WritePropertyName("digestType");
-                                        jsonWriter.WriteValue("SHA256");
-
-                                        jsonWriter.WritePropertyName("digest");
-                                        jsonWriter.WriteValue(rdata.CreateDS(record.Name, DnssecDigestType.SHA256).Digest);
+                                        jsonWriter.WriteString("digestType", "SHA256");
+                                        jsonWriter.WriteString("digest", Convert.ToHexString(rdata.CreateDS(record.Name, DnssecDigestType.SHA256).Digest));
 
                                         jsonWriter.WriteEndObject();
                                     }
@@ -562,11 +424,8 @@ namespace DnsServerCore
                                     {
                                         jsonWriter.WriteStartObject();
 
-                                        jsonWriter.WritePropertyName("digestType");
-                                        jsonWriter.WriteValue("SHA384");
-
-                                        jsonWriter.WritePropertyName("digest");
-                                        jsonWriter.WriteValue(rdata.CreateDS(record.Name, DnssecDigestType.SHA384).Digest);
+                                        jsonWriter.WriteString("digestType", "SHA384");
+                                        jsonWriter.WriteString("digest", Convert.ToHexString(rdata.CreateDS(record.Name, DnssecDigestType.SHA384).Digest));
 
                                         jsonWriter.WriteEndObject();
                                     }
@@ -577,11 +436,8 @@ namespace DnsServerCore
                         }
                         else
                         {
-                            jsonWriter.WritePropertyName("dataType");
-                            jsonWriter.WriteValue(record.RDATA.GetType().Name);
-
-                            jsonWriter.WritePropertyName("data");
-                            jsonWriter.WriteValue(record.RDATA.ToString());
+                            jsonWriter.WriteString("dataType", record.RDATA.GetType().Name);
+                            jsonWriter.WriteString("data", record.RDATA.ToString());
                         }
                     }
                     break;
@@ -590,36 +446,24 @@ namespace DnsServerCore
                     {
                         if (record.RDATA is DnsNSEC3RecordData rdata)
                         {
-                            jsonWriter.WritePropertyName("hashAlgorithm");
-                            jsonWriter.WriteValue(rdata.HashAlgorithm.ToString());
-
-                            jsonWriter.WritePropertyName("flags");
-                            jsonWriter.WriteValue(rdata.Flags.ToString());
-
-                            jsonWriter.WritePropertyName("iterations");
-                            jsonWriter.WriteValue(rdata.Iterations);
-
-                            jsonWriter.WritePropertyName("salt");
-                            jsonWriter.WriteValue(rdata.Salt);
-
-                            jsonWriter.WritePropertyName("nextHashedOwnerName");
-                            jsonWriter.WriteValue(rdata.NextHashedOwnerName);
+                            jsonWriter.WriteString("hashAlgorithm", rdata.HashAlgorithm.ToString());
+                            jsonWriter.WriteString("flags", rdata.Flags.ToString());
+                            jsonWriter.WriteNumber("iterations", rdata.Iterations);
+                            jsonWriter.WriteString("salt", Convert.ToHexString(rdata.Salt));
+                            jsonWriter.WriteString("nextHashedOwnerName", rdata.NextHashedOwnerName);
 
                             jsonWriter.WritePropertyName("types");
                             jsonWriter.WriteStartArray();
 
                             foreach (DnsResourceRecordType type in rdata.Types)
-                                jsonWriter.WriteValue(type.ToString());
+                                jsonWriter.WriteStringValue(type.ToString());
 
                             jsonWriter.WriteEndArray();
                         }
                         else
                         {
-                            jsonWriter.WritePropertyName("dataType");
-                            jsonWriter.WriteValue(record.RDATA.GetType().Name);
-
-                            jsonWriter.WritePropertyName("data");
-                            jsonWriter.WriteValue(record.RDATA.ToString());
+                            jsonWriter.WriteString("dataType", record.RDATA.GetType().Name);
+                            jsonWriter.WriteString("data", record.RDATA.ToString());
                         }
                     }
                     break;
@@ -628,25 +472,15 @@ namespace DnsServerCore
                     {
                         if (record.RDATA is DnsNSEC3PARAMRecordData rdata)
                         {
-                            jsonWriter.WritePropertyName("hashAlgorithm");
-                            jsonWriter.WriteValue(rdata.HashAlgorithm.ToString());
-
-                            jsonWriter.WritePropertyName("flags");
-                            jsonWriter.WriteValue(rdata.Flags.ToString());
-
-                            jsonWriter.WritePropertyName("iterations");
-                            jsonWriter.WriteValue(rdata.Iterations);
-
-                            jsonWriter.WritePropertyName("salt");
-                            jsonWriter.WriteValue(rdata.Salt);
+                            jsonWriter.WriteString("hashAlgorithm", rdata.HashAlgorithm.ToString());
+                            jsonWriter.WriteString("flags", rdata.Flags.ToString());
+                            jsonWriter.WriteNumber("iterations", rdata.Iterations);
+                            jsonWriter.WriteString("salt", Convert.ToHexString(rdata.Salt));
                         }
                         else
                         {
-                            jsonWriter.WritePropertyName("dataType");
-                            jsonWriter.WriteValue(record.RDATA.GetType().Name);
-
-                            jsonWriter.WritePropertyName("data");
-                            jsonWriter.WriteValue(record.RDATA.ToString());
+                            jsonWriter.WriteString("dataType", record.RDATA.GetType().Name);
+                            jsonWriter.WriteString("data", record.RDATA.ToString());
                         }
                     }
                     break;
@@ -655,25 +489,15 @@ namespace DnsServerCore
                     {
                         if (record.RDATA is DnsTLSARecordData rdata)
                         {
-                            jsonWriter.WritePropertyName("certificateUsage");
-                            jsonWriter.WriteValue(rdata.CertificateUsage.ToString().Replace('_', '-'));
-
-                            jsonWriter.WritePropertyName("selector");
-                            jsonWriter.WriteValue(rdata.Selector.ToString());
-
-                            jsonWriter.WritePropertyName("matchingType");
-                            jsonWriter.WriteValue(rdata.MatchingType.ToString().Replace('_', '-'));
-
-                            jsonWriter.WritePropertyName("certificateAssociationData");
-                            jsonWriter.WriteValue(rdata.CertificateAssociationData);
+                            jsonWriter.WriteString("certificateUsage", rdata.CertificateUsage.ToString().Replace('_', '-'));
+                            jsonWriter.WriteString("selector", rdata.Selector.ToString());
+                            jsonWriter.WriteString("matchingType", rdata.MatchingType.ToString().Replace('_', '-'));
+                            jsonWriter.WriteString("certificateAssociationData", Convert.ToHexString(rdata.CertificateAssociationData));
                         }
                         else
                         {
-                            jsonWriter.WritePropertyName("dataType");
-                            jsonWriter.WriteValue(record.RDATA.GetType().Name);
-
-                            jsonWriter.WritePropertyName("data");
-                            jsonWriter.WriteValue(record.RDATA.ToString());
+                            jsonWriter.WriteString("dataType", record.RDATA.GetType().Name);
+                            jsonWriter.WriteString("data", record.RDATA.ToString());
                         }
                     }
                     break;
@@ -682,22 +506,14 @@ namespace DnsServerCore
                     {
                         if (record.RDATA is DnsCAARecordData rdata)
                         {
-                            jsonWriter.WritePropertyName("flags");
-                            jsonWriter.WriteValue(rdata.Flags);
-
-                            jsonWriter.WritePropertyName("tag");
-                            jsonWriter.WriteValue(rdata.Tag);
-
-                            jsonWriter.WritePropertyName("value");
-                            jsonWriter.WriteValue(rdata.Value);
+                            jsonWriter.WriteNumber("flags", rdata.Flags);
+                            jsonWriter.WriteString("tag", rdata.Tag);
+                            jsonWriter.WriteString("value", rdata.Value);
                         }
                         else
                         {
-                            jsonWriter.WritePropertyName("dataType");
-                            jsonWriter.WriteValue(record.RDATA.GetType().Name);
-
-                            jsonWriter.WritePropertyName("data");
-                            jsonWriter.WriteValue(record.RDATA.ToString());
+                            jsonWriter.WriteString("dataType", record.RDATA.GetType().Name);
+                            jsonWriter.WriteString("data", record.RDATA.ToString());
                         }
                     }
                     break;
@@ -706,16 +522,12 @@ namespace DnsServerCore
                     {
                         if (record.RDATA is DnsANAMERecordData rdata)
                         {
-                            jsonWriter.WritePropertyName("aname");
-                            jsonWriter.WriteValue(rdata.Domain.Length == 0 ? "." : rdata.Domain);
+                            jsonWriter.WriteString("aname", rdata.Domain.Length == 0 ? "." : rdata.Domain);
                         }
                         else
                         {
-                            jsonWriter.WritePropertyName("dataType");
-                            jsonWriter.WriteValue(record.RDATA.GetType().Name);
-
-                            jsonWriter.WritePropertyName("data");
-                            jsonWriter.WriteValue(record.RDATA.ToString());
+                            jsonWriter.WriteString("dataType", record.RDATA.GetType().Name);
+                            jsonWriter.WriteString("data", record.RDATA.ToString());
                         }
                     }
                     break;
@@ -724,31 +536,17 @@ namespace DnsServerCore
                     {
                         if (record.RDATA is DnsForwarderRecordData rdata)
                         {
-                            jsonWriter.WritePropertyName("protocol");
-                            jsonWriter.WriteValue(rdata.Protocol.ToString());
-
-                            jsonWriter.WritePropertyName("forwarder");
-                            jsonWriter.WriteValue(rdata.Forwarder);
-
-                            jsonWriter.WritePropertyName("dnssecValidation");
-                            jsonWriter.WriteValue(rdata.DnssecValidation);
-
-                            jsonWriter.WritePropertyName("proxyType");
-                            jsonWriter.WriteValue(rdata.ProxyType.ToString());
+                            jsonWriter.WriteString("protocol", rdata.Protocol.ToString());
+                            jsonWriter.WriteString("forwarder", rdata.Forwarder);
+                            jsonWriter.WriteBoolean("dnssecValidation", rdata.DnssecValidation);
+                            jsonWriter.WriteString("proxyType", rdata.ProxyType.ToString());
 
                             if (rdata.ProxyType != NetProxyType.None)
                             {
-                                jsonWriter.WritePropertyName("proxyAddress");
-                                jsonWriter.WriteValue(rdata.ProxyAddress);
-
-                                jsonWriter.WritePropertyName("proxyPort");
-                                jsonWriter.WriteValue(rdata.ProxyPort);
-
-                                jsonWriter.WritePropertyName("proxyUsername");
-                                jsonWriter.WriteValue(rdata.ProxyUsername);
-
-                                jsonWriter.WritePropertyName("proxyPassword");
-                                jsonWriter.WriteValue(rdata.ProxyPassword);
+                                jsonWriter.WriteString("proxyAddress", rdata.ProxyAddress);
+                                jsonWriter.WriteNumber("proxyPort", rdata.ProxyPort);
+                                jsonWriter.WriteString("proxyUsername", rdata.ProxyUsername);
+                                jsonWriter.WriteString("proxyPassword", rdata.ProxyPassword);
                             }
                         }
                     }
@@ -758,14 +556,9 @@ namespace DnsServerCore
                     {
                         if (record.RDATA is DnsApplicationRecordData rdata)
                         {
-                            jsonWriter.WritePropertyName("appName");
-                            jsonWriter.WriteValue(rdata.AppName);
-
-                            jsonWriter.WritePropertyName("classPath");
-                            jsonWriter.WriteValue(rdata.ClassPath);
-
-                            jsonWriter.WritePropertyName("data");
-                            jsonWriter.WriteValue(rdata.Data);
+                            jsonWriter.WriteString("appName", rdata.AppName);
+                            jsonWriter.WriteString("classPath", rdata.ClassPath);
+                            jsonWriter.WriteString("data", rdata.Data);
                         }
                     }
                     break;
@@ -774,22 +567,17 @@ namespace DnsServerCore
                     {
                         if (record.RDATA is DnsUnknownRecordData)
                         {
-                            jsonWriter.WritePropertyName("value");
-
                             using (MemoryStream mS = new MemoryStream())
                             {
                                 record.RDATA.WriteTo(mS);
 
-                                jsonWriter.WriteValue(Convert.ToBase64String(mS.ToArray()));
+                                jsonWriter.WriteString("value", Convert.ToBase64String(mS.ToArray()));
                             }
                         }
                         else
                         {
-                            jsonWriter.WritePropertyName("dataType");
-                            jsonWriter.WriteValue(record.RDATA.GetType().Name);
-
-                            jsonWriter.WritePropertyName("data");
-                            jsonWriter.WriteValue(record.RDATA.ToString());
+                            jsonWriter.WriteString("dataType", record.RDATA.GetType().Name);
+                            jsonWriter.WriteString("data", record.RDATA.ToString());
                         }
                     }
                     break;
@@ -810,8 +598,7 @@ namespace DnsServerCore
                         glue = glue + ", " + glueRecord.RDATA.ToString();
                 }
 
-                jsonWriter.WritePropertyName("glueRecords");
-                jsonWriter.WriteValue(glue);
+                jsonWriter.WriteString("glueRecords", glue);
             }
 
             IReadOnlyList<DnsResourceRecord> rrsigRecords = recordInfo.RRSIGRecords;
@@ -825,91 +612,65 @@ namespace DnsServerCore
                 if (rrsigRecords is not null)
                 {
                     foreach (DnsResourceRecord rrsigRecord in rrsigRecords)
-                        jsonWriter.WriteValue(rrsigRecord.ToString());
+                        jsonWriter.WriteStringValue(rrsigRecord.ToString());
                 }
 
                 if (nsecRecords is not null)
                 {
                     foreach (DnsResourceRecord nsecRecord in nsecRecords)
-                        jsonWriter.WriteValue(nsecRecord.ToString());
+                        jsonWriter.WriteStringValue(nsecRecord.ToString());
                 }
 
                 jsonWriter.WriteEndArray();
             }
 
-            jsonWriter.WritePropertyName("dnssecStatus");
-            jsonWriter.WriteValue(record.DnssecStatus.ToString());
+            jsonWriter.WriteString("dnssecStatus", record.DnssecStatus.ToString());
 
             NetworkAddress eDnsClientSubnet = recordInfo.EDnsClientSubnet;
             if (eDnsClientSubnet is not null)
             {
-                jsonWriter.WritePropertyName("eDnsClientSubnet");
-                jsonWriter.WriteValue(eDnsClientSubnet.ToString());
+                jsonWriter.WriteString("eDnsClientSubnet", eDnsClientSubnet.ToString());
             }
 
-            jsonWriter.WritePropertyName("lastUsedOn");
-            jsonWriter.WriteValue(recordInfo.LastUsedOn);
+            jsonWriter.WriteString("lastUsedOn", recordInfo.LastUsedOn);
 
             jsonWriter.WriteEndObject();
         }
 
-        private static void WriteZoneInfoAsJson(AuthZoneInfo zoneInfo, JsonTextWriter jsonWriter)
+        private static void WriteZoneInfoAsJson(AuthZoneInfo zoneInfo, Utf8JsonWriter jsonWriter)
         {
             jsonWriter.WriteStartObject();
 
-            jsonWriter.WritePropertyName("name");
-            jsonWriter.WriteValue(zoneInfo.Name);
-
-            jsonWriter.WritePropertyName("type");
-            jsonWriter.WriteValue(zoneInfo.Type.ToString());
+            jsonWriter.WriteString("name", zoneInfo.Name);
+            jsonWriter.WriteString("type", zoneInfo.Type.ToString());
 
             switch (zoneInfo.Type)
             {
                 case AuthZoneType.Primary:
-                    jsonWriter.WritePropertyName("internal");
-                    jsonWriter.WriteValue(zoneInfo.Internal);
-
-                    jsonWriter.WritePropertyName("dnssecStatus");
-                    jsonWriter.WriteValue(zoneInfo.DnssecStatus.ToString());
+                    jsonWriter.WriteBoolean("internal", zoneInfo.Internal);
+                    jsonWriter.WriteString("dnssecStatus", zoneInfo.DnssecStatus.ToString());
 
                     if (!zoneInfo.Internal)
-                    {
-                        jsonWriter.WritePropertyName("notifyFailed");
-                        jsonWriter.WriteValue(zoneInfo.NotifyFailed);
-                    }
+                        jsonWriter.WriteBoolean("notifyFailed", zoneInfo.NotifyFailed);
+
                     break;
 
                 case AuthZoneType.Secondary:
-                    jsonWriter.WritePropertyName("dnssecStatus");
-                    jsonWriter.WriteValue(zoneInfo.DnssecStatus.ToString());
-
-                    jsonWriter.WritePropertyName("expiry");
-                    jsonWriter.WriteValue(zoneInfo.Expiry);
-
-                    jsonWriter.WritePropertyName("isExpired");
-                    jsonWriter.WriteValue(zoneInfo.IsExpired);
-
-                    jsonWriter.WritePropertyName("notifyFailed");
-                    jsonWriter.WriteValue(zoneInfo.NotifyFailed);
-
-                    jsonWriter.WritePropertyName("syncFailed");
-                    jsonWriter.WriteValue(zoneInfo.SyncFailed);
+                    jsonWriter.WriteString("dnssecStatus", zoneInfo.DnssecStatus.ToString());
+                    jsonWriter.WriteString("expiry", zoneInfo.Expiry);
+                    jsonWriter.WriteBoolean("isExpired", zoneInfo.IsExpired);
+                    jsonWriter.WriteBoolean("notifyFailed", zoneInfo.NotifyFailed);
+                    jsonWriter.WriteBoolean("syncFailed", zoneInfo.SyncFailed);
                     break;
 
                 case AuthZoneType.Stub:
-                    jsonWriter.WritePropertyName("expiry");
-                    jsonWriter.WriteValue(zoneInfo.Expiry);
-
-                    jsonWriter.WritePropertyName("isExpired");
-                    jsonWriter.WriteValue(zoneInfo.IsExpired);
-
-                    jsonWriter.WritePropertyName("syncFailed");
-                    jsonWriter.WriteValue(zoneInfo.SyncFailed);
+                    jsonWriter.WriteString("expiry", zoneInfo.Expiry);
+                    jsonWriter.WriteBoolean("isExpired", zoneInfo.IsExpired);
+                    jsonWriter.WriteBoolean("syncFailed", zoneInfo.SyncFailed);
                     break;
             }
 
-            jsonWriter.WritePropertyName("disabled");
-            jsonWriter.WriteValue(zoneInfo.Disabled);
+            jsonWriter.WriteBoolean("disabled", zoneInfo.Disabled);
 
             jsonWriter.WriteEndObject();
         }
@@ -918,7 +679,7 @@ namespace DnsServerCore
 
         #region public
 
-        public void ListZones(HttpListenerRequest request, JsonTextWriter jsonWriter)
+        public void ListZones(HttpListenerRequest request, Utf8JsonWriter jsonWriter)
         {
             List<AuthZoneInfo> zones = _dnsWebService.DnsServer.AuthZoneManager.ListZones();
             zones.Sort();
@@ -939,7 +700,7 @@ namespace DnsServerCore
             jsonWriter.WriteEndArray();
         }
 
-        public async Task CreateZoneAsync(HttpListenerRequest request, JsonTextWriter jsonWriter)
+        public async Task CreateZoneAsync(HttpListenerRequest request, Utf8JsonWriter jsonWriter)
         {
             string zoneName = request.QueryString["zone"];
             if (string.IsNullOrEmpty(zoneName))
@@ -1117,8 +878,7 @@ namespace DnsServerCore
             //delete cache for this zone to allow rebuilding cache data as needed by stub or forwarder zones
             _dnsWebService.DnsServer.CacheZoneManager.DeleteZone(zoneInfo.Name);
 
-            jsonWriter.WritePropertyName("domain");
-            jsonWriter.WriteValue(string.IsNullOrEmpty(zoneInfo.Name) ? "." : zoneInfo.Name);
+            jsonWriter.WriteString("domain", string.IsNullOrEmpty(zoneInfo.Name) ? "." : zoneInfo.Name);
         }
 
         public void SignPrimaryZone(HttpListenerRequest request)
@@ -1251,7 +1011,7 @@ namespace DnsServerCore
             _dnsWebService.DnsServer.AuthZoneManager.SaveZoneFile(zoneName);
         }
 
-        public void GetPrimaryZoneDnssecProperties(HttpListenerRequest request, JsonTextWriter jsonWriter)
+        public void GetPrimaryZoneDnssecProperties(HttpListenerRequest request, Utf8JsonWriter jsonWriter)
         {
             string zoneName = request.QueryString["zone"];
             if (string.IsNullOrEmpty(zoneName))
@@ -1274,35 +1034,22 @@ namespace DnsServerCore
             if (!_dnsWebService.AuthManager.IsPermitted(PermissionSection.Zones, zoneInfo.Name, session.User, PermissionFlag.View))
                 throw new DnsWebServiceException("Access was denied.");
 
-            jsonWriter.WritePropertyName("name");
-            jsonWriter.WriteValue(zoneInfo.Name);
-
-            jsonWriter.WritePropertyName("type");
-            jsonWriter.WriteValue(zoneInfo.Type.ToString());
-
-            jsonWriter.WritePropertyName("internal");
-            jsonWriter.WriteValue(zoneInfo.Internal);
-
-            jsonWriter.WritePropertyName("disabled");
-            jsonWriter.WriteValue(zoneInfo.Disabled);
-
-            jsonWriter.WritePropertyName("dnssecStatus");
-            jsonWriter.WriteValue(zoneInfo.DnssecStatus.ToString());
+            jsonWriter.WriteString("name", zoneInfo.Name);
+            jsonWriter.WriteString("type", zoneInfo.Type.ToString());
+            jsonWriter.WriteBoolean("internal", zoneInfo.Internal);
+            jsonWriter.WriteBoolean("disabled", zoneInfo.Disabled);
+            jsonWriter.WriteString("dnssecStatus", zoneInfo.DnssecStatus.ToString());
 
             if (zoneInfo.DnssecStatus == AuthZoneDnssecStatus.SignedWithNSEC3)
             {
                 IReadOnlyList<DnsResourceRecord> nsec3ParamRecords = zoneInfo.GetApexRecords(DnsResourceRecordType.NSEC3PARAM);
                 DnsNSEC3PARAMRecordData nsec3Param = nsec3ParamRecords[0].RDATA as DnsNSEC3PARAMRecordData;
 
-                jsonWriter.WritePropertyName("nsec3Iterations");
-                jsonWriter.WriteValue(nsec3Param.Iterations);
-
-                jsonWriter.WritePropertyName("nsec3SaltLength");
-                jsonWriter.WriteValue(nsec3Param.SaltValue.Length);
+                jsonWriter.WriteNumber("nsec3Iterations", nsec3Param.Iterations);
+                jsonWriter.WriteNumber("nsec3SaltLength", nsec3Param.Salt.Length);
             }
 
-            jsonWriter.WritePropertyName("dnsKeyTtl");
-            jsonWriter.WriteValue(zoneInfo.DnsKeyTtl);
+            jsonWriter.WriteNumber("dnsKeyTtl", zoneInfo.DnsKeyTtl);
 
             jsonWriter.WritePropertyName("dnssecPrivateKeys");
             jsonWriter.WriteStartArray();
@@ -1325,13 +1072,9 @@ namespace DnsServerCore
                 {
                     jsonWriter.WriteStartObject();
 
-                    jsonWriter.WritePropertyName("keyTag");
-                    jsonWriter.WriteValue(dnssecPrivateKey.KeyTag);
+                    jsonWriter.WriteNumber("keyTag", dnssecPrivateKey.KeyTag);
+                    jsonWriter.WriteString("keyType", dnssecPrivateKey.KeyType.ToString());
 
-                    jsonWriter.WritePropertyName("keyType");
-                    jsonWriter.WriteValue(dnssecPrivateKey.KeyType.ToString());
-
-                    jsonWriter.WritePropertyName("algorithm");
                     switch (dnssecPrivateKey.Algorithm)
                     {
                         case DnssecAlgorithm.RSAMD5:
@@ -1339,25 +1082,22 @@ namespace DnsServerCore
                         case DnssecAlgorithm.RSASHA1_NSEC3_SHA1:
                         case DnssecAlgorithm.RSASHA256:
                         case DnssecAlgorithm.RSASHA512:
-                            jsonWriter.WriteValue(dnssecPrivateKey.Algorithm.ToString() + " (" + (dnssecPrivateKey as DnssecRsaPrivateKey).KeySize + " bits)");
+                            jsonWriter.WriteString("algorithm", dnssecPrivateKey.Algorithm.ToString() + " (" + (dnssecPrivateKey as DnssecRsaPrivateKey).KeySize + " bits)");
                             break;
 
                         default:
-                            jsonWriter.WriteValue(dnssecPrivateKey.Algorithm.ToString());
+                            jsonWriter.WriteString("algorithm", dnssecPrivateKey.Algorithm.ToString());
                             break;
                     }
 
-                    jsonWriter.WritePropertyName("state");
-                    jsonWriter.WriteValue(dnssecPrivateKey.State.ToString());
+                    jsonWriter.WriteString("state", dnssecPrivateKey.State.ToString());
+                    jsonWriter.WriteString("stateChangedOn", dnssecPrivateKey.StateChangedOn);
 
-                    jsonWriter.WritePropertyName("stateChangedOn");
-                    jsonWriter.WriteValue(dnssecPrivateKey.StateChangedOn);
+                    if ((dnssecPrivateKey.KeyType == DnssecPrivateKeyType.KeySigningKey) && (dnssecPrivateKey.State == DnssecPrivateKeyState.Published))
+                        jsonWriter.WriteString("stateReadyBy", (zoneInfo.ApexZone as PrimaryZone).GetDnsKeyStateReadyBy(dnssecPrivateKey));
 
-                    jsonWriter.WritePropertyName("isRetiring");
-                    jsonWriter.WriteValue(dnssecPrivateKey.IsRetiring);
-
-                    jsonWriter.WritePropertyName("rolloverDays");
-                    jsonWriter.WriteValue(dnssecPrivateKey.RolloverDays);
+                    jsonWriter.WriteBoolean("isRetiring", dnssecPrivateKey.IsRetiring);
+                    jsonWriter.WriteNumber("rolloverDays", dnssecPrivateKey.RolloverDays);
 
                     jsonWriter.WriteEndObject();
                 }
@@ -1761,7 +1501,7 @@ namespace DnsServerCore
             _dnsWebService.DnsServer.AuthZoneManager.SaveZoneFile(zoneInfo.Name);
         }
 
-        public void GetZoneOptions(HttpListenerRequest request, JsonTextWriter jsonWriter)
+        public void GetZoneOptions(HttpListenerRequest request, Utf8JsonWriter jsonWriter)
         {
             string zoneName = request.QueryString["zone"];
             if (string.IsNullOrEmpty(zoneName))
@@ -1791,37 +1531,28 @@ namespace DnsServerCore
             if (!_dnsWebService.AuthManager.IsPermitted(PermissionSection.Zones, zoneInfo.Name, session.User, PermissionFlag.View))
                 throw new DnsWebServiceException("Access was denied.");
 
-            jsonWriter.WritePropertyName("name");
-            jsonWriter.WriteValue(zoneInfo.Name);
-
-            jsonWriter.WritePropertyName("type");
-            jsonWriter.WriteValue(zoneInfo.Type.ToString());
+            jsonWriter.WriteString("name", zoneInfo.Name);
+            jsonWriter.WriteString("type", zoneInfo.Type.ToString());
 
             switch (zoneInfo.Type)
             {
                 case AuthZoneType.Primary:
-                    jsonWriter.WritePropertyName("internal");
-                    jsonWriter.WriteValue(zoneInfo.Internal);
-
-                    jsonWriter.WritePropertyName("dnssecStatus");
-                    jsonWriter.WriteValue(zoneInfo.DnssecStatus.ToString());
+                    jsonWriter.WriteBoolean("internal", zoneInfo.Internal);
+                    jsonWriter.WriteString("dnssecStatus", zoneInfo.DnssecStatus.ToString());
                     break;
 
                 case AuthZoneType.Secondary:
-                    jsonWriter.WritePropertyName("dnssecStatus");
-                    jsonWriter.WriteValue(zoneInfo.DnssecStatus.ToString());
+                    jsonWriter.WriteString("dnssecStatus", zoneInfo.DnssecStatus.ToString());
                     break;
             }
 
-            jsonWriter.WritePropertyName("disabled");
-            jsonWriter.WriteValue(zoneInfo.Disabled);
+            jsonWriter.WriteBoolean("disabled", zoneInfo.Disabled);
 
             switch (zoneInfo.Type)
             {
                 case AuthZoneType.Primary:
                 case AuthZoneType.Secondary:
-                    jsonWriter.WritePropertyName("zoneTransfer");
-                    jsonWriter.WriteValue(zoneInfo.ZoneTransfer.ToString());
+                    jsonWriter.WriteString("zoneTransfer", zoneInfo.ZoneTransfer.ToString());
 
                     jsonWriter.WritePropertyName("zoneTransferNameServers");
                     {
@@ -1830,7 +1561,7 @@ namespace DnsServerCore
                         if (zoneInfo.ZoneTransferNameServers is not null)
                         {
                             foreach (IPAddress nameServer in zoneInfo.ZoneTransferNameServers)
-                                jsonWriter.WriteValue(nameServer.ToString());
+                                jsonWriter.WriteStringValue(nameServer.ToString());
                         }
 
                         jsonWriter.WriteEndArray();
@@ -1843,14 +1574,13 @@ namespace DnsServerCore
                         if (zoneInfo.ZoneTransferTsigKeyNames is not null)
                         {
                             foreach (KeyValuePair<string, object> tsigKeyName in zoneInfo.ZoneTransferTsigKeyNames)
-                                jsonWriter.WriteValue(tsigKeyName.Key);
+                                jsonWriter.WriteStringValue(tsigKeyName.Key);
                         }
 
                         jsonWriter.WriteEndArray();
                     }
 
-                    jsonWriter.WritePropertyName("notify");
-                    jsonWriter.WriteValue(zoneInfo.Notify.ToString());
+                    jsonWriter.WriteString("notify", zoneInfo.Notify.ToString());
 
                     jsonWriter.WritePropertyName("notifyNameServers");
                     {
@@ -1859,7 +1589,7 @@ namespace DnsServerCore
                         if (zoneInfo.NotifyNameServers is not null)
                         {
                             foreach (IPAddress nameServer in zoneInfo.NotifyNameServers)
-                                jsonWriter.WriteValue(nameServer.ToString());
+                                jsonWriter.WriteStringValue(nameServer.ToString());
                         }
 
                         jsonWriter.WriteEndArray();
@@ -1871,8 +1601,7 @@ namespace DnsServerCore
             switch (zoneInfo.Type)
             {
                 case AuthZoneType.Primary:
-                    jsonWriter.WritePropertyName("update");
-                    jsonWriter.WriteValue(zoneInfo.Update.ToString());
+                    jsonWriter.WriteString("update", zoneInfo.Update.ToString());
 
                     jsonWriter.WritePropertyName("updateIpAddresses");
                     {
@@ -1881,7 +1610,7 @@ namespace DnsServerCore
                         if (zoneInfo.UpdateIpAddresses is not null)
                         {
                             foreach (IPAddress updateIpAddress in zoneInfo.UpdateIpAddresses)
-                                jsonWriter.WriteValue(updateIpAddress.ToString());
+                                jsonWriter.WriteStringValue(updateIpAddress.ToString());
                         }
 
                         jsonWriter.WriteEndArray();
@@ -1899,17 +1628,14 @@ namespace DnsServerCore
                                 {
                                     jsonWriter.WriteStartObject();
 
-                                    jsonWriter.WritePropertyName("tsigKeyName");
-                                    jsonWriter.WriteValue(updateSecurityPolicy.Key);
-
-                                    jsonWriter.WritePropertyName("domain");
-                                    jsonWriter.WriteValue(policy.Key);
+                                    jsonWriter.WriteString("tsigKeyName", updateSecurityPolicy.Key);
+                                    jsonWriter.WriteString("domain", policy.Key);
 
                                     jsonWriter.WritePropertyName("allowedTypes");
                                     jsonWriter.WriteStartArray();
 
                                     foreach (DnsResourceRecordType allowedType in policy.Value)
-                                        jsonWriter.WriteValue(allowedType.ToString());
+                                        jsonWriter.WriteStringValue(allowedType.ToString());
 
                                     jsonWriter.WriteEndArray();
 
@@ -1932,7 +1658,7 @@ namespace DnsServerCore
                     if (_dnsWebService.DnsServer.TsigKeys is not null)
                     {
                         foreach (KeyValuePair<string, TsigKey> tsigKey in _dnsWebService.DnsServer.TsigKeys)
-                            jsonWriter.WriteValue(tsigKey.Key);
+                            jsonWriter.WriteStringValue(tsigKey.Key);
                     }
 
                     jsonWriter.WriteEndArray();
@@ -2147,7 +1873,7 @@ namespace DnsServerCore
             }
         }
 
-        public void AddRecord(HttpListenerRequest request, JsonTextWriter jsonWriter)
+        public void AddRecord(HttpListenerRequest request, Utf8JsonWriter jsonWriter)
         {
             string domain = request.QueryString["domain"];
             if (string.IsNullOrEmpty(domain))
@@ -2716,7 +2442,7 @@ namespace DnsServerCore
             WriteRecordAsJson(newRecord, jsonWriter, true, null);
         }
 
-        public void GetRecords(HttpListenerRequest request, JsonTextWriter jsonWriter)
+        public void GetRecords(HttpListenerRequest request, Utf8JsonWriter jsonWriter)
         {
             string domain = request.QueryString["domain"];
             if (string.IsNullOrEmpty(domain))
@@ -3047,7 +2773,7 @@ namespace DnsServerCore
             _dnsWebService.DnsServer.AuthZoneManager.SaveZoneFile(zoneInfo.Name);
         }
 
-        public void UpdateRecord(HttpListenerRequest request, JsonTextWriter jsonWriter)
+        public void UpdateRecord(HttpListenerRequest request, Utf8JsonWriter jsonWriter)
         {
             string strType = request.QueryString["type"];
             if (string.IsNullOrEmpty(strType))
