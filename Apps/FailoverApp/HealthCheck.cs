@@ -23,6 +23,7 @@ using System.Net;
 using System.Net.Http;
 using System.Net.NetworkInformation;
 using System.Net.Sockets;
+using System.Text.Json;
 using System.Threading.Tasks;
 using TechnitiumLibrary;
 using TechnitiumLibrary.Net;
@@ -49,7 +50,7 @@ namespace Failover
 
         readonly HealthService _service;
 
-        string _name;
+        readonly string _name;
         HealthCheckType _type;
         int _interval;
         int _retries;
@@ -66,9 +67,11 @@ namespace Failover
 
         #region constructor
 
-        public HealthCheck(HealthService service, dynamic jsonHealthCheck)
+        public HealthCheck(HealthService service, JsonElement jsonHealthCheck)
         {
             _service = service;
+
+            _name = jsonHealthCheck.GetPropertyValue("name", "default");
 
             Reload(jsonHealthCheck);
         }
@@ -200,63 +203,25 @@ namespace Failover
 
         #region public
 
-        public void Reload(dynamic jsonHealthCheck)
+        public void Reload(JsonElement jsonHealthCheck)
         {
-            if (jsonHealthCheck.name is null)
-                _name = "default";
-            else
-                _name = jsonHealthCheck.name.Value;
+            _type = Enum.Parse<HealthCheckType>(jsonHealthCheck.GetPropertyValue("type", "Tcp"), true);
+            _interval = jsonHealthCheck.GetPropertyValue("interval", 60) * 1000;
+            _retries = jsonHealthCheck.GetPropertyValue("retries", 3);
+            _timeout = jsonHealthCheck.GetPropertyValue("timeout", 10) * 1000;
+            _port = jsonHealthCheck.GetPropertyValue("port", 80);
 
-            if (jsonHealthCheck.type == null)
-                _type = HealthCheckType.Tcp;
+            if (jsonHealthCheck.TryGetProperty("url", out JsonElement jsonUrl) && (jsonUrl.ValueKind != JsonValueKind.Null))
+                _url = new Uri(jsonUrl.GetString());
             else
-                _type = Enum.Parse<HealthCheckType>(jsonHealthCheck.type.Value, true);
-
-            if (jsonHealthCheck.interval is null)
-                _interval = 60000;
-            else
-                _interval = Convert.ToInt32(jsonHealthCheck.interval.Value) * 1000;
-
-            if (jsonHealthCheck.retries is null)
-                _retries = 3;
-            else
-                _retries = Convert.ToInt32(jsonHealthCheck.retries.Value);
-
-            if (jsonHealthCheck.timeout is null)
-                _timeout = 10000;
-            else
-                _timeout = Convert.ToInt32(jsonHealthCheck.timeout.Value) * 1000;
-
-            if (jsonHealthCheck.port is null)
-                _port = 80;
-            else
-                _port = Convert.ToInt32(jsonHealthCheck.port.Value);
-
-            if ((jsonHealthCheck.url is null) || (jsonHealthCheck.url.Value is null))
                 _url = null;
-            else
-                _url = new Uri(jsonHealthCheck.url.Value);
 
-            string emailAlertName;
-
-            if (jsonHealthCheck.emailAlert is null)
-                emailAlertName = null;
-            else
-                emailAlertName = jsonHealthCheck.emailAlert.Value;
-
-            if ((emailAlertName is not null) && _service.EmailAlerts.TryGetValue(emailAlertName, out EmailAlert emailAlert))
+            if (jsonHealthCheck.TryGetProperty("emailAlert", out JsonElement jsonEmailAlert) && _service.EmailAlerts.TryGetValue(jsonEmailAlert.GetString(), out EmailAlert emailAlert))
                 _emailAlert = emailAlert;
             else
                 _emailAlert = null;
 
-            string webHookName;
-
-            if (jsonHealthCheck.webHook is null)
-                webHookName = null;
-            else
-                webHookName = jsonHealthCheck.webHook.Value;
-
-            if ((webHookName is not null) && _service.WebHooks.TryGetValue(webHookName, out WebHook webHook))
+            if (jsonHealthCheck.TryGetProperty("webHook", out JsonElement jsonWebHook) && _service.WebHooks.TryGetValue(jsonWebHook.GetString(), out WebHook webHook))
                 _webHook = webHook;
             else
                 _webHook = null;

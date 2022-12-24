@@ -23,8 +23,10 @@ using System.Collections.Generic;
 using System.Net;
 using System.Net.Mail;
 using System.Text;
+using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
+using TechnitiumLibrary;
 using TechnitiumLibrary.Net.Dns;
 using TechnitiumLibrary.Net.Dns.ResourceRecords;
 using TechnitiumLibrary.Net.Mail;
@@ -37,7 +39,7 @@ namespace Failover
 
         readonly HealthService _service;
 
-        string _name;
+        readonly string _name;
         bool _enabled;
         MailAddress[] _alertTo;
         string _smtpServer;
@@ -54,12 +56,14 @@ namespace Failover
 
         #region constructor
 
-        public EmailAlert(HealthService service, dynamic jsonEmailAlert)
+        public EmailAlert(HealthService service, JsonElement jsonEmailAlert)
         {
             _service = service;
 
             _smtpClient = new SmtpClientEx();
             _smtpClient.DnsClient = new DnsClientInternal(_service.DnsServer);
+
+            _name = jsonEmailAlert.GetPropertyValue("name", "default");
 
             Reload(jsonEmailAlert);
         }
@@ -98,7 +102,24 @@ namespace Failover
         {
             try
             {
-                await _smtpClient.SendMailAsync(message);
+                const int MAX_RETRIES = 3;
+                const int WAIT_INTERVAL = 30000;
+
+                for (int retries = 0; retries < MAX_RETRIES; retries++)
+                {
+                    try
+                    {
+                        await _smtpClient.SendMailAsync(message);
+                        break;
+                    }
+                    catch
+                    {
+                        if (retries == MAX_RETRIES - 1)
+                            throw;
+
+                        await Task.Delay(WAIT_INTERVAL);
+                    }
+                }
             }
             catch (Exception ex)
             {
@@ -110,70 +131,32 @@ namespace Failover
 
         #region public
 
-        public void Reload(dynamic jsonEmailAlert)
+        public void Reload(JsonElement jsonEmailAlert)
         {
-            if (jsonEmailAlert.name is null)
-                _name = "default";
-            else
-                _name = jsonEmailAlert.name.Value;
+            _enabled = jsonEmailAlert.GetPropertyValue("enabled", false);
 
-            if (jsonEmailAlert.enabled is null)
-                _enabled = false;
+            if (jsonEmailAlert.TryReadArray("alertTo", delegate (string emailAddress) { return new MailAddress(emailAddress); }, out MailAddress[] alertTo))
+                _alertTo = alertTo;
             else
-                _enabled = jsonEmailAlert.enabled.Value;
-
-            if (jsonEmailAlert.alertTo is null)
-            {
                 _alertTo = null;
-            }
-            else
+
+            _smtpServer = jsonEmailAlert.GetPropertyValue("smtpServer", null);
+            _smtpPort = jsonEmailAlert.GetPropertyValue("smtpPort", 25);
+            _startTls = jsonEmailAlert.GetPropertyValue("startTls", false);
+            _smtpOverTls = jsonEmailAlert.GetPropertyValue("smtpOverTls", false);
+            _username = jsonEmailAlert.GetPropertyValue("username", null);
+            _password = jsonEmailAlert.GetPropertyValue("password", null);
+
+            if (jsonEmailAlert.TryGetProperty("mailFrom", out JsonElement jsonMailFrom))
             {
-                _alertTo = new MailAddress[jsonEmailAlert.alertTo.Count];
-
-                for (int i = 0; i < _alertTo.Length; i++)
-                    _alertTo[i] = new MailAddress(jsonEmailAlert.alertTo[i].Value);
+                if (jsonEmailAlert.TryGetProperty("mailFromName", out JsonElement jsonMailFromName))
+                    _mailFrom = new MailAddress(jsonMailFrom.GetString(), jsonMailFromName.GetString(), Encoding.UTF8);
+                else
+                    _mailFrom = new MailAddress(jsonMailFrom.GetString());
             }
-
-            if (jsonEmailAlert.smtpServer is null)
-                _smtpServer = null;
             else
-                _smtpServer = jsonEmailAlert.smtpServer.Value;
-
-            if (jsonEmailAlert.smtpPort is null)
-                _smtpPort = 25;
-            else
-                _smtpPort = Convert.ToInt32(jsonEmailAlert.smtpPort.Value);
-
-            if (jsonEmailAlert.startTls is null)
-                _startTls = false;
-            else
-                _startTls = jsonEmailAlert.startTls.Value;
-
-            if (jsonEmailAlert.smtpOverTls is null)
-                _smtpOverTls = false;
-            else
-                _smtpOverTls = jsonEmailAlert.smtpOverTls.Value;
-
-            if (jsonEmailAlert.username is null)
-                _username = null;
-            else
-                _username = jsonEmailAlert.username.Value;
-
-            if (jsonEmailAlert.password is null)
-                _password = null;
-            else
-                _password = jsonEmailAlert.password.Value;
-
-            if (jsonEmailAlert.mailFrom is null)
             {
                 _mailFrom = null;
-            }
-            else
-            {
-                if (jsonEmailAlert.mailFromName is null)
-                    _mailFrom = new MailAddress(jsonEmailAlert.mailFrom.Value);
-                else
-                    _mailFrom = new MailAddress(jsonEmailAlert.mailFrom.Value, jsonEmailAlert.mailFromName.Value, Encoding.UTF8);
             }
 
             //update smtp client settings
