@@ -18,10 +18,10 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
 using DnsServerCore.ApplicationCommon;
-using Newtonsoft.Json;
 using System;
 using System.Collections.Generic;
 using System.Net;
+using System.Text.Json;
 using System.Threading.Tasks;
 using TechnitiumLibrary.Net;
 using TechnitiumLibrary.Net.Dns;
@@ -50,12 +50,13 @@ namespace SplitHorizon
 
         public Task<DnsDatagram> ProcessRequestAsync(DnsDatagram request, IPEndPoint remoteEP, DnsTransportProtocol protocol, bool isRecursionAllowed, string zoneName, string appRecordName, uint appRecordTtl, string appRecordData)
         {
-            dynamic jsonAppRecordData = JsonConvert.DeserializeObject(appRecordData);
-            dynamic jsonCname = null;
+            using JsonDocument jsonDocument = JsonDocument.Parse(appRecordData);
+            JsonElement jsonAppRecordData = jsonDocument.RootElement;
+            JsonElement jsonCname = default;
 
             NetworkAddress selectedNetwork = null;
 
-            foreach (dynamic jsonProperty in jsonAppRecordData)
+            foreach (JsonProperty jsonProperty in jsonAppRecordData.EnumerateObject())
             {
                 string name = jsonProperty.Name;
 
@@ -73,7 +74,7 @@ namespace SplitHorizon
                         }
                     }
 
-                    if (jsonCname is not null)
+                    if (jsonCname.ValueKind != JsonValueKind.Undefined)
                         break;
                 }
                 else if (NetworkAddress.TryParse(name, out NetworkAddress networkAddress))
@@ -86,18 +87,21 @@ namespace SplitHorizon
                 }
             }
 
-            if (jsonCname is null)
+            if (jsonCname.ValueKind == JsonValueKind.Undefined)
             {
                 if (NetUtilities.IsPrivateIP(remoteEP.Address))
-                    jsonCname = jsonAppRecordData.@private;
+                {
+                    if (!jsonAppRecordData.TryGetProperty("private", out jsonCname))
+                        return Task.FromResult<DnsDatagram>(null);
+                }
                 else
-                    jsonCname = jsonAppRecordData.@public;
-
-                if (jsonCname is null)
-                    return Task.FromResult<DnsDatagram>(null);
+                {
+                    if (!jsonAppRecordData.TryGetProperty("public", out jsonCname))
+                        return Task.FromResult<DnsDatagram>(null);
+                }
             }
 
-            string cname = jsonCname.Value;
+            string cname = jsonCname.GetString();
             if (string.IsNullOrEmpty(cname))
                 return Task.FromResult<DnsDatagram>(null);
 
