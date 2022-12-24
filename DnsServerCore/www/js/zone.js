@@ -68,7 +68,6 @@ $(function () {
                 break;
 
             case "Https":
-            case "HttpsJson":
                 $("#txtAddZoneForwarder").attr("placeholder", "https://cloudflare-dns.com/dns-query (1.1.1.1)")
                 break;
         }
@@ -2221,9 +2220,9 @@ function modifyAddRecordFormByType(addMode) {
     $("#divAddEditRecordDataMx").hide();
     $("#divAddEditRecordDataSrv").hide();
     $("#divAddEditRecordDataDs").hide();
-    $("#divAddEditRecordDataDs").hide();
     $("#divAddEditRecordDataSshfp").hide();
     $("#divAddEditRecordDataTlsa").hide();
+    $("#divAddEditRecordDataCaa").hide();
     $("#divAddEditRecordDataForwarder").hide();
     $("#divAddEditRecordDataApplication").hide();
 
@@ -2768,7 +2767,6 @@ function updateAddEditFormForwarderPlaceholder() {
             break;
 
         case "Https":
-        case "HttpsJson":
             $("#txtAddEditRecordDataForwarder").attr("placeholder", "https://cloudflare-dns.com/dns-query (1.1.1.1)")
             break;
     }
