@@ -19,6 +19,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 using DnsServerCore.Dhcp.Options;
 using System;
+using System.Globalization;
 using System.IO;
 using TechnitiumLibrary.IO;
 
@@ -105,6 +106,7 @@ namespace DnsServerCore.Dhcp
         DomainSearch = 119,
         ClasslessStaticRoute = 121,
         CAPWAPAccessControllerAddresses = 138,
+        TftpServerAddress = 150,
         End = 255
     }
 
@@ -118,6 +120,28 @@ namespace DnsServerCore.Dhcp
         #endregion
 
         #region constructor
+
+        public DhcpOption(DhcpOptionCode code, string hexValue)
+        {
+            if (hexValue is null)
+                throw new ArgumentNullException(nameof(hexValue));
+
+            _code = code;
+
+            if (hexValue.Contains(':'))
+                _value = ParseColonHexString(hexValue);
+            else
+                _value = Convert.FromHexString(hexValue);
+        }
+
+        public DhcpOption(DhcpOptionCode code, byte[] value)
+        {
+            if (value is null)
+                throw new ArgumentNullException(nameof(value));
+
+            _code = code;
+            _value = value;
+        }
 
         protected DhcpOption(DhcpOptionCode code, Stream s)
         {
@@ -223,6 +247,9 @@ namespace DnsServerCore.Dhcp
                 case DhcpOptionCode.CAPWAPAccessControllerAddresses:
                     return new CAPWAPAccessControllerOption(s);
 
+                case DhcpOptionCode.TftpServerAddress:
+                    return new TftpServerAddressOption(s);
+
                 case DhcpOptionCode.Pad:
                 case DhcpOptionCode.End:
                     return new DhcpOption(optionCode);
@@ -230,6 +257,38 @@ namespace DnsServerCore.Dhcp
                 default:
                     //unknown option
                     return new DhcpOption(optionCode, s);
+            }
+        }
+
+        protected static byte[] ParseColonHexString(string value)
+        {
+            int i;
+            int j = -1;
+            string strHex;
+            int b;
+
+            using (MemoryStream mS = new MemoryStream())
+            {
+                while (true)
+                {
+                    i = value.IndexOf(':', j + 1);
+                    if (i < 0)
+                        i = value.Length;
+
+                    strHex = value.Substring(j + 1, i - j - 1);
+
+                    if (!int.TryParse(strHex, NumberStyles.HexNumber, CultureInfo.InvariantCulture, out b) || (b < byte.MinValue) || (b > byte.MaxValue))
+                        throw new InvalidDataException("VendorSpecificInformation option data must be a colon (:) separated hex string.");
+
+                    mS.WriteByte((byte)b);
+
+                    if (i == value.Length)
+                        break;
+
+                    j = i;
+                }
+
+                return mS.ToArray();
             }
         }
 
@@ -320,6 +379,9 @@ namespace DnsServerCore.Dhcp
 
         public DhcpOptionCode Code
         { get { return _code; } }
+
+        public byte[] RawValue
+        { get { return _value; } }
 
         #endregion
     }
