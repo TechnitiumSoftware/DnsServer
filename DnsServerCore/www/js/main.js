@@ -238,10 +238,8 @@ $(function () {
 
         if ((itemText.indexOf("TLS") !== -1) || (itemText.indexOf(":853") !== -1))
             $("#optDnsClientProtocol").val("TLS");
-        else if (itemText.indexOf("HTTPS-JSON") !== -1)
-            $("#optDnsClientProtocol").val("HttpsJson");
         else if ((itemText.indexOf("HTTPS") !== -1) || (itemText.indexOf("http://") !== -1) || (itemText.indexOf("https://") !== -1))
-            $("#optDnsClientProtocol").val("Https");
+            $("#optDnsClientProtocol").val("HTTPS");
         else {
             switch ($("#optDnsClientProtocol").val()) {
                 case "UDP":
@@ -469,11 +467,6 @@ $(function () {
             case "google-https":
                 $("#txtForwarders").val("https://dns.google/dns-query (8.8.8.8)\r\nhttps://dns.google/dns-query (8.8.4.4)");
                 $("#rdForwarderProtocolHttps").prop("checked", true);
-                break;
-
-            case "google-json":
-                $("#txtForwarders").val("https://dns.google/dns-query (8.8.8.8)\r\nhttps://dns.google/dns-query (8.8.4.4)");
-                $("#rdForwarderProtocolHttpsJson").prop("checked", true);
                 break;
 
 
@@ -993,10 +986,6 @@ function loadDnsSettings() {
 
                 case "https":
                     $("#rdForwarderProtocolHttps").prop("checked", true);
-                    break;
-
-                case "httpsjson":
-                    $("#rdForwarderProtocolHttpsJson").prop("checked", true);
                     break;
 
                 default:
