@@ -23,8 +23,6 @@ using DnsServerCore.Dns;
 using DnsServerCore.Dns.ResourceRecords;
 using DnsServerCore.Dns.ZoneManagers;
 using DnsServerCore.Dns.Zones;
-using Newtonsoft.Json;
-using Newtonsoft.Json.Converters;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -37,6 +35,7 @@ using System.Reflection;
 using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
 using System.Text;
+using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
 using TechnitiumLibrary;
@@ -371,7 +370,7 @@ namespace DnsServerCore
                     {
                         try
                         {
-                            JsonTextWriter jsonWriter = new JsonTextWriter(new StreamWriter(mS));
+                            Utf8JsonWriter jsonWriter = new Utf8JsonWriter(mS);
                             jsonWriter.WriteStartObject();
 
                             switch (path)
@@ -1184,8 +1183,7 @@ namespace DnsServerCore
                                     break;
                             }
 
-                            jsonWriter.WritePropertyName("status");
-                            jsonWriter.WriteValue("ok");
+                            jsonWriter.WriteString("status", "ok");
 
                             jsonWriter.WriteEndObject();
                             jsonWriter.Flush();
@@ -1193,14 +1191,11 @@ namespace DnsServerCore
                         catch (InvalidTokenWebServiceException ex)
                         {
                             mS.SetLength(0);
-                            JsonTextWriter jsonWriter = new JsonTextWriter(new StreamWriter(mS));
+                            Utf8JsonWriter jsonWriter = new Utf8JsonWriter(mS);
                             jsonWriter.WriteStartObject();
 
-                            jsonWriter.WritePropertyName("status");
-                            jsonWriter.WriteValue("invalid-token");
-
-                            jsonWriter.WritePropertyName("errorMessage");
-                            jsonWriter.WriteValue(ex.Message);
+                            jsonWriter.WriteString("status", "invalid-token");
+                            jsonWriter.WriteString("errorMessage", ex.Message);
 
                             jsonWriter.WriteEndObject();
                             jsonWriter.Flush();
@@ -1219,23 +1214,15 @@ namespace DnsServerCore
                                 _log.Write(GetRequestRemoteEndPoint(request), "[" + session.User.Username + "] " + ex.ToString());
 
                             mS.SetLength(0);
-                            JsonTextWriter jsonWriter = new JsonTextWriter(new StreamWriter(mS));
+                            Utf8JsonWriter jsonWriter = new Utf8JsonWriter(mS);
                             jsonWriter.WriteStartObject();
 
-                            jsonWriter.WritePropertyName("status");
-                            jsonWriter.WriteValue("error");
+                            jsonWriter.WriteString("status", "error");
+                            jsonWriter.WriteString("errorMessage", ex.Message);
+                            jsonWriter.WriteString("stackTrace", ex.StackTrace);
 
-                            jsonWriter.WritePropertyName("errorMessage");
-                            jsonWriter.WriteValue(ex.Message);
-
-                            jsonWriter.WritePropertyName("stackTrace");
-                            jsonWriter.WriteValue(ex.StackTrace);
-
-                            if (ex.InnerException != null)
-                            {
-                                jsonWriter.WritePropertyName("innerErrorMessage");
-                                jsonWriter.WriteValue(ex.InnerException.Message);
-                            }
+                            if (ex.InnerException is not null)
+                                jsonWriter.WriteString("innerErrorMessage", ex.InnerException.Message);
 
                             jsonWriter.WriteEndObject();
                             jsonWriter.Flush();
@@ -1446,12 +1433,11 @@ namespace DnsServerCore
 
         #region update api
 
-        private async Task CheckForUpdateAsync(HttpListenerRequest request, JsonTextWriter jsonWriter)
+        private async Task CheckForUpdateAsync(HttpListenerRequest request, Utf8JsonWriter jsonWriter)
         {
             if (_updateCheckUri is null)
             {
-                jsonWriter.WritePropertyName("updateAvailable");
-                jsonWriter.WriteValue(false);
+                jsonWriter.WriteBoolean("updateAvailable", false);
                 return;
             }
 
@@ -1463,43 +1449,30 @@ namespace DnsServerCore
 
                 using (HttpClient http = new HttpClient(handler))
                 {
-                    string response = await http.GetStringAsync(_updateCheckUri);
-                    dynamic jsonResponse = JsonConvert.DeserializeObject(response);
+                    Stream response = await http.GetStreamAsync(_updateCheckUri);
+                    using JsonDocument jsonDocument = await JsonDocument.ParseAsync(response);
+                    JsonElement jsonResponse = jsonDocument.RootElement;
 
-                    string updateVersion = jsonResponse.updateVersion.Value;
-                    string updateTitle = jsonResponse.updateTitle?.Value;
-                    string updateMessage = jsonResponse.updateMessage?.Value;
-                    string downloadLink = jsonResponse.downloadLink?.Value;
-                    string instructionsLink = jsonResponse.instructionsLink?.Value;
-                    string changeLogLink = jsonResponse.changeLogLink?.Value;
+                    string updateVersion = jsonResponse.GetProperty("updateVersion").GetString();
+                    string updateTitle = jsonResponse.GetPropertyValue("updateTitle", null);
+                    string updateMessage = jsonResponse.GetPropertyValue("updateMessage", null);
+                    string downloadLink = jsonResponse.GetPropertyValue("downloadLink", null);
+                    string instructionsLink = jsonResponse.GetPropertyValue("instructionsLink", null);
+                    string changeLogLink = jsonResponse.GetPropertyValue("changeLogLink", null);
 
                     bool updateAvailable = new Version(updateVersion) > _currentVersion;
 
-                    jsonWriter.WritePropertyName("updateAvailable");
-                    jsonWriter.WriteValue(updateAvailable);
-
-                    jsonWriter.WritePropertyName("updateVersion");
-                    jsonWriter.WriteValue(updateVersion);
-
-                    jsonWriter.WritePropertyName("currentVersion");
-                    jsonWriter.WriteValue(GetCleanVersion(_currentVersion));
+                    jsonWriter.WriteBoolean("updateAvailable", updateAvailable);
+                    jsonWriter.WriteString("updateVersion", updateVersion);
+                    jsonWriter.WriteString("currentVersion", GetCleanVersion(_currentVersion));
 
                     if (updateAvailable)
                     {
-                        jsonWriter.WritePropertyName("updateTitle");
-                        jsonWriter.WriteValue(updateTitle);
-
-                        jsonWriter.WritePropertyName("updateMessage");
-                        jsonWriter.WriteValue(updateMessage);
-
-                        jsonWriter.WritePropertyName("downloadLink");
-                        jsonWriter.WriteValue(downloadLink);
-
-                        jsonWriter.WritePropertyName("instructionsLink");
-                        jsonWriter.WriteValue(instructionsLink);
-
-                        jsonWriter.WritePropertyName("changeLogLink");
-                        jsonWriter.WriteValue(changeLogLink);
+                        jsonWriter.WriteString("updateTitle", updateTitle);
+                        jsonWriter.WriteString("updateMessage", updateMessage);
+                        jsonWriter.WriteString("downloadLink", downloadLink);
+                        jsonWriter.WriteString("instructionsLink", instructionsLink);
+                        jsonWriter.WriteString("changeLogLink", changeLogLink);
                     }
 
                     string strLog = "Check for update was done {updateAvailable: " + updateAvailable + "; updateVersion: " + updateVersion + ";";
@@ -1528,8 +1501,7 @@ namespace DnsServerCore
             {
                 _log.Write(GetRequestRemoteEndPoint(request), "Check for update was done {updateAvailable: False;}\r\n" + ex.ToString());
 
-                jsonWriter.WritePropertyName("updateAvailable");
-                jsonWriter.WriteValue(false);
+                jsonWriter.WriteBoolean("updateAvailable", false);
             }
         }
 
@@ -1555,71 +1527,73 @@ namespace DnsServerCore
 
         #region settings api
 
-        private void GetDnsSettings(JsonTextWriter jsonWriter)
+        private void GetDnsSettings(Utf8JsonWriter jsonWriter)
         {
-            jsonWriter.WritePropertyName("version");
-            jsonWriter.WriteValue(GetServerVersion());
-
-            jsonWriter.WritePropertyName("dnsServerDomain");
-            jsonWriter.WriteValue(_dnsServer.ServerDomain);
+            //general
+            jsonWriter.WriteString("version", GetServerVersion());
+            jsonWriter.WriteString("dnsServerDomain", _dnsServer.ServerDomain);
 
             jsonWriter.WritePropertyName("dnsServerLocalEndPoints");
             jsonWriter.WriteStartArray();
 
             foreach (IPEndPoint localEP in _dnsServer.LocalEndPoints)
-                jsonWriter.WriteValue(localEP.ToString());
+                jsonWriter.WriteStringValue(localEP.ToString());
 
             jsonWriter.WriteEndArray();
 
+            jsonWriter.WriteNumber("defaultRecordTtl", _zonesApi.DefaultRecordTtl);
+            jsonWriter.WriteBoolean("dnsAppsEnableAutomaticUpdate", _appsApi.EnableAutomaticUpdate);
+
+            jsonWriter.WriteBoolean("preferIPv6", _dnsServer.PreferIPv6);
+
+            jsonWriter.WriteNumber("udpPayloadSize", _dnsServer.UdpPayloadSize);
+
+            jsonWriter.WriteBoolean("dnssecValidation", _dnsServer.DnssecValidation);
+
+            jsonWriter.WriteBoolean("eDnsClientSubnet", _dnsServer.EDnsClientSubnet);
+            jsonWriter.WriteNumber("eDnsClientSubnetIPv4PrefixLength", _dnsServer.EDnsClientSubnetIPv4PrefixLength);
+            jsonWriter.WriteNumber("eDnsClientSubnetIPv6PrefixLength", _dnsServer.EDnsClientSubnetIPv6PrefixLength);
+
+            jsonWriter.WriteNumber("qpmLimitRequests", _dnsServer.QpmLimitRequests);
+            jsonWriter.WriteNumber("qpmLimitErrors", _dnsServer.QpmLimitErrors);
+            jsonWriter.WriteNumber("qpmLimitSampleMinutes", _dnsServer.QpmLimitSampleMinutes);
+            jsonWriter.WriteNumber("qpmLimitIPv4PrefixLength", _dnsServer.QpmLimitIPv4PrefixLength);
+            jsonWriter.WriteNumber("qpmLimitIPv6PrefixLength", _dnsServer.QpmLimitIPv6PrefixLength);
+
+            jsonWriter.WriteNumber("clientTimeout", _dnsServer.ClientTimeout);
+            jsonWriter.WriteNumber("tcpSendTimeout", _dnsServer.TcpSendTimeout);
+            jsonWriter.WriteNumber("tcpReceiveTimeout", _dnsServer.TcpReceiveTimeout);
+
+            //web service
             jsonWriter.WritePropertyName("webServiceLocalAddresses");
             jsonWriter.WriteStartArray();
 
             foreach (IPAddress localAddress in _webServiceLocalAddresses)
             {
                 if (localAddress.AddressFamily == AddressFamily.InterNetworkV6)
-                    jsonWriter.WriteValue("[" + localAddress.ToString() + "]");
+                    jsonWriter.WriteStringValue("[" + localAddress.ToString() + "]");
                 else
-                    jsonWriter.WriteValue(localAddress.ToString());
+                    jsonWriter.WriteStringValue(localAddress.ToString());
             }
 
             jsonWriter.WriteEndArray();
 
-            jsonWriter.WritePropertyName("webServiceHttpPort");
-            jsonWriter.WriteValue(_webServiceHttpPort);
+            jsonWriter.WriteNumber("webServiceHttpPort", _webServiceHttpPort);
+            jsonWriter.WriteBoolean("webServiceEnableTls", _webServiceEnableTls);
+            jsonWriter.WriteBoolean("webServiceHttpToTlsRedirect", _webServiceHttpToTlsRedirect);
+            jsonWriter.WriteBoolean("webServiceUseSelfSignedTlsCertificate", _webServiceUseSelfSignedTlsCertificate);
+            jsonWriter.WriteNumber("webServiceTlsPort", _webServiceTlsPort);
+            jsonWriter.WriteString("webServiceTlsCertificatePath", _webServiceTlsCertificatePath);
+            jsonWriter.WriteString("webServiceTlsCertificatePassword", "************");
 
-            jsonWriter.WritePropertyName("webServiceEnableTls");
-            jsonWriter.WriteValue(_webServiceEnableTls);
+            //optional protocols
+            jsonWriter.WriteBoolean("enableDnsOverHttp", _dnsServer.EnableDnsOverHttp);
+            jsonWriter.WriteBoolean("enableDnsOverTls", _dnsServer.EnableDnsOverTls);
+            jsonWriter.WriteBoolean("enableDnsOverHttps", _dnsServer.EnableDnsOverHttps);
+            jsonWriter.WriteString("dnsTlsCertificatePath", _dnsTlsCertificatePath);
+            jsonWriter.WriteString("dnsTlsCertificatePassword", "************");
 
-            jsonWriter.WritePropertyName("webServiceHttpToTlsRedirect");
-            jsonWriter.WriteValue(_webServiceHttpToTlsRedirect);
-
-            jsonWriter.WritePropertyName("webServiceTlsPort");
-            jsonWriter.WriteValue(_webServiceTlsPort);
-
-            jsonWriter.WritePropertyName("webServiceUseSelfSignedTlsCertificate");
-            jsonWriter.WriteValue(_webServiceUseSelfSignedTlsCertificate);
-
-            jsonWriter.WritePropertyName("webServiceTlsCertificatePath");
-            jsonWriter.WriteValue(_webServiceTlsCertificatePath);
-
-            jsonWriter.WritePropertyName("webServiceTlsCertificatePassword");
-            jsonWriter.WriteValue("************");
-
-            jsonWriter.WritePropertyName("enableDnsOverHttp");
-            jsonWriter.WriteValue(_dnsServer.EnableDnsOverHttp);
-
-            jsonWriter.WritePropertyName("enableDnsOverTls");
-            jsonWriter.WriteValue(_dnsServer.EnableDnsOverTls);
-
-            jsonWriter.WritePropertyName("enableDnsOverHttps");
-            jsonWriter.WriteValue(_dnsServer.EnableDnsOverHttps);
-
-            jsonWriter.WritePropertyName("dnsTlsCertificatePath");
-            jsonWriter.WriteValue(_dnsTlsCertificatePath);
-
-            jsonWriter.WritePropertyName("dnsTlsCertificatePassword");
-            jsonWriter.WriteValue("************");
-
+            //tsig
             jsonWriter.WritePropertyName("tsigKeys");
             {
                 jsonWriter.WriteStartArray();
@@ -1630,14 +1604,9 @@ namespace DnsServerCore
                     {
                         jsonWriter.WriteStartObject();
 
-                        jsonWriter.WritePropertyName("keyName");
-                        jsonWriter.WriteValue(tsigKey.Key);
-
-                        jsonWriter.WritePropertyName("sharedSecret");
-                        jsonWriter.WriteValue(tsigKey.Value.SharedSecret);
-
-                        jsonWriter.WritePropertyName("algorithmName");
-                        jsonWriter.WriteValue(tsigKey.Value.AlgorithmName);
+                        jsonWriter.WriteString("keyName", tsigKey.Key);
+                        jsonWriter.WriteString("sharedSecret", tsigKey.Value.SharedSecret);
+                        jsonWriter.WriteString("algorithmName", tsigKey.Value.AlgorithmName);
 
                         jsonWriter.WriteEndObject();
                     }
@@ -1646,77 +1615,8 @@ namespace DnsServerCore
                 jsonWriter.WriteEndArray();
             }
 
-            jsonWriter.WritePropertyName("defaultRecordTtl");
-            jsonWriter.WriteValue(_zonesApi.DefaultRecordTtl);
-
-            jsonWriter.WritePropertyName("dnsAppsEnableAutomaticUpdate");
-            jsonWriter.WriteValue(_appsApi.EnableAutomaticUpdate);
-
-            jsonWriter.WritePropertyName("preferIPv6");
-            jsonWriter.WriteValue(_dnsServer.PreferIPv6);
-
-            jsonWriter.WritePropertyName("udpPayloadSize");
-            jsonWriter.WriteValue(_dnsServer.UdpPayloadSize);
-
-            jsonWriter.WritePropertyName("dnssecValidation");
-            jsonWriter.WriteValue(_dnsServer.DnssecValidation);
-
-            jsonWriter.WritePropertyName("eDnsClientSubnet");
-            jsonWriter.WriteValue(_dnsServer.EDnsClientSubnet);
-
-            jsonWriter.WritePropertyName("eDnsClientSubnetIPv4PrefixLength");
-            jsonWriter.WriteValue(_dnsServer.EDnsClientSubnetIPv4PrefixLength);
-
-            jsonWriter.WritePropertyName("eDnsClientSubnetIPv6PrefixLength");
-            jsonWriter.WriteValue(_dnsServer.EDnsClientSubnetIPv6PrefixLength);
-
-            jsonWriter.WritePropertyName("resolverRetries");
-            jsonWriter.WriteValue(_dnsServer.ResolverRetries);
-
-            jsonWriter.WritePropertyName("resolverTimeout");
-            jsonWriter.WriteValue(_dnsServer.ResolverTimeout);
-
-            jsonWriter.WritePropertyName("resolverMaxStackCount");
-            jsonWriter.WriteValue(_dnsServer.ResolverMaxStackCount);
-
-            jsonWriter.WritePropertyName("forwarderRetries");
-            jsonWriter.WriteValue(_dnsServer.ForwarderRetries);
-
-            jsonWriter.WritePropertyName("forwarderTimeout");
-            jsonWriter.WriteValue(_dnsServer.ForwarderTimeout);
-
-            jsonWriter.WritePropertyName("forwarderConcurrency");
-            jsonWriter.WriteValue(_dnsServer.ForwarderConcurrency);
-
-            jsonWriter.WritePropertyName("clientTimeout");
-            jsonWriter.WriteValue(_dnsServer.ClientTimeout);
-
-            jsonWriter.WritePropertyName("tcpSendTimeout");
-            jsonWriter.WriteValue(_dnsServer.TcpSendTimeout);
-
-            jsonWriter.WritePropertyName("tcpReceiveTimeout");
-            jsonWriter.WriteValue(_dnsServer.TcpReceiveTimeout);
-
-            jsonWriter.WritePropertyName("enableLogging");
-            jsonWriter.WriteValue(_log.EnableLogging);
-
-            jsonWriter.WritePropertyName("logQueries");
-            jsonWriter.WriteValue(_dnsServer.QueryLogManager != null);
-
-            jsonWriter.WritePropertyName("useLocalTime");
-            jsonWriter.WriteValue(_log.UseLocalTime);
-
-            jsonWriter.WritePropertyName("logFolder");
-            jsonWriter.WriteValue(_log.LogFolder);
-
-            jsonWriter.WritePropertyName("maxLogFileDays");
-            jsonWriter.WriteValue(_log.MaxLogFileDays);
-
-            jsonWriter.WritePropertyName("maxStatFileDays");
-            jsonWriter.WriteValue(_dnsServer.StatsManager.MaxStatFileDays);
-
-            jsonWriter.WritePropertyName("recursion");
-            jsonWriter.WriteValue(_dnsServer.Recursion.ToString());
+            //recursion
+            jsonWriter.WriteString("recursion", _dnsServer.Recursion.ToString());
 
             jsonWriter.WritePropertyName("recursionDeniedNetworks");
             {
@@ -1725,7 +1625,7 @@ namespace DnsServerCore
                 if (_dnsServer.RecursionDeniedNetworks is not null)
                 {
                     foreach (NetworkAddress networkAddress in _dnsServer.RecursionDeniedNetworks)
-                        jsonWriter.WriteValue(networkAddress.ToString());
+                        jsonWriter.WriteStringValue(networkAddress.ToString());
                 }
 
                 jsonWriter.WriteEndArray();
@@ -1738,73 +1638,88 @@ namespace DnsServerCore
                 if (_dnsServer.RecursionAllowedNetworks is not null)
                 {
                     foreach (NetworkAddress networkAddress in _dnsServer.RecursionAllowedNetworks)
-                        jsonWriter.WriteValue(networkAddress.ToString());
+                        jsonWriter.WriteStringValue(networkAddress.ToString());
                 }
 
                 jsonWriter.WriteEndArray();
             }
 
-            jsonWriter.WritePropertyName("randomizeName");
-            jsonWriter.WriteValue(_dnsServer.RandomizeName);
+            jsonWriter.WriteBoolean("randomizeName", _dnsServer.RandomizeName);
+            jsonWriter.WriteBoolean("qnameMinimization", _dnsServer.QnameMinimization);
+            jsonWriter.WriteBoolean("nsRevalidation", _dnsServer.NsRevalidation);
 
-            jsonWriter.WritePropertyName("qnameMinimization");
-            jsonWriter.WriteValue(_dnsServer.QnameMinimization);
+            jsonWriter.WriteNumber("resolverRetries", _dnsServer.ResolverRetries);
+            jsonWriter.WriteNumber("resolverTimeout", _dnsServer.ResolverTimeout);
+            jsonWriter.WriteNumber("resolverMaxStackCount", _dnsServer.ResolverMaxStackCount);
 
-            jsonWriter.WritePropertyName("nsRevalidation");
-            jsonWriter.WriteValue(_dnsServer.NsRevalidation);
+            //cache
+            jsonWriter.WriteBoolean("serveStale", _dnsServer.ServeStale);
+            jsonWriter.WriteNumber("serveStaleTtl", _dnsServer.CacheZoneManager.ServeStaleTtl);
 
-            jsonWriter.WritePropertyName("qpmLimitRequests");
-            jsonWriter.WriteValue(_dnsServer.QpmLimitRequests);
+            jsonWriter.WriteNumber("cacheMaximumEntries", _dnsServer.CacheZoneManager.MaximumEntries);
+            jsonWriter.WriteNumber("cacheMinimumRecordTtl", _dnsServer.CacheZoneManager.MinimumRecordTtl);
+            jsonWriter.WriteNumber("cacheMaximumRecordTtl", _dnsServer.CacheZoneManager.MaximumRecordTtl);
+            jsonWriter.WriteNumber("cacheNegativeRecordTtl", _dnsServer.CacheZoneManager.NegativeRecordTtl);
+            jsonWriter.WriteNumber("cacheFailureRecordTtl", _dnsServer.CacheZoneManager.FailureRecordTtl);
 
-            jsonWriter.WritePropertyName("qpmLimitErrors");
-            jsonWriter.WriteValue(_dnsServer.QpmLimitErrors);
+            jsonWriter.WriteNumber("cachePrefetchEligibility", _dnsServer.CachePrefetchEligibility);
+            jsonWriter.WriteNumber("cachePrefetchTrigger", _dnsServer.CachePrefetchTrigger);
+            jsonWriter.WriteNumber("cachePrefetchSampleIntervalInMinutes", _dnsServer.CachePrefetchSampleIntervalInMinutes);
+            jsonWriter.WriteNumber("cachePrefetchSampleEligibilityHitsPerHour", _dnsServer.CachePrefetchSampleEligibilityHitsPerHour);
 
-            jsonWriter.WritePropertyName("qpmLimitSampleMinutes");
-            jsonWriter.WriteValue(_dnsServer.QpmLimitSampleMinutes);
+            //blocking
+            jsonWriter.WriteBoolean("enableBlocking", _dnsServer.EnableBlocking);
+            jsonWriter.WriteBoolean("allowTxtBlockingReport", _dnsServer.AllowTxtBlockingReport);
 
-            jsonWriter.WritePropertyName("qpmLimitIPv4PrefixLength");
-            jsonWriter.WriteValue(_dnsServer.QpmLimitIPv4PrefixLength);
+            if (!_dnsServer.EnableBlocking && (DateTime.UtcNow < _temporaryDisableBlockingTill))
+                jsonWriter.WriteString("temporaryDisableBlockingTill", _temporaryDisableBlockingTill);
 
-            jsonWriter.WritePropertyName("qpmLimitIPv6PrefixLength");
-            jsonWriter.WriteValue(_dnsServer.QpmLimitIPv6PrefixLength);
+            jsonWriter.WriteString("blockingType", _dnsServer.BlockingType.ToString());
 
-            jsonWriter.WritePropertyName("serveStale");
-            jsonWriter.WriteValue(_dnsServer.ServeStale);
+            jsonWriter.WritePropertyName("customBlockingAddresses");
+            jsonWriter.WriteStartArray();
 
-            jsonWriter.WritePropertyName("serveStaleTtl");
-            jsonWriter.WriteValue(_dnsServer.CacheZoneManager.ServeStaleTtl);
+            foreach (DnsARecordData record in _dnsServer.CustomBlockingARecords)
+                jsonWriter.WriteStringValue(record.Address.ToString());
 
-            jsonWriter.WritePropertyName("cacheMaximumEntries");
-            jsonWriter.WriteValue(_dnsServer.CacheZoneManager.MaximumEntries);
+            foreach (DnsAAAARecordData record in _dnsServer.CustomBlockingAAAARecords)
+                jsonWriter.WriteStringValue(record.Address.ToString());
 
-            jsonWriter.WritePropertyName("cacheMinimumRecordTtl");
-            jsonWriter.WriteValue(_dnsServer.CacheZoneManager.MinimumRecordTtl);
+            jsonWriter.WriteEndArray();
 
-            jsonWriter.WritePropertyName("cacheMaximumRecordTtl");
-            jsonWriter.WriteValue(_dnsServer.CacheZoneManager.MaximumRecordTtl);
+            jsonWriter.WritePropertyName("blockListUrls");
 
-            jsonWriter.WritePropertyName("cacheNegativeRecordTtl");
-            jsonWriter.WriteValue(_dnsServer.CacheZoneManager.NegativeRecordTtl);
+            if ((_dnsServer.BlockListZoneManager.AllowListUrls.Count == 0) && (_dnsServer.BlockListZoneManager.BlockListUrls.Count == 0))
+            {
+                jsonWriter.WriteNullValue();
+            }
+            else
+            {
+                jsonWriter.WriteStartArray();
 
-            jsonWriter.WritePropertyName("cacheFailureRecordTtl");
-            jsonWriter.WriteValue(_dnsServer.CacheZoneManager.FailureRecordTtl);
+                foreach (Uri allowListUrl in _dnsServer.BlockListZoneManager.AllowListUrls)
+                    jsonWriter.WriteStringValue("!" + allowListUrl.AbsoluteUri);
 
-            jsonWriter.WritePropertyName("cachePrefetchEligibility");
-            jsonWriter.WriteValue(_dnsServer.CachePrefetchEligibility);
+                foreach (Uri blockListUrl in _dnsServer.BlockListZoneManager.BlockListUrls)
+                    jsonWriter.WriteStringValue(blockListUrl.AbsoluteUri);
 
-            jsonWriter.WritePropertyName("cachePrefetchTrigger");
-            jsonWriter.WriteValue(_dnsServer.CachePrefetchTrigger);
+                jsonWriter.WriteEndArray();
+            }
 
-            jsonWriter.WritePropertyName("cachePrefetchSampleIntervalInMinutes");
-            jsonWriter.WriteValue(_dnsServer.CachePrefetchSampleIntervalInMinutes);
+            jsonWriter.WriteNumber("blockListUpdateIntervalHours", _blockListUpdateIntervalHours);
 
-            jsonWriter.WritePropertyName("cachePrefetchSampleEligibilityHitsPerHour");
-            jsonWriter.WriteValue(_dnsServer.CachePrefetchSampleEligibilityHitsPerHour);
+            if (_blockListUpdateTimer is not null)
+            {
+                DateTime blockListNextUpdatedOn = _blockListLastUpdatedOn.AddHours(_blockListUpdateIntervalHours);
 
+                jsonWriter.WriteString("blockListNextUpdatedOn", blockListNextUpdatedOn);
+            }
+
+            //proxy & forwarders
             jsonWriter.WritePropertyName("proxy");
             if (_dnsServer.Proxy == null)
             {
-                jsonWriter.WriteNull();
+                jsonWriter.WriteNullValue();
             }
             else
             {
@@ -1812,31 +1727,22 @@ namespace DnsServerCore
 
                 NetProxy proxy = _dnsServer.Proxy;
 
-                jsonWriter.WritePropertyName("type");
-                jsonWriter.WriteValue(proxy.Type.ToString());
-
-                jsonWriter.WritePropertyName("address");
-                jsonWriter.WriteValue(proxy.Address);
-
-                jsonWriter.WritePropertyName("port");
-                jsonWriter.WriteValue(proxy.Port);
+                jsonWriter.WriteString("type", proxy.Type.ToString());
+                jsonWriter.WriteString("address", proxy.Address);
+                jsonWriter.WriteNumber("port", proxy.Port);
 
                 NetworkCredential credential = proxy.Credential;
-
                 if (credential != null)
                 {
-                    jsonWriter.WritePropertyName("username");
-                    jsonWriter.WriteValue(credential.UserName);
-
-                    jsonWriter.WritePropertyName("password");
-                    jsonWriter.WriteValue(credential.Password);
+                    jsonWriter.WriteString("username", credential.UserName);
+                    jsonWriter.WriteString("password", credential.Password);
                 }
 
                 jsonWriter.WritePropertyName("bypass");
                 jsonWriter.WriteStartArray();
 
                 foreach (NetProxyBypassItem item in proxy.BypassList)
-                    jsonWriter.WriteValue(item.Value);
+                    jsonWriter.WriteStringValue(item.Value);
 
                 jsonWriter.WriteEndArray();
 
@@ -1849,7 +1755,7 @@ namespace DnsServerCore
 
             if (_dnsServer.Forwarders == null)
             {
-                jsonWriter.WriteNull();
+                jsonWriter.WriteNullValue();
             }
             else
             {
@@ -1858,77 +1764,34 @@ namespace DnsServerCore
                 jsonWriter.WriteStartArray();
 
                 foreach (NameServerAddress forwarder in _dnsServer.Forwarders)
-                    jsonWriter.WriteValue(forwarder.OriginalAddress);
+                    jsonWriter.WriteStringValue(forwarder.OriginalAddress);
 
                 jsonWriter.WriteEndArray();
             }
 
-            jsonWriter.WritePropertyName("forwarderProtocol");
-            jsonWriter.WriteValue(forwarderProtocol.ToString());
+            jsonWriter.WriteString("forwarderProtocol", forwarderProtocol.ToString());
 
-            jsonWriter.WritePropertyName("enableBlocking");
-            jsonWriter.WriteValue(_dnsServer.EnableBlocking);
+            jsonWriter.WriteNumber("forwarderRetries", _dnsServer.ForwarderRetries);
+            jsonWriter.WriteNumber("forwarderTimeout", _dnsServer.ForwarderTimeout);
+            jsonWriter.WriteNumber("forwarderConcurrency", _dnsServer.ForwarderConcurrency);
 
-            jsonWriter.WritePropertyName("allowTxtBlockingReport");
-            jsonWriter.WriteValue(_dnsServer.AllowTxtBlockingReport);
-
-            if (!_dnsServer.EnableBlocking && (DateTime.UtcNow < _temporaryDisableBlockingTill))
-            {
-                jsonWriter.WritePropertyName("temporaryDisableBlockingTill");
-                jsonWriter.WriteValue(_temporaryDisableBlockingTill);
-            }
-
-            jsonWriter.WritePropertyName("blockingType");
-            jsonWriter.WriteValue(_dnsServer.BlockingType.ToString());
-
-            jsonWriter.WritePropertyName("customBlockingAddresses");
-            jsonWriter.WriteStartArray();
-
-            foreach (DnsARecordData record in _dnsServer.CustomBlockingARecords)
-                jsonWriter.WriteValue(record.Address.ToString());
-
-            foreach (DnsAAAARecordData record in _dnsServer.CustomBlockingAAAARecords)
-                jsonWriter.WriteValue(record.Address.ToString());
-
-            jsonWriter.WriteEndArray();
-
-            jsonWriter.WritePropertyName("blockListUrls");
-
-            if ((_dnsServer.BlockListZoneManager.AllowListUrls.Count == 0) && (_dnsServer.BlockListZoneManager.BlockListUrls.Count == 0))
-            {
-                jsonWriter.WriteNull();
-            }
-            else
-            {
-                jsonWriter.WriteStartArray();
-
-                foreach (Uri allowListUrl in _dnsServer.BlockListZoneManager.AllowListUrls)
-                    jsonWriter.WriteValue("!" + allowListUrl.AbsoluteUri);
-
-                foreach (Uri blockListUrl in _dnsServer.BlockListZoneManager.BlockListUrls)
-                    jsonWriter.WriteValue(blockListUrl.AbsoluteUri);
-
-                jsonWriter.WriteEndArray();
-            }
-
-            jsonWriter.WritePropertyName("blockListUpdateIntervalHours");
-            jsonWriter.WriteValue(_blockListUpdateIntervalHours);
-
-            if (_blockListUpdateTimer is not null)
-            {
-                DateTime blockListNextUpdatedOn = _blockListLastUpdatedOn.AddHours(_blockListUpdateIntervalHours);
-
-                jsonWriter.WritePropertyName("blockListNextUpdatedOn");
-                jsonWriter.WriteValue(blockListNextUpdatedOn);
-            }
+            //logging
+            jsonWriter.WriteBoolean("enableLogging", _log.EnableLogging);
+            jsonWriter.WriteBoolean("logQueries", _dnsServer.QueryLogManager != null);
+            jsonWriter.WriteBoolean("useLocalTime", _log.UseLocalTime);
+            jsonWriter.WriteString("logFolder", _log.LogFolder);
+            jsonWriter.WriteNumber("maxLogFileDays", _log.MaxLogFileDays);
+            jsonWriter.WriteNumber("maxStatFileDays", _dnsServer.StatsManager.MaxStatFileDays);
         }
 
-        private void SetDnsSettings(HttpListenerRequest request, JsonTextWriter jsonWriter)
+        private void SetDnsSettings(HttpListenerRequest request, Utf8JsonWriter jsonWriter)
         {
             bool serverDomainChanged = false;
             bool restartDnsService = false;
             bool restartWebService = false;
+            int oldWebServiceHttpPort = _webServiceHttpPort;
 
+            //general
             string strDnsServerDomain = request.QueryString["dnsServerDomain"];
             if (!string.IsNullOrEmpty(strDnsServerDomain))
             {
@@ -1974,6 +1837,71 @@ namespace DnsServerCore
                 }
             }
 
+            string strDefaultRecordTtl = request.QueryString["defaultRecordTtl"];
+            if (!string.IsNullOrEmpty(strDefaultRecordTtl))
+                _zonesApi.DefaultRecordTtl = uint.Parse(strDefaultRecordTtl);
+
+            string strDnsAppsEnableAutomaticUpdate = request.QueryString["dnsAppsEnableAutomaticUpdate"];
+            if (!string.IsNullOrEmpty(strDnsAppsEnableAutomaticUpdate))
+                _appsApi.EnableAutomaticUpdate = bool.Parse(strDnsAppsEnableAutomaticUpdate);
+
+            string strPreferIPv6 = request.QueryString["preferIPv6"];
+            if (!string.IsNullOrEmpty(strPreferIPv6))
+                _dnsServer.PreferIPv6 = bool.Parse(strPreferIPv6);
+
+            string strUdpPayloadSize = request.QueryString["udpPayloadSize"];
+            if (!string.IsNullOrEmpty(strUdpPayloadSize))
+                _dnsServer.UdpPayloadSize = ushort.Parse(strUdpPayloadSize);
+
+            string strDnssecValidation = request.QueryString["dnssecValidation"];
+            if (!string.IsNullOrEmpty(strDnssecValidation))
+                _dnsServer.DnssecValidation = bool.Parse(strDnssecValidation);
+
+            string strEDnsClientSubnet = request.QueryString["eDnsClientSubnet"];
+            if (!string.IsNullOrEmpty(strEDnsClientSubnet))
+                _dnsServer.EDnsClientSubnet = bool.Parse(strEDnsClientSubnet);
+
+            string strEDnsClientSubnetIPv4PrefixLength = request.QueryString["eDnsClientSubnetIPv4PrefixLength"];
+            if (!string.IsNullOrEmpty(strEDnsClientSubnetIPv4PrefixLength))
+                _dnsServer.EDnsClientSubnetIPv4PrefixLength = byte.Parse(strEDnsClientSubnetIPv4PrefixLength);
+
+            string strEDnsClientSubnetIPv6PrefixLength = request.QueryString["eDnsClientSubnetIPv6PrefixLength"];
+            if (!string.IsNullOrEmpty(strEDnsClientSubnetIPv6PrefixLength))
+                _dnsServer.EDnsClientSubnetIPv6PrefixLength = byte.Parse(strEDnsClientSubnetIPv6PrefixLength);
+
+            string strQpmLimitRequests = request.QueryString["qpmLimitRequests"];
+            if (!string.IsNullOrEmpty(strQpmLimitRequests))
+                _dnsServer.QpmLimitRequests = int.Parse(strQpmLimitRequests);
+
+            string strQpmLimitErrors = request.QueryString["qpmLimitErrors"];
+            if (!string.IsNullOrEmpty(strQpmLimitErrors))
+                _dnsServer.QpmLimitErrors = int.Parse(strQpmLimitErrors);
+
+            string strQpmLimitSampleMinutes = request.QueryString["qpmLimitSampleMinutes"];
+            if (!string.IsNullOrEmpty(strQpmLimitSampleMinutes))
+                _dnsServer.QpmLimitSampleMinutes = int.Parse(strQpmLimitSampleMinutes);
+
+            string strQpmLimitIPv4PrefixLength = request.QueryString["qpmLimitIPv4PrefixLength"];
+            if (!string.IsNullOrEmpty(strQpmLimitIPv4PrefixLength))
+                _dnsServer.QpmLimitIPv4PrefixLength = int.Parse(strQpmLimitIPv4PrefixLength);
+
+            string strQpmLimitIPv6PrefixLength = request.QueryString["qpmLimitIPv6PrefixLength"];
+            if (!string.IsNullOrEmpty(strQpmLimitIPv6PrefixLength))
+                _dnsServer.QpmLimitIPv6PrefixLength = int.Parse(strQpmLimitIPv6PrefixLength);
+
+            string strClientTimeout = request.QueryString["clientTimeout"];
+            if (!string.IsNullOrEmpty(strClientTimeout))
+                _dnsServer.ClientTimeout = int.Parse(strClientTimeout);
+
+            string strTcpSendTimeout = request.QueryString["tcpSendTimeout"];
+            if (!string.IsNullOrEmpty(strTcpSendTimeout))
+                _dnsServer.TcpSendTimeout = int.Parse(strTcpSendTimeout);
+
+            string strTcpReceiveTimeout = request.QueryString["tcpReceiveTimeout"];
+            if (!string.IsNullOrEmpty(strTcpReceiveTimeout))
+                _dnsServer.TcpReceiveTimeout = int.Parse(strTcpReceiveTimeout);
+
+            //web service
             string strWebServiceLocalAddresses = request.QueryString["webServiceLocalAddresses"];
             if (strWebServiceLocalAddresses != null)
             {
@@ -2011,8 +1939,6 @@ namespace DnsServerCore
                 }
             }
 
-            int oldWebServiceHttpPort = _webServiceHttpPort;
-
             string strWebServiceHttpPort = request.QueryString["webServiceHttpPort"];
             if (!string.IsNullOrEmpty(strWebServiceHttpPort))
             {
@@ -2037,6 +1963,10 @@ namespace DnsServerCore
             if (!string.IsNullOrEmpty(strWebServiceHttpToTlsRedirect))
                 _webServiceHttpToTlsRedirect = bool.Parse(strWebServiceHttpToTlsRedirect);
 
+            string strWebServiceUseSelfSignedTlsCertificate = request.QueryString["webServiceUseSelfSignedTlsCertificate"];
+            if (!string.IsNullOrEmpty(strWebServiceUseSelfSignedTlsCertificate))
+                _webServiceUseSelfSignedTlsCertificate = bool.Parse(strWebServiceUseSelfSignedTlsCertificate);
+
             string strWebServiceTlsPort = request.QueryString["webServiceTlsPort"];
             if (!string.IsNullOrEmpty(strWebServiceTlsPort))
             {
@@ -2047,10 +1977,6 @@ namespace DnsServerCore
                 if (oldWebServiceTlsPort != _webServiceTlsPort)
                     restartWebService = true;
             }
-
-            string strWebServiceUseSelfSignedTlsCertificate = request.QueryString["webServiceUseSelfSignedTlsCertificate"];
-            if (!string.IsNullOrEmpty(strWebServiceUseSelfSignedTlsCertificate))
-                _webServiceUseSelfSignedTlsCertificate = bool.Parse(strWebServiceUseSelfSignedTlsCertificate);
 
             string strWebServiceTlsCertificatePath = request.QueryString["webServiceTlsCertificatePath"];
             string strWebServiceTlsCertificatePassword = request.QueryString["webServiceTlsCertificatePassword"];
@@ -2075,6 +2001,7 @@ namespace DnsServerCore
                 }
             }
 
+            //optional protocols
             string enableDnsOverHttp = request.QueryString["enableDnsOverHttp"];
             if (!string.IsNullOrEmpty(enableDnsOverHttp))
             {
@@ -2131,6 +2058,7 @@ namespace DnsServerCore
                 }
             }
 
+            //tsig
             string strTsigKeys = request.QueryString["tsigKeys"];
             if (!string.IsNullOrEmpty(strTsigKeys))
             {
@@ -2166,103 +2094,7 @@ namespace DnsServerCore
                 }
             }
 
-            string strDefaultRecordTtl = request.QueryString["defaultRecordTtl"];
-            if (!string.IsNullOrEmpty(strDefaultRecordTtl))
-                _zonesApi.DefaultRecordTtl = uint.Parse(strDefaultRecordTtl);
-
-            string strDnsAppsEnableAutomaticUpdate = request.QueryString["dnsAppsEnableAutomaticUpdate"];
-            if (!string.IsNullOrEmpty(strDnsAppsEnableAutomaticUpdate))
-                _appsApi.EnableAutomaticUpdate = bool.Parse(strDnsAppsEnableAutomaticUpdate);
-
-            string strPreferIPv6 = request.QueryString["preferIPv6"];
-            if (!string.IsNullOrEmpty(strPreferIPv6))
-                _dnsServer.PreferIPv6 = bool.Parse(strPreferIPv6);
-
-            string strUdpPayloadSize = request.QueryString["udpPayloadSize"];
-            if (!string.IsNullOrEmpty(strUdpPayloadSize))
-                _dnsServer.UdpPayloadSize = ushort.Parse(strUdpPayloadSize);
-
-            string strDnssecValidation = request.QueryString["dnssecValidation"];
-            if (!string.IsNullOrEmpty(strDnssecValidation))
-                _dnsServer.DnssecValidation = bool.Parse(strDnssecValidation);
-
-            string strEDnsClientSubnet = request.QueryString["eDnsClientSubnet"];
-            if (!string.IsNullOrEmpty(strEDnsClientSubnet))
-                _dnsServer.EDnsClientSubnet = bool.Parse(strEDnsClientSubnet);
-
-            string strEDnsClientSubnetIPv4PrefixLength = request.QueryString["eDnsClientSubnetIPv4PrefixLength"];
-            if (!string.IsNullOrEmpty(strEDnsClientSubnetIPv4PrefixLength))
-                _dnsServer.EDnsClientSubnetIPv4PrefixLength = byte.Parse(strEDnsClientSubnetIPv4PrefixLength);
-
-            string strEDnsClientSubnetIPv6PrefixLength = request.QueryString["eDnsClientSubnetIPv6PrefixLength"];
-            if (!string.IsNullOrEmpty(strEDnsClientSubnetIPv6PrefixLength))
-                _dnsServer.EDnsClientSubnetIPv6PrefixLength = byte.Parse(strEDnsClientSubnetIPv6PrefixLength);
-
-            string strResolverRetries = request.QueryString["resolverRetries"];
-            if (!string.IsNullOrEmpty(strResolverRetries))
-                _dnsServer.ResolverRetries = int.Parse(strResolverRetries);
-
-            string strResolverTimeout = request.QueryString["resolverTimeout"];
-            if (!string.IsNullOrEmpty(strResolverTimeout))
-                _dnsServer.ResolverTimeout = int.Parse(strResolverTimeout);
-
-            string strResolverMaxStackCount = request.QueryString["resolverMaxStackCount"];
-            if (!string.IsNullOrEmpty(strResolverMaxStackCount))
-                _dnsServer.ResolverMaxStackCount = int.Parse(strResolverMaxStackCount);
-
-            string strForwarderRetries = request.QueryString["forwarderRetries"];
-            if (!string.IsNullOrEmpty(strForwarderRetries))
-                _dnsServer.ForwarderRetries = int.Parse(strForwarderRetries);
-
-            string strForwarderTimeout = request.QueryString["forwarderTimeout"];
-            if (!string.IsNullOrEmpty(strForwarderTimeout))
-                _dnsServer.ForwarderTimeout = int.Parse(strForwarderTimeout);
-
-            string strForwarderConcurrency = request.QueryString["forwarderConcurrency"];
-            if (!string.IsNullOrEmpty(strForwarderConcurrency))
-                _dnsServer.ForwarderConcurrency = int.Parse(strForwarderConcurrency);
-
-            string strClientTimeout = request.QueryString["clientTimeout"];
-            if (!string.IsNullOrEmpty(strClientTimeout))
-                _dnsServer.ClientTimeout = int.Parse(strClientTimeout);
-
-            string strTcpSendTimeout = request.QueryString["tcpSendTimeout"];
-            if (!string.IsNullOrEmpty(strTcpSendTimeout))
-                _dnsServer.TcpSendTimeout = int.Parse(strTcpSendTimeout);
-
-            string strTcpReceiveTimeout = request.QueryString["tcpReceiveTimeout"];
-            if (!string.IsNullOrEmpty(strTcpReceiveTimeout))
-                _dnsServer.TcpReceiveTimeout = int.Parse(strTcpReceiveTimeout);
-
-            string strEnableLogging = request.QueryString["enableLogging"];
-            if (!string.IsNullOrEmpty(strEnableLogging))
-                _log.EnableLogging = bool.Parse(strEnableLogging);
-
-            string strLogQueries = request.QueryString["logQueries"];
-            if (!string.IsNullOrEmpty(strLogQueries))
-            {
-                if (bool.Parse(strLogQueries))
-                    _dnsServer.QueryLogManager = _log;
-                else
-                    _dnsServer.QueryLogManager = null;
-            }
-
-            string strUseLocalTime = request.QueryString["useLocalTime"];
-            if (!string.IsNullOrEmpty(strUseLocalTime))
-                _log.UseLocalTime = bool.Parse(strUseLocalTime);
-
-            string strLogFolder = request.QueryString["logFolder"];
-            if (!string.IsNullOrEmpty(strLogFolder))
-                _log.LogFolder = strLogFolder;
-
-            string strMaxLogFileDays = request.QueryString["maxLogFileDays"];
-            if (!string.IsNullOrEmpty(strMaxLogFileDays))
-                _log.MaxLogFileDays = int.Parse(strMaxLogFileDays);
-
-            string strMaxStatFileDays = request.QueryString["maxStatFileDays"];
-            if (!string.IsNullOrEmpty(strMaxStatFileDays))
-                _dnsServer.StatsManager.MaxStatFileDays = int.Parse(strMaxStatFileDays);
-
+            //recursion
             string strRecursion = request.QueryString["recursion"];
             if (!string.IsNullOrEmpty(strRecursion))
                 _dnsServer.Recursion = Enum.Parse<DnsServerRecursion>(strRecursion, true);
@@ -2319,26 +2151,19 @@ namespace DnsServerCore
             if (!string.IsNullOrEmpty(strNsRevalidation))
                 _dnsServer.NsRevalidation = bool.Parse(strNsRevalidation);
 
-            string strQpmLimitRequests = request.QueryString["qpmLimitRequests"];
-            if (!string.IsNullOrEmpty(strQpmLimitRequests))
-                _dnsServer.QpmLimitRequests = int.Parse(strQpmLimitRequests);
+            string strResolverRetries = request.QueryString["resolverRetries"];
+            if (!string.IsNullOrEmpty(strResolverRetries))
+                _dnsServer.ResolverRetries = int.Parse(strResolverRetries);
 
-            string strQpmLimitErrors = request.QueryString["qpmLimitErrors"];
-            if (!string.IsNullOrEmpty(strQpmLimitErrors))
-                _dnsServer.QpmLimitErrors = int.Parse(strQpmLimitErrors);
+            string strResolverTimeout = request.QueryString["resolverTimeout"];
+            if (!string.IsNullOrEmpty(strResolverTimeout))
+                _dnsServer.ResolverTimeout = int.Parse(strResolverTimeout);
 
-            string strQpmLimitSampleMinutes = request.QueryString["qpmLimitSampleMinutes"];
-            if (!string.IsNullOrEmpty(strQpmLimitSampleMinutes))
-                _dnsServer.QpmLimitSampleMinutes = int.Parse(strQpmLimitSampleMinutes);
+            string strResolverMaxStackCount = request.QueryString["resolverMaxStackCount"];
+            if (!string.IsNullOrEmpty(strResolverMaxStackCount))
+                _dnsServer.ResolverMaxStackCount = int.Parse(strResolverMaxStackCount);
 
-            string strQpmLimitIPv4PrefixLength = request.QueryString["qpmLimitIPv4PrefixLength"];
-            if (!string.IsNullOrEmpty(strQpmLimitIPv4PrefixLength))
-                _dnsServer.QpmLimitIPv4PrefixLength = int.Parse(strQpmLimitIPv4PrefixLength);
-
-            string strQpmLimitIPv6PrefixLength = request.QueryString["qpmLimitIPv6PrefixLength"];
-            if (!string.IsNullOrEmpty(strQpmLimitIPv6PrefixLength))
-                _dnsServer.QpmLimitIPv6PrefixLength = int.Parse(strQpmLimitIPv6PrefixLength);
-
+            //cache
             string strServeStale = request.QueryString["serveStale"];
             if (!string.IsNullOrEmpty(strServeStale))
                 _dnsServer.ServeStale = bool.Parse(strServeStale);
@@ -2383,69 +2208,7 @@ namespace DnsServerCore
             if (!string.IsNullOrEmpty(strCachePrefetchSampleEligibilityHitsPerHour))
                 _dnsServer.CachePrefetchSampleEligibilityHitsPerHour = int.Parse(strCachePrefetchSampleEligibilityHitsPerHour);
 
-            string strProxyType = request.QueryString["proxyType"];
-            if (!string.IsNullOrEmpty(strProxyType))
-            {
-                NetProxyType proxyType = Enum.Parse<NetProxyType>(strProxyType, true);
-                if (proxyType == NetProxyType.None)
-                {
-                    _dnsServer.Proxy = null;
-                }
-                else
-                {
-                    NetworkCredential credential = null;
-
-                    string strUsername = request.QueryString["proxyUsername"];
-                    if (!string.IsNullOrEmpty(strUsername))
-                        credential = new NetworkCredential(strUsername, request.QueryString["proxyPassword"]);
-
-                    _dnsServer.Proxy = NetProxy.CreateProxy(proxyType, request.QueryString["proxyAddress"], int.Parse(request.QueryString["proxyPort"]), credential);
-
-                    string strProxyBypass = request.QueryString["proxyBypass"];
-                    if (!string.IsNullOrEmpty(strProxyBypass))
-                    {
-                        string[] strBypassList = strProxyBypass.Split(new char[] { ',' }, StringSplitOptions.RemoveEmptyEntries);
-                        List<NetProxyBypassItem> bypassList = new List<NetProxyBypassItem>(strBypassList.Length);
-
-                        for (int i = 0; i < strBypassList.Length; i++)
-                            bypassList.Add(new NetProxyBypassItem(strBypassList[i]));
-
-                        _dnsServer.Proxy.BypassList = bypassList;
-                    }
-                }
-            }
-
-            DnsTransportProtocol forwarderProtocol = DnsTransportProtocol.Udp;
-            string strForwarderProtocol = request.QueryString["forwarderProtocol"];
-            if (!string.IsNullOrEmpty(strForwarderProtocol))
-                forwarderProtocol = Enum.Parse<DnsTransportProtocol>(strForwarderProtocol, true);
-
-            string strForwarders = request.QueryString["forwarders"];
-            if (!string.IsNullOrEmpty(strForwarders))
-            {
-                if (strForwarders == "false")
-                {
-                    _dnsServer.Forwarders = null;
-                }
-                else
-                {
-                    string[] strForwardersList = strForwarders.Split(new char[] { ',' }, StringSplitOptions.RemoveEmptyEntries);
-                    NameServerAddress[] forwarders = new NameServerAddress[strForwardersList.Length];
-
-                    for (int i = 0; i < strForwardersList.Length; i++)
-                    {
-                        NameServerAddress forwarder = new NameServerAddress(strForwardersList[i]);
-
-                        if (forwarder.Protocol != forwarderProtocol)
-                            forwarder = forwarder.ChangeProtocol(forwarderProtocol);
-
-                        forwarders[i] = forwarder;
-                    }
-
-                    _dnsServer.Forwarders = forwarders;
-                }
-            }
-
+            //blocking
             string strEnableBlocking = request.QueryString["enableBlocking"];
             if (!string.IsNullOrEmpty(strEnableBlocking))
             {
@@ -2610,6 +2373,117 @@ namespace DnsServerCore
                 StopBlockListUpdateTimer();
             }
 
+            //proxy & forwarders
+            string strProxyType = request.QueryString["proxyType"];
+            if (!string.IsNullOrEmpty(strProxyType))
+            {
+                NetProxyType proxyType = Enum.Parse<NetProxyType>(strProxyType, true);
+                if (proxyType == NetProxyType.None)
+                {
+                    _dnsServer.Proxy = null;
+                }
+                else
+                {
+                    NetworkCredential credential = null;
+
+                    string strUsername = request.QueryString["proxyUsername"];
+                    if (!string.IsNullOrEmpty(strUsername))
+                        credential = new NetworkCredential(strUsername, request.QueryString["proxyPassword"]);
+
+                    _dnsServer.Proxy = NetProxy.CreateProxy(proxyType, request.QueryString["proxyAddress"], int.Parse(request.QueryString["proxyPort"]), credential);
+
+                    string strProxyBypass = request.QueryString["proxyBypass"];
+                    if (!string.IsNullOrEmpty(strProxyBypass))
+                    {
+                        string[] strBypassList = strProxyBypass.Split(new char[] { ',' }, StringSplitOptions.RemoveEmptyEntries);
+                        List<NetProxyBypassItem> bypassList = new List<NetProxyBypassItem>(strBypassList.Length);
+
+                        for (int i = 0; i < strBypassList.Length; i++)
+                            bypassList.Add(new NetProxyBypassItem(strBypassList[i]));
+
+                        _dnsServer.Proxy.BypassList = bypassList;
+                    }
+                }
+            }
+
+            DnsTransportProtocol forwarderProtocol = DnsTransportProtocol.Udp;
+            string strForwarderProtocol = request.QueryString["forwarderProtocol"];
+            if (!string.IsNullOrEmpty(strForwarderProtocol))
+            {
+                forwarderProtocol = Enum.Parse<DnsTransportProtocol>(strForwarderProtocol, true);
+                if (forwarderProtocol == DnsTransportProtocol.HttpsJson)
+                    forwarderProtocol = DnsTransportProtocol.Https;
+            }
+
+            string strForwarders = request.QueryString["forwarders"];
+            if (!string.IsNullOrEmpty(strForwarders))
+            {
+                if (strForwarders == "false")
+                {
+                    _dnsServer.Forwarders = null;
+                }
+                else
+                {
+                    string[] strForwardersList = strForwarders.Split(new char[] { ',' }, StringSplitOptions.RemoveEmptyEntries);
+                    NameServerAddress[] forwarders = new NameServerAddress[strForwardersList.Length];
+
+                    for (int i = 0; i < strForwardersList.Length; i++)
+                    {
+                        NameServerAddress forwarder = new NameServerAddress(strForwardersList[i]);
+
+                        if (forwarder.Protocol != forwarderProtocol)
+                            forwarder = forwarder.ChangeProtocol(forwarderProtocol);
+
+                        forwarders[i] = forwarder;
+                    }
+
+                    _dnsServer.Forwarders = forwarders;
+                }
+            }
+
+            string strForwarderRetries = request.QueryString["forwarderRetries"];
+            if (!string.IsNullOrEmpty(strForwarderRetries))
+                _dnsServer.ForwarderRetries = int.Parse(strForwarderRetries);
+
+            string strForwarderTimeout = request.QueryString["forwarderTimeout"];
+            if (!string.IsNullOrEmpty(strForwarderTimeout))
+                _dnsServer.ForwarderTimeout = int.Parse(strForwarderTimeout);
+
+            string strForwarderConcurrency = request.QueryString["forwarderConcurrency"];
+            if (!string.IsNullOrEmpty(strForwarderConcurrency))
+                _dnsServer.ForwarderConcurrency = int.Parse(strForwarderConcurrency);
+
+            //logging
+            string strEnableLogging = request.QueryString["enableLogging"];
+            if (!string.IsNullOrEmpty(strEnableLogging))
+                _log.EnableLogging = bool.Parse(strEnableLogging);
+
+            string strLogQueries = request.QueryString["logQueries"];
+            if (!string.IsNullOrEmpty(strLogQueries))
+            {
+                if (bool.Parse(strLogQueries))
+                    _dnsServer.QueryLogManager = _log;
+                else
+                    _dnsServer.QueryLogManager = null;
+            }
+
+            string strUseLocalTime = request.QueryString["useLocalTime"];
+            if (!string.IsNullOrEmpty(strUseLocalTime))
+                _log.UseLocalTime = bool.Parse(strUseLocalTime);
+
+            string strLogFolder = request.QueryString["logFolder"];
+            if (!string.IsNullOrEmpty(strLogFolder))
+                _log.LogFolder = strLogFolder;
+
+            string strMaxLogFileDays = request.QueryString["maxLogFileDays"];
+            if (!string.IsNullOrEmpty(strMaxLogFileDays))
+                _log.MaxLogFileDays = int.Parse(strMaxLogFileDays);
+
+            string strMaxStatFileDays = request.QueryString["maxStatFileDays"];
+            if (!string.IsNullOrEmpty(strMaxStatFileDays))
+                _dnsServer.StatsManager.MaxStatFileDays = int.Parse(strMaxStatFileDays);
+
+            //TLS actions
             if ((_webServiceTlsCertificatePath == null) && (_dnsTlsCertificatePath == null))
                 StopTlsCertificateUpdateTimer();
 
@@ -2622,6 +2496,7 @@ namespace DnsServerCore
                 restartWebService = true;
             }
 
+            //save config
             SaveConfigFile();
             _log.Save();
 
@@ -2632,7 +2507,7 @@ namespace DnsServerCore
             RestartService(restartDnsService, restartWebService);
         }
 
-        private void GetTsigKeyNames(JsonTextWriter jsonWriter)
+        private void GetTsigKeyNames(Utf8JsonWriter jsonWriter)
         {
             jsonWriter.WritePropertyName("tsigKeyNames");
             {
@@ -2641,7 +2516,7 @@ namespace DnsServerCore
                 if (_dnsServer.TsigKeys is not null)
                 {
                     foreach (KeyValuePair<string, TsigKey> tsigKey in _dnsServer.TsigKeys)
-                        jsonWriter.WriteValue(tsigKey.Key);
+                        jsonWriter.WriteStringValue(tsigKey.Key);
                 }
 
                 jsonWriter.WriteEndArray();
@@ -2969,7 +2844,7 @@ namespace DnsServerCore
             }
         }
 
-        private async Task RestoreSettingsAsync(HttpListenerRequest request, JsonTextWriter jsonWriter)
+        private async Task RestoreSettingsAsync(HttpListenerRequest request, Utf8JsonWriter jsonWriter)
         {
             bool blockLists = false;
             bool logs = false;
@@ -3127,17 +3002,6 @@ namespace DnsServerCore
                             _authManager.LoadConfigFile(session);
                         }
 
-                        if (dnsSettings)
-                        {
-                            ZipArchiveEntry entry = backupZip.GetEntry("dns.config");
-                            if (entry != null)
-                                entry.ExtractToFile(Path.Combine(_configFolder, entry.Name), true);
-
-                            //reload settings and block list zone
-                            LoadConfigFile();
-                            _dnsServer.BlockListZoneManager.LoadBlockLists();
-                        }
-
                         if (blockLists)
                         {
                             if (deleteExistingFiles)
@@ -3155,6 +3019,36 @@ namespace DnsServerCore
                             {
                                 if (entry.FullName.StartsWith("blocklists/"))
                                     entry.ExtractToFile(Path.Combine(_configFolder, "blocklists", entry.Name), true);
+                            }
+                        }
+
+                        if (dnsSettings)
+                        {
+                            ZipArchiveEntry entry = backupZip.GetEntry("dns.config");
+                            if (entry != null)
+                                entry.ExtractToFile(Path.Combine(_configFolder, entry.Name), true);
+
+                            //reload settings and block list zone
+                            LoadConfigFile();
+
+                            if ((_blockListUpdateIntervalHours > 0) && (_dnsServer.BlockListZoneManager.BlockListUrls.Count > 0))
+                            {
+                                ThreadPool.QueueUserWorkItem(delegate (object state)
+                                {
+                                    try
+                                    {
+                                        _dnsServer.BlockListZoneManager.LoadBlockLists();
+                                        StartBlockListUpdateTimer();
+                                    }
+                                    catch (Exception ex)
+                                    {
+                                        _log.Write(ex);
+                                    }
+                                });
+                            }
+                            else
+                            {
+                                StopBlockListUpdateTimer();
                             }
                         }
 
@@ -3344,7 +3238,7 @@ namespace DnsServerCore
             _log.Write(GetRequestRemoteEndPoint(request), "[" + GetSession(request).User.Username + "] Block list update was triggered.");
         }
 
-        private void TemporaryDisableBlocking(HttpListenerRequest request, JsonTextWriter jsonWriter)
+        private void TemporaryDisableBlocking(HttpListenerRequest request, Utf8JsonWriter jsonWriter)
         {
             string strMinutes = request.QueryString["minutes"];
             if (string.IsNullOrEmpty(strMinutes))
@@ -3383,15 +3277,14 @@ namespace DnsServerCore
                 newTemporaryDisableBlockingTimer.Dispose();
             }
 
-            jsonWriter.WritePropertyName("temporaryDisableBlockingTill");
-            jsonWriter.WriteValue(_temporaryDisableBlockingTill);
+            jsonWriter.WriteString("temporaryDisableBlockingTill", _temporaryDisableBlockingTill);
         }
 
         #endregion
 
         #region dns client api
 
-        private async Task ResolveQueryAsync(HttpListenerRequest request, JsonTextWriter jsonWriter)
+        private async Task ResolveQueryAsync(HttpListenerRequest request, Utf8JsonWriter jsonWriter)
         {
             string server = request.QueryString["server"];
             if (string.IsNullOrEmpty(server))
@@ -3487,11 +3380,8 @@ namespace DnsServerCore
                         case DnsTransportProtocol.Https:
                             throw new DnsServerException("Cannot use DNS-over-HTTPS protocol for 'this-server'. Please use the TLS certificate domain name with a url as the server.");
 
-                        case DnsTransportProtocol.HttpsJson:
-                            throw new DnsServerException("Cannot use DNS-over-HTTPS (JSON) protocol for 'this-server'. Please use the TLS certificate domain name with a url as the server.");
-
                         default:
-                            throw new InvalidOperationException();
+                            throw new NotSupportedException("DNS transport protocol is not supported: " + protocol.ToString());
                     }
 
                     proxy = null; //no proxy required for this server
@@ -3632,13 +3522,10 @@ namespace DnsServerCore
             }
 
             if (dnssecErrorMessage is not null)
-            {
-                jsonWriter.WritePropertyName("warningMessage");
-                jsonWriter.WriteValue(dnssecErrorMessage);
-            }
+                jsonWriter.WriteString("warningMessage", dnssecErrorMessage);
 
             jsonWriter.WritePropertyName("result");
-            jsonWriter.WriteRawValue(JsonConvert.SerializeObject(dnsResponse, new StringEnumConverter()));
+            dnsResponse.SerializeTo(jsonWriter);
         }
 
         #endregion
@@ -3910,9 +3797,15 @@ namespace DnsServerCore
 
                     string strForwarderProtocol = Environment.GetEnvironmentVariable("DNS_SERVER_FORWARDER_PROTOCOL");
                     if (string.IsNullOrEmpty(strForwarderProtocol))
+                    {
                         forwarderProtocol = DnsTransportProtocol.Udp;
+                    }
                     else
+                    {
                         forwarderProtocol = Enum.Parse<DnsTransportProtocol>(strForwarderProtocol, true);
+                        if (forwarderProtocol == DnsTransportProtocol.HttpsJson)
+                            forwarderProtocol = DnsTransportProtocol.Https;
+                    }
 
                     List<NameServerAddress> forwarders = new List<NameServerAddress>();
                     string[] strForwardersAddresses = strForwarders.Split(new char[] { ',' }, StringSplitOptions.RemoveEmptyEntries);
@@ -4323,7 +4216,12 @@ namespace DnsServerCore
                         NameServerAddress[] forwarders = new NameServerAddress[count];
 
                         for (int i = 0; i < count; i++)
+                        {
                             forwarders[i] = new NameServerAddress(bR);
+
+                            if (forwarders[i].Protocol == DnsTransportProtocol.HttpsJson)
+                                forwarders[i] = forwarders[i].ChangeProtocol(DnsTransportProtocol.Https);
+                        }
 
                         _dnsServer.Forwarders = forwarders;
                     }
@@ -4562,7 +4460,11 @@ namespace DnsServerCore
                     NameServerAddress[] forwarders = new NameServerAddress[count];
 
                     for (int i = 0; i < count; i++)
+                    {
                         forwarders[i] = new NameServerAddress(bR);
+                        if (forwarders[i].Protocol == DnsTransportProtocol.HttpsJson)
+                            forwarders[i] = forwarders[i].ChangeProtocol(DnsTransportProtocol.Https);
+                    }
 
                     _dnsServer.Forwarders = forwarders;
                 }
@@ -4571,6 +4473,8 @@ namespace DnsServerCore
             if (version <= 10)
             {
                 DnsTransportProtocol forwarderProtocol = (DnsTransportProtocol)bR.ReadByte();
+                if (forwarderProtocol == DnsTransportProtocol.HttpsJson)
+                    forwarderProtocol = DnsTransportProtocol.Https;
 
                 if (_dnsServer.Forwarders != null)
                 {
