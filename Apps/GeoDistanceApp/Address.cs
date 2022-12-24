@@ -20,11 +20,11 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 using DnsServerCore.ApplicationCommon;
 using MaxMind.GeoIP2.Model;
 using MaxMind.GeoIP2.Responses;
-using Newtonsoft.Json;
 using System;
 using System.Collections.Generic;
 using System.Net;
 using System.Net.Sockets;
+using System.Text.Json;
 using System.Threading.Tasks;
 using TechnitiumLibrary;
 using TechnitiumLibrary.Net.Dns;
@@ -115,81 +115,85 @@ namespace GeoDistance
                     if ((location is null) && _maxMind.DatabaseReader.TryCity(remoteEP.Address, out CityResponse response) && response.Location.HasCoordinates)
                         location = response.Location;
 
-                    dynamic jsonAppRecordData = JsonConvert.DeserializeObject(appRecordData);
-                    dynamic jsonClosestServer = null;
-
-                    if (location is null)
+                    using (JsonDocument jsonDocument = JsonDocument.Parse(appRecordData))
                     {
-                        jsonClosestServer = jsonAppRecordData[0];
-                    }
-                    else
-                    {
-                        double lastDistance = double.MaxValue;
+                        JsonElement jsonAppRecordData = jsonDocument.RootElement;
+                        JsonElement jsonClosestServer = default;
 
-                        foreach (dynamic jsonServer in jsonAppRecordData)
+                        if (location is null)
                         {
-                            double lat = Convert.ToDouble(jsonServer.lat.Value);
-                            double @long = Convert.ToDouble(jsonServer.@long.Value);
+                            if (jsonAppRecordData.GetArrayLength() > 0)
+                                jsonClosestServer = jsonAppRecordData[0];
+                        }
+                        else
+                        {
+                            double lastDistance = double.MaxValue;
 
-                            double distance = GetDistance(lat, @long, location.Latitude.Value, location.Longitude.Value);
-
-                            if (distance < lastDistance)
+                            foreach (JsonElement jsonServer in jsonAppRecordData.EnumerateArray())
                             {
-                                lastDistance = distance;
-                                jsonClosestServer = jsonServer;
+                                double lat = Convert.ToDouble(jsonServer.GetProperty("lat").GetString());
+                                double @long = Convert.ToDouble(jsonServer.GetProperty("long").GetString());
+
+                                double distance = GetDistance(lat, @long, location.Latitude.Value, location.Longitude.Value);
+
+                                if (distance < lastDistance)
+                                {
+                                    lastDistance = distance;
+                                    jsonClosestServer = jsonServer;
+                                }
                             }
                         }
-                    }
 
-                    if (jsonClosestServer is null)
-                        return Task.FromResult<DnsDatagram>(null);
+                        if (jsonClosestServer.ValueKind == JsonValueKind.Undefined)
+                            return Task.FromResult<DnsDatagram>(null);
 
-                    List<DnsResourceRecord> answers = new List<DnsResourceRecord>();
+                        List<DnsResourceRecord> answers = new List<DnsResourceRecord>();
 
-                    switch (question.Type)
-                    {
-                        case DnsResourceRecordType.A:
-                            foreach (dynamic jsonAddress in jsonClosestServer.addresses)
-                            {
-                                IPAddress address = IPAddress.Parse(jsonAddress.Value);
+                        switch (question.Type)
+                        {
+                            case DnsResourceRecordType.A:
+                                foreach (JsonElement jsonAddress in jsonClosestServer.GetProperty("addresses").EnumerateArray())
+                                {
+                                    IPAddress address = IPAddress.Parse(jsonAddress.GetString());
 
-                                if (address.AddressFamily == AddressFamily.InterNetwork)
-                                    answers.Add(new DnsResourceRecord(question.Name, DnsResourceRecordType.A, DnsClass.IN, appRecordTtl, new DnsARecordData(address)));
-                            }
-                            break;
+                                    if (address.AddressFamily == AddressFamily.InterNetwork)
+                                        answers.Add(new DnsResourceRecord(question.Name, DnsResourceRecordType.A, DnsClass.IN, appRecordTtl, new DnsARecordData(address)));
+                                }
+                                break;
 
-                        case DnsResourceRecordType.AAAA:
-                            foreach (dynamic jsonAddress in jsonClosestServer.addresses)
-                            {
-                                IPAddress address = IPAddress.Parse(jsonAddress.Value);
+                            case DnsResourceRecordType.AAAA:
+                                foreach (JsonElement jsonAddress in jsonClosestServer.GetProperty("addresses").EnumerateArray())
+                                {
+                                    IPAddress address = IPAddress.Parse(jsonAddress.GetString());
 
-                                if (address.AddressFamily == AddressFamily.InterNetworkV6)
-                                    answers.Add(new DnsResourceRecord(question.Name, DnsResourceRecordType.AAAA, DnsClass.IN, appRecordTtl, new DnsAAAARecordData(address)));
-                            }
-                            break;
-                    }
+                                    if (address.AddressFamily == AddressFamily.InterNetworkV6)
+                                        answers.Add(new DnsResourceRecord(question.Name, DnsResourceRecordType.AAAA, DnsClass.IN, appRecordTtl, new DnsAAAARecordData(address)));
+                                }
+                                break;
+                        }
 
-                    if (answers.Count == 0)
-                        return Task.FromResult<DnsDatagram>(null);
+                        if (answers.Count == 0)
+                            return Task.FromResult<DnsDatagram>(null);
 
-                    if (answers.Count > 1)
-                        answers.Shuffle();
+                        if (answers.Count > 1)
+                            answers.Shuffle();
 
-                    EDnsOption[] options;
+                        EDnsOption[] options;
 
-                    if (requestECS is null)
-                    {
-                        options = null;
-                    }
-                    else
-                    {
-                        if (ecsUsed)
-                            options = EDnsClientSubnetOptionData.GetEDnsClientSubnetOption(requestECS.SourcePrefixLength, requestECS.SourcePrefixLength, requestECS.AddressValue);
+                        if (requestECS is null)
+                        {
+                            options = null;
+                        }
                         else
-                            options = EDnsClientSubnetOptionData.GetEDnsClientSubnetOption(requestECS.SourcePrefixLength, 0, requestECS.AddressValue);
-                    }
+                        {
+                            if (ecsUsed)
+                                options = EDnsClientSubnetOptionData.GetEDnsClientSubnetOption(requestECS.SourcePrefixLength, requestECS.SourcePrefixLength, requestECS.Address);
+                            else
+                                options = EDnsClientSubnetOptionData.GetEDnsClientSubnetOption(requestECS.SourcePrefixLength, 0, requestECS.Address);
+                        }
 
-                    return Task.FromResult(new DnsDatagram(request.Identifier, true, request.OPCODE, true, false, request.RecursionDesired, isRecursionAllowed, false, false, DnsResponseCode.NoError, request.Question, answers, null, null, _dnsServer.UdpPayloadSize, EDnsHeaderFlags.None, options));
+                        return Task.FromResult(new DnsDatagram(request.Identifier, true, request.OPCODE, true, false, request.RecursionDesired, isRecursionAllowed, false, false, DnsResponseCode.NoError, request.Question, answers, null, null, _dnsServer.UdpPayloadSize, EDnsHeaderFlags.None, options));
+                    }
 
                 default:
                     return Task.FromResult<DnsDatagram>(null);
