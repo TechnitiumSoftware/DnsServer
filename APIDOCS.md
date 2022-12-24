@@ -2056,23 +2056,24 @@ RESPONSE:
 		"internal": false,
 		"disabled": false,
 		"dnssecStatus": "SignedWithNSEC",
-		"dnsKeyTtl": 86400,
+		"dnsKeyTtl": 3600,
 		"dnssecPrivateKeys": [
 			{
-				"keyTag": 19198,
+				"keyTag": 15048,
 				"keyType": "KeySigningKey",
 				"algorithm": "ECDSAP256SHA256",
-				"state": "Ready",
-				"stateChangedOn": "2022-02-19T06:53:21Z",
+				"state": "Published",
+				"stateChangedOn": "2022-12-18T14:39:50.0328321Z",
+				"stateReadyBy": "2022-12-18T16:14:50.0328321Z",
 				"isRetiring": false,
 				"rolloverDays": 0
 			},
 			{
-				"keyTag": 50617,
+				"keyTag": 46152,
 				"keyType": "ZoneSigningKey",
 				"algorithm": "ECDSAP256SHA256",
 				"state": "Active",
-				"stateChangedOn": "2022-02-19T06:53:21Z",
+				"stateChangedOn": "2022-12-18T14:39:50.0661173Z",
 				"isRetiring": false,
 				"rolloverDays": 90
 			}
@@ -2398,7 +2399,7 @@ WHERE:
 - `tag` (optional): This parameter is required for adding the `CAA` record.
 - `value` (optional): This parameter is required for adding the `CAA` record.
 - `aname` (optional): The ANAME domain name. This option is required for adding `ANAME` record.
-- `protocol` (optional): This parameter is required for adding the `FWD` record. Valid values are [`Udp`, `Tcp`, `Tls`, `Https`, `HttpsJson`].
+- `protocol` (optional): This parameter is required for adding the `FWD` record. Valid values are [`Udp`, `Tcp`, `Tls`, `Https`].
 - `forwarder` (optional): The forwarder address. A special value of `this-server` can be used to directly forward requests internally to the DNS server. This parameter is required for adding the `FWD` record.
 - `dnssecValidation` (optional): Set this boolean value to indicate if DNSSEC validation must be done. This optional parameter is to be used with FWD records. Default value is `false`.
 - `proxyType` (optional): The type of proxy that must be used for conditional forwarding. This optional parameter is to be used with FWD records. Valid values are [`None`, `Http`, `Socks5`]. Default value `None` is used when this parameter is missing.
@@ -2627,10 +2628,6 @@ RESPONSE:
 					"dnsKeyState": "Ready",
 					"computedDigests": [
 						{
-							"digestType": "SHA1",
-							"digest": "3C2B05EBC20B77D8BC56EB9FFB36A6A1F07983F9"
-						},
-						{
 							"digestType": "SHA256",
 							"digest": "BBE017B17E5CB5FFFF1EC2C7815367DF80D8E7EAEE4832D3ED192159D79B1EEB"
 						},
@@ -2661,30 +2658,28 @@ RESPONSE:
 				"disabled": false,
 				"name": "example.com",
 				"type": "DNSKEY",
-				"ttl": 86400,
+				"ttl": 3600,
 				"rData": {
 					"flags": "SecureEntryPoint, ZoneKey",
 					"protocol": 3,
 					"algorithm": "ECDSAP256SHA256",
-					"publicKey": "KtXitZeC9ijbghCwQ5kjBfgLxCa0pBOOBGftudxGv/I= hlRGy7/Plea39T8n78xiHPaspYrTcdyidbKz6Z+ZSGw=",
-					"computedKeyTag": 52896,
+					"publicKey": "KOJWFitKm58EgjO43GDnsFbnkGoqVKeLRkP8FGPAdhqA2F758Ta1mkxieEu0YN0EoX+u5bVuc5DEBFSv+U63CA==",
+					"computedKeyTag": 15048,
 					"dnsKeyState": "Published",
+					"dnsKeyStateReadyBy": "2022-12-18T16:14:50.0328321Z",
 					"computedDigests": [
 						{
-							"digestType": "SHA1",
-							"digest": "767EA31AD77C6AC2ACEB22B3FADB033679A6FB79"
-						},
-						{
 							"digestType": "SHA256",
-							"digest": "BDBDB532C5809F890F8092DC9702D763D51A7318887B195CB52E888882FBE373"
+							"digest": "8EAFAE3305DB57A27CA5A261525515461CB7232A34A44AD96441B88BCA9B9849"
 						},
 						{
 							"digestType": "SHA384",
-							"digest": "A7EA4C7816ED5F011FDF90015D4A37BC7D1C773C22C3440B57D6717FA4ED71C5B95D09592AF48BD3ED59028D214A367E"
+							"digest": "4A6DA59E91872B5B835FCEE5987B17151A6F10FE409B595BEEEDB28FE64315C9C268493B59A0BF72EA84BE0F20A33F96"
 						}
 					]
 				},
-				"dnssecStatus": "Unknown"
+				"dnssecStatus": "Unknown",
+				"lastUsedOn": "0001-01-01T00:00:00"
 			},
 			{
 				"disabled": false,
@@ -3068,8 +3063,8 @@ WHERE:
 - `newValue` (optional): The new value in CAA record. This parameter is required when updating the `CAA` record.
 - `aname` (optional): The current ANAME domain name. This parameter is required when updating the `ANAME` record.
 - `newAName` (optional): The new ANAME domain name. This parameter is required when updating the `ANAME` record.
-- `protocol` (optional): This is the current protocol value in the FWD record. Valid values are [`Udp`, `Tcp`, `Tls`, `Https`, `HttpsJson`]. This parameter is optional and default value `Udp` will be used when updating the `FWD` record.
-- `newProtocol` (optional): This is the new protocol value in the FWD record. Valid values are [`Udp`, `Tcp`, `Tls`, `Https`, `HttpsJson`]. This parameter is optional and default value `Udp` will be used when updating the `FWD` record.
+- `protocol` (optional): This is the current protocol value in the FWD record. Valid values are [`Udp`, `Tcp`, `Tls`, `Https`]. This parameter is optional and default value `Udp` will be used when updating the `FWD` record.
+- `newProtocol` (optional): This is the new protocol value in the FWD record. Valid values are [`Udp`, `Tcp`, `Tls`, `Https`]. This parameter is optional and default value `Udp` will be used when updating the `FWD` record.
 - `forwarder` (optional): The current forwarder address. This parameter is required when updating the `FWD` record.
 - `newForwarder` (optional): The new forwarder address. This parameter is required when updating the `FWD` record.
 - `dnssecValidation` (optional): Set this boolean value to indicate if DNSSEC validation must be done. This optional parameter is to be used with FWD records. Default value is `false`.
@@ -3160,7 +3155,7 @@ WHERE:
 - `tag` (optional): This is the tag parameter in the CAA record. This parameter is required when deleting the `CAA` record.
 - `value` (optional): This parameter is required when deleting the `CAA` record.
 - `aname` (optional): This parameter is required when deleting the `ANAME` record.
-- `protocol` (optional): This is the protocol parameter in the FWD record. Valid values are [`Udp`, `Tcp`, `Tls`, `Https`, `HttpsJson`]. This parameter is optional and default value `Udp` will be used when deleting the `FWD` record.
+- `protocol` (optional): This is the protocol parameter in the FWD record. Valid values are [`Udp`, `Tcp`, `Tls`, `Https`]. This parameter is optional and default value `Udp` will be used when deleting the `FWD` record.
 - `forwarder` (optional): This parameter is required when deleting the `FWD` record.
 
 RESPONSE:
@@ -4003,7 +3998,7 @@ WHERE:
 - `server`: The name server to query using the DNS client.
 - `domain`: The domain name to query.
 - `type`: The type of the query.
-- `protocol` (optional): The DNS transport protocol to be used to query. Valid values are [`Udp`, `Tcp`, `Tls`, `Https`, `HttpsJson`]. The default value of `Udp` is used when the parameter is missing.
+- `protocol` (optional): The DNS transport protocol to be used to query. Valid values are [`Udp`, `Tcp`, `Tls`, `Https`]. The default value of `Udp` is used when the parameter is missing.
 - `dnssec` (optional): Set to `true` to enable DNSSEC validation.
 - `import` (optional): This parameter when set to `true` indicates that the response of the DNS query should be imported in the an authoritative zone on this DNS server. Default value is `false` when this parameter is missing. If a zone does not exists, a primary zone for the `domain` name is created and the records from the response are set into the zone. Import can be done only for primary and forwarder type of zones. When `type` is set to AXFR, then the import feature will work as if a zone transfer was requested and the complete zone will be updated as per the zone transfer response. Note that any existing record type for the given `type` will be overwritten when syncing the records. It is recommended to use `recursive-resolver` or the actual name server address for the `server` parameter when importing records. You must have Zones Modify permission to create a zone or Zone Modify permission to import records into an existing zone.
 
@@ -4185,14 +4180,14 @@ WHERE:
 - `dnsServerLocalEndPoints` (optional): Local end points are the network interface IP addresses and ports you want the DNS Server to listen for requests. 
 - `webServiceLocalAddresses` (optional): Local addresses are the network interface IP addresses you want the web service to listen for requests. 
 - `webServiceHttpPort` (optional): Specify the TCP port number for the web console and this API web service. Default value is `5380`.
-- `webServiceEnableTls` (optional): Set this to `true` to start the HTTPS service to acccess web service.
+- `webServiceEnableTls` (optional): Set this to `true` to start the HTTPS service to access web service.
 - `webServiceTlsPort` (optional): Specified the TCP port number for the web console for HTTPS access.
 - `webServiceUseSelfSignedTlsCertificate` (optional): Set `true` for the web service to use an automatically generated self signed certificate when TLS certificate path is not specified.
 - `webServiceTlsCertificatePath` (optional): Specify a PKCS #12 certificate (.pfx) file path on the server. The certificate must contain private key. This certificate is used by the web console for HTTPS access.
 - `webServiceTlsCertificatePassword` (optional): Enter the certificate (.pfx) password, if any.
-- `enableDnsOverHttp` (optional): Enable this option to accept DNS-over-HTTP requests for both wire and json response formats. It must be used with a TLS terminating reverse proxy like nginx and will work only on private networks.
+- `enableDnsOverHttp` (optional): Enable this option to accept DNS-over-HTTP requests. It must be used with a TLS terminating reverse proxy like nginx and will work only on private networks.
 - `enableDnsOverTls` (optional): Enable this option to accept DNS-over-TLS requests.
-- `enableDnsOverHttps` (optional): Enable this option to accept DNS-over-HTTPS requests for both wire and json response formats.
+- `enableDnsOverHttps` (optional): Enable this option to accept DNS-over-HTTPS requests.
 - `dnsTlsCertificatePath` (optional): Specify a PKCS #12 certificate (.pfx) file path on the server. The certificate must contain private key. This certificate is used by the DNS-over-TLS and DNS-over-HTTPS optional protocols.
 - `dnsTlsCertificatePassword` (optional): Enter the certificate (.pfx) password, if any.
 - `tsigKeys` (optional): A pipe `|` separated multi row list of TSIG key name, shared secret, and algorithm. Set this parameter to `false` to remove all existing keys. Supported algorithms are [`hmac-md5.sig-alg.reg.int`, `hmac-sha1`, `hmac-sha256`, `hmac-sha256-128`, `hmac-sha384`, `hmac-sha384-192`, `hmac-sha512`, `hmac-sha512-256`].
@@ -4611,6 +4606,11 @@ RESPONSE:
 		"pingCheckTimeout": 1000,
 		"pingCheckRetries": 2,
 		"domainName": "local",
+		"domainSearchList": [
+			"home.arpa",
+			"lan"
+		],
+		"dnsUpdates": true,
 		"dnsTtl": 900,
 		"serverAddress": "192.168.1.1",
 		"serverHostName": "tftp-server-1",
@@ -4639,6 +4639,19 @@ RESPONSE:
 				"information": "06:01:03:0A:04:00:50:58:45:09:14:00:00:11:52:61:73:70:62:65:72:72:79:20:50:69:20:42:6F:6F:74:FF"
 			}
 		],
+		"capwapAcIpAddresses": [
+			"192.168.1.2"
+		],
+		"tftpServerAddresses": [
+			"192.168.1.5",
+			"192.168.1.6"
+		],
+		"genericOptions": [
+			{
+				"code": 150,
+				"value": "C0:A8:01:01"
+			}
+		],
 		"exclusions": [
 			{
 				"startingAddress": "192.168.1.1",
@@ -4653,7 +4666,8 @@ RESPONSE:
 				"comments": "comments"
 			}
 		],
-		"allowOnlyReservedLeases": false
+		"allowOnlyReservedLeases": false,
+		"blockLocallyAdministeredMacAddresses": true
 	},
 	"status": "ok"
 }
@@ -4682,25 +4696,32 @@ WHERE:
 - `leaseTimeDays` (optional): The lease time in number of days.
 - `leaseTimeHours` (optional): The lease time in number of hours.
 - `leaseTimeMinutes` (optional): The lease time in number of minutes.
-- `offerDelayTime` (optional): The time duration in milli seconds that the DHCP server delays sending an DHCPOFFER message.
+- `offerDelayTime` (optional): The time duration in milliseconds that the DHCP server delays sending an DHCPOFFER message.
 - `pingCheckEnabled` (optional): Set this option to `true` to allow the DHCP server to find out if an IP address is already in use to prevent IP address conflict when some of the devices on the network have manually configured IP addresses.
 - `pingCheckTimeout` (optional): The timeout interval to wait for an ping reply.
 - `pingCheckRetries` (optional): The maximum number of ping requests to try.
-- `domainName` (optional): The domain name to be used by this network. The DHCP server automatically adds forward and reverse DNS entries for each IP address allocations when domain name is configured.
+- `domainName` (optional): The domain name to be used by this network. The DHCP server automatically adds forward and reverse DNS entries for each IP address allocations when domain name is configured. (Option 15)
+- `domainSearchList` (optional): A comma separated list of domain names that the clients can use as a suffix when searching a domain name. (Option 119)
+- `dnsUpdates` (optional): Set this option to `true` to allow the DHCP server to automatically update forward and reverse DNS entries for clients.
 - `dnsTtl` (optional): The TTL value used for forward and reverse DNS records.
-- `serverAddress` (optional): The bootstrap TFTP server IP address to be used by the clients. If not specified, the DHCP server's IP address is used.
-- `serverHostName` (optional): The optional bootstrap TFTP server host name to be used by the clients to identify the TFTP server.
-- `bootFileName` (optional): The boot file name stored on the bootstrap TFTP server to be used by the clients.
-- `routerAddress` (optional): The default gateway or router IP address to be used by the clients.
+- `serverAddress` (optional): The IP address of next server (TFTP) to use in bootstrap by the clients. If not specified, the DHCP server's IP address is used. (siaddr)
+- `serverHostName` (optional): The optional bootstrap server host name to be used by the clients to identify the TFTP server. (sname/Option 66)
+- `bootFileName` (optional): The boot file name stored on the bootstrap TFTP server to be used by the clients. (file/Option 67)
+- `routerAddress` (optional): The default gateway IP address to be used by the clients. (Option 3)
 - `useThisDnsServer` (optional): Tells the DHCP server to use this DNS server's IP address to configure the DNS Servers DHCP option for clients.
-- `dnsServers` (optional): A comma separated list of DNS server IP addresses to be used by the clients. This parameter is ignored when `useThisDnsServer` is set to `true`.
-- `winsServers` (optional): A comma separated list of NBNS/WINS server IP addresses to be used by the clients.
-- `ntpServers` (optional): A comma separated list of Network Time Protocol (NTP) server IP addresses to be used by the clients.
-- `staticRoutes` (optional): A `|` separated list of static routes in format `{destination network address}|{subnet mask}|{router/gateway address}` to be used by the clients for accessing specified destination networks.
-- `vendorInfo` (optional): A `|` separated list of vendor information in format `{vendor class identifier}|{vendor specific information}` where `{vendor specific information}` is a colon separated hex string.
+- `dnsServers` (optional): A comma separated list of DNS server IP addresses to be used by the clients. This parameter is ignored when `useThisDnsServer` is set to `true`. (Option 6)
+- `winsServers` (optional): A comma separated list of NBNS/WINS server IP addresses to be used by the clients. (Option 44)
+- `ntpServers` (optional): A comma separated list of Network Time Protocol (NTP) server IP addresses to be used by the clients. (Option 42)
+- `ntpServerDomainNames` (optional): Enter NTP server domain names (e.g. pool.ntp.org) above that the DHCP server should automatically resolve and pass the resolved IP addresses to clients as NTP server option. (Option 42)
+- `staticRoutes` (optional): A `|` separated list of static routes in format `{destination network address}|{subnet mask}|{router/gateway address}` to be used by the clients for accessing specified destination networks. (Option 121)
+- `vendorInfo` (optional): A `|` separated list of vendor information in format `{vendor class identifier}|{vendor specific information}` where `{vendor specific information}` is a colon separated hex string or a normal hex string.
+- `capwapAcIpAddresses` (optional): A comma separated list of Control And Provisioning of Wireless Access Points (CAPWAP) Access Controller IP addresses to be used by Wireless Termination Points to discover the Access Controllers to which it is to connect. (Option 138)
+- `tftpServerAddresses` (optional): A comma separated list of TFTP Server Address or the VoIP Configuration Server Address. (Option 150)
+- `genericOptions` (optional): This feature allows you to define DHCP options that are not yet directly supported. Use a `|` separated list of DHCP option code defined for it and the value in either a colon (:) separated hex string or a normal hex string in format `{option-code}|{hex-string-value}`.
 - `exclusions` (optional): A `|` separated list of IP address range in format `{starting address}|{ending address}` that must be excluded or not assigned dynamically to any client by the DHCP server.
 - `reservedLeases` (optional): A `|` separated list of reserved IP addresses in format `{host name}|{MAC address}|{reserved IP address}|{comments}` to be assigned to specific clients based on their MAC address.
 - `allowOnlyReservedLeases` (optional): Set this parameter to `true` to stop dynamic IP address allocation and allocate only reserved IP addresses.
+- `blockLocallyAdministeredMacAddresses` (optional): Set this parameter to `true` to stop dynamic IP address allocation for clients with locally administered MAC addresses. MAC address with 0x02 bit set in the first octet indicate a locally administered MAC address which usually means that the device is not using its original MAC address.
 
 RESPONSE:
 ```
@@ -5827,7 +5848,7 @@ WHERE:
 - `start` (optional): The start date time in ISO 8601 format to filter the logs.
 - `end` (optional): The end date time in ISO 8601 format to filter the logs.
 - `clientIpAddress` (optional): The client IP address to filter the logs.
-- `protocol` (optional): The DNS transport protocol to filter the logs. Valid values are [`Udp`, `Tcp`, `Tls`, `Https`, `HttpsJson`].
+- `protocol` (optional): The DNS transport protocol to filter the logs. Valid values are [`Udp`, `Tcp`, `Tls`, `Https`].
 - `responseType` (optional): The DNS server response type to filter the logs. Valid values are [`Authoritative`, `Recursive`, `Cached`, `Blocked`].
 - `rcode` (optional): The DNS response code to filter the logs.
 - `qname` (optional): The query name (QNAME) in the request question section to filter the logs.
