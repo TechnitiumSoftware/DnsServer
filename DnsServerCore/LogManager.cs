@@ -592,7 +592,7 @@ namespace DnsServerCore
 
                 EDnsClientSubnetOptionData responseECS = response.GetEDnsClientSubnetOption();
                 if (responseECS is not null)
-                    answer += "; ECS: " + responseECS.Address.ToString() + "/" + responseECS.SourcePrefixLength;
+                    answer += "; ECS: " + responseECS.Address.ToString() + "/" + responseECS.ScopePrefixLength;
 
                 responseInfo = " RCODE: " + response.RCODE.ToString() + "; ANSWER: " + answer;
             }
