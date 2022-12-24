@@ -18,11 +18,11 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
 using DnsServerCore.Dns.Zones;
-using Newtonsoft.Json;
 using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Net;
+using System.Text.Json;
 using System.Threading.Tasks;
 using TechnitiumLibrary.Net;
 using TechnitiumLibrary.Net.Dns.ResourceRecords;
@@ -57,7 +57,7 @@ namespace DnsServerCore
             _dnsWebService.Log.Write(DnsWebService.GetRequestRemoteEndPoint(request), "[" + _dnsWebService.GetSession(request).User.Username + "] Cache was flushed.");
         }
 
-        public void ListCachedZones(HttpListenerRequest request, JsonTextWriter jsonWriter)
+        public void ListCachedZones(HttpListenerRequest request, Utf8JsonWriter jsonWriter)
         {
             string domain = request.QueryString["domain"];
             if (domain == null)
@@ -107,8 +107,7 @@ namespace DnsServerCore
 
             subZones.Sort();
 
-            jsonWriter.WritePropertyName("domain");
-            jsonWriter.WriteValue(domain);
+            jsonWriter.WriteString("domain", domain);
 
             jsonWriter.WritePropertyName("zones");
             jsonWriter.WriteStartArray();
@@ -117,7 +116,7 @@ namespace DnsServerCore
                 domain = "." + domain;
 
             foreach (string subZone in subZones)
-                jsonWriter.WriteValue(subZone + domain);
+                jsonWriter.WriteStringValue(subZone + domain);
 
             jsonWriter.WriteEndArray();
 
@@ -138,7 +137,7 @@ namespace DnsServerCore
 
         #region allowed zones api
 
-        public void ListAllowedZones(HttpListenerRequest request, JsonTextWriter jsonWriter)
+        public void ListAllowedZones(HttpListenerRequest request, Utf8JsonWriter jsonWriter)
         {
             string domain = request.QueryString["domain"];
             if (domain == null)
@@ -188,8 +187,7 @@ namespace DnsServerCore
 
             subZones.Sort();
 
-            jsonWriter.WritePropertyName("domain");
-            jsonWriter.WriteValue(domain);
+            jsonWriter.WriteString("domain", domain);
 
             jsonWriter.WritePropertyName("zones");
             jsonWriter.WriteStartArray();
@@ -198,7 +196,7 @@ namespace DnsServerCore
                 domain = "." + domain;
 
             foreach (string subZone in subZones)
-                jsonWriter.WriteValue(subZone + domain);
+                jsonWriter.WriteStringValue(subZone + domain);
 
             jsonWriter.WriteEndArray();
 
@@ -300,7 +298,7 @@ namespace DnsServerCore
 
         #region blocked zones api
 
-        public void ListBlockedZones(HttpListenerRequest request, JsonTextWriter jsonWriter)
+        public void ListBlockedZones(HttpListenerRequest request, Utf8JsonWriter jsonWriter)
         {
             string domain = request.QueryString["domain"];
             if (domain == null)
@@ -350,8 +348,7 @@ namespace DnsServerCore
 
             subZones.Sort();
 
-            jsonWriter.WritePropertyName("domain");
-            jsonWriter.WriteValue(domain);
+            jsonWriter.WriteString("domain", domain);
 
             jsonWriter.WritePropertyName("zones");
             jsonWriter.WriteStartArray();
@@ -360,7 +357,7 @@ namespace DnsServerCore
                 domain = "." + domain;
 
             foreach (string subZone in subZones)
-                jsonWriter.WriteValue(subZone + domain);
+                jsonWriter.WriteStringValue(subZone + domain);
 
             jsonWriter.WriteEndArray();
 
