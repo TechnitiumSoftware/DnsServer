@@ -19,12 +19,12 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 using DnsServerCore.ApplicationCommon;
 using DnsServerCore.Dns.Applications;
-using Newtonsoft.Json;
 using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Net;
 using System.Net.Http;
+using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
 using TechnitiumLibrary;
@@ -92,22 +92,23 @@ namespace DnsServerCore
                         _dnsWebService.Log.Write("DNS Server has started automatic update check for DNS Apps.");
 
                         string storeAppsJsonData = await GetStoreAppsJsonData().WithTimeout(5000);
-                        dynamic jsonStoreAppsArray = JsonConvert.DeserializeObject(storeAppsJsonData);
+                        using JsonDocument jsonDocument = JsonDocument.Parse(storeAppsJsonData);
+                        JsonElement jsonStoreAppsArray = jsonDocument.RootElement;
 
                         foreach (DnsApplication application in _dnsWebService.DnsServer.DnsApplicationManager.Applications.Values)
                         {
-                            foreach (dynamic jsonStoreApp in jsonStoreAppsArray)
+                            foreach (JsonElement jsonStoreApp in jsonStoreAppsArray.EnumerateArray())
                             {
-                                string name = jsonStoreApp.name.Value;
+                                string name = jsonStoreApp.GetProperty("name").GetString();
                                 if (name.Equals(application.Name))
                                 {
                                     string url = null;
                                     Version storeAppVersion = null;
                                     Version lastServerVersion = null;
 
-                                    foreach (dynamic jsonVersion in jsonStoreApp.versions)
+                                    foreach (JsonElement jsonVersion in jsonStoreApp.GetProperty("versions").EnumerateArray())
                                     {
-                                        string strServerVersion = jsonVersion.serverVersion.Value;
+                                        string strServerVersion = jsonVersion.GetProperty("serverVersion").GetString();
                                         Version requiredServerVersion = new Version(strServerVersion);
 
                                         if (_dnsWebService.ServerVersion < requiredServerVersion)
@@ -116,8 +117,8 @@ namespace DnsServerCore
                                         if ((lastServerVersion is not null) && (lastServerVersion > requiredServerVersion))
                                             continue;
 
-                                        string version = jsonVersion.version.Value;
-                                        url = jsonVersion.url.Value;
+                                        string version = jsonVersion.GetProperty("version").GetString();
+                                        url = jsonVersion.GetProperty("url").GetString();
 
                                         storeAppVersion = new Version(version);
                                         lastServerVersion = requiredServerVersion;
@@ -219,24 +220,19 @@ namespace DnsServerCore
             }
         }
 
-        private void WriteAppAsJson(JsonTextWriter jsonWriter, DnsApplication application, dynamic jsonStoreAppsArray)
+        private void WriteAppAsJson(Utf8JsonWriter jsonWriter, DnsApplication application, JsonElement jsonStoreAppsArray = default)
         {
             jsonWriter.WriteStartObject();
 
-            jsonWriter.WritePropertyName("name");
-            jsonWriter.WriteValue(application.Name);
-            
-            jsonWriter.WritePropertyName("description");
-            jsonWriter.WriteValue(application.Description);
+            jsonWriter.WriteString("name", application.Name);
+            jsonWriter.WriteString("description", application.Description);
+            jsonWriter.WriteString("version", DnsWebService.GetCleanVersion(application.Version));
 
-            jsonWriter.WritePropertyName("version");
-            jsonWriter.WriteValue(DnsWebService.GetCleanVersion(application.Version));
-
-            if (jsonStoreAppsArray != null)
+            if (jsonStoreAppsArray.ValueKind != JsonValueKind.Undefined)
             {
-                foreach (dynamic jsonStoreApp in jsonStoreAppsArray)
+                foreach (JsonElement jsonStoreApp in jsonStoreAppsArray.EnumerateArray())
                 {
-                    string name = jsonStoreApp.name.Value;
+                    string name = jsonStoreApp.GetProperty("name").GetString();
                     if (name.Equals(application.Name))
                     {
                         string version = null;
@@ -244,9 +240,9 @@ namespace DnsServerCore
                         Version storeAppVersion = null;
                         Version lastServerVersion = null;
 
-                        foreach (dynamic jsonVersion in jsonStoreApp.versions)
+                        foreach (JsonElement jsonVersion in jsonStoreApp.GetProperty("versions").EnumerateArray())
                         {
-                            string strServerVersion = jsonVersion.serverVersion.Value;
+                            string strServerVersion = jsonVersion.GetProperty("serverVersion").GetString();
                             Version requiredServerVersion = new Version(strServerVersion);
 
                             if (_dnsWebService.ServerVersion < requiredServerVersion)
@@ -255,8 +251,8 @@ namespace DnsServerCore
                             if ((lastServerVersion is not null) && (lastServerVersion > requiredServerVersion))
                                 continue;
 
-                            version = jsonVersion.version.Value;
-                            url = jsonVersion.url.Value;
+                            version = jsonVersion.GetProperty("version").GetString();
+                            url = jsonVersion.GetProperty("url").GetString();
 
                             storeAppVersion = new Version(version);
                             lastServerVersion = requiredServerVersion;
@@ -265,14 +261,9 @@ namespace DnsServerCore
                         if (storeAppVersion is null)
                             break; //no compatible update available
 
-                        jsonWriter.WritePropertyName("updateVersion");
-                        jsonWriter.WriteValue(version);
-
-                        jsonWriter.WritePropertyName("updateUrl");
-                        jsonWriter.WriteValue(url);
-
-                        jsonWriter.WritePropertyName("updateAvailable");
-                        jsonWriter.WriteValue(storeAppVersion > application.Version);
+                        jsonWriter.WriteString("updateVersion", version);
+                        jsonWriter.WriteString("updateUrl", url);
+                        jsonWriter.WriteBoolean("updateAvailable", storeAppVersion > application.Version);
                         break;
                     }
                 }
@@ -286,37 +277,23 @@ namespace DnsServerCore
                 {
                     jsonWriter.WriteStartObject();
 
-                    jsonWriter.WritePropertyName("classPath");
-                    jsonWriter.WriteValue(dnsApp.Key);
-
-                    jsonWriter.WritePropertyName("description");
-                    jsonWriter.WriteValue(dnsApp.Value.Description);
+                    jsonWriter.WriteString("classPath", dnsApp.Key);
+                    jsonWriter.WriteString("description", dnsApp.Value.Description);
 
                     if (dnsApp.Value is IDnsAppRecordRequestHandler appRecordHandler)
                     {
-                        jsonWriter.WritePropertyName("isAppRecordRequestHandler");
-                        jsonWriter.WriteValue(true);
-
-                        jsonWriter.WritePropertyName("recordDataTemplate");
-                        jsonWriter.WriteValue(appRecordHandler.ApplicationRecordDataTemplate);
+                        jsonWriter.WriteBoolean("isAppRecordRequestHandler", true);
+                        jsonWriter.WriteString("recordDataTemplate", appRecordHandler.ApplicationRecordDataTemplate);
                     }
                     else
                     {
-                        jsonWriter.WritePropertyName("isAppRecordRequestHandler");
-                        jsonWriter.WriteValue(false);
+                        jsonWriter.WriteBoolean("isAppRecordRequestHandler", false);
                     }
 
-                    jsonWriter.WritePropertyName("isRequestController");
-                    jsonWriter.WriteValue(dnsApp.Value is IDnsRequestController);
-
-                    jsonWriter.WritePropertyName("isAuthoritativeRequestHandler");
-                    jsonWriter.WriteValue(dnsApp.Value is IDnsAuthoritativeRequestHandler);
-
-                    jsonWriter.WritePropertyName("isQueryLogger");
-                    jsonWriter.WriteValue(dnsApp.Value is IDnsQueryLogger);
-
-                    jsonWriter.WritePropertyName("isPostProcessor");
-                    jsonWriter.WriteValue(dnsApp.Value is IDnsPostProcessor);
+                    jsonWriter.WriteBoolean("isRequestController", dnsApp.Value is IDnsRequestController);
+                    jsonWriter.WriteBoolean("isAuthoritativeRequestHandler", dnsApp.Value is IDnsAuthoritativeRequestHandler);
+                    jsonWriter.WriteBoolean("isQueryLogger", dnsApp.Value is IDnsQueryLogger);
+                    jsonWriter.WriteBoolean("isPostProcessor", dnsApp.Value is IDnsPostProcessor);
 
                     jsonWriter.WriteEndObject();
                 }
@@ -331,57 +308,68 @@ namespace DnsServerCore
 
         #region public
 
-        public async Task ListInstalledAppsAsync(JsonTextWriter jsonWriter)
+        public async Task ListInstalledAppsAsync(Utf8JsonWriter jsonWriter)
         {
             List<string> apps = new List<string>(_dnsWebService.DnsServer.DnsApplicationManager.Applications.Keys);
             apps.Sort();
 
-            dynamic jsonStoreAppsArray = null;
-
-            if (apps.Count > 0)
+            JsonDocument jsonDocument = null;
+            try
             {
-                try
+                JsonElement jsonStoreAppsArray = default;
+
+                if (apps.Count > 0)
                 {
-                    string storeAppsJsonData = await GetStoreAppsJsonData().WithTimeout(5000);
-                    jsonStoreAppsArray = JsonConvert.DeserializeObject(storeAppsJsonData);
+                    try
+                    {
+                        string storeAppsJsonData = await GetStoreAppsJsonData().WithTimeout(5000);
+                        jsonDocument = JsonDocument.Parse(storeAppsJsonData);
+                        jsonStoreAppsArray = jsonDocument.RootElement;
+                    }
+                    catch
+                    { }
                 }
-                catch
-                { }
+
+                jsonWriter.WritePropertyName("apps");
+                jsonWriter.WriteStartArray();
+
+                foreach (string app in apps)
+                {
+                    if (_dnsWebService.DnsServer.DnsApplicationManager.Applications.TryGetValue(app, out DnsApplication application))
+                        WriteAppAsJson(jsonWriter, application, jsonStoreAppsArray);
+                }
+
+                jsonWriter.WriteEndArray();
             }
-
-            jsonWriter.WritePropertyName("apps");
-            jsonWriter.WriteStartArray();
-
-            foreach (string app in apps)
+            finally
             {
-                if (_dnsWebService.DnsServer.DnsApplicationManager.Applications.TryGetValue(app, out DnsApplication application))
-                    WriteAppAsJson(jsonWriter, application, jsonStoreAppsArray);
+                if (jsonDocument is not null)
+                    jsonDocument.Dispose();
             }
-
-            jsonWriter.WriteEndArray();
         }
 
-        public async Task ListStoreApps(JsonTextWriter jsonWriter)
+        public async Task ListStoreApps(Utf8JsonWriter jsonWriter)
         {
             string storeAppsJsonData = await GetStoreAppsJsonData();
-            dynamic jsonStoreAppsArray = JsonConvert.DeserializeObject(storeAppsJsonData);
+            using JsonDocument jsonDocument = JsonDocument.Parse(storeAppsJsonData);
+            JsonElement jsonStoreAppsArray = jsonDocument.RootElement;
 
             jsonWriter.WritePropertyName("storeApps");
             jsonWriter.WriteStartArray();
 
-            foreach (dynamic jsonStoreApp in jsonStoreAppsArray)
+            foreach (JsonElement jsonStoreApp in jsonStoreAppsArray.EnumerateArray())
             {
-                string name = jsonStoreApp.name.Value;
-                string description = jsonStoreApp.description.Value;
+                string name = jsonStoreApp.GetProperty("name").GetString();
+                string description = jsonStoreApp.GetProperty("description").GetString();
                 string version = null;
                 string url = null;
                 string size = null;
                 Version storeAppVersion = null;
                 Version lastServerVersion = null;
 
-                foreach (dynamic jsonVersion in jsonStoreApp.versions)
+                foreach (JsonElement jsonVersion in jsonStoreApp.GetProperty("versions").EnumerateArray())
                 {
-                    string strServerVersion = jsonVersion.serverVersion.Value;
+                    string strServerVersion = jsonVersion.GetProperty("serverVersion").GetString();
                     Version requiredServerVersion = new Version(strServerVersion);
 
                     if (_dnsWebService.ServerVersion < requiredServerVersion)
@@ -390,9 +378,9 @@ namespace DnsServerCore
                     if ((lastServerVersion is not null) && (lastServerVersion > requiredServerVersion))
                         continue;
 
-                    version = jsonVersion.version.Value;
-                    url = jsonVersion.url.Value;
-                    size = jsonVersion.size.Value;
+                    version = jsonVersion.GetProperty("version").GetString();
+                    url = jsonVersion.GetProperty("url").GetString();
+                    size = jsonVersion.GetProperty("size").GetString();
 
                     storeAppVersion = new Version(version);
                     lastServerVersion = requiredServerVersion;
@@ -403,33 +391,20 @@ namespace DnsServerCore
 
                 jsonWriter.WriteStartObject();
 
-                jsonWriter.WritePropertyName("name");
-                jsonWriter.WriteValue(name);
-
-                jsonWriter.WritePropertyName("description");
-                jsonWriter.WriteValue(description);
-
-                jsonWriter.WritePropertyName("version");
-                jsonWriter.WriteValue(version);
-
-                jsonWriter.WritePropertyName("url");
-                jsonWriter.WriteValue(url);
-
-                jsonWriter.WritePropertyName("size");
-                jsonWriter.WriteValue(size);
+                jsonWriter.WriteString("name", name);
+                jsonWriter.WriteString("description", description);
+                jsonWriter.WriteString("version", version);
+                jsonWriter.WriteString("url", url);
+                jsonWriter.WriteString("size", size);
 
                 bool installed = _dnsWebService.DnsServer.DnsApplicationManager.Applications.TryGetValue(name, out DnsApplication installedApp);
 
-                jsonWriter.WritePropertyName("installed");
-                jsonWriter.WriteValue(installed);
+                jsonWriter.WriteBoolean("installed", installed);
 
                 if (installed)
                 {
-                    jsonWriter.WritePropertyName("installedVersion");
-                    jsonWriter.WriteValue(DnsWebService.GetCleanVersion(installedApp.Version));
-
-                    jsonWriter.WritePropertyName("updateAvailable");
-                    jsonWriter.WriteValue(storeAppVersion > installedApp.Version);
+                    jsonWriter.WriteString("installedVersion", DnsWebService.GetCleanVersion(installedApp.Version));
+                    jsonWriter.WriteBoolean("updateAvailable", storeAppVersion > installedApp.Version);
                 }
 
                 jsonWriter.WriteEndObject();
@@ -438,7 +413,7 @@ namespace DnsServerCore
             jsonWriter.WriteEndArray();
         }
 
-        public async Task DownloadAndInstallAppAsync(HttpListenerRequest request, JsonTextWriter jsonWriter)
+        public async Task DownloadAndInstallAppAsync(HttpListenerRequest request, Utf8JsonWriter jsonWriter)
         {
             string name = request.QueryString["name"];
             if (string.IsNullOrEmpty(name))
@@ -479,7 +454,7 @@ namespace DnsServerCore
                     _dnsWebService.Log.Write(DnsWebService.GetRequestRemoteEndPoint(request), "[" + _dnsWebService.GetSession(request).User.Username + "] DNS application '" + name + "' was installed successfully from: " + url);
 
                     jsonWriter.WritePropertyName("installedApp");
-                    WriteAppAsJson(jsonWriter, application, null);
+                    WriteAppAsJson(jsonWriter, application);
                 }
             }
             finally
@@ -495,7 +470,7 @@ namespace DnsServerCore
             }
         }
 
-        public async Task DownloadAndUpdateAppAsync(HttpListenerRequest request, JsonTextWriter jsonWriter)
+        public async Task DownloadAndUpdateAppAsync(HttpListenerRequest request, Utf8JsonWriter jsonWriter)
         {
             string name = request.QueryString["name"];
             if (string.IsNullOrEmpty(name))
@@ -515,10 +490,10 @@ namespace DnsServerCore
             _dnsWebService.Log.Write(DnsWebService.GetRequestRemoteEndPoint(request), "[" + _dnsWebService.GetSession(request).User.Username + "] DNS application '" + name + "' was updated successfully from: " + url);
 
             jsonWriter.WritePropertyName("updatedApp");
-            WriteAppAsJson(jsonWriter, application, null);
+            WriteAppAsJson(jsonWriter, application);
         }
 
-        public async Task InstallAppAsync(HttpListenerRequest request, JsonTextWriter jsonWriter)
+        public async Task InstallAppAsync(HttpListenerRequest request, Utf8JsonWriter jsonWriter)
         {
             string name = request.QueryString["name"];
             if (string.IsNullOrEmpty(name))
@@ -564,7 +539,7 @@ namespace DnsServerCore
                     _dnsWebService.Log.Write(DnsWebService.GetRequestRemoteEndPoint(request), "[" + _dnsWebService.GetSession(request).User.Username + "] DNS application '" + name + "' was installed successfully.");
 
                     jsonWriter.WritePropertyName("installedApp");
-                    WriteAppAsJson(jsonWriter, application, null);
+                    WriteAppAsJson(jsonWriter, application);
                 }
             }
             finally
@@ -580,7 +555,7 @@ namespace DnsServerCore
             }
         }
 
-        public async Task UpdateAppAsync(HttpListenerRequest request, JsonTextWriter jsonWriter)
+        public async Task UpdateAppAsync(HttpListenerRequest request, Utf8JsonWriter jsonWriter)
         {
             string name = request.QueryString["name"];
             if (string.IsNullOrEmpty(name))
@@ -626,7 +601,7 @@ namespace DnsServerCore
                     _dnsWebService.Log.Write(DnsWebService.GetRequestRemoteEndPoint(request), "[" + _dnsWebService.GetSession(request).User.Username + "] DNS application '" + name + "' was updated successfully.");
 
                     jsonWriter.WritePropertyName("updatedApp");
-                    WriteAppAsJson(jsonWriter, application, null);
+                    WriteAppAsJson(jsonWriter, application);
                 }
             }
             finally
@@ -654,7 +629,7 @@ namespace DnsServerCore
             _dnsWebService.Log.Write(DnsWebService.GetRequestRemoteEndPoint(request), "[" + _dnsWebService.GetSession(request).User.Username + "] DNS application '" + name + "' was uninstalled successfully.");
         }
 
-        public async Task GetAppConfigAsync(HttpListenerRequest request, JsonTextWriter jsonWriter)
+        public async Task GetAppConfigAsync(HttpListenerRequest request, Utf8JsonWriter jsonWriter)
         {
             string name = request.QueryString["name"];
             if (string.IsNullOrEmpty(name))
@@ -667,8 +642,7 @@ namespace DnsServerCore
 
             string config = await application.GetConfigAsync();
 
-            jsonWriter.WritePropertyName("config");
-            jsonWriter.WriteValue(config);
+            jsonWriter.WriteString("config", config);
         }
 
         public async Task SetAppConfigAsync(HttpListenerRequest request)
