@@ -569,7 +569,7 @@
                                         <div class="form-group">
                                             <label for="txtDnsClientNameServer">Server</label>
                                             <div class="input-group dropdown">
-                                                <input type="text" class="form-control dropdown-toggle" style="min-width: 230px; border-right: 0px;" id="txtDnsClientNameServer" value="This Server {this-server}">
+                                                <input type="text" class="form-control dropdown-toggle" style="min-width: 270px; border-right: 0px;" id="txtDnsClientNameServer" value="This Server {this-server}">
                                                 <ul id="optDnsClientNameServers" class="dropdown-menu" style="max-height: 500px; overflow-y: scroll;">
                                                     <li><a href="#">This Server {this-server}</a></li>
                                                     <li><a href="#">Recursive Query {recursive-resolver}</a></li>
@@ -591,7 +591,6 @@
                                                     <li><a href="#">Google TLS {dns.google ([2001:4860:4860::8888]:853)}</a></li>
                                                     <li><a href="#">Google TLS {dns.google ([2001:4860:4860::8844]:853)}</a></li>
                                                     <li><a href="#">Google HTTPS {https://dns.google/dns-query (8.8.8.8)}</a></li>
-                                                    <li><a href="#">Google HTTPS-JSON {https://dns.google/resolve (8.8.8.8)}</a></li>
                                                     <li><a href="#">Quad9 Secure {9.9.9.9}</a></li>
                                                     <li><a href="#">Quad9 Secure {[2620:fe::fe]}</a></li>
                                                     <li><a href="#">Quad9 Secure TLS {dns.quad9.net (9.9.9.9:853)}</a></li>
@@ -646,7 +645,7 @@
 
                                         <div class="form-group">
                                             <label for="txtDnsClientDomain">Domain</label>
-                                            <input type="text" class="form-control" style="min-width: 240px;" id="txtDnsClientDomain" placeholder="example.com">
+                                            <input type="text" class="form-control" style="min-width: 295px;" id="txtDnsClientDomain" placeholder="example.com">
                                         </div>
 
                                         <div class="form-group">
@@ -683,8 +682,7 @@
                                                 <option>UDP</option>
                                                 <option>TCP</option>
                                                 <option>TLS</option>
-                                                <option value="Https">HTTPS</option>
-                                                <option value="HttpsJson">HTTPS (JSON)</option>
+                                                <option>HTTPS</option>
                                             </select>
                                         </div>
 
@@ -742,7 +740,7 @@
                                                             <div class="col-sm-6">
                                                                 <textarea id="txtDnsServerLocalEndPoints" class="form-control" rows="3" spellcheck="false"></textarea>
                                                             </div>
-                                                            <div class="col-sm-offset-3 col-sm-8" style="padding-top: 5px;">Local end points are the network interface IP addresses and ports you want the DNS Server to listen for requests. The default values work for most scenarios so, do not change these defaults unless you have a requirement for the DNS server to listen on specific networks or ports.</div>
+                                                            <div class="col-sm-offset-3 col-sm-8" style="padding-top: 5px;">Local end points are the network interface IP addresses and ports you want the DNS Server to listen for requests. The default values work for Windows but on Linux when you have multiple network adapters, you must explicitly specify the network adapter IP addresses here as the local end points.</div>
                                                         </div>
 
                                                         <div>Note! The DNS Server local end point changes will be automatically applied and so you do not need to manually restart the main service.</div>
@@ -1019,7 +1017,7 @@
                                                                         <input id="chkEnableDnsOverHttp" type="checkbox"> Enable DNS-over-HTTP <code>(TCP Port 8053)</code>
                                                                     </label>
                                                                 </div>
-                                                                <div style="padding-top: 5px; padding-left: 20px;">Enable this option to accept DNS-over-HTTP requests for both wire and json response formats. It must be used with a TLS terminating reverse proxy like nginx and will work only on private networks.</div>
+                                                                <div style="padding-top: 5px; padding-left: 20px;">Enable this option to accept DNS-over-HTTP requests. It must be used with a TLS terminating reverse proxy like nginx and will work only on private networks.</div>
 
                                                                 <div class="checkbox">
                                                                     <label>
@@ -1033,7 +1031,7 @@
                                                                         <input id="chkEnableDnsOverHttps" type="checkbox"> Enable DNS-over-HTTPS <code>(TCP Port 80 &amp; 443)</code>
                                                                     </label>
                                                                 </div>
-                                                                <div style="padding-top: 5px; padding-left: 20px;">Enable this option to accept DNS-over-HTTPS requests for both wire and json response formats.</div>
+                                                                <div style="padding-top: 5px; padding-left: 20px;">Enable this option to accept DNS-over-HTTPS requests.</div>
                                                             </div>
                                                         </div>
 
@@ -1374,7 +1372,7 @@
                                                         </div>
 
                                                         <div class="form-group">
-                                                            <label for="txtBlockListUrls" class="col-sm-3 control-label">Block List URLs</label>
+                                                            <label for="txtBlockListUrls" class="col-sm-3 control-label">Allow / Block List URLs</label>
                                                             <div class="col-sm-6">
                                                                 <textarea id="txtBlockListUrls" class="form-control" rows="7" spellcheck="false"></textarea>
 
@@ -1407,6 +1405,7 @@
                                                                     <option value="https://s3.amazonaws.com/lists.disconnect.me/simple_ad.txt">Disconnect.me [ads] (https://s3.amazonaws.com/lists.disconnect.me/simple_ad.txt)</option>
 
                                                                     <option value="https://dbl.oisd.nl/">OISD Block List by sjhgvr (https://dbl.oisd.nl/)</option>
+                                                                    <option value="https://dblw.oisd.nl/">OISD Block List (wildcards) by sjhgvr (https://dblw.oisd.nl/)</option>
                                                                 </select>
                                                             </div>
                                                             <div class="col-sm-offset-3 col-sm-8" style="padding-top: 5px;">
@@ -1530,7 +1529,6 @@
                                                                     <option value="google-tls">Google (DNS-over-TLS)</option>
                                                                     <option value="google-tls-ipv6">Google (DNS-over-TLS IPv6)</option>
                                                                     <option value="google-https">Google (DNS-over-HTTPS)</option>
-                                                                    <option value="google-json">Google (DNS-over-HTTPS-JSON)</option>
 
                                                                     <option value="quad9-udp">Quad9 Secure (DNS-over-UDP)</option>
                                                                     <option value="quad9-udp-ipv6">Quad9 Secure (DNS-over-UDP IPv6)</option>
@@ -1594,12 +1592,6 @@
                                                                     <label>
                                                                         <input type="radio" name="rdForwarderProtocol" id="rdForwarderProtocolHttps" value="Https">
                                                                         DNS-over-HTTPS
-                                                                    </label>
-                                                                </div>
-                                                                <div class="radio">
-                                                                    <label>
-                                                                        <input type="radio" name="rdForwarderProtocol" id="rdForwarderProtocolHttpsJson" value="HttpsJson">
-                                                                        DNS-over-HTTPS (JSON)
                                                                     </label>
                                                                 </div>
 
@@ -1991,7 +1983,7 @@
                                                             <div class="col-sm-3">
                                                                 <input type="text" class="form-control" id="txtDhcpScopeServerAddress" placeholder="Bootstrap Server Address">
                                                             </div>
-                                                            <div class="col-sm-offset-3 col-sm-8" style="padding-top: 5px;">The bootstrap TFTP server IP address to be used by the clients. If not specified, the DHCP server's IP address is used.</div>
+                                                            <div class="col-sm-offset-3 col-sm-8" style="padding-top: 5px;">The IP address of next server (TFTP) to use in bootstrap by the clients. If not specified, the DHCP server's IP address is used. (siaddr)</div>
                                                         </div>
 
                                                         <div class="form-group">
@@ -1999,15 +1991,15 @@
                                                             <div class="col-sm-3">
                                                                 <input type="text" class="form-control" id="txtDhcpScopeServerHostName" placeholder="Bootstrap Server Host Name">
                                                             </div>
-                                                            <div class="col-sm-offset-3 col-sm-8" style="padding-top: 5px;">The optional bootstrap TFTP server host name to be used by the clients to identify the TFTP server.</div>
+                                                            <div class="col-sm-offset-3 col-sm-8" style="padding-top: 5px;">The optional bootstrap server host name to be used by the clients to identify the TFTP server. (sname/Option 66)</div>
                                                         </div>
 
                                                         <div class="form-group">
                                                             <label for="txtDhcpScopeBootFileName" class="col-sm-3 control-label">Boot File Name</label>
                                                             <div class="col-sm-3">
-                                                                <input type="text" class="form-control" id="txtDhcpScopeBootFileName" placeholder="Bootstrap File Name">
+                                                                <input type="text" class="form-control" id="txtDhcpScopeBootFileName" placeholder="Boot File Name">
                                                             </div>
-                                                            <div class="col-sm-offset-3 col-sm-8" style="padding-top: 5px;">The boot file name stored on the bootstrap TFTP server to be used by the clients.</div>
+                                                            <div class="col-sm-offset-3 col-sm-8" style="padding-top: 5px;">The boot file name stored on the bootstrap TFTP server to be used by the clients. (file/Option 67)</div>
                                                         </div>
                                                     </div>
 
@@ -2026,7 +2018,7 @@
                                                                     <tbody id="tableDhcpScopeVendorInfo"></tbody>
                                                                 </table>
                                                             </div>
-                                                            <div class="col-sm-offset-3 col-sm-8" style="padding-top: 5px;">The vendor specific information option (43) to be sent to the clients that match the vendor class identifier option (60) in the request. The vendor class identifier can be empty string to match any identifier, or matched exactly, or match a substring, for example <code>substring(vendor-class-identifier,0,9)=="PXEClient"</code>. The vendor specific information must be a colon (:) separated hex string, for example <code>06:01:03:0A:04:00:50:58:45:09:14:00:00:11:52:61:73:70:62:65:72:72:79:20:50:69:20:42:6F:6F:74:FF</code>.</div>
+                                                            <div class="col-sm-offset-3 col-sm-8" style="padding-top: 5px;">The Vendor Specific Information (option 43) to be sent to the clients that match the Vendor Class Identifier (option 60) in the request. The Cendor Class Identifier can be empty string to match any identifier, or matched exactly, or match a substring, for example <code>substring(vendor-class-identifier,0,9)=="PXEClient"</code>. The Vendor Specific Information must be either a colon (:) separated hex string or a normal hex string, for example <code>06:01:03:0A:04:00:50:58:45:09:14:00:00:11:52:61:73:70:62:65:72:72:79:20:50:69:20:42:6F:6F:74:FF</code> OR <code>0601030A0400505845091400001152617370626572727920506920426F6F74FF</code>.</div>
                                                         </div>
                                                     </div>
 
@@ -2037,6 +2029,35 @@
                                                                 <textarea id="txtDhcpScopeCAPWAPApIpAddresses" class="form-control" rows="2" spellcheck="false"></textarea>
                                                             </div>
                                                             <div class="col-sm-offset-3 col-sm-8" style="padding-top: 5px;">The Control And Provisioning of Wireless Access Points (CAPWAP) Access Controller IP addresses to be used by Wireless Termination Points to discover the Access Controllers to which it is to connect. (Option 138)</div>
+                                                        </div>
+                                                    </div>
+
+                                                    <div class="well well-sm form-horizontal">
+                                                        <div class="form-group">
+                                                            <label for="txtDhcpScopeTftpServerAddresses" class="col-sm-3 control-label">TFTP Server Addresses</label>
+                                                            <div class="col-sm-3">
+                                                                <textarea id="txtDhcpScopeTftpServerAddresses" class="form-control" rows="2" spellcheck="false"></textarea>
+                                                            </div>
+                                                            <div class="col-sm-offset-3 col-sm-8" style="padding-top: 5px;">The TFTP Server Address or the VoIP Configuration Server Address. (Option 150)</div>
+                                                        </div>
+                                                    </div>
+
+                                                    <div class="well well-sm form-horizontal">
+                                                        <div class="form-group" style="margin-bottom: 0px;">
+                                                            <label for="tableDhcpScopeGenericOptions" class="col-sm-3 control-label">Generic DHCP Options</label>
+                                                            <div class="col-sm-9">
+                                                                <table class="table table-hover" style="margin-bottom: 0px;">
+                                                                    <thead>
+                                                                        <tr>
+                                                                            <th style="width: 90px;">Code</th>
+                                                                            <th>Hex Value</th>
+                                                                            <th style="width: 84px;"><button type="button" class="btn btn-default" style="padding: 0px 20px;" onclick="addDhcpScopeGenericOptionsRow('', '');">Add</button></th>
+                                                                        </tr>
+                                                                    </thead>
+                                                                    <tbody id="tableDhcpScopeGenericOptions"></tbody>
+                                                                </table>
+                                                            </div>
+                                                            <div class="col-sm-offset-3 col-sm-8" style="padding-top: 5px;">This feature allows you to define DHCP options that are not yet directly supported. To add an option, use the DHCP option code defined for it and enter the value in either a colon (:) separated hex string or a normal hex string format, for example <code>C0:A8:01:01</code> OR <code>C0A80101</code>.</div>
                                                         </div>
                                                     </div>
 
@@ -2345,7 +2366,6 @@
                                                         <option value="Tcp">TCP</option>
                                                         <option value="Tls">TLS</option>
                                                         <option value="Https">HTTPS</option>
-                                                        <option value="HttpsJson">HTTPS (JSON)</option>
                                                     </select>
                                                 </div>
 
@@ -2897,12 +2917,6 @@ ns1.example.com ([2001:db8::])
                                             DNS-over-HTTPS
                                         </label>
                                     </div>
-                                    <div class="radio">
-                                        <label>
-                                            <input type="radio" name="rdAddZoneForwarderProtocol" value="HttpsJson">
-                                            DNS-over-HTTPS (JSON)
-                                        </label>
-                                    </div>
                                 </div>
                             </div>
 
@@ -3392,12 +3406,6 @@ MII...
                                             <label>
                                                 <input type="radio" name="rdAddEditRecordDataForwarderProtocol" id="rdAddEditRecordDataForwarderProtocolHttps" value="Https">
                                                 DNS-over-HTTPS
-                                            </label>
-                                        </div>
-                                        <div class="radio">
-                                            <label>
-                                                <input type="radio" name="rdAddEditRecordDataForwarderProtocol" id="rdAddEditRecordDataForwarderProtocolHttpsJson" value="HttpsJson">
-                                                DNS-over-HTTPS (JSON)
                                             </label>
                                         </div>
                                     </div>
