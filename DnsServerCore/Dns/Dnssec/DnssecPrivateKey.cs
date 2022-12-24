@@ -270,7 +270,7 @@ namespace DnsServerCore.Dns.Dnssec
 
             byte[] signature = SignHash(hash);
 
-            DnsRRSIGRecordData signedRRSigRecord = new DnsRRSIGRecordData(unsignedRRSigRecord.TypeCovered, unsignedRRSigRecord.Algorithm, unsignedRRSigRecord.Labels, unsignedRRSigRecord.OriginalTtl, unsignedRRSigRecord.SignatureExpirationValue, unsignedRRSigRecord.SignatureInceptionValue, unsignedRRSigRecord.KeyTag, unsignedRRSigRecord.SignersName, signature);
+            DnsRRSIGRecordData signedRRSigRecord = new DnsRRSIGRecordData(unsignedRRSigRecord.TypeCovered, unsignedRRSigRecord.Algorithm, unsignedRRSigRecord.Labels, unsignedRRSigRecord.OriginalTtl, unsignedRRSigRecord.SignatureExpiration, unsignedRRSigRecord.SignatureInception, unsignedRRSigRecord.KeyTag, unsignedRRSigRecord.SignersName, signature);
             return new DnsResourceRecord(firstRecord.Name, DnsResourceRecordType.RRSIG, firstRecord.Class, firstRecord.OriginalTtlValue, signedRRSigRecord);
         }
 

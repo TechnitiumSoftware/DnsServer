@@ -491,10 +491,10 @@ namespace DnsServerCore.Dns.Zones
             {
                 DnsRRSIGRecordData rrsig = rrsigRecord.RDATA as DnsRRSIGRecordData;
 
-                uint signatureValidityPeriod = rrsig.SignatureExpirationValue - rrsig.SignatureInceptionValue;
+                uint signatureValidityPeriod = rrsig.SignatureExpiration - rrsig.SignatureInception;
                 uint refreshPeriod = signatureValidityPeriod / 3;
 
-                if (utcNow > DateTime.UnixEpoch.AddSeconds(rrsig.SignatureExpirationValue - refreshPeriod))
+                if (utcNow > DateTime.UnixEpoch.AddSeconds(rrsig.SignatureExpiration - refreshPeriod))
                     typesToRefresh.Add(rrsig.TypeCovered);
             }
 
@@ -531,7 +531,7 @@ namespace DnsServerCore.Dns.Zones
 
             DnsNSECRecordData newNSecRecord = new DnsNSECRecordData(nextDomainName, types);
 
-            if (!_entries.TryGetValue(DnsResourceRecordType.NSEC, out IReadOnlyList<DnsResourceRecord> existingRecords) || (existingRecords[0].TtlValue != ttl) || !existingRecords[0].RDATA.Equals(newNSecRecord))
+            if (!_entries.TryGetValue(DnsResourceRecordType.NSEC, out IReadOnlyList<DnsResourceRecord> existingRecords) || (existingRecords[0].TTL != ttl) || !existingRecords[0].RDATA.Equals(newNSecRecord))
                 return new DnsResourceRecord[] { new DnsResourceRecord(_name, DnsResourceRecordType.NSEC, DnsClass.IN, ttl, newNSecRecord) };
 
             return Array.Empty<DnsResourceRecord>();
@@ -539,7 +539,7 @@ namespace DnsServerCore.Dns.Zones
 
         internal IReadOnlyList<DnsResourceRecord> GetUpdatedNSec3RRSet(IReadOnlyList<DnsResourceRecord> newNSec3Records)
         {
-            if (!_entries.TryGetValue(DnsResourceRecordType.NSEC3, out IReadOnlyList<DnsResourceRecord> existingRecords) || (existingRecords[0].TtlValue != newNSec3Records[0].TtlValue) || !existingRecords[0].RDATA.Equals(newNSec3Records[0].RDATA))
+            if (!_entries.TryGetValue(DnsResourceRecordType.NSEC3, out IReadOnlyList<DnsResourceRecord> existingRecords) || (existingRecords[0].TTL != newNSec3Records[0].TTL) || !existingRecords[0].RDATA.Equals(newNSec3Records[0].RDATA))
                 return newNSec3Records;
 
             return Array.Empty<DnsResourceRecord>();

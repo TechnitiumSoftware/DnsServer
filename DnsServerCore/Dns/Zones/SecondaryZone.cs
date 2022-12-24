@@ -309,7 +309,7 @@ namespace DnsServerCore.Dns.Zones
                     {
                         LogManager log = _dnsServer.LogManager;
                         if (log != null)
-                            log.Write("DNS Server received RCODE=" + soaResponse.RCODE.ToString() + " for '" + (_name == "" ? "<root>" : _name) + "' secondary zone refresh from: " + soaResponse.Metadata.NameServerAddress.ToString());
+                            log.Write("DNS Server received RCODE=" + soaResponse.RCODE.ToString() + " for '" + (_name == "" ? "<root>" : _name) + "' secondary zone refresh from: " + soaResponse.Metadata.NameServer.ToString());
 
                         return false;
                     }
@@ -318,7 +318,7 @@ namespace DnsServerCore.Dns.Zones
                     {
                         LogManager log = _dnsServer.LogManager;
                         if (log != null)
-                            log.Write("DNS Server received an empty response for SOA query for '" + (_name == "" ? "<root>" : _name) + "' secondary zone refresh from: " + soaResponse.Metadata.NameServerAddress.ToString());
+                            log.Write("DNS Server received an empty response for SOA query for '" + (_name == "" ? "<root>" : _name) + "' secondary zone refresh from: " + soaResponse.Metadata.NameServer.ToString());
 
                         return false;
                     }
@@ -331,7 +331,7 @@ namespace DnsServerCore.Dns.Zones
                     {
                         LogManager log = _dnsServer.LogManager;
                         if (log != null)
-                            log.Write("DNS Server successfully checked for '" + (_name == "" ? "<root>" : _name) + "' secondary zone update from: " + soaResponse.Metadata.NameServerAddress.ToString());
+                            log.Write("DNS Server successfully checked for '" + (_name == "" ? "<root>" : _name) + "' secondary zone update from: " + soaResponse.Metadata.NameServer.ToString());
 
                         return true;
                     }
@@ -414,7 +414,7 @@ namespace DnsServerCore.Dns.Zones
                     {
                         LogManager log = _dnsServer.LogManager;
                         if (log != null)
-                            log.Write("DNS Server received a zone transfer response (RCODE=" + xfrResponse.RCODE.ToString() + ") for '" + (_name == "" ? "<root>" : _name) + "' secondary zone from: " + xfrResponse.Metadata.NameServerAddress.ToString());
+                            log.Write("DNS Server received a zone transfer response (RCODE=" + xfrResponse.RCODE.ToString() + ") for '" + (_name == "" ? "<root>" : _name) + "' secondary zone from: " + xfrResponse.Metadata.NameServer.ToString());
 
                         return false;
                     }
@@ -423,7 +423,7 @@ namespace DnsServerCore.Dns.Zones
                     {
                         LogManager log = _dnsServer.LogManager;
                         if (log != null)
-                            log.Write("DNS Server received an empty response for zone transfer query for '" + (_name == "" ? "<root>" : _name) + "' secondary zone from: " + xfrResponse.Metadata.NameServerAddress.ToString());
+                            log.Write("DNS Server received an empty response for zone transfer query for '" + (_name == "" ? "<root>" : _name) + "' secondary zone from: " + xfrResponse.Metadata.NameServer.ToString());
 
                         return false;
                     }
@@ -432,7 +432,7 @@ namespace DnsServerCore.Dns.Zones
                     {
                         LogManager log = _dnsServer.LogManager;
                         if (log != null)
-                            log.Write("DNS Server received invalid response for zone transfer query for '" + (_name == "" ? "<root>" : _name) + "' secondary zone from: " + xfrResponse.Metadata.NameServerAddress.ToString());
+                            log.Write("DNS Server received invalid response for zone transfer query for '" + (_name == "" ? "<root>" : _name) + "' secondary zone from: " + xfrResponse.Metadata.NameServer.ToString());
 
                         return false;
                     }
@@ -460,13 +460,13 @@ namespace DnsServerCore.Dns.Zones
 
                         LogManager log = _dnsServer.LogManager;
                         if (log != null)
-                            log.Write("DNS Server successfully refreshed '" + (_name == "" ? "<root>" : _name) + "' secondary zone from: " + xfrResponse.Metadata.NameServerAddress.ToString());
+                            log.Write("DNS Server successfully refreshed '" + (_name == "" ? "<root>" : _name) + "' secondary zone from: " + xfrResponse.Metadata.NameServer.ToString());
                     }
                     else
                     {
                         LogManager log = _dnsServer.LogManager;
                         if (log != null)
-                            log.Write("DNS Server successfully checked for '" + (_name == "" ? "<root>" : _name) + "' secondary zone update from: " + xfrResponse.Metadata.NameServerAddress.ToString());
+                            log.Write("DNS Server successfully checked for '" + (_name == "" ? "<root>" : _name) + "' secondary zone update from: " + xfrResponse.Metadata.NameServer.ToString());
                     }
 
                     return true;

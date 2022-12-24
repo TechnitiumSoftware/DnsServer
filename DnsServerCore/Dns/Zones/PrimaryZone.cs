@@ -826,7 +826,7 @@ namespace DnsServerCore.Dns.Zones
                 IReadOnlyList<DnsResourceRecord> nsec3ParamRecords = GetRecords(DnsResourceRecordType.NSEC3PARAM);
                 DnsNSEC3PARAMRecordData nsec3Param = nsec3ParamRecords[0].RDATA as DnsNSEC3PARAMRecordData;
 
-                EnableNSec3(nonNSec3Zones, nsec3Param.Iterations, nsec3Param.SaltValue);
+                EnableNSec3(nonNSec3Zones, nsec3Param.Iterations, nsec3Param.Salt);
             }
         }
 
@@ -2195,7 +2195,7 @@ namespace DnsServerCore.Dns.Zones
             if (nextHashedOwnerName is null)
                 nextHashedOwnerName = DnsNSEC3RecordData.GetHashedOwnerNameFrom(hashedOwnerName); //only 1 NSEC3 record in zone
 
-            IReadOnlyList<DnsResourceRecord> newNSec3Records = zone.CreateNSec3RRSet(hashedOwnerName, nextHashedOwnerName, ttl, nsec3Param.Iterations, nsec3Param.SaltValue);
+            IReadOnlyList<DnsResourceRecord> newNSec3Records = zone.CreateNSec3RRSet(hashedOwnerName, nextHashedOwnerName, ttl, nsec3Param.Iterations, nsec3Param.Salt);
 
             if (forceGetNewRRSet)
                 return newNSec3Records;
@@ -2310,9 +2310,9 @@ namespace DnsServerCore.Dns.Zones
             DnsNSEC3RecordData newPreviousNSec3;
 
             if (wasRemoved)
-                newPreviousNSec3 = new DnsNSEC3RecordData(DnssecNSEC3HashAlgorithm.SHA1, DnssecNSEC3Flags.None, previousNSec3.Iterations, previousNSec3.SaltValue, currentNSec3.NextHashedOwnerNameValue, previousNSec3.Types);
+                newPreviousNSec3 = new DnsNSEC3RecordData(DnssecNSEC3HashAlgorithm.SHA1, DnssecNSEC3Flags.None, previousNSec3.Iterations, previousNSec3.Salt, currentNSec3.NextHashedOwnerNameValue, previousNSec3.Types);
             else
-                newPreviousNSec3 = new DnsNSEC3RecordData(DnssecNSEC3HashAlgorithm.SHA1, DnssecNSEC3Flags.None, previousNSec3.Iterations, previousNSec3.SaltValue, DnsNSEC3RecordData.GetHashedOwnerNameFrom(currentNSec3Record.Name), previousNSec3.Types);
+                newPreviousNSec3 = new DnsNSEC3RecordData(DnssecNSEC3HashAlgorithm.SHA1, DnssecNSEC3Flags.None, previousNSec3.Iterations, previousNSec3.Salt, DnsNSEC3RecordData.GetHashedOwnerNameFrom(currentNSec3Record.Name), previousNSec3.Types);
 
             DnsResourceRecord[] newPreviousNSec3Records = new DnsResourceRecord[] { new DnsResourceRecord(previousNSec3Record.Name, DnsResourceRecordType.NSEC3, DnsClass.IN, ttl, newPreviousNSec3) };
 
@@ -2611,7 +2611,7 @@ namespace DnsServerCore.Dns.Zones
                         else
                             serial = 1;
 
-                        newSoaRecord = new DnsResourceRecord(_name, DnsResourceRecordType.SOA, DnsClass.IN, addSoaRecord.TtlValue, new DnsSOARecordData(addSoa.PrimaryNameServer, addSoa.ResponsiblePerson, serial, addSoa.Refresh, addSoa.Retry, addSoa.Expire, addSoa.Minimum)) { Tag = addSoaRecord.Tag };
+                        newSoaRecord = new DnsResourceRecord(_name, DnsResourceRecordType.SOA, DnsClass.IN, addSoaRecord.TTL, new DnsSOARecordData(addSoa.PrimaryNameServer, addSoa.ResponsiblePerson, serial, addSoa.Refresh, addSoa.Retry, addSoa.Expire, addSoa.Minimum)) { Tag = addSoaRecord.Tag };
                         addedRecords = null;
                     }
                     else
@@ -2623,7 +2623,7 @@ namespace DnsServerCore.Dns.Zones
                         else
                             serial = 1;
 
-                        newSoaRecord = new DnsResourceRecord(_name, DnsResourceRecordType.SOA, DnsClass.IN, oldSoaRecord.TtlValue, new DnsSOARecordData(oldSoa.PrimaryNameServer, oldSoa.ResponsiblePerson, serial, oldSoa.Refresh, oldSoa.Retry, oldSoa.Expire, oldSoa.Minimum)) { Tag = oldSoaRecord.Tag };
+                        newSoaRecord = new DnsResourceRecord(_name, DnsResourceRecordType.SOA, DnsClass.IN, oldSoaRecord.TTL, new DnsSOARecordData(oldSoa.PrimaryNameServer, oldSoa.ResponsiblePerson, serial, oldSoa.Refresh, oldSoa.Retry, oldSoa.Expire, oldSoa.Minimum)) { Tag = oldSoaRecord.Tag };
                     }
                 }
 

@@ -110,7 +110,7 @@ namespace DnsServerCore.Dns.ZoneManagers
                             if (responsiblePerson.EndsWith(_serverDomain))
                                 responsiblePerson = responsiblePerson.Replace(_serverDomain, serverDomain);
 
-                            SetRecords(zone.Name, record.Name, record.Type, record.TtlValue, new DnsResourceRecordData[] { new DnsSOARecordData(serverDomain, responsiblePerson, soa.Serial, soa.Refresh, soa.Retry, soa.Expire, soa.Minimum) });
+                            SetRecords(zone.Name, record.Name, record.Type, record.TTL, new DnsResourceRecordData[] { new DnsSOARecordData(serverDomain, responsiblePerson, soa.Serial, soa.Refresh, soa.Retry, soa.Expire, soa.Minimum) });
 
                             //update NS records
                             IReadOnlyList<DnsResourceRecord> nsResourceRecords = zone.GetApexRecords(DnsResourceRecordType.NS);
@@ -119,7 +119,7 @@ namespace DnsServerCore.Dns.ZoneManagers
                             {
                                 if ((nsResourceRecord.RDATA as DnsNSRecordData).NameServer.Equals(_serverDomain, StringComparison.OrdinalIgnoreCase))
                                 {
-                                    UpdateRecord(zone.Name, nsResourceRecord, new DnsResourceRecord(nsResourceRecord.Name, nsResourceRecord.Type, nsResourceRecord.Class, nsResourceRecord.TtlValue, new DnsNSRecordData(serverDomain)) { Tag = nsResourceRecord.Tag });
+                                    UpdateRecord(zone.Name, nsResourceRecord, new DnsResourceRecord(nsResourceRecord.Name, nsResourceRecord.Type, nsResourceRecord.Class, nsResourceRecord.TTL, new DnsNSRecordData(serverDomain)) { Tag = nsResourceRecord.Tag });
                                     break;
                                 }
                             }
@@ -301,7 +301,7 @@ namespace DnsServerCore.Dns.ZoneManagers
 
             if (DnsClient.IsDomainNameValid(result))
             {
-                DnsResourceRecord cnameRR = new DnsResourceRecord(question.Name, DnsResourceRecordType.CNAME, question.Class, dnameRR.TtlValue, new DnsCNAMERecordData(result));
+                DnsResourceRecord cnameRR = new DnsResourceRecord(question.Name, DnsResourceRecordType.CNAME, question.Class, dnameRR.TTL, new DnsCNAMERecordData(result));
 
                 List<DnsResourceRecord> list = new List<DnsResourceRecord>(5);
 
@@ -1922,7 +1922,7 @@ namespace DnsServerCore.Dns.ZoneManagers
                         DnsResourceRecord[] wildcardAnswers = new DnsResourceRecord[answers.Count];
 
                         for (int i = 0; i < answers.Count; i++)
-                            wildcardAnswers[i] = new DnsResourceRecord(question.Name, answers[i].Type, answers[i].Class, answers[i].TtlValue, answers[i].RDATA) { Tag = answers[i].Tag };
+                            wildcardAnswers[i] = new DnsResourceRecord(question.Name, answers[i].Type, answers[i].Class, answers[i].TTL, answers[i].RDATA) { Tag = answers[i].Tag };
 
                         answers = wildcardAnswers;
 

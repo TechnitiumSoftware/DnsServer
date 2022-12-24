@@ -65,11 +65,11 @@ namespace DnsServerCore.Dns.ResourceRecords
                 switch (glueAddresses[i].AddressFamily)
                 {
                     case AddressFamily.InterNetwork:
-                        glueRecords[i] = new DnsResourceRecord(domain, DnsResourceRecordType.A, DnsClass.IN, record.TtlValue, new DnsARecordData(glueAddresses[i]));
+                        glueRecords[i] = new DnsResourceRecord(domain, DnsResourceRecordType.A, DnsClass.IN, record.TTL, new DnsARecordData(glueAddresses[i]));
                         break;
 
                     case AddressFamily.InterNetworkV6:
-                        glueRecords[i] = new DnsResourceRecord(domain, DnsResourceRecordType.AAAA, DnsClass.IN, record.TtlValue, new DnsAAAARecordData(glueAddresses[i]));
+                        glueRecords[i] = new DnsResourceRecord(domain, DnsResourceRecordType.AAAA, DnsClass.IN, record.TTL, new DnsAAAARecordData(glueAddresses[i]));
                         break;
                 }
             }

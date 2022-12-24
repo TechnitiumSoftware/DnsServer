@@ -299,7 +299,7 @@ namespace DnsServerCore.Dns.ZoneManagers
 
             if (DnsClient.IsDomainNameValid(result))
             {
-                DnsResourceRecord cnameRR = new DnsResourceRecord(question.Name, DnsResourceRecordType.CNAME, question.Class, dnameRR.TtlValue, new DnsCNAMERecordData(result));
+                DnsResourceRecord cnameRR = new DnsResourceRecord(question.Name, DnsResourceRecordType.CNAME, question.Class, dnameRR.TTL, new DnsCNAMERecordData(result));
 
                 List<DnsResourceRecord> list = new List<DnsResourceRecord>(5)
                 {
@@ -591,7 +591,7 @@ namespace DnsServerCore.Dns.ZoneManagers
             {
                 EDnsClientSubnetOptionData requestECS = request.GetEDnsClientSubnetOption();
                 if (requestECS is not null)
-                    eDnsClientSubnet = new NetworkAddress(requestECS.AddressValue, requestECS.SourcePrefixLength);
+                    eDnsClientSubnet = new NetworkAddress(requestECS.Address, requestECS.SourcePrefixLength);
             }
 
             CacheZone zone;
@@ -671,7 +671,7 @@ namespace DnsServerCore.Dns.ZoneManagers
                                 NetworkAddress recordECS = firstRR.GetRecordInfo().EDnsClientSubnet;
                                 if (recordECS is not null)
                                 {
-                                    EDnsOption[] ecsOption = EDnsClientSubnetOptionData.GetEDnsClientSubnetOption(requestECS.SourcePrefixLength, recordECS.PrefixLength, requestECS.AddressValue);
+                                    EDnsOption[] ecsOption = EDnsClientSubnetOptionData.GetEDnsClientSubnetOption(requestECS.SourcePrefixLength, recordECS.PrefixLength, requestECS.Address);
 
                                     if ((specialOptions is null) || (specialOptions.Count == 0))
                                     {
@@ -808,7 +808,7 @@ namespace DnsServerCore.Dns.ZoneManagers
 
                             if (suitableECS is not null)
                             {
-                                EDnsOption[] ecsOption = EDnsClientSubnetOptionData.GetEDnsClientSubnetOption(requestECS.SourcePrefixLength, suitableECS.PrefixLength, requestECS.AddressValue);
+                                EDnsOption[] ecsOption = EDnsClientSubnetOptionData.GetEDnsClientSubnetOption(requestECS.SourcePrefixLength, suitableECS.PrefixLength, requestECS.Address);
 
                                 if (options is null)
                                 {
