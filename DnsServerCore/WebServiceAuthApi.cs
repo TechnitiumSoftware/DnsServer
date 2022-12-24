@@ -18,10 +18,10 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
 using DnsServerCore.Auth;
-using Newtonsoft.Json;
 using System;
 using System.Collections.Generic;
 using System.Net;
+using System.Text.Json;
 using System.Threading.Tasks;
 
 namespace DnsServerCore
@@ -45,29 +45,19 @@ namespace DnsServerCore
 
         #region private
 
-        private void WriteCurrentSessionDetails(JsonTextWriter jsonWriter, UserSession currentSession, bool includeInfo)
+        private void WriteCurrentSessionDetails(Utf8JsonWriter jsonWriter, UserSession currentSession, bool includeInfo)
         {
             if (currentSession.Type == UserSessionType.ApiToken)
             {
-                jsonWriter.WritePropertyName("username");
-                jsonWriter.WriteValue(currentSession.User.Username);
-
-                jsonWriter.WritePropertyName("tokenName");
-                jsonWriter.WriteValue(currentSession.TokenName);
-
-                jsonWriter.WritePropertyName("token");
-                jsonWriter.WriteValue(currentSession.Token);
+                jsonWriter.WriteString("username", currentSession.User.Username);
+                jsonWriter.WriteString("tokenName", currentSession.TokenName);
+                jsonWriter.WriteString("token", currentSession.Token);
             }
             else
             {
-                jsonWriter.WritePropertyName("displayName");
-                jsonWriter.WriteValue(currentSession.User.DisplayName);
-
-                jsonWriter.WritePropertyName("username");
-                jsonWriter.WriteValue(currentSession.User.Username);
-
-                jsonWriter.WritePropertyName("token");
-                jsonWriter.WriteValue(currentSession.Token);
+                jsonWriter.WriteString("displayName", currentSession.User.DisplayName);
+                jsonWriter.WriteString("username", currentSession.User.Username);
+                jsonWriter.WriteString("token", currentSession.Token);
             }
 
             if (includeInfo)
@@ -75,14 +65,9 @@ namespace DnsServerCore
                 jsonWriter.WritePropertyName("info");
                 jsonWriter.WriteStartObject();
 
-                jsonWriter.WritePropertyName("version");
-                jsonWriter.WriteValue(_dnsWebService.GetServerVersion());
-
-                jsonWriter.WritePropertyName("dnsServerDomain");
-                jsonWriter.WriteValue(_dnsWebService.DnsServer.ServerDomain);
-
-                jsonWriter.WritePropertyName("defaultRecordTtl");
-                jsonWriter.WriteValue(_dnsWebService.ZonesApi.DefaultRecordTtl);
+                jsonWriter.WriteString("version", _dnsWebService.GetServerVersion());
+                jsonWriter.WriteString("dnsServerDomain", _dnsWebService.DnsServer.ServerDomain);
+                jsonWriter.WriteNumber("defaultRecordTtl", _dnsWebService.ZonesApi.DefaultRecordTtl);
 
                 jsonWriter.WritePropertyName("permissions");
                 jsonWriter.WriteStartObject();
@@ -94,14 +79,9 @@ namespace DnsServerCore
                     jsonWriter.WritePropertyName(section.ToString());
                     jsonWriter.WriteStartObject();
 
-                    jsonWriter.WritePropertyName("canView");
-                    jsonWriter.WriteValue(_dnsWebService.AuthManager.IsPermitted(section, currentSession.User, PermissionFlag.View));
-
-                    jsonWriter.WritePropertyName("canModify");
-                    jsonWriter.WriteValue(_dnsWebService.AuthManager.IsPermitted(section, currentSession.User, PermissionFlag.Modify));
-
-                    jsonWriter.WritePropertyName("canDelete");
-                    jsonWriter.WriteValue(_dnsWebService.AuthManager.IsPermitted(section, currentSession.User, PermissionFlag.Delete));
+                    jsonWriter.WriteBoolean("canView", _dnsWebService.AuthManager.IsPermitted(section, currentSession.User, PermissionFlag.View));
+                    jsonWriter.WriteBoolean("canModify", _dnsWebService.AuthManager.IsPermitted(section, currentSession.User, PermissionFlag.Modify));
+                    jsonWriter.WriteBoolean("canDelete", _dnsWebService.AuthManager.IsPermitted(section, currentSession.User, PermissionFlag.Delete));
 
                     jsonWriter.WriteEndObject();
                 }
@@ -112,33 +92,19 @@ namespace DnsServerCore
             }
         }
 
-        private void WriteUserDetails(JsonTextWriter jsonWriter, User user, UserSession currentSession, bool includeMoreDetails, bool includeGroups)
+        private void WriteUserDetails(Utf8JsonWriter jsonWriter, User user, UserSession currentSession, bool includeMoreDetails, bool includeGroups)
         {
-            jsonWriter.WritePropertyName("displayName");
-            jsonWriter.WriteValue(user.DisplayName);
-
-            jsonWriter.WritePropertyName("username");
-            jsonWriter.WriteValue(user.Username);
-
-            jsonWriter.WritePropertyName("disabled");
-            jsonWriter.WriteValue(user.Disabled);
-
-            jsonWriter.WritePropertyName("previousSessionLoggedOn");
-            jsonWriter.WriteValue(user.PreviousSessionLoggedOn);
-
-            jsonWriter.WritePropertyName("previousSessionRemoteAddress");
-            jsonWriter.WriteValue(user.PreviousSessionRemoteAddress.ToString());
-
-            jsonWriter.WritePropertyName("recentSessionLoggedOn");
-            jsonWriter.WriteValue(user.RecentSessionLoggedOn);
-
-            jsonWriter.WritePropertyName("recentSessionRemoteAddress");
-            jsonWriter.WriteValue(user.RecentSessionRemoteAddress.ToString());
+            jsonWriter.WriteString("displayName", user.DisplayName);
+            jsonWriter.WriteString("username", user.Username);
+            jsonWriter.WriteBoolean("disabled", user.Disabled);
+            jsonWriter.WriteString("previousSessionLoggedOn", user.PreviousSessionLoggedOn);
+            jsonWriter.WriteString("previousSessionRemoteAddress", user.PreviousSessionRemoteAddress.ToString());
+            jsonWriter.WriteString("recentSessionLoggedOn", user.RecentSessionLoggedOn);
+            jsonWriter.WriteString("recentSessionRemoteAddress", user.RecentSessionRemoteAddress.ToString());
 
             if (includeMoreDetails)
             {
-                jsonWriter.WritePropertyName("sessionTimeoutSeconds");
-                jsonWriter.WriteValue(user.SessionTimeoutSeconds);
+                jsonWriter.WriteNumber("sessionTimeoutSeconds", user.SessionTimeoutSeconds);
 
                 jsonWriter.WritePropertyName("memberOfGroups");
                 jsonWriter.WriteStartArray();
@@ -151,7 +117,7 @@ namespace DnsServerCore
                     if (group.Name.Equals("Everyone", StringComparison.OrdinalIgnoreCase))
                         continue;
 
-                    jsonWriter.WriteValue(group.Name);
+                    jsonWriter.WriteStringValue(group.Name);
                 }
 
                 jsonWriter.WriteEndArray();
@@ -181,51 +147,33 @@ namespace DnsServerCore
                     if (group.Name.Equals("Everyone", StringComparison.OrdinalIgnoreCase))
                         continue;
 
-                    jsonWriter.WriteValue(group.Name);
+                    jsonWriter.WriteStringValue(group.Name);
                 }
 
                 jsonWriter.WriteEndArray();
             }
         }
 
-        private static void WriteUserSessionDetails(JsonTextWriter jsonWriter, UserSession session, UserSession currentSession)
+        private static void WriteUserSessionDetails(Utf8JsonWriter jsonWriter, UserSession session, UserSession currentSession)
         {
             jsonWriter.WriteStartObject();
 
-            jsonWriter.WritePropertyName("username");
-            jsonWriter.WriteValue(session.User.Username);
-
-            jsonWriter.WritePropertyName("isCurrentSession");
-            jsonWriter.WriteValue(session.Equals(currentSession));
-
-            jsonWriter.WritePropertyName("partialToken");
-            jsonWriter.WriteValue(session.Token.Substring(0, 16));
-
-            jsonWriter.WritePropertyName("type");
-            jsonWriter.WriteValue(session.Type.ToString());
-
-            jsonWriter.WritePropertyName("tokenName");
-            jsonWriter.WriteValue(session.TokenName);
-
-            jsonWriter.WritePropertyName("lastSeen");
-            jsonWriter.WriteValue(session.LastSeen);
-
-            jsonWriter.WritePropertyName("lastSeenRemoteAddress");
-            jsonWriter.WriteValue(session.LastSeenRemoteAddress.ToString());
-
-            jsonWriter.WritePropertyName("lastSeenUserAgent");
-            jsonWriter.WriteValue(session.LastSeenUserAgent);
+            jsonWriter.WriteString("username", session.User.Username);
+            jsonWriter.WriteBoolean("isCurrentSession", session.Equals(currentSession));
+            jsonWriter.WriteString("partialToken", session.Token.Substring(0, 16));
+            jsonWriter.WriteString("type", session.Type.ToString());
+            jsonWriter.WriteString("tokenName", session.TokenName);
+            jsonWriter.WriteString("lastSeen", session.LastSeen);
+            jsonWriter.WriteString("lastSeenRemoteAddress", session.LastSeenRemoteAddress.ToString());
+            jsonWriter.WriteString("lastSeenUserAgent", session.LastSeenUserAgent);
 
             jsonWriter.WriteEndObject();
         }
 
-        private void WriteGroupDetails(JsonTextWriter jsonWriter, Group group, bool includeMembers, bool includeUsers)
+        private void WriteGroupDetails(Utf8JsonWriter jsonWriter, Group group, bool includeMembers, bool includeUsers)
         {
-            jsonWriter.WritePropertyName("name");
-            jsonWriter.WriteValue(group.Name);
-
-            jsonWriter.WritePropertyName("description");
-            jsonWriter.WriteValue(group.Description);
+            jsonWriter.WriteString("name", group.Name);
+            jsonWriter.WriteString("description", group.Description);
 
             if (includeMembers)
             {
@@ -236,7 +184,7 @@ namespace DnsServerCore
                 members.Sort();
 
                 foreach (User user in members)
-                    jsonWriter.WriteValue(user.Username);
+                    jsonWriter.WriteStringValue(user.Username);
 
                 jsonWriter.WriteEndArray();
             }
@@ -250,22 +198,18 @@ namespace DnsServerCore
                 jsonWriter.WriteStartArray();
 
                 foreach (User user in users)
-                    jsonWriter.WriteValue(user.Username);
+                    jsonWriter.WriteStringValue(user.Username);
 
                 jsonWriter.WriteEndArray();
             }
         }
 
-        private void WritePermissionDetails(JsonTextWriter jsonWriter, Permission permission, string subItem, bool includeUsersAndGroups)
+        private void WritePermissionDetails(Utf8JsonWriter jsonWriter, Permission permission, string subItem, bool includeUsersAndGroups)
         {
-            jsonWriter.WritePropertyName("section");
-            jsonWriter.WriteValue(permission.Section.ToString());
+            jsonWriter.WriteString("section", permission.Section.ToString());
 
             if (subItem is not null)
-            {
-                jsonWriter.WritePropertyName("subItem");
-                jsonWriter.WriteValue(subItem.Length == 0 ? "." : subItem);
-            }
+                jsonWriter.WriteString("subItem", subItem.Length == 0 ? "." : subItem);
 
             jsonWriter.WritePropertyName("userPermissions");
             jsonWriter.WriteStartArray();
@@ -281,17 +225,10 @@ namespace DnsServerCore
             {
                 jsonWriter.WriteStartObject();
 
-                jsonWriter.WritePropertyName("username");
-                jsonWriter.WriteValue(userPermission.Key.Username);
-
-                jsonWriter.WritePropertyName("canView");
-                jsonWriter.WriteValue(userPermission.Value.HasFlag(PermissionFlag.View));
-
-                jsonWriter.WritePropertyName("canModify");
-                jsonWriter.WriteValue(userPermission.Value.HasFlag(PermissionFlag.Modify));
-
-                jsonWriter.WritePropertyName("canDelete");
-                jsonWriter.WriteValue(userPermission.Value.HasFlag(PermissionFlag.Delete));
+                jsonWriter.WriteString("username", userPermission.Key.Username);
+                jsonWriter.WriteBoolean("canView", userPermission.Value.HasFlag(PermissionFlag.View));
+                jsonWriter.WriteBoolean("canModify", userPermission.Value.HasFlag(PermissionFlag.Modify));
+                jsonWriter.WriteBoolean("canDelete", userPermission.Value.HasFlag(PermissionFlag.Delete));
 
                 jsonWriter.WriteEndObject();
             }
@@ -312,17 +249,10 @@ namespace DnsServerCore
             {
                 jsonWriter.WriteStartObject();
 
-                jsonWriter.WritePropertyName("name");
-                jsonWriter.WriteValue(groupPermission.Key.Name);
-
-                jsonWriter.WritePropertyName("canView");
-                jsonWriter.WriteValue(groupPermission.Value.HasFlag(PermissionFlag.View));
-
-                jsonWriter.WritePropertyName("canModify");
-                jsonWriter.WriteValue(groupPermission.Value.HasFlag(PermissionFlag.Modify));
-
-                jsonWriter.WritePropertyName("canDelete");
-                jsonWriter.WriteValue(groupPermission.Value.HasFlag(PermissionFlag.Delete));
+                jsonWriter.WriteString("name", groupPermission.Key.Name);
+                jsonWriter.WriteBoolean("canView", groupPermission.Value.HasFlag(PermissionFlag.View));
+                jsonWriter.WriteBoolean("canModify", groupPermission.Value.HasFlag(PermissionFlag.Modify));
+                jsonWriter.WriteBoolean("canDelete", groupPermission.Value.HasFlag(PermissionFlag.Delete));
 
                 jsonWriter.WriteEndObject();
             }
@@ -341,7 +271,7 @@ namespace DnsServerCore
                 jsonWriter.WriteStartArray();
 
                 foreach (User user in users)
-                    jsonWriter.WriteValue(user.Username);
+                    jsonWriter.WriteStringValue(user.Username);
 
                 jsonWriter.WriteEndArray();
 
@@ -349,7 +279,7 @@ namespace DnsServerCore
                 jsonWriter.WriteStartArray();
 
                 foreach (Group group in groups)
-                    jsonWriter.WriteValue(group.Name);
+                    jsonWriter.WriteStringValue(group.Name);
 
                 jsonWriter.WriteEndArray();
             }
@@ -359,7 +289,7 @@ namespace DnsServerCore
 
         #region public
 
-        public async Task LoginAsync(HttpListenerRequest request, JsonTextWriter jsonWriter, UserSessionType sessionType)
+        public async Task LoginAsync(HttpListenerRequest request, Utf8JsonWriter jsonWriter, UserSessionType sessionType)
         {
             string strUsername = request.QueryString["user"];
             if (string.IsNullOrEmpty(strUsername))
@@ -411,7 +341,7 @@ namespace DnsServerCore
             }
         }
 
-        public void GetCurrentSessionDetails(HttpListenerRequest request, JsonTextWriter jsonWriter)
+        public void GetCurrentSessionDetails(HttpListenerRequest request, Utf8JsonWriter jsonWriter)
         {
             if (!_dnsWebService.TryGetSession(request, out UserSession session))
                 throw new InvalidTokenWebServiceException("Invalid token or session expired.");
@@ -437,14 +367,14 @@ namespace DnsServerCore
             _dnsWebService.AuthManager.SaveConfigFile();
         }
 
-        public void GetProfile(HttpListenerRequest request, JsonTextWriter jsonWriter)
+        public void GetProfile(HttpListenerRequest request, Utf8JsonWriter jsonWriter)
         {
             UserSession session = _dnsWebService.GetSession(request);
 
             WriteUserDetails(jsonWriter, session.User, session, true, false);
         }
 
-        public void SetProfile(HttpListenerRequest request, JsonTextWriter jsonWriter)
+        public void SetProfile(HttpListenerRequest request, Utf8JsonWriter jsonWriter)
         {
             UserSession session = _dnsWebService.GetSession(request);
 
@@ -466,7 +396,7 @@ namespace DnsServerCore
             WriteUserDetails(jsonWriter, session.User, session, true, false);
         }
 
-        public void ListSessions(HttpListenerRequest request, JsonTextWriter jsonWriter)
+        public void ListSessions(HttpListenerRequest request, Utf8JsonWriter jsonWriter)
         {
             UserSession session = _dnsWebService.GetSession(request);
 
@@ -485,7 +415,7 @@ namespace DnsServerCore
             jsonWriter.WriteEndArray();
         }
 
-        public void CreateApiToken(HttpListenerRequest request, JsonTextWriter jsonWriter)
+        public void CreateApiToken(HttpListenerRequest request, Utf8JsonWriter jsonWriter)
         {
             string strUsername = request.QueryString["user"];
             if (string.IsNullOrEmpty(strUsername))
@@ -503,14 +433,9 @@ namespace DnsServerCore
 
             _dnsWebService.AuthManager.SaveConfigFile();
 
-            jsonWriter.WritePropertyName("username");
-            jsonWriter.WriteValue(session.User.Username);
-
-            jsonWriter.WritePropertyName("tokenName");
-            jsonWriter.WriteValue(session.TokenName);
-
-            jsonWriter.WritePropertyName("token");
-            jsonWriter.WriteValue(session.Token);
+            jsonWriter.WriteString("username", session.User.Username);
+            jsonWriter.WriteString("tokenName", session.TokenName);
+            jsonWriter.WriteString("token", session.Token);
         }
 
         public void DeleteSession(HttpListenerRequest request, bool isAdminContext)
@@ -552,7 +477,7 @@ namespace DnsServerCore
             _dnsWebService.AuthManager.SaveConfigFile();
         }
 
-        public void ListUsers(JsonTextWriter jsonWriter)
+        public void ListUsers(Utf8JsonWriter jsonWriter)
         {
             List<User> users = new List<User>(_dnsWebService.AuthManager.Users);
             users.Sort();
@@ -572,7 +497,7 @@ namespace DnsServerCore
             jsonWriter.WriteEndArray();
         }
 
-        public void CreateUser(HttpListenerRequest request, JsonTextWriter jsonWriter)
+        public void CreateUser(HttpListenerRequest request, Utf8JsonWriter jsonWriter)
         {
             string strDisplayName = request.QueryString["displayName"];
 
@@ -595,7 +520,7 @@ namespace DnsServerCore
             WriteUserDetails(jsonWriter, user, null, false, false);
         }
 
-        public void GetUserDetails(HttpListenerRequest request, JsonTextWriter jsonWriter)
+        public void GetUserDetails(HttpListenerRequest request, Utf8JsonWriter jsonWriter)
         {
             string strUsername = request.QueryString["user"];
             if (string.IsNullOrEmpty(strUsername))
@@ -615,7 +540,7 @@ namespace DnsServerCore
             WriteUserDetails(jsonWriter, user, null, true, includeGroups);
         }
 
-        public void SetUserDetails(HttpListenerRequest request, JsonTextWriter jsonWriter)
+        public void SetUserDetails(HttpListenerRequest request, Utf8JsonWriter jsonWriter)
         {
             string strUsername = request.QueryString["user"];
             if (string.IsNullOrEmpty(strUsername))
@@ -728,7 +653,7 @@ namespace DnsServerCore
             _dnsWebService.AuthManager.SaveConfigFile();
         }
 
-        public void ListGroups(JsonTextWriter jsonWriter)
+        public void ListGroups(Utf8JsonWriter jsonWriter)
         {
             List<Group> groups = new List<Group>(_dnsWebService.AuthManager.Groups);
             groups.Sort();
@@ -751,7 +676,7 @@ namespace DnsServerCore
             jsonWriter.WriteEndArray();
         }
 
-        public void CreateGroup(HttpListenerRequest request, JsonTextWriter jsonWriter)
+        public void CreateGroup(HttpListenerRequest request, Utf8JsonWriter jsonWriter)
         {
             string strGroup = request.QueryString["group"];
             if (string.IsNullOrEmpty(strGroup))
@@ -772,7 +697,7 @@ namespace DnsServerCore
             WriteGroupDetails(jsonWriter, group, false, false);
         }
 
-        public void GetGroupDetails(HttpListenerRequest request, JsonTextWriter jsonWriter)
+        public void GetGroupDetails(HttpListenerRequest request, Utf8JsonWriter jsonWriter)
         {
             string strGroup = request.QueryString["group"];
             if (string.IsNullOrEmpty(strGroup))
@@ -792,7 +717,7 @@ namespace DnsServerCore
             WriteGroupDetails(jsonWriter, group, true, includeUsers);
         }
 
-        public void SetGroupDetails(HttpListenerRequest request, JsonTextWriter jsonWriter)
+        public void SetGroupDetails(HttpListenerRequest request, Utf8JsonWriter jsonWriter)
         {
             string strGroup = request.QueryString["group"];
             if (string.IsNullOrEmpty(strGroup))
@@ -859,7 +784,7 @@ namespace DnsServerCore
             _dnsWebService.AuthManager.SaveConfigFile();
         }
 
-        public void ListPermissions(JsonTextWriter jsonWriter)
+        public void ListPermissions(Utf8JsonWriter jsonWriter)
         {
             List<Permission> permissions = new List<Permission>(_dnsWebService.AuthManager.Permissions);
             permissions.Sort();
@@ -879,7 +804,7 @@ namespace DnsServerCore
             jsonWriter.WriteEndArray();
         }
 
-        public void GetPermissionDetails(HttpListenerRequest request, JsonTextWriter jsonWriter, PermissionSection section)
+        public void GetPermissionDetails(HttpListenerRequest request, Utf8JsonWriter jsonWriter, PermissionSection section)
         {
             if (section == PermissionSection.Unknown)
             {
@@ -936,7 +861,7 @@ namespace DnsServerCore
             WritePermissionDetails(jsonWriter, permission, strSubItem, includeUsersAndGroups);
         }
 
-        public void SetPermissionsDetails(HttpListenerRequest request, JsonTextWriter jsonWriter, PermissionSection section)
+        public void SetPermissionsDetails(HttpListenerRequest request, Utf8JsonWriter jsonWriter, PermissionSection section)
         {
             if (section == PermissionSection.Unknown)
             {
