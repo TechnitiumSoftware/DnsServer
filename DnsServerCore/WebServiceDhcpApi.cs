@@ -48,7 +48,7 @@ namespace DnsServerCore
 
         public void ListDhcpLeases(Utf8JsonWriter jsonWriter)
         {
-            IReadOnlyDictionary<string, Scope> scopes = _dnsWebService.DhcpServer.Scopes;
+            IReadOnlyDictionary<string, Scope> scopes = _dnsWebService._dhcpServer.Scopes;
 
             //sort by name
             List<Scope> sortedScopes = new List<Scope>(scopes.Count);
@@ -95,7 +95,7 @@ namespace DnsServerCore
 
         public void ListDhcpScopes(Utf8JsonWriter jsonWriter)
         {
-            IReadOnlyDictionary<string, Scope> scopes = _dnsWebService.DhcpServer.Scopes;
+            IReadOnlyDictionary<string, Scope> scopes = _dnsWebService._dhcpServer.Scopes;
 
             //sort by name
             List<Scope> sortedScopes = new List<Scope>(scopes.Count);
@@ -135,7 +135,7 @@ namespace DnsServerCore
             if (string.IsNullOrEmpty(scopeName))
                 throw new DnsWebServiceException("Parameter 'name' missing.");
 
-            Scope scope = _dnsWebService.DhcpServer.GetScope(scopeName);
+            Scope scope = _dnsWebService._dhcpServer.GetScope(scopeName);
             if (scope == null)
                 throw new DnsWebServiceException("DHCP scope was not found: " + scopeName);
 
@@ -354,7 +354,7 @@ namespace DnsServerCore
             string strSubnetMask = request.QueryString["subnetMask"];
 
             bool scopeExists;
-            Scope scope = _dnsWebService.DhcpServer.GetScope(scopeName);
+            Scope scope = _dnsWebService._dhcpServer.GetScope(scopeName);
             if (scope is null)
             {
                 //scope does not exists; create new scope
@@ -368,7 +368,7 @@ namespace DnsServerCore
                     throw new DnsWebServiceException("Parameter 'subnetMask' missing.");
 
                 scopeExists = false;
-                scope = new Scope(scopeName, true, IPAddress.Parse(strStartingAddress), IPAddress.Parse(strEndingAddress), IPAddress.Parse(strSubnetMask), _dnsWebService.Log);
+                scope = new Scope(scopeName, true, IPAddress.Parse(strStartingAddress), IPAddress.Parse(strEndingAddress), IPAddress.Parse(strSubnetMask), _dnsWebService._log);
             }
             else
             {
@@ -393,7 +393,7 @@ namespace DnsServerCore
                     subnetMask = IPAddress.Parse(strSubnetMask);
 
                 //validate scope address
-                foreach (KeyValuePair<string, Scope> entry in _dnsWebService.DhcpServer.Scopes)
+                foreach (KeyValuePair<string, Scope> entry in _dnsWebService._dhcpServer.Scopes)
                 {
                     Scope existingScope = entry.Value;
 
@@ -694,23 +694,23 @@ namespace DnsServerCore
 
             if (scopeExists)
             {
-                _dnsWebService.DhcpServer.SaveScope(scopeName);
+                _dnsWebService._dhcpServer.SaveScope(scopeName);
 
-                _dnsWebService.Log.Write(DnsWebService.GetRequestRemoteEndPoint(request), "[" + _dnsWebService.GetSession(request).User.Username + "] DHCP scope was updated successfully: " + scopeName);
+                _dnsWebService._log.Write(DnsWebService.GetRequestRemoteEndPoint(request), "[" + _dnsWebService.GetSession(request).User.Username + "] DHCP scope was updated successfully: " + scopeName);
             }
             else
             {
-                await _dnsWebService.DhcpServer.AddScopeAsync(scope);
+                await _dnsWebService._dhcpServer.AddScopeAsync(scope);
 
-                _dnsWebService.Log.Write(DnsWebService.GetRequestRemoteEndPoint(request), "[" + _dnsWebService.GetSession(request).User.Username + "] DHCP scope was added successfully: " + scopeName);
+                _dnsWebService._log.Write(DnsWebService.GetRequestRemoteEndPoint(request), "[" + _dnsWebService.GetSession(request).User.Username + "] DHCP scope was added successfully: " + scopeName);
             }
 
             string newName = request.QueryString["newName"];
             if (!string.IsNullOrEmpty(newName) && !newName.Equals(scopeName))
             {
-                _dnsWebService.DhcpServer.RenameScope(scopeName, newName);
+                _dnsWebService._dhcpServer.RenameScope(scopeName, newName);
 
-                _dnsWebService.Log.Write(DnsWebService.GetRequestRemoteEndPoint(request), "[" + _dnsWebService.GetSession(request).User.Username + "] DHCP scope was renamed successfully: '" + scopeName + "' to '" + newName + "'");
+                _dnsWebService._log.Write(DnsWebService.GetRequestRemoteEndPoint(request), "[" + _dnsWebService.GetSession(request).User.Username + "] DHCP scope was renamed successfully: '" + scopeName + "' to '" + newName + "'");
             }
         }
 
@@ -720,7 +720,7 @@ namespace DnsServerCore
             if (string.IsNullOrEmpty(scopeName))
                 throw new DnsWebServiceException("Parameter 'name' missing.");
 
-            Scope scope = _dnsWebService.DhcpServer.GetScope(scopeName);
+            Scope scope = _dnsWebService._dhcpServer.GetScope(scopeName);
             if (scope is null)
                 throw new DnsWebServiceException("No such scope exists: " + scopeName);
 
@@ -741,9 +741,9 @@ namespace DnsServerCore
             if (!scope.AddReservedLease(reservedLease))
                 throw new DnsWebServiceException("Failed to add reserved lease for scope: " + scopeName);
 
-            _dnsWebService.DhcpServer.SaveScope(scopeName);
+            _dnsWebService._dhcpServer.SaveScope(scopeName);
 
-            _dnsWebService.Log.Write(DnsWebService.GetRequestRemoteEndPoint(request), "[" + _dnsWebService.GetSession(request).User.Username + "] DHCP scope reserved lease was added successfully: " + scopeName);
+            _dnsWebService._log.Write(DnsWebService.GetRequestRemoteEndPoint(request), "[" + _dnsWebService.GetSession(request).User.Username + "] DHCP scope reserved lease was added successfully: " + scopeName);
         }
 
         public void RemoveReservedLease(HttpListenerRequest request)
@@ -752,7 +752,7 @@ namespace DnsServerCore
             if (string.IsNullOrEmpty(scopeName))
                 throw new DnsWebServiceException("Parameter 'name' missing.");
 
-            Scope scope = _dnsWebService.DhcpServer.GetScope(scopeName);
+            Scope scope = _dnsWebService._dhcpServer.GetScope(scopeName);
             if (scope is null)
                 throw new DnsWebServiceException("No such scope exists: " + scopeName);
 
@@ -763,9 +763,9 @@ namespace DnsServerCore
             if (!scope.RemoveReservedLease(hardwareAddress))
                 throw new DnsWebServiceException("Failed to remove reserved lease for scope: " + scopeName);
 
-            _dnsWebService.DhcpServer.SaveScope(scopeName);
+            _dnsWebService._dhcpServer.SaveScope(scopeName);
 
-            _dnsWebService.Log.Write(DnsWebService.GetRequestRemoteEndPoint(request), "[" + _dnsWebService.GetSession(request).User.Username + "] DHCP scope reserved lease was removed successfully: " + scopeName);
+            _dnsWebService._log.Write(DnsWebService.GetRequestRemoteEndPoint(request), "[" + _dnsWebService.GetSession(request).User.Username + "] DHCP scope reserved lease was removed successfully: " + scopeName);
         }
 
         public async Task EnableDhcpScopeAsync(HttpListenerRequest request)
@@ -774,9 +774,9 @@ namespace DnsServerCore
             if (string.IsNullOrEmpty(scopeName))
                 throw new DnsWebServiceException("Parameter 'name' missing.");
 
-            await _dnsWebService.DhcpServer.EnableScopeAsync(scopeName, true);
+            await _dnsWebService._dhcpServer.EnableScopeAsync(scopeName, true);
 
-            _dnsWebService.Log.Write(DnsWebService.GetRequestRemoteEndPoint(request), "[" + _dnsWebService.GetSession(request).User.Username + "] DHCP scope was enabled successfully: " + scopeName);
+            _dnsWebService._log.Write(DnsWebService.GetRequestRemoteEndPoint(request), "[" + _dnsWebService.GetSession(request).User.Username + "] DHCP scope was enabled successfully: " + scopeName);
         }
 
         public void DisableDhcpScope(HttpListenerRequest request)
@@ -785,9 +785,9 @@ namespace DnsServerCore
             if (string.IsNullOrEmpty(scopeName))
                 throw new DnsWebServiceException("Parameter 'name' missing.");
 
-            _dnsWebService.DhcpServer.DisableScope(scopeName, true);
+            _dnsWebService._dhcpServer.DisableScope(scopeName, true);
 
-            _dnsWebService.Log.Write(DnsWebService.GetRequestRemoteEndPoint(request), "[" + _dnsWebService.GetSession(request).User.Username + "] DHCP scope was disabled successfully: " + scopeName);
+            _dnsWebService._log.Write(DnsWebService.GetRequestRemoteEndPoint(request), "[" + _dnsWebService.GetSession(request).User.Username + "] DHCP scope was disabled successfully: " + scopeName);
         }
 
         public void DeleteDhcpScope(HttpListenerRequest request)
@@ -796,9 +796,9 @@ namespace DnsServerCore
             if (string.IsNullOrEmpty(scopeName))
                 throw new DnsWebServiceException("Parameter 'name' missing.");
 
-            _dnsWebService.DhcpServer.DeleteScope(scopeName);
+            _dnsWebService._dhcpServer.DeleteScope(scopeName);
 
-            _dnsWebService.Log.Write(DnsWebService.GetRequestRemoteEndPoint(request), "[" + _dnsWebService.GetSession(request).User.Username + "] DHCP scope was deleted successfully: " + scopeName);
+            _dnsWebService._log.Write(DnsWebService.GetRequestRemoteEndPoint(request), "[" + _dnsWebService.GetSession(request).User.Username + "] DHCP scope was deleted successfully: " + scopeName);
         }
 
         public void RemoveDhcpLease(HttpListenerRequest request)
@@ -807,7 +807,7 @@ namespace DnsServerCore
             if (string.IsNullOrEmpty(scopeName))
                 throw new DnsWebServiceException("Parameter 'name' missing.");
 
-            Scope scope = _dnsWebService.DhcpServer.GetScope(scopeName);
+            Scope scope = _dnsWebService._dhcpServer.GetScope(scopeName);
             if (scope is null)
                 throw new DnsWebServiceException("DHCP scope does not exists: " + scopeName);
 
@@ -821,9 +821,9 @@ namespace DnsServerCore
             else
                 throw new DnsWebServiceException("Parameter 'hardwareAddress' or 'clientIdentifier' missing. At least one of them must be specified.");
 
-            _dnsWebService.DhcpServer.SaveScope(scopeName);
+            _dnsWebService._dhcpServer.SaveScope(scopeName);
 
-            _dnsWebService.Log.Write(DnsWebService.GetRequestRemoteEndPoint(request), "[" + _dnsWebService.GetSession(request).User.Username + "] DHCP scope's lease was removed successfully: " + scopeName);
+            _dnsWebService._log.Write(DnsWebService.GetRequestRemoteEndPoint(request), "[" + _dnsWebService.GetSession(request).User.Username + "] DHCP scope's lease was removed successfully: " + scopeName);
         }
 
         public void ConvertToReservedLease(HttpListenerRequest request)
@@ -832,7 +832,7 @@ namespace DnsServerCore
             if (string.IsNullOrEmpty(scopeName))
                 throw new DnsWebServiceException("Parameter 'name' missing.");
 
-            Scope scope = _dnsWebService.DhcpServer.GetScope(scopeName);
+            Scope scope = _dnsWebService._dhcpServer.GetScope(scopeName);
             if (scope == null)
                 throw new DnsWebServiceException("DHCP scope does not exists: " + scopeName);
 
@@ -846,9 +846,9 @@ namespace DnsServerCore
             else
                 throw new DnsWebServiceException("Parameter 'hardwareAddress' or 'clientIdentifier' missing. At least one of them must be specified.");
 
-            _dnsWebService.DhcpServer.SaveScope(scopeName);
+            _dnsWebService._dhcpServer.SaveScope(scopeName);
 
-            _dnsWebService.Log.Write(DnsWebService.GetRequestRemoteEndPoint(request), "[" + _dnsWebService.GetSession(request).User.Username + "] DHCP scope's lease was reserved successfully: " + scopeName);
+            _dnsWebService._log.Write(DnsWebService.GetRequestRemoteEndPoint(request), "[" + _dnsWebService.GetSession(request).User.Username + "] DHCP scope's lease was reserved successfully: " + scopeName);
         }
 
         public void ConvertToDynamicLease(HttpListenerRequest request)
@@ -857,7 +857,7 @@ namespace DnsServerCore
             if (string.IsNullOrEmpty(scopeName))
                 throw new DnsWebServiceException("Parameter 'name' missing.");
 
-            Scope scope = _dnsWebService.DhcpServer.GetScope(scopeName);
+            Scope scope = _dnsWebService._dhcpServer.GetScope(scopeName);
             if (scope == null)
                 throw new DnsWebServiceException("DHCP scope does not exists: " + scopeName);
 
@@ -871,9 +871,9 @@ namespace DnsServerCore
             else
                 throw new DnsWebServiceException("Parameter 'hardwareAddress' or 'clientIdentifier' missing. At least one of them must be specified.");
 
-            _dnsWebService.DhcpServer.SaveScope(scopeName);
+            _dnsWebService._dhcpServer.SaveScope(scopeName);
 
-            _dnsWebService.Log.Write(DnsWebService.GetRequestRemoteEndPoint(request), "[" + _dnsWebService.GetSession(request).User.Username + "] DHCP scope's lease was unreserved successfully: " + scopeName);
+            _dnsWebService._log.Write(DnsWebService.GetRequestRemoteEndPoint(request), "[" + _dnsWebService.GetSession(request).User.Username + "] DHCP scope's lease was unreserved successfully: " + scopeName);
         }
 
         #endregion

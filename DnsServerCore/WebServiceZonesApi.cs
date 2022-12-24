@@ -681,7 +681,7 @@ namespace DnsServerCore
 
         public void ListZones(HttpListenerRequest request, Utf8JsonWriter jsonWriter)
         {
-            List<AuthZoneInfo> zones = _dnsWebService.DnsServer.AuthZoneManager.ListZones();
+            List<AuthZoneInfo> zones = _dnsWebService._dnsServer.AuthZoneManager.ListZones();
             zones.Sort();
 
             UserSession session = _dnsWebService.GetSession(request);
@@ -691,7 +691,7 @@ namespace DnsServerCore
 
             foreach (AuthZoneInfo zone in zones)
             {
-                if (!_dnsWebService.AuthManager.IsPermitted(PermissionSection.Zones, zone.Name, session.User, PermissionFlag.View))
+                if (!_dnsWebService._authManager.IsPermitted(PermissionSection.Zones, zone.Name, session.User, PermissionFlag.View))
                     continue;
 
                 WriteZoneInfoAsJson(zone, jsonWriter);
@@ -738,20 +738,20 @@ namespace DnsServerCore
             {
                 case AuthZoneType.Primary:
                     {
-                        zoneInfo = _dnsWebService.DnsServer.AuthZoneManager.CreatePrimaryZone(zoneName, _dnsWebService.DnsServer.ServerDomain, false);
+                        zoneInfo = _dnsWebService._dnsServer.AuthZoneManager.CreatePrimaryZone(zoneName, _dnsWebService._dnsServer.ServerDomain, false);
                         if (zoneInfo is null)
                             throw new DnsWebServiceException("Zone already exists: " + zoneName);
 
                         UserSession session = _dnsWebService.GetSession(request);
 
                         //set permissions
-                        _dnsWebService.AuthManager.SetPermission(PermissionSection.Zones, zoneInfo.Name, session.User, PermissionFlag.ViewModifyDelete);
-                        _dnsWebService.AuthManager.SetPermission(PermissionSection.Zones, zoneInfo.Name, _dnsWebService.AuthManager.GetGroup(Group.ADMINISTRATORS), PermissionFlag.ViewModifyDelete);
-                        _dnsWebService.AuthManager.SetPermission(PermissionSection.Zones, zoneInfo.Name, _dnsWebService.AuthManager.GetGroup(Group.DNS_ADMINISTRATORS), PermissionFlag.ViewModifyDelete);
-                        _dnsWebService.AuthManager.SaveConfigFile();
+                        _dnsWebService._authManager.SetPermission(PermissionSection.Zones, zoneInfo.Name, session.User, PermissionFlag.ViewModifyDelete);
+                        _dnsWebService._authManager.SetPermission(PermissionSection.Zones, zoneInfo.Name, _dnsWebService._authManager.GetGroup(Group.ADMINISTRATORS), PermissionFlag.ViewModifyDelete);
+                        _dnsWebService._authManager.SetPermission(PermissionSection.Zones, zoneInfo.Name, _dnsWebService._authManager.GetGroup(Group.DNS_ADMINISTRATORS), PermissionFlag.ViewModifyDelete);
+                        _dnsWebService._authManager.SaveConfigFile();
 
-                        _dnsWebService.Log.Write(DnsWebService.GetRequestRemoteEndPoint(request), "[" + session.User.Username + "] Authoritative primary zone was created: " + zoneName);
-                        _dnsWebService.DnsServer.AuthZoneManager.SaveZoneFile(zoneInfo.Name);
+                        _dnsWebService._log.Write(DnsWebService.GetRequestRemoteEndPoint(request), "[" + session.User.Username + "] Authoritative primary zone was created: " + zoneName);
+                        _dnsWebService._dnsServer.AuthZoneManager.SaveZoneFile(zoneInfo.Name);
                     }
                     break;
 
@@ -773,20 +773,20 @@ namespace DnsServerCore
                         if (string.IsNullOrEmpty(tsigKeyName))
                             tsigKeyName = null;
 
-                        zoneInfo = await _dnsWebService.DnsServer.AuthZoneManager.CreateSecondaryZoneAsync(zoneName, primaryNameServerAddresses, zoneTransferProtocol, tsigKeyName);
+                        zoneInfo = await _dnsWebService._dnsServer.AuthZoneManager.CreateSecondaryZoneAsync(zoneName, primaryNameServerAddresses, zoneTransferProtocol, tsigKeyName);
                         if (zoneInfo is null)
                             throw new DnsWebServiceException("Zone already exists: " + zoneName);
 
                         UserSession session = _dnsWebService.GetSession(request);
 
                         //set permissions
-                        _dnsWebService.AuthManager.SetPermission(PermissionSection.Zones, zoneInfo.Name, session.User, PermissionFlag.ViewModifyDelete);
-                        _dnsWebService.AuthManager.SetPermission(PermissionSection.Zones, zoneInfo.Name, _dnsWebService.AuthManager.GetGroup(Group.ADMINISTRATORS), PermissionFlag.ViewModifyDelete);
-                        _dnsWebService.AuthManager.SetPermission(PermissionSection.Zones, zoneInfo.Name, _dnsWebService.AuthManager.GetGroup(Group.DNS_ADMINISTRATORS), PermissionFlag.ViewModifyDelete);
-                        _dnsWebService.AuthManager.SaveConfigFile();
+                        _dnsWebService._authManager.SetPermission(PermissionSection.Zones, zoneInfo.Name, session.User, PermissionFlag.ViewModifyDelete);
+                        _dnsWebService._authManager.SetPermission(PermissionSection.Zones, zoneInfo.Name, _dnsWebService._authManager.GetGroup(Group.ADMINISTRATORS), PermissionFlag.ViewModifyDelete);
+                        _dnsWebService._authManager.SetPermission(PermissionSection.Zones, zoneInfo.Name, _dnsWebService._authManager.GetGroup(Group.DNS_ADMINISTRATORS), PermissionFlag.ViewModifyDelete);
+                        _dnsWebService._authManager.SaveConfigFile();
 
-                        _dnsWebService.Log.Write(DnsWebService.GetRequestRemoteEndPoint(request), "[" + session.User.Username + "] Authoritative secondary zone was created: " + zoneName);
-                        _dnsWebService.DnsServer.AuthZoneManager.SaveZoneFile(zoneInfo.Name);
+                        _dnsWebService._log.Write(DnsWebService.GetRequestRemoteEndPoint(request), "[" + session.User.Username + "] Authoritative secondary zone was created: " + zoneName);
+                        _dnsWebService._dnsServer.AuthZoneManager.SaveZoneFile(zoneInfo.Name);
                     }
                     break;
 
@@ -796,20 +796,20 @@ namespace DnsServerCore
                         if (string.IsNullOrEmpty(strPrimaryNameServerAddresses))
                             strPrimaryNameServerAddresses = null;
 
-                        zoneInfo = await _dnsWebService.DnsServer.AuthZoneManager.CreateStubZoneAsync(zoneName, strPrimaryNameServerAddresses);
+                        zoneInfo = await _dnsWebService._dnsServer.AuthZoneManager.CreateStubZoneAsync(zoneName, strPrimaryNameServerAddresses);
                         if (zoneInfo is null)
                             throw new DnsWebServiceException("Zone already exists: " + zoneName);
 
                         UserSession session = _dnsWebService.GetSession(request);
 
                         //set permissions
-                        _dnsWebService.AuthManager.SetPermission(PermissionSection.Zones, zoneInfo.Name, session.User, PermissionFlag.ViewModifyDelete);
-                        _dnsWebService.AuthManager.SetPermission(PermissionSection.Zones, zoneInfo.Name, _dnsWebService.AuthManager.GetGroup(Group.ADMINISTRATORS), PermissionFlag.ViewModifyDelete);
-                        _dnsWebService.AuthManager.SetPermission(PermissionSection.Zones, zoneInfo.Name, _dnsWebService.AuthManager.GetGroup(Group.DNS_ADMINISTRATORS), PermissionFlag.ViewModifyDelete);
-                        _dnsWebService.AuthManager.SaveConfigFile();
+                        _dnsWebService._authManager.SetPermission(PermissionSection.Zones, zoneInfo.Name, session.User, PermissionFlag.ViewModifyDelete);
+                        _dnsWebService._authManager.SetPermission(PermissionSection.Zones, zoneInfo.Name, _dnsWebService._authManager.GetGroup(Group.ADMINISTRATORS), PermissionFlag.ViewModifyDelete);
+                        _dnsWebService._authManager.SetPermission(PermissionSection.Zones, zoneInfo.Name, _dnsWebService._authManager.GetGroup(Group.DNS_ADMINISTRATORS), PermissionFlag.ViewModifyDelete);
+                        _dnsWebService._authManager.SaveConfigFile();
 
-                        _dnsWebService.Log.Write(DnsWebService.GetRequestRemoteEndPoint(request), "[" + session.User.Username + "] Stub zone was created: " + zoneName);
-                        _dnsWebService.DnsServer.AuthZoneManager.SaveZoneFile(zoneInfo.Name);
+                        _dnsWebService._log.Write(DnsWebService.GetRequestRemoteEndPoint(request), "[" + session.User.Username + "] Stub zone was created: " + zoneName);
+                        _dnsWebService._dnsServer.AuthZoneManager.SaveZoneFile(zoneInfo.Name);
                     }
                     break;
 
@@ -854,20 +854,20 @@ namespace DnsServerCore
                             proxyPassword = request.QueryString["proxyPassword"];
                         }
 
-                        zoneInfo = _dnsWebService.DnsServer.AuthZoneManager.CreateForwarderZone(zoneName, forwarderProtocol, strForwarder, dnssecValidation, proxyType, proxyAddress, proxyPort, proxyUsername, proxyPassword, null);
+                        zoneInfo = _dnsWebService._dnsServer.AuthZoneManager.CreateForwarderZone(zoneName, forwarderProtocol, strForwarder, dnssecValidation, proxyType, proxyAddress, proxyPort, proxyUsername, proxyPassword, null);
                         if (zoneInfo is null)
                             throw new DnsWebServiceException("Zone already exists: " + zoneName);
 
                         UserSession session = _dnsWebService.GetSession(request);
 
                         //set permissions
-                        _dnsWebService.AuthManager.SetPermission(PermissionSection.Zones, zoneInfo.Name, session.User, PermissionFlag.ViewModifyDelete);
-                        _dnsWebService.AuthManager.SetPermission(PermissionSection.Zones, zoneInfo.Name, _dnsWebService.AuthManager.GetGroup(Group.ADMINISTRATORS), PermissionFlag.ViewModifyDelete);
-                        _dnsWebService.AuthManager.SetPermission(PermissionSection.Zones, zoneInfo.Name, _dnsWebService.AuthManager.GetGroup(Group.DNS_ADMINISTRATORS), PermissionFlag.ViewModifyDelete);
-                        _dnsWebService.AuthManager.SaveConfigFile();
+                        _dnsWebService._authManager.SetPermission(PermissionSection.Zones, zoneInfo.Name, session.User, PermissionFlag.ViewModifyDelete);
+                        _dnsWebService._authManager.SetPermission(PermissionSection.Zones, zoneInfo.Name, _dnsWebService._authManager.GetGroup(Group.ADMINISTRATORS), PermissionFlag.ViewModifyDelete);
+                        _dnsWebService._authManager.SetPermission(PermissionSection.Zones, zoneInfo.Name, _dnsWebService._authManager.GetGroup(Group.DNS_ADMINISTRATORS), PermissionFlag.ViewModifyDelete);
+                        _dnsWebService._authManager.SaveConfigFile();
 
-                        _dnsWebService.Log.Write(DnsWebService.GetRequestRemoteEndPoint(request), "[" + session.User.Username + "] Forwarder zone was created: " + zoneName);
-                        _dnsWebService.DnsServer.AuthZoneManager.SaveZoneFile(zoneInfo.Name);
+                        _dnsWebService._log.Write(DnsWebService.GetRequestRemoteEndPoint(request), "[" + session.User.Username + "] Forwarder zone was created: " + zoneName);
+                        _dnsWebService._dnsServer.AuthZoneManager.SaveZoneFile(zoneInfo.Name);
                     }
                     break;
 
@@ -876,7 +876,7 @@ namespace DnsServerCore
             }
 
             //delete cache for this zone to allow rebuilding cache data as needed by stub or forwarder zones
-            _dnsWebService.DnsServer.CacheZoneManager.DeleteZone(zoneInfo.Name);
+            _dnsWebService._dnsServer.CacheZoneManager.DeleteZone(zoneInfo.Name);
 
             jsonWriter.WriteString("domain", string.IsNullOrEmpty(zoneInfo.Name) ? "." : zoneInfo.Name);
         }
@@ -891,7 +891,7 @@ namespace DnsServerCore
 
             UserSession session = _dnsWebService.GetSession(request);
 
-            if (!_dnsWebService.AuthManager.IsPermitted(PermissionSection.Zones, zoneName, session.User, PermissionFlag.Delete))
+            if (!_dnsWebService._authManager.IsPermitted(PermissionSection.Zones, zoneName, session.User, PermissionFlag.Delete))
                 throw new DnsWebServiceException("Access was denied.");
 
             string algorithm = request.QueryString["algorithm"];
@@ -964,9 +964,9 @@ namespace DnsServerCore
                     int zskKeySize = int.Parse(strZSKKeySize);
 
                     if (useNSEC3)
-                        _dnsWebService.DnsServer.AuthZoneManager.SignPrimaryZoneWithRsaNSEC3(zoneName, hashAlgorithm, kskKeySize, zskKeySize, iterations, saltLength, dnsKeyTtl, zskRolloverDays);
+                        _dnsWebService._dnsServer.AuthZoneManager.SignPrimaryZoneWithRsaNSEC3(zoneName, hashAlgorithm, kskKeySize, zskKeySize, iterations, saltLength, dnsKeyTtl, zskRolloverDays);
                     else
-                        _dnsWebService.DnsServer.AuthZoneManager.SignPrimaryZoneWithRsaNSEC(zoneName, hashAlgorithm, kskKeySize, zskKeySize, dnsKeyTtl, zskRolloverDays);
+                        _dnsWebService._dnsServer.AuthZoneManager.SignPrimaryZoneWithRsaNSEC(zoneName, hashAlgorithm, kskKeySize, zskKeySize, dnsKeyTtl, zskRolloverDays);
 
                     break;
 
@@ -976,9 +976,9 @@ namespace DnsServerCore
                         throw new DnsWebServiceException("Parameter 'curve' missing.");
 
                     if (useNSEC3)
-                        _dnsWebService.DnsServer.AuthZoneManager.SignPrimaryZoneWithEcdsaNSEC3(zoneName, curve, iterations, saltLength, dnsKeyTtl, zskRolloverDays);
+                        _dnsWebService._dnsServer.AuthZoneManager.SignPrimaryZoneWithEcdsaNSEC3(zoneName, curve, iterations, saltLength, dnsKeyTtl, zskRolloverDays);
                     else
-                        _dnsWebService.DnsServer.AuthZoneManager.SignPrimaryZoneWithEcdsaNSEC(zoneName, curve, dnsKeyTtl, zskRolloverDays);
+                        _dnsWebService._dnsServer.AuthZoneManager.SignPrimaryZoneWithEcdsaNSEC(zoneName, curve, dnsKeyTtl, zskRolloverDays);
 
                     break;
 
@@ -986,9 +986,9 @@ namespace DnsServerCore
                     throw new NotSupportedException("Algorithm is not supported: " + algorithm);
             }
 
-            _dnsWebService.Log.Write(DnsWebService.GetRequestRemoteEndPoint(request), "[" + session.User.Username + "] Primary zone was signed successfully: " + zoneName);
+            _dnsWebService._log.Write(DnsWebService.GetRequestRemoteEndPoint(request), "[" + session.User.Username + "] Primary zone was signed successfully: " + zoneName);
 
-            _dnsWebService.DnsServer.AuthZoneManager.SaveZoneFile(zoneName);
+            _dnsWebService._dnsServer.AuthZoneManager.SaveZoneFile(zoneName);
         }
 
         public void UnsignPrimaryZone(HttpListenerRequest request)
@@ -1001,14 +1001,14 @@ namespace DnsServerCore
 
             UserSession session = _dnsWebService.GetSession(request);
 
-            if (!_dnsWebService.AuthManager.IsPermitted(PermissionSection.Zones, zoneName, session.User, PermissionFlag.Delete))
+            if (!_dnsWebService._authManager.IsPermitted(PermissionSection.Zones, zoneName, session.User, PermissionFlag.Delete))
                 throw new DnsWebServiceException("Access was denied.");
 
-            _dnsWebService.DnsServer.AuthZoneManager.UnsignPrimaryZone(zoneName);
+            _dnsWebService._dnsServer.AuthZoneManager.UnsignPrimaryZone(zoneName);
 
-            _dnsWebService.Log.Write(DnsWebService.GetRequestRemoteEndPoint(request), "[" + session.User.Username + "] Primary zone was unsigned successfully: " + zoneName);
+            _dnsWebService._log.Write(DnsWebService.GetRequestRemoteEndPoint(request), "[" + session.User.Username + "] Primary zone was unsigned successfully: " + zoneName);
 
-            _dnsWebService.DnsServer.AuthZoneManager.SaveZoneFile(zoneName);
+            _dnsWebService._dnsServer.AuthZoneManager.SaveZoneFile(zoneName);
         }
 
         public void GetPrimaryZoneDnssecProperties(HttpListenerRequest request, Utf8JsonWriter jsonWriter)
@@ -1019,7 +1019,7 @@ namespace DnsServerCore
 
             zoneName = zoneName.TrimEnd('.');
 
-            AuthZoneInfo zoneInfo = _dnsWebService.DnsServer.AuthZoneManager.GetAuthZoneInfo(zoneName);
+            AuthZoneInfo zoneInfo = _dnsWebService._dnsServer.AuthZoneManager.GetAuthZoneInfo(zoneName);
             if (zoneInfo is null)
                 throw new DnsWebServiceException("No such zone was found: " + zoneName);
 
@@ -1031,7 +1031,7 @@ namespace DnsServerCore
 
             UserSession session = _dnsWebService.GetSession(request);
 
-            if (!_dnsWebService.AuthManager.IsPermitted(PermissionSection.Zones, zoneInfo.Name, session.User, PermissionFlag.View))
+            if (!_dnsWebService._authManager.IsPermitted(PermissionSection.Zones, zoneInfo.Name, session.User, PermissionFlag.View))
                 throw new DnsWebServiceException("Access was denied.");
 
             jsonWriter.WriteString("name", zoneInfo.Name);
@@ -1116,14 +1116,14 @@ namespace DnsServerCore
 
             UserSession session = _dnsWebService.GetSession(request);
 
-            if (!_dnsWebService.AuthManager.IsPermitted(PermissionSection.Zones, zoneName, session.User, PermissionFlag.Delete))
+            if (!_dnsWebService._authManager.IsPermitted(PermissionSection.Zones, zoneName, session.User, PermissionFlag.Delete))
                 throw new DnsWebServiceException("Access was denied.");
 
-            _dnsWebService.DnsServer.AuthZoneManager.ConvertPrimaryZoneToNSEC(zoneName);
+            _dnsWebService._dnsServer.AuthZoneManager.ConvertPrimaryZoneToNSEC(zoneName);
 
-            _dnsWebService.Log.Write(DnsWebService.GetRequestRemoteEndPoint(request), "[" + session.User.Username + "] Primary zone was converted to NSEC successfully: " + zoneName);
+            _dnsWebService._log.Write(DnsWebService.GetRequestRemoteEndPoint(request), "[" + session.User.Username + "] Primary zone was converted to NSEC successfully: " + zoneName);
 
-            _dnsWebService.DnsServer.AuthZoneManager.SaveZoneFile(zoneName);
+            _dnsWebService._dnsServer.AuthZoneManager.SaveZoneFile(zoneName);
         }
 
         public void ConvertPrimaryZoneToNSEC3(HttpListenerRequest request)
@@ -1136,7 +1136,7 @@ namespace DnsServerCore
 
             UserSession session = _dnsWebService.GetSession(request);
 
-            if (!_dnsWebService.AuthManager.IsPermitted(PermissionSection.Zones, zoneName, session.User, PermissionFlag.Delete))
+            if (!_dnsWebService._authManager.IsPermitted(PermissionSection.Zones, zoneName, session.User, PermissionFlag.Delete))
                 throw new DnsWebServiceException("Access was denied.");
 
             ushort iterations = 0;
@@ -1149,11 +1149,11 @@ namespace DnsServerCore
             if (!string.IsNullOrEmpty(strSaltLength))
                 saltLength = byte.Parse(strSaltLength);
 
-            _dnsWebService.DnsServer.AuthZoneManager.ConvertPrimaryZoneToNSEC3(zoneName, iterations, saltLength);
+            _dnsWebService._dnsServer.AuthZoneManager.ConvertPrimaryZoneToNSEC3(zoneName, iterations, saltLength);
 
-            _dnsWebService.Log.Write(DnsWebService.GetRequestRemoteEndPoint(request), "[" + session.User.Username + "] Primary zone was converted to NSEC3 successfully: " + zoneName);
+            _dnsWebService._log.Write(DnsWebService.GetRequestRemoteEndPoint(request), "[" + session.User.Username + "] Primary zone was converted to NSEC3 successfully: " + zoneName);
 
-            _dnsWebService.DnsServer.AuthZoneManager.SaveZoneFile(zoneName);
+            _dnsWebService._dnsServer.AuthZoneManager.SaveZoneFile(zoneName);
         }
 
         public void UpdatePrimaryZoneNSEC3Parameters(HttpListenerRequest request)
@@ -1166,7 +1166,7 @@ namespace DnsServerCore
 
             UserSession session = _dnsWebService.GetSession(request);
 
-            if (!_dnsWebService.AuthManager.IsPermitted(PermissionSection.Zones, zoneName, session.User, PermissionFlag.Delete))
+            if (!_dnsWebService._authManager.IsPermitted(PermissionSection.Zones, zoneName, session.User, PermissionFlag.Delete))
                 throw new DnsWebServiceException("Access was denied.");
 
             ushort iterations = 0;
@@ -1179,11 +1179,11 @@ namespace DnsServerCore
             if (!string.IsNullOrEmpty(strSaltLength))
                 saltLength = byte.Parse(strSaltLength);
 
-            _dnsWebService.DnsServer.AuthZoneManager.UpdatePrimaryZoneNSEC3Parameters(zoneName, iterations, saltLength);
+            _dnsWebService._dnsServer.AuthZoneManager.UpdatePrimaryZoneNSEC3Parameters(zoneName, iterations, saltLength);
 
-            _dnsWebService.Log.Write(DnsWebService.GetRequestRemoteEndPoint(request), "[" + session.User.Username + "] Primary zone NSEC3 parameters were updated successfully: " + zoneName);
+            _dnsWebService._log.Write(DnsWebService.GetRequestRemoteEndPoint(request), "[" + session.User.Username + "] Primary zone NSEC3 parameters were updated successfully: " + zoneName);
 
-            _dnsWebService.DnsServer.AuthZoneManager.SaveZoneFile(zoneName);
+            _dnsWebService._dnsServer.AuthZoneManager.SaveZoneFile(zoneName);
         }
 
         public void UpdatePrimaryZoneDnssecDnsKeyTtl(HttpListenerRequest request)
@@ -1196,7 +1196,7 @@ namespace DnsServerCore
 
             UserSession session = _dnsWebService.GetSession(request);
 
-            if (!_dnsWebService.AuthManager.IsPermitted(PermissionSection.Zones, zoneName, session.User, PermissionFlag.Delete))
+            if (!_dnsWebService._authManager.IsPermitted(PermissionSection.Zones, zoneName, session.User, PermissionFlag.Delete))
                 throw new DnsWebServiceException("Access was denied.");
 
             string strDnsKeyTtl = request.QueryString["ttl"];
@@ -1205,11 +1205,11 @@ namespace DnsServerCore
 
             uint dnsKeyTtl = uint.Parse(strDnsKeyTtl);
 
-            _dnsWebService.DnsServer.AuthZoneManager.UpdatePrimaryZoneDnsKeyTtl(zoneName, dnsKeyTtl);
+            _dnsWebService._dnsServer.AuthZoneManager.UpdatePrimaryZoneDnsKeyTtl(zoneName, dnsKeyTtl);
 
-            _dnsWebService.Log.Write(DnsWebService.GetRequestRemoteEndPoint(request), "[" + session.User.Username + "] Primary zone DNSKEY TTL was updated successfully: " + zoneName);
+            _dnsWebService._log.Write(DnsWebService.GetRequestRemoteEndPoint(request), "[" + session.User.Username + "] Primary zone DNSKEY TTL was updated successfully: " + zoneName);
 
-            _dnsWebService.DnsServer.AuthZoneManager.SaveZoneFile(zoneName);
+            _dnsWebService._dnsServer.AuthZoneManager.SaveZoneFile(zoneName);
         }
 
         public void GenerateAndAddPrimaryZoneDnssecPrivateKey(HttpListenerRequest request)
@@ -1222,7 +1222,7 @@ namespace DnsServerCore
 
             UserSession session = _dnsWebService.GetSession(request);
 
-            if (!_dnsWebService.AuthManager.IsPermitted(PermissionSection.Zones, zoneName, session.User, PermissionFlag.Delete))
+            if (!_dnsWebService._authManager.IsPermitted(PermissionSection.Zones, zoneName, session.User, PermissionFlag.Delete))
                 throw new DnsWebServiceException("Access was denied.");
 
             string strKeyType = request.QueryString["keyType"];
@@ -1255,7 +1255,7 @@ namespace DnsServerCore
 
                     int keySize = int.Parse(strKeySize);
 
-                    _dnsWebService.DnsServer.AuthZoneManager.GenerateAndAddPrimaryZoneDnssecRsaPrivateKey(zoneName, keyType, hashAlgorithm, keySize, rolloverDays);
+                    _dnsWebService._dnsServer.AuthZoneManager.GenerateAndAddPrimaryZoneDnssecRsaPrivateKey(zoneName, keyType, hashAlgorithm, keySize, rolloverDays);
                     break;
 
                 case "ECDSA":
@@ -1263,16 +1263,16 @@ namespace DnsServerCore
                     if (string.IsNullOrEmpty(curve))
                         throw new DnsWebServiceException("Parameter 'curve' missing.");
 
-                    _dnsWebService.DnsServer.AuthZoneManager.GenerateAndAddPrimaryZoneDnssecEcdsaPrivateKey(zoneName, keyType, curve, rolloverDays);
+                    _dnsWebService._dnsServer.AuthZoneManager.GenerateAndAddPrimaryZoneDnssecEcdsaPrivateKey(zoneName, keyType, curve, rolloverDays);
                     break;
 
                 default:
                     throw new NotSupportedException("Algorithm is not supported: " + algorithm);
             }
 
-            _dnsWebService.Log.Write(DnsWebService.GetRequestRemoteEndPoint(request), "[" + session.User.Username + "] DNSSEC private key was generated and added to the primary zone successfully: " + zoneName);
+            _dnsWebService._log.Write(DnsWebService.GetRequestRemoteEndPoint(request), "[" + session.User.Username + "] DNSSEC private key was generated and added to the primary zone successfully: " + zoneName);
 
-            _dnsWebService.DnsServer.AuthZoneManager.SaveZoneFile(zoneName);
+            _dnsWebService._dnsServer.AuthZoneManager.SaveZoneFile(zoneName);
         }
 
         public void UpdatePrimaryZoneDnssecPrivateKey(HttpListenerRequest request)
@@ -1285,7 +1285,7 @@ namespace DnsServerCore
 
             UserSession session = _dnsWebService.GetSession(request);
 
-            if (!_dnsWebService.AuthManager.IsPermitted(PermissionSection.Zones, zoneName, session.User, PermissionFlag.Delete))
+            if (!_dnsWebService._authManager.IsPermitted(PermissionSection.Zones, zoneName, session.User, PermissionFlag.Delete))
                 throw new DnsWebServiceException("Access was denied.");
 
             string strKeyTag = request.QueryString["keyTag"];
@@ -1300,11 +1300,11 @@ namespace DnsServerCore
 
             ushort rolloverDays = ushort.Parse(strRolloverDays);
 
-            _dnsWebService.DnsServer.AuthZoneManager.UpdatePrimaryZoneDnssecPrivateKey(zoneName, keyTag, rolloverDays);
+            _dnsWebService._dnsServer.AuthZoneManager.UpdatePrimaryZoneDnssecPrivateKey(zoneName, keyTag, rolloverDays);
 
-            _dnsWebService.Log.Write(DnsWebService.GetRequestRemoteEndPoint(request), "[" + session.User.Username + "] Primary zone DNSSEC private key config was updated successfully: " + zoneName);
+            _dnsWebService._log.Write(DnsWebService.GetRequestRemoteEndPoint(request), "[" + session.User.Username + "] Primary zone DNSSEC private key config was updated successfully: " + zoneName);
 
-            _dnsWebService.DnsServer.AuthZoneManager.SaveZoneFile(zoneName);
+            _dnsWebService._dnsServer.AuthZoneManager.SaveZoneFile(zoneName);
         }
 
         public void DeletePrimaryZoneDnssecPrivateKey(HttpListenerRequest request)
@@ -1317,7 +1317,7 @@ namespace DnsServerCore
 
             UserSession session = _dnsWebService.GetSession(request);
 
-            if (!_dnsWebService.AuthManager.IsPermitted(PermissionSection.Zones, zoneName, session.User, PermissionFlag.Delete))
+            if (!_dnsWebService._authManager.IsPermitted(PermissionSection.Zones, zoneName, session.User, PermissionFlag.Delete))
                 throw new DnsWebServiceException("Access was denied.");
 
             string strKeyTag = request.QueryString["keyTag"];
@@ -1326,11 +1326,11 @@ namespace DnsServerCore
 
             ushort keyTag = ushort.Parse(strKeyTag);
 
-            _dnsWebService.DnsServer.AuthZoneManager.DeletePrimaryZoneDnssecPrivateKey(zoneName, keyTag);
+            _dnsWebService._dnsServer.AuthZoneManager.DeletePrimaryZoneDnssecPrivateKey(zoneName, keyTag);
 
-            _dnsWebService.Log.Write(DnsWebService.GetRequestRemoteEndPoint(request), "[" + session.User.Username + "] DNSSEC private key was deleted from primary zone successfully: " + zoneName);
+            _dnsWebService._log.Write(DnsWebService.GetRequestRemoteEndPoint(request), "[" + session.User.Username + "] DNSSEC private key was deleted from primary zone successfully: " + zoneName);
 
-            _dnsWebService.DnsServer.AuthZoneManager.SaveZoneFile(zoneName);
+            _dnsWebService._dnsServer.AuthZoneManager.SaveZoneFile(zoneName);
         }
 
         public void PublishAllGeneratedPrimaryZoneDnssecPrivateKeys(HttpListenerRequest request)
@@ -1343,14 +1343,14 @@ namespace DnsServerCore
 
             UserSession session = _dnsWebService.GetSession(request);
 
-            if (!_dnsWebService.AuthManager.IsPermitted(PermissionSection.Zones, zoneName, session.User, PermissionFlag.Delete))
+            if (!_dnsWebService._authManager.IsPermitted(PermissionSection.Zones, zoneName, session.User, PermissionFlag.Delete))
                 throw new DnsWebServiceException("Access was denied.");
 
-            _dnsWebService.DnsServer.AuthZoneManager.PublishAllGeneratedPrimaryZoneDnssecPrivateKeys(zoneName);
+            _dnsWebService._dnsServer.AuthZoneManager.PublishAllGeneratedPrimaryZoneDnssecPrivateKeys(zoneName);
 
-            _dnsWebService.Log.Write(DnsWebService.GetRequestRemoteEndPoint(request), "[" + session.User.Username + "] All DNSSEC private keys from the primary zone were published successfully: " + zoneName);
+            _dnsWebService._log.Write(DnsWebService.GetRequestRemoteEndPoint(request), "[" + session.User.Username + "] All DNSSEC private keys from the primary zone were published successfully: " + zoneName);
 
-            _dnsWebService.DnsServer.AuthZoneManager.SaveZoneFile(zoneName);
+            _dnsWebService._dnsServer.AuthZoneManager.SaveZoneFile(zoneName);
         }
 
         public void RolloverPrimaryZoneDnsKey(HttpListenerRequest request)
@@ -1363,7 +1363,7 @@ namespace DnsServerCore
 
             UserSession session = _dnsWebService.GetSession(request);
 
-            if (!_dnsWebService.AuthManager.IsPermitted(PermissionSection.Zones, zoneName, session.User, PermissionFlag.Delete))
+            if (!_dnsWebService._authManager.IsPermitted(PermissionSection.Zones, zoneName, session.User, PermissionFlag.Delete))
                 throw new DnsWebServiceException("Access was denied.");
 
             string strKeyTag = request.QueryString["keyTag"];
@@ -1372,11 +1372,11 @@ namespace DnsServerCore
 
             ushort keyTag = ushort.Parse(strKeyTag);
 
-            _dnsWebService.DnsServer.AuthZoneManager.RolloverPrimaryZoneDnsKey(zoneName, keyTag);
+            _dnsWebService._dnsServer.AuthZoneManager.RolloverPrimaryZoneDnsKey(zoneName, keyTag);
 
-            _dnsWebService.Log.Write(DnsWebService.GetRequestRemoteEndPoint(request), "[" + session.User.Username + "] The DNSKEY (" + keyTag + ") from the primary zone was rolled over successfully: " + zoneName);
+            _dnsWebService._log.Write(DnsWebService.GetRequestRemoteEndPoint(request), "[" + session.User.Username + "] The DNSKEY (" + keyTag + ") from the primary zone was rolled over successfully: " + zoneName);
 
-            _dnsWebService.DnsServer.AuthZoneManager.SaveZoneFile(zoneName);
+            _dnsWebService._dnsServer.AuthZoneManager.SaveZoneFile(zoneName);
         }
 
         public void RetirePrimaryZoneDnsKey(HttpListenerRequest request)
@@ -1389,7 +1389,7 @@ namespace DnsServerCore
 
             UserSession session = _dnsWebService.GetSession(request);
 
-            if (!_dnsWebService.AuthManager.IsPermitted(PermissionSection.Zones, zoneName, session.User, PermissionFlag.Delete))
+            if (!_dnsWebService._authManager.IsPermitted(PermissionSection.Zones, zoneName, session.User, PermissionFlag.Delete))
                 throw new DnsWebServiceException("Access was denied.");
 
             string strKeyTag = request.QueryString["keyTag"];
@@ -1398,11 +1398,11 @@ namespace DnsServerCore
 
             ushort keyTag = ushort.Parse(strKeyTag);
 
-            _dnsWebService.DnsServer.AuthZoneManager.RetirePrimaryZoneDnsKey(zoneName, keyTag);
+            _dnsWebService._dnsServer.AuthZoneManager.RetirePrimaryZoneDnsKey(zoneName, keyTag);
 
-            _dnsWebService.Log.Write(DnsWebService.GetRequestRemoteEndPoint(request), "[" + session.User.Username + "] The DNSKEY (" + keyTag + ") from the primary zone was retired successfully: " + zoneName);
+            _dnsWebService._log.Write(DnsWebService.GetRequestRemoteEndPoint(request), "[" + session.User.Username + "] The DNSKEY (" + keyTag + ") from the primary zone was retired successfully: " + zoneName);
 
-            _dnsWebService.DnsServer.AuthZoneManager.SaveZoneFile(zoneName);
+            _dnsWebService._dnsServer.AuthZoneManager.SaveZoneFile(zoneName);
         }
 
         public void DeleteZone(HttpListenerRequest request)
@@ -1416,7 +1416,7 @@ namespace DnsServerCore
 
             zoneName = zoneName.TrimEnd('.');
 
-            AuthZoneInfo zoneInfo = _dnsWebService.DnsServer.AuthZoneManager.GetAuthZoneInfo(zoneName);
+            AuthZoneInfo zoneInfo = _dnsWebService._dnsServer.AuthZoneManager.GetAuthZoneInfo(zoneName);
             if (zoneInfo is null)
                 throw new DnsWebServiceException("No such zone was found: " + zoneName);
 
@@ -1425,17 +1425,17 @@ namespace DnsServerCore
 
             UserSession session = _dnsWebService.GetSession(request);
 
-            if (!_dnsWebService.AuthManager.IsPermitted(PermissionSection.Zones, zoneInfo.Name, session.User, PermissionFlag.Delete))
+            if (!_dnsWebService._authManager.IsPermitted(PermissionSection.Zones, zoneInfo.Name, session.User, PermissionFlag.Delete))
                 throw new DnsWebServiceException("Access was denied.");
 
-            if (!_dnsWebService.DnsServer.AuthZoneManager.DeleteZone(zoneInfo.Name))
+            if (!_dnsWebService._dnsServer.AuthZoneManager.DeleteZone(zoneInfo.Name))
                 throw new DnsWebServiceException("No authoritative zone was not found for domain: " + zoneInfo.Name);
 
-            _dnsWebService.AuthManager.RemoveAllPermissions(PermissionSection.Zones, zoneInfo.Name);
-            _dnsWebService.AuthManager.SaveConfigFile();
+            _dnsWebService._authManager.RemoveAllPermissions(PermissionSection.Zones, zoneInfo.Name);
+            _dnsWebService._authManager.SaveConfigFile();
 
-            _dnsWebService.Log.Write(DnsWebService.GetRequestRemoteEndPoint(request), "[" + session.User.Username + "] " + zoneInfo.Type.ToString() + " zone was deleted: " + zoneName);
-            _dnsWebService.DnsServer.AuthZoneManager.DeleteZoneFile(zoneInfo.Name);
+            _dnsWebService._log.Write(DnsWebService.GetRequestRemoteEndPoint(request), "[" + session.User.Username + "] " + zoneInfo.Type.ToString() + " zone was deleted: " + zoneName);
+            _dnsWebService._dnsServer.AuthZoneManager.DeleteZoneFile(zoneInfo.Name);
         }
 
         public void EnableZone(HttpListenerRequest request)
@@ -1449,7 +1449,7 @@ namespace DnsServerCore
 
             zoneName = zoneName.TrimEnd('.');
 
-            AuthZoneInfo zoneInfo = _dnsWebService.DnsServer.AuthZoneManager.GetAuthZoneInfo(zoneName);
+            AuthZoneInfo zoneInfo = _dnsWebService._dnsServer.AuthZoneManager.GetAuthZoneInfo(zoneName);
             if (zoneInfo is null)
                 throw new DnsWebServiceException("No authoritative zone was not found for domain: " + zoneName);
 
@@ -1458,17 +1458,17 @@ namespace DnsServerCore
 
             UserSession session = _dnsWebService.GetSession(request);
 
-            if (!_dnsWebService.AuthManager.IsPermitted(PermissionSection.Zones, zoneInfo.Name, session.User, PermissionFlag.Modify))
+            if (!_dnsWebService._authManager.IsPermitted(PermissionSection.Zones, zoneInfo.Name, session.User, PermissionFlag.Modify))
                 throw new DnsWebServiceException("Access was denied.");
 
             zoneInfo.Disabled = false;
 
-            _dnsWebService.Log.Write(DnsWebService.GetRequestRemoteEndPoint(request), "[" + session.User.Username + "] " + zoneInfo.Type.ToString() + " zone was enabled: " + zoneInfo.Name);
+            _dnsWebService._log.Write(DnsWebService.GetRequestRemoteEndPoint(request), "[" + session.User.Username + "] " + zoneInfo.Type.ToString() + " zone was enabled: " + zoneInfo.Name);
 
-            _dnsWebService.DnsServer.AuthZoneManager.SaveZoneFile(zoneInfo.Name);
+            _dnsWebService._dnsServer.AuthZoneManager.SaveZoneFile(zoneInfo.Name);
 
             //delete cache for this zone to allow rebuilding cache data as needed by stub or forwarder zones
-            _dnsWebService.DnsServer.CacheZoneManager.DeleteZone(zoneInfo.Name);
+            _dnsWebService._dnsServer.CacheZoneManager.DeleteZone(zoneInfo.Name);
         }
 
         public void DisableZone(HttpListenerRequest request)
@@ -1482,7 +1482,7 @@ namespace DnsServerCore
 
             zoneName = zoneName.TrimEnd('.');
 
-            AuthZoneInfo zoneInfo = _dnsWebService.DnsServer.AuthZoneManager.GetAuthZoneInfo(zoneName);
+            AuthZoneInfo zoneInfo = _dnsWebService._dnsServer.AuthZoneManager.GetAuthZoneInfo(zoneName);
             if (zoneInfo is null)
                 throw new DnsWebServiceException("No authoritative zone was not found for domain: " + zoneName);
 
@@ -1491,14 +1491,14 @@ namespace DnsServerCore
 
             UserSession session = _dnsWebService.GetSession(request);
 
-            if (!_dnsWebService.AuthManager.IsPermitted(PermissionSection.Zones, zoneInfo.Name, session.User, PermissionFlag.Modify))
+            if (!_dnsWebService._authManager.IsPermitted(PermissionSection.Zones, zoneInfo.Name, session.User, PermissionFlag.Modify))
                 throw new DnsWebServiceException("Access was denied.");
 
             zoneInfo.Disabled = true;
 
-            _dnsWebService.Log.Write(DnsWebService.GetRequestRemoteEndPoint(request), "[" + session.User.Username + "] " + zoneInfo.Type.ToString() + " zone was disabled: " + zoneInfo.Name);
+            _dnsWebService._log.Write(DnsWebService.GetRequestRemoteEndPoint(request), "[" + session.User.Username + "] " + zoneInfo.Type.ToString() + " zone was disabled: " + zoneInfo.Name);
 
-            _dnsWebService.DnsServer.AuthZoneManager.SaveZoneFile(zoneInfo.Name);
+            _dnsWebService._dnsServer.AuthZoneManager.SaveZoneFile(zoneInfo.Name);
         }
 
         public void GetZoneOptions(HttpListenerRequest request, Utf8JsonWriter jsonWriter)
@@ -1519,7 +1519,7 @@ namespace DnsServerCore
             else
                 includeAvailableTsigKeyNames = bool.Parse(strIncludeAvailableTsigKeyNames);
 
-            AuthZoneInfo zoneInfo = _dnsWebService.DnsServer.AuthZoneManager.GetAuthZoneInfo(zoneName);
+            AuthZoneInfo zoneInfo = _dnsWebService._dnsServer.AuthZoneManager.GetAuthZoneInfo(zoneName);
             if (zoneInfo is null)
                 throw new DnsWebServiceException("No such zone was found: " + zoneName);
 
@@ -1528,7 +1528,7 @@ namespace DnsServerCore
 
             UserSession session = _dnsWebService.GetSession(request);
 
-            if (!_dnsWebService.AuthManager.IsPermitted(PermissionSection.Zones, zoneInfo.Name, session.User, PermissionFlag.View))
+            if (!_dnsWebService._authManager.IsPermitted(PermissionSection.Zones, zoneInfo.Name, session.User, PermissionFlag.View))
                 throw new DnsWebServiceException("Access was denied.");
 
             jsonWriter.WriteString("name", zoneInfo.Name);
@@ -1655,9 +1655,9 @@ namespace DnsServerCore
                 {
                     jsonWriter.WriteStartArray();
 
-                    if (_dnsWebService.DnsServer.TsigKeys is not null)
+                    if (_dnsWebService._dnsServer.TsigKeys is not null)
                     {
-                        foreach (KeyValuePair<string, TsigKey> tsigKey in _dnsWebService.DnsServer.TsigKeys)
+                        foreach (KeyValuePair<string, TsigKey> tsigKey in _dnsWebService._dnsServer.TsigKeys)
                             jsonWriter.WriteStringValue(tsigKey.Key);
                     }
 
@@ -1677,7 +1677,7 @@ namespace DnsServerCore
 
             zoneName = zoneName.TrimEnd('.');
 
-            AuthZoneInfo zoneInfo = _dnsWebService.DnsServer.AuthZoneManager.GetAuthZoneInfo(zoneName);
+            AuthZoneInfo zoneInfo = _dnsWebService._dnsServer.AuthZoneManager.GetAuthZoneInfo(zoneName);
             if (zoneInfo is null)
                 throw new DnsWebServiceException("No authoritative zone was not found for domain: " + zoneName);
 
@@ -1686,7 +1686,7 @@ namespace DnsServerCore
 
             UserSession session = _dnsWebService.GetSession(request);
 
-            if (!_dnsWebService.AuthManager.IsPermitted(PermissionSection.Zones, zoneInfo.Name, session.User, PermissionFlag.Delete))
+            if (!_dnsWebService._authManager.IsPermitted(PermissionSection.Zones, zoneInfo.Name, session.User, PermissionFlag.Delete))
                 throw new DnsWebServiceException("Access was denied.");
 
             string strDisabled = request.QueryString["disabled"];
@@ -1833,9 +1833,9 @@ namespace DnsServerCore
                     break;
             }
 
-            _dnsWebService.Log.Write(DnsWebService.GetRequestRemoteEndPoint(request), "[" + session.User.Username + "] " + zoneInfo.Type.ToString() + " zone options were updated successfully: " + zoneInfo.Name);
+            _dnsWebService._log.Write(DnsWebService.GetRequestRemoteEndPoint(request), "[" + session.User.Username + "] " + zoneInfo.Type.ToString() + " zone options were updated successfully: " + zoneInfo.Name);
 
-            _dnsWebService.DnsServer.AuthZoneManager.SaveZoneFile(zoneInfo.Name);
+            _dnsWebService._dnsServer.AuthZoneManager.SaveZoneFile(zoneInfo.Name);
         }
 
         public void ResyncZone(HttpListenerRequest request)
@@ -1849,7 +1849,7 @@ namespace DnsServerCore
 
             zoneName = zoneName.TrimEnd('.');
 
-            AuthZoneInfo zoneInfo = _dnsWebService.DnsServer.AuthZoneManager.GetAuthZoneInfo(zoneName);
+            AuthZoneInfo zoneInfo = _dnsWebService._dnsServer.AuthZoneManager.GetAuthZoneInfo(zoneName);
             if (zoneInfo is null)
                 throw new DnsWebServiceException("No authoritative zone was not found for domain: " + zoneName);
 
@@ -1858,7 +1858,7 @@ namespace DnsServerCore
 
             UserSession session = _dnsWebService.GetSession(request);
 
-            if (!_dnsWebService.AuthManager.IsPermitted(PermissionSection.Zones, zoneInfo.Name, session.User, PermissionFlag.Modify))
+            if (!_dnsWebService._authManager.IsPermitted(PermissionSection.Zones, zoneInfo.Name, session.User, PermissionFlag.Modify))
                 throw new DnsWebServiceException("Access was denied.");
 
             switch (zoneInfo.Type)
@@ -1885,7 +1885,7 @@ namespace DnsServerCore
             if (zoneName is not null)
                 zoneName = zoneName.TrimEnd('.');
 
-            AuthZoneInfo zoneInfo = _dnsWebService.DnsServer.AuthZoneManager.FindAuthZoneInfo(string.IsNullOrEmpty(zoneName) ? domain : zoneName);
+            AuthZoneInfo zoneInfo = _dnsWebService._dnsServer.AuthZoneManager.FindAuthZoneInfo(string.IsNullOrEmpty(zoneName) ? domain : zoneName);
             if (zoneInfo is null)
                 throw new DnsWebServiceException("No authoritative zone was not found for domain: " + domain);
 
@@ -1894,7 +1894,7 @@ namespace DnsServerCore
 
             UserSession session = _dnsWebService.GetSession(request);
 
-            if (!_dnsWebService.AuthManager.IsPermitted(PermissionSection.Zones, zoneInfo.Name, session.User, PermissionFlag.Modify))
+            if (!_dnsWebService._authManager.IsPermitted(PermissionSection.Zones, zoneInfo.Name, session.User, PermissionFlag.Modify))
                 throw new DnsWebServiceException("Access was denied.");
 
             string strType = request.QueryString["type"];
@@ -1951,7 +1951,7 @@ namespace DnsServerCore
                         {
                             string ptrDomain = Zone.GetReverseZone(ipAddress, type == DnsResourceRecordType.A ? 32 : 128);
 
-                            AuthZoneInfo reverseZoneInfo = _dnsWebService.DnsServer.AuthZoneManager.FindAuthZoneInfo(ptrDomain);
+                            AuthZoneInfo reverseZoneInfo = _dnsWebService._dnsServer.AuthZoneManager.FindAuthZoneInfo(ptrDomain);
                             if (reverseZoneInfo is null)
                             {
                                 bool createPtrZone = false;
@@ -1964,15 +1964,15 @@ namespace DnsServerCore
 
                                 string ptrZone = Zone.GetReverseZone(ipAddress, type == DnsResourceRecordType.A ? 24 : 64);
 
-                                reverseZoneInfo = _dnsWebService.DnsServer.AuthZoneManager.CreatePrimaryZone(ptrZone, _dnsWebService.DnsServer.ServerDomain, false);
+                                reverseZoneInfo = _dnsWebService._dnsServer.AuthZoneManager.CreatePrimaryZone(ptrZone, _dnsWebService._dnsServer.ServerDomain, false);
                                 if (reverseZoneInfo == null)
                                     throw new DnsServerException("Failed to create reverse zone to add PTR record: " + ptrZone);
 
                                 //set permissions
-                                _dnsWebService.AuthManager.SetPermission(PermissionSection.Zones, reverseZoneInfo.Name, session.User, PermissionFlag.ViewModifyDelete);
-                                _dnsWebService.AuthManager.SetPermission(PermissionSection.Zones, reverseZoneInfo.Name, _dnsWebService.AuthManager.GetGroup(Group.ADMINISTRATORS), PermissionFlag.ViewModifyDelete);
-                                _dnsWebService.AuthManager.SetPermission(PermissionSection.Zones, reverseZoneInfo.Name, _dnsWebService.AuthManager.GetGroup(Group.DNS_ADMINISTRATORS), PermissionFlag.ViewModifyDelete);
-                                _dnsWebService.AuthManager.SaveConfigFile();
+                                _dnsWebService._authManager.SetPermission(PermissionSection.Zones, reverseZoneInfo.Name, session.User, PermissionFlag.ViewModifyDelete);
+                                _dnsWebService._authManager.SetPermission(PermissionSection.Zones, reverseZoneInfo.Name, _dnsWebService._authManager.GetGroup(Group.ADMINISTRATORS), PermissionFlag.ViewModifyDelete);
+                                _dnsWebService._authManager.SetPermission(PermissionSection.Zones, reverseZoneInfo.Name, _dnsWebService._authManager.GetGroup(Group.DNS_ADMINISTRATORS), PermissionFlag.ViewModifyDelete);
+                                _dnsWebService._authManager.SaveConfigFile();
                             }
 
                             if (reverseZoneInfo.Internal)
@@ -1981,8 +1981,8 @@ namespace DnsServerCore
                             if (reverseZoneInfo.Type != AuthZoneType.Primary)
                                 throw new DnsServerException("Reverse zone '" + reverseZoneInfo.Name + "' is not a primary zone.");
 
-                            _dnsWebService.DnsServer.AuthZoneManager.SetRecords(reverseZoneInfo.Name, ptrDomain, DnsResourceRecordType.PTR, ttl, new DnsPTRRecordData[] { new DnsPTRRecordData(domain) });
-                            _dnsWebService.DnsServer.AuthZoneManager.SaveZoneFile(reverseZoneInfo.Name);
+                            _dnsWebService._dnsServer.AuthZoneManager.SetRecords(reverseZoneInfo.Name, ptrDomain, DnsResourceRecordType.PTR, ttl, new DnsPTRRecordData[] { new DnsPTRRecordData(domain) });
+                            _dnsWebService._dnsServer.AuthZoneManager.SaveZoneFile(reverseZoneInfo.Name);
                         }
 
                         if (type == DnsResourceRecordType.A)
@@ -1994,9 +1994,9 @@ namespace DnsServerCore
                             newRecord.SetComments(comments);
 
                         if (overwrite)
-                            _dnsWebService.DnsServer.AuthZoneManager.SetRecord(zoneInfo.Name, newRecord);
+                            _dnsWebService._dnsServer.AuthZoneManager.SetRecord(zoneInfo.Name, newRecord);
                         else
-                            _dnsWebService.DnsServer.AuthZoneManager.AddRecord(zoneInfo.Name, newRecord);
+                            _dnsWebService._dnsServer.AuthZoneManager.AddRecord(zoneInfo.Name, newRecord);
                     }
                     break;
 
@@ -2024,9 +2024,9 @@ namespace DnsServerCore
                             newRecord.SetComments(comments);
 
                         if (overwrite)
-                            _dnsWebService.DnsServer.AuthZoneManager.SetRecord(zoneInfo.Name, newRecord);
+                            _dnsWebService._dnsServer.AuthZoneManager.SetRecord(zoneInfo.Name, newRecord);
                         else
-                            _dnsWebService.DnsServer.AuthZoneManager.AddRecord(zoneInfo.Name, newRecord);
+                            _dnsWebService._dnsServer.AuthZoneManager.AddRecord(zoneInfo.Name, newRecord);
                     }
                     break;
 
@@ -2034,7 +2034,7 @@ namespace DnsServerCore
                     {
                         if (!overwrite)
                         {
-                            IReadOnlyList<DnsResourceRecord> existingRecords = _dnsWebService.DnsServer.AuthZoneManager.GetRecords(zoneInfo.Name, domain, type);
+                            IReadOnlyList<DnsResourceRecord> existingRecords = _dnsWebService._dnsServer.AuthZoneManager.GetRecords(zoneInfo.Name, domain, type);
                             if (existingRecords.Count > 0)
                                 throw new DnsWebServiceException("Record already exists. Use overwrite option if you wish to overwrite existing records.");
                         }
@@ -2053,7 +2053,7 @@ namespace DnsServerCore
                         if (!string.IsNullOrEmpty(comments))
                             newRecord.SetComments(comments);
 
-                        _dnsWebService.DnsServer.AuthZoneManager.SetRecord(zoneInfo.Name, newRecord);
+                        _dnsWebService._dnsServer.AuthZoneManager.SetRecord(zoneInfo.Name, newRecord);
                     }
                     break;
 
@@ -2074,9 +2074,9 @@ namespace DnsServerCore
                             newRecord.SetComments(comments);
 
                         if (overwrite)
-                            _dnsWebService.DnsServer.AuthZoneManager.SetRecord(zoneInfo.Name, newRecord);
+                            _dnsWebService._dnsServer.AuthZoneManager.SetRecord(zoneInfo.Name, newRecord);
                         else
-                            _dnsWebService.DnsServer.AuthZoneManager.AddRecord(zoneInfo.Name, newRecord);
+                            _dnsWebService._dnsServer.AuthZoneManager.AddRecord(zoneInfo.Name, newRecord);
                     }
                     break;
 
@@ -2101,9 +2101,9 @@ namespace DnsServerCore
                             newRecord.SetComments(comments);
 
                         if (overwrite)
-                            _dnsWebService.DnsServer.AuthZoneManager.SetRecord(zoneInfo.Name, newRecord);
+                            _dnsWebService._dnsServer.AuthZoneManager.SetRecord(zoneInfo.Name, newRecord);
                         else
-                            _dnsWebService.DnsServer.AuthZoneManager.AddRecord(zoneInfo.Name, newRecord);
+                            _dnsWebService._dnsServer.AuthZoneManager.AddRecord(zoneInfo.Name, newRecord);
                     }
                     break;
 
@@ -2124,9 +2124,9 @@ namespace DnsServerCore
                             newRecord.SetComments(comments);
 
                         if (overwrite)
-                            _dnsWebService.DnsServer.AuthZoneManager.SetRecord(zoneInfo.Name, newRecord);
+                            _dnsWebService._dnsServer.AuthZoneManager.SetRecord(zoneInfo.Name, newRecord);
                         else
-                            _dnsWebService.DnsServer.AuthZoneManager.AddRecord(zoneInfo.Name, newRecord);
+                            _dnsWebService._dnsServer.AuthZoneManager.AddRecord(zoneInfo.Name, newRecord);
                     }
                     break;
 
@@ -2159,9 +2159,9 @@ namespace DnsServerCore
                             newRecord.SetComments(comments);
 
                         if (overwrite)
-                            _dnsWebService.DnsServer.AuthZoneManager.SetRecord(zoneInfo.Name, newRecord);
+                            _dnsWebService._dnsServer.AuthZoneManager.SetRecord(zoneInfo.Name, newRecord);
                         else
-                            _dnsWebService.DnsServer.AuthZoneManager.AddRecord(zoneInfo.Name, newRecord);
+                            _dnsWebService._dnsServer.AuthZoneManager.AddRecord(zoneInfo.Name, newRecord);
                     }
                     break;
 
@@ -2169,7 +2169,7 @@ namespace DnsServerCore
                     {
                         if (!overwrite)
                         {
-                            IReadOnlyList<DnsResourceRecord> existingRecords = _dnsWebService.DnsServer.AuthZoneManager.GetRecords(zoneInfo.Name, domain, type);
+                            IReadOnlyList<DnsResourceRecord> existingRecords = _dnsWebService._dnsServer.AuthZoneManager.GetRecords(zoneInfo.Name, domain, type);
                             if (existingRecords.Count > 0)
                                 throw new DnsWebServiceException("Record already exists. Use overwrite option if you wish to overwrite existing records.");
                         }
@@ -2188,7 +2188,7 @@ namespace DnsServerCore
                         if (!string.IsNullOrEmpty(comments))
                             newRecord.SetComments(comments);
 
-                        _dnsWebService.DnsServer.AuthZoneManager.SetRecord(zoneInfo.Name, newRecord);
+                        _dnsWebService._dnsServer.AuthZoneManager.SetRecord(zoneInfo.Name, newRecord);
                     }
                     break;
 
@@ -2221,9 +2221,9 @@ namespace DnsServerCore
                             newRecord.SetComments(comments);
 
                         if (overwrite)
-                            _dnsWebService.DnsServer.AuthZoneManager.SetRecord(zoneInfo.Name, newRecord);
+                            _dnsWebService._dnsServer.AuthZoneManager.SetRecord(zoneInfo.Name, newRecord);
                         else
-                            _dnsWebService.DnsServer.AuthZoneManager.AddRecord(zoneInfo.Name, newRecord);
+                            _dnsWebService._dnsServer.AuthZoneManager.AddRecord(zoneInfo.Name, newRecord);
                     }
                     break;
 
@@ -2247,9 +2247,9 @@ namespace DnsServerCore
                             newRecord.SetComments(comments);
 
                         if (overwrite)
-                            _dnsWebService.DnsServer.AuthZoneManager.SetRecord(zoneInfo.Name, newRecord);
+                            _dnsWebService._dnsServer.AuthZoneManager.SetRecord(zoneInfo.Name, newRecord);
                         else
-                            _dnsWebService.DnsServer.AuthZoneManager.AddRecord(zoneInfo.Name, newRecord);
+                            _dnsWebService._dnsServer.AuthZoneManager.AddRecord(zoneInfo.Name, newRecord);
                     }
                     break;
 
@@ -2277,9 +2277,9 @@ namespace DnsServerCore
                             newRecord.SetComments(comments);
 
                         if (overwrite)
-                            _dnsWebService.DnsServer.AuthZoneManager.SetRecord(zoneInfo.Name, newRecord);
+                            _dnsWebService._dnsServer.AuthZoneManager.SetRecord(zoneInfo.Name, newRecord);
                         else
-                            _dnsWebService.DnsServer.AuthZoneManager.AddRecord(zoneInfo.Name, newRecord);
+                            _dnsWebService._dnsServer.AuthZoneManager.AddRecord(zoneInfo.Name, newRecord);
                     }
                     break;
 
@@ -2302,9 +2302,9 @@ namespace DnsServerCore
                             newRecord.SetComments(comments);
 
                         if (overwrite)
-                            _dnsWebService.DnsServer.AuthZoneManager.SetRecord(zoneInfo.Name, newRecord);
+                            _dnsWebService._dnsServer.AuthZoneManager.SetRecord(zoneInfo.Name, newRecord);
                         else
-                            _dnsWebService.DnsServer.AuthZoneManager.AddRecord(zoneInfo.Name, newRecord);
+                            _dnsWebService._dnsServer.AuthZoneManager.AddRecord(zoneInfo.Name, newRecord);
                     }
                     break;
 
@@ -2325,9 +2325,9 @@ namespace DnsServerCore
                             newRecord.SetComments(comments);
 
                         if (overwrite)
-                            _dnsWebService.DnsServer.AuthZoneManager.SetRecord(zoneInfo.Name, newRecord);
+                            _dnsWebService._dnsServer.AuthZoneManager.SetRecord(zoneInfo.Name, newRecord);
                         else
-                            _dnsWebService.DnsServer.AuthZoneManager.AddRecord(zoneInfo.Name, newRecord);
+                            _dnsWebService._dnsServer.AuthZoneManager.AddRecord(zoneInfo.Name, newRecord);
                     }
                     break;
 
@@ -2386,9 +2386,9 @@ namespace DnsServerCore
                             newRecord.SetComments(comments);
 
                         if (overwrite)
-                            _dnsWebService.DnsServer.AuthZoneManager.SetRecord(zoneInfo.Name, newRecord);
+                            _dnsWebService._dnsServer.AuthZoneManager.SetRecord(zoneInfo.Name, newRecord);
                         else
-                            _dnsWebService.DnsServer.AuthZoneManager.AddRecord(zoneInfo.Name, newRecord);
+                            _dnsWebService._dnsServer.AuthZoneManager.AddRecord(zoneInfo.Name, newRecord);
                     }
                     break;
 
@@ -2413,7 +2413,7 @@ namespace DnsServerCore
 
                         if (!overwrite)
                         {
-                            IReadOnlyList<DnsResourceRecord> existingRecords = _dnsWebService.DnsServer.AuthZoneManager.GetRecords(zoneInfo.Name, domain, type);
+                            IReadOnlyList<DnsResourceRecord> existingRecords = _dnsWebService._dnsServer.AuthZoneManager.GetRecords(zoneInfo.Name, domain, type);
                             if (existingRecords.Count > 0)
                                 throw new DnsWebServiceException("Record already exists. Use overwrite option if you wish to overwrite existing records.");
                         }
@@ -2423,7 +2423,7 @@ namespace DnsServerCore
                         if (!string.IsNullOrEmpty(comments))
                             newRecord.SetComments(comments);
 
-                        _dnsWebService.DnsServer.AuthZoneManager.SetRecord(zoneInfo.Name, newRecord);
+                        _dnsWebService._dnsServer.AuthZoneManager.SetRecord(zoneInfo.Name, newRecord);
                     }
                     break;
 
@@ -2431,9 +2431,9 @@ namespace DnsServerCore
                     throw new DnsWebServiceException("Type not supported for AddRecords().");
             }
 
-            _dnsWebService.Log.Write(DnsWebService.GetRequestRemoteEndPoint(request), "[" + session.User.Username + "] New record was added to authoritative zone {domain: " + domain + "; type: " + type + "; value: " + value + "; ttl: " + ttl + ";}");
+            _dnsWebService._log.Write(DnsWebService.GetRequestRemoteEndPoint(request), "[" + session.User.Username + "] New record was added to authoritative zone {domain: " + domain + "; type: " + type + "; value: " + value + "; ttl: " + ttl + ";}");
 
-            _dnsWebService.DnsServer.AuthZoneManager.SaveZoneFile(zoneInfo.Name);
+            _dnsWebService._dnsServer.AuthZoneManager.SaveZoneFile(zoneInfo.Name);
 
             jsonWriter.WritePropertyName("zone");
             WriteZoneInfoAsJson(zoneInfo, jsonWriter);
@@ -2450,20 +2450,20 @@ namespace DnsServerCore
 
             domain = domain.TrimEnd('.');
 
-            AuthZoneInfo zoneInfo = _dnsWebService.DnsServer.AuthZoneManager.FindAuthZoneInfo(domain);
+            AuthZoneInfo zoneInfo = _dnsWebService._dnsServer.AuthZoneManager.FindAuthZoneInfo(domain);
             if (zoneInfo is null)
                 throw new DnsWebServiceException("No authoritative zone was not found for domain: " + domain);
 
             UserSession session = _dnsWebService.GetSession(request);
 
-            if (!_dnsWebService.AuthManager.IsPermitted(PermissionSection.Zones, zoneInfo.Name, session.User, PermissionFlag.View))
+            if (!_dnsWebService._authManager.IsPermitted(PermissionSection.Zones, zoneInfo.Name, session.User, PermissionFlag.View))
                 throw new DnsWebServiceException("Access was denied.");
 
             jsonWriter.WritePropertyName("zone");
             WriteZoneInfoAsJson(zoneInfo, jsonWriter);
 
             List<DnsResourceRecord> records = new List<DnsResourceRecord>();
-            _dnsWebService.DnsServer.AuthZoneManager.ListAllRecords(domain, records);
+            _dnsWebService._dnsServer.AuthZoneManager.ListAllRecords(domain, records);
 
             WriteRecordsAsJson(records, jsonWriter, true, zoneInfo);
         }
@@ -2480,7 +2480,7 @@ namespace DnsServerCore
             if (zoneName is not null)
                 zoneName = zoneName.TrimEnd('.');
 
-            AuthZoneInfo zoneInfo = _dnsWebService.DnsServer.AuthZoneManager.FindAuthZoneInfo(string.IsNullOrEmpty(zoneName) ? domain : zoneName);
+            AuthZoneInfo zoneInfo = _dnsWebService._dnsServer.AuthZoneManager.FindAuthZoneInfo(string.IsNullOrEmpty(zoneName) ? domain : zoneName);
             if (zoneInfo is null)
                 throw new DnsWebServiceException("No authoritative zone was not found for domain: " + domain);
 
@@ -2489,7 +2489,7 @@ namespace DnsServerCore
 
             UserSession session = _dnsWebService.GetSession(request);
 
-            if (!_dnsWebService.AuthManager.IsPermitted(PermissionSection.Zones, zoneInfo.Name, session.User, PermissionFlag.Delete))
+            if (!_dnsWebService._authManager.IsPermitted(PermissionSection.Zones, zoneInfo.Name, session.User, PermissionFlag.Delete))
                 throw new DnsWebServiceException("Access was denied.");
 
             string strType = request.QueryString["type"];
@@ -2517,15 +2517,15 @@ namespace DnsServerCore
                         IPAddress ipAddress = IPAddress.Parse(strIPAddress);
 
                         if (type == DnsResourceRecordType.A)
-                            _dnsWebService.DnsServer.AuthZoneManager.DeleteRecord(zoneInfo.Name, domain, type, new DnsARecordData(ipAddress));
+                            _dnsWebService._dnsServer.AuthZoneManager.DeleteRecord(zoneInfo.Name, domain, type, new DnsARecordData(ipAddress));
                         else
-                            _dnsWebService.DnsServer.AuthZoneManager.DeleteRecord(zoneInfo.Name, domain, type, new DnsAAAARecordData(ipAddress));
+                            _dnsWebService._dnsServer.AuthZoneManager.DeleteRecord(zoneInfo.Name, domain, type, new DnsAAAARecordData(ipAddress));
 
                         string ptrDomain = Zone.GetReverseZone(ipAddress, type == DnsResourceRecordType.A ? 32 : 128);
-                        AuthZoneInfo reverseZoneInfo = _dnsWebService.DnsServer.AuthZoneManager.FindAuthZoneInfo(ptrDomain);
+                        AuthZoneInfo reverseZoneInfo = _dnsWebService._dnsServer.AuthZoneManager.FindAuthZoneInfo(ptrDomain);
                         if ((reverseZoneInfo != null) && !reverseZoneInfo.Internal && (reverseZoneInfo.Type == AuthZoneType.Primary))
                         {
-                            IReadOnlyList<DnsResourceRecord> ptrRecords = _dnsWebService.DnsServer.AuthZoneManager.GetRecords(reverseZoneInfo.Name, ptrDomain, DnsResourceRecordType.PTR);
+                            IReadOnlyList<DnsResourceRecord> ptrRecords = _dnsWebService._dnsServer.AuthZoneManager.GetRecords(reverseZoneInfo.Name, ptrDomain, DnsResourceRecordType.PTR);
                             if (ptrRecords.Count > 0)
                             {
                                 foreach (DnsResourceRecord ptrRecord in ptrRecords)
@@ -2533,8 +2533,8 @@ namespace DnsServerCore
                                     if ((ptrRecord.RDATA as DnsPTRRecordData).Domain.Equals(domain, StringComparison.OrdinalIgnoreCase))
                                     {
                                         //delete PTR record and save reverse zone
-                                        _dnsWebService.DnsServer.AuthZoneManager.DeleteRecord(reverseZoneInfo.Name, ptrDomain, DnsResourceRecordType.PTR, ptrRecord.RDATA);
-                                        _dnsWebService.DnsServer.AuthZoneManager.SaveZoneFile(reverseZoneInfo.Name);
+                                        _dnsWebService._dnsServer.AuthZoneManager.DeleteRecord(reverseZoneInfo.Name, ptrDomain, DnsResourceRecordType.PTR, ptrRecord.RDATA);
+                                        _dnsWebService._dnsServer.AuthZoneManager.SaveZoneFile(reverseZoneInfo.Name);
                                         break;
                                     }
                                 }
@@ -2554,12 +2554,12 @@ namespace DnsServerCore
                             nameServer = value;
                         }
 
-                        _dnsWebService.DnsServer.AuthZoneManager.DeleteRecord(zoneInfo.Name, domain, type, new DnsNSRecordData(nameServer));
+                        _dnsWebService._dnsServer.AuthZoneManager.DeleteRecord(zoneInfo.Name, domain, type, new DnsNSRecordData(nameServer));
                     }
                     break;
 
                 case DnsResourceRecordType.CNAME:
-                    _dnsWebService.DnsServer.AuthZoneManager.DeleteRecords(zoneInfo.Name, domain, type);
+                    _dnsWebService._dnsServer.AuthZoneManager.DeleteRecords(zoneInfo.Name, domain, type);
                     break;
 
                 case DnsResourceRecordType.PTR:
@@ -2573,7 +2573,7 @@ namespace DnsServerCore
                             ptrName = value;
                         }
 
-                        _dnsWebService.DnsServer.AuthZoneManager.DeleteRecord(zoneInfo.Name, domain, type, new DnsPTRRecordData(ptrName));
+                        _dnsWebService._dnsServer.AuthZoneManager.DeleteRecord(zoneInfo.Name, domain, type, new DnsPTRRecordData(ptrName));
                     }
                     break;
 
@@ -2592,7 +2592,7 @@ namespace DnsServerCore
                             exchange = value;
                         }
 
-                        _dnsWebService.DnsServer.AuthZoneManager.DeleteRecord(zoneInfo.Name, domain, type, new DnsMXRecordData(ushort.Parse(preference), exchange));
+                        _dnsWebService._dnsServer.AuthZoneManager.DeleteRecord(zoneInfo.Name, domain, type, new DnsMXRecordData(ushort.Parse(preference), exchange));
                     }
                     break;
 
@@ -2607,7 +2607,7 @@ namespace DnsServerCore
                             text = value;
                         }
 
-                        _dnsWebService.DnsServer.AuthZoneManager.DeleteRecord(zoneInfo.Name, domain, type, new DnsTXTRecordData(text));
+                        _dnsWebService._dnsServer.AuthZoneManager.DeleteRecord(zoneInfo.Name, domain, type, new DnsTXTRecordData(text));
                     }
                     break;
 
@@ -2634,12 +2634,12 @@ namespace DnsServerCore
                             target = value;
                         }
 
-                        _dnsWebService.DnsServer.AuthZoneManager.DeleteRecord(zoneInfo.Name, domain, type, new DnsSRVRecordData(ushort.Parse(priority), ushort.Parse(weight), ushort.Parse(port), target));
+                        _dnsWebService._dnsServer.AuthZoneManager.DeleteRecord(zoneInfo.Name, domain, type, new DnsSRVRecordData(ushort.Parse(priority), ushort.Parse(weight), ushort.Parse(port), target));
                     }
                     break;
 
                 case DnsResourceRecordType.DNAME:
-                    _dnsWebService.DnsServer.AuthZoneManager.DeleteRecords(zoneInfo.Name, domain, type);
+                    _dnsWebService._dnsServer.AuthZoneManager.DeleteRecords(zoneInfo.Name, domain, type);
                     break;
 
                 case DnsResourceRecordType.DS:
@@ -2665,7 +2665,7 @@ namespace DnsServerCore
                             digest = value;
                         }
 
-                        _dnsWebService.DnsServer.AuthZoneManager.DeleteRecord(zoneInfo.Name, domain, type, new DnsDSRecordData(ushort.Parse(strKeyTag), Enum.Parse<DnssecAlgorithm>(strAlgorithm.Replace('-', '_'), true), Enum.Parse<DnssecDigestType>(strDigestType.Replace('-', '_'), true), Convert.FromHexString(digest)));
+                        _dnsWebService._dnsServer.AuthZoneManager.DeleteRecord(zoneInfo.Name, domain, type, new DnsDSRecordData(ushort.Parse(strKeyTag), Enum.Parse<DnssecAlgorithm>(strAlgorithm.Replace('-', '_'), true), Enum.Parse<DnssecDigestType>(strDigestType.Replace('-', '_'), true), Convert.FromHexString(digest)));
                     }
                     break;
 
@@ -2683,7 +2683,7 @@ namespace DnsServerCore
                         if (string.IsNullOrEmpty(strFingerprint))
                             throw new DnsWebServiceException("Parameter 'sshfpFingerprint' missing.");
 
-                        _dnsWebService.DnsServer.AuthZoneManager.DeleteRecord(zoneInfo.Name, domain, type, new DnsSSHFPRecordData(Enum.Parse<DnsSSHFPAlgorithm>(strAlgorithm, true), Enum.Parse<DnsSSHFPFingerprintType>(strFingerprintType, true), Convert.FromHexString(strFingerprint)));
+                        _dnsWebService._dnsServer.AuthZoneManager.DeleteRecord(zoneInfo.Name, domain, type, new DnsSSHFPRecordData(Enum.Parse<DnsSSHFPAlgorithm>(strAlgorithm, true), Enum.Parse<DnsSSHFPFingerprintType>(strFingerprintType, true), Convert.FromHexString(strFingerprint)));
                     }
                     break;
 
@@ -2705,7 +2705,7 @@ namespace DnsServerCore
                         if (string.IsNullOrEmpty(strCertificateAssociationData))
                             throw new DnsWebServiceException("Parameter 'tlsaCertificateAssociationData' missing.");
 
-                        _dnsWebService.DnsServer.AuthZoneManager.DeleteRecord(zoneInfo.Name, domain, type, new DnsTLSARecordData(Enum.Parse<DnsTLSACertificateUsage>(strCertificateUsage.Replace('-', '_'), true), Enum.Parse<DnsTLSASelector>(strSelector, true), Enum.Parse<DnsTLSAMatchingType>(strMatchingType.Replace('-', '_'), true), strCertificateAssociationData));
+                        _dnsWebService._dnsServer.AuthZoneManager.DeleteRecord(zoneInfo.Name, domain, type, new DnsTLSARecordData(Enum.Parse<DnsTLSACertificateUsage>(strCertificateUsage.Replace('-', '_'), true), Enum.Parse<DnsTLSASelector>(strSelector, true), Enum.Parse<DnsTLSAMatchingType>(strMatchingType.Replace('-', '_'), true), strCertificateAssociationData));
                     }
                     break;
 
@@ -2722,7 +2722,7 @@ namespace DnsServerCore
                         if (string.IsNullOrEmpty(value))
                             throw new DnsWebServiceException("Parameter 'value' missing.");
 
-                        _dnsWebService.DnsServer.AuthZoneManager.DeleteRecord(zoneInfo.Name, domain, type, new DnsCAARecordData(byte.Parse(flags), tag, value));
+                        _dnsWebService._dnsServer.AuthZoneManager.DeleteRecord(zoneInfo.Name, domain, type, new DnsCAARecordData(byte.Parse(flags), tag, value));
                     }
                     break;
 
@@ -2737,7 +2737,7 @@ namespace DnsServerCore
                             aname = value;
                         }
 
-                        _dnsWebService.DnsServer.AuthZoneManager.DeleteRecord(zoneInfo.Name, domain, type, new DnsANAMERecordData(aname));
+                        _dnsWebService._dnsServer.AuthZoneManager.DeleteRecord(zoneInfo.Name, domain, type, new DnsANAMERecordData(aname));
                     }
                     break;
 
@@ -2756,21 +2756,21 @@ namespace DnsServerCore
                             forwarder = value;
                         }
 
-                        _dnsWebService.DnsServer.AuthZoneManager.DeleteRecord(zoneInfo.Name, domain, type, new DnsForwarderRecordData(Enum.Parse<DnsTransportProtocol>(strProtocol, true), forwarder));
+                        _dnsWebService._dnsServer.AuthZoneManager.DeleteRecord(zoneInfo.Name, domain, type, new DnsForwarderRecordData(Enum.Parse<DnsTransportProtocol>(strProtocol, true), forwarder));
                     }
                     break;
 
                 case DnsResourceRecordType.APP:
-                    _dnsWebService.DnsServer.AuthZoneManager.DeleteRecords(zoneInfo.Name, domain, type);
+                    _dnsWebService._dnsServer.AuthZoneManager.DeleteRecords(zoneInfo.Name, domain, type);
                     break;
 
                 default:
                     throw new DnsWebServiceException("Type not supported for DeleteRecord().");
             }
 
-            _dnsWebService.Log.Write(DnsWebService.GetRequestRemoteEndPoint(request), "[" + session.User.Username + "] Record was deleted from authoritative zone {domain: " + domain + "; type: " + type + ";}");
+            _dnsWebService._log.Write(DnsWebService.GetRequestRemoteEndPoint(request), "[" + session.User.Username + "] Record was deleted from authoritative zone {domain: " + domain + "; type: " + type + ";}");
 
-            _dnsWebService.DnsServer.AuthZoneManager.SaveZoneFile(zoneInfo.Name);
+            _dnsWebService._dnsServer.AuthZoneManager.SaveZoneFile(zoneInfo.Name);
         }
 
         public void UpdateRecord(HttpListenerRequest request, Utf8JsonWriter jsonWriter)
@@ -2791,7 +2791,7 @@ namespace DnsServerCore
             if (zoneName is not null)
                 zoneName = zoneName.TrimEnd('.');
 
-            AuthZoneInfo zoneInfo = _dnsWebService.DnsServer.AuthZoneManager.FindAuthZoneInfo(string.IsNullOrEmpty(zoneName) ? domain : zoneName);
+            AuthZoneInfo zoneInfo = _dnsWebService._dnsServer.AuthZoneManager.FindAuthZoneInfo(string.IsNullOrEmpty(zoneName) ? domain : zoneName);
             if (zoneInfo is null)
                 throw new DnsWebServiceException("No authoritative zone was not found for domain: " + domain);
 
@@ -2800,7 +2800,7 @@ namespace DnsServerCore
 
             UserSession session = _dnsWebService.GetSession(request);
 
-            if (!_dnsWebService.AuthManager.IsPermitted(PermissionSection.Zones, zoneInfo.Name, session.User, PermissionFlag.Modify))
+            if (!_dnsWebService._authManager.IsPermitted(PermissionSection.Zones, zoneInfo.Name, session.User, PermissionFlag.Modify))
                 throw new DnsWebServiceException("Access was denied.");
 
             string newDomain = request.QueryString["newDomain"];
@@ -2863,7 +2863,7 @@ namespace DnsServerCore
                         {
                             string ptrDomain = Zone.GetReverseZone(newIpAddress, type == DnsResourceRecordType.A ? 32 : 128);
 
-                            AuthZoneInfo reverseZoneInfo = _dnsWebService.DnsServer.AuthZoneManager.FindAuthZoneInfo(ptrDomain);
+                            AuthZoneInfo reverseZoneInfo = _dnsWebService._dnsServer.AuthZoneManager.FindAuthZoneInfo(ptrDomain);
                             if (reverseZoneInfo == null)
                             {
                                 bool createPtrZone = false;
@@ -2876,15 +2876,15 @@ namespace DnsServerCore
 
                                 string ptrZone = Zone.GetReverseZone(newIpAddress, type == DnsResourceRecordType.A ? 24 : 64);
 
-                                reverseZoneInfo = _dnsWebService.DnsServer.AuthZoneManager.CreatePrimaryZone(ptrZone, _dnsWebService.DnsServer.ServerDomain, false);
+                                reverseZoneInfo = _dnsWebService._dnsServer.AuthZoneManager.CreatePrimaryZone(ptrZone, _dnsWebService._dnsServer.ServerDomain, false);
                                 if (reverseZoneInfo is null)
                                     throw new DnsServerException("Failed to create reverse zone to add PTR record: " + ptrZone);
 
                                 //set permissions
-                                _dnsWebService.AuthManager.SetPermission(PermissionSection.Zones, reverseZoneInfo.Name, session.User, PermissionFlag.ViewModifyDelete);
-                                _dnsWebService.AuthManager.SetPermission(PermissionSection.Zones, reverseZoneInfo.Name, _dnsWebService.AuthManager.GetGroup(Group.ADMINISTRATORS), PermissionFlag.ViewModifyDelete);
-                                _dnsWebService.AuthManager.SetPermission(PermissionSection.Zones, reverseZoneInfo.Name, _dnsWebService.AuthManager.GetGroup(Group.DNS_ADMINISTRATORS), PermissionFlag.ViewModifyDelete);
-                                _dnsWebService.AuthManager.SaveConfigFile();
+                                _dnsWebService._authManager.SetPermission(PermissionSection.Zones, reverseZoneInfo.Name, session.User, PermissionFlag.ViewModifyDelete);
+                                _dnsWebService._authManager.SetPermission(PermissionSection.Zones, reverseZoneInfo.Name, _dnsWebService._authManager.GetGroup(Group.ADMINISTRATORS), PermissionFlag.ViewModifyDelete);
+                                _dnsWebService._authManager.SetPermission(PermissionSection.Zones, reverseZoneInfo.Name, _dnsWebService._authManager.GetGroup(Group.DNS_ADMINISTRATORS), PermissionFlag.ViewModifyDelete);
+                                _dnsWebService._authManager.SaveConfigFile();
                             }
 
                             if (reverseZoneInfo.Internal)
@@ -2895,17 +2895,17 @@ namespace DnsServerCore
 
                             string oldPtrDomain = Zone.GetReverseZone(oldIpAddress, type == DnsResourceRecordType.A ? 32 : 128);
 
-                            AuthZoneInfo oldReverseZoneInfo = _dnsWebService.DnsServer.AuthZoneManager.FindAuthZoneInfo(oldPtrDomain);
+                            AuthZoneInfo oldReverseZoneInfo = _dnsWebService._dnsServer.AuthZoneManager.FindAuthZoneInfo(oldPtrDomain);
                             if ((oldReverseZoneInfo != null) && !oldReverseZoneInfo.Internal && (oldReverseZoneInfo.Type == AuthZoneType.Primary))
                             {
                                 //delete old PTR record if any and save old reverse zone
-                                _dnsWebService.DnsServer.AuthZoneManager.DeleteRecords(oldReverseZoneInfo.Name, oldPtrDomain, DnsResourceRecordType.PTR);
-                                _dnsWebService.DnsServer.AuthZoneManager.SaveZoneFile(oldReverseZoneInfo.Name);
+                                _dnsWebService._dnsServer.AuthZoneManager.DeleteRecords(oldReverseZoneInfo.Name, oldPtrDomain, DnsResourceRecordType.PTR);
+                                _dnsWebService._dnsServer.AuthZoneManager.SaveZoneFile(oldReverseZoneInfo.Name);
                             }
 
                             //add new PTR record and save reverse zone
-                            _dnsWebService.DnsServer.AuthZoneManager.SetRecords(reverseZoneInfo.Name, ptrDomain, DnsResourceRecordType.PTR, ttl, new DnsPTRRecordData[] { new DnsPTRRecordData(domain) });
-                            _dnsWebService.DnsServer.AuthZoneManager.SaveZoneFile(reverseZoneInfo.Name);
+                            _dnsWebService._dnsServer.AuthZoneManager.SetRecords(reverseZoneInfo.Name, ptrDomain, DnsResourceRecordType.PTR, ttl, new DnsPTRRecordData[] { new DnsPTRRecordData(domain) });
+                            _dnsWebService._dnsServer.AuthZoneManager.SaveZoneFile(reverseZoneInfo.Name);
                         }
 
                         DnsResourceRecord oldRecord;
@@ -2927,7 +2927,7 @@ namespace DnsServerCore
                         if (!string.IsNullOrEmpty(comments))
                             newRecord.SetComments(comments);
 
-                        _dnsWebService.DnsServer.AuthZoneManager.UpdateRecord(zoneInfo.Name, oldRecord, newRecord);
+                        _dnsWebService._dnsServer.AuthZoneManager.UpdateRecord(zoneInfo.Name, oldRecord, newRecord);
                     }
                     break;
 
@@ -2964,7 +2964,7 @@ namespace DnsServerCore
                         if (!string.IsNullOrEmpty(glueAddresses))
                             newRecord.SetGlueRecords(glueAddresses);
 
-                        _dnsWebService.DnsServer.AuthZoneManager.UpdateRecord(zoneInfo.Name, oldRecord, newRecord);
+                        _dnsWebService._dnsServer.AuthZoneManager.UpdateRecord(zoneInfo.Name, oldRecord, newRecord);
                     }
                     break;
 
@@ -2988,7 +2988,7 @@ namespace DnsServerCore
                         if (!string.IsNullOrEmpty(comments))
                             newRecord.SetComments(comments);
 
-                        _dnsWebService.DnsServer.AuthZoneManager.UpdateRecord(zoneInfo.Name, oldRecord, newRecord);
+                        _dnsWebService._dnsServer.AuthZoneManager.UpdateRecord(zoneInfo.Name, oldRecord, newRecord);
                     }
                     break;
 
@@ -3053,7 +3053,7 @@ namespace DnsServerCore
                         if (!string.IsNullOrEmpty(comments))
                             newSOARecord.SetComments(comments);
 
-                        _dnsWebService.DnsServer.AuthZoneManager.SetRecord(zoneInfo.Name, newSOARecord);
+                        _dnsWebService._dnsServer.AuthZoneManager.SetRecord(zoneInfo.Name, newSOARecord);
 
                         newRecord = zoneInfo.GetApexRecords(DnsResourceRecordType.SOA)[0];
                     }
@@ -3088,7 +3088,7 @@ namespace DnsServerCore
                         if (!string.IsNullOrEmpty(comments))
                             newRecord.SetComments(comments);
 
-                        _dnsWebService.DnsServer.AuthZoneManager.UpdateRecord(zoneInfo.Name, oldRecord, newRecord);
+                        _dnsWebService._dnsServer.AuthZoneManager.UpdateRecord(zoneInfo.Name, oldRecord, newRecord);
                     }
                     break;
 
@@ -3129,7 +3129,7 @@ namespace DnsServerCore
                         if (!string.IsNullOrEmpty(comments))
                             newRecord.SetComments(comments);
 
-                        _dnsWebService.DnsServer.AuthZoneManager.UpdateRecord(zoneInfo.Name, oldRecord, newRecord);
+                        _dnsWebService._dnsServer.AuthZoneManager.UpdateRecord(zoneInfo.Name, oldRecord, newRecord);
                     }
                     break;
 
@@ -3162,7 +3162,7 @@ namespace DnsServerCore
                         if (!string.IsNullOrEmpty(comments))
                             newRecord.SetComments(comments);
 
-                        _dnsWebService.DnsServer.AuthZoneManager.UpdateRecord(zoneInfo.Name, oldRecord, newRecord);
+                        _dnsWebService._dnsServer.AuthZoneManager.UpdateRecord(zoneInfo.Name, oldRecord, newRecord);
                     }
                     break;
 
@@ -3219,7 +3219,7 @@ namespace DnsServerCore
                         if (!string.IsNullOrEmpty(comments))
                             newRecord.SetComments(comments);
 
-                        _dnsWebService.DnsServer.AuthZoneManager.UpdateRecord(zoneInfo.Name, oldRecord, newRecord);
+                        _dnsWebService._dnsServer.AuthZoneManager.UpdateRecord(zoneInfo.Name, oldRecord, newRecord);
                     }
                     break;
 
@@ -3243,7 +3243,7 @@ namespace DnsServerCore
                         if (!string.IsNullOrEmpty(comments))
                             newRecord.SetComments(comments);
 
-                        _dnsWebService.DnsServer.AuthZoneManager.UpdateRecord(zoneInfo.Name, oldRecord, newRecord);
+                        _dnsWebService._dnsServer.AuthZoneManager.UpdateRecord(zoneInfo.Name, oldRecord, newRecord);
                     }
                     break;
 
@@ -3300,7 +3300,7 @@ namespace DnsServerCore
                         if (!string.IsNullOrEmpty(comments))
                             newRecord.SetComments(comments);
 
-                        _dnsWebService.DnsServer.AuthZoneManager.UpdateRecord(zoneInfo.Name, oldRecord, newRecord);
+                        _dnsWebService._dnsServer.AuthZoneManager.UpdateRecord(zoneInfo.Name, oldRecord, newRecord);
                     }
                     break;
 
@@ -3339,7 +3339,7 @@ namespace DnsServerCore
                         if (!string.IsNullOrEmpty(comments))
                             newRecord.SetComments(comments);
 
-                        _dnsWebService.DnsServer.AuthZoneManager.UpdateRecord(zoneInfo.Name, oldRecord, newRecord);
+                        _dnsWebService._dnsServer.AuthZoneManager.UpdateRecord(zoneInfo.Name, oldRecord, newRecord);
                     }
                     break;
 
@@ -3386,7 +3386,7 @@ namespace DnsServerCore
                         if (!string.IsNullOrEmpty(comments))
                             newRecord.SetComments(comments);
 
-                        _dnsWebService.DnsServer.AuthZoneManager.UpdateRecord(zoneInfo.Name, oldRecord, newRecord);
+                        _dnsWebService._dnsServer.AuthZoneManager.UpdateRecord(zoneInfo.Name, oldRecord, newRecord);
                     }
                     break;
 
@@ -3423,7 +3423,7 @@ namespace DnsServerCore
                         if (!string.IsNullOrEmpty(comments))
                             newRecord.SetComments(comments);
 
-                        _dnsWebService.DnsServer.AuthZoneManager.UpdateRecord(zoneInfo.Name, oldRecord, newRecord);
+                        _dnsWebService._dnsServer.AuthZoneManager.UpdateRecord(zoneInfo.Name, oldRecord, newRecord);
                     }
                     break;
 
@@ -3456,7 +3456,7 @@ namespace DnsServerCore
                         if (!string.IsNullOrEmpty(comments))
                             newRecord.SetComments(comments);
 
-                        _dnsWebService.DnsServer.AuthZoneManager.UpdateRecord(zoneInfo.Name, oldRecord, newRecord);
+                        _dnsWebService._dnsServer.AuthZoneManager.UpdateRecord(zoneInfo.Name, oldRecord, newRecord);
                     }
                     break;
 
@@ -3532,7 +3532,7 @@ namespace DnsServerCore
                         if (!string.IsNullOrEmpty(comments))
                             newRecord.SetComments(comments);
 
-                        _dnsWebService.DnsServer.AuthZoneManager.UpdateRecord(zoneInfo.Name, oldRecord, newRecord);
+                        _dnsWebService._dnsServer.AuthZoneManager.UpdateRecord(zoneInfo.Name, oldRecord, newRecord);
                     }
                     break;
 
@@ -3564,7 +3564,7 @@ namespace DnsServerCore
                         if (!string.IsNullOrEmpty(comments))
                             newRecord.SetComments(comments);
 
-                        _dnsWebService.DnsServer.AuthZoneManager.UpdateRecord(zoneInfo.Name, oldRecord, newRecord);
+                        _dnsWebService._dnsServer.AuthZoneManager.UpdateRecord(zoneInfo.Name, oldRecord, newRecord);
                     }
                     break;
 
@@ -3572,9 +3572,9 @@ namespace DnsServerCore
                     throw new DnsWebServiceException("Type not supported for UpdateRecords().");
             }
 
-            _dnsWebService.Log.Write(DnsWebService.GetRequestRemoteEndPoint(request), "[" + session.User.Username + "] Record was updated for authoritative zone {oldDomain: " + domain + "; domain: " + newDomain + "; type: " + type + "; oldValue: " + value + "; value: " + newValue + "; ttl: " + ttl + "; disabled: " + disable + ";}");
+            _dnsWebService._log.Write(DnsWebService.GetRequestRemoteEndPoint(request), "[" + session.User.Username + "] Record was updated for authoritative zone {oldDomain: " + domain + "; domain: " + newDomain + "; type: " + type + "; oldValue: " + value + "; value: " + newValue + "; ttl: " + ttl + "; disabled: " + disable + ";}");
 
-            _dnsWebService.DnsServer.AuthZoneManager.SaveZoneFile(zoneInfo.Name);
+            _dnsWebService._dnsServer.AuthZoneManager.SaveZoneFile(zoneInfo.Name);
 
             jsonWriter.WritePropertyName("zone");
             WriteZoneInfoAsJson(zoneInfo, jsonWriter);

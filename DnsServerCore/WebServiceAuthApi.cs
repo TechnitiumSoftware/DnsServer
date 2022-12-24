@@ -66,8 +66,8 @@ namespace DnsServerCore
                 jsonWriter.WriteStartObject();
 
                 jsonWriter.WriteString("version", _dnsWebService.GetServerVersion());
-                jsonWriter.WriteString("dnsServerDomain", _dnsWebService.DnsServer.ServerDomain);
-                jsonWriter.WriteNumber("defaultRecordTtl", _dnsWebService.ZonesApi.DefaultRecordTtl);
+                jsonWriter.WriteString("dnsServerDomain", _dnsWebService._dnsServer.ServerDomain);
+                jsonWriter.WriteNumber("defaultRecordTtl", _dnsWebService._zonesApi.DefaultRecordTtl);
 
                 jsonWriter.WritePropertyName("permissions");
                 jsonWriter.WriteStartObject();
@@ -79,9 +79,9 @@ namespace DnsServerCore
                     jsonWriter.WritePropertyName(section.ToString());
                     jsonWriter.WriteStartObject();
 
-                    jsonWriter.WriteBoolean("canView", _dnsWebService.AuthManager.IsPermitted(section, currentSession.User, PermissionFlag.View));
-                    jsonWriter.WriteBoolean("canModify", _dnsWebService.AuthManager.IsPermitted(section, currentSession.User, PermissionFlag.Modify));
-                    jsonWriter.WriteBoolean("canDelete", _dnsWebService.AuthManager.IsPermitted(section, currentSession.User, PermissionFlag.Delete));
+                    jsonWriter.WriteBoolean("canView", _dnsWebService._authManager.IsPermitted(section, currentSession.User, PermissionFlag.View));
+                    jsonWriter.WriteBoolean("canModify", _dnsWebService._authManager.IsPermitted(section, currentSession.User, PermissionFlag.Modify));
+                    jsonWriter.WriteBoolean("canDelete", _dnsWebService._authManager.IsPermitted(section, currentSession.User, PermissionFlag.Delete));
 
                     jsonWriter.WriteEndObject();
                 }
@@ -125,7 +125,7 @@ namespace DnsServerCore
                 jsonWriter.WritePropertyName("sessions");
                 jsonWriter.WriteStartArray();
 
-                List<UserSession> sessions = _dnsWebService.AuthManager.GetSessions(user);
+                List<UserSession> sessions = _dnsWebService._authManager.GetSessions(user);
                 sessions.Sort();
 
                 foreach (UserSession session in sessions)
@@ -136,7 +136,7 @@ namespace DnsServerCore
 
             if (includeGroups)
             {
-                List<Group> groups = new List<Group>(_dnsWebService.AuthManager.Groups);
+                List<Group> groups = new List<Group>(_dnsWebService._authManager.Groups);
                 groups.Sort();
 
                 jsonWriter.WritePropertyName("groups");
@@ -180,7 +180,7 @@ namespace DnsServerCore
                 jsonWriter.WritePropertyName("members");
                 jsonWriter.WriteStartArray();
 
-                List<User> members = _dnsWebService.AuthManager.GetGroupMembers(group);
+                List<User> members = _dnsWebService._authManager.GetGroupMembers(group);
                 members.Sort();
 
                 foreach (User user in members)
@@ -191,7 +191,7 @@ namespace DnsServerCore
 
             if (includeUsers)
             {
-                List<User> users = new List<User>(_dnsWebService.AuthManager.Users);
+                List<User> users = new List<User>(_dnsWebService._authManager.Users);
                 users.Sort();
 
                 jsonWriter.WritePropertyName("users");
@@ -261,10 +261,10 @@ namespace DnsServerCore
 
             if (includeUsersAndGroups)
             {
-                List<User> users = new List<User>(_dnsWebService.AuthManager.Users);
+                List<User> users = new List<User>(_dnsWebService._authManager.Users);
                 users.Sort();
 
-                List<Group> groups = new List<Group>(_dnsWebService.AuthManager.Groups);
+                List<Group> groups = new List<Group>(_dnsWebService._authManager.Groups);
                 groups.Sort();
 
                 jsonWriter.WritePropertyName("users");
@@ -317,11 +317,11 @@ namespace DnsServerCore
 
             IPEndPoint remoteEP = DnsWebService.GetRequestRemoteEndPoint(request);
 
-            UserSession session = await _dnsWebService.AuthManager.CreateSessionAsync(sessionType, strTokenName, strUsername, strPassword, remoteEP.Address, request.UserAgent);
+            UserSession session = await _dnsWebService._authManager.CreateSessionAsync(sessionType, strTokenName, strUsername, strPassword, remoteEP.Address, request.UserAgent);
 
-            _dnsWebService.Log.Write(remoteEP, "[" + session.User.Username + "] User logged in.");
+            _dnsWebService._log.Write(remoteEP, "[" + session.User.Username + "] User logged in.");
 
-            _dnsWebService.AuthManager.SaveConfigFile();
+            _dnsWebService._authManager.SaveConfigFile();
 
             WriteCurrentSessionDetails(jsonWriter, session, includeInfo);
         }
@@ -332,12 +332,12 @@ namespace DnsServerCore
             if (string.IsNullOrEmpty(strToken))
                 throw new DnsWebServiceException("Parameter 'token' missing.");
 
-            UserSession session = _dnsWebService.AuthManager.DeleteSession(strToken);
+            UserSession session = _dnsWebService._authManager.DeleteSession(strToken);
             if (session is not null)
             {
-                _dnsWebService.Log.Write(DnsWebService.GetRequestRemoteEndPoint(request), "[" + session.User.Username + "] User logged out.");
+                _dnsWebService._log.Write(DnsWebService.GetRequestRemoteEndPoint(request), "[" + session.User.Username + "] User logged out.");
 
-                _dnsWebService.AuthManager.SaveConfigFile();
+                _dnsWebService._authManager.SaveConfigFile();
             }
         }
 
@@ -362,9 +362,9 @@ namespace DnsServerCore
 
             session.User.ChangePassword(strPassword);
 
-            _dnsWebService.Log.Write(DnsWebService.GetRequestRemoteEndPoint(request), "[" + session.User.Username + "] Password was changed successfully.");
+            _dnsWebService._log.Write(DnsWebService.GetRequestRemoteEndPoint(request), "[" + session.User.Username + "] Password was changed successfully.");
 
-            _dnsWebService.AuthManager.SaveConfigFile();
+            _dnsWebService._authManager.SaveConfigFile();
         }
 
         public void GetProfile(HttpListenerRequest request, Utf8JsonWriter jsonWriter)
@@ -389,9 +389,9 @@ namespace DnsServerCore
             if (!string.IsNullOrEmpty(strSessionTimeoutSeconds))
                 session.User.SessionTimeoutSeconds = int.Parse(strSessionTimeoutSeconds);
 
-            _dnsWebService.Log.Write(DnsWebService.GetRequestRemoteEndPoint(request), "[" + session.User.Username + "] User profile was updated successfully.");
+            _dnsWebService._log.Write(DnsWebService.GetRequestRemoteEndPoint(request), "[" + session.User.Username + "] User profile was updated successfully.");
 
-            _dnsWebService.AuthManager.SaveConfigFile();
+            _dnsWebService._authManager.SaveConfigFile();
 
             WriteUserDetails(jsonWriter, session.User, session, true, false);
         }
@@ -403,7 +403,7 @@ namespace DnsServerCore
             jsonWriter.WritePropertyName("sessions");
             jsonWriter.WriteStartArray();
 
-            List<UserSession> sessions = new List<UserSession>(_dnsWebService.AuthManager.Sessions);
+            List<UserSession> sessions = new List<UserSession>(_dnsWebService._authManager.Sessions);
             sessions.Sort();
 
             foreach (UserSession activeSession in sessions)
@@ -427,11 +427,11 @@ namespace DnsServerCore
 
             IPEndPoint remoteEP = DnsWebService.GetRequestRemoteEndPoint(request);
 
-            UserSession session = _dnsWebService.AuthManager.CreateApiToken(strTokenName, strUsername, remoteEP.Address, request.UserAgent);
+            UserSession session = _dnsWebService._authManager.CreateApiToken(strTokenName, strUsername, remoteEP.Address, request.UserAgent);
 
-            _dnsWebService.Log.Write(remoteEP, "[" + session.User.Username + "] API token [" + strTokenName + "] was created successfully for user: " + strUsername);
+            _dnsWebService._log.Write(remoteEP, "[" + session.User.Username + "] API token [" + strTokenName + "] was created successfully for user: " + strUsername);
 
-            _dnsWebService.AuthManager.SaveConfigFile();
+            _dnsWebService._authManager.SaveConfigFile();
 
             jsonWriter.WriteString("username", session.User.Username);
             jsonWriter.WriteString("tokenName", session.TokenName);
@@ -451,7 +451,7 @@ namespace DnsServerCore
 
             string token = null;
 
-            foreach (UserSession activeSession in _dnsWebService.AuthManager.Sessions)
+            foreach (UserSession activeSession in _dnsWebService._authManager.Sessions)
             {
                 if (activeSession.Token.StartsWith(strPartialToken))
                 {
@@ -465,21 +465,21 @@ namespace DnsServerCore
 
             if (!isAdminContext)
             {
-                UserSession sessionToDelete = _dnsWebService.AuthManager.GetSession(token);
+                UserSession sessionToDelete = _dnsWebService._authManager.GetSession(token);
                 if (sessionToDelete.User != session.User)
                     throw new DnsWebServiceException("Access was denied.");
             }
 
-            UserSession deletedSession = _dnsWebService.AuthManager.DeleteSession(token);
+            UserSession deletedSession = _dnsWebService._authManager.DeleteSession(token);
 
-            _dnsWebService.Log.Write(DnsWebService.GetRequestRemoteEndPoint(request), "[" + session.User.Username + "] User session [" + strPartialToken + "] was deleted successfully for user: " + deletedSession.User.Username);
+            _dnsWebService._log.Write(DnsWebService.GetRequestRemoteEndPoint(request), "[" + session.User.Username + "] User session [" + strPartialToken + "] was deleted successfully for user: " + deletedSession.User.Username);
 
-            _dnsWebService.AuthManager.SaveConfigFile();
+            _dnsWebService._authManager.SaveConfigFile();
         }
 
         public void ListUsers(Utf8JsonWriter jsonWriter)
         {
-            List<User> users = new List<User>(_dnsWebService.AuthManager.Users);
+            List<User> users = new List<User>(_dnsWebService._authManager.Users);
             users.Sort();
 
             jsonWriter.WritePropertyName("users");
@@ -509,13 +509,13 @@ namespace DnsServerCore
             if (string.IsNullOrEmpty(strPassword))
                 throw new DnsWebServiceException("Parameter 'pass' missing.");
 
-            User user = _dnsWebService.AuthManager.CreateUser(strDisplayName, strUsername, strPassword);
+            User user = _dnsWebService._authManager.CreateUser(strDisplayName, strUsername, strPassword);
 
             UserSession session = _dnsWebService.GetSession(request);
 
-            _dnsWebService.Log.Write(DnsWebService.GetRequestRemoteEndPoint(request), "[" + session.User.Username + "] User account was created successfully with username: " + user.Username);
+            _dnsWebService._log.Write(DnsWebService.GetRequestRemoteEndPoint(request), "[" + session.User.Username + "] User account was created successfully with username: " + user.Username);
 
-            _dnsWebService.AuthManager.SaveConfigFile();
+            _dnsWebService._authManager.SaveConfigFile();
 
             WriteUserDetails(jsonWriter, user, null, false, false);
         }
@@ -533,7 +533,7 @@ namespace DnsServerCore
             else
                 includeGroups = bool.Parse(strIncludeGroups);
 
-            User user = _dnsWebService.AuthManager.GetUser(strUsername);
+            User user = _dnsWebService._authManager.GetUser(strUsername);
             if (user is null)
                 throw new DnsWebServiceException("No such user exists: " + strUsername);
 
@@ -546,7 +546,7 @@ namespace DnsServerCore
             if (string.IsNullOrEmpty(strUsername))
                 throw new DnsWebServiceException("Parameter 'user' missing.");
 
-            User user = _dnsWebService.AuthManager.GetUser(strUsername);
+            User user = _dnsWebService._authManager.GetUser(strUsername);
             if (user is null)
                 throw new DnsWebServiceException("No such user exists: " + strUsername);
 
@@ -556,7 +556,7 @@ namespace DnsServerCore
 
             string strNewUsername = request.QueryString["newUser"];
             if (!string.IsNullOrEmpty(strNewUsername))
-                _dnsWebService.AuthManager.ChangeUsername(user, strNewUsername);
+                _dnsWebService._authManager.ChangeUsername(user, strNewUsername);
 
             UserSession session = _dnsWebService.GetSession(request);
 
@@ -567,13 +567,13 @@ namespace DnsServerCore
 
                 if (user.Disabled)
                 {
-                    foreach (UserSession userSession in _dnsWebService.AuthManager.Sessions)
+                    foreach (UserSession userSession in _dnsWebService._authManager.Sessions)
                     {
                         if (userSession.Type == UserSessionType.ApiToken)
                             continue;
 
                         if (userSession.User == user)
-                            _dnsWebService.AuthManager.DeleteSession(userSession.Token);
+                            _dnsWebService._authManager.DeleteSession(userSession.Token);
                     }
                 }
             }
@@ -606,7 +606,7 @@ namespace DnsServerCore
                     if (part.Length == 0)
                         continue;
 
-                    Group group = _dnsWebService.AuthManager.GetGroup(part);
+                    Group group = _dnsWebService._authManager.GetGroup(part);
                     if (group is null)
                         throw new DnsWebServiceException("No such group exists: " + part);
 
@@ -614,22 +614,22 @@ namespace DnsServerCore
                 }
 
                 //ensure user is member of everyone group
-                Group everyone = _dnsWebService.AuthManager.GetGroup(Group.EVERYONE);
+                Group everyone = _dnsWebService._authManager.GetGroup(Group.EVERYONE);
                 groups[everyone.Name.ToLower()] = everyone;
 
                 if (session.User == user)
                 {
                     //ensure current admin user is member of administrators group to avoid self lockout
-                    Group admins = _dnsWebService.AuthManager.GetGroup(Group.ADMINISTRATORS);
+                    Group admins = _dnsWebService._authManager.GetGroup(Group.ADMINISTRATORS);
                     groups[admins.Name.ToLower()] = admins;
                 }
 
                 user.SyncGroups(groups);
             }
 
-            _dnsWebService.Log.Write(DnsWebService.GetRequestRemoteEndPoint(request), "[" + session.User.Username + "] User account details were updated successfully for user: " + strUsername);
+            _dnsWebService._log.Write(DnsWebService.GetRequestRemoteEndPoint(request), "[" + session.User.Username + "] User account details were updated successfully for user: " + strUsername);
 
-            _dnsWebService.AuthManager.SaveConfigFile();
+            _dnsWebService._authManager.SaveConfigFile();
 
             WriteUserDetails(jsonWriter, user, null, true, false);
         }
@@ -645,17 +645,17 @@ namespace DnsServerCore
             if (session.User.Username.Equals(strUsername, StringComparison.OrdinalIgnoreCase))
                 throw new InvalidOperationException("Invalid operation: cannot delete current user.");
 
-            if (!_dnsWebService.AuthManager.DeleteUser(strUsername))
+            if (!_dnsWebService._authManager.DeleteUser(strUsername))
                 throw new DnsWebServiceException("Failed to delete user: " + strUsername);
 
-            _dnsWebService.Log.Write(DnsWebService.GetRequestRemoteEndPoint(request), "[" + session.User.Username + "] User account was deleted successfully with username: " + strUsername);
+            _dnsWebService._log.Write(DnsWebService.GetRequestRemoteEndPoint(request), "[" + session.User.Username + "] User account was deleted successfully with username: " + strUsername);
 
-            _dnsWebService.AuthManager.SaveConfigFile();
+            _dnsWebService._authManager.SaveConfigFile();
         }
 
         public void ListGroups(Utf8JsonWriter jsonWriter)
         {
-            List<Group> groups = new List<Group>(_dnsWebService.AuthManager.Groups);
+            List<Group> groups = new List<Group>(_dnsWebService._authManager.Groups);
             groups.Sort();
 
             jsonWriter.WritePropertyName("groups");
@@ -686,13 +686,13 @@ namespace DnsServerCore
             if (string.IsNullOrEmpty(strDescription))
                 strDescription = "";
 
-            Group group = _dnsWebService.AuthManager.CreateGroup(strGroup, strDescription);
+            Group group = _dnsWebService._authManager.CreateGroup(strGroup, strDescription);
 
             UserSession session = _dnsWebService.GetSession(request);
 
-            _dnsWebService.Log.Write(DnsWebService.GetRequestRemoteEndPoint(request), "[" + session.User.Username + "] Group was created successfully with name: " + group.Name);
+            _dnsWebService._log.Write(DnsWebService.GetRequestRemoteEndPoint(request), "[" + session.User.Username + "] Group was created successfully with name: " + group.Name);
 
-            _dnsWebService.AuthManager.SaveConfigFile();
+            _dnsWebService._authManager.SaveConfigFile();
 
             WriteGroupDetails(jsonWriter, group, false, false);
         }
@@ -710,7 +710,7 @@ namespace DnsServerCore
             else
                 includeUsers = bool.Parse(strIncludeGroups);
 
-            Group group = _dnsWebService.AuthManager.GetGroup(strGroup);
+            Group group = _dnsWebService._authManager.GetGroup(strGroup);
             if (group is null)
                 throw new DnsWebServiceException("No such group exists: " + strGroup);
 
@@ -723,13 +723,13 @@ namespace DnsServerCore
             if (string.IsNullOrEmpty(strGroup))
                 throw new DnsWebServiceException("Parameter 'group' missing.");
 
-            Group group = _dnsWebService.AuthManager.GetGroup(strGroup);
+            Group group = _dnsWebService._authManager.GetGroup(strGroup);
             if (group is null)
                 throw new DnsWebServiceException("No such group exists: " + strGroup);
 
             string strNewGroup = request.QueryString["newGroup"];
             if (!string.IsNullOrEmpty(strNewGroup))
-                _dnsWebService.AuthManager.RenameGroup(group, strNewGroup);
+                _dnsWebService._authManager.RenameGroup(group, strNewGroup);
 
             string strDescription = request.QueryString["description"];
             if (!string.IsNullOrEmpty(strDescription))
@@ -748,7 +748,7 @@ namespace DnsServerCore
                     if (part.Length == 0)
                         continue;
 
-                    User user = _dnsWebService.AuthManager.GetUser(part);
+                    User user = _dnsWebService._authManager.GetUser(part);
                     if (user is null)
                         throw new DnsWebServiceException("No such user exists: " + part);
 
@@ -758,12 +758,12 @@ namespace DnsServerCore
                 if (group.Name.Equals("administrators", StringComparison.OrdinalIgnoreCase))
                     users[session.User.Username] = session.User; //ensure current admin user is member of administrators group to avoid self lockout
 
-                _dnsWebService.AuthManager.SyncGroupMembers(group, users);
+                _dnsWebService._authManager.SyncGroupMembers(group, users);
             }
 
-            _dnsWebService.Log.Write(DnsWebService.GetRequestRemoteEndPoint(request), "[" + session.User.Username + "] Group details were updated successfully for group: " + strGroup);
+            _dnsWebService._log.Write(DnsWebService.GetRequestRemoteEndPoint(request), "[" + session.User.Username + "] Group details were updated successfully for group: " + strGroup);
 
-            _dnsWebService.AuthManager.SaveConfigFile();
+            _dnsWebService._authManager.SaveConfigFile();
 
             WriteGroupDetails(jsonWriter, group, true, false);
         }
@@ -774,19 +774,19 @@ namespace DnsServerCore
             if (string.IsNullOrEmpty(strGroup))
                 throw new DnsWebServiceException("Parameter 'group' missing.");
 
-            if (!_dnsWebService.AuthManager.DeleteGroup(strGroup))
+            if (!_dnsWebService._authManager.DeleteGroup(strGroup))
                 throw new DnsWebServiceException("Failed to delete group: " + strGroup);
 
             UserSession session = _dnsWebService.GetSession(request);
 
-            _dnsWebService.Log.Write(DnsWebService.GetRequestRemoteEndPoint(request), "[" + session.User.Username + "] Group was deleted successfully with name: " + strGroup);
+            _dnsWebService._log.Write(DnsWebService.GetRequestRemoteEndPoint(request), "[" + session.User.Username + "] Group was deleted successfully with name: " + strGroup);
 
-            _dnsWebService.AuthManager.SaveConfigFile();
+            _dnsWebService._authManager.SaveConfigFile();
         }
 
         public void ListPermissions(Utf8JsonWriter jsonWriter)
         {
-            List<Permission> permissions = new List<Permission>(_dnsWebService.AuthManager.Permissions);
+            List<Permission> permissions = new List<Permission>(_dnsWebService._authManager.Permissions);
             permissions.Sort();
 
             jsonWriter.WritePropertyName("permissions");
@@ -844,16 +844,16 @@ namespace DnsServerCore
             {
                 UserSession session = _dnsWebService.GetSession(request);
 
-                if (!_dnsWebService.AuthManager.IsPermitted(section, strSubItem, session.User, PermissionFlag.View))
+                if (!_dnsWebService._authManager.IsPermitted(section, strSubItem, session.User, PermissionFlag.View))
                     throw new DnsWebServiceException("Access was denied.");
             }
 
             Permission permission;
 
             if (strSubItem is null)
-                permission = _dnsWebService.AuthManager.GetPermission(section);
+                permission = _dnsWebService._authManager.GetPermission(section);
             else
-                permission = _dnsWebService.AuthManager.GetPermission(section, strSubItem);
+                permission = _dnsWebService._authManager.GetPermission(section, strSubItem);
 
             if (permission is null)
                 throw new DnsWebServiceException("No permissions exists for section: " + section.ToString() + (strSubItem is null ? "" : "/" + strSubItem));
@@ -894,16 +894,16 @@ namespace DnsServerCore
 
             if (strSubItem is not null)
             {
-                if (!_dnsWebService.AuthManager.IsPermitted(section, strSubItem, session.User, PermissionFlag.Delete))
+                if (!_dnsWebService._authManager.IsPermitted(section, strSubItem, session.User, PermissionFlag.Delete))
                     throw new DnsWebServiceException("Access was denied.");
             }
 
             Permission permission;
 
             if (strSubItem is null)
-                permission = _dnsWebService.AuthManager.GetPermission(section);
+                permission = _dnsWebService._authManager.GetPermission(section);
             else
-                permission = _dnsWebService.AuthManager.GetPermission(section, strSubItem);
+                permission = _dnsWebService._authManager.GetPermission(section, strSubItem);
 
             if (permission is null)
                 throw new DnsWebServiceException("No permissions exists for section: " + section.ToString() + (strSubItem is null ? "" : "/" + strSubItem));
@@ -919,7 +919,7 @@ namespace DnsServerCore
                     if (parts[i].Length == 0)
                         continue;
 
-                    User user = _dnsWebService.AuthManager.GetUser(parts[i]);
+                    User user = _dnsWebService._authManager.GetUser(parts[i]);
                     bool canView = bool.Parse(parts[i + 1]);
                     bool canModify = bool.Parse(parts[i + 2]);
                     bool canDelete = bool.Parse(parts[i + 3]);
@@ -955,7 +955,7 @@ namespace DnsServerCore
                     if (parts[i].Length == 0)
                         continue;
 
-                    Group group = _dnsWebService.AuthManager.GetGroup(parts[i]);
+                    Group group = _dnsWebService._authManager.GetGroup(parts[i]);
                     bool canView = bool.Parse(parts[i + 1]);
                     bool canModify = bool.Parse(parts[i + 2]);
                     bool canDelete = bool.Parse(parts[i + 3]);
@@ -978,20 +978,20 @@ namespace DnsServerCore
                 }
 
                 //ensure administrators group always has all permissions
-                Group admins = _dnsWebService.AuthManager.GetGroup(Group.ADMINISTRATORS);
+                Group admins = _dnsWebService._authManager.GetGroup(Group.ADMINISTRATORS);
                 groupPermissions[admins] = PermissionFlag.ViewModifyDelete;
 
                 switch (section)
                 {
                     case PermissionSection.Zones:
                         //ensure DNS administrators group always has all permissions
-                        Group dnsAdmins = _dnsWebService.AuthManager.GetGroup(Group.DNS_ADMINISTRATORS);
+                        Group dnsAdmins = _dnsWebService._authManager.GetGroup(Group.DNS_ADMINISTRATORS);
                         groupPermissions[dnsAdmins] = PermissionFlag.ViewModifyDelete;
                         break;
 
                     case PermissionSection.DhcpServer:
                         //ensure DHCP administrators group always has all permissions
-                        Group dhcpAdmins = _dnsWebService.AuthManager.GetGroup(Group.DHCP_ADMINISTRATORS);
+                        Group dhcpAdmins = _dnsWebService._authManager.GetGroup(Group.DHCP_ADMINISTRATORS);
                         groupPermissions[dhcpAdmins] = PermissionFlag.ViewModifyDelete;
                         break;
                 }
@@ -999,9 +999,9 @@ namespace DnsServerCore
                 permission.SyncPermissions(groupPermissions);
             }
 
-            _dnsWebService.Log.Write(DnsWebService.GetRequestRemoteEndPoint(request), "[" + session.User.Username + "] Permissions were updated successfully for section: " + section.ToString() + (string.IsNullOrEmpty(strSubItem) ? "" : "/" + strSubItem));
+            _dnsWebService._log.Write(DnsWebService.GetRequestRemoteEndPoint(request), "[" + session.User.Username + "] Permissions were updated successfully for section: " + section.ToString() + (string.IsNullOrEmpty(strSubItem) ? "" : "/" + strSubItem));
 
-            _dnsWebService.AuthManager.SaveConfigFile();
+            _dnsWebService._authManager.SaveConfigFile();
 
             WritePermissionDetails(jsonWriter, permission, strSubItem, false);
         }

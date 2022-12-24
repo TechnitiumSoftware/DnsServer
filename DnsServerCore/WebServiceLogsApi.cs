@@ -52,7 +52,7 @@ namespace DnsServerCore
 
         public void ListLogs(Utf8JsonWriter jsonWriter)
         {
-            string[] logFiles = _dnsWebService.Log.ListLogFiles();
+            string[] logFiles = _dnsWebService._log.ListLogFiles();
 
             Array.Sort(logFiles);
             Array.Reverse(logFiles);
@@ -86,7 +86,7 @@ namespace DnsServerCore
             else
                 limit = int.Parse(strLimit);
 
-            return _dnsWebService.Log.DownloadLogAsync(request, response, strFileName, limit * 1024 * 1024);
+            return _dnsWebService._log.DownloadLogAsync(request, response, strFileName, limit * 1024 * 1024);
         }
 
         public void DeleteLog(HttpListenerRequest request)
@@ -95,23 +95,23 @@ namespace DnsServerCore
             if (string.IsNullOrEmpty(log))
                 throw new DnsWebServiceException("Parameter 'log' missing.");
 
-            _dnsWebService.Log.DeleteLog(log);
+            _dnsWebService._log.DeleteLog(log);
 
-            _dnsWebService.Log.Write(DnsWebService.GetRequestRemoteEndPoint(request), "[" + _dnsWebService.GetSession(request).User.Username + "] Log file was deleted: " + log);
+            _dnsWebService._log.Write(DnsWebService.GetRequestRemoteEndPoint(request), "[" + _dnsWebService.GetSession(request).User.Username + "] Log file was deleted: " + log);
         }
 
         public void DeleteAllLogs(HttpListenerRequest request)
         {
-            _dnsWebService.Log.DeleteAllLogs();
+            _dnsWebService._log.DeleteAllLogs();
 
-            _dnsWebService.Log.Write(DnsWebService.GetRequestRemoteEndPoint(request), "[" + _dnsWebService.GetSession(request).User.Username + "] All log files were deleted.");
+            _dnsWebService._log.Write(DnsWebService.GetRequestRemoteEndPoint(request), "[" + _dnsWebService.GetSession(request).User.Username + "] All log files were deleted.");
         }
 
         public void DeleteAllStats(HttpListenerRequest request)
         {
-            _dnsWebService.DnsServer.StatsManager.DeleteAllStats();
+            _dnsWebService._dnsServer.StatsManager.DeleteAllStats();
 
-            _dnsWebService.Log.Write(DnsWebService.GetRequestRemoteEndPoint(request), "[" + _dnsWebService.GetSession(request).User.Username + "] All stats files were deleted.");
+            _dnsWebService._log.Write(DnsWebService.GetRequestRemoteEndPoint(request), "[" + _dnsWebService.GetSession(request).User.Username + "] All stats files were deleted.");
         }
 
         public async Task QueryLogsAsync(HttpListenerRequest request, Utf8JsonWriter jsonWriter)
@@ -124,7 +124,7 @@ namespace DnsServerCore
             if (string.IsNullOrEmpty(classPath))
                 throw new DnsWebServiceException("Parameter 'classPath' missing.");
 
-            if (!_dnsWebService.DnsServer.DnsApplicationManager.Applications.TryGetValue(name, out DnsApplication application))
+            if (!_dnsWebService._dnsServer.DnsApplicationManager.Applications.TryGetValue(name, out DnsApplication application))
                 throw new DnsWebServiceException("DNS application was not found: " + name);
 
             if (!application.DnsQueryLoggers.TryGetValue(classPath, out IDnsQueryLogger logger))
