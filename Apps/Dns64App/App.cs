@@ -154,7 +154,7 @@ namespace Dns64
             {
                 DnsResourceRecord soa = response.FindFirstAuthorityRecord();
                 if ((soa is not null) && (soa.Type == DnsResourceRecordType.SOA))
-                    soaTtl = soa.TtlValue;
+                    soaTtl = soa.TTL;
                 else
                     soaTtl = 600;
             }
@@ -182,7 +182,7 @@ namespace Dns64
 
                 IPAddress ipv6Address = ipv4Address.MapToIPv6(dns64Prefix);
 
-                newAnswer.Add(new DnsResourceRecord(answer.Name, DnsResourceRecordType.AAAA, answer.Class, Math.Min(answer.TtlValue, soaTtl), new DnsAAAARecordData(ipv6Address)));
+                newAnswer.Add(new DnsResourceRecord(answer.Name, DnsResourceRecordType.AAAA, answer.Class, Math.Min(answer.TTL, soaTtl), new DnsAAAARecordData(ipv6Address)));
             }
 
             return new DnsDatagram(response.Identifier, true, response.OPCODE, response.AuthoritativeAnswer, response.Truncation, response.RecursionDesired, response.RecursionAvailable, response.AuthenticData, response.CheckingDisabled, newResponse.RCODE, response.Question, newAnswer, newResponse.Authority, newResponse.Additional) { Tag = response.Tag };
