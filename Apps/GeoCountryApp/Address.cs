@@ -19,10 +19,10 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 using DnsServerCore.ApplicationCommon;
 using MaxMind.GeoIP2.Responses;
-using Newtonsoft.Json;
 using System.Collections.Generic;
 using System.Net;
 using System.Net.Sockets;
+using System.Text.Json;
 using System.Threading.Tasks;
 using TechnitiumLibrary;
 using TechnitiumLibrary.Net.Dns;
@@ -82,85 +82,86 @@ namespace GeoCountry
             {
                 case DnsResourceRecordType.A:
                 case DnsResourceRecordType.AAAA:
-                    dynamic jsonAppRecordData = JsonConvert.DeserializeObject(appRecordData);
-                    dynamic jsonCountry = null;
-
-                    bool ecsUsed = false;
-                    EDnsClientSubnetOptionData requestECS = request.GetEDnsClientSubnetOption();
-                    if (requestECS is not null)
+                    using (JsonDocument jsonDocument = JsonDocument.Parse(appRecordData))
                     {
-                        if (_maxMind.DatabaseReader.TryCountry(requestECS.Address, out CountryResponse csResponse))
+                        JsonElement jsonAppRecordData = jsonDocument.RootElement;
+                        JsonElement jsonCountry = default;
+
+                        bool ecsUsed = false;
+                        EDnsClientSubnetOptionData requestECS = request.GetEDnsClientSubnetOption();
+                        if (requestECS is not null)
                         {
-                            ecsUsed = true;
-                            jsonCountry = jsonAppRecordData[csResponse.Country.IsoCode];
-                            if (jsonCountry is null)
-                                jsonCountry = jsonAppRecordData["default"];
+                            if (_maxMind.DatabaseReader.TryCountry(requestECS.Address, out CountryResponse csResponse))
+                            {
+                                ecsUsed = true;
+                                if (!jsonAppRecordData.TryGetProperty(csResponse.Country.IsoCode, out jsonCountry))
+                                    jsonAppRecordData.TryGetProperty("default", out jsonCountry);
+                            }
                         }
-                    }
 
-                    if (jsonCountry is null)
-                    {
-                        if (_maxMind.DatabaseReader.TryCountry(remoteEP.Address, out CountryResponse response))
+                        if (jsonCountry.ValueKind == JsonValueKind.Undefined)
                         {
-                            jsonCountry = jsonAppRecordData[response.Country.IsoCode];
-                            if (jsonCountry is null)
-                                jsonCountry = jsonAppRecordData["default"];
+                            if (_maxMind.DatabaseReader.TryCountry(remoteEP.Address, out CountryResponse response))
+                            {
+                                if (!jsonAppRecordData.TryGetProperty(response.Country.IsoCode, out jsonCountry))
+                                    jsonAppRecordData.TryGetProperty("default", out jsonCountry);
+                            }
+                            else
+                            {
+                                jsonAppRecordData.TryGetProperty("default", out jsonCountry);
+                            }
+
+                            if (jsonCountry.ValueKind == JsonValueKind.Undefined)
+                                return Task.FromResult<DnsDatagram>(null);
+                        }
+
+                        List<DnsResourceRecord> answers = new List<DnsResourceRecord>();
+
+                        switch (question.Type)
+                        {
+                            case DnsResourceRecordType.A:
+                                foreach (JsonElement jsonAddress in jsonCountry.EnumerateArray())
+                                {
+                                    IPAddress address = IPAddress.Parse(jsonAddress.GetString());
+
+                                    if (address.AddressFamily == AddressFamily.InterNetwork)
+                                        answers.Add(new DnsResourceRecord(question.Name, DnsResourceRecordType.A, DnsClass.IN, appRecordTtl, new DnsARecordData(address)));
+                                }
+                                break;
+
+                            case DnsResourceRecordType.AAAA:
+                                foreach (JsonElement jsonAddress in jsonCountry.EnumerateArray())
+                                {
+                                    IPAddress address = IPAddress.Parse(jsonAddress.GetString());
+
+                                    if (address.AddressFamily == AddressFamily.InterNetworkV6)
+                                        answers.Add(new DnsResourceRecord(question.Name, DnsResourceRecordType.AAAA, DnsClass.IN, appRecordTtl, new DnsAAAARecordData(address)));
+                                }
+                                break;
+                        }
+
+                        if (answers.Count == 0)
+                            return Task.FromResult<DnsDatagram>(null);
+
+                        if (answers.Count > 1)
+                            answers.Shuffle();
+
+                        EDnsOption[] options;
+
+                        if (requestECS is null)
+                        {
+                            options = null;
                         }
                         else
                         {
-                            jsonCountry = jsonAppRecordData["default"];
+                            if (ecsUsed)
+                                options = EDnsClientSubnetOptionData.GetEDnsClientSubnetOption(requestECS.SourcePrefixLength, requestECS.SourcePrefixLength, requestECS.Address);
+                            else
+                                options = EDnsClientSubnetOptionData.GetEDnsClientSubnetOption(requestECS.SourcePrefixLength, 0, requestECS.Address);
                         }
+
+                        return Task.FromResult(new DnsDatagram(request.Identifier, true, request.OPCODE, true, false, request.RecursionDesired, isRecursionAllowed, false, false, DnsResponseCode.NoError, request.Question, answers, null, null, _dnsServer.UdpPayloadSize, EDnsHeaderFlags.None, options));
                     }
-
-                    if (jsonCountry is null)
-                        return Task.FromResult<DnsDatagram>(null);
-
-                    List<DnsResourceRecord> answers = new List<DnsResourceRecord>();
-
-                    switch (question.Type)
-                    {
-                        case DnsResourceRecordType.A:
-                            foreach (dynamic jsonAddress in jsonCountry)
-                            {
-                                IPAddress address = IPAddress.Parse(jsonAddress.Value);
-
-                                if (address.AddressFamily == AddressFamily.InterNetwork)
-                                    answers.Add(new DnsResourceRecord(question.Name, DnsResourceRecordType.A, DnsClass.IN, appRecordTtl, new DnsARecordData(address)));
-                            }
-                            break;
-
-                        case DnsResourceRecordType.AAAA:
-                            foreach (dynamic jsonAddress in jsonCountry)
-                            {
-                                IPAddress address = IPAddress.Parse(jsonAddress.Value);
-
-                                if (address.AddressFamily == AddressFamily.InterNetworkV6)
-                                    answers.Add(new DnsResourceRecord(question.Name, DnsResourceRecordType.AAAA, DnsClass.IN, appRecordTtl, new DnsAAAARecordData(address)));
-                            }
-                            break;
-                    }
-
-                    if (answers.Count == 0)
-                        return Task.FromResult<DnsDatagram>(null);
-
-                    if (answers.Count > 1)
-                        answers.Shuffle();
-
-                    EDnsOption[] options;
-
-                    if (requestECS is null)
-                    {
-                        options = null;
-                    }
-                    else
-                    {
-                        if (ecsUsed)
-                            options = EDnsClientSubnetOptionData.GetEDnsClientSubnetOption(requestECS.SourcePrefixLength, requestECS.SourcePrefixLength, requestECS.AddressValue);
-                        else
-                            options = EDnsClientSubnetOptionData.GetEDnsClientSubnetOption(requestECS.SourcePrefixLength, 0, requestECS.AddressValue);
-                    }
-
-                    return Task.FromResult(new DnsDatagram(request.Identifier, true, request.OPCODE, true, false, request.RecursionDesired, isRecursionAllowed, false, false, DnsResponseCode.NoError, request.Question, answers, null, null, _dnsServer.UdpPayloadSize, EDnsHeaderFlags.None, options));
 
                 default:
                     return Task.FromResult<DnsDatagram>(null);
