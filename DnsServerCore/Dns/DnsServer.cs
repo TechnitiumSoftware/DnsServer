@@ -23,7 +23,6 @@ using DnsServerCore.Dns.ResourceRecords;
 using DnsServerCore.Dns.Trees;
 using DnsServerCore.Dns.ZoneManagers;
 using DnsServerCore.Dns.Zones;
-using Newtonsoft.Json;
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
@@ -721,12 +720,6 @@ namespace DnsServerCore.Dns
                                         protocol = DnsTransportProtocol.Https;
                                         break;
                                     }
-                                    else if (acceptType == "application/dns-json")
-                                    {
-                                        protocol = DnsTransportProtocol.HttpsJson;
-                                        dnsProtocol = DnsTransportProtocol.HttpsJson;
-                                        break;
-                                    }
                                 }
                             }
 
@@ -801,51 +794,8 @@ namespace DnsServerCore.Dns
                                     #endregion
                                     break;
 
-                                case DnsTransportProtocol.HttpsJson:
-                                    #region https json format
-                                    {
-                                        string strName = httpRequest.QueryString["name"];
-                                        if (string.IsNullOrEmpty(strName))
-                                            throw new DnsServerException("Missing query string parameter: name");
-
-                                        string strType = httpRequest.QueryString["type"];
-                                        if (string.IsNullOrEmpty(strType))
-                                            strType = "1";
-
-                                        bool dnssecOk;
-                                        string strDO = httpRequest.QueryString["do"];
-                                        if (string.IsNullOrEmpty(strDO))
-                                            dnssecOk = false;
-                                        else
-                                            dnssecOk = bool.Parse(strDO);
-
-                                        dnsRequest = new DnsDatagram(0, false, DnsOpcode.StandardQuery, false, false, true, false, false, false, DnsResponseCode.NoError, new DnsQuestionRecord[] { new DnsQuestionRecord(strName.TrimEnd('.'), (DnsResourceRecordType)int.Parse(strType), DnsClass.IN) }, null, null, null, _udpPayloadSize, dnssecOk ? EDnsHeaderFlags.DNSSEC_OK : EDnsHeaderFlags.None);
-
-                                        DnsDatagram dnsResponse = await PreProcessQueryAsync(dnsRequest, remoteEP, protocol, IsRecursionAllowed(remoteEP));
-                                        if (dnsResponse is null)
-                                            return; //drop request
-
-                                        using (MemoryStream mS = new MemoryStream(512))
-                                        {
-                                            JsonTextWriter jsonWriter = new JsonTextWriter(new StreamWriter(mS));
-                                            dnsResponse.WriteToJson(jsonWriter);
-                                            jsonWriter.Flush();
-
-                                            mS.Position = 0;
-                                            await SendContentAsync(stream, requestConnection, "application/dns-json; charset=utf-8", mS);
-                                        }
-
-                                        LogManager queryLog = _queryLog;
-                                        if (queryLog is not null)
-                                            queryLog.Write(remoteEP, protocol, dnsRequest, dnsResponse);
-
-                                        _stats.QueueUpdate(dnsRequest, remoteEP, protocol, dnsResponse);
-                                    }
-                                    #endregion
-                                    break;
-
                                 default:
-                                    await RedirectAsync(stream, httpRequest.Protocol, requestConnection, "https://" + httpRequest.Headers[HttpRequestHeader.Host]);
+                                    await RedirectAsync(stream, httpRequest.Protocol, requestConnection, (usingHttps ? "https://" : "http://") + httpRequest.Headers[HttpRequestHeader.Host]);
                                     break;
                             }
 
@@ -1117,7 +1067,7 @@ namespace DnsServerCore.Dns
 
             EDnsClientSubnetOptionData requestECS = request.GetEDnsClientSubnetOption(true);
             if ((requestECS is not null) && (request.Question.Count == 1) && CacheZone.IsTypeSupportedForEDnsClientSubnet(request.Question[0].Type))
-                options = EDnsClientSubnetOptionData.GetEDnsClientSubnetOption(requestECS.SourcePrefixLength, 0, requestECS.AddressValue);
+                options = EDnsClientSubnetOptionData.GetEDnsClientSubnetOption(requestECS.SourcePrefixLength, 0, requestECS.Address);
 
             if (response.Additional.Count == 0)
                 return response.Clone(null, null, new DnsResourceRecord[] { DnsDatagramEdns.GetOPTFor(_udpPayloadSize, response.RCODE, 0, request.DnssecOk ? EDnsHeaderFlags.DNSSEC_OK : EDnsHeaderFlags.None, options) });
@@ -1233,12 +1183,18 @@ namespace DnsServerCore.Dns
                 }
             }
 
-            if (!remoteVerified)
-                return new DnsDatagram(request.Identifier, true, DnsOpcode.Notify, false, false, request.RecursionDesired, false, false, false, DnsResponseCode.Refused, request.Question) { Tag = DnsServerResponseType.Authoritative };
-
             LogManager log = _log;
+
+            if (!remoteVerified)
+            {
+                if (log is not null)
+                    log.Write(remoteEP, protocol, "DNS Server refused a NOTIFY request since the request IP address was not recognized by the secondary zone: " + (authZoneInfo.Name == "" ? "<root>" : authZoneInfo.Name));
+
+                return new DnsDatagram(request.Identifier, true, DnsOpcode.Notify, false, false, request.RecursionDesired, false, false, false, DnsResponseCode.Refused, request.Question) { Tag = DnsServerResponseType.Authoritative };
+            }
+
             if (log is not null)
-                log.Write(remoteEP, protocol, "DNS Server received NOTIFY for zone: " + (authZoneInfo.Name == "" ? "<root>" : authZoneInfo.Name));
+                log.Write(remoteEP, protocol, "DNS Server received a NOTIFY request for secondary zone: " + (authZoneInfo.Name == "" ? "<root>" : authZoneInfo.Name));
 
             if ((request.Answer.Count > 0) && (request.Answer[0].Type == DnsResourceRecordType.SOA))
             {
@@ -1269,7 +1225,7 @@ namespace DnsServerCore.Dns
 
             LogManager log = _log;
             if (log is not null)
-                log.Write(remoteEP, protocol, "DNS Server received UPDATE request for zone: " + (authZoneInfo.Name == "" ? "<root>" : authZoneInfo.Name));
+                log.Write(remoteEP, protocol, "DNS Server received a zone UPDATE request for zone: " + (authZoneInfo.Name == "" ? "<root>" : authZoneInfo.Name));
 
             async Task<bool> IsZoneNameServerAllowedAsync()
             {
@@ -1332,7 +1288,7 @@ namespace DnsServerCore.Dns
                 if (!isUpdateAllowed)
                 {
                     if (log is not null)
-                        log.Write(remoteEP, protocol, "DNS Server refused an UPDATE request since the request IP address is not allowed by the zone: " + (authZoneInfo.Name == "" ? "<root>" : authZoneInfo.Name));
+                        log.Write(remoteEP, protocol, "DNS Server refused a zone UPDATE request since the request IP address is not allowed by the zone: " + (authZoneInfo.Name == "" ? "<root>" : authZoneInfo.Name));
 
                     return false;
                 }
@@ -1393,7 +1349,7 @@ namespace DnsServerCore.Dns
 
                             foreach (DnsResourceRecord prRecord in request.Answer)
                             {
-                                if (prRecord.TtlValue != 0)
+                                if (prRecord.TTL != 0)
                                     return new DnsDatagram(request.Identifier, true, DnsOpcode.Update, false, false, request.RecursionDesired, false, false, false, DnsResponseCode.FormatError, request.Question) { Tag = DnsServerResponseType.Authoritative };
 
                                 AuthZoneInfo prAuthZoneInfo = _authZoneManager.FindAuthZoneInfo(prRecord.Name);
@@ -1507,7 +1463,12 @@ namespace DnsServerCore.Dns
 
                         //check for permissions
                         if (!await IsUpdatePermittedAsync())
+                        {
+                            if (log is not null)
+                                log.Write(remoteEP, protocol, "DNS Server refused a zone UPDATE request due to Dynamic Updates Security Policy for zone: " + (authZoneInfo.Name == "" ? "<root>" : authZoneInfo.Name));
+
                             return new DnsDatagram(request.Identifier, true, DnsOpcode.Update, false, false, request.RecursionDesired, false, false, false, DnsResponseCode.Refused, request.Question) { Tag = DnsServerResponseType.Authoritative };
+                        }
 
                         //process update section
                         {
@@ -1532,7 +1493,7 @@ namespace DnsServerCore.Dns
                                 }
                                 else if (uRecord.Class == DnsClass.ANY)
                                 {
-                                    if ((uRecord.TtlValue != 0) || (uRecord.RDATA.RDLENGTH != 0))
+                                    if ((uRecord.TTL != 0) || (uRecord.RDATA.RDLENGTH != 0))
                                         return new DnsDatagram(request.Identifier, true, DnsOpcode.Update, false, false, request.RecursionDesired, false, false, false, DnsResponseCode.FormatError, request.Question) { Tag = DnsServerResponseType.Authoritative };
 
                                     switch (uRecord.Type)
@@ -1546,7 +1507,7 @@ namespace DnsServerCore.Dns
                                 }
                                 else if (uRecord.Class == DnsClass.NONE)
                                 {
-                                    if (uRecord.TtlValue != 0)
+                                    if (uRecord.TTL != 0)
                                         return new DnsDatagram(request.Identifier, true, DnsOpcode.Update, false, false, request.RecursionDesired, false, false, false, DnsResponseCode.FormatError, request.Question) { Tag = DnsServerResponseType.Authoritative };
 
                                     switch (uRecord.Type)
@@ -1747,7 +1708,7 @@ namespace DnsServerCore.Dns
                         _authZoneManager.SaveZoneFile(authZoneInfo.Name);
 
                         if (log is not null)
-                            log.Write(remoteEP, protocol, "DNS Server processes UPDATE request for zone: " + (authZoneInfo.Name == "" ? "<root>" : authZoneInfo.Name));
+                            log.Write(remoteEP, protocol, "DNS Server successfully processed a zone UPDATE request for zone: " + (authZoneInfo.Name == "" ? "<root>" : authZoneInfo.Name));
 
                         //NOERROR
                         return new DnsDatagram(request.Identifier, true, DnsOpcode.Update, false, false, request.RecursionDesired, false, false, false, DnsResponseCode.NoError, request.Question) { Tag = DnsServerResponseType.Authoritative };
@@ -2058,7 +2019,7 @@ namespace DnsServerCore.Dns
                 {
                     AuthZoneInfo zoneInfo = _authZoneManager.FindAuthZoneInfo(appResourceRecord.Name);
 
-                    DnsDatagram appResponse = await appRecordRequestHandler.ProcessRequestAsync(request, remoteEP, protocol, isRecursionAllowed, zoneInfo.Name, appResourceRecord.Name, appResourceRecord.TtlValue, appRecord.Data);
+                    DnsDatagram appResponse = await appRecordRequestHandler.ProcessRequestAsync(request, remoteEP, protocol, isRecursionAllowed, zoneInfo.Name, appResourceRecord.Name, appResourceRecord.TTL, appRecord.Data);
                     if (appResponse is null)
                     {
                         IReadOnlyList<DnsResourceRecord> authority = null;
@@ -2380,10 +2341,10 @@ namespace DnsServerCore.Dns
                             if (answer.Type != questionType)
                                 continue;
 
-                            if (anameRR.TtlValue < answer.TtlValue)
-                                answers.Add(new DnsResourceRecord(anameRR.Name, answer.Type, answer.Class, anameRR.TtlValue, answer.RDATA));
+                            if (anameRR.TTL < answer.TTL)
+                                answers.Add(new DnsResourceRecord(anameRR.Name, answer.Type, answer.Class, anameRR.TTL, answer.RDATA));
                             else
-                                answers.Add(new DnsResourceRecord(anameRR.Name, answer.Type, answer.Class, answer.TtlValue, answer.RDATA));
+                                answers.Add(new DnsResourceRecord(anameRR.Name, answer.Type, answer.Class, answer.TTL, answer.RDATA));
                         }
 
                         return answers;
@@ -2702,7 +2663,7 @@ namespace DnsServerCore.Dns
                 {
                     return new DnsDatagram(request.Identifier, true, DnsOpcode.StandardQuery, false, false, request.RecursionDesired, true, false, false, DnsResponseCode.FormatError, request.Question) { Tag = DnsServerResponseType.Authoritative };
                 }
-                else if ((requestECS.SourcePrefixLength == 0) || NetUtilities.IsPrivateIP(requestECS.AddressValue))
+                else if ((requestECS.SourcePrefixLength == 0) || NetUtilities.IsPrivateIP(requestECS.Address))
                 {
                     //disable ECS option
                     request.ShadowHideEDnsClientSubnetOption();
@@ -2713,12 +2674,12 @@ namespace DnsServerCore.Dns
                     switch (requestECS.Family)
                     {
                         case EDnsClientSubnetAddressFamily.IPv4:
-                            eDnsClientSubnet = new NetworkAddress(requestECS.AddressValue, Math.Min(requestECS.SourcePrefixLength, _eDnsClientSubnetIPv4PrefixLength));
+                            eDnsClientSubnet = new NetworkAddress(requestECS.Address, Math.Min(requestECS.SourcePrefixLength, _eDnsClientSubnetIPv4PrefixLength));
                             request.SetShadowEDnsClientSubnetOption(eDnsClientSubnet);
                             break;
 
                         case EDnsClientSubnetAddressFamily.IPv6:
-                            eDnsClientSubnet = new NetworkAddress(requestECS.AddressValue, Math.Min(requestECS.SourcePrefixLength, _eDnsClientSubnetIPv6PrefixLength));
+                            eDnsClientSubnet = new NetworkAddress(requestECS.Address, Math.Min(requestECS.SourcePrefixLength, _eDnsClientSubnetIPv6PrefixLength));
                             request.SetShadowEDnsClientSubnetOption(eDnsClientSubnet);
                             break;
                     }
@@ -2741,7 +2702,7 @@ namespace DnsServerCore.Dns
                         //inspect response TTL values to decide if prefetch trigger is needed
                         foreach (DnsResourceRecord answer in cacheResponse.Answer)
                         {
-                            if ((answer.OriginalTtlValue >= _cachePrefetchEligibility) && (answer.TtlValue <= _cachePrefetchTrigger))
+                            if ((answer.OriginalTtlValue >= _cachePrefetchEligibility) && (answer.TTL <= _cachePrefetchTrigger))
                             {
                                 //trigger prefetch async
                                 _ = PrefetchCacheAsync(request, remoteEP, conditionalForwarders);
@@ -3417,7 +3378,7 @@ namespace DnsServerCore.Dns
 
                 foreach (DnsResourceRecord answer in response.Answer)
                 {
-                    if ((answer.OriginalTtlValue >= _cachePrefetchEligibility) && (utcNow.AddSeconds(answer.TtlValue) < _cachePrefetchSamplingTimerTriggersOn))
+                    if ((answer.OriginalTtlValue >= _cachePrefetchEligibility) && (utcNow.AddSeconds(answer.TTL) < _cachePrefetchSamplingTimerTriggersOn))
                     {
                         //answer expires before next sampling so add back to the list to allow refreshing it
                         addBackToSampleList = true;
@@ -3454,7 +3415,7 @@ namespace DnsServerCore.Dns
                 //inspect response TTL values to decide if refresh is needed
                 foreach (DnsResourceRecord answer in cacheResponse.Answer)
                 {
-                    if ((answer.OriginalTtlValue >= _cachePrefetchEligibility) && (answer.TtlValue <= trigger))
+                    if ((answer.OriginalTtlValue >= _cachePrefetchEligibility) && (answer.TTL <= trigger))
                         return question; //TTL eligible and less than trigger so refresh question
                 }
 
@@ -3487,7 +3448,7 @@ namespace DnsServerCore.Dns
             //inspect response TTL values to decide if refresh is needed
             foreach (DnsResourceRecord answer in cacheResponse.Answer)
             {
-                if ((answer.OriginalTtlValue >= _cachePrefetchEligibility) && (answer.TtlValue <= trigger))
+                if ((answer.OriginalTtlValue >= _cachePrefetchEligibility) && (answer.TTL <= trigger))
                     return true; //TTL eligible less than trigger so refresh
             }
 
