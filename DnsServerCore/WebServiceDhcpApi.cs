@@ -19,10 +19,10 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 using DnsServerCore.Dhcp;
 using DnsServerCore.Dhcp.Options;
-using Newtonsoft.Json;
 using System;
 using System.Collections.Generic;
 using System.Net;
+using System.Text.Json;
 using System.Threading.Tasks;
 
 namespace DnsServerCore
@@ -46,7 +46,7 @@ namespace DnsServerCore
 
         #region public
 
-        public void ListDhcpLeases(JsonTextWriter jsonWriter)
+        public void ListDhcpLeases(Utf8JsonWriter jsonWriter)
         {
             IReadOnlyDictionary<string, Scope> scopes = _dnsWebService.DhcpServer.Scopes;
 
@@ -77,29 +77,14 @@ namespace DnsServerCore
                 {
                     jsonWriter.WriteStartObject();
 
-                    jsonWriter.WritePropertyName("scope");
-                    jsonWriter.WriteValue(scope.Name);
-
-                    jsonWriter.WritePropertyName("type");
-                    jsonWriter.WriteValue(lease.Type.ToString());
-
-                    jsonWriter.WritePropertyName("hardwareAddress");
-                    jsonWriter.WriteValue(BitConverter.ToString(lease.HardwareAddress));
-
-                    jsonWriter.WritePropertyName("clientIdentifier");
-                    jsonWriter.WriteValue(lease.ClientIdentifier.ToString());
-
-                    jsonWriter.WritePropertyName("address");
-                    jsonWriter.WriteValue(lease.Address.ToString());
-
-                    jsonWriter.WritePropertyName("hostName");
-                    jsonWriter.WriteValue(lease.HostName);
-
-                    jsonWriter.WritePropertyName("leaseObtained");
-                    jsonWriter.WriteValue(lease.LeaseObtained);
-
-                    jsonWriter.WritePropertyName("leaseExpires");
-                    jsonWriter.WriteValue(lease.LeaseExpires);
+                    jsonWriter.WriteString("scope", scope.Name);
+                    jsonWriter.WriteString("type", lease.Type.ToString());
+                    jsonWriter.WriteString("hardwareAddress", BitConverter.ToString(lease.HardwareAddress));
+                    jsonWriter.WriteString("clientIdentifier", lease.ClientIdentifier.ToString());
+                    jsonWriter.WriteString("address", lease.Address.ToString());
+                    jsonWriter.WriteString("hostName", lease.HostName);
+                    jsonWriter.WriteString("leaseObtained", lease.LeaseObtained);
+                    jsonWriter.WriteString("leaseExpires", lease.LeaseExpires);
 
                     jsonWriter.WriteEndObject();
                 }
@@ -108,7 +93,7 @@ namespace DnsServerCore
             jsonWriter.WriteEndArray();
         }
 
-        public void ListDhcpScopes(JsonTextWriter jsonWriter)
+        public void ListDhcpScopes(Utf8JsonWriter jsonWriter)
         {
             IReadOnlyDictionary<string, Scope> scopes = _dnsWebService.DhcpServer.Scopes;
 
@@ -127,32 +112,16 @@ namespace DnsServerCore
             {
                 jsonWriter.WriteStartObject();
 
-                jsonWriter.WritePropertyName("name");
-                jsonWriter.WriteValue(scope.Name);
+                jsonWriter.WriteString("name", scope.Name);
+                jsonWriter.WriteBoolean("enabled", scope.Enabled);
+                jsonWriter.WriteString("startingAddress", scope.StartingAddress.ToString());
+                jsonWriter.WriteString("endingAddress", scope.EndingAddress.ToString());
+                jsonWriter.WriteString("subnetMask", scope.SubnetMask.ToString());
+                jsonWriter.WriteString("networkAddress", scope.NetworkAddress.ToString());
+                jsonWriter.WriteString("broadcastAddress", scope.BroadcastAddress.ToString());
 
-                jsonWriter.WritePropertyName("enabled");
-                jsonWriter.WriteValue(scope.Enabled);
-
-                jsonWriter.WritePropertyName("startingAddress");
-                jsonWriter.WriteValue(scope.StartingAddress.ToString());
-
-                jsonWriter.WritePropertyName("endingAddress");
-                jsonWriter.WriteValue(scope.EndingAddress.ToString());
-
-                jsonWriter.WritePropertyName("subnetMask");
-                jsonWriter.WriteValue(scope.SubnetMask.ToString());
-
-                jsonWriter.WritePropertyName("networkAddress");
-                jsonWriter.WriteValue(scope.NetworkAddress.ToString());
-
-                jsonWriter.WritePropertyName("broadcastAddress");
-                jsonWriter.WriteValue(scope.BroadcastAddress.ToString());
-
-                if (scope.InterfaceAddress != null)
-                {
-                    jsonWriter.WritePropertyName("interfaceAddress");
-                    jsonWriter.WriteValue(scope.InterfaceAddress.ToString());
-                }
+                if (scope.InterfaceAddress is not null)
+                    jsonWriter.WriteString("interfaceAddress", scope.InterfaceAddress.ToString());
 
                 jsonWriter.WriteEndObject();
             }
@@ -160,7 +129,7 @@ namespace DnsServerCore
             jsonWriter.WriteEndArray();
         }
 
-        public void GetDhcpScope(HttpListenerRequest request, JsonTextWriter jsonWriter)
+        public void GetDhcpScope(HttpListenerRequest request, Utf8JsonWriter jsonWriter)
         {
             string scopeName = request.QueryString["name"];
             if (string.IsNullOrEmpty(scopeName))
@@ -170,44 +139,21 @@ namespace DnsServerCore
             if (scope == null)
                 throw new DnsWebServiceException("DHCP scope was not found: " + scopeName);
 
-            jsonWriter.WritePropertyName("name");
-            jsonWriter.WriteValue(scope.Name);
+            jsonWriter.WriteString("name", scope.Name);
+            jsonWriter.WriteString("startingAddress", scope.StartingAddress.ToString());
+            jsonWriter.WriteString("endingAddress", scope.EndingAddress.ToString());
+            jsonWriter.WriteString("subnetMask", scope.SubnetMask.ToString());
+            jsonWriter.WriteNumber("leaseTimeDays", scope.LeaseTimeDays);
+            jsonWriter.WriteNumber("leaseTimeHours", scope.LeaseTimeHours);
+            jsonWriter.WriteNumber("leaseTimeMinutes", scope.LeaseTimeMinutes);
+            jsonWriter.WriteNumber("offerDelayTime", scope.OfferDelayTime);
 
-            jsonWriter.WritePropertyName("startingAddress");
-            jsonWriter.WriteValue(scope.StartingAddress.ToString());
-
-            jsonWriter.WritePropertyName("endingAddress");
-            jsonWriter.WriteValue(scope.EndingAddress.ToString());
-
-            jsonWriter.WritePropertyName("subnetMask");
-            jsonWriter.WriteValue(scope.SubnetMask.ToString());
-
-            jsonWriter.WritePropertyName("leaseTimeDays");
-            jsonWriter.WriteValue(scope.LeaseTimeDays);
-
-            jsonWriter.WritePropertyName("leaseTimeHours");
-            jsonWriter.WriteValue(scope.LeaseTimeHours);
-
-            jsonWriter.WritePropertyName("leaseTimeMinutes");
-            jsonWriter.WriteValue(scope.LeaseTimeMinutes);
-
-            jsonWriter.WritePropertyName("offerDelayTime");
-            jsonWriter.WriteValue(scope.OfferDelayTime);
-
-            jsonWriter.WritePropertyName("pingCheckEnabled");
-            jsonWriter.WriteValue(scope.PingCheckEnabled);
-
-            jsonWriter.WritePropertyName("pingCheckTimeout");
-            jsonWriter.WriteValue(scope.PingCheckTimeout);
-
-            jsonWriter.WritePropertyName("pingCheckRetries");
-            jsonWriter.WriteValue(scope.PingCheckRetries);
+            jsonWriter.WriteBoolean("pingCheckEnabled", scope.PingCheckEnabled);
+            jsonWriter.WriteNumber("pingCheckTimeout", scope.PingCheckTimeout);
+            jsonWriter.WriteNumber("pingCheckRetries", scope.PingCheckRetries);
 
             if (!string.IsNullOrEmpty(scope.DomainName))
-            {
-                jsonWriter.WritePropertyName("domainName");
-                jsonWriter.WriteValue(scope.DomainName);
-            }
+                jsonWriter.WriteString("domainName", scope.DomainName);
 
             if (scope.DomainSearchList is not null)
             {
@@ -215,73 +161,57 @@ namespace DnsServerCore
                 jsonWriter.WriteStartArray();
 
                 foreach (string domainSearchString in scope.DomainSearchList)
-                    jsonWriter.WriteValue(domainSearchString);
+                    jsonWriter.WriteStringValue(domainSearchString);
 
                 jsonWriter.WriteEndArray();
             }
 
-            jsonWriter.WritePropertyName("dnsUpdates");
-            jsonWriter.WriteValue(scope.DnsUpdates);
+            jsonWriter.WriteBoolean("dnsUpdates", scope.DnsUpdates);
+            jsonWriter.WriteNumber("dnsTtl", scope.DnsTtl);
 
-            jsonWriter.WritePropertyName("dnsTtl");
-            jsonWriter.WriteValue(scope.DnsTtl);
+            if (scope.ServerAddress is not null)
+                jsonWriter.WriteString("serverAddress", scope.ServerAddress.ToString());
 
-            if (scope.ServerAddress != null)
-            {
-                jsonWriter.WritePropertyName("serverAddress");
-                jsonWriter.WriteValue(scope.ServerAddress.ToString());
-            }
+            if (scope.ServerHostName is not null)
+                jsonWriter.WriteString("serverHostName", scope.ServerHostName);
 
-            if (scope.ServerHostName != null)
-            {
-                jsonWriter.WritePropertyName("serverHostName");
-                jsonWriter.WriteValue(scope.ServerHostName);
-            }
+            if (scope.BootFileName is not null)
+                jsonWriter.WriteString("bootFileName", scope.BootFileName);
 
-            if (scope.BootFileName != null)
-            {
-                jsonWriter.WritePropertyName("bootFileName");
-                jsonWriter.WriteValue(scope.BootFileName);
-            }
+            if (scope.RouterAddress is not null)
+                jsonWriter.WriteString("routerAddress", scope.RouterAddress.ToString());
 
-            if (scope.RouterAddress != null)
-            {
-                jsonWriter.WritePropertyName("routerAddress");
-                jsonWriter.WriteValue(scope.RouterAddress.ToString());
-            }
+            jsonWriter.WriteBoolean("useThisDnsServer", scope.UseThisDnsServer);
 
-            jsonWriter.WritePropertyName("useThisDnsServer");
-            jsonWriter.WriteValue(scope.UseThisDnsServer);
-
-            if (scope.DnsServers != null)
+            if (scope.DnsServers is not null)
             {
                 jsonWriter.WritePropertyName("dnsServers");
                 jsonWriter.WriteStartArray();
 
                 foreach (IPAddress dnsServer in scope.DnsServers)
-                    jsonWriter.WriteValue(dnsServer.ToString());
+                    jsonWriter.WriteStringValue(dnsServer.ToString());
 
                 jsonWriter.WriteEndArray();
             }
 
-            if (scope.WinsServers != null)
+            if (scope.WinsServers is not null)
             {
                 jsonWriter.WritePropertyName("winsServers");
                 jsonWriter.WriteStartArray();
 
                 foreach (IPAddress winsServer in scope.WinsServers)
-                    jsonWriter.WriteValue(winsServer.ToString());
+                    jsonWriter.WriteStringValue(winsServer.ToString());
 
                 jsonWriter.WriteEndArray();
             }
 
-            if (scope.NtpServers != null)
+            if (scope.NtpServers is not null)
             {
                 jsonWriter.WritePropertyName("ntpServers");
                 jsonWriter.WriteStartArray();
 
                 foreach (IPAddress ntpServer in scope.NtpServers)
-                    jsonWriter.WriteValue(ntpServer.ToString());
+                    jsonWriter.WriteStringValue(ntpServer.ToString());
 
                 jsonWriter.WriteEndArray();
             }
@@ -292,12 +222,12 @@ namespace DnsServerCore
                 jsonWriter.WriteStartArray();
 
                 foreach (string ntpServerDomainName in scope.NtpServerDomainNames)
-                    jsonWriter.WriteValue(ntpServerDomainName);
+                    jsonWriter.WriteStringValue(ntpServerDomainName);
 
                 jsonWriter.WriteEndArray();
             }
 
-            if (scope.StaticRoutes != null)
+            if (scope.StaticRoutes is not null)
             {
                 jsonWriter.WritePropertyName("staticRoutes");
                 jsonWriter.WriteStartArray();
@@ -306,14 +236,9 @@ namespace DnsServerCore
                 {
                     jsonWriter.WriteStartObject();
 
-                    jsonWriter.WritePropertyName("destination");
-                    jsonWriter.WriteValue(route.Destination.ToString());
-
-                    jsonWriter.WritePropertyName("subnetMask");
-                    jsonWriter.WriteValue(route.SubnetMask.ToString());
-
-                    jsonWriter.WritePropertyName("router");
-                    jsonWriter.WriteValue(route.Router.ToString());
+                    jsonWriter.WriteString("destination", route.Destination.ToString());
+                    jsonWriter.WriteString("subnetMask", route.SubnetMask.ToString());
+                    jsonWriter.WriteString("router", route.Router.ToString());
 
                     jsonWriter.WriteEndObject();
                 }
@@ -321,7 +246,7 @@ namespace DnsServerCore
                 jsonWriter.WriteEndArray();
             }
 
-            if (scope.VendorInfo != null)
+            if (scope.VendorInfo is not null)
             {
                 jsonWriter.WritePropertyName("vendorInfo");
                 jsonWriter.WriteStartArray();
@@ -330,11 +255,8 @@ namespace DnsServerCore
                 {
                     jsonWriter.WriteStartObject();
 
-                    jsonWriter.WritePropertyName("identifier");
-                    jsonWriter.WriteValue(entry.Key);
-
-                    jsonWriter.WritePropertyName("information");
-                    jsonWriter.WriteValue(entry.Value.ToString());
+                    jsonWriter.WriteString("identifier", entry.Key);
+                    jsonWriter.WriteString("information", BitConverter.ToString(entry.Value.Information).Replace('-', ':'));
 
                     jsonWriter.WriteEndObject();
                 }
@@ -348,12 +270,41 @@ namespace DnsServerCore
                 jsonWriter.WriteStartArray();
 
                 foreach (IPAddress acIpAddress in scope.CAPWAPAcIpAddresses)
-                    jsonWriter.WriteValue(acIpAddress.ToString());
+                    jsonWriter.WriteStringValue(acIpAddress.ToString());
 
                 jsonWriter.WriteEndArray();
             }
 
-            if (scope.Exclusions != null)
+            if (scope.TftpServerAddresses is not null)
+            {
+                jsonWriter.WritePropertyName("tftpServerAddresses");
+                jsonWriter.WriteStartArray();
+
+                foreach (IPAddress address in scope.TftpServerAddresses)
+                    jsonWriter.WriteStringValue(address.ToString());
+
+                jsonWriter.WriteEndArray();
+            }
+
+            if (scope.GenericOptions is not null)
+            {
+                jsonWriter.WritePropertyName("genericOptions");
+                jsonWriter.WriteStartArray();
+
+                foreach (DhcpOption genericOption in scope.GenericOptions)
+                {
+                    jsonWriter.WriteStartObject();
+
+                    jsonWriter.WriteNumber("code", (byte)genericOption.Code);
+                    jsonWriter.WriteString("value", BitConverter.ToString(genericOption.RawValue).Replace('-', ':'));
+
+                    jsonWriter.WriteEndObject();
+                }
+
+                jsonWriter.WriteEndArray();
+            }
+
+            if (scope.Exclusions is not null)
             {
                 jsonWriter.WritePropertyName("exclusions");
                 jsonWriter.WriteStartArray();
@@ -362,11 +313,8 @@ namespace DnsServerCore
                 {
                     jsonWriter.WriteStartObject();
 
-                    jsonWriter.WritePropertyName("startingAddress");
-                    jsonWriter.WriteValue(exclusion.StartingAddress.ToString());
-
-                    jsonWriter.WritePropertyName("endingAddress");
-                    jsonWriter.WriteValue(exclusion.EndingAddress.ToString());
+                    jsonWriter.WriteString("startingAddress", exclusion.StartingAddress.ToString());
+                    jsonWriter.WriteString("endingAddress", exclusion.EndingAddress.ToString());
 
                     jsonWriter.WriteEndObject();
                 }
@@ -381,28 +329,18 @@ namespace DnsServerCore
             {
                 jsonWriter.WriteStartObject();
 
-                jsonWriter.WritePropertyName("hostName");
-                jsonWriter.WriteValue(reservedLease.HostName);
-
-                jsonWriter.WritePropertyName("hardwareAddress");
-                jsonWriter.WriteValue(BitConverter.ToString(reservedLease.HardwareAddress));
-
-                jsonWriter.WritePropertyName("address");
-                jsonWriter.WriteValue(reservedLease.Address.ToString());
-
-                jsonWriter.WritePropertyName("comments");
-                jsonWriter.WriteValue(reservedLease.Comments);
+                jsonWriter.WriteString("hostName", reservedLease.HostName);
+                jsonWriter.WriteString("hardwareAddress", BitConverter.ToString(reservedLease.HardwareAddress));
+                jsonWriter.WriteString("address", reservedLease.Address.ToString());
+                jsonWriter.WriteString("comments", reservedLease.Comments);
 
                 jsonWriter.WriteEndObject();
             }
 
             jsonWriter.WriteEndArray();
 
-            jsonWriter.WritePropertyName("allowOnlyReservedLeases");
-            jsonWriter.WriteValue(scope.AllowOnlyReservedLeases);
-
-            jsonWriter.WritePropertyName("blockLocallyAdministeredMacAddresses");
-            jsonWriter.WriteValue(scope.BlockLocallyAdministeredMacAddresses);
+            jsonWriter.WriteBoolean("allowOnlyReservedLeases", scope.AllowOnlyReservedLeases);
+            jsonWriter.WriteBoolean("blockLocallyAdministeredMacAddresses", scope.BlockLocallyAdministeredMacAddresses);
         }
 
         public async Task SetDhcpScopeAsync(HttpListenerRequest request)
@@ -641,9 +579,7 @@ namespace DnsServerCore
                     Dictionary<string, VendorSpecificInformationOption> vendorInfo = new Dictionary<string, VendorSpecificInformationOption>();
 
                     for (int i = 0; i < strVendorInfoParts.Length; i += 2)
-                    {
                         vendorInfo.Add(strVendorInfoParts[i + 0], new VendorSpecificInformationOption(strVendorInfoParts[i + 1]));
-                    }
 
                     scope.VendorInfo = vendorInfo;
                 }
@@ -665,6 +601,44 @@ namespace DnsServerCore
                         capwapAcIpAddresses[i] = IPAddress.Parse(strCAPWAPAcIpAddressesParts[i]);
 
                     scope.CAPWAPAcIpAddresses = capwapAcIpAddresses;
+                }
+            }
+
+            string strTftpServerAddresses = request.QueryString["tftpServerAddresses"];
+            if (strTftpServerAddresses is not null)
+            {
+                if (strTftpServerAddresses.Length == 0)
+                {
+                    scope.TftpServerAddresses = null;
+                }
+                else
+                {
+                    string[] strTftpServerAddressesParts = strTftpServerAddresses.Split(new char[] { ',' }, StringSplitOptions.RemoveEmptyEntries);
+                    IPAddress[] tftpServerAddresses = new IPAddress[strTftpServerAddressesParts.Length];
+
+                    for (int i = 0; i < strTftpServerAddressesParts.Length; i++)
+                        tftpServerAddresses[i] = IPAddress.Parse(strTftpServerAddressesParts[i]);
+
+                    scope.TftpServerAddresses = tftpServerAddresses;
+                }
+            }
+
+            string strGenericOptions = request.QueryString["genericOptions"];
+            if (strGenericOptions is not null)
+            {
+                if (strGenericOptions.Length == 0)
+                {
+                    scope.GenericOptions = null;
+                }
+                else
+                {
+                    string[] strGenericOptionsParts = strGenericOptions.Split('|');
+                    List<DhcpOption> genericOptions = new List<DhcpOption>();
+
+                    for (int i = 0; i < strGenericOptionsParts.Length; i += 2)
+                        genericOptions.Add(new DhcpOption((DhcpOptionCode)byte.Parse(strGenericOptionsParts[i + 0]), strGenericOptionsParts[i + 1]));
+
+                    scope.GenericOptions = genericOptions;
                 }
             }
 
