@@ -131,7 +131,7 @@ namespace DnsServerCore.Dns.ZoneManagers
                         if (line == null)
                             break; //eof
 
-                        line = line.TrimStart(' ', '\t');
+                        line = line.TrimStart(' ', '\t', '*', '.');
 
                         if (line.Length == 0)
                             continue; //skip empty line
