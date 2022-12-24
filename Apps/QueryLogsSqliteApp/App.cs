@@ -19,12 +19,12 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 using DnsServerCore.ApplicationCommon;
 using Microsoft.Data.Sqlite;
-using Newtonsoft.Json;
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.IO;
 using System.Net;
+using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
 using TechnitiumLibrary.Net.Dns;
@@ -192,13 +192,14 @@ namespace QueryLogsSqlite
         {
             _dnsServer = dnsServer;
 
-            dynamic jsonConfig = JsonConvert.DeserializeObject(config);
+            using JsonDocument jsonDocument = JsonDocument.Parse(config);
+            JsonElement jsonConfig = jsonDocument.RootElement;
 
-            _enableLogging = jsonConfig.enableLogging.Value;
-            _maxLogDays = Convert.ToInt32(jsonConfig.maxLogDays.Value);
+            _enableLogging = jsonConfig.GetProperty("enableLogging").GetBoolean();
+            _maxLogDays = jsonConfig.GetProperty("maxLogDays").GetInt32();
 
-            string sqliteDbPath = jsonConfig.sqliteDbPath.Value;
-            string connectionString = jsonConfig.connectionString.Value;
+            string sqliteDbPath = jsonConfig.GetProperty("sqliteDbPath").GetString();
+            string connectionString = jsonConfig.GetProperty("connectionString").GetString();
 
             if (!Path.IsPathRooted(sqliteDbPath))
                 sqliteDbPath = Path.Combine(_dnsServer.ApplicationFolder, sqliteDbPath);
