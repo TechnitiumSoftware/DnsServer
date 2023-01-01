@@ -1,6 +1,6 @@
 ﻿/*
 Technitium DNS Server
-Copyright (C) 2022  Shreyas Zare (shreyas@technitium.com)
+Copyright (C) 2023  Shreyas Zare (shreyas@technitium.com)
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -23,13 +23,21 @@ using DnsServerCore.Dns;
 using DnsServerCore.Dns.ResourceRecords;
 using DnsServerCore.Dns.ZoneManagers;
 using DnsServerCore.Dns.Zones;
+using Microsoft.AspNetCore.Builder;
+using Microsoft.AspNetCore.Connections;
+using Microsoft.AspNetCore.Diagnostics;
+using Microsoft.AspNetCore.Hosting;
+using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Server.Kestrel.Core;
+using Microsoft.AspNetCore.Server.Kestrel.Https;
+using Microsoft.AspNetCore.StaticFiles;
+using Microsoft.Extensions.FileProviders;
+using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
 using System.IO;
-using System.IO.Compression;
 using System.Net;
 using System.Net.Http;
-using System.Net.Security;
 using System.Net.Sockets;
 using System.Reflection;
 using System.Security.Cryptography;
@@ -43,25 +51,12 @@ using TechnitiumLibrary.IO;
 using TechnitiumLibrary.Net;
 using TechnitiumLibrary.Net.Dns;
 using TechnitiumLibrary.Net.Dns.ResourceRecords;
-using TechnitiumLibrary.Net.Http;
 using TechnitiumLibrary.Net.Proxy;
 
 namespace DnsServerCore
 {
-    public sealed class DnsWebService : IDisposable
+    public sealed class DnsWebService : IAsyncDisposable, IDisposable
     {
-        #region enum
-
-        enum ServiceState
-        {
-            Stopped = 0,
-            Starting = 1,
-            Running = 2,
-            Stopping = 3
-        }
-
-        #endregion
-
         #region variables
 
         internal readonly Version _currentVersion;
@@ -94,12 +89,9 @@ namespace DnsServerCore
         internal string _webServiceTlsCertificatePassword;
         internal DateTime _webServiceTlsCertificateLastModifiedOn;
 
-        HttpListener _webService;
-        IReadOnlyList<Socket> _webServiceTlsListeners;
+        WebApplication _webService;
         X509Certificate2 _webServiceTlsCertificate;
         readonly IndependentTaskScheduler _webServiceTaskScheduler = new IndependentTaskScheduler(ThreadPriority.AboveNormal);
-        string _webServiceHostname;
-        IPEndPoint _webServiceHttpEP;
 
         internal string _dnsTlsCertificatePath;
         internal string _dnsTlsCertificatePassword;
@@ -108,8 +100,6 @@ namespace DnsServerCore
         Timer _tlsCertificateUpdateTimer;
         const int TLS_CERTIFICATE_UPDATE_TIMER_INITIAL_INTERVAL = 60000;
         const int TLS_CERTIFICATE_UPDATE_TIMER_INTERVAL = 60000;
-
-        volatile ServiceState _state = ServiceState.Stopped;
 
         List<string> _configDisabledZones;
 
@@ -153,21 +143,18 @@ namespace DnsServerCore
 
         bool _disposed;
 
-        public void Dispose()
+        public async ValueTask DisposeAsync()
         {
             if (_disposed)
                 return;
 
-            Stop();
+            await StopAsync();
 
             if (_settingsApi is not null)
                 _settingsApi.Dispose();
 
             if (_appsApi is not null)
                 _appsApi.Dispose();
-
-            if (_webService is not null)
-                _webService.Close();
 
             if (_dnsServer is not null)
                 _dnsServer.Dispose();
@@ -184,1224 +171,358 @@ namespace DnsServerCore
             _disposed = true;
         }
 
+        public void Dispose()
+        {
+            DisposeAsync().Sync();
+        }
+
         #endregion
 
         #region private
 
         #region web service
 
-        private async Task AcceptWebRequestAsync()
+        internal async Task StartWebServiceAsync()
         {
-            try
+            WebApplicationBuilder builder = WebApplication.CreateBuilder();
+
+            builder.Environment.ContentRootFileProvider = new PhysicalFileProvider(_appFolder)
             {
-                while (true)
+                UseActivePolling = true,
+                UsePollingFileWatcher = true
+            };
+
+            builder.Environment.WebRootFileProvider = new PhysicalFileProvider(Path.Combine(_appFolder, "www"))
+            {
+                UseActivePolling = true,
+                UsePollingFileWatcher = true
+            };
+
+            builder.WebHost.ConfigureKestrel(delegate (WebHostBuilderContext context, KestrelServerOptions serverOptions)
+            {
+                //http
+                foreach (IPAddress webServiceLocalAddress in _webServiceLocalAddresses)
+                    serverOptions.Listen(webServiceLocalAddress, _webServiceHttpPort);
+
+                //https
+                if (_webServiceEnableTls && (_webServiceTlsCertificate is not null))
                 {
-                    HttpListenerContext context = await _webService.GetContextAsync();
-
-                    if ((_webServiceTlsListeners != null) && (_webServiceTlsListeners.Count > 0) && _webServiceHttpToTlsRedirect)
+                    serverOptions.ConfigureHttpsDefaults(delegate (HttpsConnectionAdapterOptions configureOptions)
                     {
-                        IPEndPoint remoteEP = context.Request.RemoteEndPoint;
-
-                        if ((remoteEP != null) && !IPAddress.IsLoopback(remoteEP.Address))
+                        configureOptions.ServerCertificateSelector = delegate (ConnectionContext context, string dnsName)
                         {
-                            string domain = _webServiceTlsCertificate.GetNameInfo(X509NameType.DnsName, false);
-                            string redirectUri = "https://" + domain + ":" + _webServiceTlsPort + context.Request.Url.PathAndQuery;
+                            return _webServiceTlsCertificate;
+                        };
+                    });
 
-                            context.Response.Redirect(redirectUri);
-                            context.Response.Close();
-
-                            continue;
-                        }
-                    }
-
-                    _ = ProcessRequestAsync(context.Request, context.Response);
-                }
-            }
-            catch (HttpListenerException ex)
-            {
-                if (ex.ErrorCode == 995)
-                    return; //web service stopping
-
-                _log.Write(ex);
-            }
-            catch (ObjectDisposedException)
-            {
-                //web service stopped
-            }
-            catch (Exception ex)
-            {
-                if ((_state == ServiceState.Stopping) || (_state == ServiceState.Stopped))
-                    return; //web service stopping
-
-                _log.Write(ex);
-            }
-        }
-
-        private async Task AcceptTlsWebRequestAsync(Socket tlsListener)
-        {
-            try
-            {
-                while (true)
-                {
-                    Socket socket = await tlsListener.AcceptAsync();
-
-                    _ = TlsToHttpTunnelAsync(socket);
-                }
-            }
-            catch (SocketException ex)
-            {
-                if (ex.SocketErrorCode == SocketError.OperationAborted)
-                    return; //web service stopping
-
-                _log.Write(ex);
-            }
-            catch (ObjectDisposedException)
-            {
-                //web service stopped
-            }
-            catch (Exception ex)
-            {
-                if ((_state == ServiceState.Stopping) || (_state == ServiceState.Stopped))
-                    return; //web service stopping
-
-                _log.Write(ex);
-            }
-        }
-
-        private async Task TlsToHttpTunnelAsync(Socket socket)
-        {
-            Socket tunnel = null;
-
-            try
-            {
-                if (_webServiceLocalAddresses.Count < 1)
-                    return;
-
-                string remoteIP = (socket.RemoteEndPoint as IPEndPoint).Address.ToString();
-
-                SslStream sslStream = new SslStream(new NetworkStream(socket, true));
-
-                await sslStream.AuthenticateAsServerAsync(_webServiceTlsCertificate);
-
-                tunnel = new Socket(_webServiceHttpEP.AddressFamily, SocketType.Stream, ProtocolType.Tcp);
-                tunnel.Connect(_webServiceHttpEP);
-
-                NetworkStream tunnelStream = new NetworkStream(tunnel, true);
-
-                //copy tunnel to ssl
-                _ = tunnelStream.CopyToAsync(sslStream).ContinueWith(delegate (Task prevTask) { sslStream.Dispose(); tunnelStream.Dispose(); });
-
-                //copy ssl to tunnel
-                try
-                {
-                    while (true)
+                    foreach (IPAddress webServiceLocalAddress in _webServiceLocalAddresses)
                     {
-                        HttpRequest httpRequest = await HttpRequest.ReadRequestAsync(sslStream);
-                        if (httpRequest == null)
-                            return; //connection closed gracefully by client
-
-                        //inject X-Real-IP & host header
-                        httpRequest.Headers.Add("X-Real-IP", remoteIP);
-                        httpRequest.Headers[HttpRequestHeader.Host] = "localhost:" + _webServiceHttpPort.ToString();
-
-                        //relay request
-                        await tunnelStream.WriteAsync(Encoding.ASCII.GetBytes(httpRequest.HttpMethod + " " + httpRequest.RequestPathAndQuery + " " + httpRequest.Protocol + "\r\n"));
-                        await tunnelStream.WriteAsync(httpRequest.Headers.ToByteArray());
-
-                        if (httpRequest.InputStream != null)
-                            await httpRequest.InputStream.CopyToAsync(tunnelStream);
-
-                        await tunnelStream.FlushAsync();
+                        serverOptions.Listen(webServiceLocalAddress, _webServiceTlsPort, delegate (ListenOptions listenOptions)
+                        {
+                            listenOptions.Protocols = HttpProtocols.Http1AndHttp2AndHttp3;
+                            listenOptions.UseHttps();
+                        });
                     }
                 }
-                finally
-                {
-                    sslStream.Dispose();
-                    tunnelStream.Dispose();
-                }
-            }
-            catch (IOException)
-            {
-                //ignore
-            }
-            catch (Exception ex)
-            {
-                _log.Write(ex);
-            }
-            finally
-            {
-                socket.Dispose();
 
-                if (tunnel != null)
-                    tunnel.Dispose();
+                serverOptions.AddServerHeader = false;
+            });
+
+            builder.Logging.ClearProviders();
+
+            _webService = builder.Build();
+
+            if (_webServiceHttpToTlsRedirect)
+                _webService.UseHttpsRedirection();
+
+            _webService.UseDefaultFiles();
+            _webService.UseStaticFiles(new StaticFileOptions()
+            {
+                OnPrepareResponse = delegate (StaticFileResponseContext ctx)
+                {
+                    ctx.Context.Response.Headers.Add("X-Robots-Tag", "noindex, nofollow");
+                    ctx.Context.Response.Headers.Add("Cache-Control", "private, max-age=300");
+                }
+            });
+
+            ConfigureWebServiceRoutes();
+
+            await _webService.StartAsync();
+
+            _log.Write(new IPEndPoint(IPAddress.Any, _webServiceHttpPort), "Web Service was started successfully.");
+        }
+
+        internal async Task StopWebServiceAsync()
+        {
+            await _webService.DisposeAsync();
+        }
+
+        private void ConfigureWebServiceRoutes()
+        {
+            _webService.UseExceptionHandler(WebServiceExceptionHandler);
+
+            _webService.Use(WebServiceApiMiddleware);
+
+            _webService.UseRouting();
+
+            //user auth
+            _webService.MapGet("/api/user/login", delegate (HttpContext context) { return _authApi.LoginAsync(context, UserSessionType.Standard); });
+            _webService.MapGet("/api/user/createToken", delegate (HttpContext context) { return _authApi.LoginAsync(context, UserSessionType.ApiToken); });
+            _webService.MapGet("/api/user/logout", _authApi.Logout);
+
+            //user
+            _webService.MapGet("/api/user/session/get", _authApi.GetCurrentSessionDetails);
+            _webService.MapGet("/api/user/session/delete", delegate (HttpContext context) { _authApi.DeleteSession(context, false); });
+            _webService.MapGet("/api/user/changePassword", _authApi.ChangePassword);
+            _webService.MapGet("/api/user/profile/get", _authApi.GetProfile);
+            _webService.MapGet("/api/user/profile/set", _authApi.SetProfile);
+            _webService.MapGet("/api/user/checkForUpdate", CheckForUpdateAsync);
+
+            //dashboard
+            _webService.MapGet("/api/dashboard/stats/get", _dashboardApi.GetStats);
+            _webService.MapGet("/api/dashboard/stats/getTop", _dashboardApi.GetTopStats);
+            _webService.MapGet("/api/dashboard/stats/deleteAll", _logsApi.DeleteAllStats);
+
+            //zones
+            _webService.MapGet("/api/zones/list", _zonesApi.ListZones);
+            _webService.MapGet("/api/zones/create", _zonesApi.CreateZoneAsync);
+            _webService.MapGet("/api/zones/enable", _zonesApi.EnableZone);
+            _webService.MapGet("/api/zones/disable", _zonesApi.DisableZone);
+            _webService.MapGet("/api/zones/delete", _zonesApi.DeleteZone);
+            _webService.MapGet("/api/zones/resync", _zonesApi.ResyncZone);
+            _webService.MapGet("/api/zones/options/get", _zonesApi.GetZoneOptions);
+            _webService.MapGet("/api/zones/options/set", _zonesApi.SetZoneOptions);
+            _webService.MapGet("/api/zones/permissions/get", delegate (HttpContext context) { _authApi.GetPermissionDetails(context, PermissionSection.Zones); });
+            _webService.MapGet("/api/zones/permissions/set", delegate (HttpContext context) { _authApi.SetPermissionsDetails(context, PermissionSection.Zones); });
+            _webService.MapGet("/api/zones/dnssec/sign", _zonesApi.SignPrimaryZone);
+            _webService.MapGet("/api/zones/dnssec/unsign", _zonesApi.UnsignPrimaryZone);
+            _webService.MapGet("/api/zones/dnssec/properties/get", _zonesApi.GetPrimaryZoneDnssecProperties);
+            _webService.MapGet("/api/zones/dnssec/properties/convertToNSEC", _zonesApi.ConvertPrimaryZoneToNSEC);
+            _webService.MapGet("/api/zones/dnssec/properties/convertToNSEC3", _zonesApi.ConvertPrimaryZoneToNSEC3);
+            _webService.MapGet("/api/zones/dnssec/properties/updateNSEC3Params", _zonesApi.UpdatePrimaryZoneNSEC3Parameters);
+            _webService.MapGet("/api/zones/dnssec/properties/updateDnsKeyTtl", _zonesApi.UpdatePrimaryZoneDnssecDnsKeyTtl);
+            _webService.MapGet("/api/zones/dnssec/properties/generatePrivateKey", _zonesApi.GenerateAndAddPrimaryZoneDnssecPrivateKey);
+            _webService.MapGet("/api/zones/dnssec/properties/updatePrivateKey", _zonesApi.UpdatePrimaryZoneDnssecPrivateKey);
+            _webService.MapGet("/api/zones/dnssec/properties/deletePrivateKey", _zonesApi.DeletePrimaryZoneDnssecPrivateKey);
+            _webService.MapGet("/api/zones/dnssec/properties/publishAllPrivateKeys", _zonesApi.PublishAllGeneratedPrimaryZoneDnssecPrivateKeys);
+            _webService.MapGet("/api/zones/dnssec/properties/rolloverDnsKey", _zonesApi.RolloverPrimaryZoneDnsKey);
+            _webService.MapGet("/api/zones/dnssec/properties/retireDnsKey", _zonesApi.RetirePrimaryZoneDnsKey);
+            _webService.MapGet("/api/zones/records/add", _zonesApi.AddRecord);
+            _webService.MapGet("/api/zones/records/get", _zonesApi.GetRecords);
+            _webService.MapGet("/api/zones/records/update", _zonesApi.UpdateRecord);
+            _webService.MapGet("/api/zones/records/delete", _zonesApi.DeleteRecord);
+
+            //cache
+            _webService.MapGet("/api/cache/list", _otherZonesApi.ListCachedZones);
+            _webService.MapGet("/api/cache/delete", _otherZonesApi.DeleteCachedZone);
+            _webService.MapGet("/api/cache/flush", _otherZonesApi.FlushCache);
+
+            //allowed
+            _webService.MapGet("/api/allowed/list", _otherZonesApi.ListAllowedZones);
+            _webService.MapGet("/api/allowed/add", _otherZonesApi.AllowZone);
+            _webService.MapGet("/api/allowed/delete", _otherZonesApi.DeleteAllowedZone);
+            _webService.MapGet("/api/allowed/flush", _otherZonesApi.FlushAllowedZone);
+            _webService.MapPost("/api/allowed/import", _otherZonesApi.ImportAllowedZones);
+            _webService.MapGet("/api/allowed/export", _otherZonesApi.ExportAllowedZonesAsync);
+
+            //blocked
+            _webService.MapGet("/api/blocked/list", _otherZonesApi.ListBlockedZones);
+            _webService.MapGet("/api/blocked/add", _otherZonesApi.BlockZone);
+            _webService.MapGet("/api/blocked/delete", _otherZonesApi.DeleteBlockedZone);
+            _webService.MapGet("/api/blocked/flush", _otherZonesApi.FlushBlockedZone);
+            _webService.MapPost("/api/blocked/import", _otherZonesApi.ImportBlockedZones);
+            _webService.MapGet("/api/blocked/export", _otherZonesApi.ExportBlockedZonesAsync);
+
+            //apps
+            _webService.MapGet("/api/apps/list", _appsApi.ListInstalledAppsAsync);
+            _webService.MapGet("/api/apps/listStoreApps", _appsApi.ListStoreApps);
+            _webService.MapGet("/api/apps/downloadAndInstall", _appsApi.DownloadAndInstallAppAsync);
+            _webService.MapGet("/api/apps/downloadAndUpdate", _appsApi.DownloadAndUpdateAppAsync);
+            _webService.MapPost("/api/apps/install", _appsApi.InstallAppAsync);
+            _webService.MapPost("/api/apps/update", _appsApi.UpdateAppAsync);
+            _webService.MapGet("/api/apps/uninstall", _appsApi.UninstallApp);
+            _webService.MapGet("/api/apps/config/get", _appsApi.GetAppConfigAsync);
+            _webService.MapPost("/api/apps/config/set", _appsApi.SetAppConfigAsync);
+
+            //dns client
+            _webService.MapGet("/api/dnsClient/resolve", ResolveQueryAsync);
+
+            //settings
+            _webService.MapGet("/api/settings/get", _settingsApi.GetDnsSettings);
+            _webService.MapGet("/api/settings/set", _settingsApi.SetDnsSettings);
+            _webService.MapGet("/api/settings/getTsigKeyNames", _settingsApi.GetTsigKeyNames);
+            _webService.MapGet("/api/settings/forceUpdateBlockLists", _settingsApi.ForceUpdateBlockLists);
+            _webService.MapGet("/api/settings/temporaryDisableBlocking", _settingsApi.TemporaryDisableBlocking);
+            _webService.MapGet("/api/settings/backup", _settingsApi.BackupSettingsAsync);
+            _webService.MapPost("/api/settings/restore", _settingsApi.RestoreSettingsAsync);
+
+            //dhcp
+            _webService.MapGet("/api/dhcp/leases/list", _dhcpApi.ListDhcpLeases);
+            _webService.MapGet("/api/dhcp/leases/remove", _dhcpApi.RemoveDhcpLease);
+            _webService.MapGet("/api/dhcp/leases/convertToReserved", _dhcpApi.ConvertToReservedLease);
+            _webService.MapGet("/api/dhcp/leases/convertToDynamic", _dhcpApi.ConvertToDynamicLease);
+            _webService.MapGet("/api/dhcp/scopes/list", _dhcpApi.ListDhcpScopes);
+            _webService.MapGet("/api/dhcp/scopes/get", _dhcpApi.GetDhcpScope);
+            _webService.MapGet("/api/dhcp/scopes/set", _dhcpApi.SetDhcpScopeAsync);
+            _webService.MapGet("/api/dhcp/scopes/addReservedLease", _dhcpApi.AddReservedLease);
+            _webService.MapGet("/api/dhcp/scopes/removeReservedLease", _dhcpApi.RemoveReservedLease);
+            _webService.MapGet("/api/dhcp/scopes/enable", _dhcpApi.EnableDhcpScopeAsync);
+            _webService.MapGet("/api/dhcp/scopes/disable", _dhcpApi.DisableDhcpScope);
+            _webService.MapGet("/api/dhcp/scopes/delete", _dhcpApi.DeleteDhcpScope);
+
+            //administration
+            _webService.MapGet("/api/admin/sessions/list", _authApi.ListSessions);
+            _webService.MapGet("/api/admin/sessions/createToken", _authApi.CreateApiToken);
+            _webService.MapGet("/api/admin/sessions/delete", delegate (HttpContext context) { _authApi.DeleteSession(context, true); });
+            _webService.MapGet("/api/admin/users/list", _authApi.ListUsers);
+            _webService.MapGet("/api/admin/users/create", _authApi.CreateUser);
+            _webService.MapGet("/api/admin/users/get", _authApi.GetUserDetails);
+            _webService.MapGet("/api/admin/users/set", _authApi.SetUserDetails);
+            _webService.MapGet("/api/admin/users/delete", _authApi.DeleteUser);
+            _webService.MapGet("/api/admin/groups/list", _authApi.ListGroups);
+            _webService.MapGet("/api/admin/groups/create", _authApi.CreateGroup);
+            _webService.MapGet("/api/admin/groups/get", _authApi.GetGroupDetails);
+            _webService.MapGet("/api/admin/groups/set", _authApi.SetGroupDetails);
+            _webService.MapGet("/api/admin/groups/delete", _authApi.DeleteGroup);
+            _webService.MapGet("/api/admin/permissions/list", _authApi.ListPermissions);
+            _webService.MapGet("/api/admin/permissions/get", delegate (HttpContext context) { _authApi.GetPermissionDetails(context, PermissionSection.Unknown); });
+            _webService.MapGet("/api/admin/permissions/set", delegate (HttpContext context) { _authApi.SetPermissionsDetails(context, PermissionSection.Unknown); });
+
+            //logs
+            _webService.MapGet("/api/logs/list", _logsApi.ListLogs);
+            _webService.MapGet("/api/logs/download", _logsApi.DownloadLogAsync);
+            _webService.MapGet("/api/logs/delete", _logsApi.DeleteLog);
+            _webService.MapGet("/api/logs/deleteAll", _logsApi.DeleteAllLogs);
+            _webService.MapGet("/api/logs/query", _logsApi.QueryLogsAsync);
+        }
+
+        private async Task WebServiceApiMiddleware(HttpContext context, RequestDelegate next)
+        {
+            bool needsJsonResponseObject;
+
+            switch (context.Request.Path)
+            {
+                case "/api/user/login":
+                case "/api/user/createToken":
+                case "/api/user/logout":
+                    needsJsonResponseObject = false;
+                    break;
+
+                case "/api/user/session/get":
+                    {
+                        if (!TryGetSession(context, out UserSession session))
+                            throw new InvalidTokenWebServiceException("Invalid token or session expired.");
+
+                        context.Items["session"] = session;
+
+                        needsJsonResponseObject = false;
+                    }
+                    break;
+
+                case "/api/allowed/export":
+                case "/api/blocked/export":
+                case "/api/settings/backup":
+                case "/api/logs/download":
+                    {
+                        if (!TryGetSession(context, out UserSession session))
+                            throw new InvalidTokenWebServiceException("Invalid token or session expired.");
+
+                        context.Items["session"] = session;
+
+                        await next(context);
+                    }
+                    return;
+
+                default:
+                    {
+                        if (!TryGetSession(context, out UserSession session))
+                            throw new InvalidTokenWebServiceException("Invalid token or session expired.");
+
+                        context.Items["session"] = session;
+                        needsJsonResponseObject = true;
+                    }
+                    break;
+            }
+
+            using (MemoryStream mS = new MemoryStream())
+            {
+                Utf8JsonWriter jsonWriter = new Utf8JsonWriter(mS);
+                context.Items["jsonWriter"] = jsonWriter;
+
+                jsonWriter.WriteStartObject();
+
+                if (needsJsonResponseObject)
+                {
+                    jsonWriter.WritePropertyName("response");
+                    jsonWriter.WriteStartObject();
+
+                    await next(context);
+
+                    jsonWriter.WriteEndObject();
+                }
+                else
+                {
+                    await next(context);
+                }
+
+                jsonWriter.WriteString("status", "ok");
+
+                jsonWriter.WriteEndObject();
+                jsonWriter.Flush();
+
+                mS.Position = 0;
+
+                HttpResponse response = context.Response;
+
+                response.StatusCode = StatusCodes.Status200OK;
+                response.ContentType = "application/json; charset=utf-8";
+                response.ContentLength = mS.Length;
+
+                await mS.CopyToAsync(response.Body);
             }
         }
 
-        private async Task ProcessRequestAsync(HttpListenerRequest request, HttpListenerResponse response)
+        private static void WebServiceExceptionHandler(IApplicationBuilder exceptionHandlerApp)
         {
-            response.AddHeader("Server", "");
-            response.AddHeader("X-Robots-Tag", "noindex, nofollow");
-
-            try
+            exceptionHandlerApp.Run(async delegate (HttpContext context)
             {
-                Uri url = request.Url;
-                string path = url.AbsolutePath;
-
-                if (!path.StartsWith("/") || path.Contains("/../") || path.Contains("/.../"))
+                IExceptionHandlerPathFeature exceptionHandlerPathFeature = context.Features.Get<IExceptionHandlerPathFeature>();
+                if (exceptionHandlerPathFeature.Path.StartsWith("/api/"))
                 {
-                    await SendErrorAsync(response, 404);
-                    return;
-                }
+                    Exception ex = exceptionHandlerPathFeature.Error;
 
-                if (path.StartsWith("/api/"))
-                {
-                    using (MemoryStream mS = new MemoryStream())
+                    context.Response.StatusCode = StatusCodes.Status200OK;
+                    context.Response.ContentType = "application/json; charset=utf-8";
+
+                    await using (Utf8JsonWriter jsonWriter = new Utf8JsonWriter(context.Response.Body))
                     {
-                        try
+                        jsonWriter.WriteStartObject();
+
+                        if (ex is InvalidTokenWebServiceException)
                         {
-                            Utf8JsonWriter jsonWriter = new Utf8JsonWriter(mS);
-                            jsonWriter.WriteStartObject();
-
-                            switch (path)
-                            {
-                                case "/api/user/login":
-                                case "/api/login":
-                                    await _authApi.LoginAsync(request, jsonWriter, UserSessionType.Standard);
-                                    break;
-
-                                case "/api/user/createToken":
-                                    await _authApi.LoginAsync(request, jsonWriter, UserSessionType.ApiToken);
-                                    break;
-
-                                case "/api/user/logout":
-                                case "/api/logout":
-                                    _authApi.Logout(request);
-                                    break;
-
-                                case "/api/user/session/get":
-                                    _authApi.GetCurrentSessionDetails(request, jsonWriter);
-                                    break;
-
-                                default:
-                                    if (!TryGetSession(request, out UserSession session))
-                                        throw new InvalidTokenWebServiceException("Invalid token or session expired.");
-
-                                    jsonWriter.WritePropertyName("response");
-                                    jsonWriter.WriteStartObject();
-
-                                    try
-                                    {
-                                        switch (path)
-                                        {
-                                            case "/api/user/session/delete":
-                                                _authApi.DeleteSession(request, false);
-                                                break;
-
-                                            case "/api/user/changePassword":
-                                            case "/api/changePassword":
-                                                _authApi.ChangePassword(request);
-                                                break;
-
-                                            case "/api/user/profile/get":
-                                                _authApi.GetProfile(request, jsonWriter);
-                                                break;
-
-                                            case "/api/user/profile/set":
-                                                _authApi.SetProfile(request, jsonWriter);
-                                                break;
-
-                                            case "/api/user/checkForUpdate":
-                                            case "/api/checkForUpdate":
-                                                await CheckForUpdateAsync(request, jsonWriter);
-                                                break;
-
-                                            case "/api/dashboard/stats/get":
-                                            case "/api/getStats":
-                                                if (!_authManager.IsPermitted(PermissionSection.Dashboard, session.User, PermissionFlag.View))
-                                                    throw new DnsWebServiceException("Access was denied.");
-
-                                                await _dashboardApi.GetStats(request, jsonWriter);
-                                                break;
-
-                                            case "/api/dashboard/stats/getTop":
-                                            case "/api/getTopStats":
-                                                if (!_authManager.IsPermitted(PermissionSection.Dashboard, session.User, PermissionFlag.View))
-                                                    throw new DnsWebServiceException("Access was denied.");
-
-                                                await _dashboardApi.GetTopStats(request, jsonWriter);
-                                                break;
-
-                                            case "/api/dashboard/stats/deleteAll":
-                                            case "/api/deleteAllStats":
-                                                if (!_authManager.IsPermitted(PermissionSection.Dashboard, session.User, PermissionFlag.Delete))
-                                                    throw new DnsWebServiceException("Access was denied.");
-
-                                                _logsApi.DeleteAllStats(request);
-                                                break;
-
-                                            case "/api/zones/list":
-                                            case "/api/zone/list":
-                                            case "/api/listZones":
-                                                if (!_authManager.IsPermitted(PermissionSection.Zones, session.User, PermissionFlag.View))
-                                                    throw new DnsWebServiceException("Access was denied.");
-
-                                                _zonesApi.ListZones(request, jsonWriter);
-                                                break;
-
-                                            case "/api/zones/create":
-                                            case "/api/zone/create":
-                                            case "/api/createZone":
-                                                if (!_authManager.IsPermitted(PermissionSection.Zones, session.User, PermissionFlag.Modify))
-                                                    throw new DnsWebServiceException("Access was denied.");
-
-                                                await _zonesApi.CreateZoneAsync(request, jsonWriter);
-                                                break;
-
-                                            case "/api/zones/enable":
-                                            case "/api/zone/enable":
-                                            case "/api/enableZone":
-                                                if (!_authManager.IsPermitted(PermissionSection.Zones, session.User, PermissionFlag.Modify))
-                                                    throw new DnsWebServiceException("Access was denied.");
-
-                                                _zonesApi.EnableZone(request);
-                                                break;
-
-                                            case "/api/zones/disable":
-                                            case "/api/zone/disable":
-                                            case "/api/disableZone":
-                                                if (!_authManager.IsPermitted(PermissionSection.Zones, session.User, PermissionFlag.Modify))
-                                                    throw new DnsWebServiceException("Access was denied.");
-
-                                                _zonesApi.DisableZone(request);
-                                                break;
-
-                                            case "/api/zones/delete":
-                                            case "/api/zone/delete":
-                                            case "/api/deleteZone":
-                                                if (!_authManager.IsPermitted(PermissionSection.Zones, session.User, PermissionFlag.Delete))
-                                                    throw new DnsWebServiceException("Access was denied.");
-
-                                                _zonesApi.DeleteZone(request);
-                                                break;
-
-                                            case "/api/zones/resync":
-                                            case "/api/zone/resync":
-                                                if (!_authManager.IsPermitted(PermissionSection.Zones, session.User, PermissionFlag.Modify))
-                                                    throw new DnsWebServiceException("Access was denied.");
-
-                                                _zonesApi.ResyncZone(request);
-                                                break;
-
-                                            case "/api/zones/options/get":
-                                            case "/api/zone/options/get":
-                                                if (!_authManager.IsPermitted(PermissionSection.Zones, session.User, PermissionFlag.Modify))
-                                                    throw new DnsWebServiceException("Access was denied.");
-
-                                                _zonesApi.GetZoneOptions(request, jsonWriter);
-                                                break;
-
-                                            case "/api/zones/options/set":
-                                            case "/api/zone/options/set":
-                                                if (!_authManager.IsPermitted(PermissionSection.Zones, session.User, PermissionFlag.Modify))
-                                                    throw new DnsWebServiceException("Access was denied.");
-
-                                                _zonesApi.SetZoneOptions(request);
-                                                break;
-
-                                            case "/api/zones/permissions/get":
-                                                if (!_authManager.IsPermitted(PermissionSection.Zones, session.User, PermissionFlag.Modify))
-                                                    throw new DnsWebServiceException("Access was denied.");
-
-                                                _authApi.GetPermissionDetails(request, jsonWriter, PermissionSection.Zones);
-                                                break;
-
-                                            case "/api/zones/permissions/set":
-                                                if (!_authManager.IsPermitted(PermissionSection.Zones, session.User, PermissionFlag.Modify))
-                                                    throw new DnsWebServiceException("Access was denied.");
-
-                                                _authApi.SetPermissionsDetails(request, jsonWriter, PermissionSection.Zones);
-                                                break;
-
-                                            case "/api/zones/dnssec/sign":
-                                            case "/api/zone/dnssec/sign":
-                                                if (!_authManager.IsPermitted(PermissionSection.Zones, session.User, PermissionFlag.Modify))
-                                                    throw new DnsWebServiceException("Access was denied.");
-
-                                                _zonesApi.SignPrimaryZone(request);
-                                                break;
-
-                                            case "/api/zones/dnssec/unsign":
-                                            case "/api/zone/dnssec/unsign":
-                                                if (!_authManager.IsPermitted(PermissionSection.Zones, session.User, PermissionFlag.Modify))
-                                                    throw new DnsWebServiceException("Access was denied.");
-
-                                                _zonesApi.UnsignPrimaryZone(request);
-                                                break;
-
-                                            case "/api/zones/dnssec/properties/get":
-                                            case "/api/zone/dnssec/getProperties":
-                                                if (!_authManager.IsPermitted(PermissionSection.Zones, session.User, PermissionFlag.Modify))
-                                                    throw new DnsWebServiceException("Access was denied.");
-
-                                                _zonesApi.GetPrimaryZoneDnssecProperties(request, jsonWriter);
-                                                break;
-
-                                            case "/api/zones/dnssec/properties/convertToNSEC":
-                                            case "/api/zone/dnssec/convertToNSEC":
-                                                if (!_authManager.IsPermitted(PermissionSection.Zones, session.User, PermissionFlag.Modify))
-                                                    throw new DnsWebServiceException("Access was denied.");
-
-                                                _zonesApi.ConvertPrimaryZoneToNSEC(request);
-                                                break;
-
-                                            case "/api/zones/dnssec/properties/convertToNSEC3":
-                                            case "/api/zone/dnssec/convertToNSEC3":
-                                                if (!_authManager.IsPermitted(PermissionSection.Zones, session.User, PermissionFlag.Modify))
-                                                    throw new DnsWebServiceException("Access was denied.");
-
-                                                _zonesApi.ConvertPrimaryZoneToNSEC3(request);
-                                                break;
-
-                                            case "/api/zones/dnssec/properties/updateNSEC3Params":
-                                            case "/api/zone/dnssec/updateNSEC3Params":
-                                                if (!_authManager.IsPermitted(PermissionSection.Zones, session.User, PermissionFlag.Modify))
-                                                    throw new DnsWebServiceException("Access was denied.");
-
-                                                _zonesApi.UpdatePrimaryZoneNSEC3Parameters(request);
-                                                break;
-
-                                            case "/api/zones/dnssec/properties/updateDnsKeyTtl":
-                                            case "/api/zone/dnssec/updateDnsKeyTtl":
-                                                if (!_authManager.IsPermitted(PermissionSection.Zones, session.User, PermissionFlag.Modify))
-                                                    throw new DnsWebServiceException("Access was denied.");
-
-                                                _zonesApi.UpdatePrimaryZoneDnssecDnsKeyTtl(request);
-                                                break;
-
-                                            case "/api/zones/dnssec/properties/generatePrivateKey":
-                                            case "/api/zone/dnssec/generatePrivateKey":
-                                                if (!_authManager.IsPermitted(PermissionSection.Zones, session.User, PermissionFlag.Modify))
-                                                    throw new DnsWebServiceException("Access was denied.");
-
-                                                _zonesApi.GenerateAndAddPrimaryZoneDnssecPrivateKey(request);
-                                                break;
-
-                                            case "/api/zones/dnssec/properties/updatePrivateKey":
-                                            case "/api/zone/dnssec/updatePrivateKey":
-                                                if (!_authManager.IsPermitted(PermissionSection.Zones, session.User, PermissionFlag.Modify))
-                                                    throw new DnsWebServiceException("Access was denied.");
-
-                                                _zonesApi.UpdatePrimaryZoneDnssecPrivateKey(request);
-                                                break;
-
-                                            case "/api/zones/dnssec/properties/deletePrivateKey":
-                                            case "/api/zone/dnssec/deletePrivateKey":
-                                                if (!_authManager.IsPermitted(PermissionSection.Zones, session.User, PermissionFlag.Modify))
-                                                    throw new DnsWebServiceException("Access was denied.");
-
-                                                _zonesApi.DeletePrimaryZoneDnssecPrivateKey(request);
-                                                break;
-
-                                            case "/api/zones/dnssec/properties/publishAllPrivateKeys":
-                                            case "/api/zone/dnssec/publishAllPrivateKeys":
-                                                if (!_authManager.IsPermitted(PermissionSection.Zones, session.User, PermissionFlag.Modify))
-                                                    throw new DnsWebServiceException("Access was denied.");
-
-                                                _zonesApi.PublishAllGeneratedPrimaryZoneDnssecPrivateKeys(request);
-                                                break;
-
-                                            case "/api/zones/dnssec/properties/rolloverDnsKey":
-                                            case "/api/zone/dnssec/rolloverDnsKey":
-                                                if (!_authManager.IsPermitted(PermissionSection.Zones, session.User, PermissionFlag.Modify))
-                                                    throw new DnsWebServiceException("Access was denied.");
-
-                                                _zonesApi.RolloverPrimaryZoneDnsKey(request);
-                                                break;
-
-                                            case "/api/zones/dnssec/properties/retireDnsKey":
-                                            case "/api/zone/dnssec/retireDnsKey":
-                                                if (!_authManager.IsPermitted(PermissionSection.Zones, session.User, PermissionFlag.Modify))
-                                                    throw new DnsWebServiceException("Access was denied.");
-
-                                                _zonesApi.RetirePrimaryZoneDnsKey(request);
-                                                break;
-
-                                            case "/api/zones/records/add":
-                                            case "/api/zone/addRecord":
-                                            case "/api/addRecord":
-                                                _zonesApi.AddRecord(request, jsonWriter);
-                                                break;
-
-                                            case "/api/zones/records/get":
-                                            case "/api/zone/getRecords":
-                                            case "/api/getRecords":
-                                                _zonesApi.GetRecords(request, jsonWriter);
-                                                break;
-
-                                            case "/api/zones/records/update":
-                                            case "/api/zone/updateRecord":
-                                            case "/api/updateRecord":
-                                                _zonesApi.UpdateRecord(request, jsonWriter);
-                                                break;
-
-                                            case "/api/zones/records/delete":
-                                            case "/api/zone/deleteRecord":
-                                            case "/api/deleteRecord":
-                                                _zonesApi.DeleteRecord(request);
-                                                break;
-
-                                            case "/api/cache/list":
-                                            case "/api/listCachedZones":
-                                                if (!_authManager.IsPermitted(PermissionSection.Cache, session.User, PermissionFlag.View))
-                                                    throw new DnsWebServiceException("Access was denied.");
-
-                                                _otherZonesApi.ListCachedZones(request, jsonWriter);
-                                                break;
-
-                                            case "/api/cache/delete":
-                                            case "/api/deleteCachedZone":
-                                                if (!_authManager.IsPermitted(PermissionSection.Cache, session.User, PermissionFlag.Delete))
-                                                    throw new DnsWebServiceException("Access was denied.");
-
-                                                _otherZonesApi.DeleteCachedZone(request);
-                                                break;
-
-                                            case "/api/cache/flush":
-                                            case "/api/flushDnsCache":
-                                                if (!_authManager.IsPermitted(PermissionSection.Cache, session.User, PermissionFlag.Delete))
-                                                    throw new DnsWebServiceException("Access was denied.");
-
-                                                _otherZonesApi.FlushCache(request);
-                                                break;
-
-                                            case "/api/allowed/list":
-                                            case "/api/listAllowedZones":
-                                                if (!_authManager.IsPermitted(PermissionSection.Allowed, session.User, PermissionFlag.View))
-                                                    throw new DnsWebServiceException("Access was denied.");
-
-                                                _otherZonesApi.ListAllowedZones(request, jsonWriter);
-                                                break;
-
-                                            case "/api/allowed/add":
-                                            case "/api/allowZone":
-                                                if (!_authManager.IsPermitted(PermissionSection.Allowed, session.User, PermissionFlag.Modify))
-                                                    throw new DnsWebServiceException("Access was denied.");
-
-                                                _otherZonesApi.AllowZone(request);
-                                                break;
-
-                                            case "/api/allowed/delete":
-                                            case "/api/deleteAllowedZone":
-                                                if (!_authManager.IsPermitted(PermissionSection.Allowed, session.User, PermissionFlag.Delete))
-                                                    throw new DnsWebServiceException("Access was denied.");
-
-                                                _otherZonesApi.DeleteAllowedZone(request);
-                                                break;
-
-                                            case "/api/allowed/flush":
-                                            case "/api/flushAllowedZone":
-                                                if (!_authManager.IsPermitted(PermissionSection.Allowed, session.User, PermissionFlag.Delete))
-                                                    throw new DnsWebServiceException("Access was denied.");
-
-                                                _otherZonesApi.FlushAllowedZone(request);
-                                                break;
-
-                                            case "/api/allowed/import":
-                                            case "/api/importAllowedZones":
-                                                if (!_authManager.IsPermitted(PermissionSection.Allowed, session.User, PermissionFlag.Modify))
-                                                    throw new DnsWebServiceException("Access was denied.");
-
-                                                await _otherZonesApi.ImportAllowedZonesAsync(request);
-                                                break;
-
-                                            case "/api/allowed/export":
-                                            case "/api/exportAllowedZones":
-                                                if (!_authManager.IsPermitted(PermissionSection.Allowed, session.User, PermissionFlag.View))
-                                                    throw new DnsWebServiceException("Access was denied.");
-
-                                                _otherZonesApi.ExportAllowedZones(response);
-                                                return;
-
-                                            case "/api/blocked/list":
-                                            case "/api/listBlockedZones":
-                                                if (!_authManager.IsPermitted(PermissionSection.Blocked, session.User, PermissionFlag.View))
-                                                    throw new DnsWebServiceException("Access was denied.");
-
-                                                _otherZonesApi.ListBlockedZones(request, jsonWriter);
-                                                break;
-
-                                            case "/api/blocked/add":
-                                            case "/api/blockZone":
-                                                if (!_authManager.IsPermitted(PermissionSection.Blocked, session.User, PermissionFlag.Modify))
-                                                    throw new DnsWebServiceException("Access was denied.");
-
-                                                _otherZonesApi.BlockZone(request);
-                                                break;
-
-                                            case "/api/blocked/delete":
-                                            case "/api/deleteBlockedZone":
-                                                if (!_authManager.IsPermitted(PermissionSection.Blocked, session.User, PermissionFlag.Delete))
-                                                    throw new DnsWebServiceException("Access was denied.");
-
-                                                _otherZonesApi.DeleteBlockedZone(request);
-                                                break;
-
-                                            case "/api/blocked/flush":
-                                            case "/api/flushBlockedZone":
-                                                if (!_authManager.IsPermitted(PermissionSection.Blocked, session.User, PermissionFlag.Delete))
-                                                    throw new DnsWebServiceException("Access was denied.");
-
-                                                _otherZonesApi.FlushBlockedZone(request);
-                                                break;
-
-                                            case "/api/blocked/import":
-                                            case "/api/importBlockedZones":
-                                                if (!_authManager.IsPermitted(PermissionSection.Blocked, session.User, PermissionFlag.Modify))
-                                                    throw new DnsWebServiceException("Access was denied.");
-
-                                                await _otherZonesApi.ImportBlockedZonesAsync(request);
-                                                break;
-
-                                            case "/api/blocked/export":
-                                            case "/api/exportBlockedZones":
-                                                if (!_authManager.IsPermitted(PermissionSection.Blocked, session.User, PermissionFlag.View))
-                                                    throw new DnsWebServiceException("Access was denied.");
-
-                                                _otherZonesApi.ExportBlockedZones(response);
-                                                return;
-
-                                            case "/api/apps/list":
-                                                if (
-                                                    _authManager.IsPermitted(PermissionSection.Apps, session.User, PermissionFlag.View) ||
-                                                    _authManager.IsPermitted(PermissionSection.Zones, session.User, PermissionFlag.View) ||
-                                                    _authManager.IsPermitted(PermissionSection.Logs, session.User, PermissionFlag.View)
-                                                   )
-                                                {
-                                                    await _appsApi.ListInstalledAppsAsync(jsonWriter);
-                                                }
-                                                else
-                                                {
-                                                    throw new DnsWebServiceException("Access was denied.");
-                                                }
-
-                                                break;
-
-                                            case "/api/apps/listStoreApps":
-                                                if (!_authManager.IsPermitted(PermissionSection.Apps, session.User, PermissionFlag.View))
-                                                    throw new DnsWebServiceException("Access was denied.");
-
-                                                await _appsApi.ListStoreApps(jsonWriter);
-                                                break;
-
-                                            case "/api/apps/downloadAndInstall":
-                                                if (!_authManager.IsPermitted(PermissionSection.Apps, session.User, PermissionFlag.Delete))
-                                                    throw new DnsWebServiceException("Access was denied.");
-
-                                                await _appsApi.DownloadAndInstallAppAsync(request, jsonWriter);
-                                                break;
-
-                                            case "/api/apps/downloadAndUpdate":
-                                                if (!_authManager.IsPermitted(PermissionSection.Apps, session.User, PermissionFlag.Delete))
-                                                    throw new DnsWebServiceException("Access was denied.");
-
-                                                await _appsApi.DownloadAndUpdateAppAsync(request, jsonWriter);
-                                                break;
-
-                                            case "/api/apps/install":
-                                                if (!_authManager.IsPermitted(PermissionSection.Apps, session.User, PermissionFlag.Delete))
-                                                    throw new DnsWebServiceException("Access was denied.");
-
-                                                await _appsApi.InstallAppAsync(request, jsonWriter);
-                                                break;
-
-                                            case "/api/apps/update":
-                                                if (!_authManager.IsPermitted(PermissionSection.Apps, session.User, PermissionFlag.Delete))
-                                                    throw new DnsWebServiceException("Access was denied.");
-
-                                                await _appsApi.UpdateAppAsync(request, jsonWriter);
-                                                break;
-
-                                            case "/api/apps/uninstall":
-                                                if (!_authManager.IsPermitted(PermissionSection.Apps, session.User, PermissionFlag.Delete))
-                                                    throw new DnsWebServiceException("Access was denied.");
-
-                                                _appsApi.UninstallApp(request);
-                                                break;
-
-                                            case "/api/apps/config/get":
-                                            case "/api/apps/getConfig":
-                                                if (!_authManager.IsPermitted(PermissionSection.Apps, session.User, PermissionFlag.View))
-                                                    throw new DnsWebServiceException("Access was denied.");
-
-                                                await _appsApi.GetAppConfigAsync(request, jsonWriter);
-                                                break;
-
-                                            case "/api/apps/config/set":
-                                            case "/api/apps/setConfig":
-                                                if (!_authManager.IsPermitted(PermissionSection.Apps, session.User, PermissionFlag.Modify))
-                                                    throw new DnsWebServiceException("Access was denied.");
-
-                                                await _appsApi.SetAppConfigAsync(request);
-                                                break;
-
-                                            case "/api/dnsClient/resolve":
-                                            case "/api/resolveQuery":
-                                                if (!_authManager.IsPermitted(PermissionSection.DnsClient, session.User, PermissionFlag.View))
-                                                    throw new DnsWebServiceException("Access was denied.");
-
-                                                await ResolveQueryAsync(request, jsonWriter);
-                                                break;
-
-                                            case "/api/settings/get":
-                                            case "/api/getDnsSettings":
-                                                if (!_authManager.IsPermitted(PermissionSection.Settings, session.User, PermissionFlag.View))
-                                                    throw new DnsWebServiceException("Access was denied.");
-
-                                                _settingsApi.GetDnsSettings(jsonWriter);
-                                                break;
-
-                                            case "/api/settings/set":
-                                            case "/api/setDnsSettings":
-                                                if (!_authManager.IsPermitted(PermissionSection.Settings, session.User, PermissionFlag.Modify))
-                                                    throw new DnsWebServiceException("Access was denied.");
-
-                                                _settingsApi.SetDnsSettings(request, jsonWriter);
-                                                break;
-
-                                            case "/api/settings/getTsigKeyNames":
-                                                if (
-                                                    _authManager.IsPermitted(PermissionSection.Settings, session.User, PermissionFlag.View) ||
-                                                    _authManager.IsPermitted(PermissionSection.Zones, session.User, PermissionFlag.Modify)
-                                                   )
-                                                {
-                                                    _settingsApi.GetTsigKeyNames(jsonWriter);
-                                                }
-                                                else
-                                                {
-                                                    throw new DnsWebServiceException("Access was denied.");
-                                                }
-
-                                                break;
-
-                                            case "/api/settings/forceUpdateBlockLists":
-                                            case "/api/forceUpdateBlockLists":
-                                                if (!_authManager.IsPermitted(PermissionSection.Settings, session.User, PermissionFlag.Modify))
-                                                    throw new DnsWebServiceException("Access was denied.");
-
-                                                _settingsApi.ForceUpdateBlockLists(request);
-                                                break;
-
-                                            case "/api/settings/temporaryDisableBlocking":
-                                            case "/api/temporaryDisableBlocking":
-                                                if (!_authManager.IsPermitted(PermissionSection.Settings, session.User, PermissionFlag.Modify))
-                                                    throw new DnsWebServiceException("Access was denied.");
-
-                                                _settingsApi.TemporaryDisableBlocking(request, jsonWriter);
-                                                break;
-
-                                            case "/api/settings/backup":
-                                            case "/api/backupSettings":
-                                                if (!_authManager.IsPermitted(PermissionSection.Settings, session.User, PermissionFlag.Delete))
-                                                    throw new DnsWebServiceException("Access was denied.");
-
-                                                await _settingsApi.BackupSettingsAsync(request, response);
-                                                return;
-
-                                            case "/api/settings/restore":
-                                            case "/api/restoreSettings":
-                                                if (!_authManager.IsPermitted(PermissionSection.Settings, session.User, PermissionFlag.Delete))
-                                                    throw new DnsWebServiceException("Access was denied.");
-
-                                                await _settingsApi.RestoreSettingsAsync(request, jsonWriter);
-                                                break;
-
-                                            case "/api/dhcp/leases/list":
-                                            case "/api/listDhcpLeases":
-                                                if (!_authManager.IsPermitted(PermissionSection.DhcpServer, session.User, PermissionFlag.View))
-                                                    throw new DnsWebServiceException("Access was denied.");
-
-                                                _dhcpApi.ListDhcpLeases(jsonWriter);
-                                                break;
-
-                                            case "/api/dhcp/leases/remove":
-                                            case "/api/removeDhcpLease":
-                                                if (!_authManager.IsPermitted(PermissionSection.DhcpServer, session.User, PermissionFlag.Delete))
-                                                    throw new DnsWebServiceException("Access was denied.");
-
-                                                _dhcpApi.RemoveDhcpLease(request);
-                                                break;
-
-                                            case "/api/dhcp/leases/convertToReserved":
-                                            case "/api/convertToReservedLease":
-                                                if (!_authManager.IsPermitted(PermissionSection.DhcpServer, session.User, PermissionFlag.Modify))
-                                                    throw new DnsWebServiceException("Access was denied.");
-
-                                                _dhcpApi.ConvertToReservedLease(request);
-                                                break;
-
-                                            case "/api/dhcp/leases/convertToDynamic":
-                                            case "/api/convertToDynamicLease":
-                                                if (!_authManager.IsPermitted(PermissionSection.DhcpServer, session.User, PermissionFlag.Modify))
-                                                    throw new DnsWebServiceException("Access was denied.");
-
-                                                _dhcpApi.ConvertToDynamicLease(request);
-                                                break;
-
-                                            case "/api/dhcp/scopes/list":
-                                            case "/api/listDhcpScopes":
-                                                if (!_authManager.IsPermitted(PermissionSection.DhcpServer, session.User, PermissionFlag.View))
-                                                    throw new DnsWebServiceException("Access was denied.");
-
-                                                _dhcpApi.ListDhcpScopes(jsonWriter);
-                                                break;
-
-                                            case "/api/dhcp/scopes/get":
-                                            case "/api/getDhcpScope":
-                                                if (!_authManager.IsPermitted(PermissionSection.DhcpServer, session.User, PermissionFlag.View))
-                                                    throw new DnsWebServiceException("Access was denied.");
-
-                                                _dhcpApi.GetDhcpScope(request, jsonWriter);
-                                                break;
-
-                                            case "/api/dhcp/scopes/set":
-                                            case "/api/setDhcpScope":
-                                                if (!_authManager.IsPermitted(PermissionSection.DhcpServer, session.User, PermissionFlag.Modify))
-                                                    throw new DnsWebServiceException("Access was denied.");
-
-                                                await _dhcpApi.SetDhcpScopeAsync(request);
-                                                break;
-
-                                            case "/api/dhcp/scopes/addReservedLease":
-                                                if (!_authManager.IsPermitted(PermissionSection.DhcpServer, session.User, PermissionFlag.Modify))
-                                                    throw new DnsWebServiceException("Access was denied.");
-
-                                                _dhcpApi.AddReservedLease(request);
-                                                break;
-
-                                            case "/api/dhcp/scopes/removeReservedLease":
-                                                if (!_authManager.IsPermitted(PermissionSection.DhcpServer, session.User, PermissionFlag.Modify))
-                                                    throw new DnsWebServiceException("Access was denied.");
-
-                                                _dhcpApi.RemoveReservedLease(request);
-                                                break;
-
-                                            case "/api/dhcp/scopes/enable":
-                                            case "/api/enableDhcpScope":
-                                                if (!_authManager.IsPermitted(PermissionSection.DhcpServer, session.User, PermissionFlag.Modify))
-                                                    throw new DnsWebServiceException("Access was denied.");
-
-                                                await _dhcpApi.EnableDhcpScopeAsync(request);
-                                                break;
-
-                                            case "/api/dhcp/scopes/disable":
-                                            case "/api/disableDhcpScope":
-                                                if (!_authManager.IsPermitted(PermissionSection.DhcpServer, session.User, PermissionFlag.Modify))
-                                                    throw new DnsWebServiceException("Access was denied.");
-
-                                                _dhcpApi.DisableDhcpScope(request);
-                                                break;
-
-                                            case "/api/dhcp/scopes/delete":
-                                            case "/api/deleteDhcpScope":
-                                                if (!_authManager.IsPermitted(PermissionSection.DhcpServer, session.User, PermissionFlag.Delete))
-                                                    throw new DnsWebServiceException("Access was denied.");
-
-                                                _dhcpApi.DeleteDhcpScope(request);
-                                                break;
-
-                                            case "/api/admin/sessions/list":
-                                                if (!_authManager.IsPermitted(PermissionSection.Administration, session.User, PermissionFlag.View))
-                                                    throw new DnsWebServiceException("Access was denied.");
-
-                                                _authApi.ListSessions(request, jsonWriter);
-                                                break;
-
-                                            case "/api/admin/sessions/createToken":
-                                                if (!_authManager.IsPermitted(PermissionSection.Administration, session.User, PermissionFlag.Modify))
-                                                    throw new DnsWebServiceException("Access was denied.");
-
-                                                _authApi.CreateApiToken(request, jsonWriter);
-                                                break;
-
-                                            case "/api/admin/sessions/delete":
-                                                if (!_authManager.IsPermitted(PermissionSection.Administration, session.User, PermissionFlag.Delete))
-                                                    throw new DnsWebServiceException("Access was denied.");
-
-                                                _authApi.DeleteSession(request, true);
-                                                break;
-
-                                            case "/api/admin/users/list":
-                                                if (!_authManager.IsPermitted(PermissionSection.Administration, session.User, PermissionFlag.View))
-                                                    throw new DnsWebServiceException("Access was denied.");
-
-                                                _authApi.ListUsers(jsonWriter);
-                                                break;
-
-                                            case "/api/admin/users/create":
-                                                if (!_authManager.IsPermitted(PermissionSection.Administration, session.User, PermissionFlag.Modify))
-                                                    throw new DnsWebServiceException("Access was denied.");
-
-                                                _authApi.CreateUser(request, jsonWriter);
-                                                break;
-
-                                            case "/api/admin/users/get":
-                                                if (!_authManager.IsPermitted(PermissionSection.Administration, session.User, PermissionFlag.View))
-                                                    throw new DnsWebServiceException("Access was denied.");
-
-                                                _authApi.GetUserDetails(request, jsonWriter);
-                                                break;
-
-                                            case "/api/admin/users/set":
-                                                if (!_authManager.IsPermitted(PermissionSection.Administration, session.User, PermissionFlag.Modify))
-                                                    throw new DnsWebServiceException("Access was denied.");
-
-                                                _authApi.SetUserDetails(request, jsonWriter);
-                                                break;
-
-                                            case "/api/admin/users/delete":
-                                                if (!_authManager.IsPermitted(PermissionSection.Administration, session.User, PermissionFlag.Delete))
-                                                    throw new DnsWebServiceException("Access was denied.");
-
-                                                _authApi.DeleteUser(request);
-                                                break;
-
-                                            case "/api/admin/groups/list":
-                                                if (!_authManager.IsPermitted(PermissionSection.Administration, session.User, PermissionFlag.View))
-                                                    throw new DnsWebServiceException("Access was denied.");
-
-                                                _authApi.ListGroups(jsonWriter);
-                                                break;
-
-                                            case "/api/admin/groups/create":
-                                                if (!_authManager.IsPermitted(PermissionSection.Administration, session.User, PermissionFlag.Modify))
-                                                    throw new DnsWebServiceException("Access was denied.");
-
-                                                _authApi.CreateGroup(request, jsonWriter);
-                                                break;
-
-                                            case "/api/admin/groups/get":
-                                                if (!_authManager.IsPermitted(PermissionSection.Administration, session.User, PermissionFlag.View))
-                                                    throw new DnsWebServiceException("Access was denied.");
-
-                                                _authApi.GetGroupDetails(request, jsonWriter);
-                                                break;
-
-                                            case "/api/admin/groups/set":
-                                                if (!_authManager.IsPermitted(PermissionSection.Administration, session.User, PermissionFlag.Modify))
-                                                    throw new DnsWebServiceException("Access was denied.");
-
-                                                _authApi.SetGroupDetails(request, jsonWriter);
-                                                break;
-
-                                            case "/api/admin/groups/delete":
-                                                if (!_authManager.IsPermitted(PermissionSection.Administration, session.User, PermissionFlag.Delete))
-                                                    throw new DnsWebServiceException("Access was denied.");
-
-                                                _authApi.DeleteGroup(request);
-                                                break;
-
-                                            case "/api/admin/permissions/list":
-                                                if (!_authManager.IsPermitted(PermissionSection.Administration, session.User, PermissionFlag.View))
-                                                    throw new DnsWebServiceException("Access was denied.");
-
-                                                _authApi.ListPermissions(jsonWriter);
-                                                break;
-
-                                            case "/api/admin/permissions/get":
-                                                if (!_authManager.IsPermitted(PermissionSection.Administration, session.User, PermissionFlag.View))
-                                                    throw new DnsWebServiceException("Access was denied.");
-
-                                                _authApi.GetPermissionDetails(request, jsonWriter, PermissionSection.Unknown);
-                                                break;
-
-                                            case "/api/admin/permissions/set":
-                                                if (!_authManager.IsPermitted(PermissionSection.Administration, session.User, PermissionFlag.Delete))
-                                                    throw new DnsWebServiceException("Access was denied.");
-
-                                                _authApi.SetPermissionsDetails(request, jsonWriter, PermissionSection.Unknown);
-                                                break;
-
-                                            case "/api/logs/list":
-                                            case "/api/listLogs":
-                                                if (!_authManager.IsPermitted(PermissionSection.Logs, session.User, PermissionFlag.View))
-                                                    throw new DnsWebServiceException("Access was denied.");
-
-                                                _logsApi.ListLogs(jsonWriter);
-                                                break;
-
-                                            case "/api/logs/download":
-                                                if (!_authManager.IsPermitted(PermissionSection.Logs, session.User, PermissionFlag.View))
-                                                    throw new DnsWebServiceException("Access was denied.");
-
-                                                await _logsApi.DownloadLogAsync(request, response);
-                                                return;
-
-                                            case "/api/logs/delete":
-                                            case "/api/deleteLog":
-                                                if (!_authManager.IsPermitted(PermissionSection.Logs, session.User, PermissionFlag.Delete))
-                                                    throw new DnsWebServiceException("Access was denied.");
-
-                                                _logsApi.DeleteLog(request);
-                                                break;
-
-                                            case "/api/logs/deleteAll":
-                                            case "/api/deleteAllLogs":
-                                                if (!_authManager.IsPermitted(PermissionSection.Logs, session.User, PermissionFlag.Delete))
-                                                    throw new DnsWebServiceException("Access was denied.");
-
-                                                _logsApi.DeleteAllLogs(request);
-                                                break;
-
-                                            case "/api/logs/query":
-                                            case "/api/queryLogs":
-                                                if (!_authManager.IsPermitted(PermissionSection.Logs, session.User, PermissionFlag.View))
-                                                    throw new DnsWebServiceException("Access was denied.");
-
-                                                await _logsApi.QueryLogsAsync(request, jsonWriter);
-                                                break;
-
-                                            default:
-                                                await SendErrorAsync(response, 404);
-                                                return;
-                                        }
-                                    }
-                                    finally
-                                    {
-                                        jsonWriter.WriteEndObject();
-                                    }
-                                    break;
-                            }
-
-                            jsonWriter.WriteString("status", "ok");
-
-                            jsonWriter.WriteEndObject();
-                            jsonWriter.Flush();
-                        }
-                        catch (InvalidTokenWebServiceException ex)
-                        {
-                            mS.SetLength(0);
-                            Utf8JsonWriter jsonWriter = new Utf8JsonWriter(mS);
-                            jsonWriter.WriteStartObject();
-
                             jsonWriter.WriteString("status", "invalid-token");
                             jsonWriter.WriteString("errorMessage", ex.Message);
-
-                            jsonWriter.WriteEndObject();
-                            jsonWriter.Flush();
                         }
-                        catch (Exception ex)
+                        else
                         {
-                            UserSession session = null;
-
-                            string strToken = request.QueryString["token"];
-                            if (!string.IsNullOrEmpty(strToken))
-                                session = _authManager.GetSession(strToken);
-
-                            if (session is null)
-                                _log.Write(GetRequestRemoteEndPoint(request), ex);
-                            else
-                                _log.Write(GetRequestRemoteEndPoint(request), "[" + session.User.Username + "] " + ex.ToString());
-
-                            mS.SetLength(0);
-                            Utf8JsonWriter jsonWriter = new Utf8JsonWriter(mS);
-                            jsonWriter.WriteStartObject();
-
                             jsonWriter.WriteString("status", "error");
                             jsonWriter.WriteString("errorMessage", ex.Message);
                             jsonWriter.WriteString("stackTrace", ex.StackTrace);
 
                             if (ex.InnerException is not null)
                                 jsonWriter.WriteString("innerErrorMessage", ex.InnerException.Message);
-
-                            jsonWriter.WriteEndObject();
-                            jsonWriter.Flush();
                         }
 
-                        response.ContentType = "application/json; charset=utf-8";
-                        response.ContentEncoding = Encoding.UTF8;
-                        response.ContentLength64 = mS.Length;
-
-                        mS.Position = 0;
-                        using (Stream stream = response.OutputStream)
-                        {
-                            await mS.CopyToAsync(stream);
-                        }
+                        jsonWriter.WriteEndObject();
                     }
                 }
-                else if (path.StartsWith("/log/"))
-                {
-                    if (!TryGetSession(request, out UserSession session))
-                    {
-                        await SendErrorAsync(response, 403, "Invalid token or session expired.");
-                        return;
-                    }
-
-                    if (!_authManager.IsPermitted(PermissionSection.Logs, session.User, PermissionFlag.View))
-                        throw new DnsWebServiceException("Access was denied.");
-
-                    string[] pathParts = path.Split('/');
-                    string logFileName = pathParts[2];
-
-                    int limit = 0;
-                    string strLimit = request.QueryString["limit"];
-                    if (!string.IsNullOrEmpty(strLimit))
-                        limit = int.Parse(strLimit);
-
-                    await _log.DownloadLogAsync(request, response, logFileName, limit * 1024 * 1024);
-                }
-                else
-                {
-                    if (path == "/")
-                    {
-                        path = "/index.html";
-                    }
-                    else if ((path == "/blocklist.txt") && !IPAddress.IsLoopback(GetRequestRemoteEndPoint(request).Address))
-                    {
-                        await SendErrorAsync(response, 403);
-                        return;
-                    }
-
-                    string wwwroot = Path.Combine(_appFolder, "www");
-                    path = Path.GetFullPath(wwwroot + path.Replace('/', Path.DirectorySeparatorChar));
-
-                    if (!path.StartsWith(wwwroot) || !File.Exists(path))
-                    {
-                        await SendErrorAsync(response, 404);
-                        return;
-                    }
-
-                    await SendFileAsync(request, response, path);
-                }
-            }
-            catch (Exception ex)
-            {
-                if ((_state == ServiceState.Stopping) || (_state == ServiceState.Stopped))
-                    return; //web service stopping
-
-                UserSession session = null;
-
-                string strToken = request.QueryString["token"];
-                if (!string.IsNullOrEmpty(strToken))
-                    session = _authManager.GetSession(strToken);
-
-                if (session is null)
-                    _log.Write(GetRequestRemoteEndPoint(request), ex);
-                else
-                    _log.Write(GetRequestRemoteEndPoint(request), "[" + session.User.Username + "] " + ex.ToString());
-
-                await SendError(response, ex);
-            }
+            });
         }
 
-        internal static IPEndPoint GetRequestRemoteEndPoint(HttpListenerRequest request)
+        private bool TryGetSession(HttpContext context, out UserSession session)
         {
-            try
-            {
-                if (request.RemoteEndPoint == null)
-                    return new IPEndPoint(IPAddress.Any, 0);
-
-                if (NetUtilities.IsPrivateIP(request.RemoteEndPoint.Address))
-                {
-                    string xRealIp = request.Headers["X-Real-IP"];
-                    if (IPAddress.TryParse(xRealIp, out IPAddress address))
-                    {
-                        //get the real IP address of the requesting client from X-Real-IP header set in nginx proxy_pass block
-                        return new IPEndPoint(address, 0);
-                    }
-                }
-
-                return request.RemoteEndPoint;
-            }
-            catch
-            {
-                return new IPEndPoint(IPAddress.Any, 0);
-            }
-        }
-
-        public static Stream GetOutputStream(HttpListenerRequest request, HttpListenerResponse response)
-        {
-            string strAcceptEncoding = request.Headers["Accept-Encoding"];
-            if (string.IsNullOrEmpty(strAcceptEncoding))
-            {
-                return response.OutputStream;
-            }
-            else
-            {
-                if (strAcceptEncoding.Contains("gzip"))
-                {
-                    response.AddHeader("Content-Encoding", "gzip");
-                    return new GZipStream(response.OutputStream, CompressionMode.Compress);
-                }
-                else if (strAcceptEncoding.Contains("deflate"))
-                {
-                    response.AddHeader("Content-Encoding", "deflate");
-                    return new DeflateStream(response.OutputStream, CompressionMode.Compress);
-                }
-                else
-                {
-                    return response.OutputStream;
-                }
-            }
-        }
-
-        private static Task SendError(HttpListenerResponse response, Exception ex)
-        {
-            return SendErrorAsync(response, 500, ex.ToString());
-        }
-
-        private static async Task SendErrorAsync(HttpListenerResponse response, int statusCode, string message = null)
-        {
-            try
-            {
-                string statusString = statusCode + " " + DnsServer.GetHttpStatusString((HttpStatusCode)statusCode);
-                byte[] buffer = Encoding.UTF8.GetBytes("<html><head><title>" + statusString + "</title></head><body><h1>" + statusString + "</h1>" + (message == null ? "" : "<p>" + message + "</p>") + "</body></html>");
-
-                response.StatusCode = statusCode;
-                response.ContentType = "text/html";
-                response.ContentLength64 = buffer.Length;
-
-                using (Stream stream = response.OutputStream)
-                {
-                    await stream.WriteAsync(buffer);
-                }
-            }
-            catch
-            { }
-        }
-
-        private static async Task SendFileAsync(HttpListenerRequest request, HttpListenerResponse response, string filePath)
-        {
-            using (FileStream fS = new FileStream(filePath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite))
-            {
-                response.ContentType = WebUtilities.GetContentType(filePath).MediaType;
-                response.AddHeader("Cache-Control", "private, max-age=300");
-
-                using (Stream stream = GetOutputStream(request, response))
-                {
-                    try
-                    {
-                        await fS.CopyToAsync(stream);
-                    }
-                    catch (HttpListenerException)
-                    {
-                        //ignore this error
-                    }
-                }
-            }
-        }
-
-        internal UserSession GetSession(HttpListenerRequest request)
-        {
-            string strToken = request.QueryString["token"];
-            if (string.IsNullOrEmpty(strToken))
-                throw new DnsWebServiceException("Parameter 'token' missing.");
-
-            return _authManager.GetSession(strToken);
-        }
-
-        internal bool TryGetSession(HttpListenerRequest request, out UserSession session)
-        {
-            session = GetSession(request);
+            string token = context.Request.GetQuery("token");
+            session = _authManager.GetSession(token);
             if ((session is null) || session.User.Disabled)
                 return false;
 
@@ -1412,9 +533,9 @@ namespace DnsServerCore
                 return false;
             }
 
-            IPEndPoint remoteEP = GetRequestRemoteEndPoint(request);
+            IPEndPoint remoteEP = context.GetRemoteEndPoint();
 
-            session.UpdateLastSeen(remoteEP.Address, request.UserAgent);
+            session.UpdateLastSeen(remoteEP.Address, context.Request.Headers.UserAgent);
             return true;
         }
 
@@ -1422,8 +543,10 @@ namespace DnsServerCore
 
         #region update api
 
-        private async Task CheckForUpdateAsync(HttpListenerRequest request, Utf8JsonWriter jsonWriter)
+        private async Task CheckForUpdateAsync(HttpContext context)
         {
+            Utf8JsonWriter jsonWriter = context.GetCurrentJsonWriter();
+
             if (_updateCheckUri is null)
             {
                 jsonWriter.WriteBoolean("updateAvailable", false);
@@ -1483,12 +606,12 @@ namespace DnsServerCore
 
                     strLog += "}";
 
-                    _log.Write(GetRequestRemoteEndPoint(request), strLog);
+                    _log.Write(context.GetRemoteEndPoint(), strLog);
                 }
             }
             catch (Exception ex)
             {
-                _log.Write(GetRequestRemoteEndPoint(request), "Check for update was done {updateAvailable: False;}\r\n" + ex.ToString());
+                _log.Write(context.GetRemoteEndPoint(), "Check for update was done {updateAvailable: False;}\r\n" + ex.ToString());
 
                 jsonWriter.WriteBoolean("updateAvailable", false);
             }
@@ -1516,44 +639,26 @@ namespace DnsServerCore
 
         #region dns client api
 
-        private async Task ResolveQueryAsync(HttpListenerRequest request, Utf8JsonWriter jsonWriter)
+        private async Task ResolveQueryAsync(HttpContext context)
         {
-            string server = request.QueryString["server"];
-            if (string.IsNullOrEmpty(server))
-                throw new DnsWebServiceException("Parameter 'server' missing.");
+            UserSession session = context.GetCurrentSession();
 
-            string domain = request.QueryString["domain"];
-            if (string.IsNullOrEmpty(domain))
-                throw new DnsWebServiceException("Parameter 'domain' missing.");
+            if (!_authManager.IsPermitted(PermissionSection.DnsClient, session.User, PermissionFlag.View))
+                throw new DnsWebServiceException("Access was denied.");
 
-            domain = domain.Trim(new char[] { '\t', ' ', '.' });
+            HttpRequest request = context.Request;
 
-            string strType = request.QueryString["type"];
-            if (string.IsNullOrEmpty(strType))
-                throw new DnsWebServiceException("Parameter 'type' missing.");
-
-            DnsResourceRecordType type = Enum.Parse<DnsResourceRecordType>(strType, true);
-
-            string strProtocol = request.QueryString["protocol"];
-            if (string.IsNullOrEmpty(strProtocol))
-                strProtocol = "Udp";
-
-            bool dnssecValidation = false;
-            string strDnssecValidation = request.QueryString["dnssec"];
-            if (!string.IsNullOrEmpty(strDnssecValidation))
-                dnssecValidation = bool.Parse(strDnssecValidation);
-
-            bool importResponse = false;
-            string strImport = request.QueryString["import"];
-            if (!string.IsNullOrEmpty(strImport))
-                importResponse = bool.Parse(strImport);
-
+            string server = request.GetQuery("server");
+            string domain = request.GetQuery("domain").Trim(new char[] { '\t', ' ', '.' });
+            DnsResourceRecordType type = request.GetQuery<DnsResourceRecordType>("type");
+            DnsTransportProtocol protocol = request.GetQuery("protocol", DnsTransportProtocol.Udp);
+            bool dnssecValidation = request.GetQuery("dnssec", bool.Parse, false);
+            bool importResponse = request.GetQuery("import", bool.Parse, false);
             NetProxy proxy = _dnsServer.Proxy;
             bool preferIPv6 = _dnsServer.PreferIPv6;
             ushort udpPayloadSize = _dnsServer.UdpPayloadSize;
             bool randomizeName = false;
             bool qnameMinimization = _dnsServer.QnameMinimization;
-            DnsTransportProtocol protocol = Enum.Parse<DnsTransportProtocol>(strProtocol, true);
             const int RETRIES = 1;
             const int TIMEOUT = 10000;
 
@@ -1620,7 +725,7 @@ namespace DnsServerCore
                 }
                 else
                 {
-                    nameServer = new NameServerAddress(server);
+                    nameServer = NameServerAddress.Parse(server);
 
                     if (nameServer.Protocol != protocol)
                         nameServer = nameServer.ChangeProtocol(protocol);
@@ -1674,8 +779,6 @@ namespace DnsServerCore
 
             if (importResponse)
             {
-                UserSession session = GetSession(request);
-
                 AuthZoneInfo zoneInfo = _dnsServer.AuthZoneManager.FindAuthZoneInfo(domain);
                 if ((zoneInfo is null) || ((zoneInfo.Type == AuthZoneType.Secondary) && !zoneInfo.Name.Equals(domain, StringComparison.OrdinalIgnoreCase)))
                 {
@@ -1748,10 +851,12 @@ namespace DnsServerCore
                     _dnsServer.AuthZoneManager.ImportRecords(zoneInfo.Name, importRecords);
                 }
 
-                _log.Write(GetRequestRemoteEndPoint(request), "[" + session.User.Username + "] DNS Client imported record(s) for authoritative zone {server: " + server + "; zone: " + zoneInfo.Name + "; type: " + type + ";}");
+                _log.Write(context.GetRemoteEndPoint(), "[" + session.User.Username + "] DNS Client imported record(s) for authoritative zone {server: " + server + "; zone: " + zoneInfo.Name + "; type: " + type + ";}");
 
                 _dnsServer.AuthZoneManager.SaveZoneFile(zoneInfo.Name);
             }
+
+            Utf8JsonWriter jsonWriter = context.GetCurrentJsonWriter();
 
             if (dnssecErrorMessage is not null)
                 jsonWriter.WriteString("warningMessage", dnssecErrorMessage);
@@ -1940,27 +1045,11 @@ namespace DnsServerCore
 
                 string strRecursionDeniedNetworks = Environment.GetEnvironmentVariable("DNS_SERVER_RECURSION_DENIED_NETWORKS");
                 if (!string.IsNullOrEmpty(strRecursionDeniedNetworks))
-                {
-                    string[] strRecursionDeniedNetworkAddresses = strRecursionDeniedNetworks.Split(new char[] { ',' }, StringSplitOptions.RemoveEmptyEntries);
-                    NetworkAddress[] networks = new NetworkAddress[strRecursionDeniedNetworkAddresses.Length];
-
-                    for (int i = 0; i < networks.Length; i++)
-                        networks[i] = NetworkAddress.Parse(strRecursionDeniedNetworkAddresses[i].Trim());
-
-                    _dnsServer.RecursionDeniedNetworks = networks;
-                }
+                    _dnsServer.RecursionDeniedNetworks = strRecursionDeniedNetworks.Split(NetworkAddress.Parse, ',');
 
                 string strRecursionAllowedNetworks = Environment.GetEnvironmentVariable("DNS_SERVER_RECURSION_ALLOWED_NETWORKS");
                 if (!string.IsNullOrEmpty(strRecursionAllowedNetworks))
-                {
-                    string[] strRecursionAllowedNetworkAddresses = strRecursionAllowedNetworks.Split(new char[] { ',' }, StringSplitOptions.RemoveEmptyEntries);
-                    NetworkAddress[] networks = new NetworkAddress[strRecursionAllowedNetworkAddresses.Length];
-
-                    for (int i = 0; i < networks.Length; i++)
-                        networks[i] = NetworkAddress.Parse(strRecursionAllowedNetworkAddresses[i].Trim());
-
-                    _dnsServer.RecursionAllowedNetworks = networks;
-                }
+                    _dnsServer.RecursionAllowedNetworks = strRecursionAllowedNetworks.Split(NetworkAddress.Parse, ',');
 
                 _dnsServer.RandomizeName = true; //default true to enable security feature
                 _dnsServer.QnameMinimization = true; //default true to enable privacy feature
@@ -2020,20 +1109,15 @@ namespace DnsServerCore
                             forwarderProtocol = DnsTransportProtocol.Https;
                     }
 
-                    List<NameServerAddress> forwarders = new List<NameServerAddress>();
-                    string[] strForwardersAddresses = strForwarders.Split(new char[] { ',' }, StringSplitOptions.RemoveEmptyEntries);
-
-                    foreach (string strForwarderAddress in strForwardersAddresses)
+                    _dnsServer.Forwarders = strForwarders.Split(delegate (string value)
                     {
-                        NameServerAddress forwarder = new NameServerAddress(strForwarderAddress.Trim());
+                        NameServerAddress forwarder = NameServerAddress.Parse(value);
 
                         if (forwarder.Protocol != forwarderProtocol)
                             forwarder = forwarder.ChangeProtocol(forwarderProtocol);
 
-                        forwarders.Add(forwarder);
-                    }
-
-                    _dnsServer.Forwarders = forwarders;
+                        return forwarder;
+                    }, ',');
                 }
 
                 //logging
@@ -3246,168 +2330,14 @@ namespace DnsServerCore
 
         #endregion
 
-        #region web service start stop
-
-        internal void StartDnsWebService()
-        {
-            int acceptTasks = Math.Max(1, Environment.ProcessorCount);
-
-            //HTTP service
-            try
-            {
-                string webServiceHostname = null;
-
-                _webService = new HttpListener();
-                IPAddress httpAddress = null;
-
-                foreach (IPAddress webServiceLocalAddress in _webServiceLocalAddresses)
-                {
-                    string host;
-
-                    if (webServiceLocalAddress.Equals(IPAddress.Any))
-                    {
-                        host = "+";
-
-                        httpAddress = IPAddress.Loopback;
-                    }
-                    else if (webServiceLocalAddress.Equals(IPAddress.IPv6Any))
-                    {
-                        host = "+";
-
-                        if ((httpAddress == null) || !IPAddress.IsLoopback(httpAddress))
-                            httpAddress = IPAddress.IPv6Loopback;
-                    }
-                    else
-                    {
-                        if (webServiceLocalAddress.AddressFamily == AddressFamily.InterNetworkV6)
-                            host = "[" + webServiceLocalAddress.ToString() + "]";
-                        else
-                            host = webServiceLocalAddress.ToString();
-
-                        if (httpAddress == null)
-                            httpAddress = webServiceLocalAddress;
-
-                        if (webServiceHostname == null)
-                            webServiceHostname = host;
-                    }
-
-                    _webService.Prefixes.Add("http://" + host + ":" + _webServiceHttpPort + "/");
-                }
-
-                _webService.Start();
-
-                if (httpAddress == null)
-                    httpAddress = IPAddress.Loopback;
-
-                _webServiceHttpEP = new IPEndPoint(httpAddress, _webServiceHttpPort);
-
-                _webServiceHostname = webServiceHostname ?? Environment.MachineName.ToLower();
-            }
-            catch (Exception ex)
-            {
-                _log.Write("Web Service failed to bind using default hostname. Attempting to bind again using 'localhost' hostname.\r\n" + ex.ToString());
-
-                try
-                {
-                    _webService = new HttpListener();
-                    _webService.Prefixes.Add("http://localhost:" + _webServiceHttpPort + "/");
-                    _webService.Prefixes.Add("http://127.0.0.1:" + _webServiceHttpPort + "/");
-                    _webService.Start();
-                }
-                catch
-                {
-                    _webService = new HttpListener();
-                    _webService.Prefixes.Add("http://localhost:" + _webServiceHttpPort + "/");
-                    _webService.Start();
-                }
-
-                _webServiceHttpEP = new IPEndPoint(IPAddress.Loopback, _webServiceHttpPort);
-
-                _webServiceHostname = "localhost";
-            }
-
-            _webService.IgnoreWriteExceptions = true;
-
-            for (int i = 0; i < acceptTasks; i++)
-            {
-                _ = Task.Factory.StartNew(delegate ()
-                {
-                    return AcceptWebRequestAsync();
-                }, CancellationToken.None, TaskCreationOptions.DenyChildAttach, _webServiceTaskScheduler);
-            }
-
-            _log.Write(new IPEndPoint(IPAddress.Any, _webServiceHttpPort), "HTTP Web Service was started successfully.");
-
-            //TLS service
-            if (_webServiceEnableTls && (_webServiceTlsCertificate != null))
-            {
-                List<Socket> webServiceTlsListeners = new List<Socket>();
-
-                try
-                {
-                    foreach (IPAddress webServiceLocalAddress in _webServiceLocalAddresses)
-                    {
-                        Socket tlsListener = new Socket(webServiceLocalAddress.AddressFamily, SocketType.Stream, ProtocolType.Tcp);
-
-                        tlsListener.Bind(new IPEndPoint(webServiceLocalAddress, _webServiceTlsPort));
-                        tlsListener.Listen(10);
-
-                        webServiceTlsListeners.Add(tlsListener);
-                    }
-
-                    foreach (Socket tlsListener in webServiceTlsListeners)
-                    {
-                        for (int i = 0; i < acceptTasks; i++)
-                        {
-                            _ = Task.Factory.StartNew(delegate ()
-                            {
-                                return AcceptTlsWebRequestAsync(tlsListener);
-                            }, CancellationToken.None, TaskCreationOptions.DenyChildAttach, _webServiceTaskScheduler);
-                        }
-                    }
-
-                    _webServiceTlsListeners = webServiceTlsListeners;
-
-                    _log.Write(new IPEndPoint(IPAddress.Any, _webServiceHttpPort), "TLS Web Service was started successfully.");
-                }
-                catch (Exception ex)
-                {
-                    _log.Write("TLS Web Service failed to start.\r\n" + ex.ToString());
-
-                    foreach (Socket tlsListener in webServiceTlsListeners)
-                        tlsListener.Dispose();
-                }
-            }
-        }
-
-        internal void StopDnsWebService()
-        {
-            _webService.Stop();
-
-            if (_webServiceTlsListeners != null)
-            {
-                foreach (Socket tlsListener in _webServiceTlsListeners)
-                    tlsListener.Dispose();
-
-                _webServiceTlsListeners = null;
-            }
-        }
-
-        #endregion
-
         #endregion
 
         #region public
 
-        public void Start()
+        public async Task StartAsync()
         {
             if (_disposed)
                 throw new ObjectDisposedException(nameof(DnsWebService));
-
-            if (_state != ServiceState.Stopped)
-                throw new InvalidOperationException("Web Service is already running.");
-
-            _state = ServiceState.Starting;
 
             try
             {
@@ -3477,9 +2407,7 @@ namespace DnsServerCore
                 _dhcpServer.Start();
 
                 //start web service
-                StartDnsWebService();
-
-                _state = ServiceState.Running;
+                await StartWebServiceAsync();
 
                 _log.Write("DNS Server (v" + _currentVersion.ToString() + ") was started successfully.");
             }
@@ -3490,24 +2418,20 @@ namespace DnsServerCore
             }
         }
 
-        public void Stop()
+        public async Task StopAsync()
         {
-            if (_state != ServiceState.Running)
+            if (_disposed)
                 return;
-
-            _state = ServiceState.Stopping;
 
             try
             {
-                StopDnsWebService();
+                await StopWebServiceAsync();
                 _dnsServer.Dispose();
                 _dhcpServer.Dispose();
 
                 _settingsApi.StopBlockListUpdateTimer();
                 _settingsApi.StopTemporaryDisableBlockingTimer();
                 StopTlsCertificateUpdateTimer();
-
-                _state = ServiceState.Stopped;
 
                 _log.Write("DNS Server (v" + _currentVersion.ToString() + ") was stopped successfully.");
             }
@@ -3516,6 +2440,16 @@ namespace DnsServerCore
                 _log.Write("Failed to stop DNS Server (v" + _currentVersion.ToString() + ")\r\n" + ex.ToString());
                 throw;
             }
+        }
+
+        public void Start()
+        {
+            StartAsync().Sync();
+        }
+
+        public void Stop()
+        {
+            StopAsync().Sync();
         }
 
         #endregion
@@ -3530,9 +2464,6 @@ namespace DnsServerCore
 
         public int WebServiceTlsPort
         { get { return _webServiceTlsPort; } }
-
-        public string WebServiceHostname
-        { get { return _webServiceHostname; } }
 
         #endregion
     }
