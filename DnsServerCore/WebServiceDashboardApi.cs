@@ -1,6 +1,6 @@
 ﻿/*
 Technitium DNS Server
-Copyright (C) 2022  Shreyas Zare (shreyas@technitium.com)
+Copyright (C) 2023  Shreyas Zare (shreyas@technitium.com)
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -17,7 +17,9 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 */
 
+using DnsServerCore.Auth;
 using DnsServerCore.Dns;
+using Microsoft.AspNetCore.Http;
 using System;
 using System.Collections.Generic;
 using System.Globalization;
@@ -121,28 +123,23 @@ namespace DnsServerCore
 
         #region public
 
-        public async Task GetStats(HttpListenerRequest request, Utf8JsonWriter jsonWriter)
+        public async Task GetStats(HttpContext context)
         {
-            string strType = request.QueryString["type"];
-            if (string.IsNullOrEmpty(strType))
-                strType = "lastHour";
+            if (!_dnsWebService._authManager.IsPermitted(PermissionSection.Dashboard, context.GetCurrentSession().User, PermissionFlag.View))
+                throw new DnsWebServiceException("Access was denied.");
 
-            bool utcFormat;
-            string strUtcFormat = request.QueryString["utc"];
-            if (string.IsNullOrEmpty(strUtcFormat))
-                utcFormat = false;
-            else
-                utcFormat = bool.Parse(strUtcFormat);
+            HttpRequest request = context.Request;
+
+            string strType = request.GetQuery("type", "lastHour");
+            bool utcFormat = request.GetQuery("utc", bool.Parse, false);
+
+            bool isLanguageEnUs = true;
+            string acceptLanguage = request.Headers["Accept-Language"];
+            if (!string.IsNullOrEmpty(acceptLanguage))
+                isLanguageEnUs = acceptLanguage.StartsWith("en-us", StringComparison.OrdinalIgnoreCase);
 
             Dictionary<string, List<KeyValuePair<string, long>>> data;
             string labelFormat;
-            bool isLanguageEnUs;
-
-            string acceptLanguage = request.Headers["Accept-Language"];
-            if (string.IsNullOrEmpty(acceptLanguage))
-                isLanguageEnUs = true;
-            else
-                isLanguageEnUs = acceptLanguage.StartsWith("en-us", StringComparison.OrdinalIgnoreCase);
 
             switch (strType.ToLower())
             {
@@ -187,13 +184,8 @@ namespace DnsServerCore
                     break;
 
                 case "custom":
-                    string strStartDate = request.QueryString["start"];
-                    if (string.IsNullOrEmpty(strStartDate))
-                        throw new DnsWebServiceException("Parameter 'start' missing.");
-
-                    string strEndDate = request.QueryString["end"];
-                    if (string.IsNullOrEmpty(strEndDate))
-                        throw new DnsWebServiceException("Parameter 'end' missing.");
+                    string strStartDate = request.GetQuery("start");
+                    string strEndDate = request.GetQuery("end");
 
                     if (!DateTime.TryParse(strStartDate, CultureInfo.InvariantCulture, DateTimeStyles.AssumeUniversal | DateTimeStyles.AdjustToUniversal, out DateTime startDate))
                         throw new DnsWebServiceException("Invalid start date format.");
@@ -228,6 +220,8 @@ namespace DnsServerCore
                 default:
                     throw new DnsWebServiceException("Unknown stats type requested: " + strType);
             }
+
+            Utf8JsonWriter jsonWriter = context.GetCurrentJsonWriter();
 
             //stats
             {
@@ -495,22 +489,16 @@ namespace DnsServerCore
             }
         }
 
-        public async Task GetTopStats(HttpListenerRequest request, Utf8JsonWriter jsonWriter)
+        public async Task GetTopStats(HttpContext context)
         {
-            string strType = request.QueryString["type"];
-            if (string.IsNullOrEmpty(strType))
-                strType = "lastHour";
+            if (!_dnsWebService._authManager.IsPermitted(PermissionSection.Dashboard, context.GetCurrentSession().User, PermissionFlag.View))
+                throw new DnsWebServiceException("Access was denied.");
 
-            string strStatsType = request.QueryString["statsType"];
-            if (string.IsNullOrEmpty(strStatsType))
-                throw new DnsWebServiceException("Parameter 'statsType' missing.");
+            HttpRequest request = context.Request;
 
-            string strLimit = request.QueryString["limit"];
-            if (string.IsNullOrEmpty(strLimit))
-                strLimit = "1000";
-
-            TopStatsType statsType = Enum.Parse<TopStatsType>(strStatsType, true);
-            int limit = int.Parse(strLimit);
+            string strType = request.GetQuery("type", "lastHour");
+            TopStatsType statsType = request.GetQuery<TopStatsType>("statsType");
+            int limit = request.GetQuery("limit", int.Parse, 1000);
 
             List<KeyValuePair<string, long>> topStatsData;
 
@@ -537,13 +525,8 @@ namespace DnsServerCore
                     break;
 
                 case "custom":
-                    string strStartDate = request.QueryString["start"];
-                    if (string.IsNullOrEmpty(strStartDate))
-                        throw new DnsWebServiceException("Parameter 'start' missing.");
-
-                    string strEndDate = request.QueryString["end"];
-                    if (string.IsNullOrEmpty(strEndDate))
-                        throw new DnsWebServiceException("Parameter 'end' missing.");
+                    string strStartDate = request.GetQuery("start");
+                    string strEndDate = request.GetQuery("end");
 
                     if (!DateTime.TryParseExact(strStartDate, "yyyy-M-d", CultureInfo.InvariantCulture, DateTimeStyles.AssumeUniversal | DateTimeStyles.AdjustToUniversal, out DateTime startDate))
                         throw new DnsWebServiceException("Invalid start date format.");
@@ -564,6 +547,8 @@ namespace DnsServerCore
                 default:
                     throw new DnsWebServiceException("Unknown stats type requested: " + strType);
             }
+
+            Utf8JsonWriter jsonWriter = context.GetCurrentJsonWriter();
 
             switch (statsType)
             {
