@@ -1,6 +1,6 @@
 ﻿/*
 Technitium DNS Server
-Copyright (C) 2022  Shreyas Zare (shreyas@technitium.com)
+Copyright (C) 2023  Shreyas Zare (shreyas@technitium.com)
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -19,10 +19,12 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 using DnsServerCore.Auth;
 using DnsServerCore.Dns;
+using Microsoft.AspNetCore.Http;
 using System;
 using System.Collections.Generic;
 using System.IO;
 using System.IO.Compression;
+using System.Linq;
 using System.Net;
 using System.Net.Sockets;
 using System.Security.Cryptography;
@@ -30,7 +32,7 @@ using System.Text;
 using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
-using TechnitiumLibrary.IO;
+using TechnitiumLibrary;
 using TechnitiumLibrary.Net;
 using TechnitiumLibrary.Net.Dns;
 using TechnitiumLibrary.Net.Dns.ResourceRecords;
@@ -183,8 +185,8 @@ namespace DnsServerCore
 
                     try
                     {
-                        _dnsWebService.StopDnsWebService();
-                        _dnsWebService.StartDnsWebService();
+                        await _dnsWebService.StopWebServiceAsync();
+                        await _dnsWebService.StartWebServiceAsync();
 
                         _dnsWebService._log.Write("Web service was restarted successfully.");
                     }
@@ -219,11 +221,7 @@ namespace DnsServerCore
             }
         }
 
-        #endregion
-
-        #region public
-
-        public void GetDnsSettings(Utf8JsonWriter jsonWriter)
+        private void WriteDnsSettings(Utf8JsonWriter jsonWriter)
         {
             //general
             jsonWriter.WriteString("version", _dnsWebService.GetServerVersion());
@@ -480,40 +478,56 @@ namespace DnsServerCore
             jsonWriter.WriteNumber("maxStatFileDays", _dnsWebService._dnsServer.StatsManager.MaxStatFileDays);
         }
 
-        public void SetDnsSettings(HttpListenerRequest request, Utf8JsonWriter jsonWriter)
+        #endregion
+
+        #region public
+
+        public void GetDnsSettings(HttpContext context)
         {
+            UserSession session = context.GetCurrentSession();
+
+            if (!_dnsWebService._authManager.IsPermitted(PermissionSection.Settings, session.User, PermissionFlag.View))
+                throw new DnsWebServiceException("Access was denied.");
+
+            Utf8JsonWriter jsonWriter = context.GetCurrentJsonWriter();
+            WriteDnsSettings(jsonWriter);
+        }
+
+        public void SetDnsSettings(HttpContext context)
+        {
+            UserSession session = context.GetCurrentSession();
+
+            if (!_dnsWebService._authManager.IsPermitted(PermissionSection.Settings, session.User, PermissionFlag.Modify))
+                throw new DnsWebServiceException("Access was denied.");
+
             bool serverDomainChanged = false;
             bool restartDnsService = false;
             bool restartWebService = false;
+            bool blockListUrlsUpdated = false;
             int oldWebServiceHttpPort = _dnsWebService._webServiceHttpPort;
 
+            HttpRequest request = context.Request;
+
             //general
-            string strDnsServerDomain = request.QueryString["dnsServerDomain"];
-            if (!string.IsNullOrEmpty(strDnsServerDomain))
+            if (request.TryGetQuery("dnsServerDomain", out string dnsServerDomain))
             {
-                serverDomainChanged = !_dnsWebService._dnsServer.ServerDomain.Equals(strDnsServerDomain, StringComparison.OrdinalIgnoreCase);
-                _dnsWebService._dnsServer.ServerDomain = strDnsServerDomain;
+                if (!_dnsWebService._dnsServer.ServerDomain.Equals(dnsServerDomain, StringComparison.OrdinalIgnoreCase))
+                {
+                    _dnsWebService._dnsServer.ServerDomain = dnsServerDomain;
+                    serverDomainChanged = true;
+                }
             }
 
-            string strDnsServerLocalEndPoints = request.QueryString["dnsServerLocalEndPoints"];
-            if (strDnsServerLocalEndPoints != null)
+            string dnsServerLocalEndPoints = request.Query["dnsServerLocalEndPoints"];
+            if (dnsServerLocalEndPoints is not null)
             {
-                if (string.IsNullOrEmpty(strDnsServerLocalEndPoints))
-                    strDnsServerLocalEndPoints = "0.0.0.0:53,[::]:53";
+                if (dnsServerLocalEndPoints.Length == 0)
+                    dnsServerLocalEndPoints = "0.0.0.0:53,[::]:53";
 
-                string[] strLocalEndPoints = strDnsServerLocalEndPoints.Split(new char[] { ',' }, StringSplitOptions.RemoveEmptyEntries);
-                List<IPEndPoint> localEndPoints = new List<IPEndPoint>(strLocalEndPoints.Length);
-
-                for (int i = 0; i < strLocalEndPoints.Length; i++)
+                IPEndPoint[] localEndPoints = dnsServerLocalEndPoints.Split(IPEndPoint.Parse, ',');
+                if (localEndPoints.Length > 0)
                 {
-                    NameServerAddress nameServer = new NameServerAddress(strLocalEndPoints[i]);
-                    if (nameServer.IPEndPoint != null)
-                        localEndPoints.Add(nameServer.IPEndPoint);
-                }
-
-                if (localEndPoints.Count > 0)
-                {
-                    if (_dnsWebService._dnsServer.LocalEndPoints.Count != localEndPoints.Count)
+                    if (_dnsWebService._dnsServer.LocalEndPoints.Count != localEndPoints.Length)
                     {
                         restartDnsService = true;
                     }
@@ -533,89 +547,65 @@ namespace DnsServerCore
                 }
             }
 
-            string strDefaultRecordTtl = request.QueryString["defaultRecordTtl"];
-            if (!string.IsNullOrEmpty(strDefaultRecordTtl))
-                _dnsWebService._zonesApi.DefaultRecordTtl = uint.Parse(strDefaultRecordTtl);
+            if (request.TryGetQuery("defaultRecordTtl", uint.Parse, out uint defaultRecordTtl))
+                _dnsWebService._zonesApi.DefaultRecordTtl = defaultRecordTtl;
 
-            string strDnsAppsEnableAutomaticUpdate = request.QueryString["dnsAppsEnableAutomaticUpdate"];
-            if (!string.IsNullOrEmpty(strDnsAppsEnableAutomaticUpdate))
-                _dnsWebService._appsApi.EnableAutomaticUpdate = bool.Parse(strDnsAppsEnableAutomaticUpdate);
+            if (request.TryGetQuery("dnsAppsEnableAutomaticUpdate", bool.Parse, out bool dnsAppsEnableAutomaticUpdate))
+                _dnsWebService._appsApi.EnableAutomaticUpdate = dnsAppsEnableAutomaticUpdate;
 
-            string strPreferIPv6 = request.QueryString["preferIPv6"];
-            if (!string.IsNullOrEmpty(strPreferIPv6))
-                _dnsWebService._dnsServer.PreferIPv6 = bool.Parse(strPreferIPv6);
+            if (request.TryGetQuery("preferIPv6", bool.Parse, out bool preferIPv6))
+                _dnsWebService._dnsServer.PreferIPv6 = preferIPv6;
 
-            string strUdpPayloadSize = request.QueryString["udpPayloadSize"];
-            if (!string.IsNullOrEmpty(strUdpPayloadSize))
-                _dnsWebService._dnsServer.UdpPayloadSize = ushort.Parse(strUdpPayloadSize);
+            if (request.TryGetQuery("udpPayloadSize", ushort.Parse, out ushort udpPayloadSize))
+                _dnsWebService._dnsServer.UdpPayloadSize = udpPayloadSize;
 
-            string strDnssecValidation = request.QueryString["dnssecValidation"];
-            if (!string.IsNullOrEmpty(strDnssecValidation))
-                _dnsWebService._dnsServer.DnssecValidation = bool.Parse(strDnssecValidation);
+            if (request.TryGetQuery("dnssecValidation", bool.Parse, out bool dnssecValidation))
+                _dnsWebService._dnsServer.DnssecValidation = dnssecValidation;
 
-            string strEDnsClientSubnet = request.QueryString["eDnsClientSubnet"];
-            if (!string.IsNullOrEmpty(strEDnsClientSubnet))
-                _dnsWebService._dnsServer.EDnsClientSubnet = bool.Parse(strEDnsClientSubnet);
+            if (request.TryGetQuery("eDnsClientSubnet", bool.Parse, out bool eDnsClientSubnet))
+                _dnsWebService._dnsServer.EDnsClientSubnet = eDnsClientSubnet;
 
-            string strEDnsClientSubnetIPv4PrefixLength = request.QueryString["eDnsClientSubnetIPv4PrefixLength"];
-            if (!string.IsNullOrEmpty(strEDnsClientSubnetIPv4PrefixLength))
-                _dnsWebService._dnsServer.EDnsClientSubnetIPv4PrefixLength = byte.Parse(strEDnsClientSubnetIPv4PrefixLength);
+            if (request.TryGetQuery("eDnsClientSubnetIPv4PrefixLength", byte.Parse, out byte eDnsClientSubnetIPv4PrefixLength))
+                _dnsWebService._dnsServer.EDnsClientSubnetIPv4PrefixLength = eDnsClientSubnetIPv4PrefixLength;
 
-            string strEDnsClientSubnetIPv6PrefixLength = request.QueryString["eDnsClientSubnetIPv6PrefixLength"];
-            if (!string.IsNullOrEmpty(strEDnsClientSubnetIPv6PrefixLength))
-                _dnsWebService._dnsServer.EDnsClientSubnetIPv6PrefixLength = byte.Parse(strEDnsClientSubnetIPv6PrefixLength);
+            if (request.TryGetQuery("eDnsClientSubnetIPv6PrefixLength", byte.Parse, out byte eDnsClientSubnetIPv6PrefixLength))
+                _dnsWebService._dnsServer.EDnsClientSubnetIPv6PrefixLength = eDnsClientSubnetIPv6PrefixLength;
 
-            string strQpmLimitRequests = request.QueryString["qpmLimitRequests"];
-            if (!string.IsNullOrEmpty(strQpmLimitRequests))
-                _dnsWebService._dnsServer.QpmLimitRequests = int.Parse(strQpmLimitRequests);
+            if (request.TryGetQuery("qpmLimitRequests", int.Parse, out int qpmLimitRequests))
+                _dnsWebService._dnsServer.QpmLimitRequests = qpmLimitRequests;
 
-            string strQpmLimitErrors = request.QueryString["qpmLimitErrors"];
-            if (!string.IsNullOrEmpty(strQpmLimitErrors))
-                _dnsWebService._dnsServer.QpmLimitErrors = int.Parse(strQpmLimitErrors);
+            if (request.TryGetQuery("qpmLimitErrors", int.Parse, out int qpmLimitErrors))
+                _dnsWebService._dnsServer.QpmLimitErrors = qpmLimitErrors;
 
-            string strQpmLimitSampleMinutes = request.QueryString["qpmLimitSampleMinutes"];
-            if (!string.IsNullOrEmpty(strQpmLimitSampleMinutes))
-                _dnsWebService._dnsServer.QpmLimitSampleMinutes = int.Parse(strQpmLimitSampleMinutes);
+            if (request.TryGetQuery("qpmLimitSampleMinutes", int.Parse, out int qpmLimitSampleMinutes))
+                _dnsWebService._dnsServer.QpmLimitSampleMinutes = qpmLimitSampleMinutes;
 
-            string strQpmLimitIPv4PrefixLength = request.QueryString["qpmLimitIPv4PrefixLength"];
-            if (!string.IsNullOrEmpty(strQpmLimitIPv4PrefixLength))
-                _dnsWebService._dnsServer.QpmLimitIPv4PrefixLength = int.Parse(strQpmLimitIPv4PrefixLength);
+            if (request.TryGetQuery("qpmLimitIPv4PrefixLength", int.Parse, out int qpmLimitIPv4PrefixLength))
+                _dnsWebService._dnsServer.QpmLimitIPv4PrefixLength = qpmLimitIPv4PrefixLength;
 
-            string strQpmLimitIPv6PrefixLength = request.QueryString["qpmLimitIPv6PrefixLength"];
-            if (!string.IsNullOrEmpty(strQpmLimitIPv6PrefixLength))
-                _dnsWebService._dnsServer.QpmLimitIPv6PrefixLength = int.Parse(strQpmLimitIPv6PrefixLength);
+            if (request.TryGetQuery("qpmLimitIPv6PrefixLength", int.Parse, out int qpmLimitIPv6PrefixLength))
+                _dnsWebService._dnsServer.QpmLimitIPv6PrefixLength = qpmLimitIPv6PrefixLength;
 
-            string strClientTimeout = request.QueryString["clientTimeout"];
-            if (!string.IsNullOrEmpty(strClientTimeout))
-                _dnsWebService._dnsServer.ClientTimeout = int.Parse(strClientTimeout);
+            if (request.TryGetQuery("clientTimeout", int.Parse, out int clientTimeout))
+                _dnsWebService._dnsServer.ClientTimeout = clientTimeout;
 
-            string strTcpSendTimeout = request.QueryString["tcpSendTimeout"];
-            if (!string.IsNullOrEmpty(strTcpSendTimeout))
-                _dnsWebService._dnsServer.TcpSendTimeout = int.Parse(strTcpSendTimeout);
+            if (request.TryGetQuery("tcpSendTimeout", int.Parse, out int tcpSendTimeout))
+                _dnsWebService._dnsServer.TcpSendTimeout = tcpSendTimeout;
 
-            string strTcpReceiveTimeout = request.QueryString["tcpReceiveTimeout"];
-            if (!string.IsNullOrEmpty(strTcpReceiveTimeout))
-                _dnsWebService._dnsServer.TcpReceiveTimeout = int.Parse(strTcpReceiveTimeout);
+            if (request.TryGetQuery("tcpReceiveTimeout", int.Parse, out int tcpReceiveTimeout))
+                _dnsWebService._dnsServer.TcpReceiveTimeout = tcpReceiveTimeout;
 
             //web service
-            string strWebServiceLocalAddresses = request.QueryString["webServiceLocalAddresses"];
-            if (strWebServiceLocalAddresses != null)
+            string webServiceLocalAddresses = request.Query["webServiceLocalAddresses"];
+            if (webServiceLocalAddresses is not null)
             {
-                if (string.IsNullOrEmpty(strWebServiceLocalAddresses))
-                    strWebServiceLocalAddresses = "0.0.0.0,[::]";
+                if (webServiceLocalAddresses.Length == 0)
+                    webServiceLocalAddresses = "0.0.0.0,[::]";
 
-                string[] strLocalAddresses = strWebServiceLocalAddresses.Split(new char[] { ',' }, StringSplitOptions.RemoveEmptyEntries);
-                List<IPAddress> localAddresses = new List<IPAddress>(strLocalAddresses.Length);
-
-                for (int i = 0; i < strLocalAddresses.Length; i++)
+                IPAddress[] localAddresses = webServiceLocalAddresses.Split(IPAddress.Parse, ',');
+                if (localAddresses.Length > 0)
                 {
-                    if (IPAddress.TryParse(strLocalAddresses[i], out IPAddress localAddress))
-                        localAddresses.Add(localAddress);
-                }
-
-                if (localAddresses.Count > 0)
-                {
-                    if (_dnsWebService._webServiceLocalAddresses.Count != localAddresses.Count)
+                    if (_dnsWebService._webServiceLocalAddresses.Count != localAddresses.Length)
                     {
                         restartWebService = true;
                     }
@@ -635,130 +625,132 @@ namespace DnsServerCore
                 }
             }
 
-            string strWebServiceHttpPort = request.QueryString["webServiceHttpPort"];
-            if (!string.IsNullOrEmpty(strWebServiceHttpPort))
+            if (request.TryGetQuery("webServiceHttpPort", int.Parse, out int webServiceHttpPort))
             {
-                _dnsWebService._webServiceHttpPort = int.Parse(strWebServiceHttpPort);
-
-                if (oldWebServiceHttpPort != _dnsWebService._webServiceHttpPort)
-                    restartWebService = true;
-            }
-
-            string strWebServiceEnableTls = request.QueryString["webServiceEnableTls"];
-            if (!string.IsNullOrEmpty(strWebServiceEnableTls))
-            {
-                bool oldWebServiceEnableTls = _dnsWebService._webServiceEnableTls;
-
-                _dnsWebService._webServiceEnableTls = bool.Parse(strWebServiceEnableTls);
-
-                if (oldWebServiceEnableTls != _dnsWebService._webServiceEnableTls)
-                    restartWebService = true;
-            }
-
-            string strWebServiceHttpToTlsRedirect = request.QueryString["webServiceHttpToTlsRedirect"];
-            if (!string.IsNullOrEmpty(strWebServiceHttpToTlsRedirect))
-                _dnsWebService._webServiceHttpToTlsRedirect = bool.Parse(strWebServiceHttpToTlsRedirect);
-
-            string strWebServiceUseSelfSignedTlsCertificate = request.QueryString["webServiceUseSelfSignedTlsCertificate"];
-            if (!string.IsNullOrEmpty(strWebServiceUseSelfSignedTlsCertificate))
-                _dnsWebService._webServiceUseSelfSignedTlsCertificate = bool.Parse(strWebServiceUseSelfSignedTlsCertificate);
-
-            string strWebServiceTlsPort = request.QueryString["webServiceTlsPort"];
-            if (!string.IsNullOrEmpty(strWebServiceTlsPort))
-            {
-                int oldWebServiceTlsPort = _dnsWebService._webServiceTlsPort;
-
-                _dnsWebService._webServiceTlsPort = int.Parse(strWebServiceTlsPort);
-
-                if (oldWebServiceTlsPort != _dnsWebService._webServiceTlsPort)
-                    restartWebService = true;
-            }
-
-            string strWebServiceTlsCertificatePath = request.QueryString["webServiceTlsCertificatePath"];
-            string strWebServiceTlsCertificatePassword = request.QueryString["webServiceTlsCertificatePassword"];
-            if (string.IsNullOrEmpty(strWebServiceTlsCertificatePath))
-            {
-                _dnsWebService._webServiceTlsCertificatePath = null;
-                _dnsWebService._webServiceTlsCertificatePassword = "";
-            }
-            else
-            {
-                if (strWebServiceTlsCertificatePassword == "************")
-                    strWebServiceTlsCertificatePassword = _dnsWebService._webServiceTlsCertificatePassword;
-
-                if ((strWebServiceTlsCertificatePath != _dnsWebService._webServiceTlsCertificatePath) || (strWebServiceTlsCertificatePassword != _dnsWebService._webServiceTlsCertificatePassword))
+                if (_dnsWebService._webServiceHttpPort != webServiceHttpPort)
                 {
-                    _dnsWebService.LoadWebServiceTlsCertificate(strWebServiceTlsCertificatePath, strWebServiceTlsCertificatePassword);
+                    _dnsWebService._webServiceHttpPort = webServiceHttpPort;
+                    restartWebService = true;
+                }
+            }
 
-                    _dnsWebService._webServiceTlsCertificatePath = strWebServiceTlsCertificatePath;
-                    _dnsWebService._webServiceTlsCertificatePassword = strWebServiceTlsCertificatePassword;
+            if (request.TryGetQuery("webServiceEnableTls", bool.Parse, out bool webServiceEnableTls))
+            {
+                if (_dnsWebService._webServiceEnableTls != webServiceEnableTls)
+                {
+                    _dnsWebService._webServiceEnableTls = webServiceEnableTls;
+                    restartWebService = true;
+                }
+            }
 
-                    _dnsWebService.StartTlsCertificateUpdateTimer();
+            if (request.TryGetQuery("webServiceHttpToTlsRedirect", bool.Parse, out bool webServiceHttpToTlsRedirect))
+            {
+                if (_dnsWebService._webServiceHttpToTlsRedirect != webServiceHttpToTlsRedirect)
+                {
+                    _dnsWebService._webServiceHttpToTlsRedirect = webServiceHttpToTlsRedirect;
+                    restartWebService = true;
+                }
+            }
+
+            if (request.TryGetQuery("webServiceUseSelfSignedTlsCertificate", bool.Parse, out bool webServiceUseSelfSignedTlsCertificate))
+                _dnsWebService._webServiceUseSelfSignedTlsCertificate = webServiceUseSelfSignedTlsCertificate;
+
+            if (request.TryGetQuery("webServiceTlsPort", int.Parse, out int webServiceTlsPort))
+            {
+                if (_dnsWebService._webServiceTlsPort != webServiceTlsPort)
+                {
+                    _dnsWebService._webServiceTlsPort = webServiceTlsPort;
+                    restartWebService = true;
+                }
+            }
+
+            string webServiceTlsCertificatePath = request.Query["webServiceTlsCertificatePath"];
+            if (webServiceTlsCertificatePath is not null)
+            {
+                if (webServiceTlsCertificatePath.Length == 0)
+                {
+                    _dnsWebService._webServiceTlsCertificatePath = null;
+                    _dnsWebService._webServiceTlsCertificatePassword = "";
+                }
+                else
+                {
+                    string webServiceTlsCertificatePassword = request.Query["webServiceTlsCertificatePassword"];
+
+                    if ((webServiceTlsCertificatePassword is null) || (webServiceTlsCertificatePassword == "************"))
+                        webServiceTlsCertificatePassword = _dnsWebService._webServiceTlsCertificatePassword;
+
+                    if ((webServiceTlsCertificatePath != _dnsWebService._webServiceTlsCertificatePath) || (webServiceTlsCertificatePassword != _dnsWebService._webServiceTlsCertificatePassword))
+                    {
+                        _dnsWebService.LoadWebServiceTlsCertificate(webServiceTlsCertificatePath, webServiceTlsCertificatePassword);
+
+                        _dnsWebService._webServiceTlsCertificatePath = webServiceTlsCertificatePath;
+                        _dnsWebService._webServiceTlsCertificatePassword = webServiceTlsCertificatePassword;
+
+                        _dnsWebService.StartTlsCertificateUpdateTimer();
+                    }
                 }
             }
 
             //optional protocols
-            string enableDnsOverHttp = request.QueryString["enableDnsOverHttp"];
-            if (!string.IsNullOrEmpty(enableDnsOverHttp))
+            if (request.TryGetQuery("enableDnsOverHttp", bool.Parse, out bool enableDnsOverHttp))
             {
-                bool oldEnableDnsOverHttp = _dnsWebService._dnsServer.EnableDnsOverHttp;
-
-                _dnsWebService._dnsServer.EnableDnsOverHttp = bool.Parse(enableDnsOverHttp);
-
-                if (oldEnableDnsOverHttp != _dnsWebService._dnsServer.EnableDnsOverHttp)
-                    restartDnsService = true;
-            }
-
-            string strEnableDnsOverTls = request.QueryString["enableDnsOverTls"];
-            if (!string.IsNullOrEmpty(strEnableDnsOverTls))
-            {
-                bool oldEnableDnsOverTls = _dnsWebService._dnsServer.EnableDnsOverTls;
-
-                _dnsWebService._dnsServer.EnableDnsOverTls = bool.Parse(strEnableDnsOverTls);
-
-                if (oldEnableDnsOverTls != _dnsWebService._dnsServer.EnableDnsOverTls)
-                    restartDnsService = true;
-            }
-
-            string strEnableDnsOverHttps = request.QueryString["enableDnsOverHttps"];
-            if (!string.IsNullOrEmpty(strEnableDnsOverHttps))
-            {
-                bool oldEnableDnsOverHttps = _dnsWebService._dnsServer.EnableDnsOverHttps;
-
-                _dnsWebService._dnsServer.EnableDnsOverHttps = bool.Parse(strEnableDnsOverHttps);
-
-                if (oldEnableDnsOverHttps != _dnsWebService._dnsServer.EnableDnsOverHttps)
-                    restartDnsService = true;
-            }
-
-            string strDnsTlsCertificatePath = request.QueryString["dnsTlsCertificatePath"];
-            string strDnsTlsCertificatePassword = request.QueryString["dnsTlsCertificatePassword"];
-            if (string.IsNullOrEmpty(strDnsTlsCertificatePath))
-            {
-                _dnsWebService._dnsTlsCertificatePath = null;
-                _dnsWebService._dnsTlsCertificatePassword = "";
-            }
-            else
-            {
-                if (strDnsTlsCertificatePassword == "************")
-                    strDnsTlsCertificatePassword = _dnsWebService._dnsTlsCertificatePassword;
-
-                if ((strDnsTlsCertificatePath != _dnsWebService._dnsTlsCertificatePath) || (strDnsTlsCertificatePassword != _dnsWebService._dnsTlsCertificatePassword))
+                if (_dnsWebService._dnsServer.EnableDnsOverHttp != enableDnsOverHttp)
                 {
-                    _dnsWebService.LoadDnsTlsCertificate(strDnsTlsCertificatePath, strDnsTlsCertificatePassword);
+                    _dnsWebService._dnsServer.EnableDnsOverHttp = enableDnsOverHttp;
+                    restartDnsService = true;
+                }
+            }
 
-                    _dnsWebService._dnsTlsCertificatePath = strDnsTlsCertificatePath;
-                    _dnsWebService._dnsTlsCertificatePassword = strDnsTlsCertificatePassword;
+            if (request.TryGetQuery("enableDnsOverTls", bool.Parse, out bool enableDnsOverTls))
+            {
+                if (_dnsWebService._dnsServer.EnableDnsOverTls != enableDnsOverTls)
+                {
+                    _dnsWebService._dnsServer.EnableDnsOverTls = enableDnsOverTls;
+                    restartDnsService = true;
+                }
+            }
 
-                    _dnsWebService.StartTlsCertificateUpdateTimer();
+            if (request.TryGetQuery("enableDnsOverHttps", bool.Parse, out bool enableDnsOverHttps))
+            {
+                if (_dnsWebService._dnsServer.EnableDnsOverHttps != enableDnsOverHttps)
+                {
+                    _dnsWebService._dnsServer.EnableDnsOverHttps = enableDnsOverHttps;
+                    restartDnsService = true;
+                }
+            }
+
+            string dnsTlsCertificatePath = request.Query["dnsTlsCertificatePath"];
+            if (dnsTlsCertificatePath is not null)
+            {
+                if (dnsTlsCertificatePath.Length == 0)
+                {
+                    _dnsWebService._dnsTlsCertificatePath = null;
+                    _dnsWebService._dnsTlsCertificatePassword = "";
+                }
+                else
+                {
+                    string strDnsTlsCertificatePassword = request.Query["dnsTlsCertificatePassword"];
+
+                    if ((strDnsTlsCertificatePassword is null) || (strDnsTlsCertificatePassword == "************"))
+                        strDnsTlsCertificatePassword = _dnsWebService._dnsTlsCertificatePassword;
+
+                    if ((dnsTlsCertificatePath != _dnsWebService._dnsTlsCertificatePath) || (strDnsTlsCertificatePassword != _dnsWebService._dnsTlsCertificatePassword))
+                    {
+                        _dnsWebService.LoadDnsTlsCertificate(dnsTlsCertificatePath, strDnsTlsCertificatePassword);
+
+                        _dnsWebService._dnsTlsCertificatePath = dnsTlsCertificatePath;
+                        _dnsWebService._dnsTlsCertificatePassword = strDnsTlsCertificatePassword;
+
+                        _dnsWebService.StartTlsCertificateUpdateTimer();
+                    }
                 }
             }
 
             //tsig
-            string strTsigKeys = request.QueryString["tsigKeys"];
-            if (!string.IsNullOrEmpty(strTsigKeys))
+            string strTsigKeys = request.Query["tsigKeys"];
+            if (strTsigKeys is not null)
             {
-                if (strTsigKeys == "false")
+                if ((strTsigKeys.Length == 0) || strTsigKeys.Equals("false", StringComparison.OrdinalIgnoreCase))
                 {
                     _dnsWebService._dnsServer.TsigKeys = null;
                 }
@@ -791,124 +783,83 @@ namespace DnsServerCore
             }
 
             //recursion
-            string strRecursion = request.QueryString["recursion"];
-            if (!string.IsNullOrEmpty(strRecursion))
-                _dnsWebService._dnsServer.Recursion = Enum.Parse<DnsServerRecursion>(strRecursion, true);
+            if (request.TryGetQuery("recursion", out DnsServerRecursion recursion))
+                _dnsWebService._dnsServer.Recursion = recursion;
 
-            string strRecursionDeniedNetworks = request.QueryString["recursionDeniedNetworks"];
-            if (!string.IsNullOrEmpty(strRecursionDeniedNetworks))
+            string recursionDeniedNetworks = request.Query["recursionDeniedNetworks"];
+            if (recursionDeniedNetworks is not null)
             {
-                if (strRecursionDeniedNetworks == "false")
-                {
+                if ((recursionDeniedNetworks.Length == 0) || recursionDeniedNetworks.Equals("false", StringComparison.OrdinalIgnoreCase))
                     _dnsWebService._dnsServer.RecursionDeniedNetworks = null;
-                }
                 else
-                {
-                    string[] strNetworks = strRecursionDeniedNetworks.Split(new char[] { ',' }, StringSplitOptions.RemoveEmptyEntries);
-
-                    NetworkAddress[] networks = new NetworkAddress[strNetworks.Length];
-
-                    for (int i = 0; i < networks.Length; i++)
-                        networks[i] = NetworkAddress.Parse(strNetworks[i]);
-
-                    _dnsWebService._dnsServer.RecursionDeniedNetworks = networks;
-                }
+                    _dnsWebService._dnsServer.RecursionDeniedNetworks = recursionDeniedNetworks.Split(NetworkAddress.Parse, ',');
             }
 
-            string strRecursionAllowedNetworks = request.QueryString["recursionAllowedNetworks"];
-            if (!string.IsNullOrEmpty(strRecursionAllowedNetworks))
+            string recursionAllowedNetworks = request.Query["recursionAllowedNetworks"];
+            if (recursionAllowedNetworks is not null)
             {
-                if (strRecursionAllowedNetworks == "false")
-                {
+                if ((recursionAllowedNetworks.Length == 0) || recursionAllowedNetworks.Equals("false", StringComparison.OrdinalIgnoreCase))
                     _dnsWebService._dnsServer.RecursionAllowedNetworks = null;
-                }
                 else
-                {
-                    string[] strNetworks = strRecursionAllowedNetworks.Split(new char[] { ',' }, StringSplitOptions.RemoveEmptyEntries);
-
-                    NetworkAddress[] networks = new NetworkAddress[strNetworks.Length];
-
-                    for (int i = 0; i < networks.Length; i++)
-                        networks[i] = NetworkAddress.Parse(strNetworks[i]);
-
-                    _dnsWebService._dnsServer.RecursionAllowedNetworks = networks;
-                }
+                    _dnsWebService._dnsServer.RecursionAllowedNetworks = recursionAllowedNetworks.Split(NetworkAddress.Parse, ',');
             }
 
-            string strRandomizeName = request.QueryString["randomizeName"];
-            if (!string.IsNullOrEmpty(strRandomizeName))
-                _dnsWebService._dnsServer.RandomizeName = bool.Parse(strRandomizeName);
+            if (request.TryGetQuery("randomizeName", bool.Parse, out bool randomizeName))
+                _dnsWebService._dnsServer.RandomizeName = randomizeName;
 
-            string strQnameMinimization = request.QueryString["qnameMinimization"];
-            if (!string.IsNullOrEmpty(strQnameMinimization))
-                _dnsWebService._dnsServer.QnameMinimization = bool.Parse(strQnameMinimization);
+            if (request.TryGetQuery("qnameMinimization", bool.Parse, out bool qnameMinimization))
+                _dnsWebService._dnsServer.QnameMinimization = qnameMinimization;
 
-            string strNsRevalidation = request.QueryString["nsRevalidation"];
-            if (!string.IsNullOrEmpty(strNsRevalidation))
-                _dnsWebService._dnsServer.NsRevalidation = bool.Parse(strNsRevalidation);
+            if (request.TryGetQuery("nsRevalidation", bool.Parse, out bool nsRevalidation))
+                _dnsWebService._dnsServer.NsRevalidation = nsRevalidation;
 
-            string strResolverRetries = request.QueryString["resolverRetries"];
-            if (!string.IsNullOrEmpty(strResolverRetries))
-                _dnsWebService._dnsServer.ResolverRetries = int.Parse(strResolverRetries);
+            if (request.TryGetQuery("resolverRetries", int.Parse, out int resolverRetries))
+                _dnsWebService._dnsServer.ResolverRetries = resolverRetries;
 
-            string strResolverTimeout = request.QueryString["resolverTimeout"];
-            if (!string.IsNullOrEmpty(strResolverTimeout))
-                _dnsWebService._dnsServer.ResolverTimeout = int.Parse(strResolverTimeout);
+            if (request.TryGetQuery("resolverTimeout", int.Parse, out int resolverTimeout))
+                _dnsWebService._dnsServer.ResolverTimeout = resolverTimeout;
 
-            string strResolverMaxStackCount = request.QueryString["resolverMaxStackCount"];
-            if (!string.IsNullOrEmpty(strResolverMaxStackCount))
-                _dnsWebService._dnsServer.ResolverMaxStackCount = int.Parse(strResolverMaxStackCount);
+            if (request.TryGetQuery("resolverMaxStackCount", int.Parse, out int resolverMaxStackCount))
+                _dnsWebService._dnsServer.ResolverMaxStackCount = resolverMaxStackCount;
 
             //cache
-            string strServeStale = request.QueryString["serveStale"];
-            if (!string.IsNullOrEmpty(strServeStale))
-                _dnsWebService._dnsServer.ServeStale = bool.Parse(strServeStale);
+            if (request.TryGetQuery("serveStale", bool.Parse, out bool serveStale))
+                _dnsWebService._dnsServer.ServeStale = serveStale;
 
-            string strServeStaleTtl = request.QueryString["serveStaleTtl"];
-            if (!string.IsNullOrEmpty(strServeStaleTtl))
-                _dnsWebService._dnsServer.CacheZoneManager.ServeStaleTtl = uint.Parse(strServeStaleTtl);
+            if (request.TryGetQuery("serveStaleTtl", uint.Parse, out uint serveStaleTtl))
+                _dnsWebService._dnsServer.CacheZoneManager.ServeStaleTtl = serveStaleTtl;
 
-            string strCacheMaximumEntries = request.QueryString["cacheMaximumEntries"];
-            if (!string.IsNullOrEmpty(strCacheMaximumEntries))
-                _dnsWebService._dnsServer.CacheZoneManager.MaximumEntries = long.Parse(strCacheMaximumEntries);
+            if (request.TryGetQuery("cacheMaximumEntries", long.Parse, out long cacheMaximumEntries))
+                _dnsWebService._dnsServer.CacheZoneManager.MaximumEntries = cacheMaximumEntries;
 
-            string strCacheMinimumRecordTtl = request.QueryString["cacheMinimumRecordTtl"];
-            if (!string.IsNullOrEmpty(strCacheMinimumRecordTtl))
-                _dnsWebService._dnsServer.CacheZoneManager.MinimumRecordTtl = uint.Parse(strCacheMinimumRecordTtl);
+            if (request.TryGetQuery("cacheMinimumRecordTtl", uint.Parse, out uint cacheMinimumRecordTtl))
+                _dnsWebService._dnsServer.CacheZoneManager.MinimumRecordTtl = cacheMinimumRecordTtl;
 
-            string strCacheMaximumRecordTtl = request.QueryString["cacheMaximumRecordTtl"];
-            if (!string.IsNullOrEmpty(strCacheMaximumRecordTtl))
-                _dnsWebService._dnsServer.CacheZoneManager.MaximumRecordTtl = uint.Parse(strCacheMaximumRecordTtl);
+            if (request.TryGetQuery("cacheMaximumRecordTtl", uint.Parse, out uint cacheMaximumRecordTtl))
+                _dnsWebService._dnsServer.CacheZoneManager.MaximumRecordTtl = cacheMaximumRecordTtl;
 
-            string strCacheNegativeRecordTtl = request.QueryString["cacheNegativeRecordTtl"];
-            if (!string.IsNullOrEmpty(strCacheNegativeRecordTtl))
-                _dnsWebService._dnsServer.CacheZoneManager.NegativeRecordTtl = uint.Parse(strCacheNegativeRecordTtl);
+            if (request.TryGetQuery("cacheNegativeRecordTtl", uint.Parse, out uint cacheNegativeRecordTtl))
+                _dnsWebService._dnsServer.CacheZoneManager.NegativeRecordTtl = cacheNegativeRecordTtl;
 
-            string strCacheFailureRecordTtl = request.QueryString["cacheFailureRecordTtl"];
-            if (!string.IsNullOrEmpty(strCacheFailureRecordTtl))
-                _dnsWebService._dnsServer.CacheZoneManager.FailureRecordTtl = uint.Parse(strCacheFailureRecordTtl);
+            if (request.TryGetQuery("cacheFailureRecordTtl", uint.Parse, out uint cacheFailureRecordTtl))
+                _dnsWebService._dnsServer.CacheZoneManager.FailureRecordTtl = cacheFailureRecordTtl;
 
-            string strCachePrefetchEligibility = request.QueryString["cachePrefetchEligibility"];
-            if (!string.IsNullOrEmpty(strCachePrefetchEligibility))
-                _dnsWebService._dnsServer.CachePrefetchEligibility = int.Parse(strCachePrefetchEligibility);
+            if (request.TryGetQuery("cachePrefetchEligibility", int.Parse, out int cachePrefetchEligibility))
+                _dnsWebService._dnsServer.CachePrefetchEligibility = cachePrefetchEligibility;
 
-            string strCachePrefetchTrigger = request.QueryString["cachePrefetchTrigger"];
-            if (!string.IsNullOrEmpty(strCachePrefetchTrigger))
-                _dnsWebService._dnsServer.CachePrefetchTrigger = int.Parse(strCachePrefetchTrigger);
+            if (request.TryGetQuery("cachePrefetchTrigger", int.Parse, out int cachePrefetchTrigger))
+                _dnsWebService._dnsServer.CachePrefetchTrigger = cachePrefetchTrigger;
 
-            string strCachePrefetchSampleIntervalInMinutes = request.QueryString["cachePrefetchSampleIntervalInMinutes"];
-            if (!string.IsNullOrEmpty(strCachePrefetchSampleIntervalInMinutes))
-                _dnsWebService._dnsServer.CachePrefetchSampleIntervalInMinutes = int.Parse(strCachePrefetchSampleIntervalInMinutes);
+            if (request.TryGetQuery("cachePrefetchSampleIntervalInMinutes", int.Parse, out int cachePrefetchSampleIntervalInMinutes))
+                _dnsWebService._dnsServer.CachePrefetchSampleIntervalInMinutes = cachePrefetchSampleIntervalInMinutes;
 
-            string strCachePrefetchSampleEligibilityHitsPerHour = request.QueryString["cachePrefetchSampleEligibilityHitsPerHour"];
-            if (!string.IsNullOrEmpty(strCachePrefetchSampleEligibilityHitsPerHour))
-                _dnsWebService._dnsServer.CachePrefetchSampleEligibilityHitsPerHour = int.Parse(strCachePrefetchSampleEligibilityHitsPerHour);
+            if (request.TryGetQuery("cachePrefetchSampleEligibilityHitsPerHour", int.Parse, out int cachePrefetchSampleEligibilityHitsPerHour))
+                _dnsWebService._dnsServer.CachePrefetchSampleEligibilityHitsPerHour = cachePrefetchSampleEligibilityHitsPerHour;
 
             //blocking
-            string strEnableBlocking = request.QueryString["enableBlocking"];
-            if (!string.IsNullOrEmpty(strEnableBlocking))
+            if (request.TryGetQuery("enableBlocking", bool.Parse, out bool enableBlocking))
             {
-                _dnsWebService._dnsServer.EnableBlocking = bool.Parse(strEnableBlocking);
+                _dnsWebService._dnsServer.EnableBlocking = enableBlocking;
                 if (_dnsWebService._dnsServer.EnableBlocking)
                 {
                     if (_temporaryDisableBlockingTimer is not null)
@@ -916,25 +867,23 @@ namespace DnsServerCore
                 }
             }
 
-            string strAllowTxtBlockingReport = request.QueryString["allowTxtBlockingReport"];
-            if (!string.IsNullOrEmpty(strAllowTxtBlockingReport))
-                _dnsWebService._dnsServer.AllowTxtBlockingReport = bool.Parse(strAllowTxtBlockingReport);
+            if (request.TryGetQuery("allowTxtBlockingReport", bool.Parse, out bool allowTxtBlockingReport))
+                _dnsWebService._dnsServer.AllowTxtBlockingReport = allowTxtBlockingReport;
 
-            string strBlockingType = request.QueryString["blockingType"];
-            if (!string.IsNullOrEmpty(strBlockingType))
-                _dnsWebService._dnsServer.BlockingType = Enum.Parse<DnsServerBlockingType>(strBlockingType, true);
+            if (request.TryGetQuery("blockingType", out DnsServerBlockingType blockingType))
+                _dnsWebService._dnsServer.BlockingType = blockingType;
 
-            string strCustomBlockingAddresses = request.QueryString["customBlockingAddresses"];
-            if (!string.IsNullOrEmpty(strCustomBlockingAddresses))
+            string customBlockingAddresses = request.Query["customBlockingAddresses"];
+            if (customBlockingAddresses is not null)
             {
-                if (strCustomBlockingAddresses == "false")
+                if ((customBlockingAddresses.Length == 0) || customBlockingAddresses.Equals("false", StringComparison.OrdinalIgnoreCase))
                 {
                     _dnsWebService._dnsServer.CustomBlockingARecords = null;
                     _dnsWebService._dnsServer.CustomBlockingAAAARecords = null;
                 }
                 else
                 {
-                    string[] strAddresses = strCustomBlockingAddresses.Split(new char[] { ',' }, StringSplitOptions.RemoveEmptyEntries);
+                    string[] strAddresses = customBlockingAddresses.Split(new char[] { ',' }, StringSplitOptions.RemoveEmptyEntries);
 
                     List<DnsARecordData> dnsARecords = new List<DnsARecordData>();
                     List<DnsAAAARecordData> dnsAAAARecords = new List<DnsAAAARecordData>();
@@ -961,11 +910,10 @@ namespace DnsServerCore
                 }
             }
 
-            bool blockListUrlsUpdated = false;
-            string strBlockListUrls = request.QueryString["blockListUrls"];
-            if (!string.IsNullOrEmpty(strBlockListUrls))
+            string blockListUrls = request.Query["blockListUrls"];
+            if (blockListUrls is not null)
             {
-                if (strBlockListUrls == "false")
+                if ((blockListUrls.Length == 0) || blockListUrls.Equals("false", StringComparison.OrdinalIgnoreCase))
                 {
                     _dnsWebService._dnsServer.BlockListZoneManager.AllowListUrls.Clear();
                     _dnsWebService._dnsServer.BlockListZoneManager.BlockListUrls.Clear();
@@ -973,15 +921,15 @@ namespace DnsServerCore
                 }
                 else
                 {
-                    string[] strBlockListUrlList = strBlockListUrls.Split(new char[] { ',' }, StringSplitOptions.RemoveEmptyEntries);
+                    string[] blockListUrlList = blockListUrls.Split(new char[] { ',' }, StringSplitOptions.RemoveEmptyEntries);
 
                     if (oldWebServiceHttpPort != _dnsWebService._webServiceHttpPort)
                     {
-                        for (int i = 0; i < strBlockListUrlList.Length; i++)
+                        for (int i = 0; i < blockListUrlList.Length; i++)
                         {
-                            if (strBlockListUrlList[i].Contains("http://localhost:" + oldWebServiceHttpPort + "/blocklist.txt"))
+                            if (blockListUrlList[i].Contains("http://localhost:" + oldWebServiceHttpPort + "/blocklist.txt"))
                             {
-                                strBlockListUrlList[i] = "http://localhost:" + _dnsWebService._webServiceHttpPort + "/blocklist.txt";
+                                blockListUrlList[i] = "http://localhost:" + _dnsWebService._webServiceHttpPort + "/blocklist.txt";
                                 blockListUrlsUpdated = true;
                                 break;
                             }
@@ -990,13 +938,13 @@ namespace DnsServerCore
 
                     if (!blockListUrlsUpdated)
                     {
-                        if (strBlockListUrlList.Length != (_dnsWebService._dnsServer.BlockListZoneManager.AllowListUrls.Count + _dnsWebService._dnsServer.BlockListZoneManager.BlockListUrls.Count))
+                        if (blockListUrlList.Length != (_dnsWebService._dnsServer.BlockListZoneManager.AllowListUrls.Count + _dnsWebService._dnsServer.BlockListZoneManager.BlockListUrls.Count))
                         {
                             blockListUrlsUpdated = true;
                         }
                         else
                         {
-                            foreach (string strBlockListUrl in strBlockListUrlList)
+                            foreach (string strBlockListUrl in blockListUrlList)
                             {
                                 if (strBlockListUrl.StartsWith("!"))
                                 {
@@ -1025,7 +973,7 @@ namespace DnsServerCore
                         _dnsWebService._dnsServer.BlockListZoneManager.AllowListUrls.Clear();
                         _dnsWebService._dnsServer.BlockListZoneManager.BlockListUrls.Clear();
 
-                        foreach (string strBlockListUrl in strBlockListUrlList)
+                        foreach (string strBlockListUrl in blockListUrlList)
                         {
                             if (strBlockListUrl.StartsWith("!"))
                             {
@@ -1046,34 +994,17 @@ namespace DnsServerCore
                 }
             }
 
-            string strBlockListUpdateIntervalHours = request.QueryString["blockListUpdateIntervalHours"];
-            if (!string.IsNullOrEmpty(strBlockListUpdateIntervalHours))
+            if (request.TryGetQuery("blockListUpdateIntervalHours", int.Parse, out int blockListUpdateIntervalHours))
             {
-                int blockListUpdateIntervalHours = int.Parse(strBlockListUpdateIntervalHours);
-
                 if ((blockListUpdateIntervalHours < 0) || (blockListUpdateIntervalHours > 168))
                     throw new DnsWebServiceException("Parameter `blockListUpdateIntervalHours` must be between 1 hour and 168 hours (7 days) or 0 to disable automatic update.");
 
                 _blockListUpdateIntervalHours = blockListUpdateIntervalHours;
             }
 
-            if ((_blockListUpdateIntervalHours > 0) && ((_dnsWebService._dnsServer.BlockListZoneManager.AllowListUrls.Count + _dnsWebService._dnsServer.BlockListZoneManager.BlockListUrls.Count) > 0))
-            {
-                if (blockListUrlsUpdated || (_blockListUpdateTimer is null))
-                    ForceUpdateBlockLists();
-
-                StartBlockListUpdateTimer();
-            }
-            else
-            {
-                StopBlockListUpdateTimer();
-            }
-
             //proxy & forwarders
-            string strProxyType = request.QueryString["proxyType"];
-            if (!string.IsNullOrEmpty(strProxyType))
+            if (request.TryGetQuery("proxyType", out NetProxyType proxyType))
             {
-                NetProxyType proxyType = Enum.Parse<NetProxyType>(strProxyType, true);
                 if (proxyType == NetProxyType.None)
                 {
                     _dnsWebService._dnsServer.Proxy = null;
@@ -1082,102 +1013,68 @@ namespace DnsServerCore
                 {
                     NetworkCredential credential = null;
 
-                    string strUsername = request.QueryString["proxyUsername"];
-                    if (!string.IsNullOrEmpty(strUsername))
-                        credential = new NetworkCredential(strUsername, request.QueryString["proxyPassword"]);
+                    if (request.TryGetQuery("proxyUsername", out string proxyUsername))
+                        credential = new NetworkCredential(proxyUsername, request.Query["proxyPassword"]);
 
-                    _dnsWebService._dnsServer.Proxy = NetProxy.CreateProxy(proxyType, request.QueryString["proxyAddress"], int.Parse(request.QueryString["proxyPort"]), credential);
+                    _dnsWebService._dnsServer.Proxy = NetProxy.CreateProxy(proxyType, request.Query["proxyAddress"], int.Parse(request.Query["proxyPort"]), credential);
 
-                    string strProxyBypass = request.QueryString["proxyBypass"];
-                    if (!string.IsNullOrEmpty(strProxyBypass))
-                    {
-                        string[] strBypassList = strProxyBypass.Split(new char[] { ',' }, StringSplitOptions.RemoveEmptyEntries);
-                        List<NetProxyBypassItem> bypassList = new List<NetProxyBypassItem>(strBypassList.Length);
-
-                        for (int i = 0; i < strBypassList.Length; i++)
-                            bypassList.Add(new NetProxyBypassItem(strBypassList[i]));
-
-                        _dnsWebService._dnsServer.Proxy.BypassList = bypassList;
-                    }
+                    if (request.TryGetQuery("proxyBypass", out string proxyBypass))
+                        _dnsWebService._dnsServer.Proxy.BypassList = proxyBypass.Split(delegate (string value) { return new NetProxyBypassItem(value); }, ',');
                 }
             }
 
-            DnsTransportProtocol forwarderProtocol = DnsTransportProtocol.Udp;
-            string strForwarderProtocol = request.QueryString["forwarderProtocol"];
-            if (!string.IsNullOrEmpty(strForwarderProtocol))
+            string strForwarders = request.Query["forwarders"];
+            if (strForwarders is not null)
             {
-                forwarderProtocol = Enum.Parse<DnsTransportProtocol>(strForwarderProtocol, true);
-                if (forwarderProtocol == DnsTransportProtocol.HttpsJson)
-                    forwarderProtocol = DnsTransportProtocol.Https;
-            }
-
-            string strForwarders = request.QueryString["forwarders"];
-            if (!string.IsNullOrEmpty(strForwarders))
-            {
-                if (strForwarders == "false")
+                if ((strForwarders.Length == 0) || strForwarders.Equals("false", StringComparison.OrdinalIgnoreCase))
                 {
                     _dnsWebService._dnsServer.Forwarders = null;
                 }
                 else
                 {
-                    string[] strForwardersList = strForwarders.Split(new char[] { ',' }, StringSplitOptions.RemoveEmptyEntries);
-                    NameServerAddress[] forwarders = new NameServerAddress[strForwardersList.Length];
+                    DnsTransportProtocol forwarderProtocol = request.GetQuery("forwarderProtocol", DnsTransportProtocol.Udp);
+                    if (forwarderProtocol == DnsTransportProtocol.HttpsJson)
+                        forwarderProtocol = DnsTransportProtocol.Https;
 
-                    for (int i = 0; i < strForwardersList.Length; i++)
+                    _dnsWebService._dnsServer.Forwarders = strForwarders.Split(delegate (string value)
                     {
-                        NameServerAddress forwarder = new NameServerAddress(strForwardersList[i]);
+                        NameServerAddress forwarder = NameServerAddress.Parse(value);
 
                         if (forwarder.Protocol != forwarderProtocol)
                             forwarder = forwarder.ChangeProtocol(forwarderProtocol);
 
-                        forwarders[i] = forwarder;
-                    }
-
-                    _dnsWebService._dnsServer.Forwarders = forwarders;
+                        return forwarder;
+                    }, ',');
                 }
             }
 
-            string strForwarderRetries = request.QueryString["forwarderRetries"];
-            if (!string.IsNullOrEmpty(strForwarderRetries))
-                _dnsWebService._dnsServer.ForwarderRetries = int.Parse(strForwarderRetries);
+            if (request.TryGetQuery("forwarderRetries", int.Parse, out int forwarderRetries))
+                _dnsWebService._dnsServer.ForwarderRetries = forwarderRetries;
 
-            string strForwarderTimeout = request.QueryString["forwarderTimeout"];
-            if (!string.IsNullOrEmpty(strForwarderTimeout))
-                _dnsWebService._dnsServer.ForwarderTimeout = int.Parse(strForwarderTimeout);
+            if (request.TryGetQuery("forwarderTimeout", int.Parse, out int forwarderTimeout))
+                _dnsWebService._dnsServer.ForwarderTimeout = forwarderTimeout;
 
-            string strForwarderConcurrency = request.QueryString["forwarderConcurrency"];
-            if (!string.IsNullOrEmpty(strForwarderConcurrency))
-                _dnsWebService._dnsServer.ForwarderConcurrency = int.Parse(strForwarderConcurrency);
+            if (request.TryGetQuery("forwarderConcurrency", int.Parse, out int forwarderConcurrency))
+                _dnsWebService._dnsServer.ForwarderConcurrency = forwarderConcurrency;
 
             //logging
-            string strEnableLogging = request.QueryString["enableLogging"];
-            if (!string.IsNullOrEmpty(strEnableLogging))
-                _dnsWebService._log.EnableLogging = bool.Parse(strEnableLogging);
+            if (request.TryGetQuery("enableLogging", bool.Parse, out bool enableLogging))
+                _dnsWebService._log.EnableLogging = enableLogging;
 
-            string strLogQueries = request.QueryString["logQueries"];
-            if (!string.IsNullOrEmpty(strLogQueries))
-            {
-                if (bool.Parse(strLogQueries))
-                    _dnsWebService._dnsServer.QueryLogManager = _dnsWebService._log;
-                else
-                    _dnsWebService._dnsServer.QueryLogManager = null;
-            }
+            if (request.TryGetQuery("logQueries", bool.Parse, out bool logQueries))
+                _dnsWebService._dnsServer.QueryLogManager = logQueries ? _dnsWebService._log : null;
 
-            string strUseLocalTime = request.QueryString["useLocalTime"];
-            if (!string.IsNullOrEmpty(strUseLocalTime))
-                _dnsWebService._log.UseLocalTime = bool.Parse(strUseLocalTime);
+            if (request.TryGetQuery("useLocalTime", bool.Parse, out bool useLocalTime))
+                _dnsWebService._log.UseLocalTime = useLocalTime;
 
-            string strLogFolder = request.QueryString["logFolder"];
-            if (!string.IsNullOrEmpty(strLogFolder))
-                _dnsWebService._log.LogFolder = strLogFolder;
+            if (request.TryGetQuery("logFolder", out string logFolder))
+                _dnsWebService._log.LogFolder = logFolder;
 
-            string strMaxLogFileDays = request.QueryString["maxLogFileDays"];
-            if (!string.IsNullOrEmpty(strMaxLogFileDays))
-                _dnsWebService._log.MaxLogFileDays = int.Parse(strMaxLogFileDays);
+            if (request.TryGetQuery("maxLogFileDays", int.Parse, out int maxLogFileDays))
+                _dnsWebService._log.MaxLogFileDays = maxLogFileDays;
 
-            string strMaxStatFileDays = request.QueryString["maxStatFileDays"];
-            if (!string.IsNullOrEmpty(strMaxStatFileDays))
-                _dnsWebService._dnsServer.StatsManager.MaxStatFileDays = int.Parse(strMaxStatFileDays);
+            if (request.TryGetQuery("maxStatFileDays", int.Parse, out int maxStatFileDays))
+                _dnsWebService._dnsServer.StatsManager.MaxStatFileDays = maxStatFileDays;
 
             //TLS actions
             if ((_dnsWebService._webServiceTlsCertificatePath == null) && (_dnsWebService._dnsTlsCertificatePath == null))
@@ -1192,19 +1089,45 @@ namespace DnsServerCore
                 restartWebService = true;
             }
 
+            //blocklist timers
+            if ((_blockListUpdateIntervalHours > 0) && ((_dnsWebService._dnsServer.BlockListZoneManager.AllowListUrls.Count + _dnsWebService._dnsServer.BlockListZoneManager.BlockListUrls.Count) > 0))
+            {
+                if (blockListUrlsUpdated || (_blockListUpdateTimer is null))
+                    ForceUpdateBlockLists();
+
+                StartBlockListUpdateTimer();
+            }
+            else
+            {
+                StopBlockListUpdateTimer();
+            }
+
             //save config
             _dnsWebService.SaveConfigFile();
             _dnsWebService._log.Save();
 
-            _dnsWebService._log.Write(DnsWebService.GetRequestRemoteEndPoint(request), "[" + _dnsWebService.GetSession(request).User.Username + "] DNS Settings were updated successfully.");
+            _dnsWebService._log.Write(context.GetRemoteEndPoint(), "[" + session.User.Username + "] DNS Settings were updated successfully.");
 
-            GetDnsSettings(jsonWriter);
+            Utf8JsonWriter jsonWriter = context.GetCurrentJsonWriter();
+            WriteDnsSettings(jsonWriter);
 
             RestartService(restartDnsService, restartWebService);
         }
 
-        public void GetTsigKeyNames(Utf8JsonWriter jsonWriter)
+        public void GetTsigKeyNames(HttpContext context)
         {
+            UserSession session = context.GetCurrentSession();
+
+            if (
+                !_dnsWebService._authManager.IsPermitted(PermissionSection.Settings, session.User, PermissionFlag.View) &&
+                !_dnsWebService._authManager.IsPermitted(PermissionSection.Zones, session.User, PermissionFlag.Modify)
+               )
+            {
+                throw new DnsWebServiceException("Access was denied.");
+            }
+
+            Utf8JsonWriter jsonWriter = context.GetCurrentJsonWriter();
+
             jsonWriter.WritePropertyName("tsigKeyNames");
             {
                 jsonWriter.WriteStartArray();
@@ -1219,63 +1142,26 @@ namespace DnsServerCore
             }
         }
 
-        public async Task BackupSettingsAsync(HttpListenerRequest request, HttpListenerResponse response)
+        public async Task BackupSettingsAsync(HttpContext context)
         {
-            bool blockLists = false;
-            bool logs = false;
-            bool scopes = false;
-            bool apps = false;
-            bool stats = false;
-            bool zones = false;
-            bool allowedZones = false;
-            bool blockedZones = false;
-            bool dnsSettings = false;
-            bool authConfig = false;
-            bool logSettings = false;
+            UserSession session = context.GetCurrentSession();
 
-            string strBlockLists = request.QueryString["blockLists"];
-            if (!string.IsNullOrEmpty(strBlockLists))
-                blockLists = bool.Parse(strBlockLists);
+            if (!_dnsWebService._authManager.IsPermitted(PermissionSection.Settings, session.User, PermissionFlag.Delete))
+                throw new DnsWebServiceException("Access was denied.");
 
-            string strLogs = request.QueryString["logs"];
-            if (!string.IsNullOrEmpty(strLogs))
-                logs = bool.Parse(strLogs);
+            HttpRequest request = context.Request;
 
-            string strScopes = request.QueryString["scopes"];
-            if (!string.IsNullOrEmpty(strScopes))
-                scopes = bool.Parse(strScopes);
-
-            string strApps = request.QueryString["apps"];
-            if (!string.IsNullOrEmpty(strApps))
-                apps = bool.Parse(strApps);
-
-            string strStats = request.QueryString["stats"];
-            if (!string.IsNullOrEmpty(strStats))
-                stats = bool.Parse(strStats);
-
-            string strZones = request.QueryString["zones"];
-            if (!string.IsNullOrEmpty(strZones))
-                zones = bool.Parse(strZones);
-
-            string strAllowedZones = request.QueryString["allowedZones"];
-            if (!string.IsNullOrEmpty(strAllowedZones))
-                allowedZones = bool.Parse(strAllowedZones);
-
-            string strBlockedZones = request.QueryString["blockedZones"];
-            if (!string.IsNullOrEmpty(strBlockedZones))
-                blockedZones = bool.Parse(strBlockedZones);
-
-            string strDnsSettings = request.QueryString["dnsSettings"];
-            if (!string.IsNullOrEmpty(strDnsSettings))
-                dnsSettings = bool.Parse(strDnsSettings);
-
-            string strAuthConfig = request.QueryString["authConfig"];
-            if (!string.IsNullOrEmpty(strAuthConfig))
-                authConfig = bool.Parse(strAuthConfig);
-
-            string strLogSettings = request.QueryString["logSettings"];
-            if (!string.IsNullOrEmpty(strLogSettings))
-                logSettings = bool.Parse(strLogSettings);
+            bool blockLists = request.GetQuery("blockLists", bool.Parse, false);
+            bool logs = request.GetQuery("logs", bool.Parse, false);
+            bool scopes = request.GetQuery("scopes", bool.Parse, false);
+            bool apps = request.GetQuery("apps", bool.Parse, false);
+            bool stats = request.GetQuery("stats", bool.Parse, false);
+            bool zones = request.GetQuery("zones", bool.Parse, false);
+            bool allowedZones = request.GetQuery("allowedZones", bool.Parse, false);
+            bool blockedZones = request.GetQuery("blockedZones", bool.Parse, false);
+            bool dnsSettings = request.GetQuery("dnsSettings", bool.Parse, false);
+            bool authConfig = request.GetQuery("authConfig", bool.Parse, false);
+            bool logSettings = request.GetQuery("logSettings", bool.Parse, false);
 
             string tmpFile = Path.GetTempFileName();
             try
@@ -1410,11 +1296,13 @@ namespace DnsServerCore
                     //send zip file
                     backupZipStream.Position = 0;
 
-                    response.ContentType = "application/zip";
-                    response.ContentLength64 = backupZipStream.Length;
-                    response.AddHeader("Content-Disposition", "attachment;filename=DnsServerBackup.zip");
+                    HttpResponse response = context.Response;
 
-                    using (Stream output = response.OutputStream)
+                    response.ContentType = "application/zip";
+                    response.ContentLength = backupZipStream.Length;
+                    response.Headers.ContentDisposition = "attachment;filename=DnsServerBackup.zip";
+
+                    using (Stream output = response.Body)
                     {
                         await backupZipStream.CopyToAsync(output);
                     }
@@ -1432,95 +1320,33 @@ namespace DnsServerCore
                 }
             }
 
-            _dnsWebService._log.Write(DnsWebService.GetRequestRemoteEndPoint(request), "[" + _dnsWebService.GetSession(request).User.Username + "] Settings backup zip file was exported.");
+            _dnsWebService._log.Write(context.GetRemoteEndPoint(), "[" + session.User.Username + "] Settings backup zip file was exported.");
         }
 
-        public async Task RestoreSettingsAsync(HttpListenerRequest request, Utf8JsonWriter jsonWriter)
+        public async Task RestoreSettingsAsync(HttpContext context)
         {
-            bool blockLists = false;
-            bool logs = false;
-            bool scopes = false;
-            bool apps = false;
-            bool stats = false;
-            bool zones = false;
-            bool allowedZones = false;
-            bool blockedZones = false;
-            bool dnsSettings = false;
-            bool authConfig = false;
-            bool logSettings = false;
+            UserSession session = context.GetCurrentSession();
 
-            bool deleteExistingFiles = false;
+            if (!_dnsWebService._authManager.IsPermitted(PermissionSection.Settings, session.User, PermissionFlag.Delete))
+                throw new DnsWebServiceException("Access was denied.");
 
-            string strBlockLists = request.QueryString["blockLists"];
-            if (!string.IsNullOrEmpty(strBlockLists))
-                blockLists = bool.Parse(strBlockLists);
+            HttpRequest request = context.Request;
 
-            string strLogs = request.QueryString["logs"];
-            if (!string.IsNullOrEmpty(strLogs))
-                logs = bool.Parse(strLogs);
+            bool blockLists = request.GetQuery("blockLists", bool.Parse, false);
+            bool logs = request.GetQuery("logs", bool.Parse, false);
+            bool scopes = request.GetQuery("scopes", bool.Parse, false);
+            bool apps = request.GetQuery("apps", bool.Parse, false);
+            bool stats = request.GetQuery("stats", bool.Parse, false);
+            bool zones = request.GetQuery("zones", bool.Parse, false);
+            bool allowedZones = request.GetQuery("allowedZones", bool.Parse, false);
+            bool blockedZones = request.GetQuery("blockedZones", bool.Parse, false);
+            bool dnsSettings = request.GetQuery("dnsSettings", bool.Parse, false);
+            bool authConfig = request.GetQuery("authConfig", bool.Parse, false);
+            bool logSettings = request.GetQuery("logSettings", bool.Parse, false);
+            bool deleteExistingFiles = request.GetQuery("deleteExistingFiles", bool.Parse, false);
 
-            string strScopes = request.QueryString["scopes"];
-            if (!string.IsNullOrEmpty(strScopes))
-                scopes = bool.Parse(strScopes);
-
-            string strApps = request.QueryString["apps"];
-            if (!string.IsNullOrEmpty(strApps))
-                apps = bool.Parse(strApps);
-
-            string strStats = request.QueryString["stats"];
-            if (!string.IsNullOrEmpty(strStats))
-                stats = bool.Parse(strStats);
-
-            string strZones = request.QueryString["zones"];
-            if (!string.IsNullOrEmpty(strZones))
-                zones = bool.Parse(strZones);
-
-            string strAllowedZones = request.QueryString["allowedZones"];
-            if (!string.IsNullOrEmpty(strAllowedZones))
-                allowedZones = bool.Parse(strAllowedZones);
-
-            string strBlockedZones = request.QueryString["blockedZones"];
-            if (!string.IsNullOrEmpty(strBlockedZones))
-                blockedZones = bool.Parse(strBlockedZones);
-
-            string strDnsSettings = request.QueryString["dnsSettings"];
-            if (!string.IsNullOrEmpty(strDnsSettings))
-                dnsSettings = bool.Parse(strDnsSettings);
-
-            string strAuthConfig = request.QueryString["authConfig"];
-            if (!string.IsNullOrEmpty(strAuthConfig))
-                authConfig = bool.Parse(strAuthConfig);
-
-            string strLogSettings = request.QueryString["logSettings"];
-            if (!string.IsNullOrEmpty(strLogSettings))
-                logSettings = bool.Parse(strLogSettings);
-
-            string strDeleteExistingFiles = request.QueryString["deleteExistingFiles"];
-            if (!string.IsNullOrEmpty(strDeleteExistingFiles))
-                deleteExistingFiles = bool.Parse(strDeleteExistingFiles);
-
-            #region skip to content
-
-            int crlfCount = 0;
-            int byteRead;
-
-            while (crlfCount != 4)
-            {
-                byteRead = await request.InputStream.ReadByteValueAsync();
-                switch (byteRead)
-                {
-                    case 13: //CR
-                    case 10: //LF
-                        crlfCount++;
-                        break;
-
-                    default:
-                        crlfCount = 0;
-                        break;
-                }
-            }
-
-            #endregion
+            if (request.Form.Files.Count == 0)
+                throw new DnsWebServiceException("DNS backup zip file is missing.");
 
             //write to temp file
             string tmpFile = Path.GetTempFileName();
@@ -1528,13 +1354,11 @@ namespace DnsServerCore
             {
                 using (FileStream fS = new FileStream(tmpFile, FileMode.Create, FileAccess.ReadWrite))
                 {
-                    await request.InputStream.CopyToAsync(fS);
+                    await request.Form.Files[0].CopyToAsync(fS);
 
                     fS.Position = 0;
                     using (ZipArchive backupZip = new ZipArchive(fS, ZipArchiveMode.Read, false, Encoding.UTF8))
                     {
-                        UserSession session = _dnsWebService.GetSession(request);
-
                         if (logSettings || logs)
                         {
                             //stop logging
@@ -1801,7 +1625,7 @@ namespace DnsServerCore
                             _dnsWebService._dnsServer.StatsManager.ReloadStats();
                         }
 
-                        _dnsWebService._log.Write(DnsWebService.GetRequestRemoteEndPoint(request), "[" + session.User.Username + "] Settings backup zip file was restored.");
+                        _dnsWebService._log.Write(context.GetRemoteEndPoint(), "[" + session.User.Username + "] Settings backup zip file was restored.");
                     }
                 }
             }
@@ -1820,22 +1644,29 @@ namespace DnsServerCore
             if (dnsSettings)
                 RestartService(true, true);
 
-            GetDnsSettings(jsonWriter);
+            Utf8JsonWriter jsonWriter = context.GetCurrentJsonWriter();
+            WriteDnsSettings(jsonWriter);
         }
 
-        public void ForceUpdateBlockLists(HttpListenerRequest request)
+        public void ForceUpdateBlockLists(HttpContext context)
         {
+            UserSession session = context.GetCurrentSession();
+
+            if (!_dnsWebService._authManager.IsPermitted(PermissionSection.Settings, session.User, PermissionFlag.Modify))
+                throw new DnsWebServiceException("Access was denied.");
+
             ForceUpdateBlockLists();
-            _dnsWebService._log.Write(DnsWebService.GetRequestRemoteEndPoint(request), "[" + _dnsWebService.GetSession(request).User.Username + "] Block list update was triggered.");
+            _dnsWebService._log.Write(context.GetRemoteEndPoint(), "[" + session.User.Username + "] Block list update was triggered.");
         }
 
-        public void TemporaryDisableBlocking(HttpListenerRequest request, Utf8JsonWriter jsonWriter)
+        public void TemporaryDisableBlocking(HttpContext context)
         {
-            string strMinutes = request.QueryString["minutes"];
-            if (string.IsNullOrEmpty(strMinutes))
-                throw new DnsWebServiceException("Parameter 'minutes' missing.");
+            UserSession session = context.GetCurrentSession();
 
-            int minutes = int.Parse(strMinutes);
+            if (!_dnsWebService._authManager.IsPermitted(PermissionSection.Settings, session.User, PermissionFlag.Modify))
+                throw new DnsWebServiceException("Access was denied.");
+
+            int minutes = context.Request.GetQuery("minutes", int.Parse);
 
             Timer temporaryDisableBlockingTimer = _temporaryDisableBlockingTimer;
             if (temporaryDisableBlockingTimer is not null)
@@ -1846,7 +1677,7 @@ namespace DnsServerCore
                 try
                 {
                     _dnsWebService._dnsServer.EnableBlocking = true;
-                    _dnsWebService._log.Write(DnsWebService.GetRequestRemoteEndPoint(request), "[" + _dnsWebService.GetSession(request).User.Username + "] Blocking was enabled after " + minutes + " minute(s) being temporarily disabled.");
+                    _dnsWebService._log.Write(context.GetRemoteEndPoint(), "[" + session.User.Username + "] Blocking was enabled after " + minutes + " minute(s) being temporarily disabled.");
                 }
                 catch (Exception ex)
                 {
@@ -1861,13 +1692,14 @@ namespace DnsServerCore
                 _dnsWebService._dnsServer.EnableBlocking = false;
                 _temporaryDisableBlockingTill = DateTime.UtcNow.AddMinutes(minutes);
 
-                _dnsWebService._log.Write(DnsWebService.GetRequestRemoteEndPoint(request), "[" + _dnsWebService.GetSession(request).User.Username + "] Blocking was temporarily disabled for " + minutes + " minute(s).");
+                _dnsWebService._log.Write(context.GetRemoteEndPoint(), "[" + session.User.Username + "] Blocking was temporarily disabled for " + minutes + " minute(s).");
             }
             else
             {
                 newTemporaryDisableBlockingTimer.Dispose();
             }
 
+            Utf8JsonWriter jsonWriter = context.GetCurrentJsonWriter();
             jsonWriter.WriteString("temporaryDisableBlockingTill", _temporaryDisableBlockingTill);
         }
 
