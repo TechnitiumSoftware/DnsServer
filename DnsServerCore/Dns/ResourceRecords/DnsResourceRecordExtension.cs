@@ -1,6 +1,6 @@
 ﻿/*
 Technitium DNS Server
-Copyright (C) 2021  Shreyas Zare (shreyas@technitium.com)
+Copyright (C) 2023  Shreyas Zare (shreyas@technitium.com)
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -22,6 +22,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Net;
 using System.Net.Sockets;
+using TechnitiumLibrary;
 using TechnitiumLibrary.Net.Dns;
 using TechnitiumLibrary.Net.Dns.ResourceRecords;
 
@@ -42,13 +43,7 @@ namespace DnsServerCore.Dns.ResourceRecords
 
         public static void SetGlueRecords(this DnsResourceRecord record, string glueAddresses)
         {
-            string[] addresses = glueAddresses.Split(new char[] { ',' }, StringSplitOptions.RemoveEmptyEntries);
-            List<IPAddress> ipAddresses = new List<IPAddress>(addresses.Length);
-
-            foreach (string address in addresses)
-                ipAddresses.Add(IPAddress.Parse(address.Trim()));
-
-            SetGlueRecords(record, ipAddresses);
+            SetGlueRecords(record, glueAddresses.Split(IPAddress.Parse, ','));
         }
 
         public static void SetGlueRecords(this DnsResourceRecord record, IReadOnlyList<IPAddress> glueAddresses)
@@ -234,13 +229,7 @@ namespace DnsServerCore.Dns.ResourceRecords
 
         public static void SetPrimaryNameServers(this DnsResourceRecord record, string primaryNameServers)
         {
-            string[] nameServerAddresses = primaryNameServers.Split(new char[] { ',' }, StringSplitOptions.RemoveEmptyEntries);
-            List<NameServerAddress> nameServers = new List<NameServerAddress>(nameServerAddresses.Length);
-
-            foreach (string nameServerAddress in nameServerAddresses)
-                nameServers.Add(new NameServerAddress(nameServerAddress));
-
-            SetPrimaryNameServers(record, nameServers);
+            SetPrimaryNameServers(record, primaryNameServers.Split(NameServerAddress.Parse, ','));
         }
 
         public static IReadOnlyList<NameServerAddress> GetPrimaryNameServers(this DnsResourceRecord record)
