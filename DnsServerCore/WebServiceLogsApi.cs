@@ -1,6 +1,6 @@
 ﻿/*
 Technitium DNS Server
-Copyright (C) 2022  Shreyas Zare (shreyas@technitium.com)
+Copyright (C) 2023  Shreyas Zare (shreyas@technitium.com)
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -18,7 +18,9 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
 using DnsServerCore.ApplicationCommon;
+using DnsServerCore.Auth;
 using DnsServerCore.Dns.Applications;
+using Microsoft.AspNetCore.Http;
 using System;
 using System.Globalization;
 using System.IO;
@@ -50,12 +52,19 @@ namespace DnsServerCore
 
         #region public
 
-        public void ListLogs(Utf8JsonWriter jsonWriter)
+        public void ListLogs(HttpContext context)
         {
+            UserSession session = context.GetCurrentSession();
+
+            if (!_dnsWebService._authManager.IsPermitted(PermissionSection.Logs, session.User, PermissionFlag.View))
+                throw new DnsWebServiceException("Access was denied.");
+
             string[] logFiles = _dnsWebService._log.ListLogFiles();
 
             Array.Sort(logFiles);
             Array.Reverse(logFiles);
+
+            Utf8JsonWriter jsonWriter = context.GetCurrentJsonWriter();
 
             jsonWriter.WritePropertyName("logFiles");
             jsonWriter.WriteStartArray();
@@ -73,56 +82,72 @@ namespace DnsServerCore
             jsonWriter.WriteEndArray();
         }
 
-        public Task DownloadLogAsync(HttpListenerRequest request, HttpListenerResponse response)
+        public Task DownloadLogAsync(HttpContext context)
         {
-            string strFileName = request.QueryString["fileName"];
-            if (string.IsNullOrEmpty(strFileName))
-                throw new DnsWebServiceException("Parameter 'fileName' missing.");
+            UserSession session = context.GetCurrentSession();
 
-            int limit;
-            string strLimit = request.QueryString["limit"];
-            if (string.IsNullOrEmpty(strLimit))
-                limit = 0;
-            else
-                limit = int.Parse(strLimit);
+            if (!_dnsWebService._authManager.IsPermitted(PermissionSection.Logs, session.User, PermissionFlag.View))
+                throw new DnsWebServiceException("Access was denied.");
 
-            return _dnsWebService._log.DownloadLogAsync(request, response, strFileName, limit * 1024 * 1024);
+            HttpRequest request = context.Request;
+
+            string fileName = request.GetQuery("fileName");
+            int limit = request.GetQuery("limit", int.Parse, 0);
+
+            return _dnsWebService._log.DownloadLogAsync(context, fileName, limit * 1024 * 1024);
         }
 
-        public void DeleteLog(HttpListenerRequest request)
+        public void DeleteLog(HttpContext context)
         {
-            string log = request.QueryString["log"];
-            if (string.IsNullOrEmpty(log))
-                throw new DnsWebServiceException("Parameter 'log' missing.");
+            UserSession session = context.GetCurrentSession();
+
+            if (!_dnsWebService._authManager.IsPermitted(PermissionSection.Logs, session.User, PermissionFlag.Delete))
+                throw new DnsWebServiceException("Access was denied.");
+
+            HttpRequest request = context.Request;
+
+            string log = request.GetQuery("log");
 
             _dnsWebService._log.DeleteLog(log);
 
-            _dnsWebService._log.Write(DnsWebService.GetRequestRemoteEndPoint(request), "[" + _dnsWebService.GetSession(request).User.Username + "] Log file was deleted: " + log);
+            _dnsWebService._log.Write(context.GetRemoteEndPoint(), "[" + session.User.Username + "] Log file was deleted: " + log);
         }
 
-        public void DeleteAllLogs(HttpListenerRequest request)
+        public void DeleteAllLogs(HttpContext context)
         {
+            UserSession session = context.GetCurrentSession();
+
+            if (!_dnsWebService._authManager.IsPermitted(PermissionSection.Logs, session.User, PermissionFlag.Delete))
+                throw new DnsWebServiceException("Access was denied.");
+
             _dnsWebService._log.DeleteAllLogs();
 
-            _dnsWebService._log.Write(DnsWebService.GetRequestRemoteEndPoint(request), "[" + _dnsWebService.GetSession(request).User.Username + "] All log files were deleted.");
+            _dnsWebService._log.Write(context.GetRemoteEndPoint(), "[" + session.User.Username + "] All log files were deleted.");
         }
 
-        public void DeleteAllStats(HttpListenerRequest request)
+        public void DeleteAllStats(HttpContext context)
         {
+            UserSession session = context.GetCurrentSession();
+
+            if (!_dnsWebService._authManager.IsPermitted(PermissionSection.Dashboard, session.User, PermissionFlag.Delete))
+                throw new DnsWebServiceException("Access was denied.");
+
             _dnsWebService._dnsServer.StatsManager.DeleteAllStats();
 
-            _dnsWebService._log.Write(DnsWebService.GetRequestRemoteEndPoint(request), "[" + _dnsWebService.GetSession(request).User.Username + "] All stats files were deleted.");
+            _dnsWebService._log.Write(context.GetRemoteEndPoint(), "[" + session.User.Username + "] All stats files were deleted.");
         }
 
-        public async Task QueryLogsAsync(HttpListenerRequest request, Utf8JsonWriter jsonWriter)
+        public async Task QueryLogsAsync(HttpContext context)
         {
-            string name = request.QueryString["name"];
-            if (string.IsNullOrEmpty(name))
-                throw new DnsWebServiceException("Parameter 'name' missing.");
+            UserSession session = context.GetCurrentSession();
 
-            string classPath = request.QueryString["classPath"];
-            if (string.IsNullOrEmpty(classPath))
-                throw new DnsWebServiceException("Parameter 'classPath' missing.");
+            if (!_dnsWebService._authManager.IsPermitted(PermissionSection.Logs, session.User, PermissionFlag.View))
+                throw new DnsWebServiceException("Access was denied.");
+
+            HttpRequest request = context.Request;
+
+            string name = request.GetQuery("name");
+            string classPath = request.GetQuery("classPath");
 
             if (!_dnsWebService._dnsServer.DnsApplicationManager.Applications.TryGetValue(name, out DnsApplication application))
                 throw new DnsWebServiceException("DNS application was not found: " + name);
@@ -130,88 +155,52 @@ namespace DnsServerCore
             if (!application.DnsQueryLoggers.TryGetValue(classPath, out IDnsQueryLogger logger))
                 throw new DnsWebServiceException("DNS application '" + classPath + "' class path was not found: " + name);
 
-            long pageNumber;
-            string strPageNumber = request.QueryString["pageNumber"];
-            if (string.IsNullOrEmpty(strPageNumber))
-                pageNumber = 1;
-            else
-                pageNumber = long.Parse(strPageNumber);
+            long pageNumber = request.GetQuery("pageNumber", long.Parse, 1);
+            int entriesPerPage = request.GetQuery("entriesPerPage", int.Parse, 25);
+            bool descendingOrder = request.GetQuery("descendingOrder", bool.Parse, true);
 
-            int entriesPerPage;
-            string strEntriesPerPage = request.QueryString["entriesPerPage"];
-            if (string.IsNullOrEmpty(strEntriesPerPage))
-                entriesPerPage = 25;
-            else
-                entriesPerPage = int.Parse(strEntriesPerPage);
-
-            bool descendingOrder;
-            string strDescendingOrder = request.QueryString["descendingOrder"];
-            if (string.IsNullOrEmpty(strDescendingOrder))
-                descendingOrder = true;
-            else
-                descendingOrder = bool.Parse(strDescendingOrder);
-
-            DateTime? start;
-            string strStart = request.QueryString["start"];
-            if (string.IsNullOrEmpty(strStart))
-                start = null;
-            else
+            DateTime? start = null;
+            string strStart = request.Query["start"];
+            if (!string.IsNullOrEmpty(strStart))
                 start = DateTime.Parse(strStart, CultureInfo.InvariantCulture, DateTimeStyles.AssumeUniversal | DateTimeStyles.AdjustToUniversal);
 
-            DateTime? end;
-            string strEnd = request.QueryString["end"];
-            if (string.IsNullOrEmpty(strEnd))
-                end = null;
-            else
+            DateTime? end = null;
+            string strEnd = request.Query["end"];
+            if (!string.IsNullOrEmpty(strEnd))
                 end = DateTime.Parse(strEnd, CultureInfo.InvariantCulture, DateTimeStyles.AssumeUniversal | DateTimeStyles.AdjustToUniversal);
 
-            IPAddress clientIpAddress;
-            string strClientIpAddress = request.QueryString["clientIpAddress"];
-            if (string.IsNullOrEmpty(strClientIpAddress))
-                clientIpAddress = null;
-            else
-                clientIpAddress = IPAddress.Parse(strClientIpAddress);
+            IPAddress clientIpAddress = request.GetQuery("clientIpAddress", IPAddress.Parse, null);
 
-            DnsTransportProtocol? protocol;
-            string strProtocol = request.QueryString["protocol"];
-            if (string.IsNullOrEmpty(strProtocol))
-                protocol = null;
-            else
+            DnsTransportProtocol? protocol = null;
+            string strProtocol = request.Query["protocol"];
+            if (!string.IsNullOrEmpty(strProtocol))
                 protocol = Enum.Parse<DnsTransportProtocol>(strProtocol, true);
 
-            DnsServerResponseType? responseType;
-            string strResponseType = request.QueryString["responseType"];
-            if (string.IsNullOrEmpty(strResponseType))
-                responseType = null;
-            else
+            DnsServerResponseType? responseType = null;
+            string strResponseType = request.Query["responseType"];
+            if (!string.IsNullOrEmpty(strResponseType))
                 responseType = Enum.Parse<DnsServerResponseType>(strResponseType, true);
 
-            DnsResponseCode? rcode;
-            string strRcode = request.QueryString["rcode"];
-            if (string.IsNullOrEmpty(strRcode))
-                rcode = null;
-            else
+            DnsResponseCode? rcode = null;
+            string strRcode = request.Query["rcode"];
+            if (!string.IsNullOrEmpty(strRcode))
                 rcode = Enum.Parse<DnsResponseCode>(strRcode, true);
 
-            string qname = request.QueryString["qname"];
-            if (string.IsNullOrEmpty(qname))
-                qname = null;
+            string qname = request.GetQuery("qname", null);
 
-            DnsResourceRecordType? qtype;
-            string strQtype = request.QueryString["qtype"];
-            if (string.IsNullOrEmpty(strQtype))
-                qtype = null;
-            else
+            DnsResourceRecordType? qtype = null;
+            string strQtype = request.Query["qtype"];
+            if (!string.IsNullOrEmpty(strQtype))
                 qtype = Enum.Parse<DnsResourceRecordType>(strQtype, true);
 
-            DnsClass? qclass;
-            string strQclass = request.QueryString["qclass"];
-            if (string.IsNullOrEmpty(strQclass))
-                qclass = null;
-            else
+            DnsClass? qclass = null;
+            string strQclass = request.Query["qclass"];
+            if (!string.IsNullOrEmpty(strQclass))
                 qclass = Enum.Parse<DnsClass>(strQclass, true);
 
             DnsLogPage page = await logger.QueryLogsAsync(pageNumber, entriesPerPage, descendingOrder, start, end, clientIpAddress, protocol, responseType, rcode, qname, qtype, qclass);
+
+            Utf8JsonWriter jsonWriter = context.GetCurrentJsonWriter();
 
             jsonWriter.WriteNumber("pageNumber", page.PageNumber);
             jsonWriter.WriteNumber("totalPages", page.TotalPages);
