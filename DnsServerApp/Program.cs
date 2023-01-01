@@ -1,6 +1,6 @@
 ﻿/*
 Technitium DNS Server
-Copyright (C) 2022  Shreyas Zare (shreyas@technitium.com)
+Copyright (C) 2023  Shreyas Zare (shreyas@technitium.com)
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -69,7 +69,7 @@ namespace DnsServerApp
                 Console.WriteLine("Technitium DNS Server was started successfully.");
                 Console.WriteLine("Using config folder: " + service.ConfigFolder);
                 Console.WriteLine("");
-                Console.WriteLine("Note: Open http://" + service.WebServiceHostname + ":" + service.WebServiceHttpPort + "/ in web browser to access web console.");
+                Console.WriteLine("Note: Open http://" + Environment.MachineName.ToLowerInvariant() + ":" + service.WebServiceHttpPort + "/ in web browser to access web console.");
                 Console.WriteLine("");
                 Console.WriteLine("Press [CTRL + C] to stop...");
 
