@@ -1,6 +1,6 @@
 ﻿/*
 Technitium DNS Server
-Copyright (C) 2022  Shreyas Zare (shreyas@technitium.com)
+Copyright (C) 2023  Shreyas Zare (shreyas@technitium.com)
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -18,7 +18,9 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
 using DnsServerCore.ApplicationCommon;
+using DnsServerCore.Auth;
 using DnsServerCore.Dns.Applications;
+using Microsoft.AspNetCore.Http;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -28,7 +30,6 @@ using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
 using TechnitiumLibrary;
-using TechnitiumLibrary.IO;
 
 namespace DnsServerCore
 {
@@ -308,8 +309,19 @@ namespace DnsServerCore
 
         #region public
 
-        public async Task ListInstalledAppsAsync(Utf8JsonWriter jsonWriter)
+        public async Task ListInstalledAppsAsync(HttpContext context)
         {
+            UserSession session = context.GetCurrentSession();
+
+            if (
+                !_dnsWebService._authManager.IsPermitted(PermissionSection.Apps, session.User, PermissionFlag.View) &&
+                !_dnsWebService._authManager.IsPermitted(PermissionSection.Zones, session.User, PermissionFlag.View) &&
+                !_dnsWebService._authManager.IsPermitted(PermissionSection.Logs, session.User, PermissionFlag.View)
+               )
+            {
+                throw new DnsWebServiceException("Access was denied.");
+            }
+
             List<string> apps = new List<string>(_dnsWebService._dnsServer.DnsApplicationManager.Applications.Keys);
             apps.Sort();
 
@@ -330,6 +342,8 @@ namespace DnsServerCore
                     { }
                 }
 
+                Utf8JsonWriter jsonWriter = context.GetCurrentJsonWriter();
+
                 jsonWriter.WritePropertyName("apps");
                 jsonWriter.WriteStartArray();
 
@@ -348,11 +362,18 @@ namespace DnsServerCore
             }
         }
 
-        public async Task ListStoreApps(Utf8JsonWriter jsonWriter)
+        public async Task ListStoreApps(HttpContext context)
         {
+            UserSession session = context.GetCurrentSession();
+
+            if (!_dnsWebService._authManager.IsPermitted(PermissionSection.Apps, session.User, PermissionFlag.View))
+                throw new DnsWebServiceException("Access was denied.");
+
             string storeAppsJsonData = await GetStoreAppsJsonData();
             using JsonDocument jsonDocument = JsonDocument.Parse(storeAppsJsonData);
             JsonElement jsonStoreAppsArray = jsonDocument.RootElement;
+
+            Utf8JsonWriter jsonWriter = context.GetCurrentJsonWriter();
 
             jsonWriter.WritePropertyName("storeApps");
             jsonWriter.WriteStartArray();
@@ -413,17 +434,17 @@ namespace DnsServerCore
             jsonWriter.WriteEndArray();
         }
 
-        public async Task DownloadAndInstallAppAsync(HttpListenerRequest request, Utf8JsonWriter jsonWriter)
+        public async Task DownloadAndInstallAppAsync(HttpContext context)
         {
-            string name = request.QueryString["name"];
-            if (string.IsNullOrEmpty(name))
-                throw new DnsWebServiceException("Parameter 'name' missing.");
+            UserSession session = context.GetCurrentSession();
 
-            name = name.Trim();
+            if (!_dnsWebService._authManager.IsPermitted(PermissionSection.Apps, session.User, PermissionFlag.Delete))
+                throw new DnsWebServiceException("Access was denied.");
 
-            string url = request.QueryString["url"];
-            if (string.IsNullOrEmpty(url))
-                throw new DnsWebServiceException("Parameter 'url' missing.");
+            HttpRequest request = context.Request;
+
+            string name = request.GetQuery("name").Trim();
+            string url = request.GetQuery("url");
 
             if (!url.StartsWith("https://", StringComparison.OrdinalIgnoreCase))
                 throw new DnsWebServiceException("Parameter 'url' value must start with 'https://'.");
@@ -451,7 +472,9 @@ namespace DnsServerCore
                     fS.Position = 0;
                     DnsApplication application = await _dnsWebService._dnsServer.DnsApplicationManager.InstallApplicationAsync(name, fS);
 
-                    _dnsWebService._log.Write(DnsWebService.GetRequestRemoteEndPoint(request), "[" + _dnsWebService.GetSession(request).User.Username + "] DNS application '" + name + "' was installed successfully from: " + url);
+                    _dnsWebService._log.Write(context.GetRemoteEndPoint(), "[" + session.User.Username + "] DNS application '" + name + "' was installed successfully from: " + url);
+
+                    Utf8JsonWriter jsonWriter = context.GetCurrentJsonWriter();
 
                     jsonWriter.WritePropertyName("installedApp");
                     WriteAppAsJson(jsonWriter, application);
@@ -470,59 +493,44 @@ namespace DnsServerCore
             }
         }
 
-        public async Task DownloadAndUpdateAppAsync(HttpListenerRequest request, Utf8JsonWriter jsonWriter)
+        public async Task DownloadAndUpdateAppAsync(HttpContext context)
         {
-            string name = request.QueryString["name"];
-            if (string.IsNullOrEmpty(name))
-                throw new DnsWebServiceException("Parameter 'name' missing.");
+            UserSession session = context.GetCurrentSession();
 
-            name = name.Trim();
+            if (!_dnsWebService._authManager.IsPermitted(PermissionSection.Apps, session.User, PermissionFlag.Delete))
+                throw new DnsWebServiceException("Access was denied.");
 
-            string url = request.QueryString["url"];
-            if (string.IsNullOrEmpty(url))
-                throw new DnsWebServiceException("Parameter 'url' missing.");
+            HttpRequest request = context.Request;
+
+            string name = request.GetQuery("name").Trim();
+            string url = request.GetQuery("url");
 
             if (!url.StartsWith("https://", StringComparison.OrdinalIgnoreCase))
                 throw new DnsWebServiceException("Parameter 'url' value must start with 'https://'.");
 
             DnsApplication application = await DownloadAndUpdateAppAsync(name, url);
 
-            _dnsWebService._log.Write(DnsWebService.GetRequestRemoteEndPoint(request), "[" + _dnsWebService.GetSession(request).User.Username + "] DNS application '" + name + "' was updated successfully from: " + url);
+            _dnsWebService._log.Write(context.GetRemoteEndPoint(), "[" + session.User.Username + "] DNS application '" + name + "' was updated successfully from: " + url);
+
+            Utf8JsonWriter jsonWriter = context.GetCurrentJsonWriter();
 
             jsonWriter.WritePropertyName("updatedApp");
             WriteAppAsJson(jsonWriter, application);
         }
 
-        public async Task InstallAppAsync(HttpListenerRequest request, Utf8JsonWriter jsonWriter)
+        public async Task InstallAppAsync(HttpContext context)
         {
-            string name = request.QueryString["name"];
-            if (string.IsNullOrEmpty(name))
-                throw new DnsWebServiceException("Parameter 'name' missing.");
+            UserSession session = context.GetCurrentSession();
 
-            name = name.Trim();
+            if (!_dnsWebService._authManager.IsPermitted(PermissionSection.Apps, session.User, PermissionFlag.Delete))
+                throw new DnsWebServiceException("Access was denied.");
 
-            #region skip to content
+            HttpRequest request = context.Request;
 
-            int crlfCount = 0;
-            int byteRead;
+            string name = request.GetQuery("name").Trim();
 
-            while (crlfCount != 4)
-            {
-                byteRead = await request.InputStream.ReadByteValueAsync();
-                switch (byteRead)
-                {
-                    case 13: //CR
-                    case 10: //LF
-                        crlfCount++;
-                        break;
-
-                    default:
-                        crlfCount = 0;
-                        break;
-                }
-            }
-
-            #endregion
+            if (request.Form.Files.Count == 0)
+                throw new DnsWebServiceException("DNS application zip file is missing.");
 
             string tmpFile = Path.GetTempFileName();
             try
@@ -530,13 +538,15 @@ namespace DnsServerCore
                 using (FileStream fS = new FileStream(tmpFile, FileMode.Create, FileAccess.ReadWrite))
                 {
                     //write to temp file
-                    await request.InputStream.CopyToAsync(fS);
+                    await request.Form.Files[0].CopyToAsync(fS);
 
                     //install app
                     fS.Position = 0;
                     DnsApplication application = await _dnsWebService._dnsServer.DnsApplicationManager.InstallApplicationAsync(name, fS);
 
-                    _dnsWebService._log.Write(DnsWebService.GetRequestRemoteEndPoint(request), "[" + _dnsWebService.GetSession(request).User.Username + "] DNS application '" + name + "' was installed successfully.");
+                    _dnsWebService._log.Write(context.GetRemoteEndPoint(), "[" + session.User.Username + "] DNS application '" + name + "' was installed successfully.");
+
+                    Utf8JsonWriter jsonWriter = context.GetCurrentJsonWriter();
 
                     jsonWriter.WritePropertyName("installedApp");
                     WriteAppAsJson(jsonWriter, application);
@@ -555,36 +565,19 @@ namespace DnsServerCore
             }
         }
 
-        public async Task UpdateAppAsync(HttpListenerRequest request, Utf8JsonWriter jsonWriter)
+        public async Task UpdateAppAsync(HttpContext context)
         {
-            string name = request.QueryString["name"];
-            if (string.IsNullOrEmpty(name))
-                throw new DnsWebServiceException("Parameter 'name' missing.");
+            UserSession session = context.GetCurrentSession();
 
-            name = name.Trim();
+            if (!_dnsWebService._authManager.IsPermitted(PermissionSection.Apps, session.User, PermissionFlag.Delete))
+                throw new DnsWebServiceException("Access was denied.");
 
-            #region skip to content
+            HttpRequest request = context.Request;
 
-            int crlfCount = 0;
-            int byteRead;
+            string name = request.GetQuery("name").Trim();
 
-            while (crlfCount != 4)
-            {
-                byteRead = await request.InputStream.ReadByteValueAsync();
-                switch (byteRead)
-                {
-                    case 13: //CR
-                    case 10: //LF
-                        crlfCount++;
-                        break;
-
-                    default:
-                        crlfCount = 0;
-                        break;
-                }
-            }
-
-            #endregion
+            if (request.Form.Files.Count == 0)
+                throw new DnsWebServiceException("DNS application zip file is missing.");
 
             string tmpFile = Path.GetTempFileName();
             try
@@ -592,13 +585,15 @@ namespace DnsServerCore
                 using (FileStream fS = new FileStream(tmpFile, FileMode.Create, FileAccess.ReadWrite))
                 {
                     //write to temp file
-                    await request.InputStream.CopyToAsync(fS);
+                    await request.Form.Files[0].CopyToAsync(fS);
 
                     //update app
                     fS.Position = 0;
                     DnsApplication application = await _dnsWebService._dnsServer.DnsApplicationManager.UpdateApplicationAsync(name, fS);
 
-                    _dnsWebService._log.Write(DnsWebService.GetRequestRemoteEndPoint(request), "[" + _dnsWebService.GetSession(request).User.Username + "] DNS application '" + name + "' was updated successfully.");
+                    _dnsWebService._log.Write(context.GetRemoteEndPoint(), "[" + session.User.Username + "] DNS application '" + name + "' was updated successfully.");
+
+                    Utf8JsonWriter jsonWriter = context.GetCurrentJsonWriter();
 
                     jsonWriter.WritePropertyName("updatedApp");
                     WriteAppAsJson(jsonWriter, application);
@@ -617,70 +612,68 @@ namespace DnsServerCore
             }
         }
 
-        public void UninstallApp(HttpListenerRequest request)
+        public void UninstallApp(HttpContext context)
         {
-            string name = request.QueryString["name"];
-            if (string.IsNullOrEmpty(name))
-                throw new DnsWebServiceException("Parameter 'name' missing.");
+            UserSession session = context.GetCurrentSession();
 
-            name = name.Trim();
+            if (!_dnsWebService._authManager.IsPermitted(PermissionSection.Apps, session.User, PermissionFlag.Delete))
+                throw new DnsWebServiceException("Access was denied.");
+
+            HttpRequest request = context.Request;
+
+            string name = request.GetQuery("name").Trim();
 
             _dnsWebService._dnsServer.DnsApplicationManager.UninstallApplication(name);
-            _dnsWebService._log.Write(DnsWebService.GetRequestRemoteEndPoint(request), "[" + _dnsWebService.GetSession(request).User.Username + "] DNS application '" + name + "' was uninstalled successfully.");
+            _dnsWebService._log.Write(context.GetRemoteEndPoint(), "[" + session.User.Username + "] DNS application '" + name + "' was uninstalled successfully.");
         }
 
-        public async Task GetAppConfigAsync(HttpListenerRequest request, Utf8JsonWriter jsonWriter)
+        public async Task GetAppConfigAsync(HttpContext context)
         {
-            string name = request.QueryString["name"];
-            if (string.IsNullOrEmpty(name))
-                throw new DnsWebServiceException("Parameter 'name' missing.");
+            UserSession session = context.GetCurrentSession();
 
-            name = name.Trim();
+            if (!_dnsWebService._authManager.IsPermitted(PermissionSection.Apps, session.User, PermissionFlag.View))
+                throw new DnsWebServiceException("Access was denied.");
+
+            HttpRequest request = context.Request;
+
+            string name = request.GetQuery("name").Trim();
 
             if (!_dnsWebService._dnsServer.DnsApplicationManager.Applications.TryGetValue(name, out DnsApplication application))
                 throw new DnsWebServiceException("DNS application was not found: " + name);
 
             string config = await application.GetConfigAsync();
 
+            Utf8JsonWriter jsonWriter = context.GetCurrentJsonWriter();
             jsonWriter.WriteString("config", config);
         }
 
-        public async Task SetAppConfigAsync(HttpListenerRequest request)
+        public async Task SetAppConfigAsync(HttpContext context)
         {
-            string name = request.QueryString["name"];
-            if (string.IsNullOrEmpty(name))
-                throw new DnsWebServiceException("Parameter 'name' missing.");
+            UserSession session = context.GetCurrentSession();
 
-            name = name.Trim();
+            if (!_dnsWebService._authManager.IsPermitted(PermissionSection.Apps, session.User, PermissionFlag.Modify))
+                throw new DnsWebServiceException("Access was denied.");
+
+            HttpRequest request = context.Request;
+
+            string name = request.GetQuery("name").Trim();
 
             if (!_dnsWebService._dnsServer.DnsApplicationManager.Applications.TryGetValue(name, out DnsApplication application))
                 throw new DnsWebServiceException("DNS application was not found: " + name);
 
-            string formRequest;
-            using (StreamReader sR = new StreamReader(request.InputStream, request.ContentEncoding))
-            {
-                formRequest = await sR.ReadToEndAsync();
-            }
+            if (!request.HasFormContentType)
+                throw new DnsWebServiceException("Invalid content type. Expected application/x-www-form-urlencoded.");
 
-            string[] formParts = formRequest.Split('&');
+            string config = request.Form["config"];
+            if (config is null)
+                throw new DnsWebServiceException("Form parameter 'config' missing.");
 
-            foreach (string formPart in formParts)
-            {
-                if (formPart.StartsWith("config="))
-                {
-                    string config = Uri.UnescapeDataString(formPart.Substring(7));
+            if (config.Length == 0)
+                config = null;
 
-                    if (config.Length == 0)
-                        config = null;
+            await application.SetConfigAsync(config);
 
-                    await application.SetConfigAsync(config);
-
-                    _dnsWebService._log.Write(DnsWebService.GetRequestRemoteEndPoint(request), "[" + _dnsWebService.GetSession(request).User.Username + "] DNS application '" + name + "' app config was saved successfully.");
-                    return;
-                }
-            }
-
-            throw new DnsWebServiceException("Missing POST parameter: config");
+            _dnsWebService._log.Write(context.GetRemoteEndPoint(), "[" + session.User.Username + "] DNS application '" + name + "' app config was saved successfully.");
         }
 
         #endregion
