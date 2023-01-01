@@ -1,6 +1,6 @@
 ﻿/*
 Technitium DNS Server
-Copyright (C) 2022  Shreyas Zare (shreyas@technitium.com)
+Copyright (C) 2023  Shreyas Zare (shreyas@technitium.com)
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -66,8 +66,8 @@ namespace DnsServerCore.Auth
 
         public User(string displayName, string username, string password, int iterations = DEFAULT_ITERATIONS)
         {
-            DisplayName = displayName;
             Username = username;
+            DisplayName = displayName;
 
             ChangePassword(password, iterations);
 
