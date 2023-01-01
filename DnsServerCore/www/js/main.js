@@ -1,6 +1,6 @@
 ﻿/*
 Technitium DNS Server
-Copyright (C) 2022  Shreyas Zare (shreyas@technitium.com)
+Copyright (C) 2023  Shreyas Zare (shreyas@technitium.com)
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -2300,6 +2300,7 @@ function restoreSettings() {
         url: "/api/settings/restore?token=" + sessionData.token + "&blockLists=" + blockLists + "&logs=" + logs + "&scopes=" + scopes + "&apps=" + apps + "&stats=" + stats + "&zones=" + zones + "&allowedZones=" + allowedZones + "&blockedZones=" + blockedZones + "&dnsSettings=" + dnsSettings + "&authConfig=" + authConfig + "&logSettings=" + logSettings + "&deleteExistingFiles=" + deleteExistingFiles,
         method: "POST",
         data: formData,
+        dataContentType: false,
         processData: false,
         success: function (responseJSON) {
             document.title = responseJSON.response.dnsServerDomain + " - " + "Technitium DNS Server v" + responseJSON.response.version;
