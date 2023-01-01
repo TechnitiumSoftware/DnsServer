@@ -1,0 +1,212 @@
+﻿/*
+Technitium DNS Server
+Copyright (C) 2023  Shreyas Zare (shreyas@technitium.com)
+
+This program is free software: you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
+(at your option) any later version.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License
+along with this program.  If not, see <http://www.gnu.org/licenses/>.
+
+*/
+
+using DnsServerCore.Auth;
+using Microsoft.AspNetCore.Http;
+using System;
+using System.Net;
+using System.Text.Json;
+using TechnitiumLibrary.Net;
+
+namespace DnsServerCore
+{
+    static class Extensions
+    {
+        public static IPEndPoint GetRemoteEndPoint(this HttpContext context)
+        {
+            try
+            {
+                if (context.Connection.RemoteIpAddress is null)
+                    return new IPEndPoint(IPAddress.Any, 0);
+
+                if (NetUtilities.IsPrivateIP(context.Connection.RemoteIpAddress))
+                {
+                    string xRealIp = context.Request.Headers["X-Real-IP"];
+                    if (IPAddress.TryParse(xRealIp, out IPAddress address))
+                    {
+                        //get the real IP address of the requesting client from X-Real-IP header set in nginx proxy_pass block
+                        return new IPEndPoint(address, 0);
+                    }
+                }
+
+                return new IPEndPoint(context.Connection.RemoteIpAddress, context.Connection.RemotePort);
+            }
+            catch
+            {
+                return new IPEndPoint(IPAddress.Any, 0);
+            }
+        }
+
+        public static UserSession GetCurrentSession(this HttpContext context)
+        {
+            if (context.Items["session"] is UserSession userSession)
+                return userSession;
+
+            throw new InvalidOperationException();
+        }
+
+        public static Utf8JsonWriter GetCurrentJsonWriter(this HttpContext context)
+        {
+            if (context.Items["jsonWriter"] is Utf8JsonWriter jsonWriter)
+                return jsonWriter;
+
+            throw new InvalidOperationException();
+        }
+
+        public static string GetQuery(this HttpRequest request, string parameter)
+        {
+            string value = request.Query[parameter];
+            if (string.IsNullOrEmpty(value))
+                throw new DnsWebServiceException("Parameter '" + parameter + "' missing.");
+
+            return value;
+        }
+
+        public static string GetQuery(this HttpRequest request, string parameter, string defaultValue)
+        {
+            string value = request.Query[parameter];
+            if (string.IsNullOrEmpty(value))
+                return defaultValue;
+
+            return value;
+        }
+
+        public static T GetQuery<T>(this HttpRequest request, string parameter, Func<string, T> parse)
+        {
+            string value = request.Query[parameter];
+            if (string.IsNullOrEmpty(value))
+                throw new DnsWebServiceException("Parameter '" + parameter + "' missing.");
+
+            return parse(value);
+        }
+
+        public static T GetQuery<T>(this HttpRequest request, string parameter) where T : struct
+        {
+            string value = request.Query[parameter];
+            if (string.IsNullOrEmpty(value))
+                throw new DnsWebServiceException("Parameter '" + parameter + "' missing.");
+
+            return Enum.Parse<T>(value, true);
+        }
+
+        public static T GetQuery<T>(this HttpRequest request, string parameter, Func<string, T> parse, T defaultValue)
+        {
+            string value = request.Query[parameter];
+            if (string.IsNullOrEmpty(value))
+                return defaultValue;
+
+            return parse(value);
+        }
+
+        public static T GetQuery<T>(this HttpRequest request, string parameter, T defaultValue) where T : struct
+        {
+            string value = request.Query[parameter];
+            if (string.IsNullOrEmpty(value))
+                return defaultValue;
+
+            return Enum.Parse<T>(value, true);
+        }
+
+        public static bool TryGetQuery(this HttpRequest request, string parameter, out string value)
+        {
+            value = request.Query[parameter];
+            if (string.IsNullOrEmpty(value))
+                return false;
+
+            return true;
+        }
+
+        public static bool TryGetQuery<T>(this HttpRequest request, string parameter, Func<string, T> parse, out T value)
+        {
+            string strValue = request.Query[parameter];
+            if (string.IsNullOrEmpty(strValue))
+            {
+                value = default;
+                return false;
+            }
+
+            value = parse(strValue);
+            return true;
+        }
+
+        public static bool TryGetQuery<T>(this HttpRequest request, string parameter, out T value) where T : struct
+        {
+            string strValue = request.Query[parameter];
+            if (string.IsNullOrEmpty(strValue))
+            {
+                value = default;
+                return false;
+            }
+
+            return Enum.TryParse(strValue, true, out value);
+        }
+
+        public static string GetQueryAlt(this HttpRequest request, string parameter, string alternateParameter)
+        {
+            string value = request.Query[parameter];
+            if (string.IsNullOrEmpty(value))
+            {
+                value = request.Query[alternateParameter];
+                if (string.IsNullOrEmpty(value))
+                    throw new DnsWebServiceException("Parameter '" + parameter + "' missing.");
+            }
+
+            return value;
+        }
+
+        public static string GetQueryAlt(this HttpRequest request, string parameter, string alternateParameter, string defaultValue)
+        {
+            string value = request.Query[parameter];
+            if (string.IsNullOrEmpty(value))
+            {
+                value = request.Query[alternateParameter];
+                if (string.IsNullOrEmpty(value))
+                    return defaultValue;
+            }
+
+            return value;
+        }
+
+        public static T GetQueryAlt<T>(this HttpRequest request, string parameter, string alternateParameter, Func<string, T> parse)
+        {
+            string value = request.Query[parameter];
+            if (string.IsNullOrEmpty(value))
+            {
+                value = request.Query[alternateParameter];
+                if (string.IsNullOrEmpty(value))
+                    throw new DnsWebServiceException("Parameter '" + parameter + "' missing.");
+            }
+
+            return parse(value);
+        }
+
+        public static T GetQueryAlt<T>(this HttpRequest request, string parameter, string alternateParameter, Func<string, T> parse, T defaultValue)
+        {
+            string value = request.Query[parameter];
+            if (string.IsNullOrEmpty(value))
+            {
+                value = request.Query[alternateParameter];
+                if (string.IsNullOrEmpty(value))
+                    return defaultValue;
+            }
+
+            return parse(value);
+        }
+    }
+}
