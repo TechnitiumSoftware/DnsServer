@@ -16,6 +16,15 @@ a {
         color: #6699ff;
     }
 
+th a {
+    color: black;
+}
+
+    th a:hover {
+        color: black;
+        text-decoration: none;
+    }
+
 #header {
     background-color: #6699ff;
     height: 32px;
