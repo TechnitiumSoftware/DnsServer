@@ -1,6 +1,6 @@
 ﻿/*
 Technitium DNS Server
-Copyright (C) 2022  Shreyas Zare (shreyas@technitium.com)
+Copyright (C) 2023  Shreyas Zare (shreyas@technitium.com)
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -21,6 +21,7 @@ using DnsServerCore.Dns.ResourceRecords;
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.IO;
 using TechnitiumLibrary;
 using TechnitiumLibrary.Net;
 using TechnitiumLibrary.Net.Dns;
@@ -41,6 +42,63 @@ namespace DnsServerCore.Dns.Zones
         public CacheZone(string name, int capacity)
             : base(name, capacity)
         { }
+
+        private CacheZone(string name, ConcurrentDictionary<DnsResourceRecordType, IReadOnlyList<DnsResourceRecord>> entries)
+            : base(name, entries)
+        { }
+
+        #endregion
+
+        #region static
+
+        public static CacheZone ReadFrom(BinaryReader bR)
+        {
+            byte version = bR.ReadByte();
+            switch (version)
+            {
+                case 1:
+                    string name = bR.ReadString();
+                    ConcurrentDictionary<DnsResourceRecordType, IReadOnlyList<DnsResourceRecord>> entries = ReadEntriesFrom(bR);
+
+                    CacheZone cacheZone = new CacheZone(name, entries);
+
+                    //write all ECS cache records
+                    {
+                        int ecsCount = bR.ReadInt32();
+                        if (ecsCount > 0)
+                        {
+                            cacheZone._ecsEntries = new ConcurrentDictionary<NetworkAddress, ConcurrentDictionary<DnsResourceRecordType, IReadOnlyList<DnsResourceRecord>>>(1, ecsCount);
+
+                            for (int i = 0; i < ecsCount; i++)
+                            {
+                                NetworkAddress key = NetworkAddress.ReadFrom(bR);
+                                ConcurrentDictionary<DnsResourceRecordType, IReadOnlyList<DnsResourceRecord>> ecsEntries = ReadEntriesFrom(bR);
+
+                                cacheZone._ecsEntries.TryAdd(key, ecsEntries);
+                            }
+                        }
+                    }
+
+                    return cacheZone;
+
+                default:
+                    throw new InvalidDataException("CacheZone format version not supported.");
+            }
+        }
+
+        public static bool IsTypeSupportedForEDnsClientSubnet(DnsResourceRecordType type)
+        {
+            switch (type)
+            {
+                case DnsResourceRecordType.A:
+                case DnsResourceRecordType.AAAA:
+                case DnsResourceRecordType.CNAME:
+                    return true;
+
+                default:
+                    return false;
+            }
+        }
 
         #endregion
 
@@ -73,22 +131,55 @@ namespace DnsServerCore.Dns.Zones
             DateTime utcNow = DateTime.UtcNow;
 
             foreach (DnsResourceRecord record in records)
-                record.GetRecordInfo().LastUsedOn = utcNow;
+                record.GetCacheRecordInfo().LastUsedOn = utcNow;
 
             return records;
         }
 
-        public static bool IsTypeSupportedForEDnsClientSubnet(DnsResourceRecordType type)
+        private static ConcurrentDictionary<DnsResourceRecordType, IReadOnlyList<DnsResourceRecord>> ReadEntriesFrom(BinaryReader bR)
         {
-            switch (type)
-            {
-                case DnsResourceRecordType.A:
-                case DnsResourceRecordType.AAAA:
-                case DnsResourceRecordType.CNAME:
-                    return true;
+            int count = bR.ReadInt32();
+            ConcurrentDictionary<DnsResourceRecordType, IReadOnlyList<DnsResourceRecord>> entries = new ConcurrentDictionary<DnsResourceRecordType, IReadOnlyList<DnsResourceRecord>>(1, count);
 
-                default:
-                    return false;
+            for (int i = 0; i < count; i++)
+            {
+                DnsResourceRecordType key = (DnsResourceRecordType)bR.ReadUInt16();
+                int rrCount = bR.ReadInt32();
+                DnsResourceRecord[] records = new DnsResourceRecord[rrCount];
+
+                for (int j = 0; j < rrCount; j++)
+                {
+                    records[j] = DnsResourceRecord.ReadCacheRecordFrom(bR, delegate (DnsResourceRecord record)
+                    {
+                        record.Tag = new CacheRecordInfo(bR);
+                    });
+                }
+
+                entries.TryAdd(key, records);
+            }
+
+            return entries;
+        }
+
+        private static void WriteEntriesTo(ConcurrentDictionary<DnsResourceRecordType, IReadOnlyList<DnsResourceRecord>> entries, BinaryWriter bW)
+        {
+            bW.Write(entries.Count);
+
+            foreach (KeyValuePair<DnsResourceRecordType, IReadOnlyList<DnsResourceRecord>> entry in entries)
+            {
+                bW.Write((ushort)entry.Key);
+                bW.Write(entry.Value.Count);
+
+                foreach (DnsResourceRecord record in entry.Value)
+                {
+                    record.WriteCacheRecordTo(bW, delegate ()
+                    {
+                        if (record.Tag is not CacheRecordInfo rrInfo)
+                            rrInfo = CacheRecordInfo.Default; //default info
+
+                        rrInfo.WriteTo(bW);
+                    });
+                }
             }
         }
 
@@ -103,7 +194,7 @@ namespace DnsServerCore.Dns.Zones
 
             ConcurrentDictionary<DnsResourceRecordType, IReadOnlyList<DnsResourceRecord>> entries;
 
-            NetworkAddress eDnsClientSubnet = records[0].GetRecordInfo().EDnsClientSubnet;
+            NetworkAddress eDnsClientSubnet = records[0].GetCacheRecordInfo().EDnsClientSubnet;
             if ((eDnsClientSubnet is null) || !IsTypeSupportedForEDnsClientSubnet(type))
             {
                 entries = _entries;
@@ -163,7 +254,7 @@ namespace DnsServerCore.Dns.Zones
             DateTime utcNow = DateTime.UtcNow;
 
             foreach (DnsResourceRecord record in records)
-                record.GetRecordInfo().LastUsedOn = utcNow;
+                record.GetCacheRecordInfo().LastUsedOn = utcNow;
 
             //set records
             bool added = true;
@@ -250,7 +341,7 @@ namespace DnsServerCore.Dns.Zones
                 {
                     foreach (KeyValuePair<DnsResourceRecordType, IReadOnlyList<DnsResourceRecord>> entry in ecsEntry.Value)
                     {
-                        if ((entry.Value.Count == 0) || (entry.Value[0].GetRecordInfo().LastUsedOn < cutoff))
+                        if ((entry.Value.Count == 0) || (entry.Value[0].GetCacheRecordInfo().LastUsedOn < cutoff))
                         {
                             if (ecsEntry.Value.TryRemove(entry.Key, out _)) //RR Set was last used before cutoff; remove entry
                                 removedEntries++;
@@ -264,7 +355,7 @@ namespace DnsServerCore.Dns.Zones
 
             foreach (KeyValuePair<DnsResourceRecordType, IReadOnlyList<DnsResourceRecord>> entry in _entries)
             {
-                if ((entry.Value.Count == 0) || (entry.Value[0].GetRecordInfo().LastUsedOn < cutoff))
+                if ((entry.Value.Count == 0) || (entry.Value[0].GetCacheRecordInfo().LastUsedOn < cutoff))
                 {
                     if (_entries.TryRemove(entry.Key, out _)) //RR Set was last used before cutoff; remove entry
                         removedEntries++;
@@ -418,6 +509,33 @@ namespace DnsServerCore.Dns.Zones
             }
 
             return false;
+        }
+
+        public void WriteTo(BinaryWriter bW)
+        {
+            bW.Write((byte)1); //version
+
+            //cache zone info
+            bW.Write(_name);
+
+            //write all cache records
+            WriteEntriesTo(_entries, bW);
+
+            //write all ECS cache records
+            if (_ecsEntries is null)
+            {
+                bW.Write(0);
+            }
+            else
+            {
+                bW.Write(_ecsEntries.Count);
+
+                foreach (KeyValuePair<NetworkAddress, ConcurrentDictionary<DnsResourceRecordType, IReadOnlyList<DnsResourceRecord>>> ecsEntry in _ecsEntries)
+                {
+                    ecsEntry.Key.WriteTo(bW);
+                    WriteEntriesTo(ecsEntry.Value, bW);
+                }
+            }
         }
 
         #endregion
