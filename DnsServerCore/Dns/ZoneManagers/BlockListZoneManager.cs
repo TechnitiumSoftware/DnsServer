@@ -1,6 +1,6 @@
 ﻿/*
 Technitium DNS Server
-Copyright (C) 2022  Shreyas Zare (shreyas@technitium.com)
+Copyright (C) 2023  Shreyas Zare (shreyas@technitium.com)
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -322,7 +322,7 @@ namespace DnsServerCore.Dns.ZoneManagers
                     SocketsHttpHandler handler = new SocketsHttpHandler();
                     handler.Proxy = _dnsServer.Proxy;
                     handler.UseProxy = _dnsServer.Proxy is not null;
-                    handler.AutomaticDecompression = DecompressionMethods.GZip | DecompressionMethods.Deflate;
+                    handler.AutomaticDecompression = DecompressionMethods.All;
 
                     using (HttpClient http = new HttpClient(handler))
                     {
