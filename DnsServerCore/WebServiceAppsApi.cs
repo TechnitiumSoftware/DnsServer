@@ -42,7 +42,7 @@ namespace DnsServerCore
 
         string _storeAppsJsonData;
         DateTime _storeAppsJsonDataUpdatedOn;
-        const int STORE_APPS_JSON_DATA_CACHE_TIME_SECONDS = 300;
+        const int STORE_APPS_JSON_DATA_CACHE_TIME_SECONDS = 900;
 
         Timer _appUpdateTimer;
         const int APP_UPDATE_TIMER_INITIAL_INTERVAL = 10000;
@@ -87,7 +87,7 @@ namespace DnsServerCore
                 {
                     try
                     {
-                        if (_dnsWebService._dnsServer.DnsApplicationManager.Applications.Count < 1)
+                        if (_dnsWebService.DnsServer.DnsApplicationManager.Applications.Count < 1)
                             return;
 
                         _dnsWebService._log.Write("DNS Server has started automatic update check for DNS Apps.");
@@ -96,7 +96,7 @@ namespace DnsServerCore
                         using JsonDocument jsonDocument = JsonDocument.Parse(storeAppsJsonData);
                         JsonElement jsonStoreAppsArray = jsonDocument.RootElement;
 
-                        foreach (DnsApplication application in _dnsWebService._dnsServer.DnsApplicationManager.Applications.Values)
+                        foreach (DnsApplication application in _dnsWebService.DnsServer.DnsApplicationManager.Applications.Values)
                         {
                             foreach (JsonElement jsonStoreApp in jsonStoreAppsArray.EnumerateArray())
                             {
@@ -165,12 +165,12 @@ namespace DnsServerCore
 
         private async Task<string> GetStoreAppsJsonData()
         {
-            if ((_storeAppsJsonData == null) || (DateTime.UtcNow > _storeAppsJsonDataUpdatedOn.AddSeconds(STORE_APPS_JSON_DATA_CACHE_TIME_SECONDS)))
+            if ((_storeAppsJsonData is null) || (DateTime.UtcNow > _storeAppsJsonDataUpdatedOn.AddSeconds(STORE_APPS_JSON_DATA_CACHE_TIME_SECONDS)))
             {
                 SocketsHttpHandler handler = new SocketsHttpHandler();
-                handler.Proxy = _dnsWebService._dnsServer.Proxy;
-                handler.UseProxy = _dnsWebService._dnsServer.Proxy is not null;
-                handler.AutomaticDecompression = DecompressionMethods.GZip | DecompressionMethods.Deflate;
+                handler.Proxy = _dnsWebService.DnsServer.Proxy;
+                handler.UseProxy = _dnsWebService.DnsServer.Proxy is not null;
+                handler.AutomaticDecompression = DecompressionMethods.All;
 
                 using (HttpClient http = new HttpClient(handler))
                 {
@@ -191,9 +191,9 @@ namespace DnsServerCore
                 {
                     //download to temp file
                     SocketsHttpHandler handler = new SocketsHttpHandler();
-                    handler.Proxy = _dnsWebService._dnsServer.Proxy;
-                    handler.UseProxy = _dnsWebService._dnsServer.Proxy is not null;
-                    handler.AutomaticDecompression = DecompressionMethods.GZip | DecompressionMethods.Deflate;
+                    handler.Proxy = _dnsWebService.DnsServer.Proxy;
+                    handler.UseProxy = _dnsWebService.DnsServer.Proxy is not null;
+                    handler.AutomaticDecompression = DecompressionMethods.All;
 
                     using (HttpClient http = new HttpClient(handler))
                     {
@@ -205,7 +205,7 @@ namespace DnsServerCore
 
                     //update app
                     fS.Position = 0;
-                    return await _dnsWebService._dnsServer.DnsApplicationManager.UpdateApplicationAsync(applicationName, fS);
+                    return await _dnsWebService.DnsServer.DnsApplicationManager.UpdateApplicationAsync(applicationName, fS);
                 }
             }
             finally
@@ -322,7 +322,7 @@ namespace DnsServerCore
                 throw new DnsWebServiceException("Access was denied.");
             }
 
-            List<string> apps = new List<string>(_dnsWebService._dnsServer.DnsApplicationManager.Applications.Keys);
+            List<string> apps = new List<string>(_dnsWebService.DnsServer.DnsApplicationManager.Applications.Keys);
             apps.Sort();
 
             JsonDocument jsonDocument = null;
@@ -349,7 +349,7 @@ namespace DnsServerCore
 
                 foreach (string app in apps)
                 {
-                    if (_dnsWebService._dnsServer.DnsApplicationManager.Applications.TryGetValue(app, out DnsApplication application))
+                    if (_dnsWebService.DnsServer.DnsApplicationManager.Applications.TryGetValue(app, out DnsApplication application))
                         WriteAppAsJson(jsonWriter, application, jsonStoreAppsArray);
                 }
 
@@ -418,7 +418,7 @@ namespace DnsServerCore
                 jsonWriter.WriteString("url", url);
                 jsonWriter.WriteString("size", size);
 
-                bool installed = _dnsWebService._dnsServer.DnsApplicationManager.Applications.TryGetValue(name, out DnsApplication installedApp);
+                bool installed = _dnsWebService.DnsServer.DnsApplicationManager.Applications.TryGetValue(name, out DnsApplication installedApp);
 
                 jsonWriter.WriteBoolean("installed", installed);
 
@@ -443,8 +443,8 @@ namespace DnsServerCore
 
             HttpRequest request = context.Request;
 
-            string name = request.GetQuery("name").Trim();
-            string url = request.GetQuery("url");
+            string name = request.GetQueryOrForm("name").Trim();
+            string url = request.GetQueryOrForm("url");
 
             if (!url.StartsWith("https://", StringComparison.OrdinalIgnoreCase))
                 throw new DnsWebServiceException("Parameter 'url' value must start with 'https://'.");
@@ -456,9 +456,9 @@ namespace DnsServerCore
                 {
                     //download to temp file
                     SocketsHttpHandler handler = new SocketsHttpHandler();
-                    handler.Proxy = _dnsWebService._dnsServer.Proxy;
-                    handler.UseProxy = _dnsWebService._dnsServer.Proxy is not null;
-                    handler.AutomaticDecompression = DecompressionMethods.GZip | DecompressionMethods.Deflate;
+                    handler.Proxy = _dnsWebService.DnsServer.Proxy;
+                    handler.UseProxy = _dnsWebService.DnsServer.Proxy is not null;
+                    handler.AutomaticDecompression = DecompressionMethods.All;
 
                     using (HttpClient http = new HttpClient(handler))
                     {
@@ -470,7 +470,7 @@ namespace DnsServerCore
 
                     //install app
                     fS.Position = 0;
-                    DnsApplication application = await _dnsWebService._dnsServer.DnsApplicationManager.InstallApplicationAsync(name, fS);
+                    DnsApplication application = await _dnsWebService.DnsServer.DnsApplicationManager.InstallApplicationAsync(name, fS);
 
                     _dnsWebService._log.Write(context.GetRemoteEndPoint(), "[" + session.User.Username + "] DNS application '" + name + "' was installed successfully from: " + url);
 
@@ -502,8 +502,8 @@ namespace DnsServerCore
 
             HttpRequest request = context.Request;
 
-            string name = request.GetQuery("name").Trim();
-            string url = request.GetQuery("url");
+            string name = request.GetQueryOrForm("name").Trim();
+            string url = request.GetQueryOrForm("url");
 
             if (!url.StartsWith("https://", StringComparison.OrdinalIgnoreCase))
                 throw new DnsWebServiceException("Parameter 'url' value must start with 'https://'.");
@@ -527,9 +527,9 @@ namespace DnsServerCore
 
             HttpRequest request = context.Request;
 
-            string name = request.GetQuery("name").Trim();
+            string name = request.GetQueryOrForm("name").Trim();
 
-            if (request.Form.Files.Count == 0)
+            if (!request.HasFormContentType || (request.Form.Files.Count == 0))
                 throw new DnsWebServiceException("DNS application zip file is missing.");
 
             string tmpFile = Path.GetTempFileName();
@@ -542,7 +542,7 @@ namespace DnsServerCore
 
                     //install app
                     fS.Position = 0;
-                    DnsApplication application = await _dnsWebService._dnsServer.DnsApplicationManager.InstallApplicationAsync(name, fS);
+                    DnsApplication application = await _dnsWebService.DnsServer.DnsApplicationManager.InstallApplicationAsync(name, fS);
 
                     _dnsWebService._log.Write(context.GetRemoteEndPoint(), "[" + session.User.Username + "] DNS application '" + name + "' was installed successfully.");
 
@@ -574,9 +574,9 @@ namespace DnsServerCore
 
             HttpRequest request = context.Request;
 
-            string name = request.GetQuery("name").Trim();
+            string name = request.GetQueryOrForm("name").Trim();
 
-            if (request.Form.Files.Count == 0)
+            if (!request.HasFormContentType || (request.Form.Files.Count == 0))
                 throw new DnsWebServiceException("DNS application zip file is missing.");
 
             string tmpFile = Path.GetTempFileName();
@@ -589,7 +589,7 @@ namespace DnsServerCore
 
                     //update app
                     fS.Position = 0;
-                    DnsApplication application = await _dnsWebService._dnsServer.DnsApplicationManager.UpdateApplicationAsync(name, fS);
+                    DnsApplication application = await _dnsWebService.DnsServer.DnsApplicationManager.UpdateApplicationAsync(name, fS);
 
                     _dnsWebService._log.Write(context.GetRemoteEndPoint(), "[" + session.User.Username + "] DNS application '" + name + "' was updated successfully.");
 
@@ -621,9 +621,9 @@ namespace DnsServerCore
 
             HttpRequest request = context.Request;
 
-            string name = request.GetQuery("name").Trim();
+            string name = request.GetQueryOrForm("name").Trim();
 
-            _dnsWebService._dnsServer.DnsApplicationManager.UninstallApplication(name);
+            _dnsWebService.DnsServer.DnsApplicationManager.UninstallApplication(name);
             _dnsWebService._log.Write(context.GetRemoteEndPoint(), "[" + session.User.Username + "] DNS application '" + name + "' was uninstalled successfully.");
         }
 
@@ -636,9 +636,9 @@ namespace DnsServerCore
 
             HttpRequest request = context.Request;
 
-            string name = request.GetQuery("name").Trim();
+            string name = request.GetQueryOrForm("name").Trim();
 
-            if (!_dnsWebService._dnsServer.DnsApplicationManager.Applications.TryGetValue(name, out DnsApplication application))
+            if (!_dnsWebService.DnsServer.DnsApplicationManager.Applications.TryGetValue(name, out DnsApplication application))
                 throw new DnsWebServiceException("DNS application was not found: " + name);
 
             string config = await application.GetConfigAsync();
@@ -656,17 +656,14 @@ namespace DnsServerCore
 
             HttpRequest request = context.Request;
 
-            string name = request.GetQuery("name").Trim();
+            string name = request.GetQueryOrForm("name").Trim();
 
-            if (!_dnsWebService._dnsServer.DnsApplicationManager.Applications.TryGetValue(name, out DnsApplication application))
+            if (!_dnsWebService.DnsServer.DnsApplicationManager.Applications.TryGetValue(name, out DnsApplication application))
                 throw new DnsWebServiceException("DNS application was not found: " + name);
 
-            if (!request.HasFormContentType)
-                throw new DnsWebServiceException("Invalid content type. Expected application/x-www-form-urlencoded.");
-
-            string config = request.Form["config"];
+            string config = request.QueryOrForm("config");
             if (config is null)
-                throw new DnsWebServiceException("Form parameter 'config' missing.");
+                throw new DnsWebServiceException("Parameter 'config' missing.");
 
             if (config.Length == 0)
                 config = null;
