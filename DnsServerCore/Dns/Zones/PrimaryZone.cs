@@ -1,6 +1,6 @@
 ﻿/*
 Technitium DNS Server
-Copyright (C) 2022  Shreyas Zare (shreyas@technitium.com)
+Copyright (C) 2023  Shreyas Zare (shreyas@technitium.com)
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -2646,7 +2646,7 @@ namespace DnsServerCore.Dns.Zones
                 oldSoaRecord.Tag = null;
 
                 //start commit
-                oldSoaRecord.SetDeletedOn(DateTime.UtcNow);
+                oldSoaRecord.GetAuthRecordInfo().DeletedOn = DateTime.UtcNow;
 
                 //write removed
                 _zoneHistory.Add(oldSoaRecord);
@@ -2655,13 +2655,17 @@ namespace DnsServerCore.Dns.Zones
                 {
                     foreach (DnsResourceRecord deletedRecord in deletedRecords)
                     {
-                        if (deletedRecord.IsDisabled())
+                        if (deletedRecord.GetAuthRecordInfo().Disabled)
                             continue;
 
                         _zoneHistory.Add(deletedRecord);
 
                         if (deletedRecord.Type == DnsResourceRecordType.NS)
-                            _zoneHistory.AddRange(deletedRecord.GetGlueRecords());
+                        {
+                            IReadOnlyList<DnsResourceRecord> glueRecords = deletedRecord.GetAuthRecordInfo().GlueRecords;
+                            if (glueRecords is not null)
+                                _zoneHistory.AddRange(glueRecords);
+                        }
                     }
                 }
 
@@ -2675,13 +2679,17 @@ namespace DnsServerCore.Dns.Zones
                 {
                     foreach (DnsResourceRecord addedRecord in addedRecords)
                     {
-                        if (addedRecord.IsDisabled())
+                        if (addedRecord.GetAuthRecordInfo().Disabled)
                             continue;
 
                         _zoneHistory.Add(addedRecord);
 
                         if (addedRecord.Type == DnsResourceRecordType.NS)
-                            _zoneHistory.AddRange(addedRecord.GetGlueRecords());
+                        {
+                            IReadOnlyList<DnsResourceRecord> glueRecords = addedRecord.GetAuthRecordInfo().GlueRecords;
+                            if (glueRecords is not null)
+                                _zoneHistory.AddRange(glueRecords);
+                        }
                     }
                 }
 
@@ -2711,7 +2719,7 @@ namespace DnsServerCore.Dns.Zones
                     default:
                         foreach (DnsResourceRecord record in records)
                         {
-                            if (record.IsDisabled())
+                            if (record.GetAuthRecordInfo().Disabled)
                                 throw new DnsServerException("Cannot set records: disabling records in a signed zones is not supported.");
                         }
 
@@ -2741,10 +2749,10 @@ namespace DnsServerCore.Dns.Zones
                     if (newSoa.Refresh > newSoa.Expire)
                         throw new DnsServerException("Failed to set records: SOA REFRESH cannot be greater than SOA EXPIRE.");
 
-                    //remove any resource record info except comments
-                    string comments = newSoaRecord.GetComments();
-                    newSoaRecord.Tag = null;
-                    newSoaRecord.SetComments(comments);
+                    //remove any record info except comments
+                    string comments = newSoaRecord.GetAuthRecordInfo().Comments;
+                    newSoaRecord.Tag = null; //remove old record info
+                    newSoaRecord.GetAuthRecordInfo().Comments = comments;
 
                     uint oldSoaMinimum = GetZoneSoaMinimum();
 
@@ -2806,7 +2814,7 @@ namespace DnsServerCore.Dns.Zones
                         throw new DnsServerException("The record type is not supported by DNSSEC signed primary zones.");
 
                     default:
-                        if (record.IsDisabled())
+                        if (record.GetAuthRecordInfo().Disabled)
                             throw new DnsServerException("Cannot add record: disabling records in a signed zones is not supported.");
 
                         break;
@@ -2930,7 +2938,7 @@ namespace DnsServerCore.Dns.Zones
                     if (oldRecord.Type != newRecord.Type)
                         throw new InvalidOperationException("Old and new record types do not match.");
 
-                    if ((_dnssecStatus != AuthZoneDnssecStatus.Unsigned) && newRecord.IsDisabled())
+                    if ((_dnssecStatus != AuthZoneDnssecStatus.Unsigned) && newRecord.GetAuthRecordInfo().Disabled)
                         throw new DnsServerException("Cannot update record: disabling records in a signed zones is not supported.");
 
                     if (newRecord.OriginalTtlValue > GetZoneSoaExpire())
