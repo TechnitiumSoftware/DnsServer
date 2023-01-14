@@ -27,7 +27,7 @@ using TechnitiumLibrary.Net.Dns.ResourceRecords;
 
 namespace DnsServerCore.Dns.ResourceRecords
 {
-    static class DnsResourceRecordExtension
+    static class DnsResourceRecordExtensions
     {
         public static void SetGlueRecords(this DnsResourceRecord record, string glueAddresses)
         {
