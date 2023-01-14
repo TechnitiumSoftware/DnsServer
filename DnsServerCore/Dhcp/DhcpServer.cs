@@ -1,6 +1,6 @@
 ﻿/*
 Technitium DNS Server
-Copyright (C) 2022  Shreyas Zare (shreyas@technitium.com)
+Copyright (C) 2023  Shreyas Zare (shreyas@technitium.com)
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -130,11 +130,9 @@ namespace DnsServerCore.Dhcp
             {
                 Stop();
 
-                if (_saveModifiedDnsAuthZonesTimer is not null)
-                    _saveModifiedDnsAuthZonesTimer.Dispose();
+                _saveModifiedDnsAuthZonesTimer?.Dispose();
 
-                if (_maintenanceTimer is not null)
-                    _maintenanceTimer.Dispose();
+                _maintenanceTimer?.Dispose();
 
                 if (_scopes is not null)
                 {
@@ -204,9 +202,7 @@ namespace DnsServerCore.Dhcp
                         }
                         catch (Exception ex)
                         {
-                            LogManager log = _log;
-                            if (log != null)
-                                log.Write(result.RemoteEndPoint as IPEndPoint, ex);
+                            _log?.Write(result.RemoteEndPoint as IPEndPoint, ex);
                         }
                     }
                 }
@@ -224,9 +220,7 @@ namespace DnsServerCore.Dhcp
                         break; //server stopping
 
                     default:
-                        LogManager log = _log;
-                        if (log != null)
-                            log.Write(ex);
+                        _log?.Write(ex);
 
                         throw;
                 }
@@ -236,9 +230,7 @@ namespace DnsServerCore.Dhcp
                 if ((_state == ServiceState.Stopping) || (_state == ServiceState.Stopped))
                     return; //server stopping
 
-                LogManager log = _log;
-                if (log != null)
-                    log.Write(ex);
+                _log?.Write(ex);
 
                 throw;
             }
@@ -292,9 +284,7 @@ namespace DnsServerCore.Dhcp
                 if ((_state == ServiceState.Stopping) || (_state == ServiceState.Stopped))
                     return; //server stopping
 
-                LogManager log = _log;
-                if (log != null)
-                    log.Write(remoteEP, ex);
+                _log?.Write(remoteEP, ex);
             }
         }
 
@@ -343,9 +333,7 @@ namespace DnsServerCore.Dhcp
                             return null;
 
                         //log ip offer
-                        LogManager log = _log;
-                        if (log != null)
-                            log.Write(remoteEP, "DHCP Server offered IP address [" + offer.Address.ToString() + "] to " + request.GetClientFullIdentifier() + " for scope: " + scope.Name);
+                        _log?.Write(remoteEP, "DHCP Server offered IP address [" + offer.Address.ToString() + "] to " + request.GetClientFullIdentifier() + " for scope: " + scope.Name);
 
                         return DhcpMessage.CreateReply(request, offer.Address, scope.ServerAddress ?? serverIdentifierAddress, scope.ServerHostName, scope.BootFileName, options);
                     }
@@ -481,9 +469,7 @@ namespace DnsServerCore.Dhcp
                         scope.CommitLease(leaseOffer);
 
                         //log ip lease
-                        LogManager log = _log;
-                        if (log != null)
-                            log.Write(remoteEP, "DHCP Server leased IP address [" + leaseOffer.Address.ToString() + "] to " + request.GetClientFullIdentifier() + " for scope: " + scope.Name);
+                        _log?.Write(remoteEP, "DHCP Server leased IP address [" + leaseOffer.Address.ToString() + "] to " + request.GetClientFullIdentifier() + " for scope: " + scope.Name);
 
                         if (string.IsNullOrWhiteSpace(scope.DomainName))
                         {
@@ -553,9 +539,7 @@ namespace DnsServerCore.Dhcp
                         scope.ReleaseLease(lease);
 
                         //log issue
-                        LogManager log = _log;
-                        if (log != null)
-                            log.Write(remoteEP, "DHCP Server received DECLINE message for scope '" + scope.Name + "': " + lease.GetClientInfo() + " detected that IP address [" + lease.Address + "] is already in use.");
+                        _log?.Write(remoteEP, "DHCP Server received DECLINE message for scope '" + scope.Name + "': " + lease.GetClientInfo() + " detected that IP address [" + lease.Address + "] is already in use.");
 
                         //update dns
                         UpdateDnsAuthZone(false, scope, lease);
@@ -591,9 +575,7 @@ namespace DnsServerCore.Dhcp
                         scope.ReleaseLease(lease);
 
                         //log ip lease release
-                        LogManager log = _log;
-                        if (log != null)
-                            log.Write(remoteEP, "DHCP Server released IP address [" + lease.Address.ToString() + "] that was leased to " + lease.GetClientInfo() + " for scope: " + scope.Name);
+                        _log?.Write(remoteEP, "DHCP Server released IP address [" + lease.Address.ToString() + "] that was leased to " + lease.GetClientInfo() + " for scope: " + scope.Name);
 
                         //update dns
                         UpdateDnsAuthZone(false, scope, lease);
@@ -613,9 +595,7 @@ namespace DnsServerCore.Dhcp
                         IPAddress serverIdentifierAddress = scope.InterfaceAddress.Equals(IPAddress.Any) ? ipPacketInformation.Address : scope.InterfaceAddress;
 
                         //log inform
-                        LogManager log = _log;
-                        if (log != null)
-                            log.Write(remoteEP, "DHCP Server received INFORM message from " + request.GetClientFullIdentifier() + " for scope: " + scope.Name);
+                        _log?.Write(remoteEP, "DHCP Server received INFORM message from " + request.GetClientFullIdentifier() + " for scope: " + scope.Name);
 
                         List<DhcpOption> options = await scope.GetOptionsAsync(request, serverIdentifierAddress, null, _dnsServer);
                         if (options is null)
@@ -752,7 +732,6 @@ namespace DnsServerCore.Dhcp
                 string zoneName = null;
                 string reverseDomain = Zone.GetReverseZone(address, 32);
                 string reverseZoneName = null;
-                LogManager log = _log;
 
                 if (add)
                 {
@@ -764,7 +743,7 @@ namespace DnsServerCore.Dhcp
                         zoneInfo = _dnsServer.AuthZoneManager.CreatePrimaryZone(scope.DomainName, _dnsServer.ServerDomain, false);
                         if (zoneInfo is null)
                         {
-                            log?.Write("DHCP Server failed to create DNS primary zone '" + scope.DomainName + "'.");
+                            _log?.Write("DHCP Server failed to create DNS primary zone '" + scope.DomainName + "'.");
                             return;
                         }
 
@@ -774,7 +753,7 @@ namespace DnsServerCore.Dhcp
                         _authManager.SetPermission(PermissionSection.Zones, zoneInfo.Name, _authManager.GetGroup(Group.DHCP_ADMINISTRATORS), PermissionFlag.ViewModifyDelete);
                         _authManager.SaveConfigFile();
 
-                        log?.Write("DHCP Server create DNS primary zone '" + zoneInfo.Name + "'.");
+                        _log?.Write("DHCP Server create DNS primary zone '" + zoneInfo.Name + "'.");
                         _dnsServer.AuthZoneManager.SaveZoneFile(zoneInfo.Name);
                     }
                     else if ((zoneInfo.Type != AuthZoneType.Primary) && (zoneInfo.Type != AuthZoneType.Forwarder))
@@ -786,7 +765,7 @@ namespace DnsServerCore.Dhcp
                         zoneInfo = _dnsServer.AuthZoneManager.CreatePrimaryZone(scope.DomainName, _dnsServer.ServerDomain, false);
                         if (zoneInfo is null)
                         {
-                            log?.Write("DHCP Server failed to create DNS primary zone '" + scope.DomainName + "'.");
+                            _log?.Write("DHCP Server failed to create DNS primary zone '" + scope.DomainName + "'.");
                             return;
                         }
 
@@ -796,7 +775,7 @@ namespace DnsServerCore.Dhcp
                         _authManager.SetPermission(PermissionSection.Zones, zoneInfo.Name, _authManager.GetGroup(Group.DHCP_ADMINISTRATORS), PermissionFlag.ViewModifyDelete);
                         _authManager.SaveConfigFile();
 
-                        log?.Write("DHCP Server create DNS primary zone '" + zoneInfo.Name + "'.");
+                        _log?.Write("DHCP Server create DNS primary zone '" + zoneInfo.Name + "'.");
                         _dnsServer.AuthZoneManager.SaveZoneFile(zoneInfo.Name);
                     }
 
@@ -821,7 +800,7 @@ namespace DnsServerCore.Dhcp
                     }
 
                     _dnsServer.AuthZoneManager.SetRecords(zoneName, domain, DnsResourceRecordType.A, scope.DnsTtl, new DnsResourceRecordData[] { new DnsARecordData(address) });
-                    log?.Write("DHCP Server updated DNS A record '" + domain + "' with IP address [" + address.ToString() + "].");
+                    _log?.Write("DHCP Server updated DNS A record '" + domain + "' with IP address [" + address.ToString() + "].");
 
                     //update reverse zone
                     AuthZoneInfo reverseZoneInfo = _dnsServer.AuthZoneManager.FindAuthZoneInfo(reverseDomain);
@@ -833,7 +812,7 @@ namespace DnsServerCore.Dhcp
                         reverseZoneInfo = _dnsServer.AuthZoneManager.CreatePrimaryZone(reverseZone, _dnsServer.ServerDomain, false);
                         if (reverseZoneInfo is null)
                         {
-                            log?.Write("DHCP Server failed to create DNS primary zone '" + reverseZone + "'.");
+                            _log?.Write("DHCP Server failed to create DNS primary zone '" + reverseZone + "'.");
                             return;
                         }
 
@@ -843,7 +822,7 @@ namespace DnsServerCore.Dhcp
                         _authManager.SetPermission(PermissionSection.Zones, reverseZoneInfo.Name, _authManager.GetGroup(Group.DHCP_ADMINISTRATORS), PermissionFlag.ViewModifyDelete);
                         _authManager.SaveConfigFile();
 
-                        log?.Write("DHCP Server create DNS primary zone '" + reverseZoneInfo.Name + "'.");
+                        _log?.Write("DHCP Server create DNS primary zone '" + reverseZoneInfo.Name + "'.");
                         _dnsServer.AuthZoneManager.SaveZoneFile(reverseZoneInfo.Name);
                     }
                     else if ((reverseZoneInfo.Type != AuthZoneType.Primary) && (reverseZoneInfo.Type != AuthZoneType.Forwarder))
@@ -857,7 +836,7 @@ namespace DnsServerCore.Dhcp
                         reverseZoneInfo = _dnsServer.AuthZoneManager.CreatePrimaryZone(reverseZone, _dnsServer.ServerDomain, false);
                         if (reverseZoneInfo is null)
                         {
-                            log?.Write("DHCP Server failed to create DNS primary zone '" + reverseZone + "'.");
+                            _log?.Write("DHCP Server failed to create DNS primary zone '" + reverseZone + "'.");
                             return;
                         }
 
@@ -867,13 +846,13 @@ namespace DnsServerCore.Dhcp
                         _authManager.SetPermission(PermissionSection.Zones, reverseZoneInfo.Name, _authManager.GetGroup(Group.DHCP_ADMINISTRATORS), PermissionFlag.ViewModifyDelete);
                         _authManager.SaveConfigFile();
 
-                        log?.Write("DHCP Server create DNS primary zone '" + reverseZoneInfo.Name + "'.");
+                        _log?.Write("DHCP Server create DNS primary zone '" + reverseZoneInfo.Name + "'.");
                         _dnsServer.AuthZoneManager.SaveZoneFile(reverseZoneInfo.Name);
                     }
 
                     reverseZoneName = reverseZoneInfo.Name;
                     _dnsServer.AuthZoneManager.SetRecords(reverseZoneName, reverseDomain, DnsResourceRecordType.PTR, scope.DnsTtl, new DnsResourceRecordData[] { new DnsPTRRecordData(domain) });
-                    log?.Write("DHCP Server updated DNS PTR record '" + reverseDomain + "' with domain name '" + domain + "'.");
+                    _log?.Write("DHCP Server updated DNS PTR record '" + reverseDomain + "' with domain name '" + domain + "'.");
                 }
                 else
                 {
@@ -884,7 +863,7 @@ namespace DnsServerCore.Dhcp
                         //primary zone exists
                         zoneName = zoneInfo.Name;
                         _dnsServer.AuthZoneManager.DeleteRecord(zoneName, domain, DnsResourceRecordType.A, new DnsARecordData(address));
-                        log?.Write("DHCP Server deleted DNS A record '" + domain + "' with address [" + address.ToString() + "].");
+                        _log?.Write("DHCP Server deleted DNS A record '" + domain + "' with address [" + address.ToString() + "].");
                     }
 
                     //remove from reverse zone
@@ -894,7 +873,7 @@ namespace DnsServerCore.Dhcp
                         //primary reverse zone exists
                         reverseZoneName = reverseZoneInfo.Name;
                         _dnsServer.AuthZoneManager.DeleteRecord(reverseZoneName, reverseDomain, DnsResourceRecordType.PTR, new DnsPTRRecordData(domain));
-                        log?.Write("DHCP Server deleted DNS PTR record '" + reverseDomain + "' with domain '" + domain + "'.");
+                        _log?.Write("DHCP Server deleted DNS PTR record '" + reverseDomain + "' with domain '" + domain + "'.");
                     }
                 }
 
@@ -908,9 +887,7 @@ namespace DnsServerCore.Dhcp
             }
             catch (Exception ex)
             {
-                LogManager log = _log;
-                if (log != null)
-                    log.Write(ex);
+                _log?.Write(ex);
             }
         }
 
@@ -936,9 +913,7 @@ namespace DnsServerCore.Dhcp
                 }
                 catch (Exception ex)
                 {
-                    LogManager log = _log;
-                    if (log != null)
-                        log.Write(ex);
+                    _log?.Write(ex);
                 }
             }
         }
@@ -1076,17 +1051,13 @@ namespace DnsServerCore.Dhcp
                         UpdateDnsAuthZone(utcNow < lease.Value.LeaseExpires, scope, lease.Value); //lease valid
                 }
 
-                LogManager log = _log;
-                if (log != null)
-                    log.Write(dhcpEP, "DHCP Server successfully activated scope: " + scope.Name);
+                _log?.Write(dhcpEP, "DHCP Server successfully activated scope: " + scope.Name);
 
                 return true;
             }
             catch (Exception ex)
             {
-                LogManager log = _log;
-                if (log is not null)
-                    log.Write(dhcpEP, "DHCP Server failed to activate scope: " + scope.Name + "\r\n" + ex.ToString());
+                _log?.Write(dhcpEP, "DHCP Server failed to activate scope: " + scope.Name + "\r\n" + ex.ToString());
 
                 if (throwException)
                     throw;
@@ -1116,17 +1087,13 @@ namespace DnsServerCore.Dhcp
                         UpdateDnsAuthZone(false, scope, lease.Value);
                 }
 
-                LogManager log = _log;
-                if (log != null)
-                    log.Write(dhcpEP, "DHCP Server successfully deactivated scope: " + scope.Name);
+                _log?.Write(dhcpEP, "DHCP Server successfully deactivated scope: " + scope.Name);
 
                 return true;
             }
             catch (Exception ex)
             {
-                LogManager log = _log;
-                if (log is not null)
-                    log.Write(dhcpEP, "DHCP Server failed to deactivate scope: " + scope.Name + "\r\n" + ex.ToString());
+                _log?.Write(dhcpEP, "DHCP Server failed to deactivate scope: " + scope.Name + "\r\n" + ex.ToString());
 
                 if (throwException)
                     throw;
@@ -1154,9 +1121,7 @@ namespace DnsServerCore.Dhcp
                     scope.SetEnabled(false);
             }
 
-            LogManager log = _log;
-            if (log != null)
-                log.Write("DHCP Server successfully loaded scope: " + scope.Name);
+            _log?.Write("DHCP Server successfully loaded scope: " + scope.Name);
         }
 
         private void UnloadScope(Scope scope)
@@ -1168,9 +1133,7 @@ namespace DnsServerCore.Dhcp
             {
                 removedScope.Dispose();
 
-                LogManager log = _log;
-                if (log != null)
-                    log.Write("DHCP Server successfully unloaded scope: " + scope.Name);
+                _log?.Write("DHCP Server successfully unloaded scope: " + scope.Name);
             }
         }
 
@@ -1194,15 +1157,11 @@ namespace DnsServerCore.Dhcp
                     await LoadScopeAsync(new Scope(new BinaryReader(fS), _log), true);
                 }
 
-                LogManager log = _log;
-                if (log != null)
-                    log.Write("DHCP Server successfully loaded scope file: " + scopeFile);
+                _log?.Write("DHCP Server successfully loaded scope file: " + scopeFile);
             }
             catch (Exception ex)
             {
-                LogManager log = _log;
-                if (log != null)
-                    log.Write("DHCP Server failed to load scope file: " + scopeFile + "\r\n" + ex.ToString());
+                _log?.Write("DHCP Server failed to load scope file: " + scopeFile + "\r\n" + ex.ToString());
             }
         }
 
@@ -1217,15 +1176,11 @@ namespace DnsServerCore.Dhcp
                     scope.WriteTo(new BinaryWriter(fS));
                 }
 
-                LogManager log = _log;
-                if (log != null)
-                    log.Write("DHCP Server successfully saved scope file: " + scopeFile);
+                _log?.Write("DHCP Server successfully saved scope file: " + scopeFile);
             }
             catch (Exception ex)
             {
-                LogManager log = _log;
-                if (log != null)
-                    log.Write("DHCP Server failed to save scope file: " + scopeFile + "\r\n" + ex.ToString());
+                _log?.Write("DHCP Server failed to save scope file: " + scopeFile + "\r\n" + ex.ToString());
             }
         }
 
@@ -1237,15 +1192,11 @@ namespace DnsServerCore.Dhcp
             {
                 File.Delete(scopeFile);
 
-                LogManager log = _log;
-                if (log != null)
-                    log.Write("DHCP Server successfully deleted scope file: " + scopeFile);
+                _log?.Write("DHCP Server successfully deleted scope file: " + scopeFile);
             }
             catch (Exception ex)
             {
-                LogManager log = _log;
-                if (log != null)
-                    log.Write("DHCP Server failed to delete scope file: " + scopeFile + "\r\n" + ex.ToString());
+                _log?.Write("DHCP Server failed to delete scope file: " + scopeFile + "\r\n" + ex.ToString());
             }
         }
 
@@ -1277,9 +1228,7 @@ namespace DnsServerCore.Dhcp
                             List<Lease> expiredLeases = scope.Value.RemoveExpiredLeases();
                             if (expiredLeases.Count > 0)
                             {
-                                LogManager log = _log;
-                                if (log != null)
-                                    log.Write("DHCP Server removed " + expiredLeases.Count + " lease(s) from scope: " + scope.Value.Name);
+                                _log?.Write("DHCP Server removed " + expiredLeases.Count + " lease(s) from scope: " + scope.Value.Name);
 
                                 foreach (Lease expiredLease in expiredLeases)
                                     UpdateDnsAuthZone(false, scope.Value, expiredLease);
@@ -1290,9 +1239,7 @@ namespace DnsServerCore.Dhcp
                     }
                     catch (Exception ex)
                     {
-                        LogManager log = _log;
-                        if (log != null)
-                            log.Write(ex);
+                        _log?.Write(ex);
                     }
                     finally
                     {
