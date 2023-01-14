@@ -91,8 +91,8 @@ namespace DnsServerCore
 
             HttpRequest request = context.Request;
 
-            string fileName = request.GetQuery("fileName");
-            int limit = request.GetQuery("limit", int.Parse, 0);
+            string fileName = request.GetQueryOrForm("fileName");
+            int limit = request.GetQueryOrForm("limit", int.Parse, 0);
 
             return _dnsWebService._log.DownloadLogAsync(context, fileName, limit * 1024 * 1024);
         }
@@ -106,7 +106,7 @@ namespace DnsServerCore
 
             HttpRequest request = context.Request;
 
-            string log = request.GetQuery("log");
+            string log = request.GetQueryOrForm("log");
 
             _dnsWebService._log.DeleteLog(log);
 
@@ -132,7 +132,7 @@ namespace DnsServerCore
             if (!_dnsWebService._authManager.IsPermitted(PermissionSection.Dashboard, session.User, PermissionFlag.Delete))
                 throw new DnsWebServiceException("Access was denied.");
 
-            _dnsWebService._dnsServer.StatsManager.DeleteAllStats();
+            _dnsWebService.DnsServer.StatsManager.DeleteAllStats();
 
             _dnsWebService._log.Write(context.GetRemoteEndPoint(), "[" + session.User.Username + "] All stats files were deleted.");
         }
@@ -146,55 +146,55 @@ namespace DnsServerCore
 
             HttpRequest request = context.Request;
 
-            string name = request.GetQuery("name");
-            string classPath = request.GetQuery("classPath");
+            string name = request.GetQueryOrForm("name");
+            string classPath = request.GetQueryOrForm("classPath");
 
-            if (!_dnsWebService._dnsServer.DnsApplicationManager.Applications.TryGetValue(name, out DnsApplication application))
+            if (!_dnsWebService.DnsServer.DnsApplicationManager.Applications.TryGetValue(name, out DnsApplication application))
                 throw new DnsWebServiceException("DNS application was not found: " + name);
 
             if (!application.DnsQueryLoggers.TryGetValue(classPath, out IDnsQueryLogger logger))
                 throw new DnsWebServiceException("DNS application '" + classPath + "' class path was not found: " + name);
 
-            long pageNumber = request.GetQuery("pageNumber", long.Parse, 1);
-            int entriesPerPage = request.GetQuery("entriesPerPage", int.Parse, 25);
-            bool descendingOrder = request.GetQuery("descendingOrder", bool.Parse, true);
+            long pageNumber = request.GetQueryOrForm("pageNumber", long.Parse, 1);
+            int entriesPerPage = request.GetQueryOrForm("entriesPerPage", int.Parse, 25);
+            bool descendingOrder = request.GetQueryOrForm("descendingOrder", bool.Parse, true);
 
             DateTime? start = null;
-            string strStart = request.Query["start"];
+            string strStart = request.QueryOrForm("start");
             if (!string.IsNullOrEmpty(strStart))
                 start = DateTime.Parse(strStart, CultureInfo.InvariantCulture, DateTimeStyles.AssumeUniversal | DateTimeStyles.AdjustToUniversal);
 
             DateTime? end = null;
-            string strEnd = request.Query["end"];
+            string strEnd = request.QueryOrForm("end");
             if (!string.IsNullOrEmpty(strEnd))
                 end = DateTime.Parse(strEnd, CultureInfo.InvariantCulture, DateTimeStyles.AssumeUniversal | DateTimeStyles.AdjustToUniversal);
 
-            IPAddress clientIpAddress = request.GetQuery("clientIpAddress", IPAddress.Parse, null);
+            IPAddress clientIpAddress = request.GetQueryOrForm("clientIpAddress", IPAddress.Parse, null);
 
             DnsTransportProtocol? protocol = null;
-            string strProtocol = request.Query["protocol"];
+            string strProtocol = request.QueryOrForm("protocol");
             if (!string.IsNullOrEmpty(strProtocol))
                 protocol = Enum.Parse<DnsTransportProtocol>(strProtocol, true);
 
             DnsServerResponseType? responseType = null;
-            string strResponseType = request.Query["responseType"];
+            string strResponseType = request.QueryOrForm("responseType");
             if (!string.IsNullOrEmpty(strResponseType))
                 responseType = Enum.Parse<DnsServerResponseType>(strResponseType, true);
 
             DnsResponseCode? rcode = null;
-            string strRcode = request.Query["rcode"];
+            string strRcode = request.QueryOrForm("rcode");
             if (!string.IsNullOrEmpty(strRcode))
                 rcode = Enum.Parse<DnsResponseCode>(strRcode, true);
 
-            string qname = request.GetQuery("qname", null);
+            string qname = request.GetQueryOrForm("qname", null);
 
             DnsResourceRecordType? qtype = null;
-            string strQtype = request.Query["qtype"];
+            string strQtype = request.QueryOrForm("qtype");
             if (!string.IsNullOrEmpty(strQtype))
                 qtype = Enum.Parse<DnsResourceRecordType>(strQtype, true);
 
             DnsClass? qclass = null;
-            string strQclass = request.Query["qclass"];
+            string strQclass = request.QueryOrForm("qclass");
             if (!string.IsNullOrEmpty(strQclass))
                 qclass = Enum.Parse<DnsClass>(strQclass, true);
 
