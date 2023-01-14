@@ -15,12 +15,7 @@
 
     <link href="/css/font-awesome.min.css" rel="stylesheet" />
 
-    <link href="/css/jquery-ui.min.css" rel="stylesheet">
-    <script src="/js/jquery-ui.min.js"></script>
-
     <script src="/js/moment.min.js"></script>
-    <script src="/js/bootstrap-datetimepicker.min.js"></script>
-    <link rel="stylesheet" href="/css/bootstrap-datetimepicker.min.css">
 
     <link href="/css/main.css" rel="stylesheet" />
     <script src="/js/common.js"></script>
@@ -145,8 +140,8 @@
                                         </div>
 
                                         <div id="divCustomDayWise" class="pull-left" style="padding: 4px 0px 4px 10px; display: none;">
-                                            <span style="margin-right: 6px;"><label for="dpCustomDayWiseStart">Start</label> <input type="text" id="dpCustomDayWiseStart" size="10"></span>
-                                            <span style="margin-right: 6px;"><label for="dpCustomDayWiseEnd">End</label> <input type="text" id="dpCustomDayWiseEnd" size="10"></span>
+                                            <span style="margin-right: 6px;"><label for="dpCustomDayWiseStart">Start</label> <input type="date" id="dpCustomDayWiseStart" size="10"></span>
+                                            <span style="margin-right: 6px;"><label for="dpCustomDayWiseEnd">End</label> <input type="date" id="dpCustomDayWiseEnd" size="10"></span>
                                             <button id="btnCustomDayWise" class="btn btn-default" type="button" style="font-size: 12px; padding: 3px 0px; width: 60px; vertical-align: top;">Show</button>
                                         </div>
 
@@ -349,11 +344,11 @@
                                         <table id="tableZones" class="table table-hover">
                                             <thead>
                                                 <tr>
-                                                    <th onclick="sortTable('tableZonesBody', 0);">Zone</th>
-                                                    <th onclick="sortTable('tableZonesBody', 1);">Type</th>
-                                                    <th onclick="sortTable('tableZonesBody', 2);">DNSSEC</th>
-                                                    <th onclick="sortTable('tableZonesBody', 3);">Status</th>
-                                                    <th onclick="sortTable('tableZonesBody', 4);">Expiry</th>
+                                                    <th><a href="#" onclick="sortTable('tableZonesBody', 0); return false;">Zone</a></th>
+                                                    <th><a href="#" onclick="sortTable('tableZonesBody', 1); return false;">Type</a></th>
+                                                    <th><a href="#" onclick="sortTable('tableZonesBody', 2); return false;">DNSSEC</a></th>
+                                                    <th><a href="#" onclick="sortTable('tableZonesBody', 3); return false;">Status</a></th>
+                                                    <th><a href="#" onclick="sortTable('tableZonesBody', 4); return false;">Expiry</a></th>
                                                     <th style="width: 36px;"></th>
                                                 </tr>
                                             </thead>
@@ -405,10 +400,10 @@
                                         <table id="tableEditZone" class="table table-hover">
                                             <thead>
                                                 <tr>
-                                                    <th onclick="sortTable('tableEditZoneBody', 0);">Name</th>
-                                                    <th onclick="sortTable('tableEditZoneBody', 1);">Type</th>
-                                                    <th onclick="sortTable('tableEditZoneBody', 2);">TTL</th>
-                                                    <th onclick="sortTable('tableEditZoneBody', 3);">Data</th>
+                                                    <th><a href="#" onclick="sortTable('tableEditZoneBody', 0); return false;">Name</a></th>
+                                                    <th><a href="#" onclick="sortTable('tableEditZoneBody', 1); return false;">Type</a></th>
+                                                    <th><a href="#" onclick="sortTable('tableEditZoneBody', 2); return false;">TTL</a></th>
+                                                    <th><a href="#" onclick="sortTable('tableEditZoneBody', 3); return false;">Data</a></th>
                                                     <th></th>
                                                 </tr>
                                             </thead>
@@ -550,7 +545,7 @@
                                         <table id="tableApps" class="table table-hover">
                                             <thead>
                                                 <tr>
-                                                    <th style="min-width: 100px;" onclick="sortTable('tableAppsBody', 0);">Installed Apps</th>
+                                                    <th style="min-width: 100px;"><a href="#" onclick="sortTable('tableAppsBody', 0); return false;">Installed Apps</a></th>
                                                     <th style="width: 96px;"></th>
                                                 </tr>
                                             </thead>
@@ -614,11 +609,29 @@
                                                     <li><a href="#">OpenDNS FamilyShield {208.67.220.123}</a></li>
                                                     <li><a href="#">OpenDNS FamilyShield {[2620:119:35::123]}</a></li>
                                                     <li><a href="#">OpenDNS FamilyShield {[2620:119:53::123]}</a></li>
-                                                    <li><a href="#">OpenDNS TLS {familyshield.opendns.com (208.67.222.123:853)}</a></li>
-                                                    <li><a href="#">OpenDNS TLS {familyshield.opendns.com (208.67.220.123:853)}</a></li>
-                                                    <li><a href="#">OpenDNS TLS {familyshield.opendns.com ([2620:119:35::123]:853)}</a></li>
-                                                    <li><a href="#">OpenDNS TLS {familyshield.opendns.com ([2620:119:53::123]:853)}</a></li>
+                                                    <li><a href="#">OpenDNS FamilyShield TLS {familyshield.opendns.com (208.67.222.123:853)}</a></li>
+                                                    <li><a href="#">OpenDNS FamilyShield TLS {familyshield.opendns.com (208.67.220.123:853)}</a></li>
+                                                    <li><a href="#">OpenDNS FamilyShield TLS {familyshield.opendns.com ([2620:119:35::123]:853)}</a></li>
+                                                    <li><a href="#">OpenDNS FamilyShield TLS {familyshield.opendns.com ([2620:119:53::123]:853)}</a></li>
                                                     <li><a href="#">OpenDNS FamilyShield HTTPS {https://doh.familyshield.opendns.com/dns-query}</a></li>
+                                                    <li><a href="#">AdGuard {94.140.14.14}</a></li>
+                                                    <li><a href="#">AdGuard {94.140.15.15}</a></li>
+                                                    <li><a href="#">AdGuard {[2a10:50c0::ad1:ff]}</a></li>
+                                                    <li><a href="#">AdGuard {[2a10:50c0::ad2:ff]}</a></li>
+                                                    <li><a href="#">AdGuard TLS {dns.adguard-dns.com (94.140.14.14:853)}</a></li>
+                                                    <li><a href="#">AdGuard TLS {dns.adguard-dns.com ([2a10:50c0::ad1:ff]:853)}</a></li>
+                                                    <li><a href="#">AdGuard HTTPS {https://dns.adguard-dns.com/dns-query}</a></li>
+                                                    <li><a href="#">AdGuard QUIC {dns.adguard-dns.com (94.140.14.14:853)}</a></li>
+                                                    <li><a href="#">AdGuard QUIC {dns.adguard-dns.com ([2a10:50c0::ad1:ff]:853)}</a></li>
+                                                    <li><a href="#">AdGuard Family Protection {94.140.14.15}</a></li>
+                                                    <li><a href="#">AdGuard Family Protection {94.140.15.16}</a></li>
+                                                    <li><a href="#">AdGuard Family Protection {[2a10:50c0::bad1:ff]}</a></li>
+                                                    <li><a href="#">AdGuard Family Protection {[2a10:50c0::bad2:ff]}</a></li>
+                                                    <li><a href="#">AdGuard Family Protection TLS {dns.adguard-dns.com (94.140.14.15:853)}</a></li>
+                                                    <li><a href="#">AdGuard Family Protection TLS {dns.adguard-dns.com ([2a10:50c0::bad1:ff]:853)}</a></li>
+                                                    <li><a href="#">AdGuard Family Protection HTTPS {https://dns.adguard-dns.com/dns-query}</a></li>
+                                                    <li><a href="#">AdGuard Family Protection QUIC {dns.adguard-dns.com (94.140.14.15:853)}</a></li>
+                                                    <li><a href="#">AdGuard Family Protection QUIC {dns.adguard-dns.com ([2a10:50c0::bad1:ff]:853)}</a></li>
                                                     <li><a href="#">Level3 {4.2.2.1}</a></li>
                                                     <li><a href="#">Level3 {4.2.2.2}</a></li>
                                                     <li><a href="#">Ultra {156.154.70.1}</a></li>
@@ -683,6 +696,7 @@
                                                 <option>TCP</option>
                                                 <option>TLS</option>
                                                 <option>HTTPS</option>
+                                                <option>QUIC</option>
                                             </select>
                                         </div>
 
@@ -930,6 +944,33 @@
                                                             </div>
                                                             <div class="col-sm-offset-3 col-sm-8" style="padding-top: 5px;">The amount of time a TCP socket must wait for data before closing the connection. This option will apply for DNS requests being received by the DNS Server over TCP, TLS, or HTTPS transports.</div>
                                                         </div>
+
+                                                        <div class="form-group">
+                                                            <label for="txtQuicIdleTimeout" class="col-sm-3 control-label">QUIC Idle Timeout</label>
+                                                            <div class="col-sm-6">
+                                                                <input type="number" class="form-control" id="txtQuicIdleTimeout" placeholder="timeout" style="width: 100px; display: inline;">
+                                                                <span>milliseconds (valid range 1000-90000; default 60000)</span>
+                                                            </div>
+                                                            <div class="col-sm-offset-3 col-sm-8" style="padding-top: 5px;">The time interval after which an idle QUIC connection will be closed. This option applies only to QUIC transport protocol.</div>
+                                                        </div>
+
+                                                        <div class="form-group">
+                                                            <label for="txtQuicMaxInboundStreams" class="col-sm-3 control-label">QUIC Max Inbound Streams</label>
+                                                            <div class="col-sm-6">
+                                                                <input type="number" class="form-control" id="txtQuicMaxInboundStreams" placeholder="100" style="width: 100px; display: inline;">
+                                                                <span>(valid range 1-1000; default 100)</span>
+                                                            </div>
+                                                            <div class="col-sm-offset-3 col-sm-8" style="padding-top: 5px;">The max number of inbound bidirectional streams that can be accepted per QUIC connection. This option applies only to QUIC transport protocol.</div>
+                                                        </div>
+
+                                                        <div class="form-group">
+                                                            <label for="txtListenBacklog" class="col-sm-3 control-label">Listen Backlog</label>
+                                                            <div class="col-sm-6">
+                                                                <input type="number" class="form-control" id="txtListenBacklog" placeholder="100" style="width: 100px; display: inline;">
+                                                                <span>(default 100)</span>
+                                                            </div>
+                                                            <div class="col-sm-offset-3 col-sm-8" style="padding-top: 5px;">The maximum number of pending connections. This option applies to TCP, TLS, and QUIC transport protocols.</div>
+                                                        </div>
                                                     </div>
                                                 </div>
 
@@ -940,13 +981,14 @@
                                                             <div class="col-sm-6">
                                                                 <textarea id="txtWebServiceLocalAddresses" class="form-control" rows="3" spellcheck="false"></textarea>
                                                             </div>
-                                                            <div class="col-sm-offset-3 col-sm-8" style="padding-top: 5px;">Local addresses are the network interface IP addresses you want the web service to listen for requests. The default values work for most scenarios so, do not change these defaults unless you have a requirement for the web service to listen on specific networks.</div>
+                                                            <div class="col-sm-offset-3 col-sm-8" style="padding-top: 5px;">Local addresses are the network interface IP addresses you want the web service to listen for requests. ANY addresses (0.0.0.0 &amp; [::]) cannot be used together with unicast IP addresses. The default values work for most scenarios so, do not change these defaults unless you have a requirement for the web service to listen on specific networks.</div>
                                                         </div>
 
                                                         <div class="form-group">
                                                             <label for="txtWebServiceHttpPort" class="col-sm-3 control-label">Web Service HTTP Port</label>
                                                             <div class="col-sm-6">
-                                                                <input type="number" class="form-control" id="txtWebServiceHttpPort" placeholder="port" style="width: 100px;">
+                                                                <input type="number" class="form-control" id="txtWebServiceHttpPort" placeholder="port" style="width: 100px; display: inline;">
+                                                                <span>(default 5380)</span>
                                                             </div>
                                                             <div class="col-sm-offset-3 col-sm-8" style="padding-top: 5px;">Specify the TCP port number for this web console over HTTP protocol.</div>
                                                         </div>
@@ -977,7 +1019,8 @@
                                                         <div class="form-group">
                                                             <label for="txtWebServiceTlsPort" class="col-sm-3 control-label">Web Service HTTPS Port</label>
                                                             <div class="col-sm-6">
-                                                                <input type="number" class="form-control" id="txtWebServiceTlsPort" placeholder="port" style="width: 100px;">
+                                                                <input type="number" class="form-control" id="txtWebServiceTlsPort" placeholder="port" style="width: 100px; display: inline;">
+                                                                <span>(default 53443)</span>
                                                             </div>
                                                             <div class="col-sm-offset-3 col-sm-8" style="padding-top: 5px;">Specify the TCP port number for this web console over TLS protocol.</div>
                                                         </div>
@@ -1014,25 +1057,75 @@
                                                             <div class="col-sm-8">
                                                                 <div class="checkbox">
                                                                     <label>
-                                                                        <input id="chkEnableDnsOverHttp" type="checkbox"> Enable DNS-over-HTTP <code>(TCP Port 8053)</code>
+                                                                        <input id="chkEnableDnsOverHttp" type="checkbox"> Enable DNS-over-HTTP
                                                                     </label>
                                                                 </div>
                                                                 <div style="padding-top: 5px; padding-left: 20px;">Enable this option to accept DNS-over-HTTP requests. It must be used with a TLS terminating reverse proxy like nginx and will work only on private networks.</div>
 
                                                                 <div class="checkbox">
                                                                     <label>
-                                                                        <input id="chkEnableDnsOverTls" type="checkbox"> Enable DNS-over-TLS <code>(TCP Port 853)</code>
+                                                                        <input id="chkEnableDnsOverTls" type="checkbox"> Enable DNS-over-TLS
                                                                     </label>
                                                                 </div>
                                                                 <div style="padding-top: 5px; padding-left: 20px;">Enable this option to accept DNS-over-TLS requests.</div>
 
                                                                 <div class="checkbox">
                                                                     <label>
-                                                                        <input id="chkEnableDnsOverHttps" type="checkbox"> Enable DNS-over-HTTPS <code>(TCP Port 80 &amp; 443)</code>
+                                                                        <input id="chkEnableDnsOverHttps" type="checkbox"> Enable DNS-over-HTTPS
                                                                     </label>
                                                                 </div>
                                                                 <div style="padding-top: 5px; padding-left: 20px;">Enable this option to accept DNS-over-HTTPS requests.</div>
+
+                                                                <div class="checkbox">
+                                                                    <label>
+                                                                        <input id="chkEnableDnsOverHttpPort80" type="checkbox"> Enable DNS-over-HTTP <code>(TCP Port 80)</code>
+                                                                    </label>
+                                                                </div>
+                                                                <div style="padding-top: 5px; padding-left: 20px;">Enable this option to allow automatic TLS certificate renewal with HTTP challenge (webroot) for DNS-over-HTTPS service. This service will not accept DNS-over-HTTP requests from public IP addresses.</div>
+
+                                                                <div class="checkbox">
+                                                                    <label>
+                                                                        <input id="chkEnableDnsOverQuic" type="checkbox"> Enable DNS-over-QUIC
+                                                                    </label>
+                                                                </div>
+                                                                <div style="padding-top: 5px; padding-left: 20px;">Enable this option to accept DNS-over-QUIC requests.</div>
                                                             </div>
+                                                        </div>
+
+                                                        <div class="form-group">
+                                                            <label for="txtDnsOverHttpPort" class="col-sm-3 control-label">DNS-over-HTTP Port</label>
+                                                            <div class="col-sm-6">
+                                                                <input type="number" class="form-control" id="txtDnsOverHttpPort" placeholder="port" style="width: 100px; display: inline;">
+                                                                <span>(default 8053)</span>
+                                                            </div>
+                                                            <div class="col-sm-offset-3 col-sm-8" style="padding-top: 5px;">Specify the TCP port number for DNS-over-HTTP protocol.</div>
+                                                        </div>
+
+                                                        <div class="form-group">
+                                                            <label for="txtDnsOverTlsPort" class="col-sm-3 control-label">DNS-over-TLS Port</label>
+                                                            <div class="col-sm-6">
+                                                                <input type="number" class="form-control" id="txtDnsOverTlsPort" placeholder="port" style="width: 100px; display: inline;">
+                                                                <span>(default 853)</span>
+                                                            </div>
+                                                            <div class="col-sm-offset-3 col-sm-8" style="padding-top: 5px;">Specify the TCP port number for DNS-over-TLS protocol.</div>
+                                                        </div>
+
+                                                        <div class="form-group">
+                                                            <label for="txtDnsOverHttpsPort" class="col-sm-3 control-label">DNS-over-HTTPS Port</label>
+                                                            <div class="col-sm-6">
+                                                                <input type="number" class="form-control" id="txtDnsOverHttpsPort" placeholder="port" style="width: 100px; display: inline;">
+                                                                <span>(default 443)</span>
+                                                            </div>
+                                                            <div class="col-sm-offset-3 col-sm-8" style="padding-top: 5px;">Specify the TCP port number for DNS-over-HTTPS protocol.</div>
+                                                        </div>
+
+                                                        <div class="form-group">
+                                                            <label for="txtDnsOverQuicPort" class="col-sm-3 control-label">DNS-over-QUIC Port</label>
+                                                            <div class="col-sm-6">
+                                                                <input type="number" class="form-control" id="txtDnsOverQuicPort" placeholder="port" style="width: 100px; display: inline;">
+                                                                <span>(default 853)</span>
+                                                            </div>
+                                                            <div class="col-sm-offset-3 col-sm-8" style="padding-top: 5px;">Specify the UDP port number for DNS-over-QUIC protocol.</div>
                                                         </div>
 
                                                         <div class="form-group">
@@ -1052,9 +1145,9 @@
                                                         </div>
 
                                                         <div>
-                                                            <p>Note! These optional DNS server protocol changes will be automatically applied and so you do not need to manually restart the main service. The DNS-over-TLS and DNS-over-HTTPS protocols will be enabled only when a TLS certificate is configured.</p>
+                                                            <p>Note! These optional DNS server protocol changes will be automatically applied and so you do not need to manually restart the main service. The DNS-over-TLS, DNS-over-QUIC, and DNS-over-HTTPS protocols will be enabled only when a TLS certificate is configured.</p>
                                                             <p>These optional DNS server protocols are used to host these as a service. You do not need to enable these optional protocols to use them with Forwarders or Conditional Forwarder Zones.</p>
-                                                            <p>For DNS-over-HTTP, use <code>http://<span id="lblDoHHost">localhost:8053</span>/dns-query</code> with a TLS terminating reverse proxy like nginx. For DNS-over-TLS, use <code>tls-certificate-domain:853</code> and for DNS-over-HTTPS use <code>https://tls-certificate-domain/dns-query</code> to configure supported DNS clients.</p>
+                                                            <p>For DNS-over-HTTP, use <code>http://<span id="lblDoHHost">localhost:8053</span>/dns-query</code> with a TLS terminating reverse proxy like nginx. For DNS-over-TLS, use <code id="lblDoTHost">tls-certificate-domain:853</code>, for DNS-over-QUIC, use <code id="lblDoQHost">tls-certificate-domain:853</code>, and for DNS-over-HTTPS use <code>https://tls-certificate-domain/dns-query</code> to configure supported DNS clients.</p>
                                                             <p>When using a reverse proxy with the DNS-over-HTTP service, you need to add <code>X-Real-IP</code> header to the proxy request with the IP address of the client to allow the DNS server to know the real IP address of the client originating the request. For example, if you are using nginx as the reverse proxy, you can add <code>proxy_set_header X-Real-IP $remote_addr;</code> to make it work.</p>
                                                             <p>Use the following openssl command to convert your TLS certificate that is in PEM format to PKCS #12 certificate (.pfx) format:</p>
                                                             <pre>openssl pkcs12 -export -out "example.com.pfx" -inkey "privkey.pem" -in "cert.pem" -certfile "chain.pem"</pre>
@@ -1193,6 +1286,22 @@
                                                 </div>
 
                                                 <div id="settingsTabPaneCache" role="tabpanel" class="tab-pane">
+                                                    <div class="well well-sm form-horizontal">
+                                                        <div class="form-group">
+                                                            <label class="col-sm-3 control-label">DNS Cache</label>
+                                                            <div class="col-sm-8">
+                                                                <div class="checkbox">
+                                                                    <label>
+                                                                        <input id="chkSaveCache" type="checkbox"> Save Cache To Disk
+                                                                    </label>
+                                                                </div>
+                                                                <div style="padding-top: 5px; padding-left: 20px;">Enable this option to save DNS cache on disk when the DNS server stops. The saved cache will be loaded next time the DNS server starts.</div>
+                                                            </div>
+                                                        </div>
+
+                                                        <div>Note! The DNS server will attempt to save cache to disk when it stops which may take time depending on the cache size. This may cause the server to take a lot of time to stop which may lead to the OS to kill the process causing incomplete cache to be stored on disk.</div>
+                                                    </div>
+
                                                     <div class="well well-sm form-horizontal">
                                                         <div class="form-group">
                                                             <label class="col-sm-3 control-label">Serve Stale</label>
@@ -1561,6 +1670,26 @@
                                                                     <option value="opendns-fs-tls">OpenDNS FamilyShield (DNS-over-TLS)</option>
                                                                     <option value="opendns-fs-tls-ipv6">OpenDNS FamilyShield (DNS-over-TLS IPv6)</option>
                                                                     <option value="opendns-fs-https">OpenDNS FamilyShield (DNS-over-HTTPS)</option>
+
+                                                                    <option value="adguard-udp">AdGuard (DNS-over-UDP)</option>
+                                                                    <option value="adguard-udp-ipv6">AdGuard (DNS-over-UDP IPv6)</option>
+                                                                    <option value="adguard-tcp">AdGuard (DNS-over-TCP)</option>
+                                                                    <option value="adguard-tcp-ipv6">AdGuard (DNS-over-TCP IPv6)</option>
+                                                                    <option value="adguard-tls">AdGuard (DNS-over-TLS)</option>
+                                                                    <option value="adguard-tls-ipv6">AdGuard (DNS-over-TLS IPv6)</option>
+                                                                    <option value="adguard-https">AdGuard (DNS-over-HTTPS)</option>
+                                                                    <option value="adguard-quic">AdGuard (DNS-over-QUIC)</option>
+                                                                    <option value="adguard-quic-ipv6">AdGuard (DNS-over-QUIC IPv6)</option>
+
+                                                                    <option value="adguard-f-udp">AdGuard Family Protection (DNS-over-UDP)</option>
+                                                                    <option value="adguard-f-udp-ipv6">AdGuard Family Protection (DNS-over-UDP IPv6)</option>
+                                                                    <option value="adguard-f-tcp">AdGuard Family Protection (DNS-over-TCP)</option>
+                                                                    <option value="adguard-f-tcp-ipv6">AdGuard Family Protection (DNS-over-TCP IPv6)</option>
+                                                                    <option value="adguard-f-tls">AdGuard Family Protection (DNS-over-TLS)</option>
+                                                                    <option value="adguard-f-tls-ipv6">AdGuard Family Protection (DNS-over-TLS IPv6)</option>
+                                                                    <option value="adguard-f-https">AdGuard Family Protection (DNS-over-HTTPS)</option>
+                                                                    <option value="adguard-f-quic">AdGuard Family Protection (DNS-over-QUIC)</option>
+                                                                    <option value="adguard-f-quic-ipv6">AdGuard Family Protection (DNS-over-QUIC IPv6)</option>
                                                                 </select>
 
                                                                 <div style="margin-top: 10px;">Enter forwarder DNS Server IP addresses or URLs one below another in above text field or use the Quick Select list to select desired forwarder.</div>
@@ -1592,6 +1721,12 @@
                                                                     <label>
                                                                         <input type="radio" name="rdForwarderProtocol" id="rdForwarderProtocolHttps" value="Https">
                                                                         DNS-over-HTTPS
+                                                                    </label>
+                                                                </div>
+                                                                <div class="radio">
+                                                                    <label>
+                                                                        <input type="radio" name="rdForwarderProtocol" id="rdForwarderProtocolQuic" value="Quic">
+                                                                        DNS-over-QUIC
                                                                     </label>
                                                                 </div>
 
@@ -1727,13 +1862,13 @@
                                                 <table class="table table-hover">
                                                     <thead>
                                                         <tr>
-                                                            <th onclick="sortTable('tableDhcpLeasesBody', 0);">Scope</th>
-                                                            <th onclick="sortTable('tableDhcpLeasesBody', 1);">MAC Address</th>
-                                                            <th onclick="sortTable('tableDhcpLeasesBody', 2);">IP Address</th>
-                                                            <th onclick="sortTable('tableDhcpLeasesBody', 3);"></th>
-                                                            <th onclick="sortTable('tableDhcpLeasesBody', 4);">Host Name</th>
-                                                            <th onclick="sortTable('tableDhcpLeasesBody', 5);">Lease Obtained</th>
-                                                            <th onclick="sortTable('tableDhcpLeasesBody', 6);">Lease Expires</th>
+                                                            <th><a href="#" onclick="sortTable('tableDhcpLeasesBody', 0); return false;">Scope</a></th>
+                                                            <th><a href="#" onclick="sortTable('tableDhcpLeasesBody', 1); return false;">MAC Address</a></th>
+                                                            <th><a href="#" onclick="sortTable('tableDhcpLeasesBody', 2); return false;">IP Address</a></th>
+                                                            <th><a href="#" onclick="sortTable('tableDhcpLeasesBody', 3); return false;"></a></th>
+                                                            <th><a href="#" onclick="sortTable('tableDhcpLeasesBody', 4); return false;">Host Name</a></th>
+                                                            <th><a href="#" onclick="sortTable('tableDhcpLeasesBody', 5); return false;">Lease Obtained</a></th>
+                                                            <th><a href="#" onclick="sortTable('tableDhcpLeasesBody', 6); return false;">Lease Expires</a></th>
                                                             <th style="width: 36px;"></th>
                                                         </tr>
                                                     </thead>
@@ -1759,10 +1894,10 @@
                                                 <table class="table table-hover">
                                                     <thead>
                                                         <tr>
-                                                            <th onclick="sortTable('tableDhcpScopesBody', 0);">Name</th>
-                                                            <th onclick="sortTable('tableDhcpScopesBody', 1);">Scope Range/Subnet Mask</th>
-                                                            <th onclick="sortTable('tableDhcpScopesBody', 2);">Network/Broadcast</th>
-                                                            <th onclick="sortTable('tableDhcpScopesBody', 3);">Interface</th>
+                                                            <th><a href="#" onclick="sortTable('tableDhcpScopesBody', 0); return false;">Name</a></th>
+                                                            <th><a href="#" onclick="sortTable('tableDhcpScopesBody', 1); return false;">Scope Range/Subnet Mask</a></th>
+                                                            <th><a href="#" onclick="sortTable('tableDhcpScopesBody', 2); return false;">Network/Broadcast</a></th>
+                                                            <th><a href="#" onclick="sortTable('tableDhcpScopesBody', 3); return false;">Interface</a></th>
                                                             <th></th>
                                                         </tr>
                                                     </thead>
@@ -2159,11 +2294,11 @@
                                                 <table id="tableAdminSessions" class="table table-hover">
                                                     <thead>
                                                         <tr>
-                                                            <th onclick="sortTable('tbodyAdminSessions', 0);">Username</th>
-                                                            <th onclick="sortTable('tbodyAdminSessions', 1);">Session</th>
-                                                            <th onclick="sortTable('tbodyAdminSessions', 2);">Last Seen</th>
-                                                            <th onclick="sortTable('tbodyAdminSessions', 3);">Remote Address</th>
-                                                            <th onclick="sortTable('tbodyAdminSessions', 4);">User Agent</th>
+                                                            <th><a href="#" onclick="sortTable('tbodyAdminSessions', 0); return false;">Username</a></th>
+                                                            <th><a href="#" onclick="sortTable('tbodyAdminSessions', 1); return false;">Session</a></th>
+                                                            <th><a href="#" onclick="sortTable('tbodyAdminSessions', 2); return false;">Last Seen</a></th>
+                                                            <th><a href="#" onclick="sortTable('tbodyAdminSessions', 3); return false;">Remote Address</a></th>
+                                                            <th><a href="#" onclick="sortTable('tbodyAdminSessions', 4); return false;">User Agent</a></th>
                                                             <th style="width: 36px;"></th>
                                                         </tr>
                                                     </thead>
@@ -2189,11 +2324,11 @@
                                                 <table id="tableAdminUsers" class="table table-hover">
                                                     <thead>
                                                         <tr>
-                                                            <th onclick="sortTable('tbodyAdminUsers', 0);">Username</th>
-                                                            <th onclick="sortTable('tbodyAdminUsers', 1);">Display Name</th>
-                                                            <th onclick="sortTable('tbodyAdminUsers', 2);">Status</th>
-                                                            <th onclick="sortTable('tbodyAdminUsers', 3);">Previous Login</th>
-                                                            <th onclick="sortTable('tbodyAdminUsers', 4);">Recent Login</th>
+                                                            <th><a href="#" onclick="sortTable('tbodyAdminUsers', 0); return false;">Username</a></th>
+                                                            <th><a href="#" onclick="sortTable('tbodyAdminUsers', 1); return false;">Display Name</a></th>
+                                                            <th><a href="#" onclick="sortTable('tbodyAdminUsers', 2); return false;">Status</a></th>
+                                                            <th><a href="#" onclick="sortTable('tbodyAdminUsers', 4); return false;">Recent Login</a></th>
+                                                            <th><a href="#" onclick="sortTable('tbodyAdminUsers', 4); return false;">Previous Login</a></th>
                                                             <th style="width: 36px;"></th>
                                                         </tr>
                                                     </thead>
@@ -2219,8 +2354,8 @@
                                                 <table id="tableAdminGroups" class="table table-hover">
                                                     <thead>
                                                         <tr>
-                                                            <th onclick="sortTable('tbodyAdminGroups', 0);">Name</th>
-                                                            <th onclick="sortTable('tbodyAdminGroups', 1);">Description</th>
+                                                            <th><a href="#" onclick="sortTable('tbodyAdminGroups', 0); return false;">Name</a></th>
+                                                            <th><a href="#" onclick="sortTable('tbodyAdminGroups', 1); return false;">Description</a></th>
                                                             <th style="width: 36px;"></th>
                                                         </tr>
                                                     </thead>
@@ -2240,7 +2375,7 @@
                                                 <table id="tableAdminPermissions" class="table table-hover">
                                                     <thead>
                                                         <tr>
-                                                            <th onclick="sortTable('tbodyAdminPermissions', 0);">Section</th>
+                                                            <th><a href="#" onclick="sortTable('tbodyAdminPermissions', 0); return false;">Section</a></th>
                                                             <th>User Permissions</th>
                                                             <th>Group Permissions</th>
                                                             <th style="width: 36px;"></th>
@@ -2335,27 +2470,17 @@
 
                                                 <div class="form-group">
                                                     <label for="txtQueryLogStart">From</label>
-                                                    <div class='input-group date' id='dtpQueryLogStart'>
-                                                        <input id="txtQueryLogStart" type='text' class="form-control" />
-                                                        <span class="input-group-addon">
-                                                            <span class="glyphicon glyphicon-calendar"></span>
-                                                        </span>
-                                                    </div>
+                                                    <input id="txtQueryLogStart" type="datetime-local" class="form-control" />
                                                 </div>
 
                                                 <div class="form-group">
                                                     <label for="txtQueryLogEnd">To</label>
-                                                    <div class='input-group date' id='dtpQueryLogEnd'>
-                                                        <input id="txtQueryLogEnd" type='text' class="form-control" />
-                                                        <span class="input-group-addon">
-                                                            <span class="glyphicon glyphicon-calendar"></span>
-                                                        </span>
-                                                    </div>
+                                                    <input id="txtQueryLogEnd" type="datetime-local" class="form-control" />
                                                 </div>
 
                                                 <div class="form-group">
                                                     <label for="txtQueryLogClientIpAddress">Client IP Address</label>
-                                                    <input id="txtQueryLogClientIpAddress" type='text' class="form-control" style="min-width: 170px;" />
+                                                    <input id="txtQueryLogClientIpAddress" type="text" class="form-control" style="min-width: 170px;" />
                                                 </div>
 
                                                 <div class="form-group">
@@ -2366,6 +2491,7 @@
                                                         <option value="Tcp">TCP</option>
                                                         <option value="Tls">TLS</option>
                                                         <option value="Https">HTTPS</option>
+                                                        <option value="Quic">QUIC</option>
                                                     </select>
                                                 </div>
 
@@ -2400,12 +2526,12 @@
 
                                                 <div class="form-group">
                                                     <label for="txtQueryLogQName">Domain</label>
-                                                    <input id="txtQueryLogQName" type='text' class="form-control" style="min-width: 300px;" />
+                                                    <input id="txtQueryLogQName" type="text" class="form-control" style="min-width: 300px;" />
                                                 </div>
 
                                                 <div class="form-group">
                                                     <label for="txtQueryLogQType">Type</label>
-                                                    <input id="txtQueryLogQType" type='text' class="form-control" />
+                                                    <input id="txtQueryLogQType" type="text" class="form-control" />
                                                 </div>
 
                                                 <div class="form-group">
@@ -2499,7 +2625,7 @@
                                         <h1>Technitium DNS Server</h1>
                                         <p>Version <span id="lblAboutVersion"></span></p>
                                         <p style="max-width: 800px; margin: 0 auto 10px auto;">
-                                            Copyright (C) 2022  Shreyas Zare (shreyas@technitium.com)<br />
+                                            Copyright (C) 2023  Shreyas Zare (shreyas@technitium.com)<br />
                                             This program comes with ABSOLUTELY NO WARRANTY. This is free software, and you are welcome to redistribute it under certain conditions.<br />
                                         </p>
                                         <p>Source code available under <a href="https://go.technitium.com/?id=24" target="_blank">GNU General Public License v3.0</a> on <a href="https://github.com/TechnitiumSoftware/DnsServer" target="_blank"><i class="fa fa-github"></i>&nbsp;GitHub</a></p>
@@ -2583,7 +2709,7 @@
                                     <table class="table table-hover" style="margin-bottom: 0px;">
                                         <thead>
                                             <tr>
-                                                <th onclick="sortTable('tbodyMyProfileMemberOf', 0);">Group</th>
+                                                <th><a href="#" onclick="sortTable('tbodyMyProfileMemberOf', 0); return false;">Group</a></th>
                                             </tr>
                                         </thead>
                                         <tbody id="tbodyMyProfileMemberOf">
@@ -2600,10 +2726,10 @@
                                 <table id="tableMyProfileActiveSessions" class="table table-hover" style="margin-bottom: 0px;">
                                     <thead>
                                         <tr>
-                                            <th onclick="sortTable('tbodyMyProfileActiveSessions', 0);">Session</th>
-                                            <th onclick="sortTable('tbodyMyProfileActiveSessions', 1);">Last Seen</th>
-                                            <th onclick="sortTable('tbodyMyProfileActiveSessions', 2);">Remote Address</th>
-                                            <th onclick="sortTable('tbodyMyProfileActiveSessions', 3);">User Agent</th>
+                                            <th><a href="#" onclick="sortTable('tbodyMyProfileActiveSessions', 0); return false;">Session</a></th>
+                                            <th><a href="#" onclick="sortTable('tbodyMyProfileActiveSessions', 1); return false;">Last Seen</a></th>
+                                            <th><a href="#" onclick="sortTable('tbodyMyProfileActiveSessions', 2); return false;">Remote Address</a></th>
+                                            <th><a href="#" onclick="sortTable('tbodyMyProfileActiveSessions', 3); return false;">User Agent</a></th>
                                             <th style="width: 36px;"></th>
                                         </tr>
                                     </thead>
@@ -2878,6 +3004,12 @@ ns1.example.com ([2001:db8::])
                                             XFR-over-TLS
                                         </label>
                                     </div>
+                                    <div class="radio">
+                                        <label>
+                                            <input type="radio" name="rdAddZoneZoneTransferProtocol" value="Quic">
+                                            XFR-over-QUIC
+                                        </label>
+                                    </div>
                                 </div>
                             </div>
 
@@ -2915,6 +3047,12 @@ ns1.example.com ([2001:db8::])
                                         <label>
                                             <input type="radio" name="rdAddZoneForwarderProtocol" value="Https">
                                             DNS-over-HTTPS
+                                        </label>
+                                    </div>
+                                    <div class="radio">
+                                        <label>
+                                            <input type="radio" name="rdAddZoneForwarderProtocol" value="Quic">
+                                            DNS-over-QUIC
                                         </label>
                                     </div>
                                 </div>
@@ -3183,6 +3321,12 @@ ns1.example.com ([2001:db8::])
                                                 XFR-over-TLS
                                             </label>
                                         </div>
+                                        <div class="radio">
+                                            <label>
+                                                <input type="radio" name="rdEditRecordDataSoaZoneTransferProtocol" id="rdEditRecordDataSoaZoneTransferProtocolQuic" value="Quic">
+                                                XFR-over-QUIC
+                                            </label>
+                                        </div>
                                     </div>
                                 </div>
 
@@ -3406,6 +3550,12 @@ MII...
                                             <label>
                                                 <input type="radio" name="rdAddEditRecordDataForwarderProtocol" id="rdAddEditRecordDataForwarderProtocolHttps" value="Https">
                                                 DNS-over-HTTPS
+                                            </label>
+                                        </div>
+                                        <div class="radio">
+                                            <label>
+                                                <input type="radio" name="rdAddEditRecordDataForwarderProtocol" id="rdAddEditRecordDataForwarderProtocolQuic" value="Quic">
+                                                DNS-over-QUIC
                                             </label>
                                         </div>
                                     </div>
@@ -3983,13 +4133,13 @@ MII...
                             <table class="table table-hover" style="margin-bottom: 10px;">
                                 <thead>
                                     <tr>
-                                        <th onclick="sortTable('tableDnssecPropertiesPrivateKeysBody', 0);">Key Tag</th>
-                                        <th onclick="sortTable('tableDnssecPropertiesPrivateKeysBody', 1);">Key Type</th>
-                                        <th onclick="sortTable('tableDnssecPropertiesPrivateKeysBody', 2);">Algorithm</th>
-                                        <th onclick="sortTable('tableDnssecPropertiesPrivateKeysBody', 3);">State</th>
-                                        <th onclick="sortTable('tableDnssecPropertiesPrivateKeysBody', 4);">State Changed</th>
-                                        <th style="width: 108px;" onclick="sortTable('tableDnssecPropertiesPrivateKeysBody', 5);">Rollover</th>
-                                        <th style="width: 150px;"></th>
+                                        <th><a href="#" onclick="sortTable('tableDnssecPropertiesPrivateKeysBody', 0); return false;">Key Tag</a></th>
+                                        <th><a href="#" onclick="sortTable('tableDnssecPropertiesPrivateKeysBody', 1); return false;">Key Type</a></th>
+                                        <th><a href="#" onclick="sortTable('tableDnssecPropertiesPrivateKeysBody', 2); return false;">Algorithm</a></th>
+                                        <th><a href="#" onclick="sortTable('tableDnssecPropertiesPrivateKeysBody', 3); return false;">State</a></th>
+                                        <th><a href="#" onclick="sortTable('tableDnssecPropertiesPrivateKeysBody', 4); return false;">State Changed</a></th>
+                                        <th><a href="#" onclick="sortTable('tableDnssecPropertiesPrivateKeysBody', 5); return false;">Rollover (days)</a></th>
+                                        <th style="width: 36px;"></th>
                                     </tr>
                                 </thead>
                                 <tbody id="tableDnssecPropertiesPrivateKeysBody">
@@ -4239,7 +4389,7 @@ MII...
                             <table class="table table-hover">
                                 <thead>
                                     <tr>
-                                        <th style="min-width: 120px;" onclick="sortTable('tableStoreAppsBody', 0);">Store Apps</th>
+                                        <th style="min-width: 120px;"><a href="#" onclick="sortTable('tableStoreAppsBody', 0); return false;">Store Apps</a></th>
                                         <th style="width: 96px;"></th>
                                     </tr>
                                 </thead>
@@ -4776,10 +4926,10 @@ MII...
                                 <table id="tableUserDetailsActiveSessions" class="table table-hover" style="margin-bottom: 0px;">
                                     <thead>
                                         <tr>
-                                            <th onclick="sortTable('tbodyUserDetailsActiveSessions', 0);">Session</th>
-                                            <th onclick="sortTable('tbodyUserDetailsActiveSessions', 1);">Last Seen</th>
-                                            <th onclick="sortTable('tbodyUserDetailsActiveSessions', 2);">Remote Address</th>
-                                            <th onclick="sortTable('tbodyUserDetailsActiveSessions', 3);">User Agent</th>
+                                            <th><a href="#" onclick="sortTable('tbodyUserDetailsActiveSessions', 0); return false;">Session</a></th>
+                                            <th><a href="#" onclick="sortTable('tbodyUserDetailsActiveSessions', 1); return false;">Last Seen</a></th>
+                                            <th><a href="#" onclick="sortTable('tbodyUserDetailsActiveSessions', 2); return false;">Remote Address</a></th>
+                                            <th><a href="#" onclick="sortTable('tbodyUserDetailsActiveSessions', 3); return false;">User Agent</a></th>
                                             <th style="width: 36px;"></th>
                                         </tr>
                                     </thead>
@@ -4904,10 +5054,10 @@ MII...
                                         <table id="tableEditPermissionsUser" class="table table-hover">
                                             <thead>
                                                 <tr>
-                                                    <th onclick="sortTable('tbodyEditPermissionsUser', 0);">Username</th>
-                                                    <th onclick="sortTable('tbodyEditPermissionsUser', 0);" style="width: 65px;">View</th>
-                                                    <th onclick="sortTable('tbodyEditPermissionsUser', 0);" style="width: 65px;">Modify</th>
-                                                    <th onclick="sortTable('tbodyEditPermissionsUser', 0);" style="width: 65px;">Delete</th>
+                                                    <th><a href="#" onclick="sortTable('tbodyEditPermissionsUser', 0); return false;">Username</a></th>
+                                                    <th><a href="#" onclick="sortTable('tbodyEditPermissionsUser', 0); return false;" style="width: 65px;">View</a></th>
+                                                    <th><a href="#" onclick="sortTable('tbodyEditPermissionsUser', 0); return false;" style="width: 65px;">Modify</a></th>
+                                                    <th><a href="#" onclick="sortTable('tbodyEditPermissionsUser', 0); return false;" style="width: 65px;">Delete</a></th>
                                                     <th style="width: 76px;"></th>
                                                 </tr>
                                             </thead>
@@ -4926,10 +5076,10 @@ MII...
                                         <table id="tableEditPermissionsGroup" class="table table-hover">
                                             <thead>
                                                 <tr>
-                                                    <th onclick="sortTable('tbodyEditPermissionsGroup', 0);">Group</th>
-                                                    <th onclick="sortTable('tbodyEditPermissionsGroup', 0);" style="width: 65px;">View</th>
-                                                    <th onclick="sortTable('tbodyEditPermissionsGroup', 0);" style="width: 65px;">Modify</th>
-                                                    <th onclick="sortTable('tbodyEditPermissionsGroup', 0);" style="width: 65px;">Delete</th>
+                                                    <th><a href="#" onclick="sortTable('tbodyEditPermissionsGroup', 0); return false;">Group</a></th>
+                                                    <th><a href="#" onclick="sortTable('tbodyEditPermissionsGroup', 0); return false;" style="width: 65px;">View</a></th>
+                                                    <th><a href="#" onclick="sortTable('tbodyEditPermissionsGroup', 0); return false;" style="width: 65px;">Modify</a></th>
+                                                    <th><a href="#" onclick="sortTable('tbodyEditPermissionsGroup', 0); return false;" style="width: 65px;">Delete</a></th>
                                                     <th style="width: 76px;"></th>
                                                 </tr>
                                             </thead>
