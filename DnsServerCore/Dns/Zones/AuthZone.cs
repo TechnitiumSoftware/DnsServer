@@ -1,6 +1,6 @@
 ﻿/*
 Technitium DNS Server
-Copyright (C) 2022  Shreyas Zare (shreyas@technitium.com)
+Copyright (C) 2023  Shreyas Zare (shreyas@technitium.com)
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -56,21 +56,29 @@ namespace DnsServerCore.Dns.Zones
 
             if (records.Count == 1)
             {
-                if (records[0].IsDisabled())
+                AuthRecordInfo authRecordInfo = records[0].GetAuthRecordInfo();
+
+                if (authRecordInfo.Disabled)
                     return Array.Empty<DnsResourceRecord>(); //record disabled
 
                 //update last used on
-                records[0].GetRecordInfo().LastUsedOn = DateTime.UtcNow;
+                authRecordInfo.LastUsedOn = DateTime.UtcNow;
 
                 return records;
             }
 
             List<DnsResourceRecord> newRecords = new List<DnsResourceRecord>(records.Count);
+            DateTime utcNow = DateTime.UtcNow;
 
             foreach (DnsResourceRecord record in records)
             {
-                if (record.IsDisabled())
+                AuthRecordInfo authRecordInfo = record.GetAuthRecordInfo();
+
+                if (authRecordInfo.Disabled)
                     continue; //record disabled
+
+                //update last used on
+                authRecordInfo.LastUsedOn = utcNow;
 
                 newRecords.Add(record);
             }
@@ -86,12 +94,6 @@ namespace DnsServerCore.Dns.Zones
                         break;
                 }
             }
-
-            //update last used on
-            DateTime utcNow = DateTime.UtcNow;
-
-            foreach (DnsResourceRecord record in newRecords)
-                record.GetRecordInfo().LastUsedOn = utcNow;
 
             return newRecords;
         }
@@ -112,7 +114,7 @@ namespace DnsServerCore.Dns.Zones
             {
                 if ((rrsigRecord.RDATA as DnsRRSIGRecordData).TypeCovered == type)
                 {
-                    rrsigRecord.GetRecordInfo().LastUsedOn = utcNow;
+                    rrsigRecord.GetAuthRecordInfo().LastUsedOn = utcNow;
                     newRecords.Add(rrsigRecord);
                 }
             }
@@ -901,7 +903,7 @@ namespace DnsServerCore.Dns.Zones
 
             foreach (DnsResourceRecord record in records)
             {
-                if (record.IsDisabled())
+                if (record.GetAuthRecordInfo().Disabled)
                     continue;
 
                 return true;
