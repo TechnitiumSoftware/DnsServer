@@ -958,6 +958,8 @@ namespace DnsServerCore.Dns.ZoneManagers
 
             if (!File.Exists(cacheZoneFile))
                 return;
+            
+            _dnsServer.LogManager?.Write("Loading DNS Cache from disk...");
 
             using (FileStream fS = new FileStream(cacheZoneFile, FileMode.Open, FileAccess.Read))
             {
@@ -999,6 +1001,8 @@ namespace DnsServerCore.Dns.ZoneManagers
 
         public void SaveCacheZoneFile()
         {
+            _dnsServer.LogManager?.Write("Saving DNS Cache to disk...");
+
             string cacheZoneFile = Path.Combine(_dnsServer.ConfigFolder, "cache.bin");
 
             using (FileStream fS = new FileStream(cacheZoneFile, FileMode.Create, FileAccess.Write))
