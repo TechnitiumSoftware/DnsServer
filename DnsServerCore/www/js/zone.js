@@ -1,6 +1,6 @@
 ﻿/*
 Technitium DNS Server
-Copyright (C) 2022  Shreyas Zare (shreyas@technitium.com)
+Copyright (C) 2023  Shreyas Zare (shreyas@technitium.com)
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -64,6 +64,7 @@ $(function () {
                 break;
 
             case "Tls":
+            case "Quic":
                 $("#txtAddZoneForwarder").attr("placeholder", "dns.quad9.net (9.9.9.9:853)")
                 break;
 
@@ -2763,6 +2764,7 @@ function updateAddEditFormForwarderPlaceholder() {
             break;
 
         case "Tls":
+        case "Quic":
             $("#txtAddEditRecordDataForwarder").attr("placeholder", "dns.quad9.net (9.9.9.9:853)")
             break;
 
@@ -2897,6 +2899,10 @@ function showEditRecordModal(objBtn) {
             switch (divData.attr("data-record-zonetransferprotocol").toLowerCase()) {
                 case "tls":
                     $("#rdEditRecordDataSoaZoneTransferProtocolTls").prop("checked", true);
+                    break;
+
+                case "quic":
+                    $("#rdEditRecordDataSoaZoneTransferProtocolQuic").prop("checked", true);
                     break;
 
                 case "tcp":
@@ -3952,8 +3958,12 @@ function refreshDnssecProperties(divDnssecPropertiesLoader) {
                     + "<td>" + responseJSON.response.dnssecPrivateKeys[i].keyType + "</td>"
                     + "<td>" + responseJSON.response.dnssecPrivateKeys[i].algorithm + "</td>"
                     + "<td>" + responseJSON.response.dnssecPrivateKeys[i].state + "</td>"
-                    + "<td>" + moment(responseJSON.response.dnssecPrivateKeys[i].stateChangedOn).local().format("YYYY-MM-DD HH:mm") + "</td>"
-                    + "<td>";
+                    + "<td>" + moment(responseJSON.response.dnssecPrivateKeys[i].stateChangedOn).local().format("YYYY-MM-DD HH:mm");
+
+                if (responseJSON.response.dnssecPrivateKeys[i].stateReadyBy != null)
+                    tableHtmlRows += "</br>(ready by: " + moment(responseJSON.response.dnssecPrivateKeys[i].stateReadyBy).local().format("YYYY-MM-DD HH:mm") + ")";
+
+                tableHtmlRows += "</td><td>";
 
                 if (responseJSON.response.dnssecPrivateKeys[i].keyType === "ZoneSigningKey") {
                     switch (responseJSON.response.dnssecPrivateKeys[i].state) {
@@ -3984,15 +3994,19 @@ function refreshDnssecProperties(divDnssecPropertiesLoader) {
 
                 switch (responseJSON.response.dnssecPrivateKeys[i].state) {
                     case "Generated":
-                        tableHtmlRows += "<button type=\"button\" class=\"btn btn-danger\" style=\"font-size: 12px; padding: 2px 0px; width: 60px;\" data-id=\"" + id + "\" data-loading-text=\"Deleting...\" onclick=\"deleteDnssecPrivateKey(" + responseJSON.response.dnssecPrivateKeys[i].keyTag + ", this);\">Delete</button>";
+                        tableHtmlRows += "<div class=\"dropdown\"><a href=\"#\" id=\"btnDnssecPropertiesDnsKeyRowOption" + id + "\" class=\"dropdown-toggle\" data-toggle=\"dropdown\" aria-haspopup=\"true\" aria-expanded=\"true\"><span class=\"glyphicon glyphicon-option-vertical\" aria-hidden=\"true\"></span></a><ul class=\"dropdown-menu dropdown-menu-right\">";
+                        tableHtmlRows += "<li><a href=\"#\" onclick=\"deleteDnssecPrivateKey(" + responseJSON.response.dnssecPrivateKeys[i].keyTag + ", '" + id + "'); return false;\">Delete</a></li>";
+                        tableHtmlRows += "</ul></div>";
                         foundGeneratedKey = true;
                         break;
 
                     case "Ready":
                     case "Active":
                         if (!responseJSON.response.dnssecPrivateKeys[i].isRetiring) {
-                            tableHtmlRows += "<button type=\"button\" class=\"btn btn-warning\" style=\"font-size: 12px; padding: 2px 0px; width: 60px; margin: 0 6px 0 0;\" data-loading-text=\"Rolling...\" onclick=\"rolloverDnssecDnsKey(" + responseJSON.response.dnssecPrivateKeys[i].keyTag + ", this);\">Rollover</button>";
-                            tableHtmlRows += "<button type=\"button\" class=\"btn btn-warning\" style=\"font-size: 12px; padding: 2px 0px; width: 60px;\" data-loading-text=\"Retiring...\" onclick=\"retireDnssecDnsKey(" + responseJSON.response.dnssecPrivateKeys[i].keyTag + ", this);\">Retire</button>";
+                            tableHtmlRows += "<div class=\"dropdown\"><a href=\"#\" id=\"btnDnssecPropertiesDnsKeyRowOption" + id + "\" class=\"dropdown-toggle\" data-toggle=\"dropdown\" aria-haspopup=\"true\" aria-expanded=\"true\"><span class=\"glyphicon glyphicon-option-vertical\" aria-hidden=\"true\"></span></a><ul class=\"dropdown-menu dropdown-menu-right\">";
+                            tableHtmlRows += "<li><a href=\"#\" onclick=\"rolloverDnssecDnsKey(" + responseJSON.response.dnssecPrivateKeys[i].keyTag + ", '" + id + "'); return false;\">Rollover</a></li>";
+                            tableHtmlRows += "<li><a href=\"#\" onclick=\"retireDnssecDnsKey(" + responseJSON.response.dnssecPrivateKeys[i].keyTag + ", '" + id + "'); return false;\">Retire</a></li>";
+                            tableHtmlRows += "</ul></div>";
                         }
                         break;
                 }
@@ -4074,16 +4088,17 @@ function updateDnssecPrivateKey(keyTag, objBtn) {
     });
 }
 
-function deleteDnssecPrivateKey(keyTag, objBtn) {
-    if (!confirm("Are you sure to permanently delete the private key?"))
+function deleteDnssecPrivateKey(keyTag, id) {
+    if (!confirm("Are you sure to permanently delete the private key (" + keyTag + ")?"))
         return;
 
-    var btn = $(objBtn);
-    var id = btn.attr("data-id");
     var divDnssecPropertiesAlert = $("#divDnssecPropertiesAlert");
     var zone = $("#lblDnssecPropertiesZoneName").attr("data-zone");
 
-    btn.button('loading');
+    var btn = $("#btnDnssecPropertiesDnsKeyRowOption" + id);
+    var originalBtnHtml = btn.html();
+    btn.prop("disabled", true);
+    btn.html("<img src='/img/loader-small.gif'/>");
 
     HTTPRequest({
         url: "/api/zones/dnssec/properties/deletePrivateKey?token=" + sessionData.token + "&zone=" + zone + "&keyTag=" + keyTag,
@@ -4092,7 +4107,8 @@ function deleteDnssecPrivateKey(keyTag, objBtn) {
             showAlert("success", "Private Key Deleted!", "The DNSSEC private key was deleted successfully.", divDnssecPropertiesAlert);
         },
         error: function () {
-            btn.button('reset');
+            btn.prop("disabled", false);
+            btn.html(originalBtnHtml);
         },
         invalidToken: function () {
             $("#modalDnssecProperties").modal("hide");
@@ -4102,15 +4118,17 @@ function deleteDnssecPrivateKey(keyTag, objBtn) {
     });
 }
 
-function rolloverDnssecDnsKey(keyTag, objBtn) {
-    if (!confirm("Are you sure you want to rollover the DNS Key?"))
+function rolloverDnssecDnsKey(keyTag, id) {
+    if (!confirm("Are you sure you want to rollover the DNS Key (" + keyTag + ")?"))
         return;
 
-    var btn = $(objBtn);
     var divDnssecPropertiesAlert = $("#divDnssecPropertiesAlert");
     var zone = $("#lblDnssecPropertiesZoneName").attr("data-zone");
 
-    btn.button('loading');
+    var btn = $("#btnDnssecPropertiesDnsKeyRowOption" + id);
+    var originalBtnHtml = btn.html();
+    btn.prop("disabled", true);
+    btn.html("<img src='/img/loader-small.gif'/>");
 
     HTTPRequest({
         url: "/api/zones/dnssec/properties/rolloverDnsKey?token=" + sessionData.token + "&zone=" + zone + "&keyTag=" + keyTag,
@@ -4119,7 +4137,8 @@ function rolloverDnssecDnsKey(keyTag, objBtn) {
             showAlert("success", "Rollover Done!", "The DNS Key was rolled over successfully.", divDnssecPropertiesAlert);
         },
         error: function () {
-            btn.button('reset');
+            btn.prop("disabled", false);
+            btn.html(originalBtnHtml);
         },
         invalidToken: function () {
             $("#modalDnssecProperties").modal("hide");
@@ -4129,15 +4148,17 @@ function rolloverDnssecDnsKey(keyTag, objBtn) {
     });
 }
 
-function retireDnssecDnsKey(keyTag, objBtn) {
-    if (!confirm("Are you sure you want to retire the DNS Key?"))
+function retireDnssecDnsKey(keyTag, id) {
+    if (!confirm("Are you sure you want to retire the DNS Key (" + keyTag + ")?"))
         return;
 
-    var btn = $(objBtn);
     var divDnssecPropertiesAlert = $("#divDnssecPropertiesAlert");
     var zone = $("#lblDnssecPropertiesZoneName").attr("data-zone");
 
-    btn.button('loading');
+    var btn = $("#btnDnssecPropertiesDnsKeyRowOption" + id);
+    var originalBtnHtml = btn.html();
+    btn.prop("disabled", true);
+    btn.html("<img src='/img/loader-small.gif'/>");
 
     HTTPRequest({
         url: "/api/zones/dnssec/properties/retireDnsKey?token=" + sessionData.token + "&zone=" + zone + "&keyTag=" + keyTag,
@@ -4146,7 +4167,8 @@ function retireDnssecDnsKey(keyTag, objBtn) {
             showAlert("success", "DNS Key Retired!", "The DNS Key was retired successfully.", divDnssecPropertiesAlert);
         },
         error: function () {
-            btn.button('reset');
+            btn.prop("disabled", false);
+            btn.html(originalBtnHtml);
         },
         invalidToken: function () {
             $("#modalDnssecProperties").modal("hide");
