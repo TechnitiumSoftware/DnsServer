@@ -2483,27 +2483,51 @@ namespace DnsServerCore
                         switch (zoneInfo.Type)
                         {
                             case AuthZoneType.Secondary:
-                            case AuthZoneType.Stub:
-                                if (request.TryGetQueryOrForm("primaryAddresses", out string primaryAddresses))
-                                    newSOARecord.GetAuthRecordInfo().PrimaryNameServers = primaryAddresses.Split(NameServerAddress.Parse, ',');
+                                {
+                                    AuthRecordInfo recordInfo = newSOARecord.GetAuthRecordInfo();
 
+                                    if (request.TryGetQueryOrForm("zoneTransferProtocol", out DnsTransportProtocol zoneTransferProtocol))
+                                    {
+                                        if (zoneTransferProtocol == DnsTransportProtocol.Quic)
+                                            DnsWebService.ValidateQuicSupport();
+
+                                        recordInfo.ZoneTransferProtocol = zoneTransferProtocol;
+                                    }
+
+                                    if (request.TryGetQueryOrForm("primaryAddresses", out string primaryAddresses))
+                                    {
+                                        recordInfo.PrimaryNameServers = primaryAddresses.Split(delegate (string address)
+                                        {
+                                            NameServerAddress nameServer = NameServerAddress.Parse(address);
+
+                                            if (nameServer.Protocol != zoneTransferProtocol)
+                                                nameServer = nameServer.ChangeProtocol(zoneTransferProtocol);
+
+                                            return nameServer;
+                                        }, ',');
+                                    }
+
+                                    if (request.TryGetQueryOrForm("tsigKeyName", out string tsigKeyName))
+                                        recordInfo.TsigKeyName = tsigKeyName;
+                                }
                                 break;
-                        }
 
-                        if (zoneInfo.Type == AuthZoneType.Secondary)
-                        {
-                            AuthRecordInfo recordInfo = newSOARecord.GetAuthRecordInfo();
+                            case AuthZoneType.Stub:
+                                {
+                                    if (request.TryGetQueryOrForm("primaryAddresses", out string primaryAddresses))
+                                    {
+                                        newSOARecord.GetAuthRecordInfo().PrimaryNameServers = primaryAddresses.Split(delegate (string address)
+                                        {
+                                            NameServerAddress nameServer = NameServerAddress.Parse(address);
 
-                            if (request.TryGetQueryOrForm("zoneTransferProtocol", out DnsTransportProtocol zoneTransferProtocol))
-                            {
-                                if (zoneTransferProtocol == DnsTransportProtocol.Quic)
-                                    DnsWebService.ValidateQuicSupport();
+                                            if (nameServer.Protocol != DnsTransportProtocol.Udp)
+                                                nameServer = nameServer.ChangeProtocol(DnsTransportProtocol.Udp);
 
-                                recordInfo.ZoneTransferProtocol = zoneTransferProtocol;
-                            }
-
-                            if (request.TryGetQueryOrForm("tsigKeyName", out string tsigKeyName))
-                                recordInfo.TsigKeyName = tsigKeyName;
+                                            return nameServer;
+                                        }, ',');
+                                    }
+                                }
+                                break;
                         }
 
                         if (!string.IsNullOrEmpty(comments))
