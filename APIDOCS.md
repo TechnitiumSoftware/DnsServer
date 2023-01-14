@@ -4,6 +4,10 @@ Technitium DNS Server provides a HTTP API which is used by the web console to pe
 
 The URL in the documentation uses `localhost` and port `5380`. You should use the hostname/IP address and port that is specific to your DNS server instance.
 
+## API Request
+
+Unless it is explicitly specified, all HTTP API requests can use both `GET` or `POST` methods. When using `POST` method to pass the API parameters as form data, the `Content-Type` header must be set to `application/x-www-form-urlencoded`. When the HTTP API call is used to upload files, the call must use `POST` method and the `Content-Type` header must be set to `multipart/form-data`.
+
 ## API Response Format
 
 The HTTP API returns a JSON formatted response for all requests. The JSON object returned contains `status` property which indicate if the request was successful. 
@@ -63,7 +67,7 @@ None
 WHERE:
 - `user`: The username for the user account. The built-in administrator username on the DNS server is `admin`.
 - `pass`: The password for the user account. The default password for `admin` user is `admin`. 
-- `includeInfo`: Includes basic info relevant for the user in response.
+- `includeInfo` (optional): Includes basic info relevant for the user in response.
 
 WARNING: It is highly recommended to change the password on first use to avoid security related issues.
 
@@ -147,7 +151,7 @@ WHERE:
 Allows creating a non-expiring API token that can be used with automation scripts to make API calls. The token allows access to API calls with the same privileges as that of the user account. Thus its recommended to create a separate user account with limited permissions as required by the specific task that the token will be used for. The token cannot be used to change the user's password, or update the user profile details.
 
 URL:\
-`http://localhost:5380/api/user/createToken?user=admin&pass=admin&tokenName=MyToken1&includeInfo=true`
+`http://localhost:5380/api/user/createToken?user=admin&pass=admin&tokenName=MyToken1`
 
 PERMISSIONS:\
 None
@@ -1635,9 +1639,9 @@ WHERE:
 - `zone`: The domain name for creating the new zone. The value can be valid domain name, an IP address, or an network address in CIDR format. When value is IP address or network address, a reverse zone is created.
 - `type`: The type of zone to be created. Valid values are [`Primary`, `Secondary`, `Stub`, `Forwarder`].
 - `primaryNameServerAddresses` (optional): List of comma separated IP addresses of the primary name server. This optional parameter is used only with Secondary and Stub zones. If this parameter is not used, the DNS server will try to recursively resolve the primary name server addresses automatically.
-- `zoneTransferProtocol` (optional): The zone transfer protocol to be used by secondary zones. Valid values are [`Tcp`, `Tls`].
+- `zoneTransferProtocol` (optional): The zone transfer protocol to be used by secondary zones. Valid values are [`Tcp`, `Tls`, `Quic`].
 - `tsigKeyName` (optional): The TSIG key name to be used by secondary zones.
-- `protocol` (optional): The DNS transport protocol to be used by the conditional forwarder zone. This optional parameter is used with Conditional Forwarder zones. Valid values are [`Udp`, `Tcp`, `Tls`, `Https`]. Default `Udp` protocol is used when this parameter is missing.
+- `protocol` (optional): The DNS transport protocol to be used by the conditional forwarder zone. This optional parameter is used with Conditional Forwarder zones. Valid values are [`Udp`, `Tcp`, `Tls`, `Https`, `Quic`]. Default `Udp` protocol is used when this parameter is missing.
 - `forwarder` (optional): The address of the DNS server to be used as a forwarder. This optional parameter is required to be used with Conditional Forwarder zones. A special value `this-server` can be used as a forwarder which when used will forward all the requests internally to this DNS server such that you can override the zone with records and rest of the zone gets resolved via This Server.
 - `dnssecValidation` (optional): Set this boolean value to indicate if DNSSEC validation must be done. This optional parameter is required to be used with Conditional Forwarder zones.
 - `proxyType` (optional): The type of proxy that must be used for conditional forwarding. This optional parameter is required to be used with Conditional Forwarder zones. Valid values are [`None`, `Http`, `Socks5`]. Default value `None` is used when this parameter is missing.
@@ -2399,7 +2403,7 @@ WHERE:
 - `tag` (optional): This parameter is required for adding the `CAA` record.
 - `value` (optional): This parameter is required for adding the `CAA` record.
 - `aname` (optional): The ANAME domain name. This option is required for adding `ANAME` record.
-- `protocol` (optional): This parameter is required for adding the `FWD` record. Valid values are [`Udp`, `Tcp`, `Tls`, `Https`].
+- `protocol` (optional): This parameter is required for adding the `FWD` record. Valid values are [`Udp`, `Tcp`, `Tls`, `Https`, `Quic`].
 - `forwarder` (optional): The forwarder address. A special value of `this-server` can be used to directly forward requests internally to the DNS server. This parameter is required for adding the `FWD` record.
 - `dnssecValidation` (optional): Set this boolean value to indicate if DNSSEC validation must be done. This optional parameter is to be used with FWD records. Default value is `false`.
 - `proxyType` (optional): The type of proxy that must be used for conditional forwarding. This optional parameter is to be used with FWD records. Valid values are [`None`, `Http`, `Socks5`]. Default value `None` is used when this parameter is missing.
@@ -3014,7 +3018,7 @@ WHERE:
 - `expire` (optional): This is the expire parameter in the SOA record. This parameter is required when updating the SOA record.
 - `minimum` (optional): This is the minimum parameter in the SOA record. This parameter is required when updating the SOA record.
 - `primaryAddresses` (optional): This is a comma separated list of IP addresses of the primary name server. This parameter is to be used with secondary and stub zones where the primary name server address is not directly resolvable.
-- `zoneTransferProtocol` (optional): The zone transfer protocol to be used by the secondary zone. Valid values are [`Tcp`, `Tls`]. This parameter is used with `SOA` record.
+- `zoneTransferProtocol` (optional): The zone transfer protocol to be used by the secondary zone. Valid values are [`Tcp`, `Tls`, `Quic`]. This parameter is used with `SOA` record.
 - `tsigKeyName` (optional): The TSIG key name to be used by the secondary zone. This parameter is used with `SOA` record.
 - `ptrName`(optional): The current PTR domain name. This option is required for updating `PTR` record.
 - `newPtrName`(optional): The new PTR domain name. This option is required for updating `PTR` record.
@@ -3063,8 +3067,8 @@ WHERE:
 - `newValue` (optional): The new value in CAA record. This parameter is required when updating the `CAA` record.
 - `aname` (optional): The current ANAME domain name. This parameter is required when updating the `ANAME` record.
 - `newAName` (optional): The new ANAME domain name. This parameter is required when updating the `ANAME` record.
-- `protocol` (optional): This is the current protocol value in the FWD record. Valid values are [`Udp`, `Tcp`, `Tls`, `Https`]. This parameter is optional and default value `Udp` will be used when updating the `FWD` record.
-- `newProtocol` (optional): This is the new protocol value in the FWD record. Valid values are [`Udp`, `Tcp`, `Tls`, `Https`]. This parameter is optional and default value `Udp` will be used when updating the `FWD` record.
+- `protocol` (optional): This is the current protocol value in the FWD record. Valid values are [`Udp`, `Tcp`, `Tls`, `Https`, `Quic`]. This parameter is optional and default value `Udp` will be used when updating the `FWD` record.
+- `newProtocol` (optional): This is the new protocol value in the FWD record. Valid values are [`Udp`, `Tcp`, `Tls`, `Https`, `Quic`]. This parameter is optional and default value `Udp` will be used when updating the `FWD` record.
 - `forwarder` (optional): The current forwarder address. This parameter is required when updating the `FWD` record.
 - `newForwarder` (optional): The new forwarder address. This parameter is required when updating the `FWD` record.
 - `dnssecValidation` (optional): Set this boolean value to indicate if DNSSEC validation must be done. This optional parameter is to be used with FWD records. Default value is `false`.
@@ -3155,7 +3159,7 @@ WHERE:
 - `tag` (optional): This is the tag parameter in the CAA record. This parameter is required when deleting the `CAA` record.
 - `value` (optional): This parameter is required when deleting the `CAA` record.
 - `aname` (optional): This parameter is required when deleting the `ANAME` record.
-- `protocol` (optional): This is the protocol parameter in the FWD record. Valid values are [`Udp`, `Tcp`, `Tls`, `Https`]. This parameter is optional and default value `Udp` will be used when deleting the `FWD` record.
+- `protocol` (optional): This is the protocol parameter in the FWD record. Valid values are [`Udp`, `Tcp`, `Tls`, `Https`, `Quic`]. This parameter is optional and default value `Udp` will be used when deleting the `FWD` record.
 - `forwarder` (optional): This parameter is required when deleting the `FWD` record.
 
 RESPONSE:
@@ -3998,7 +4002,7 @@ WHERE:
 - `server`: The name server to query using the DNS client.
 - `domain`: The domain name to query.
 - `type`: The type of the query.
-- `protocol` (optional): The DNS transport protocol to be used to query. Valid values are [`Udp`, `Tcp`, `Tls`, `Https`]. The default value of `Udp` is used when the parameter is missing.
+- `protocol` (optional): The DNS transport protocol to be used to query. Valid values are [`Udp`, `Tcp`, `Tls`, `Https`, `Quic`]. The default value of `Udp` is used when the parameter is missing.
 - `dnssec` (optional): Set to `true` to enable DNSSEC validation.
 - `import` (optional): This parameter when set to `true` indicates that the response of the DNS query should be imported in the an authoritative zone on this DNS server. Default value is `false` when this parameter is missing. If a zone does not exists, a primary zone for the `domain` name is created and the records from the response are set into the zone. Import can be done only for primary and forwarder type of zones. When `type` is set to AXFR, then the import feature will work as if a zone transfer was requested and the complete zone will be updated as per the zone transfer response. Note that any existing record type for the given `type` will be overwritten when syncing the records. It is recommended to use `recursive-resolver` or the actual name server address for the `server` parameter when importing records. You must have Zones Modify permission to create a zone or Zone Modify permission to import records into an existing zone.
 
@@ -4079,29 +4083,12 @@ RESPONSE:
 ```
 {
 	"response": {
-		"version": "10.0",
+		"version": "11.0",
 		"dnsServerDomain": "server1",
 		"dnsServerLocalEndPoints": [
 			"0.0.0.0:53",
 			"[::]:53"
 		],
-		"webServiceLocalAddresses": [
-			"0.0.0.0",
-			"[::]"
-		],
-		"webServiceHttpPort": 5380,
-		"webServiceEnableTls": false,
-		"webServiceHttpToTlsRedirect": false,
-		"webServiceTlsPort": 53443,
-		"webServiceUseSelfSignedTlsCertificate": false,
-		"webServiceTlsCertificatePath": "",
-		"webServiceTlsCertificatePassword": "************",
-		"enableDnsOverHttp": false,
-		"enableDnsOverTls": false,
-		"enableDnsOverHttps": false,
-		"dnsTlsCertificatePath": null,
-		"dnsTlsCertificatePassword": "************",
-		"tsigKeys": [],
 		"defaultRecordTtl": 3600,
 		"dnsAppsEnableAutomaticUpdate": true,
 		"preferIPv6": false,
@@ -4110,32 +4097,49 @@ RESPONSE:
 		"eDnsClientSubnet": false,
 		"eDnsClientSubnetIPv4PrefixLength": 24,
 		"eDnsClientSubnetIPv6PrefixLength": 56,
-		"resolverRetries": 2,
-		"resolverTimeout": 2000,
-		"resolverMaxStackCount": 16,
-		"forwarderRetries": 3,
-		"forwarderTimeout": 2000,
-		"forwarderConcurrency": 2,
+		"qpmLimitRequests": 0,
+		"qpmLimitErrors": 0,
+		"qpmLimitSampleMinutes": 5,
+		"qpmLimitIPv4PrefixLength": 24,
+		"qpmLimitIPv6PrefixLength": 56,
 		"clientTimeout": 4000,
 		"tcpSendTimeout": 10000,
 		"tcpReceiveTimeout": 10000,
-		"enableLogging": true,
-		"logQueries": false,
-		"useLocalTime": false,
-		"logFolder": "logs",
-		"maxLogFileDays": 0,
-		"maxStatFileDays": 0,
+		"quicIdleTimeout": 60000,
+		"quicMaxInboundStreams": 100,
+		"listenBacklog": 100,
+		"webServiceLocalAddresses": [
+			"[::]"
+		],
+		"webServiceHttpPort": 5380,
+		"webServiceEnableTls": false,
+		"webServiceHttpToTlsRedirect": false,
+		"webServiceUseSelfSignedTlsCertificate": false,
+		"webServiceTlsPort": 53443,
+		"webServiceTlsCertificatePath": null,
+		"webServiceTlsCertificatePassword": "************",
+		"enableDnsOverHttp": true,
+		"enableDnsOverTls": true,
+		"enableDnsOverHttps": true,
+		"enableDnsOverHttpPort80": true,
+		"enableDnsOverQuic": false,
+		"dnsOverHttpPort": 8053,
+		"dnsOverTlsPort": 853,
+		"dnsOverHttpsPort": 443,
+		"dnsOverQuicPort": 853,
+		"dnsTlsCertificatePath": "z:\\ns2.technitium.com.pfx",
+		"dnsTlsCertificatePassword": "************",
+		"tsigKeys": [],
 		"recursion": "AllowOnlyForPrivateNetworks",
 		"recursionDeniedNetworks": [],
 		"recursionAllowedNetworks": [],
 		"randomizeName": true,
 		"qnameMinimization": true,
 		"nsRevalidation": true,
-		"qpmLimitRequests": 0,
-		"qpmLimitErrors": 0,
-		"qpmLimitSampleMinutes": 5,
-		"qpmLimitIPv4PrefixLength": 24,
-		"qpmLimitIPv6PrefixLength": 56,
+		"resolverRetries": 2,
+		"resolverTimeout": 2000,
+		"resolverMaxStackCount": 16,
+		"saveCache": false,
 		"serveStale": true,
 		"serveStaleTtl": 259200,
 		"cacheMaximumEntries": 10000,
@@ -4147,15 +4151,24 @@ RESPONSE:
 		"cachePrefetchTrigger": 9,
 		"cachePrefetchSampleIntervalInMinutes": 5,
 		"cachePrefetchSampleEligibilityHitsPerHour": 30,
-		"proxy": null,
-		"forwarders": null,
-		"forwarderProtocol": "Udp",
 		"enableBlocking": true,
 		"allowTxtBlockingReport": true,
 		"blockingType": "AnyAddress",
 		"customBlockingAddresses": [],
 		"blockListUrls": null,
-		"blockListUpdateIntervalHours": 24
+		"blockListUpdateIntervalHours": 24,
+		"proxy": null,
+		"forwarders": null,
+		"forwarderProtocol": "Udp",
+		"forwarderRetries": 3,
+		"forwarderTimeout": 2000,
+		"forwarderConcurrency": 2,
+		"enableLogging": true,
+		"logQueries": false,
+		"useLocalTime": false,
+		"logFolder": "logs",
+		"maxLogFileDays": 0,
+		"maxStatFileDays": 0
 	},
 	"status": "ok"
 }
@@ -4178,6 +4191,25 @@ WHERE:
 - `token`: The session token generated by the `login` or the `createToken` call.
 - `dnsServerDomain` (optional): The primary domain name used by this DNS Server to identify itself.
 - `dnsServerLocalEndPoints` (optional): Local end points are the network interface IP addresses and ports you want the DNS Server to listen for requests. 
+- `defaultRecordTtl` (optional): The default TTL value to use if not specified when adding or updating records in a Zone.
+- `dnsAppsEnableAutomaticUpdate` (optional): Set to `true` to allow DNS server to automatically update the DNS Apps from the DNS App Store. The DNS Server will check for updates every 24 hrs when this option is enabled.
+- `preferIPv6` (optional): DNS Server will use IPv6 for querying whenever possible with this option enabled. Default value is `false`.
+- `udpPayloadSize` (optional): The maximum EDNS UDP payload size that can be used to avoid IP fragmentation. Valid range is 512-4096 bytes. Default value is `1232`.
+- `dnssecValidation` (optional): Set this to `true` to enable DNSSEC validation. DNS Server will validate all responses from name servers or forwarders when this option is enabled.
+- `eDnsClientSubnet` (optional): Set this to `true` to enable EDNS Client Subnet. DNS Server will use the public IP address of the request with a prefix length, or the existing Client Subnet option from the request while resolving requests.
+- `eDnsClientSubnetIPv4PrefixLength` (optional): The EDNS Client Subnet IPv4 prefix length to define the client subnet. Default value is `24`.
+- `eDnsClientSubnetIPv6PrefixLength` (optional): The EDNS Client Subnet IPv6 prefix length to define the client subnet. Default value is `56`.
+- `qpmLimitRequests` (optional): Sets the Queries Per Minute (QPM) limit on total number of requests that is enforces per client subnet. Set value to `0` to disable the feature.
+- `qpmLimitErrors` (optional): Sets the Queries Per Minute (QPM) limit on total number of requests which generates an error response that is enforces per client subnet. Set value to `0` to disable the feature. Response with an RCODE of FormatError, ServerFailure, or Refused is considered as an error response.
+- `qpmLimitSampleMinutes` (optional): Sets the client query stats sample size in minutes for QPM limit feature. Default value is `5`.
+- `qpmLimitIPv4PrefixLength` (optional): Sets the client subnet IPv4 prefix length used to define the subnet. Default value is `24`.
+- `qpmLimitIPv6PrefixLength` (optional): Sets the client subnet IPv6 prefix length used to define the subnet. Default value is `56`.
+- `clientTimeout` (optional): The amount of time the DNS server must wait in milliseconds before responding with a ServerFailure response to a client request when no answer is available. Valid range is `1000`-`10000`. Default value is `4000`.
+- `tcpSendTimeout` (optional): The amount of time in milliseconds a TCP socket must wait for an ACK before closing the connection. This option will apply for DNS requests being received by the DNS Server over TCP, TLS, or HTTPS transports. Valid range is `1000`-`90000`. Default value is `10000`.
+- `tcpReceiveTimeout` (optional): The amount of time in milliseconds a TCP socket must wait for data before closing the connection. This option will apply for DNS requests being received by the DNS Server over TCP, TLS, or HTTPS transports. Valid range is `1000`-`90000`. Default value is `10000`.
+- `quicIdleTimeout` (optional): The time interval in milliseconds after which an idle QUIC connection will be closed. This option applies only to QUIC transport protocol. Valid range is `1000`-`90000`. Default value is `60000`.
+- `quicMaxInboundStreams` (optional): The max number of inbound bidirectional streams that can be accepted per QUIC connection. This option applies only to QUIC transport protocol. Valid range is `1`-`1000`. Default value is `100`.
+- `listenBacklog` (optional): The maximum number of pending connections. This option applies to TCP, TLS, and QUIC transport protocols. Default value is `100`.
 - `webServiceLocalAddresses` (optional): Local addresses are the network interface IP addresses you want the web service to listen for requests. 
 - `webServiceHttpPort` (optional): Specify the TCP port number for the web console and this API web service. Default value is `5380`.
 - `webServiceEnableTls` (optional): Set this to `true` to start the HTTPS service to access web service.
@@ -4188,43 +4220,25 @@ WHERE:
 - `enableDnsOverHttp` (optional): Enable this option to accept DNS-over-HTTP requests. It must be used with a TLS terminating reverse proxy like nginx and will work only on private networks.
 - `enableDnsOverTls` (optional): Enable this option to accept DNS-over-TLS requests.
 - `enableDnsOverHttps` (optional): Enable this option to accept DNS-over-HTTPS requests.
+- `enableDnsOverHttpPort80` (optional): Enable this option to allow automatic TLS certificate renewal with HTTP challenge (webroot) for DNS-over-HTTPS service. This service will not accept DNS-over-HTTP requests from public IP addresses.
+- `enableDnsOverQuic` (optional): Enable this option to accept DNS-over-QUIC requests.
+- `dnsOverHttpPort` (optional): The TCP port number for DNS-over-HTTP protocol. Default value is `8053`.
+- `dnsOverTlsPort` (optional): The TCP port number for DNS-over-TLS protocol. Default value is `853`.
+- `dnsOverHttpsPort` (optional): The TCP port number for DNS-over-HTTPS protocol. Default value is `443`.
+- `dnsOverQuicPort` (optional): The UDP port number for DNS-over-QUIC protocol. Default value is `853`.
 - `dnsTlsCertificatePath` (optional): Specify a PKCS #12 certificate (.pfx) file path on the server. The certificate must contain private key. This certificate is used by the DNS-over-TLS and DNS-over-HTTPS optional protocols.
 - `dnsTlsCertificatePassword` (optional): Enter the certificate (.pfx) password, if any.
 - `tsigKeys` (optional): A pipe `|` separated multi row list of TSIG key name, shared secret, and algorithm. Set this parameter to `false` to remove all existing keys. Supported algorithms are [`hmac-md5.sig-alg.reg.int`, `hmac-sha1`, `hmac-sha256`, `hmac-sha256-128`, `hmac-sha384`, `hmac-sha384-192`, `hmac-sha512`, `hmac-sha512-256`].
-- `defaultRecordTtl` (optional): The default TTL value to use if not specified when adding or updating records in a Zone.
-- `dnsAppsEnableAutomaticUpdate` (optional): Set to `true` to allow DNS server to automatically update the DNS Apps from the DNS App Store. The DNS Server will check for updates every 24 hrs when this option is enabled.
-- `preferIPv6` (optional): DNS Server will use IPv6 for querying whenever possible with this option enabled. Default value is `false`.
-- `udpPayloadSize` (optional): The maximum EDNS UDP payload size that can be used to avoid IP fragmentation. Valid range is 512-4096 bytes. Default value is `1232`.
-- `dnssecValidation` (optional): Set this to `true` to enable DNSSEC validation. DNS Server will validate all responses from name servers or forwarders when this option is enabled.
-- `eDnsClientSubnet` (optional): Set this to `true` to enable EDNS Client Subnet. DNS Server will use the public IP address of the request with a prefix length, or the existing Client Subnet option from the request while resolving requests.
-- `eDnsClientSubnetIPv4PrefixLength` (optional): The EDNS Client Subnet IPv4 prefix length to define the client subnet. Default value is `24`.
-- `eDnsClientSubnetIPv6PrefixLength` (optional): The EDNS Client Subnet IPv6 prefix length to define the client subnet. Default value is `56`.
-- `resolverRetries` (optional): The number of retries that the recursive resolver must do.
-- `resolverTimeout` (optional): The timeout value in milliseconds for the recursive resolver.
-- `resolverMaxStackCount` (optional): The max stack count that the recursive resolver must use.
-- `forwarderRetries` (optional): The number of retries that the forwarder DNS client must do.
-- `forwarderTimeout` (optional): The timeout value in milliseconds for the forwarder DNS client.
-- `forwarderConcurrency` (optional): The number of concurrent requests that the forwarder DNS client should do.
-- `clientTimeout` (optional): The amount of time the DNS server must wait in milliseconds before responding with a ServerFailure response to a client request when no answer is available.
-- `tcpSendTimeout` (optional): The amount of time in milliseconds a TCP socket must wait for an ACK before closing the connection. This option will apply for DNS requests being received by the DNS Server over TCP, TLS, or HTTPS transports.
-- `tcpReceiveTimeout` (optional): The amount of time in milliseconds a TCP socket must wait for data before closing the connection. This option will apply for DNS requests being received by the DNS Server over TCP, TLS, or HTTPS transports.
-- `enableLogging` (optional): Enable this option to log error and audit logs into the log file. Default value is `true`.
-- `logQueries` (optional): Enable this option to log every query received by this DNS Server and the corresponding response answers into the log file.  Default value is `false`.
-- `useLocalTime` (optional): Enable this option to use local time instead of UTC for logging.  Default value is `false`.
-- `logFolder` (optional): The folder path on the server where the log files should be saved. The path can be relative to the DNS server config folder. Default value is `logs`.
-- `maxLogFileDays` (optional): Max number of days to keep the log files. Log files older than the specified number of days will be deleted automatically. Recommended value is `365`. Set `0` to disable auto delete.
-- `maxStatFileDays` (optional): Max number of days to keep the dashboard stats. Stat files older than the specified number of days will be deleted automatically. Recommended value is `365`. Set `0` to disable auto delete.
 - `recursion` (optional): Sets the recursion policy for the DNS server. Valid values are [`Deny`, `Allow`, `AllowOnlyForPrivateNetworks`, `UseSpecifiedNetworks`].
 - `recursionDeniedNetworks` (optional): A comma separated list of network addresses in CIDR format that must be denied recursion. Set this parameter to `false` to remove existing values. These values are only used when `recursion` is set to `UseSpecifiedNetworks`.
 - `recursionAllowedNetworks` (optional): A comma separated list of network addresses in CIDR format that must be allowed recursion. Set this parameter to `false` to remove existing values. These values are only used when `recursion` is set to `UseSpecifiedNetworks`.
 - `randomizeName` (optional): Enables QNAME randomization [draft-vixie-dnsext-dns0x20-00](https://tools.ietf.org/html/draft-vixie-dnsext-dns0x20-00) when using UDP as the transport protocol. Default value is `true`.
 - `qnameMinimization` (optional): Enables QNAME minimization [draft-ietf-dnsop-rfc7816bis-04](https://tools.ietf.org/html/draft-ietf-dnsop-rfc7816bis-04) when doing recursive resolution. Default value is `true`.
 - `nsRevalidation` (optional): Enables [draft-ietf-dnsop-ns-revalidation](https://datatracker.ietf.org/doc/draft-ietf-dnsop-ns-revalidation/) for recursive resolution. Default value is `true`.
-- `qpmLimitRequests` (optional): Sets the Queries Per Minute (QPM) limit on total number of requests that is enforces per client subnet. Set value to `0` to disable the feature.
-- `qpmLimitErrors` (optional): Sets the Queries Per Minute (QPM) limit on total number of requests which generates an error response that is enforces per client subnet. Set value to `0` to disable the feature. Response with an RCODE of FormatError, ServerFailure, or Refused is considered as an error response.
-- `qpmLimitSampleMinutes` (optional): Sets the client query stats sample size in minutes for QPM limit feature. Default value is `5`.
-- `qpmLimitIPv4PrefixLength` (optional): Sets the client subnet IPv4 prefix length used to define the subnet. Default value is `24`.
-- `qpmLimitIPv6PrefixLength` (optional): Sets the client subnet IPv6 prefix length used to define the subnet. Default value is `56`.
+- `resolverRetries` (optional): The number of retries that the recursive resolver must do.
+- `resolverTimeout` (optional): The timeout value in milliseconds for the recursive resolver.
+- `resolverMaxStackCount` (optional): The max stack count that the recursive resolver must use.
+- `saveCache` (optional): Enable this option to save DNS cache on disk when the DNS server stops. The saved cache will be loaded next time the DNS server starts.
 - `serveStale` (optional): Enable the serve stale feature to improve resiliency by using expired or stale records in cache when the DNS server is unable to reach the upstream or authoritative name servers. Default value is `true`.
 - `serveStaleTtl` (optional): The TTL value in seconds which should be used for cached records that are expired. When the serve stale TTL too expires for a stale record, it gets removed from the cache. Recommended value is between 1-3 days and maximum supported value is 7 days. Default value is `259200`.
 - `temporaryDisableBlockingTill` (read only): An ISO 8601 String with the Date and Time when the Temporary Blocking will end. 
@@ -4236,14 +4250,6 @@ WHERE:
 - `cachePrefetchTrigger` (optional): A record with TTL value less than trigger value will initiate prefetch operation immediately for itself. Set `0` to disable prefetching & auto prefetching.
 - `cachePrefetchSampleIntervalInMinutes` (optional): The interval to sample eligible domain names from last hour stats for auto prefetch.
 - `cachePrefetchSampleEligibilityHitsPerHour` (optional): Minimum required hits per hour for a domain name to be eligible for auto prefetch.
-- `proxyType` (optional): The type of proxy protocol to be used. Valid values are [`None`, `Http`, `Socks5`].
-- `proxyAddress` (optional): The proxy server hostname or IP address.
-- `proxyPort` (optional): The proxy server port.
-- `proxyUsername` (optional): The proxy server username.
-- `proxyPassword` (optional): The proxy server password.
-- `proxyBypass` (optional): A comma separated bypass list consisting of IP addresses, network addresses in CIDR format, or host/domain names to never use proxy for.
-- `forwarders` (optional): A comma separated list of forwarders to be used by this DNS server. Set this parameter to `false` string to remove existing forwarders so that the DNS server does recursive resolution by itself.
-- `forwarderProtocol` (optional): The forwarder DNS transport protocol to be used. Valid values are [`Udp`, `Tcp`, `Tls`, `Https`].
 - `enableBlocking` (optional): Sets the DNS server to block domain names using Blocked Zone and Block List Zone.
 - `allowTxtBlockingReport` (optional): Specifies if the DNS Server should respond with TXT records containing a blocked domain report for TXT type requests.
 - `blockingType` (optional): Sets how the DNS server should respond to a blocked domain request. Valid values are [`AnyAddress`, `NxDomain`, `CustomAddress`] where `AnyAddress` is default which response with `0.0.0.0` and `::` IP addresses for blocked domains. Using `NxDomain` will respond with `NX Domain` response. `CustomAddress` will return the specified custom blocking addresses.
@@ -4251,6 +4257,23 @@ WHERE:
 - `customBlockingAddresses` (optional): Set the custom blocking addresses to be used for blocked domain response. These addresses are returned only when `blockingType` is set to `CustomAddress`.
 - `blockListUrls` (optional): A comma separated list of block list URLs that this server must automatically download and use with the block lists zone. DNS Server will use the data returned by the block list URLs to update the block list zone automatically every 24 hours. The expected file format is standard hosts file format or plain text file containing list of domains to block. Set this parameter to `false` to remove existing values.
 - `blockListUpdateIntervalHours` (optional): The interval in hours to automatically download and update the block lists. Default value is `24`.
+- `proxyType` (optional): The type of proxy protocol to be used. Valid values are [`None`, `Http`, `Socks5`].
+- `proxyAddress` (optional): The proxy server hostname or IP address.
+- `proxyPort` (optional): The proxy server port.
+- `proxyUsername` (optional): The proxy server username.
+- `proxyPassword` (optional): The proxy server password.
+- `proxyBypass` (optional): A comma separated bypass list consisting of IP addresses, network addresses in CIDR format, or host/domain names to never use proxy for.
+- `forwarders` (optional): A comma separated list of forwarders to be used by this DNS server. Set this parameter to `false` string to remove existing forwarders so that the DNS server does recursive resolution by itself.
+- `forwarderProtocol` (optional): The forwarder DNS transport protocol to be used. Valid values are [`Udp`, `Tcp`, `Tls`, `Https`, `Quic`].
+- `forwarderRetries` (optional): The number of retries that the forwarder DNS client must do.
+- `forwarderTimeout` (optional): The timeout value in milliseconds for the forwarder DNS client.
+- `forwarderConcurrency` (optional): The number of concurrent requests that the forwarder DNS client should do.
+- `enableLogging` (optional): Enable this option to log error and audit logs into the log file. Default value is `true`.
+- `logQueries` (optional): Enable this option to log every query received by this DNS Server and the corresponding response answers into the log file.  Default value is `false`.
+- `useLocalTime` (optional): Enable this option to use local time instead of UTC for logging.  Default value is `false`.
+- `logFolder` (optional): The folder path on the server where the log files should be saved. The path can be relative to the DNS server config folder. Default value is `logs`.
+- `maxLogFileDays` (optional): Max number of days to keep the log files. Log files older than the specified number of days will be deleted automatically. Recommended value is `365`. Set `0` to disable auto delete.
+- `maxStatFileDays` (optional): Max number of days to keep the dashboard stats. Stat files older than the specified number of days will be deleted automatically. Recommended value is `365`. Set `0` to disable auto delete.
 
 RESPONSE:
 This call returns the newly updated settings in the same format as that of the `getDnsSettings` call.
@@ -4736,7 +4759,7 @@ RESPONSE:
 Adds a reserved lease entry to the specified scope.
 
 URL:\
-`http://localhost:5380/api/dhcp/scopes/addReservedLease?token=x`
+`http://localhost:5380/api/dhcp/scopes/addReservedLease?token=x&name=Default&hardwareAddress=00:00:00:00:00:00`
 
 PERMISSIONS:\
 DhcpServer: Modify
@@ -4762,7 +4785,7 @@ RESPONSE:
 Removed a reserved lease entry from the specified scope.
 
 URL:\
-`http://localhost:5380/api/dhcp/scopes/removeReservedLease?token=x`
+`http://localhost:5380/api/dhcp/scopes/removeReservedLease?token=x&name=Default&hardwareAddress=00:00:00:00:00:00`
 
 PERMISSIONS:\
 DhcpServer: Modify
@@ -5848,7 +5871,7 @@ WHERE:
 - `start` (optional): The start date time in ISO 8601 format to filter the logs.
 - `end` (optional): The end date time in ISO 8601 format to filter the logs.
 - `clientIpAddress` (optional): The client IP address to filter the logs.
-- `protocol` (optional): The DNS transport protocol to filter the logs. Valid values are [`Udp`, `Tcp`, `Tls`, `Https`].
+- `protocol` (optional): The DNS transport protocol to filter the logs. Valid values are [`Udp`, `Tcp`, `Tls`, `Https`, `Quic`].
 - `responseType` (optional): The DNS server response type to filter the logs. Valid values are [`Authoritative`, `Recursive`, `Cached`, `Blocked`].
 - `rcode` (optional): The DNS response code to filter the logs.
 - `qname` (optional): The query name (QNAME) in the request question section to filter the logs.
