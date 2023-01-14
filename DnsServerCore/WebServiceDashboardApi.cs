@@ -73,7 +73,7 @@ namespace DnsServerCore
 
         private async Task<IDictionary<string, string>> ResolvePtrTopClientsAsync(List<KeyValuePair<string, long>> topClients)
         {
-            IDictionary<string, string> dhcpClientIpMap = _dnsWebService._dhcpServer.GetAddressHostNameMap();
+            IDictionary<string, string> dhcpClientIpMap = _dnsWebService.DhcpServer.GetAddressHostNameMap();
 
             async Task<KeyValuePair<string, string>> ResolvePtrAsync(string ip)
             {
@@ -85,7 +85,7 @@ namespace DnsServerCore
                 if (IPAddress.IsLoopback(address))
                     return new KeyValuePair<string, string>(ip, "localhost");
 
-                DnsDatagram ptrResponse = await _dnsWebService._dnsServer.DirectQueryAsync(new DnsQuestionRecord(address, DnsClass.IN), 500);
+                DnsDatagram ptrResponse = await _dnsWebService.DnsServer.DirectQueryAsync(new DnsQuestionRecord(address, DnsClass.IN), 500);
                 if (ptrResponse.Answer.Count > 0)
                 {
                     IReadOnlyList<string> ptrDomains = DnsClient.ParseResponsePTR(ptrResponse);
@@ -130,8 +130,8 @@ namespace DnsServerCore
 
             HttpRequest request = context.Request;
 
-            string strType = request.GetQuery("type", "lastHour");
-            bool utcFormat = request.GetQuery("utc", bool.Parse, false);
+            string strType = request.GetQueryOrForm("type", "lastHour");
+            bool utcFormat = request.GetQueryOrForm("utc", bool.Parse, false);
 
             bool isLanguageEnUs = true;
             string acceptLanguage = request.Headers["Accept-Language"];
@@ -144,12 +144,12 @@ namespace DnsServerCore
             switch (strType.ToLower())
             {
                 case "lasthour":
-                    data = _dnsWebService._dnsServer.StatsManager.GetLastHourMinuteWiseStats(utcFormat);
+                    data = _dnsWebService.DnsServer.StatsManager.GetLastHourMinuteWiseStats(utcFormat);
                     labelFormat = "HH:mm";
                     break;
 
                 case "lastday":
-                    data = _dnsWebService._dnsServer.StatsManager.GetLastDayHourWiseStats(utcFormat);
+                    data = _dnsWebService.DnsServer.StatsManager.GetLastDayHourWiseStats(utcFormat);
 
                     if (isLanguageEnUs)
                         labelFormat = "MM/DD HH:00";
@@ -159,7 +159,7 @@ namespace DnsServerCore
                     break;
 
                 case "lastweek":
-                    data = _dnsWebService._dnsServer.StatsManager.GetLastWeekDayWiseStats(utcFormat);
+                    data = _dnsWebService.DnsServer.StatsManager.GetLastWeekDayWiseStats(utcFormat);
 
                     if (isLanguageEnUs)
                         labelFormat = "MM/DD";
@@ -169,7 +169,7 @@ namespace DnsServerCore
                     break;
 
                 case "lastmonth":
-                    data = _dnsWebService._dnsServer.StatsManager.GetLastMonthDayWiseStats(utcFormat);
+                    data = _dnsWebService.DnsServer.StatsManager.GetLastMonthDayWiseStats(utcFormat);
 
                     if (isLanguageEnUs)
                         labelFormat = "MM/DD";
@@ -180,12 +180,12 @@ namespace DnsServerCore
 
                 case "lastyear":
                     labelFormat = "MM/YYYY";
-                    data = _dnsWebService._dnsServer.StatsManager.GetLastYearMonthWiseStats(utcFormat);
+                    data = _dnsWebService.DnsServer.StatsManager.GetLastYearMonthWiseStats(utcFormat);
                     break;
 
                 case "custom":
-                    string strStartDate = request.GetQuery("start");
-                    string strEndDate = request.GetQuery("end");
+                    string strStartDate = request.GetQueryOrForm("start");
+                    string strEndDate = request.GetQueryOrForm("end");
 
                     if (!DateTime.TryParse(strStartDate, CultureInfo.InvariantCulture, DateTimeStyles.AssumeUniversal | DateTimeStyles.AdjustToUniversal, out DateTime startDate))
                         throw new DnsWebServiceException("Invalid start date format.");
@@ -198,7 +198,7 @@ namespace DnsServerCore
 
                     if ((Convert.ToInt32((endDate - startDate).TotalDays) + 1) > 7)
                     {
-                        data = _dnsWebService._dnsServer.StatsManager.GetDayWiseStats(startDate, endDate, utcFormat);
+                        data = _dnsWebService.DnsServer.StatsManager.GetDayWiseStats(startDate, endDate, utcFormat);
 
                         if (isLanguageEnUs)
                             labelFormat = "MM/DD";
@@ -207,7 +207,7 @@ namespace DnsServerCore
                     }
                     else
                     {
-                        data = _dnsWebService._dnsServer.StatsManager.GetHourWiseStats(startDate, endDate, utcFormat);
+                        data = _dnsWebService.DnsServer.StatsManager.GetHourWiseStats(startDate, endDate, utcFormat);
 
                         if (isLanguageEnUs)
                             labelFormat = "MM/DD HH:00";
@@ -233,11 +233,11 @@ namespace DnsServerCore
                 foreach (KeyValuePair<string, long> item in stats)
                     jsonWriter.WriteNumber(item.Key, item.Value);
 
-                jsonWriter.WriteNumber("zones", _dnsWebService._dnsServer.AuthZoneManager.TotalZones);
-                jsonWriter.WriteNumber("cachedEntries", _dnsWebService._dnsServer.CacheZoneManager.TotalEntries);
-                jsonWriter.WriteNumber("allowedZones", _dnsWebService._dnsServer.AllowedZoneManager.TotalZonesAllowed);
-                jsonWriter.WriteNumber("blockedZones", _dnsWebService._dnsServer.BlockedZoneManager.TotalZonesBlocked);
-                jsonWriter.WriteNumber("blockListZones", _dnsWebService._dnsServer.BlockListZoneManager.TotalZonesBlocked);
+                jsonWriter.WriteNumber("zones", _dnsWebService.DnsServer.AuthZoneManager.TotalZones);
+                jsonWriter.WriteNumber("cachedEntries", _dnsWebService.DnsServer.CacheZoneManager.TotalEntries);
+                jsonWriter.WriteNumber("allowedZones", _dnsWebService.DnsServer.AllowedZoneManager.TotalZonesAllowed);
+                jsonWriter.WriteNumber("blockedZones", _dnsWebService.DnsServer.BlockedZoneManager.TotalZonesBlocked);
+                jsonWriter.WriteNumber("blockListZones", _dnsWebService.DnsServer.BlockListZoneManager.TotalZonesBlocked);
 
                 jsonWriter.WriteEndObject();
             }
@@ -496,37 +496,37 @@ namespace DnsServerCore
 
             HttpRequest request = context.Request;
 
-            string strType = request.GetQuery("type", "lastHour");
-            TopStatsType statsType = request.GetQuery<TopStatsType>("statsType");
-            int limit = request.GetQuery("limit", int.Parse, 1000);
+            string strType = request.GetQueryOrForm("type", "lastHour");
+            TopStatsType statsType = request.GetQueryOrForm<TopStatsType>("statsType");
+            int limit = request.GetQueryOrForm("limit", int.Parse, 1000);
 
             List<KeyValuePair<string, long>> topStatsData;
 
             switch (strType.ToLower())
             {
                 case "lasthour":
-                    topStatsData = _dnsWebService._dnsServer.StatsManager.GetLastHourTopStats(statsType, limit);
+                    topStatsData = _dnsWebService.DnsServer.StatsManager.GetLastHourTopStats(statsType, limit);
                     break;
 
                 case "lastday":
-                    topStatsData = _dnsWebService._dnsServer.StatsManager.GetLastDayTopStats(statsType, limit);
+                    topStatsData = _dnsWebService.DnsServer.StatsManager.GetLastDayTopStats(statsType, limit);
                     break;
 
                 case "lastweek":
-                    topStatsData = _dnsWebService._dnsServer.StatsManager.GetLastWeekTopStats(statsType, limit);
+                    topStatsData = _dnsWebService.DnsServer.StatsManager.GetLastWeekTopStats(statsType, limit);
                     break;
 
                 case "lastmonth":
-                    topStatsData = _dnsWebService._dnsServer.StatsManager.GetLastMonthTopStats(statsType, limit);
+                    topStatsData = _dnsWebService.DnsServer.StatsManager.GetLastMonthTopStats(statsType, limit);
                     break;
 
                 case "lastyear":
-                    topStatsData = _dnsWebService._dnsServer.StatsManager.GetLastYearTopStats(statsType, limit);
+                    topStatsData = _dnsWebService.DnsServer.StatsManager.GetLastYearTopStats(statsType, limit);
                     break;
 
                 case "custom":
-                    string strStartDate = request.GetQuery("start");
-                    string strEndDate = request.GetQuery("end");
+                    string strStartDate = request.GetQueryOrForm("start");
+                    string strEndDate = request.GetQueryOrForm("end");
 
                     if (!DateTime.TryParseExact(strStartDate, "yyyy-M-d", CultureInfo.InvariantCulture, DateTimeStyles.AssumeUniversal | DateTimeStyles.AdjustToUniversal, out DateTime startDate))
                         throw new DnsWebServiceException("Invalid start date format.");
@@ -538,9 +538,9 @@ namespace DnsServerCore
                         throw new DnsWebServiceException("Start date must be less than or equal to end date.");
 
                     if ((Convert.ToInt32((endDate - startDate).TotalDays) + 1) > 7)
-                        topStatsData = _dnsWebService._dnsServer.StatsManager.GetDayWiseTopStats(startDate, endDate, statsType, limit);
+                        topStatsData = _dnsWebService.DnsServer.StatsManager.GetDayWiseTopStats(startDate, endDate, statsType, limit);
                     else
-                        topStatsData = _dnsWebService._dnsServer.StatsManager.GetHourWiseTopStats(startDate, endDate, statsType, limit);
+                        topStatsData = _dnsWebService.DnsServer.StatsManager.GetHourWiseTopStats(startDate, endDate, statsType, limit);
 
                     break;
 
