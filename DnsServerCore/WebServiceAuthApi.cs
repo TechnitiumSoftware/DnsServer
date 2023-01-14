@@ -67,7 +67,7 @@ namespace DnsServerCore
                 jsonWriter.WriteStartObject();
 
                 jsonWriter.WriteString("version", _dnsWebService.GetServerVersion());
-                jsonWriter.WriteString("dnsServerDomain", _dnsWebService._dnsServer.ServerDomain);
+                jsonWriter.WriteString("dnsServerDomain", _dnsWebService.DnsServer.ServerDomain);
                 jsonWriter.WriteNumber("defaultRecordTtl", _dnsWebService._zonesApi.DefaultRecordTtl);
 
                 jsonWriter.WritePropertyName("permissions");
@@ -294,10 +294,10 @@ namespace DnsServerCore
         {
             HttpRequest request = context.Request;
 
-            string username = request.GetQuery("user");
-            string password = request.GetQuery("pass");
-            string tokenName = (sessionType == UserSessionType.ApiToken) ? request.GetQuery("tokenName") : null;
-            bool includeInfo = request.GetQuery("includeInfo", bool.Parse, false);
+            string username = request.GetQueryOrForm("user");
+            string password = request.GetQueryOrForm("pass");
+            string tokenName = (sessionType == UserSessionType.ApiToken) ? request.GetQueryOrForm("tokenName") : null;
+            bool includeInfo = request.GetQueryOrForm("includeInfo", bool.Parse, false);
             IPEndPoint remoteEP = context.GetRemoteEndPoint();
 
             UserSession session = await _dnsWebService._authManager.CreateSessionAsync(sessionType, tokenName, username, password, remoteEP.Address, request.Headers.UserAgent);
@@ -312,7 +312,7 @@ namespace DnsServerCore
 
         public void Logout(HttpContext context)
         {
-            string token = context.Request.GetQuery("token");
+            string token = context.Request.GetQueryOrForm("token");
 
             UserSession session = _dnsWebService._authManager.DeleteSession(token);
             if (session is not null)
@@ -337,7 +337,7 @@ namespace DnsServerCore
             if (session.Type != UserSessionType.Standard)
                 throw new DnsWebServiceException("Access was denied.");
 
-            string password = context.Request.GetQuery("pass");
+            string password = context.Request.GetQueryOrForm("pass");
 
             session.User.ChangePassword(password);
 
@@ -362,10 +362,10 @@ namespace DnsServerCore
 
             HttpRequest request = context.Request;
 
-            if (request.TryGetQuery("displayName", out string displayName))
+            if (request.TryGetQueryOrForm("displayName", out string displayName))
                 session.User.DisplayName = displayName;
 
-            if (request.TryGetQuery("sessionTimeoutSeconds", int.Parse, out int sessionTimeoutSeconds))
+            if (request.TryGetQueryOrForm("sessionTimeoutSeconds", int.Parse, out int sessionTimeoutSeconds))
                 session.User.SessionTimeoutSeconds = sessionTimeoutSeconds;
 
             _dnsWebService._log.Write(context.GetRemoteEndPoint(), "[" + session.User.Username + "] User profile was updated successfully.");
@@ -409,8 +409,8 @@ namespace DnsServerCore
 
             HttpRequest request = context.Request;
 
-            string username = request.GetQuery("user");
-            string tokenName = request.GetQuery("tokenName");
+            string username = request.GetQueryOrForm("user");
+            string tokenName = request.GetQueryOrForm("tokenName");
 
             IPEndPoint remoteEP = context.GetRemoteEndPoint();
 
@@ -437,7 +437,7 @@ namespace DnsServerCore
                     throw new DnsWebServiceException("Access was denied.");
             }
 
-            string strPartialToken = context.Request.GetQuery("partialToken");
+            string strPartialToken = context.Request.GetQueryOrForm("partialToken");
             if (session.Token.StartsWith(strPartialToken))
                 throw new InvalidOperationException("Invalid operation: cannot delete current session.");
 
@@ -505,9 +505,9 @@ namespace DnsServerCore
 
             HttpRequest request = context.Request;
 
-            string displayName = request.Query["displayName"];
-            string username = request.GetQuery("user");
-            string password = request.GetQuery("pass");
+            string displayName = request.QueryOrForm("displayName");
+            string username = request.GetQueryOrForm("user");
+            string password = request.GetQueryOrForm("pass");
 
             User user = _dnsWebService._authManager.CreateUser(displayName, username, password);
 
@@ -528,8 +528,8 @@ namespace DnsServerCore
 
             HttpRequest request = context.Request;
 
-            string username = request.GetQuery("user");
-            bool includeGroups = request.GetQuery("includeGroups", bool.Parse, false);
+            string username = request.GetQueryOrForm("user");
+            bool includeGroups = request.GetQueryOrForm("includeGroups", bool.Parse, false);
 
             User user = _dnsWebService._authManager.GetUser(username);
             if (user is null)
@@ -548,19 +548,19 @@ namespace DnsServerCore
 
             HttpRequest request = context.Request;
 
-            string username = request.GetQuery("user");
+            string username = request.GetQueryOrForm("user");
 
             User user = _dnsWebService._authManager.GetUser(username);
             if (user is null)
                 throw new DnsWebServiceException("No such user exists: " + username);
 
-            if (request.TryGetQuery("displayName", out string displayName))
+            if (request.TryGetQueryOrForm("displayName", out string displayName))
                 user.DisplayName = displayName;
 
-            if (request.TryGetQuery("newUser", out string newUsername))
+            if (request.TryGetQueryOrForm("newUser", out string newUsername))
                 _dnsWebService._authManager.ChangeUsername(user, newUsername);
 
-            if (request.TryGetQuery("disabled", bool.Parse, out bool disabled) && (session.User != user)) //to avoid self lockout
+            if (request.TryGetQueryOrForm("disabled", bool.Parse, out bool disabled) && (session.User != user)) //to avoid self lockout
             {
                 user.Disabled = disabled;
 
@@ -577,18 +577,18 @@ namespace DnsServerCore
                 }
             }
 
-            if (request.TryGetQuery("sessionTimeoutSeconds", int.Parse, out int sessionTimeoutSeconds))
+            if (request.TryGetQueryOrForm("sessionTimeoutSeconds", int.Parse, out int sessionTimeoutSeconds))
                 user.SessionTimeoutSeconds = sessionTimeoutSeconds;
 
-            string newPassword = request.Query["newPass"];
+            string newPassword = request.QueryOrForm("newPass");
             if (!string.IsNullOrWhiteSpace(newPassword))
             {
-                int iterations = request.GetQuery("iterations", int.Parse, User.DEFAULT_ITERATIONS);
+                int iterations = request.GetQueryOrForm("iterations", int.Parse, User.DEFAULT_ITERATIONS);
 
                 user.ChangePassword(newPassword, iterations);
             }
 
-            string memberOfGroups = request.Query["memberOfGroups"];
+            string memberOfGroups = request.QueryOrForm("memberOfGroups");
             if (memberOfGroups is not null)
             {
                 string[] parts = memberOfGroups.Split(',');
@@ -635,7 +635,7 @@ namespace DnsServerCore
             if (!_dnsWebService._authManager.IsPermitted(PermissionSection.Administration, session.User, PermissionFlag.Delete))
                 throw new DnsWebServiceException("Access was denied.");
 
-            string username = context.Request.GetQuery("user");
+            string username = context.Request.GetQueryOrForm("user");
 
             if (session.User.Username.Equals(username, StringComparison.OrdinalIgnoreCase))
                 throw new InvalidOperationException("Invalid operation: cannot delete current user.");
@@ -687,8 +687,8 @@ namespace DnsServerCore
 
             HttpRequest request = context.Request;
 
-            string groupName = request.GetQuery("group");
-            string description = request.GetQuery("description", "");
+            string groupName = request.GetQueryOrForm("group");
+            string description = request.GetQueryOrForm("description", "");
 
             Group group = _dnsWebService._authManager.CreateGroup(groupName, description);
 
@@ -709,8 +709,8 @@ namespace DnsServerCore
 
             HttpRequest request = context.Request;
 
-            string groupName = request.GetQuery("group");
-            bool includeUsers = request.GetQuery("includeUsers", bool.Parse, false);
+            string groupName = request.GetQueryOrForm("group");
+            bool includeUsers = request.GetQueryOrForm("includeUsers", bool.Parse, false);
 
             Group group = _dnsWebService._authManager.GetGroup(groupName);
             if (group is null)
@@ -729,19 +729,19 @@ namespace DnsServerCore
 
             HttpRequest request = context.Request;
 
-            string groupName = request.GetQuery("group");
+            string groupName = request.GetQueryOrForm("group");
 
             Group group = _dnsWebService._authManager.GetGroup(groupName);
             if (group is null)
                 throw new DnsWebServiceException("No such group exists: " + groupName);
 
-            if (request.TryGetQuery("newGroup", out string newGroup))
+            if (request.TryGetQueryOrForm("newGroup", out string newGroup))
                 _dnsWebService._authManager.RenameGroup(group, newGroup);
 
-            if (request.TryGetQuery("description", out string description))
+            if (request.TryGetQueryOrForm("description", out string description))
                 group.Description = description;
 
-            string members = request.Query["members"];
+            string members = request.QueryOrForm("members");
             if (members is not null)
             {
                 string[] parts = members.Split(',');
@@ -780,7 +780,7 @@ namespace DnsServerCore
             if (!_dnsWebService._authManager.IsPermitted(PermissionSection.Administration, session.User, PermissionFlag.Delete))
                 throw new DnsWebServiceException("Access was denied.");
 
-            string groupName = context.Request.GetQuery("group");
+            string groupName = context.Request.GetQueryOrForm("group");
 
             if (!_dnsWebService._authManager.DeleteGroup(groupName))
                 throw new DnsWebServiceException("Failed to delete group: " + groupName);
@@ -829,21 +829,21 @@ namespace DnsServerCore
                     if (!_dnsWebService._authManager.IsPermitted(PermissionSection.Administration, session.User, PermissionFlag.View))
                         throw new DnsWebServiceException("Access was denied.");
 
-                    section = request.GetQuery<PermissionSection>("section");
+                    section = request.GetQueryOrForm<PermissionSection>("section");
                     break;
 
                 case PermissionSection.Zones:
                     if (!_dnsWebService._authManager.IsPermitted(PermissionSection.Zones, session.User, PermissionFlag.Modify))
                         throw new DnsWebServiceException("Access was denied.");
 
-                    strSubItem = request.GetQuery("zone").TrimEnd('.');
+                    strSubItem = request.GetQueryOrForm("zone").TrimEnd('.');
                     break;
 
                 default:
                     throw new InvalidOperationException();
             }
 
-            bool includeUsersAndGroups = request.GetQuery("includeUsersAndGroups", bool.Parse, false);
+            bool includeUsersAndGroups = request.GetQueryOrForm("includeUsersAndGroups", bool.Parse, false);
 
             if (strSubItem is not null)
             {
@@ -877,14 +877,14 @@ namespace DnsServerCore
                     if (!_dnsWebService._authManager.IsPermitted(PermissionSection.Administration, session.User, PermissionFlag.Delete))
                         throw new DnsWebServiceException("Access was denied.");
 
-                    section = request.GetQuery<PermissionSection>("section");
+                    section = request.GetQueryOrForm<PermissionSection>("section");
                     break;
 
                 case PermissionSection.Zones:
                     if (!_dnsWebService._authManager.IsPermitted(PermissionSection.Zones, session.User, PermissionFlag.Modify))
                         throw new DnsWebServiceException("Access was denied.");
 
-                    strSubItem = request.GetQuery("zone").TrimEnd('.');
+                    strSubItem = request.GetQueryOrForm("zone").TrimEnd('.');
                     break;
 
                 default:
@@ -907,7 +907,7 @@ namespace DnsServerCore
             if (permission is null)
                 throw new DnsWebServiceException("No permissions exists for section: " + section.ToString() + (strSubItem is null ? "" : "/" + strSubItem));
 
-            string strUserPermissions = request.Query["userPermissions"];
+            string strUserPermissions = request.QueryOrForm("userPermissions");
             if (strUserPermissions is not null)
             {
                 string[] parts = strUserPermissions.Split('|');
@@ -943,7 +943,7 @@ namespace DnsServerCore
                 permission.SyncPermissions(userPermissions);
             }
 
-            string strGroupPermissions = request.Query["groupPermissions"];
+            string strGroupPermissions = request.QueryOrForm("groupPermissions");
             if (strGroupPermissions is not null)
             {
                 string[] parts = strGroupPermissions.Split('|');
