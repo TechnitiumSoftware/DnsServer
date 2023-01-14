@@ -1,6 +1,6 @@
 ﻿/*
 Technitium DNS Server
-Copyright (C) 2022  Shreyas Zare (shreyas@technitium.com)
+Copyright (C) 2023  Shreyas Zare (shreyas@technitium.com)
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -329,8 +329,8 @@ namespace DnsServerCore.Dns.ZoneManagers
                 switch (refRecord.Type)
                 {
                     case DnsResourceRecordType.NS:
-                        IReadOnlyList<DnsResourceRecord> glueRecords = refRecord.GetGlueRecords();
-                        if (glueRecords.Count > 0)
+                        IReadOnlyList<DnsResourceRecord> glueRecords = refRecord.GetAuthRecordInfo().GlueRecords;
+                        if (glueRecords is not null)
                         {
                             additionalRecords.AddRange(glueRecords);
                         }
@@ -383,7 +383,7 @@ namespace DnsServerCore.Dns.ZoneManagers
                 DateTime utcNow = DateTime.UtcNow;
 
                 foreach (DnsResourceRecord record in authority)
-                    record.GetRecordInfo().LastUsedOn = utcNow;
+                    record.GetAuthRecordInfo().LastUsedOn = utcNow;
             }
             else
             {
@@ -1027,7 +1027,8 @@ namespace DnsServerCore.Dns.ZoneManagers
 
             foreach (DnsResourceRecord record in records)
             {
-                if (record.IsDisabled())
+                AuthRecordInfo authRecordInfo = record.GetAuthRecordInfo();
+                if (authRecordInfo.Disabled)
                     continue;
 
                 switch (record.Type)
@@ -1038,9 +1039,12 @@ namespace DnsServerCore.Dns.ZoneManagers
                     case DnsResourceRecordType.NS:
                         xfrRecords.Add(record);
 
-                        foreach (DnsResourceRecord glueRecord in record.GetGlueRecords())
-                            xfrRecords.Add(glueRecord);
-
+                        IReadOnlyList<DnsResourceRecord> glueRecords = authRecordInfo.GlueRecords;
+                        if (glueRecords is not null)
+                        {
+                            foreach (DnsResourceRecord glueRecord in glueRecords)
+                                xfrRecords.Add(glueRecord);
+                        }
                         break;
 
                     default:
@@ -2078,7 +2082,7 @@ namespace DnsServerCore.Dns.ZoneManagers
                             for (int i = 0; i < records.Length; i++)
                             {
                                 records[i] = new DnsResourceRecord(s);
-                                records[i].Tag = new DnsResourceRecordInfo(bR, records[i].Type == DnsResourceRecordType.SOA);
+                                records[i].Tag = new AuthRecordInfo(bR, records[i].Type == DnsResourceRecordType.SOA);
 
                                 if (records[i].Type == DnsResourceRecordType.SOA)
                                     soaRecord = records[i];
@@ -2136,7 +2140,7 @@ namespace DnsServerCore.Dns.ZoneManagers
                             for (int i = 0; i < records.Length; i++)
                             {
                                 records[i] = new DnsResourceRecord(s);
-                                records[i].Tag = new DnsResourceRecordInfo(bR, records[i].Type == DnsResourceRecordType.SOA);
+                                records[i].Tag = new AuthRecordInfo(bR, records[i].Type == DnsResourceRecordType.SOA);
                             }
 
                             try
@@ -2205,8 +2209,8 @@ namespace DnsServerCore.Dns.ZoneManagers
             {
                 record.WriteTo(s);
 
-                if (record.Tag is not DnsResourceRecordInfo rrInfo)
-                    rrInfo = new DnsResourceRecordInfo(); //default info
+                if (record.Tag is not AuthRecordInfo rrInfo)
+                    rrInfo = AuthRecordInfo.Default; //default info
 
                 rrInfo.WriteTo(bW);
             }
