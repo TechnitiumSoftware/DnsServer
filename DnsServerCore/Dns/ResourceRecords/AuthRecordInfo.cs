@@ -1,6 +1,6 @@
 ﻿/*
 Technitium DNS Server
-Copyright (C) 2022  Shreyas Zare (shreyas@technitium.com)
+Copyright (C) 2023  Shreyas Zare (shreyas@technitium.com)
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -22,15 +22,16 @@ using System.Collections.Generic;
 using System.IO;
 using System.Net;
 using TechnitiumLibrary.IO;
-using TechnitiumLibrary.Net;
 using TechnitiumLibrary.Net.Dns;
 using TechnitiumLibrary.Net.Dns.ResourceRecords;
 
 namespace DnsServerCore.Dns.ResourceRecords
 {
-    class DnsResourceRecordInfo
+    class AuthRecordInfo
     {
         #region variables
+
+        public static readonly AuthRecordInfo Default = new AuthRecordInfo();
 
         bool _disabled;
         IReadOnlyList<DnsResourceRecord> _glueRecords;
@@ -40,19 +41,16 @@ namespace DnsServerCore.Dns.ResourceRecords
         DnsTransportProtocol _zoneTransferProtocol;
         string _tsigKeyName = string.Empty;
 
-        IReadOnlyList<DnsResourceRecord> _rrsigRecords; //not serialized
-        IReadOnlyList<DnsResourceRecord> _nsecRecords; //not serialized
-        NetworkAddress _eDnsClientSubnet; //not serialized
         DateTime _lastUsedOn; //not serialized
 
         #endregion
 
         #region constructor
 
-        public DnsResourceRecordInfo()
+        public AuthRecordInfo()
         { }
 
-        public DnsResourceRecordInfo(BinaryReader bR, bool isSoa)
+        public AuthRecordInfo(BinaryReader bR, bool isSoa)
         {
             byte version = bR.ReadByte();
             switch (version)
@@ -155,7 +153,7 @@ namespace DnsServerCore.Dns.ResourceRecords
                     break;
 
                 default:
-                    throw new InvalidDataException("DnsResourceRecordInfo format version not supported.");
+                    throw new InvalidDataException("AuthRecordInfo format version not supported.");
             }
         }
 
@@ -217,7 +215,13 @@ namespace DnsServerCore.Dns.ResourceRecords
         public IReadOnlyList<DnsResourceRecord> GlueRecords
         {
             get { return _glueRecords; }
-            set { _glueRecords = value; }
+            set
+            {
+                if ((value is null) || (value.Count == 0))
+                    _glueRecords = null;
+                else
+                    _glueRecords = value;
+            }
         }
 
         public string Comments
@@ -241,7 +245,13 @@ namespace DnsServerCore.Dns.ResourceRecords
         public IReadOnlyList<NameServerAddress> PrimaryNameServers
         {
             get { return _primaryNameServers; }
-            set { _primaryNameServers = value; }
+            set
+            {
+                if ((value is null) || (value.Count == 0))
+                    _primaryNameServers = null;
+                else
+                    _primaryNameServers = value;
+            }
         }
 
         public DnsTransportProtocol ZoneTransferProtocol
@@ -253,6 +263,7 @@ namespace DnsServerCore.Dns.ResourceRecords
                 {
                     case DnsTransportProtocol.Tcp:
                     case DnsTransportProtocol.Tls:
+                    case DnsTransportProtocol.Quic:
                         _zoneTransferProtocol = value;
                         break;
 
@@ -272,24 +283,6 @@ namespace DnsServerCore.Dns.ResourceRecords
                 else
                     _tsigKeyName = value;
             }
-        }
-
-        public IReadOnlyList<DnsResourceRecord> RRSIGRecords
-        {
-            get { return _rrsigRecords; }
-            set { _rrsigRecords = value; }
-        }
-
-        public IReadOnlyList<DnsResourceRecord> NSECRecords
-        {
-            get { return _nsecRecords; }
-            set { _nsecRecords = value; }
-        }
-
-        public NetworkAddress EDnsClientSubnet
-        {
-            get { return _eDnsClientSubnet; }
-            set { _eDnsClientSubnet = value; }
         }
 
         public DateTime LastUsedOn
