@@ -18,7 +18,9 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
 using DnsServerCore.Auth;
+using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Routing;
 using System;
 using System.Net;
 using System.Text.Json;
@@ -28,14 +30,17 @@ namespace DnsServerCore
 {
     static class Extensions
     {
+        readonly static string[] HTTP_METHODS = new string[] { "GET", "POST" };
+
         public static IPEndPoint GetRemoteEndPoint(this HttpContext context)
         {
             try
             {
-                if (context.Connection.RemoteIpAddress is null)
+                IPAddress remoteIP = context.Connection.RemoteIpAddress;
+                if (remoteIP is null)
                     return new IPEndPoint(IPAddress.Any, 0);
 
-                if (NetUtilities.IsPrivateIP(context.Connection.RemoteIpAddress))
+                if (NetUtilities.IsPrivateIP(remoteIP))
                 {
                     string xRealIp = context.Request.Headers["X-Real-IP"];
                     if (IPAddress.TryParse(xRealIp, out IPAddress address))
@@ -45,7 +50,7 @@ namespace DnsServerCore
                     }
                 }
 
-                return new IPEndPoint(context.Connection.RemoteIpAddress, context.Connection.RemotePort);
+                return new IPEndPoint(remoteIP, context.Connection.RemotePort);
             }
             catch
             {
@@ -69,72 +74,91 @@ namespace DnsServerCore
             throw new InvalidOperationException();
         }
 
-        public static string GetQuery(this HttpRequest request, string parameter)
+        public static IEndpointConventionBuilder MapGetAndPost(this IEndpointRouteBuilder endpoints, string pattern, RequestDelegate requestDelegate)
+        {
+            return endpoints.MapMethods(pattern, HTTP_METHODS, requestDelegate);
+        }
+        
+        public static IEndpointConventionBuilder MapGetAndPost(this IEndpointRouteBuilder endpoints, string pattern, Delegate handler)
+        {
+            return endpoints.MapMethods(pattern, HTTP_METHODS, handler);
+        }
+
+        public static string QueryOrForm(this HttpRequest request, string parameter)
         {
             string value = request.Query[parameter];
+            if ((value is null) && request.HasFormContentType)
+                value = request.Form[parameter];
+
+            return value;
+        }
+
+        public static string GetQueryOrForm(this HttpRequest request, string parameter)
+        {
+            string value = request.QueryOrForm(parameter);
             if (string.IsNullOrEmpty(value))
                 throw new DnsWebServiceException("Parameter '" + parameter + "' missing.");
 
             return value;
         }
 
-        public static string GetQuery(this HttpRequest request, string parameter, string defaultValue)
+        public static string GetQueryOrForm(this HttpRequest request, string parameter, string defaultValue)
         {
-            string value = request.Query[parameter];
+            string value = request.QueryOrForm(parameter);
             if (string.IsNullOrEmpty(value))
                 return defaultValue;
 
             return value;
         }
 
-        public static T GetQuery<T>(this HttpRequest request, string parameter, Func<string, T> parse)
+        public static T GetQueryOrForm<T>(this HttpRequest request, string parameter, Func<string, T> parse)
         {
-            string value = request.Query[parameter];
+            string value = request.QueryOrForm(parameter);
             if (string.IsNullOrEmpty(value))
                 throw new DnsWebServiceException("Parameter '" + parameter + "' missing.");
 
             return parse(value);
         }
 
-        public static T GetQuery<T>(this HttpRequest request, string parameter) where T : struct
+        public static T GetQueryOrForm<T>(this HttpRequest request, string parameter) where T : struct
         {
-            string value = request.Query[parameter];
+            string value = request.QueryOrForm(parameter);
             if (string.IsNullOrEmpty(value))
                 throw new DnsWebServiceException("Parameter '" + parameter + "' missing.");
 
             return Enum.Parse<T>(value, true);
         }
 
-        public static T GetQuery<T>(this HttpRequest request, string parameter, Func<string, T> parse, T defaultValue)
+        public static T GetQueryOrForm<T>(this HttpRequest request, string parameter, Func<string, T> parse, T defaultValue)
         {
-            string value = request.Query[parameter];
+            string value = request.QueryOrForm(parameter);
             if (string.IsNullOrEmpty(value))
                 return defaultValue;
 
             return parse(value);
         }
 
-        public static T GetQuery<T>(this HttpRequest request, string parameter, T defaultValue) where T : struct
+        public static T GetQueryOrForm<T>(this HttpRequest request, string parameter, T defaultValue) where T : struct
         {
-            string value = request.Query[parameter];
+            string value = request.QueryOrForm(parameter);
             if (string.IsNullOrEmpty(value))
                 return defaultValue;
 
             return Enum.Parse<T>(value, true);
         }
 
-        public static bool TryGetQuery(this HttpRequest request, string parameter, out string value)
+        public static bool TryGetQueryOrForm(this HttpRequest request, string parameter, out string value)
         {
-            value = request.Query[parameter];
+            value = request.QueryOrForm(parameter);
             if (string.IsNullOrEmpty(value))
                 return false;
 
             return true;
         }
 
-        public static bool TryGetQuery<T>(this HttpRequest request, string parameter, Func<string, T> parse, out T value)
+        public static bool TryGetQueryOrForm<T>(this HttpRequest request, string parameter, Func<string, T> parse, out T value)
         {
-            string strValue = request.Query[parameter];
+            string strValue = request.QueryOrForm(parameter);
             if (string.IsNullOrEmpty(strValue))
             {
                 value = default;
@@ -145,9 +169,9 @@ namespace DnsServerCore
             return true;
         }
 
-        public static bool TryGetQuery<T>(this HttpRequest request, string parameter, out T value) where T : struct
+        public static bool TryGetQueryOrForm<T>(this HttpRequest request, string parameter, out T value) where T : struct
         {
-            string strValue = request.Query[parameter];
+            string strValue = request.QueryOrForm(parameter);
             if (string.IsNullOrEmpty(strValue))
             {
                 value = default;
@@ -157,12 +181,12 @@ namespace DnsServerCore
             return Enum.TryParse(strValue, true, out value);
         }
 
-        public static string GetQueryAlt(this HttpRequest request, string parameter, string alternateParameter)
+        public static string GetQueryOrFormAlt(this HttpRequest request, string parameter, string alternateParameter)
         {
-            string value = request.Query[parameter];
+            string value = request.QueryOrForm(parameter);
             if (string.IsNullOrEmpty(value))
             {
-                value = request.Query[alternateParameter];
+                value = request.QueryOrForm(alternateParameter);
                 if (string.IsNullOrEmpty(value))
                     throw new DnsWebServiceException("Parameter '" + parameter + "' missing.");
             }
@@ -170,12 +194,12 @@ namespace DnsServerCore
             return value;
         }
 
-        public static string GetQueryAlt(this HttpRequest request, string parameter, string alternateParameter, string defaultValue)
+        public static string GetQueryOrFormAlt(this HttpRequest request, string parameter, string alternateParameter, string defaultValue)
         {
-            string value = request.Query[parameter];
+            string value = request.QueryOrForm(parameter);
             if (string.IsNullOrEmpty(value))
             {
-                value = request.Query[alternateParameter];
+                value = request.QueryOrForm(alternateParameter);
                 if (string.IsNullOrEmpty(value))
                     return defaultValue;
             }
@@ -183,12 +207,12 @@ namespace DnsServerCore
             return value;
         }
 
-        public static T GetQueryAlt<T>(this HttpRequest request, string parameter, string alternateParameter, Func<string, T> parse)
+        public static T GetQueryOrFormAlt<T>(this HttpRequest request, string parameter, string alternateParameter, Func<string, T> parse)
         {
-            string value = request.Query[parameter];
+            string value = request.QueryOrForm(parameter);
             if (string.IsNullOrEmpty(value))
             {
-                value = request.Query[alternateParameter];
+                value = request.QueryOrForm(alternateParameter);
                 if (string.IsNullOrEmpty(value))
                     throw new DnsWebServiceException("Parameter '" + parameter + "' missing.");
             }
@@ -196,12 +220,12 @@ namespace DnsServerCore
             return parse(value);
         }
 
-        public static T GetQueryAlt<T>(this HttpRequest request, string parameter, string alternateParameter, Func<string, T> parse, T defaultValue)
+        public static T GetQueryOrFormAlt<T>(this HttpRequest request, string parameter, string alternateParameter, Func<string, T> parse, T defaultValue)
         {
-            string value = request.Query[parameter];
+            string value = request.QueryOrForm(parameter);
             if (string.IsNullOrEmpty(value))
             {
-                value = request.Query[alternateParameter];
+                value = request.QueryOrForm(alternateParameter);
                 if (string.IsNullOrEmpty(value))
                     return defaultValue;
             }
