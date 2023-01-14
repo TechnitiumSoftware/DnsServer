@@ -1,6 +1,6 @@
 ﻿/*
 Technitium DNS Server
-Copyright (C) 2022  Shreyas Zare (shreyas@technitium.com)
+Copyright (C) 2023  Shreyas Zare (shreyas@technitium.com)
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -22,6 +22,7 @@ using System;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
+using TechnitiumLibrary;
 using TechnitiumLibrary.Net.Dns;
 using TechnitiumLibrary.Net.Dns.ResourceRecords;
 
@@ -88,6 +89,7 @@ namespace DnsServerCore.Dns.Zones
             {
                 case DnsTransportProtocol.Tcp:
                 case DnsTransportProtocol.Tls:
+                case DnsTransportProtocol.Quic:
                     break;
 
                 default:
@@ -134,13 +136,13 @@ namespace DnsServerCore.Dns.Zones
             DnsSOARecordData soa = new DnsSOARecordData(receivedSoa.PrimaryNameServer, receivedSoa.ResponsiblePerson, 0u, receivedSoa.Refresh, receivedSoa.Retry, receivedSoa.Expire, receivedSoa.Minimum);
             DnsResourceRecord[] soaRR = new DnsResourceRecord[] { new DnsResourceRecord(secondaryZone._name, DnsResourceRecordType.SOA, DnsClass.IN, soa.Refresh, soa) };
 
+            AuthRecordInfo authRecordInfo = soaRR[0].GetAuthRecordInfo();
+
             if (!string.IsNullOrEmpty(primaryNameServerAddresses))
-                soaRR[0].SetPrimaryNameServers(primaryNameServerAddresses);
+                authRecordInfo.PrimaryNameServers = primaryNameServerAddresses.Split(NameServerAddress.Parse, ',');
 
-            DnsResourceRecordInfo recordInfo = soaRR[0].GetRecordInfo();
-
-            recordInfo.ZoneTransferProtocol = zoneTransferProtocol;
-            recordInfo.TsigKeyName = tsigKeyName;
+            authRecordInfo.ZoneTransferProtocol = zoneTransferProtocol;
+            authRecordInfo.TsigKeyName = tsigKeyName;
 
             secondaryZone._entries[DnsResourceRecordType.SOA] = soaRR;
 
@@ -214,7 +216,7 @@ namespace DnsServerCore.Dns.Zones
                     return;
                 }
 
-                DnsResourceRecordInfo recordInfo = currentSoaRecord.GetRecordInfo();
+                AuthRecordInfo recordInfo = currentSoaRecord.GetAuthRecordInfo();
                 TsigKey key = null;
 
                 if (!string.IsNullOrEmpty(recordInfo.TsigKeyName) && ((_dnsServer.TsigKeys is null) || !_dnsServer.TsigKeys.TryGetValue(recordInfo.TsigKeyName, out key)))
@@ -339,35 +341,42 @@ namespace DnsServerCore.Dns.Zones
 
                 //update available; do zone transfer with TLS or TCP transport
 
-                if (zoneTransferProtocol == DnsTransportProtocol.Tls)
+                switch (zoneTransferProtocol)
                 {
-                    //change name server protocol to TLS
-                    List<NameServerAddress> tlsNameServers = new List<NameServerAddress>(primaryNameServers.Count);
+                    case DnsTransportProtocol.Tls:
+                    case DnsTransportProtocol.Quic:
+                        {
+                            //change name server protocol to TLS/QUIC
+                            List<NameServerAddress> updatedNameServers = new List<NameServerAddress>(primaryNameServers.Count);
 
-                    foreach (NameServerAddress primaryNameServer in primaryNameServers)
-                    {
-                        if (primaryNameServer.Protocol == DnsTransportProtocol.Tls)
-                            tlsNameServers.Add(primaryNameServer);
-                        else
-                            tlsNameServers.Add(primaryNameServer.ChangeProtocol(DnsTransportProtocol.Tls));
-                    }
+                            foreach (NameServerAddress primaryNameServer in primaryNameServers)
+                            {
+                                if (primaryNameServer.Protocol == zoneTransferProtocol)
+                                    updatedNameServers.Add(primaryNameServer);
+                                else
+                                    updatedNameServers.Add(primaryNameServer.ChangeProtocol(zoneTransferProtocol));
+                            }
 
-                    primaryNameServers = tlsNameServers;
-                }
-                else
-                {
-                    //change name server protocol to TCP
-                    List<NameServerAddress> tcpNameServers = new List<NameServerAddress>(primaryNameServers.Count);
+                            primaryNameServers = updatedNameServers;
+                            break;
+                        }
 
-                    foreach (NameServerAddress primaryNameServer in primaryNameServers)
-                    {
-                        if (primaryNameServer.Protocol == DnsTransportProtocol.Tcp)
-                            tcpNameServers.Add(primaryNameServer);
-                        else
-                            tcpNameServers.Add(primaryNameServer.ChangeProtocol(DnsTransportProtocol.Tcp));
-                    }
+                    default:
+                        {
+                            //change name server protocol to TCP
+                            List<NameServerAddress> updatedNameServers = new List<NameServerAddress>(primaryNameServers.Count);
 
-                    primaryNameServers = tcpNameServers;
+                            foreach (NameServerAddress primaryNameServer in primaryNameServers)
+                            {
+                                if (primaryNameServer.Protocol == DnsTransportProtocol.Tcp)
+                                    updatedNameServers.Add(primaryNameServer);
+                                else
+                                    updatedNameServers.Add(primaryNameServer.ChangeProtocol(DnsTransportProtocol.Tcp));
+                            }
+
+                            primaryNameServers = updatedNameServers;
+                            break;
+                        }
                 }
 
                 DnsClient xfrClient = new DnsClient(primaryNameServers);
@@ -499,7 +508,7 @@ namespace DnsServerCore.Dns.Zones
         {
             lock (_zoneHistory)
             {
-                historyRecords[0].SetDeletedOn(DateTime.UtcNow);
+                historyRecords[0].GetAuthRecordInfo().DeletedOn = DateTime.UtcNow;
 
                 //write history
                 _zoneHistory.AddRange(historyRecords);
