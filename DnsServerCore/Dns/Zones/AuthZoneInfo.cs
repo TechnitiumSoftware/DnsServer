@@ -1,6 +1,6 @@
 ﻿/*
 Technitium DNS Server
-Copyright (C) 2022  Shreyas Zare (shreyas@technitium.com)
+Copyright (C) 2023  Shreyas Zare (shreyas@technitium.com)
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -183,7 +183,7 @@ namespace DnsServerCore.Dns.Zones
                                 for (int i = 0; i < count; i++)
                                 {
                                     zoneHistory[i] = new DnsResourceRecord(bR.BaseStream);
-                                    zoneHistory[i].Tag = new DnsResourceRecordInfo(bR, zoneHistory[i].Type == DnsResourceRecordType.SOA);
+                                    zoneHistory[i].Tag = new AuthRecordInfo(bR, zoneHistory[i].Type == DnsResourceRecordType.SOA);
                                 }
 
                                 _zoneHistory = zoneHistory;
@@ -259,7 +259,7 @@ namespace DnsServerCore.Dns.Zones
                                     List<DnssecPrivateKey> dnssecPrivateKeys = new List<DnssecPrivateKey>(count);
 
                                     for (int i = 0; i < count; i++)
-                                        dnssecPrivateKeys.Add(DnssecPrivateKey.Parse(bR));
+                                        dnssecPrivateKeys.Add(DnssecPrivateKey.ReadFrom(bR));
 
                                     _dnssecPrivateKeys = dnssecPrivateKeys;
                                 }
@@ -278,7 +278,7 @@ namespace DnsServerCore.Dns.Zones
                                 for (int i = 0; i < count; i++)
                                 {
                                     zoneHistory[i] = new DnsResourceRecord(bR.BaseStream);
-                                    zoneHistory[i].Tag = new DnsResourceRecordInfo(bR, zoneHistory[i].Type == DnsResourceRecordType.SOA);
+                                    zoneHistory[i].Tag = new AuthRecordInfo(bR, zoneHistory[i].Type == DnsResourceRecordType.SOA);
                                 }
 
                                 _zoneHistory = zoneHistory;
@@ -527,8 +527,8 @@ namespace DnsServerCore.Dns.Zones
                         {
                             record.WriteTo(bW.BaseStream);
 
-                            if (record.Tag is not DnsResourceRecordInfo rrInfo)
-                                rrInfo = new DnsResourceRecordInfo(); //default info
+                            if (record.Tag is not AuthRecordInfo rrInfo)
+                                rrInfo = AuthRecordInfo.Default; //default info
 
                             rrInfo.WriteTo(bW);
                         }
@@ -598,8 +598,8 @@ namespace DnsServerCore.Dns.Zones
                         {
                             record.WriteTo(bW.BaseStream);
 
-                            if (record.Tag is not DnsResourceRecordInfo rrInfo)
-                                rrInfo = new DnsResourceRecordInfo(); //default info
+                            if (record.Tag is not AuthRecordInfo rrInfo)
+                                rrInfo = AuthRecordInfo.Default; //default info
 
                             rrInfo.WriteTo(bW);
                         }
