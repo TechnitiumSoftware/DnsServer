@@ -165,6 +165,9 @@ namespace DnsServerCore.Auth
 
         public void LoggedInFrom(IPAddress remoteAddress)
         {
+            if (remoteAddress.IsIPv4MappedToIPv6)
+                remoteAddress = remoteAddress.MapToIPv4();
+
             _previousSessionLoggedOn = _recentSessionLoggedOn;
             _previousSessionRemoteAddress = _recentSessionRemoteAddress;
 
