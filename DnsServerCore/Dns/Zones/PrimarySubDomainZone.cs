@@ -1,6 +1,6 @@
 ﻿/*
 Technitium DNS Server
-Copyright (C) 2022  Shreyas Zare (shreyas@technitium.com)
+Copyright (C) 2023  Shreyas Zare (shreyas@technitium.com)
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -66,7 +66,7 @@ namespace DnsServerCore.Dns.Zones
                     default:
                         foreach (DnsResourceRecord record in records)
                         {
-                            if (record.IsDisabled())
+                            if (record.GetAuthRecordInfo().Disabled)
                                 throw new DnsServerException("Cannot set records: disabling records in a signed zones is not supported.");
                         }
 
@@ -117,7 +117,7 @@ namespace DnsServerCore.Dns.Zones
                         throw new DnsServerException("The record type is not supported by DNSSEC signed primary zones.");
 
                     default:
-                        if (record.IsDisabled())
+                        if (record.GetAuthRecordInfo().Disabled)
                             throw new DnsServerException("Cannot add record: disabling records in a signed zones is not supported.");
 
                         break;
@@ -226,7 +226,7 @@ namespace DnsServerCore.Dns.Zones
                     if (oldRecord.Type != newRecord.Type)
                         throw new InvalidOperationException("Old and new record types do not match.");
 
-                    if ((_primaryZone.DnssecStatus != AuthZoneDnssecStatus.Unsigned) && newRecord.IsDisabled())
+                    if ((_primaryZone.DnssecStatus != AuthZoneDnssecStatus.Unsigned) && newRecord.GetAuthRecordInfo().Disabled)
                         throw new DnsServerException("Cannot update record: disabling records in a signed zones is not supported.");
 
                     if (newRecord.OriginalTtlValue > _primaryZone.GetZoneSoaExpire())
