@@ -1,6 +1,6 @@
 ﻿/*
 Technitium DNS Server
-Copyright (C) 2022  Shreyas Zare (shreyas@technitium.com)
+Copyright (C) 2023  Shreyas Zare (shreyas@technitium.com)
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -146,7 +146,7 @@ namespace DnsServerCore.Dns.Zones
             while (index < history.Count)
             {
                 //check difference sequence
-                if (history[index].GetDeletedOn() > expiry)
+                if (history[index].GetAuthRecordInfo().DeletedOn > expiry)
                     break; //found record to keep
 
                 //skip to next difference sequence
@@ -207,7 +207,7 @@ namespace DnsServerCore.Dns.Zones
                 //notify all secondary name servers
                 foreach (DnsResourceRecord nsRecord in nsRecords)
                 {
-                    if (nsRecord.IsDisabled())
+                    if (nsRecord.GetAuthRecordInfo().Disabled)
                         continue;
 
                     string nameServerHost = (nsRecord.RDATA as DnsNSRecordData).NameServer;
@@ -430,8 +430,8 @@ namespace DnsServerCore.Dns.Zones
         {
             string nsDomain = (nsRecord.RDATA as DnsNSRecordData).NameServer;
 
-            IReadOnlyList<DnsResourceRecord> glueRecords = nsRecord.GetGlueRecords();
-            if (glueRecords.Count > 0)
+            IReadOnlyList<DnsResourceRecord> glueRecords = nsRecord.GetAuthRecordInfo().GlueRecords;
+            if (glueRecords is not null)
             {
                 foreach (DnsResourceRecord glueRecord in glueRecords)
                 {
@@ -514,8 +514,8 @@ namespace DnsServerCore.Dns.Zones
         {
             DnsResourceRecord soaRecord = _entries[DnsResourceRecordType.SOA][0];
 
-            IReadOnlyList<NameServerAddress> primaryNameServers = soaRecord.GetPrimaryNameServers();
-            if (primaryNameServers.Count > 0)
+            IReadOnlyList<NameServerAddress> primaryNameServers = soaRecord.GetAuthRecordInfo().PrimaryNameServers;
+            if (primaryNameServers is not null)
             {
                 List<NameServerAddress> resolvedNameServers = new List<NameServerAddress>(primaryNameServers.Count * 2);
 
@@ -537,7 +537,7 @@ namespace DnsServerCore.Dns.Zones
 
             foreach (DnsResourceRecord nsRecord in nsRecords)
             {
-                if (nsRecord.IsDisabled())
+                if (nsRecord.GetAuthRecordInfo().Disabled)
                     continue;
 
                 if (primaryNameServer.Equals((nsRecord.RDATA as DnsNSRecordData).NameServer, StringComparison.OrdinalIgnoreCase))
@@ -563,7 +563,7 @@ namespace DnsServerCore.Dns.Zones
 
             foreach (DnsResourceRecord nsRecord in nsRecords)
             {
-                if (nsRecord.IsDisabled())
+                if (nsRecord.GetAuthRecordInfo().Disabled)
                     continue;
 
                 if (primaryNameServer.Equals((nsRecord.RDATA as DnsNSRecordData).NameServer, StringComparison.OrdinalIgnoreCase))
