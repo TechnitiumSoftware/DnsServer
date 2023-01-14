@@ -58,7 +58,7 @@ namespace DnsServerCore
             if (!_dnsWebService._authManager.IsPermitted(PermissionSection.Cache, session.User, PermissionFlag.Delete))
                 throw new DnsWebServiceException("Access was denied.");
 
-            _dnsWebService._dnsServer.CacheZoneManager.Flush();
+            _dnsWebService.DnsServer.CacheZoneManager.Flush();
 
             _dnsWebService._log.Write(context.GetRemoteEndPoint(), "[" + session.User.Username + "] Cache was flushed.");
         }
@@ -72,9 +72,9 @@ namespace DnsServerCore
 
             HttpRequest request = context.Request;
 
-            string domain = request.GetQuery("domain", "");
+            string domain = request.GetQueryOrForm("domain", "");
 
-            string direction = request.Query["direction"];
+            string direction = request.QueryOrForm("direction");
             if (direction is not null)
                 direction = direction.ToLower();
 
@@ -86,8 +86,8 @@ namespace DnsServerCore
                 subZones.Clear();
                 records.Clear();
 
-                _dnsWebService._dnsServer.CacheZoneManager.ListSubDomains(domain, subZones);
-                _dnsWebService._dnsServer.CacheZoneManager.ListAllRecords(domain, records);
+                _dnsWebService.DnsServer.CacheZoneManager.ListSubDomains(domain, subZones);
+                _dnsWebService.DnsServer.CacheZoneManager.ListAllRecords(domain, records);
 
                 if (records.Count > 0)
                     break;
@@ -143,9 +143,9 @@ namespace DnsServerCore
             if (!_dnsWebService._authManager.IsPermitted(PermissionSection.Cache, session.User, PermissionFlag.Delete))
                 throw new DnsWebServiceException("Access was denied.");
 
-            string domain = context.Request.GetQuery("domain");
+            string domain = context.Request.GetQueryOrForm("domain");
 
-            if (_dnsWebService._dnsServer.CacheZoneManager.DeleteZone(domain))
+            if (_dnsWebService.DnsServer.CacheZoneManager.DeleteZone(domain))
                 _dnsWebService._log.Write(context.GetRemoteEndPoint(), "[" + session.User.Username + "] Cached zone was deleted: " + domain);
         }
 
@@ -162,9 +162,9 @@ namespace DnsServerCore
 
             HttpRequest request = context.Request;
 
-            string domain = request.GetQuery("domain", "");
+            string domain = request.GetQueryOrForm("domain", "");
 
-            string direction = request.Query["direction"];
+            string direction = request.QueryOrForm("direction");
             if (direction is not null)
                 direction = direction.ToLower();
 
@@ -176,8 +176,8 @@ namespace DnsServerCore
                 subZones.Clear();
                 records.Clear();
 
-                _dnsWebService._dnsServer.AllowedZoneManager.ListSubDomains(domain, subZones);
-                _dnsWebService._dnsServer.AllowedZoneManager.ListAllRecords(domain, records);
+                _dnsWebService.DnsServer.AllowedZoneManager.ListSubDomains(domain, subZones);
+                _dnsWebService.DnsServer.AllowedZoneManager.ListAllRecords(domain, records);
 
                 if (records.Count > 0)
                     break;
@@ -235,26 +235,20 @@ namespace DnsServerCore
 
             HttpRequest request = context.Request;
 
-            if (!request.HasFormContentType)
-                throw new DnsWebServiceException("Invalid content type. Expected application/x-www-form-urlencoded.");
-
-            string allowedZones = request.Form["allowedZones"];
-            if (string.IsNullOrEmpty(allowedZones))
-                throw new DnsWebServiceException("Form parameter 'allowedZones' missing.");
-
+            string allowedZones = request.GetQueryOrForm("allowedZones");
             string[] allowedZonesList = allowedZones.Split(',');
             bool added = false;
 
             foreach (string allowedZone in allowedZonesList)
             {
-                if (_dnsWebService._dnsServer.AllowedZoneManager.AllowZone(allowedZone))
+                if (_dnsWebService.DnsServer.AllowedZoneManager.AllowZone(allowedZone))
                     added = true;
             }
 
             if (added)
             {
                 _dnsWebService._log.Write(context.GetRemoteEndPoint(), "[" + session.User.Username + "] Total " + allowedZonesList.Length + " zones were imported into allowed zone successfully.");
-                _dnsWebService._dnsServer.AllowedZoneManager.SaveZoneFile();
+                _dnsWebService.DnsServer.AllowedZoneManager.SaveZoneFile();
             }
         }
 
@@ -265,7 +259,7 @@ namespace DnsServerCore
             if (!_dnsWebService._authManager.IsPermitted(PermissionSection.Allowed, session.User, PermissionFlag.View))
                 throw new DnsWebServiceException("Access was denied.");
 
-            IReadOnlyList<AuthZoneInfo> zoneInfoList = _dnsWebService._dnsServer.AllowedZoneManager.ListZones();
+            IReadOnlyList<AuthZoneInfo> zoneInfoList = _dnsWebService.DnsServer.AllowedZoneManager.ListZones();
 
             HttpResponse response = context.Response;
 
@@ -286,12 +280,12 @@ namespace DnsServerCore
             if (!_dnsWebService._authManager.IsPermitted(PermissionSection.Allowed, session.User, PermissionFlag.Delete))
                 throw new DnsWebServiceException("Access was denied.");
 
-            string domain = context.Request.GetQuery("domain");
+            string domain = context.Request.GetQueryOrForm("domain");
 
-            if (_dnsWebService._dnsServer.AllowedZoneManager.DeleteZone(domain))
+            if (_dnsWebService.DnsServer.AllowedZoneManager.DeleteZone(domain))
             {
                 _dnsWebService._log.Write(context.GetRemoteEndPoint(), "[" + session.User.Username + "] Allowed zone was deleted: " + domain);
-                _dnsWebService._dnsServer.AllowedZoneManager.SaveZoneFile();
+                _dnsWebService.DnsServer.AllowedZoneManager.SaveZoneFile();
             }
         }
 
@@ -302,10 +296,10 @@ namespace DnsServerCore
             if (!_dnsWebService._authManager.IsPermitted(PermissionSection.Allowed, session.User, PermissionFlag.Delete))
                 throw new DnsWebServiceException("Access was denied.");
 
-            _dnsWebService._dnsServer.AllowedZoneManager.Flush();
+            _dnsWebService.DnsServer.AllowedZoneManager.Flush();
 
             _dnsWebService._log.Write(context.GetRemoteEndPoint(), "[" + session.User.Username + "] Allowed zone was flushed successfully.");
-            _dnsWebService._dnsServer.AllowedZoneManager.SaveZoneFile();
+            _dnsWebService.DnsServer.AllowedZoneManager.SaveZoneFile();
         }
 
         public void AllowZone(HttpContext context)
@@ -315,15 +309,15 @@ namespace DnsServerCore
             if (!_dnsWebService._authManager.IsPermitted(PermissionSection.Allowed, session.User, PermissionFlag.Modify))
                 throw new DnsWebServiceException("Access was denied.");
 
-            string domain = context.Request.GetQuery("domain");
+            string domain = context.Request.GetQueryOrForm("domain");
 
             if (IPAddress.TryParse(domain, out IPAddress ipAddress))
                 domain = ipAddress.GetReverseDomain();
 
-            if (_dnsWebService._dnsServer.AllowedZoneManager.AllowZone(domain))
+            if (_dnsWebService.DnsServer.AllowedZoneManager.AllowZone(domain))
             {
                 _dnsWebService._log.Write(context.GetRemoteEndPoint(), "[" + session.User.Username + "] Zone was allowed: " + domain);
-                _dnsWebService._dnsServer.AllowedZoneManager.SaveZoneFile();
+                _dnsWebService.DnsServer.AllowedZoneManager.SaveZoneFile();
             }
         }
 
@@ -340,9 +334,9 @@ namespace DnsServerCore
 
             HttpRequest request = context.Request;
 
-            string domain = request.GetQuery("domain", "");
+            string domain = request.GetQueryOrForm("domain", "");
 
-            string direction = request.Query["direction"];
+            string direction = request.QueryOrForm("direction");
             if (direction is not null)
                 direction = direction.ToLower();
 
@@ -354,8 +348,8 @@ namespace DnsServerCore
                 subZones.Clear();
                 records.Clear();
 
-                _dnsWebService._dnsServer.BlockedZoneManager.ListSubDomains(domain, subZones);
-                _dnsWebService._dnsServer.BlockedZoneManager.ListAllRecords(domain, records);
+                _dnsWebService.DnsServer.BlockedZoneManager.ListSubDomains(domain, subZones);
+                _dnsWebService.DnsServer.BlockedZoneManager.ListAllRecords(domain, records);
 
                 if (records.Count > 0)
                     break;
@@ -413,26 +407,20 @@ namespace DnsServerCore
 
             HttpRequest request = context.Request;
 
-            if (!request.HasFormContentType)
-                throw new DnsWebServiceException("Invalid content type. Expected application/x-www-form-urlencoded.");
-
-            string blockedZones = request.Form["blockedZones"];
-            if (string.IsNullOrEmpty(blockedZones))
-                throw new DnsWebServiceException("Form parameter 'blockedZones' missing.");
-
+            string blockedZones = request.GetQueryOrForm("blockedZones");
             string[] blockedZonesList = blockedZones.Split(',');
             bool added = false;
 
             foreach (string blockedZone in blockedZonesList)
             {
-                if (_dnsWebService._dnsServer.BlockedZoneManager.BlockZone(blockedZone))
+                if (_dnsWebService.DnsServer.BlockedZoneManager.BlockZone(blockedZone))
                     added = true;
             }
 
             if (added)
             {
                 _dnsWebService._log.Write(context.GetRemoteEndPoint(), "[" + session.User.Username + "] Total " + blockedZonesList.Length + " zones were imported into blocked zone successfully.");
-                _dnsWebService._dnsServer.BlockedZoneManager.SaveZoneFile();
+                _dnsWebService.DnsServer.BlockedZoneManager.SaveZoneFile();
             }
         }
 
@@ -443,7 +431,7 @@ namespace DnsServerCore
             if (!_dnsWebService._authManager.IsPermitted(PermissionSection.Blocked, session.User, PermissionFlag.View))
                 throw new DnsWebServiceException("Access was denied.");
 
-            IReadOnlyList<AuthZoneInfo> zoneInfoList = _dnsWebService._dnsServer.BlockedZoneManager.ListZones();
+            IReadOnlyList<AuthZoneInfo> zoneInfoList = _dnsWebService.DnsServer.BlockedZoneManager.ListZones();
 
             HttpResponse response = context.Response;
 
@@ -464,12 +452,12 @@ namespace DnsServerCore
             if (!_dnsWebService._authManager.IsPermitted(PermissionSection.Blocked, session.User, PermissionFlag.Delete))
                 throw new DnsWebServiceException("Access was denied.");
 
-            string domain = context.Request.GetQuery("domain");
+            string domain = context.Request.GetQueryOrForm("domain");
 
-            if (_dnsWebService._dnsServer.BlockedZoneManager.DeleteZone(domain))
+            if (_dnsWebService.DnsServer.BlockedZoneManager.DeleteZone(domain))
             {
                 _dnsWebService._log.Write(context.GetRemoteEndPoint(), "[" + session.User.Username + "] Blocked zone was deleted: " + domain);
-                _dnsWebService._dnsServer.BlockedZoneManager.SaveZoneFile();
+                _dnsWebService.DnsServer.BlockedZoneManager.SaveZoneFile();
             }
         }
 
@@ -480,10 +468,10 @@ namespace DnsServerCore
             if (!_dnsWebService._authManager.IsPermitted(PermissionSection.Blocked, session.User, PermissionFlag.Delete))
                 throw new DnsWebServiceException("Access was denied.");
 
-            _dnsWebService._dnsServer.BlockedZoneManager.Flush();
+            _dnsWebService.DnsServer.BlockedZoneManager.Flush();
 
             _dnsWebService._log.Write(context.GetRemoteEndPoint(), "[" + session.User.Username + "] Blocked zone was flushed successfully.");
-            _dnsWebService._dnsServer.BlockedZoneManager.SaveZoneFile();
+            _dnsWebService.DnsServer.BlockedZoneManager.SaveZoneFile();
         }
 
         public void BlockZone(HttpContext context)
@@ -493,15 +481,15 @@ namespace DnsServerCore
             if (!_dnsWebService._authManager.IsPermitted(PermissionSection.Blocked, session.User, PermissionFlag.Modify))
                 throw new DnsWebServiceException("Access was denied.");
 
-            string domain = context.Request.GetQuery("domain");
+            string domain = context.Request.GetQueryOrForm("domain");
 
             if (IPAddress.TryParse(domain, out IPAddress ipAddress))
                 domain = ipAddress.GetReverseDomain();
 
-            if (_dnsWebService._dnsServer.BlockedZoneManager.BlockZone(domain))
+            if (_dnsWebService.DnsServer.BlockedZoneManager.BlockZone(domain))
             {
                 _dnsWebService._log.Write(context.GetRemoteEndPoint(), "[" + session.User.Username + "] Domain was added to blocked zone: " + domain);
-                _dnsWebService._dnsServer.BlockedZoneManager.SaveZoneFile();
+                _dnsWebService.DnsServer.BlockedZoneManager.SaveZoneFile();
             }
         }
 
