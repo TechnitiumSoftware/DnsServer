@@ -1,6 +1,6 @@
 ﻿/*
 Technitium DNS Server
-Copyright (C) 2022  Shreyas Zare (shreyas@technitium.com)
+Copyright (C) 2023  Shreyas Zare (shreyas@technitium.com)
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -22,6 +22,7 @@ using System;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
+using TechnitiumLibrary;
 using TechnitiumLibrary.Net.Dns;
 using TechnitiumLibrary.Net.Dns.ResourceRecords;
 
@@ -113,7 +114,7 @@ namespace DnsServerCore.Dns.Zones
             DnsResourceRecord[] soaRR = new DnsResourceRecord[] { new DnsResourceRecord(stubZone._name, DnsResourceRecordType.SOA, DnsClass.IN, soa.Refresh, soa) };
 
             if (!string.IsNullOrEmpty(primaryNameServerAddresses))
-                soaRR[0].SetPrimaryNameServers(primaryNameServerAddresses);
+                soaRR[0].GetAuthRecordInfo().PrimaryNameServers = primaryNameServerAddresses.Split(NameServerAddress.Parse, ',');
 
             stubZone._entries[DnsResourceRecordType.SOA] = soaRR;
 
