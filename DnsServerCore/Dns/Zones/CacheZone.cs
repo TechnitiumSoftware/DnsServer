@@ -51,14 +51,14 @@ namespace DnsServerCore.Dns.Zones
 
         #region static
 
-        public static CacheZone ReadFrom(BinaryReader bR)
+        public static CacheZone ReadFrom(BinaryReader bR, bool serveStale)
         {
             byte version = bR.ReadByte();
             switch (version)
             {
                 case 1:
                     string name = bR.ReadString();
-                    ConcurrentDictionary<DnsResourceRecordType, IReadOnlyList<DnsResourceRecord>> entries = ReadEntriesFrom(bR);
+                    ConcurrentDictionary<DnsResourceRecordType, IReadOnlyList<DnsResourceRecord>> entries = ReadEntriesFrom(bR, serveStale);
 
                     CacheZone cacheZone = new CacheZone(name, entries);
 
@@ -67,15 +67,19 @@ namespace DnsServerCore.Dns.Zones
                         int ecsCount = bR.ReadInt32();
                         if (ecsCount > 0)
                         {
-                            cacheZone._ecsEntries = new ConcurrentDictionary<NetworkAddress, ConcurrentDictionary<DnsResourceRecordType, IReadOnlyList<DnsResourceRecord>>>(1, ecsCount);
+                            ConcurrentDictionary<NetworkAddress, ConcurrentDictionary<DnsResourceRecordType, IReadOnlyList<DnsResourceRecord>>> ecsEntries = new ConcurrentDictionary<NetworkAddress, ConcurrentDictionary<DnsResourceRecordType, IReadOnlyList<DnsResourceRecord>>>(1, ecsCount);
 
                             for (int i = 0; i < ecsCount; i++)
                             {
                                 NetworkAddress key = NetworkAddress.ReadFrom(bR);
-                                ConcurrentDictionary<DnsResourceRecordType, IReadOnlyList<DnsResourceRecord>> ecsEntries = ReadEntriesFrom(bR);
+                                ConcurrentDictionary<DnsResourceRecordType, IReadOnlyList<DnsResourceRecord>> ecsEntry = ReadEntriesFrom(bR, serveStale);
 
-                                cacheZone._ecsEntries.TryAdd(key, ecsEntries);
+                                if (!ecsEntry.IsEmpty)
+                                    ecsEntries.TryAdd(key, ecsEntry);
                             }
+
+                            if (!ecsEntries.IsEmpty)
+                                cacheZone._ecsEntries = ecsEntries;
                         }
                     }
 
@@ -136,7 +140,7 @@ namespace DnsServerCore.Dns.Zones
             return records;
         }
 
-        private static ConcurrentDictionary<DnsResourceRecordType, IReadOnlyList<DnsResourceRecord>> ReadEntriesFrom(BinaryReader bR)
+        private static ConcurrentDictionary<DnsResourceRecordType, IReadOnlyList<DnsResourceRecord>> ReadEntriesFrom(BinaryReader bR, bool serveStale)
         {
             int count = bR.ReadInt32();
             ConcurrentDictionary<DnsResourceRecordType, IReadOnlyList<DnsResourceRecord>> entries = new ConcurrentDictionary<DnsResourceRecordType, IReadOnlyList<DnsResourceRecord>>(1, count);
@@ -155,7 +159,8 @@ namespace DnsServerCore.Dns.Zones
                     });
                 }
 
-                entries.TryAdd(key, records);
+                if (!DnsResourceRecord.IsRRSetExpired(records, serveStale))
+                    entries.TryAdd(key, records);
             }
 
             return entries;
@@ -314,7 +319,7 @@ namespace DnsServerCore.Dns.Zones
                         }
                     }
 
-                    if (ecsEntry.Value.Count == 0)
+                    if (ecsEntry.Value.IsEmpty)
                         _ecsEntries.TryRemove(ecsEntry.Key, out _);
                 }
             }
@@ -348,7 +353,7 @@ namespace DnsServerCore.Dns.Zones
                         }
                     }
 
-                    if (ecsEntry.Value.Count == 0)
+                    if (ecsEntry.Value.IsEmpty)
                         _ecsEntries.TryRemove(ecsEntry.Key, out _);
                 }
             }
