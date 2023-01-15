@@ -1299,7 +1299,7 @@
                                                             </div>
                                                         </div>
 
-                                                        <div>Note! The DNS server will attempt to save cache to disk when it stops which may take time depending on the cache size. This may cause the server to take a lot of time to stop which may lead to the OS to kill the process causing incomplete cache to be stored on disk.</div>
+                                                        <div>Note! The DNS server will attempt to save cache to disk when it stops which may take time depending on the cache size. If the DNS server takes a lot of time to stop then it may lead to the OS killing the DNS server process causing an incomplete cache to be stored on disk.</div>
                                                     </div>
 
                                                     <div class="well well-sm form-horizontal">
@@ -1541,7 +1541,7 @@
                                                             <div class="col-sm-offset-3 col-sm-8" style="padding-top: 5px;">Click the 'Update Now' button to reset the next update schedule and force download and update of the block lists.</div>
                                                         </div>
 
-                                                        <div style="margin-top: 10px;">DNS Server will use the data returned by the block list URLs to update the block list zone automatically. The expected file format is standard <code>hosts</code> file format or plain text file containing list of domains to block.</div>
+                                                        <div style="margin-top: 10px;">DNS Server will use the data returned by the block list URLs to update the block list zone automatically. The expected file format is standard <code>hosts</code> file format, plain text file containing list of domains to block, or wildcard block list file format.</div>
                                                         <div style="margin-top: 10px;"><a href="https://blog.technitium.com/2018/10/blocking-internet-ads-using-dns-sinkhole.html" target="_blank">Help: Blocking Internet Ads Using DNS Sinkhole</a></div>
                                                     </div>
                                                 </div>
