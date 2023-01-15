@@ -958,7 +958,7 @@ namespace DnsServerCore.Dns.ZoneManagers
 
             if (!File.Exists(cacheZoneFile))
                 return;
-            
+
             _dnsServer.LogManager?.Write("Loading DNS Cache from disk...");
 
             using (FileStream fS = new FileStream(cacheZoneFile, FileMode.Open, FileAccess.Read))
@@ -976,12 +976,16 @@ namespace DnsServerCore.Dns.ZoneManagers
 
                         try
                         {
+                            bool serveStale = _dnsServer.ServeStale;
+
                             while (bR.BaseStream.Position < bR.BaseStream.Length)
                             {
-                                CacheZone zone = CacheZone.ReadFrom(bR);
-
-                                if (_root.TryAdd(zone.Name, zone))
-                                    addedEntries += zone.TotalEntries;
+                                CacheZone zone = CacheZone.ReadFrom(bR, serveStale);
+                                if (!zone.IsEmpty)
+                                {
+                                    if (_root.TryAdd(zone.Name, zone))
+                                        addedEntries += zone.TotalEntries;
+                                }
                             }
                         }
                         finally
