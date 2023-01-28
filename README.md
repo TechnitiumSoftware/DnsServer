@@ -8,8 +8,11 @@
 	<b>Block ads & malware at DNS level for your entire network!</b>
 </p>
 <p align="center">
-<img src="https://technitium.com/dns/ScreenShot1.png" alt="Technitium DNS Server" />
+<img src="https://technitium.com/dns/ScreenShot1.png" alt="Technitium DNS Server" />![image](https://user-images.githubusercontent.com/10008172/215266959-55002c80-8b3e-483e-b867-f472a928109c.png)![image](https://user-images.githubusercontent.com/10008172/215266960-c96b252d-3f67-49c6-9c7f-b310fa106c7d.png)
+
+
 </p>
+![image](https://user-images.githubusercontent.com/10008172/215266956-bc4544ea-2760-4b96-9e70-67522339f535.png)
 
 Technitium DNS Server is an open source authoritative as well as recursive DNS server that can be used for self hosting a DNS server for privacy & security. It works out-of-the-box with no or minimal configuration and provides a user friendly web console accessible using any modern web browser.
 
@@ -19,9 +22,8 @@ Be it a home network or an organization's network, having a locally running DNS 
 
 # Sponsored By
 <p align="center">
-	<a href="https://www.eltris.com/" target="_blank">
-		<img src="https://technitium.com/img/logo-eltris-bg.svg" width="200" alt="ELTRIS - European Managed Web Hosting Platform" title="ELTRIS - European Managed Web Hosting Platform" />
-	</a>
+	<a href="https://www.eltris.com/" target="_blank"><img src="https://technitium.com/img/logo-eltris-bg.svg" width="200" alt="ELTRIS - European Managed Web Hosting Platform" title="ELTRIS - European Managed Web Hosting Platform" /></a>
+	<a href="https://althatech.com/" target="_blank"><img src="https://technitium.com/img/logo-althatech.png" width="250" alt="Altha Technology - Censorship Resistant Data Services" title="Altha Technology - Censorship Resistant Data Services" /></a>
 </p>
 
 # Features
