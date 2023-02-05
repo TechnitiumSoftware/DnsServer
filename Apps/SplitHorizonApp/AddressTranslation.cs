@@ -1,6 +1,6 @@
 ﻿/*
 Technitium DNS Server
-Copyright (C) 2022  Shreyas Zare (shreyas@technitium.com)
+Copyright (C) 2023  Shreyas Zare (shreyas@technitium.com)
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -291,7 +291,7 @@ namespace SplitHorizon
             if ((groupName is null) || !_groups.TryGetValue(groupName, out Group group) || !group.Enabled || !group.TranslateReverseLookups)
                 return Task.FromResult<DnsDatagram>(null);
 
-            IPAddress ptrIpAddress = IPAddressExtension.ParseReverseDomain(question.Name);
+            IPAddress ptrIpAddress = IPAddressExtensions.ParseReverseDomain(question.Name);
 
             if (!group.InternalToExternalTranslation.TryGetValue(ptrIpAddress, out IPAddress externalIp))
                 return Task.FromResult<DnsDatagram>(null);
