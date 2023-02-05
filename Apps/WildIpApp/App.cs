@@ -1,6 +1,6 @@
 ﻿/*
 Technitium DNS Server
-Copyright (C) 2022  Shreyas Zare (shreyas@technitium.com)
+Copyright (C) 2023  Shreyas Zare (shreyas@technitium.com)
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -28,6 +28,12 @@ namespace WildIp
 {
     public class App : IDnsApplication, IDnsAppRecordRequestHandler
     {
+        #region variables
+
+        IDnsServer _dnsServer;
+
+        #endregion
+
         #region IDisposable
 
         public void Dispose()
@@ -41,18 +47,19 @@ namespace WildIp
 
         public Task InitializeAsync(IDnsServer dnsServer, string config)
         {
-            //do nothing
+            _dnsServer = dnsServer;
+
             return Task.CompletedTask;
         }
 
-        public Task<DnsDatagram> ProcessRequestAsync(DnsDatagram request, IPEndPoint remoteEP, DnsTransportProtocol protocol, bool isRecursionAllowed, string zoneName, string appRecordName, uint appRecordTtl, string appRecordData)
+        public async Task<DnsDatagram> ProcessRequestAsync(DnsDatagram request, IPEndPoint remoteEP, DnsTransportProtocol protocol, bool isRecursionAllowed, string zoneName, string appRecordName, uint appRecordTtl, string appRecordData)
         {
             string qname = request.Question[0].Name;
 
             if (qname.Length == appRecordName.Length)
-                return Task.FromResult<DnsDatagram>(null);
+                return null;
 
-            DnsResourceRecord answer;
+            DnsResourceRecord answer = null;
 
             switch (request.Question[0].Type)
             {
@@ -69,12 +76,8 @@ namespace WildIp
                                 rawIp[i++] = x;
                         }
 
-                        if (i < 4)
-                            return Task.FromResult<DnsDatagram>(null);
-
-                        IPAddress address = new IPAddress(rawIp);
-
-                        answer = new DnsResourceRecord(request.Question[0].Name, DnsResourceRecordType.A, DnsClass.IN, appRecordTtl, new DnsARecordData(address));
+                        if (i == 4)
+                            answer = new DnsResourceRecord(request.Question[0].Name, DnsResourceRecordType.A, DnsClass.IN, appRecordTtl, new DnsARecordData(new IPAddress(rawIp)));
                     }
                     break;
 
@@ -90,18 +93,21 @@ namespace WildIp
                                 break;
                         }
 
-                        if (address is null)
-                            return Task.FromResult<DnsDatagram>(null);
-
-                        answer = new DnsResourceRecord(request.Question[0].Name, DnsResourceRecordType.AAAA, DnsClass.IN, appRecordTtl, new DnsAAAARecordData(address));
+                        if (address is not null)
+                            answer = new DnsResourceRecord(request.Question[0].Name, DnsResourceRecordType.AAAA, DnsClass.IN, appRecordTtl, new DnsAAAARecordData(address));
                     }
                     break;
-
-                default:
-                    return Task.FromResult<DnsDatagram>(null);
             }
 
-            return Task.FromResult(new DnsDatagram(request.Identifier, true, request.OPCODE, true, false, request.RecursionDesired, isRecursionAllowed, false, false, DnsResponseCode.NoError, request.Question, new DnsResourceRecord[] { answer }));
+            if (answer is null)
+            {
+                //NODATA reponse
+                DnsDatagram soaResponse = await _dnsServer.DirectQueryAsync(new DnsQuestionRecord(zoneName, DnsResourceRecordType.SOA, DnsClass.IN));
+
+                return new DnsDatagram(request.Identifier, true, DnsOpcode.StandardQuery, true, false, request.RecursionDesired, isRecursionAllowed, false, false, DnsResponseCode.NoError, request.Question, null, soaResponse.Answer);
+            }
+
+            return new DnsDatagram(request.Identifier, true, request.OPCODE, true, false, request.RecursionDesired, isRecursionAllowed, false, false, DnsResponseCode.NoError, request.Question, new DnsResourceRecord[] { answer });
         }
 
         #endregion
