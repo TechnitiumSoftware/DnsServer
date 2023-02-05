@@ -19,9 +19,8 @@ Be it a home network or an organization's network, having a locally running DNS 
 
 # Sponsored By
 <p align="center">
-	<a href="https://www.eltris.com/" target="_blank">
-		<img src="https://technitium.com/img/logo-eltris-bg.svg" width="200" alt="ELTRIS - European Managed Web Hosting Platform" title="ELTRIS - European Managed Web Hosting Platform" />
-	</a>
+	<a href="https://www.eltris.com/" target="_blank"><img src="https://technitium.com/img/logo-eltris-bg.svg" width="200" alt="ELTRIS - European Managed Web Hosting Platform" title="ELTRIS - European Managed Web Hosting Platform" /></a>
+	<a href="https://althatech.com/" target="_blank"><img src="https://technitium.com/img/logo-althatech.png" width="250" alt="Altha Technology - Censorship Resistant Data Services" title="Altha Technology - Censorship Resistant Data Services" /></a>
 </p>
 
 # Features
