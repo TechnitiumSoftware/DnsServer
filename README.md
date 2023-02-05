@@ -30,12 +30,12 @@ Be it a home network or an organization's network, having a locally running DNS 
 - Installs in just a minute and works out-of-the-box with zero configuration.
 - Block ads & malware using one or more block list URLs.
 - High performance DNS server based on async IO that can serve millions of requests per minute even on a commodity desktop PC hardware (load tested on Intel i7-8700 CPU with more than 100,000 request/second over Gigabit Ethernet).
-- Self host [DNS-over-TLS](https://en.wikipedia.org/wiki/DNS_over_TLS) and [DNS-over-HTTPS](https://en.wikipedia.org/wiki/DNS_over_HTTPS) DNS service on your network.
-- Use public DNS resolvers like Cloudflare, Google & Quad9 with [DNS-over-TLS](https://en.wikipedia.org/wiki/DNS_over_TLS) and [DNS-over-HTTPS](https://en.wikipedia.org/wiki/DNS_over_HTTPS) protocols as forwarders.
+- Self host [DNS-over-TLS](https://www.rfc-editor.org/rfc/rfc7858.html), [DNS-over-HTTPS](https://www.rfc-editor.org/rfc/rfc8484.html), and [DNS-over-QUIC](https://www.ietf.org/rfc/rfc9250.html) DNS service on your network.
+- Use public DNS resolvers like Cloudflare, Google, Quad9, & AdGuard with [DNS-over-TLS](https://www.rfc-editor.org/rfc/rfc7858.html), [DNS-over-HTTPS](https://www.rfc-editor.org/rfc/rfc8484.html), or [DNS-over-QUIC](https://www.ietf.org/rfc/rfc9250.html) protocols as forwarders.
 - Advanced caching with features like serve stale, prefetching and auto prefetching.
 - Supports working as an authoritative as well as a recursive DNS server.
-- DNSSEC validation support with RSA & ECDSA algorithms for recursive resolver, forwarders, and conditional forwarders.
-- DNSSEC support for all supported DNS transport protocols including encrypted DNS protocols (DoT, DoH, & DoH JSON).
+- DNSSEC validation support with RSA & ECDSA algorithms for recursive resolver, forwarders, and conditional forwarders with NSEC and NSEC3 support.
+- DNSSEC support for all supported DNS transport protocols including encrypted DNS protocols.
 - DANE TLSA [RFC 6698](https://datatracker.ietf.org/doc/html/rfc6698) record type support. This includes support for automatically generating the hash values using certificates in PEM format.
 - SSHFP [RFC 4255](https://www.rfc-editor.org/rfc/rfc4255.html) record type support.
 - CNAME cloaking feature to block domain names that resolve to CNAME which are blocked.
@@ -49,7 +49,10 @@ Be it a home network or an organization's network, having a locally running DNS 
 - Primary, Secondary, Stub, and Conditional Forwarder zone support.
 - Static stub zone support implemented in Conditional Forwarder zone to force a domain name to resolve via given name servers using NS records.
 - DNSSEC signed zones support with RSA & ECDSA algorithms.
+- DNSSEC support for both NSEC and NSEC3.
+- Zone transfer with AXFR and IXFR [RFC 1995](https://www.rfc-editor.org/rfc/rfc1995.html) support.
 - Zone transfer over TLS (XFR-over-TLS) [RFC 9103](https://www.rfc-editor.org/rfc/rfc9103.html) support.
+- Zone transfer over QUIC (XFR-over-QUIC) [RFC 9250](https://www.ietf.org/rfc/rfc9250.html) support.
 - Dynamic DNS Updates [RFC 2136](https://www.rfc-editor.org/rfc/rfc2136) support with security policy.
 - Secret key transaction authentication (TSIG) [RFC 8945](https://datatracker.ietf.org/doc/html/rfc8945) support for zone transfers.
 - EDNS(0) [RFC6891](https://datatracker.ietf.org/doc/html/rfc6891) support.
@@ -94,9 +97,9 @@ For support, send an email to support@technitium.com. For any issues, feedback, 
 Join [/r/technitium](https://www.reddit.com/r/technitium/) on Reddit.
 
 # Donate
-Make contribution to Technitium by becoming a Patron and help making new software, updates, and features possible.
+Make contribution to Technitium and help making new software, updates, and features possible.
 
-[Become a Patron now!](https://www.patreon.com/technitium)
+[Donate Now!](https://www.patreon.com/technitium)
 
 # Blog Posts
 - [Technitium Blog: Technitium DNS Server v10 Released!](https://blog.technitium.com/2022/11/technitium-dns-server-v10-released.html) (Nov 2022)
