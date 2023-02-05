@@ -1,6 +1,6 @@
 ﻿/*
 Technitium DNS Server
-Copyright (C) 2022  Shreyas Zare (shreyas@technitium.com)
+Copyright (C) 2023  Shreyas Zare (shreyas@technitium.com)
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -39,7 +39,7 @@ namespace DnsServerCore.ApplicationCommon
         /// <param name="appRecordName">The domain name of the APP record.</param>
         /// <param name="appRecordTtl">The TTL value set in the APP record.</param>
         /// <param name="appRecordData">The record data in the APP record as required for processing the request.</param>
-        /// <returns>The DNS response for the DNS request or <c>null</c> to send no answer response with an SOA authority.</returns>
+        /// <returns>The DNS response for the DNS request or <c>null</c> to send NODATA response when QNAME matches APP record name or else NXDOMAIN response with an SOA authority.</returns>
         Task<DnsDatagram> ProcessRequestAsync(DnsDatagram request, IPEndPoint remoteEP, DnsTransportProtocol protocol, bool isRecursionAllowed, string zoneName, string appRecordName, uint appRecordTtl, string appRecordData);
 
         /// <summary>
