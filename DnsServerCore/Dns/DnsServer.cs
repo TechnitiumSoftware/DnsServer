@@ -109,7 +109,6 @@ namespace DnsServerCore.Dns
         readonly List<Socket> _tlsListeners = new List<Socket>();
         readonly List<QuicListener> _quicListeners = new List<QuicListener>();
 
-        WebApplication _dohPrivateWebService;
         WebApplication _dohWebService;
 
         readonly AuthZoneManager _authZoneManager;
@@ -3678,90 +3677,6 @@ namespace DnsServerCore.Dns
 
         #region doh web service
 
-        private async Task StartDoHPrivateAsync()
-        {
-            WebApplicationBuilder builder = WebApplication.CreateBuilder();
-
-            builder.Environment.ContentRootFileProvider = new PhysicalFileProvider(Path.GetDirectoryName(_dohwwwFolder))
-            {
-                UseActivePolling = true,
-                UsePollingFileWatcher = true
-            };
-
-            builder.Environment.WebRootFileProvider = new PhysicalFileProvider(_dohwwwFolder)
-            {
-                UseActivePolling = true,
-                UsePollingFileWatcher = true
-            };
-
-            IReadOnlyList<IPAddress> localAddresses = GetValidKestralLocalAddresses(_localEndPoints.Convert(delegate (IPEndPoint ep) { return ep.Address; }));
-
-            builder.WebHost.ConfigureKestrel(delegate (WebHostBuilderContext context, KestrelServerOptions serverOptions)
-            {
-                foreach (IPAddress localAddress in localAddresses)
-                    serverOptions.Listen(localAddress, _dnsOverHttpPort);
-
-                serverOptions.AddServerHeader = false;
-                serverOptions.Limits.RequestHeadersTimeout = TimeSpan.FromMilliseconds(_tcpReceiveTimeout);
-                serverOptions.Limits.KeepAliveTimeout = TimeSpan.FromMilliseconds(_tcpReceiveTimeout);
-                serverOptions.Limits.MaxRequestHeadersTotalSize = 4096;
-                serverOptions.Limits.MaxRequestLineSize = serverOptions.Limits.MaxRequestHeadersTotalSize;
-                serverOptions.Limits.MaxRequestBufferSize = serverOptions.Limits.MaxRequestLineSize;
-                serverOptions.Limits.MaxRequestBodySize = 64 * 1024;
-                serverOptions.Limits.MaxResponseBufferSize = 4096;
-            });
-
-            builder.Logging.ClearProviders();
-
-            _dohPrivateWebService = builder.Build();
-
-            _dohPrivateWebService.UseDefaultFiles();
-            _dohPrivateWebService.UseStaticFiles(new StaticFileOptions()
-            {
-                OnPrepareResponse = delegate (StaticFileResponseContext ctx)
-                {
-                    ctx.Context.Response.Headers.Add("X-Robots-Tag", "noindex, nofollow");
-                    ctx.Context.Response.Headers.Add("Cache-Control", "private, max-age=300");
-                }
-            });
-
-            _dohPrivateWebService.UseRouting();
-            _dohPrivateWebService.MapGet("/dns-query", ProcessDoHRequestAsync);
-            _dohPrivateWebService.MapPost("/dns-query", ProcessDoHRequestAsync);
-
-            try
-            {
-                await _dohPrivateWebService.StartAsync();
-
-                if (_log is not null)
-                {
-                    foreach (IPAddress localAddress in localAddresses)
-                        _log?.Write(new IPEndPoint(localAddress, _dnsOverHttpPort), "Http", "DNS Server was bound successfully.");
-                }
-            }
-            catch (Exception ex)
-            {
-                await StopDoHPrivateAsync();
-
-                if (_log is not null)
-                {
-                    foreach (IPAddress localAddress in localAddresses)
-                        _log?.Write(new IPEndPoint(localAddress, _dnsOverHttpPort), "Http", "DNS Server failed to bind.");
-
-                    _log?.Write(ex);
-                }
-            }
-        }
-
-        private async Task StopDoHPrivateAsync()
-        {
-            if (_dohPrivateWebService is not null)
-            {
-                await _dohPrivateWebService.DisposeAsync();
-                _dohPrivateWebService = null;
-            }
-        }
-
         private async Task StartDoHAsync()
         {
             WebApplicationBuilder builder = WebApplication.CreateBuilder();
@@ -3782,6 +3697,13 @@ namespace DnsServerCore.Dns
 
             builder.WebHost.ConfigureKestrel(delegate (WebHostBuilderContext context, KestrelServerOptions serverOptions)
             {
+                //bind to http port
+                if (_enableDnsOverHttp)
+                {
+                    foreach (IPAddress localAddress in localAddresses)
+                        serverOptions.Listen(localAddress, _dnsOverHttpPort);
+                }
+
                 //bind to http port 80 for certbot webroot support
                 if (_enableDnsOverHttpPort80)
                 {
@@ -3790,7 +3712,7 @@ namespace DnsServerCore.Dns
                 }
 
                 //bind to https port
-                if (_certificate is not null)
+                if (_enableDnsOverHttps && (_certificate is not null))
                 {
                     serverOptions.ConfigureHttpsDefaults(delegate (HttpsConnectionAdapterOptions configureOptions)
                     {
@@ -3846,10 +3768,13 @@ namespace DnsServerCore.Dns
                 {
                     foreach (IPAddress localAddress in localAddresses)
                     {
+                        if (_enableDnsOverHttp)
+                            _log?.Write(new IPEndPoint(localAddress, _dnsOverHttpPort), "Http", "DNS Server was bound successfully.");
+
                         if (_enableDnsOverHttpPort80)
                             _log?.Write(new IPEndPoint(localAddress, 80), "Http", "DNS Server was bound successfully.");
 
-                        if (_certificate is not null)
+                        if (_enableDnsOverHttps && (_certificate is not null))
                             _log?.Write(new IPEndPoint(localAddress, _dnsOverHttpsPort), "Https", "DNS Server was bound successfully.");
                     }
                 }
@@ -3862,10 +3787,13 @@ namespace DnsServerCore.Dns
                 {
                     foreach (IPAddress localAddress in localAddresses)
                     {
+                        if (_enableDnsOverHttp)
+                            _log?.Write(new IPEndPoint(localAddress, _dnsOverHttpPort), "Http", "DNS Server failed to bind.");
+
                         if (_enableDnsOverHttpPort80)
                             _log?.Write(new IPEndPoint(localAddress, 80), "Http", "DNS Server failed to bind.");
 
-                        if (_certificate is not null)
+                        if (_enableDnsOverHttps && (_certificate is not null))
                             _log?.Write(new IPEndPoint(localAddress, _dnsOverHttpsPort), "Https", "DNS Server failed to bind.");
                     }
 
@@ -4157,10 +4085,7 @@ namespace DnsServerCore.Dns
                 }
             }
 
-            if (_enableDnsOverHttp)
-                await StartDoHPrivateAsync();
-
-            if (_enableDnsOverHttps)
+            if (_enableDnsOverHttp || _enableDnsOverHttpPort80 || (_enableDnsOverHttps && (_certificate is not null)))
                 await StartDoHAsync();
 
             _cachePrefetchSamplingTimer = new Timer(CachePrefetchSamplingTimerCallback, null, Timeout.Infinite, Timeout.Infinite);
@@ -4235,7 +4160,6 @@ namespace DnsServerCore.Dns
             _tlsListeners.Clear();
             _quicListeners.Clear();
 
-            await StopDoHPrivateAsync();
             await StopDoHAsync();
 
             _state = ServiceState.Stopped;
