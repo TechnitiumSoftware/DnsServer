@@ -1,0 +1,10 @@
+# AdGuard Upstreams
+# File Format Reference: https://github.com/AdguardTeam/AdGuardHome/wiki/Configuration#upstreams
+#
+# Example:
+# 8.8.8.8
+# udp://9.9.9.9
+# [/host.com/example.com/]tls://1.1.1.1
+# [/maps.host.com/]#
+# [/home/]192.168.10.2
+# [/test.com/]https://dns.quad9.net/dns-query (9.9.9.9)
