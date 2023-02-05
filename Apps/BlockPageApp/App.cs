@@ -1,6 +1,6 @@
 ﻿/*
 Technitium DNS Server
-Copyright (C) 2022  Shreyas Zare (shreyas@technitium.com)
+Copyright (C) 2023  Shreyas Zare (shreyas@technitium.com)
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -296,12 +296,16 @@ namespace BlockPage
                 if (usingHttps)
                 {
                     SslStream httpsStream = new SslStream(stream);
-                    await httpsStream.AuthenticateAsServerAsync(_webServerTlsCertificate);
+                    await httpsStream.AuthenticateAsServerAsync(_webServerTlsCertificate).WithTimeout(TCP_RECV_TIMEOUT);
 
                     stream = httpsStream;
                 }
 
                 await ProcessHttpRequestAsync(stream, remoteEP, usingHttps);
+            }
+            catch (TimeoutException)
+            {
+                //ignore timeout exception on TLS auth
             }
             catch (IOException)
             {
@@ -313,8 +317,7 @@ namespace BlockPage
             }
             finally
             {
-                if (socket is not null)
-                    socket.Dispose();
+                socket.Dispose();
             }
         }
 
