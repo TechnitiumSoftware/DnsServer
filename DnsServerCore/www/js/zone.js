@@ -1245,7 +1245,7 @@ function showEditZone(zone) {
     divViewZonesLoader.show();
 
     HTTPRequest({
-        url: "/api/zones/records/get?token=" + sessionData.token + "&domain=" + zone,
+        url: "/api/zones/records/get?token=" + sessionData.token + "&domain=" + zone + "&zone=" + zone + "&listZone=true",
         success: function (responseJSON) {
             var zoneType;
             if (responseJSON.response.zone.internal)
