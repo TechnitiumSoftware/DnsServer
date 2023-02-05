@@ -2650,9 +2650,9 @@
                                         </p>
 
                                         <h3 style="margin-top: 40px;"><a style="color: rgb(51,51,51) !important;" href="https://go.technitium.com/?id=35" target="_blank">Donate</a></h3>
-                                        <p>Make a contribution to Technitium by becoming a Patron and help making new software, updates, and features possible.</p>
+                                        <p>Make a contribution to Technitium and help making new software, updates, and features possible.</p>
                                         <p>
-                                            <a href="https://go.technitium.com/?id=35" target="_blank">Become A Patron Now!</a>
+                                            <a href="https://go.technitium.com/?id=35" target="_blank">Donate Now!</a>
                                         </p>
                                     </div>
 
@@ -3713,7 +3713,7 @@ MII...
                             <ul class="nav nav-tabs" role="tablist">
                                 <li id="tabListZoneOptionsZoneTranfer" role="presentation" class="active"><a href="#tabPaneZoneOptionsZoneTransfer" aria-controls="tabPaneZoneOptionsZoneTransfer" role="tab" data-toggle="tab">Zone Transfer</a></li>
                                 <li id="tabListZoneOptionsNotify" role="presentation"><a href="#tabPaneZoneOptionsNotify" aria-controls="tabPaneZoneOptionsNotify" role="tab" data-toggle="tab">Notify</a></li>
-                                <li id="tabListZoneOptionsUpdate" role="presentation"><a href="#tabPaneZoneOptionsUpdate" aria-controls="tabPaneZoneOptionsUpdate" role="tab" data-toggle="tab">Dynamic Updates</a></li>
+                                <li id="tabListZoneOptionsUpdate" role="presentation"><a href="#tabPaneZoneOptionsUpdate" aria-controls="tabPaneZoneOptionsUpdate" role="tab" data-toggle="tab">Dynamic Updates (RFC 2136)</a></li>
                             </ul>
 
                             <div class="tab-content">
@@ -4043,7 +4043,7 @@ MII...
                                 <label for="txtDnssecSignZoneNSEC3SaltLength" class="col-sm-4 control-label">NSEC3 Salt Length</label>
                                 <div class="col-sm-8">
                                     <input id="txtDnssecSignZoneNSEC3SaltLength" type="number" class="form-control" placeholder="length" style="width: 100px; display: inline;">
-                                    <span>(valid range 0-32, recommended 0)</span>
+                                    <span>bytes (valid range 0-32, recommended 0)</span>
                                 </div>
                                 <div class="col-sm-offset-4 col-sm-8" style="padding-top: 5px;">
                                     The number of bytes of random salt to generate to be used with the NSEC3 hash computation. It is recommended to not use salt by setting the length to 0 [<a href="https://www.rfc-editor.org/rfc/rfc9276.html#name-salt" target="_blank">RFC 9276</a>].
@@ -4055,7 +4055,7 @@ MII...
                             <label for="txtDnssecSignZoneDnsKeyTtl" class="col-sm-4 control-label">DNSKEY TTL</label>
                             <div class="col-sm-8">
                                 <input id="txtDnssecSignZoneDnsKeyTtl" type="number" class="form-control" placeholder="ttl" style="width: 100px; display: inline;">
-                                <span>(default 3600)</span>
+                                <span>seconds (default 3600)</span>
                             </div>
                             <div class="col-sm-offset-4 col-sm-8" style="padding-top: 5px;">
                                 The TTL value to be used for DNSKEY records. A lower value will allow quicker addition or rollover to a new DNS Key at the cost of increased frequency of DNSKEY queries by resolvers.
@@ -4276,7 +4276,7 @@ MII...
                                     <label for="txtDnssecPropertiesNSEC3SaltLength" class="col-sm-4 control-label">NSEC3 Salt Length</label>
                                     <div class="col-sm-8">
                                         <input id="txtDnssecPropertiesNSEC3SaltLength" type="number" class="form-control" placeholder="length" style="width: 100px; display: inline;">
-                                        <span>(valid range 0-32, recommended 0)</span>
+                                        <span>bytes (valid range 0-32, recommended 0)</span>
                                     </div>
                                     <div class="col-sm-offset-4 col-sm-8" style="padding-top: 5px;">
                                         The number of bytes of random salt to generate to be used with the NSEC3 hash computation. It is recommended to not use salt by setting the length to 0 [<a href="https://www.rfc-editor.org/rfc/rfc9276.html#name-salt" target="_blank">RFC 9276</a>].
@@ -4297,7 +4297,7 @@ MII...
                                 <div class="col-sm-8">
                                     <div>
                                         <input id="txtDnssecPropertiesDnsKeyTtl" type="number" class="form-control" placeholder="ttl" style="width: 100px; display: inline;">
-                                        <span>(default 3600)</span>
+                                        <span>seconds (default 3600)</span>
                                     </div>
                                     <div style="margin-top: 10px;">
                                         <button type="button" class="btn btn-default" style="padding: 2px 0; width: 100px;" data-loading-text="Updating..." onclick="updateDnssecDnsKeyTtl(this);">Update TTL</button>
