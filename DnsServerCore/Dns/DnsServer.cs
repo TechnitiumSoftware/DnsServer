@@ -515,7 +515,7 @@ namespace DnsServerCore.Dns
 
                     case DnsTransportProtocol.Tls:
                         SslStream tlsStream = new SslStream(new NetworkStream(socket));
-                        await tlsStream.AuthenticateAsServerAsync(_certificate);
+                        await tlsStream.AuthenticateAsServerAsync(_certificate).WithTimeout(_tcpReceiveTimeout);
 
                         await ReadStreamRequestAsync(tlsStream, remoteEP, protocol);
                         break;
@@ -523,6 +523,10 @@ namespace DnsServerCore.Dns
                     default:
                         throw new InvalidOperationException();
                 }
+            }
+            catch (TimeoutException)
+            {
+                //ignore timeout exception on TLS auth
             }
             catch (IOException)
             {
@@ -1945,11 +1949,14 @@ namespace DnsServerCore.Dns
                     DnsDatagram appResponse = await appRecordRequestHandler.ProcessRequestAsync(request, remoteEP, protocol, isRecursionAllowed, zoneInfo.Name, appResourceRecord.Name, appResourceRecord.TTL, appRecord.Data);
                     if (appResponse is null)
                     {
+                        DnsResponseCode rcode;
                         IReadOnlyList<DnsResourceRecord> authority = null;
 
                         if (zoneInfo.Type == AuthZoneType.Forwarder)
                         {
                             //return FWD response
+                            rcode = DnsResponseCode.NoError;
+
                             if (!zoneInfo.Name.Equals(appResourceRecord.Name, StringComparison.OrdinalIgnoreCase))
                             {
                                 AuthZone authZone = _authZoneManager.GetAuthZone(zoneInfo.Name, appResourceRecord.Name);
@@ -1962,11 +1969,16 @@ namespace DnsServerCore.Dns
                         }
                         else
                         {
-                            //return NO DATA response
+                            //return NODATA/NXDOMAIN response
+                            if (request.Question[0].Name.Length > appResourceRecord.Name.Length)
+                                rcode = DnsResponseCode.NxDomain;
+                            else
+                                rcode = DnsResponseCode.NoError;
+
                             authority = zoneInfo.GetApexRecords(DnsResourceRecordType.SOA);
                         }
 
-                        return new DnsDatagram(request.Identifier, true, request.OPCODE, false, false, request.RecursionDesired, isRecursionAllowed, false, false, DnsResponseCode.NoError, request.Question, null, authority) { Tag = DnsServerResponseType.Authoritative };
+                        return new DnsDatagram(request.Identifier, true, request.OPCODE, false, false, request.RecursionDesired, isRecursionAllowed, false, false, rcode, request.Question, null, authority) { Tag = DnsServerResponseType.Authoritative };
                     }
                     else
                     {
