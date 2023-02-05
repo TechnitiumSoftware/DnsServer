@@ -395,7 +395,7 @@ namespace DnsServerCore
 
                             if (authoritativeZoneRecords)
                             {
-                                if (zoneInfo.Type == AuthZoneType.Primary)
+                                if ((zoneInfo is not null) && (zoneInfo.Type == AuthZoneType.Primary))
                                 {
                                     foreach (DnssecPrivateKey dnssecPrivateKey in zoneInfo.DnssecPrivateKeys)
                                     {
@@ -717,7 +717,7 @@ namespace DnsServerCore
             if (!_dnsWebService._authManager.IsPermitted(PermissionSection.Zones, session.User, PermissionFlag.View))
                 throw new DnsWebServiceException("Access was denied.");
 
-            List<AuthZoneInfo> zones = _dnsWebService.DnsServer.AuthZoneManager.ListZones();
+            List<AuthZoneInfo> zones = _dnsWebService.DnsServer.AuthZoneManager.GetAllZones();
             zones.Sort();
 
             Utf8JsonWriter jsonWriter = context.GetCurrentJsonWriter();
@@ -764,7 +764,7 @@ namespace DnsServerCore
                 zoneName = zoneName.Substring(0, zoneName.Length - 1);
             }
 
-            AuthZoneType type = request.GetQueryOrForm("type", AuthZoneType.Primary);
+            AuthZoneType type = request.GetQueryOrFormEnum("type", AuthZoneType.Primary);
             AuthZoneInfo zoneInfo;
 
             switch (type)
@@ -789,7 +789,7 @@ namespace DnsServerCore
                 case AuthZoneType.Secondary:
                     {
                         string primaryNameServerAddresses = request.GetQueryOrForm("primaryNameServerAddresses", null);
-                        DnsTransportProtocol zoneTransferProtocol = request.GetQueryOrForm("zoneTransferProtocol", DnsTransportProtocol.Tcp);
+                        DnsTransportProtocol zoneTransferProtocol = request.GetQueryOrFormEnum("zoneTransferProtocol", DnsTransportProtocol.Tcp);
                         string tsigKeyName = request.GetQueryOrForm("tsigKeyName", null);
 
                         if (zoneTransferProtocol == DnsTransportProtocol.Quic)
@@ -831,10 +831,10 @@ namespace DnsServerCore
 
                 case AuthZoneType.Forwarder:
                     {
-                        DnsTransportProtocol forwarderProtocol = request.GetQueryOrForm("protocol", DnsTransportProtocol.Udp);
+                        DnsTransportProtocol forwarderProtocol = request.GetQueryOrFormEnum("protocol", DnsTransportProtocol.Udp);
                         string forwarder = request.GetQueryOrForm("forwarder");
                         bool dnssecValidation = request.GetQueryOrForm("dnssecValidation", bool.Parse, false);
-                        NetProxyType proxyType = request.GetQueryOrForm("proxyType", NetProxyType.None);
+                        NetProxyType proxyType = request.GetQueryOrFormEnum("proxyType", NetProxyType.None);
 
                         string proxyAddress = null;
                         ushort proxyPort = 0;
@@ -1184,7 +1184,7 @@ namespace DnsServerCore
             if (!_dnsWebService._authManager.IsPermitted(PermissionSection.Zones, zoneName, session.User, PermissionFlag.Delete))
                 throw new DnsWebServiceException("Access was denied.");
 
-            DnssecPrivateKeyType keyType = request.GetQueryOrForm<DnssecPrivateKeyType>("keyType");
+            DnssecPrivateKeyType keyType = request.GetQueryOrFormEnum<DnssecPrivateKeyType>("keyType");
             ushort rolloverDays = request.GetQueryOrForm("rolloverDays", ushort.Parse, (ushort)(keyType == DnssecPrivateKeyType.ZoneSigningKey ? 90 : 0));
             string algorithm = request.GetQueryOrForm("algorithm");
 
@@ -1595,7 +1595,7 @@ namespace DnsServerCore
             {
                 case AuthZoneType.Primary:
                 case AuthZoneType.Secondary:
-                    if (request.TryGetQueryOrForm("zoneTransfer", out AuthZoneTransfer zoneTransfer))
+                    if (request.TryGetQueryOrFormEnum("zoneTransfer", out AuthZoneTransfer zoneTransfer))
                         zoneInfo.ZoneTransfer = zoneTransfer;
 
                     string strZoneTransferNameServers = request.QueryOrForm("zoneTransferNameServers");
@@ -1626,7 +1626,7 @@ namespace DnsServerCore
                         }
                     }
 
-                    if (request.TryGetQueryOrForm("notify", out AuthZoneNotify notify))
+                    if (request.TryGetQueryOrFormEnum("notify", out AuthZoneNotify notify))
                         zoneInfo.Notify = notify;
 
                     string strNotifyNameServers = request.QueryOrForm("notifyNameServers");
@@ -1643,7 +1643,7 @@ namespace DnsServerCore
             switch (zoneInfo.Type)
             {
                 case AuthZoneType.Primary:
-                    if (request.TryGetQueryOrForm("update", out AuthZoneUpdate update))
+                    if (request.TryGetQueryOrFormEnum("update", out AuthZoneUpdate update))
                         zoneInfo.Update = update;
 
                     string strUpdateIpAddresses = request.QueryOrForm("updateIpAddresses");
@@ -1756,7 +1756,7 @@ namespace DnsServerCore
             if (!_dnsWebService._authManager.IsPermitted(PermissionSection.Zones, zoneInfo.Name, session.User, PermissionFlag.Modify))
                 throw new DnsWebServiceException("Access was denied.");
 
-            DnsResourceRecordType type = request.GetQueryOrForm<DnsResourceRecordType>("type");
+            DnsResourceRecordType type = request.GetQueryOrFormEnum<DnsResourceRecordType>("type");
             uint ttl = request.GetQueryOrForm("ttl", uint.Parse, _defaultRecordTtl);
             bool overwrite = request.GetQueryOrForm("overwrite", bool.Parse, false);
             string comments = request.QueryOrForm("comments");
@@ -1975,8 +1975,8 @@ namespace DnsServerCore
 
                 case DnsResourceRecordType.SSHFP:
                     {
-                        DnsSSHFPAlgorithm sshfpAlgorithm = request.GetQueryOrForm<DnsSSHFPAlgorithm>("sshfpAlgorithm");
-                        DnsSSHFPFingerprintType sshfpFingerprintType = request.GetQueryOrForm<DnsSSHFPFingerprintType>("sshfpFingerprintType");
+                        DnsSSHFPAlgorithm sshfpAlgorithm = request.GetQueryOrFormEnum<DnsSSHFPAlgorithm>("sshfpAlgorithm");
+                        DnsSSHFPFingerprintType sshfpFingerprintType = request.GetQueryOrFormEnum<DnsSSHFPFingerprintType>("sshfpFingerprintType");
                         byte[] sshfpFingerprint = request.GetQueryOrForm("sshfpFingerprint", Convert.FromHexString);
 
                         newRecord = new DnsResourceRecord(domain, type, DnsClass.IN, ttl, new DnsSSHFPRecordData(sshfpAlgorithm, sshfpFingerprintType, sshfpFingerprint));
@@ -1994,7 +1994,7 @@ namespace DnsServerCore
                 case DnsResourceRecordType.TLSA:
                     {
                         DnsTLSACertificateUsage tlsaCertificateUsage = Enum.Parse<DnsTLSACertificateUsage>(request.GetQueryOrForm("tlsaCertificateUsage").Replace('-', '_'), true);
-                        DnsTLSASelector tlsaSelector = request.GetQueryOrForm<DnsTLSASelector>("tlsaSelector");
+                        DnsTLSASelector tlsaSelector = request.GetQueryOrFormEnum<DnsTLSASelector>("tlsaSelector");
                         DnsTLSAMatchingType tlsaMatchingType = Enum.Parse<DnsTLSAMatchingType>(request.GetQueryOrForm("tlsaMatchingType").Replace('-', '_'), true);
                         string tlsaCertificateAssociationData = request.GetQueryOrForm("tlsaCertificateAssociationData");
 
@@ -2046,7 +2046,7 @@ namespace DnsServerCore
 
                 case DnsResourceRecordType.FWD:
                     {
-                        DnsTransportProtocol protocol = request.GetQueryOrForm("protocol", DnsTransportProtocol.Udp);
+                        DnsTransportProtocol protocol = request.GetQueryOrFormEnum("protocol", DnsTransportProtocol.Udp);
                         string forwarder = request.GetQueryOrFormAlt("forwarder", "value");
                         bool dnssecValidation = request.GetQueryOrForm("dnssecValidation", bool.Parse, false);
 
@@ -2058,7 +2058,7 @@ namespace DnsServerCore
 
                         if (!forwarder.Equals("this-server"))
                         {
-                            proxyType = request.GetQueryOrForm("proxyType", NetProxyType.None);
+                            proxyType = request.GetQueryOrFormEnum("proxyType", NetProxyType.None);
                             if (proxyType != NetProxyType.None)
                             {
                                 proxyAddress = request.GetQueryOrForm("proxyAddress");
@@ -2121,9 +2121,15 @@ namespace DnsServerCore
 
         public void GetRecords(HttpContext context)
         {
-            string domain = context.Request.GetQueryOrForm("domain").TrimEnd('.');
+            HttpRequest request = context.Request;
 
-            AuthZoneInfo zoneInfo = _dnsWebService.DnsServer.AuthZoneManager.FindAuthZoneInfo(domain);
+            string domain = request.GetQueryOrForm("domain").TrimEnd('.');
+
+            string zoneName = request.QueryOrForm("zone");
+            if (zoneName is not null)
+                zoneName = zoneName.TrimEnd('.');
+
+            AuthZoneInfo zoneInfo = _dnsWebService.DnsServer.AuthZoneManager.FindAuthZoneInfo(string.IsNullOrEmpty(zoneName) ? domain : zoneName);
             if (zoneInfo is null)
                 throw new DnsWebServiceException("No authoritative zone was not found for domain: " + domain);
 
@@ -2132,13 +2138,19 @@ namespace DnsServerCore
             if (!_dnsWebService._authManager.IsPermitted(PermissionSection.Zones, zoneInfo.Name, session.User, PermissionFlag.View))
                 throw new DnsWebServiceException("Access was denied.");
 
+            bool listZone = request.GetQueryOrForm("listZone", bool.Parse, false);
+
+            List<DnsResourceRecord> records = new List<DnsResourceRecord>();
+
+            if (listZone)
+                _dnsWebService.DnsServer.AuthZoneManager.ListAllZoneRecords(zoneInfo.Name, records);
+            else
+                _dnsWebService.DnsServer.AuthZoneManager.ListAllRecords(zoneInfo.Name, domain, records);
+
             Utf8JsonWriter jsonWriter = context.GetCurrentJsonWriter();
 
             jsonWriter.WritePropertyName("zone");
             WriteZoneInfoAsJson(zoneInfo, jsonWriter);
-
-            List<DnsResourceRecord> records = new List<DnsResourceRecord>();
-            _dnsWebService.DnsServer.AuthZoneManager.ListAllRecords(domain, records);
 
             WriteRecordsAsJson(records, jsonWriter, true, zoneInfo);
         }
@@ -2165,7 +2177,7 @@ namespace DnsServerCore
             if (!_dnsWebService._authManager.IsPermitted(PermissionSection.Zones, zoneInfo.Name, session.User, PermissionFlag.Delete))
                 throw new DnsWebServiceException("Access was denied.");
 
-            DnsResourceRecordType type = request.GetQueryOrForm<DnsResourceRecordType>("type");
+            DnsResourceRecordType type = request.GetQueryOrFormEnum<DnsResourceRecordType>("type");
             switch (type)
             {
                 case DnsResourceRecordType.A:
@@ -2265,8 +2277,8 @@ namespace DnsServerCore
 
                 case DnsResourceRecordType.SSHFP:
                     {
-                        DnsSSHFPAlgorithm sshfpAlgorithm = request.GetQueryOrForm<DnsSSHFPAlgorithm>("sshfpAlgorithm");
-                        DnsSSHFPFingerprintType sshfpFingerprintType = request.GetQueryOrForm<DnsSSHFPFingerprintType>("sshfpFingerprintType");
+                        DnsSSHFPAlgorithm sshfpAlgorithm = request.GetQueryOrFormEnum<DnsSSHFPAlgorithm>("sshfpAlgorithm");
+                        DnsSSHFPFingerprintType sshfpFingerprintType = request.GetQueryOrFormEnum<DnsSSHFPFingerprintType>("sshfpFingerprintType");
                         byte[] sshfpFingerprint = request.GetQueryOrForm("sshfpFingerprint", Convert.FromHexString);
 
                         _dnsWebService.DnsServer.AuthZoneManager.DeleteRecord(zoneInfo.Name, domain, type, new DnsSSHFPRecordData(sshfpAlgorithm, sshfpFingerprintType, sshfpFingerprint));
@@ -2276,7 +2288,7 @@ namespace DnsServerCore
                 case DnsResourceRecordType.TLSA:
                     {
                         DnsTLSACertificateUsage tlsaCertificateUsage = Enum.Parse<DnsTLSACertificateUsage>(request.GetQueryOrForm("tlsaCertificateUsage").Replace('-', '_'), true);
-                        DnsTLSASelector tlsaSelector = request.GetQueryOrForm<DnsTLSASelector>("tlsaSelector");
+                        DnsTLSASelector tlsaSelector = request.GetQueryOrFormEnum<DnsTLSASelector>("tlsaSelector");
                         DnsTLSAMatchingType tlsaMatchingType = Enum.Parse<DnsTLSAMatchingType>(request.GetQueryOrForm("tlsaMatchingType").Replace('-', '_'), true);
                         string tlsaCertificateAssociationData = request.GetQueryOrForm("tlsaCertificateAssociationData");
 
@@ -2304,7 +2316,7 @@ namespace DnsServerCore
 
                 case DnsResourceRecordType.FWD:
                     {
-                        DnsTransportProtocol protocol = request.GetQueryOrForm("protocol", DnsTransportProtocol.Udp);
+                        DnsTransportProtocol protocol = request.GetQueryOrFormEnum("protocol", DnsTransportProtocol.Udp);
                         string forwarder = request.GetQueryOrFormAlt("forwarder", "value");
 
                         _dnsWebService.DnsServer.AuthZoneManager.DeleteRecord(zoneInfo.Name, domain, type, new DnsForwarderRecordData(protocol, forwarder));
@@ -2350,7 +2362,7 @@ namespace DnsServerCore
             uint ttl = request.GetQueryOrForm("ttl", uint.Parse, _defaultRecordTtl);
             bool disable = request.GetQueryOrForm("disable", bool.Parse, false);
             string comments = request.QueryOrForm("comments");
-            DnsResourceRecordType type = request.GetQueryOrForm<DnsResourceRecordType>("type");
+            DnsResourceRecordType type = request.GetQueryOrFormEnum<DnsResourceRecordType>("type");
 
             DnsResourceRecord oldRecord = null;
             DnsResourceRecord newRecord;
@@ -2486,7 +2498,7 @@ namespace DnsServerCore
                                 {
                                     AuthRecordInfo recordInfo = newSOARecord.GetAuthRecordInfo();
 
-                                    if (request.TryGetQueryOrForm("zoneTransferProtocol", out DnsTransportProtocol zoneTransferProtocol))
+                                    if (request.TryGetQueryOrFormEnum("zoneTransferProtocol", out DnsTransportProtocol zoneTransferProtocol))
                                     {
                                         if (zoneTransferProtocol == DnsTransportProtocol.Quic)
                                             DnsWebService.ValidateQuicSupport();
@@ -2669,11 +2681,11 @@ namespace DnsServerCore
 
                 case DnsResourceRecordType.SSHFP:
                     {
-                        DnsSSHFPAlgorithm sshfpAlgorithm = request.GetQueryOrForm<DnsSSHFPAlgorithm>("sshfpAlgorithm");
-                        DnsSSHFPAlgorithm newSshfpAlgorithm = request.GetQueryOrForm("newSshfpAlgorithm", sshfpAlgorithm);
+                        DnsSSHFPAlgorithm sshfpAlgorithm = request.GetQueryOrFormEnum<DnsSSHFPAlgorithm>("sshfpAlgorithm");
+                        DnsSSHFPAlgorithm newSshfpAlgorithm = request.GetQueryOrFormEnum("newSshfpAlgorithm", sshfpAlgorithm);
 
-                        DnsSSHFPFingerprintType sshfpFingerprintType = request.GetQueryOrForm<DnsSSHFPFingerprintType>("sshfpFingerprintType");
-                        DnsSSHFPFingerprintType newSshfpFingerprintType = request.GetQueryOrForm("newSshfpFingerprintType", sshfpFingerprintType);
+                        DnsSSHFPFingerprintType sshfpFingerprintType = request.GetQueryOrFormEnum<DnsSSHFPFingerprintType>("sshfpFingerprintType");
+                        DnsSSHFPFingerprintType newSshfpFingerprintType = request.GetQueryOrFormEnum("newSshfpFingerprintType", sshfpFingerprintType);
 
                         byte[] sshfpFingerprint = request.GetQueryOrForm("sshfpFingerprint", Convert.FromHexString);
                         byte[] newSshfpFingerprint = request.GetQueryOrForm("newSshfpFingerprint", Convert.FromHexString, sshfpFingerprint);
@@ -2696,8 +2708,8 @@ namespace DnsServerCore
                         DnsTLSACertificateUsage tlsaCertificateUsage = Enum.Parse<DnsTLSACertificateUsage>(request.GetQueryOrForm("tlsaCertificateUsage").Replace('-', '_'), true);
                         DnsTLSACertificateUsage newTlsaCertificateUsage = Enum.Parse<DnsTLSACertificateUsage>(request.GetQueryOrForm("newTlsaCertificateUsage", tlsaCertificateUsage.ToString()).Replace('-', '_'), true);
 
-                        DnsTLSASelector tlsaSelector = request.GetQueryOrForm<DnsTLSASelector>("tlsaSelector");
-                        DnsTLSASelector newTlsaSelector = request.GetQueryOrForm("newTlsaSelector", tlsaSelector);
+                        DnsTLSASelector tlsaSelector = request.GetQueryOrFormEnum<DnsTLSASelector>("tlsaSelector");
+                        DnsTLSASelector newTlsaSelector = request.GetQueryOrFormEnum("newTlsaSelector", tlsaSelector);
 
                         DnsTLSAMatchingType tlsaMatchingType = Enum.Parse<DnsTLSAMatchingType>(request.GetQueryOrForm("tlsaMatchingType").Replace('-', '_'), true);
                         DnsTLSAMatchingType newTlsaMatchingType = Enum.Parse<DnsTLSAMatchingType>(request.GetQueryOrForm("newTlsaMatchingType", tlsaMatchingType.ToString()).Replace('-', '_'), true);
@@ -2762,8 +2774,8 @@ namespace DnsServerCore
 
                 case DnsResourceRecordType.FWD:
                     {
-                        DnsTransportProtocol protocol = request.GetQueryOrForm("protocol", DnsTransportProtocol.Udp);
-                        DnsTransportProtocol newProtocol = request.GetQueryOrForm("newProtocol", protocol);
+                        DnsTransportProtocol protocol = request.GetQueryOrFormEnum("protocol", DnsTransportProtocol.Udp);
+                        DnsTransportProtocol newProtocol = request.GetQueryOrFormEnum("newProtocol", protocol);
 
                         string forwarder = request.GetQueryOrFormAlt("forwarder", "value");
                         string newForwarder = request.GetQueryOrFormAlt("newForwarder", "newValue", forwarder);
@@ -2778,7 +2790,7 @@ namespace DnsServerCore
 
                         if (!newForwarder.Equals("this-server"))
                         {
-                            proxyType = request.GetQueryOrForm("proxyType", NetProxyType.None);
+                            proxyType = request.GetQueryOrFormEnum("proxyType", NetProxyType.None);
                             if (proxyType != NetProxyType.None)
                             {
                                 proxyAddress = request.GetQueryOrForm("proxyAddress");
