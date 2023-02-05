@@ -1,6 +1,6 @@
 ﻿/*
 Technitium DNS Server
-Copyright (C) 2022  Shreyas Zare (shreyas@technitium.com)
+Copyright (C) 2023  Shreyas Zare (shreyas@technitium.com)
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -216,7 +216,7 @@ namespace Dns64
             if ((groupName is null) || !_groups.TryGetValue(groupName, out Group group) || !group.EnableDns64)
                 return Task.FromResult<DnsDatagram>(null);
 
-            IPAddress ipv6Address = IPAddressExtension.ParseReverseDomain(question.Name);
+            IPAddress ipv6Address = IPAddressExtensions.ParseReverseDomain(question.Name);
             if (ipv6Address.AddressFamily != AddressFamily.InterNetworkV6)
                 return Task.FromResult<DnsDatagram>(null);
 
