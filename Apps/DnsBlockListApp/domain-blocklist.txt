@@ -1,0 +1,10 @@
+# DNSBL domain block list
+# Format: domain A-response TXT-response
+# Seperator: <space>, <tab>, or <pipe> char
+# 
+# A-response & TXT-response are optional but A-response must exists when TXT-response is specified
+# 
+# Examples:
+# example.com
+# example.net	127.0.0.4
+# malware.com	127.0.0.4	malware see: https://example.com/dnsbl?domain={domain}
