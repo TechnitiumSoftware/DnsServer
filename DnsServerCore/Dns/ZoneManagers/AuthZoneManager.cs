@@ -94,7 +94,7 @@ namespace DnsServerCore.Dns.ZoneManagers
                 //update authoritative zone SOA and NS records
                 try
                 {
-                    List<AuthZoneInfo> zones = ListZones();
+                    List<AuthZoneInfo> zones = GetAllZones();
 
                     foreach (AuthZoneInfo zone in zones)
                     {
@@ -978,10 +978,18 @@ namespace DnsServerCore.Dns.ZoneManagers
             return _root.TryGet(zoneName, domain, out _);
         }
 
-        public void ListAllRecords(string zoneName, List<DnsResourceRecord> records)
+        public void ListAllZoneRecords(string zoneName, List<DnsResourceRecord> records)
         {
             foreach (AuthZone zone in _root.GetZoneWithSubDomainZones(zoneName))
                 zone.ListAllRecords(records);
+        }
+
+        public void ListAllRecords(string zoneName, string domain, List<DnsResourceRecord> records)
+        {
+            ValidateZoneNameFor(zoneName, domain);
+
+            if (_root.TryGet(zoneName, domain, out AuthZone authZone))
+                authZone.ListAllRecords(records);
         }
 
         public IReadOnlyList<DnsResourceRecord> GetRecords(string zoneName, string domain, DnsResourceRecordType type)
@@ -1018,7 +1026,7 @@ namespace DnsServerCore.Dns.ZoneManagers
             DnsResourceRecord soaRecord = soaRecords[0];
 
             List<DnsResourceRecord> records = new List<DnsResourceRecord>();
-            ListAllRecords(zoneName, records);
+            ListAllZoneRecords(zoneName, records);
 
             List<DnsResourceRecord> xfrRecords = new List<DnsResourceRecord>(records.Count + 1);
 
@@ -1191,7 +1199,7 @@ namespace DnsServerCore.Dns.ZoneManagers
 
             //sync records
             List<DnsResourceRecord> currentRecords = new List<DnsResourceRecord>();
-            ListAllRecords(zoneName, currentRecords);
+            ListAllZoneRecords(zoneName, currentRecords);
 
             Dictionary<string, Dictionary<DnsResourceRecordType, List<DnsResourceRecord>>> currentRecordsGroupedByDomain = DnsResourceRecord.GroupRecords(currentRecords);
             Dictionary<string, Dictionary<DnsResourceRecordType, List<DnsResourceRecord>>> latestRecordsGroupedByDomain = DnsResourceRecord.GroupRecords(latestRecords);
@@ -1690,7 +1698,7 @@ namespace DnsServerCore.Dns.ZoneManagers
             }
         }
 
-        public List<AuthZoneInfo> ListZones()
+        public List<AuthZoneInfo> GetAllZones()
         {
             List<AuthZoneInfo> zones = new List<AuthZoneInfo>();
 
@@ -2201,7 +2209,7 @@ namespace DnsServerCore.Dns.ZoneManagers
 
             //write all zone records
             List<DnsResourceRecord> records = new List<DnsResourceRecord>();
-            ListAllRecords(zoneName, records);
+            ListAllZoneRecords(zoneName, records);
 
             bW.Write(records.Count);
 
