@@ -1004,6 +1004,8 @@ namespace AdvancedBlocking
         {
             #region variables
 
+            readonly static char[] _popWordSeperator = new char[] { ' ', '\t' };
+
             IReadOnlyDictionary<string, object> _listZone = new Dictionary<string, object>(0);
 
             #endregion
@@ -1023,9 +1025,9 @@ namespace AdvancedBlocking
                 if (line.Length == 0)
                     return line;
 
-                line = line.TrimStart(' ', '\t');
+                line = line.TrimStart(_popWordSeperator);
 
-                int i = line.IndexOfAny(new char[] { ' ', '\t' });
+                int i = line.IndexOfAny(_popWordSeperator);
                 string word;
 
                 if (i < 0)
@@ -1054,6 +1056,7 @@ namespace AdvancedBlocking
                     {
                         //parse hosts file and populate block zone
                         StreamReader sR = new StreamReader(fS, true);
+                        char[] trimSeperator = new char[] { ' ', '\t', '*', '.' };
                         string line;
                         string firstWord;
                         string secondWord;
@@ -1065,7 +1068,7 @@ namespace AdvancedBlocking
                             if (line == null)
                                 break; //eof
 
-                            line = line.TrimStart(' ', '\t', '*', '.');
+                            line = line.TrimStart(trimSeperator);
 
                             if (line.Length == 0)
                                 continue; //skip empty line
