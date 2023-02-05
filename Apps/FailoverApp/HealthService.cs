@@ -1,6 +1,6 @@
 ﻿/*
 Technitium DNS Server
-Copyright (C) 2022  Shreyas Zare (shreyas@technitium.com)
+Copyright (C) 2023  Shreyas Zare (shreyas@technitium.com)
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -333,9 +333,16 @@ namespace Failover
                 foreach (JsonElement jsonNetwork in jsonUnderMaintenance.EnumerateArray())
                 {
                     string network = jsonNetwork.GetProperty("network").GetString();
-                    bool enable = jsonNetwork.GetProperty("enable").GetBoolean();
+                    bool enabled;
 
-                    _underMaintenance.TryAdd(NetworkAddress.Parse(network), enable);
+                    if (jsonNetwork.TryGetProperty("enabled", out JsonElement jsonEnabled))
+                        enabled = jsonEnabled.GetBoolean();
+                    else if (jsonNetwork.TryGetProperty("enable", out JsonElement jsonEnable))
+                        enabled = jsonEnable.GetBoolean();
+                    else
+                        enabled = true;
+
+                    _underMaintenance.TryAdd(NetworkAddress.Parse(network), enabled);
                 }
             }
         }
