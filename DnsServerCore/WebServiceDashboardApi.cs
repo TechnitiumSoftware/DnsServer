@@ -497,7 +497,7 @@ namespace DnsServerCore
             HttpRequest request = context.Request;
 
             string strType = request.GetQueryOrForm("type", "lastHour");
-            TopStatsType statsType = request.GetQueryOrForm<TopStatsType>("statsType");
+            TopStatsType statsType = request.GetQueryOrFormEnum<TopStatsType>("statsType");
             int limit = request.GetQueryOrForm("limit", int.Parse, 1000);
 
             List<KeyValuePair<string, long>> topStatsData;

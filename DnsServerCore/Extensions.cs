@@ -120,7 +120,7 @@ namespace DnsServerCore
             return parse(value);
         }
 
-        public static T GetQueryOrForm<T>(this HttpRequest request, string parameter) where T : struct
+        public static T GetQueryOrFormEnum<T>(this HttpRequest request, string parameter) where T : struct
         {
             string value = request.QueryOrForm(parameter);
             if (string.IsNullOrEmpty(value))
@@ -138,7 +138,7 @@ namespace DnsServerCore
             return parse(value);
         }
 
-        public static T GetQueryOrForm<T>(this HttpRequest request, string parameter, T defaultValue) where T : struct
+        public static T GetQueryOrFormEnum<T>(this HttpRequest request, string parameter, T defaultValue) where T : struct
         {
             string value = request.QueryOrForm(parameter);
             if (string.IsNullOrEmpty(value))
@@ -169,7 +169,7 @@ namespace DnsServerCore
             return true;
         }
 
-        public static bool TryGetQueryOrForm<T>(this HttpRequest request, string parameter, out T value) where T : struct
+        public static bool TryGetQueryOrFormEnum<T>(this HttpRequest request, string parameter, out T value) where T : struct
         {
             string strValue = request.QueryOrForm(parameter);
             if (string.IsNullOrEmpty(strValue))

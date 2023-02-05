@@ -872,7 +872,7 @@ namespace DnsServerCore
             }
 
             //recursion
-            if (request.TryGetQueryOrForm("recursion", out DnsServerRecursion recursion))
+            if (request.TryGetQueryOrFormEnum("recursion", out DnsServerRecursion recursion))
                 _dnsWebService.DnsServer.Recursion = recursion;
 
             string recursionDeniedNetworks = request.QueryOrForm("recursionDeniedNetworks");
@@ -967,7 +967,7 @@ namespace DnsServerCore
             if (request.TryGetQueryOrForm("allowTxtBlockingReport", bool.Parse, out bool allowTxtBlockingReport))
                 _dnsWebService.DnsServer.AllowTxtBlockingReport = allowTxtBlockingReport;
 
-            if (request.TryGetQueryOrForm("blockingType", out DnsServerBlockingType blockingType))
+            if (request.TryGetQueryOrFormEnum("blockingType", out DnsServerBlockingType blockingType))
                 _dnsWebService.DnsServer.BlockingType = blockingType;
 
             string customBlockingAddresses = request.QueryOrForm("customBlockingAddresses");
@@ -1100,7 +1100,7 @@ namespace DnsServerCore
             }
 
             //proxy & forwarders
-            if (request.TryGetQueryOrForm("proxyType", out NetProxyType proxyType))
+            if (request.TryGetQueryOrFormEnum("proxyType", out NetProxyType proxyType))
             {
                 if (proxyType == NetProxyType.None)
                 {
@@ -1129,7 +1129,7 @@ namespace DnsServerCore
                 }
                 else
                 {
-                    DnsTransportProtocol forwarderProtocol = request.GetQueryOrForm("forwarderProtocol", DnsTransportProtocol.Udp);
+                    DnsTransportProtocol forwarderProtocol = request.GetQueryOrFormEnum("forwarderProtocol", DnsTransportProtocol.Udp);
 
                     switch (forwarderProtocol)
                     {

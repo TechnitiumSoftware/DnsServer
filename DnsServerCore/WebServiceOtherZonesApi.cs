@@ -223,7 +223,7 @@ namespace DnsServerCore
 
             jsonWriter.WriteEndArray();
 
-            WebServiceZonesApi.WriteRecordsAsJson(new List<DnsResourceRecord>(records), jsonWriter, false);
+            WebServiceZonesApi.WriteRecordsAsJson(records, jsonWriter, true);
         }
 
         public void ImportAllowedZones(HttpContext context)
@@ -395,7 +395,7 @@ namespace DnsServerCore
 
             jsonWriter.WriteEndArray();
 
-            WebServiceZonesApi.WriteRecordsAsJson(new List<DnsResourceRecord>(records), jsonWriter, false);
+            WebServiceZonesApi.WriteRecordsAsJson(records, jsonWriter, true);
         }
 
         public void ImportBlockedZones(HttpContext context)

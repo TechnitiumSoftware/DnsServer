@@ -161,8 +161,8 @@ namespace DnsServerCore
 
             string server = request.GetQueryOrForm("server");
             string domain = request.GetQueryOrForm("domain").Trim(new char[] { '\t', ' ', '.' });
-            DnsResourceRecordType type = request.GetQueryOrForm<DnsResourceRecordType>("type");
-            DnsTransportProtocol protocol = request.GetQueryOrForm("protocol", DnsTransportProtocol.Udp);
+            DnsResourceRecordType type = request.GetQueryOrFormEnum<DnsResourceRecordType>("type");
+            DnsTransportProtocol protocol = request.GetQueryOrFormEnum("protocol", DnsTransportProtocol.Udp);
             bool dnssecValidation = request.GetQueryOrForm("dnssec", bool.Parse, false);
             bool importResponse = request.GetQueryOrForm("import", bool.Parse, false);
             NetProxy proxy = _dnsWebService.DnsServer.Proxy;

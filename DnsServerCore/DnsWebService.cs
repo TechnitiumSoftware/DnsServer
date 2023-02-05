@@ -948,7 +948,7 @@ namespace DnsServerCore
             }
 
             //add missing admin permissions
-            List<AuthZoneInfo> zones = _dnsServer.AuthZoneManager.ListZones();
+            List<AuthZoneInfo> zones = _dnsServer.AuthZoneManager.GetAllZones();
             Group admins = _authManager.GetGroup(Group.ADMINISTRATORS);
             Group dnsAdmins = _authManager.GetGroup(Group.DNS_ADMINISTRATORS);
 
@@ -1009,7 +1009,7 @@ namespace DnsServerCore
                         IPAddress[] localAddresses = new IPAddress[count];
 
                         for (int i = 0; i < count; i++)
-                            localAddresses[i] = IPAddressExtension.ReadFrom(bR);
+                            localAddresses[i] = IPAddressExtensions.ReadFrom(bR);
 
                         _webServiceLocalAddresses = localAddresses;
                     }
@@ -1054,7 +1054,7 @@ namespace DnsServerCore
                         IPEndPoint[] localEndPoints = new IPEndPoint[count];
 
                         for (int i = 0; i < count; i++)
-                            localEndPoints[i] = (IPEndPoint)EndPointExtension.ReadFrom(bR);
+                            localEndPoints[i] = (IPEndPoint)EndPointExtensions.ReadFrom(bR);
 
                         _dnsServer.LocalEndPoints = localEndPoints;
                     }
@@ -1239,7 +1239,7 @@ namespace DnsServerCore
 
                         for (int i = 0; i < count; i++)
                         {
-                            IPAddress customAddress = IPAddressExtension.ReadFrom(bR);
+                            IPAddress customAddress = IPAddressExtensions.ReadFrom(bR);
 
                             switch (customAddress.AddressFamily)
                             {
@@ -1351,7 +1351,7 @@ namespace DnsServerCore
                         IPAddress[] localAddresses = new IPAddress[count];
 
                         for (int i = 0; i < count; i++)
-                            localAddresses[i] = IPAddressExtension.ReadFrom(bR);
+                            localAddresses[i] = IPAddressExtensions.ReadFrom(bR);
 
                         _webServiceLocalAddresses = localAddresses;
                     }
@@ -1655,7 +1655,7 @@ namespace DnsServerCore
 
                     for (int i = 0; i < count; i++)
                     {
-                        IPAddress customAddress = IPAddressExtension.ReadFrom(bR);
+                        IPAddress customAddress = IPAddressExtensions.ReadFrom(bR);
 
                         switch (customAddress.AddressFamily)
                         {
@@ -1715,7 +1715,7 @@ namespace DnsServerCore
                     IPEndPoint[] localEndPoints = new IPEndPoint[count];
 
                     for (int i = 0; i < count; i++)
-                        localEndPoints[i] = (IPEndPoint)EndPointExtension.ReadFrom(bR);
+                        localEndPoints[i] = (IPEndPoint)EndPointExtensions.ReadFrom(bR);
 
                     _dnsServer.LocalEndPoints = localEndPoints;
                 }
@@ -1728,7 +1728,7 @@ namespace DnsServerCore
                     IPEndPoint[] localEndPoints = new IPEndPoint[count];
 
                     for (int i = 0; i < count; i++)
-                        localEndPoints[i] = new IPEndPoint(IPAddressExtension.ReadFrom(bR), 53);
+                        localEndPoints[i] = new IPEndPoint(IPAddressExtensions.ReadFrom(bR), 53);
 
                     _dnsServer.LocalEndPoints = localEndPoints;
                 }

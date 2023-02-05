@@ -829,7 +829,7 @@ namespace DnsServerCore
                     if (!_dnsWebService._authManager.IsPermitted(PermissionSection.Administration, session.User, PermissionFlag.View))
                         throw new DnsWebServiceException("Access was denied.");
 
-                    section = request.GetQueryOrForm<PermissionSection>("section");
+                    section = request.GetQueryOrFormEnum<PermissionSection>("section");
                     break;
 
                 case PermissionSection.Zones:
@@ -877,7 +877,7 @@ namespace DnsServerCore
                     if (!_dnsWebService._authManager.IsPermitted(PermissionSection.Administration, session.User, PermissionFlag.Delete))
                         throw new DnsWebServiceException("Access was denied.");
 
-                    section = request.GetQueryOrForm<PermissionSection>("section");
+                    section = request.GetQueryOrFormEnum<PermissionSection>("section");
                     break;
 
                 case PermissionSection.Zones:
