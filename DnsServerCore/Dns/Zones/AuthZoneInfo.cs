@@ -117,7 +117,7 @@ namespace DnsServerCore.Dns.Zones
                                 IPAddress[] nameServers = new IPAddress[count];
 
                                 for (int i = 0; i < count; i++)
-                                    nameServers[i] = IPAddressExtension.ReadFrom(bR);
+                                    nameServers[i] = IPAddressExtensions.ReadFrom(bR);
 
                                 _zoneTransferNameServers = nameServers;
                             }
@@ -132,7 +132,7 @@ namespace DnsServerCore.Dns.Zones
                                 IPAddress[] nameServers = new IPAddress[count];
 
                                 for (int i = 0; i < count; i++)
-                                    nameServers[i] = IPAddressExtension.ReadFrom(bR);
+                                    nameServers[i] = IPAddressExtensions.ReadFrom(bR);
 
                                 _notifyNameServers = nameServers;
                             }
@@ -148,7 +148,7 @@ namespace DnsServerCore.Dns.Zones
                                 IPAddress[] ipAddresses = new IPAddress[count];
 
                                 for (int i = 0; i < count; i++)
-                                    ipAddresses[i] = IPAddressExtension.ReadFrom(bR);
+                                    ipAddresses[i] = IPAddressExtensions.ReadFrom(bR);
 
                                 _updateIpAddresses = ipAddresses;
                             }

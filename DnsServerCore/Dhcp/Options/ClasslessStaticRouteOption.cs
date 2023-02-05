@@ -1,6 +1,6 @@
 ﻿/*
 Technitium DNS Server
-Copyright (C) 2021  Shreyas Zare (shreyas@technitium.com)
+Copyright (C) 2023  Shreyas Zare (shreyas@technitium.com)
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -109,7 +109,7 @@ namespace DnsServerCore.Dhcp.Options
                 s.ReadBytes(destinationBuffer, 0, Convert.ToInt32(Math.Ceiling(Convert.ToDecimal(subnetMaskWidth) / 8)));
                 _destination = new IPAddress(destinationBuffer);
 
-                _subnetMask = IPAddressExtension.GetSubnetMask(subnetMaskWidth);
+                _subnetMask = IPAddressExtensions.GetSubnetMask(subnetMaskWidth);
 
                 _router = new IPAddress(s.ReadBytes(4));
             }

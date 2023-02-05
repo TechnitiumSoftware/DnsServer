@@ -88,7 +88,7 @@ namespace DnsServerCore.Auth
 
                     _user = authManager.GetUser(bR.ReadShortString());
                     _lastSeen = bR.ReadDateTime();
-                    _lastSeenRemoteAddress = IPAddressExtension.ReadFrom(bR);
+                    _lastSeenRemoteAddress = IPAddressExtensions.ReadFrom(bR);
 
                     _lastSeenUserAgent = bR.ReadShortString();
                     if (_lastSeenUserAgent.Length == 0)

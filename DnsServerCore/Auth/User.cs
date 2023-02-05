@@ -92,9 +92,9 @@ namespace DnsServerCore.Auth
                     _sessionTimeoutSeconds = bR.ReadInt32();
 
                     _previousSessionLoggedOn = bR.ReadDateTime();
-                    _previousSessionRemoteAddress = IPAddressExtension.ReadFrom(bR);
+                    _previousSessionRemoteAddress = IPAddressExtensions.ReadFrom(bR);
                     _recentSessionLoggedOn = bR.ReadDateTime();
-                    _recentSessionRemoteAddress = IPAddressExtension.ReadFrom(bR);
+                    _recentSessionRemoteAddress = IPAddressExtensions.ReadFrom(bR);
 
                     {
                         int count = bR.ReadByte();
@@ -223,9 +223,9 @@ namespace DnsServerCore.Auth
             bW.Write(_sessionTimeoutSeconds);
 
             bW.Write(_previousSessionLoggedOn);
-            IPAddressExtension.WriteTo(_previousSessionRemoteAddress, bW);
+            IPAddressExtensions.WriteTo(_previousSessionRemoteAddress, bW);
             bW.Write(_recentSessionLoggedOn);
-            IPAddressExtension.WriteTo(_recentSessionRemoteAddress, bW);
+            IPAddressExtensions.WriteTo(_recentSessionRemoteAddress, bW);
 
             bW.Write(Convert.ToByte(_memberOfGroups.Count));
 

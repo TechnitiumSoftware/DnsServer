@@ -1,6 +1,6 @@
 ﻿/*
 Technitium DNS Server
-Copyright (C) 2022  Shreyas Zare (shreyas@technitium.com)
+Copyright (C) 2023  Shreyas Zare (shreyas@technitium.com)
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -136,7 +136,7 @@ namespace DnsServerCore.Dhcp
                     _name = bR.ReadShortString();
                     _enabled = bR.ReadBoolean();
 
-                    ChangeNetwork(IPAddressExtension.ReadFrom(bR), IPAddressExtension.ReadFrom(bR), IPAddressExtension.ReadFrom(bR));
+                    ChangeNetwork(IPAddressExtensions.ReadFrom(bR), IPAddressExtensions.ReadFrom(bR), IPAddressExtensions.ReadFrom(bR));
 
                     _leaseTimeDays = bR.ReadUInt16();
                     _leaseTimeHours = bR.ReadByte();
@@ -175,7 +175,7 @@ namespace DnsServerCore.Dhcp
 
                     if (version >= 2)
                     {
-                        _serverAddress = IPAddressExtension.ReadFrom(bR);
+                        _serverAddress = IPAddressExtensions.ReadFrom(bR);
                         if (_serverAddress.Equals(IPAddress.Any))
                             _serverAddress = null;
                     }
@@ -191,7 +191,7 @@ namespace DnsServerCore.Dhcp
                             _bootFileName = null;
                     }
 
-                    _routerAddress = IPAddressExtension.ReadFrom(bR);
+                    _routerAddress = IPAddressExtensions.ReadFrom(bR);
                     if (_routerAddress.Equals(IPAddress.Any))
                         _routerAddress = null;
 
@@ -209,7 +209,7 @@ namespace DnsServerCore.Dhcp
                                 IPAddress[] dnsServers = new IPAddress[count];
 
                                 for (int i = 0; i < count; i++)
-                                    dnsServers[i] = IPAddressExtension.ReadFrom(bR);
+                                    dnsServers[i] = IPAddressExtensions.ReadFrom(bR);
 
                                 _dnsServers = dnsServers;
                             }
@@ -223,7 +223,7 @@ namespace DnsServerCore.Dhcp
                             IPAddress[] winsServers = new IPAddress[count];
 
                             for (int i = 0; i < count; i++)
-                                winsServers[i] = IPAddressExtension.ReadFrom(bR);
+                                winsServers[i] = IPAddressExtensions.ReadFrom(bR);
 
                             _winsServers = winsServers;
                         }
@@ -236,7 +236,7 @@ namespace DnsServerCore.Dhcp
                             IPAddress[] ntpServers = new IPAddress[count];
 
                             for (int i = 0; i < count; i++)
-                                ntpServers[i] = IPAddressExtension.ReadFrom(bR);
+                                ntpServers[i] = IPAddressExtensions.ReadFrom(bR);
 
                             _ntpServers = ntpServers;
                         }
@@ -296,7 +296,7 @@ namespace DnsServerCore.Dhcp
                             IPAddress[] capwapAcIpAddresses = new IPAddress[count];
 
                             for (int i = 0; i < count; i++)
-                                capwapAcIpAddresses[i] = IPAddressExtension.ReadFrom(bR);
+                                capwapAcIpAddresses[i] = IPAddressExtensions.ReadFrom(bR);
 
                             _capwapAcIpAddresses = capwapAcIpAddresses;
                         }
@@ -310,7 +310,7 @@ namespace DnsServerCore.Dhcp
                             IPAddress[] tftpServerAddreses = new IPAddress[count];
 
                             for (int i = 0; i < count; i++)
-                                tftpServerAddreses[i] = IPAddressExtension.ReadFrom(bR);
+                                tftpServerAddreses[i] = IPAddressExtensions.ReadFrom(bR);
 
                             _tftpServerAddreses = tftpServerAddreses;
                         }
@@ -343,7 +343,7 @@ namespace DnsServerCore.Dhcp
                             Exclusion[] exclusions = new Exclusion[count];
 
                             for (int i = 0; i < count; i++)
-                                exclusions[i] = new Exclusion(IPAddressExtension.ReadFrom(bR), IPAddressExtension.ReadFrom(bR));
+                                exclusions[i] = new Exclusion(IPAddressExtensions.ReadFrom(bR), IPAddressExtensions.ReadFrom(bR));
 
                             _exclusions = exclusions;
                         }
@@ -992,12 +992,12 @@ namespace DnsServerCore.Dhcp
                                 return null;
                             }
 
-                            offerAddress = IPAddressExtension.ConvertNumberToIp(_startingAddress.ConvertIpToNumber() - 1u);
+                            offerAddress = IPAddressExtensions.ConvertNumberToIp(_startingAddress.ConvertIpToNumber() - 1u);
                             offerAddressWasResetFromEnd = true;
                             continue;
                         }
 
-                        offerAddress = IPAddressExtension.ConvertNumberToIp(nextOfferAddressNumber);
+                        offerAddress = IPAddressExtensions.ConvertNumberToIp(nextOfferAddressNumber);
 
                         AddressStatus addressStatus = await IsAddressAvailableAsync(offerAddress);
                         if (addressStatus.IsAddressAvailable)
@@ -1372,13 +1372,13 @@ namespace DnsServerCore.Dhcp
             if (broadcastAddressNumber == endingAddressNumber)
                 throw new ArgumentException("Ending address cannot be same as the broadcast address.");
 
-            _networkAddress = IPAddressExtension.ConvertNumberToIp(networkAddressNumber);
-            _broadcastAddress = IPAddressExtension.ConvertNumberToIp(broadcastAddressNumber);
+            _networkAddress = IPAddressExtensions.ConvertNumberToIp(networkAddressNumber);
+            _broadcastAddress = IPAddressExtensions.ConvertNumberToIp(broadcastAddressNumber);
 
             _lastAddressOfferedLock.Wait();
             try
             {
-                _lastAddressOffered = IPAddressExtension.ConvertNumberToIp(startingAddressNumber - 1u);
+                _lastAddressOffered = IPAddressExtensions.ConvertNumberToIp(startingAddressNumber - 1u);
             }
             finally
             {
