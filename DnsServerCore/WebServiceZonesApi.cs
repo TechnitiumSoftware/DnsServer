@@ -21,6 +21,7 @@ using DnsServerCore.Auth;
 using DnsServerCore.Dns;
 using DnsServerCore.Dns.Dnssec;
 using DnsServerCore.Dns.ResourceRecords;
+using DnsServerCore.Dns.ZoneManagers;
 using DnsServerCore.Dns.Zones;
 using Microsoft.AspNetCore.Http;
 using System;
@@ -717,10 +718,25 @@ namespace DnsServerCore
             if (!_dnsWebService._authManager.IsPermitted(PermissionSection.Zones, session.User, PermissionFlag.View))
                 throw new DnsWebServiceException("Access was denied.");
 
-            List<AuthZoneInfo> zones = _dnsWebService.DnsServer.AuthZoneManager.GetAllZones();
-            zones.Sort();
-
+            HttpRequest request = context.Request;
             Utf8JsonWriter jsonWriter = context.GetCurrentJsonWriter();
+            IReadOnlyList<AuthZoneInfo> zones;
+
+            if (request.TryGetQueryOrForm("pageNumber", int.Parse, out int pageNumber))
+            {
+                int zonesPerPage = request.GetQueryOrForm("zonesPerPage", int.Parse, 10);
+
+                AuthZoneManager.ZonesPage page = _dnsWebService.DnsServer.AuthZoneManager.GetZonesPage(pageNumber, zonesPerPage);
+                zones = page.Zones;
+
+                jsonWriter.WriteNumber("pageNumber", page.PageNumber);
+                jsonWriter.WriteNumber("totalPages", page.TotalPages);
+                jsonWriter.WriteNumber("totalZones", page.TotalZones);
+            }
+            else
+            {
+                zones = _dnsWebService.DnsServer.AuthZoneManager.GetAllZones();
+            }
 
             jsonWriter.WritePropertyName("zones");
             jsonWriter.WriteStartArray();
@@ -995,7 +1011,7 @@ namespace DnsServerCore
 
             AuthZoneInfo zoneInfo = _dnsWebService.DnsServer.AuthZoneManager.GetAuthZoneInfo(zoneName);
             if (zoneInfo is null)
-                throw new DnsWebServiceException("No such zone was found: " + zoneName);
+                throw new DnsWebServiceException("No such authoritative zone was found: " + zoneName);
 
             if (zoneInfo.Internal)
                 throw new DnsWebServiceException("Access was denied to manage internal DNS Server zone.");
@@ -1335,7 +1351,7 @@ namespace DnsServerCore
 
             AuthZoneInfo zoneInfo = _dnsWebService.DnsServer.AuthZoneManager.GetAuthZoneInfo(zoneName);
             if (zoneInfo is null)
-                throw new DnsWebServiceException("No such zone was found: " + zoneName);
+                throw new DnsWebServiceException("No such authoritative zone was found: " + zoneName);
 
             if (zoneInfo.Internal)
                 throw new DnsWebServiceException("Access was denied to manage internal DNS Server zone.");
@@ -1344,7 +1360,7 @@ namespace DnsServerCore
                 throw new DnsWebServiceException("Access was denied.");
 
             if (!_dnsWebService.DnsServer.AuthZoneManager.DeleteZone(zoneInfo.Name))
-                throw new DnsWebServiceException("No authoritative zone was not found for domain: " + zoneInfo.Name);
+                throw new DnsWebServiceException("Failed to delete the zone: " + zoneInfo.Name);
 
             _dnsWebService._authManager.RemoveAllPermissions(PermissionSection.Zones, zoneInfo.Name);
             _dnsWebService._authManager.SaveConfigFile();
@@ -1364,7 +1380,7 @@ namespace DnsServerCore
 
             AuthZoneInfo zoneInfo = _dnsWebService.DnsServer.AuthZoneManager.GetAuthZoneInfo(zoneName);
             if (zoneInfo is null)
-                throw new DnsWebServiceException("No authoritative zone was not found for domain: " + zoneName);
+                throw new DnsWebServiceException("No such authoritative zone was found: " + zoneName);
 
             if (zoneInfo.Internal)
                 throw new DnsWebServiceException("Access was denied to manage internal DNS Server zone.");
@@ -1393,7 +1409,7 @@ namespace DnsServerCore
 
             AuthZoneInfo zoneInfo = _dnsWebService.DnsServer.AuthZoneManager.GetAuthZoneInfo(zoneName);
             if (zoneInfo is null)
-                throw new DnsWebServiceException("No authoritative zone was not found for domain: " + zoneName);
+                throw new DnsWebServiceException("No such authoritative zone was found: " + zoneName);
 
             if (zoneInfo.Internal)
                 throw new DnsWebServiceException("Access was denied to manage internal DNS Server zone.");
@@ -1422,7 +1438,7 @@ namespace DnsServerCore
 
             AuthZoneInfo zoneInfo = _dnsWebService.DnsServer.AuthZoneManager.GetAuthZoneInfo(zoneName);
             if (zoneInfo is null)
-                throw new DnsWebServiceException("No such zone was found: " + zoneName);
+                throw new DnsWebServiceException("No such authoritative zone was found: " + zoneName);
 
             if (zoneInfo.Internal)
                 throw new DnsWebServiceException("Access was denied to manage internal DNS Server zone.");
@@ -1580,7 +1596,7 @@ namespace DnsServerCore
 
             AuthZoneInfo zoneInfo = _dnsWebService.DnsServer.AuthZoneManager.GetAuthZoneInfo(zoneName);
             if (zoneInfo is null)
-                throw new DnsWebServiceException("No authoritative zone was not found for domain: " + zoneName);
+                throw new DnsWebServiceException("No such authoritative zone was found: " + zoneName);
 
             if (zoneInfo.Internal)
                 throw new DnsWebServiceException("Access was denied to manage internal DNS Server zone.");
@@ -1714,7 +1730,7 @@ namespace DnsServerCore
 
             AuthZoneInfo zoneInfo = _dnsWebService.DnsServer.AuthZoneManager.GetAuthZoneInfo(zoneName);
             if (zoneInfo is null)
-                throw new DnsWebServiceException("No authoritative zone was not found for domain: " + zoneName);
+                throw new DnsWebServiceException("No such authoritative zone was found: " + zoneName);
 
             if (zoneInfo.Internal)
                 throw new DnsWebServiceException("Access was denied to manage internal DNS Server zone.");
@@ -1746,7 +1762,7 @@ namespace DnsServerCore
 
             AuthZoneInfo zoneInfo = _dnsWebService.DnsServer.AuthZoneManager.FindAuthZoneInfo(string.IsNullOrEmpty(zoneName) ? domain : zoneName);
             if (zoneInfo is null)
-                throw new DnsWebServiceException("No authoritative zone was not found for domain: " + domain);
+                throw new DnsWebServiceException("No such authoritative zone was found: " + domain);
 
             if (zoneInfo.Internal)
                 throw new DnsWebServiceException("Access was denied to manage internal DNS Server zone.");
@@ -2131,7 +2147,7 @@ namespace DnsServerCore
 
             AuthZoneInfo zoneInfo = _dnsWebService.DnsServer.AuthZoneManager.FindAuthZoneInfo(string.IsNullOrEmpty(zoneName) ? domain : zoneName);
             if (zoneInfo is null)
-                throw new DnsWebServiceException("No authoritative zone was not found for domain: " + domain);
+                throw new DnsWebServiceException("No such authoritative zone was found: " + domain);
 
             UserSession session = context.GetCurrentSession();
 
@@ -2167,7 +2183,7 @@ namespace DnsServerCore
 
             AuthZoneInfo zoneInfo = _dnsWebService.DnsServer.AuthZoneManager.FindAuthZoneInfo(string.IsNullOrEmpty(zoneName) ? domain : zoneName);
             if (zoneInfo is null)
-                throw new DnsWebServiceException("No authoritative zone was not found for domain: " + domain);
+                throw new DnsWebServiceException("No such authoritative zone was found: " + domain);
 
             if (zoneInfo.Internal)
                 throw new DnsWebServiceException("Access was denied to manage internal DNS Server zone.");
@@ -2348,7 +2364,7 @@ namespace DnsServerCore
 
             AuthZoneInfo zoneInfo = _dnsWebService.DnsServer.AuthZoneManager.FindAuthZoneInfo(string.IsNullOrEmpty(zoneName) ? domain : zoneName);
             if (zoneInfo is null)
-                throw new DnsWebServiceException("No authoritative zone was not found for domain: " + domain);
+                throw new DnsWebServiceException("No such authoritative zone was found: " + domain);
 
             if (zoneInfo.Internal)
                 throw new DnsWebServiceException("Access was denied to manage internal DNS Server zone.");
