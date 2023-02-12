@@ -1,6 +1,6 @@
 ﻿/*
 Technitium DNS Server
-Copyright (C) 2022  Shreyas Zare (shreyas@technitium.com)
+Copyright (C) 2023  Shreyas Zare (shreyas@technitium.com)
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -36,17 +36,19 @@ namespace DnsServerCore.Dns
         readonly AuthZoneManager _authZoneManager;
         readonly CacheZoneManager _cacheZoneManager;
         readonly LogManager _log;
+        readonly bool _skipDnsAppAuthoritativeRequestHandlers;
 
         #endregion
 
         #region constructor
 
-        public ResolverDnsCache(DnsApplicationManager dnsApplicationManager, AuthZoneManager authZoneManager, CacheZoneManager cacheZoneManager, LogManager log)
+        public ResolverDnsCache(DnsApplicationManager dnsApplicationManager, AuthZoneManager authZoneManager, CacheZoneManager cacheZoneManager, LogManager log, bool skipDnsAppAuthoritativeRequestHandlers)
         {
             _dnsApplicationManager = dnsApplicationManager;
             _authZoneManager = authZoneManager;
             _cacheZoneManager = cacheZoneManager;
             _log = log;
+            _skipDnsAppAuthoritativeRequestHandlers = skipDnsAppAuthoritativeRequestHandlers;
         }
 
         #endregion
@@ -55,7 +57,7 @@ namespace DnsServerCore.Dns
 
         private DnsDatagram DnsApplicationQueryClosestDelegation(DnsDatagram request)
         {
-            if ((_dnsApplicationManager.DnsAuthoritativeRequestHandlers.Count < 1) || (request.Question.Count != 1))
+            if (_skipDnsAppAuthoritativeRequestHandlers || (_dnsApplicationManager.DnsAuthoritativeRequestHandlers.Count < 1) || (request.Question.Count != 1))
                 return null;
 
             IPEndPoint localEP = new IPEndPoint(IPAddress.Any, 0);
@@ -132,21 +134,24 @@ namespace DnsServerCore.Dns
         {
             DnsDatagram authResponse = null;
 
-            foreach (IDnsAuthoritativeRequestHandler requestHandler in _dnsApplicationManager.DnsAuthoritativeRequestHandlers)
+            if (!_skipDnsAppAuthoritativeRequestHandlers)
             {
-                try
+                foreach (IDnsAuthoritativeRequestHandler requestHandler in _dnsApplicationManager.DnsAuthoritativeRequestHandlers)
                 {
-                    authResponse = requestHandler.ProcessRequestAsync(request, new IPEndPoint(IPAddress.Any, 0), DnsTransportProtocol.Tcp, false).Sync();
-                    if (authResponse is not null)
+                    try
                     {
-                        if ((authResponse.RCODE != DnsResponseCode.NoError) || (authResponse.Answer.Count > 0) || (authResponse.Authority.Count == 0) || authResponse.IsFirstAuthoritySOA())
-                            return authResponse;
+                        authResponse = requestHandler.ProcessRequestAsync(request, new IPEndPoint(IPAddress.Any, 0), DnsTransportProtocol.Tcp, false).Sync();
+                        if (authResponse is not null)
+                        {
+                            if ((authResponse.RCODE != DnsResponseCode.NoError) || (authResponse.Answer.Count > 0) || (authResponse.Authority.Count == 0) || authResponse.IsFirstAuthoritySOA())
+                                return authResponse;
+                        }
                     }
-                }
-                catch (Exception ex)
-                {
-                    if (_log is not null)
-                        _log.Write(ex);
+                    catch (Exception ex)
+                    {
+                        if (_log is not null)
+                            _log.Write(ex);
+                    }
                 }
             }
 
