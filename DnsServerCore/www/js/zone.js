@@ -269,16 +269,37 @@ $(function () {
                 break;
         }
     });
+
+    $("#optZonesPerPage").change(function () {
+        localStorage.setItem("optZonesPerPage", $("#optZonesPerPage").val());
+    });
+
+    var optZonesPerPage = localStorage.getItem("optZonesPerPage");
+    if (optZonesPerPage != null)
+        $("#optZonesPerPage").val(optZonesPerPage);
 });
 
-function refreshZones(checkDisplay) {
+function refreshZones(checkDisplay, pageNumber) {
     if (checkDisplay == null)
         checkDisplay = false;
 
     var divViewZones = $("#divViewZones");
 
-    if (checkDisplay && (divViewZones.css('display') === "none"))
-        return;
+    if (checkDisplay) {
+        if (divViewZones.css("display") === "none")
+            return;
+
+        if (($("#tableZonesBody").html().length > 0) && !$("#mainPanelTabPaneZones").hasClass("active"))
+            return;
+    }
+
+    if (pageNumber == null) {
+        pageNumber = $("#txtZonesPageNumber").val();
+        if (pageNumber == "")
+            pageNumber = 1;
+    }
+
+    var zonesPerPage = $("#optZonesPerPage").val();
 
     var divViewZonesLoader = $("#divViewZonesLoader");
     var divEditZone = $("#divEditZone");
@@ -288,9 +309,11 @@ function refreshZones(checkDisplay) {
     divViewZonesLoader.show();
 
     HTTPRequest({
-        url: "/api/zones/list?token=" + sessionData.token,
+        url: "/api/zones/list?token=" + sessionData.token + "&pageNumber=" + pageNumber + "&zonesPerPage=" + zonesPerPage,
         success: function (responseJSON) {
             var zones = responseJSON.response.zones;
+            var firstRowNumber = ((responseJSON.response.pageNumber - 1) * zonesPerPage) + 1;
+            var lastRowNumber = firstRowNumber + (zones.length - 1);
             var tableHtmlRows = "";
 
             for (var i = 0; i < zones.length; i++) {
@@ -349,7 +372,8 @@ function refreshZones(checkDisplay) {
                         break;
                 }
 
-                tableHtmlRows += "<tr id=\"trZone" + id + "\"><td><a href=\"#\" onclick=\"showEditZone('" + name + "'); return false;\">" + htmlEncode(name === "." ? "<root>" : name) + "</a></td>";
+                tableHtmlRows += "<tr id=\"trZone" + id + "\"><td>" + (firstRowNumber + i) + "</td>";
+                tableHtmlRows += "<td><a href=\"#\" onclick=\"showEditZone('" + name + "'); return false;\">" + htmlEncode(name === "." ? "<root>" : name) + "</a></td>";
                 tableHtmlRows += "<td>" + type + "</td>";
                 tableHtmlRows += "<td>" + dnssecStatus + "</td>";
                 tableHtmlRows += "<td>" + status + "</td>";
@@ -379,12 +403,54 @@ function refreshZones(checkDisplay) {
                 tableHtmlRows += "</ul></div></td></tr>";
             }
 
+            var paginationHtml = "";
+
+            if (responseJSON.response.pageNumber > 1) {
+                paginationHtml += "<li><a href=\"#\" aria-label=\"First\" onClick=\"refreshZones(false, 1); return false;\"><span aria-hidden=\"true\">&laquo;</span></a></li>";
+                paginationHtml += "<li><a href=\"#\" aria-label=\"Previous\" onClick=\"refreshZones(false, " + (responseJSON.response.pageNumber - 1) + "); return false;\"><span aria-hidden=\"true\">&lsaquo;</span></a></li>";
+            }
+
+            var pageStart = responseJSON.response.pageNumber - 5;
+            if (pageStart < 1)
+                pageStart = 1;
+
+            var pageEnd = pageStart + 9;
+            if (pageEnd > responseJSON.response.totalPages) {
+                var endDiff = pageEnd - responseJSON.response.totalPages;
+                pageEnd = responseJSON.response.totalPages;
+
+                pageStart -= endDiff;
+                if (pageStart < 1)
+                    pageStart = 1;
+            }
+
+            for (var i = pageStart; i <= pageEnd; i++) {
+                if (i == responseJSON.response.pageNumber)
+                    paginationHtml += "<li class=\"active\"><a href=\"#\" onClick=\"refreshZones(false, " + i + "); return false;\">" + i + "</a></li>";
+                else
+                    paginationHtml += "<li><a href=\"#\" onClick=\"refreshZones(false, " + i + "); return false;\">" + i + "</a></li>";
+            }
+
+            if (responseJSON.response.pageNumber < responseJSON.response.totalPages) {
+                paginationHtml += "<li><a href=\"#\" aria-label=\"Next\" onClick=\"refreshZones(false, " + (responseJSON.response.pageNumber + 1) + "); return false;\"><span aria-hidden=\"true\">&rsaquo;</span></a></li>";
+                paginationHtml += "<li><a href=\"#\" aria-label=\"Last\" onClick=\"refreshZones(false, -1); return false;\"><span aria-hidden=\"true\">&raquo;</span></a></li>";
+            }
+
+            var statusHtml;
+
+            if (responseJSON.response.zones.length > 0)
+                statusHtml = firstRowNumber + "-" + lastRowNumber + " (" + responseJSON.response.zones.length + ") of " + responseJSON.response.totalZones + " zones (page " + responseJSON.response.pageNumber + " of " + responseJSON.response.totalPages + ")";
+            else
+                statusHtml = "0 zones";
+
+            $("#txtZonesPageNumber").val(responseJSON.response.pageNumber);
             $("#tableZonesBody").html(tableHtmlRows);
 
-            if (zones.length > 0)
-                $("#tableZonesFooter").html("<tr><td colspan=\"6\"><b>Total Zones: " + zones.length + "</b></td></tr>");
-            else
-                $("#tableZonesFooter").html("<tr><td colspan=\"6\" align=\"center\">No Zones Found</td></tr>");
+            $("#tableZonesTopStatus").html(statusHtml);
+            $("#tableZonesTopPagination").html(paginationHtml);
+
+            $("#tableZonesFooterStatus").html(statusHtml);
+            $("#tableZonesFooterPagination").html(paginationHtml);
 
             divViewZonesLoader.hide();
             divViewZones.show();
@@ -545,14 +611,7 @@ function deleteZoneMenu(objMenuItem) {
     HTTPRequest({
         url: "/api/zones/delete?token=" + sessionData.token + "&zone=" + zone,
         success: function (responseJSON) {
-            $("#trZone" + id).remove();
-
-            var totalZones = $('#tableZones >tbody >tr').length;
-
-            if (totalZones > 0)
-                $("#tableZonesFooter").html("<tr><td colspan=\"6\"><b>Total Zones: " + totalZones + "</b></td></tr>");
-            else
-                $("#tableZonesFooter").html("<tr><td colspan=\"6\" align=\"center\">No Zones Found</td></tr>");
+            refreshZones();
 
             showAlert("success", "Zone Deleted!", "Zone '" + zone + "' was deleted successfully.");
         },
@@ -1236,6 +1295,15 @@ function toggleHideDnssecRecords(hideDnssecRecords) {
 }
 
 function showEditZone(zone) {
+    if (zone == null) {
+        zone = $("#txtZonesEdit").val();
+        if (zone === "") {
+            showAlert("warning", "Missing!", "Please enter a zone name to start editing.");
+            $("#txtZonesEdit").focus();
+            return;
+        }
+    }
+
     var divViewZonesLoader = $("#divViewZonesLoader");
     var divViewZones = $("#divViewZones");
     var divEditZone = $("#divEditZone");
@@ -1247,6 +1315,8 @@ function showEditZone(zone) {
     HTTPRequest({
         url: "/api/zones/records/get?token=" + sessionData.token + "&domain=" + zone + "&zone=" + zone + "&listZone=true",
         success: function (responseJSON) {
+            zone = responseJSON.response.zone.name;
+
             var zoneType;
             if (responseJSON.response.zone.internal)
                 zoneType = "Internal";
