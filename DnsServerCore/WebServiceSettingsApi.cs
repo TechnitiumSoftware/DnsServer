@@ -287,7 +287,6 @@ namespace DnsServerCore
             jsonWriter.WriteBoolean("enableDnsOverHttp", _dnsWebService.DnsServer.EnableDnsOverHttp);
             jsonWriter.WriteBoolean("enableDnsOverTls", _dnsWebService.DnsServer.EnableDnsOverTls);
             jsonWriter.WriteBoolean("enableDnsOverHttps", _dnsWebService.DnsServer.EnableDnsOverHttps);
-            jsonWriter.WriteBoolean("enableDnsOverHttpPort80", _dnsWebService.DnsServer.EnableDnsOverHttpPort80);
             jsonWriter.WriteBoolean("enableDnsOverQuic", _dnsWebService.DnsServer.EnableDnsOverQuic);
             jsonWriter.WriteNumber("dnsOverHttpPort", _dnsWebService.DnsServer.DnsOverHttpPort);
             jsonWriter.WriteNumber("dnsOverTlsPort", _dnsWebService.DnsServer.DnsOverTlsPort);
@@ -740,15 +739,6 @@ namespace DnsServerCore
                 if (_dnsWebService.DnsServer.EnableDnsOverHttps != enableDnsOverHttps)
                 {
                     _dnsWebService.DnsServer.EnableDnsOverHttps = enableDnsOverHttps;
-                    restartDnsService = true;
-                }
-            }
-
-            if (request.TryGetQueryOrForm("enableDnsOverHttpPort80", bool.Parse, out bool enableDnsOverHttpPort80))
-            {
-                if (_dnsWebService.DnsServer.EnableDnsOverHttpPort80 != enableDnsOverHttpPort80)
-                {
-                    _dnsWebService.DnsServer.EnableDnsOverHttpPort80 = enableDnsOverHttpPort80;
                     restartDnsService = true;
                 }
             }
