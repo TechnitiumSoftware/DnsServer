@@ -145,9 +145,8 @@ namespace DnsServerCore.Dns
         bool _enableDnsOverHttp;
         bool _enableDnsOverTls;
         bool _enableDnsOverHttps;
-        bool _enableDnsOverHttpPort80;
         bool _enableDnsOverQuic;
-        int _dnsOverHttpPort = 8053;
+        int _dnsOverHttpPort = 80;
         int _dnsOverTlsPort = 853;
         int _dnsOverHttpsPort = 443;
         int _dnsOverQuicPort = 853;
@@ -258,7 +257,7 @@ namespace DnsServerCore.Dns
             _cacheZoneManager = new CacheZoneManager(this);
             _dnsApplicationManager = new DnsApplicationManager(this);
 
-            _dnsCache = new ResolverDnsCache(_dnsApplicationManager, _authZoneManager, _cacheZoneManager, _log);
+            _dnsCache = new ResolverDnsCache(_dnsApplicationManager, _authZoneManager, _cacheZoneManager, _log, false);
 
             //init stats
             _stats = new StatsManager(this);
@@ -1075,7 +1074,7 @@ namespace DnsServerCore.Dns
                         if ((question.Type == DnsResourceRecordType.ANY) && (protocol == DnsTransportProtocol.Udp)) //force TCP for ANY request
                             return new DnsDatagram(request.Identifier, true, DnsOpcode.StandardQuery, false, true, request.RecursionDesired, isRecursionAllowed, false, false, DnsResponseCode.NoError, request.Question) { Tag = DnsServerResponseType.Authoritative };
 
-                        return await ProcessRecursiveQueryAsync(request, remoteEP, protocol, null, _dnssecValidation, false);
+                        return await ProcessRecursiveQueryAsync(request, remoteEP, protocol, null, _dnssecValidation, false, skipDnsAppAuthoritativeRequestHandlers);
                     }
                     catch (InvalidDomainNameException)
                     {
@@ -1888,10 +1887,10 @@ namespace DnsServerCore.Dns
                             switch (lastRR.Type)
                             {
                                 case DnsResourceRecordType.CNAME:
-                                    return await ProcessCNAMEAsync(request, remoteEP, response, isRecursionAllowed, protocol, false);
+                                    return await ProcessCNAMEAsync(request, remoteEP, response, isRecursionAllowed, protocol, false, skipDnsAppAuthoritativeRequestHandlers);
 
                                 case DnsResourceRecordType.ANAME:
-                                    return await ProcessANAMEAsync(request, remoteEP, response, isRecursionAllowed, protocol);
+                                    return await ProcessANAMEAsync(request, remoteEP, response, isRecursionAllowed, protocol, skipDnsAppAuthoritativeRequestHandlers);
                             }
                         }
                     }
@@ -1904,7 +1903,7 @@ namespace DnsServerCore.Dns
                                 if (request.RecursionDesired && isRecursionAllowed)
                                 {
                                     //do forced recursive resolution using empty conditional forwarders; name servers will be provided via ResolverDnsCache
-                                    return await ProcessRecursiveQueryAsync(request, remoteEP, protocol, Array.Empty<DnsResourceRecord>(), _dnssecValidation, false);
+                                    return await ProcessRecursiveQueryAsync(request, remoteEP, protocol, Array.Empty<DnsResourceRecord>(), _dnssecValidation, false, skipDnsAppAuthoritativeRequestHandlers);
                                 }
 
                                 break;
@@ -1913,12 +1912,12 @@ namespace DnsServerCore.Dns
                                 if ((response.Authority.Count == 1) && (firstAuthority.RDATA is DnsForwarderRecordData fwd) && fwd.Forwarder.Equals("this-server", StringComparison.OrdinalIgnoreCase))
                                 {
                                     //do conditional forwarding via "this-server" 
-                                    return await ProcessRecursiveQueryAsync(request, remoteEP, protocol, null, fwd.DnssecValidation, false);
+                                    return await ProcessRecursiveQueryAsync(request, remoteEP, protocol, null, fwd.DnssecValidation, false, skipDnsAppAuthoritativeRequestHandlers);
                                 }
                                 else
                                 {
                                     //do conditional forwarding
-                                    return await ProcessRecursiveQueryAsync(request, remoteEP, protocol, response.Authority, _dnssecValidation, false);
+                                    return await ProcessRecursiveQueryAsync(request, remoteEP, protocol, response.Authority, _dnssecValidation, false, skipDnsAppAuthoritativeRequestHandlers);
                                 }
 
                             case DnsResourceRecordType.APP:
@@ -2006,7 +2005,7 @@ namespace DnsServerCore.Dns
             }
         }
 
-        private async Task<DnsDatagram> ProcessCNAMEAsync(DnsDatagram request, IPEndPoint remoteEP, DnsDatagram response, bool isRecursionAllowed, DnsTransportProtocol protocol, bool cacheRefreshOperation)
+        private async Task<DnsDatagram> ProcessCNAMEAsync(DnsDatagram request, IPEndPoint remoteEP, DnsDatagram response, bool isRecursionAllowed, DnsTransportProtocol protocol, bool cacheRefreshOperation, bool skipDnsAppAuthoritativeRequestHandlers)
         {
             List<DnsResourceRecord> newAnswer = new List<DnsResourceRecord>(response.Answer.Count + 4);
             newAnswer.AddRange(response.Answer);
@@ -2065,7 +2064,7 @@ namespace DnsServerCore.Dns
                     if (newRequest.RecursionDesired && isRecursionAllowed)
                     {
                         //do recursion
-                        newResponse = await RecursiveResolveAsync(newRequest, remoteEP, null, _dnssecValidation, false, cacheRefreshOperation);
+                        newResponse = await RecursiveResolveAsync(newRequest, remoteEP, null, _dnssecValidation, false, cacheRefreshOperation, skipDnsAppAuthoritativeRequestHandlers);
                         isAuthoritativeAnswer = false;
                     }
                     else
@@ -2076,7 +2075,7 @@ namespace DnsServerCore.Dns
                 }
                 else if ((newResponse.Answer.Count > 0) && (newResponse.GetLastAnswerRecord().Type == DnsResourceRecordType.ANAME))
                 {
-                    newResponse = await ProcessANAMEAsync(request, remoteEP, newResponse, isRecursionAllowed, protocol);
+                    newResponse = await ProcessANAMEAsync(request, remoteEP, newResponse, isRecursionAllowed, protocol, skipDnsAppAuthoritativeRequestHandlers);
                 }
                 else if ((newResponse.Answer.Count == 0) && (newResponse.Authority.Count > 0))
                 {
@@ -2088,7 +2087,7 @@ namespace DnsServerCore.Dns
                             if (newRequest.RecursionDesired && isRecursionAllowed)
                             {
                                 //do forced recursive resolution using empty conditional forwarders; name servers will be provided via ResolveDnsCache
-                                newResponse = await RecursiveResolveAsync(newRequest, remoteEP, Array.Empty<DnsResourceRecord>(), _dnssecValidation, false, false);
+                                newResponse = await RecursiveResolveAsync(newRequest, remoteEP, Array.Empty<DnsResourceRecord>(), _dnssecValidation, false, false, skipDnsAppAuthoritativeRequestHandlers);
                                 isAuthoritativeAnswer = false;
                             }
 
@@ -2098,13 +2097,13 @@ namespace DnsServerCore.Dns
                             if ((newResponse.Authority.Count == 1) && (firstAuthority.RDATA is DnsForwarderRecordData fwd) && fwd.Forwarder.Equals("this-server", StringComparison.OrdinalIgnoreCase))
                             {
                                 //do conditional forwarding via "this-server" 
-                                newResponse = await RecursiveResolveAsync(newRequest, remoteEP, null, fwd.DnssecValidation, false, false);
+                                newResponse = await RecursiveResolveAsync(newRequest, remoteEP, null, fwd.DnssecValidation, false, false, skipDnsAppAuthoritativeRequestHandlers);
                                 isAuthoritativeAnswer = false;
                             }
                             else
                             {
                                 //do conditional forwarding
-                                newResponse = await RecursiveResolveAsync(newRequest, remoteEP, newResponse.Authority, _dnssecValidation, false, false);
+                                newResponse = await RecursiveResolveAsync(newRequest, remoteEP, newResponse.Authority, _dnssecValidation, false, false, skipDnsAppAuthoritativeRequestHandlers);
                                 isAuthoritativeAnswer = false;
                             }
 
@@ -2191,7 +2190,7 @@ namespace DnsServerCore.Dns
             return new DnsDatagram(request.Identifier, true, DnsOpcode.StandardQuery, isAuthoritativeAnswer, false, request.RecursionDesired, isRecursionAllowed, false, request.CheckingDisabled, rcode, request.Question, newAnswer, authority, additional) { Tag = response.Tag };
         }
 
-        private async Task<DnsDatagram> ProcessANAMEAsync(DnsDatagram request, IPEndPoint remoteEP, DnsDatagram response, bool isRecursionAllowed, DnsTransportProtocol protocol)
+        private async Task<DnsDatagram> ProcessANAMEAsync(DnsDatagram request, IPEndPoint remoteEP, DnsDatagram response, bool isRecursionAllowed, DnsTransportProtocol protocol, bool skipDnsAppAuthoritativeRequestHandlers)
         {
             EDnsOption[] eDnsClientSubnetOption = null;
 
@@ -2219,7 +2218,7 @@ namespace DnsServerCore.Dns
                     if (newResponse is null)
                     {
                         //not found in auth zone; do recursion
-                        newResponse = await RecursiveResolveAsync(newRequest, remoteEP, null, _dnssecValidation, false, false);
+                        newResponse = await RecursiveResolveAsync(newRequest, remoteEP, null, _dnssecValidation, false, false, skipDnsAppAuthoritativeRequestHandlers);
                     }
                     else if ((newResponse.Answer.Count == 0) && (newResponse.Authority.Count > 0))
                     {
@@ -2229,19 +2228,19 @@ namespace DnsServerCore.Dns
                         {
                             case DnsResourceRecordType.NS:
                                 //do forced recursive resolution using empty conditional forwarders; name servers will be provided via ResolverDnsCache
-                                newResponse = await RecursiveResolveAsync(newRequest, remoteEP, Array.Empty<DnsResourceRecord>(), _dnssecValidation, false, false);
+                                newResponse = await RecursiveResolveAsync(newRequest, remoteEP, Array.Empty<DnsResourceRecord>(), _dnssecValidation, false, false, skipDnsAppAuthoritativeRequestHandlers);
                                 break;
 
                             case DnsResourceRecordType.FWD:
                                 if ((newResponse.Authority.Count == 1) && (firstAuthority.RDATA is DnsForwarderRecordData fwd) && fwd.Forwarder.Equals("this-server", StringComparison.OrdinalIgnoreCase))
                                 {
                                     //do conditional forwarding via "this-server" 
-                                    newResponse = await RecursiveResolveAsync(newRequest, remoteEP, null, fwd.DnssecValidation, false, false);
+                                    newResponse = await RecursiveResolveAsync(newRequest, remoteEP, null, fwd.DnssecValidation, false, false, skipDnsAppAuthoritativeRequestHandlers);
                                 }
                                 else
                                 {
                                     //do conditional forwarding
-                                    newResponse = await RecursiveResolveAsync(newRequest, remoteEP, newResponse.Authority, _dnssecValidation, false, false);
+                                    newResponse = await RecursiveResolveAsync(newRequest, remoteEP, newResponse.Authority, _dnssecValidation, false, false, skipDnsAppAuthoritativeRequestHandlers);
                                 }
 
                                 break;
@@ -2392,23 +2391,35 @@ namespace DnsServerCore.Dns
                 //domain is blocked in blocked zone
                 DnsQuestionRecord question = request.Question[0];
 
+                string GetBlockedDomain()
+                {
+                    DnsResourceRecord firstAuthority = response.FindFirstAuthorityRecord();
+                    if ((firstAuthority is not null) && (firstAuthority.Type == DnsResourceRecordType.SOA))
+                        return firstAuthority.Name;
+                    else
+                        return question.Name;
+                }
+
                 if (_allowTxtBlockingReport && (question.Type == DnsResourceRecordType.TXT))
                 {
                     //return meta data
-                    string blockedDomain;
-
-                    DnsResourceRecord firstAuthority = response.FindFirstAuthorityRecord();
-                    if ((firstAuthority is not null) && (firstAuthority.Type == DnsResourceRecordType.SOA))
-                        blockedDomain = firstAuthority.Name;
-                    else
-                        blockedDomain = question.Name;
+                    string blockedDomain = GetBlockedDomain();
 
                     IReadOnlyList<DnsResourceRecord> answer = new DnsResourceRecord[] { new DnsResourceRecord(question.Name, DnsResourceRecordType.TXT, question.Class, 60, new DnsTXTRecordData("source=blocked-zone; domain=" + blockedDomain)) };
 
-                    return new DnsDatagram(request.Identifier, true, DnsOpcode.StandardQuery, false, false, request.RecursionDesired, true, false, false, DnsResponseCode.NoError, request.Question, answer) { Tag = DnsServerResponseType.Blocked };
+                    return new DnsDatagram(request.Identifier, true, DnsOpcode.StandardQuery, false, false, request.RecursionDesired, false, false, false, DnsResponseCode.NoError, request.Question, answer) { Tag = DnsServerResponseType.Blocked };
                 }
                 else
                 {
+                    string blockedDomain = null;
+                    EDnsOption[] options = null;
+
+                    if (_allowTxtBlockingReport && (request.EDNS is not null))
+                    {
+                        blockedDomain = GetBlockedDomain();
+                        options = new EDnsOption[] { new EDnsOption(EDnsOptionCode.EXTENDED_DNS_ERROR, new EDnsExtendedDnsErrorOptionData(EDnsExtendedDnsErrorCode.Blocked, "source=blocked-zone; domain=" + blockedDomain)) };
+                    }
+
                     IReadOnlyCollection<DnsARecordData> aRecords;
                     IReadOnlyCollection<DnsAAAARecordData> aaaaRecords;
 
@@ -2425,19 +2436,14 @@ namespace DnsServerCore.Dns
                             break;
 
                         case DnsServerBlockingType.NxDomain:
-                            string blockedDomain;
-
-                            DnsResourceRecord firstAuthority = response.FindFirstAuthorityRecord();
-                            if ((firstAuthority is not null) && (firstAuthority.Type == DnsResourceRecordType.SOA))
-                                blockedDomain = firstAuthority.Name;
-                            else
-                                blockedDomain = question.Name;
+                            if (blockedDomain is null)
+                                blockedDomain = GetBlockedDomain();
 
                             string parentDomain = AuthZoneManager.GetParentZone(blockedDomain);
                             if (parentDomain is null)
                                 parentDomain = string.Empty;
 
-                            return new DnsDatagram(request.Identifier, true, DnsOpcode.StandardQuery, false, false, request.RecursionDesired, true, false, false, DnsResponseCode.NxDomain, request.Question, null, new DnsResourceRecord[] { new DnsResourceRecord(parentDomain, DnsResourceRecordType.SOA, question.Class, 60, _blockedZoneManager.DnsSOARecord) }) { Tag = DnsServerResponseType.Blocked };
+                            return new DnsDatagram(request.Identifier, true, DnsOpcode.StandardQuery, false, false, request.RecursionDesired, false, false, false, DnsResponseCode.NxDomain, request.Question, null, new DnsResourceRecord[] { new DnsResourceRecord(parentDomain, DnsResourceRecordType.SOA, question.Class, 60, _blockedZoneManager.DnsSOARecord) }, null, request.EDNS is null ? ushort.MinValue : _udpPayloadSize, EDnsHeaderFlags.None, options) { Tag = DnsServerResponseType.Blocked };
 
                         default:
                             throw new InvalidOperationException();
@@ -2476,12 +2482,12 @@ namespace DnsServerCore.Dns
                             break;
                     }
 
-                    return new DnsDatagram(request.Identifier, true, DnsOpcode.StandardQuery, false, false, request.RecursionDesired, true, false, false, DnsResponseCode.NoError, request.Question, answer, authority) { Tag = DnsServerResponseType.Blocked };
+                    return new DnsDatagram(request.Identifier, true, DnsOpcode.StandardQuery, false, false, request.RecursionDesired, false, false, false, DnsResponseCode.NoError, request.Question, answer, authority, null, request.EDNS is null ? ushort.MinValue : _udpPayloadSize, EDnsHeaderFlags.None, options) { Tag = DnsServerResponseType.Blocked };
                 }
             }
         }
 
-        private async Task<DnsDatagram> ProcessRecursiveQueryAsync(DnsDatagram request, IPEndPoint remoteEP, DnsTransportProtocol protocol, IReadOnlyList<DnsResourceRecord> conditionalForwarders, bool dnssecValidation, bool cacheRefreshOperation)
+        private async Task<DnsDatagram> ProcessRecursiveQueryAsync(DnsDatagram request, IPEndPoint remoteEP, DnsTransportProtocol protocol, IReadOnlyList<DnsResourceRecord> conditionalForwarders, bool dnssecValidation, bool cacheRefreshOperation, bool skipDnsAppAuthoritativeRequestHandlers)
         {
             bool inAllowedZone;
 
@@ -2507,7 +2513,7 @@ namespace DnsServerCore.Dns
                 }
             }
 
-            DnsDatagram response = await RecursiveResolveAsync(request, remoteEP, conditionalForwarders, dnssecValidation, false, cacheRefreshOperation);
+            DnsDatagram response = await RecursiveResolveAsync(request, remoteEP, conditionalForwarders, dnssecValidation, false, cacheRefreshOperation, skipDnsAppAuthoritativeRequestHandlers);
 
             if (response.Answer.Count > 0)
             {
@@ -2515,7 +2521,7 @@ namespace DnsServerCore.Dns
                 DnsResourceRecord lastRR = response.GetLastAnswerRecord();
 
                 if ((lastRR.Type != questionType) && (lastRR.Type == DnsResourceRecordType.CNAME) && (questionType != DnsResourceRecordType.ANY))
-                    response = await ProcessCNAMEAsync(request, remoteEP, response, true, protocol, cacheRefreshOperation);
+                    response = await ProcessCNAMEAsync(request, remoteEP, response, true, protocol, cacheRefreshOperation, skipDnsAppAuthoritativeRequestHandlers);
 
                 if (!inAllowedZone)
                 {
@@ -2555,10 +2561,21 @@ namespace DnsServerCore.Dns
                 }
             }
 
+            if (response.Tag is null)
+            {
+                if (response.IsBlockedResponse())
+                    response.Tag = DnsServerResponseType.UpstreamBlocked;
+            }
+            else if ((DnsServerResponseType)response.Tag == DnsServerResponseType.Cached)
+            {
+                if (response.IsBlockedResponse())
+                    response.Tag = DnsServerResponseType.CacheBlocked;
+            }
+
             return response;
         }
 
-        private async Task<DnsDatagram> RecursiveResolveAsync(DnsDatagram request, IPEndPoint remoteEP, IReadOnlyList<DnsResourceRecord> conditionalForwarders, bool dnssecValidation, bool cachePrefetchOperation, bool cacheRefreshOperation)
+        private async Task<DnsDatagram> RecursiveResolveAsync(DnsDatagram request, IPEndPoint remoteEP, IReadOnlyList<DnsResourceRecord> conditionalForwarders, bool dnssecValidation, bool cachePrefetchOperation, bool cacheRefreshOperation, bool skipDnsAppAuthoritativeRequestHandlers)
         {
             DnsQuestionRecord question = request.Question[0];
             NetworkAddress eDnsClientSubnet = null;
@@ -2654,7 +2671,7 @@ namespace DnsServerCore.Dns
                 //got new resolver task added so question is not being resolved; do recursive resolution in another task on resolver thread pool
                 _ = Task.Factory.StartNew(delegate ()
                 {
-                    return RecursiveResolveAsync(question, eDnsClientSubnet, conditionalForwarders, dnssecValidation, cachePrefetchOperation, cacheRefreshOperation, resolverTaskCompletionSource);
+                    return RecursiveResolveAsync(question, eDnsClientSubnet, conditionalForwarders, dnssecValidation, cachePrefetchOperation, cacheRefreshOperation, skipDnsAppAuthoritativeRequestHandlers, resolverTaskCompletionSource);
                 }, CancellationToken.None, TaskCreationOptions.DenyChildAttach, _resolverTaskScheduler);
             }
 
@@ -2710,7 +2727,7 @@ namespace DnsServerCore.Dns
             return new DnsDatagram(request.Identifier, true, DnsOpcode.StandardQuery, false, false, request.RecursionDesired, true, false, false, DnsResponseCode.ServerFailure, request.Question, null, null, null, _udpPayloadSize, request.DnssecOk ? EDnsHeaderFlags.DNSSEC_OK : EDnsHeaderFlags.None, options);
         }
 
-        private async Task RecursiveResolveAsync(DnsQuestionRecord question, NetworkAddress eDnsClientSubnet, IReadOnlyList<DnsResourceRecord> conditionalForwarders, bool dnssecValidation, bool cachePrefetchOperation, bool cacheRefreshOperation, TaskCompletionSource<RecursiveResolveResponse> taskCompletionSource)
+        private async Task RecursiveResolveAsync(DnsQuestionRecord question, NetworkAddress eDnsClientSubnet, IReadOnlyList<DnsResourceRecord> conditionalForwarders, bool dnssecValidation, bool cachePrefetchOperation, bool cacheRefreshOperation, bool skipDnsAppAuthoritativeRequestHandlers, TaskCompletionSource<RecursiveResolveResponse> taskCompletionSource)
         {
             try
             {
@@ -2718,7 +2735,9 @@ namespace DnsServerCore.Dns
                 IDnsCache dnsCache;
 
                 if (cachePrefetchOperation || cacheRefreshOperation)
-                    dnsCache = new ResolverPrefetchDnsCache(_dnsApplicationManager, _authZoneManager, _cacheZoneManager, _log, question);
+                    dnsCache = new ResolverPrefetchDnsCache(_dnsApplicationManager, _authZoneManager, _cacheZoneManager, _log, skipDnsAppAuthoritativeRequestHandlers, question);
+                else if (skipDnsAppAuthoritativeRequestHandlers)
+                    dnsCache = new ResolverDnsCache(_dnsApplicationManager, _authZoneManager, _cacheZoneManager, _log, true);
                 else
                     dnsCache = _dnsCache;
 
@@ -3152,7 +3171,7 @@ namespace DnsServerCore.Dns
             //additional section checks
             if (additional.Count > 0)
             {
-                if ((request.EDNS is not null) && (response.EDNS is not null) && (response.EDNS.Options.Count > 0))
+                if ((request.EDNS is not null) && (response.EDNS is not null) && ((response.EDNS.Options.Count > 0) || (response.DnsClientExtendedErrors.Count > 0)))
                 {
                     //copy options as new OPT and keep other records
                     List<DnsResourceRecord> newAdditional = new List<DnsResourceRecord>(additional.Count);
@@ -3209,6 +3228,19 @@ namespace DnsServerCore.Dns
                     else
                     {
                         options = response.EDNS.Options;
+                    }
+
+                    if (response.DnsClientExtendedErrors.Count > 0)
+                    {
+                        //add dns client extended errors
+                        List<EDnsOption> newOptions = new List<EDnsOption>(options.Count + response.DnsClientExtendedErrors.Count);
+
+                        newOptions.AddRange(options);
+
+                        foreach (EDnsExtendedDnsErrorOptionData ee in response.DnsClientExtendedErrors)
+                            newOptions.Add(new EDnsOption(EDnsOptionCode.EXTENDED_DNS_ERROR, ee));
+
+                        options = newOptions;
                     }
 
                     newAdditional.Add(DnsDatagramEdns.GetOPTFor(_udpPayloadSize, response.RCODE, 0, request.DnssecOk ? EDnsHeaderFlags.DNSSEC_OK : EDnsHeaderFlags.None, options));
@@ -3284,7 +3316,7 @@ namespace DnsServerCore.Dns
         {
             try
             {
-                await RecursiveResolveAsync(request, remoteEP, conditionalForwarders, _dnssecValidation, true, false);
+                await RecursiveResolveAsync(request, remoteEP, conditionalForwarders, _dnssecValidation, true, false, false);
             }
             catch (Exception ex)
             {
@@ -3298,7 +3330,7 @@ namespace DnsServerCore.Dns
             {
                 //refresh cache
                 DnsDatagram request = new DnsDatagram(0, false, DnsOpcode.StandardQuery, false, false, true, false, false, false, DnsResponseCode.NoError, new DnsQuestionRecord[] { sample.SampleQuestion });
-                DnsDatagram response = await ProcessRecursiveQueryAsync(request, IPENDPOINT_ANY_0, DnsTransportProtocol.Udp, sample.ConditionalForwarders, _dnssecValidation, true);
+                DnsDatagram response = await ProcessRecursiveQueryAsync(request, IPENDPOINT_ANY_0, DnsTransportProtocol.Udp, sample.ConditionalForwarders, _dnssecValidation, true, false);
 
                 bool addBackToSampleList = false;
                 DateTime utcNow = DateTime.UtcNow;
@@ -3704,13 +3736,6 @@ namespace DnsServerCore.Dns
                         serverOptions.Listen(localAddress, _dnsOverHttpPort);
                 }
 
-                //bind to http port 80 for certbot webroot support
-                if (_enableDnsOverHttpPort80)
-                {
-                    foreach (IPAddress localAddress in localAddresses)
-                        serverOptions.Listen(localAddress, 80);
-                }
-
                 //bind to https port
                 if (_enableDnsOverHttps && (_certificate is not null))
                 {
@@ -3771,9 +3796,6 @@ namespace DnsServerCore.Dns
                         if (_enableDnsOverHttp)
                             _log?.Write(new IPEndPoint(localAddress, _dnsOverHttpPort), "Http", "DNS Server was bound successfully.");
 
-                        if (_enableDnsOverHttpPort80)
-                            _log?.Write(new IPEndPoint(localAddress, 80), "Http", "DNS Server was bound successfully.");
-
                         if (_enableDnsOverHttps && (_certificate is not null))
                             _log?.Write(new IPEndPoint(localAddress, _dnsOverHttpsPort), "Https", "DNS Server was bound successfully.");
                     }
@@ -3789,9 +3811,6 @@ namespace DnsServerCore.Dns
                     {
                         if (_enableDnsOverHttp)
                             _log?.Write(new IPEndPoint(localAddress, _dnsOverHttpPort), "Http", "DNS Server failed to bind.");
-
-                        if (_enableDnsOverHttpPort80)
-                            _log?.Write(new IPEndPoint(localAddress, 80), "Http", "DNS Server failed to bind.");
 
                         if (_enableDnsOverHttps && (_certificate is not null))
                             _log?.Write(new IPEndPoint(localAddress, _dnsOverHttpsPort), "Https", "DNS Server failed to bind.");
@@ -4085,7 +4104,7 @@ namespace DnsServerCore.Dns
                 }
             }
 
-            if (_enableDnsOverHttp || _enableDnsOverHttpPort80 || (_enableDnsOverHttps && (_certificate is not null)))
+            if (_enableDnsOverHttp || (_enableDnsOverHttps && (_certificate is not null)))
                 await StartDoHAsync();
 
             _cachePrefetchSamplingTimer = new Timer(CachePrefetchSamplingTimerCallback, null, Timeout.Infinite, Timeout.Infinite);
@@ -4478,12 +4497,6 @@ namespace DnsServerCore.Dns
         {
             get { return _enableDnsOverHttps; }
             set { _enableDnsOverHttps = value; }
-        }
-
-        public bool EnableDnsOverHttpPort80
-        {
-            get { return _enableDnsOverHttpPort80; }
-            set { _enableDnsOverHttpPort80 = value; }
         }
 
         public bool EnableDnsOverQuic
