@@ -325,7 +325,6 @@ $(function () {
         var enableDnsOverHttps = $("#chkEnableDnsOverHttps").prop("checked");
         var enableDnsOverQuic = $("#chkEnableDnsOverQuic").prop("checked");
 
-        $("#chkEnableDnsOverHttpPort80").prop("checked", enableDnsOverHttps);
         $("#txtDnsOverHttpsPort").prop("disabled", !enableDnsOverHttps);
         $("#txtDnsTlsCertificatePath").prop("disabled", !enableDnsOverTls && !enableDnsOverHttps && !enableDnsOverQuic);
         $("#txtDnsTlsCertificatePassword").prop("disabled", !enableDnsOverTls && !enableDnsOverHttps && !enableDnsOverQuic);
@@ -923,7 +922,6 @@ function loadDnsSettings() {
             $("#chkEnableDnsOverHttp").prop("checked", responseJSON.response.enableDnsOverHttp);
             $("#chkEnableDnsOverTls").prop("checked", responseJSON.response.enableDnsOverTls);
             $("#chkEnableDnsOverHttps").prop("checked", responseJSON.response.enableDnsOverHttps);
-            $("#chkEnableDnsOverHttpPort80").prop("checked", responseJSON.response.enableDnsOverHttpPort80);
             $("#chkEnableDnsOverQuic").prop("checked", responseJSON.response.enableDnsOverQuic);
 
             $("#txtDnsOverHttpPort").prop("disabled", !responseJSON.response.enableDnsOverHttp);
@@ -1361,7 +1359,6 @@ function saveDnsSettings() {
     var enableDnsOverHttp = $("#chkEnableDnsOverHttp").prop("checked");
     var enableDnsOverTls = $("#chkEnableDnsOverTls").prop("checked");
     var enableDnsOverHttps = $("#chkEnableDnsOverHttps").prop("checked");
-    var enableDnsOverHttpPort80 = $("#chkEnableDnsOverHttpPort80").prop("checked");
     var enableDnsOverQuic = $("#chkEnableDnsOverQuic").prop("checked");
 
     var dnsOverHttpPort = $("#txtDnsOverHttpPort").val();
@@ -1618,7 +1615,7 @@ function saveDnsSettings() {
             + "&qpmLimitRequests=" + qpmLimitRequests + "&qpmLimitErrors=" + qpmLimitErrors + "&qpmLimitSampleMinutes=" + qpmLimitSampleMinutes + "&qpmLimitIPv4PrefixLength=" + qpmLimitIPv4PrefixLength + "&qpmLimitIPv6PrefixLength=" + qpmLimitIPv6PrefixLength
             + "&clientTimeout=" + clientTimeout + "&tcpSendTimeout=" + tcpSendTimeout + "&tcpReceiveTimeout=" + tcpReceiveTimeout + "&quicIdleTimeout=" + quicIdleTimeout + "&quicMaxInboundStreams=" + quicMaxInboundStreams + "&listenBacklog=" + listenBacklog
             + "&webServiceLocalAddresses=" + encodeURIComponent(webServiceLocalAddresses) + "&webServiceHttpPort=" + webServiceHttpPort + "&webServiceEnableTls=" + webServiceEnableTls + "&webServiceHttpToTlsRedirect=" + webServiceHttpToTlsRedirect + "&webServiceUseSelfSignedTlsCertificate=" + webServiceUseSelfSignedTlsCertificate + "&webServiceTlsPort=" + webServiceTlsPort + "&webServiceTlsCertificatePath=" + encodeURIComponent(webServiceTlsCertificatePath) + "&webServiceTlsCertificatePassword=" + encodeURIComponent(webServiceTlsCertificatePassword)
-            + "&enableDnsOverHttp=" + enableDnsOverHttp + "&enableDnsOverTls=" + enableDnsOverTls + "&enableDnsOverHttps=" + enableDnsOverHttps + "&enableDnsOverHttpPort80=" + enableDnsOverHttpPort80 + "&enableDnsOverQuic=" + enableDnsOverQuic + "&dnsOverHttpPort=" + dnsOverHttpPort + "&dnsOverTlsPort=" + dnsOverTlsPort + "&dnsOverHttpsPort=" + dnsOverHttpsPort + "&dnsOverQuicPort=" + dnsOverQuicPort + "&dnsTlsCertificatePath=" + encodeURIComponent(dnsTlsCertificatePath) + "&dnsTlsCertificatePassword=" + encodeURIComponent(dnsTlsCertificatePassword)
+            + "&enableDnsOverHttp=" + enableDnsOverHttp + "&enableDnsOverTls=" + enableDnsOverTls + "&enableDnsOverHttps=" + enableDnsOverHttps + "&enableDnsOverQuic=" + enableDnsOverQuic + "&dnsOverHttpPort=" + dnsOverHttpPort + "&dnsOverTlsPort=" + dnsOverTlsPort + "&dnsOverHttpsPort=" + dnsOverHttpsPort + "&dnsOverQuicPort=" + dnsOverQuicPort + "&dnsTlsCertificatePath=" + encodeURIComponent(dnsTlsCertificatePath) + "&dnsTlsCertificatePassword=" + encodeURIComponent(dnsTlsCertificatePassword)
             + "&tsigKeys=" + encodeURIComponent(tsigKeys)
             + "&recursion=" + recursion + "&recursionDeniedNetworks=" + encodeURIComponent(recursionDeniedNetworks) + "&recursionAllowedNetworks=" + encodeURIComponent(recursionAllowedNetworks) + "&randomizeName=" + randomizeName + "&qnameMinimization=" + qnameMinimization + "&nsRevalidation=" + nsRevalidation + "&resolverRetries=" + resolverRetries + "&resolverTimeout=" + resolverTimeout + "&resolverMaxStackCount=" + resolverMaxStackCount
             + "&saveCache=" + saveCache + "&serveStale=" + serveStale + "&serveStaleTtl=" + serveStaleTtl + "&cacheMaximumEntries=" + cacheMaximumEntries + "&cacheMinimumRecordTtl=" + cacheMinimumRecordTtl + "&cacheMaximumRecordTtl=" + cacheMaximumRecordTtl + "&cacheNegativeRecordTtl=" + cacheNegativeRecordTtl + "&cacheFailureRecordTtl=" + cacheFailureRecordTtl + "&cachePrefetchEligibility=" + cachePrefetchEligibility + "&cachePrefetchTrigger=" + cachePrefetchTrigger + "&cachePrefetchSampleIntervalInMinutes=" + cachePrefetchSampleIntervalInMinutes + "&cachePrefetchSampleEligibilityHitsPerHour=" + cachePrefetchSampleEligibilityHitsPerHour
@@ -2439,6 +2436,7 @@ function resetBackupSettingsModal() {
     $("#chkBackupAllowedZones").prop("checked", true);
     $("#chkBackupBlockedZones").prop("checked", true);
     $("#chkBackupScopes").prop("checked", true);
+    $("#chkBackupApps").prop("checked", true);
     $("#chkBackupStats").prop("checked", true);
     $("#chkBackupLogs").prop("checked", false);
     $("#chkBackupBlockLists").prop("checked", true);
@@ -2482,6 +2480,7 @@ function resetRestoreSettingsModal() {
     $("#chkRestoreAllowedZones").prop("checked", true);
     $("#chkRestoreBlockedZones").prop("checked", true);
     $("#chkRestoreScopes").prop("checked", true);
+    $("#chkRestoreApps").prop("checked", true);
     $("#chkRestoreStats").prop("checked", true);
     $("#chkRestoreLogs").prop("checked", false);
     $("#chkRestoreBlockLists").prop("checked", true);
