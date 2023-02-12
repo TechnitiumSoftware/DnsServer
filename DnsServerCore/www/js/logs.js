@@ -39,6 +39,14 @@ $(function () {
         $("#optQueryLogsClassPath").html(optClassPaths);
         $("#txtAddEditRecordDataData").val("");
     });
+
+    $("#optQueryLogsEntriesPerPage").change(function () {
+        localStorage.setItem("optQueryLogsEntriesPerPage", $("#optQueryLogsEntriesPerPage").val());
+    });
+
+    var optQueryLogsEntriesPerPage = localStorage.getItem("optQueryLogsEntriesPerPage");
+    if (optQueryLogsEntriesPerPage != null)
+        $("#optQueryLogsEntriesPerPage").val(optQueryLogsEntriesPerPage);
 });
 
 function refreshLogsTab() {
