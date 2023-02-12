@@ -331,19 +331,64 @@
                                 </div>
 
                                 <div id="mainPanelTabPaneZones" role="tabpanel" class="tab-pane" style="padding: 10px 0 0 0;">
-                                    <div id="divViewZonesLoader" style=" display: none; margin-top: 10px; height: 400px;"></div>
+                                    <div id="divViewZonesLoader" style="display: none; margin-top: 10px; height: 400px;"></div>
 
                                     <div id="divViewZones" style="margin-top: 10px;">
-                                        <div>
+                                        <div style="margin-bottom: 16px;">
                                             <div style="float: right;">
                                                 <button type="button" class="btn btn-primary" style="padding: 2px 0px; width: 100px;" onclick="showAddZoneModal();">Add Zone</button>
                                             </div>
                                             <div style="clear: both;"></div>
                                         </div>
 
+                                        <div class="form-inline">
+                                            <form class="pull-left">
+                                                <div class="form-group">
+                                                    <input id="txtZonesEdit" class="form-control" style="width: 300px;" type="text" placeholder="example.com" />
+                                                    <button type="submit" class="btn btn-primary" onclick="showEditZone(); return false;">Edit</button>
+                                                </div>
+                                            </form>
+                                            <form class="pull-right">
+                                                <div class="form-group">
+                                                    <label for="optZonesPerPage">Page Number</label>
+                                                    <input id="txtZonesPageNumber" class="form-control" style="width: 100px;" type="number" />
+                                                </div>
+                                                <div class="form-group">
+                                                    <label for="optZonesPerPage">Zones Per Page</label>
+                                                    <select class="form-control" id="optZonesPerPage">
+                                                        <option selected>10</option>
+                                                        <option>25</option>
+                                                        <option>50</option>
+                                                        <option>100</option>
+                                                        <option>250</option>
+                                                        <option>500</option>
+                                                    </select>
+                                                </div>
+                                                <button type="submit" class="btn btn-primary form-group" style="margin-right: 0px;" onclick="refreshZones(); return false;">Go</button>
+                                            </form>
+                                            <div class="clearfix"></div>
+                                        </div>
+
+                                        <div>
+                                            <div class="pull-left">
+                                                <b id="tableZonesTopStatus">0 zones</b>
+                                            </div>
+                                            <div class="pull-right">
+                                                <nav aria-label="Page navigation">
+                                                    <ul id="tableZonesTopPagination" class="pagination" style="margin: 0;">
+                                                        <li><a href="#" aria-label="Previous"><span aria-hidden="true">&laquo;</span></a></li>
+                                                        <li><a href="#">1</a></li>
+                                                        <li><a href="#" aria-label="Next"><span aria-hidden="true">&raquo;</span></a></li>
+                                                    </ul>
+                                                </nav>
+                                            </div>
+                                            <div class="clearfix"></div>
+                                        </div>
+
                                         <table id="tableZones" class="table table-hover">
                                             <thead>
                                                 <tr>
+                                                    <th>#</th>
                                                     <th><a href="#" onclick="sortTable('tableZonesBody', 0); return false;">Zone</a></th>
                                                     <th><a href="#" onclick="sortTable('tableZonesBody', 1); return false;">Type</a></th>
                                                     <th><a href="#" onclick="sortTable('tableZonesBody', 2); return false;">DNSSEC</a></th>
@@ -352,17 +397,34 @@
                                                     <th style="width: 36px;"></th>
                                                 </tr>
                                             </thead>
-                                            <tbody id="tableZonesBody">
-                                            </tbody>
-                                            <tfoot id="tableZonesFooter">
-                                                <tr><td colspan="6"><b>Total Records: 0</b></td></tr>
+                                            <tbody id="tableZonesBody"></tbody>
+                                            <tfoot>
+                                                <tr>
+                                                    <td colspan="7">
+                                                        <div>
+                                                            <div class="pull-left">
+                                                                <b id="tableZonesFooterStatus">0 zones</b>
+                                                            </div>
+                                                            <div class="pull-right">
+                                                                <nav aria-label="Page navigation">
+                                                                    <ul id="tableZonesFooterPagination" class="pagination" style="margin: 0;">
+                                                                        <li><a href="#" aria-label="Previous"><span aria-hidden="true">&laquo;</span></a></li>
+                                                                        <li><a href="#">1</a></li>
+                                                                        <li><a href="#" aria-label="Next"><span aria-hidden="true">&raquo;</span></a></li>
+                                                                    </ul>
+                                                                </nav>
+                                                            </div>
+                                                            <div class="clearfix"></div>
+                                                        </div>
+                                                    </td>
+                                                </tr>
                                             </tfoot>
                                         </table>
                                     </div>
 
                                     <div id="divEditZone" style="display: none;">
                                         <ul class="pager" style="margin: 0px;">
-                                            <li class="previous"><a href="#" onclick="refreshZones(); return false;"><span aria-hidden="true">&larr;</span> Back</a></li>
+                                            <li class="previous"><a href="#" onclick="$('#divEditZone').hide(); $('#divViewZones').show(); return false;"><span aria-hidden="true">&larr;</span> Back</a></li>
                                         </ul>
 
                                         <div style="padding: 10px 0px;">
@@ -1060,7 +1122,7 @@
                                                                         <input id="chkEnableDnsOverHttp" type="checkbox"> Enable DNS-over-HTTP
                                                                     </label>
                                                                 </div>
-                                                                <div style="padding-top: 5px; padding-left: 20px;">Enable this option to accept DNS-over-HTTP requests. It must be used with a TLS terminating reverse proxy like nginx and will work only on private networks.</div>
+                                                                <div style="padding-top: 5px; padding-left: 20px;">Enable this option to accept DNS-over-HTTP requests. It must be used with a TLS terminating reverse proxy like nginx and will work only on private networks. Enabling this option also allows automatic TLS certificate renewal with HTTP challenge (webroot) for DNS-over-HTTPS service when DNS-over-HTTP port is set to 80.</div>
 
                                                                 <div class="checkbox">
                                                                     <label>
@@ -1078,13 +1140,6 @@
 
                                                                 <div class="checkbox">
                                                                     <label>
-                                                                        <input id="chkEnableDnsOverHttpPort80" type="checkbox"> Enable DNS-over-HTTP <code>(TCP Port 80)</code>
-                                                                    </label>
-                                                                </div>
-                                                                <div style="padding-top: 5px; padding-left: 20px;">Enable this option to allow automatic TLS certificate renewal with HTTP challenge (webroot) for DNS-over-HTTPS service. This service will not accept DNS-over-HTTP requests from public IP addresses.</div>
-
-                                                                <div class="checkbox">
-                                                                    <label>
                                                                         <input id="chkEnableDnsOverQuic" type="checkbox"> Enable DNS-over-QUIC
                                                                     </label>
                                                                 </div>
@@ -1096,7 +1151,7 @@
                                                             <label for="txtDnsOverHttpPort" class="col-sm-3 control-label">DNS-over-HTTP Port</label>
                                                             <div class="col-sm-6">
                                                                 <input type="number" class="form-control" id="txtDnsOverHttpPort" placeholder="port" style="width: 100px; display: inline;">
-                                                                <span>(default 8053)</span>
+                                                                <span>(default 80)</span>
                                                             </div>
                                                             <div class="col-sm-offset-3 col-sm-8" style="padding-top: 5px;">Specify the TCP port number for DNS-over-HTTP protocol.</div>
                                                         </div>
@@ -1430,7 +1485,7 @@
                                                                         <input id="chkAllowTxtBlockingReport" type="checkbox"> Allow TXT Blocking Report
                                                                     </label>
                                                                 </div>
-                                                                <div style="padding-top: 5px; padding-left: 20px;">Specifies if the DNS Server should respond with TXT records containing a blocked domain report for TXT type requests.</div>
+                                                                <div style="padding-top: 5px; padding-left: 20px;">Specifies if the DNS Server should respond with TXT records containing a blocked domain report for TXT type requests. This option also enables Extended DNS Error blocked domain report in response for requests that support EDNS.</div>
                                                             </div>
                                                         </div>
 
@@ -2503,6 +2558,8 @@
                                                         <option>Recursive</option>
                                                         <option>Cached</option>
                                                         <option>Blocked</option>
+                                                        <option>UpstreamBlocked</option>
+                                                        <option>CacheBlocked</option>
                                                     </select>
                                                 </div>
 
