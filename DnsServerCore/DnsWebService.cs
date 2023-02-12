@@ -948,7 +948,7 @@ namespace DnsServerCore
             }
 
             //add missing admin permissions
-            List<AuthZoneInfo> zones = _dnsServer.AuthZoneManager.GetAllZones();
+            IReadOnlyList<AuthZoneInfo> zones = _dnsServer.AuthZoneManager.GetAllZones();
             Group admins = _authManager.GetGroup(Group.ADMINISTRATORS);
             Group dnsAdmins = _authManager.GetGroup(Group.DNS_ADMINISTRATORS);
 
@@ -976,7 +976,7 @@ namespace DnsServerCore
 
             int version = bR.ReadByte();
 
-            if ((version >= 28) && (version <= 30))
+            if ((version >= 28) && (version <= 31))
             {
                 ReadConfigFrom(bR, version);
             }
@@ -1108,9 +1108,18 @@ namespace DnsServerCore
                 _dnsServer.EnableDnsOverTls = bR.ReadBoolean();
                 _dnsServer.EnableDnsOverHttps = bR.ReadBoolean();
 
-                if (version >= 30)
+                if (version >= 31)
                 {
-                    _dnsServer.EnableDnsOverHttpPort80 = bR.ReadBoolean();
+                    _dnsServer.EnableDnsOverQuic = bR.ReadBoolean();
+
+                    _dnsServer.DnsOverHttpPort = bR.ReadInt32();
+                    _dnsServer.DnsOverTlsPort = bR.ReadInt32();
+                    _dnsServer.DnsOverHttpsPort = bR.ReadInt32();
+                    _dnsServer.DnsOverQuicPort = bR.ReadInt32();
+                }
+                else if (version >= 30)
+                {
+                    _ = bR.ReadBoolean(); //removed EnableDnsOverHttpPort80 value
                     _dnsServer.EnableDnsOverQuic = bR.ReadBoolean();
 
                     _dnsServer.DnsOverHttpPort = bR.ReadInt32();
@@ -1120,10 +1129,22 @@ namespace DnsServerCore
                 }
                 else
                 {
-                    _dnsServer.EnableDnsOverHttpPort80 = _dnsServer.EnableDnsOverHttps;
                     _dnsServer.EnableDnsOverQuic = false;
 
-                    _dnsServer.DnsOverHttpPort = 8053;
+                    if (_dnsServer.EnableDnsOverHttps)
+                    {
+                        _dnsServer.EnableDnsOverHttp = true;
+                        _dnsServer.DnsOverHttpPort = 80;
+                    }
+                    else if (_dnsServer.EnableDnsOverHttp)
+                    {
+                        _dnsServer.DnsOverHttpPort = 8053;
+                    }
+                    else
+                    {
+                        _dnsServer.DnsOverHttpPort = 80;
+                    }
+
                     _dnsServer.DnsOverTlsPort = 853;
                     _dnsServer.DnsOverHttpsPort = 443;
                     _dnsServer.DnsOverQuicPort = 853;
@@ -1898,7 +1919,7 @@ namespace DnsServerCore
         private void WriteConfigTo(BinaryWriter bW)
         {
             bW.Write(Encoding.ASCII.GetBytes("DS")); //format
-            bW.Write((byte)30); //version
+            bW.Write((byte)31); //version
 
             //web service
             {
@@ -1967,7 +1988,6 @@ namespace DnsServerCore
                 bW.Write(_dnsServer.EnableDnsOverHttp);
                 bW.Write(_dnsServer.EnableDnsOverTls);
                 bW.Write(_dnsServer.EnableDnsOverHttps);
-                bW.Write(_dnsServer.EnableDnsOverHttpPort80);
                 bW.Write(_dnsServer.EnableDnsOverQuic);
 
                 bW.Write(_dnsServer.DnsOverHttpPort);
