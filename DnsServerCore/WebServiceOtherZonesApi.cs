@@ -259,7 +259,7 @@ namespace DnsServerCore
             if (!_dnsWebService._authManager.IsPermitted(PermissionSection.Allowed, session.User, PermissionFlag.View))
                 throw new DnsWebServiceException("Access was denied.");
 
-            IReadOnlyList<AuthZoneInfo> zoneInfoList = _dnsWebService.DnsServer.AllowedZoneManager.ListZones();
+            IReadOnlyList<AuthZoneInfo> zoneInfoList = _dnsWebService.DnsServer.AllowedZoneManager.GetAllZones();
 
             HttpResponse response = context.Response;
 
@@ -431,7 +431,7 @@ namespace DnsServerCore
             if (!_dnsWebService._authManager.IsPermitted(PermissionSection.Blocked, session.User, PermissionFlag.View))
                 throw new DnsWebServiceException("Access was denied.");
 
-            IReadOnlyList<AuthZoneInfo> zoneInfoList = _dnsWebService.DnsServer.BlockedZoneManager.ListZones();
+            IReadOnlyList<AuthZoneInfo> zoneInfoList = _dnsWebService.DnsServer.BlockedZoneManager.GetAllZones();
 
             HttpResponse response = context.Response;
 
