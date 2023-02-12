@@ -155,7 +155,7 @@ namespace DnsServerCore.Dns.ZoneManagers
             _zoneManager.Flush();
         }
 
-        public List<AuthZoneInfo> ListZones()
+        public IReadOnlyList<AuthZoneInfo> GetAllZones()
         {
             return _zoneManager.GetAllZones();
         }
@@ -172,7 +172,7 @@ namespace DnsServerCore.Dns.ZoneManagers
 
         public void SaveZoneFile()
         {
-            List<AuthZoneInfo> blockedZones = _dnsServer.BlockedZoneManager.ListZones();
+            IReadOnlyList<AuthZoneInfo> blockedZones = _dnsServer.BlockedZoneManager.GetAllZones();
 
             string blockedZoneFile = Path.Combine(_dnsServer.ConfigFolder, "blocked.config");
 
