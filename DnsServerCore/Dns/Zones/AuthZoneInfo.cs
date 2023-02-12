@@ -630,6 +630,22 @@ namespace DnsServerCore.Dns.Zones
             return _name.CompareTo(other._name);
         }
 
+        public override bool Equals(object obj)
+        {
+            if (ReferenceEquals(this, obj))
+                return true;
+
+            if (obj is not AuthZoneInfo other)
+                return false;
+
+            return _name.Equals(other._name, StringComparison.OrdinalIgnoreCase);
+        }
+
+        public override int GetHashCode()
+        {
+            return _name.GetHashCode();
+        }
+
         public override string ToString()
         {
             return _name;
