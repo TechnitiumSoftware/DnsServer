@@ -1537,10 +1537,21 @@ namespace DnsServerCore.Dns
                 switch (responseCode)
                 {
                     case DnsResponseCode.NoError:
-                        if ((query is not null) && (responseType != DnsServerResponseType.Blocked)) //skip blocked domains
+                        if (query is not null)
                         {
-                            _queryDomains.GetOrAdd(query.Name.ToLower(), GetNewCounter).Increment();
-                            _queries.GetOrAdd(query, GetNewCounter).Increment();
+                            switch (responseType)
+                            {
+                                case DnsServerResponseType.Blocked:
+                                case DnsServerResponseType.UpstreamBlocked:
+                                case DnsServerResponseType.CacheBlocked:
+                                    //skip blocked domains
+                                    break;
+
+                                default:
+                                    _queryDomains.GetOrAdd(query.Name.ToLower(), GetNewCounter).Increment();
+                                    _queries.GetOrAdd(query, GetNewCounter).Increment();
+                                    break;
+                            }
                         }
 
                         Interlocked.Increment(ref _totalNoError);
@@ -1580,6 +1591,24 @@ namespace DnsServerCore.Dns
                         break;
 
                     case DnsServerResponseType.Blocked:
+                        if (query is not null)
+                            _queryBlockedDomains.GetOrAdd(query.Name.ToLower(), GetNewCounter).Increment();
+
+                        Interlocked.Increment(ref _totalBlocked);
+                        break;
+
+                    case DnsServerResponseType.UpstreamBlocked:
+                        Interlocked.Increment(ref _totalRecursive);
+
+                        if (query is not null)
+                            _queryBlockedDomains.GetOrAdd(query.Name.ToLower(), GetNewCounter).Increment();
+
+                        Interlocked.Increment(ref _totalBlocked);
+                        break;
+
+                    case DnsServerResponseType.CacheBlocked:
+                        Interlocked.Increment(ref _totalCached);
+
                         if (query is not null)
                             _queryBlockedDomains.GetOrAdd(query.Name.ToLower(), GetNewCounter).Increment();
 
