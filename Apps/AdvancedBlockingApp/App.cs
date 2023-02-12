@@ -33,6 +33,7 @@ using System.Threading.Tasks;
 using TechnitiumLibrary;
 using TechnitiumLibrary.Net;
 using TechnitiumLibrary.Net.Dns;
+using TechnitiumLibrary.Net.Dns.EDnsOptions;
 using TechnitiumLibrary.Net.Dns.ResourceRecords;
 
 namespace AdvancedBlocking
@@ -418,10 +419,10 @@ namespace AdvancedBlocking
             return Task.CompletedTask;
         }
 
-        public Task<DnsDatagram> ProcessRequestAsync(DnsDatagram request, IPEndPoint remoteEP, DnsTransportProtocol protocol, bool isRecursionAllowed)
+        public async Task<DnsDatagram> ProcessRequestAsync(DnsDatagram request, IPEndPoint remoteEP, DnsTransportProtocol protocol, bool isRecursionAllowed)
         {
             if (!_enableBlocking)
-                return Task.FromResult<DnsDatagram>(null);
+                return null;
 
             IPAddress remoteIP = remoteEP.Address;
             NetworkAddress network = null;
@@ -437,37 +438,63 @@ namespace AdvancedBlocking
             }
 
             if ((groupName is null) || !_groups.TryGetValue(groupName, out Group group) || !group.EnableBlocking)
-                return Task.FromResult<DnsDatagram>(null);
+                return null;
 
             DnsQuestionRecord question = request.Question[0];
 
-            if (!group.IsZoneBlocked(question.Name, out string blockedDomain, out string blockedRegex, out Uri blockListUrl))
-                return Task.FromResult<DnsDatagram>(null);
-
-            if (group.AllowTxtBlockingReport && (question.Type == DnsResourceRecordType.TXT))
+            if (!group.IsZoneBlocked(question.Name, out bool allowed, out string blockedDomain, out string blockedRegex, out Uri blockListUrl))
             {
-                //return meta data
-                DnsResourceRecord[] answer;
+                if (allowed)
+                {
+                    DnsDatagram internalResponse = await _dnsServer.DirectQueryAsync(question);
+                    return new DnsDatagram(request.Identifier, true, DnsOpcode.StandardQuery, internalResponse.AuthoritativeAnswer, internalResponse.Truncation, request.RecursionDesired, internalResponse.RecursionAvailable, internalResponse.AuthenticData, internalResponse.CheckingDisabled, internalResponse.RCODE, request.Question, internalResponse.Answer, internalResponse.Authority, internalResponse.Additional) { Tag = internalResponse.Tag };
+                }
+
+                return null;
+            }
+
+            string GetBlockingReport()
+            {
+                string blockingReport = "source=advanced-blocking-app; group=" + group.Name;
 
                 if (blockedRegex is null)
                 {
                     if (blockListUrl is not null)
-                        answer = new DnsResourceRecord[] { new DnsResourceRecord(question.Name, DnsResourceRecordType.TXT, question.Class, 60, new DnsTXTRecordData("source=advanced-blocking-app; group=" + group.Name + "; blockListUrl=" + blockListUrl.AbsoluteUri + "; domain=" + blockedDomain)) };
+                        blockingReport += "; blockListUrl=" + blockListUrl.AbsoluteUri + "; domain=" + blockedDomain;
                     else
-                        answer = new DnsResourceRecord[] { new DnsResourceRecord(question.Name, DnsResourceRecordType.TXT, question.Class, 60, new DnsTXTRecordData("source=advanced-blocking-app; group=" + group.Name + "; domain=" + blockedDomain)) };
+                        blockingReport += "; domain=" + blockedDomain;
                 }
                 else
                 {
                     if (blockListUrl is not null)
-                        answer = new DnsResourceRecord[] { new DnsResourceRecord(question.Name, DnsResourceRecordType.TXT, question.Class, 60, new DnsTXTRecordData("source=advanced-blocking-app; group=" + group.Name + "; regexBlockListUrl=" + blockListUrl.AbsoluteUri + "; regex=" + blockedRegex)) };
+                        blockingReport += "; regexBlockListUrl=" + blockListUrl.AbsoluteUri + "; regex=" + blockedRegex;
                     else
-                        answer = new DnsResourceRecord[] { new DnsResourceRecord(question.Name, DnsResourceRecordType.TXT, question.Class, 60, new DnsTXTRecordData("source=advanced-blocking-app; group=" + group.Name + "; regex=" + blockedRegex)) };
+                        blockingReport += "; regex=" + blockedRegex;
                 }
 
-                return Task.FromResult(new DnsDatagram(request.Identifier, true, DnsOpcode.StandardQuery, false, false, request.RecursionDesired, isRecursionAllowed, false, false, DnsResponseCode.NoError, request.Question, answer) { Tag = DnsServerResponseType.Blocked });
+                return blockingReport;
+            }
+
+            if (group.AllowTxtBlockingReport && (question.Type == DnsResourceRecordType.TXT))
+            {
+                //return meta data
+                string blockingReport = GetBlockingReport();
+
+                DnsResourceRecord[] answer = new DnsResourceRecord[] { new DnsResourceRecord(question.Name, DnsResourceRecordType.TXT, question.Class, 60, new DnsTXTRecordData(blockingReport)) };
+
+                return new DnsDatagram(request.Identifier, true, DnsOpcode.StandardQuery, false, false, request.RecursionDesired, false, false, false, DnsResponseCode.NoError, request.Question, answer) { Tag = DnsServerResponseType.Blocked };
             }
             else
             {
+                EDnsOption[] options = null;
+
+                if (group.AllowTxtBlockingReport && (request.EDNS is not null))
+                {
+                    string blockingReport = GetBlockingReport();
+
+                    options = new EDnsOption[] { new EDnsOption(EDnsOptionCode.EXTENDED_DNS_ERROR, new EDnsExtendedDnsErrorOptionData(EDnsExtendedDnsErrorCode.Blocked, blockingReport)) };
+                }
+
                 DnsResponseCode rcode;
                 IReadOnlyList<DnsResourceRecord> answer = null;
                 IReadOnlyList<DnsResourceRecord> authority = null;
@@ -540,7 +567,7 @@ namespace AdvancedBlocking
                     }
                 }
 
-                return Task.FromResult(new DnsDatagram(request.Identifier, true, DnsOpcode.StandardQuery, false, false, request.RecursionDesired, isRecursionAllowed, false, false, rcode, request.Question, answer, authority) { Tag = DnsServerResponseType.Blocked });
+                return new DnsDatagram(request.Identifier, true, DnsOpcode.StandardQuery, false, false, request.RecursionDesired, false, false, false, rcode, request.Question, answer, authority, null, request.EDNS is null ? ushort.MinValue : _dnsServer.UdpPayloadSize, EDnsHeaderFlags.None, options) { Tag = DnsServerResponseType.Blocked };
             }
         }
 
@@ -727,7 +754,7 @@ namespace AdvancedBlocking
                 }
             }
 
-            public bool IsZoneBlocked(string domain, out string blockedDomain, out string blockedRegex, out Uri listUrl)
+            public bool IsZoneBlocked(string domain, out bool allowed, out string blockedDomain, out string blockedRegex, out Uri listUrl)
             {
                 domain = domain.ToLower();
 
@@ -735,6 +762,7 @@ namespace AdvancedBlocking
                 if (IsZoneFound(_allowed, domain, out _) || IsZoneFound(_allowListZones, domain, out _, out _) || IsMatchFound(_allowedRegex, domain, out _) || IsMatchFound(_regexAllowListZones, domain, out _, out _) || IsZoneAllowed(_adBlockListZones, domain, out _, out _))
                 {
                     //found zone allowed
+                    allowed = true;
                     blockedDomain = null;
                     blockedRegex = null;
                     listUrl = null;
@@ -745,6 +773,7 @@ namespace AdvancedBlocking
                 if (IsZoneFound(_blocked, domain, out string foundZone1))
                 {
                     //found zone blocked
+                    allowed = false;
                     blockedDomain = foundZone1;
                     blockedRegex = null;
                     listUrl = null;
@@ -755,6 +784,7 @@ namespace AdvancedBlocking
                 if (IsZoneFound(_blockListZones, domain, out string foundZone2, out Uri blockListUrl1))
                 {
                     //found zone blocked
+                    allowed = false;
                     blockedDomain = foundZone2;
                     blockedRegex = null;
                     listUrl = blockListUrl1;
@@ -765,6 +795,7 @@ namespace AdvancedBlocking
                 if (IsMatchFound(_blockedRegex, domain, out string blockedPattern1))
                 {
                     //found pattern blocked
+                    allowed = false;
                     blockedDomain = null;
                     blockedRegex = blockedPattern1;
                     listUrl = null;
@@ -775,6 +806,7 @@ namespace AdvancedBlocking
                 if (IsMatchFound(_regexBlockListZones, domain, out string blockedPattern2, out Uri blockListUrl2))
                 {
                     //found pattern blocked
+                    allowed = false;
                     blockedDomain = null;
                     blockedRegex = blockedPattern2;
                     listUrl = blockListUrl2;
@@ -785,12 +817,14 @@ namespace AdvancedBlocking
                 if (App.IsZoneBlocked(_adBlockListZones, domain, out string foundZone3, out Uri blockListUrl3))
                 {
                     //found zone blocked
+                    allowed = false;
                     blockedDomain = foundZone3;
                     blockedRegex = null;
                     listUrl = blockListUrl3;
                     return true;
                 }
 
+                allowed = false;
                 blockedDomain = null;
                 blockedRegex = null;
                 listUrl = null;
