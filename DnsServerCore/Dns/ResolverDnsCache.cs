@@ -140,7 +140,7 @@ namespace DnsServerCore.Dns
                 {
                     try
                     {
-                        authResponse = requestHandler.ProcessRequestAsync(request, new IPEndPoint(IPAddress.Any, 0), DnsTransportProtocol.Tcp, false).Sync();
+                        authResponse = requestHandler.ProcessRequestAsync(request, new IPEndPoint(IPAddress.Any, 0), DnsTransportProtocol.Tcp, true).Sync();
                         if (authResponse is not null)
                         {
                             if ((authResponse.RCODE != DnsResponseCode.NoError) || (authResponse.Answer.Count > 0) || (authResponse.Authority.Count == 0) || authResponse.IsFirstAuthoritySOA())
@@ -157,7 +157,7 @@ namespace DnsServerCore.Dns
 
             if (authResponse is null)
             {
-                authResponse = _authZoneManager.Query(request, true);
+                authResponse = _authZoneManager.Query(request);
                 if (authResponse is not null)
                 {
                     if ((authResponse.RCODE != DnsResponseCode.NoError) || (authResponse.Answer.Count > 0) || (authResponse.Authority.Count == 0) || authResponse.IsFirstAuthoritySOA())
