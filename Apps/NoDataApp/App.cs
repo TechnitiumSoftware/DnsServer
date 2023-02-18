@@ -1,6 +1,6 @@
 ﻿/*
 Technitium DNS Server
-Copyright (C) 2022  Shreyas Zare (shreyas@technitium.com)
+Copyright (C) 2023  Shreyas Zare (shreyas@technitium.com)
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -59,7 +59,7 @@ namespace NoData
                 {
                     DnsResourceRecordType blockedType = Enum.Parse<DnsResourceRecordType>(jsonBlockedType.GetString(), true);
                     if ((blockedType == question.Type) || (blockedType == DnsResourceRecordType.ANY))
-                        return Task.FromResult(new DnsDatagram(request.Identifier, true, request.OPCODE, false, false, request.RecursionDesired, isRecursionAllowed, false, false, DnsResponseCode.NoError, request.Question));
+                        return Task.FromResult(new DnsDatagram(request.Identifier, true, request.OPCODE, false, false, request.RecursionDesired, false, false, false, DnsResponseCode.NoError, request.Question));
                 }
             }
 
