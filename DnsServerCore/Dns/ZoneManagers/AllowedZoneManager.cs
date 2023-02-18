@@ -178,7 +178,7 @@ namespace DnsServerCore.Dns.ZoneManagers
 
         public DnsDatagram Query(DnsDatagram request)
         {
-            return _zoneManager.Query(request, true);
+            return _zoneManager.Query(request);
         }
 
         #endregion
