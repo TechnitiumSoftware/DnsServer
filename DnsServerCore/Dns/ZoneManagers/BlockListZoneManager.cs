@@ -109,15 +109,13 @@ namespace DnsServerCore.Dns.ZoneManagers
             return word;
         }
 
-        private Queue<string> ReadListFile(Uri listUrl, bool isAllowList)
+        private Queue<string> ReadListFile(Uri listUrl, bool isAllowList, Dictionary<string, object> allowedDomains)
         {
             Queue<string> domains = new Queue<string>();
 
             try
             {
-                LogManager log = _dnsServer.LogManager;
-                if (log != null)
-                    log.Write("DNS Server is reading " + (isAllowList ? "allow" : "block") + " list from: " + listUrl.AbsoluteUri);
+                _dnsServer.LogManager?.Write("DNS Server is reading " + (isAllowList ? "allow" : "block") + " list from: " + listUrl.AbsoluteUri);
 
                 using (FileStream fS = new FileStream(GetBlockListFilePath(listUrl), FileMode.Open, FileAccess.Read))
                 {
@@ -128,11 +126,14 @@ namespace DnsServerCore.Dns.ZoneManagers
                     string firstWord;
                     string secondWord;
                     string hostname;
+                    string domain;
+                    string options;
+                    int i;
 
                     while (true)
                     {
                         line = sR.ReadLine();
-                        if (line == null)
+                        if (line is null)
                             break; //eof
 
                         line = line.TrimStart(trimSeperator);
@@ -140,62 +141,106 @@ namespace DnsServerCore.Dns.ZoneManagers
                         if (line.Length == 0)
                             continue; //skip empty line
 
-                        if (line.StartsWith("#"))
+                        if (line.StartsWith("#") || line.StartsWith("!"))
                             continue; //skip comment line
 
-                        firstWord = PopWord(ref line);
-
-                        if (line.Length == 0)
+                        if (line.StartsWith("||"))
                         {
-                            hostname = firstWord;
+                            //adblock format
+                            i = line.IndexOf('^');
+                            if (i > -1)
+                            {
+                                domain = line.Substring(2, i - 2);
+                                options = line.Substring(i + 1);
+
+                                if (((options.Length == 0) || (options.StartsWith("$") && (options.Contains("doc") || options.Contains("all")))) && DnsClient.IsDomainNameValid(domain))
+                                    domains.Enqueue(domain);
+                            }
+                            else
+                            {
+                                domain = line.Substring(2);
+
+                                if (DnsClient.IsDomainNameValid(domain))
+                                    domains.Enqueue(domain);
+                            }
+                        }
+                        else if (line.StartsWith("@@||"))
+                        {
+                            //adblock format
+                            if (!isAllowList)
+                            {
+                                i = line.IndexOf('^');
+                                if (i > -1)
+                                {
+                                    domain = line.Substring(4, i - 4);
+                                    options = line.Substring(i + 1);
+
+                                    if (((options.Length == 0) || (options.StartsWith("$") && (options.Contains("doc") || options.Contains("all")))) && DnsClient.IsDomainNameValid(domain))
+                                        allowedDomains.TryAdd(domain, null);
+                                }
+                                else
+                                {
+                                    domain = line.Substring(4);
+
+                                    if (DnsClient.IsDomainNameValid(domain))
+                                        allowedDomains.TryAdd(domain, null);
+                                }
+                            }
                         }
                         else
                         {
-                            secondWord = PopWord(ref line);
+                            //hosts file format
+                            firstWord = PopWord(ref line);
 
-                            if (secondWord.Length == 0)
+                            if (line.Length == 0)
+                            {
                                 hostname = firstWord;
+                            }
                             else
-                                hostname = secondWord;
+                            {
+                                secondWord = PopWord(ref line);
+
+                                if (secondWord.Length == 0)
+                                    hostname = firstWord;
+                                else
+                                    hostname = secondWord;
+                            }
+
+                            hostname = hostname.Trim('.').ToLower();
+
+                            switch (hostname)
+                            {
+                                case "":
+                                case "localhost":
+                                case "localhost.localdomain":
+                                case "local":
+                                case "broadcasthost":
+                                case "ip6-localhost":
+                                case "ip6-loopback":
+                                case "ip6-localnet":
+                                case "ip6-mcastprefix":
+                                case "ip6-allnodes":
+                                case "ip6-allrouters":
+                                case "ip6-allhosts":
+                                    continue; //skip these hostnames
+                            }
+
+                            if (!DnsClient.IsDomainNameValid(hostname))
+                                continue;
+
+                            if (IPAddress.TryParse(hostname, out _))
+                                continue; //skip line when hostname is IP address
+
+                            domains.Enqueue(hostname);
                         }
-
-                        hostname = hostname.Trim('.').ToLower();
-
-                        switch (hostname)
-                        {
-                            case "":
-                            case "localhost":
-                            case "localhost.localdomain":
-                            case "local":
-                            case "broadcasthost":
-                            case "ip6-localhost":
-                            case "ip6-loopback":
-                            case "ip6-localnet":
-                            case "ip6-mcastprefix":
-                            case "ip6-allnodes":
-                            case "ip6-allrouters":
-                            case "ip6-allhosts":
-                                continue; //skip these hostnames
-                        }
-
-                        if (!DnsClient.IsDomainNameValid(hostname))
-                            continue;
-
-                        if (IPAddress.TryParse(hostname, out _))
-                            continue; //skip line when hostname is IP address
-
-                        domains.Enqueue(hostname);
                     }
                 }
 
-                if (log != null)
-                    log.Write("DNS Server read " + (isAllowList ? "allow" : "block") + " list file (" + domains.Count + " domains) from: " + listUrl.AbsoluteUri);
+                _dnsServer.LogManager?.Write("DNS Server read " + (isAllowList ? "allow" : "block") + " list file (" + domains.Count + " domains) from: " + listUrl.AbsoluteUri);
             }
             catch (Exception ex)
             {
-                LogManager log = _dnsServer.LogManager;
-                if (log != null)
-                    log.Write("DNS Server failed to read " + (isAllowList ? "allow" : "block") + " list from: " + listUrl.AbsoluteUri + "\r\n" + ex.ToString());
+                _dnsServer.LogManager?.Write("DNS Server failed to read " + (isAllowList ? "allow" : "block") + " list from: " + listUrl.AbsoluteUri + "\r\n" + ex.ToString());
             }
 
             return domains;
@@ -247,7 +292,7 @@ namespace DnsServerCore.Dns.ZoneManagers
 
             foreach (Uri allowListUrl in _allowListUrls)
             {
-                Queue<string> queue = ReadListFile(allowListUrl, true);
+                Queue<string> queue = ReadListFile(allowListUrl, true, null);
 
                 while (queue.Count > 0)
                 {
@@ -265,7 +310,7 @@ namespace DnsServerCore.Dns.ZoneManagers
             {
                 if (!blockListQueues.ContainsKey(blockListUrl))
                 {
-                    Queue<string> blockListQueue = ReadListFile(blockListUrl, false);
+                    Queue<string> blockListQueue = ReadListFile(blockListUrl, false, allowedDomains);
                     totalDomains += blockListQueue.Count;
                     blockListQueues.Add(blockListUrl, blockListQueue);
                 }
