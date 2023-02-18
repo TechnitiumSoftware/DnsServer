@@ -446,8 +446,11 @@ namespace AdvancedBlocking
             {
                 if (allowed)
                 {
-                    DnsDatagram internalResponse = await _dnsServer.DirectQueryAsync(question);
-                    return new DnsDatagram(request.Identifier, true, DnsOpcode.StandardQuery, internalResponse.AuthoritativeAnswer, internalResponse.Truncation, request.RecursionDesired, internalResponse.RecursionAvailable, internalResponse.AuthenticData, internalResponse.CheckingDisabled, internalResponse.RCODE, request.Question, internalResponse.Answer, internalResponse.Authority, internalResponse.Additional) { Tag = internalResponse.Tag };
+                    DnsDatagram internalResponse = await _dnsServer.DirectQueryAsync(request);
+                    if (internalResponse.Tag is null)
+                        internalResponse.Tag = DnsServerResponseType.Recursive;
+
+                    return internalResponse;
                 }
 
                 return null;
@@ -1222,6 +1225,7 @@ namespace AdvancedBlocking
                     {
                         //parse hosts file and populate block zone
                         StreamReader sR = new StreamReader(fS, true);
+                        char[] trimSeperator = new char[] { ' ', '\t' };
                         string line;
 
                         while (true)
@@ -1230,7 +1234,7 @@ namespace AdvancedBlocking
                             if (line == null)
                                 break; //eof
 
-                            line = line.TrimStart(' ', '\t');
+                            line = line.TrimStart(trimSeperator);
 
                             if (line.Length == 0)
                                 continue; //skip empty line
@@ -1320,6 +1324,7 @@ namespace AdvancedBlocking
                     {
                         //parse hosts file and populate block zone
                         StreamReader sR = new StreamReader(fS, true);
+                        char[] trimSeperator = new char[] { ' ', '\t' };
                         string line;
 
                         while (true)
@@ -1328,7 +1333,7 @@ namespace AdvancedBlocking
                             if (line == null)
                                 break; //eof
 
-                            line = line.TrimStart(' ', '\t');
+                            line = line.TrimStart(trimSeperator);
 
                             if (line.Length == 0)
                                 continue; //skip empty line
@@ -1364,7 +1369,7 @@ namespace AdvancedBlocking
                                     string options = line.Substring(i + 1);
 
                                     if (((options.Length == 0) || (options.StartsWith("$") && (options.Contains("doc") || options.Contains("all")))) && DnsClient.IsDomainNameValid(domain))
-                                        blockedDomains.Enqueue(domain);
+                                        allowedDomains.Enqueue(domain);
                                 }
                                 else
                                 {
