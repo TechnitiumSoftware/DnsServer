@@ -369,7 +369,7 @@ namespace DnsServerCore.Dns.ZoneManagers
             }
         }
 
-        private DnsDatagram GetReferralResponse(DnsDatagram request, bool dnssecOk, AuthZone delegationZone, ApexZone apexZone, bool isRecursionAllowed)
+        private DnsDatagram GetReferralResponse(DnsDatagram request, bool dnssecOk, AuthZone delegationZone, ApexZone apexZone)
         {
             IReadOnlyList<DnsResourceRecord> authority;
 
@@ -424,17 +424,17 @@ namespace DnsServerCore.Dns.ZoneManagers
 
             IReadOnlyList<DnsResourceRecord> additional = GetAdditionalRecords(authority, dnssecOk);
 
-            return new DnsDatagram(request.Identifier, true, DnsOpcode.StandardQuery, false, false, request.RecursionDesired, isRecursionAllowed, false, false, DnsResponseCode.NoError, request.Question, null, authority, additional);
+            return new DnsDatagram(request.Identifier, true, DnsOpcode.StandardQuery, false, false, request.RecursionDesired, false, false, false, DnsResponseCode.NoError, request.Question, null, authority, additional);
         }
 
-        private DnsDatagram GetForwarderResponse(DnsDatagram request, AuthZone zone, AuthZone closestZone, ApexZone forwarderZone, bool isRecursionAllowed)
+        private DnsDatagram GetForwarderResponse(DnsDatagram request, AuthZone zone, AuthZone closestZone, ApexZone forwarderZone)
         {
             IReadOnlyList<DnsResourceRecord> authority = null;
 
             if (zone is not null)
             {
                 if (zone.ContainsNameServerRecords())
-                    return GetReferralResponse(request, false, zone, forwarderZone, isRecursionAllowed);
+                    return GetReferralResponse(request, false, zone, forwarderZone);
 
                 authority = zone.QueryRecords(DnsResourceRecordType.FWD, false);
             }
@@ -442,7 +442,7 @@ namespace DnsServerCore.Dns.ZoneManagers
             if (((authority is null) || (authority.Count == 0)) && (closestZone is not null))
             {
                 if (closestZone.ContainsNameServerRecords())
-                    return GetReferralResponse(request, false, closestZone, forwarderZone, isRecursionAllowed);
+                    return GetReferralResponse(request, false, closestZone, forwarderZone);
 
                 authority = closestZone.QueryRecords(DnsResourceRecordType.FWD, false);
             }
@@ -450,12 +450,12 @@ namespace DnsServerCore.Dns.ZoneManagers
             if ((authority is null) || (authority.Count == 0))
             {
                 if (forwarderZone.ContainsNameServerRecords())
-                    return GetReferralResponse(request, false, forwarderZone, forwarderZone, isRecursionAllowed);
+                    return GetReferralResponse(request, false, forwarderZone, forwarderZone);
 
                 authority = forwarderZone.QueryRecords(DnsResourceRecordType.FWD, false);
             }
 
-            return new DnsDatagram(request.Identifier, true, DnsOpcode.StandardQuery, false, false, request.RecursionDesired, isRecursionAllowed, false, false, DnsResponseCode.NoError, request.Question, null, authority);
+            return new DnsDatagram(request.Identifier, true, DnsOpcode.StandardQuery, false, false, request.RecursionDesired, false, false, false, DnsResponseCode.NoError, request.Question, null, authority);
         }
 
         internal void Flush()
@@ -1802,15 +1802,13 @@ namespace DnsServerCore.Dns.ZoneManagers
             _zoneIndexLock.EnterReadLock();
             try
             {
-                if (pageNumber < 0)
-                    pageNumber = int.MaxValue;
-                else if (pageNumber == 0)
+                if (pageNumber == 0)
                     pageNumber = 1;
 
                 int totalZones = _zoneIndex.Count;
                 int totalPages = (totalZones / zonesPerPage) + (totalZones % zonesPerPage > 0 ? 1 : 0);
 
-                if (pageNumber > totalPages)
+                if ((pageNumber > totalPages) || (pageNumber < 0))
                     pageNumber = totalPages;
 
                 int start = (pageNumber - 1) * zonesPerPage;
@@ -1841,14 +1839,14 @@ namespace DnsServerCore.Dns.ZoneManagers
             {
                 bool dnssecOk = request.DnssecOk && (apexZone.DnssecStatus != AuthZoneDnssecStatus.Unsigned);
 
-                return GetReferralResponse(request, dnssecOk, delegation, apexZone, true);
+                return GetReferralResponse(request, dnssecOk, delegation, apexZone);
             }
 
             //no delegation found
             return null;
         }
 
-        public DnsDatagram Query(DnsDatagram request, bool isRecursionAllowed)
+        public DnsDatagram Query(DnsDatagram request)
         {
             DnsQuestionRecord question = request.Question[0];
 
@@ -1863,10 +1861,10 @@ namespace DnsServerCore.Dns.ZoneManagers
             {
                 //zone not found
                 if ((delegation is not null) && delegation.IsActive && (delegation.Name.Length > apexZone.Name.Length))
-                    return GetReferralResponse(request, dnssecOk, delegation, apexZone, isRecursionAllowed);
+                    return GetReferralResponse(request, dnssecOk, delegation, apexZone);
 
                 if (apexZone is StubZone)
-                    return GetReferralResponse(request, false, apexZone, apexZone, isRecursionAllowed);
+                    return GetReferralResponse(request, false, apexZone, apexZone);
 
                 DnsResponseCode rCode = DnsResponseCode.NoError;
                 IReadOnlyList<DnsResourceRecord> answer = null;
@@ -1902,7 +1900,7 @@ namespace DnsServerCore.Dns.ZoneManagers
                         if (authority.Count == 0)
                         {
                             if (apexZone is ForwarderZone)
-                                return GetForwarderResponse(request, null, closest, apexZone, isRecursionAllowed); //no DNAME or APP record available so process FWD response
+                                return GetForwarderResponse(request, null, closest, apexZone); //no DNAME or APP record available so process FWD response
 
                             if (!hasSubDomains)
                                 rCode = DnsResponseCode.NxDomain;
@@ -1933,7 +1931,7 @@ namespace DnsServerCore.Dns.ZoneManagers
                     }
                 }
 
-                return new DnsDatagram(request.Identifier, true, DnsOpcode.StandardQuery, true, false, request.RecursionDesired, isRecursionAllowed, false, false, rCode, request.Question, answer, authority);
+                return new DnsDatagram(request.Identifier, true, DnsOpcode.StandardQuery, true, false, request.RecursionDesired, false, false, false, rCode, request.Question, answer, authority);
             }
             else
             {
@@ -1951,7 +1949,7 @@ namespace DnsServerCore.Dns.ZoneManagers
                 else if (zone.Equals(delegation))
                 {
                     //zone is delegation
-                    return GetReferralResponse(request, dnssecOk, delegation, apexZone, isRecursionAllowed);
+                    return GetReferralResponse(request, dnssecOk, delegation, apexZone);
                 }
 
                 IReadOnlyList<DnsResourceRecord> authority = null;
@@ -1981,10 +1979,10 @@ namespace DnsServerCore.Dns.ZoneManagers
                     {
                         //check for delegation, stub & forwarder
                         if ((delegation is not null) && delegation.IsActive && (delegation.Name.Length > apexZone.Name.Length))
-                            return GetReferralResponse(request, dnssecOk, delegation, apexZone, isRecursionAllowed);
+                            return GetReferralResponse(request, dnssecOk, delegation, apexZone);
 
                         if (apexZone is StubZone)
-                            return GetReferralResponse(request, false, apexZone, apexZone, isRecursionAllowed);
+                            return GetReferralResponse(request, false, apexZone, apexZone);
                     }
 
                     authority = zone.QueryRecords(DnsResourceRecordType.APP, false);
@@ -1999,7 +1997,7 @@ namespace DnsServerCore.Dns.ZoneManagers
                             if (authority.Count == 0)
                             {
                                 if (apexZone is ForwarderZone)
-                                    return GetForwarderResponse(request, zone, closest, apexZone, isRecursionAllowed); //no APP record available so process FWD response
+                                    return GetForwarderResponse(request, zone, closest, apexZone); //no APP record available so process FWD response
 
                                 authority = apexZone.QueryRecords(DnsResourceRecordType.SOA, dnssecOk);
 
@@ -2091,7 +2089,7 @@ namespace DnsServerCore.Dns.ZoneManagers
                     }
                 }
 
-                return new DnsDatagram(request.Identifier, true, DnsOpcode.StandardQuery, true, false, request.RecursionDesired, isRecursionAllowed, false, false, DnsResponseCode.NoError, request.Question, answers, authority, additional);
+                return new DnsDatagram(request.Identifier, true, DnsOpcode.StandardQuery, true, false, request.RecursionDesired, false, false, false, DnsResponseCode.NoError, request.Question, answers, authority, additional);
             }
         }
 
