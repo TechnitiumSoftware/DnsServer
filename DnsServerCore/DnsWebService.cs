@@ -270,6 +270,7 @@ namespace DnsServerCore
                 }
 
                 serverOptions.AddServerHeader = false;
+                serverOptions.Limits.MaxRequestBodySize = null;
             });
 
             builder.Logging.ClearProviders();
