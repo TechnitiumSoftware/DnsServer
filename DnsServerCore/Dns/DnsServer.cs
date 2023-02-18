@@ -174,7 +174,7 @@ namespace DnsServerCore.Dns
 
         bool _enableBlocking = true;
         bool _allowTxtBlockingReport = true;
-        DnsServerBlockingType _blockingType = DnsServerBlockingType.AnyAddress;
+        DnsServerBlockingType _blockingType = DnsServerBlockingType.NxDomain;
         IReadOnlyCollection<DnsARecordData> _customBlockingARecords = Array.Empty<DnsARecordData>();
         IReadOnlyCollection<DnsAAAARecordData> _customBlockingAAAARecords = Array.Empty<DnsAAAARecordData>();
 
@@ -206,6 +206,8 @@ namespace DnsServerCore.Dns
         const int QPM_LIMIT_SAMPLING_TIMER_INTERVAL = 10000;
         IReadOnlyDictionary<IPAddress, long> _qpmLimitClientSubnetStats;
         IReadOnlyDictionary<IPAddress, long> _qpmLimitErrorClientSubnetStats;
+
+        readonly IndependentTaskScheduler _queryTaskScheduler = new IndependentTaskScheduler();
 
         readonly IndependentTaskScheduler _resolverTaskScheduler = new IndependentTaskScheduler(ThreadPriority.AboveNormal);
         readonly ConcurrentDictionary<string, Task<RecursiveResolveResponse>> _resolverTasks = new ConcurrentDictionary<string, Task<RecursiveResolveResponse>>();
@@ -1863,7 +1865,7 @@ namespace DnsServerCore.Dns
 
             if (response is null)
             {
-                response = _authZoneManager.Query(request, isRecursionAllowed);
+                response = _authZoneManager.Query(request);
                 if (response is null)
                     return null;
 
@@ -2057,7 +2059,7 @@ namespace DnsServerCore.Dns
                 DnsDatagram newRequest = new DnsDatagram(0, false, DnsOpcode.StandardQuery, false, false, request.RecursionDesired, false, false, false, DnsResponseCode.NoError, new DnsQuestionRecord[] { new DnsQuestionRecord(cnameDomain, request.Question[0].Type, request.Question[0].Class) }, null, null, null, _udpPayloadSize, request.DnssecOk ? EDnsHeaderFlags.DNSSEC_OK : EDnsHeaderFlags.None, eDnsClientSubnetOption);
 
                 //query authoritative zone first
-                newResponse = _authZoneManager.Query(newRequest, isRecursionAllowed);
+                newResponse = _authZoneManager.Query(newRequest);
                 if (newResponse is null)
                 {
                     //not found in auth zone
@@ -2214,7 +2216,7 @@ namespace DnsServerCore.Dns
                     DnsDatagram newRequest = new DnsDatagram(0, false, DnsOpcode.StandardQuery, false, false, request.RecursionDesired, false, false, false, DnsResponseCode.NoError, new DnsQuestionRecord[] { new DnsQuestionRecord(lastDomain, request.Question[0].Type, request.Question[0].Class) }, null, null, null, _udpPayloadSize, request.DnssecOk ? EDnsHeaderFlags.DNSSEC_OK : EDnsHeaderFlags.None, eDnsClientSubnetOption);
 
                     //query authoritative zone first
-                    DnsDatagram newResponse = _authZoneManager.Query(newRequest, isRecursionAllowed);
+                    DnsDatagram newResponse = _authZoneManager.Query(newRequest);
                     if (newResponse is null)
                     {
                         //not found in auth zone; do recursion
@@ -3437,7 +3439,7 @@ namespace DnsServerCore.Dns
                     {
                         reQueryAuthZone = false;
 
-                        DnsDatagram response = _authZoneManager.Query(new DnsDatagram(0, false, DnsOpcode.StandardQuery, false, false, false, false, false, false, DnsResponseCode.NoError, new DnsQuestionRecord[] { eligibleQuerySample }), true);
+                        DnsDatagram response = _authZoneManager.Query(new DnsDatagram(0, false, DnsOpcode.StandardQuery, false, false, false, false, false, false, DnsResponseCode.NoError, new DnsQuestionRecord[] { eligibleQuerySample }));
                         if (response is null)
                         {
                             //zone not hosted; do refresh
@@ -4067,7 +4069,7 @@ namespace DnsServerCore.Dns
                     _ = Task.Factory.StartNew(delegate ()
                     {
                         return ReadUdpRequestAsync(udpListener);
-                    }, CancellationToken.None, TaskCreationOptions.DenyChildAttach, TaskScheduler.Current);
+                    }, CancellationToken.None, TaskCreationOptions.DenyChildAttach, _queryTaskScheduler);
                 }
             }
 
@@ -4078,7 +4080,7 @@ namespace DnsServerCore.Dns
                     _ = Task.Factory.StartNew(delegate ()
                     {
                         return AcceptConnectionAsync(tcpListener, DnsTransportProtocol.Tcp);
-                    }, CancellationToken.None, TaskCreationOptions.DenyChildAttach, TaskScheduler.Current);
+                    }, CancellationToken.None, TaskCreationOptions.DenyChildAttach, _queryTaskScheduler);
                 }
             }
 
@@ -4089,7 +4091,7 @@ namespace DnsServerCore.Dns
                     _ = Task.Factory.StartNew(delegate ()
                     {
                         return AcceptConnectionAsync(tlsListener, DnsTransportProtocol.Tls);
-                    }, CancellationToken.None, TaskCreationOptions.DenyChildAttach, TaskScheduler.Current);
+                    }, CancellationToken.None, TaskCreationOptions.DenyChildAttach, _queryTaskScheduler);
                 }
             }
 
@@ -4100,7 +4102,7 @@ namespace DnsServerCore.Dns
                     _ = Task.Factory.StartNew(delegate ()
                     {
                         return AcceptQuicConnectionAsync(quicListener);
-                    }, CancellationToken.None, TaskCreationOptions.DenyChildAttach, TaskScheduler.Current);
+                    }, CancellationToken.None, TaskCreationOptions.DenyChildAttach, _queryTaskScheduler);
                 }
             }
 
@@ -4186,7 +4188,12 @@ namespace DnsServerCore.Dns
 
         public Task<DnsDatagram> DirectQueryAsync(DnsQuestionRecord question, int timeout = 4000, bool skipDnsAppAuthoritativeRequestHandlers = false)
         {
-            return ProcessQueryAsync(new DnsDatagram(0, false, DnsOpcode.StandardQuery, false, false, true, false, false, false, DnsResponseCode.NoError, new DnsQuestionRecord[] { question }), IPENDPOINT_ANY_0, DnsTransportProtocol.Tcp, true, skipDnsAppAuthoritativeRequestHandlers, null).WithTimeout(timeout);
+            return DirectQueryAsync(new DnsDatagram(0, false, DnsOpcode.StandardQuery, false, false, true, false, false, false, DnsResponseCode.NoError, new DnsQuestionRecord[] { question }), timeout, skipDnsAppAuthoritativeRequestHandlers);
+        }
+
+        public Task<DnsDatagram> DirectQueryAsync(DnsDatagram request, int timeout = 4000, bool skipDnsAppAuthoritativeRequestHandlers = false)
+        {
+            return ProcessQueryAsync(request, IPENDPOINT_ANY_0, DnsTransportProtocol.Tcp, true, skipDnsAppAuthoritativeRequestHandlers, null).WithTimeout(timeout);
         }
 
         Task<DnsDatagram> IDnsClient.ResolveAsync(DnsQuestionRecord question, CancellationToken cancellationToken)
