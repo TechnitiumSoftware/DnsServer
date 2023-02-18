@@ -1,5 +1,26 @@
 # Technitium DNS Server Change Log
 
+## Version 11.0
+Release Date: 18 February 2022
+
+- Added support for DNS-over-QUIC (DoQ) [RFC 9250](https://www.ietf.org/rfc/rfc9250.html). This allows you to run DoQ service as well as use it with Forwarders. DoQ implementation supports running over SOCKS5 proxy server that provides UDP transport.
+- Added support for Zone Transfer over QUIC (XFR-over-QUIC) [RFC 9250](https://www.ietf.org/rfc/rfc9250.html).
+- Updated DNS-over-HTTPS protocol implementation to support HTTP/2 and HTTP/3. DNS-over-HTTP/3 can be forced by using `h3` instead of `https` scheme for the URL.
+- Updated DNS server's web service backend to use Kestrel web server and thus the DNS server now requires ASP.NET Core Runtime to be installed. With this change, the web service now supports both HTTP/2 and HTTP/3 protocols. If you are using HTTP API, it is recommended to test your code/script with the new release.
+- Added support to save DNS cache data to disk on server shutdown and to reload it at startup.
+- Updated DNS server domain name blocking feature to support Extended DNS Errors to show report on the blocked domain name. With this support added, the DNS Client tab on the web panel will show blocking report for any blocked domain name.
+- Updated DNS server domain name blocking feature to support wildcard block lists file format and Adblock Plus file format.
+- Updated DNS server to detect when an upstream server blocks a domain name to reflect it in dashboard stats and query logs. It will now detect blocking signal from Quad9 and show Extended DNS Error for it.
+- Updated web panel Zones GUI to support pagination.
+- Advanced Blocking App: Updated DNS app to support wildcard block lists file format. Updated the app to disable CNAME cloaking when a domain name is allowed in config. Implemented Extended DNS Errors support to show blocked domain report.
+- Advanced Forwarding App: Added new DNS app to support bulk conditional forwarder.
+- DNS Block List App: Added new DNS app to allow running your own DNSBL or RBL block lists [RFC 5782](https://www.rfc-editor.org/rfc/rfc5782).
+- Added support for TFTP Server Address DHCP option (150).
+- Added support for Generic DHCP option to allow configuring option currently not supported by the DHCP server.
+- Removed support for non-standard DNS-over-HTTPS (JSON) protocol.
+- Removed Newtonsoft.Json dependency from the DNS server and all DNS apps.
+- Multiple other minor bug fixes and improvements.
+
 ## Version 10.0.1
 Release Date: 4 December 2022
 
@@ -18,7 +39,7 @@ Release Date: 26 November 2022
 - Implemented EDNS Client Subnet (ECS) [RFC 7871](https://datatracker.ietf.org/doc/html/rfc7871) support for recursive resolution and forwarding.
 - Updated HTTP API to accept date time in ISO 8601 format for dashboard and query logs API calls. Any implementation that uses these API must test with new update before deploying to production.
 - Upgraded codebase to .NET 7 runtime. If you had manually installed the DNS Server or .NET 6 Runtime earlier then you must install .NET 7 Runtime manually before upgrading the DNS server.
-- Fixed self-CNAME vulnerability reported by Xiang Li, [Network and Information Security Lab, Tsinghua University](https://netsec.ccert.edu.cn/) which caused the DNS server to follow CNAME in loop causing the answer to contain couple of hundred records before the loop limit was hit.
+- Fixed self-CNAME vulnerability [CVE-2022-48256] reported by Xiang Li, [Network and Information Security Lab, Tsinghua University](https://netsec.ccert.edu.cn/) which caused the DNS server to follow CNAME in loop causing the answer to contain couple of hundred records before the loop limit was hit.
 - Updated DNS Apps framework with `IDnsPostProcessor` interface to allow manipulating outbound responses by DNS apps.
 - NO DATA App: Added new app to allow returning NO DATA response in Conditional Forwarder zones to allow overriding existing records from the forwarder for specified record types.
 - DNS64 App: Added new app to support DNS64 function [RFC 6147](https://www.rfc-editor.org/rfc/rfc6147) for use by IPv6 only clients.
