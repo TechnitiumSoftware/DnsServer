@@ -367,9 +367,7 @@ $(function () {
             case "default":
                 var defaultList = "";
 
-                defaultList += "https://raw.githubusercontent.com/StevenBlack/hosts/master/hosts" + "\n";
-                defaultList += "https://s3.amazonaws.com/lists.disconnect.me/simple_tracking.txt" + "\n";
-                defaultList += "https://s3.amazonaws.com/lists.disconnect.me/simple_ad.txt" + "\n";
+                defaultList += "https://raw.githubusercontent.com/StevenBlack/hosts/master/hosts\n";
 
                 $("#txtBlockListUrls").val(defaultList);
                 break;
