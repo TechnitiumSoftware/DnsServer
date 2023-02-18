@@ -7,14 +7,17 @@ services:
     # For DHCP deployments, use "host" network mode and remove all the port mappings, including the ports array by commenting them
     # network_mode: "host"
     ports:
-      - "5380:5380/tcp" #DNS web console
+      - "5380:5380/tcp" #DNS web console (HTTP)
+      # - "53443:53443/tcp" #DNS web console (HTTPS)
       - "53:53/udp" #DNS service
       - "53:53/tcp" #DNS service
-      # - "67:67/udp" #DHCP service
+      # - "853:853/udp" #DNS-over-QUIC service
       # - "853:853/tcp" #DNS-over-TLS service
-      # - "443:443/tcp" #DNS-over-HTTPS service
-      # - "80:80/tcp" #DNS-over-HTTPS service certbot certificate renewal
-      # - "8053:8053/tcp" #DNS-over-HTTPS using reverse proxy
+      # - "443:443/udp" #DNS-over-HTTPS service (HTTP/3)
+      # - "443:443/tcp" #DNS-over-HTTPS service (HTTP/1.1, HTTP/2)
+      # - "80:80/tcp" #DNS-over-HTTP service (use with reverse proxy or certbot certificate renewal)
+      # - "8053:8053/tcp" #DNS-over-HTTP service (use with reverse proxy)
+      # - "67:67/udp" #DHCP service      
     environment:
       - DNS_SERVER_DOMAIN=dns-server #The primary domain name used by this DNS Server to identify itself.
       # - DNS_SERVER_ADMIN_PASSWORD=password #DNS web console admin user password.
