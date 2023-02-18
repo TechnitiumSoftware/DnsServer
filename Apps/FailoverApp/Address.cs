@@ -218,7 +218,7 @@ namespace Failover
                         if (answers.Count > 1)
                             answers.Shuffle();
 
-                        return Task.FromResult(new DnsDatagram(request.Identifier, true, request.OPCODE, true, false, request.RecursionDesired, isRecursionAllowed, false, false, DnsResponseCode.NoError, request.Question, answers));
+                        return Task.FromResult(new DnsDatagram(request.Identifier, true, request.OPCODE, true, false, request.RecursionDesired, false, false, false, DnsResponseCode.NoError, request.Question, answers));
                     }
 
                 case DnsResourceRecordType.TXT:
@@ -257,7 +257,7 @@ namespace Failover
                         if (jsonAppRecordData.TryGetProperty("secondary", out JsonElement jsonSecondary))
                             GetStatusAnswers(jsonSecondary, FailoverType.Secondary, question, 30, healthCheck, healthCheckUrl, answers);
 
-                        return Task.FromResult(new DnsDatagram(request.Identifier, true, request.OPCODE, true, false, request.RecursionDesired, isRecursionAllowed, false, false, DnsResponseCode.NoError, request.Question, answers));
+                        return Task.FromResult(new DnsDatagram(request.Identifier, true, request.OPCODE, true, false, request.RecursionDesired, false, false, false, DnsResponseCode.NoError, request.Question, answers));
                     }
 
                 default:
