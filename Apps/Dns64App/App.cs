@@ -148,7 +148,7 @@ namespace Dns64
             if (!synthesizeAAAA)
                 return new DnsDatagram(response.Identifier, true, response.OPCODE, response.AuthoritativeAnswer, response.Truncation, response.RecursionDesired, response.RecursionAvailable, response.AuthenticData, response.CheckingDisabled, response.RCODE, response.Question, newAnswer, response.Authority, response.Additional) { Tag = response.Tag };
 
-            DnsDatagram newResponse = await _dnsServer.DirectQueryAsync(new DnsQuestionRecord(question.Name, DnsResourceRecordType.A, question.Class), 2000);
+            DnsDatagram newResponse = await _dnsServer.DirectQueryAsync(new DnsQuestionRecord(question.Name, DnsResourceRecordType.A, DnsClass.IN), 2000);
 
             uint soaTtl;
             {
