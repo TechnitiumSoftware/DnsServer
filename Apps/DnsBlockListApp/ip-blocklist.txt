@@ -1,0 +1,13 @@
+# DNSBL IP block list
+# Format: ip/network A-response TXT-response
+# Seperator: <space>, <tab>, or <pipe> char
+#
+# A-response & TXT-response are optional but A-response must exists when TXT-response is specified.
+# Supports both IPv4 and IPv6 addresses.
+# 
+# Examples:
+# 192.168.1.1
+# 192.168.0.0/24
+# 192.168.2.1	127.0.0.3
+# 10.8.1.0/24	127.0.0.3	malware see: https://example.com/dnsbl?ip={ip}
+# 2001:db8::/64

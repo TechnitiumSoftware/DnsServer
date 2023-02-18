@@ -1,6 +1,6 @@
 ﻿/*
 Technitium DNS Server
-Copyright (C) 2021  Shreyas Zare (shreyas@technitium.com)
+Copyright (C) 2023  Shreyas Zare (shreyas@technitium.com)
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -49,7 +49,7 @@ namespace DnsServerCore.Dns.Zones
             {
                 foreach (DnsResourceRecord record in entry.Value)
                 {
-                    if (!record.IsDisabled())
+                    if (!record.GetAuthRecordInfo().Disabled)
                     {
                         _disabled = false;
                         return;

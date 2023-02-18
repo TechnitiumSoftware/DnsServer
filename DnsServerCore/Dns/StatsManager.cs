@@ -1,6 +1,6 @@
 ﻿/*
 Technitium DNS Server
-Copyright (C) 2022  Shreyas Zare (shreyas@technitium.com)
+Copyright (C) 2023  Shreyas Zare (shreyas@technitium.com)
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -1388,7 +1388,7 @@ namespace DnsServerCore.Dns
                             _clientIpAddresses = new ConcurrentDictionary<IPAddress, Counter>(1, count);
 
                             for (int i = 0; i < count; i++)
-                                _clientIpAddresses.TryAdd(IPAddressExtension.ReadFrom(bR), new Counter(bR.ReadInt32()));
+                                _clientIpAddresses.TryAdd(IPAddressExtensions.ReadFrom(bR), new Counter(bR.ReadInt32()));
 
                             if (version < 6)
                                 _totalClients = count;
@@ -1413,7 +1413,7 @@ namespace DnsServerCore.Dns
                             _errorIpAddresses = new ConcurrentDictionary<IPAddress, Counter>(1, count);
 
                             for (int i = 0; i < count; i++)
-                                _errorIpAddresses.TryAdd(IPAddressExtension.ReadFrom(bR), new Counter(bR.ReadInt32()));
+                                _errorIpAddresses.TryAdd(IPAddressExtensions.ReadFrom(bR), new Counter(bR.ReadInt32()));
                         }
                         else
                         {
@@ -1465,7 +1465,7 @@ namespace DnsServerCore.Dns
                             _clientIpAddresses = new ConcurrentDictionary<IPAddress, Counter>(1, count);
 
                             for (int i = 0; i < count; i++)
-                                _clientIpAddresses.TryAdd(IPAddressExtension.ReadFrom(bR), new Counter(bR.ReadInt64()));
+                                _clientIpAddresses.TryAdd(IPAddressExtensions.ReadFrom(bR), new Counter(bR.ReadInt64()));
                         }
 
                         {
@@ -1481,7 +1481,7 @@ namespace DnsServerCore.Dns
                             _errorIpAddresses = new ConcurrentDictionary<IPAddress, Counter>(1, count);
 
                             for (int i = 0; i < count; i++)
-                                _errorIpAddresses.TryAdd(IPAddressExtension.ReadFrom(bR), new Counter(bR.ReadInt64()));
+                                _errorIpAddresses.TryAdd(IPAddressExtensions.ReadFrom(bR), new Counter(bR.ReadInt64()));
                         }
 
                         break;
@@ -1537,10 +1537,21 @@ namespace DnsServerCore.Dns
                 switch (responseCode)
                 {
                     case DnsResponseCode.NoError:
-                        if ((query is not null) && (responseType != DnsServerResponseType.Blocked)) //skip blocked domains
+                        if (query is not null)
                         {
-                            _queryDomains.GetOrAdd(query.Name.ToLower(), GetNewCounter).Increment();
-                            _queries.GetOrAdd(query, GetNewCounter).Increment();
+                            switch (responseType)
+                            {
+                                case DnsServerResponseType.Blocked:
+                                case DnsServerResponseType.UpstreamBlocked:
+                                case DnsServerResponseType.CacheBlocked:
+                                    //skip blocked domains
+                                    break;
+
+                                default:
+                                    _queryDomains.GetOrAdd(query.Name.ToLower(), GetNewCounter).Increment();
+                                    _queries.GetOrAdd(query, GetNewCounter).Increment();
+                                    break;
+                            }
                         }
 
                         Interlocked.Increment(ref _totalNoError);
@@ -1580,6 +1591,24 @@ namespace DnsServerCore.Dns
                         break;
 
                     case DnsServerResponseType.Blocked:
+                        if (query is not null)
+                            _queryBlockedDomains.GetOrAdd(query.Name.ToLower(), GetNewCounter).Increment();
+
+                        Interlocked.Increment(ref _totalBlocked);
+                        break;
+
+                    case DnsServerResponseType.UpstreamBlocked:
+                        Interlocked.Increment(ref _totalRecursive);
+
+                        if (query is not null)
+                            _queryBlockedDomains.GetOrAdd(query.Name.ToLower(), GetNewCounter).Increment();
+
+                        Interlocked.Increment(ref _totalBlocked);
+                        break;
+
+                    case DnsServerResponseType.CacheBlocked:
+                        Interlocked.Increment(ref _totalCached);
+
                         if (query is not null)
                             _queryBlockedDomains.GetOrAdd(query.Name.ToLower(), GetNewCounter).Increment();
 

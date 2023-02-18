@@ -17,14 +17,15 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 */
 
-using Newtonsoft.Json;
 using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Net;
 using System.Net.Http;
 using System.Net.Http.Headers;
+using System.Text.Json;
 using System.Threading.Tasks;
+using TechnitiumLibrary;
 using TechnitiumLibrary.Net.Dns.ResourceRecords;
 using TechnitiumLibrary.Net.Proxy;
 
@@ -36,7 +37,7 @@ namespace Failover
 
         readonly HealthService _service;
 
-        string _name;
+        readonly string _name;
         bool _enabled;
         Uri[] _urls;
 
@@ -47,9 +48,11 @@ namespace Failover
 
         #region constructor
 
-        public WebHook(HealthService service, dynamic jsonWebHook)
+        public WebHook(HealthService service, JsonElement jsonWebHook)
         {
             _service = service;
+
+            _name = jsonWebHook.GetPropertyValue("name", "default");
 
             Reload(jsonWebHook);
         }
@@ -176,29 +179,14 @@ namespace Failover
 
         #region public
 
-        public void Reload(dynamic jsonWebHook)
+        public void Reload(JsonElement jsonWebHook)
         {
-            if (jsonWebHook.name is null)
-                _name = "default";
-            else
-                _name = jsonWebHook.name.Value;
+            _enabled = jsonWebHook.GetPropertyValue("enabled", false);
 
-            if (jsonWebHook.enabled is null)
-                _enabled = false;
+            if (jsonWebHook.TryReadArray("urls", delegate (string uri) { return new Uri(uri); }, out Uri[] urls))
+                _urls = urls;
             else
-                _enabled = jsonWebHook.enabled.Value;
-
-            if (jsonWebHook.urls is null)
-            {
                 _urls = null;
-            }
-            else
-            {
-                _urls = new Uri[jsonWebHook.urls.Count];
-
-                for (int i = 0; i < _urls.Length; i++)
-                    _urls[i] = new Uri(jsonWebHook.urls[i].Value);
-            }
 
             ConditionalHttpReload();
         }
@@ -212,26 +200,17 @@ namespace Failover
             {
                 using (MemoryStream mS = new MemoryStream())
                 {
-                    JsonTextWriter jsonWriter = new JsonTextWriter(new StreamWriter(mS));
+                    Utf8JsonWriter jsonWriter = new Utf8JsonWriter(mS);
                     jsonWriter.WriteStartObject();
 
-                    jsonWriter.WritePropertyName("address");
-                    jsonWriter.WriteValue(address.ToString());
-
-                    jsonWriter.WritePropertyName("healthCheck");
-                    jsonWriter.WriteValue(healthCheck);
-
-                    jsonWriter.WritePropertyName("status");
-                    jsonWriter.WriteValue(healthCheckResponse.Status.ToString());
+                    jsonWriter.WriteString("address", address.ToString());
+                    jsonWriter.WriteString("healthCheck", healthCheck);
+                    jsonWriter.WriteString("status", healthCheckResponse.Status.ToString());
 
                     if (healthCheckResponse.Status == HealthStatus.Failed)
-                    {
-                        jsonWriter.WritePropertyName("failureReason");
-                        jsonWriter.WriteValue(healthCheckResponse.FailureReason);
-                    }
+                        jsonWriter.WriteString("failureReason", healthCheckResponse.FailureReason);
 
-                    jsonWriter.WritePropertyName("dateTime");
-                    jsonWriter.WriteValue(healthCheckResponse.DateTime);
+                    jsonWriter.WriteString("dateTime", healthCheckResponse.DateTime);
 
                     jsonWriter.WriteEndObject();
                     jsonWriter.Flush();
@@ -253,23 +232,14 @@ namespace Failover
             {
                 using (MemoryStream mS = new MemoryStream())
                 {
-                    JsonTextWriter jsonWriter = new JsonTextWriter(new StreamWriter(mS));
+                    Utf8JsonWriter jsonWriter = new Utf8JsonWriter(mS);
                     jsonWriter.WriteStartObject();
 
-                    jsonWriter.WritePropertyName("address");
-                    jsonWriter.WriteValue(address.ToString());
-
-                    jsonWriter.WritePropertyName("healthCheck");
-                    jsonWriter.WriteValue(healthCheck);
-
-                    jsonWriter.WritePropertyName("status");
-                    jsonWriter.WriteValue("Error");
-
-                    jsonWriter.WritePropertyName("failureReason");
-                    jsonWriter.WriteValue(ex.ToString());
-
-                    jsonWriter.WritePropertyName("dateTime");
-                    jsonWriter.WriteValue(DateTime.UtcNow);
+                    jsonWriter.WriteString("address", address.ToString());
+                    jsonWriter.WriteString("healthCheck", healthCheck);
+                    jsonWriter.WriteString("status", "Error");
+                    jsonWriter.WriteString("failureReason", ex.ToString());
+                    jsonWriter.WriteString("dateTime", DateTime.UtcNow);
 
                     jsonWriter.WriteEndObject();
                     jsonWriter.Flush();
@@ -291,29 +261,18 @@ namespace Failover
             {
                 using (MemoryStream mS = new MemoryStream())
                 {
-                    JsonTextWriter jsonWriter = new JsonTextWriter(new StreamWriter(mS));
+                    Utf8JsonWriter jsonWriter = new Utf8JsonWriter(mS);
                     jsonWriter.WriteStartObject();
 
-                    jsonWriter.WritePropertyName("domain");
-                    jsonWriter.WriteValue(domain);
-
-                    jsonWriter.WritePropertyName("recordType");
-                    jsonWriter.WriteValue(type.ToString());
-
-                    jsonWriter.WritePropertyName("healthCheck");
-                    jsonWriter.WriteValue(healthCheck);
-
-                    jsonWriter.WritePropertyName("status");
-                    jsonWriter.WriteValue(healthCheckResponse.Status.ToString());
+                    jsonWriter.WriteString("domain", domain);
+                    jsonWriter.WriteString("recordType", type.ToString());
+                    jsonWriter.WriteString("healthCheck", healthCheck);
+                    jsonWriter.WriteString("status", healthCheckResponse.Status.ToString());
 
                     if (healthCheckResponse.Status == HealthStatus.Failed)
-                    {
-                        jsonWriter.WritePropertyName("failureReason");
-                        jsonWriter.WriteValue(healthCheckResponse.FailureReason);
-                    }
+                        jsonWriter.WriteString("failureReason", healthCheckResponse.FailureReason);
 
-                    jsonWriter.WritePropertyName("dateTime");
-                    jsonWriter.WriteValue(healthCheckResponse.DateTime);
+                    jsonWriter.WriteString("dateTime", healthCheckResponse.DateTime);
 
                     jsonWriter.WriteEndObject();
                     jsonWriter.Flush();
@@ -335,26 +294,15 @@ namespace Failover
             {
                 using (MemoryStream mS = new MemoryStream())
                 {
-                    JsonTextWriter jsonWriter = new JsonTextWriter(new StreamWriter(mS));
+                    Utf8JsonWriter jsonWriter = new Utf8JsonWriter(mS);
                     jsonWriter.WriteStartObject();
 
-                    jsonWriter.WritePropertyName("domain");
-                    jsonWriter.WriteValue(domain);
-
-                    jsonWriter.WritePropertyName("recordType");
-                    jsonWriter.WriteValue(type.ToString());
-
-                    jsonWriter.WritePropertyName("healthCheck");
-                    jsonWriter.WriteValue(healthCheck);
-
-                    jsonWriter.WritePropertyName("status");
-                    jsonWriter.WriteValue("Error");
-
-                    jsonWriter.WritePropertyName("failureReason");
-                    jsonWriter.WriteValue(ex.ToString());
-
-                    jsonWriter.WritePropertyName("dateTime");
-                    jsonWriter.WriteValue(DateTime.UtcNow);
+                    jsonWriter.WriteString("domain", domain);
+                    jsonWriter.WriteString("recordType", type.ToString());
+                    jsonWriter.WriteString("healthCheck", healthCheck);
+                    jsonWriter.WriteString("status", "Error");
+                    jsonWriter.WriteString("failureReason", ex.ToString());
+                    jsonWriter.WriteString("dateTime", DateTime.UtcNow);
 
                     jsonWriter.WriteEndObject();
                     jsonWriter.Flush();

@@ -1,6 +1,6 @@
 ﻿/*
 Technitium DNS Server
-Copyright (C) 2022  Shreyas Zare (shreyas@technitium.com)
+Copyright (C) 2023  Shreyas Zare (shreyas@technitium.com)
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -61,9 +61,6 @@ namespace DnsServerCore.Dns.Zones
         readonly IReadOnlyDictionary<string, IReadOnlyDictionary<string, IReadOnlyList<DnsResourceRecordType>>> _updateSecurityPolicies;
         readonly IReadOnlyCollection<DnssecPrivateKey> _dnssecPrivateKeys;
 
-        readonly bool _notifyFailed; //not serialized
-        readonly bool _syncFailed; //not serialized
-
         #endregion
 
         #region constructor
@@ -117,7 +114,7 @@ namespace DnsServerCore.Dns.Zones
                                 IPAddress[] nameServers = new IPAddress[count];
 
                                 for (int i = 0; i < count; i++)
-                                    nameServers[i] = IPAddressExtension.ReadFrom(bR);
+                                    nameServers[i] = IPAddressExtensions.ReadFrom(bR);
 
                                 _zoneTransferNameServers = nameServers;
                             }
@@ -132,7 +129,7 @@ namespace DnsServerCore.Dns.Zones
                                 IPAddress[] nameServers = new IPAddress[count];
 
                                 for (int i = 0; i < count; i++)
-                                    nameServers[i] = IPAddressExtension.ReadFrom(bR);
+                                    nameServers[i] = IPAddressExtensions.ReadFrom(bR);
 
                                 _notifyNameServers = nameServers;
                             }
@@ -148,7 +145,7 @@ namespace DnsServerCore.Dns.Zones
                                 IPAddress[] ipAddresses = new IPAddress[count];
 
                                 for (int i = 0; i < count; i++)
-                                    ipAddresses[i] = IPAddressExtension.ReadFrom(bR);
+                                    ipAddresses[i] = IPAddressExtensions.ReadFrom(bR);
 
                                 _updateIpAddresses = ipAddresses;
                             }
@@ -183,7 +180,7 @@ namespace DnsServerCore.Dns.Zones
                                 for (int i = 0; i < count; i++)
                                 {
                                     zoneHistory[i] = new DnsResourceRecord(bR.BaseStream);
-                                    zoneHistory[i].Tag = new DnsResourceRecordInfo(bR, zoneHistory[i].Type == DnsResourceRecordType.SOA);
+                                    zoneHistory[i].Tag = new AuthRecordInfo(bR, zoneHistory[i].Type == DnsResourceRecordType.SOA);
                                 }
 
                                 _zoneHistory = zoneHistory;
@@ -259,7 +256,7 @@ namespace DnsServerCore.Dns.Zones
                                     List<DnssecPrivateKey> dnssecPrivateKeys = new List<DnssecPrivateKey>(count);
 
                                     for (int i = 0; i < count; i++)
-                                        dnssecPrivateKeys.Add(DnssecPrivateKey.Parse(bR));
+                                        dnssecPrivateKeys.Add(DnssecPrivateKey.ReadFrom(bR));
 
                                     _dnssecPrivateKeys = dnssecPrivateKeys;
                                 }
@@ -278,7 +275,7 @@ namespace DnsServerCore.Dns.Zones
                                 for (int i = 0; i < count; i++)
                                 {
                                     zoneHistory[i] = new DnsResourceRecord(bR.BaseStream);
-                                    zoneHistory[i].Tag = new DnsResourceRecordInfo(bR, zoneHistory[i].Type == DnsResourceRecordType.SOA);
+                                    zoneHistory[i].Tag = new AuthRecordInfo(bR, zoneHistory[i].Type == DnsResourceRecordType.SOA);
                                 }
 
                                 _zoneHistory = zoneHistory;
@@ -334,8 +331,6 @@ namespace DnsServerCore.Dns.Zones
                 _zoneTransferTsigKeyNames = primaryZone.ZoneTransferTsigKeyNames;
                 _updateSecurityPolicies = primaryZone.UpdateSecurityPolicies;
                 _dnssecPrivateKeys = primaryZone.DnssecPrivateKeys;
-
-                _notifyFailed = primaryZone.NotifyFailed;
             }
             else if (_apexZone is SecondaryZone secondaryZone)
             {
@@ -346,16 +341,11 @@ namespace DnsServerCore.Dns.Zones
 
                 _expiry = secondaryZone.Expiry;
                 _zoneTransferTsigKeyNames = secondaryZone.ZoneTransferTsigKeyNames;
-
-                _notifyFailed = secondaryZone.NotifyFailed;
-                _syncFailed = secondaryZone.SyncFailed;
             }
             else if (_apexZone is StubZone stubZone)
             {
                 _type = AuthZoneType.Stub;
                 _expiry = stubZone.Expiry;
-
-                _syncFailed = stubZone.SyncFailed;
             }
             else if (_apexZone is ForwarderZone)
             {
@@ -527,8 +517,8 @@ namespace DnsServerCore.Dns.Zones
                         {
                             record.WriteTo(bW.BaseStream);
 
-                            if (record.Tag is not DnsResourceRecordInfo rrInfo)
-                                rrInfo = new DnsResourceRecordInfo(); //default info
+                            if (record.Tag is not AuthRecordInfo rrInfo)
+                                rrInfo = AuthRecordInfo.Default; //default info
 
                             rrInfo.WriteTo(bW);
                         }
@@ -598,8 +588,8 @@ namespace DnsServerCore.Dns.Zones
                         {
                             record.WriteTo(bW.BaseStream);
 
-                            if (record.Tag is not DnsResourceRecordInfo rrInfo)
-                                rrInfo = new DnsResourceRecordInfo(); //default info
+                            if (record.Tag is not AuthRecordInfo rrInfo)
+                                rrInfo = AuthRecordInfo.Default; //default info
 
                             rrInfo.WriteTo(bW);
                         }
@@ -630,6 +620,22 @@ namespace DnsServerCore.Dns.Zones
             return _name.CompareTo(other._name);
         }
 
+        public override bool Equals(object obj)
+        {
+            if (ReferenceEquals(this, obj))
+                return true;
+
+            if (obj is not AuthZoneInfo other)
+                return false;
+
+            return _name.Equals(other._name, StringComparison.OrdinalIgnoreCase);
+        }
+
+        public override int GetHashCode()
+        {
+            return _name.GetHashCode();
+        }
+
         public override string ToString()
         {
             return _name;
@@ -650,7 +656,13 @@ namespace DnsServerCore.Dns.Zones
 
         public bool Disabled
         {
-            get { return _disabled; }
+            get
+            {
+                if (_apexZone is null)
+                    return _disabled;
+
+                return _apexZone.Disabled;
+            }
             set
             {
                 if (_apexZone is null)
@@ -662,7 +674,13 @@ namespace DnsServerCore.Dns.Zones
 
         public AuthZoneTransfer ZoneTransfer
         {
-            get { return _zoneTransfer; }
+            get
+            {
+                if (_apexZone is null)
+                    return _zoneTransfer;
+
+                return _apexZone.ZoneTransfer;
+            }
             set
             {
                 if (_apexZone is null)
@@ -674,7 +692,13 @@ namespace DnsServerCore.Dns.Zones
 
         public IReadOnlyCollection<IPAddress> ZoneTransferNameServers
         {
-            get { return _zoneTransferNameServers; }
+            get
+            {
+                if (_apexZone is null)
+                    return _zoneTransferNameServers;
+
+                return _apexZone.ZoneTransferNameServers;
+            }
             set
             {
                 if (_apexZone is null)
@@ -686,7 +710,13 @@ namespace DnsServerCore.Dns.Zones
 
         public AuthZoneNotify Notify
         {
-            get { return _notify; }
+            get
+            {
+                if (_apexZone is null)
+                    return _notify;
+
+                return _apexZone.Notify;
+            }
             set
             {
                 if (_apexZone is null)
@@ -698,7 +728,13 @@ namespace DnsServerCore.Dns.Zones
 
         public IReadOnlyCollection<IPAddress> NotifyNameServers
         {
-            get { return _notifyNameServers; }
+            get
+            {
+                if (_apexZone is null)
+                    return _notifyNameServers;
+
+                return _apexZone.NotifyNameServers;
+            }
             set
             {
                 if (_apexZone is null)
@@ -710,7 +746,13 @@ namespace DnsServerCore.Dns.Zones
 
         public AuthZoneUpdate Update
         {
-            get { return _update; }
+            get
+            {
+                if (_apexZone is null)
+                    return _update;
+
+                return _apexZone.Update;
+            }
             set
             {
                 if (_apexZone is null)
@@ -722,7 +764,13 @@ namespace DnsServerCore.Dns.Zones
 
         public IReadOnlyCollection<IPAddress> UpdateIpAddresses
         {
-            get { return _updateIpAddresses; }
+            get
+            {
+                if (_apexZone is null)
+                    return _updateIpAddresses;
+
+                return _apexZone.UpdateIpAddresses;
+            }
             set
             {
                 if (_apexZone is null)
@@ -733,53 +781,46 @@ namespace DnsServerCore.Dns.Zones
         }
 
         public DateTime Expiry
-        { get { return _expiry; } }
-
-        public bool IsExpired
         {
             get
             {
                 if (_apexZone is null)
-                    throw new InvalidOperationException();
+                    return _expiry;
 
                 switch (_type)
                 {
                     case AuthZoneType.Secondary:
-                        return (_apexZone as SecondaryZone).IsExpired;
+                        return (_apexZone as SecondaryZone).Expiry;
 
                     case AuthZoneType.Stub:
-                        return (_apexZone as StubZone).IsExpired;
+                        return (_apexZone as StubZone).Expiry;
 
                     default:
-                        return false;
-                }
-            }
-        }
-
-        public bool Internal
-        {
-            get
-            {
-                if (_apexZone is null)
-                    throw new InvalidOperationException();
-
-                switch (_type)
-                {
-                    case AuthZoneType.Primary:
-                        return (_apexZone as PrimaryZone).Internal;
-
-                    default:
-                        return false;
+                        throw new InvalidOperationException();
                 }
             }
         }
 
         public IReadOnlyList<DnsResourceRecord> ZoneHistory
-        { get { return _zoneHistory; } }
+        {
+            get
+            {
+                if (_apexZone is null)
+                    return _zoneHistory;
+
+                return _apexZone.GetZoneHistory();
+            }
+        }
 
         public IReadOnlyDictionary<string, object> ZoneTransferTsigKeyNames
         {
-            get { return _zoneTransferTsigKeyNames; }
+            get
+            {
+                if (_apexZone is null)
+                    return _zoneTransferTsigKeyNames;
+
+                return _apexZone.ZoneTransferTsigKeyNames;
+            }
             set
             {
                 if (_apexZone is null)
@@ -800,7 +841,13 @@ namespace DnsServerCore.Dns.Zones
 
         public IReadOnlyDictionary<string, IReadOnlyDictionary<string, IReadOnlyList<DnsResourceRecordType>>> UpdateSecurityPolicies
         {
-            get { return _updateSecurityPolicies; }
+            get
+            {
+                if (_apexZone is null)
+                    return _updateSecurityPolicies;
+
+                return _apexZone.UpdateSecurityPolicies;
+            }
             set
             {
                 if (_apexZone is null)
@@ -811,6 +858,24 @@ namespace DnsServerCore.Dns.Zones
                     case AuthZoneType.Primary:
                         _apexZone.UpdateSecurityPolicies = value;
                         break;
+
+                    default:
+                        throw new InvalidOperationException();
+                }
+            }
+        }
+
+        public IReadOnlyCollection<DnssecPrivateKey> DnssecPrivateKeys
+        {
+            get
+            {
+                if (_apexZone is null)
+                    return _dnssecPrivateKeys;
+
+                switch (_type)
+                {
+                    case AuthZoneType.Primary:
+                        return (_apexZone as PrimaryZone).DnssecPrivateKeys;
 
                     default:
                         throw new InvalidOperationException();
@@ -842,19 +907,91 @@ namespace DnsServerCore.Dns.Zones
                         return (_apexZone as PrimaryZone).GetDnsKeyTtl();
 
                     default:
-                        throw new NotSupportedException();
+                        throw new InvalidOperationException();
                 }
             }
         }
 
-        public IReadOnlyCollection<DnssecPrivateKey> DnssecPrivateKeys
-        { get { return _dnssecPrivateKeys; } }
+        public bool Internal
+        {
+            get
+            {
+                if (_apexZone is null)
+                    throw new InvalidOperationException();
+
+                switch (_type)
+                {
+                    case AuthZoneType.Primary:
+                        return (_apexZone as PrimaryZone).Internal;
+
+                    default:
+                        return false;
+                }
+            }
+        }
+
+        public bool IsExpired
+        {
+            get
+            {
+                if (_apexZone is null)
+                    throw new InvalidOperationException();
+
+                switch (_type)
+                {
+                    case AuthZoneType.Secondary:
+                        return (_apexZone as SecondaryZone).IsExpired;
+
+                    case AuthZoneType.Stub:
+                        return (_apexZone as StubZone).IsExpired;
+
+                    default:
+                        return false;
+                }
+            }
+        }
 
         public bool NotifyFailed
-        { get { return _notifyFailed; } }
+        {
+            get
+            {
+                if (_apexZone is null)
+                    throw new InvalidOperationException();
+
+                switch (_type)
+                {
+                    case AuthZoneType.Primary:
+                        return (_apexZone as PrimaryZone).NotifyFailed;
+
+                    case AuthZoneType.Secondary:
+                        return (_apexZone as SecondaryZone).NotifyFailed;
+
+                    default:
+                        throw new InvalidOperationException();
+                }
+            }
+        }
 
         public bool SyncFailed
-        { get { return _syncFailed; } }
+        {
+            get
+            {
+                if (_apexZone is null)
+                    throw new InvalidOperationException();
+
+                switch (_type)
+                {
+                    case AuthZoneType.Secondary:
+                        return (_apexZone as SecondaryZone).SyncFailed;
+
+                    case AuthZoneType.Stub:
+                        return (_apexZone as StubZone).SyncFailed;
+
+                    default:
+                        throw new InvalidOperationException();
+                }
+            }
+        }
 
         #endregion
     }

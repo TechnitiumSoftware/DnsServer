@@ -1,6 +1,6 @@
 ﻿/*
 Technitium DNS Server
-Copyright (C) 2022  Shreyas Zare (shreyas@technitium.com)
+Copyright (C) 2023  Shreyas Zare (shreyas@technitium.com)
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -33,8 +33,8 @@ namespace DnsServerCore.Dns
 
         #region constructor
 
-        public ResolverPrefetchDnsCache(DnsApplicationManager dnsApplicationManager, AuthZoneManager authZoneManager, CacheZoneManager cacheZoneManager, LogManager log, DnsQuestionRecord prefetchQuestion)
-            : base(dnsApplicationManager, authZoneManager, cacheZoneManager, log)
+        public ResolverPrefetchDnsCache(DnsApplicationManager dnsApplicationManager, AuthZoneManager authZoneManager, CacheZoneManager cacheZoneManager, LogManager log, bool skipDnsAppAuthoritativeRequestHandlers, DnsQuestionRecord prefetchQuestion)
+            : base(dnsApplicationManager, authZoneManager, cacheZoneManager, log, skipDnsAppAuthoritativeRequestHandlers)
         {
             _prefetchQuestion = prefetchQuestion;
         }

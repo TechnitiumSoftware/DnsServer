@@ -1,6 +1,6 @@
 ﻿/*
 Technitium DNS Server
-Copyright (C) 2022  Shreyas Zare (shreyas@technitium.com)
+Copyright (C) 2023  Shreyas Zare (shreyas@technitium.com)
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -56,21 +56,29 @@ namespace DnsServerCore.Dns.Zones
 
             if (records.Count == 1)
             {
-                if (records[0].IsDisabled())
+                AuthRecordInfo authRecordInfo = records[0].GetAuthRecordInfo();
+
+                if (authRecordInfo.Disabled)
                     return Array.Empty<DnsResourceRecord>(); //record disabled
 
                 //update last used on
-                records[0].GetRecordInfo().LastUsedOn = DateTime.UtcNow;
+                authRecordInfo.LastUsedOn = DateTime.UtcNow;
 
                 return records;
             }
 
             List<DnsResourceRecord> newRecords = new List<DnsResourceRecord>(records.Count);
+            DateTime utcNow = DateTime.UtcNow;
 
             foreach (DnsResourceRecord record in records)
             {
-                if (record.IsDisabled())
+                AuthRecordInfo authRecordInfo = record.GetAuthRecordInfo();
+
+                if (authRecordInfo.Disabled)
                     continue; //record disabled
+
+                //update last used on
+                authRecordInfo.LastUsedOn = utcNow;
 
                 newRecords.Add(record);
             }
@@ -86,12 +94,6 @@ namespace DnsServerCore.Dns.Zones
                         break;
                 }
             }
-
-            //update last used on
-            DateTime utcNow = DateTime.UtcNow;
-
-            foreach (DnsResourceRecord record in newRecords)
-                record.GetRecordInfo().LastUsedOn = utcNow;
 
             return newRecords;
         }
@@ -112,7 +114,7 @@ namespace DnsServerCore.Dns.Zones
             {
                 if ((rrsigRecord.RDATA as DnsRRSIGRecordData).TypeCovered == type)
                 {
-                    rrsigRecord.GetRecordInfo().LastUsedOn = utcNow;
+                    rrsigRecord.GetAuthRecordInfo().LastUsedOn = utcNow;
                     newRecords.Add(rrsigRecord);
                 }
             }
@@ -491,10 +493,10 @@ namespace DnsServerCore.Dns.Zones
             {
                 DnsRRSIGRecordData rrsig = rrsigRecord.RDATA as DnsRRSIGRecordData;
 
-                uint signatureValidityPeriod = rrsig.SignatureExpirationValue - rrsig.SignatureInceptionValue;
+                uint signatureValidityPeriod = rrsig.SignatureExpiration - rrsig.SignatureInception;
                 uint refreshPeriod = signatureValidityPeriod / 3;
 
-                if (utcNow > DateTime.UnixEpoch.AddSeconds(rrsig.SignatureExpirationValue - refreshPeriod))
+                if (utcNow > DateTime.UnixEpoch.AddSeconds(rrsig.SignatureExpiration - refreshPeriod))
                     typesToRefresh.Add(rrsig.TypeCovered);
             }
 
@@ -531,7 +533,7 @@ namespace DnsServerCore.Dns.Zones
 
             DnsNSECRecordData newNSecRecord = new DnsNSECRecordData(nextDomainName, types);
 
-            if (!_entries.TryGetValue(DnsResourceRecordType.NSEC, out IReadOnlyList<DnsResourceRecord> existingRecords) || (existingRecords[0].TtlValue != ttl) || !existingRecords[0].RDATA.Equals(newNSecRecord))
+            if (!_entries.TryGetValue(DnsResourceRecordType.NSEC, out IReadOnlyList<DnsResourceRecord> existingRecords) || (existingRecords[0].TTL != ttl) || !existingRecords[0].RDATA.Equals(newNSecRecord))
                 return new DnsResourceRecord[] { new DnsResourceRecord(_name, DnsResourceRecordType.NSEC, DnsClass.IN, ttl, newNSecRecord) };
 
             return Array.Empty<DnsResourceRecord>();
@@ -539,7 +541,7 @@ namespace DnsServerCore.Dns.Zones
 
         internal IReadOnlyList<DnsResourceRecord> GetUpdatedNSec3RRSet(IReadOnlyList<DnsResourceRecord> newNSec3Records)
         {
-            if (!_entries.TryGetValue(DnsResourceRecordType.NSEC3, out IReadOnlyList<DnsResourceRecord> existingRecords) || (existingRecords[0].TtlValue != newNSec3Records[0].TtlValue) || !existingRecords[0].RDATA.Equals(newNSec3Records[0].RDATA))
+            if (!_entries.TryGetValue(DnsResourceRecordType.NSEC3, out IReadOnlyList<DnsResourceRecord> existingRecords) || (existingRecords[0].TTL != newNSec3Records[0].TTL) || !existingRecords[0].RDATA.Equals(newNSec3Records[0].RDATA))
                 return newNSec3Records;
 
             return Array.Empty<DnsResourceRecord>();
@@ -901,7 +903,7 @@ namespace DnsServerCore.Dns.Zones
 
             foreach (DnsResourceRecord record in records)
             {
-                if (record.IsDisabled())
+                if (record.GetAuthRecordInfo().Disabled)
                     continue;
 
                 return true;

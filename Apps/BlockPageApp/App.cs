@@ -1,6 +1,6 @@
 ﻿/*
 Technitium DNS Server
-Copyright (C) 2022  Shreyas Zare (shreyas@technitium.com)
+Copyright (C) 2023  Shreyas Zare (shreyas@technitium.com)
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -18,7 +18,6 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
 using DnsServerCore.ApplicationCommon;
-using Newtonsoft.Json;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -28,6 +27,7 @@ using System.Net.Sockets;
 using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
 using System.Text;
+using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
 using TechnitiumLibrary;
@@ -296,12 +296,16 @@ namespace BlockPage
                 if (usingHttps)
                 {
                     SslStream httpsStream = new SslStream(stream);
-                    await httpsStream.AuthenticateAsServerAsync(_webServerTlsCertificate);
+                    await httpsStream.AuthenticateAsServerAsync(_webServerTlsCertificate).WithTimeout(TCP_RECV_TIMEOUT);
 
                     stream = httpsStream;
                 }
 
                 await ProcessHttpRequestAsync(stream, remoteEP, usingHttps);
+            }
+            catch (TimeoutException)
+            {
+                //ignore timeout exception on TLS auth
             }
             catch (IOException)
             {
@@ -313,8 +317,7 @@ namespace BlockPage
             }
             finally
             {
-                if (socket is not null)
-                    socket.Dispose();
+                socket.Dispose();
             }
         }
 
@@ -479,35 +482,29 @@ namespace BlockPage
         {
             _dnsServer = dnsServer;
 
-            dynamic jsonConfig = JsonConvert.DeserializeObject(config);
+            using JsonDocument jsonDocument = JsonDocument.Parse(config);
+            JsonElement jsonConfig = jsonDocument.RootElement;
 
-            {
-                List<IPAddress> webServerLocalAddresses = new List<IPAddress>();
+            _webServerLocalAddresses = jsonConfig.ReadArray("webServerLocalAddresses", IPAddress.Parse);
 
-                foreach (dynamic jsonAddress in jsonConfig.webServerLocalAddresses)
-                    webServerLocalAddresses.Add(IPAddress.Parse(jsonAddress.Value));
-
-                _webServerLocalAddresses = webServerLocalAddresses;
-            }
-
-            if (jsonConfig.webServerUseSelfSignedTlsCertificate is null)
-                _webServerUseSelfSignedTlsCertificate = true;
+            if (jsonConfig.TryGetProperty("webServerUseSelfSignedTlsCertificate", out JsonElement jsonWebServerUseSelfSignedTlsCertificate))
+                _webServerUseSelfSignedTlsCertificate = jsonWebServerUseSelfSignedTlsCertificate.GetBoolean();
             else
-                _webServerUseSelfSignedTlsCertificate = jsonConfig.webServerUseSelfSignedTlsCertificate.Value;
+                _webServerUseSelfSignedTlsCertificate = true;
 
-            _webServerTlsCertificateFilePath = jsonConfig.webServerTlsCertificateFilePath.Value;
-            _webServerTlsCertificatePassword = jsonConfig.webServerTlsCertificatePassword.Value;
+            _webServerTlsCertificateFilePath = jsonConfig.GetProperty("webServerTlsCertificateFilePath").GetString();
+            _webServerTlsCertificatePassword = jsonConfig.GetProperty("webServerTlsCertificatePassword").GetString();
 
-            _webServerRootPath = jsonConfig.webServerRootPath.Value;
+            _webServerRootPath = jsonConfig.GetProperty("webServerRootPath").GetString();
 
             if (!Path.IsPathRooted(_webServerRootPath))
                 _webServerRootPath = Path.Combine(_dnsServer.ApplicationFolder, _webServerRootPath);
 
-            _serveBlockPageFromWebServerRoot = jsonConfig.serveBlockPageFromWebServerRoot.Value;
+            _serveBlockPageFromWebServerRoot = jsonConfig.GetProperty("serveBlockPageFromWebServerRoot").GetBoolean();
 
-            string blockPageTitle = jsonConfig.blockPageTitle.Value;
-            string blockPageHeading = jsonConfig.blockPageHeading.Value;
-            string blockPageMessage = jsonConfig.blockPageMessage.Value;
+            string blockPageTitle = jsonConfig.GetProperty("blockPageTitle").GetString();
+            string blockPageHeading = jsonConfig.GetProperty("blockPageHeading").GetString();
+            string blockPageMessage = jsonConfig.GetProperty("blockPageMessage").GetString();
 
             string blockPageContent = @"<html>
 <head>
@@ -570,7 +567,7 @@ namespace BlockPage
                 _dnsServer.WriteLog(ex);
             }
 
-            if (jsonConfig.webServerUseSelfSignedTlsCertificate is null)
+            if (!jsonConfig.TryGetProperty("webServerUseSelfSignedTlsCertificate", out _))
             {
                 config = config.Replace("\"webServerTlsCertificateFilePath\"", "\"webServerUseSelfSignedTlsCertificate\": true,\r\n  \"webServerTlsCertificateFilePath\"");
 

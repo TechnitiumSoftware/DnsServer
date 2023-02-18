@@ -1,6 +1,6 @@
 ﻿/*
 Technitium DNS Server
-Copyright (C) 2022  Shreyas Zare (shreyas@technitium.com)
+Copyright (C) 2023  Shreyas Zare (shreyas@technitium.com)
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -18,9 +18,9 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
 using DnsServerCore.ApplicationCommon;
-using Newtonsoft.Json;
 using System;
 using System.Net;
+using System.Text.Json;
 using System.Threading.Tasks;
 using TechnitiumLibrary.Net.Dns;
 using TechnitiumLibrary.Net.Dns.ResourceRecords;
@@ -52,13 +52,14 @@ namespace NoData
 
             if (question.Name.Equals(appRecordName, StringComparison.OrdinalIgnoreCase))
             {
-                dynamic jsonAppRecordData = JsonConvert.DeserializeObject(appRecordData);
+                using JsonDocument jsonDocument = JsonDocument.Parse(appRecordData);
+                JsonElement jsonAppRecordData = jsonDocument.RootElement;
 
-                foreach (dynamic jsonBlockedType in jsonAppRecordData.blockedTypes)
+                foreach (JsonElement jsonBlockedType in jsonAppRecordData.GetProperty("blockedTypes").EnumerateArray())
                 {
-                    DnsResourceRecordType blockedType = Enum.Parse<DnsResourceRecordType>(jsonBlockedType.Value, true);
+                    DnsResourceRecordType blockedType = Enum.Parse<DnsResourceRecordType>(jsonBlockedType.GetString(), true);
                     if ((blockedType == question.Type) || (blockedType == DnsResourceRecordType.ANY))
-                        return Task.FromResult(new DnsDatagram(request.Identifier, true, request.OPCODE, false, false, request.RecursionDesired, isRecursionAllowed, false, false, DnsResponseCode.NoError, request.Question));
+                        return Task.FromResult(new DnsDatagram(request.Identifier, true, request.OPCODE, false, false, request.RecursionDesired, false, false, false, DnsResponseCode.NoError, request.Question));
                 }
             }
 

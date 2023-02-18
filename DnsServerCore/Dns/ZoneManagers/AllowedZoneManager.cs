@@ -1,6 +1,6 @@
 ﻿/*
 Technitium DNS Server
-Copyright (C) 2022  Shreyas Zare (shreyas@technitium.com)
+Copyright (C) 2023  Shreyas Zare (shreyas@technitium.com)
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -137,14 +137,14 @@ namespace DnsServerCore.Dns.ZoneManagers
             _zoneManager.Flush();
         }
 
-        public List<AuthZoneInfo> ListZones()
+        public IReadOnlyList<AuthZoneInfo> GetAllZones()
         {
-            return _zoneManager.ListZones();
+            return _zoneManager.GetAllZones();
         }
 
         public void ListAllRecords(string domain, List<DnsResourceRecord> records)
         {
-            _zoneManager.ListAllRecords(domain, records);
+            _zoneManager.ListAllRecords(domain, domain, records);
         }
 
         public void ListSubDomains(string domain, List<string> subDomains)
@@ -154,7 +154,7 @@ namespace DnsServerCore.Dns.ZoneManagers
 
         public void SaveZoneFile()
         {
-            List<AuthZoneInfo> allowedZones = _dnsServer.AllowedZoneManager.ListZones();
+            IReadOnlyList<AuthZoneInfo> allowedZones = _dnsServer.AllowedZoneManager.GetAllZones();
 
             string allowedZoneFile = Path.Combine(_dnsServer.ConfigFolder, "allowed.config");
 
@@ -178,7 +178,7 @@ namespace DnsServerCore.Dns.ZoneManagers
 
         public DnsDatagram Query(DnsDatagram request)
         {
-            return _zoneManager.Query(request, true);
+            return _zoneManager.Query(request);
         }
 
         #endregion

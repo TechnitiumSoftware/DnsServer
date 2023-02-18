@@ -1,6 +1,6 @@
 ﻿/*
 Technitium DNS Server
-Copyright (C) 2022  Shreyas Zare (shreyas@technitium.com)
+Copyright (C) 2023  Shreyas Zare (shreyas@technitium.com)
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -18,11 +18,11 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
 using DnsServerCore.ApplicationCommon;
-using Newtonsoft.Json;
 using System.Collections.Generic;
 using System.IO;
 using System.Net;
 using System.Net.Sockets;
+using System.Text.Json;
 using System.Threading.Tasks;
 using TechnitiumLibrary;
 using TechnitiumLibrary.Net;
@@ -105,34 +105,34 @@ namespace SplitHorizon
                 await File.WriteAllTextAsync(Path.Combine(dnsServer.ApplicationFolder, "dnsApp.config"), config);
             }
 
-            dynamic jsonConfig = JsonConvert.DeserializeObject(config);
+            using JsonDocument jsonDocument = JsonDocument.Parse(config);
+            JsonElement jsonConfig = jsonDocument.RootElement;
 
-            dynamic jsonNetworks = jsonConfig.networks;
-            if (jsonNetworks is null)
-            {
-                _networks = new Dictionary<string, List<NetworkAddress>>(1);
-            }
-            else
+            if (jsonConfig.TryGetProperty("networks", out JsonElement jsonNetworks))
             {
                 Dictionary<string, List<NetworkAddress>> networks = new Dictionary<string, List<NetworkAddress>>();
 
-                foreach (dynamic jsonProperty in jsonNetworks)
+                foreach (JsonProperty jsonProperty in jsonNetworks.EnumerateObject())
                 {
                     string networkName = jsonProperty.Name;
 
-                    dynamic jsonNetworkAddresses = jsonProperty.Value;
-                    if (jsonNetworkAddresses is not null)
+                    JsonElement jsonNetworkAddresses = jsonProperty.Value;
+                    if (jsonNetworkAddresses.ValueKind == JsonValueKind.Array)
                     {
-                        List<NetworkAddress> networkAddresses = new List<NetworkAddress>();
+                        List<NetworkAddress> networkAddresses = new List<NetworkAddress>(jsonNetworkAddresses.GetArrayLength());
 
-                        foreach (dynamic jsonNetworkAddress in jsonNetworkAddresses)
-                            networkAddresses.Add(NetworkAddress.Parse(jsonNetworkAddress.Value));
+                        foreach (JsonElement jsonNetworkAddress in jsonNetworkAddresses.EnumerateArray())
+                            networkAddresses.Add(NetworkAddress.Parse(jsonNetworkAddress.GetString()));
 
                         networks.TryAdd(networkName, networkAddresses);
                     }
                 }
 
                 _networks = networks;
+            }
+            else
+            {
+                _networks = new Dictionary<string, List<NetworkAddress>>(1);
             }
         }
 
@@ -143,81 +143,87 @@ namespace SplitHorizon
             {
                 case DnsResourceRecordType.A:
                 case DnsResourceRecordType.AAAA:
-                    dynamic jsonAppRecordData = JsonConvert.DeserializeObject(appRecordData);
-                    dynamic jsonAddresses = null;
-
-                    NetworkAddress selectedNetwork = null;
-
-                    foreach (dynamic jsonProperty in jsonAppRecordData)
+                    using (JsonDocument jsonDocument = JsonDocument.Parse(appRecordData))
                     {
-                        string name = jsonProperty.Name;
+                        JsonElement jsonAppRecordData = jsonDocument.RootElement;
+                        JsonElement jsonAddresses = default;
 
-                        if ((name == "public") || (name == "private"))
-                            continue;
+                        NetworkAddress selectedNetwork = null;
 
-                        if (_networks.TryGetValue(name, out List<NetworkAddress> networkAddresses))
+                        foreach (JsonProperty jsonProperty in jsonAppRecordData.EnumerateObject())
                         {
-                            foreach (NetworkAddress networkAddress in networkAddresses)
+                            string name = jsonProperty.Name;
+
+                            if ((name == "public") || (name == "private"))
+                                continue;
+
+                            if (_networks.TryGetValue(name, out List<NetworkAddress> networkAddresses))
                             {
-                                if (networkAddress.Contains(remoteEP.Address))
+                                foreach (NetworkAddress networkAddress in networkAddresses)
                                 {
-                                    jsonAddresses = jsonProperty.Value;
+                                    if (networkAddress.Contains(remoteEP.Address))
+                                    {
+                                        jsonAddresses = jsonProperty.Value;
+                                        break;
+                                    }
+                                }
+
+                                if (jsonAddresses.ValueKind != JsonValueKind.Undefined)
                                     break;
+                            }
+                            else if (NetworkAddress.TryParse(name, out NetworkAddress networkAddress))
+                            {
+                                if (networkAddress.Contains(remoteEP.Address) && ((selectedNetwork is null) || (networkAddress.PrefixLength > selectedNetwork.PrefixLength)))
+                                {
+                                    selectedNetwork = networkAddress;
+                                    jsonAddresses = jsonProperty.Value;
                                 }
                             }
+                        }
 
-                            if (jsonAddresses is not null)
+                        if (jsonAddresses.ValueKind == JsonValueKind.Undefined)
+                        {
+                            if (NetUtilities.IsPrivateIP(remoteEP.Address))
+                            {
+                                if (!jsonAppRecordData.TryGetProperty("private", out jsonAddresses))
+                                    return Task.FromResult<DnsDatagram>(null);
+                            }
+                            else
+                            {
+                                if (!jsonAppRecordData.TryGetProperty("public", out jsonAddresses))
+                                    return Task.FromResult<DnsDatagram>(null);
+                            }
+                        }
+
+                        List<DnsResourceRecord> answers = new List<DnsResourceRecord>();
+
+                        switch (question.Type)
+                        {
+                            case DnsResourceRecordType.A:
+                                foreach (JsonElement jsonAddress in jsonAddresses.EnumerateArray())
+                                {
+                                    if (IPAddress.TryParse(jsonAddress.GetString(), out IPAddress address) && (address.AddressFamily == AddressFamily.InterNetwork))
+                                        answers.Add(new DnsResourceRecord(question.Name, DnsResourceRecordType.A, DnsClass.IN, appRecordTtl, new DnsARecordData(address)));
+                                }
+                                break;
+
+                            case DnsResourceRecordType.AAAA:
+                                foreach (JsonElement jsonAddress in jsonAddresses.EnumerateArray())
+                                {
+                                    if (IPAddress.TryParse(jsonAddress.GetString(), out IPAddress address) && (address.AddressFamily == AddressFamily.InterNetworkV6))
+                                        answers.Add(new DnsResourceRecord(question.Name, DnsResourceRecordType.AAAA, DnsClass.IN, appRecordTtl, new DnsAAAARecordData(address)));
+                                }
                                 break;
                         }
-                        else if (NetworkAddress.TryParse(name, out NetworkAddress networkAddress))
-                        {
-                            if (networkAddress.Contains(remoteEP.Address) && ((selectedNetwork is null) || (networkAddress.PrefixLength > selectedNetwork.PrefixLength)))
-                            {
-                                selectedNetwork = networkAddress;
-                                jsonAddresses = jsonProperty.Value;
-                            }
-                        }
-                    }
 
-                    if (jsonAddresses is null)
-                    {
-                        if (NetUtilities.IsPrivateIP(remoteEP.Address))
-                            jsonAddresses = jsonAppRecordData.@private;
-                        else
-                            jsonAddresses = jsonAppRecordData.@public;
-
-                        if (jsonAddresses is null)
+                        if (answers.Count == 0)
                             return Task.FromResult<DnsDatagram>(null);
+
+                        if (answers.Count > 1)
+                            answers.Shuffle();
+
+                        return Task.FromResult(new DnsDatagram(request.Identifier, true, request.OPCODE, true, false, request.RecursionDesired, false, false, false, DnsResponseCode.NoError, request.Question, answers));
                     }
-
-                    List<DnsResourceRecord> answers = new List<DnsResourceRecord>();
-
-                    switch (question.Type)
-                    {
-                        case DnsResourceRecordType.A:
-                            foreach (dynamic jsonAddress in jsonAddresses)
-                            {
-                                if (IPAddress.TryParse(jsonAddress.Value, out IPAddress address) && (address.AddressFamily == AddressFamily.InterNetwork))
-                                    answers.Add(new DnsResourceRecord(question.Name, DnsResourceRecordType.A, DnsClass.IN, appRecordTtl, new DnsARecordData(address)));
-                            }
-                            break;
-
-                        case DnsResourceRecordType.AAAA:
-                            foreach (dynamic jsonAddress in jsonAddresses)
-                            {
-                                if (IPAddress.TryParse(jsonAddress.Value, out IPAddress address) && (address.AddressFamily == AddressFamily.InterNetworkV6))
-                                    answers.Add(new DnsResourceRecord(question.Name, DnsResourceRecordType.AAAA, DnsClass.IN, appRecordTtl, new DnsAAAARecordData(address)));
-                            }
-                            break;
-                    }
-
-                    if (answers.Count == 0)
-                        return Task.FromResult<DnsDatagram>(null);
-
-                    if (answers.Count > 1)
-                        answers.Shuffle();
-
-                    return Task.FromResult(new DnsDatagram(request.Identifier, true, request.OPCODE, true, false, request.RecursionDesired, isRecursionAllowed, false, false, DnsResponseCode.NoError, request.Question, answers));
 
                 default:
                     return Task.FromResult<DnsDatagram>(null);
@@ -240,15 +246,15 @@ namespace SplitHorizon
             {
                 return @"{
   ""public"": [
-    ""1.1.1.1"", 
+    ""1.1.1.1"",
     ""2.2.2.2""
   ],
   ""private"": [
-    ""192.168.1.1"", 
+    ""192.168.1.1"",
     ""::1""
   ],
   ""custom-networks"": [
-    ""172.16.1.1"", 
+    ""172.16.1.1""
   ],
   ""10.0.0.0/8"": [
     ""10.1.1.1""

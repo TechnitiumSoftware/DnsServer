@@ -1,6 +1,6 @@
 ﻿/*
 Technitium DNS Server
-Copyright (C) 2021  Shreyas Zare (shreyas@technitium.com)
+Copyright (C) 2023  Shreyas Zare (shreyas@technitium.com)
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -22,7 +22,9 @@ using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Net;
+using System.Text.Json;
 using System.Threading;
+using TechnitiumLibrary;
 using TechnitiumLibrary.Net;
 using TechnitiumLibrary.Net.Dns.ResourceRecords;
 
@@ -178,19 +180,19 @@ namespace Failover
 
         #region public
 
-        public void Initialize(dynamic jsonConfig)
+        public void Initialize(string config)
         {
+            using JsonDocument jsonDocument = JsonDocument.Parse(config);
+            JsonElement jsonConfig = jsonDocument.RootElement;
+
             //email alerts
             {
-                //add or update email alerts
-                foreach (dynamic jsonEmailAlert in jsonConfig.emailAlerts)
-                {
-                    string name;
+                JsonElement jsonEmailAlerts = jsonConfig.GetProperty("emailAlerts");
 
-                    if (jsonEmailAlert.name is null)
-                        name = "default";
-                    else
-                        name = jsonEmailAlert.name.Value;
+                //add or update email alerts
+                foreach (JsonElement jsonEmailAlert in jsonEmailAlerts.EnumerateArray())
+                {
+                    string name = jsonEmailAlert.GetPropertyValue("name", "default");
 
                     if (_emailAlerts.TryGetValue(name, out EmailAlert existingEmailAlert))
                     {
@@ -201,7 +203,6 @@ namespace Failover
                     {
                         //add
                         EmailAlert emailAlert = new EmailAlert(this, jsonEmailAlert);
-
                         _emailAlerts.TryAdd(emailAlert.Name, emailAlert);
                     }
                 }
@@ -211,15 +212,9 @@ namespace Failover
                 {
                     bool emailAlertExists = false;
 
-                    foreach (dynamic jsonEmailAlert in jsonConfig.emailAlerts)
+                    foreach (JsonElement jsonEmailAlert in jsonEmailAlerts.EnumerateArray())
                     {
-                        string name;
-
-                        if (jsonEmailAlert.name is null)
-                            name = "default";
-                        else
-                            name = jsonEmailAlert.name.Value;
-
+                        string name = jsonEmailAlert.GetPropertyValue("name", "default");
                         if (name == emailAlert.Key)
                         {
                             emailAlertExists = true;
@@ -237,15 +232,12 @@ namespace Failover
 
             //web hooks
             {
-                //add or update email alerts
-                foreach (dynamic jsonWebHook in jsonConfig.webHooks)
-                {
-                    string name;
+                JsonElement jsonWebHooks = jsonConfig.GetProperty("webHooks");
 
-                    if (jsonWebHook.name is null)
-                        name = "default";
-                    else
-                        name = jsonWebHook.name.Value;
+                //add or update email alerts
+                foreach (JsonElement jsonWebHook in jsonWebHooks.EnumerateArray())
+                {
+                    string name = jsonWebHook.GetPropertyValue("name", "default");
 
                     if (_webHooks.TryGetValue(name, out WebHook existingWebHook))
                     {
@@ -256,7 +248,6 @@ namespace Failover
                     {
                         //add
                         WebHook webHook = new WebHook(this, jsonWebHook);
-
                         _webHooks.TryAdd(webHook.Name, webHook);
                     }
                 }
@@ -266,15 +257,9 @@ namespace Failover
                 {
                     bool webHookExists = false;
 
-                    foreach (dynamic jsonWebHook in jsonConfig.webHooks)
+                    foreach (JsonElement jsonWebHook in jsonWebHooks.EnumerateArray())
                     {
-                        string name;
-
-                        if (jsonWebHook.name is null)
-                            name = "default";
-                        else
-                            name = jsonWebHook.name.Value;
-
+                        string name = jsonWebHook.GetPropertyValue("name", "default");
                         if (name == webHook.Key)
                         {
                             webHookExists = true;
@@ -292,15 +277,12 @@ namespace Failover
 
             //health checks
             {
-                //add or update health checks
-                foreach (dynamic jsonHealthCheck in jsonConfig.healthChecks)
-                {
-                    string name;
+                JsonElement jsonHealthChecks = jsonConfig.GetProperty("healthChecks");
 
-                    if (jsonHealthCheck.name is null)
-                        name = "default";
-                    else
-                        name = jsonHealthCheck.name.Value;
+                //add or update health checks
+                foreach (JsonElement jsonHealthCheck in jsonHealthChecks.EnumerateArray())
+                {
+                    string name = jsonHealthCheck.GetPropertyValue("name", "default");
 
                     if (_healthChecks.TryGetValue(name, out HealthCheck existingHealthCheck))
                     {
@@ -311,7 +293,6 @@ namespace Failover
                     {
                         //add
                         HealthCheck healthCheck = new HealthCheck(this, jsonHealthCheck);
-
                         _healthChecks.TryAdd(healthCheck.Name, healthCheck);
                     }
                 }
@@ -321,15 +302,9 @@ namespace Failover
                 {
                     bool healthCheckExists = false;
 
-                    foreach (dynamic jsonHealthCheck in jsonConfig.healthChecks)
+                    foreach (JsonElement jsonHealthCheck in jsonHealthChecks.EnumerateArray())
                     {
-                        string name;
-
-                        if (jsonHealthCheck.name is null)
-                            name = "default";
-                        else
-                            name = jsonHealthCheck.name.Value;
-
+                        string name = jsonHealthCheck.GetPropertyValue("name", "default");
                         if (name == healthCheck.Key)
                         {
                             healthCheckExists = true;
@@ -353,14 +328,21 @@ namespace Failover
             //under maintenance networks
             _underMaintenance.Clear();
 
-            if (jsonConfig.underMaintenance is not null)
+            if (jsonConfig.TryGetProperty("underMaintenance", out JsonElement jsonUnderMaintenance))
             {
-                foreach (dynamic jsonNetwork in jsonConfig.underMaintenance)
+                foreach (JsonElement jsonNetwork in jsonUnderMaintenance.EnumerateArray())
                 {
-                    string network = jsonNetwork.network.Value;
-                    bool enable = jsonNetwork.enable.Value;
+                    string network = jsonNetwork.GetProperty("network").GetString();
+                    bool enabled;
 
-                    _underMaintenance.TryAdd(NetworkAddress.Parse(network), enable);
+                    if (jsonNetwork.TryGetProperty("enabled", out JsonElement jsonEnabled))
+                        enabled = jsonEnabled.GetBoolean();
+                    else if (jsonNetwork.TryGetProperty("enable", out JsonElement jsonEnable))
+                        enabled = jsonEnable.GetBoolean();
+                    else
+                        enabled = true;
+
+                    _underMaintenance.TryAdd(NetworkAddress.Parse(network), enabled);
                 }
             }
         }

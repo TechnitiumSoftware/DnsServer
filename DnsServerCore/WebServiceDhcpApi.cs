@@ -1,6 +1,6 @@
 ﻿/*
 Technitium DNS Server
-Copyright (C) 2022  Shreyas Zare (shreyas@technitium.com)
+Copyright (C) 2023  Shreyas Zare (shreyas@technitium.com)
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -17,13 +17,16 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 */
 
+using DnsServerCore.Auth;
 using DnsServerCore.Dhcp;
 using DnsServerCore.Dhcp.Options;
-using Newtonsoft.Json;
+using Microsoft.AspNetCore.Http;
 using System;
 using System.Collections.Generic;
 using System.Net;
+using System.Text.Json;
 using System.Threading.Tasks;
+using TechnitiumLibrary;
 
 namespace DnsServerCore
 {
@@ -46,8 +49,13 @@ namespace DnsServerCore
 
         #region public
 
-        public void ListDhcpLeases(JsonTextWriter jsonWriter)
+        public void ListDhcpLeases(HttpContext context)
         {
+            UserSession session = context.GetCurrentSession();
+
+            if (!_dnsWebService._authManager.IsPermitted(PermissionSection.DhcpServer, session.User, PermissionFlag.View))
+                throw new DnsWebServiceException("Access was denied.");
+
             IReadOnlyDictionary<string, Scope> scopes = _dnsWebService.DhcpServer.Scopes;
 
             //sort by name
@@ -57,6 +65,8 @@ namespace DnsServerCore
                 sortedScopes.Add(entry.Value);
 
             sortedScopes.Sort();
+
+            Utf8JsonWriter jsonWriter = context.GetCurrentJsonWriter();
 
             jsonWriter.WritePropertyName("leases");
             jsonWriter.WriteStartArray();
@@ -77,29 +87,14 @@ namespace DnsServerCore
                 {
                     jsonWriter.WriteStartObject();
 
-                    jsonWriter.WritePropertyName("scope");
-                    jsonWriter.WriteValue(scope.Name);
-
-                    jsonWriter.WritePropertyName("type");
-                    jsonWriter.WriteValue(lease.Type.ToString());
-
-                    jsonWriter.WritePropertyName("hardwareAddress");
-                    jsonWriter.WriteValue(BitConverter.ToString(lease.HardwareAddress));
-
-                    jsonWriter.WritePropertyName("clientIdentifier");
-                    jsonWriter.WriteValue(lease.ClientIdentifier.ToString());
-
-                    jsonWriter.WritePropertyName("address");
-                    jsonWriter.WriteValue(lease.Address.ToString());
-
-                    jsonWriter.WritePropertyName("hostName");
-                    jsonWriter.WriteValue(lease.HostName);
-
-                    jsonWriter.WritePropertyName("leaseObtained");
-                    jsonWriter.WriteValue(lease.LeaseObtained);
-
-                    jsonWriter.WritePropertyName("leaseExpires");
-                    jsonWriter.WriteValue(lease.LeaseExpires);
+                    jsonWriter.WriteString("scope", scope.Name);
+                    jsonWriter.WriteString("type", lease.Type.ToString());
+                    jsonWriter.WriteString("hardwareAddress", BitConverter.ToString(lease.HardwareAddress));
+                    jsonWriter.WriteString("clientIdentifier", lease.ClientIdentifier.ToString());
+                    jsonWriter.WriteString("address", lease.Address.ToString());
+                    jsonWriter.WriteString("hostName", lease.HostName);
+                    jsonWriter.WriteString("leaseObtained", lease.LeaseObtained);
+                    jsonWriter.WriteString("leaseExpires", lease.LeaseExpires);
 
                     jsonWriter.WriteEndObject();
                 }
@@ -108,8 +103,13 @@ namespace DnsServerCore
             jsonWriter.WriteEndArray();
         }
 
-        public void ListDhcpScopes(JsonTextWriter jsonWriter)
+        public void ListDhcpScopes(HttpContext context)
         {
+            UserSession session = context.GetCurrentSession();
+
+            if (!_dnsWebService._authManager.IsPermitted(PermissionSection.DhcpServer, session.User, PermissionFlag.View))
+                throw new DnsWebServiceException("Access was denied.");
+
             IReadOnlyDictionary<string, Scope> scopes = _dnsWebService.DhcpServer.Scopes;
 
             //sort by name
@@ -120,6 +120,8 @@ namespace DnsServerCore
 
             sortedScopes.Sort();
 
+            Utf8JsonWriter jsonWriter = context.GetCurrentJsonWriter();
+
             jsonWriter.WritePropertyName("scopes");
             jsonWriter.WriteStartArray();
 
@@ -127,32 +129,16 @@ namespace DnsServerCore
             {
                 jsonWriter.WriteStartObject();
 
-                jsonWriter.WritePropertyName("name");
-                jsonWriter.WriteValue(scope.Name);
+                jsonWriter.WriteString("name", scope.Name);
+                jsonWriter.WriteBoolean("enabled", scope.Enabled);
+                jsonWriter.WriteString("startingAddress", scope.StartingAddress.ToString());
+                jsonWriter.WriteString("endingAddress", scope.EndingAddress.ToString());
+                jsonWriter.WriteString("subnetMask", scope.SubnetMask.ToString());
+                jsonWriter.WriteString("networkAddress", scope.NetworkAddress.ToString());
+                jsonWriter.WriteString("broadcastAddress", scope.BroadcastAddress.ToString());
 
-                jsonWriter.WritePropertyName("enabled");
-                jsonWriter.WriteValue(scope.Enabled);
-
-                jsonWriter.WritePropertyName("startingAddress");
-                jsonWriter.WriteValue(scope.StartingAddress.ToString());
-
-                jsonWriter.WritePropertyName("endingAddress");
-                jsonWriter.WriteValue(scope.EndingAddress.ToString());
-
-                jsonWriter.WritePropertyName("subnetMask");
-                jsonWriter.WriteValue(scope.SubnetMask.ToString());
-
-                jsonWriter.WritePropertyName("networkAddress");
-                jsonWriter.WriteValue(scope.NetworkAddress.ToString());
-
-                jsonWriter.WritePropertyName("broadcastAddress");
-                jsonWriter.WriteValue(scope.BroadcastAddress.ToString());
-
-                if (scope.InterfaceAddress != null)
-                {
-                    jsonWriter.WritePropertyName("interfaceAddress");
-                    jsonWriter.WriteValue(scope.InterfaceAddress.ToString());
-                }
+                if (scope.InterfaceAddress is not null)
+                    jsonWriter.WriteString("interfaceAddress", scope.InterfaceAddress.ToString());
 
                 jsonWriter.WriteEndObject();
             }
@@ -160,54 +146,36 @@ namespace DnsServerCore
             jsonWriter.WriteEndArray();
         }
 
-        public void GetDhcpScope(HttpListenerRequest request, JsonTextWriter jsonWriter)
+        public void GetDhcpScope(HttpContext context)
         {
-            string scopeName = request.QueryString["name"];
-            if (string.IsNullOrEmpty(scopeName))
-                throw new DnsWebServiceException("Parameter 'name' missing.");
+            UserSession session = context.GetCurrentSession();
+
+            if (!_dnsWebService._authManager.IsPermitted(PermissionSection.DhcpServer, session.User, PermissionFlag.View))
+                throw new DnsWebServiceException("Access was denied.");
+
+            string scopeName = context.Request.GetQueryOrForm("name");
 
             Scope scope = _dnsWebService.DhcpServer.GetScope(scopeName);
-            if (scope == null)
+            if (scope is null)
                 throw new DnsWebServiceException("DHCP scope was not found: " + scopeName);
 
-            jsonWriter.WritePropertyName("name");
-            jsonWriter.WriteValue(scope.Name);
+            Utf8JsonWriter jsonWriter = context.GetCurrentJsonWriter();
 
-            jsonWriter.WritePropertyName("startingAddress");
-            jsonWriter.WriteValue(scope.StartingAddress.ToString());
+            jsonWriter.WriteString("name", scope.Name);
+            jsonWriter.WriteString("startingAddress", scope.StartingAddress.ToString());
+            jsonWriter.WriteString("endingAddress", scope.EndingAddress.ToString());
+            jsonWriter.WriteString("subnetMask", scope.SubnetMask.ToString());
+            jsonWriter.WriteNumber("leaseTimeDays", scope.LeaseTimeDays);
+            jsonWriter.WriteNumber("leaseTimeHours", scope.LeaseTimeHours);
+            jsonWriter.WriteNumber("leaseTimeMinutes", scope.LeaseTimeMinutes);
+            jsonWriter.WriteNumber("offerDelayTime", scope.OfferDelayTime);
 
-            jsonWriter.WritePropertyName("endingAddress");
-            jsonWriter.WriteValue(scope.EndingAddress.ToString());
-
-            jsonWriter.WritePropertyName("subnetMask");
-            jsonWriter.WriteValue(scope.SubnetMask.ToString());
-
-            jsonWriter.WritePropertyName("leaseTimeDays");
-            jsonWriter.WriteValue(scope.LeaseTimeDays);
-
-            jsonWriter.WritePropertyName("leaseTimeHours");
-            jsonWriter.WriteValue(scope.LeaseTimeHours);
-
-            jsonWriter.WritePropertyName("leaseTimeMinutes");
-            jsonWriter.WriteValue(scope.LeaseTimeMinutes);
-
-            jsonWriter.WritePropertyName("offerDelayTime");
-            jsonWriter.WriteValue(scope.OfferDelayTime);
-
-            jsonWriter.WritePropertyName("pingCheckEnabled");
-            jsonWriter.WriteValue(scope.PingCheckEnabled);
-
-            jsonWriter.WritePropertyName("pingCheckTimeout");
-            jsonWriter.WriteValue(scope.PingCheckTimeout);
-
-            jsonWriter.WritePropertyName("pingCheckRetries");
-            jsonWriter.WriteValue(scope.PingCheckRetries);
+            jsonWriter.WriteBoolean("pingCheckEnabled", scope.PingCheckEnabled);
+            jsonWriter.WriteNumber("pingCheckTimeout", scope.PingCheckTimeout);
+            jsonWriter.WriteNumber("pingCheckRetries", scope.PingCheckRetries);
 
             if (!string.IsNullOrEmpty(scope.DomainName))
-            {
-                jsonWriter.WritePropertyName("domainName");
-                jsonWriter.WriteValue(scope.DomainName);
-            }
+                jsonWriter.WriteString("domainName", scope.DomainName);
 
             if (scope.DomainSearchList is not null)
             {
@@ -215,73 +183,57 @@ namespace DnsServerCore
                 jsonWriter.WriteStartArray();
 
                 foreach (string domainSearchString in scope.DomainSearchList)
-                    jsonWriter.WriteValue(domainSearchString);
+                    jsonWriter.WriteStringValue(domainSearchString);
 
                 jsonWriter.WriteEndArray();
             }
 
-            jsonWriter.WritePropertyName("dnsUpdates");
-            jsonWriter.WriteValue(scope.DnsUpdates);
+            jsonWriter.WriteBoolean("dnsUpdates", scope.DnsUpdates);
+            jsonWriter.WriteNumber("dnsTtl", scope.DnsTtl);
 
-            jsonWriter.WritePropertyName("dnsTtl");
-            jsonWriter.WriteValue(scope.DnsTtl);
+            if (scope.ServerAddress is not null)
+                jsonWriter.WriteString("serverAddress", scope.ServerAddress.ToString());
 
-            if (scope.ServerAddress != null)
-            {
-                jsonWriter.WritePropertyName("serverAddress");
-                jsonWriter.WriteValue(scope.ServerAddress.ToString());
-            }
+            if (scope.ServerHostName is not null)
+                jsonWriter.WriteString("serverHostName", scope.ServerHostName);
 
-            if (scope.ServerHostName != null)
-            {
-                jsonWriter.WritePropertyName("serverHostName");
-                jsonWriter.WriteValue(scope.ServerHostName);
-            }
+            if (scope.BootFileName is not null)
+                jsonWriter.WriteString("bootFileName", scope.BootFileName);
 
-            if (scope.BootFileName != null)
-            {
-                jsonWriter.WritePropertyName("bootFileName");
-                jsonWriter.WriteValue(scope.BootFileName);
-            }
+            if (scope.RouterAddress is not null)
+                jsonWriter.WriteString("routerAddress", scope.RouterAddress.ToString());
 
-            if (scope.RouterAddress != null)
-            {
-                jsonWriter.WritePropertyName("routerAddress");
-                jsonWriter.WriteValue(scope.RouterAddress.ToString());
-            }
+            jsonWriter.WriteBoolean("useThisDnsServer", scope.UseThisDnsServer);
 
-            jsonWriter.WritePropertyName("useThisDnsServer");
-            jsonWriter.WriteValue(scope.UseThisDnsServer);
-
-            if (scope.DnsServers != null)
+            if (scope.DnsServers is not null)
             {
                 jsonWriter.WritePropertyName("dnsServers");
                 jsonWriter.WriteStartArray();
 
                 foreach (IPAddress dnsServer in scope.DnsServers)
-                    jsonWriter.WriteValue(dnsServer.ToString());
+                    jsonWriter.WriteStringValue(dnsServer.ToString());
 
                 jsonWriter.WriteEndArray();
             }
 
-            if (scope.WinsServers != null)
+            if (scope.WinsServers is not null)
             {
                 jsonWriter.WritePropertyName("winsServers");
                 jsonWriter.WriteStartArray();
 
                 foreach (IPAddress winsServer in scope.WinsServers)
-                    jsonWriter.WriteValue(winsServer.ToString());
+                    jsonWriter.WriteStringValue(winsServer.ToString());
 
                 jsonWriter.WriteEndArray();
             }
 
-            if (scope.NtpServers != null)
+            if (scope.NtpServers is not null)
             {
                 jsonWriter.WritePropertyName("ntpServers");
                 jsonWriter.WriteStartArray();
 
                 foreach (IPAddress ntpServer in scope.NtpServers)
-                    jsonWriter.WriteValue(ntpServer.ToString());
+                    jsonWriter.WriteStringValue(ntpServer.ToString());
 
                 jsonWriter.WriteEndArray();
             }
@@ -292,12 +244,12 @@ namespace DnsServerCore
                 jsonWriter.WriteStartArray();
 
                 foreach (string ntpServerDomainName in scope.NtpServerDomainNames)
-                    jsonWriter.WriteValue(ntpServerDomainName);
+                    jsonWriter.WriteStringValue(ntpServerDomainName);
 
                 jsonWriter.WriteEndArray();
             }
 
-            if (scope.StaticRoutes != null)
+            if (scope.StaticRoutes is not null)
             {
                 jsonWriter.WritePropertyName("staticRoutes");
                 jsonWriter.WriteStartArray();
@@ -306,14 +258,9 @@ namespace DnsServerCore
                 {
                     jsonWriter.WriteStartObject();
 
-                    jsonWriter.WritePropertyName("destination");
-                    jsonWriter.WriteValue(route.Destination.ToString());
-
-                    jsonWriter.WritePropertyName("subnetMask");
-                    jsonWriter.WriteValue(route.SubnetMask.ToString());
-
-                    jsonWriter.WritePropertyName("router");
-                    jsonWriter.WriteValue(route.Router.ToString());
+                    jsonWriter.WriteString("destination", route.Destination.ToString());
+                    jsonWriter.WriteString("subnetMask", route.SubnetMask.ToString());
+                    jsonWriter.WriteString("router", route.Router.ToString());
 
                     jsonWriter.WriteEndObject();
                 }
@@ -321,7 +268,7 @@ namespace DnsServerCore
                 jsonWriter.WriteEndArray();
             }
 
-            if (scope.VendorInfo != null)
+            if (scope.VendorInfo is not null)
             {
                 jsonWriter.WritePropertyName("vendorInfo");
                 jsonWriter.WriteStartArray();
@@ -330,11 +277,8 @@ namespace DnsServerCore
                 {
                     jsonWriter.WriteStartObject();
 
-                    jsonWriter.WritePropertyName("identifier");
-                    jsonWriter.WriteValue(entry.Key);
-
-                    jsonWriter.WritePropertyName("information");
-                    jsonWriter.WriteValue(entry.Value.ToString());
+                    jsonWriter.WriteString("identifier", entry.Key);
+                    jsonWriter.WriteString("information", BitConverter.ToString(entry.Value.Information).Replace('-', ':'));
 
                     jsonWriter.WriteEndObject();
                 }
@@ -348,12 +292,41 @@ namespace DnsServerCore
                 jsonWriter.WriteStartArray();
 
                 foreach (IPAddress acIpAddress in scope.CAPWAPAcIpAddresses)
-                    jsonWriter.WriteValue(acIpAddress.ToString());
+                    jsonWriter.WriteStringValue(acIpAddress.ToString());
 
                 jsonWriter.WriteEndArray();
             }
 
-            if (scope.Exclusions != null)
+            if (scope.TftpServerAddresses is not null)
+            {
+                jsonWriter.WritePropertyName("tftpServerAddresses");
+                jsonWriter.WriteStartArray();
+
+                foreach (IPAddress address in scope.TftpServerAddresses)
+                    jsonWriter.WriteStringValue(address.ToString());
+
+                jsonWriter.WriteEndArray();
+            }
+
+            if (scope.GenericOptions is not null)
+            {
+                jsonWriter.WritePropertyName("genericOptions");
+                jsonWriter.WriteStartArray();
+
+                foreach (DhcpOption genericOption in scope.GenericOptions)
+                {
+                    jsonWriter.WriteStartObject();
+
+                    jsonWriter.WriteNumber("code", (byte)genericOption.Code);
+                    jsonWriter.WriteString("value", BitConverter.ToString(genericOption.RawValue).Replace('-', ':'));
+
+                    jsonWriter.WriteEndObject();
+                }
+
+                jsonWriter.WriteEndArray();
+            }
+
+            if (scope.Exclusions is not null)
             {
                 jsonWriter.WritePropertyName("exclusions");
                 jsonWriter.WriteStartArray();
@@ -362,11 +335,8 @@ namespace DnsServerCore
                 {
                     jsonWriter.WriteStartObject();
 
-                    jsonWriter.WritePropertyName("startingAddress");
-                    jsonWriter.WriteValue(exclusion.StartingAddress.ToString());
-
-                    jsonWriter.WritePropertyName("endingAddress");
-                    jsonWriter.WriteValue(exclusion.EndingAddress.ToString());
+                    jsonWriter.WriteString("startingAddress", exclusion.StartingAddress.ToString());
+                    jsonWriter.WriteString("endingAddress", exclusion.EndingAddress.ToString());
 
                     jsonWriter.WriteEndObject();
                 }
@@ -381,39 +351,33 @@ namespace DnsServerCore
             {
                 jsonWriter.WriteStartObject();
 
-                jsonWriter.WritePropertyName("hostName");
-                jsonWriter.WriteValue(reservedLease.HostName);
-
-                jsonWriter.WritePropertyName("hardwareAddress");
-                jsonWriter.WriteValue(BitConverter.ToString(reservedLease.HardwareAddress));
-
-                jsonWriter.WritePropertyName("address");
-                jsonWriter.WriteValue(reservedLease.Address.ToString());
-
-                jsonWriter.WritePropertyName("comments");
-                jsonWriter.WriteValue(reservedLease.Comments);
+                jsonWriter.WriteString("hostName", reservedLease.HostName);
+                jsonWriter.WriteString("hardwareAddress", BitConverter.ToString(reservedLease.HardwareAddress));
+                jsonWriter.WriteString("address", reservedLease.Address.ToString());
+                jsonWriter.WriteString("comments", reservedLease.Comments);
 
                 jsonWriter.WriteEndObject();
             }
 
             jsonWriter.WriteEndArray();
 
-            jsonWriter.WritePropertyName("allowOnlyReservedLeases");
-            jsonWriter.WriteValue(scope.AllowOnlyReservedLeases);
-
-            jsonWriter.WritePropertyName("blockLocallyAdministeredMacAddresses");
-            jsonWriter.WriteValue(scope.BlockLocallyAdministeredMacAddresses);
+            jsonWriter.WriteBoolean("allowOnlyReservedLeases", scope.AllowOnlyReservedLeases);
+            jsonWriter.WriteBoolean("blockLocallyAdministeredMacAddresses", scope.BlockLocallyAdministeredMacAddresses);
         }
 
-        public async Task SetDhcpScopeAsync(HttpListenerRequest request)
+        public async Task SetDhcpScopeAsync(HttpContext context)
         {
-            string scopeName = request.QueryString["name"];
-            if (string.IsNullOrEmpty(scopeName))
-                throw new DnsWebServiceException("Parameter 'name' missing.");
+            UserSession session = context.GetCurrentSession();
 
-            string strStartingAddress = request.QueryString["startingAddress"];
-            string strEndingAddress = request.QueryString["endingAddress"];
-            string strSubnetMask = request.QueryString["subnetMask"];
+            if (!_dnsWebService._authManager.IsPermitted(PermissionSection.DhcpServer, session.User, PermissionFlag.Modify))
+                throw new DnsWebServiceException("Access was denied.");
+
+            HttpRequest request = context.Request;
+
+            string scopeName = request.GetQueryOrForm("name");
+            string strStartingAddress = request.QueryOrForm("startingAddress");
+            string strEndingAddress = request.QueryOrForm("endingAddress");
+            string strSubnetMask = request.QueryOrForm("subnetMask");
 
             bool scopeExists;
             Scope scope = _dnsWebService.DhcpServer.GetScope(scopeName);
@@ -430,29 +394,15 @@ namespace DnsServerCore
                     throw new DnsWebServiceException("Parameter 'subnetMask' missing.");
 
                 scopeExists = false;
-                scope = new Scope(scopeName, true, IPAddress.Parse(strStartingAddress), IPAddress.Parse(strEndingAddress), IPAddress.Parse(strSubnetMask), _dnsWebService.Log);
+                scope = new Scope(scopeName, true, IPAddress.Parse(strStartingAddress), IPAddress.Parse(strEndingAddress), IPAddress.Parse(strSubnetMask), _dnsWebService._log);
             }
             else
             {
                 scopeExists = true;
 
-                IPAddress startingAddress;
-                if (string.IsNullOrEmpty(strStartingAddress))
-                    startingAddress = scope.StartingAddress;
-                else
-                    startingAddress = IPAddress.Parse(strStartingAddress);
-
-                IPAddress endingAddress;
-                if (string.IsNullOrEmpty(strEndingAddress))
-                    endingAddress = scope.EndingAddress;
-                else
-                    endingAddress = IPAddress.Parse(strEndingAddress);
-
-                IPAddress subnetMask;
-                if (string.IsNullOrEmpty(strSubnetMask))
-                    subnetMask = scope.SubnetMask;
-                else
-                    subnetMask = IPAddress.Parse(strSubnetMask);
+                IPAddress startingAddress = string.IsNullOrEmpty(strStartingAddress) ? scope.StartingAddress : IPAddress.Parse(strStartingAddress);
+                IPAddress endingAddress = string.IsNullOrEmpty(strEndingAddress) ? scope.EndingAddress : IPAddress.Parse(strEndingAddress);
+                IPAddress subnetMask = string.IsNullOrEmpty(strSubnetMask) ? scope.SubnetMask : IPAddress.Parse(strSubnetMask);
 
                 //validate scope address
                 foreach (KeyValuePair<string, Scope> entry in _dnsWebService.DhcpServer.Scopes)
@@ -469,146 +419,106 @@ namespace DnsServerCore
                 scope.ChangeNetwork(startingAddress, endingAddress, subnetMask);
             }
 
-            string strLeaseTimeDays = request.QueryString["leaseTimeDays"];
-            if (!string.IsNullOrEmpty(strLeaseTimeDays))
-                scope.LeaseTimeDays = ushort.Parse(strLeaseTimeDays);
+            if (request.TryGetQueryOrForm("leaseTimeDays", ushort.Parse, out ushort leaseTimeDays))
+                scope.LeaseTimeDays = leaseTimeDays;
 
-            string strLeaseTimeHours = request.QueryString["leaseTimeHours"];
-            if (!string.IsNullOrEmpty(strLeaseTimeHours))
-                scope.LeaseTimeHours = byte.Parse(strLeaseTimeHours);
+            if (request.TryGetQueryOrForm("leaseTimeHours", byte.Parse, out byte leaseTimeHours))
+                scope.LeaseTimeHours = leaseTimeHours;
 
-            string strLeaseTimeMinutes = request.QueryString["leaseTimeMinutes"];
-            if (!string.IsNullOrEmpty(strLeaseTimeMinutes))
-                scope.LeaseTimeMinutes = byte.Parse(strLeaseTimeMinutes);
+            if (request.TryGetQueryOrForm("leaseTimeMinutes", byte.Parse, out byte leaseTimeMinutes))
+                scope.LeaseTimeMinutes = leaseTimeMinutes;
 
-            string strOfferDelayTime = request.QueryString["offerDelayTime"];
-            if (!string.IsNullOrEmpty(strOfferDelayTime))
-                scope.OfferDelayTime = ushort.Parse(strOfferDelayTime);
+            if (request.TryGetQueryOrForm("offerDelayTime", ushort.Parse, out ushort offerDelayTime))
+                scope.OfferDelayTime = offerDelayTime;
 
-            string strPingCheckEnabled = request.QueryString["pingCheckEnabled"];
-            if (!string.IsNullOrEmpty(strPingCheckEnabled))
-                scope.PingCheckEnabled = bool.Parse(strPingCheckEnabled);
+            if (request.TryGetQueryOrForm("pingCheckEnabled", bool.Parse, out bool pingCheckEnabled))
+                scope.PingCheckEnabled = pingCheckEnabled;
 
-            string strPingCheckTimeout = request.QueryString["pingCheckTimeout"];
-            if (!string.IsNullOrEmpty(strPingCheckTimeout))
-                scope.PingCheckTimeout = ushort.Parse(strPingCheckTimeout);
+            if (request.TryGetQueryOrForm("pingCheckTimeout", ushort.Parse, out ushort pingCheckTimeout))
+                scope.PingCheckTimeout = pingCheckTimeout;
 
-            string strPingCheckRetries = request.QueryString["pingCheckRetries"];
-            if (!string.IsNullOrEmpty(strPingCheckRetries))
-                scope.PingCheckRetries = byte.Parse(strPingCheckRetries);
+            if (request.TryGetQueryOrForm("pingCheckRetries", byte.Parse, out byte pingCheckRetries))
+                scope.PingCheckRetries = pingCheckRetries;
 
-            string strDomainName = request.QueryString["domainName"];
-            if (strDomainName != null)
-                scope.DomainName = strDomainName.Length == 0 ? null : strDomainName;
+            string domainName = request.QueryOrForm("domainName");
+            if (domainName is not null)
+                scope.DomainName = domainName.Length == 0 ? null : domainName;
 
-            string strDomainSearchList = request.QueryString["domainSearchList"];
-            if (strDomainSearchList is not null)
+            string domainSearchList = request.QueryOrForm("domainSearchList");
+            if (domainSearchList is not null)
             {
-                if (strDomainSearchList.Length == 0)
+                if (domainSearchList.Length == 0)
                     scope.DomainSearchList = null;
                 else
-                    scope.DomainSearchList = strDomainSearchList.Split(new char[] { ',' }, StringSplitOptions.RemoveEmptyEntries);
+                    scope.DomainSearchList = domainSearchList.Split(new char[] { ',' }, StringSplitOptions.RemoveEmptyEntries);
             }
 
-            string strDnsUpdates = request.QueryString["dnsUpdates"];
-            if (!string.IsNullOrEmpty(strDnsUpdates))
-                scope.DnsUpdates = bool.Parse(strDnsUpdates);
+            if (request.TryGetQueryOrForm("dnsUpdates", bool.Parse, out bool dnsUpdates))
+                scope.DnsUpdates = dnsUpdates;
 
-            string strDnsTtl = request.QueryString["dnsTtl"];
-            if (!string.IsNullOrEmpty(strDnsTtl))
-                scope.DnsTtl = uint.Parse(strDnsTtl);
+            if (request.TryGetQueryOrForm("dnsTtl", uint.Parse, out uint dnsTtl))
+                scope.DnsTtl = dnsTtl;
 
-            string strServerAddress = request.QueryString["serverAddress"];
-            if (strServerAddress != null)
-                scope.ServerAddress = strServerAddress.Length == 0 ? null : IPAddress.Parse(strServerAddress);
+            string serverAddress = request.QueryOrForm("serverAddress");
+            if (serverAddress is not null)
+                scope.ServerAddress = serverAddress.Length == 0 ? null : IPAddress.Parse(serverAddress);
 
-            string strServerHostName = request.QueryString["serverHostName"];
-            if (strServerHostName != null)
-                scope.ServerHostName = strServerHostName.Length == 0 ? null : strServerHostName;
+            string serverHostName = request.QueryOrForm("serverHostName");
+            if (serverHostName is not null)
+                scope.ServerHostName = serverHostName.Length == 0 ? null : serverHostName;
 
-            string strBootFileName = request.QueryString["bootFileName"];
-            if (strBootFileName != null)
-                scope.BootFileName = strBootFileName.Length == 0 ? null : strBootFileName;
+            string bootFileName = request.QueryOrForm("bootFileName");
+            if (bootFileName is not null)
+                scope.BootFileName = bootFileName.Length == 0 ? null : bootFileName;
 
-            string strRouterAddress = request.QueryString["routerAddress"];
-            if (strRouterAddress != null)
-                scope.RouterAddress = strRouterAddress.Length == 0 ? null : IPAddress.Parse(strRouterAddress);
+            string routerAddress = request.QueryOrForm("routerAddress");
+            if (routerAddress is not null)
+                scope.RouterAddress = routerAddress.Length == 0 ? null : IPAddress.Parse(routerAddress);
 
-            string strUseThisDnsServer = request.QueryString["useThisDnsServer"];
-            if (!string.IsNullOrEmpty(strUseThisDnsServer))
-                scope.UseThisDnsServer = bool.Parse(strUseThisDnsServer);
+            if (request.TryGetQueryOrForm("useThisDnsServer", bool.Parse, out bool useThisDnsServer))
+                scope.UseThisDnsServer = useThisDnsServer;
 
             if (!scope.UseThisDnsServer)
             {
-                string strDnsServers = request.QueryString["dnsServers"];
-                if (strDnsServers != null)
+                string dnsServers = request.QueryOrForm("dnsServers");
+                if (dnsServers is not null)
                 {
-                    if (strDnsServers.Length == 0)
-                    {
+                    if (dnsServers.Length == 0)
                         scope.DnsServers = null;
-                    }
                     else
-                    {
-                        string[] strDnsServerParts = strDnsServers.Split(new char[] { ',' }, StringSplitOptions.RemoveEmptyEntries);
-                        IPAddress[] dnsServers = new IPAddress[strDnsServerParts.Length];
-
-                        for (int i = 0; i < strDnsServerParts.Length; i++)
-                            dnsServers[i] = IPAddress.Parse(strDnsServerParts[i]);
-
-                        scope.DnsServers = dnsServers;
-                    }
+                        scope.DnsServers = dnsServers.Split(IPAddress.Parse, ',');
                 }
             }
 
-            string strWinsServers = request.QueryString["winsServers"];
-            if (strWinsServers != null)
+            string winsServers = request.QueryOrForm("winsServers");
+            if (winsServers is not null)
             {
-                if (strWinsServers.Length == 0)
-                {
+                if (winsServers.Length == 0)
                     scope.WinsServers = null;
-                }
                 else
-                {
-                    string[] strWinsServerParts = strWinsServers.Split(new char[] { ',' }, StringSplitOptions.RemoveEmptyEntries);
-                    IPAddress[] winsServers = new IPAddress[strWinsServerParts.Length];
-
-                    for (int i = 0; i < strWinsServerParts.Length; i++)
-                        winsServers[i] = IPAddress.Parse(strWinsServerParts[i]);
-
-                    scope.WinsServers = winsServers;
-                }
+                    scope.WinsServers = winsServers.Split(IPAddress.Parse, ',');
             }
 
-            string strNtpServers = request.QueryString["ntpServers"];
-            if (strNtpServers != null)
+            string ntpServers = request.QueryOrForm("ntpServers");
+            if (ntpServers is not null)
             {
-                if (strNtpServers.Length == 0)
-                {
+                if (ntpServers.Length == 0)
                     scope.NtpServers = null;
-                }
                 else
-                {
-                    string[] strNtpServerParts = strNtpServers.Split(new char[] { ',' }, StringSplitOptions.RemoveEmptyEntries);
-                    IPAddress[] ntpServers = new IPAddress[strNtpServerParts.Length];
-
-                    for (int i = 0; i < strNtpServerParts.Length; i++)
-                        ntpServers[i] = IPAddress.Parse(strNtpServerParts[i]);
-
-                    scope.NtpServers = ntpServers;
-                }
+                    scope.NtpServers = ntpServers.Split(IPAddress.Parse, ',');
             }
 
-            string strNtpServerDomainNames = request.QueryString["ntpServerDomainNames"];
-            if (strNtpServerDomainNames is not null)
+            string ntpServerDomainNames = request.QueryOrForm("ntpServerDomainNames");
+            if (ntpServerDomainNames is not null)
             {
-                if (strNtpServerDomainNames.Length == 0)
+                if (ntpServerDomainNames.Length == 0)
                     scope.NtpServerDomainNames = null;
                 else
-                    scope.NtpServerDomainNames = strNtpServerDomainNames.Split(new char[] { ',' }, StringSplitOptions.RemoveEmptyEntries);
+                    scope.NtpServerDomainNames = ntpServerDomainNames.Split(new char[] { ',' }, StringSplitOptions.RemoveEmptyEntries);
             }
 
-            string strStaticRoutes = request.QueryString["staticRoutes"];
-            if (strStaticRoutes != null)
+            string strStaticRoutes = request.QueryOrForm("staticRoutes");
+            if (strStaticRoutes is not null)
             {
                 if (strStaticRoutes.Length == 0)
                 {
@@ -620,16 +530,14 @@ namespace DnsServerCore
                     List<ClasslessStaticRouteOption.Route> staticRoutes = new List<ClasslessStaticRouteOption.Route>();
 
                     for (int i = 0; i < strStaticRoutesParts.Length; i += 3)
-                    {
                         staticRoutes.Add(new ClasslessStaticRouteOption.Route(IPAddress.Parse(strStaticRoutesParts[i + 0]), IPAddress.Parse(strStaticRoutesParts[i + 1]), IPAddress.Parse(strStaticRoutesParts[i + 2])));
-                    }
 
                     scope.StaticRoutes = staticRoutes;
                 }
             }
 
-            string strVendorInfo = request.QueryString["vendorInfo"];
-            if (strVendorInfo != null)
+            string strVendorInfo = request.QueryOrForm("vendorInfo");
+            if (strVendorInfo is not null)
             {
                 if (strVendorInfo.Length == 0)
                 {
@@ -641,35 +549,51 @@ namespace DnsServerCore
                     Dictionary<string, VendorSpecificInformationOption> vendorInfo = new Dictionary<string, VendorSpecificInformationOption>();
 
                     for (int i = 0; i < strVendorInfoParts.Length; i += 2)
-                    {
                         vendorInfo.Add(strVendorInfoParts[i + 0], new VendorSpecificInformationOption(strVendorInfoParts[i + 1]));
-                    }
 
                     scope.VendorInfo = vendorInfo;
                 }
             }
 
-            string strCAPWAPAcIpAddresses = request.QueryString["capwapAcIpAddresses"];
-            if (strCAPWAPAcIpAddresses is not null)
+            string capwapAcIpAddresses = request.QueryOrForm("capwapAcIpAddresses");
+            if (capwapAcIpAddresses is not null)
             {
-                if (strCAPWAPAcIpAddresses.Length == 0)
-                {
+                if (capwapAcIpAddresses.Length == 0)
                     scope.CAPWAPAcIpAddresses = null;
+                else
+                    scope.CAPWAPAcIpAddresses = capwapAcIpAddresses.Split(IPAddress.Parse, ',');
+            }
+
+            string tftpServerAddresses = request.QueryOrForm("tftpServerAddresses");
+            if (tftpServerAddresses is not null)
+            {
+                if (tftpServerAddresses.Length == 0)
+                    scope.TftpServerAddresses = null;
+                else
+                    scope.TftpServerAddresses = tftpServerAddresses.Split(IPAddress.Parse, ',');
+            }
+
+            string strGenericOptions = request.QueryOrForm("genericOptions");
+            if (strGenericOptions is not null)
+            {
+                if (strGenericOptions.Length == 0)
+                {
+                    scope.GenericOptions = null;
                 }
                 else
                 {
-                    string[] strCAPWAPAcIpAddressesParts = strCAPWAPAcIpAddresses.Split(new char[] { ',' }, StringSplitOptions.RemoveEmptyEntries);
-                    IPAddress[] capwapAcIpAddresses = new IPAddress[strCAPWAPAcIpAddressesParts.Length];
+                    string[] strGenericOptionsParts = strGenericOptions.Split('|');
+                    List<DhcpOption> genericOptions = new List<DhcpOption>();
 
-                    for (int i = 0; i < strCAPWAPAcIpAddressesParts.Length; i++)
-                        capwapAcIpAddresses[i] = IPAddress.Parse(strCAPWAPAcIpAddressesParts[i]);
+                    for (int i = 0; i < strGenericOptionsParts.Length; i += 2)
+                        genericOptions.Add(new DhcpOption((DhcpOptionCode)byte.Parse(strGenericOptionsParts[i + 0]), strGenericOptionsParts[i + 1]));
 
-                    scope.CAPWAPAcIpAddresses = capwapAcIpAddresses;
+                    scope.GenericOptions = genericOptions;
                 }
             }
 
-            string strExclusions = request.QueryString["exclusions"];
-            if (strExclusions != null)
+            string strExclusions = request.QueryOrForm("exclusions");
+            if (strExclusions is not null)
             {
                 if (strExclusions.Length == 0)
                 {
@@ -681,16 +605,14 @@ namespace DnsServerCore
                     List<Exclusion> exclusions = new List<Exclusion>();
 
                     for (int i = 0; i < strExclusionsParts.Length; i += 2)
-                    {
                         exclusions.Add(new Exclusion(IPAddress.Parse(strExclusionsParts[i + 0]), IPAddress.Parse(strExclusionsParts[i + 1])));
-                    }
 
                     scope.Exclusions = exclusions;
                 }
             }
 
-            string strReservedLeases = request.QueryString["reservedLeases"];
-            if (strReservedLeases != null)
+            string strReservedLeases = request.QueryOrForm("reservedLeases");
+            if (strReservedLeases is not null)
             {
                 if (strReservedLeases.Length == 0)
                 {
@@ -702,65 +624,58 @@ namespace DnsServerCore
                     List<Lease> reservedLeases = new List<Lease>();
 
                     for (int i = 0; i < strReservedLeaseParts.Length; i += 4)
-                    {
                         reservedLeases.Add(new Lease(LeaseType.Reserved, strReservedLeaseParts[i + 0], DhcpMessageHardwareAddressType.Ethernet, strReservedLeaseParts[i + 1], IPAddress.Parse(strReservedLeaseParts[i + 2]), strReservedLeaseParts[i + 3]));
-                    }
 
                     scope.ReservedLeases = reservedLeases;
                 }
             }
 
-            string strAllowOnlyReservedLeases = request.QueryString["allowOnlyReservedLeases"];
-            if (!string.IsNullOrEmpty(strAllowOnlyReservedLeases))
-                scope.AllowOnlyReservedLeases = bool.Parse(strAllowOnlyReservedLeases);
+            if (request.TryGetQueryOrForm("allowOnlyReservedLeases", bool.Parse, out bool allowOnlyReservedLeases))
+                scope.AllowOnlyReservedLeases = allowOnlyReservedLeases;
 
-            string strBlockLocallyAdministeredMacAddresses = request.QueryString["blockLocallyAdministeredMacAddresses"];
-            if (!string.IsNullOrEmpty(strBlockLocallyAdministeredMacAddresses))
-                scope.BlockLocallyAdministeredMacAddresses = bool.Parse(strBlockLocallyAdministeredMacAddresses);
+            if (request.TryGetQueryOrForm("blockLocallyAdministeredMacAddresses", bool.Parse, out bool blockLocallyAdministeredMacAddresses))
+                scope.BlockLocallyAdministeredMacAddresses = blockLocallyAdministeredMacAddresses;
 
             if (scopeExists)
             {
                 _dnsWebService.DhcpServer.SaveScope(scopeName);
 
-                _dnsWebService.Log.Write(DnsWebService.GetRequestRemoteEndPoint(request), "[" + _dnsWebService.GetSession(request).User.Username + "] DHCP scope was updated successfully: " + scopeName);
+                _dnsWebService._log.Write(context.GetRemoteEndPoint(), "[" + session.User.Username + "] DHCP scope was updated successfully: " + scopeName);
             }
             else
             {
                 await _dnsWebService.DhcpServer.AddScopeAsync(scope);
 
-                _dnsWebService.Log.Write(DnsWebService.GetRequestRemoteEndPoint(request), "[" + _dnsWebService.GetSession(request).User.Username + "] DHCP scope was added successfully: " + scopeName);
+                _dnsWebService._log.Write(context.GetRemoteEndPoint(), "[" + session.User.Username + "] DHCP scope was added successfully: " + scopeName);
             }
 
-            string newName = request.QueryString["newName"];
-            if (!string.IsNullOrEmpty(newName) && !newName.Equals(scopeName))
+            if (request.TryGetQueryOrForm("newName", out string newName) && !newName.Equals(scopeName))
             {
                 _dnsWebService.DhcpServer.RenameScope(scopeName, newName);
 
-                _dnsWebService.Log.Write(DnsWebService.GetRequestRemoteEndPoint(request), "[" + _dnsWebService.GetSession(request).User.Username + "] DHCP scope was renamed successfully: '" + scopeName + "' to '" + newName + "'");
+                _dnsWebService._log.Write(context.GetRemoteEndPoint(), "[" + session.User.Username + "] DHCP scope was renamed successfully: '" + scopeName + "' to '" + newName + "'");
             }
         }
 
-        public void AddReservedLease(HttpListenerRequest request)
+        public void AddReservedLease(HttpContext context)
         {
-            string scopeName = request.QueryString["name"];
-            if (string.IsNullOrEmpty(scopeName))
-                throw new DnsWebServiceException("Parameter 'name' missing.");
+            UserSession session = context.GetCurrentSession();
+
+            if (!_dnsWebService._authManager.IsPermitted(PermissionSection.DhcpServer, session.User, PermissionFlag.Modify))
+                throw new DnsWebServiceException("Access was denied.");
+
+            HttpRequest request = context.Request;
+
+            string scopeName = request.GetQueryOrForm("name");
 
             Scope scope = _dnsWebService.DhcpServer.GetScope(scopeName);
             if (scope is null)
                 throw new DnsWebServiceException("No such scope exists: " + scopeName);
 
-            string hostName = request.QueryString["hostName"];
-
-            string hardwareAddress = request.QueryString["hardwareAddress"];
-            if (string.IsNullOrEmpty(hardwareAddress))
-                throw new DnsWebServiceException("Parameter 'hardwareAddress' missing.");
-
-            string strIpAddress = request.QueryString["ipAddress"];
-            if (string.IsNullOrEmpty(strIpAddress))
-                throw new DnsWebServiceException("Parameter 'ipAddress' missing.");
-
-            string comments = request.QueryString["comments"];
+            string hostName = request.QueryOrForm("hostName");
+            string hardwareAddress = request.GetQueryOrForm("hardwareAddress");
+            string strIpAddress = request.GetQueryOrForm("ipAddress");
+            string comments = request.QueryOrForm("comments");
 
             Lease reservedLease = new Lease(LeaseType.Reserved, hostName, DhcpMessageHardwareAddressType.Ethernet, hardwareAddress, IPAddress.Parse(strIpAddress), comments);
 
@@ -769,137 +684,164 @@ namespace DnsServerCore
 
             _dnsWebService.DhcpServer.SaveScope(scopeName);
 
-            _dnsWebService.Log.Write(DnsWebService.GetRequestRemoteEndPoint(request), "[" + _dnsWebService.GetSession(request).User.Username + "] DHCP scope reserved lease was added successfully: " + scopeName);
+            _dnsWebService._log.Write(context.GetRemoteEndPoint(), "[" + session.User.Username + "] DHCP scope reserved lease was added successfully: " + scopeName);
         }
 
-        public void RemoveReservedLease(HttpListenerRequest request)
+        public void RemoveReservedLease(HttpContext context)
         {
-            string scopeName = request.QueryString["name"];
-            if (string.IsNullOrEmpty(scopeName))
-                throw new DnsWebServiceException("Parameter 'name' missing.");
+            UserSession session = context.GetCurrentSession();
+
+            if (!_dnsWebService._authManager.IsPermitted(PermissionSection.DhcpServer, session.User, PermissionFlag.Modify))
+                throw new DnsWebServiceException("Access was denied.");
+
+            HttpRequest request = context.Request;
+
+            string scopeName = request.GetQueryOrForm("name");
 
             Scope scope = _dnsWebService.DhcpServer.GetScope(scopeName);
             if (scope is null)
                 throw new DnsWebServiceException("No such scope exists: " + scopeName);
 
-            string hardwareAddress = request.QueryString["hardwareAddress"];
-            if (string.IsNullOrEmpty(hardwareAddress))
-                throw new DnsWebServiceException("Parameter 'hardwareAddress' missing.");
+            string hardwareAddress = request.GetQueryOrForm("hardwareAddress");
 
             if (!scope.RemoveReservedLease(hardwareAddress))
                 throw new DnsWebServiceException("Failed to remove reserved lease for scope: " + scopeName);
 
             _dnsWebService.DhcpServer.SaveScope(scopeName);
 
-            _dnsWebService.Log.Write(DnsWebService.GetRequestRemoteEndPoint(request), "[" + _dnsWebService.GetSession(request).User.Username + "] DHCP scope reserved lease was removed successfully: " + scopeName);
+            _dnsWebService._log.Write(context.GetRemoteEndPoint(), "[" + session.User.Username + "] DHCP scope reserved lease was removed successfully: " + scopeName);
         }
 
-        public async Task EnableDhcpScopeAsync(HttpListenerRequest request)
+        public async Task EnableDhcpScopeAsync(HttpContext context)
         {
-            string scopeName = request.QueryString["name"];
-            if (string.IsNullOrEmpty(scopeName))
-                throw new DnsWebServiceException("Parameter 'name' missing.");
+            UserSession session = context.GetCurrentSession();
+
+            if (!_dnsWebService._authManager.IsPermitted(PermissionSection.DhcpServer, session.User, PermissionFlag.Modify))
+                throw new DnsWebServiceException("Access was denied.");
+
+            string scopeName = context.Request.GetQueryOrForm("name");
 
             await _dnsWebService.DhcpServer.EnableScopeAsync(scopeName, true);
 
-            _dnsWebService.Log.Write(DnsWebService.GetRequestRemoteEndPoint(request), "[" + _dnsWebService.GetSession(request).User.Username + "] DHCP scope was enabled successfully: " + scopeName);
+            _dnsWebService._log.Write(context.GetRemoteEndPoint(), "[" + session.User.Username + "] DHCP scope was enabled successfully: " + scopeName);
         }
 
-        public void DisableDhcpScope(HttpListenerRequest request)
+        public void DisableDhcpScope(HttpContext context)
         {
-            string scopeName = request.QueryString["name"];
-            if (string.IsNullOrEmpty(scopeName))
-                throw new DnsWebServiceException("Parameter 'name' missing.");
+            UserSession session = context.GetCurrentSession();
+
+            if (!_dnsWebService._authManager.IsPermitted(PermissionSection.DhcpServer, session.User, PermissionFlag.Modify))
+                throw new DnsWebServiceException("Access was denied.");
+
+            string scopeName = context.Request.GetQueryOrForm("name");
 
             _dnsWebService.DhcpServer.DisableScope(scopeName, true);
 
-            _dnsWebService.Log.Write(DnsWebService.GetRequestRemoteEndPoint(request), "[" + _dnsWebService.GetSession(request).User.Username + "] DHCP scope was disabled successfully: " + scopeName);
+            _dnsWebService._log.Write(context.GetRemoteEndPoint(), "[" + session.User.Username + "] DHCP scope was disabled successfully: " + scopeName);
         }
 
-        public void DeleteDhcpScope(HttpListenerRequest request)
+        public void DeleteDhcpScope(HttpContext context)
         {
-            string scopeName = request.QueryString["name"];
-            if (string.IsNullOrEmpty(scopeName))
-                throw new DnsWebServiceException("Parameter 'name' missing.");
+            UserSession session = context.GetCurrentSession();
+
+            if (!_dnsWebService._authManager.IsPermitted(PermissionSection.DhcpServer, session.User, PermissionFlag.Delete))
+                throw new DnsWebServiceException("Access was denied.");
+
+            string scopeName = context.Request.GetQueryOrForm("name");
 
             _dnsWebService.DhcpServer.DeleteScope(scopeName);
 
-            _dnsWebService.Log.Write(DnsWebService.GetRequestRemoteEndPoint(request), "[" + _dnsWebService.GetSession(request).User.Username + "] DHCP scope was deleted successfully: " + scopeName);
+            _dnsWebService._log.Write(context.GetRemoteEndPoint(), "[" + session.User.Username + "] DHCP scope was deleted successfully: " + scopeName);
         }
 
-        public void RemoveDhcpLease(HttpListenerRequest request)
+        public void RemoveDhcpLease(HttpContext context)
         {
-            string scopeName = request.QueryString["name"];
-            if (string.IsNullOrEmpty(scopeName))
-                throw new DnsWebServiceException("Parameter 'name' missing.");
+            UserSession session = context.GetCurrentSession();
+
+            if (!_dnsWebService._authManager.IsPermitted(PermissionSection.DhcpServer, session.User, PermissionFlag.Delete))
+                throw new DnsWebServiceException("Access was denied.");
+
+            HttpRequest request = context.Request;
+
+            string scopeName = request.GetQueryOrForm("name");
 
             Scope scope = _dnsWebService.DhcpServer.GetScope(scopeName);
             if (scope is null)
                 throw new DnsWebServiceException("DHCP scope does not exists: " + scopeName);
 
-            string strClientIdentifier = request.QueryString["clientIdentifier"];
-            string strHardwareAddress = request.QueryString["hardwareAddress"];
+            string clientIdentifier = request.QueryOrForm("clientIdentifier");
+            string hardwareAddress = request.QueryOrForm("hardwareAddress");
 
-            if (!string.IsNullOrEmpty(strClientIdentifier))
-                scope.RemoveLease(ClientIdentifierOption.Parse(strClientIdentifier));
-            else if (!string.IsNullOrEmpty(strHardwareAddress))
-                scope.RemoveLease(strHardwareAddress);
+            if (!string.IsNullOrEmpty(clientIdentifier))
+                scope.RemoveLease(ClientIdentifierOption.Parse(clientIdentifier));
+            else if (!string.IsNullOrEmpty(hardwareAddress))
+                scope.RemoveLease(hardwareAddress);
             else
                 throw new DnsWebServiceException("Parameter 'hardwareAddress' or 'clientIdentifier' missing. At least one of them must be specified.");
 
             _dnsWebService.DhcpServer.SaveScope(scopeName);
 
-            _dnsWebService.Log.Write(DnsWebService.GetRequestRemoteEndPoint(request), "[" + _dnsWebService.GetSession(request).User.Username + "] DHCP scope's lease was removed successfully: " + scopeName);
+            _dnsWebService._log.Write(context.GetRemoteEndPoint(), "[" + session.User.Username + "] DHCP scope's lease was removed successfully: " + scopeName);
         }
 
-        public void ConvertToReservedLease(HttpListenerRequest request)
+        public void ConvertToReservedLease(HttpContext context)
         {
-            string scopeName = request.QueryString["name"];
-            if (string.IsNullOrEmpty(scopeName))
-                throw new DnsWebServiceException("Parameter 'name' missing.");
+            UserSession session = context.GetCurrentSession();
+
+            if (!_dnsWebService._authManager.IsPermitted(PermissionSection.DhcpServer, session.User, PermissionFlag.Modify))
+                throw new DnsWebServiceException("Access was denied.");
+
+            HttpRequest request = context.Request;
+
+            string scopeName = request.GetQueryOrForm("name");
 
             Scope scope = _dnsWebService.DhcpServer.GetScope(scopeName);
             if (scope == null)
                 throw new DnsWebServiceException("DHCP scope does not exists: " + scopeName);
 
-            string strClientIdentifier = request.QueryString["clientIdentifier"];
-            string strHardwareAddress = request.QueryString["hardwareAddress"];
+            string clientIdentifier = request.QueryOrForm("clientIdentifier");
+            string hardwareAddress = request.QueryOrForm("hardwareAddress");
 
-            if (!string.IsNullOrEmpty(strClientIdentifier))
-                scope.ConvertToReservedLease(ClientIdentifierOption.Parse(strClientIdentifier));
-            else if (!string.IsNullOrEmpty(strHardwareAddress))
-                scope.ConvertToReservedLease(strHardwareAddress);
+            if (!string.IsNullOrEmpty(clientIdentifier))
+                scope.ConvertToReservedLease(ClientIdentifierOption.Parse(clientIdentifier));
+            else if (!string.IsNullOrEmpty(hardwareAddress))
+                scope.ConvertToReservedLease(hardwareAddress);
             else
                 throw new DnsWebServiceException("Parameter 'hardwareAddress' or 'clientIdentifier' missing. At least one of them must be specified.");
 
             _dnsWebService.DhcpServer.SaveScope(scopeName);
 
-            _dnsWebService.Log.Write(DnsWebService.GetRequestRemoteEndPoint(request), "[" + _dnsWebService.GetSession(request).User.Username + "] DHCP scope's lease was reserved successfully: " + scopeName);
+            _dnsWebService._log.Write(context.GetRemoteEndPoint(), "[" + session.User.Username + "] DHCP scope's lease was reserved successfully: " + scopeName);
         }
 
-        public void ConvertToDynamicLease(HttpListenerRequest request)
+        public void ConvertToDynamicLease(HttpContext context)
         {
-            string scopeName = request.QueryString["name"];
-            if (string.IsNullOrEmpty(scopeName))
-                throw new DnsWebServiceException("Parameter 'name' missing.");
+            UserSession session = context.GetCurrentSession();
+
+            if (!_dnsWebService._authManager.IsPermitted(PermissionSection.DhcpServer, session.User, PermissionFlag.Modify))
+                throw new DnsWebServiceException("Access was denied.");
+
+            HttpRequest request = context.Request;
+
+            string scopeName = request.GetQueryOrForm("name");
 
             Scope scope = _dnsWebService.DhcpServer.GetScope(scopeName);
             if (scope == null)
                 throw new DnsWebServiceException("DHCP scope does not exists: " + scopeName);
 
-            string strClientIdentifier = request.QueryString["clientIdentifier"];
-            string strHardwareAddress = request.QueryString["hardwareAddress"];
+            string clientIdentifier = request.QueryOrForm("clientIdentifier");
+            string hardwareAddress = request.QueryOrForm("hardwareAddress");
 
-            if (!string.IsNullOrEmpty(strClientIdentifier))
-                scope.ConvertToDynamicLease(ClientIdentifierOption.Parse(strClientIdentifier));
-            else if (!string.IsNullOrEmpty(strHardwareAddress))
-                scope.ConvertToDynamicLease(strHardwareAddress);
+            if (!string.IsNullOrEmpty(clientIdentifier))
+                scope.ConvertToDynamicLease(ClientIdentifierOption.Parse(clientIdentifier));
+            else if (!string.IsNullOrEmpty(hardwareAddress))
+                scope.ConvertToDynamicLease(hardwareAddress);
             else
                 throw new DnsWebServiceException("Parameter 'hardwareAddress' or 'clientIdentifier' missing. At least one of them must be specified.");
 
             _dnsWebService.DhcpServer.SaveScope(scopeName);
 
-            _dnsWebService.Log.Write(DnsWebService.GetRequestRemoteEndPoint(request), "[" + _dnsWebService.GetSession(request).User.Username + "] DHCP scope's lease was unreserved successfully: " + scopeName);
+            _dnsWebService._log.Write(context.GetRemoteEndPoint(), "[" + session.User.Username + "] DHCP scope's lease was unreserved successfully: " + scopeName);
         }
 
         #endregion

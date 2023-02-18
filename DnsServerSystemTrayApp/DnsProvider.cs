@@ -1,6 +1,6 @@
 ﻿/*
 Technitium DNS Server
-Copyright (C) 2022  Shreyas Zare (shreyas@technitium.com)
+Copyright (C) 2023  Shreyas Zare (shreyas@technitium.com)
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -52,7 +52,7 @@ namespace DnsServerSystemTrayApp
             int count = bR.ReadInt32();
 
             for (int i = 0; i < count; i++)
-                this.Addresses.Add(IPAddressExtension.ReadFrom(bR));
+                this.Addresses.Add(IPAddressExtensions.ReadFrom(bR));
         }
 
         #endregion

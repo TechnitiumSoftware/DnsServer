@@ -12,8 +12,31 @@
 		<RepositoryType></RepositoryType>
 		<Description></Description>
 		<PackageId>DnsServer</PackageId>
-		<Version>10.0.1</Version>
+		<Version>11.0</Version>
 	</PropertyGroup>
+
+	<ItemGroup>
+		<FrameworkReference Include="Microsoft.AspNetCore.App" />
+	</ItemGroup>
+
+	<ItemGroup>
+		<ProjectReference Include="..\DnsServerCore.ApplicationCommon\DnsServerCore.ApplicationCommon.csproj" />
+	</ItemGroup>
+
+	<ItemGroup>
+		<Reference Include="TechnitiumLibrary">
+			<HintPath>..\..\TechnitiumLibrary\bin\TechnitiumLibrary.dll</HintPath>
+		</Reference>
+		<Reference Include="TechnitiumLibrary.ByteTree">
+			<HintPath>..\..\TechnitiumLibrary\bin\TechnitiumLibrary.ByteTree.dll</HintPath>
+		</Reference>
+		<Reference Include="TechnitiumLibrary.IO">
+			<HintPath>..\..\TechnitiumLibrary\bin\TechnitiumLibrary.IO.dll</HintPath>
+		</Reference>
+		<Reference Include="TechnitiumLibrary.Net">
+			<HintPath>..\..\TechnitiumLibrary\bin\TechnitiumLibrary.Net.dll</HintPath>
+		</Reference>
+	</ItemGroup>
 
 	<ItemGroup>
 		<None Remove="dohwww\css\bootstrap.min.css" />
@@ -28,19 +51,11 @@
 		<None Remove="dohwww\robots.txt" />
 		<None Remove="named.root" />
 		<None Remove="root-anchors.xml" />
-		<None Remove="www\css\bootstrap-datetimepicker.min.css" />
 		<None Remove="www\css\bootstrap-theme.min.css" />
 		<None Remove="www\css\bootstrap-theme.min.css.map" />
 		<None Remove="www\css\bootstrap.min.css" />
 		<None Remove="www\css\bootstrap.min.css.map" />
 		<None Remove="www\css\font-awesome.min.css" />
-		<None Remove="www\css\images\ui-icons_444444_256x240.png" />
-		<None Remove="www\css\images\ui-icons_555555_256x240.png" />
-		<None Remove="www\css\images\ui-icons_777620_256x240.png" />
-		<None Remove="www\css\images\ui-icons_777777_256x240.png" />
-		<None Remove="www\css\images\ui-icons_cc0000_256x240.png" />
-		<None Remove="www\css\images\ui-icons_ffffff_256x240.png" />
-		<None Remove="www\css\jquery-ui.min.css" />
 		<None Remove="www\css\main.css" />
 		<None Remove="www\favicon.ico" />
 		<None Remove="www\fonts\fontawesome-webfont.eot" />
@@ -61,12 +76,10 @@
 		<None Remove="www\index.html" />
 		<None Remove="www\js\apps.js" />
 		<None Remove="www\js\auth.js" />
-		<None Remove="www\js\bootstrap-datetimepicker.min.js" />
 		<None Remove="www\js\bootstrap.min.js" />
 		<None Remove="www\js\Chart.min.js" />
 		<None Remove="www\js\common.js" />
 		<None Remove="www\js\dhcp.js" />
-		<None Remove="www\js\jquery-ui.min.js" />
 		<None Remove="www\js\jquery.min.js" />
 		<None Remove="www\js\logs.js" />
 		<None Remove="www\js\main.js" />
@@ -111,30 +124,6 @@
 			<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
 		</Content>
 		<Content Include="root-anchors.xml">
-			<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-		</Content>
-		<Content Include="www\css\bootstrap-datetimepicker.min.css">
-			<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-		</Content>
-		<Content Include="www\css\images\ui-icons_444444_256x240.png">
-			<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-		</Content>
-		<Content Include="www\css\images\ui-icons_555555_256x240.png">
-			<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-		</Content>
-		<Content Include="www\css\images\ui-icons_777620_256x240.png">
-			<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-		</Content>
-		<Content Include="www\css\images\ui-icons_777777_256x240.png">
-			<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-		</Content>
-		<Content Include="www\css\images\ui-icons_cc0000_256x240.png">
-			<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-		</Content>
-		<Content Include="www\css\images\ui-icons_ffffff_256x240.png">
-			<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-		</Content>
-		<Content Include="www\css\jquery-ui.min.css">
 			<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
 		</Content>
 		<Content Include="www\favicon.ico">
@@ -206,9 +195,6 @@
 		<Content Include="www\js\auth.js">
 			<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
 		</Content>
-		<Content Include="www\js\bootstrap-datetimepicker.min.js">
-			<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-		</Content>
 		<Content Include="www\js\bootstrap.min.js">
 			<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
 		</Content>
@@ -216,9 +202,6 @@
 			<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
 		</Content>
 		<Content Include="www\js\common.js">
-			<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-		</Content>
-		<Content Include="www\js\jquery-ui.min.js">
 			<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
 		</Content>
 		<Content Include="www\js\jquery.min.js">
@@ -245,29 +228,6 @@
 		<Content Include="www\robots.txt">
 			<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
 		</Content>
-	</ItemGroup>
-
-	<ItemGroup>
-		<PackageReference Include="Newtonsoft.Json" Version="13.0.2" />
-	</ItemGroup>
-
-	<ItemGroup>
-		<Reference Include="TechnitiumLibrary">
-			<HintPath>..\..\TechnitiumLibrary\bin\TechnitiumLibrary.dll</HintPath>
-		</Reference>
-		<Reference Include="TechnitiumLibrary.ByteTree">
-			<HintPath>..\..\TechnitiumLibrary\bin\TechnitiumLibrary.ByteTree.dll</HintPath>
-		</Reference>
-		<Reference Include="TechnitiumLibrary.IO">
-			<HintPath>..\..\TechnitiumLibrary\bin\TechnitiumLibrary.IO.dll</HintPath>
-		</Reference>
-		<Reference Include="TechnitiumLibrary.Net">
-			<HintPath>..\..\TechnitiumLibrary\bin\TechnitiumLibrary.Net.dll</HintPath>
-		</Reference>
-	</ItemGroup>
-
-	<ItemGroup>
-		<ProjectReference Include="..\DnsServerCore.ApplicationCommon\DnsServerCore.ApplicationCommon.csproj" />
 	</ItemGroup>
 
 </Project>

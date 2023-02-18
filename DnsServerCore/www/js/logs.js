@@ -1,6 +1,6 @@
 ﻿/*
 Technitium DNS Server
-Copyright (C) 2022  Shreyas Zare (shreyas@technitium.com)
+Copyright (C) 2023  Shreyas Zare (shreyas@technitium.com)
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -18,9 +18,6 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
 $(function () {
-    $('#dtpQueryLogStart').datetimepicker({ format: "YYYY-MM-DD HH:mm:ss" });
-    $('#dtpQueryLogEnd').datetimepicker({ format: "YYYY-MM-DD HH:mm:ss" });
-
     $("#optQueryLogsAppName").change(function () {
         if (appsList == null)
             return;
@@ -42,6 +39,14 @@ $(function () {
         $("#optQueryLogsClassPath").html(optClassPaths);
         $("#txtAddEditRecordDataData").val("");
     });
+
+    $("#optQueryLogsEntriesPerPage").change(function () {
+        localStorage.setItem("optQueryLogsEntriesPerPage", $("#optQueryLogsEntriesPerPage").val());
+    });
+
+    var optQueryLogsEntriesPerPage = localStorage.getItem("optQueryLogsEntriesPerPage");
+    if (optQueryLogsEntriesPerPage != null)
+        $("#optQueryLogsEntriesPerPage").val(optQueryLogsEntriesPerPage);
 });
 
 function refreshLogsTab() {
@@ -287,7 +292,10 @@ function queryLogs(pageNumber) {
     if (pageNumber == null)
         pageNumber = $("#txtQueryLogPageNumber").val();
 
-    var entriesPerPage = $("#optQueryLogsEntriesPerPage").val();
+    var entriesPerPage = Number($("#optQueryLogsEntriesPerPage").val());
+    if (entriesPerPage < 1)
+        entriesPerPage = 10;
+
     var descendingOrder = $("#optQueryLogsDescendingOrder").val();
 
     var start = $("#txtQueryLogStart").val();
@@ -328,7 +336,22 @@ function queryLogs(pageNumber) {
                     htmlEncode(responseJSON.response.entries[i].qname == "" ? "." : responseJSON.response.entries[i].qname) + "</td><td>" +
                     (responseJSON.response.entries[i].qtype == null ? "" : responseJSON.response.entries[i].qtype) + "</td><td>" +
                     (responseJSON.response.entries[i].qclass == null ? "" : responseJSON.response.entries[i].qclass) + "</td><td style=\"word-break: break-all;\">" +
-                    htmlEncode(responseJSON.response.entries[i].answer) + "</td></tr>"
+                    htmlEncode(responseJSON.response.entries[i].answer) +
+                    "</td><td align=\"right\"><div class=\"dropdown\"><a href=\"#\" id=\"btnQueryLogsRowOption" + i + "\" class=\"dropdown-toggle\" data-toggle=\"dropdown\" aria-haspopup=\"true\" aria-expanded=\"true\"><span class=\"glyphicon glyphicon-option-vertical\" aria-hidden=\"true\"></span></a><ul class=\"dropdown-menu dropdown-menu-right\">";
+
+                switch (responseJSON.response.entries[i].responseType.toLowerCase()) {
+                    case "blocked":
+                    case "upstreamblocked":
+                    case "cacheblocked":
+                        tableHtml += "<li><a href=\"#\" data-id=\"" + i + "\" data-domain=\"" + htmlEncode(responseJSON.response.entries[i].qname) + "\" onclick=\"allowDomain(this, 'btnQueryLogsRowOption'); return false;\">Allow Domain</a></li>";
+                        break;
+
+                    default:
+                        tableHtml += "<li><a href=\"#\" data-id=\"" + i + "\" data-domain=\"" + htmlEncode(responseJSON.response.entries[i].qname) + "\" onclick=\"blockDomain(this, 'btnQueryLogsRowOption'); return false;\">Block Domain</a></li>";
+                        break;
+                }
+
+                tableHtml += "</ul></div></td></tr>";
             }
 
             var paginationHtml = "";

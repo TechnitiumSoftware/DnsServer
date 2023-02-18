@@ -1,6 +1,6 @@
 ﻿/*
 Technitium DNS Server
-Copyright (C) 2022  Shreyas Zare (shreyas@technitium.com)
+Copyright (C) 2023  Shreyas Zare (shreyas@technitium.com)
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -22,6 +22,7 @@ using System;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
+using TechnitiumLibrary;
 using TechnitiumLibrary.Net.Dns;
 using TechnitiumLibrary.Net.Dns.ResourceRecords;
 
@@ -88,6 +89,7 @@ namespace DnsServerCore.Dns.Zones
             {
                 case DnsTransportProtocol.Tcp:
                 case DnsTransportProtocol.Tls:
+                case DnsTransportProtocol.Quic:
                     break;
 
                 default:
@@ -98,14 +100,25 @@ namespace DnsServerCore.Dns.Zones
 
             DnsQuestionRecord soaQuestion = new DnsQuestionRecord(name, DnsResourceRecordType.SOA, DnsClass.IN);
             DnsDatagram soaResponse;
+            NameServerAddress[] primaryNameServers = null;
 
-            if (primaryNameServerAddresses == null)
+            if (string.IsNullOrEmpty(primaryNameServerAddresses))
             {
                 soaResponse = await secondaryZone._dnsServer.DirectQueryAsync(soaQuestion);
             }
             else
             {
-                DnsClient dnsClient = new DnsClient(primaryNameServerAddresses);
+                primaryNameServers = primaryNameServerAddresses.Split(delegate (string address)
+                {
+                    NameServerAddress nameServer = NameServerAddress.Parse(address);
+
+                    if (nameServer.Protocol != zoneTransferProtocol)
+                        nameServer = nameServer.ChangeProtocol(zoneTransferProtocol);
+
+                    return nameServer;
+                }, ',');
+
+                DnsClient dnsClient = new DnsClient(primaryNameServers);
 
                 foreach (NameServerAddress nameServerAddress in dnsClient.Servers)
                 {
@@ -134,13 +147,11 @@ namespace DnsServerCore.Dns.Zones
             DnsSOARecordData soa = new DnsSOARecordData(receivedSoa.PrimaryNameServer, receivedSoa.ResponsiblePerson, 0u, receivedSoa.Refresh, receivedSoa.Retry, receivedSoa.Expire, receivedSoa.Minimum);
             DnsResourceRecord[] soaRR = new DnsResourceRecord[] { new DnsResourceRecord(secondaryZone._name, DnsResourceRecordType.SOA, DnsClass.IN, soa.Refresh, soa) };
 
-            if (!string.IsNullOrEmpty(primaryNameServerAddresses))
-                soaRR[0].SetPrimaryNameServers(primaryNameServerAddresses);
+            AuthRecordInfo authRecordInfo = soaRR[0].GetAuthRecordInfo();
 
-            DnsResourceRecordInfo recordInfo = soaRR[0].GetRecordInfo();
-
-            recordInfo.ZoneTransferProtocol = zoneTransferProtocol;
-            recordInfo.TsigKeyName = tsigKeyName;
+            authRecordInfo.PrimaryNameServers = primaryNameServers;
+            authRecordInfo.ZoneTransferProtocol = zoneTransferProtocol;
+            authRecordInfo.TsigKeyName = tsigKeyName;
 
             secondaryZone._entries[DnsResourceRecordType.SOA] = soaRR;
 
@@ -214,7 +225,7 @@ namespace DnsServerCore.Dns.Zones
                     return;
                 }
 
-                DnsResourceRecordInfo recordInfo = currentSoaRecord.GetRecordInfo();
+                AuthRecordInfo recordInfo = currentSoaRecord.GetAuthRecordInfo();
                 TsigKey key = null;
 
                 if (!string.IsNullOrEmpty(recordInfo.TsigKeyName) && ((_dnsServer.TsigKeys is null) || !_dnsServer.TsigKeys.TryGetValue(recordInfo.TsigKeyName, out key)))
@@ -289,7 +300,18 @@ namespace DnsServerCore.Dns.Zones
 
                 if (!_resync)
                 {
-                    DnsClient client = new DnsClient(primaryNameServers);
+                    //check for update; use UDP transport
+                    List<NameServerAddress> udpNameServers = new List<NameServerAddress>(primaryNameServers.Count);
+
+                    foreach (NameServerAddress primaryNameServer in primaryNameServers)
+                    {
+                        if (primaryNameServer.Protocol == DnsTransportProtocol.Udp)
+                            udpNameServers.Add(primaryNameServer);
+                        else
+                            udpNameServers.Add(primaryNameServer.ChangeProtocol(DnsTransportProtocol.Udp));
+                    }
+
+                    DnsClient client = new DnsClient(udpNameServers);
 
                     client.Proxy = _dnsServer.Proxy;
                     client.PreferIPv6 = _dnsServer.PreferIPv6;
@@ -309,7 +331,7 @@ namespace DnsServerCore.Dns.Zones
                     {
                         LogManager log = _dnsServer.LogManager;
                         if (log != null)
-                            log.Write("DNS Server received RCODE=" + soaResponse.RCODE.ToString() + " for '" + (_name == "" ? "<root>" : _name) + "' secondary zone refresh from: " + soaResponse.Metadata.NameServerAddress.ToString());
+                            log.Write("DNS Server received RCODE=" + soaResponse.RCODE.ToString() + " for '" + (_name == "" ? "<root>" : _name) + "' secondary zone refresh from: " + soaResponse.Metadata.NameServer.ToString());
 
                         return false;
                     }
@@ -318,7 +340,7 @@ namespace DnsServerCore.Dns.Zones
                     {
                         LogManager log = _dnsServer.LogManager;
                         if (log != null)
-                            log.Write("DNS Server received an empty response for SOA query for '" + (_name == "" ? "<root>" : _name) + "' secondary zone refresh from: " + soaResponse.Metadata.NameServerAddress.ToString());
+                            log.Write("DNS Server received an empty response for SOA query for '" + (_name == "" ? "<root>" : _name) + "' secondary zone refresh from: " + soaResponse.Metadata.NameServer.ToString());
 
                         return false;
                     }
@@ -331,46 +353,44 @@ namespace DnsServerCore.Dns.Zones
                     {
                         LogManager log = _dnsServer.LogManager;
                         if (log != null)
-                            log.Write("DNS Server successfully checked for '" + (_name == "" ? "<root>" : _name) + "' secondary zone update from: " + soaResponse.Metadata.NameServerAddress.ToString());
+                            log.Write("DNS Server successfully checked for '" + (_name == "" ? "<root>" : _name) + "' secondary zone update from: " + soaResponse.Metadata.NameServer.ToString());
 
                         return true;
                     }
                 }
 
-                //update available; do zone transfer with TLS or TCP transport
+                //update available; do zone transfer with TLS, QUIC, or TCP transport
+                List<NameServerAddress> updatedNameServers = new List<NameServerAddress>(primaryNameServers.Count);
 
-                if (zoneTransferProtocol == DnsTransportProtocol.Tls)
+                switch (zoneTransferProtocol)
                 {
-                    //change name server protocol to TLS
-                    List<NameServerAddress> tlsNameServers = new List<NameServerAddress>(primaryNameServers.Count);
+                    case DnsTransportProtocol.Tls:
+                    case DnsTransportProtocol.Quic:
+                        //change name server protocol to TLS/QUIC
+                        foreach (NameServerAddress primaryNameServer in primaryNameServers)
+                        {
+                            if (primaryNameServer.Protocol == zoneTransferProtocol)
+                                updatedNameServers.Add(primaryNameServer);
+                            else
+                                updatedNameServers.Add(primaryNameServer.ChangeProtocol(zoneTransferProtocol));
+                        }
 
-                    foreach (NameServerAddress primaryNameServer in primaryNameServers)
-                    {
-                        if (primaryNameServer.Protocol == DnsTransportProtocol.Tls)
-                            tlsNameServers.Add(primaryNameServer);
-                        else
-                            tlsNameServers.Add(primaryNameServer.ChangeProtocol(DnsTransportProtocol.Tls));
-                    }
+                        break;
 
-                    primaryNameServers = tlsNameServers;
-                }
-                else
-                {
-                    //change name server protocol to TCP
-                    List<NameServerAddress> tcpNameServers = new List<NameServerAddress>(primaryNameServers.Count);
+                    default:
+                        //change name server protocol to TCP
+                        foreach (NameServerAddress primaryNameServer in primaryNameServers)
+                        {
+                            if (primaryNameServer.Protocol == DnsTransportProtocol.Tcp)
+                                updatedNameServers.Add(primaryNameServer);
+                            else
+                                updatedNameServers.Add(primaryNameServer.ChangeProtocol(DnsTransportProtocol.Tcp));
+                        }
 
-                    foreach (NameServerAddress primaryNameServer in primaryNameServers)
-                    {
-                        if (primaryNameServer.Protocol == DnsTransportProtocol.Tcp)
-                            tcpNameServers.Add(primaryNameServer);
-                        else
-                            tcpNameServers.Add(primaryNameServer.ChangeProtocol(DnsTransportProtocol.Tcp));
-                    }
-
-                    primaryNameServers = tcpNameServers;
+                        break;
                 }
 
-                DnsClient xfrClient = new DnsClient(primaryNameServers);
+                DnsClient xfrClient = new DnsClient(updatedNameServers);
 
                 xfrClient.Proxy = _dnsServer.Proxy;
                 xfrClient.PreferIPv6 = _dnsServer.PreferIPv6;
@@ -414,7 +434,7 @@ namespace DnsServerCore.Dns.Zones
                     {
                         LogManager log = _dnsServer.LogManager;
                         if (log != null)
-                            log.Write("DNS Server received a zone transfer response (RCODE=" + xfrResponse.RCODE.ToString() + ") for '" + (_name == "" ? "<root>" : _name) + "' secondary zone from: " + xfrResponse.Metadata.NameServerAddress.ToString());
+                            log.Write("DNS Server received a zone transfer response (RCODE=" + xfrResponse.RCODE.ToString() + ") for '" + (_name == "" ? "<root>" : _name) + "' secondary zone from: " + xfrResponse.Metadata.NameServer.ToString());
 
                         return false;
                     }
@@ -423,7 +443,7 @@ namespace DnsServerCore.Dns.Zones
                     {
                         LogManager log = _dnsServer.LogManager;
                         if (log != null)
-                            log.Write("DNS Server received an empty response for zone transfer query for '" + (_name == "" ? "<root>" : _name) + "' secondary zone from: " + xfrResponse.Metadata.NameServerAddress.ToString());
+                            log.Write("DNS Server received an empty response for zone transfer query for '" + (_name == "" ? "<root>" : _name) + "' secondary zone from: " + xfrResponse.Metadata.NameServer.ToString());
 
                         return false;
                     }
@@ -432,7 +452,7 @@ namespace DnsServerCore.Dns.Zones
                     {
                         LogManager log = _dnsServer.LogManager;
                         if (log != null)
-                            log.Write("DNS Server received invalid response for zone transfer query for '" + (_name == "" ? "<root>" : _name) + "' secondary zone from: " + xfrResponse.Metadata.NameServerAddress.ToString());
+                            log.Write("DNS Server received invalid response for zone transfer query for '" + (_name == "" ? "<root>" : _name) + "' secondary zone from: " + xfrResponse.Metadata.NameServer.ToString());
 
                         return false;
                     }
@@ -460,13 +480,13 @@ namespace DnsServerCore.Dns.Zones
 
                         LogManager log = _dnsServer.LogManager;
                         if (log != null)
-                            log.Write("DNS Server successfully refreshed '" + (_name == "" ? "<root>" : _name) + "' secondary zone from: " + xfrResponse.Metadata.NameServerAddress.ToString());
+                            log.Write("DNS Server successfully refreshed '" + (_name == "" ? "<root>" : _name) + "' secondary zone from: " + xfrResponse.Metadata.NameServer.ToString());
                     }
                     else
                     {
                         LogManager log = _dnsServer.LogManager;
                         if (log != null)
-                            log.Write("DNS Server successfully checked for '" + (_name == "" ? "<root>" : _name) + "' secondary zone update from: " + xfrResponse.Metadata.NameServerAddress.ToString());
+                            log.Write("DNS Server successfully checked for '" + (_name == "" ? "<root>" : _name) + "' secondary zone update from: " + xfrResponse.Metadata.NameServer.ToString());
                     }
 
                     return true;
@@ -499,7 +519,7 @@ namespace DnsServerCore.Dns.Zones
         {
             lock (_zoneHistory)
             {
-                historyRecords[0].SetDeletedOn(DateTime.UtcNow);
+                historyRecords[0].GetAuthRecordInfo().DeletedOn = DateTime.UtcNow;
 
                 //write history
                 _zoneHistory.AddRange(historyRecords);

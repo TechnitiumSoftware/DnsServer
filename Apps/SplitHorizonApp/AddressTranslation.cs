@@ -1,6 +1,6 @@
 ﻿/*
 Technitium DNS Server
-Copyright (C) 2022  Shreyas Zare (shreyas@technitium.com)
+Copyright (C) 2023  Shreyas Zare (shreyas@technitium.com)
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -18,12 +18,13 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
 using DnsServerCore.ApplicationCommon;
-using Newtonsoft.Json;
 using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Net;
+using System.Text.Json;
 using System.Threading.Tasks;
+using TechnitiumLibrary;
 using TechnitiumLibrary.Net;
 using TechnitiumLibrary.Net.Dns;
 using TechnitiumLibrary.Net.Dns.ResourceRecords;
@@ -106,15 +107,18 @@ namespace SplitHorizon
                 await File.WriteAllTextAsync(Path.Combine(dnsServer.ApplicationFolder, "dnsApp.config"), config);
             }
 
-            dynamic jsonConfig = JsonConvert.DeserializeObject(config);
-
-            if (jsonConfig.enableAddressTranslation is null)
+            do
             {
-                //update old config with default config
-                config = config.TrimEnd(' ', '\t', '\r', '\n');
-                config = config.Substring(0, config.Length - 1);
-                config = config.TrimEnd(' ', '\t', '\r', '\n');
-                config += """
+                using JsonDocument jsonDocument = JsonDocument.Parse(config);
+                JsonElement jsonConfig = jsonDocument.RootElement;
+
+                if (!jsonConfig.TryGetProperty("enableAddressTranslation", out _))
+                {
+                    //update old config with default config
+                    config = config.TrimEnd(' ', '\t', '\r', '\n');
+                    config = config.Substring(0, config.Length - 1);
+                    config = config.TrimEnd(' ', '\t', '\r', '\n');
+                    config += """
 ,
     "enableAddressTranslation": false,
     "networkGroupMap": {
@@ -153,43 +157,31 @@ namespace SplitHorizon
     ]
 }
 """;
-                await File.WriteAllTextAsync(Path.Combine(dnsServer.ApplicationFolder, "dnsApp.config"), config);
+                    await File.WriteAllTextAsync(Path.Combine(dnsServer.ApplicationFolder, "dnsApp.config"), config);
 
-                jsonConfig = JsonConvert.DeserializeObject(config);
-            }
-
-            _enableAddressTranslation = jsonConfig.enableAddressTranslation.Value;
-
-            {
-                Dictionary<NetworkAddress, string> networkGroupMap = new Dictionary<NetworkAddress, string>();
-
-                foreach (dynamic jsonProperty in jsonConfig.networkGroupMap)
-                {
-                    string network = jsonProperty.Name;
-                    string group = jsonProperty.Value;
-
-                    if (!NetworkAddress.TryParse(network, out NetworkAddress networkAddress))
-                        throw new InvalidOperationException("Network group map contains an invalid network address: " + network);
-
-                    networkGroupMap.Add(networkAddress, group);
+                    //reparse config
+                    continue;
                 }
 
-                _networkGroupMap = networkGroupMap;
-            }
+                _enableAddressTranslation = jsonConfig.GetProperty("enableAddressTranslation").GetBoolean();
 
-            {
-                Dictionary<string, Group> groups = new Dictionary<string, Group>();
+                _networkGroupMap = jsonConfig.ReadObjectAsMap("networkGroupMap", delegate (string strNetworkAddress, JsonElement jsonGroupName)
+                {
+                    if (!NetworkAddress.TryParse(strNetworkAddress, out NetworkAddress networkAddress))
+                        throw new InvalidOperationException("Network group map contains an invalid network address: " + strNetworkAddress);
 
-                foreach (dynamic jsonGroup in jsonConfig.groups)
+                    return new Tuple<NetworkAddress, string>(networkAddress, jsonGroupName.GetString());
+                });
+
+                _groups = jsonConfig.ReadArrayAsMap("groups", delegate (JsonElement jsonGroup)
                 {
                     Group group = new Group(jsonGroup);
-                    groups.Add(group.Name, group);
-                }
+                    return new Tuple<string, Group>(group.Name, group);
+                });
 
-                _groups = groups;
+                break;
             }
-
-            return;
+            while (true);
         }
 
         public Task<DnsDatagram> PostProcessAsync(DnsDatagram request, IPEndPoint remoteEP, DnsTransportProtocol protocol, DnsDatagram response)
@@ -245,7 +237,7 @@ namespace SplitHorizon
                             IPAddress externalIp = (answer.RDATA as DnsARecordData).Address;
 
                             if (group.ExternalToInternalTranslation.TryGetValue(externalIp, out IPAddress internalIp))
-                                newAnswer.Add(new DnsResourceRecord(answer.Name, answer.Type, answer.Class, answer.TtlValue, new DnsARecordData(internalIp)));
+                                newAnswer.Add(new DnsResourceRecord(answer.Name, answer.Type, answer.Class, answer.TTL, new DnsARecordData(internalIp)));
                             else
                                 newAnswer.Add(answer);
                         }
@@ -256,7 +248,7 @@ namespace SplitHorizon
                             IPAddress externalIp = (answer.RDATA as DnsAAAARecordData).Address;
 
                             if (group.ExternalToInternalTranslation.TryGetValue(externalIp, out IPAddress internalIp))
-                                newAnswer.Add(new DnsResourceRecord(answer.Name, answer.Type, answer.Class, answer.TtlValue, new DnsAAAARecordData(internalIp)));
+                                newAnswer.Add(new DnsResourceRecord(answer.Name, answer.Type, answer.Class, answer.TTL, new DnsAAAARecordData(internalIp)));
                             else
                                 newAnswer.Add(answer);
                         }
@@ -299,7 +291,7 @@ namespace SplitHorizon
             if ((groupName is null) || !_groups.TryGetValue(groupName, out Group group) || !group.Enabled || !group.TranslateReverseLookups)
                 return Task.FromResult<DnsDatagram>(null);
 
-            IPAddress ptrIpAddress = IPAddressExtension.ParseReverseDomain(question.Name);
+            IPAddress ptrIpAddress = IPAddressExtensions.ParseReverseDomain(question.Name);
 
             if (!group.InternalToExternalTranslation.TryGetValue(ptrIpAddress, out IPAddress externalIp))
                 return Task.FromResult<DnsDatagram>(null);
@@ -332,21 +324,23 @@ namespace SplitHorizon
 
             #region constructor
 
-            public Group(dynamic jsonGroup)
+            public Group(JsonElement jsonGroup)
             {
-                _name = jsonGroup.name.Value;
-                _enabled = jsonGroup.enabled.Value;
-                _translateReverseLookups = jsonGroup.translateReverseLookups.Value;
+                _name = jsonGroup.GetProperty("name").GetString();
+                _enabled = jsonGroup.GetProperty("enabled").GetBoolean();
+                _translateReverseLookups = jsonGroup.GetProperty("translateReverseLookups").GetBoolean();
+
+                JsonElement jsonExternalToInternalTranslation = jsonGroup.GetProperty("externalToInternalTranslation");
 
                 if (_translateReverseLookups)
                 {
                     Dictionary<IPAddress, IPAddress> externalToInternalTranslation = new Dictionary<IPAddress, IPAddress>();
                     Dictionary<IPAddress, IPAddress> internalToExternalTranslation = new Dictionary<IPAddress, IPAddress>();
 
-                    foreach (dynamic jsonProperty in jsonGroup.externalToInternalTranslation)
+                    foreach (JsonProperty jsonProperty in jsonExternalToInternalTranslation.EnumerateObject())
                     {
                         string strExternalIp = jsonProperty.Name;
-                        string strInternalIp = jsonProperty.Value;
+                        string strInternalIp = jsonProperty.Value.GetString();
 
                         IPAddress externalIp = IPAddress.Parse(strExternalIp);
                         IPAddress internalIp = IPAddress.Parse(strInternalIp);
@@ -362,10 +356,10 @@ namespace SplitHorizon
                 {
                     Dictionary<IPAddress, IPAddress> externalToInternalTranslation = new Dictionary<IPAddress, IPAddress>();
 
-                    foreach (dynamic jsonProperty in jsonGroup.externalToInternalTranslation)
+                    foreach (JsonProperty jsonProperty in jsonExternalToInternalTranslation.EnumerateObject())
                     {
                         string strExternalIp = jsonProperty.Name;
-                        string strInternalIp = jsonProperty.Value;
+                        string strInternalIp = jsonProperty.Value.GetString();
 
                         IPAddress externalIp = IPAddress.Parse(strExternalIp);
                         IPAddress internalIp = IPAddress.Parse(strInternalIp);

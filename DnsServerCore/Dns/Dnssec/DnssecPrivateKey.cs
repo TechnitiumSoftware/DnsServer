@@ -1,6 +1,6 @@
 ﻿/*
 Technitium DNS Server
-Copyright (C) 2022  Shreyas Zare (shreyas@technitium.com)
+Copyright (C) 2023  Shreyas Zare (shreyas@technitium.com)
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -201,7 +201,7 @@ namespace DnsServerCore.Dns.Dnssec
             }
         }
 
-        public static DnssecPrivateKey Parse(BinaryReader bR)
+        public static DnssecPrivateKey ReadFrom(BinaryReader bR)
         {
             if (Encoding.ASCII.GetString(bR.ReadBytes(2)) != "DK")
                 throw new InvalidDataException("DNSSEC private key format is invalid.");
@@ -270,7 +270,7 @@ namespace DnsServerCore.Dns.Dnssec
 
             byte[] signature = SignHash(hash);
 
-            DnsRRSIGRecordData signedRRSigRecord = new DnsRRSIGRecordData(unsignedRRSigRecord.TypeCovered, unsignedRRSigRecord.Algorithm, unsignedRRSigRecord.Labels, unsignedRRSigRecord.OriginalTtl, unsignedRRSigRecord.SignatureExpirationValue, unsignedRRSigRecord.SignatureInceptionValue, unsignedRRSigRecord.KeyTag, unsignedRRSigRecord.SignersName, signature);
+            DnsRRSIGRecordData signedRRSigRecord = new DnsRRSIGRecordData(unsignedRRSigRecord.TypeCovered, unsignedRRSigRecord.Algorithm, unsignedRRSigRecord.Labels, unsignedRRSigRecord.OriginalTtl, unsignedRRSigRecord.SignatureExpiration, unsignedRRSigRecord.SignatureInception, unsignedRRSigRecord.KeyTag, unsignedRRSigRecord.SignersName, signature);
             return new DnsResourceRecord(firstRecord.Name, DnsResourceRecordType.RRSIG, firstRecord.Class, firstRecord.OriginalTtlValue, signedRRSigRecord);
         }
 

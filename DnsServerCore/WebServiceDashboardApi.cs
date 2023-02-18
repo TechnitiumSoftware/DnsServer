@@ -1,6 +1,6 @@
 ﻿/*
 Technitium DNS Server
-Copyright (C) 2022  Shreyas Zare (shreyas@technitium.com)
+Copyright (C) 2023  Shreyas Zare (shreyas@technitium.com)
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -17,12 +17,14 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 */
 
+using DnsServerCore.Auth;
 using DnsServerCore.Dns;
-using Newtonsoft.Json;
+using Microsoft.AspNetCore.Http;
 using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.Net;
+using System.Text.Json;
 using System.Threading.Tasks;
 using TechnitiumLibrary.Net.Dns;
 using TechnitiumLibrary.Net.Dns.ResourceRecords;
@@ -48,29 +50,22 @@ namespace DnsServerCore
 
         #region private
 
-        private static void WriteChartDataSet(JsonTextWriter jsonWriter, string label, string backgroundColor, string borderColor, List<KeyValuePair<string, long>> statsPerInterval)
+        private static void WriteChartDataSet(Utf8JsonWriter jsonWriter, string label, string backgroundColor, string borderColor, List<KeyValuePair<string, long>> statsPerInterval)
         {
             jsonWriter.WriteStartObject();
 
-            jsonWriter.WritePropertyName("label");
-            jsonWriter.WriteValue(label);
-
-            jsonWriter.WritePropertyName("backgroundColor");
-            jsonWriter.WriteValue(backgroundColor);
-
-            jsonWriter.WritePropertyName("borderColor");
-            jsonWriter.WriteValue(borderColor);
-
-            jsonWriter.WritePropertyName("borderWidth");
-            jsonWriter.WriteValue(2);
-
-            jsonWriter.WritePropertyName("fill");
-            jsonWriter.WriteValue(true);
+            jsonWriter.WriteString("label", label);
+            jsonWriter.WriteString("backgroundColor", backgroundColor);
+            jsonWriter.WriteString("borderColor", borderColor);
+            jsonWriter.WriteNumber("borderWidth", 2);
+            jsonWriter.WriteBoolean("fill", true);
 
             jsonWriter.WritePropertyName("data");
             jsonWriter.WriteStartArray();
+
             foreach (KeyValuePair<string, long> item in statsPerInterval)
-                jsonWriter.WriteValue(item.Value);
+                jsonWriter.WriteNumberValue(item.Value);
+
             jsonWriter.WriteEndArray();
 
             jsonWriter.WriteEndObject();
@@ -128,28 +123,23 @@ namespace DnsServerCore
 
         #region public
 
-        public async Task GetStats(HttpListenerRequest request, JsonTextWriter jsonWriter)
+        public async Task GetStats(HttpContext context)
         {
-            string strType = request.QueryString["type"];
-            if (string.IsNullOrEmpty(strType))
-                strType = "lastHour";
+            if (!_dnsWebService._authManager.IsPermitted(PermissionSection.Dashboard, context.GetCurrentSession().User, PermissionFlag.View))
+                throw new DnsWebServiceException("Access was denied.");
 
-            bool utcFormat;
-            string strUtcFormat = request.QueryString["utc"];
-            if (string.IsNullOrEmpty(strUtcFormat))
-                utcFormat = false;
-            else
-                utcFormat = bool.Parse(strUtcFormat);
+            HttpRequest request = context.Request;
+
+            string strType = request.GetQueryOrForm("type", "lastHour");
+            bool utcFormat = request.GetQueryOrForm("utc", bool.Parse, false);
+
+            bool isLanguageEnUs = true;
+            string acceptLanguage = request.Headers["Accept-Language"];
+            if (!string.IsNullOrEmpty(acceptLanguage))
+                isLanguageEnUs = acceptLanguage.StartsWith("en-us", StringComparison.OrdinalIgnoreCase);
 
             Dictionary<string, List<KeyValuePair<string, long>>> data;
             string labelFormat;
-            bool isLanguageEnUs;
-
-            string acceptLanguage = request.Headers["Accept-Language"];
-            if (string.IsNullOrEmpty(acceptLanguage))
-                isLanguageEnUs = true;
-            else
-                isLanguageEnUs = acceptLanguage.StartsWith("en-us", StringComparison.OrdinalIgnoreCase);
 
             switch (strType.ToLower())
             {
@@ -194,13 +184,8 @@ namespace DnsServerCore
                     break;
 
                 case "custom":
-                    string strStartDate = request.QueryString["start"];
-                    if (string.IsNullOrEmpty(strStartDate))
-                        throw new DnsWebServiceException("Parameter 'start' missing.");
-
-                    string strEndDate = request.QueryString["end"];
-                    if (string.IsNullOrEmpty(strEndDate))
-                        throw new DnsWebServiceException("Parameter 'end' missing.");
+                    string strStartDate = request.GetQueryOrForm("start");
+                    string strEndDate = request.GetQueryOrForm("end");
 
                     if (!DateTime.TryParse(strStartDate, CultureInfo.InvariantCulture, DateTimeStyles.AssumeUniversal | DateTimeStyles.AdjustToUniversal, out DateTime startDate))
                         throw new DnsWebServiceException("Invalid start date format.");
@@ -236,6 +221,8 @@ namespace DnsServerCore
                     throw new DnsWebServiceException("Unknown stats type requested: " + strType);
             }
 
+            Utf8JsonWriter jsonWriter = context.GetCurrentJsonWriter();
+
             //stats
             {
                 List<KeyValuePair<string, long>> stats = data["stats"];
@@ -244,25 +231,13 @@ namespace DnsServerCore
                 jsonWriter.WriteStartObject();
 
                 foreach (KeyValuePair<string, long> item in stats)
-                {
-                    jsonWriter.WritePropertyName(item.Key);
-                    jsonWriter.WriteValue(item.Value);
-                }
+                    jsonWriter.WriteNumber(item.Key, item.Value);
 
-                jsonWriter.WritePropertyName("zones");
-                jsonWriter.WriteValue(_dnsWebService.DnsServer.AuthZoneManager.TotalZones);
-
-                jsonWriter.WritePropertyName("cachedEntries");
-                jsonWriter.WriteValue(_dnsWebService.DnsServer.CacheZoneManager.TotalEntries);
-
-                jsonWriter.WritePropertyName("allowedZones");
-                jsonWriter.WriteValue(_dnsWebService.DnsServer.AllowedZoneManager.TotalZonesAllowed);
-
-                jsonWriter.WritePropertyName("blockedZones");
-                jsonWriter.WriteValue(_dnsWebService.DnsServer.BlockedZoneManager.TotalZonesBlocked);
-
-                jsonWriter.WritePropertyName("blockListZones");
-                jsonWriter.WriteValue(_dnsWebService.DnsServer.BlockListZoneManager.TotalZonesBlocked);
+                jsonWriter.WriteNumber("zones", _dnsWebService.DnsServer.AuthZoneManager.TotalZones);
+                jsonWriter.WriteNumber("cachedEntries", _dnsWebService.DnsServer.CacheZoneManager.TotalEntries);
+                jsonWriter.WriteNumber("allowedZones", _dnsWebService.DnsServer.AllowedZoneManager.TotalZonesAllowed);
+                jsonWriter.WriteNumber("blockedZones", _dnsWebService.DnsServer.BlockedZoneManager.TotalZonesBlocked);
+                jsonWriter.WriteNumber("blockListZones", _dnsWebService.DnsServer.BlockListZoneManager.TotalZonesBlocked);
 
                 jsonWriter.WriteEndObject();
             }
@@ -274,8 +249,7 @@ namespace DnsServerCore
 
                 //label format
                 {
-                    jsonWriter.WritePropertyName("labelFormat");
-                    jsonWriter.WriteValue(labelFormat);
+                    jsonWriter.WriteString("labelFormat", labelFormat);
                 }
 
                 //label
@@ -286,7 +260,7 @@ namespace DnsServerCore
                     jsonWriter.WriteStartArray();
 
                     foreach (KeyValuePair<string, long> item in statsPerInterval)
-                        jsonWriter.WriteValue(item.Key);
+                        jsonWriter.WriteStringValue(item.Key);
 
                     jsonWriter.WriteEndArray();
                 }
@@ -332,19 +306,19 @@ namespace DnsServerCore
                         switch (item.Key)
                         {
                             case "totalAuthoritative":
-                                jsonWriter.WriteValue("Authoritative");
+                                jsonWriter.WriteStringValue("Authoritative");
                                 break;
 
                             case "totalRecursive":
-                                jsonWriter.WriteValue("Recursive");
+                                jsonWriter.WriteStringValue("Recursive");
                                 break;
 
                             case "totalCached":
-                                jsonWriter.WriteValue("Cached");
+                                jsonWriter.WriteStringValue("Cached");
                                 break;
 
                             case "totalBlocked":
-                                jsonWriter.WriteValue("Blocked");
+                                jsonWriter.WriteStringValue("Blocked");
                                 break;
                         }
                     }
@@ -370,7 +344,7 @@ namespace DnsServerCore
                             case "totalRecursive":
                             case "totalCached":
                             case "totalBlocked":
-                                jsonWriter.WriteValue(item.Value);
+                                jsonWriter.WriteNumberValue(item.Value);
                                 break;
                         }
                     }
@@ -379,10 +353,10 @@ namespace DnsServerCore
 
                     jsonWriter.WritePropertyName("backgroundColor");
                     jsonWriter.WriteStartArray();
-                    jsonWriter.WriteValue("rgba(150, 150, 0, 0.5)");
-                    jsonWriter.WriteValue("rgba(23, 162, 184, 0.5)");
-                    jsonWriter.WriteValue("rgba(111, 84, 153, 0.5)");
-                    jsonWriter.WriteValue("rgba(255, 165, 0, 0.5)");
+                    jsonWriter.WriteStringValue("rgba(150, 150, 0, 0.5)");
+                    jsonWriter.WriteStringValue("rgba(23, 162, 184, 0.5)");
+                    jsonWriter.WriteStringValue("rgba(111, 84, 153, 0.5)");
+                    jsonWriter.WriteStringValue("rgba(255, 165, 0, 0.5)");
                     jsonWriter.WriteEndArray();
 
                     jsonWriter.WriteEndObject();
@@ -406,7 +380,7 @@ namespace DnsServerCore
                     jsonWriter.WriteStartArray();
 
                     foreach (KeyValuePair<string, long> item in queryTypes)
-                        jsonWriter.WriteValue(item.Key);
+                        jsonWriter.WriteStringValue(item.Key);
 
                     jsonWriter.WriteEndArray();
                 }
@@ -420,22 +394,24 @@ namespace DnsServerCore
 
                     jsonWriter.WritePropertyName("data");
                     jsonWriter.WriteStartArray();
+
                     foreach (KeyValuePair<string, long> item in queryTypes)
-                        jsonWriter.WriteValue(item.Value);
+                        jsonWriter.WriteNumberValue(item.Value);
+
                     jsonWriter.WriteEndArray();
 
                     jsonWriter.WritePropertyName("backgroundColor");
                     jsonWriter.WriteStartArray();
-                    jsonWriter.WriteValue("rgba(102, 153, 255, 0.5)");
-                    jsonWriter.WriteValue("rgba(92, 184, 92, 0.5)");
-                    jsonWriter.WriteValue("rgba(7, 7, 7, 0.5)");
-                    jsonWriter.WriteValue("rgba(91, 192, 222, 0.5)");
-                    jsonWriter.WriteValue("rgba(150, 150, 0, 0.5)");
-                    jsonWriter.WriteValue("rgba(23, 162, 184, 0.5)");
-                    jsonWriter.WriteValue("rgba(111, 84, 153, 0.5)");
-                    jsonWriter.WriteValue("rgba(255, 165, 0, 0.5)");
-                    jsonWriter.WriteValue("rgba(51, 122, 183, 0.5)");
-                    jsonWriter.WriteValue("rgba(150, 150, 150, 0.5)");
+                    jsonWriter.WriteStringValue("rgba(102, 153, 255, 0.5)");
+                    jsonWriter.WriteStringValue("rgba(92, 184, 92, 0.5)");
+                    jsonWriter.WriteStringValue("rgba(7, 7, 7, 0.5)");
+                    jsonWriter.WriteStringValue("rgba(91, 192, 222, 0.5)");
+                    jsonWriter.WriteStringValue("rgba(150, 150, 0, 0.5)");
+                    jsonWriter.WriteStringValue("rgba(23, 162, 184, 0.5)");
+                    jsonWriter.WriteStringValue("rgba(111, 84, 153, 0.5)");
+                    jsonWriter.WriteStringValue("rgba(255, 165, 0, 0.5)");
+                    jsonWriter.WriteStringValue("rgba(51, 122, 183, 0.5)");
+                    jsonWriter.WriteStringValue("rgba(150, 150, 150, 0.5)");
                     jsonWriter.WriteEndArray();
 
                     jsonWriter.WriteEndObject();
@@ -459,17 +435,12 @@ namespace DnsServerCore
                 {
                     jsonWriter.WriteStartObject();
 
-                    jsonWriter.WritePropertyName("name");
-                    jsonWriter.WriteValue(item.Key);
+                    jsonWriter.WriteString("name", item.Key);
 
                     if (clientIpMap.TryGetValue(item.Key, out string clientDomain) && !string.IsNullOrEmpty(clientDomain))
-                    {
-                        jsonWriter.WritePropertyName("domain");
-                        jsonWriter.WriteValue(clientDomain);
-                    }
+                        jsonWriter.WriteString("domain", clientDomain);
 
-                    jsonWriter.WritePropertyName("hits");
-                    jsonWriter.WriteValue(item.Value);
+                    jsonWriter.WriteNumber("hits", item.Value);
 
                     jsonWriter.WriteEndObject();
                 }
@@ -488,11 +459,8 @@ namespace DnsServerCore
                 {
                     jsonWriter.WriteStartObject();
 
-                    jsonWriter.WritePropertyName("name");
-                    jsonWriter.WriteValue(item.Key);
-
-                    jsonWriter.WritePropertyName("hits");
-                    jsonWriter.WriteValue(item.Value);
+                    jsonWriter.WriteString("name", item.Key);
+                    jsonWriter.WriteNumber("hits", item.Value);
 
                     jsonWriter.WriteEndObject();
                 }
@@ -511,11 +479,8 @@ namespace DnsServerCore
                 {
                     jsonWriter.WriteStartObject();
 
-                    jsonWriter.WritePropertyName("name");
-                    jsonWriter.WriteValue(item.Key);
-
-                    jsonWriter.WritePropertyName("hits");
-                    jsonWriter.WriteValue(item.Value);
+                    jsonWriter.WriteString("name", item.Key);
+                    jsonWriter.WriteNumber("hits", item.Value);
 
                     jsonWriter.WriteEndObject();
                 }
@@ -524,22 +489,16 @@ namespace DnsServerCore
             }
         }
 
-        public async Task GetTopStats(HttpListenerRequest request, JsonTextWriter jsonWriter)
+        public async Task GetTopStats(HttpContext context)
         {
-            string strType = request.QueryString["type"];
-            if (string.IsNullOrEmpty(strType))
-                strType = "lastHour";
+            if (!_dnsWebService._authManager.IsPermitted(PermissionSection.Dashboard, context.GetCurrentSession().User, PermissionFlag.View))
+                throw new DnsWebServiceException("Access was denied.");
 
-            string strStatsType = request.QueryString["statsType"];
-            if (string.IsNullOrEmpty(strStatsType))
-                throw new DnsWebServiceException("Parameter 'statsType' missing.");
+            HttpRequest request = context.Request;
 
-            string strLimit = request.QueryString["limit"];
-            if (string.IsNullOrEmpty(strLimit))
-                strLimit = "1000";
-
-            TopStatsType statsType = Enum.Parse<TopStatsType>(strStatsType, true);
-            int limit = int.Parse(strLimit);
+            string strType = request.GetQueryOrForm("type", "lastHour");
+            TopStatsType statsType = request.GetQueryOrFormEnum<TopStatsType>("statsType");
+            int limit = request.GetQueryOrForm("limit", int.Parse, 1000);
 
             List<KeyValuePair<string, long>> topStatsData;
 
@@ -566,13 +525,8 @@ namespace DnsServerCore
                     break;
 
                 case "custom":
-                    string strStartDate = request.QueryString["start"];
-                    if (string.IsNullOrEmpty(strStartDate))
-                        throw new DnsWebServiceException("Parameter 'start' missing.");
-
-                    string strEndDate = request.QueryString["end"];
-                    if (string.IsNullOrEmpty(strEndDate))
-                        throw new DnsWebServiceException("Parameter 'end' missing.");
+                    string strStartDate = request.GetQueryOrForm("start");
+                    string strEndDate = request.GetQueryOrForm("end");
 
                     if (!DateTime.TryParseExact(strStartDate, "yyyy-M-d", CultureInfo.InvariantCulture, DateTimeStyles.AssumeUniversal | DateTimeStyles.AdjustToUniversal, out DateTime startDate))
                         throw new DnsWebServiceException("Invalid start date format.");
@@ -594,6 +548,8 @@ namespace DnsServerCore
                     throw new DnsWebServiceException("Unknown stats type requested: " + strType);
             }
 
+            Utf8JsonWriter jsonWriter = context.GetCurrentJsonWriter();
+
             switch (statsType)
             {
                 case TopStatsType.TopClients:
@@ -607,17 +563,12 @@ namespace DnsServerCore
                         {
                             jsonWriter.WriteStartObject();
 
-                            jsonWriter.WritePropertyName("name");
-                            jsonWriter.WriteValue(item.Key);
+                            jsonWriter.WriteString("name", item.Key);
 
                             if (clientIpMap.TryGetValue(item.Key, out string clientDomain) && !string.IsNullOrEmpty(clientDomain))
-                            {
-                                jsonWriter.WritePropertyName("domain");
-                                jsonWriter.WriteValue(clientDomain);
-                            }
+                                jsonWriter.WriteString("domain", clientDomain);
 
-                            jsonWriter.WritePropertyName("hits");
-                            jsonWriter.WriteValue(item.Value);
+                            jsonWriter.WriteNumber("hits", item.Value);
 
                             jsonWriter.WriteEndObject();
                         }
@@ -635,11 +586,8 @@ namespace DnsServerCore
                         {
                             jsonWriter.WriteStartObject();
 
-                            jsonWriter.WritePropertyName("name");
-                            jsonWriter.WriteValue(item.Key);
-
-                            jsonWriter.WritePropertyName("hits");
-                            jsonWriter.WriteValue(item.Value);
+                            jsonWriter.WriteString("name", item.Key);
+                            jsonWriter.WriteNumber("hits", item.Value);
 
                             jsonWriter.WriteEndObject();
                         }
@@ -657,11 +605,8 @@ namespace DnsServerCore
                         {
                             jsonWriter.WriteStartObject();
 
-                            jsonWriter.WritePropertyName("name");
-                            jsonWriter.WriteValue(item.Key);
-
-                            jsonWriter.WritePropertyName("hits");
-                            jsonWriter.WriteValue(item.Value);
+                            jsonWriter.WriteString("name", item.Key);
+                            jsonWriter.WriteNumber("hits", item.Value);
 
                             jsonWriter.WriteEndObject();
                         }

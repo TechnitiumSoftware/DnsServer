@@ -1,6 +1,6 @@
 ﻿/*
 Technitium DNS Server
-Copyright (C) 2022  Shreyas Zare (shreyas@technitium.com)
+Copyright (C) 2023  Shreyas Zare (shreyas@technitium.com)
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -17,10 +17,13 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 */
 
+using Microsoft.AspNetCore.Http;
 using System;
 using System.Collections.Concurrent;
 using System.Globalization;
 using System.IO;
+using System.IO.Compression;
+using System.Linq;
 using System.Net;
 using System.Text;
 using System.Threading;
@@ -434,29 +437,60 @@ namespace DnsServerCore
             return Directory.GetFiles(ConvertToAbsolutePath(_logFolder), "*.log", SearchOption.TopDirectoryOnly);
         }
 
-        public async Task DownloadLogAsync(HttpListenerRequest request, HttpListenerResponse response, string logName, long limit)
+        public async Task DownloadLogAsync(HttpContext context, string logName, long limit)
         {
             string logFileName = logName + ".log";
 
             using (FileStream fS = new FileStream(Path.Combine(ConvertToAbsolutePath(_logFolder), logFileName), FileMode.Open, FileAccess.Read, FileShare.ReadWrite, 64 * 1024, true))
             {
+                HttpResponse response = context.Response;
+
                 response.ContentType = "text/plain";
-                response.AddHeader("Content-Disposition", "attachment;filename=" + logFileName);
+                response.Headers.ContentDisposition = "attachment;filename=" + logFileName;
 
                 if ((limit > fS.Length) || (limit < 1))
                     limit = fS.Length;
 
                 OffsetStream oFS = new OffsetStream(fS, 0, limit);
+                HttpRequest request = context.Request;
+                Stream s;
 
-                using (Stream s = DnsWebService.GetOutputStream(request, response))
+                string acceptEncoding = request.Headers["Accept-Encoding"];
+                if (string.IsNullOrEmpty(acceptEncoding))
+                {
+                    s = response.Body;
+                }
+                else
+                {
+                    string[] acceptEncodingParts = acceptEncoding.Split(new char[] { ',' }, StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+
+                    if (acceptEncodingParts.Contains("br"))
+                    {
+                        response.Headers.ContentEncoding = "br";
+                        s = new BrotliStream(response.Body, CompressionMode.Compress);
+                    }
+                    else if (acceptEncodingParts.Contains("gzip"))
+                    {
+                        response.Headers.ContentEncoding = "gzip";
+                        s = new GZipStream(response.Body, CompressionMode.Compress);
+                    }
+                    else if (acceptEncodingParts.Contains("deflate"))
+                    {
+                        response.Headers.ContentEncoding = "deflate";
+                        s = new DeflateStream(response.Body, CompressionMode.Compress);
+                    }
+                    else
+                    {
+                        s = response.Body;
+                    }
+                }
+
+                await using (s)
                 {
                     await oFS.CopyToAsync(s);
 
                     if (fS.Length > limit)
-                    {
-                        byte[] buffer = Encoding.UTF8.GetBytes("\r\n####___TRUNCATED___####");
-                        s.Write(buffer, 0, buffer.Length);
-                    }
+                        await s.WriteAsync(Encoding.UTF8.GetBytes("\r\n####___TRUNCATED___####"));
                 }
             }
         }
@@ -592,7 +626,7 @@ namespace DnsServerCore
 
                 EDnsClientSubnetOptionData responseECS = response.GetEDnsClientSubnetOption();
                 if (responseECS is not null)
-                    answer += "; ECS: " + responseECS.Address.ToString() + "/" + responseECS.SourcePrefixLength;
+                    answer += "; ECS: " + responseECS.Address.ToString() + "/" + responseECS.ScopePrefixLength;
 
                 responseInfo = " RCODE: " + response.RCODE.ToString() + "; ANSWER: " + answer;
             }

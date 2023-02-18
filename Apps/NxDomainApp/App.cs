@@ -1,6 +1,6 @@
 ﻿/*
 Technitium DNS Server
-Copyright (C) 2021  Shreyas Zare (shreyas@technitium.com)
+Copyright (C) 2023  Shreyas Zare (shreyas@technitium.com)
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -18,10 +18,12 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
 using DnsServerCore.ApplicationCommon;
-using Newtonsoft.Json;
+using System;
 using System.Collections.Generic;
 using System.Net;
+using System.Text.Json;
 using System.Threading.Tasks;
+using TechnitiumLibrary;
 using TechnitiumLibrary.Net.Dns;
 using TechnitiumLibrary.Net.Dns.ResourceRecords;
 
@@ -50,16 +52,6 @@ namespace NxDomain
         #endregion
 
         #region private
-
-        private static IReadOnlyDictionary<string, object> ReadJsonDomainArray(dynamic jsonDomainArray)
-        {
-            Dictionary<string, object> domains = new Dictionary<string, object>(jsonDomainArray.Count);
-
-            foreach (dynamic jsonDomain in jsonDomainArray)
-                domains.TryAdd(jsonDomain.Value, null);
-
-            return domains;
-        }
 
         private static string GetParentZone(string domain)
         {
@@ -100,18 +92,21 @@ namespace NxDomain
         {
             _soaRecord = new DnsSOARecordData(dnsServer.ServerDomain, "hostadmin@" + dnsServer.ServerDomain, 1, 14400, 3600, 604800, 60);
 
-            dynamic jsonConfig = JsonConvert.DeserializeObject(config);
+            using JsonDocument jsonDocument = JsonDocument.Parse(config);
+            JsonElement jsonConfig = jsonDocument.RootElement;
 
-            _enableBlocking = jsonConfig.enableBlocking.Value;
-            _allowTxtBlockingReport = jsonConfig.allowTxtBlockingReport.Value;
-
-            _blockListZone = ReadJsonDomainArray(jsonConfig.blocked);
+            _enableBlocking = jsonConfig.GetProperty("enableBlocking").GetBoolean();
+            _allowTxtBlockingReport = jsonConfig.GetProperty("allowTxtBlockingReport").GetBoolean();
+            _blockListZone = jsonConfig.ReadArrayAsMap("blocked", delegate (JsonElement jsonDomainName) { return new Tuple<string, object>(jsonDomainName.GetString(), null); });
 
             return Task.CompletedTask;
         }
 
         public Task<DnsDatagram> ProcessRequestAsync(DnsDatagram request, IPEndPoint remoteEP, DnsTransportProtocol protocol, bool isRecursionAllowed)
         {
+            if (!_enableBlocking)
+                return Task.FromResult<DnsDatagram>(null);
+
             DnsQuestionRecord question = request.Question[0];
 
             if (!IsZoneBlocked(question.Name, out string blockedDomain))
@@ -122,7 +117,7 @@ namespace NxDomain
                 //return meta data
                 DnsResourceRecord[] answer = new DnsResourceRecord[] { new DnsResourceRecord(question.Name, DnsResourceRecordType.TXT, question.Class, 60, new DnsTXTRecordData("source=nx-domain-app; domain=" + blockedDomain)) };
 
-                return Task.FromResult(new DnsDatagram(request.Identifier, true, DnsOpcode.StandardQuery, false, false, request.RecursionDesired, isRecursionAllowed, false, false, DnsResponseCode.NoError, request.Question, answer) { Tag = DnsServerResponseType.Blocked });
+                return Task.FromResult(new DnsDatagram(request.Identifier, true, DnsOpcode.StandardQuery, false, false, request.RecursionDesired, false, false, false, DnsResponseCode.NoError, request.Question, answer) { Tag = DnsServerResponseType.Blocked });
             }
             else
             {
@@ -132,7 +127,7 @@ namespace NxDomain
 
                 IReadOnlyList<DnsResourceRecord> authority = new DnsResourceRecord[] { new DnsResourceRecord(parentDomain, DnsResourceRecordType.SOA, question.Class, 60, _soaRecord) };
 
-                return Task.FromResult(new DnsDatagram(request.Identifier, true, DnsOpcode.StandardQuery, false, false, request.RecursionDesired, isRecursionAllowed, false, false, DnsResponseCode.NxDomain, request.Question, null, authority) { Tag = DnsServerResponseType.Blocked });
+                return Task.FromResult(new DnsDatagram(request.Identifier, true, DnsOpcode.StandardQuery, false, false, request.RecursionDesired, false, false, false, DnsResponseCode.NxDomain, request.Question, null, authority) { Tag = DnsServerResponseType.Blocked });
             }
         }
 

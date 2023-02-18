@@ -1,6 +1,6 @@
 ﻿/*
 Technitium DNS Server
-Copyright (C) 2022  Shreyas Zare (shreyas@technitium.com)
+Copyright (C) 2023  Shreyas Zare (shreyas@technitium.com)
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -56,6 +56,9 @@ namespace DnsServerCore.Auth
             if ((tokenName is not null) && (tokenName.Length > 255))
                 throw new ArgumentOutOfRangeException(nameof(tokenName), "Token name length cannot exceed 255 characters.");
 
+            if (remoteAddress.IsIPv4MappedToIPv6)
+                remoteAddress = remoteAddress.MapToIPv4();
+
             byte[] tokenBytes = new byte[32];
             _rng.GetBytes(tokenBytes);
             _token = Convert.ToHexString(tokenBytes).ToLower();
@@ -85,7 +88,7 @@ namespace DnsServerCore.Auth
 
                     _user = authManager.GetUser(bR.ReadShortString());
                     _lastSeen = bR.ReadDateTime();
-                    _lastSeenRemoteAddress = IPAddressExtension.ReadFrom(bR);
+                    _lastSeenRemoteAddress = IPAddressExtensions.ReadFrom(bR);
 
                     _lastSeenUserAgent = bR.ReadShortString();
                     if (_lastSeenUserAgent.Length == 0)
@@ -104,6 +107,9 @@ namespace DnsServerCore.Auth
 
         public void UpdateLastSeen(IPAddress remoteAddress, string lastSeenUserAgent)
         {
+            if (remoteAddress.IsIPv4MappedToIPv6)
+                remoteAddress = remoteAddress.MapToIPv4();
+
             _lastSeen = DateTime.UtcNow;
             _lastSeenRemoteAddress = remoteAddress;
             _lastSeenUserAgent = lastSeenUserAgent;

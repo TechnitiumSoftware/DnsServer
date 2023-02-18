@@ -1,6 +1,6 @@
 ﻿/*
 Technitium DNS Server
-Copyright (C) 2022  Shreyas Zare (shreyas@technitium.com)
+Copyright (C) 2023  Shreyas Zare (shreyas@technitium.com)
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -66,8 +66,8 @@ namespace DnsServerCore.Auth
 
         public User(string displayName, string username, string password, int iterations = DEFAULT_ITERATIONS)
         {
-            DisplayName = displayName;
             Username = username;
+            DisplayName = displayName;
 
             ChangePassword(password, iterations);
 
@@ -92,9 +92,9 @@ namespace DnsServerCore.Auth
                     _sessionTimeoutSeconds = bR.ReadInt32();
 
                     _previousSessionLoggedOn = bR.ReadDateTime();
-                    _previousSessionRemoteAddress = IPAddressExtension.ReadFrom(bR);
+                    _previousSessionRemoteAddress = IPAddressExtensions.ReadFrom(bR);
                     _recentSessionLoggedOn = bR.ReadDateTime();
-                    _recentSessionRemoteAddress = IPAddressExtension.ReadFrom(bR);
+                    _recentSessionRemoteAddress = IPAddressExtensions.ReadFrom(bR);
 
                     {
                         int count = bR.ReadByte();
@@ -165,6 +165,9 @@ namespace DnsServerCore.Auth
 
         public void LoggedInFrom(IPAddress remoteAddress)
         {
+            if (remoteAddress.IsIPv4MappedToIPv6)
+                remoteAddress = remoteAddress.MapToIPv4();
+
             _previousSessionLoggedOn = _recentSessionLoggedOn;
             _previousSessionRemoteAddress = _recentSessionRemoteAddress;
 
@@ -220,9 +223,9 @@ namespace DnsServerCore.Auth
             bW.Write(_sessionTimeoutSeconds);
 
             bW.Write(_previousSessionLoggedOn);
-            IPAddressExtension.WriteTo(_previousSessionRemoteAddress, bW);
+            IPAddressExtensions.WriteTo(_previousSessionRemoteAddress, bW);
             bW.Write(_recentSessionLoggedOn);
-            IPAddressExtension.WriteTo(_recentSessionRemoteAddress, bW);
+            IPAddressExtensions.WriteTo(_recentSessionRemoteAddress, bW);
 
             bW.Write(Convert.ToByte(_memberOfGroups.Count));
 

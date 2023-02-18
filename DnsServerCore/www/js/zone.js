@@ -1,6 +1,6 @@
 ﻿/*
 Technitium DNS Server
-Copyright (C) 2022  Shreyas Zare (shreyas@technitium.com)
+Copyright (C) 2023  Shreyas Zare (shreyas@technitium.com)
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -18,6 +18,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
 var zoneOptionsAvailableTsigKeyNames;
+var editZoneRecords;
 
 $(function () {
     $("input[type=radio][name=rdAddZoneType]").change(function () {
@@ -64,11 +65,11 @@ $(function () {
                 break;
 
             case "Tls":
+            case "Quic":
                 $("#txtAddZoneForwarder").attr("placeholder", "dns.quad9.net (9.9.9.9:853)")
                 break;
 
             case "Https":
-            case "HttpsJson":
                 $("#txtAddZoneForwarder").attr("placeholder", "https://cloudflare-dns.com/dns-query (1.1.1.1)")
                 break;
         }
@@ -269,16 +270,47 @@ $(function () {
                 break;
         }
     });
+
+    $("#optZonesPerPage").change(function () {
+        localStorage.setItem("optZonesPerPage", $("#optZonesPerPage").val());
+    });
+
+    var optZonesPerPage = localStorage.getItem("optZonesPerPage");
+    if (optZonesPerPage != null)
+        $("#optZonesPerPage").val(optZonesPerPage);
+
+    $("#optEditZoneRecordsPerPage").change(function () {
+        localStorage.setItem("optEditZoneRecordsPerPage", $("#optEditZoneRecordsPerPage").val());
+    });
+
+    var optEditZoneRecordsPerPage = localStorage.getItem("optEditZoneRecordsPerPage");
+    if (optEditZoneRecordsPerPage != null)
+        $("#optEditZoneRecordsPerPage").val(optEditZoneRecordsPerPage);
 });
 
-function refreshZones(checkDisplay) {
+function refreshZones(checkDisplay, pageNumber) {
     if (checkDisplay == null)
         checkDisplay = false;
 
     var divViewZones = $("#divViewZones");
 
-    if (checkDisplay && (divViewZones.css('display') === "none"))
-        return;
+    if (checkDisplay) {
+        if (divViewZones.css("display") === "none")
+            return;
+
+        if (($("#tableZonesBody").html().length > 0) && !$("#mainPanelTabPaneZones").hasClass("active"))
+            return;
+    }
+
+    if (pageNumber == null) {
+        pageNumber = $("#txtZonesPageNumber").val();
+        if (pageNumber == "")
+            pageNumber = 1;
+    }
+
+    var zonesPerPage = Number($("#optZonesPerPage").val());
+    if (zonesPerPage < 1)
+        zonesPerPage = 10;
 
     var divViewZonesLoader = $("#divViewZonesLoader");
     var divEditZone = $("#divEditZone");
@@ -288,9 +320,11 @@ function refreshZones(checkDisplay) {
     divViewZonesLoader.show();
 
     HTTPRequest({
-        url: "/api/zones/list?token=" + sessionData.token,
+        url: "/api/zones/list?token=" + sessionData.token + "&pageNumber=" + pageNumber + "&zonesPerPage=" + zonesPerPage,
         success: function (responseJSON) {
             var zones = responseJSON.response.zones;
+            var firstRowNumber = ((responseJSON.response.pageNumber - 1) * zonesPerPage) + 1;
+            var lastRowNumber = firstRowNumber + (zones.length - 1);
             var tableHtmlRows = "";
 
             for (var i = 0; i < zones.length; i++) {
@@ -349,7 +383,8 @@ function refreshZones(checkDisplay) {
                         break;
                 }
 
-                tableHtmlRows += "<tr id=\"trZone" + id + "\"><td><a href=\"#\" onclick=\"showEditZone('" + name + "'); return false;\">" + htmlEncode(name === "." ? "<root>" : name) + "</a></td>";
+                tableHtmlRows += "<tr id=\"trZone" + id + "\"><td>" + (firstRowNumber + i) + "</td>";
+                tableHtmlRows += "<td><a href=\"#\" onclick=\"showEditZone('" + name + "'); return false;\">" + htmlEncode(name === "." ? "<root>" : name) + "</a></td>";
                 tableHtmlRows += "<td>" + type + "</td>";
                 tableHtmlRows += "<td>" + dnssecStatus + "</td>";
                 tableHtmlRows += "<td>" + status + "</td>";
@@ -379,12 +414,54 @@ function refreshZones(checkDisplay) {
                 tableHtmlRows += "</ul></div></td></tr>";
             }
 
+            var paginationHtml = "";
+
+            if (responseJSON.response.pageNumber > 1) {
+                paginationHtml += "<li><a href=\"#\" aria-label=\"First\" onClick=\"refreshZones(false, 1); return false;\"><span aria-hidden=\"true\">&laquo;</span></a></li>";
+                paginationHtml += "<li><a href=\"#\" aria-label=\"Previous\" onClick=\"refreshZones(false, " + (responseJSON.response.pageNumber - 1) + "); return false;\"><span aria-hidden=\"true\">&lsaquo;</span></a></li>";
+            }
+
+            var pageStart = responseJSON.response.pageNumber - 5;
+            if (pageStart < 1)
+                pageStart = 1;
+
+            var pageEnd = pageStart + 9;
+            if (pageEnd > responseJSON.response.totalPages) {
+                var endDiff = pageEnd - responseJSON.response.totalPages;
+                pageEnd = responseJSON.response.totalPages;
+
+                pageStart -= endDiff;
+                if (pageStart < 1)
+                    pageStart = 1;
+            }
+
+            for (var i = pageStart; i <= pageEnd; i++) {
+                if (i == responseJSON.response.pageNumber)
+                    paginationHtml += "<li class=\"active\"><a href=\"#\" onClick=\"refreshZones(false, " + i + "); return false;\">" + i + "</a></li>";
+                else
+                    paginationHtml += "<li><a href=\"#\" onClick=\"refreshZones(false, " + i + "); return false;\">" + i + "</a></li>";
+            }
+
+            if (responseJSON.response.pageNumber < responseJSON.response.totalPages) {
+                paginationHtml += "<li><a href=\"#\" aria-label=\"Next\" onClick=\"refreshZones(false, " + (responseJSON.response.pageNumber + 1) + "); return false;\"><span aria-hidden=\"true\">&rsaquo;</span></a></li>";
+                paginationHtml += "<li><a href=\"#\" aria-label=\"Last\" onClick=\"refreshZones(false, -1); return false;\"><span aria-hidden=\"true\">&raquo;</span></a></li>";
+            }
+
+            var statusHtml;
+
+            if (responseJSON.response.zones.length > 0)
+                statusHtml = firstRowNumber + "-" + lastRowNumber + " (" + responseJSON.response.zones.length + ") of " + responseJSON.response.totalZones + " zones (page " + responseJSON.response.pageNumber + " of " + responseJSON.response.totalPages + ")";
+            else
+                statusHtml = "0 zones";
+
+            $("#txtZonesPageNumber").val(responseJSON.response.pageNumber);
             $("#tableZonesBody").html(tableHtmlRows);
 
-            if (zones.length > 0)
-                $("#tableZonesFooter").html("<tr><td colspan=\"6\"><b>Total Zones: " + zones.length + "</b></td></tr>");
-            else
-                $("#tableZonesFooter").html("<tr><td colspan=\"6\" align=\"center\">No Zones Found</td></tr>");
+            $("#tableZonesTopStatus").html(statusHtml);
+            $("#tableZonesTopPagination").html(paginationHtml);
+
+            $("#tableZonesFooterStatus").html(statusHtml);
+            $("#tableZonesFooterPagination").html(paginationHtml);
 
             divViewZonesLoader.hide();
             divViewZones.show();
@@ -545,14 +622,7 @@ function deleteZoneMenu(objMenuItem) {
     HTTPRequest({
         url: "/api/zones/delete?token=" + sessionData.token + "&zone=" + zone,
         success: function (responseJSON) {
-            $("#trZone" + id).remove();
-
-            var totalZones = $('#tableZones >tbody >tr').length;
-
-            if (totalZones > 0)
-                $("#tableZonesFooter").html("<tr><td colspan=\"6\"><b>Total Zones: " + totalZones + "</b></td></tr>");
-            else
-                $("#tableZonesFooter").html("<tr><td colspan=\"6\" align=\"center\">No Zones Found</td></tr>");
+            refreshZones();
 
             showAlert("success", "Zone Deleted!", "Zone '" + zone + "' was deleted successfully.");
         },
@@ -1235,7 +1305,19 @@ function toggleHideDnssecRecords(hideDnssecRecords) {
     showEditZone($("#titleEditZone").attr("data-zone"));
 }
 
-function showEditZone(zone) {
+function showEditZone(zone, showPageNumber) {
+    if (zone == null) {
+        zone = $("#txtZonesEdit").val();
+        if (zone === "") {
+            showAlert("warning", "Missing!", "Please enter a zone name to start editing.");
+            $("#txtZonesEdit").focus();
+            return;
+        }
+    }
+
+    if (showPageNumber == null)
+        showPageNumber = 1;
+
     var divViewZonesLoader = $("#divViewZonesLoader");
     var divViewZones = $("#divViewZones");
     var divEditZone = $("#divEditZone");
@@ -1245,8 +1327,12 @@ function showEditZone(zone) {
     divViewZonesLoader.show();
 
     HTTPRequest({
-        url: "/api/zones/records/get?token=" + sessionData.token + "&domain=" + zone,
+        url: "/api/zones/records/get?token=" + sessionData.token + "&domain=" + zone + "&zone=" + zone + "&listZone=true",
         success: function (responseJSON) {
+            zone = responseJSON.response.zone.name;
+            if (zone === "")
+                zone = ".";
+
             var zoneType;
             if (responseJSON.response.zone.internal)
                 zoneType = "Internal";
@@ -1466,12 +1552,14 @@ function showEditZone(zone) {
                     break;
             }
 
-            var records = responseJSON.response.records;
-            var tableHtmlRows = "";
-            var recordCount = 0;
+            if (!zoneHideDnssecRecords || (responseJSON.response.zone.dnssecStatus === "Unsigned")) {
+                editZoneRecords = responseJSON.response.records;
+            }
+            else {
+                var records = responseJSON.response.records;
+                editZoneRecords = [];
 
-            for (var i = 0; i < records.length; i++) {
-                if (zoneHideDnssecRecords) {
+                for (var i = 0; i < records.length; i++) {
                     switch (records[i].type.toUpperCase()) {
                         case "RRSIG":
                         case "NSEC":
@@ -1479,21 +1567,19 @@ function showEditZone(zone) {
                         case "NSEC3":
                         case "NSEC3PARAM":
                             continue;
+
+                        default:
+                            editZoneRecords.push(records[i]);
+                            break;
                     }
                 }
-
-                recordCount++;
-                tableHtmlRows += getZoneRecordRowHtml(i, zone, zoneType, records[i]);
             }
 
             $("#titleEditZone").text(zone === "." ? "<root>" : zone);
             $("#titleEditZone").attr("data-zone", zone);
-            $("#tableEditZoneBody").html(tableHtmlRows);
+            $("#titleEditZone").attr("data-zone-type", zoneType);
 
-            if (recordCount > 0)
-                $("#tableEditZoneFooter").html("<tr><td colspan=\"5\"><b>Total Records: " + recordCount + "</b></td></tr>");
-            else
-                $("#tableEditZoneFooter").html("<tr><td colspan=\"5\" align=\"center\">No Records Found</td></tr>");
+            showEditZonePage(showPageNumber);
 
             divViewZonesLoader.hide();
             divEditZone.show();
@@ -1509,7 +1595,84 @@ function showEditZone(zone) {
     });
 }
 
-function getZoneRecordRowHtml(id, zone, zoneType, record) {
+function showEditZonePage(pageNumber) {
+    if (pageNumber == null)
+        pageNumber = Number($("#txtEditZonePageNumber").val());
+
+    if (pageNumber == 0)
+        pageNumber = 1;
+
+    var recordsPerPage = Number($("#optEditZoneRecordsPerPage").val());
+    if (recordsPerPage < 1)
+        recordsPerPage = 10;
+
+    var totalRecords = editZoneRecords.length;
+    var totalPages = Math.floor(totalRecords / recordsPerPage) + (totalRecords % recordsPerPage > 0 ? 1 : 0);
+
+    if ((pageNumber > totalPages) || (pageNumber < 0))
+        pageNumber = totalPages;
+
+    var start = (pageNumber - 1) * recordsPerPage;
+    var end = Math.min(start + recordsPerPage, totalRecords);
+
+    var tableHtmlRows = "";
+    var zone = $("#titleEditZone").attr("data-zone");
+    var zoneType = $("#titleEditZone").attr("data-zone-type");
+
+    for (var i = start; i < end; i++)
+        tableHtmlRows += getZoneRecordRowHtml(i, zone, zoneType, editZoneRecords[i]);
+
+    var paginationHtml = "";
+
+    if (pageNumber > 1) {
+        paginationHtml += "<li><a href=\"#\" aria-label=\"First\" onClick=\"showEditZonePage(1); return false;\"><span aria-hidden=\"true\">&laquo;</span></a></li>";
+        paginationHtml += "<li><a href=\"#\" aria-label=\"Previous\" onClick=\"showEditZonePage(" + (pageNumber - 1) + "); return false;\"><span aria-hidden=\"true\">&lsaquo;</span></a></li>";
+    }
+
+    var pageStart = pageNumber - 5;
+    if (pageStart < 1)
+        pageStart = 1;
+
+    var pageEnd = pageStart + 9;
+    if (pageEnd > totalPages) {
+        var endDiff = pageEnd - totalPages;
+        pageEnd = totalPages;
+
+        pageStart -= endDiff;
+        if (pageStart < 1)
+            pageStart = 1;
+    }
+
+    for (var i = pageStart; i <= pageEnd; i++) {
+        if (i == pageNumber)
+            paginationHtml += "<li class=\"active\"><a href=\"#\" onClick=\"showEditZonePage(" + i + "); return false;\">" + i + "</a></li>";
+        else
+            paginationHtml += "<li><a href=\"#\" onClick=\"showEditZonePage(" + i + "); return false;\">" + i + "</a></li>";
+    }
+
+    if (pageNumber < totalPages) {
+        paginationHtml += "<li><a href=\"#\" aria-label=\"Next\" onClick=\"showEditZonePage(" + (pageNumber + 1) + "); return false;\"><span aria-hidden=\"true\">&rsaquo;</span></a></li>";
+        paginationHtml += "<li><a href=\"#\" aria-label=\"Last\" onClick=\"showEditZonePage(-1); return false;\"><span aria-hidden=\"true\">&raquo;</span></a></li>";
+    }
+
+    var statusHtml;
+
+    if (editZoneRecords.length > 0)
+        statusHtml = (start + 1) + "-" + end + " (" + (end - start) + ") of " + editZoneRecords.length + " records (page " + pageNumber + " of " + totalPages + ")";
+    else
+        statusHtml = "0 records";
+
+    $("#txtEditZonePageNumber").val(pageNumber);
+    $("#tableEditZoneBody").html(tableHtmlRows);
+
+    $("#tableEditZoneTopStatus").html(statusHtml);
+    $("#tableEditZoneTopPagination").html(paginationHtml);
+
+    $("#tableEditZoneFooterStatus").html(statusHtml);
+    $("#tableEditZoneFooterPagination").html(paginationHtml);
+}
+
+function getZoneRecordRowHtml(index, zone, zoneType, record) {
     var name = record.name.toLowerCase();
     if (name === "")
         name = ".";
@@ -1519,7 +1682,7 @@ function getZoneRecordRowHtml(id, zone, zoneType, record) {
     else
         name = name.replace("." + zone, "");
 
-    var tableHtmlRow = "<tr id=\"trZoneRecord" + id + "\"><td>" + htmlEncode(name) + "</td>";
+    var tableHtmlRow = "<tr id=\"trZoneRecord" + index + "\"><td>" + (index + 1) + "</td><td>" + htmlEncode(name) + "</td>";
     tableHtmlRow += "<td>" + record.type + "</td>";
     tableHtmlRow += "<td>" + record.ttl + "</td>";
 
@@ -2022,11 +2185,11 @@ function getZoneRecordRowHtml(id, zone, zoneType, record) {
     }
     else {
         tableHtmlRow += "<td align=\"right\" style=\"min-width: 220px;\">";
-        tableHtmlRow += "<div id=\"data" + id + "\" data-record-name=\"" + htmlEncode(record.name) + "\" data-record-type=\"" + record.type + "\" data-record-ttl=\"" + record.ttl + "\" " + additionalDataAttributes + " data-record-disabled=\"" + record.disabled + "\" data-record-comments=\"" + htmlEncode(record.comments) + "\" style=\"display: none;\"></div>";
-        tableHtmlRow += "<button type=\"button\" class=\"btn btn-primary\" style=\"font-size: 12px; padding: 2px 0px; width: 60px; margin: 0 6px 0 0;\" data-id=\"" + id + "\" onclick=\"showEditRecordModal(this);\">Edit</button>";
-        tableHtmlRow += "<button type=\"button\" class=\"btn btn-default\" id=\"btnEnableRecord" + id + "\" style=\"font-size: 12px; padding: 2px 0px; width: 60px; margin: 0 6px 0 0;" + (record.disabled ? "" : " display: none;") + "\" data-id=\"" + id + "\" onclick=\"updateRecordState(this, false);\"" + (disableEnableDisableDeleteButtons ? " disabled" : "") + " data-loading-text=\"Enabling...\">Enable</button>";
-        tableHtmlRow += "<button type=\"button\" class=\"btn btn-warning\" id=\"btnDisableRecord" + id + "\" style=\"font-size: 12px; padding: 2px 0px; width: 60px; margin: 0 6px 0 0;" + (!record.disabled ? "" : " display: none;") + "\" data-id=\"" + id + "\" onclick=\"updateRecordState(this, true);\"" + (disableEnableDisableDeleteButtons ? " disabled" : "") + " data-loading-text=\"Disabling...\">Disable</button>";
-        tableHtmlRow += "<button type=\"button\" class=\"btn btn-danger\" style=\"font-size: 12px; padding: 2px 0px; width: 60px; margin: 0 6px 0 0;\" data-loading-text=\"Deleting...\" data-id=\"" + id + "\" onclick=\"deleteRecord(this);\"" + (disableEnableDisableDeleteButtons ? " disabled" : "") + ">Delete</button></td>";
+        tableHtmlRow += "<div id=\"data" + index + "\" data-record-name=\"" + htmlEncode(record.name) + "\" data-record-type=\"" + record.type + "\" data-record-ttl=\"" + record.ttl + "\" " + additionalDataAttributes + " data-record-disabled=\"" + record.disabled + "\" data-record-comments=\"" + htmlEncode(record.comments) + "\" style=\"display: none;\"></div>";
+        tableHtmlRow += "<button type=\"button\" class=\"btn btn-primary\" style=\"font-size: 12px; padding: 2px 0px; width: 60px; margin: 0 6px 0 0;\" data-id=\"" + index + "\" onclick=\"showEditRecordModal(this);\">Edit</button>";
+        tableHtmlRow += "<button type=\"button\" class=\"btn btn-default\" id=\"btnEnableRecord" + index + "\" style=\"font-size: 12px; padding: 2px 0px; width: 60px; margin: 0 6px 0 0;" + (record.disabled ? "" : " display: none;") + "\" data-id=\"" + index + "\" onclick=\"updateRecordState(this, false);\"" + (disableEnableDisableDeleteButtons ? " disabled" : "") + " data-loading-text=\"Enabling...\">Enable</button>";
+        tableHtmlRow += "<button type=\"button\" class=\"btn btn-warning\" id=\"btnDisableRecord" + index + "\" style=\"font-size: 12px; padding: 2px 0px; width: 60px; margin: 0 6px 0 0;" + (!record.disabled ? "" : " display: none;") + "\" data-id=\"" + index + "\" onclick=\"updateRecordState(this, true);\"" + (disableEnableDisableDeleteButtons ? " disabled" : "") + " data-loading-text=\"Disabling...\">Disable</button>";
+        tableHtmlRow += "<button type=\"button\" class=\"btn btn-danger\" style=\"font-size: 12px; padding: 2px 0px; width: 60px; margin: 0 6px 0 0;\" data-loading-text=\"Deleting...\" data-id=\"" + index + "\" onclick=\"deleteRecord(this);\"" + (disableEnableDisableDeleteButtons ? " disabled" : "") + ">Delete</button></td>";
     }
 
     tableHtmlRow += "</tr>";
@@ -2221,9 +2384,9 @@ function modifyAddRecordFormByType(addMode) {
     $("#divAddEditRecordDataMx").hide();
     $("#divAddEditRecordDataSrv").hide();
     $("#divAddEditRecordDataDs").hide();
-    $("#divAddEditRecordDataDs").hide();
     $("#divAddEditRecordDataSshfp").hide();
     $("#divAddEditRecordDataTlsa").hide();
+    $("#divAddEditRecordDataCaa").hide();
     $("#divAddEditRecordDataForwarder").hide();
     $("#divAddEditRecordDataApplication").hide();
 
@@ -2722,24 +2885,15 @@ function addRecord() {
             $("#modalAddEditRecord").modal("hide");
 
             if (overwrite) {
-                showEditZone(zone);
+                var currentPageNumber = Number($("#txtEditZonePageNumber").val());
+                showEditZone(zone, currentPageNumber);
             }
             else {
-                var zoneType;
-                if (responseJSON.response.zone.internal)
-                    zoneType = "Internal";
-                else
-                    zoneType = responseJSON.response.zone.type;
+                //update local array
+                editZoneRecords.unshift(responseJSON.response.addedRecord);
 
-                var id = Math.floor(Math.random() * 1000000);
-                var tableHtmlRow = getZoneRecordRowHtml(id, zone, zoneType, responseJSON.response.addedRecord);
-                $("#tableEditZoneBody").prepend(tableHtmlRow);
-
-                var recordCount = $('#tableEditZone >tbody >tr').length;
-                if (recordCount > 0)
-                    $("#tableEditZoneFooter").html("<tr><td colspan=\"5\"><b>Total Records: " + recordCount + "</b></td></tr>");
-                else
-                    $("#tableEditZoneFooter").html("<tr><td colspan=\"5\" align=\"center\">No Records Found</td></tr>");
+                //show page
+                showEditZonePage(1);
             }
 
             showAlert("success", "Record Added!", "Resource record was added successfully.");
@@ -2764,11 +2918,11 @@ function updateAddEditFormForwarderPlaceholder() {
             break;
 
         case "Tls":
+        case "Quic":
             $("#txtAddEditRecordDataForwarder").attr("placeholder", "dns.quad9.net (9.9.9.9:853)")
             break;
 
         case "Https":
-        case "HttpsJson":
             $("#txtAddEditRecordDataForwarder").attr("placeholder", "https://cloudflare-dns.com/dns-query (1.1.1.1)")
             break;
     }
@@ -2899,6 +3053,10 @@ function showEditRecordModal(objBtn) {
             switch (divData.attr("data-record-zonetransferprotocol").toLowerCase()) {
                 case "tls":
                     $("#rdEditRecordDataSoaZoneTransferProtocolTls").prop("checked", true);
+                    break;
+
+                case "quic":
+                    $("#rdEditRecordDataSoaZoneTransferProtocolQuic").prop("checked", true);
                     break;
 
                 case "tcp":
@@ -3062,8 +3220,8 @@ function updateRecord() {
     var btn = $("#btnAddEditRecord");
     var divAddEditRecordAlert = $("#divAddEditRecordAlert");
 
-    var id = btn.attr("data-id");
-    var divData = $("#data" + id);
+    var index = Number(btn.attr("data-id"));
+    var divData = $("#data" + index);
 
     var zone = $("#titleEditZone").attr("data-zone");
     var type = divData.attr("data-record-type");
@@ -3514,14 +3672,18 @@ function updateRecord() {
         success: function (responseJSON) {
             $("#modalAddEditRecord").modal("hide");
 
+            //update local array
+            editZoneRecords[index] = responseJSON.response.updatedRecord;
+
+            //show record
             var zoneType;
             if (responseJSON.response.zone.internal)
                 zoneType = "Internal";
             else
                 zoneType = responseJSON.response.zone.type;
 
-            var tableHtmlRow = getZoneRecordRowHtml(id, zone, zoneType, responseJSON.response.updatedRecord);
-            $("#trZoneRecord" + id).replaceWith(tableHtmlRow);
+            var tableHtmlRow = getZoneRecordRowHtml(index, zone, zoneType, responseJSON.response.updatedRecord);
+            $("#trZoneRecord" + index).replaceWith(tableHtmlRow);
 
             showAlert("success", "Record Updated!", "Resource record was updated successfully.");
         },
@@ -3538,8 +3700,8 @@ function updateRecord() {
 
 function updateRecordState(objBtn, disable) {
     var btn = $(objBtn);
-    var id = btn.attr("data-id");
-    var divData = $("#data" + id);
+    var index = Number(btn.attr("data-id"));
+    var divData = $("#data" + index);
 
     var type = divData.attr("data-record-type");
     var domain = divData.attr("data-record-name");
@@ -3632,18 +3794,21 @@ function updateRecordState(objBtn, disable) {
         success: function (responseJSON) {
             btn.button('reset');
 
+            //update local arrays
+            editZoneRecords[index] = responseJSON.response.updatedRecord;
+
             //set new state
             divData.attr("data-record-disabled", disable);
 
             if (disable) {
-                $("#btnEnableRecord" + id).show();
-                $("#btnDisableRecord" + id).hide();
+                $("#btnEnableRecord" + index).show();
+                $("#btnDisableRecord" + index).hide();
 
                 showAlert("success", "Record Disabled!", "Resource record was disabled successfully.");
             }
             else {
-                $("#btnEnableRecord" + id).hide();
-                $("#btnDisableRecord" + id).show();
+                $("#btnEnableRecord" + index).hide();
+                $("#btnDisableRecord" + index).show();
 
                 showAlert("success", "Record Enabled!", "Resource record was enabled successfully.");
             }
@@ -3659,8 +3824,8 @@ function updateRecordState(objBtn, disable) {
 
 function deleteRecord(objBtn) {
     var btn = $(objBtn);
-    var id = btn.attr("data-id");
-    var divData = $("#data" + id);
+    var index = btn.attr("data-id");
+    var divData = $("#data" + index);
 
     var zone = $("#titleEditZone").attr("data-zone");
     var domain = divData.attr("data-record-name");
@@ -3730,13 +3895,11 @@ function deleteRecord(objBtn) {
     HTTPRequest({
         url: apiUrl,
         success: function (responseJSON) {
-            $("#trZoneRecord" + id).remove();
+            //update local array
+            editZoneRecords.splice(index, 1);
 
-            var recordCount = $('#tableEditZone >tbody >tr').length;
-            if (recordCount > 0)
-                $("#tableEditZoneFooter").html("<tr><td colspan=\"5\"><b>Total Records: " + recordCount + "</b></td></tr>");
-            else
-                $("#tableEditZoneFooter").html("<tr><td colspan=\"5\" align=\"center\">No Records Found</td></tr>");
+            //show page
+            showEditZonePage();
 
             showAlert("success", "Record Deleted!", "Resource record was deleted successfully.");
         },
@@ -3954,8 +4117,12 @@ function refreshDnssecProperties(divDnssecPropertiesLoader) {
                     + "<td>" + responseJSON.response.dnssecPrivateKeys[i].keyType + "</td>"
                     + "<td>" + responseJSON.response.dnssecPrivateKeys[i].algorithm + "</td>"
                     + "<td>" + responseJSON.response.dnssecPrivateKeys[i].state + "</td>"
-                    + "<td>" + moment(responseJSON.response.dnssecPrivateKeys[i].stateChangedOn).local().format("YYYY-MM-DD HH:mm") + "</td>"
-                    + "<td>";
+                    + "<td>" + moment(responseJSON.response.dnssecPrivateKeys[i].stateChangedOn).local().format("YYYY-MM-DD HH:mm");
+
+                if (responseJSON.response.dnssecPrivateKeys[i].stateReadyBy != null)
+                    tableHtmlRows += "</br>(ready by: " + moment(responseJSON.response.dnssecPrivateKeys[i].stateReadyBy).local().format("YYYY-MM-DD HH:mm") + ")";
+
+                tableHtmlRows += "</td><td>";
 
                 if (responseJSON.response.dnssecPrivateKeys[i].keyType === "ZoneSigningKey") {
                     switch (responseJSON.response.dnssecPrivateKeys[i].state) {
@@ -3986,15 +4153,19 @@ function refreshDnssecProperties(divDnssecPropertiesLoader) {
 
                 switch (responseJSON.response.dnssecPrivateKeys[i].state) {
                     case "Generated":
-                        tableHtmlRows += "<button type=\"button\" class=\"btn btn-danger\" style=\"font-size: 12px; padding: 2px 0px; width: 60px;\" data-id=\"" + id + "\" data-loading-text=\"Deleting...\" onclick=\"deleteDnssecPrivateKey(" + responseJSON.response.dnssecPrivateKeys[i].keyTag + ", this);\">Delete</button>";
+                        tableHtmlRows += "<div class=\"dropdown\"><a href=\"#\" id=\"btnDnssecPropertiesDnsKeyRowOption" + id + "\" class=\"dropdown-toggle\" data-toggle=\"dropdown\" aria-haspopup=\"true\" aria-expanded=\"true\"><span class=\"glyphicon glyphicon-option-vertical\" aria-hidden=\"true\"></span></a><ul class=\"dropdown-menu dropdown-menu-right\">";
+                        tableHtmlRows += "<li><a href=\"#\" onclick=\"deleteDnssecPrivateKey(" + responseJSON.response.dnssecPrivateKeys[i].keyTag + ", '" + id + "'); return false;\">Delete</a></li>";
+                        tableHtmlRows += "</ul></div>";
                         foundGeneratedKey = true;
                         break;
 
                     case "Ready":
                     case "Active":
                         if (!responseJSON.response.dnssecPrivateKeys[i].isRetiring) {
-                            tableHtmlRows += "<button type=\"button\" class=\"btn btn-warning\" style=\"font-size: 12px; padding: 2px 0px; width: 60px; margin: 0 6px 0 0;\" data-loading-text=\"Rolling...\" onclick=\"rolloverDnssecDnsKey(" + responseJSON.response.dnssecPrivateKeys[i].keyTag + ", this);\">Rollover</button>";
-                            tableHtmlRows += "<button type=\"button\" class=\"btn btn-warning\" style=\"font-size: 12px; padding: 2px 0px; width: 60px;\" data-loading-text=\"Retiring...\" onclick=\"retireDnssecDnsKey(" + responseJSON.response.dnssecPrivateKeys[i].keyTag + ", this);\">Retire</button>";
+                            tableHtmlRows += "<div class=\"dropdown\"><a href=\"#\" id=\"btnDnssecPropertiesDnsKeyRowOption" + id + "\" class=\"dropdown-toggle\" data-toggle=\"dropdown\" aria-haspopup=\"true\" aria-expanded=\"true\"><span class=\"glyphicon glyphicon-option-vertical\" aria-hidden=\"true\"></span></a><ul class=\"dropdown-menu dropdown-menu-right\">";
+                            tableHtmlRows += "<li><a href=\"#\" onclick=\"rolloverDnssecDnsKey(" + responseJSON.response.dnssecPrivateKeys[i].keyTag + ", '" + id + "'); return false;\">Rollover</a></li>";
+                            tableHtmlRows += "<li><a href=\"#\" onclick=\"retireDnssecDnsKey(" + responseJSON.response.dnssecPrivateKeys[i].keyTag + ", '" + id + "'); return false;\">Retire</a></li>";
+                            tableHtmlRows += "</ul></div>";
                         }
                         break;
                 }
@@ -4076,16 +4247,17 @@ function updateDnssecPrivateKey(keyTag, objBtn) {
     });
 }
 
-function deleteDnssecPrivateKey(keyTag, objBtn) {
-    if (!confirm("Are you sure to permanently delete the private key?"))
+function deleteDnssecPrivateKey(keyTag, id) {
+    if (!confirm("Are you sure to permanently delete the private key (" + keyTag + ")?"))
         return;
 
-    var btn = $(objBtn);
-    var id = btn.attr("data-id");
     var divDnssecPropertiesAlert = $("#divDnssecPropertiesAlert");
     var zone = $("#lblDnssecPropertiesZoneName").attr("data-zone");
 
-    btn.button('loading');
+    var btn = $("#btnDnssecPropertiesDnsKeyRowOption" + id);
+    var originalBtnHtml = btn.html();
+    btn.prop("disabled", true);
+    btn.html("<img src='/img/loader-small.gif'/>");
 
     HTTPRequest({
         url: "/api/zones/dnssec/properties/deletePrivateKey?token=" + sessionData.token + "&zone=" + zone + "&keyTag=" + keyTag,
@@ -4094,7 +4266,8 @@ function deleteDnssecPrivateKey(keyTag, objBtn) {
             showAlert("success", "Private Key Deleted!", "The DNSSEC private key was deleted successfully.", divDnssecPropertiesAlert);
         },
         error: function () {
-            btn.button('reset');
+            btn.prop("disabled", false);
+            btn.html(originalBtnHtml);
         },
         invalidToken: function () {
             $("#modalDnssecProperties").modal("hide");
@@ -4104,15 +4277,17 @@ function deleteDnssecPrivateKey(keyTag, objBtn) {
     });
 }
 
-function rolloverDnssecDnsKey(keyTag, objBtn) {
-    if (!confirm("Are you sure you want to rollover the DNS Key?"))
+function rolloverDnssecDnsKey(keyTag, id) {
+    if (!confirm("Are you sure you want to rollover the DNS Key (" + keyTag + ")?"))
         return;
 
-    var btn = $(objBtn);
     var divDnssecPropertiesAlert = $("#divDnssecPropertiesAlert");
     var zone = $("#lblDnssecPropertiesZoneName").attr("data-zone");
 
-    btn.button('loading');
+    var btn = $("#btnDnssecPropertiesDnsKeyRowOption" + id);
+    var originalBtnHtml = btn.html();
+    btn.prop("disabled", true);
+    btn.html("<img src='/img/loader-small.gif'/>");
 
     HTTPRequest({
         url: "/api/zones/dnssec/properties/rolloverDnsKey?token=" + sessionData.token + "&zone=" + zone + "&keyTag=" + keyTag,
@@ -4121,7 +4296,8 @@ function rolloverDnssecDnsKey(keyTag, objBtn) {
             showAlert("success", "Rollover Done!", "The DNS Key was rolled over successfully.", divDnssecPropertiesAlert);
         },
         error: function () {
-            btn.button('reset');
+            btn.prop("disabled", false);
+            btn.html(originalBtnHtml);
         },
         invalidToken: function () {
             $("#modalDnssecProperties").modal("hide");
@@ -4131,15 +4307,17 @@ function rolloverDnssecDnsKey(keyTag, objBtn) {
     });
 }
 
-function retireDnssecDnsKey(keyTag, objBtn) {
-    if (!confirm("Are you sure you want to retire the DNS Key?"))
+function retireDnssecDnsKey(keyTag, id) {
+    if (!confirm("Are you sure you want to retire the DNS Key (" + keyTag + ")?"))
         return;
 
-    var btn = $(objBtn);
     var divDnssecPropertiesAlert = $("#divDnssecPropertiesAlert");
     var zone = $("#lblDnssecPropertiesZoneName").attr("data-zone");
 
-    btn.button('loading');
+    var btn = $("#btnDnssecPropertiesDnsKeyRowOption" + id);
+    var originalBtnHtml = btn.html();
+    btn.prop("disabled", true);
+    btn.html("<img src='/img/loader-small.gif'/>");
 
     HTTPRequest({
         url: "/api/zones/dnssec/properties/retireDnsKey?token=" + sessionData.token + "&zone=" + zone + "&keyTag=" + keyTag,
@@ -4148,7 +4326,8 @@ function retireDnssecDnsKey(keyTag, objBtn) {
             showAlert("success", "DNS Key Retired!", "The DNS Key was retired successfully.", divDnssecPropertiesAlert);
         },
         error: function () {
-            btn.button('reset');
+            btn.prop("disabled", false);
+            btn.html(originalBtnHtml);
         },
         invalidToken: function () {
             $("#modalDnssecProperties").modal("hide");
