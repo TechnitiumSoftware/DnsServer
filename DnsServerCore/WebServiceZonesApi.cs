@@ -398,16 +398,20 @@ namespace DnsServerCore
                             {
                                 if ((zoneInfo is not null) && (zoneInfo.Type == AuthZoneType.Primary))
                                 {
-                                    foreach (DnssecPrivateKey dnssecPrivateKey in zoneInfo.DnssecPrivateKeys)
+                                    IReadOnlyCollection<DnssecPrivateKey> dnssecPrivateKeys = zoneInfo.DnssecPrivateKeys;
+                                    if (dnssecPrivateKeys is not null)
                                     {
-                                        if (dnssecPrivateKey.KeyTag == rdata.ComputedKeyTag)
+                                        foreach (DnssecPrivateKey dnssecPrivateKey in dnssecPrivateKeys)
                                         {
-                                            jsonWriter.WriteString("dnsKeyState", dnssecPrivateKey.State.ToString());
+                                            if (dnssecPrivateKey.KeyTag == rdata.ComputedKeyTag)
+                                            {
+                                                jsonWriter.WriteString("dnsKeyState", dnssecPrivateKey.State.ToString());
 
-                                            if ((dnssecPrivateKey.KeyType == DnssecPrivateKeyType.KeySigningKey) && (dnssecPrivateKey.State == DnssecPrivateKeyState.Published))
-                                                jsonWriter.WriteString("dnsKeyStateReadyBy", (zoneInfo.ApexZone as PrimaryZone).GetDnsKeyStateReadyBy(dnssecPrivateKey));
+                                                if ((dnssecPrivateKey.KeyType == DnssecPrivateKeyType.KeySigningKey) && (dnssecPrivateKey.State == DnssecPrivateKeyState.Published))
+                                                    jsonWriter.WriteString("dnsKeyStateReadyBy", (zoneInfo.ApexZone as PrimaryZone).GetDnsKeyStateReadyBy(dnssecPrivateKey));
 
-                                            break;
+                                                break;
+                                            }
                                         }
                                     }
                                 }
