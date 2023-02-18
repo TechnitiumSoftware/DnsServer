@@ -350,7 +350,7 @@
                                             </form>
                                             <form class="pull-right">
                                                 <div class="form-group">
-                                                    <label for="optZonesPerPage">Page Number</label>
+                                                    <label for="txtZonesPageNumber">Page Number</label>
                                                     <input id="txtZonesPageNumber" class="form-control" style="width: 100px;" type="number" />
                                                 </div>
                                                 <div class="form-group">
@@ -424,7 +424,7 @@
 
                                     <div id="divEditZone" style="display: none;">
                                         <ul class="pager" style="margin: 0px;">
-                                            <li class="previous"><a href="#" onclick="$('#divEditZone').hide(); $('#divViewZones').show(); return false;"><span aria-hidden="true">&larr;</span> Back</a></li>
+                                            <li class="previous"><a href="#" onclick="refreshZones(); return false;"><span aria-hidden="true">&larr;</span> Back</a></li>
                                         </ul>
 
                                         <div style="padding: 10px 0px;">
@@ -459,9 +459,48 @@
                                             <div style="clear: both;"></div>
                                         </div>
 
+                                        <div class="form-inline">
+                                            <form class="pull-right">
+                                                <div class="form-group">
+                                                    <label for="txtEditZonePageNumber">Page Number</label>
+                                                    <input id="txtEditZonePageNumber" class="form-control" style="width: 100px;" type="number" />
+                                                </div>
+                                                <div class="form-group">
+                                                    <label for="optEditZoneRecordsPerPage">Records Per Page</label>
+                                                    <select class="form-control" id="optEditZoneRecordsPerPage">
+                                                        <option selected>10</option>
+                                                        <option>25</option>
+                                                        <option>50</option>
+                                                        <option>100</option>
+                                                        <option>250</option>
+                                                        <option>500</option>
+                                                    </select>
+                                                </div>
+                                                <button type="submit" class="btn btn-primary form-group" style="margin-right: 0px;" onclick="showEditZonePage(); return false;">Go</button>
+                                            </form>
+                                            <div class="clearfix"></div>
+                                        </div>
+
+                                        <div>
+                                            <div class="pull-left">
+                                                <b id="tableEditZoneTopStatus">0 records</b>
+                                            </div>
+                                            <div class="pull-right">
+                                                <nav aria-label="Page navigation">
+                                                    <ul id="tableEditZoneTopPagination" class="pagination" style="margin: 0;">
+                                                        <li><a href="#" aria-label="Previous"><span aria-hidden="true">&laquo;</span></a></li>
+                                                        <li><a href="#">1</a></li>
+                                                        <li><a href="#" aria-label="Next"><span aria-hidden="true">&raquo;</span></a></li>
+                                                    </ul>
+                                                </nav>
+                                            </div>
+                                            <div class="clearfix"></div>
+                                        </div>
+
                                         <table id="tableEditZone" class="table table-hover">
                                             <thead>
                                                 <tr>
+                                                    <th>#</th>
                                                     <th><a href="#" onclick="sortTable('tableEditZoneBody', 0); return false;">Name</a></th>
                                                     <th><a href="#" onclick="sortTable('tableEditZoneBody', 1); return false;">Type</a></th>
                                                     <th><a href="#" onclick="sortTable('tableEditZoneBody', 2); return false;">TTL</a></th>
@@ -471,8 +510,26 @@
                                             </thead>
                                             <tbody id="tableEditZoneBody">
                                             </tbody>
-                                            <tfoot id="tableEditZoneFooter">
-                                                <tr><td><b>Total Records: 0</b></td></tr>
+                                            <tfoot>
+                                                <tr>
+                                                    <td colspan="6">
+                                                        <div>
+                                                            <div class="pull-left">
+                                                                <b id="tableEditZoneFooterStatus">0 records</b>
+                                                            </div>
+                                                            <div class="pull-right">
+                                                                <nav aria-label="Page navigation">
+                                                                    <ul id="tableEditZoneFooterPagination" class="pagination" style="margin: 0;">
+                                                                        <li><a href="#" aria-label="Previous"><span aria-hidden="true">&laquo;</span></a></li>
+                                                                        <li><a href="#">1</a></li>
+                                                                        <li><a href="#" aria-label="Next"><span aria-hidden="true">&raquo;</span></a></li>
+                                                                    </ul>
+                                                                </nav>
+                                                            </div>
+                                                            <div class="clearfix"></div>
+                                                        </div>
+                                                    </td>
+                                                </tr>
                                             </tfoot>
                                         </table>
                                     </div>
@@ -1106,6 +1163,7 @@
                                                         <div>
                                                             <p>Note! The web service port changes will be automatically applied and so you do not need to manually restart the main service. This web page will be automatically redirected to the new web console URL after saving settings. The HTTPS protocol will be enabled only when a TLS certificate is configured.</p>
                                                             <p>When using a reverse proxy with the Web Service, you need to add <code>X-Real-IP</code> header to the proxy request with the IP address of the client to allow the Web server to know the real IP address of the client originating the request. For example, if you are using nginx as the reverse proxy, you can add <code>proxy_set_header X-Real-IP $remote_addr;</code> to make it work.</p>
+                                                            <p>The web service uses Kestral web server which supports both HTTP/2 and HTTP/3 protocols when TLS certificate is configured. HTTP/3 protocol support is not available on all platforms. On Windows, it is available only on Windows 11 (build 22000 or later) and Windows Server 2022. On Linux, it requires <code>libmsquic</code> and <code>openssl v1.1.1</code> to be installed.</p>
                                                             <p>Use the following openssl command to convert your TLS certificate that is in PEM format to PKCS #12 certificate (.pfx) format:</p>
                                                             <pre>openssl pkcs12 -export -out "example.com.pfx" -inkey "privkey.pem" -in "cert.pem" -certfile "chain.pem"</pre>
                                                         </div>
@@ -1204,6 +1262,7 @@
                                                             <p>These optional DNS server protocols are used to host these as a service. You do not need to enable these optional protocols to use them with Forwarders or Conditional Forwarder Zones.</p>
                                                             <p>For DNS-over-HTTP, use <code>http://<span id="lblDoHHost">localhost:8053</span>/dns-query</code> with a TLS terminating reverse proxy like nginx. For DNS-over-TLS, use <code id="lblDoTHost">tls-certificate-domain:853</code>, for DNS-over-QUIC, use <code id="lblDoQHost">tls-certificate-domain:853</code>, and for DNS-over-HTTPS use <code>https://tls-certificate-domain/dns-query</code> to configure supported DNS clients.</p>
                                                             <p>When using a reverse proxy with the DNS-over-HTTP service, you need to add <code>X-Real-IP</code> header to the proxy request with the IP address of the client to allow the DNS server to know the real IP address of the client originating the request. For example, if you are using nginx as the reverse proxy, you can add <code>proxy_set_header X-Real-IP $remote_addr;</code> to make it work.</p>
+                                                            <p>DNS-over-QUIC protocol support is not available on all platforms. On Windows, it is available only on Windows 11 (build 22000 or later) and Windows Server 2022. On Linux, it requires <code>libmsquic</code> and <code>openssl v1.1.1</code> to be installed.</p>
                                                             <p>Use the following openssl command to convert your TLS certificate that is in PEM format to PKCS #12 certificate (.pfx) format:</p>
                                                             <pre>openssl pkcs12 -export -out "example.com.pfx" -inkey "privkey.pem" -in "cert.pem" -certfile "chain.pem"</pre>
                                                         </div>
@@ -1291,7 +1350,7 @@
                                                                         <input id="chkRandomizeName" type="checkbox"> Randomize Name
                                                                     </label>
                                                                 </div>
-                                                                <div style="padding-top: 5px; padding-left: 20px;">Enables <a href="https://datatracker.ietf.org/doc/html/draft-vixie-dnsext-dns0x20-00" target="_blank">QNAME randomization</a> when using UDP as the transport protocol to improve security.</div>
+                                                                <div style="padding-top: 5px; padding-left: 20px;">Enables <a href="https://datatracker.ietf.org/doc/html/draft-vixie-dnsext-dns0x20-00" target="_blank">QNAME case randomization</a> when using UDP as the transport protocol to improve security.</div>
 
                                                                 <div class="checkbox">
                                                                     <label>
@@ -1509,14 +1568,14 @@
                                                                 <div class="radio">
                                                                     <label>
                                                                         <input type="radio" name="rdBlockingType" id="rdBlockingTypeAnyAddress" value="AnyAddress">
-                                                                        Any Address (default)
+                                                                        Any Address
                                                                     </label>
                                                                     <div style="padding-top: 5px; padding-left: 20px;">Uses <code>0.0.0.0</code> and <code>::</code> IP addresses for blocked domain names.</div>
                                                                 </div>
                                                                 <div class="radio">
                                                                     <label>
                                                                         <input type="radio" name="rdBlockingType" id="rdBlockingTypeNxDomain" value="NxDomain">
-                                                                        NX Domain
+                                                                        NX Domain (recommended)
                                                                     </label>
                                                                     <div style="padding-top: 5px; padding-left: 20px;">Uses <code>NX Domain</code> response for blocked domain names.</div>
                                                                 </div>
@@ -1565,11 +1624,8 @@
                                                                     <option value="https://raw.githubusercontent.com/StevenBlack/hosts/master/alternates/gambling-porn-social/hosts">Steven Black [adware + malware + gambling + porn + social] (https://raw.githubusercontent.com/StevenBlack/hosts/master/alternates/gambling-porn-social/hosts)</option>
                                                                     <option value="https://raw.githubusercontent.com/StevenBlack/hosts/master/alternates/fakenews-gambling-porn-social/hosts">Steven Black [adware + malware + fakenews + gambling + porn + social] (https://raw.githubusercontent.com/StevenBlack/hosts/master/alternates/fakenews-gambling-porn-social/hosts)</option>
 
-                                                                    <option value="https://s3.amazonaws.com/lists.disconnect.me/simple_tracking.txt">Disconnect.me [tracking] (https://s3.amazonaws.com/lists.disconnect.me/simple_tracking.txt)</option>
-                                                                    <option value="https://s3.amazonaws.com/lists.disconnect.me/simple_ad.txt">Disconnect.me [ads] (https://s3.amazonaws.com/lists.disconnect.me/simple_ad.txt)</option>
-
-                                                                    <option value="https://dblw.oisd.nl/">OISD Domains (wildcards) Full by sjhgvr (https://dblw.oisd.nl/)</option>
-                                                                    <option value="https://dblw.oisd.nl/nsfwbig/">OISD Domains (wildcards) NSFW (big) by sjhgvr (https://dblw.oisd.nl/nsfwbig/)</option>
+                                                                    <option value="https://big.oisd.nl/">OISD Big (Adblock Plus) (https://big.oisd.nl/)</option>
+                                                                    <option value="https://nsfw.oisd.nl/">OISD NSFW (Adblock Plus) (https://nsfw.oisd.nl/)</option>
                                                                 </select>
                                                             </div>
                                                             <div class="col-sm-offset-3 col-sm-8" style="padding-top: 5px;">
@@ -1596,7 +1652,7 @@
                                                             <div class="col-sm-offset-3 col-sm-8" style="padding-top: 5px;">Click the 'Update Now' button to reset the next update schedule and force download and update of the block lists.</div>
                                                         </div>
 
-                                                        <div style="margin-top: 10px;">DNS Server will use the data returned by the block list URLs to update the block list zone automatically. The expected file format is standard <code>hosts</code> file format, plain text file containing list of domains to block, or wildcard block list file format.</div>
+                                                        <div style="margin-top: 10px;">Note! DNS Server will use the data returned by the block list URLs to update the block list zone automatically. The expected file format is standard <code>hosts</code> file format, plain text file containing list of domains to block, wildcard block list file format, or <code>Adblock Plus</code> file format.</div>
                                                         <div style="margin-top: 10px;"><a href="https://blog.technitium.com/2018/10/blocking-internet-ads-using-dns-sinkhole.html" target="_blank">Help: Blocking Internet Ads Using DNS Sinkhole</a></div>
                                                     </div>
                                                 </div>
@@ -2642,13 +2698,14 @@
                                                             <th>Type</th>
                                                             <th>Class</th>
                                                             <th>Answer</th>
+                                                            <th style="width: 36px;"></th>
                                                         </tr>
                                                     </thead>
                                                     <tbody id="tableQueryLogsBody">
                                                     </tbody>
                                                     <tfoot>
                                                         <tr>
-                                                            <td colspan="10">
+                                                            <td colspan="11">
                                                                 <div>
                                                                     <div class="pull-left">
                                                                         <b id="tableQueryLogsFooterStatus">Found: 0 logs</b>
