@@ -1,6 +1,6 @@
 ﻿/*
 Technitium DNS Server
-Copyright (C) 2022  Shreyas Zare (shreyas@technitium.com)
+Copyright (C) 2023  Shreyas Zare (shreyas@technitium.com)
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -394,9 +394,7 @@ CREATE TABLE IF NOT EXISTS dns_logs
 
         public Task<DnsLogPage> QueryLogsAsync(long pageNumber, int entriesPerPage, bool descendingOrder, DateTime? start, DateTime? end, IPAddress clientIpAddress, DnsTransportProtocol? protocol, DnsServerResponseType? responseType, DnsResponseCode? rcode, string qname, DnsResourceRecordType? qtype, DnsClass? qclass)
         {
-            if (pageNumber < 0)
-                pageNumber = long.MaxValue;
-            else if (pageNumber == 0)
+            if (pageNumber == 0)
                 pageNumber = 1;
 
             if (qname is not null)
@@ -487,7 +485,7 @@ CREATE TABLE IF NOT EXISTS dns_logs
 
                 long totalPages = (totalEntries / entriesPerPage) + (totalEntries % entriesPerPage > 0 ? 1 : 0);
 
-                if (pageNumber > totalPages)
+                if ((pageNumber > totalPages) || (pageNumber < 0))
                     pageNumber = totalPages;
 
                 long endRowNum;
