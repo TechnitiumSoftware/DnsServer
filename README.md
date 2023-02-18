@@ -29,8 +29,9 @@ Be it a home network or an organization's network, having a locally running DNS 
 - Installs in just a minute and works out-of-the-box with zero configuration.
 - Block ads & malware using one or more block list URLs.
 - High performance DNS server based on async IO that can serve millions of requests per minute even on a commodity desktop PC hardware (load tested on Intel i7-8700 CPU with more than 100,000 request/second over Gigabit Ethernet).
-- Self host [DNS-over-TLS](https://www.rfc-editor.org/rfc/rfc7858.html), [DNS-over-HTTPS](https://www.rfc-editor.org/rfc/rfc8484.html), and [DNS-over-QUIC](https://www.ietf.org/rfc/rfc9250.html) DNS service on your network.
-- Use public DNS resolvers like Cloudflare, Google, Quad9, & AdGuard with [DNS-over-TLS](https://www.rfc-editor.org/rfc/rfc7858.html), [DNS-over-HTTPS](https://www.rfc-editor.org/rfc/rfc8484.html), or [DNS-over-QUIC](https://www.ietf.org/rfc/rfc9250.html) protocols as forwarders.
+- Self host [DNS-over-TLS](https://www.rfc-editor.org/rfc/rfc7858.html), [DNS-over-HTTPS](https://www.rfc-editor.org/rfc/rfc8484.html), and [DNS-over-QUIC](https://www.ietf.org/rfc/rfc9250.html) DNS services on your network.
+- DNS-over-HTTPS implementation supports HTTP/1.1, HTTP/2, and HTTP/3 transport protocols.
+- Use public DNS resolvers like Cloudflare, Google, Quad9, and AdGuard with [DNS-over-TLS](https://www.rfc-editor.org/rfc/rfc7858.html), [DNS-over-HTTPS](https://www.rfc-editor.org/rfc/rfc8484.html), or [DNS-over-QUIC](https://www.ietf.org/rfc/rfc9250.html) protocols as forwarders.
 - Advanced caching with features like serve stale, prefetching and auto prefetching.
 - Supports working as an authoritative as well as a recursive DNS server.
 - DNSSEC validation support with RSA & ECDSA algorithms for recursive resolver, forwarders, and conditional forwarders with NSEC and NSEC3 support.
@@ -39,7 +40,7 @@ Be it a home network or an organization's network, having a locally running DNS 
 - SSHFP [RFC 4255](https://www.rfc-editor.org/rfc/rfc4255.html) record type support.
 - CNAME cloaking feature to block domain names that resolve to CNAME which are blocked.
 - QNAME minimization support in recursive resolver [RFC 9156](https://www.rfc-editor.org/rfc/rfc9156.html).
-- QNAME randomization support for UDP transport protocol [draft-vixie-dnsext-dns0x20-00](https://datatracker.ietf.org/doc/html/draft-vixie-dnsext-dns0x20-00).
+- QNAME case randomization support for UDP transport protocol [draft-vixie-dnsext-dns0x20-00](https://datatracker.ietf.org/doc/html/draft-vixie-dnsext-dns0x20-00).
 - DNAME record [RFC 6672](https://datatracker.ietf.org/doc/html/rfc6672) support.
 - ANAME propriety record support to allow using CNAME like feature at zone apex (CNAME flattening). Supports multiple ANAME records at both zone apex and sub domains.
 - APP propriety record support that allows custom DNS Apps to directly handle DNS requests and return a custom DNS response based on any business logic.
@@ -47,6 +48,7 @@ Be it a home network or an organization's network, having a locally running DNS 
 - Support for REGEX based block lists with different block lists for different client IP addresses or subnet using Advanced Blocking DNS App.
 - Primary, Secondary, Stub, and Conditional Forwarder zone support.
 - Static stub zone support implemented in Conditional Forwarder zone to force a domain name to resolve via given name servers using NS records.
+- Bulk conditional forwarding support using Advanced Forwarding DNS App.
 - DNSSEC signed zones support with RSA & ECDSA algorithms.
 - DNSSEC support for both NSEC and NSEC3.
 - Zone transfer with AXFR and IXFR [RFC 1995](https://www.rfc-editor.org/rfc/rfc1995.html) support.
@@ -58,6 +60,7 @@ Be it a home network or an organization's network, having a locally running DNS 
 - EDNS Client Subnet (ECS) [RFC 7871](https://datatracker.ietf.org/doc/html/rfc7871) support for recursive resolution and forwarding.
 - Extended DNS Errors [RFC 8914](https://datatracker.ietf.org/doc/html/rfc8914) support.
 - DNS64 function [RFC 6147](https://www.rfc-editor.org/rfc/rfc6147) support for use by IPv6 only clients using the DNS64 App.
+- Support to host DNSBL / RBL block lists [RFC 5782](https://www.rfc-editor.org/rfc/rfc5782).
 - Multi-user role based access with non-expiring API token support.
 - Self host your domain names on your own DNS server.
 - Wildcard sub domain support.
