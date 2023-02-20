@@ -104,6 +104,7 @@ Make contribution to Technitium and help making new software, updates, and featu
 [Donate Now!](https://www.patreon.com/technitium)
 
 # Blog Posts
+- [Technitium Blog: Configuring DNS-over-QUIC and HTTPS/3 For Technitium DNS Server](https://blog.technitium.com/2023/02/configuring-dns-over-quic-and-https3.html) (Feb 2023)
 - [Technitium Blog: Technitium DNS Server v11 Released!](https://blog.technitium.com/2023/02/technitium-dns-server-v11-released.html) (Feb 2023)
 - [Technitium Blog: Technitium DNS Server v10 Released!](https://blog.technitium.com/2022/11/technitium-dns-server-v10-released.html) (Nov 2022)
 - [Technitium Blog: Technitium DNS Server v9 Released!](https://blog.technitium.com/2022/09/technitium-dns-server-v9-released.html) (Sept 2022)
