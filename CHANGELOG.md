@@ -1,7 +1,7 @@
 # Technitium DNS Server Change Log
 
 ## Version 11.0
-Release Date: 18 February 2022
+Release Date: 18 February 2023
 
 - Added support for DNS-over-QUIC (DoQ) [RFC 9250](https://www.ietf.org/rfc/rfc9250.html). This allows you to run DoQ service as well as use it with Forwarders. DoQ implementation supports running over SOCKS5 proxy server that provides UDP transport.
 - Added support for Zone Transfer over QUIC (XFR-over-QUIC) [RFC 9250](https://www.ietf.org/rfc/rfc9250.html).
