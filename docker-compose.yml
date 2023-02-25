@@ -34,7 +34,7 @@ services:
       # - DNS_SERVER_FORWARDER_PROTOCOL=Tcp #Forwarder protocol options: Udp, Tcp, Tls, Https, HttpsJson.
       # - DNS_SERVER_LOG_USING_LOCAL_TIME=true #Enable this option to use local time instead of UTC for logging.
     volumes:
-      - config:/etc/dns/config    
+      - config:/etc/dns
     restart: unless-stopped
     sysctls:
       - net.ipv4.ip_local_port_range=1024 65000

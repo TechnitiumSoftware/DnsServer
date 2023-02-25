@@ -494,8 +494,12 @@ RESPONSE:
 			"totalCached": 228,
 			"totalBlocked": 111,
 			"totalClients": 831,
+			"zones": 5,
+			"cachedEntries": 28,
 			"allowedZones": 6,
-			"blockedZones": 1136182
+			"blockedZones": 10,
+			"allowListZones": 0,
+			"blockListZones": 1136182
 		},
 		"mainChartData": {
 		    "labelFormat": "HH:mm",

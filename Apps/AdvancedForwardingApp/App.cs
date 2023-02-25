@@ -444,6 +444,28 @@ namespace AdvancedForwarding
                 return false;
             }
 
+            public static bool IsForwarderDomain(string domain, IReadOnlyList<Forwarding> forwardings)
+            {
+                foreach (Forwarding forwarding in forwardings)
+                {
+                    if (IsForwarderDomain(domain, forwarding._forwarderRecords))
+                        return true;
+                }
+
+                return false;
+            }
+
+            public static bool IsForwarderDomain(string domain, IReadOnlyList<DnsForwarderRecordData> forwarderRecords)
+            {
+                foreach (DnsForwarderRecordData forwarderRecord in forwarderRecords)
+                {
+                    if (domain.Equals(forwarderRecord.NameServer.Host, StringComparison.OrdinalIgnoreCase))
+                        return true;
+                }
+
+                return false;
+            }
+
             #endregion
 
             #region private
@@ -554,7 +576,12 @@ namespace AdvancedForwarding
                     {
                         DateTime configFileLastModified = File.GetLastWriteTimeUtc(_configFile);
                         if (configFileLastModified > _configFileLastModified)
+                        {
                             ReloadUpstreamsFile();
+
+                            //force GC collection to remove old cache data from memory quickly
+                            GC.Collect();
+                        }
                     }
                     catch (Exception ex)
                     {
@@ -611,10 +638,10 @@ namespace AdvancedForwarding
                             if (line.Length == 0)
                                 continue; //skip empty line
 
-                            if (line.StartsWith("#"))
+                            if (line.StartsWith('#'))
                                 continue; //skip comment line
 
-                            if (line.StartsWith("["))
+                            if (line.StartsWith('['))
                             {
                                 int i = line.LastIndexOf(']');
                                 if (i < 0)
@@ -689,11 +716,26 @@ namespace AdvancedForwarding
 
             public bool TryGetForwarderRecords(string domain, out IReadOnlyList<DnsForwarderRecordData> forwarderRecords)
             {
-                if ((_forwardings.Count > 0) && Forwarding.TryGetForwarderRecords(domain, _forwardings, out forwarderRecords))
-                    return true;
-
-                if (_defaultForwarderRecords.Count > 0)
+                if ((_forwardings is not null) && (_forwardings.Count > 0))
                 {
+                    if (Forwarding.IsForwarderDomain(domain, _forwardings))
+                    {
+                        forwarderRecords = null;
+                        return false;
+                    }
+
+                    if (Forwarding.TryGetForwarderRecords(domain, _forwardings, out forwarderRecords))
+                        return true;
+                }
+
+                if ((_defaultForwarderRecords is not null) && (_defaultForwarderRecords.Count > 0))
+                {
+                    if (Forwarding.IsForwarderDomain(domain, _defaultForwarderRecords))
+                    {
+                        forwarderRecords = null;
+                        return false;
+                    }
+
                     forwarderRecords = _defaultForwarderRecords;
                     return true;
                 }

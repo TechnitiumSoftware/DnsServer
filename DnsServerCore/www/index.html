@@ -223,27 +223,32 @@
                                                     <div class="zone-stats-panel">
                                                         <div class="stats-item">
                                                             <div class="number" id="divDashboardStatsZones">10</div>
-                                                            <div class="title">Hosted Zones</div>
+                                                            <div class="title">Zones</div>
                                                         </div>
 
                                                         <div class="stats-item">
                                                             <div class="number" id="divDashboardStatsCachedEntries">10</div>
-                                                            <div class="title">Cached Entries</div>
+                                                            <div class="title">Cache</div>
                                                         </div>
 
                                                         <div class="stats-item">
                                                             <div class="number" id="divDashboardStatsAllowedZones">10</div>
-                                                            <div class="title">Allowed Zones</div>
+                                                            <div class="title">Allowed</div>
                                                         </div>
 
                                                         <div class="stats-item">
                                                             <div class="number" id="divDashboardStatsBlockedZones">10</div>
-                                                            <div class="title">Blocked Zones</div>
+                                                            <div class="title">Blocked</div>
+                                                        </div>
+
+                                                        <div class="stats-item">
+                                                            <div class="number" id="divDashboardStatsAllowListZones">10</div>
+                                                            <div class="title">Allow List</div>
                                                         </div>
 
                                                         <div class="stats-item">
                                                             <div class="number" id="divDashboardStatsBlockListZones">10</div>
-                                                            <div class="title">Block List Zones</div>
+                                                            <div class="title">Block List</div>
                                                         </div>
                                                     </div>
 
@@ -935,7 +940,7 @@
                                                             <div class="col-sm-8">
                                                                 <div class="checkbox">
                                                                     <label>
-                                                                        <input id="chkDnssecValidation" type="checkbox"> Enable DNSSEC Validation
+                                                                        <input id="chkDnssecValidation" type="checkbox" checked> Enable DNSSEC Validation
                                                                     </label>
                                                                 </div>
                                                                 <div style="padding-top: 5px; padding-left: 20px;">DNS Server will validate all responses from name servers or forwarders when this option is enabled.</div>
@@ -1167,6 +1172,8 @@
                                                             <p>Use the following openssl command to convert your TLS certificate that is in PEM format to PKCS #12 certificate (.pfx) format:</p>
                                                             <pre>openssl pkcs12 -export -out "example.com.pfx" -inkey "privkey.pem" -in "cert.pem" -certfile "chain.pem"</pre>
                                                         </div>
+
+                                                        <div style="margin-top: 10px;"><a href="https://blog.technitium.com/2023/02/configuring-dns-over-quic-and-https3.html" target="_blank">Help: Configuring DNS-over-QUIC and HTTPS/3 For Technitium DNS Server</a></div>
                                                     </div>
                                                 </div>
 
@@ -1260,7 +1267,7 @@
                                                         <div>
                                                             <p>Note! These optional DNS server protocol changes will be automatically applied and so you do not need to manually restart the main service. The DNS-over-TLS, DNS-over-QUIC, and DNS-over-HTTPS protocols will be enabled only when a TLS certificate is configured.</p>
                                                             <p>These optional DNS server protocols are used to host these as a service. You do not need to enable these optional protocols to use them with Forwarders or Conditional Forwarder Zones.</p>
-                                                            <p>For DNS-over-HTTP, use <code>http://<span id="lblDoHHost">localhost:8053</span>/dns-query</code> with a TLS terminating reverse proxy like nginx. For DNS-over-TLS, use <code id="lblDoTHost">tls-certificate-domain:853</code>, for DNS-over-QUIC, use <code id="lblDoQHost">tls-certificate-domain:853</code>, and for DNS-over-HTTPS use <code>https://tls-certificate-domain/dns-query</code> to configure supported DNS clients.</p>
+                                                            <p>For DNS-over-HTTP, use <code>http://<span id="lblDoHHost">localhost:8053</span>/dns-query</code> with a TLS terminating reverse proxy like nginx. For DNS-over-TLS, use <code id="lblDoTHost">tls-certificate-domain:853</code>, for DNS-over-QUIC, use <code id="lblDoQHost">tls-certificate-domain:853</code>, and for DNS-over-HTTPS use <code>https://<span id="lblDoHsHost">tls-certificate-domain</span>/dns-query</code> to configure supported DNS clients.</p>
                                                             <p>When using a reverse proxy with the DNS-over-HTTP service, you need to add <code>X-Real-IP</code> header to the proxy request with the IP address of the client to allow the DNS server to know the real IP address of the client originating the request. For example, if you are using nginx as the reverse proxy, you can add <code>proxy_set_header X-Real-IP $remote_addr;</code> to make it work.</p>
                                                             <p>DNS-over-QUIC protocol support is not available on all platforms. On Windows, it is available only on Windows 11 (build 22000 or later) and Windows Server 2022. On Linux, it requires <code>libmsquic</code> and <code>openssl v1.1.1</code> to be installed.</p>
                                                             <p>Use the following openssl command to convert your TLS certificate that is in PEM format to PKCS #12 certificate (.pfx) format:</p>
@@ -1268,6 +1275,7 @@
                                                         </div>
 
                                                         <div style="margin-top: 10px;"><a href="https://blog.technitium.com/2020/07/how-to-host-your-own-dns-over-https-and.html" target="_blank">Help: How To Host Your Own DNS-over-HTTPS And DNS-over-TLS Services</a></div>
+                                                        <div style="margin-top: 10px;"><a href="https://blog.technitium.com/2023/02/configuring-dns-over-quic-and-https3.html" target="_blank">Help: Configuring DNS-over-QUIC and HTTPS/3 For Technitium DNS Server</a></div>
                                                     </div>
                                                 </div>
 
@@ -1446,7 +1454,7 @@
                                                                 <input type="number" class="form-control" id="txtCacheMaximumEntries" placeholder="entries" style="width: 125px; display: inline;">
                                                                 <span>(default 10000; set 0 to disable)</span>
                                                             </div>
-                                                            <div class="col-sm-offset-3 col-sm-8" style="padding-top: 5px;">The maximum number of entries that the cache can store. A relevant value should be configured by monitoring the Cached Entries value on Dashboard and the server's memory usage to limit the amount of RAM used by the DNS server. A cache entry is a complete Resource Record Set (RR Set) which is a group of records with the same type for a given domain name. When a value is configured, the DNS server will trigger a clean up operation every few minutes and remove least recently used entries to maintain the maximum allowed entries in cache.</div>
+                                                            <div class="col-sm-offset-3 col-sm-8" style="padding-top: 5px;">The maximum number of entries that the cache can store. A relevant value should be configured by monitoring the Cache entries value on Dashboard and the server's memory usage to limit the amount of RAM used by the DNS server. A cache entry is a complete Resource Record Set (RR Set) which is a group of records with the same type for a given domain name. When a value is configured, the DNS server will trigger a clean up operation every few minutes and remove least recently used entries to maintain the maximum allowed entries in cache.</div>
                                                         </div>
 
                                                         <div class="form-group">
@@ -1630,7 +1638,7 @@
                                                             </div>
                                                             <div class="col-sm-offset-3 col-sm-8" style="padding-top: 5px;">
                                                                 <p>Enter block list URL one below another in the above text field or use the Quick Add list to add known block list URLs.</p>
-                                                                <p>Add <code>!</code> character at the start of an URL to make it an allow list URL. Domain names in such an allow list URL are prevented from being added to the block list zone.</p>
+                                                                <p>Add <code>!</code> character at the start of an URL to make it an allow list URL. This option must not be used with allow lists that use <code>Adblock plus</code> format.</p>
                                                             </div>
                                                         </div>
 
@@ -1847,6 +1855,7 @@
 
                                                         <div style="margin-top: 10px;">Forwarders are DNS servers which this DNS Server should use to resolve recursive queries. If no forwarders are configured then this DNS server will use preconfigured ROOT SERVERS to perform recursive resolution.</div>
                                                         <div style="margin-top: 10px;"><a href="https://blog.technitium.com/2018/06/configuring-dns-server-for-privacy.html" target="_blank">Help: Configuring DNS Server For Privacy & Security</a></div>
+                                                        <div style="margin-top: 10px;"><a href="https://blog.technitium.com/2023/02/configuring-dns-over-quic-and-https3.html" target="_blank">Help: Configuring DNS-over-QUIC and HTTPS/3 For Technitium DNS Server</a></div>
                                                     </div>
 
                                                     <div class="well well-sm form-horizontal">

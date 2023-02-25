@@ -2,8 +2,8 @@
 Description=Technitium DNS Server
 
 [Service]
-WorkingDirectory=/etc/dns
-ExecStart=/usr/bin/dotnet /etc/dns/DnsServerApp.dll
+WorkingDirectory=/opt/technitium/dns
+ExecStart=/usr/bin/dotnet /opt/technitium/dns/DnsServerApp.dll /etc/dns
 Restart=always
 # Restart service after 10 seconds if the dotnet service crashes:
 RestartSec=10

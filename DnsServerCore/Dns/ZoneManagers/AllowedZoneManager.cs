@@ -176,9 +176,12 @@ namespace DnsServerCore.Dns.ZoneManagers
                 log.Write("DNS Server allowed zone file was saved: " + allowedZoneFile);
         }
 
-        public DnsDatagram Query(DnsDatagram request)
+        public bool IsAllowed(DnsDatagram request)
         {
-            return _zoneManager.Query(request);
+            if (_zoneManager.TotalZones < 1)
+                return false;
+
+            return _zoneManager.Query(request) is not null;
         }
 
         #endregion

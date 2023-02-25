@@ -237,6 +237,7 @@ namespace DnsServerCore
                 jsonWriter.WriteNumber("cachedEntries", _dnsWebService.DnsServer.CacheZoneManager.TotalEntries);
                 jsonWriter.WriteNumber("allowedZones", _dnsWebService.DnsServer.AllowedZoneManager.TotalZonesAllowed);
                 jsonWriter.WriteNumber("blockedZones", _dnsWebService.DnsServer.BlockedZoneManager.TotalZonesBlocked);
+                jsonWriter.WriteNumber("allowListZones", _dnsWebService.DnsServer.BlockListZoneManager.TotalZonesAllowed);
                 jsonWriter.WriteNumber("blockListZones", _dnsWebService.DnsServer.BlockListZoneManager.TotalZonesBlocked);
 
                 jsonWriter.WriteEndObject();

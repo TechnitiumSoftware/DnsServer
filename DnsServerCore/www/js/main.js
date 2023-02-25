@@ -942,9 +942,10 @@ function loadDnsSettings() {
             else
                 $("#txtDnsTlsCertificatePassword").val(responseJSON.response.dnsTlsCertificatePassword);
 
-            $("#lblDoHHost").text(window.location.hostname + ":" + responseJSON.response.dnsOverHttpPort);
+            $("#lblDoHHost").text(window.location.hostname + (responseJSON.response.dnsOverHttpPort == 80 ? "" : ":" + responseJSON.response.dnsOverHttpPort));
             $("#lblDoTHost").text("tls-certificate-domain:" + responseJSON.response.dnsOverTlsPort);
             $("#lblDoQHost").text("tls-certificate-domain:" + responseJSON.response.dnsOverQuicPort);
+            $("#lblDoHsHost").text("tls-certificate-domain" + (responseJSON.response.dnsOverHttpsPort == 443 ? "" : ":" + responseJSON.response.dnsOverHttpsPort));
 
             //tsig
             $("#tableTsigKeys").html("");
@@ -1651,9 +1652,10 @@ function saveDnsSettings() {
             $("#txtWebServiceTlsCertificatePassword").prop("disabled", !responseJSON.response.webServiceEnableTls);
 
             //optional protocols
-            $("#lblDoHHost").text(window.location.hostname + ":" + responseJSON.response.dnsOverHttpPort);
+            $("#lblDoHHost").text(window.location.hostname + (responseJSON.response.dnsOverHttpPort == 80 ? "" : ":" + responseJSON.response.dnsOverHttpPort));
             $("#lblDoTHost").text("tls-certificate-domain:" + responseJSON.response.dnsOverTlsPort);
             $("#lblDoQHost").text("tls-certificate-domain:" + responseJSON.response.dnsOverQuicPort);
+            $("#lblDoHsHost").text("tls-certificate-domain" + (responseJSON.response.dnsOverHttpsPort == 443 ? "" : ":" + responseJSON.response.dnsOverHttpsPort));
 
             //reload tsig keys
             $("#tableTsigKeys").html("");
@@ -1992,6 +1994,7 @@ function refreshDashboard(hideLoader) {
             $("#divDashboardStatsCachedEntries").text(responseJSON.response.stats.cachedEntries.toLocaleString());
             $("#divDashboardStatsAllowedZones").text(responseJSON.response.stats.allowedZones.toLocaleString());
             $("#divDashboardStatsBlockedZones").text(responseJSON.response.stats.blockedZones.toLocaleString());
+            $("#divDashboardStatsAllowListZones").text(responseJSON.response.stats.allowListZones.toLocaleString());
             $("#divDashboardStatsBlockListZones").text(responseJSON.response.stats.blockListZones.toLocaleString());
 
             if (responseJSON.response.stats.totalQueries > 0) {

@@ -196,6 +196,9 @@ namespace DnsServerCore.Dns.ZoneManagers
 
         public DnsDatagram Query(DnsDatagram request)
         {
+            if (_zoneManager.TotalZones < 1)
+                return null;
+
             return _zoneManager.Query(request);
         }
 
