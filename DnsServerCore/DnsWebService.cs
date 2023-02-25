@@ -203,7 +203,7 @@ namespace DnsServerCore
             try
             {
                 _webServiceLocalAddresses = DnsServer.GetValidKestralLocalAddresses(_webServiceLocalAddresses);
-                await StartWebServiceAsync();
+                await StartWebServiceAsync(false);
             }
             catch (Exception ex)
             {
@@ -213,7 +213,7 @@ namespace DnsServerCore
                 try
                 {
                     _webServiceLocalAddresses = new IPAddress[] { IPAddress.Any };
-                    await StartWebServiceAsync();
+                    await StartWebServiceAsync(false);
                 }
                 catch (Exception ex2)
                 {
@@ -221,12 +221,12 @@ namespace DnsServerCore
                     _log.Write("Attempting to start Web Service on loopback (127.0.0.1) fallback address...");
 
                     _webServiceLocalAddresses = new IPAddress[] { IPAddress.Loopback };
-                    await StartWebServiceAsync();
+                    await StartWebServiceAsync(true);
                 }
             }
         }
 
-        private async Task StartWebServiceAsync()
+        private async Task StartWebServiceAsync(bool safeMode)
         {
             WebApplicationBuilder builder = WebApplication.CreateBuilder();
 
@@ -249,7 +249,7 @@ namespace DnsServerCore
                     serverOptions.Listen(webServiceLocalAddress, _webServiceHttpPort);
 
                 //https
-                if (_webServiceEnableTls && (_webServiceTlsCertificate is not null))
+                if (!safeMode && _webServiceEnableTls && (_webServiceTlsCertificate is not null))
                 {
                     serverOptions.ConfigureHttpsDefaults(delegate (HttpsConnectionAdapterOptions configureOptions)
                     {
@@ -277,7 +277,7 @@ namespace DnsServerCore
 
             _webService = builder.Build();
 
-            if (_webServiceHttpToTlsRedirect)
+            if (_webServiceHttpToTlsRedirect && !safeMode && _webServiceEnableTls && (_webServiceTlsCertificate is not null))
                 _webService.UseHttpsRedirection();
 
             _webService.UseDefaultFiles();
@@ -300,7 +300,7 @@ namespace DnsServerCore
                 {
                     _log?.Write(new IPEndPoint(webServiceLocalAddress, _webServiceHttpPort), "Http", "Web Service was bound successfully.");
 
-                    if (_webServiceEnableTls && (_webServiceTlsCertificate is not null))
+                    if (!safeMode && _webServiceEnableTls && (_webServiceTlsCertificate is not null))
                         _log?.Write(new IPEndPoint(webServiceLocalAddress, _webServiceHttpPort), "Https", "Web Service was bound successfully.");
                 }
             }
@@ -312,7 +312,7 @@ namespace DnsServerCore
                 {
                     _log?.Write(new IPEndPoint(webServiceLocalAddress, _webServiceHttpPort), "Http", "Web Service failed to bind.");
 
-                    if (_webServiceEnableTls && (_webServiceTlsCertificate is not null))
+                    if (!safeMode && _webServiceEnableTls && (_webServiceTlsCertificate is not null))
                         _log?.Write(new IPEndPoint(webServiceLocalAddress, _webServiceHttpPort), "Https", "Web Service failed to bind.");
                 }
 
@@ -832,7 +832,7 @@ namespace DnsServerCore
 
                     foreach (string strBlockListUrl in strBlockListUrlList)
                     {
-                        if (strBlockListUrl.StartsWith("!"))
+                        if (strBlockListUrl.StartsWith('!'))
                         {
                             Uri allowListUrl = new Uri(strBlockListUrl.Substring(1));
 
@@ -1288,7 +1288,7 @@ namespace DnsServerCore
                     {
                         string listUrl = bR.ReadShortString();
 
-                        if (listUrl.StartsWith("!"))
+                        if (listUrl.StartsWith('!'))
                             _dnsServer.BlockListZoneManager.AllowListUrls.Add(new Uri(listUrl.Substring(1)));
                         else
                             _dnsServer.BlockListZoneManager.BlockListUrls.Add(new Uri(listUrl));
@@ -1710,7 +1710,7 @@ namespace DnsServerCore
                 {
                     string listUrl = bR.ReadShortString();
 
-                    if (listUrl.StartsWith("!"))
+                    if (listUrl.StartsWith('!'))
                         _dnsServer.BlockListZoneManager.AllowListUrls.Add(new Uri(listUrl.Substring(1)));
                     else
                         _dnsServer.BlockListZoneManager.BlockListUrls.Add(new Uri(listUrl));
