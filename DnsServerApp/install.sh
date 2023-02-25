@@ -1,8 +1,15 @@
 #!/bin/sh
 
 dotnetDir="/opt/dotnet"
-dnsDir="/etc/dns"
-dnsTar="/etc/dns/DnsServerPortable.tar.gz"
+
+if [ -d "/etc/dns/config" ]
+then
+	dnsDir="/etc/dns"
+else
+    dnsDir="/opt/technitium/dns"
+fi
+
+dnsTar="$dnsDir/DnsServerPortable.tar.gz"
 dnsUrl="https://download.technitium.com/dns/DnsServerPortable.tar.gz"
 
 mkdir -p $dnsDir
