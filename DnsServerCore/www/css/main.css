@@ -289,16 +289,16 @@ th a {
 }
 
     .zone-stats-panel .stats-item {
-        width: 19.25%;
+        width: 16%;
         float: left;
         padding: 6px 4px;
-        margin-right: 0.75%;
+        margin-right: 0.65%;
         background-color: rgba(51, 122, 183, 0.7);
         color: #ffffff;
     }
 
         .zone-stats-panel .stats-item .number {
-            font-size: 15px;
+            font-size: 14px;
             font-weight: bold;
             padding: 6px 0;
         }
