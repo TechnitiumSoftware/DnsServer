@@ -1,5 +1,19 @@
 # Technitium DNS Server Change Log
 
+## Version 11.0.1
+Release Date: 25 February 2023
+
+- Changed allow list implementation to handle them separately and show allow list count on Dashboard.
+- Fixed bug in conditional forwarder zone for root zone that caused the DNS server to return RCODE=ServerFailure.
+- Fixed issues with DNS server's App request query handling sequence to fix issues with Advanced Forwarding app.
+- Fixed issues with block list parser to detect in-line comments.
+- Fixed issue of "URI too long" in save DHCP scope action.
+- Updated Linux install script to use new install path in `/opt` and new config path `/etc/dns` for new installations.
+- Updated Docker container to use new volume path `/etc/dns` for config.
+- Updated Docker container to correctly handle container stop event to gracefully shutdown the DNS server.
+- Updated Docker container to include `libmsquic` to allow QUIC support.
+- Multiple other minor bug fixes and improvements.
+
 ## Version 11.0
 Release Date: 18 February 2023
 
