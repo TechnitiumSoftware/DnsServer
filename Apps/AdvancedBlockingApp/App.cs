@@ -1110,7 +1110,7 @@ namespace AdvancedBlocking
                             if (line.Length == 0)
                                 continue; //skip empty line
 
-                            if (line.StartsWith("#"))
+                            if (line.StartsWith('#'))
                                 continue; //skip comment line
 
                             firstWord = PopWord(ref line);
@@ -1123,7 +1123,7 @@ namespace AdvancedBlocking
                             {
                                 secondWord = PopWord(ref line);
 
-                                if (secondWord.Length == 0)
+                                if ((secondWord.Length == 0) || secondWord.StartsWith('#'))
                                     hostname = firstWord;
                                 else
                                     hostname = secondWord;
@@ -1239,7 +1239,7 @@ namespace AdvancedBlocking
                             if (line.Length == 0)
                                 continue; //skip empty line
 
-                            if (line.StartsWith("#"))
+                            if (line.StartsWith('#'))
                                 continue; //skip comment line
 
                             regices.Enqueue(line);
@@ -1338,7 +1338,7 @@ namespace AdvancedBlocking
                             if (line.Length == 0)
                                 continue; //skip empty line
 
-                            if (line.StartsWith("!"))
+                            if (line.StartsWith('!'))
                                 continue; //skip comment line
 
                             if (line.StartsWith("||"))
@@ -1349,7 +1349,7 @@ namespace AdvancedBlocking
                                     string domain = line.Substring(2, i - 2);
                                     string options = line.Substring(i + 1);
 
-                                    if (((options.Length == 0) || (options.StartsWith("$") && (options.Contains("doc") || options.Contains("all")))) && DnsClient.IsDomainNameValid(domain))
+                                    if (((options.Length == 0) || (options.StartsWith('$') && (options.Contains("doc") || options.Contains("all")))) && DnsClient.IsDomainNameValid(domain))
                                         blockedDomains.Enqueue(domain);
                                 }
                                 else
@@ -1368,7 +1368,7 @@ namespace AdvancedBlocking
                                     string domain = line.Substring(4, i - 4);
                                     string options = line.Substring(i + 1);
 
-                                    if (((options.Length == 0) || (options.StartsWith("$") && (options.Contains("doc") || options.Contains("all")))) && DnsClient.IsDomainNameValid(domain))
+                                    if (((options.Length == 0) || (options.StartsWith('$') && (options.Contains("doc") || options.Contains("all")))) && DnsClient.IsDomainNameValid(domain))
                                         allowedDomains.Enqueue(domain);
                                 }
                                 else
