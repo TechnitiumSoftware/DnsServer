@@ -5,7 +5,14 @@ LABEL email="support@technitium.com"
 LABEL project_url="https://technitium.com/dns/"
 LABEL github_url="https://github.com/TechnitiumSoftware/DnsServer"
 
-WORKDIR /etc/dns/
+WORKDIR /opt/technitium/dns/
+
+RUN apt update; apt install curl -y; \
+curl https://packages.microsoft.com/config/debian/11/packages-microsoft-prod.deb --output packages-microsoft-prod.deb; \
+dpkg -i packages-microsoft-prod.deb; \
+rm packages-microsoft-prod.deb
+
+RUN apt update; apt install libmsquic -y; apt clean -y;
 
 COPY ./DnsServerApp/bin/Release/publish/ .
 
@@ -21,6 +28,9 @@ EXPOSE 80/tcp
 EXPOSE 8053/tcp
 EXPOSE 67/udp
 
-VOLUME ["/etc/dns/config"]
+VOLUME ["/etc/dns"]
 
-CMD ["/usr/bin/dotnet", "/etc/dns/DnsServerApp.dll"]
+STOPSIGNAL SIGINT
+
+ENTRYPOINT ["/usr/bin/dotnet", "/opt/technitium/dns/DnsServerApp.dll"]
+CMD ["/etc/dns"]
