@@ -1033,7 +1033,7 @@ namespace DnsServerCore
                         {
                             foreach (string strBlockListUrl in blockListUrlList)
                             {
-                                if (strBlockListUrl.StartsWith("!"))
+                                if (strBlockListUrl.StartsWith('!'))
                                 {
                                     string strAllowListUrl = strBlockListUrl.Substring(1);
 
@@ -1062,7 +1062,7 @@ namespace DnsServerCore
 
                         foreach (string strBlockListUrl in blockListUrlList)
                         {
-                            if (strBlockListUrl.StartsWith("!"))
+                            if (strBlockListUrl.StartsWith('!'))
                             {
                                 Uri allowListUrl = new Uri(strBlockListUrl.Substring(1));
 
