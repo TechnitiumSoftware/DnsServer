@@ -1,7 +1,13 @@
 #!/bin/sh
 
 dotnetDir="/opt/dotnet"
-dnsDir="/etc/dns"
+
+if [ -d "/etc/dns/config" ]
+then
+	dnsDir="/etc/dns"
+else
+    dnsDir="/opt/technitium/dns"
+fi
 
 echo ""
 echo "================================="
