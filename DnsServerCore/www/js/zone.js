@@ -1612,6 +1612,9 @@ function showEditZonePage(pageNumber) {
     if ((pageNumber > totalPages) || (pageNumber < 0))
         pageNumber = totalPages;
 
+    if (pageNumber < 1)
+        pageNumber = 1;
+
     var start = (pageNumber - 1) * recordsPerPage;
     var end = Math.min(start + recordsPerPage, totalRecords);
 
