@@ -32,7 +32,7 @@ namespace DnsServerCore
     {
         readonly static string[] HTTP_METHODS = new string[] { "GET", "POST" };
 
-        public static IPEndPoint GetRemoteEndPoint(this HttpContext context)
+        public static IPEndPoint GetRemoteEndPoint(this HttpContext context, bool ignoreXRealIpHeader = false)
         {
             try
             {
@@ -40,7 +40,7 @@ namespace DnsServerCore
                 if (remoteIP is null)
                     return new IPEndPoint(IPAddress.Any, 0);
 
-                if (NetUtilities.IsPrivateIP(remoteIP))
+                if (!ignoreXRealIpHeader && NetUtilities.IsPrivateIP(remoteIP))
                 {
                     string xRealIp = context.Request.Headers["X-Real-IP"];
                     if (IPAddress.TryParse(xRealIp, out IPAddress address))
@@ -78,7 +78,7 @@ namespace DnsServerCore
         {
             return endpoints.MapMethods(pattern, HTTP_METHODS, requestDelegate);
         }
-        
+
         public static IEndpointConventionBuilder MapGetAndPost(this IEndpointRouteBuilder endpoints, string pattern, Delegate handler)
         {
             return endpoints.MapMethods(pattern, HTTP_METHODS, handler);
