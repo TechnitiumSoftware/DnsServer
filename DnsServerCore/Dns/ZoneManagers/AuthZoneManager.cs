@@ -1802,10 +1802,13 @@ namespace DnsServerCore.Dns.ZoneManagers
             _zoneIndexLock.EnterReadLock();
             try
             {
+                int totalZones = _zoneIndex.Count;
+                if (totalZones < 1)
+                    return new ZonesPage(0, 0, 0, Array.Empty<AuthZoneInfo>());
+
                 if (pageNumber == 0)
                     pageNumber = 1;
 
-                int totalZones = _zoneIndex.Count;
                 int totalPages = (totalZones / zonesPerPage) + (totalZones % zonesPerPage > 0 ? 1 : 0);
 
                 if ((pageNumber > totalPages) || (pageNumber < 0))
