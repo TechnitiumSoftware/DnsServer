@@ -768,13 +768,19 @@ namespace DnsServerCore.Dns
                     return;
                 }
 
-                if (!request.IsHttps && !NetUtilities.IsPrivateIP(remoteEP.Address))
+                if (!request.IsHttps)
                 {
-                    //intentionally blocking public IP addresses from using DNS-over-HTTP (without TLS)
-                    //this feature is intended to be used with an SSL terminated reverse proxy like nginx on private network
-                    response.StatusCode = 403;
-                    await response.WriteAsync("DNS-over-HTTPS (DoH) queries are supported only on HTTPS.");
-                    return;
+                    //get the actual connection remote EP
+                    IPEndPoint connectionEp = context.GetRemoteEndPoint(true);
+
+                    if (!NetUtilities.IsPrivateIP(connectionEp.Address))
+                    {
+                        //intentionally blocking public IP addresses from using DNS-over-HTTP (without TLS)
+                        //this feature is intended to be used with an SSL terminated reverse proxy like nginx on private network
+                        response.StatusCode = 403;
+                        await response.WriteAsync("DNS-over-HTTPS (DoH) queries are supported only on HTTPS.");
+                        return;
+                    }
                 }
 
                 switch (request.Method)
