@@ -1,5 +1,11 @@
 # Technitium DNS Server Change Log
 
+## Version 11.0.2
+Release Date: 26 February 2023
+
+- Fixed issue with DNS-over-HTTP private IP check that was causing 403 response when using with reverse proxy.
+- Fixed issue with zone record pagination caused when zone has no records.
+
 ## Version 11.0.1
 Release Date: 25 February 2023
 
