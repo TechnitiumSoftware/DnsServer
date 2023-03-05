@@ -134,18 +134,14 @@ namespace DnsServerCore.Dns.ZoneManagers
                             }
                             catch (Exception ex)
                             {
-                                LogManager log = _dnsServer.LogManager;
-                                if (log != null)
-                                    log.Write(ex);
+                                _dnsServer.LogManager?.Write(ex);
                             }
                         }
                     }
                 }
                 catch (Exception ex)
                 {
-                    LogManager log = _dnsServer.LogManager;
-                    if (log != null)
-                        log.Write(ex);
+                    _dnsServer.LogManager?.Write(ex);
                 }
 
                 //update server domain
@@ -744,15 +740,11 @@ namespace DnsServerCore.Dns.ZoneManagers
                             _zoneIndex.Add(zoneInfo);
                         }
 
-                        LogManager log = _dnsServer.LogManager;
-                        if (log != null)
-                            log.Write("DNS Server successfully loaded zone file: " + zoneFile);
+                        _dnsServer.LogManager?.Write("DNS Server successfully loaded zone file: " + zoneFile);
                     }
                     catch (Exception ex)
                     {
-                        LogManager log = _dnsServer.LogManager;
-                        if (log != null)
-                            log.Write("DNS Server failed to load zone file: " + zoneFile + "\r\n" + ex.ToString());
+                        _dnsServer.LogManager?.Write("DNS Server failed to load zone file: " + zoneFile + "\r\n" + ex.ToString());
                     }
                 }
 
@@ -786,6 +778,60 @@ namespace DnsServerCore.Dns.ZoneManagers
             }
 
             return null;
+        }
+
+        internal void LoadSpecialPrimaryZones(IReadOnlyList<string> zoneNames, DnsSOARecordData soaRecord, DnsNSRecordData ns)
+        {
+            _zoneIndexLock.EnterWriteLock();
+            try
+            {
+                foreach (string zoneName in zoneNames)
+                {
+                    PrimaryZone apexZone = new PrimaryZone(_dnsServer, zoneName, soaRecord, ns);
+
+                    if (_root.TryAdd(apexZone))
+                    {
+                        AuthZoneInfo zoneInfo = new AuthZoneInfo(apexZone);
+                        _zoneIndex.Add(zoneInfo);
+                    }
+                }
+
+                _zoneIndex.Sort();
+            }
+            finally
+            {
+                _zoneIndexLock.ExitWriteLock();
+            }
+        }
+
+        internal void LoadSpecialPrimaryZones(Func<string> getZoneName, DnsSOARecordData soaRecord, DnsNSRecordData ns)
+        {
+            _zoneIndexLock.EnterWriteLock();
+            try
+            {
+                string zoneName;
+
+                while (true)
+                {
+                    zoneName = getZoneName();
+                    if (zoneName is null)
+                        break;
+
+                    PrimaryZone apexZone = new PrimaryZone(_dnsServer, zoneName, soaRecord, ns);
+
+                    if (_root.TryAdd(apexZone))
+                    {
+                        AuthZoneInfo zoneInfo = new AuthZoneInfo(apexZone);
+                        _zoneIndex.Add(zoneInfo);
+                    }
+                }
+
+                _zoneIndex.Sort();
+            }
+            finally
+            {
+                _zoneIndexLock.ExitWriteLock();
+            }
         }
 
         public AuthZoneInfo CreatePrimaryZone(string zoneName, string primaryNameServer, bool @internal)
@@ -1849,7 +1895,7 @@ namespace DnsServerCore.Dns.ZoneManagers
             return null;
         }
 
-        public DnsDatagram Query(DnsDatagram request)
+        public DnsDatagram Query(DnsDatagram request, bool isRecursionAllowed)
         {
             DnsQuestionRecord question = request.Question[0];
 
@@ -1934,7 +1980,7 @@ namespace DnsServerCore.Dns.ZoneManagers
                     }
                 }
 
-                return new DnsDatagram(request.Identifier, true, DnsOpcode.StandardQuery, true, false, request.RecursionDesired, false, false, false, rCode, request.Question, answer, authority);
+                return new DnsDatagram(request.Identifier, true, DnsOpcode.StandardQuery, true, false, request.RecursionDesired, isRecursionAllowed, false, false, rCode, request.Question, answer, authority);
             }
             else
             {
@@ -2092,7 +2138,7 @@ namespace DnsServerCore.Dns.ZoneManagers
                     }
                 }
 
-                return new DnsDatagram(request.Identifier, true, DnsOpcode.StandardQuery, true, false, request.RecursionDesired, false, false, false, DnsResponseCode.NoError, request.Question, answers, authority, additional);
+                return new DnsDatagram(request.Identifier, true, DnsOpcode.StandardQuery, true, false, request.RecursionDesired, isRecursionAllowed, false, false, DnsResponseCode.NoError, request.Question, answers, authority, additional);
             }
         }
 
@@ -2350,9 +2396,7 @@ namespace DnsServerCore.Dns.ZoneManagers
                 }
             }
 
-            LogManager log = _dnsServer.LogManager;
-            if (log != null)
-                log.Write("Saved zone file for domain: " + (zoneName == "" ? "<root>" : zoneName));
+            _dnsServer.LogManager?.Write("Saved zone file for domain: " + (zoneName == "" ? "<root>" : zoneName));
         }
 
         public void DeleteZoneFile(string zoneName)
@@ -2361,9 +2405,7 @@ namespace DnsServerCore.Dns.ZoneManagers
 
             File.Delete(Path.Combine(_dnsServer.ConfigFolder, "zones", zoneName + ".zone"));
 
-            LogManager log = _dnsServer.LogManager;
-            if (log != null)
-                log.Write("Deleted zone file for domain: " + zoneName);
+            _dnsServer.LogManager?.Write("Deleted zone file for domain: " + zoneName);
         }
 
         #endregion
