@@ -435,10 +435,32 @@ namespace DnsServerCore.Dns
                         }
                         else
                         {
-                            if (response.Question[0].Type == DnsResourceRecordType.IXFR)
-                                response = new DnsDatagram(response.Identifier, true, response.OPCODE, response.AuthoritativeAnswer, false, response.RecursionDesired, response.RecursionAvailable, response.AuthenticData, response.CheckingDisabled, response.RCODE, response.Question, new DnsResourceRecord[] { response.Answer[0] }, null, null, request.EDNS is null ? ushort.MinValue : _udpPayloadSize) { Tag = DnsServerResponseType.Authoritative }; //truncate response
-                            else
-                                response = new DnsDatagram(response.Identifier, true, response.OPCODE, response.AuthoritativeAnswer, true, response.RecursionDesired, response.RecursionAvailable, response.AuthenticData, response.CheckingDisabled, response.RCODE, response.Question, null, null, null, request.EDNS is null ? ushort.MinValue : _udpPayloadSize) { Tag = DnsServerResponseType.Authoritative };
+                            switch (response.Question[0].Type)
+                            {
+                                case DnsResourceRecordType.MX:
+                                    //removing glue records and trying again since some mail servers fail to fallback to TCP on truncation
+                                    response = response.CloneWithoutGlueRecords();
+                                    sendBufferStream.Position = 0;
+
+                                    try
+                                    {
+                                        response.WriteTo(sendBufferStream);
+                                    }
+                                    catch (NotSupportedException)
+                                    {
+                                        //send TC since response is still big even after removing glue records
+                                        response = new DnsDatagram(response.Identifier, true, response.OPCODE, response.AuthoritativeAnswer, true, response.RecursionDesired, response.RecursionAvailable, response.AuthenticData, response.CheckingDisabled, response.RCODE, response.Question, null, null, null, request.EDNS is null ? ushort.MinValue : _udpPayloadSize) { Tag = DnsServerResponseType.Authoritative };
+                                    }
+                                    break;
+
+                                case DnsResourceRecordType.IXFR:
+                                    response = new DnsDatagram(response.Identifier, true, response.OPCODE, response.AuthoritativeAnswer, false, response.RecursionDesired, response.RecursionAvailable, response.AuthenticData, response.CheckingDisabled, response.RCODE, response.Question, new DnsResourceRecord[] { response.Answer[0] }, null, null, request.EDNS is null ? ushort.MinValue : _udpPayloadSize) { Tag = DnsServerResponseType.Authoritative }; //truncate response
+                                    break;
+
+                                default:
+                                    response = new DnsDatagram(response.Identifier, true, response.OPCODE, response.AuthoritativeAnswer, true, response.RecursionDesired, response.RecursionAvailable, response.AuthenticData, response.CheckingDisabled, response.RCODE, response.Question, null, null, null, request.EDNS is null ? ushort.MinValue : _udpPayloadSize) { Tag = DnsServerResponseType.Authoritative };
+                                    break;
+                            }
                         }
 
                         sendBufferStream.Position = 0;
@@ -1932,7 +1954,7 @@ namespace DnsServerCore.Dns
                 }
             }
 
-            DnsDatagram response = _authZoneManager.Query(request);
+            DnsDatagram response = _authZoneManager.Query(request, isRecursionAllowed);
             if (response is not null)
             {
                 response.Tag = DnsServerResponseType.Authoritative;
@@ -2514,7 +2536,7 @@ namespace DnsServerCore.Dns
                         if (record.Type != DnsResourceRecordType.CNAME)
                             break; //no further CNAME records exists
 
-                        DnsDatagram newRequest = new DnsDatagram(0, false, DnsOpcode.StandardQuery, false, false, true, false, false, false, DnsResponseCode.NoError, new DnsQuestionRecord[] { new DnsQuestionRecord((record.RDATA as DnsCNAMERecordData).Domain, request.Question[0].Type, request.Question[0].Class) });
+                        DnsDatagram newRequest = new DnsDatagram(0, false, DnsOpcode.StandardQuery, false, false, true, false, false, false, DnsResponseCode.NoError, new DnsQuestionRecord[] { new DnsQuestionRecord((record.RDATA as DnsCNAMERecordData).Domain, request.Question[0].Type, request.Question[0].Class) }, null, null, null, _udpPayloadSize);
 
                         //check allowed zone
                         inAllowedZone = _allowedZoneManager.IsAllowed(newRequest) || _blockListZoneManager.IsAllowed(newRequest);
@@ -2535,8 +2557,8 @@ namespace DnsServerCore.Dns
                             //copy last response answers
                             answer.AddRange(blockedResponse.Answer);
 
-                            //cname response cannot be for type NS, MX, SRV so no additional section in response
-                            return new DnsDatagram(request.Identifier, true, DnsOpcode.StandardQuery, false, false, true, true, false, false, DnsResponseCode.NoError, request.Question, answer, blockedResponse.Authority) { Tag = blockedResponse.Tag };
+                            //include blocked response additional section to pass on Extended DNS Errors
+                            return new DnsDatagram(request.Identifier, true, DnsOpcode.StandardQuery, false, false, true, true, false, false, DnsResponseCode.NoError, request.Question, answer, blockedResponse.Authority, blockedResponse.Additional) { Tag = blockedResponse.Tag };
                         }
                     }
                 }
