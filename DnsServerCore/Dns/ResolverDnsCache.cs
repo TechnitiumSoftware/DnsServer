@@ -157,7 +157,7 @@ namespace DnsServerCore.Dns
 
             if (authResponse is null)
             {
-                authResponse = _authZoneManager.Query(request);
+                authResponse = _authZoneManager.Query(request, true);
                 if (authResponse is not null)
                 {
                     if ((authResponse.RCODE != DnsResponseCode.NoError) || (authResponse.Answer.Count > 0) || (authResponse.Authority.Count == 0) || authResponse.IsFirstAuthoritySOA())
