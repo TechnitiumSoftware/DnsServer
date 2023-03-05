@@ -104,10 +104,10 @@ namespace WildIp
                 //NODATA reponse
                 DnsDatagram soaResponse = await _dnsServer.DirectQueryAsync(new DnsQuestionRecord(zoneName, DnsResourceRecordType.SOA, DnsClass.IN));
 
-                return new DnsDatagram(request.Identifier, true, DnsOpcode.StandardQuery, true, false, request.RecursionDesired, false, false, false, DnsResponseCode.NoError, request.Question, null, soaResponse.Answer);
+                return new DnsDatagram(request.Identifier, true, DnsOpcode.StandardQuery, true, false, request.RecursionDesired, isRecursionAllowed, false, false, DnsResponseCode.NoError, request.Question, null, soaResponse.Answer);
             }
 
-            return new DnsDatagram(request.Identifier, true, request.OPCODE, true, false, request.RecursionDesired, false, false, false, DnsResponseCode.NoError, request.Question, new DnsResourceRecord[] { answer });
+            return new DnsDatagram(request.Identifier, true, request.OPCODE, true, false, request.RecursionDesired, isRecursionAllowed, false, false, DnsResponseCode.NoError, request.Question, new DnsResourceRecord[] { answer });
         }
 
         #endregion
