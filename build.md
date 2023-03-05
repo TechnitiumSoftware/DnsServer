@@ -6,13 +6,13 @@ To build the Technitium DNS Server Windows Setup, you need to install [Microsoft
 
 1. Open VS2022 and use the "Clone a repository" option to clone the [TechnitiumLibrary](https://github.com/TechnitiumSoftware/TechnitiumLibrary) project using the `https://github.com/TechnitiumSoftware/TechnitiumLibrary.git` URL. Once the repository is cloned and opened in VS2022, select the build mode to "Release" from the dropdown box in the toolbar and use the Build > Build Solution menu to build it.
 
-2. Open VS2022 and use the "Clone a repository" option to clone the [DnsServer](https://github.com/TechnitiumSoftware/DnsServer) project using the `https://github.com/TechnitiumSoftware/DnsServer.git` URL. Once the repository is cloned and opened in VS2022, right click on the `DnsServerSystemTrayApp` project and click on the Publish menu to open the publish page. Click the Publish button on it to publish the project in `DnsServer\DnsServerWindowsSetup\publish` folder. Similarly, right click on the `DnsServerWindowsService` project and click on the Publish menu to open publish page and use the Publish button to publish the project in the same folder as that of the previous project.
+2. Open VS2022 and use the "Clone a repository" option to clone the [DnsServer](https://github.com/TechnitiumSoftware/DnsServer) project using the `https://github.com/TechnitiumSoftware/DnsServer.git` URL in the same parent folder that you had cloned the TechnitiumLibrary repository in previous step. Once the repository is cloned and opened in VS2022, right click on the `DnsServerSystemTrayApp` project and click on the Publish menu to open the publish page. Click the Publish button on it to publish the project in `DnsServer\DnsServerWindowsSetup\publish` folder. Similarly, right click on the `DnsServerWindowsService` project and click on the Publish menu to open publish page and use the Publish button to publish the project in the same folder as that of the previous project.
 
-3. Open the `DnsServer\DnsServerWindowsSetup\DnsServerSetup.iss` file in Inno Setup and click on the Build > Compile menu to generate a Windows setup in `DnsServerWindowsSetup\Release` folder that you can then use to install Technitium DNS Server.
+3. Open the `DnsServer\DnsServerWindowsSetup\DnsServerSetup.iss` file in Inno Setup and click on the Build > Compile menu to generate a Windows setup in `DnsServerWindowsSetup\Release` folder that you can then use to install Technitium DNS Server on Windows.
 
 ## For Linux
 
-Follow the instructions given below to build and install the DNS server from source.
+Follow the instructions given below to build and install the DNS server from source. These instructions are written for Ubuntu and Raspberry Pi OS but, you can easily follow similar steps on your favorite distro.
 
 1. Install prerequisites like curl and git.
 ```
@@ -20,7 +20,7 @@ $ sudo apt update
 $ sudo apt install curl git -y
 ```
 
-2. Configure [Microsoft Software Repository](https://learn.microsoft.com/en-us/windows-server/administration/linux-package-repository-for-microsoft-software) to be able to install ASP.NET SDK.
+2. Configure [Microsoft Software Repository](https://learn.microsoft.com/en-us/windows-server/administration/linux-package-repository-for-microsoft-software) to be able to install ASP.NET Core SDK. You can follow the instructions given in the link to add the software repository on your distro as shown in examples below:
 
 - Ubuntu 22.04
 ```
