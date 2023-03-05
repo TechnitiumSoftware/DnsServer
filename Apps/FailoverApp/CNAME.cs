@@ -195,7 +195,7 @@ namespace Failover
                 }
             }
 
-            return Task.FromResult(new DnsDatagram(request.Identifier, true, request.OPCODE, true, false, request.RecursionDesired, false, false, false, DnsResponseCode.NoError, request.Question, answers));
+            return Task.FromResult(new DnsDatagram(request.Identifier, true, request.OPCODE, true, false, request.RecursionDesired, isRecursionAllowed, false, false, DnsResponseCode.NoError, request.Question, answers));
         }
 
         #endregion
