@@ -573,7 +573,10 @@ namespace DnsServerCore
 
                 if (response.Answer.Count == 0)
                 {
-                    answer = "[]";
+                    if (response.Truncation)
+                        answer = "[TRUNCATED]";
+                    else
+                        answer = "[]";
                 }
                 else if ((response.Answer.Count > 2) && response.IsZoneTransfer)
                 {
