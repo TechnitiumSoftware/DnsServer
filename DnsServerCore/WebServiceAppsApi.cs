@@ -30,6 +30,7 @@ using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
 using TechnitiumLibrary;
+using TechnitiumLibrary.Net.Http.Client;
 
 namespace DnsServerCore
 {
@@ -92,7 +93,7 @@ namespace DnsServerCore
 
                         _dnsWebService._log.Write("DNS Server has started automatic update check for DNS Apps.");
 
-                        string storeAppsJsonData = await GetStoreAppsJsonData().WithTimeout(5000);
+                        string storeAppsJsonData = await GetStoreAppsJsonData(true);
                         using JsonDocument jsonDocument = JsonDocument.Parse(storeAppsJsonData);
                         JsonElement jsonStoreAppsArray = jsonDocument.RootElement;
 
@@ -129,7 +130,7 @@ namespace DnsServerCore
                                     {
                                         try
                                         {
-                                            await DownloadAndUpdateAppAsync(application.Name, url);
+                                            await DownloadAndUpdateAppAsync(application.Name, url, true);
 
                                             _dnsWebService._log.Write("DNS application '" + application.Name + "' was automatically updated successfully from: " + url);
                                         }
@@ -163,7 +164,7 @@ namespace DnsServerCore
             }
         }
 
-        private async Task<string> GetStoreAppsJsonData()
+        private async Task<string> GetStoreAppsJsonData(bool doRetry)
         {
             if ((_storeAppsJsonData is null) || (DateTime.UtcNow > _storeAppsJsonDataUpdatedOn.AddSeconds(STORE_APPS_JSON_DATA_CACHE_TIME_SECONDS)))
             {
@@ -172,7 +173,7 @@ namespace DnsServerCore
                 handler.UseProxy = _dnsWebService.DnsServer.Proxy is not null;
                 handler.AutomaticDecompression = DecompressionMethods.All;
 
-                using (HttpClient http = new HttpClient(handler))
+                using (HttpClient http = new HttpClient(doRetry ? new HttpClientRetryHandler(handler) : handler))
                 {
                     _storeAppsJsonData = await http.GetStringAsync(_appStoreUri);
                     _storeAppsJsonDataUpdatedOn = DateTime.UtcNow;
@@ -182,7 +183,7 @@ namespace DnsServerCore
             return _storeAppsJsonData;
         }
 
-        private async Task<DnsApplication> DownloadAndUpdateAppAsync(string applicationName, string url)
+        private async Task<DnsApplication> DownloadAndUpdateAppAsync(string applicationName, string url, bool doRetry)
         {
             string tmpFile = Path.GetTempFileName();
             try
@@ -195,7 +196,7 @@ namespace DnsServerCore
                     handler.UseProxy = _dnsWebService.DnsServer.Proxy is not null;
                     handler.AutomaticDecompression = DecompressionMethods.All;
 
-                    using (HttpClient http = new HttpClient(handler))
+                    using (HttpClient http = new HttpClient(doRetry ? new HttpClientRetryHandler(handler) : handler))
                     {
                         using (Stream httpStream = await http.GetStreamAsync(url))
                         {
@@ -334,7 +335,7 @@ namespace DnsServerCore
                 {
                     try
                     {
-                        string storeAppsJsonData = await GetStoreAppsJsonData().WithTimeout(5000);
+                        string storeAppsJsonData = await GetStoreAppsJsonData(false).WithTimeout(5000);
                         jsonDocument = JsonDocument.Parse(storeAppsJsonData);
                         jsonStoreAppsArray = jsonDocument.RootElement;
                     }
@@ -369,7 +370,7 @@ namespace DnsServerCore
             if (!_dnsWebService._authManager.IsPermitted(PermissionSection.Apps, session.User, PermissionFlag.View))
                 throw new DnsWebServiceException("Access was denied.");
 
-            string storeAppsJsonData = await GetStoreAppsJsonData();
+            string storeAppsJsonData = await GetStoreAppsJsonData(false).WithTimeout(30000);
             using JsonDocument jsonDocument = JsonDocument.Parse(storeAppsJsonData);
             JsonElement jsonStoreAppsArray = jsonDocument.RootElement;
 
@@ -508,7 +509,7 @@ namespace DnsServerCore
             if (!url.StartsWith("https://", StringComparison.OrdinalIgnoreCase))
                 throw new DnsWebServiceException("Parameter 'url' value must start with 'https://'.");
 
-            DnsApplication application = await DownloadAndUpdateAppAsync(name, url);
+            DnsApplication application = await DownloadAndUpdateAppAsync(name, url, false);
 
             _dnsWebService._log.Write(context.GetRemoteEndPoint(), "[" + session.User.Username + "] DNS application '" + name + "' was updated successfully from: " + url);
 

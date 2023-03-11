@@ -59,7 +59,7 @@ namespace NoData
                 {
                     DnsResourceRecordType blockedType = Enum.Parse<DnsResourceRecordType>(jsonBlockedType.GetString(), true);
                     if ((blockedType == question.Type) || (blockedType == DnsResourceRecordType.ANY))
-                        return Task.FromResult(new DnsDatagram(request.Identifier, true, request.OPCODE, false, false, request.RecursionDesired, false, false, false, DnsResponseCode.NoError, request.Question));
+                        return Task.FromResult(new DnsDatagram(request.Identifier, true, request.OPCODE, false, false, request.RecursionDesired, isRecursionAllowed, false, false, DnsResponseCode.NoError, request.Question));
                 }
             }
 

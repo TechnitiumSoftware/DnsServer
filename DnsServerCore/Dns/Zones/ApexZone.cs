@@ -378,12 +378,7 @@ namespace DnsServerCore.Dns.Zones
                         _notifyFailed.Add(nameServerHost);
                 }
 
-                LogManager log = dnsServer.LogManager;
-                if (log is not null)
-                {
-                    log.Write("DNS Server failed to notify name server '" + nameServerHost + "' for zone: " + (_name == "" ? "<root>" : _name));
-                    log.Write(ex);
-                }
+                dnsServer.LogManager?.Write("DNS Server failed to notify name server '" + nameServerHost + "' for zone: " + (_name == "" ? "<root>" : _name) + "\r\n" + ex.ToString());
             }
             finally
             {

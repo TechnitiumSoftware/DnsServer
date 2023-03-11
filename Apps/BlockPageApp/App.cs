@@ -485,6 +485,13 @@ namespace BlockPage
             using JsonDocument jsonDocument = JsonDocument.Parse(config);
             JsonElement jsonConfig = jsonDocument.RootElement;
 
+            bool enableWebServer = jsonConfig.GetPropertyValue("enableWebServer", true);
+            if (!enableWebServer)
+            {
+                StopWebServer();
+                return;
+            }
+
             _webServerLocalAddresses = jsonConfig.ReadArray("webServerLocalAddresses", IPAddress.Parse);
 
             if (jsonConfig.TryGetProperty("webServerUseSelfSignedTlsCertificate", out JsonElement jsonWebServerUseSelfSignedTlsCertificate))
@@ -570,6 +577,13 @@ namespace BlockPage
             if (!jsonConfig.TryGetProperty("webServerUseSelfSignedTlsCertificate", out _))
             {
                 config = config.Replace("\"webServerTlsCertificateFilePath\"", "\"webServerUseSelfSignedTlsCertificate\": true,\r\n  \"webServerTlsCertificateFilePath\"");
+
+                await File.WriteAllTextAsync(Path.Combine(dnsServer.ApplicationFolder, "dnsApp.config"), config);
+            }
+
+            if (!jsonConfig.TryGetProperty("enableWebServer", out _))
+            {
+                config = config.Replace("\"webServerLocalAddresses\"", "\"enableWebServer\": true,\r\n  \"webServerLocalAddresses\"");
 
                 await File.WriteAllTextAsync(Path.Combine(dnsServer.ApplicationFolder, "dnsApp.config"), config);
             }

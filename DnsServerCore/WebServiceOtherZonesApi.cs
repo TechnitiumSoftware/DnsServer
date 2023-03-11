@@ -237,19 +237,11 @@ namespace DnsServerCore
 
             string allowedZones = request.GetQueryOrForm("allowedZones");
             string[] allowedZonesList = allowedZones.Split(',');
-            bool added = false;
 
-            foreach (string allowedZone in allowedZonesList)
-            {
-                if (_dnsWebService.DnsServer.AllowedZoneManager.AllowZone(allowedZone))
-                    added = true;
-            }
+            _dnsWebService.DnsServer.AllowedZoneManager.ImportZones(allowedZonesList);
 
-            if (added)
-            {
-                _dnsWebService._log.Write(context.GetRemoteEndPoint(), "[" + session.User.Username + "] Total " + allowedZonesList.Length + " zones were imported into allowed zone successfully.");
-                _dnsWebService.DnsServer.AllowedZoneManager.SaveZoneFile();
-            }
+            _dnsWebService._log.Write(context.GetRemoteEndPoint(), "[" + session.User.Username + "] Total " + allowedZonesList.Length + " zones were imported into allowed zone successfully.");
+            _dnsWebService.DnsServer.AllowedZoneManager.SaveZoneFile();
         }
 
         public async Task ExportAllowedZonesAsync(HttpContext context)
@@ -409,19 +401,11 @@ namespace DnsServerCore
 
             string blockedZones = request.GetQueryOrForm("blockedZones");
             string[] blockedZonesList = blockedZones.Split(',');
-            bool added = false;
 
-            foreach (string blockedZone in blockedZonesList)
-            {
-                if (_dnsWebService.DnsServer.BlockedZoneManager.BlockZone(blockedZone))
-                    added = true;
-            }
+            _dnsWebService.DnsServer.BlockedZoneManager.ImportZones(blockedZonesList);
 
-            if (added)
-            {
-                _dnsWebService._log.Write(context.GetRemoteEndPoint(), "[" + session.User.Username + "] Total " + blockedZonesList.Length + " zones were imported into blocked zone successfully.");
-                _dnsWebService.DnsServer.BlockedZoneManager.SaveZoneFile();
-            }
+            _dnsWebService._log.Write(context.GetRemoteEndPoint(), "[" + session.User.Username + "] Total " + blockedZonesList.Length + " zones were imported into blocked zone successfully.");
+            _dnsWebService.DnsServer.BlockedZoneManager.SaveZoneFile();
         }
 
         public async Task ExportBlockedZonesAsync(HttpContext context)

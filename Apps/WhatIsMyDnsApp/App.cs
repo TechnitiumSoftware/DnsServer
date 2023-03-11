@@ -73,7 +73,7 @@ namespace WhatIsMyDns
                     return Task.FromResult<DnsDatagram>(null);
             }
 
-            return Task.FromResult(new DnsDatagram(request.Identifier, true, request.OPCODE, true, false, request.RecursionDesired, false, false, false, DnsResponseCode.NoError, request.Question, new DnsResourceRecord[] { answer }));
+            return Task.FromResult(new DnsDatagram(request.Identifier, true, request.OPCODE, true, false, request.RecursionDesired, isRecursionAllowed, false, false, DnsResponseCode.NoError, request.Question, new DnsResourceRecord[] { answer }));
         }
 
         #endregion
