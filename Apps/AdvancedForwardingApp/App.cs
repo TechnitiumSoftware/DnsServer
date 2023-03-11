@@ -164,7 +164,7 @@ namespace AdvancedForwarding
 
         public Task<DnsDatagram> ProcessRequestAsync(DnsDatagram request, IPEndPoint remoteEP, DnsTransportProtocol protocol, bool isRecursionAllowed)
         {
-            if (!_enableForwarding)
+            if (!_enableForwarding || !request.RecursionDesired)
                 return Task.FromResult<DnsDatagram>(null);
 
             IPAddress remoteIP = remoteEP.Address;
