@@ -88,7 +88,6 @@ namespace DnsServerCore.Dns
 
         #region variables
 
-        const int UDP_MAX_BUFFER_SIZE = 4096;
         internal const int MAX_CNAME_HOPS = 16;
         const int SERVE_STALE_WAIT_TIME = 1800;
 
@@ -298,7 +297,7 @@ namespace DnsServerCore.Dns
 
         private async Task ReadUdpRequestAsync(Socket udpListener)
         {
-            byte[] recvBuffer = new byte[UDP_MAX_BUFFER_SIZE];
+            byte[] recvBuffer = new byte[DnsDatagram.EDNS_MAX_UDP_PAYLOAD_SIZE];
             using MemoryStream recvBufferStream = new MemoryStream(recvBuffer);
 
             try
@@ -323,7 +322,7 @@ namespace DnsServerCore.Dns
 
                 while (true)
                 {
-                    recvBufferStream.SetLength(UDP_MAX_BUFFER_SIZE); //resetting length before using buffer
+                    recvBufferStream.SetLength(DnsDatagram.EDNS_MAX_UDP_PAYLOAD_SIZE); //resetting length before using buffer
 
                     try
                     {
@@ -415,8 +414,8 @@ namespace DnsServerCore.Dns
 
                 if (request.EDNS is null)
                     sendBuffer = new byte[512];
-                else if (request.EDNS.UdpPayloadSize > UDP_MAX_BUFFER_SIZE)
-                    sendBuffer = new byte[UDP_MAX_BUFFER_SIZE];
+                else if (request.EDNS.UdpPayloadSize > _udpPayloadSize)
+                    sendBuffer = new byte[_udpPayloadSize];
                 else
                     sendBuffer = new byte[request.EDNS.UdpPayloadSize];
 
@@ -1914,6 +1913,9 @@ namespace DnsServerCore.Dns
                                 break;
 
                             case DnsResourceRecordType.FWD:
+                                if (!request.RecursionDesired || !isRecursionAllowed)
+                                    return new DnsDatagram(request.Identifier, true, DnsOpcode.StandardQuery, false, false, request.RecursionDesired, isRecursionAllowed, false, false, DnsResponseCode.Refused, request.Question) { Tag = DnsServerResponseType.Authoritative };
+
                                 //do conditional forwarding
                                 return await ProcessRecursiveQueryAsync(request, remoteEP, protocol, response.Authority, _dnssecValidation, false, skipDnsAppAuthoritativeRequestHandlers);
 
