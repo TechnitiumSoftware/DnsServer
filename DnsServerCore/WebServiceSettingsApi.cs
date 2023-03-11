@@ -169,8 +169,7 @@ namespace DnsServerCore
                     }
                     catch (Exception ex)
                     {
-                        _dnsWebService._log.Write("Failed to restart DNS service.");
-                        _dnsWebService._log.Write(ex);
+                        _dnsWebService._log.Write("Failed to restart DNS service.\r\n" + ex.ToString());
                     }
                 });
             }
@@ -192,8 +191,7 @@ namespace DnsServerCore
                     }
                     catch (Exception ex)
                     {
-                        _dnsWebService._log.Write("Failed to restart web service.");
-                        _dnsWebService._log.Write(ex);
+                        _dnsWebService._log.Write("Failed to restart web service.\r\n" + ex.ToString());
                     }
                 });
             }
@@ -1188,10 +1186,10 @@ namespace DnsServerCore
             //blocklist timers
             if ((_blockListUpdateIntervalHours > 0) && ((_dnsWebService.DnsServer.BlockListZoneManager.AllowListUrls.Count + _dnsWebService.DnsServer.BlockListZoneManager.BlockListUrls.Count) > 0))
             {
-                if (blockListUrlsUpdated || (_blockListUpdateTimer is null))
+                if (_blockListUpdateTimer is null)
+                    StartBlockListUpdateTimer();
+                else if (blockListUrlsUpdated)
                     ForceUpdateBlockLists();
-
-                StartBlockListUpdateTimer();
             }
             else
             {
