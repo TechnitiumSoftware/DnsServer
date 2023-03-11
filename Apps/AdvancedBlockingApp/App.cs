@@ -35,6 +35,7 @@ using TechnitiumLibrary.Net;
 using TechnitiumLibrary.Net.Dns;
 using TechnitiumLibrary.Net.Dns.EDnsOptions;
 using TechnitiumLibrary.Net.Dns.ResourceRecords;
+using TechnitiumLibrary.Net.Http.Client;
 
 namespace AdvancedBlocking
 {
@@ -446,11 +447,18 @@ namespace AdvancedBlocking
             {
                 if (allowed)
                 {
-                    DnsDatagram internalResponse = await _dnsServer.DirectQueryAsync(request);
-                    if (internalResponse.Tag is null)
-                        internalResponse.Tag = DnsServerResponseType.Recursive;
+                    try
+                    {
+                        DnsDatagram internalResponse = await _dnsServer.DirectQueryAsync(request);
+                        if (internalResponse.Tag is null)
+                            internalResponse.Tag = DnsServerResponseType.Recursive;
 
-                    return internalResponse;
+                        return internalResponse;
+                    }
+                    catch (Exception ex)
+                    {
+                        _dnsServer.WriteLog("Failed to resolve the request for allowed domain name with QNAME: " + question.Name + "; QTYPE: " + question.Type + "; QCLASS: " + question.Class + "\r\n" + ex.ToString());
+                    }
                 }
 
                 return null;
@@ -923,7 +931,7 @@ namespace AdvancedBlocking
                     handler.UseProxy = _dnsServer.Proxy is not null;
                     handler.AutomaticDecompression = DecompressionMethods.All;
 
-                    using (HttpClient http = new HttpClient(handler))
+                    using (HttpClient http = new HttpClient(new HttpClientRetryHandler(handler)))
                     {
                         if (File.Exists(_listFilePath))
                             http.DefaultRequestHeaders.IfModifiedSince = File.GetLastWriteTimeUtc(_listFilePath);
