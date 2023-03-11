@@ -1,5 +1,16 @@
 # Technitium DNS Server Change Log
 
+## Version 11.0.3
+Release Date: 11 March 2023
+
+- Fixed DoS vulnerability reported by Xiang Li, [Network and Information Security Lab, Tsinghua University](https://netsec.ccert.edu.cn/) that an attacker can use to send bad-formatted UDP packet to cause the outbound requests to fail to resolve due to insufficient validation.
+- Fixed issue reported by Xiang Li, [Network and Information Security Lab, Tsinghua University](https://netsec.ccert.edu.cn/) that caused conditional forwarder to not honoring RD flag in requests.
+- Fixed issue reported by Xiang Li, [Network and Information Security Lab, Tsinghua University](https://netsec.ccert.edu.cn/) that made amplification attacks more effective due to max 4096 bytes limit for responses.
+- Fixed issue in loading of Allowed and Blocked zones that resulted in loading to take too much time caused due to indexing feature added in last update for authoritative zones.
+- Updated DNS server UDP response processing to remove glue records for MX responses and try again to send it instead of sending a truncated response that was causing issue with some old mail servers that did not perform follow up request over TCP.
+- Block Page App: Updated the app to support option to disable the web server without requiring to uninstall the app to stop the web server.
+- Multiple other minor bug fixes and improvements.
+
 ## Version 11.0.2
 Release Date: 26 February 2023
 
