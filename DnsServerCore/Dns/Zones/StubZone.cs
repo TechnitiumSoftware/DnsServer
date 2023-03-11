@@ -373,8 +373,7 @@ namespace DnsServerCore.Dns.Zones
                             strNameServers += ", " + nameServer.ToString();
                     }
 
-                    log.Write("DNS Server failed to refresh '" + (_name == "" ? "<root>" : _name) + "' stub zone from: " + strNameServers);
-                    log.Write(ex);
+                    log.Write("DNS Server failed to refresh '" + (_name == "" ? "<root>" : _name) + "' stub zone from: " + strNameServers + "\r\n" + ex.ToString());
                 }
 
                 return false;
