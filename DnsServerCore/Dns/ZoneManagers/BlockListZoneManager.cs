@@ -29,6 +29,7 @@ using TechnitiumLibrary.Net;
 using TechnitiumLibrary.Net.Dns;
 using TechnitiumLibrary.Net.Dns.EDnsOptions;
 using TechnitiumLibrary.Net.Dns.ResourceRecords;
+using TechnitiumLibrary.Net.Http.Client;
 
 namespace DnsServerCore.Dns.ZoneManagers
 {
@@ -392,7 +393,7 @@ namespace DnsServerCore.Dns.ZoneManagers
                     handler.UseProxy = _dnsServer.Proxy is not null;
                     handler.AutomaticDecompression = DecompressionMethods.All;
 
-                    using (HttpClient http = new HttpClient(handler))
+                    using (HttpClient http = new HttpClient(new HttpClientRetryHandler(handler)))
                     {
                         if (File.Exists(listFilePath))
                             http.DefaultRequestHeaders.IfModifiedSince = File.GetLastWriteTimeUtc(listFilePath);
