@@ -27,7 +27,7 @@ namespace DnsServerCore.ApplicationCommon
     /// <summary>
     /// Provides an interface to access the internal DNS Server core.
     /// </summary>
-    public interface IDnsServer
+    public interface IDnsServer : IDnsClient
     {
         /// <summary>
         /// Allows querying the DNS server core directly. This call supports recursion even if its not enabled in the DNS server configuration. The request wont be routed to any of the installed DNS Apps except for processing APP records. The request and its response are not counted in any stats or logged.
