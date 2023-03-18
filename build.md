@@ -41,7 +41,7 @@ $ sudo apt update
 $ sudo apt install dotnet-sdk-7.0 libmsquic -y
 ```
 
-Note! The `libmsquic` package requires openssl v1.1.1 and is not yet compatible with openssl v3.x. You can follow [this blog post](https://blog.technitium.com/2023/02/configuring-dns-over-quic-and-https3.html) to know how to get it configured correctly. If you do not plan to use DNS-over-QUIC or HTTP/3 support then you can skip installing `libmsquic` altogether.
+Note! The `libmsquic` package requires openssl v1.1.1 and is not yet compatible with openssl v3.x. You can follow [this blog post](https://blog.technitium.com/2023/02/configuring-dns-over-quic-and-https3.html) to know how to get it configured correctly. If you do not plan to use DNS-over-QUIC or HTTP/3 support, or you intend to build a docker image then you can skip installing `libmsquic` altogether.
 
 4. Clone the source code for both [TechnitiumLibrary](https://github.com/TechnitiumSoftware/TechnitiumLibrary) and [DnsServer](https://github.com/TechnitiumSoftware/DnsServer) into the current folder.
 ```
@@ -61,6 +61,9 @@ $ dotnet publish DnsServer/DnsServerApp/DnsServerApp.csproj -c Release
 ```
 
 7. Install the DNS server as a systemd service.
+
+Note! Skip this step if you wish to build and use docker image.
+
 ```
 $ sudo mkdir -p /opt/technitium/dns
 $ sudo cp -r DnsServer/DnsServerApp/bin/Release/publish/* /opt/technitium/dns
@@ -73,4 +76,25 @@ $ sudo rm /etc/resolv.conf
 $ echo "nameserver 127.0.0.1" | sudo tee /etc/resolv.conf
 ```
 
-8. Open the DNS server web console in a web browser using `http://<server-ip-address>:5380/` URL and set a login password to complete the installation.
+8. Build and run docker image.
+
+Note! Skip this step if you have already installed the DNS server as a systemd service in previous step.
+
+Note! Before proceeding to build a docker image, it is required that you have installed docker and docker-compose on your computer.
+
+Follow the commands given below to build a docker image for the DNS server.
+
+```
+$ cd DnsServer
+$ sudo docker build -t technitium/dns-server:latest .
+```
+
+You can now run the image that you have build using docker-compose as shown below. You should edit the `docker-compose.yml` file if you wish to edit the container's configuration before running it.
+
+```
+$ sudo systemctl stop systemd-resolved
+$ sudo systemctl disable systemd-resolved
+$ sudo docker-compose up -d
+```
+
+9. Open the DNS server web console in a web browser using `http://<server-ip-address>:5380/` URL and set a login password to complete the installation.
