@@ -19,6 +19,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 using DnsServerCore.ApplicationCommon;
 using System;
+using System.Threading;
 using System.Threading.Tasks;
 using TechnitiumLibrary.Net.Dns;
 using TechnitiumLibrary.Net.Proxy;
@@ -58,18 +59,19 @@ namespace DnsServerCore.Dns.Applications
             return _dnsServer.DirectQueryAsync(request, timeout, true);
         }
 
+        public Task<DnsDatagram> ResolveAsync(DnsQuestionRecord question, CancellationToken cancellationToken = default)
+        {
+            return DirectQueryAsync(question);
+        }
+
         public void WriteLog(string message)
         {
-            LogManager log = _dnsServer.LogManager;
-            if (log != null)
-                log.Write("DNS App [" + _applicationName + "]: " + message);
+            _dnsServer.LogManager?.Write("DNS App [" + _applicationName + "]: " + message);
         }
 
         public void WriteLog(Exception ex)
         {
-            LogManager log = _dnsServer.LogManager;
-            if (log != null)
-                log.Write("DNS App [" + _applicationName + "]: " + ex.ToString());
+            _dnsServer.LogManager?.Write("DNS App [" + _applicationName + "]: " + ex.ToString());
         }
 
         #endregion
