@@ -31,6 +31,7 @@ using System.Threading.Tasks;
 using TechnitiumLibrary;
 using TechnitiumLibrary.Net.Dns;
 using TechnitiumLibrary.Net.Dns.ResourceRecords;
+using TechnitiumLibrary.Net.Http.Client;
 using TechnitiumLibrary.Net.Proxy;
 
 namespace DnsServerCore
@@ -69,7 +70,7 @@ namespace DnsServerCore
                 handler.UseProxy = _dnsWebService.DnsServer.Proxy is not null;
                 handler.AutomaticDecompression = DecompressionMethods.All;
 
-                using (HttpClient http = new HttpClient(handler))
+                using (HttpClient http = new HttpClient(new HttpClientNetworkHandler(handler, _dnsWebService.DnsServer.PreferIPv6 ? HttpClientNetworkType.PreferIPv6 : HttpClientNetworkType.Default, _dnsWebService.DnsServer)))
                 {
                     _checkForUpdateJsonData = await http.GetStringAsync(_updateCheckUri);
                     _checkForUpdateJsonDataUpdatedOn = DateTime.UtcNow;
