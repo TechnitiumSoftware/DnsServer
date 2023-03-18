@@ -1,6 +1,6 @@
 ﻿/*
 Technitium DNS Server
-Copyright (C) 2022  Shreyas Zare (shreyas@technitium.com)
+Copyright (C) 2023  Shreyas Zare (shreyas@technitium.com)
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -27,6 +27,7 @@ using System.Text.Json;
 using System.Threading.Tasks;
 using TechnitiumLibrary;
 using TechnitiumLibrary.Net.Dns.ResourceRecords;
+using TechnitiumLibrary.Net.Http.Client;
 using TechnitiumLibrary.Net.Proxy;
 
 namespace Failover
@@ -42,6 +43,7 @@ namespace Failover
         Uri[] _urls;
 
         SocketsHttpHandler _httpHandler;
+        HttpClientNetworkHandler _httpCustomResolverHandler;
         HttpClient _httpClient;
 
         #endregion
@@ -130,9 +132,12 @@ namespace Failover
                 }
             }
 
+            if ((_httpCustomResolverHandler is null) || handlerChanged)
+                _httpCustomResolverHandler = new HttpClientNetworkHandler(_httpHandler, _service.DnsServer.PreferIPv6 ? HttpClientNetworkType.PreferIPv6 : HttpClientNetworkType.Default, _service.DnsServer);
+
             if (_httpClient is null)
             {
-                HttpClient httpClient = new HttpClient(_httpHandler);
+                HttpClient httpClient = new HttpClient(_httpCustomResolverHandler);
 
                 _httpClient = httpClient;
             }
@@ -140,7 +145,7 @@ namespace Failover
             {
                 if (handlerChanged)
                 {
-                    HttpClient httpClient = new HttpClient(_httpHandler);
+                    HttpClient httpClient = new HttpClient(_httpCustomResolverHandler);
 
                     HttpClient oldHttpClient = _httpClient;
                     _httpClient = httpClient;

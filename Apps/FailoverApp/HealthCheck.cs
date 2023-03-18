@@ -1,6 +1,6 @@
 ﻿/*
 Technitium DNS Server
-Copyright (C) 2022  Shreyas Zare (shreyas@technitium.com)
+Copyright (C) 2023  Shreyas Zare (shreyas@technitium.com)
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -29,6 +29,7 @@ using TechnitiumLibrary;
 using TechnitiumLibrary.Net;
 using TechnitiumLibrary.Net.Dns;
 using TechnitiumLibrary.Net.Dns.ResourceRecords;
+using TechnitiumLibrary.Net.Http.Client;
 using TechnitiumLibrary.Net.Proxy;
 
 namespace Failover
@@ -61,6 +62,7 @@ namespace Failover
         WebHook _webHook;
 
         SocketsHttpHandler _httpHandler;
+        HttpClientNetworkHandler _httpCustomResolverHandler;
         HttpClient _httpClient;
 
         #endregion
@@ -157,9 +159,12 @@ namespace Failover
                         }
                     }
 
+                    if ((_httpCustomResolverHandler is null) || handlerChanged)
+                        _httpCustomResolverHandler = new HttpClientNetworkHandler(_httpHandler, _service.DnsServer.PreferIPv6 ? HttpClientNetworkType.PreferIPv6 : HttpClientNetworkType.Default, _service.DnsServer);
+
                     if (_httpClient is null)
                     {
-                        HttpClient httpClient = new HttpClient(_httpHandler);
+                        HttpClient httpClient = new HttpClient(_httpCustomResolverHandler);
                         httpClient.Timeout = TimeSpan.FromMilliseconds(_timeout);
                         httpClient.DefaultRequestHeaders.UserAgent.ParseAdd(HTTP_HEALTH_CHECK_USER_AGENT);
                         httpClient.DefaultRequestHeaders.ConnectionClose = true;
@@ -170,7 +175,7 @@ namespace Failover
                     {
                         if (handlerChanged || (_httpClient.Timeout.TotalMilliseconds != _timeout))
                         {
-                            HttpClient httpClient = new HttpClient(_httpHandler);
+                            HttpClient httpClient = new HttpClient(_httpCustomResolverHandler);
                             httpClient.Timeout = TimeSpan.FromMilliseconds(_timeout);
                             httpClient.DefaultRequestHeaders.UserAgent.ParseAdd(HTTP_HEALTH_CHECK_USER_AGENT);
                             httpClient.DefaultRequestHeaders.ConnectionClose = true;
