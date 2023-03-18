@@ -173,7 +173,12 @@ namespace DnsServerCore
                 handler.UseProxy = _dnsWebService.DnsServer.Proxy is not null;
                 handler.AutomaticDecompression = DecompressionMethods.All;
 
-                using (HttpClient http = new HttpClient(doRetry ? new HttpClientRetryHandler(handler) : handler))
+                HttpClientNetworkHandler networkHandler = new HttpClientNetworkHandler(handler, _dnsWebService.DnsServer.PreferIPv6 ? HttpClientNetworkType.PreferIPv6 : HttpClientNetworkType.Default, _dnsWebService.DnsServer);
+
+                if (!doRetry)
+                    networkHandler.Retries = 1;
+
+                using (HttpClient http = new HttpClient(networkHandler))
                 {
                     _storeAppsJsonData = await http.GetStringAsync(_appStoreUri);
                     _storeAppsJsonDataUpdatedOn = DateTime.UtcNow;
@@ -196,7 +201,12 @@ namespace DnsServerCore
                     handler.UseProxy = _dnsWebService.DnsServer.Proxy is not null;
                     handler.AutomaticDecompression = DecompressionMethods.All;
 
-                    using (HttpClient http = new HttpClient(doRetry ? new HttpClientRetryHandler(handler) : handler))
+                    HttpClientNetworkHandler networkHandler = new HttpClientNetworkHandler(handler, _dnsWebService.DnsServer.PreferIPv6 ? HttpClientNetworkType.PreferIPv6 : HttpClientNetworkType.Default, _dnsWebService.DnsServer);
+
+                    if (!doRetry)
+                        networkHandler.Retries = 1;
+
+                    using (HttpClient http = new HttpClient(networkHandler))
                     {
                         using (Stream httpStream = await http.GetStreamAsync(url))
                         {
@@ -461,7 +471,7 @@ namespace DnsServerCore
                     handler.UseProxy = _dnsWebService.DnsServer.Proxy is not null;
                     handler.AutomaticDecompression = DecompressionMethods.All;
 
-                    using (HttpClient http = new HttpClient(handler))
+                    using (HttpClient http = new HttpClient(new HttpClientNetworkHandler(handler, _dnsWebService.DnsServer.PreferIPv6 ? HttpClientNetworkType.PreferIPv6 : HttpClientNetworkType.Default, _dnsWebService.DnsServer)))
                     {
                         using (Stream httpStream = await http.GetStreamAsync(url))
                         {
