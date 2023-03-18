@@ -2560,7 +2560,7 @@ namespace DnsServerCore.Dns
                             answer.AddRange(blockedResponse.Answer);
 
                             //include blocked response additional section to pass on Extended DNS Errors
-                            return new DnsDatagram(request.Identifier, true, DnsOpcode.StandardQuery, false, false, true, true, false, false, DnsResponseCode.NoError, request.Question, answer, blockedResponse.Authority, blockedResponse.Additional) { Tag = blockedResponse.Tag };
+                            return new DnsDatagram(request.Identifier, true, DnsOpcode.StandardQuery, false, false, true, true, false, false, blockedResponse.RCODE, request.Question, answer, blockedResponse.Authority, blockedResponse.Additional) { Tag = blockedResponse.Tag };
                         }
                     }
                 }
