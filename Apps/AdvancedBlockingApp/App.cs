@@ -931,7 +931,7 @@ namespace AdvancedBlocking
                     handler.UseProxy = _dnsServer.Proxy is not null;
                     handler.AutomaticDecompression = DecompressionMethods.All;
 
-                    using (HttpClient http = new HttpClient(new HttpClientRetryHandler(handler)))
+                    using (HttpClient http = new HttpClient(new HttpClientNetworkHandler(handler, _dnsServer.PreferIPv6 ? HttpClientNetworkType.PreferIPv6 : HttpClientNetworkType.Default, _dnsServer)))
                     {
                         if (File.Exists(_listFilePath))
                             http.DefaultRequestHeaders.IfModifiedSince = File.GetLastWriteTimeUtc(_listFilePath);
