@@ -480,7 +480,7 @@ namespace AdvancedForwarding
                 return null;
             }
 
-            private bool IsDomainBlocked(string domain, out string matchedDomain)
+            private bool IsDomainMatching(string domain, out string matchedDomain)
             {
                 string parent;
 
@@ -494,7 +494,15 @@ namespace AdvancedForwarding
 
                     parent = GetParentZone(domain);
                     if (parent is null)
+                    {
+                        if (_domainMap.TryGetValue("*", out _))
+                        {
+                            matchedDomain = "*";
+                            return true;
+                        }
+
                         break;
+                    }
 
                     domain = "*." + parent;
 
@@ -514,7 +522,7 @@ namespace AdvancedForwarding
 
             private bool TryGetForwarderRecords(string domain, out IReadOnlyList<DnsForwarderRecordData> forwarderRecords, out string matchedDomain)
             {
-                if (IsDomainBlocked(domain, out matchedDomain))
+                if (IsDomainMatching(domain, out matchedDomain))
                 {
                     forwarderRecords = _forwarderRecords;
                     return true;
