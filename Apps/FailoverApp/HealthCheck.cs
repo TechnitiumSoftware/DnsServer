@@ -133,8 +133,7 @@ namespace Failover
                         httpHandler.PooledConnectionIdleTimeout = TimeSpan.FromMilliseconds(Math.Max(10000, _timeout));
                         httpHandler.Proxy = proxy;
                         httpHandler.UseProxy = proxy is not null;
-                        httpHandler.AllowAutoRedirect = true;
-                        httpHandler.MaxAutomaticRedirections = 10;
+                        httpHandler.AllowAutoRedirect = false;
 
                         _httpHandler = httpHandler;
                         handlerChanged = true;
@@ -148,8 +147,7 @@ namespace Failover
                             httpHandler.PooledConnectionIdleTimeout = TimeSpan.FromMilliseconds(Math.Max(10000, _timeout));
                             httpHandler.Proxy = proxy;
                             httpHandler.UseProxy = proxy is not null;
-                            httpHandler.AllowAutoRedirect = true;
-                            httpHandler.MaxAutomaticRedirections = 10;
+                            httpHandler.AllowAutoRedirect = false;
 
                             SocketsHttpHandler oldHttpHandler = _httpHandler;
                             _httpHandler = httpHandler;
