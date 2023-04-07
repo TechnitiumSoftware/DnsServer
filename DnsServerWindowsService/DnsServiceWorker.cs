@@ -107,21 +107,6 @@ namespace DnsServerWindowsService
 
                 WindowsFirewall.AddRuleVista("Technitium DNS Server", "Allows incoming connection request to the DNS server.", FirewallAction.Allow, appPath, Protocol.ANY, null, null, null, null, InterfaceTypeFlags.All, true, Direction.Inbound, true);
 
-                //add web console rule
-                try
-                {
-                    WindowsFirewall.RemoveRuleVista("Technitium DNS Server Web Console", "");
-                }
-                catch
-                { }
-
-                try
-                {
-                    WindowsFirewall.AddRuleVista("Technitium DNS Server Web Console", "Allows access to the DNS server web console.", FirewallAction.Allow, null, Protocol.TCP, _service.WebServiceHttpPort + ", " + _service.WebServiceTlsPort, null, null, null, InterfaceTypeFlags.All, true, Direction.Inbound, true);
-                }
-                catch
-                { }
-
                 return true;
             }
             catch
