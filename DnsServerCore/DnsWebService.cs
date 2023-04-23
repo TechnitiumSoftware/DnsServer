@@ -98,7 +98,7 @@ namespace DnsServerCore
         DateTime _dnsTlsCertificateLastModifiedOn;
 
         //cache
-        internal bool _saveCache;
+        internal bool _saveCache = true;
 
         Timer _tlsCertificateUpdateTimer;
         const int TLS_CERTIFICATE_UPDATE_TIMER_INITIAL_INTERVAL = 60000;
@@ -287,7 +287,8 @@ namespace DnsServerCore
                 {
                     ctx.Context.Response.Headers.Add("X-Robots-Tag", "noindex, nofollow");
                     ctx.Context.Response.Headers.Add("Cache-Control", "private, max-age=300");
-                }
+                },
+                ServeUnknownFileTypes = true
             });
 
             ConfigureWebServiceRoutes();
@@ -789,6 +790,23 @@ namespace DnsServerCore
                 _dnsServer.DnssecValidation = true;
                 CreateForwarderZoneToDisableDnssecForNTP();
 
+                //web service
+                string strWebServiceHttpPort = Environment.GetEnvironmentVariable("DNS_SERVER_WEB_SERVICE_HTTP_PORT");
+                if (!string.IsNullOrEmpty(strWebServiceHttpPort))
+                    _webServiceHttpPort = int.Parse(strWebServiceHttpPort);
+
+                string webServiceTlsPort = Environment.GetEnvironmentVariable("DNS_SERVER_WEB_SERVICE_HTTPS_PORT");
+                if (!string.IsNullOrEmpty(webServiceTlsPort))
+                    _webServiceTlsPort = int.Parse(webServiceTlsPort);
+
+                string webServiceEnableTls = Environment.GetEnvironmentVariable("DNS_SERVER_WEB_SERVICE_ENABLE_HTTPS");
+                if (!string.IsNullOrEmpty(webServiceEnableTls))
+                    _webServiceEnableTls = bool.Parse(webServiceEnableTls);
+
+                string webServiceUseSelfSignedTlsCertificate = Environment.GetEnvironmentVariable("DNS_SERVER_WEB_SERVICE_USE_SELF_SIGNED_CERT");
+                if (!string.IsNullOrEmpty(webServiceUseSelfSignedTlsCertificate))
+                    _webServiceUseSelfSignedTlsCertificate = bool.Parse(webServiceUseSelfSignedTlsCertificate);
+
                 //optional protocols
                 string strDnsOverHttp = Environment.GetEnvironmentVariable("DNS_SERVER_OPTIONAL_PROTOCOL_DNS_OVER_HTTP");
                 if (!string.IsNullOrEmpty(strDnsOverHttp))
@@ -1229,7 +1247,7 @@ namespace DnsServerCore
                 if (version >= 30)
                     _saveCache = bR.ReadBoolean();
                 else
-                    _saveCache = false;
+                    _saveCache = true;
 
                 _dnsServer.ServeStale = bR.ReadBoolean();
                 _dnsServer.CacheZoneManager.ServeStaleTtl = bR.ReadUInt32();
