@@ -189,6 +189,8 @@ namespace AdvancedForwarding
             if (!group.TryGetForwarderRecords(qname, out IReadOnlyList<DnsForwarderRecordData> forwarderRecords))
                 return Task.FromResult<DnsDatagram>(null);
 
+            request.SetShadowEDnsClientSubnetOption(network, true);
+
             DnsResourceRecord[] authority = new DnsResourceRecord[forwarderRecords.Count];
 
             for (int i = 0; i < forwarderRecords.Count; i++)
