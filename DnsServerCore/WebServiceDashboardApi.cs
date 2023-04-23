@@ -461,6 +461,10 @@ namespace DnsServerCore
                     jsonWriter.WriteStartObject();
 
                     jsonWriter.WriteString("name", item.Key);
+
+                    if (item.Key.Contains("xn--", StringComparison.OrdinalIgnoreCase))
+                        jsonWriter.WriteString("nameIdn", DnsClient.ConvertDomainNameToUnicode(item.Key));
+
                     jsonWriter.WriteNumber("hits", item.Value);
 
                     jsonWriter.WriteEndObject();
@@ -481,6 +485,10 @@ namespace DnsServerCore
                     jsonWriter.WriteStartObject();
 
                     jsonWriter.WriteString("name", item.Key);
+
+                    if (item.Key.Contains("xn--", StringComparison.OrdinalIgnoreCase))
+                        jsonWriter.WriteString("nameIdn", DnsClient.ConvertDomainNameToUnicode(item.Key));
+
                     jsonWriter.WriteNumber("hits", item.Value);
 
                     jsonWriter.WriteEndObject();
@@ -588,6 +596,10 @@ namespace DnsServerCore
                             jsonWriter.WriteStartObject();
 
                             jsonWriter.WriteString("name", item.Key);
+
+                            if (item.Key.Contains("xn--", StringComparison.OrdinalIgnoreCase))
+                                jsonWriter.WriteString("nameIdn", DnsClient.ConvertDomainNameToUnicode(item.Key));
+
                             jsonWriter.WriteNumber("hits", item.Value);
 
                             jsonWriter.WriteEndObject();
@@ -607,6 +619,10 @@ namespace DnsServerCore
                             jsonWriter.WriteStartObject();
 
                             jsonWriter.WriteString("name", item.Key);
+
+                            if (item.Key.Contains("xn--", StringComparison.OrdinalIgnoreCase))
+                                jsonWriter.WriteString("nameIdn", DnsClient.ConvertDomainNameToUnicode(item.Key));
+
                             jsonWriter.WriteNumber("hits", item.Value);
 
                             jsonWriter.WriteEndObject();
