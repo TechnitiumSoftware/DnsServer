@@ -73,7 +73,7 @@ Be it a home network or an organization's network, having a locally running DNS 
 - Web console portal for easy configuration using any web browser.
 - Built in HTTP API to allow 3rd party apps to control and configure the DNS server.
 - Built-in system logging and query logging.
-- Open source cross-platform .NET 7 implementation hosted on GitHub.
+- Open source cross-platform .NET 7 implementation hosted on [GitHub](https://github.com/TechnitiumSoftware/DnsServer).
 
 # Planned Features
 - Clustering support to manage two or more DNS servers.
@@ -107,6 +107,7 @@ Make contribution to Technitium and help making new software, updates, and featu
 [Donate Now!](https://www.patreon.com/technitium)
 
 # Blog Posts
+- [Technitium Blog: How To Auto Renew SSL Certificates With Certbot Using DNS Challenge](https://blog.technitium.com/2023/03/how-to-auto-renew-ssl-certificates-with.html) (Mar 2023)
 - [Technitium Blog: Configuring DNS-over-QUIC and HTTPS/3 For Technitium DNS Server](https://blog.technitium.com/2023/02/configuring-dns-over-quic-and-https3.html) (Feb 2023)
 - [Technitium Blog: Technitium DNS Server v11 Released!](https://blog.technitium.com/2023/02/technitium-dns-server-v11-released.html) (Feb 2023)
 - [Technitium Blog: Technitium DNS Server v10 Released!](https://blog.technitium.com/2022/11/technitium-dns-server-v10-released.html) (Nov 2022)
