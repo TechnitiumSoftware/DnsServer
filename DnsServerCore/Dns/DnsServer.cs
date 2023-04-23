@@ -262,6 +262,13 @@ namespace DnsServerCore.Dns
 
             //init stats
             _stats = new StatsManager(this);
+
+            //init udp socket pool async for port randomization
+            ThreadPool.QueueUserWorkItem(delegate (object state)
+            {
+                if (Environment.OSVersion.Platform == PlatformID.Win32NT)
+                    UdpClientConnection.CreateSocketPool(_preferIPv6);
+            });
         }
 
         #endregion
@@ -1934,6 +1941,14 @@ namespace DnsServerCore.Dns
 
         private async Task<DnsDatagram> AuthoritativeQueryAsync(DnsDatagram request, IPEndPoint remoteEP, DnsTransportProtocol protocol, bool isRecursionAllowed, bool skipDnsAppAuthoritativeRequestHandlers)
         {
+            DnsDatagram response = _authZoneManager.Query(request, isRecursionAllowed);
+            if (response is not null)
+            {
+                response.Tag = DnsServerResponseType.Authoritative;
+
+                return response;
+            }
+
             if (!skipDnsAppAuthoritativeRequestHandlers)
             {
                 foreach (IDnsAuthoritativeRequestHandler requestHandler in _dnsApplicationManager.DnsAuthoritativeRequestHandlers)
@@ -1954,14 +1969,6 @@ namespace DnsServerCore.Dns
                         _log?.Write(remoteEP, protocol, ex);
                     }
                 }
-            }
-
-            DnsDatagram response = _authZoneManager.Query(request, isRecursionAllowed);
-            if (response is not null)
-            {
-                response.Tag = DnsServerResponseType.Authoritative;
-
-                return response;
             }
 
             return null;
@@ -2584,6 +2591,7 @@ namespace DnsServerCore.Dns
         {
             DnsQuestionRecord question = request.Question[0];
             NetworkAddress eDnsClientSubnet = null;
+            bool conditionalForwardingClientSubnet = false;
 
             if (_eDnsClientSubnet && CacheZone.IsTypeSupportedForEDnsClientSubnet(question.Type))
             {
@@ -2615,6 +2623,11 @@ namespace DnsServerCore.Dns
                 {
                     return new DnsDatagram(request.Identifier, true, DnsOpcode.StandardQuery, false, false, request.RecursionDesired, true, false, false, DnsResponseCode.FormatError, request.Question) { Tag = DnsServerResponseType.Authoritative };
                 }
+                else if (requestECS.ConditionalForwardingClientSubnet)
+                {
+                    conditionalForwardingClientSubnet = true;
+                    eDnsClientSubnet = new NetworkAddress(requestECS.Address, requestECS.SourcePrefixLength);
+                }
                 else if ((requestECS.SourcePrefixLength == 0) || NetUtilities.IsPrivateIP(requestECS.Address))
                 {
                     //disable ECS option
@@ -2639,8 +2652,15 @@ namespace DnsServerCore.Dns
             }
             else
             {
-                //hide ECS option
-                request.ShadowHideEDnsClientSubnetOption();
+                EDnsClientSubnetOptionData requestECS = request.GetEDnsClientSubnetOption();
+                if (requestECS is not null)
+                {
+                    conditionalForwardingClientSubnet = requestECS.ConditionalForwardingClientSubnet;
+                    if (conditionalForwardingClientSubnet)
+                        eDnsClientSubnet = new NetworkAddress(requestECS.Address, requestECS.SourcePrefixLength);
+                    else
+                        request.ShadowHideEDnsClientSubnetOption(); //hide ECS option
+                }
             }
 
             if (!cachePrefetchOperation && !cacheRefreshOperation)
@@ -2676,7 +2696,7 @@ namespace DnsServerCore.Dns
                 //got new resolver task added so question is not being resolved; do recursive resolution in another task on resolver thread pool
                 _ = Task.Factory.StartNew(delegate ()
                 {
-                    return RecursiveResolveAsync(question, eDnsClientSubnet, conditionalForwarders, dnssecValidation, cachePrefetchOperation, cacheRefreshOperation, skipDnsAppAuthoritativeRequestHandlers, resolverTaskCompletionSource);
+                    return RecursiveResolveAsync(question, eDnsClientSubnet, conditionalForwardingClientSubnet, conditionalForwarders, dnssecValidation, cachePrefetchOperation, cacheRefreshOperation, skipDnsAppAuthoritativeRequestHandlers, resolverTaskCompletionSource);
                 }, CancellationToken.None, TaskCreationOptions.DenyChildAttach, _resolverTaskScheduler);
             }
 
@@ -2732,7 +2752,7 @@ namespace DnsServerCore.Dns
             return new DnsDatagram(request.Identifier, true, DnsOpcode.StandardQuery, false, false, request.RecursionDesired, true, false, false, DnsResponseCode.ServerFailure, request.Question, null, null, null, _udpPayloadSize, request.DnssecOk ? EDnsHeaderFlags.DNSSEC_OK : EDnsHeaderFlags.None, options);
         }
 
-        private async Task RecursiveResolveAsync(DnsQuestionRecord question, NetworkAddress eDnsClientSubnet, IReadOnlyList<DnsResourceRecord> conditionalForwarders, bool dnssecValidation, bool cachePrefetchOperation, bool cacheRefreshOperation, bool skipDnsAppAuthoritativeRequestHandlers, TaskCompletionSource<RecursiveResolveResponse> taskCompletionSource)
+        private async Task RecursiveResolveAsync(DnsQuestionRecord question, NetworkAddress eDnsClientSubnet, bool conditionalForwardingClientSubnet, IReadOnlyList<DnsResourceRecord> conditionalForwarders, bool dnssecValidation, bool cachePrefetchOperation, bool cacheRefreshOperation, bool skipDnsAppAuthoritativeRequestHandlers, TaskCompletionSource<RecursiveResolveResponse> taskCompletionSource)
         {
             try
             {
@@ -2741,8 +2761,8 @@ namespace DnsServerCore.Dns
 
                 if (cachePrefetchOperation || cacheRefreshOperation)
                     dnsCache = new ResolverPrefetchDnsCache(_dnsApplicationManager, _authZoneManager, _cacheZoneManager, _log, skipDnsAppAuthoritativeRequestHandlers, question);
-                else if (skipDnsAppAuthoritativeRequestHandlers)
-                    dnsCache = new ResolverDnsCache(_dnsApplicationManager, _authZoneManager, _cacheZoneManager, _log, true);
+                else if (skipDnsAppAuthoritativeRequestHandlers || conditionalForwardingClientSubnet)
+                    dnsCache = new ResolverDnsCache(_dnsApplicationManager, _authZoneManager, _cacheZoneManager, _log, true); //to prevent request reaching apps again
                 else
                     dnsCache = _dnsCache;
 
@@ -2784,12 +2804,13 @@ namespace DnsServerCore.Dns
                     if (conditionalForwarders.Count == 1)
                     {
                         DnsResourceRecord conditionalForwarder = conditionalForwarders[0];
-                        response = await ConditionalForwarderResolveAsync(question, eDnsClientSubnet, dnsCache, conditionalForwarder.RDATA as DnsForwarderRecordData, conditionalForwarder.Name);
+                        response = await ConditionalForwarderResolveAsync(question, eDnsClientSubnet, conditionalForwardingClientSubnet, dnsCache, conditionalForwarder.RDATA as DnsForwarderRecordData, conditionalForwarder.Name);
                     }
                     else
                     {
                         using (CancellationTokenSource cancellationTokenSource = new CancellationTokenSource())
                         {
+                            CancellationToken cancellationToken = cancellationTokenSource.Token;
                             List<Task<DnsDatagram>> tasks = new List<Task<DnsDatagram>>(conditionalForwarders.Count);
 
                             //start worker tasks
@@ -2805,7 +2826,7 @@ namespace DnsServerCore.Dns
 
                                 tasks.Add(Task.Factory.StartNew(delegate ()
                                 {
-                                    return ConditionalForwarderResolveAsync(question, eDnsClientSubnet, dnsCache, forwarder, conditionalForwarder.Name, cancellationTokenSource.Token);
+                                    return ConditionalForwarderResolveAsync(question, eDnsClientSubnet, conditionalForwardingClientSubnet, dnsCache, forwarder, conditionalForwarder.Name, cancellationToken);
                                 }, CancellationToken.None, TaskCreationOptions.DenyChildAttach, TaskScheduler.Current).Unwrap());
                             }
 
@@ -3057,7 +3078,7 @@ namespace DnsServerCore.Dns
             }
         }
 
-        private Task<DnsDatagram> ConditionalForwarderResolveAsync(DnsQuestionRecord question, NetworkAddress eDnsClientSubnet, IDnsCache dnsCache, DnsForwarderRecordData forwarder, string conditionalForwardingZoneCut, CancellationToken cancellationToken = default)
+        private Task<DnsDatagram> ConditionalForwarderResolveAsync(DnsQuestionRecord question, NetworkAddress eDnsClientSubnet, bool conditionalForwardingClientSubnet, IDnsCache dnsCache, DnsForwarderRecordData forwarder, string conditionalForwardingZoneCut, CancellationToken cancellationToken = default)
         {
             NetProxy proxy = forwarder.Proxy;
             if (proxy is null)
@@ -3075,6 +3096,7 @@ namespace DnsServerCore.Dns
             dnsClient.UdpPayloadSize = _udpPayloadSize;
             dnsClient.DnssecValidation = forwarder.DnssecValidation;
             dnsClient.EDnsClientSubnet = eDnsClientSubnet;
+            dnsClient.ConditionalForwardingClientSubnet = conditionalForwardingClientSubnet;
             dnsClient.ConditionalForwardingZoneCut = conditionalForwardingZoneCut;
 
             return dnsClient.ResolveAsync(question, cancellationToken);
@@ -3783,7 +3805,8 @@ namespace DnsServerCore.Dns
                 {
                     ctx.Context.Response.Headers.Add("X-Robots-Tag", "noindex, nofollow");
                     ctx.Context.Response.Headers.Add("Cache-Control", "private, max-age=300");
-                }
+                },
+                ServeUnknownFileTypes = true
             });
 
             _dohWebService.UseRouting();
@@ -4215,6 +4238,14 @@ namespace DnsServerCore.Dns
             {
                 if (!_serverDomain.Equals(value))
                 {
+                    if (DnsClient.IsDomainNameUnicode(value))
+                        value = DnsClient.ConvertDomainNameToAscii(value);
+
+                    DnsClient.IsDomainNameValid(value, true);
+
+                    if (IPAddress.TryParse(value, out _))
+                        throw new DnsServerException("Invalid domain name [" + value + "]: IP address cannot be used for DNS server domain name.");
+
                     _serverDomain = value.ToLower();
 
                     _authZoneManager.ServerDomain = _serverDomain;
@@ -4272,7 +4303,20 @@ namespace DnsServerCore.Dns
         public bool PreferIPv6
         {
             get { return _preferIPv6; }
-            set { _preferIPv6 = value; }
+            set
+            {
+                if (_preferIPv6 != value)
+                {
+                    _preferIPv6 = value;
+
+                    //init udp socket pool async for port randomization
+                    ThreadPool.QueueUserWorkItem(delegate (object state)
+                    {
+                        if (Environment.OSVersion.Platform == PlatformID.Win32NT)
+                            UdpClientConnection.CreateSocketPool(_preferIPv6);
+                    });
+                }
+            }
         }
 
         public ushort UdpPayloadSize
@@ -4307,14 +4351,17 @@ namespace DnsServerCore.Dns
             get { return _eDnsClientSubnet; }
             set
             {
-                _eDnsClientSubnet = value;
-
-                if (!_eDnsClientSubnet)
+                if (_eDnsClientSubnet != value)
                 {
-                    ThreadPool.QueueUserWorkItem(delegate (object state)
+                    _eDnsClientSubnet = value;
+
+                    if (!_eDnsClientSubnet)
                     {
-                        _cacheZoneManager.DeleteEDnsClientSubnetData();
-                    });
+                        ThreadPool.QueueUserWorkItem(delegate (object state)
+                        {
+                            _cacheZoneManager.DeleteEDnsClientSubnetData();
+                        });
+                    }
                 }
             }
         }
