@@ -40,6 +40,7 @@ namespace DnsServerCore.Dns.ResourceRecords
         IReadOnlyList<NameServerAddress> _primaryNameServers;
         DnsTransportProtocol _zoneTransferProtocol;
         string _tsigKeyName = string.Empty;
+        bool _useSoaSerialDateScheme;
 
         DateTime _lastUsedOn; //not serialized
 
@@ -65,6 +66,7 @@ namespace DnsServerCore.Dns.ResourceRecords
                 case 5:
                 case 6:
                 case 7:
+                case 8:
                     _disabled = bR.ReadBoolean();
 
                     if ((version < 5) && isSoa)
@@ -150,6 +152,9 @@ namespace DnsServerCore.Dns.ResourceRecords
                         _ = bR.ReadShortString(); //_tsigAlgorithm (obsolete)
                     }
 
+                    if (version >= 8)
+                        _useSoaSerialDateScheme = bR.ReadBoolean();
+
                     break;
 
                 default:
@@ -163,7 +168,7 @@ namespace DnsServerCore.Dns.ResourceRecords
 
         public void WriteTo(BinaryWriter bW)
         {
-            bW.Write((byte)7); //version
+            bW.Write((byte)8); //version
             bW.Write(_disabled);
 
             if (_glueRecords is null)
@@ -200,6 +205,8 @@ namespace DnsServerCore.Dns.ResourceRecords
             bW.Write((byte)_zoneTransferProtocol);
 
             bW.WriteShortString(_tsigKeyName);
+
+            bW.Write(_useSoaSerialDateScheme);
         }
 
         #endregion
@@ -283,6 +290,12 @@ namespace DnsServerCore.Dns.ResourceRecords
                 else
                     _tsigKeyName = value;
             }
+        }
+
+        public bool UseSoaSerialDateScheme
+        {
+            get { return _useSoaSerialDateScheme; }
+            set { _useSoaSerialDateScheme = value; }
         }
 
         public DateTime LastUsedOn
