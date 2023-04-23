@@ -98,6 +98,10 @@ namespace DnsServerCore
             jsonWriter.WriteStartObject();
 
             jsonWriter.WriteString("name", record.Name);
+
+            if (record.Name.Contains("xn--", StringComparison.OrdinalIgnoreCase))
+                jsonWriter.WriteString("nameIdn", DnsClient.ConvertDomainNameToUnicode(record.Name));
+
             jsonWriter.WriteString("type", record.Type.ToString());
 
             if (authoritativeZoneRecords)
@@ -144,6 +148,9 @@ namespace DnsServerCore
                         {
                             jsonWriter.WriteString("nameServer", rdata.NameServer.Length == 0 ? "." : rdata.NameServer);
 
+                            if (rdata.NameServer.Contains("xn--", StringComparison.OrdinalIgnoreCase))
+                                jsonWriter.WriteString("nameServerIdn", DnsClient.ConvertDomainNameToUnicode(rdata.NameServer));
+
                             if (!authoritativeZoneRecords)
                             {
                                 if (rdata.IsParentSideTtlSet)
@@ -163,6 +170,9 @@ namespace DnsServerCore
                         if (record.RDATA is DnsCNAMERecordData rdata)
                         {
                             jsonWriter.WriteString("cname", rdata.Domain.Length == 0 ? "." : rdata.Domain);
+
+                            if (rdata.Domain.Contains("xn--", StringComparison.OrdinalIgnoreCase))
+                                jsonWriter.WriteString("cnameIdn", DnsClient.ConvertDomainNameToUnicode(rdata.Domain));
                         }
                         else
                         {
@@ -177,6 +187,10 @@ namespace DnsServerCore
                         if (record.RDATA is DnsSOARecordData rdata)
                         {
                             jsonWriter.WriteString("primaryNameServer", rdata.PrimaryNameServer);
+
+                            if (rdata.PrimaryNameServer.Contains("xn--", StringComparison.OrdinalIgnoreCase))
+                                jsonWriter.WriteString("primaryNameServerIdn", DnsClient.ConvertDomainNameToUnicode(rdata.PrimaryNameServer));
+
                             jsonWriter.WriteString("responsiblePerson", rdata.ResponsiblePerson);
                             jsonWriter.WriteNumber("serial", rdata.Serial);
                             jsonWriter.WriteNumber("refresh", rdata.Refresh);
@@ -193,6 +207,9 @@ namespace DnsServerCore
                         if (authoritativeZoneRecords)
                         {
                             AuthRecordInfo authRecordInfo = record.GetAuthRecordInfo();
+
+                            if ((zoneInfo is not null) && (zoneInfo.Type == AuthZoneType.Primary))
+                                jsonWriter.WriteBoolean("useSerialDateScheme", authRecordInfo.UseSoaSerialDateScheme);
 
                             IReadOnlyList<NameServerAddress> primaryNameServers = authRecordInfo.PrimaryNameServers;
                             if (primaryNameServers is not null)
@@ -224,6 +241,9 @@ namespace DnsServerCore
                         if (record.RDATA is DnsPTRRecordData rdata)
                         {
                             jsonWriter.WriteString("ptrName", rdata.Domain.Length == 0 ? "." : rdata.Domain);
+
+                            if (rdata.Domain.Contains("xn--", StringComparison.OrdinalIgnoreCase))
+                                jsonWriter.WriteString("ptrNameIdn", DnsClient.ConvertDomainNameToUnicode(rdata.Domain));
                         }
                         else
                         {
@@ -239,6 +259,9 @@ namespace DnsServerCore
                         {
                             jsonWriter.WriteNumber("preference", rdata.Preference);
                             jsonWriter.WriteString("exchange", rdata.Exchange.Length == 0 ? "." : rdata.Exchange);
+
+                            if (rdata.Exchange.Contains("xn--", StringComparison.OrdinalIgnoreCase))
+                                jsonWriter.WriteString("exchangeIdn", DnsClient.ConvertDomainNameToUnicode(rdata.Exchange));
                         }
                         else
                         {
@@ -284,6 +307,9 @@ namespace DnsServerCore
                             jsonWriter.WriteNumber("weight", rdata.Weight);
                             jsonWriter.WriteNumber("port", rdata.Port);
                             jsonWriter.WriteString("target", rdata.Target.Length == 0 ? "." : rdata.Target);
+
+                            if (rdata.Target.Contains("xn--", StringComparison.OrdinalIgnoreCase))
+                                jsonWriter.WriteString("targetIdn", DnsClient.ConvertDomainNameToUnicode(rdata.Target));
                         }
                         else
                         {
@@ -298,6 +324,9 @@ namespace DnsServerCore
                         if (record.RDATA is DnsDNAMERecordData rdata)
                         {
                             jsonWriter.WriteString("dname", rdata.Domain.Length == 0 ? "." : rdata.Domain);
+
+                            if (rdata.Domain.Contains("xn--", StringComparison.OrdinalIgnoreCase))
+                                jsonWriter.WriteString("dnameIdn", DnsClient.ConvertDomainNameToUnicode(rdata.Domain));
                         }
                         else
                         {
@@ -532,6 +561,9 @@ namespace DnsServerCore
                         if (record.RDATA is DnsANAMERecordData rdata)
                         {
                             jsonWriter.WriteString("aname", rdata.Domain.Length == 0 ? "." : rdata.Domain);
+
+                            if (rdata.Domain.Contains("xn--", StringComparison.OrdinalIgnoreCase))
+                                jsonWriter.WriteString("anameIdn", DnsClient.ConvertDomainNameToUnicode(rdata.Domain));
                         }
                         else
                         {
@@ -678,6 +710,10 @@ namespace DnsServerCore
             jsonWriter.WriteStartObject();
 
             jsonWriter.WriteString("name", zoneInfo.Name);
+
+            if (zoneInfo.Name.Contains("xn--", StringComparison.OrdinalIgnoreCase))
+                jsonWriter.WriteString("nameIdn", DnsClient.ConvertDomainNameToUnicode(zoneInfo.Name));
+
             jsonWriter.WriteString("type", zoneInfo.Type.ToString());
 
             switch (zoneInfo.Type)
@@ -783,6 +819,9 @@ namespace DnsServerCore
             {
                 zoneName = zoneName.Substring(0, zoneName.Length - 1);
             }
+
+            if (DnsClient.IsDomainNameUnicode(zoneName))
+                zoneName = DnsClient.ConvertDomainNameToAscii(zoneName);
 
             AuthZoneType type = request.GetQueryOrFormEnum("type", AuthZoneType.Primary);
             AuthZoneInfo zoneInfo;
@@ -917,6 +956,9 @@ namespace DnsServerCore
 
             string zoneName = request.GetQueryOrForm("zone").TrimEnd('.');
 
+            if (DnsClient.IsDomainNameUnicode(zoneName))
+                zoneName = DnsClient.ConvertDomainNameToAscii(zoneName);
+
             if (!_dnsWebService._authManager.IsPermitted(PermissionSection.Zones, zoneName, session.User, PermissionFlag.Delete))
                 throw new DnsWebServiceException("Access was denied.");
 
@@ -994,6 +1036,9 @@ namespace DnsServerCore
 
             string zoneName = context.Request.GetQueryOrForm("zone").TrimEnd('.');
 
+            if (DnsClient.IsDomainNameUnicode(zoneName))
+                zoneName = DnsClient.ConvertDomainNameToAscii(zoneName);
+
             if (!_dnsWebService._authManager.IsPermitted(PermissionSection.Zones, zoneName, session.User, PermissionFlag.Delete))
                 throw new DnsWebServiceException("Access was denied.");
 
@@ -1012,6 +1057,9 @@ namespace DnsServerCore
                 throw new DnsWebServiceException("Access was denied.");
 
             string zoneName = context.Request.GetQueryOrForm("zone").TrimEnd('.');
+
+            if (DnsClient.IsDomainNameUnicode(zoneName))
+                zoneName = DnsClient.ConvertDomainNameToAscii(zoneName);
 
             AuthZoneInfo zoneInfo = _dnsWebService.DnsServer.AuthZoneManager.GetAuthZoneInfo(zoneName);
             if (zoneInfo is null)
@@ -1109,6 +1157,9 @@ namespace DnsServerCore
 
             string zoneName = context.Request.GetQueryOrForm("zone").TrimEnd('.');
 
+            if (DnsClient.IsDomainNameUnicode(zoneName))
+                zoneName = DnsClient.ConvertDomainNameToAscii(zoneName);
+
             if (!_dnsWebService._authManager.IsPermitted(PermissionSection.Zones, zoneName, session.User, PermissionFlag.Delete))
                 throw new DnsWebServiceException("Access was denied.");
 
@@ -1129,6 +1180,9 @@ namespace DnsServerCore
             HttpRequest request = context.Request;
 
             string zoneName = request.GetQueryOrForm("zone").TrimEnd('.');
+
+            if (DnsClient.IsDomainNameUnicode(zoneName))
+                zoneName = DnsClient.ConvertDomainNameToAscii(zoneName);
 
             if (!_dnsWebService._authManager.IsPermitted(PermissionSection.Zones, zoneName, session.User, PermissionFlag.Delete))
                 throw new DnsWebServiceException("Access was denied.");
@@ -1154,6 +1208,9 @@ namespace DnsServerCore
 
             string zoneName = request.GetQueryOrForm("zone").TrimEnd('.');
 
+            if (DnsClient.IsDomainNameUnicode(zoneName))
+                zoneName = DnsClient.ConvertDomainNameToAscii(zoneName);
+
             if (!_dnsWebService._authManager.IsPermitted(PermissionSection.Zones, zoneName, session.User, PermissionFlag.Delete))
                 throw new DnsWebServiceException("Access was denied.");
 
@@ -1178,6 +1235,9 @@ namespace DnsServerCore
 
             string zoneName = request.GetQueryOrForm("zone").TrimEnd('.');
 
+            if (DnsClient.IsDomainNameUnicode(zoneName))
+                zoneName = DnsClient.ConvertDomainNameToAscii(zoneName);
+
             if (!_dnsWebService._authManager.IsPermitted(PermissionSection.Zones, zoneName, session.User, PermissionFlag.Delete))
                 throw new DnsWebServiceException("Access was denied.");
 
@@ -1200,6 +1260,9 @@ namespace DnsServerCore
             HttpRequest request = context.Request;
 
             string zoneName = request.GetQueryOrForm("zone").TrimEnd('.');
+
+            if (DnsClient.IsDomainNameUnicode(zoneName))
+                zoneName = DnsClient.ConvertDomainNameToAscii(zoneName);
 
             if (!_dnsWebService._authManager.IsPermitted(PermissionSection.Zones, zoneName, session.User, PermissionFlag.Delete))
                 throw new DnsWebServiceException("Access was denied.");
@@ -1243,6 +1306,9 @@ namespace DnsServerCore
 
             string zoneName = request.GetQueryOrForm("zone").TrimEnd('.');
 
+            if (DnsClient.IsDomainNameUnicode(zoneName))
+                zoneName = DnsClient.ConvertDomainNameToAscii(zoneName);
+
             if (!_dnsWebService._authManager.IsPermitted(PermissionSection.Zones, zoneName, session.User, PermissionFlag.Delete))
                 throw new DnsWebServiceException("Access was denied.");
 
@@ -1267,6 +1333,9 @@ namespace DnsServerCore
 
             string zoneName = request.GetQueryOrForm("zone").TrimEnd('.');
 
+            if (DnsClient.IsDomainNameUnicode(zoneName))
+                zoneName = DnsClient.ConvertDomainNameToAscii(zoneName);
+
             if (!_dnsWebService._authManager.IsPermitted(PermissionSection.Zones, zoneName, session.User, PermissionFlag.Delete))
                 throw new DnsWebServiceException("Access was denied.");
 
@@ -1288,6 +1357,9 @@ namespace DnsServerCore
 
             string zoneName = context.Request.GetQueryOrForm("zone").TrimEnd('.');
 
+            if (DnsClient.IsDomainNameUnicode(zoneName))
+                zoneName = DnsClient.ConvertDomainNameToAscii(zoneName);
+
             if (!_dnsWebService._authManager.IsPermitted(PermissionSection.Zones, zoneName, session.User, PermissionFlag.Delete))
                 throw new DnsWebServiceException("Access was denied.");
 
@@ -1308,6 +1380,9 @@ namespace DnsServerCore
             HttpRequest request = context.Request;
 
             string zoneName = request.GetQueryOrForm("zone").TrimEnd('.');
+
+            if (DnsClient.IsDomainNameUnicode(zoneName))
+                zoneName = DnsClient.ConvertDomainNameToAscii(zoneName);
 
             if (!_dnsWebService._authManager.IsPermitted(PermissionSection.Zones, zoneName, session.User, PermissionFlag.Delete))
                 throw new DnsWebServiceException("Access was denied.");
@@ -1332,6 +1407,9 @@ namespace DnsServerCore
 
             string zoneName = request.GetQueryOrForm("zone").TrimEnd('.');
 
+            if (DnsClient.IsDomainNameUnicode(zoneName))
+                zoneName = DnsClient.ConvertDomainNameToAscii(zoneName);
+
             if (!_dnsWebService._authManager.IsPermitted(PermissionSection.Zones, zoneName, session.User, PermissionFlag.Delete))
                 throw new DnsWebServiceException("Access was denied.");
 
@@ -1352,6 +1430,9 @@ namespace DnsServerCore
                 throw new DnsWebServiceException("Access was denied.");
 
             string zoneName = context.Request.GetQueryOrFormAlt("zone", "domain").TrimEnd('.');
+
+            if (DnsClient.IsDomainNameUnicode(zoneName))
+                zoneName = DnsClient.ConvertDomainNameToAscii(zoneName);
 
             AuthZoneInfo zoneInfo = _dnsWebService.DnsServer.AuthZoneManager.GetAuthZoneInfo(zoneName);
             if (zoneInfo is null)
@@ -1382,6 +1463,9 @@ namespace DnsServerCore
 
             string zoneName = context.Request.GetQueryOrFormAlt("zone", "domain").TrimEnd('.');
 
+            if (DnsClient.IsDomainNameUnicode(zoneName))
+                zoneName = DnsClient.ConvertDomainNameToAscii(zoneName);
+
             AuthZoneInfo zoneInfo = _dnsWebService.DnsServer.AuthZoneManager.GetAuthZoneInfo(zoneName);
             if (zoneInfo is null)
                 throw new DnsWebServiceException("No such authoritative zone was found: " + zoneName);
@@ -1411,6 +1495,9 @@ namespace DnsServerCore
 
             string zoneName = context.Request.GetQueryOrFormAlt("zone", "domain").TrimEnd('.');
 
+            if (DnsClient.IsDomainNameUnicode(zoneName))
+                zoneName = DnsClient.ConvertDomainNameToAscii(zoneName);
+
             AuthZoneInfo zoneInfo = _dnsWebService.DnsServer.AuthZoneManager.GetAuthZoneInfo(zoneName);
             if (zoneInfo is null)
                 throw new DnsWebServiceException("No such authoritative zone was found: " + zoneName);
@@ -1438,6 +1525,10 @@ namespace DnsServerCore
             HttpRequest request = context.Request;
 
             string zoneName = request.GetQueryOrFormAlt("zone", "domain").TrimEnd('.');
+
+            if (DnsClient.IsDomainNameUnicode(zoneName))
+                zoneName = DnsClient.ConvertDomainNameToAscii(zoneName);
+
             bool includeAvailableTsigKeyNames = request.GetQueryOrForm("includeAvailableTsigKeyNames", bool.Parse, false);
 
             AuthZoneInfo zoneInfo = _dnsWebService.DnsServer.AuthZoneManager.GetAuthZoneInfo(zoneName);
@@ -1598,6 +1689,9 @@ namespace DnsServerCore
 
             string zoneName = request.GetQueryOrFormAlt("zone", "domain").TrimEnd('.');
 
+            if (DnsClient.IsDomainNameUnicode(zoneName))
+                zoneName = DnsClient.ConvertDomainNameToAscii(zoneName);
+
             AuthZoneInfo zoneInfo = _dnsWebService.DnsServer.AuthZoneManager.GetAuthZoneInfo(zoneName);
             if (zoneInfo is null)
                 throw new DnsWebServiceException("No such authoritative zone was found: " + zoneName);
@@ -1732,6 +1826,9 @@ namespace DnsServerCore
 
             string zoneName = context.Request.GetQueryOrFormAlt("zone", "domain").TrimEnd('.');
 
+            if (DnsClient.IsDomainNameUnicode(zoneName))
+                zoneName = DnsClient.ConvertDomainNameToAscii(zoneName);
+
             AuthZoneInfo zoneInfo = _dnsWebService.DnsServer.AuthZoneManager.GetAuthZoneInfo(zoneName);
             if (zoneInfo is null)
                 throw new DnsWebServiceException("No such authoritative zone was found: " + zoneName);
@@ -1760,9 +1857,17 @@ namespace DnsServerCore
 
             string domain = request.GetQueryOrForm("domain").TrimEnd('.');
 
+            if (DnsClient.IsDomainNameUnicode(domain))
+                domain = DnsClient.ConvertDomainNameToAscii(domain);
+
             string zoneName = request.QueryOrForm("zone");
             if (zoneName is not null)
+            {
                 zoneName = zoneName.TrimEnd('.');
+
+                if (DnsClient.IsDomainNameUnicode(zoneName))
+                    zoneName = DnsClient.ConvertDomainNameToAscii(zoneName);
+            }
 
             AuthZoneInfo zoneInfo = _dnsWebService.DnsServer.AuthZoneManager.FindAuthZoneInfo(string.IsNullOrEmpty(zoneName) ? domain : zoneName);
             if (zoneInfo is null)
@@ -2145,9 +2250,17 @@ namespace DnsServerCore
 
             string domain = request.GetQueryOrForm("domain").TrimEnd('.');
 
+            if (DnsClient.IsDomainNameUnicode(domain))
+                domain = DnsClient.ConvertDomainNameToAscii(domain);
+
             string zoneName = request.QueryOrForm("zone");
             if (zoneName is not null)
+            {
                 zoneName = zoneName.TrimEnd('.');
+
+                if (DnsClient.IsDomainNameUnicode(zoneName))
+                    zoneName = DnsClient.ConvertDomainNameToAscii(zoneName);
+            }
 
             AuthZoneInfo zoneInfo = _dnsWebService.DnsServer.AuthZoneManager.FindAuthZoneInfo(string.IsNullOrEmpty(zoneName) ? domain : zoneName);
             if (zoneInfo is null)
@@ -2181,9 +2294,17 @@ namespace DnsServerCore
 
             string domain = request.GetQueryOrForm("domain").TrimEnd('.');
 
+            if (DnsClient.IsDomainNameUnicode(domain))
+                domain = DnsClient.ConvertDomainNameToAscii(domain);
+
             string zoneName = request.QueryOrForm("zone");
             if (zoneName is not null)
+            {
                 zoneName = zoneName.TrimEnd('.');
+
+                if (DnsClient.IsDomainNameUnicode(zoneName))
+                    zoneName = DnsClient.ConvertDomainNameToAscii(zoneName);
+            }
 
             AuthZoneInfo zoneInfo = _dnsWebService.DnsServer.AuthZoneManager.FindAuthZoneInfo(string.IsNullOrEmpty(zoneName) ? domain : zoneName);
             if (zoneInfo is null)
@@ -2362,9 +2483,17 @@ namespace DnsServerCore
 
             string domain = request.GetQueryOrForm("domain").TrimEnd('.');
 
+            if (DnsClient.IsDomainNameUnicode(domain))
+                domain = DnsClient.ConvertDomainNameToAscii(domain);
+
             string zoneName = request.QueryOrForm("zone");
             if (zoneName is not null)
+            {
                 zoneName = zoneName.TrimEnd('.');
+
+                if (DnsClient.IsDomainNameUnicode(zoneName))
+                    zoneName = DnsClient.ConvertDomainNameToAscii(zoneName);
+            }
 
             AuthZoneInfo zoneInfo = _dnsWebService.DnsServer.AuthZoneManager.FindAuthZoneInfo(string.IsNullOrEmpty(zoneName) ? domain : zoneName);
             if (zoneInfo is null)
@@ -2514,6 +2643,15 @@ namespace DnsServerCore
 
                         switch (zoneInfo.Type)
                         {
+                            case AuthZoneType.Primary:
+                                {
+                                    AuthRecordInfo recordInfo = newSOARecord.GetAuthRecordInfo();
+
+                                    if (request.TryGetQueryOrForm("useSerialDateScheme", bool.Parse, out bool useSerialDateScheme))
+                                        recordInfo.UseSoaSerialDateScheme = useSerialDateScheme;
+                                }
+                                break;
+
                             case AuthZoneType.Secondary:
                                 {
                                     AuthRecordInfo recordInfo = newSOARecord.GetAuthRecordInfo();
@@ -2877,7 +3015,7 @@ namespace DnsServerCore
             WriteZoneInfoAsJson(zoneInfo, jsonWriter);
 
             jsonWriter.WritePropertyName("updatedRecord");
-            WriteRecordAsJson(newRecord, jsonWriter, true, null);
+            WriteRecordAsJson(newRecord, jsonWriter, true, zoneInfo);
         }
 
         #endregion
