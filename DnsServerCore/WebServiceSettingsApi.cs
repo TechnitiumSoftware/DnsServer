@@ -1121,12 +1121,22 @@ namespace DnsServerCore
 
                     switch (forwarderProtocol)
                     {
+                        case DnsTransportProtocol.Udp:
+                            if (proxyType == NetProxyType.Http)
+                                throw new DnsWebServiceException("HTTP proxy server can transport only DNS-over-TCP, DNS-over-TLS, or DNS-over-HTTPS forwarder protocols. Use SOCKS5 proxy server for DNS-over-UDP or DNS-over-QUIC forwarder protocols.");
+
+                            break;
+
                         case DnsTransportProtocol.HttpsJson:
                             forwarderProtocol = DnsTransportProtocol.Https;
                             break;
 
                         case DnsTransportProtocol.Quic:
                             DnsWebService.ValidateQuicSupport();
+
+                            if (proxyType == NetProxyType.Http)
+                                throw new DnsWebServiceException("HTTP proxy server can transport only DNS-over-TCP, DNS-over-TLS, or DNS-over-HTTPS forwarder protocols. Use SOCKS5 proxy server for DNS-over-UDP or DNS-over-QUIC forwarder protocols.");
+
                             break;
                     }
 
