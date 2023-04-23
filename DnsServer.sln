@@ -45,7 +45,7 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Dns64App", "Apps\Dns64App\D
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "DnsBlockListApp", "Apps\DnsBlockListApp\DnsBlockListApp.csproj", "{9F2EC41F-6A9E-47C4-B47B-75190D5B6903}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AdvancedForwardingApp", "Apps\AdvancedForwardingApp\AdvancedForwardingApp.csproj", "{42DD2C37-4082-4E33-9AB0-04A97290D5B7}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "AdvancedForwardingApp", "Apps\AdvancedForwardingApp\AdvancedForwardingApp.csproj", "{42DD2C37-4082-4E33-9AB0-04A97290D5B7}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
