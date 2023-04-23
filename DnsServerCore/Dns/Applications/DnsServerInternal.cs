@@ -34,6 +34,8 @@ namespace DnsServerCore.Dns.Applications
         readonly string _applicationName;
         readonly string _applicationFolder;
 
+        IDnsCache _dnsCache;
+
         #endregion
 
         #region constructor
@@ -88,7 +90,15 @@ namespace DnsServerCore.Dns.Applications
         { get { return _dnsServer.ServerDomain; } }
 
         public IDnsCache DnsCache
-        { get { return _dnsServer.DnsCache; } }
+        {
+            get
+            {
+                if (_dnsCache is null)
+                    _dnsCache = new ResolverDnsCache(_dnsServer.DnsApplicationManager, _dnsServer.AuthZoneManager, _dnsServer.CacheZoneManager, _dnsServer.LogManager, true);
+
+                return _dnsCache;
+            }
+        }
 
         public NetProxy Proxy
         { get { return _dnsServer.Proxy; } }
