@@ -199,8 +199,10 @@ namespace DnsServerCore.Dns.Zones
 
             ConcurrentDictionary<DnsResourceRecordType, IReadOnlyList<DnsResourceRecord>> entries;
 
-            NetworkAddress eDnsClientSubnet = records[0].GetCacheRecordInfo().EDnsClientSubnet;
-            if ((eDnsClientSubnet is null) || !IsTypeSupportedForEDnsClientSubnet(type))
+            CacheRecordInfo cacheRecordInfo = records[0].GetCacheRecordInfo();
+            NetworkAddress eDnsClientSubnet = cacheRecordInfo.EDnsClientSubnet;
+
+            if ((eDnsClientSubnet is null) || (!cacheRecordInfo.ConditionalForwardingClientSubnet && !IsTypeSupportedForEDnsClientSubnet(type)))
             {
                 entries = _entries;
             }
@@ -385,11 +387,11 @@ namespace DnsServerCore.Dns.Zones
             return count;
         }
 
-        public IReadOnlyList<DnsResourceRecord> QueryRecords(DnsResourceRecordType type, bool serveStale, bool skipSpecialCacheRecord, NetworkAddress eDnsClientSubnet)
+        public IReadOnlyList<DnsResourceRecord> QueryRecords(DnsResourceRecordType type, bool serveStale, bool skipSpecialCacheRecord, NetworkAddress eDnsClientSubnet, bool conditionalForwardingClientSubnet)
         {
             ConcurrentDictionary<DnsResourceRecordType, IReadOnlyList<DnsResourceRecord>> entries;
 
-            if ((eDnsClientSubnet is null) || !IsTypeSupportedForEDnsClientSubnet(type))
+            if ((eDnsClientSubnet is null) || (!conditionalForwardingClientSubnet && !IsTypeSupportedForEDnsClientSubnet(type)))
             {
                 entries = _entries;
             }
@@ -408,7 +410,7 @@ namespace DnsServerCore.Dns.Zones
                     if (cacheSubnet.PrefixLength > eDnsClientSubnet.PrefixLength)
                         continue;
 
-                    if (cacheSubnet.Equals(eDnsClientSubnet) || cacheSubnet.Contains(eDnsClientSubnet.Address))
+                    if (cacheSubnet.Equals(eDnsClientSubnet) || (!conditionalForwardingClientSubnet && cacheSubnet.Contains(eDnsClientSubnet.Address)))
                     {
                         if ((selectedNetwork is null) || (cacheSubnet.PrefixLength > selectedNetwork.PrefixLength))
                         {
