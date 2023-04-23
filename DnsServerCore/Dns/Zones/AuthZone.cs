@@ -484,7 +484,12 @@ namespace DnsServerCore.Dns.Zones
         internal IReadOnlyList<DnsResourceRecord> RefreshSignatures()
         {
             if (!_entries.TryGetValue(DnsResourceRecordType.RRSIG, out IReadOnlyList<DnsResourceRecord> rrsigRecords))
+            {
+                if ((_entries.Count == 1) && _entries.TryGetValue(DnsResourceRecordType.NS, out _))
+                    return Array.Empty<DnsResourceRecord>(); //delegation NS records are not signed
+
                 throw new InvalidOperationException();
+            }
 
             List<DnsResourceRecordType> typesToRefresh = new List<DnsResourceRecordType>();
             DateTime utcNow = DateTime.UtcNow;
@@ -513,7 +518,7 @@ namespace DnsServerCore.Dns.Zones
 
         internal virtual IReadOnlyList<DnsResourceRecord> SignRRSet(IReadOnlyList<DnsResourceRecord> records)
         {
-            throw new InvalidOperationException();
+            throw new NotImplementedException();
         }
 
         internal IReadOnlyList<DnsResourceRecord> GetUpdatedNSecRRSet(string nextDomainName, uint ttl)
@@ -523,11 +528,13 @@ namespace DnsServerCore.Dns.Zones
             foreach (KeyValuePair<DnsResourceRecordType, IReadOnlyList<DnsResourceRecord>> entry in _entries)
                 types.Add(entry.Key);
 
-            if (!_entries.ContainsKey(DnsResourceRecordType.NSEC))
+            if (!types.Contains(DnsResourceRecordType.NSEC))
+            {
                 types.Add(DnsResourceRecordType.NSEC);
 
-            if (!_entries.ContainsKey(DnsResourceRecordType.RRSIG))
-                types.Add(DnsResourceRecordType.RRSIG);
+                if (!types.Contains(DnsResourceRecordType.RRSIG))
+                    types.Add(DnsResourceRecordType.RRSIG);
+            }
 
             types.Sort();
 
@@ -556,20 +563,13 @@ namespace DnsServerCore.Dns.Zones
                 switch (entry.Key)
                 {
                     case DnsResourceRecordType.NSEC3:
-                    case DnsResourceRecordType.RRSIG:
+                        //rare case when there is a record created at the same name as that of an existing NSEC3
                         continue;
 
                     default:
                         types.Add(entry.Key);
                         break;
                 }
-            }
-
-            if (types.Count > 0)
-            {
-                //zone is not an empty non-terminal (ENT)
-                if (!_entries.ContainsKey(DnsResourceRecordType.RRSIG))
-                    types.Add(DnsResourceRecordType.RRSIG);
             }
 
             types.Sort();
@@ -587,7 +587,7 @@ namespace DnsServerCore.Dns.Zones
                 switch (entry.Key)
                 {
                     case DnsResourceRecordType.NSEC3:
-                    case DnsResourceRecordType.RRSIG:
+                        //rare case when there is a record created at the same name as that of an existing NSEC3
                         continue;
 
                     default:
@@ -598,16 +598,8 @@ namespace DnsServerCore.Dns.Zones
 
             if (_name.Equals(zoneName, StringComparison.OrdinalIgnoreCase))
             {
-                types.Add(DnsResourceRecordType.NSEC3PARAM); //add NSEC3PARAM type to NSEC3 for unsigned zone apex
-
-                if (!_entries.ContainsKey(DnsResourceRecordType.RRSIG))
-                    types.Add(DnsResourceRecordType.RRSIG);
-            }
-            else if (types.Count > 0)
-            {
-                //zone is not an empty non-terminal (ENT)
-                if (!_entries.ContainsKey(DnsResourceRecordType.RRSIG))
-                    types.Add(DnsResourceRecordType.RRSIG);
+                if (!types.Contains(DnsResourceRecordType.NSEC3PARAM))
+                    types.Add(DnsResourceRecordType.NSEC3PARAM); //add NSEC3PARAM type to NSEC3 for unsigned zone apex
             }
 
             types.Sort();
