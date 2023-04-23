@@ -2273,7 +2273,7 @@
                                                                     <tbody id="tableDhcpScopeVendorInfo"></tbody>
                                                                 </table>
                                                             </div>
-                                                            <div class="col-sm-offset-3 col-sm-8" style="padding-top: 5px;">The Vendor Specific Information (option 43) to be sent to the clients that match the Vendor Class Identifier (option 60) in the request. The Cendor Class Identifier can be empty string to match any identifier, or matched exactly, or match a substring, for example <code>substring(vendor-class-identifier,0,9)=="PXEClient"</code>. The Vendor Specific Information must be either a colon (:) separated hex string or a normal hex string, for example <code>06:01:03:0A:04:00:50:58:45:09:14:00:00:11:52:61:73:70:62:65:72:72:79:20:50:69:20:42:6F:6F:74:FF</code> OR <code>0601030A0400505845091400001152617370626572727920506920426F6F74FF</code>.</div>
+                                                            <div class="col-sm-offset-3 col-sm-8" style="padding-top: 5px;">The Vendor Specific Information (option 43) to be sent to the clients that match the Vendor Class Identifier (option 60) in the request. The Vendor Class Identifier can be empty string to match any identifier, or matched exactly, or match a substring, for example <code>substring(vendor-class-identifier,0,9)=="PXEClient"</code>. The Vendor Specific Information must be either a colon (:) separated hex string or a normal hex string, for example <code>06:01:03:0A:04:00:50:58:45:09:14:00:00:11:52:61:73:70:62:65:72:72:79:20:50:69:20:42:6F:6F:74:FF</code> OR <code>0601030A0400505845091400001152617370626572727920506920426F6F74FF</code>.</div>
                                                         </div>
                                                     </div>
 
@@ -3391,6 +3391,13 @@ ns1.example.com ([2001:db8::])
                                     <label for="txtEditRecordDataSoaSerial" class="col-sm-4 control-label">Serial</label>
                                     <div class="col-sm-7">
                                         <input id="txtEditRecordDataSoaSerial" type="number" class="form-control" style="width: 150px;">
+                                    </div>
+                                    <div id="divEditRecordDataSoaUseSerialDateScheme" class="col-sm-offset-4 col-sm-7">
+                                        <div class="checkbox">
+                                            <label>
+                                                <input id="chkEditRecordDataSoaUseSerialDateScheme" type="checkbox"> Use Serial Date Scheme
+                                            </label>
+                                        </div>
                                     </div>
                                 </div>
                                 <div class="form-group">
