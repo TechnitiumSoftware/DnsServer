@@ -1,6 +1,6 @@
 ﻿/*
 Technitium DNS Server
-Copyright (C) 2022  Shreyas Zare (shreyas@technitium.com)
+Copyright (C) 2023  Shreyas Zare (shreyas@technitium.com)
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -127,7 +127,11 @@ function refreshCachedZonesList(domain, direction) {
                 $("#btnDeleteCachedZone").hide();
             }
             else {
-                $("#txtCachedZoneViewerTitle").text(newDomain);
+                if (responseJSON.response.domainIdn == null)
+                    $("#txtCachedZoneViewerTitle").text(newDomain);
+                else
+                    $("#txtCachedZoneViewerTitle").text(responseJSON.response.domainIdn);
+
                 $("#btnDeleteCachedZone").show();
             }
 
@@ -266,10 +270,15 @@ function refreshAllowedZonesList(domain, direction) {
 
             lstAllowedZones.html(list);
 
-            if (newDomain == "")
+            if (newDomain == "") {
                 $("#txtAllowedZoneViewerTitle").text("<ROOT>");
-            else
-                $("#txtAllowedZoneViewerTitle").text(newDomain);
+            }
+            else {
+                if (responseJSON.response.domainIdn == null)
+                    $("#txtAllowedZoneViewerTitle").text(newDomain);
+                else
+                    $("#txtAllowedZoneViewerTitle").text(responseJSON.response.domainIdn);
+            }
 
             if (responseJSON.response.records.length > 0) {
                 preAllowedZoneViewerBody.text(JSON.stringify(responseJSON.response.records, null, 2));
@@ -411,10 +420,15 @@ function refreshBlockedZonesList(domain, direction) {
 
             lstBlockedZones.html(list);
 
-            if (newDomain == "")
+            if (newDomain == "") {
                 $("#txtBlockedZoneViewerTitle").text("<ROOT>");
-            else
-                $("#txtBlockedZoneViewerTitle").text(newDomain);
+            }
+            else {
+                if (responseJSON.response.domainIdn == null)
+                    $("#txtBlockedZoneViewerTitle").text(newDomain);
+                else
+                    $("#txtBlockedZoneViewerTitle").text(responseJSON.response.domainIdn);
+            }
 
             if (responseJSON.response.records.length > 0) {
                 preBlockedZoneViewerBody.text(JSON.stringify(responseJSON.response.records, null, 2));
