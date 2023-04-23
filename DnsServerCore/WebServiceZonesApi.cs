@@ -2357,7 +2357,7 @@ namespace DnsServerCore
                     {
                         string nameServer = request.GetQueryOrFormAlt("nameServer", "value").TrimEnd('.');
 
-                        _dnsWebService.DnsServer.AuthZoneManager.DeleteRecord(zoneInfo.Name, domain, type, new DnsNSRecordData(nameServer));
+                        _dnsWebService.DnsServer.AuthZoneManager.DeleteRecord(zoneInfo.Name, domain, type, new DnsNSRecordData(nameServer, false));
                     }
                     break;
 
