@@ -20,12 +20,14 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 using DnsServerCore.Auth;
 using DnsServerCore.Dns.Zones;
 using Microsoft.AspNetCore.Http;
+using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Net;
 using System.Text.Json;
 using System.Threading.Tasks;
 using TechnitiumLibrary.Net;
+using TechnitiumLibrary.Net.Dns;
 using TechnitiumLibrary.Net.Dns.ResourceRecords;
 
 namespace DnsServerCore
@@ -73,6 +75,9 @@ namespace DnsServerCore
             HttpRequest request = context.Request;
 
             string domain = request.GetQueryOrForm("domain", "");
+
+            if (DnsClient.IsDomainNameUnicode(domain))
+                domain = DnsClient.ConvertDomainNameToAscii(domain);
 
             string direction = request.QueryOrForm("direction");
             if (direction is not null)
@@ -122,6 +127,9 @@ namespace DnsServerCore
 
             jsonWriter.WriteString("domain", domain);
 
+            if (domain.Contains("xn--", StringComparison.OrdinalIgnoreCase))
+                jsonWriter.WriteString("domainIdn", DnsClient.ConvertDomainNameToUnicode(domain));
+
             jsonWriter.WritePropertyName("zones");
             jsonWriter.WriteStartArray();
 
@@ -129,7 +137,14 @@ namespace DnsServerCore
                 domain = "." + domain;
 
             foreach (string subZone in subZones)
-                jsonWriter.WriteStringValue(subZone + domain);
+            {
+                string zone = subZone + domain;
+
+                if (zone.Contains("xn--", StringComparison.OrdinalIgnoreCase))
+                    zone = DnsClient.ConvertDomainNameToUnicode(zone);
+
+                jsonWriter.WriteStringValue(zone);
+            }
 
             jsonWriter.WriteEndArray();
 
@@ -144,6 +159,9 @@ namespace DnsServerCore
                 throw new DnsWebServiceException("Access was denied.");
 
             string domain = context.Request.GetQueryOrForm("domain");
+
+            if (DnsClient.IsDomainNameUnicode(domain))
+                domain = DnsClient.ConvertDomainNameToAscii(domain);
 
             if (_dnsWebService.DnsServer.CacheZoneManager.DeleteZone(domain))
                 _dnsWebService._log.Write(context.GetRemoteEndPoint(), "[" + session.User.Username + "] Cached zone was deleted: " + domain);
@@ -163,6 +181,9 @@ namespace DnsServerCore
             HttpRequest request = context.Request;
 
             string domain = request.GetQueryOrForm("domain", "");
+
+            if (DnsClient.IsDomainNameUnicode(domain))
+                domain = DnsClient.ConvertDomainNameToAscii(domain);
 
             string direction = request.QueryOrForm("direction");
             if (direction is not null)
@@ -212,6 +233,9 @@ namespace DnsServerCore
 
             jsonWriter.WriteString("domain", domain);
 
+            if (domain.Contains("xn--", StringComparison.OrdinalIgnoreCase))
+                jsonWriter.WriteString("domainIdn", DnsClient.ConvertDomainNameToUnicode(domain));
+
             jsonWriter.WritePropertyName("zones");
             jsonWriter.WriteStartArray();
 
@@ -219,7 +243,14 @@ namespace DnsServerCore
                 domain = "." + domain;
 
             foreach (string subZone in subZones)
-                jsonWriter.WriteStringValue(subZone + domain);
+            {
+                string zone = subZone + domain;
+
+                if (zone.Contains("xn--", StringComparison.OrdinalIgnoreCase))
+                    zone = DnsClient.ConvertDomainNameToUnicode(zone);
+
+                jsonWriter.WriteStringValue(zone);
+            }
 
             jsonWriter.WriteEndArray();
 
@@ -237,6 +268,12 @@ namespace DnsServerCore
 
             string allowedZones = request.GetQueryOrForm("allowedZones");
             string[] allowedZonesList = allowedZones.Split(',');
+
+            for (int i = 0; i < allowedZonesList.Length; i++)
+            {
+                if (DnsClient.IsDomainNameUnicode(allowedZonesList[i]))
+                    allowedZonesList[i] = DnsClient.ConvertDomainNameToAscii(allowedZonesList[i]);
+            }
 
             _dnsWebService.DnsServer.AllowedZoneManager.ImportZones(allowedZonesList);
 
@@ -274,6 +311,9 @@ namespace DnsServerCore
 
             string domain = context.Request.GetQueryOrForm("domain");
 
+            if (DnsClient.IsDomainNameUnicode(domain))
+                domain = DnsClient.ConvertDomainNameToAscii(domain);
+
             if (_dnsWebService.DnsServer.AllowedZoneManager.DeleteZone(domain))
             {
                 _dnsWebService._log.Write(context.GetRemoteEndPoint(), "[" + session.User.Username + "] Allowed zone was deleted: " + domain);
@@ -303,6 +343,9 @@ namespace DnsServerCore
 
             string domain = context.Request.GetQueryOrForm("domain");
 
+            if (DnsClient.IsDomainNameUnicode(domain))
+                domain = DnsClient.ConvertDomainNameToAscii(domain);
+
             if (IPAddress.TryParse(domain, out IPAddress ipAddress))
                 domain = ipAddress.GetReverseDomain();
 
@@ -327,6 +370,9 @@ namespace DnsServerCore
             HttpRequest request = context.Request;
 
             string domain = request.GetQueryOrForm("domain", "");
+
+            if (DnsClient.IsDomainNameUnicode(domain))
+                domain = DnsClient.ConvertDomainNameToAscii(domain);
 
             string direction = request.QueryOrForm("direction");
             if (direction is not null)
@@ -376,6 +422,9 @@ namespace DnsServerCore
 
             jsonWriter.WriteString("domain", domain);
 
+            if (domain.Contains("xn--", StringComparison.OrdinalIgnoreCase))
+                jsonWriter.WriteString("domainIdn", DnsClient.ConvertDomainNameToUnicode(domain));
+
             jsonWriter.WritePropertyName("zones");
             jsonWriter.WriteStartArray();
 
@@ -383,7 +432,14 @@ namespace DnsServerCore
                 domain = "." + domain;
 
             foreach (string subZone in subZones)
-                jsonWriter.WriteStringValue(subZone + domain);
+            {
+                string zone = subZone + domain;
+
+                if (zone.Contains("xn--", StringComparison.OrdinalIgnoreCase))
+                    zone = DnsClient.ConvertDomainNameToUnicode(zone);
+
+                jsonWriter.WriteStringValue(zone);
+            }
 
             jsonWriter.WriteEndArray();
 
@@ -401,6 +457,12 @@ namespace DnsServerCore
 
             string blockedZones = request.GetQueryOrForm("blockedZones");
             string[] blockedZonesList = blockedZones.Split(',');
+
+            for (int i = 0; i < blockedZonesList.Length; i++)
+            {
+                if (DnsClient.IsDomainNameUnicode(blockedZonesList[i]))
+                    blockedZonesList[i] = DnsClient.ConvertDomainNameToAscii(blockedZonesList[i]);
+            }
 
             _dnsWebService.DnsServer.BlockedZoneManager.ImportZones(blockedZonesList);
 
@@ -438,6 +500,9 @@ namespace DnsServerCore
 
             string domain = context.Request.GetQueryOrForm("domain");
 
+            if (DnsClient.IsDomainNameUnicode(domain))
+                domain = DnsClient.ConvertDomainNameToAscii(domain);
+
             if (_dnsWebService.DnsServer.BlockedZoneManager.DeleteZone(domain))
             {
                 _dnsWebService._log.Write(context.GetRemoteEndPoint(), "[" + session.User.Username + "] Blocked zone was deleted: " + domain);
@@ -466,6 +531,9 @@ namespace DnsServerCore
                 throw new DnsWebServiceException("Access was denied.");
 
             string domain = context.Request.GetQueryOrForm("domain");
+
+            if (DnsClient.IsDomainNameUnicode(domain))
+                domain = DnsClient.ConvertDomainNameToAscii(domain);
 
             if (IPAddress.TryParse(domain, out IPAddress ipAddress))
                 domain = ipAddress.GetReverseDomain();
