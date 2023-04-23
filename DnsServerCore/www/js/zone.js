@@ -286,6 +286,12 @@ $(function () {
     var optEditZoneRecordsPerPage = localStorage.getItem("optEditZoneRecordsPerPage");
     if (optEditZoneRecordsPerPage != null)
         $("#optEditZoneRecordsPerPage").val(optEditZoneRecordsPerPage);
+
+    $("#chkEditRecordDataSoaUseSerialDateScheme").click(function () {
+        var useSerialDateScheme = $("#chkEditRecordDataSoaUseSerialDateScheme").prop("checked");
+
+        $("#txtEditRecordDataSoaSerial").prop("disabled", useSerialDateScheme);
+    });
 });
 
 function refreshZones(checkDisplay, pageNumber) {
@@ -384,7 +390,12 @@ function refreshZones(checkDisplay, pageNumber) {
                 }
 
                 tableHtmlRows += "<tr id=\"trZone" + id + "\"><td>" + (firstRowNumber + i) + "</td>";
-                tableHtmlRows += "<td><a href=\"#\" onclick=\"showEditZone('" + name + "'); return false;\">" + htmlEncode(name === "." ? "<root>" : name) + "</a></td>";
+
+                if (zones[i].nameIdn == null)
+                    tableHtmlRows += "<td><a href=\"#\" onclick=\"showEditZone('" + name + "'); return false;\">" + htmlEncode(name === "." ? "<root>" : name) + "</a></td>";
+                else
+                    tableHtmlRows += "<td><a href=\"#\" onclick=\"showEditZone('" + name + "'); return false;\">" + htmlEncode(zones[i].nameIdn + " (" + name + ")") + "</a></td>";
+
                 tableHtmlRows += "<td>" + type + "</td>";
                 tableHtmlRows += "<td>" + dnssecStatus + "</td>";
                 tableHtmlRows += "<td>" + status + "</td>";
@@ -1575,7 +1586,11 @@ function showEditZone(zone, showPageNumber) {
                 }
             }
 
-            $("#titleEditZone").text(zone === "." ? "<root>" : zone);
+            if (responseJSON.response.zone.nameIdn == null)
+                $("#titleEditZone").text(zone === "." ? "<root>" : zone);
+            else
+                $("#titleEditZone").text(responseJSON.response.zone.nameIdn + " (" + zone + ")");
+
             $("#titleEditZone").attr("data-zone", zone);
             $("#titleEditZone").attr("data-zone-type", zoneType);
 
@@ -1756,12 +1771,21 @@ function getZoneRecordRowHtml(index, zone, zoneType, record) {
                 "<br /><b>Expire:</b> " + htmlEncode(record.rData.expire) +
                 "<br /><b>Minimum:</b> " + htmlEncode(record.rData.minimum);
 
+            if (record.rData.useSerialDateScheme != null) {
+                tableHtmlRow += "<br /><br /><b>Use Serial Date Scheme:</b> " + record.rData.useSerialDateScheme;
+
+                additionalDataAttributes = "data-record-serial-scheme=\"" + htmlEncode(record.rData.useSerialDateScheme) + "\" ";
+            }
+            else {
+                additionalDataAttributes = "data-record-serial-scheme=\"false\" ";
+            }
+
             if (record.rData.primaryAddresses != null) {
                 tableHtmlRow += "<br /><br /><b>Primary Name Server Addresses:</b> " + record.rData.primaryAddresses;
 
-                additionalDataAttributes = "data-record-paddresses=\"" + htmlEncode(record.rData.primaryAddresses) + "\" ";
+                additionalDataAttributes += "data-record-paddresses=\"" + htmlEncode(record.rData.primaryAddresses) + "\" ";
             } else {
-                additionalDataAttributes = "data-record-paddresses=\"\" ";
+                additionalDataAttributes += "data-record-paddresses=\"\" ";
             }
 
             if (record.rData.zoneTransferProtocol != null) {
@@ -2992,6 +3016,7 @@ function showEditRecordModal(objBtn) {
     $("#txtAddEditRecordComments").val(comments);
 
     var disableSoaRecordModalFields = false;
+    var hideSoaRecordUseSerialDateSchemeField = false;
     var hideSoaRecordPrimaryAddressesField = false;
     var hideSoaRecordXfrAndTsigFields = false;
 
@@ -3010,6 +3035,7 @@ function showEditRecordModal(objBtn) {
             switch (type) {
                 case "SOA":
                     disableSoaRecordModalFields = true;
+                    hideSoaRecordUseSerialDateSchemeField = true;
                     break;
             }
             break;
@@ -3018,6 +3044,7 @@ function showEditRecordModal(objBtn) {
             switch (type) {
                 case "SOA":
                     disableSoaRecordModalFields = true;
+                    hideSoaRecordUseSerialDateSchemeField = true;
                     hideSoaRecordXfrAndTsigFields = true;
                     break;
             }
@@ -3047,10 +3074,12 @@ function showEditRecordModal(objBtn) {
             $("#txtEditRecordDataSoaPrimaryNameServer").val(divData.attr("data-record-pname"));
             $("#txtEditRecordDataSoaResponsiblePerson").val(divData.attr("data-record-rperson"));
             $("#txtEditRecordDataSoaSerial").val(divData.attr("data-record-serial"));
+            $("#txtEditRecordDataSoaSerial").prop("disabled", divData.attr("data-record-serial-scheme") === "true");
             $("#txtEditRecordDataSoaRefresh").val(divData.attr("data-record-refresh"));
             $("#txtEditRecordDataSoaRetry").val(divData.attr("data-record-retry"));
             $("#txtEditRecordDataSoaExpire").val(divData.attr("data-record-expire"));
             $("#txtEditRecordDataSoaMinimum").val(divData.attr("data-record-minimum"));
+            $("#chkEditRecordDataSoaUseSerialDateScheme").prop("checked", divData.attr("data-record-serial-scheme") === "true");
             $("#txtEditRecordDataSoaPrimaryAddresses").val(divData.attr("data-record-paddresses").replace(/, /g, "\n"));
 
             switch (divData.attr("data-record-zonetransferprotocol").toLowerCase()) {
@@ -3081,6 +3110,11 @@ function showEditRecordModal(objBtn) {
                 $("#txtEditRecordDataSoaExpire").prop("disabled", true);
                 $("#txtEditRecordDataSoaMinimum").prop("disabled", true);
             }
+
+            if (hideSoaRecordUseSerialDateSchemeField)
+                $("#divEditRecordDataSoaUseSerialDateScheme").hide();
+            else
+                $("#divEditRecordDataSoaUseSerialDateScheme").show();
 
             if (hideSoaRecordPrimaryAddressesField) {
                 $("#divEditRecordDataSoaPrimaryAddresses").hide();
@@ -3351,6 +3385,7 @@ function updateRecord() {
                 return;
             }
 
+            var useSerialDateScheme = $("#chkEditRecordDataSoaUseSerialDateScheme").prop("checked");
             var primaryAddresses = cleanTextList($("#txtEditRecordDataSoaPrimaryAddresses").val());
             var zoneTransferProtocol = $('input[name=rdEditRecordDataSoaZoneTransferProtocol]:checked').val();
             var tsigKeyName = $("#optEditRecordDataSoaTsigKeyName").val();
@@ -3362,6 +3397,7 @@ function updateRecord() {
                 "&retry=" + encodeURIComponent(retry) +
                 "&expire=" + encodeURIComponent(expire) +
                 "&minimum=" + encodeURIComponent(minimum) +
+                "&useSerialDateScheme=" + encodeURIComponent(useSerialDateScheme) +
                 "&primaryAddresses=" + encodeURIComponent(primaryAddresses) +
                 "&zoneTransferProtocol=" + encodeURIComponent(zoneTransferProtocol) +
                 "&tsigKeyName=" + encodeURIComponent(tsigKeyName);
