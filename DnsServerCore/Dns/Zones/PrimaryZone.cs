@@ -2602,26 +2602,14 @@ namespace DnsServerCore.Dns.Zones
                         DnsResourceRecord addSoaRecord = addedRecords[0];
                         DnsSOARecordData addSoa = addSoaRecord.RDATA as DnsSOARecordData;
 
-                        uint serial = oldSoa.Serial;
-
-                        if (addSoa.Serial > serial)
-                            serial = addSoa.Serial;
-                        else if (serial < uint.MaxValue)
-                            serial++;
-                        else
-                            serial = 1;
+                        uint serial = GetNewSerial(oldSoa.Serial, addSoa.Serial, addSoaRecord.GetAuthRecordInfo().UseSoaSerialDateScheme);
 
                         newSoaRecord = new DnsResourceRecord(_name, DnsResourceRecordType.SOA, DnsClass.IN, addSoaRecord.TTL, new DnsSOARecordData(addSoa.PrimaryNameServer, addSoa.ResponsiblePerson, serial, addSoa.Refresh, addSoa.Retry, addSoa.Expire, addSoa.Minimum)) { Tag = addSoaRecord.Tag };
                         addedRecords = null;
                     }
                     else
                     {
-                        uint serial = oldSoa.Serial;
-
-                        if (serial < uint.MaxValue)
-                            serial++;
-                        else
-                            serial = 1;
+                        uint serial = GetNewSerial(oldSoa.Serial, 0, oldSoaRecord.GetAuthRecordInfo().UseSoaSerialDateScheme);
 
                         newSoaRecord = new DnsResourceRecord(_name, DnsResourceRecordType.SOA, DnsClass.IN, oldSoaRecord.TTL, new DnsSOARecordData(oldSoa.PrimaryNameServer, oldSoa.ResponsiblePerson, serial, oldSoa.Refresh, oldSoa.Retry, oldSoa.Expire, oldSoa.Minimum)) { Tag = oldSoaRecord.Tag };
                     }
@@ -2702,6 +2690,62 @@ namespace DnsServerCore.Dns.Zones
             }
         }
 
+        private static uint GetNewSerial(uint oldSerial, uint updateSerial, bool useSoaSerialDateScheme)
+        {
+            if (useSoaSerialDateScheme)
+            {
+                string strOldSerial = oldSerial.ToString();
+                string strOldSerialDate = null;
+                byte counter = 0;
+
+                if (strOldSerial.Length == 10)
+                {
+                    //parse old serial
+                    strOldSerialDate = strOldSerial.Substring(0, 8);
+                    counter = byte.Parse(strOldSerial.Substring(8));
+                }
+
+                string strSerialDate = DateTime.UtcNow.ToString("yyyyMMdd");
+
+                if (strOldSerialDate is null)
+                {
+                    //transitioning to date scheme
+                    return uint.Parse(strSerialDate + counter.ToString().PadLeft(2, '0'));
+                }
+                else if (strSerialDate.Equals(strOldSerialDate))
+                {
+                    //same date
+                    if (counter < 99)
+                    {
+                        counter++;
+                        return uint.Parse(strSerialDate + counter.ToString().PadLeft(2, '0'));
+                    }
+                    else
+                    {
+                        //more than 100 increments
+                        return uint.Parse(strSerialDate + counter.ToString().PadLeft(2, '0')) + 1;
+                    }
+                }
+                else if (uint.Parse(strSerialDate) > uint.Parse(strOldSerialDate))
+                {
+                    //later date
+                    return uint.Parse(strSerialDate + "00");
+                }
+            }
+
+            //default
+            uint serial = oldSerial;
+
+            if (updateSerial > serial)
+                serial = updateSerial;
+            else if (serial < uint.MaxValue)
+                serial++;
+            else
+                serial = 1;
+
+            return serial;
+        }
+
         #endregion
 
         #region public
@@ -2749,10 +2793,24 @@ namespace DnsServerCore.Dns.Zones
                     if (newSoa.Refresh > newSoa.Expire)
                         throw new DnsServerException("Failed to set records: SOA REFRESH cannot be greater than SOA EXPIRE.");
 
-                    //remove any record info except comments
-                    string comments = newSoaRecord.GetAuthRecordInfo().Comments;
+                    //remove any record info except serial date scheme and comments
+                    bool useSoaSerialDateScheme;
+                    string comments;
+                    {
+                        AuthRecordInfo recordInfo = newSoaRecord.GetAuthRecordInfo();
+
+                        useSoaSerialDateScheme = recordInfo.UseSoaSerialDateScheme;
+                        comments = recordInfo.Comments;
+                    }
+
                     newSoaRecord.Tag = null; //remove old record info
-                    newSoaRecord.GetAuthRecordInfo().Comments = comments;
+
+                    {
+                        AuthRecordInfo recordInfo = newSoaRecord.GetAuthRecordInfo();
+
+                        recordInfo.UseSoaSerialDateScheme = useSoaSerialDateScheme;
+                        recordInfo.Comments = comments;
+                    }
 
                     uint oldSoaMinimum = GetZoneSoaMinimum();
 
