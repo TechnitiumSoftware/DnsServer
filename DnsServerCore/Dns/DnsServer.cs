@@ -2929,7 +2929,7 @@ namespace DnsServerCore.Dns
                         break;
 
                     default:
-                        throw new DnsServerException("DNS Server received a response with RCODE=" + response.RCODE.ToString() + " from: " + (response.Metadata is null ? "unknown" : response.Metadata.NameServer));
+                        throw new DnsServerException("DNS Server received a response for '" + question.ToString() + "' with RCODE=" + response.RCODE.ToString() + " from: " + (response.Metadata is null ? "unknown" : response.Metadata.NameServer));
                 }
             }
             catch (Exception ex)
@@ -2961,7 +2961,7 @@ namespace DnsServerCore.Dns
                         }
                     }
 
-                    _log.Write("DNS Server failed to resolve the request with QNAME: " + question.Name + "; QTYPE: " + question.Type.ToString() + "; QCLASS: " + question.Class.ToString() + (strForwarders is null ? "" : "; Forwarders: " + strForwarders) + ";\r\n" + ex.ToString());
+                    _log.Write("DNS Server failed to resolve the request '" + question.ToString() + "'" + (strForwarders is null ? "" : " using forwarders: " + strForwarders) + ".\r\n" + ex.ToString());
                 }
 
                 if (_serveStale)
