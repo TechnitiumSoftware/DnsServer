@@ -2280,7 +2280,7 @@ namespace DnsServerCore
 
         public async Task StopAsync()
         {
-            if (_disposed)
+            if (_disposed || (_dnsServer is null))
                 return;
 
             try
@@ -2317,6 +2317,7 @@ namespace DnsServerCore
                 }
 
                 _log?.Write("DNS Server (v" + _currentVersion.ToString() + ") was stopped successfully.");
+                _dnsServer = null;
             }
             catch (Exception ex)
             {
