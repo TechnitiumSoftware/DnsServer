@@ -1,5 +1,17 @@
 # Technitium DNS Server Change Log
 
+## Version 11.1
+Release Date: 29 April 2023
+
+- Added support for Internationalized Domain Names (IDN).
+- Added support for primary zone's SOA record to have serial number date scheme.
+- Fixed issue reported by Xiang Li, [Network and Information Security Lab, Tsinghua University](https://netsec.ccert.edu.cn/) that made the DNS server vulnerable to cache poisoning on Windows platform due to non-random UDP ports for outbound requests.
+- Fixed bug in validation check during refreshing RRSIG records when primary zone is signed with NSEC3.
+- Fixed bug in NSEC3 record's types field which caused missing of RRSIG type entry.
+- Fixed issue to allow Kestrel web server to serve unknown file types to allow certbot webroot HTTP challenge to work as expected.
+- Advanced Forwarding App: Fixed the implementation to correctly store cached records per client subnet defined in the app's config. Added wildcard domain support.
+- Multiple other minor bug fixes and improvements.
+
 ## Version 11.0.3
 Release Date: 11 March 2023
 
