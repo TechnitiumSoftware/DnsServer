@@ -8,7 +8,7 @@
 		<RootNamespace>DnsServerWindowsService</RootNamespace>
 		<AssemblyName>DnsService</AssemblyName>
 		<ApplicationIcon>logo2.ico</ApplicationIcon>
-		<Version>11.1</Version>
+		<Version>11.1.1</Version>
 		<Authors>Shreyas Zare</Authors>
 		<Company>Technitium</Company>
 		<Product>Technitium DNS Server</Product>
