@@ -1,5 +1,10 @@
 # Technitium DNS Server Change Log
 
+## Version 11.1.1
+Release Date: 1 May 2023
+
+- Fixed issue of UDP socket pool exhaustion on Windows platform causing all outbound UDP requests to fail.
+
 ## Version 11.1
 Release Date: 29 April 2023
 
