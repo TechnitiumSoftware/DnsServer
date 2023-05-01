@@ -1920,7 +1920,7 @@ namespace DnsServerCore.Dns
                                 break;
 
                             case DnsResourceRecordType.FWD:
-                                if (!request.RecursionDesired || !isRecursionAllowed)
+                                if (!request.RecursionDesired)
                                     return new DnsDatagram(request.Identifier, true, DnsOpcode.StandardQuery, false, false, request.RecursionDesired, isRecursionAllowed, false, false, DnsResponseCode.Refused, request.Question) { Tag = DnsServerResponseType.Authoritative };
 
                                 //do conditional forwarding
