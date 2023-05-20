@@ -1550,14 +1550,13 @@ namespace DnsServerCore
                             //reload settings and block list zone
                             _dnsWebService.LoadConfigFile();
 
-                            if ((_blockListUpdateIntervalHours > 0) && (_dnsWebService.DnsServer.BlockListZoneManager.BlockListUrls.Count > 0))
+                            if (_dnsWebService.DnsServer.BlockListZoneManager.BlockListUrls.Count > 0)
                             {
                                 ThreadPool.QueueUserWorkItem(delegate (object state)
                                 {
                                     try
                                     {
                                         _dnsWebService.DnsServer.BlockListZoneManager.LoadBlockLists();
-                                        StartBlockListUpdateTimer();
                                     }
                                     catch (Exception ex)
                                     {
@@ -1565,10 +1564,11 @@ namespace DnsServerCore
                                     }
                                 });
                             }
+
+                            if (_blockListUpdateIntervalHours > 0)
+                                StartBlockListUpdateTimer();
                             else
-                            {
                                 StopBlockListUpdateTimer();
-                            }
                         }
 
                         if (apps)
