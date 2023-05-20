@@ -76,9 +76,6 @@ namespace DnsServerCore.Dns.ZoneManagers
                 NetworkAddress eDnsClientSubnet = GetEDnsClientSubnetFrom(resourceRecord);
                 bool conditionalForwardingClientSubnet = GetConditionalForwardingClientSubnetFrom(resourceRecord);
 
-                if (!conditionalForwardingClientSubnet && !CacheZone.IsTypeSupportedForEDnsClientSubnet(resourceRecord.Type))
-                    eDnsClientSubnet = null;
-
                 if ((glueRecords is not null) || (rrsigRecords is not null) || (nsecRecords is not null) || (eDnsClientSubnet is not null))
                 {
                     CacheRecordInfo rrInfo = resourceRecord.GetCacheRecordInfo();
@@ -330,23 +327,44 @@ namespace DnsServerCore.Dns.ZoneManagers
                 switch (refRecord.Type)
                 {
                     case DnsResourceRecordType.NS:
-                        DnsNSRecordData nsRecord = refRecord.RDATA as DnsNSRecordData;
-                        if (nsRecord is not null)
-                            ResolveAdditionalRecords(refRecord, nsRecord.NameServer, serveStale, dnssecOk, eDnsClientSubnet, conditionalForwardingClientSubnet, additionalRecords);
+                        if (refRecord.RDATA is DnsNSRecordData ns)
+                            ResolveAdditionalRecords(refRecord, ns.NameServer, serveStale, dnssecOk, eDnsClientSubnet, conditionalForwardingClientSubnet, additionalRecords);
 
                         break;
 
                     case DnsResourceRecordType.MX:
-                        DnsMXRecordData mxRecord = refRecord.RDATA as DnsMXRecordData;
-                        if (mxRecord is not null)
-                            ResolveAdditionalRecords(refRecord, mxRecord.Exchange, serveStale, dnssecOk, eDnsClientSubnet, conditionalForwardingClientSubnet, additionalRecords);
+                        if (refRecord.RDATA is DnsMXRecordData mx)
+                            ResolveAdditionalRecords(refRecord, mx.Exchange, serveStale, dnssecOk, eDnsClientSubnet, conditionalForwardingClientSubnet, additionalRecords);
 
                         break;
 
                     case DnsResourceRecordType.SRV:
-                        DnsSRVRecordData srvRecord = refRecord.RDATA as DnsSRVRecordData;
-                        if (srvRecord is not null)
-                            ResolveAdditionalRecords(refRecord, srvRecord.Target, serveStale, dnssecOk, eDnsClientSubnet, conditionalForwardingClientSubnet, additionalRecords);
+                        if (refRecord.RDATA is DnsSRVRecordData srv)
+                            ResolveAdditionalRecords(refRecord, srv.Target, serveStale, dnssecOk, eDnsClientSubnet, conditionalForwardingClientSubnet, additionalRecords);
+
+                        break;
+
+                    case DnsResourceRecordType.SVCB:
+                    case DnsResourceRecordType.HTTPS:
+                        if (refRecord.RDATA is DnsSVCBRecordData svcb)
+                        {
+                            string targetName = svcb.TargetName;
+
+                            if (svcb.SvcPriority == 0)
+                            {
+                                //For AliasMode SVCB RRs, a TargetName of "." indicates that the service is not available or does not exist [draft-ietf-dnsop-svcb-https-12]
+                                if ((targetName.Length == 0) || targetName.Equals(refRecord.Name, StringComparison.OrdinalIgnoreCase))
+                                    break;
+                            }
+                            else
+                            {
+                                //For ServiceMode SVCB RRs, if TargetName has the value ".", then the owner name of this record MUST be used as the effective TargetName [draft-ietf-dnsop-svcb-https-12]
+                                if (targetName.Length == 0)
+                                    targetName = refRecord.Name;
+                            }
+
+                            ResolveAdditionalRecords(refRecord, targetName, serveStale, dnssecOk, eDnsClientSubnet, conditionalForwardingClientSubnet, additionalRecords);
+                        }
 
                         break;
                 }
@@ -382,8 +400,53 @@ namespace DnsServerCore.Dns.ZoneManagers
                     return;
             }
 
-            if (_root.TryGet(domain, out CacheZone cacheZone))
+            int count = 0;
+
+            while ((count++ < DnsServer.MAX_CNAME_HOPS) && _root.TryGet(domain, out CacheZone cacheZone))
             {
+                if (((refRecord.Type == DnsResourceRecordType.SVCB) || (refRecord.Type == DnsResourceRecordType.HTTPS)) && ((refRecord.RDATA as DnsSVCBRecordData).SvcPriority == 0))
+                {
+                    //resolve SVCB/HTTPS for Alias mode refRecord
+                    IReadOnlyList<DnsResourceRecord> records = cacheZone.QueryRecords(refRecord.Type, serveStale, true, eDnsClientSubnet, conditionalForwardingClientSubnet);
+                    if ((records.Count > 0) && (records[0].Type == refRecord.Type) && (records[0].RDATA is DnsSVCBRecordData svcb))
+                    {
+                        additionalRecords.AddRange(records);
+
+                        string targetName = svcb.TargetName;
+
+                        if (svcb.SvcPriority == 0)
+                        {
+                            //Alias mode
+                            if ((targetName.Length == 0) || targetName.Equals(records[0].Name, StringComparison.OrdinalIgnoreCase))
+                                break; //For AliasMode SVCB RRs, a TargetName of "." indicates that the service is not available or does not exist [draft-ietf-dnsop-svcb-https-12]
+
+                            foreach (DnsResourceRecord additionalRecord in additionalRecords)
+                            {
+                                if (additionalRecord.Name.Equals(targetName, StringComparison.OrdinalIgnoreCase))
+                                    return; //loop detected
+                            }
+
+                            //continue to resolve SVCB/HTTPS further
+                            domain = targetName;
+                            refRecord = records[0];
+                            continue;
+                        }
+                        else
+                        {
+                            //Service mode
+                            if (targetName.Length > 0)
+                            {
+                                //continue to resolve A/AAAA for target name
+                                domain = targetName;
+                                refRecord = records[0];
+                                continue;
+                            }
+
+                            //resolve A/AAAA below
+                        }
+                    }
+                }
+
                 {
                     IReadOnlyList<DnsResourceRecord> records = cacheZone.QueryRecords(DnsResourceRecordType.A, serveStale, true, eDnsClientSubnet, conditionalForwardingClientSubnet);
                     if ((records.Count > 0) && (records[0].Type == DnsResourceRecordType.A))
@@ -395,6 +458,8 @@ namespace DnsServerCore.Dns.ZoneManagers
                     if ((records.Count > 0) && (records[0].Type == DnsResourceRecordType.AAAA))
                         additionalRecords.AddRange(records);
                 }
+
+                break;
             }
         }
 
@@ -769,6 +834,8 @@ namespace DnsServerCore.Dns.ZoneManagers
                         case DnsResourceRecordType.NS:
                         case DnsResourceRecordType.MX:
                         case DnsResourceRecordType.SRV:
+                        case DnsResourceRecordType.SVCB:
+                        case DnsResourceRecordType.HTTPS:
                             additional = GetAdditionalRecords(answer, serveStaleAndResetExpiry, request.DnssecOk, eDnsClientSubnet, conditionalForwardingClientSubnet);
                             break;
                     }
