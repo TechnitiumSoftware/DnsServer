@@ -1,6 +1,6 @@
 ﻿/*
 Technitium DNS Server
-Copyright (C) 2022  Shreyas Zare (shreyas@technitium.com)
+Copyright (C) 2023  Shreyas Zare (shreyas@technitium.com)
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -19,6 +19,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 using System;
 using System.IO;
+using TechnitiumLibrary;
 using TechnitiumLibrary.IO;
 
 namespace DnsServerCore.Dhcp.Options
@@ -37,7 +38,7 @@ namespace DnsServerCore.Dhcp.Options
             : base(DhcpOptionCode.VendorSpecificInformation)
         {
             if (hexInfo.Contains(':'))
-                _information = ParseColonHexString(hexInfo);
+                _information = hexInfo.ParseColonHexString();
             else
                 _information = Convert.FromHexString(hexInfo);
         }
