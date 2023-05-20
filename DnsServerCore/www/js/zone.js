@@ -159,7 +159,7 @@ $(function () {
         switch (keyType) {
             case "ZoneSigningKey":
                 $("#divDnssecPropertiesGenerateKeyAutomaticRollover").show();
-                $("#txtDnssecPropertiesGenerateKeyAutomaticRollover").val(90);
+                $("#txtDnssecPropertiesGenerateKeyAutomaticRollover").val(30);
                 break;
 
             default:
@@ -2071,6 +2071,44 @@ function getZoneRecordRowHtml(index, zone, zoneType, record) {
                 "data-record-certificate-association-data=\"" + htmlEncode(record.rData.certificateAssociationData) + "\" ";
             break;
 
+        case "SVCB":
+        case "HTTPS":
+            var tableHtmlSvcParams;
+
+            if (Object.keys(record.rData.svcParams).length == 0) {
+                tableHtmlSvcParams = "<br />";
+            }
+            else {
+                tableHtmlSvcParams = "<br /><b>Params: </b><table class=\"table table-condensed\" style=\"background: transparent; margin-bottom: 0px;\">" +
+                    "<thead><tr>" +
+                    "<th>Key</th>" +
+                    "<th>Value</th>" +
+                    "</thead>" +
+                    "<tbody>";
+
+                for (var paramKey in record.rData.svcParams) {
+                    tableHtmlSvcParams += "<tr><td>" + htmlEncode(paramKey) + "</td><td>" + htmlEncode(record.rData.svcParams[paramKey]) + "</td></tr>";
+                }
+
+                tableHtmlSvcParams += "</tbody></table>";
+            }
+
+            tableHtmlRow += "<td style=\"word-break: break-all;\"><b>Priority: </b> " + htmlEncode(record.rData.svcPriority) + (record.rData.svcPriority == 0 ? " (alias mode)" : " (service mode)") +
+                "<br /><b>Target Name: </b> " + (record.rData.svcTargetName == "" ? "." : htmlEncode(record.rData.svcTargetName)) +
+                tableHtmlSvcParams;
+
+            tableHtmlRow += "<br /><b>Last Used:</b> " + lastUsedOn;
+
+            if ((record.comments != null) && (record.comments.length > 0))
+                tableHtmlRow += "<br /><b>Comments:</b> <pre style=\"white-space: pre-wrap;\">" + htmlEncode(record.comments) + "</pre>";
+
+            tableHtmlRow += "</td>";
+
+            additionalDataAttributes = "data-record-svc-priority=\"" + htmlEncode(record.rData.svcPriority) + "\"" +
+                "data-record-svc-target-name=\"" + (record.rData.svcTargetName == "" ? "." : htmlEncode(record.rData.svcTargetName)) + "\"" +
+                "data-record-svc-params=\"" + htmlEncode(JSON.stringify(record.rData.svcParams)) + "\"";
+            break;
+
         case "CAA":
             tableHtmlRow += "<td style=\"word-break: break-all;\"><b>Flags: </b> " + htmlEncode(record.rData.flags) +
                 "<br /><b>Tag:</b> " + htmlEncode(record.rData.tag) +
@@ -2152,7 +2190,16 @@ function getZoneRecordRowHtml(index, zone, zoneType, record) {
             break;
 
         default:
-            tableHtmlRow += "<td style=\"word-break: break-all;\"><b>RDATA:</b> " + htmlEncode(record.rData.value) + "</td>";
+            tableHtmlRow += "<td style=\"word-break: break-all;\"><b>RDATA:</b> " + htmlEncode(record.rData.value);
+
+            tableHtmlRow += "<br /><br /><b>Last Used:</b> " + lastUsedOn;
+
+            if ((record.comments != null) && (record.comments.length > 0))
+                tableHtmlRow += "<br /><b>Comments:</b> <pre style=\"white-space: pre-wrap;\">" + htmlEncode(record.comments) + "</pre>";
+
+            tableHtmlRow += "</td>";
+
+            additionalDataAttributes = "data-record-rdata=\"" + htmlEncode(record.rData.value) + "\"";
             break;
     }
 
@@ -2238,6 +2285,9 @@ function clearAddEditRecordForm() {
     $("#txtAddEditRecordTtl").val("");
 
     $("#divAddEditRecordData").show();
+    $("#divAddEditRecordDataUnknownType").hide();
+    $("#txtAddEditRecordDataUnknownType").val("");
+    $("#txtAddEditRecordDataUnknownType").prop("disabled", false);
     $("#lblAddEditRecordDataValue").text("IPv4 Address");
     $("#txtAddEditRecordDataValue").val("");
     $("#divAddEditRecordDataPtr").show();
@@ -2293,6 +2343,11 @@ function clearAddEditRecordForm() {
     $("#optAddEditRecordDataTlsaSelector").val("");
     $("#optAddEditRecordDataTlsaMatchingType").val("");
     $("#txtAddEditRecordDataTlsaCertificateAssociationData").val("");
+
+    $("#divAddEditRecordDataSvcb").hide();
+    $("#txtAddEditRecordDataSvcbPriority").val("");
+    $("#txtAddEditRecordDataSvcbTargetName").val("");
+    $("#tableAddEditRecordDataSvcbParams").html("");
 
     $("#divAddEditRecordDataCaa").hide();
     $("#txtAddEditRecordDataCaaFlags").val("");
@@ -2405,6 +2460,7 @@ function modifyAddRecordFormByType(addMode) {
     var type = $("#optAddEditRecordType").val();
 
     $("#divAddEditRecordData").hide();
+    $("#divAddEditRecordDataUnknownType").hide();
     $("#divAddEditRecordDataPtr").hide();
     $("#divAddEditRecordDataNs").hide();
     $("#divEditRecordDataSoa").hide();
@@ -2413,6 +2469,7 @@ function modifyAddRecordFormByType(addMode) {
     $("#divAddEditRecordDataDs").hide();
     $("#divAddEditRecordDataSshfp").hide();
     $("#divAddEditRecordDataTlsa").hide();
+    $("#divAddEditRecordDataSvcb").hide();
     $("#divAddEditRecordDataCaa").hide();
     $("#divAddEditRecordDataForwarder").hide();
     $("#divAddEditRecordDataApplication").hide();
@@ -2514,6 +2571,15 @@ function modifyAddRecordFormByType(addMode) {
             $("#divAddEditRecordDataTlsa").show();
             break;
 
+        case "SVCB":
+        case "HTTPS":
+            $("#txtAddEditRecordName").prop("placeholder", "_port._scheme.name");
+            $("#txtAddEditRecordDataSvcbPriority").val("");
+            $("#txtAddEditRecordDataSvcbTargetName").val("");
+            $("#tableAddEditRecordDataSvcbParams").html("");
+            $("#divAddEditRecordDataSvcb").show();
+            break;
+
         case "CAA":
             $("#txtAddEditRecordDataCaaFlags").val("");
             $("#txtAddEditRecordDataCaaTag").val("");
@@ -2552,6 +2618,15 @@ function modifyAddRecordFormByType(addMode) {
                 loadAddRecordModalAppNames();
 
             break;
+
+        default:
+            $("#txtAddEditRecordDataUnknownType").val("");
+            $("#lblAddEditRecordDataValue").text("RDATA (Hex)");
+            $("#txtAddEditRecordDataValue").val("");
+
+            $("#divAddEditRecordData").show();
+            $("#divAddEditRecordDataUnknownType").show();
+            break;
     }
 }
 
@@ -2581,7 +2656,7 @@ function addRecord() {
     var overwrite = $("#chkAddEditRecordOverwrite").prop("checked");
     var comments = $("#txtAddEditRecordComments").val();
 
-    var apiUrl = "/api/zones/records/add?token=" + sessionData.token + "&zone=" + encodeURIComponent(zone) + "&domain=" + encodeURIComponent(domain) + "&type=" + type + "&ttl=" + ttl + "&overwrite=" + overwrite + "&comments=" + encodeURIComponent(comments);
+    var apiUrl = "";
 
     switch (type) {
         case "A":
@@ -2815,6 +2890,32 @@ function addRecord() {
             apiUrl += "&tlsaCertificateUsage=" + tlsaCertificateUsage + "&tlsaSelector=" + tlsaSelector + "&tlsaMatchingType=" + tlsaMatchingType + "&tlsaCertificateAssociationData=" + encodeURIComponent(tlsaCertificateAssociationData);
             break;
 
+        case "SVCB":
+        case "HTTPS":
+            var svcPriority = $("#txtAddEditRecordDataSvcbPriority").val();
+            if ((svcPriority === null) || (svcPriority === "")) {
+                showAlert("warning", "Missing!", "Please enter a Priority value to add the record.", divAddEditRecordAlert);
+                $("#txtAddEditRecordDataSvcbPriority").focus();
+                return;
+            }
+
+            var svcTargetName = $("#txtAddEditRecordDataSvcbTargetName").val();
+            if ((svcTargetName === null) || (svcTargetName === "")) {
+                showAlert("warning", "Missing!", "Please enter a Target Name to add the record.", divAddEditRecordAlert);
+                $("#txtAddEditRecordDataSvcbTargetName").focus();
+                return;
+            }
+
+            var svcParams = serializeTableData($("#tableAddEditRecordDataSvcbParams"), 2, divAddEditRecordAlert);
+            if (svcParams === false)
+                return;
+
+            if (svcParams.length === 0)
+                svcParams = false;
+
+            apiUrl += "&svcPriority=" + svcPriority + "&svcTargetName=" + encodeURIComponent(svcTargetName) + "&svcParams=" + encodeURIComponent(svcParams);
+            break;
+
         case "CAA":
             var flags = $("#txtAddEditRecordDataCaaFlags").val();
             if (flags === "")
@@ -2902,7 +3003,27 @@ function addRecord() {
 
             apiUrl += "&appName=" + encodeURIComponent(appName) + "&classPath=" + encodeURIComponent(classPath) + "&recordData=" + encodeURIComponent(recordData);
             break;
+
+        default:
+            type = $("#txtAddEditRecordDataUnknownType").val();
+            if ((type === null) || (type === "")) {
+                showAlert("warning", "Missing!", "Please enter a resoure record name or number to add record.", divAddEditRecordAlert);
+                $("#txtAddEditRecordDataUnknownType").focus();
+                return;
+            }
+
+            var rdata = $("#txtAddEditRecordDataValue").val();
+            if ((rdata === null) || (rdata === "")) {
+                showAlert("warning", "Missing!", "Please enter a hex value as the RDATA to add record.", divAddEditRecordAlert);
+                $("#txtAddEditRecordDataValue").focus();
+                return;
+            }
+
+            apiUrl += "&rdata=" + encodeURIComponent(rdata);
+            break;
     }
+
+    apiUrl = "/api/zones/records/add?token=" + sessionData.token + "&zone=" + encodeURIComponent(zone) + "&domain=" + encodeURIComponent(domain) + "&type=" + encodeURIComponent(type) + "&ttl=" + ttl + "&overwrite=" + overwrite + "&comments=" + encodeURIComponent(comments) + apiUrl;
 
     btn.button("loading");
 
@@ -2985,6 +3106,26 @@ function updateAddEditFormForwarderThisServer() {
 
         $("#divAddEditRecordDataForwarderProxy").show();
     }
+}
+
+function addSvcbRecordParamEditRow(paramKey, paramValue) {
+    var id = Math.floor(Math.random() * 10000);
+
+    var tableHtmlRows = "<tr id=\"tableAddEditRecordDataSvcbParamsRow" + id + "\">";
+
+    tableHtmlRows += "<td><select class=\"form-control\">";
+    tableHtmlRows += "<option" + (paramKey == "mandatory" ? " selected" : "") + ">mandatory</option>";
+    tableHtmlRows += "<option" + (paramKey == "alpn" ? " selected" : "") + ">alpn</option>";
+    tableHtmlRows += "<option" + (paramKey == "no-default-alpn" ? " selected" : "") + ">no-default-alpn</option>";
+    tableHtmlRows += "<option" + (paramKey == "port" ? " selected" : "") + ">port</option>";
+    tableHtmlRows += "<option" + (paramKey == "ipv4hint" ? " selected" : "") + ">ipv4hint</option>";
+    tableHtmlRows += "<option" + (paramKey == "ipv6hint" ? " selected" : "") + ">ipv6hint</option>";
+    tableHtmlRows += "</select></td>";
+
+    tableHtmlRows += "<td><input type=\"text\" data-optional=\"true\" class=\"form-control\" value=\"" + htmlEncode(paramValue) + "\"></td>";
+    tableHtmlRows += "<td><button type=\"button\" class=\"btn btn-warning\" onclick=\"$('#tableAddEditRecordDataSvcbParamsRow" + id + "').remove();\">Remove</button></td></tr>";
+
+    $("#tableAddEditRecordDataSvcbParams").append(tableHtmlRows);
 }
 
 function showEditRecordModal(objBtn) {
@@ -3178,6 +3319,18 @@ function showEditRecordModal(objBtn) {
             $("#txtAddEditRecordDataTlsaCertificateAssociationData").val(divData.attr("data-record-certificate-association-data"));
             break;
 
+        case "SVCB":
+        case "HTTPS":
+            $("#txtAddEditRecordDataSvcbPriority").val(divData.attr("data-record-svc-priority"));
+            $("#txtAddEditRecordDataSvcbTargetName").val(divData.attr("data-record-svc-target-name"));
+
+            var svcParams = JSON.parse(divData.attr("data-record-svc-params"));
+
+            for (var paramKey in svcParams) {
+                addSvcbRecordParamEditRow(paramKey, svcParams[paramKey]);
+            }
+            break;
+
         case "CAA":
             $("#txtAddEditRecordDataCaaFlags").val(divData.attr("data-record-flags"));
             $("#txtAddEditRecordDataCaaTag").val(divData.attr("data-record-tag"));
@@ -3237,8 +3390,12 @@ function showEditRecordModal(objBtn) {
             break;
 
         default:
-            showAlert("warning", "Not Supported!", "Record type not supported for edit.");
-            return;
+            $("#optAddEditRecordType").val("Unknown");
+            $("#txtAddEditRecordDataUnknownType").val(type);
+            $("#txtAddEditRecordDataUnknownType").prop("disabled", true);
+
+            $("#txtAddEditRecordDataValue").val(divData.attr("data-record-rdata"));
+            break;
     }
 
     $("#optAddEditRecordType").prop("disabled", true);
@@ -3285,7 +3442,7 @@ function updateRecord() {
     var disable = (divData.attr("data-record-disabled") === "true");
     var comments = $("#txtAddEditRecordComments").val();
 
-    var apiUrl = "/api/zones/records/update?token=" + sessionData.token + "&zone=" + encodeURIComponent(zone) + "&type=" + type + "&domain=" + encodeURIComponent(domain) + "&newDomain=" + encodeURIComponent(newDomain) + "&ttl=" + ttl + "&disable=" + disable + "&comments=" + encodeURIComponent(comments);
+    var apiUrl = "";
 
     switch (type) {
         case "A":
@@ -3558,21 +3715,21 @@ function updateRecord() {
 
             var newSshfpAlgorithm = $("#optAddEditRecordDataSshfpAlgorithm").val();
             if ((newSshfpAlgorithm === null) || (newSshfpAlgorithm === "")) {
-                showAlert("warning", "Missing!", "Please select an Algorithm to add the record.", divAddEditRecordAlert);
+                showAlert("warning", "Missing!", "Please select an Algorithm to update the record.", divAddEditRecordAlert);
                 $("#optAddEditRecordDataSshfpAlgorithm").focus();
                 return;
             }
 
             var newSshfpFingerprintType = $("#optAddEditRecordDataSshfpFingerprintType").val();
             if ((newSshfpFingerprintType === null) || (newSshfpFingerprintType === "")) {
-                showAlert("warning", "Missing!", "Please select a Fingerprint Type to add the record.", divAddEditRecordAlert);
+                showAlert("warning", "Missing!", "Please select a Fingerprint Type to update the record.", divAddEditRecordAlert);
                 $("#optAddEditRecordDataSshfpFingerprintType").focus();
                 return;
             }
 
             var newSshfpFingerprint = $("#txtAddEditRecordDataSshfpFingerprint").val();
             if (newSshfpFingerprint === "") {
-                showAlert("warning", "Missing!", "Please enter the Fingerprint hash in hex string format to add the record.", divAddEditRecordAlert);
+                showAlert("warning", "Missing!", "Please enter the Fingerprint hash in hex string format to update the record.", divAddEditRecordAlert);
                 $("#txtAddEditRecordDataSshfpFingerprint").focus();
                 return;
             }
@@ -3588,33 +3745,76 @@ function updateRecord() {
 
             var newTlsaCertificateUsage = $("#optAddEditRecordDataTlsaCertificateUsage").val();
             if ((newTlsaCertificateUsage === null) || (newTlsaCertificateUsage === "")) {
-                showAlert("warning", "Missing!", "Please select a Certificate Usage to add the record.", divAddEditRecordAlert);
+                showAlert("warning", "Missing!", "Please select a Certificate Usage to update the record.", divAddEditRecordAlert);
                 $("#optAddEditRecordDataTlsaCertificateUsage").focus();
                 return;
             }
 
             var newTlsaSelector = $("#optAddEditRecordDataTlsaSelector").val();
             if ((newTlsaSelector === null) || (newTlsaSelector === "")) {
-                showAlert("warning", "Missing!", "Please select a Selector to add the record.", divAddEditRecordAlert);
+                showAlert("warning", "Missing!", "Please select a Selector to update the record.", divAddEditRecordAlert);
                 $("#optAddEditRecordDataTlsaSelector").focus();
                 return;
             }
 
             var newTlsaMatchingType = $("#optAddEditRecordDataTlsaMatchingType").val();
             if ((newTlsaMatchingType === null) || (newTlsaMatchingType === "")) {
-                showAlert("warning", "Missing!", "Please select a Matching Type to add the record.", divAddEditRecordAlert);
+                showAlert("warning", "Missing!", "Please select a Matching Type to update the record.", divAddEditRecordAlert);
                 $("#optAddEditRecordDataTlsaMatchingType").focus();
                 return;
             }
 
             var newTlsaCertificateAssociationData = $("#txtAddEditRecordDataTlsaCertificateAssociationData").val();
             if (newTlsaCertificateAssociationData === "") {
-                showAlert("warning", "Missing!", "Please enter the Certificate Association Data to add the record.", divAddEditRecordAlert);
+                showAlert("warning", "Missing!", "Please enter the Certificate Association Data to update the record.", divAddEditRecordAlert);
                 $("#txtAddEditRecordDataTlsaCertificateAssociationData").focus();
                 return;
             }
 
             apiUrl += "&tlsaCertificateUsage=" + tlsaCertificateUsage + "&newTlsaCertificateUsage=" + newTlsaCertificateUsage + "&tlsaSelector=" + tlsaSelector + "&newTlsaSelector=" + newTlsaSelector + "&tlsaMatchingType=" + tlsaMatchingType + "&newTlsaMatchingType=" + newTlsaMatchingType + "&tlsaCertificateAssociationData=" + encodeURIComponent(tlsaCertificateAssociationData) + "&newTlsaCertificateAssociationData=" + encodeURIComponent(newTlsaCertificateAssociationData);
+            break;
+
+        case "SVCB":
+        case "HTTPS":
+            var svcPriority = divData.attr("data-record-svc-priority");
+            var svcTargetName = divData.attr("data-record-svc-target-name");
+            var svcParams = "";
+            {
+                var jsonSvcParams = JSON.parse(divData.attr("data-record-svc-params"));
+
+                for (var paramKey in jsonSvcParams) {
+                    if (svcParams.length === 0)
+                        svcParams = paramKey + "|" + jsonSvcParams[paramKey];
+                    else
+                        svcParams += "|" + paramKey + "|" + jsonSvcParams[paramKey];
+                }
+
+                if (svcParams.length === 0)
+                    svcParams = false;
+            }
+
+            var newSvcPriority = $("#txtAddEditRecordDataSvcbPriority").val();
+            if ((newSvcPriority === null) || (newSvcPriority === "")) {
+                showAlert("warning", "Missing!", "Please enter a Priority value to update the record.", divAddEditRecordAlert);
+                $("#txtAddEditRecordDataSvcbPriority").focus();
+                return;
+            }
+
+            var newSvcTargetName = $("#txtAddEditRecordDataSvcbTargetName").val();
+            if ((newSvcTargetName === null) || (newSvcTargetName === "")) {
+                showAlert("warning", "Missing!", "Please enter a Target Name to update the record.", divAddEditRecordAlert);
+                $("#txtAddEditRecordDataSvcbTargetName").focus();
+                return;
+            }
+
+            var newSvcParams = serializeTableData($("#tableAddEditRecordDataSvcbParams"), 2, divAddEditRecordAlert);
+            if (newSvcParams === false)
+                return;
+
+            if (newSvcParams.length === 0)
+                newSvcParams = false;
+
+            apiUrl += "&svcPriority=" + svcPriority + "&newSvcPriority=" + newSvcPriority + "&svcTargetName=" + encodeURIComponent(svcTargetName) + "&newSvcTargetName=" + encodeURIComponent(newSvcTargetName) + "&svcParams=" + encodeURIComponent(svcParams) + "&newSvcParams=" + encodeURIComponent(newSvcParams);
             break;
 
         case "CAA":
@@ -3702,7 +3902,23 @@ function updateRecord() {
         case "APP":
             apiUrl += "&appName=" + encodeURIComponent(divData.attr("data-record-app-name")) + "&classPath=" + encodeURIComponent(divData.attr("data-record-classpath")) + "&recordData=" + encodeURIComponent($("#txtAddEditRecordDataData").val());
             break;
+
+        default:
+            type = $("#txtAddEditRecordDataUnknownType").val();
+            var rdata = divData.attr("data-record-rdata");
+
+            var newRData = $("#txtAddEditRecordDataValue").val();
+            if ((newRData === null) || (newRData === "")) {
+                showAlert("warning", "Missing!", "Please enter a hex value as the RDATA to update the record.", divAddEditRecordAlert);
+                $("#txtAddEditRecordDataValue").focus();
+                return;
+            }
+
+            apiUrl += "&rdata=" + encodeURIComponent(rdata) + "&newRData=" + encodeURIComponent(newRData);
+            break;
     }
+
+    apiUrl = "/api/zones/records/update?token=" + sessionData.token + "&zone=" + encodeURIComponent(zone) + "&type=" + encodeURIComponent(type) + "&domain=" + encodeURIComponent(domain) + "&newDomain=" + encodeURIComponent(newDomain) + "&ttl=" + ttl + "&disable=" + disable + "&comments=" + encodeURIComponent(comments) + apiUrl;
 
     btn.button('loading');
 
@@ -3753,7 +3969,7 @@ function updateRecordState(objBtn, disable) {
     if (disable && !confirm("Are you sure to disable the " + type + " record '" + domain + "'?"))
         return;
 
-    var apiUrl = "/api/zones/records/update?token=" + sessionData.token + "&type=" + type + "&domain=" + encodeURIComponent(domain) + "&ttl=" + ttl + "&disable=" + disable + "&comments=" + encodeURIComponent(comments);
+    var apiUrl = "/api/zones/records/update?token=" + sessionData.token + "&type=" + encodeURIComponent(type) + "&domain=" + encodeURIComponent(domain) + "&ttl=" + ttl + "&disable=" + disable + "&comments=" + encodeURIComponent(comments);
 
     switch (type) {
         case "A":
@@ -3801,6 +4017,28 @@ function updateRecordState(objBtn, disable) {
             apiUrl += "&tlsaCertificateUsage=" + divData.attr("data-record-certificate-usage") + "&tlsaSelector=" + divData.attr("data-record-selector") + "&tlsaMatchingType=" + divData.attr("data-record-matching-type") + "&tlsaCertificateAssociationData=" + encodeURIComponent(divData.attr("data-record-certificate-association-data"));
             break;
 
+        case "SVCB":
+        case "HTTPS":
+            var svcPriority = divData.attr("data-record-svc-priority");
+            var svcTargetName = divData.attr("data-record-svc-target-name");
+            var svcParams = "";
+            {
+                var jsonSvcParams = JSON.parse(divData.attr("data-record-svc-params"));
+
+                for (var paramKey in jsonSvcParams) {
+                    if (svcParams.length == 0)
+                        svcParams = paramKey + "|" + jsonSvcParams[paramKey];
+                    else
+                        svcParams += "|" + paramKey + "|" + jsonSvcParams[paramKey];
+                }
+
+                if (svcParams.length === 0)
+                    svcParams = false;
+            }
+
+            apiUrl += "&svcPriority=" + svcPriority + "&svcTargetName=" + encodeURIComponent(svcTargetName) + "&svcParams=" + encodeURIComponent(svcParams);
+            break;
+
         case "CAA":
             apiUrl += "&flags=" + divData.attr("data-record-flags") + "&tag=" + encodeURIComponent(divData.attr("data-record-tag")) + "&value=" + encodeURIComponent(divData.attr("data-record-value"));
             break;
@@ -3823,6 +4061,10 @@ function updateRecordState(objBtn, disable) {
 
         case "APP":
             apiUrl += "&appName=" + encodeURIComponent(divData.attr("data-record-app-name")) + "&classPath=" + encodeURIComponent(divData.attr("data-record-classpath")) + "&recordData=" + encodeURIComponent(divData.attr("data-record-data"));
+            break;
+
+        default:
+            apiUrl += "&rdata=" + encodeURIComponent(divData.attr("data-record-rdata"));
             break;
     }
 
@@ -3876,7 +4118,7 @@ function deleteRecord(objBtn) {
     if (!confirm("Are you sure to permanently delete the " + type + " record '" + domain + "'?"))
         return;
 
-    var apiUrl = "/api/zones/records/delete?token=" + sessionData.token + "&zone=" + encodeURIComponent(zone) + "&domain=" + domain + "&type=" + type;
+    var apiUrl = "/api/zones/records/delete?token=" + sessionData.token + "&zone=" + encodeURIComponent(zone) + "&domain=" + encodeURIComponent(domain) + "&type=" + encodeURIComponent(type);
 
     switch (type) {
         case "A":
@@ -3916,6 +4158,28 @@ function deleteRecord(objBtn) {
             apiUrl += "&tlsaCertificateUsage=" + divData.attr("data-record-certificate-usage") + "&tlsaSelector=" + divData.attr("data-record-selector") + "&tlsaMatchingType=" + divData.attr("data-record-matching-type") + "&tlsaCertificateAssociationData=" + encodeURIComponent(divData.attr("data-record-certificate-association-data"));
             break;
 
+        case "SVCB":
+        case "HTTPS":
+            var svcPriority = divData.attr("data-record-svc-priority");
+            var svcTargetName = divData.attr("data-record-svc-target-name");
+            var svcParams = "";
+            {
+                var jsonSvcParams = JSON.parse(divData.attr("data-record-svc-params"));
+
+                for (var paramKey in jsonSvcParams) {
+                    if (svcParams.length == 0)
+                        svcParams = paramKey + "|" + jsonSvcParams[paramKey];
+                    else
+                        svcParams += "|" + paramKey + "|" + jsonSvcParams[paramKey];
+                }
+
+                if (svcParams.length === 0)
+                    svcParams = false;
+            }
+
+            apiUrl += "&svcPriority=" + svcPriority + "&svcTargetName=" + encodeURIComponent(svcTargetName) + "&svcParams=" + encodeURIComponent(svcParams);
+            break;
+
         case "CAA":
             apiUrl += "&flags=" + divData.attr("data-record-flags") + "&tag=" + encodeURIComponent(divData.attr("data-record-tag")) + "&value=" + encodeURIComponent(divData.attr("data-record-value"));
             break;
@@ -3927,6 +4191,11 @@ function deleteRecord(objBtn) {
         case "FWD":
             apiUrl += "&protocol=" + divData.attr("data-record-protocol") + "&forwarder=" + encodeURIComponent(divData.attr("data-record-forwarder"));
             break;
+
+        default:
+            var rdata = divData.attr("data-record-rdata");
+            if (rdata != null)
+                apiUrl += "&rdata=" + encodeURIComponent(rdata);
     }
 
     btn.button('loading');
@@ -3972,7 +4241,7 @@ function showSignZoneModal(zoneName) {
     $("#txtDnssecSignZoneNSEC3SaltLength").val("0");
 
     $("#txtDnssecSignZoneDnsKeyTtl").val("3600");
-    $("#txtDnssecSignZoneZskAutoRollover").val("90");
+    $("#txtDnssecSignZoneZskAutoRollover").val("30");
 
     $("#modalDnssecSignZone").modal("show");
 }
