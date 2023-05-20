@@ -438,6 +438,11 @@ $(function () {
                 $("#rdForwarderProtocolHttps").prop("checked", true);
                 break;
 
+            case "cloudflare-https-ipv6":
+                $("#txtForwarders").val("https://cloudflare-dns.com/dns-query ([2606:4700:4700::1111])\r\nhttps://cloudflare-dns.com/dns-query ([2606:4700:4700::1001])");
+                $("#rdForwarderProtocolHttps").prop("checked", true);
+                break;
+
             case "cloudflare-tor":
                 $("#txtForwarders").val("dns4torpnlfs2ifuz2s2yf3fc7rdmsbhm6rw75euj35pac6ap25zgqad.onion");
                 $("#rdForwarderProtocolTcp").prop("checked", true);
@@ -489,75 +494,90 @@ $(function () {
                 $("#rdForwarderProtocolHttps").prop("checked", true);
                 break;
 
+            case "google-https-ipv6":
+                $("#txtForwarders").val("https://dns.google/dns-query ([2001:4860:4860::8888])\r\nhttps://dns.google/dns-query ([2001:4860:4860::8844])");
+                $("#rdForwarderProtocolHttps").prop("checked", true);
+                break;
+
 
             case "quad9-udp":
-                $("#txtForwarders").val("9.9.9.9");
+                $("#txtForwarders").val("9.9.9.9\r\n149.112.112.112");
                 $("#rdForwarderProtocolUdp").prop("checked", true);
                 break;
 
             case "quad9-udp-ipv6":
-                $("#txtForwarders").val("[2620:fe::fe]");
+                $("#txtForwarders").val("[2620:fe::fe]\r\n[2620:fe::9]");
                 $("#rdForwarderProtocolUdp").prop("checked", true);
                 break;
 
             case "quad9-tcp":
-                $("#txtForwarders").val("9.9.9.9");
+                $("#txtForwarders").val("9.9.9.9\r\n149.112.112.112");
                 $("#rdForwarderProtocolTcp").prop("checked", true);
                 break;
 
             case "quad9-tcp-ipv6":
-                $("#txtForwarders").val("[2620:fe::fe]");
+                $("#txtForwarders").val("[2620:fe::fe]\r\n[2620:fe::9]");
                 $("#rdForwarderProtocolTcp").prop("checked", true);
                 break;
 
             case "quad9-tls":
-                $("#txtForwarders").val("dns.quad9.net (9.9.9.9:853)");
+                $("#txtForwarders").val("dns.quad9.net (9.9.9.9:853)\r\ndns.quad9.net (149.112.112.112:853)");
                 $("#rdForwarderProtocolTls").prop("checked", true);
                 break;
 
             case "quad9-tls-ipv6":
-                $("#txtForwarders").val("dns.quad9.net ([2620:fe::fe]:853)");
+                $("#txtForwarders").val("dns.quad9.net ([2620:fe::fe]:853)\r\ndns.quad9.net ([2620:fe::9]:853)");
                 $("#rdForwarderProtocolTls").prop("checked", true);
                 break;
 
             case "quad9-https":
-                $("#txtForwarders").val("https://dns.quad9.net/dns-query (9.9.9.9)");
+                $("#txtForwarders").val("https://dns.quad9.net/dns-query (9.9.9.9)\r\nhttps://dns.quad9.net/dns-query (149.112.112.112)");
+                $("#rdForwarderProtocolHttps").prop("checked", true);
+                break;
+
+            case "quad9-https-ipv6":
+                $("#txtForwarders").val("https://dns.quad9.net/dns-query ([2620:fe::fe])\r\nhttps://dns.quad9.net/dns-query ([2620:fe::9])");
                 $("#rdForwarderProtocolHttps").prop("checked", true);
                 break;
 
 
             case "quad9-unsecure-udp":
-                $("#txtForwarders").val("9.9.9.10");
+                $("#txtForwarders").val("9.9.9.10\r\n149.112.112.10");
                 $("#rdForwarderProtocolUdp").prop("checked", true);
                 break;
 
             case "quad9-unsecure-udp-ipv6":
-                $("#txtForwarders").val("[2620:fe::10]");
+                $("#txtForwarders").val("[2620:fe::10]\r\n[2620:fe::fe:10]");
                 $("#rdForwarderProtocolUdp").prop("checked", true);
                 break;
 
             case "quad9-unsecure-tcp":
-                $("#txtForwarders").val("9.9.9.10");
+                $("#txtForwarders").val("9.9.9.10\r\n149.112.112.10");
                 $("#rdForwarderProtocolTcp").prop("checked", true);
                 break;
 
             case "quad9-unsecure-tcp-ipv6":
-                $("#txtForwarders").val("[2620:fe::10]");
+                $("#txtForwarders").val("[2620:fe::10]\r\n[2620:fe::fe:10]");
                 $("#rdForwarderProtocolTcp").prop("checked", true);
                 break;
 
             case "quad9-unsecure-tls":
-                $("#txtForwarders").val("dns10.quad9.net (9.9.9.10:853)");
+                $("#txtForwarders").val("dns10.quad9.net (9.9.9.10:853)\r\ndns10.quad9.net (149.112.112.10:853)");
                 $("#rdForwarderProtocolTls").prop("checked", true);
                 break;
 
             case "quad9-unsecure-tls-ipv6":
-                $("#txtForwarders").val("dns10.quad9.net ([2620:fe::10]:853)");
+                $("#txtForwarders").val("dns10.quad9.net ([2620:fe::10]:853)\r\ndns10.quad9.net ([2620:fe::fe:10]:853)");
                 $("#rdForwarderProtocolTls").prop("checked", true);
                 break;
 
             case "quad9-unsecure-https":
-                $("#txtForwarders").val("https://dns10.quad9.net/dns-query (9.9.9.10)");
+                $("#txtForwarders").val("https://dns10.quad9.net/dns-query (9.9.9.10)\r\nhttps://dns10.quad9.net/dns-query (149.112.112.10)");
+                $("#rdForwarderProtocolHttps").prop("checked", true);
+                break;
+
+            case "quad9-unsecure-https-ipv6":
+                $("#txtForwarders").val("https://dns10.quad9.net/dns-query ([2620:fe::10])\r\nhttps://dns10.quad9.net/dns-query ([2620:fe::fe:10])");
                 $("#rdForwarderProtocolHttps").prop("checked", true);
                 break;
 
