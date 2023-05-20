@@ -540,6 +540,31 @@ namespace DnsServerCore
                     }
                     break;
 
+                case DnsResourceRecordType.SVCB:
+                case DnsResourceRecordType.HTTPS:
+                    {
+                        if (record.RDATA is DnsSVCBRecordData rdata)
+                        {
+                            jsonWriter.WriteNumber("svcPriority", rdata.SvcPriority);
+                            jsonWriter.WriteString("svcTargetName", rdata.TargetName);
+
+                            jsonWriter.WritePropertyName("svcParams");
+                            jsonWriter.WriteStartObject();
+
+                            foreach (KeyValuePair<DnsSvcParamKey, DnsSvcParamValue> svcParam in rdata.SvcParams)
+                                jsonWriter.WriteString(svcParam.Key.ToString().ToLower().Replace('_', '-'), svcParam.Value.ToString());
+
+                            jsonWriter.WriteEndObject();
+
+                        }
+                        else
+                        {
+                            jsonWriter.WriteString("dataType", record.RDATA.GetType().Name);
+                            jsonWriter.WriteString("data", record.RDATA.ToString());
+                        }
+                    }
+                    break;
+
                 case DnsResourceRecordType.CAA:
                     {
                         if (record.RDATA is DnsCAARecordData rdata)
@@ -606,14 +631,9 @@ namespace DnsServerCore
 
                 default:
                     {
-                        if (record.RDATA is DnsUnknownRecordData)
+                        if (record.RDATA is DnsUnknownRecordData rdata)
                         {
-                            using (MemoryStream mS = new MemoryStream())
-                            {
-                                record.RDATA.WriteTo(mS);
-
-                                jsonWriter.WriteString("value", Convert.ToBase64String(mS.ToArray()));
-                            }
+                            jsonWriter.WriteString("value", BitConverter.ToString(rdata.DATA).Replace('-', ':'));
                         }
                         else
                         {
@@ -635,17 +655,13 @@ namespace DnsServerCore
                 IReadOnlyList<DnsResourceRecord> glueRecords = authRecordInfo.GlueRecords;
                 if (glueRecords is not null)
                 {
-                    string glue = null;
+                    jsonWriter.WritePropertyName("glueRecords");
+                    jsonWriter.WriteStartArray();
 
                     foreach (DnsResourceRecord glueRecord in glueRecords)
-                    {
-                        if (glue == null)
-                            glue = glueRecord.RDATA.ToString();
-                        else
-                            glue = glue + ", " + glueRecord.RDATA.ToString();
-                    }
+                        jsonWriter.WriteStringValue(glueRecord.ToString());
 
-                    jsonWriter.WriteString("glueRecords", glue);
+                    jsonWriter.WriteEndArray();
                 }
 
                 jsonWriter.WriteString("lastUsedOn", authRecordInfo.LastUsedOn);
@@ -657,17 +673,13 @@ namespace DnsServerCore
                 IReadOnlyList<DnsResourceRecord> glueRecords = cacheRecordInfo.GlueRecords;
                 if (glueRecords is not null)
                 {
-                    string glue = null;
+                    jsonWriter.WritePropertyName("glueRecords");
+                    jsonWriter.WriteStartArray();
 
                     foreach (DnsResourceRecord glueRecord in glueRecords)
-                    {
-                        if (glue == null)
-                            glue = glueRecord.RDATA.ToString();
-                        else
-                            glue = glue + ", " + glueRecord.RDATA.ToString();
-                    }
+                        jsonWriter.WriteStringValue(glueRecord.ToString());
 
-                    jsonWriter.WriteString("glueRecords", glue);
+                    jsonWriter.WriteEndArray();
                 }
 
                 IReadOnlyList<DnsResourceRecord> rrsigRecords = cacheRecordInfo.RRSIGRecords;
@@ -695,9 +707,7 @@ namespace DnsServerCore
 
                 NetworkAddress eDnsClientSubnet = cacheRecordInfo.EDnsClientSubnet;
                 if (eDnsClientSubnet is not null)
-                {
                     jsonWriter.WriteString("eDnsClientSubnet", eDnsClientSubnet.ToString());
-                }
 
                 jsonWriter.WriteString("lastUsedOn", cacheRecordInfo.LastUsedOn);
             }
@@ -964,7 +974,7 @@ namespace DnsServerCore
 
             string algorithm = request.GetQueryOrForm("algorithm");
             uint dnsKeyTtl = request.GetQueryOrForm<uint>("dnsKeyTtl", uint.Parse, 24 * 60 * 60);
-            ushort zskRolloverDays = request.GetQueryOrForm<ushort>("zskRolloverDays", ushort.Parse, 90);
+            ushort zskRolloverDays = request.GetQueryOrForm<ushort>("zskRolloverDays", ushort.Parse, 30);
 
             bool useNSEC3 = false;
             string strNxProof = request.QueryOrForm("nxProof");
@@ -1268,7 +1278,7 @@ namespace DnsServerCore
                 throw new DnsWebServiceException("Access was denied.");
 
             DnssecPrivateKeyType keyType = request.GetQueryOrFormEnum<DnssecPrivateKeyType>("keyType");
-            ushort rolloverDays = request.GetQueryOrForm("rolloverDays", ushort.Parse, (ushort)(keyType == DnssecPrivateKeyType.ZoneSigningKey ? 90 : 0));
+            ushort rolloverDays = request.GetQueryOrForm("rolloverDays", ushort.Parse, (ushort)(keyType == DnssecPrivateKeyType.ZoneSigningKey ? 30 : 0));
             string algorithm = request.GetQueryOrForm("algorithm");
 
             switch (algorithm.ToUpper())
@@ -1982,6 +1992,9 @@ namespace DnsServerCore
 
                         string cname = request.GetQueryOrFormAlt("cname", "value").TrimEnd('.');
 
+                        if (cname.Equals(domain, StringComparison.OrdinalIgnoreCase))
+                            throw new DnsWebServiceException("CNAME domain name cannot be same as that of the record name.");
+
                         newRecord = new DnsResourceRecord(domain, type, DnsClass.IN, ttl, new DnsCNAMERecordData(cname));
 
                         if (!string.IsNullOrEmpty(comments))
@@ -2070,6 +2083,12 @@ namespace DnsServerCore
 
                         string dname = request.GetQueryOrFormAlt("dname", "value").TrimEnd('.');
 
+                        if (dname.EndsWith("." + domain, StringComparison.OrdinalIgnoreCase))
+                            throw new DnsWebServiceException("DNAME domain name cannot be a sub domain of the record name.");
+
+                        if (dname.Equals(domain, StringComparison.OrdinalIgnoreCase))
+                            throw new DnsWebServiceException("DNAME domain name cannot be same as that of the record name.");
+
                         newRecord = new DnsResourceRecord(domain, type, DnsClass.IN, ttl, new DnsDNAMERecordData(dname));
 
                         if (!string.IsNullOrEmpty(comments))
@@ -2124,6 +2143,54 @@ namespace DnsServerCore
                         string tlsaCertificateAssociationData = request.GetQueryOrForm("tlsaCertificateAssociationData");
 
                         newRecord = new DnsResourceRecord(domain, type, DnsClass.IN, ttl, new DnsTLSARecordData(tlsaCertificateUsage, tlsaSelector, tlsaMatchingType, tlsaCertificateAssociationData));
+
+                        if (!string.IsNullOrEmpty(comments))
+                            newRecord.GetAuthRecordInfo().Comments = comments;
+
+                        if (overwrite)
+                            _dnsWebService.DnsServer.AuthZoneManager.SetRecord(zoneInfo.Name, newRecord);
+                        else
+                            _dnsWebService.DnsServer.AuthZoneManager.AddRecord(zoneInfo.Name, newRecord);
+                    }
+                    break;
+
+                case DnsResourceRecordType.SVCB:
+                case DnsResourceRecordType.HTTPS:
+                    {
+                        ushort svcPriority = request.GetQueryOrForm("svcPriority", ushort.Parse);
+                        string targetName = request.GetQueryOrForm("svcTargetName").TrimEnd('.');
+                        string strSvcParams = request.GetQueryOrForm("svcParams");
+
+                        Dictionary<DnsSvcParamKey, DnsSvcParamValue> svcParams;
+
+                        if (strSvcParams.Equals("false", StringComparison.OrdinalIgnoreCase))
+                        {
+                            svcParams = new Dictionary<DnsSvcParamKey, DnsSvcParamValue>(0);
+                        }
+                        else
+                        {
+                            string[] strSvcParamsParts = strSvcParams.Split('|');
+                            svcParams = new Dictionary<DnsSvcParamKey, DnsSvcParamValue>(strSvcParamsParts.Length / 2);
+
+                            for (int i = 0; i < strSvcParamsParts.Length; i += 2)
+                            {
+                                DnsSvcParamKey svcParamKey = Enum.Parse<DnsSvcParamKey>(strSvcParamsParts[i].Replace('-', '_'), true);
+                                DnsSvcParamValue svcParamValue = DnsSvcParamValue.Parse(svcParamKey, strSvcParamsParts[i + 1]);
+
+                                svcParams.Add(svcParamKey, svcParamValue);
+                            }
+                        }
+
+                        switch (type)
+                        {
+                            case DnsResourceRecordType.HTTPS:
+                                newRecord = new DnsResourceRecord(domain, type, DnsClass.IN, ttl, new DnsHTTPSRecordData(svcPriority, targetName, svcParams));
+                                break;
+
+                            default:
+                                newRecord = new DnsResourceRecord(domain, type, DnsClass.IN, ttl, new DnsSVCBRecordData(svcPriority, targetName, svcParams));
+                                break;
+                        }
 
                         if (!string.IsNullOrEmpty(comments))
                             newRecord.GetAuthRecordInfo().Comments = comments;
@@ -2228,7 +2295,27 @@ namespace DnsServerCore
                     break;
 
                 default:
-                    throw new DnsWebServiceException("Type not supported for AddRecords().");
+                    {
+                        string strRData = request.GetQueryOrForm("rdata");
+
+                        byte[] rdata;
+
+                        if (strRData.Contains(':'))
+                            rdata = strRData.ParseColonHexString();
+                        else
+                            rdata = Convert.FromHexString(strRData);
+
+                        newRecord = new DnsResourceRecord(domain, type, DnsClass.IN, ttl, new DnsUnknownRecordData(rdata));
+
+                        if (!string.IsNullOrEmpty(comments))
+                            newRecord.GetAuthRecordInfo().Comments = comments;
+
+                        if (overwrite)
+                            _dnsWebService.DnsServer.AuthZoneManager.SetRecord(zoneInfo.Name, newRecord);
+                        else
+                            _dnsWebService.DnsServer.AuthZoneManager.AddRecord(zoneInfo.Name, newRecord);
+                    }
+                    break;
             }
 
             _dnsWebService._log.Write(context.GetRemoteEndPoint(), "[" + session.User.Username + "] New record was added to authoritative zone {record: " + newRecord.ToString() + "}");
@@ -2437,6 +2524,46 @@ namespace DnsServerCore
                     }
                     break;
 
+                case DnsResourceRecordType.SVCB:
+                case DnsResourceRecordType.HTTPS:
+                    {
+                        ushort svcPriority = request.GetQueryOrForm("svcPriority", ushort.Parse);
+                        string targetName = request.GetQueryOrForm("svcTargetName").TrimEnd('.');
+                        string strSvcParams = request.GetQueryOrForm("svcParams");
+
+                        Dictionary<DnsSvcParamKey, DnsSvcParamValue> svcParams;
+
+                        if (strSvcParams.Equals("false", StringComparison.OrdinalIgnoreCase))
+                        {
+                            svcParams = new Dictionary<DnsSvcParamKey, DnsSvcParamValue>(0);
+                        }
+                        else
+                        {
+                            string[] strSvcParamsParts = strSvcParams.Split('|');
+                            svcParams = new Dictionary<DnsSvcParamKey, DnsSvcParamValue>(strSvcParamsParts.Length / 2);
+
+                            for (int i = 0; i < strSvcParamsParts.Length; i += 2)
+                            {
+                                DnsSvcParamKey svcParamKey = Enum.Parse<DnsSvcParamKey>(strSvcParamsParts[i].Replace('-', '_'), true);
+                                DnsSvcParamValue svcParamValue = DnsSvcParamValue.Parse(svcParamKey, strSvcParamsParts[i + 1]);
+
+                                svcParams.Add(svcParamKey, svcParamValue);
+                            }
+                        }
+
+                        switch (type)
+                        {
+                            case DnsResourceRecordType.HTTPS:
+                                _dnsWebService.DnsServer.AuthZoneManager.DeleteRecord(zoneInfo.Name, domain, type, new DnsHTTPSRecordData(svcPriority, targetName, svcParams));
+                                break;
+
+                            default:
+                                _dnsWebService.DnsServer.AuthZoneManager.DeleteRecord(zoneInfo.Name, domain, type, new DnsSVCBRecordData(svcPriority, targetName, svcParams));
+                                break;
+                        }
+                    }
+                    break;
+
                 case DnsResourceRecordType.CAA:
                     {
                         byte flags = request.GetQueryOrForm("flags", byte.Parse);
@@ -2469,7 +2596,20 @@ namespace DnsServerCore
                     break;
 
                 default:
-                    throw new DnsWebServiceException("Type not supported for DeleteRecord().");
+                    {
+                        string strRData = request.GetQueryOrForm("rdata");
+
+                        byte[] rdata;
+
+                        if (strRData.Contains(':'))
+                            rdata = strRData.ParseColonHexString();
+                        else
+                            rdata = Convert.FromHexString(strRData);
+
+                        if (!_dnsWebService.DnsServer.AuthZoneManager.DeleteRecord(zoneInfo.Name, domain, type, new DnsUnknownRecordData(rdata)))
+                            throw new DnsWebServiceException("Failed to delete the record.");
+                    }
+                    break;
             }
 
             _dnsWebService._log.Write(context.GetRemoteEndPoint(), "[" + session.User.Username + "] Record was deleted from authoritative zone {domain: " + domain + "; type: " + type + ";}");
@@ -2615,6 +2755,9 @@ namespace DnsServerCore
                 case DnsResourceRecordType.CNAME:
                     {
                         string cname = request.GetQueryOrFormAlt("cname", "value").TrimEnd('.');
+
+                        if (cname.Equals(newDomain, StringComparison.OrdinalIgnoreCase))
+                            throw new DnsWebServiceException("CNAME domain name cannot be same as that of the record name.");
 
                         oldRecord = new DnsResourceRecord(domain, type, DnsClass.IN, 0, new DnsCNAMERecordData(cname));
                         newRecord = new DnsResourceRecord(newDomain, type, DnsClass.IN, ttl, new DnsCNAMERecordData(cname));
@@ -2797,6 +2940,12 @@ namespace DnsServerCore
                     {
                         string dname = request.GetQueryOrFormAlt("dname", "value").TrimEnd('.');
 
+                        if (dname.EndsWith("." + newDomain, StringComparison.OrdinalIgnoreCase))
+                            throw new DnsWebServiceException("DNAME domain name cannot be a sub domain of the record name.");
+
+                        if (dname.Equals(newDomain, StringComparison.OrdinalIgnoreCase))
+                            throw new DnsWebServiceException("DNAME domain name cannot be same as that of the record name.");
+
                         oldRecord = new DnsResourceRecord(domain, type, DnsClass.IN, 0, new DnsDNAMERecordData(dname));
                         newRecord = new DnsResourceRecord(newDomain, type, DnsClass.IN, ttl, new DnsDNAMERecordData(dname));
 
@@ -2877,6 +3026,81 @@ namespace DnsServerCore
 
                         oldRecord = new DnsResourceRecord(domain, type, DnsClass.IN, 0, new DnsTLSARecordData(tlsaCertificateUsage, tlsaSelector, tlsaMatchingType, tlsaCertificateAssociationData));
                         newRecord = new DnsResourceRecord(newDomain, type, DnsClass.IN, ttl, new DnsTLSARecordData(newTlsaCertificateUsage, newTlsaSelector, newTlsaMatchingType, newTlsaCertificateAssociationData));
+
+                        if (disable)
+                            newRecord.GetAuthRecordInfo().Disabled = true;
+
+                        if (!string.IsNullOrEmpty(comments))
+                            newRecord.GetAuthRecordInfo().Comments = comments;
+
+                        _dnsWebService.DnsServer.AuthZoneManager.UpdateRecord(zoneInfo.Name, oldRecord, newRecord);
+                    }
+                    break;
+
+                case DnsResourceRecordType.SVCB:
+                case DnsResourceRecordType.HTTPS:
+                    {
+                        ushort svcPriority = request.GetQueryOrForm("svcPriority", ushort.Parse);
+                        ushort newSvcPriority = request.GetQueryOrForm("newSvcPriority", ushort.Parse, svcPriority);
+
+                        string targetName = request.GetQueryOrForm("svcTargetName").TrimEnd('.');
+                        string newTargetName = request.GetQueryOrForm("newSvcTargetName", targetName).TrimEnd('.');
+
+                        string strSvcParams = request.GetQueryOrForm("svcParams");
+                        string strNewSvcParams = request.GetQueryOrForm("newSvcParams", strSvcParams);
+
+                        Dictionary<DnsSvcParamKey, DnsSvcParamValue> svcParams;
+
+                        if (strSvcParams.Equals("false", StringComparison.OrdinalIgnoreCase))
+                        {
+                            svcParams = new Dictionary<DnsSvcParamKey, DnsSvcParamValue>(0);
+                        }
+                        else
+                        {
+                            string[] strSvcParamsParts = strSvcParams.Split('|');
+                            svcParams = new Dictionary<DnsSvcParamKey, DnsSvcParamValue>(strSvcParamsParts.Length / 2);
+
+                            for (int i = 0; i < strSvcParamsParts.Length; i += 2)
+                            {
+                                DnsSvcParamKey svcParamKey = Enum.Parse<DnsSvcParamKey>(strSvcParamsParts[i].Replace('-', '_'), true);
+                                DnsSvcParamValue svcParamValue = DnsSvcParamValue.Parse(svcParamKey, strSvcParamsParts[i + 1]);
+
+                                svcParams.Add(svcParamKey, svcParamValue);
+                            }
+                        }
+
+                        Dictionary<DnsSvcParamKey, DnsSvcParamValue> newSvcParams;
+
+                        if (strNewSvcParams.Equals("false", StringComparison.OrdinalIgnoreCase))
+                        {
+                            newSvcParams = new Dictionary<DnsSvcParamKey, DnsSvcParamValue>(0);
+                        }
+                        else
+                        {
+                            string[] strSvcParamsParts = strNewSvcParams.Split('|');
+                            newSvcParams = new Dictionary<DnsSvcParamKey, DnsSvcParamValue>(strSvcParamsParts.Length / 2);
+
+                            for (int i = 0; i < strSvcParamsParts.Length; i += 2)
+                            {
+                                DnsSvcParamKey svcParamKey = Enum.Parse<DnsSvcParamKey>(strSvcParamsParts[i].Replace('-', '_'), true);
+                                DnsSvcParamValue svcParamValue = DnsSvcParamValue.Parse(svcParamKey, strSvcParamsParts[i + 1]);
+
+                                newSvcParams.Add(svcParamKey, svcParamValue);
+                            }
+                        }
+
+                        switch (type)
+                        {
+                            case DnsResourceRecordType.HTTPS:
+                                oldRecord = new DnsResourceRecord(domain, type, DnsClass.IN, 0, new DnsHTTPSRecordData(svcPriority, targetName, svcParams));
+                                newRecord = new DnsResourceRecord(newDomain, type, DnsClass.IN, ttl, new DnsHTTPSRecordData(newSvcPriority, newTargetName, newSvcParams));
+                                break;
+
+                            default:
+                                oldRecord = new DnsResourceRecord(domain, type, DnsClass.IN, 0, new DnsSVCBRecordData(svcPriority, targetName, svcParams));
+                                newRecord = new DnsResourceRecord(newDomain, type, DnsClass.IN, ttl, new DnsSVCBRecordData(newSvcPriority, newTargetName, newSvcParams));
+                                break;
+                        }
 
                         if (disable)
                             newRecord.GetAuthRecordInfo().Disabled = true;
@@ -3002,7 +3226,36 @@ namespace DnsServerCore
                     break;
 
                 default:
-                    throw new DnsWebServiceException("Type not supported for UpdateRecords().");
+                    {
+                        string strRData = request.GetQueryOrForm("rdata");
+                        string strNewRData = request.GetQueryOrForm("newRData", strRData);
+
+                        byte[] rdata;
+
+                        if (strRData.Contains(':'))
+                            rdata = strRData.ParseColonHexString();
+                        else
+                            rdata = Convert.FromHexString(strRData);
+
+                        byte[] newRData;
+
+                        if (strNewRData.Contains(':'))
+                            newRData = strNewRData.ParseColonHexString();
+                        else
+                            newRData = Convert.FromHexString(strNewRData);
+
+                        oldRecord = new DnsResourceRecord(domain, type, DnsClass.IN, 0, new DnsUnknownRecordData(rdata));
+                        newRecord = new DnsResourceRecord(newDomain, type, DnsClass.IN, ttl, new DnsUnknownRecordData(newRData));
+
+                        if (disable)
+                            newRecord.GetAuthRecordInfo().Disabled = true;
+
+                        if (!string.IsNullOrEmpty(comments))
+                            newRecord.GetAuthRecordInfo().Comments = comments;
+
+                        _dnsWebService.DnsServer.AuthZoneManager.UpdateRecord(zoneInfo.Name, oldRecord, newRecord);
+                    }
+                    break;
             }
 
             _dnsWebService._log.Write(context.GetRemoteEndPoint(), "[" + session.User.Username + "] Record was updated for authoritative zone {" + (oldRecord is null ? "" : "oldRecord: " + oldRecord.ToString() + "; ") + "newRecord: " + newRecord.ToString() + "}");
