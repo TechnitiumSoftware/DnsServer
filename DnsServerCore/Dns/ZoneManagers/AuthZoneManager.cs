@@ -330,16 +330,37 @@ namespace DnsServerCore.Dns.ZoneManagers
                         }
                         else
                         {
-                            ResolveAdditionalRecords((refRecord.RDATA as DnsNSRecordData).NameServer, dnssecOk, additionalRecords);
+                            ResolveAdditionalRecords(refRecord, (refRecord.RDATA as DnsNSRecordData).NameServer, dnssecOk, additionalRecords);
                         }
                         break;
 
                     case DnsResourceRecordType.MX:
-                        ResolveAdditionalRecords((refRecord.RDATA as DnsMXRecordData).Exchange, dnssecOk, additionalRecords);
+                        ResolveAdditionalRecords(refRecord, (refRecord.RDATA as DnsMXRecordData).Exchange, dnssecOk, additionalRecords);
                         break;
 
                     case DnsResourceRecordType.SRV:
-                        ResolveAdditionalRecords((refRecord.RDATA as DnsSRVRecordData).Target, dnssecOk, additionalRecords);
+                        ResolveAdditionalRecords(refRecord, (refRecord.RDATA as DnsSRVRecordData).Target, dnssecOk, additionalRecords);
+                        break;
+
+                    case DnsResourceRecordType.SVCB:
+                    case DnsResourceRecordType.HTTPS:
+                        DnsSVCBRecordData svcb = refRecord.RDATA as DnsSVCBRecordData;
+                        string targetName = svcb.TargetName;
+
+                        if (svcb.SvcPriority == 0)
+                        {
+                            //For AliasMode SVCB RRs, a TargetName of "." indicates that the service is not available or does not exist [draft-ietf-dnsop-svcb-https-12]
+                            if ((targetName.Length == 0) || targetName.Equals(refRecord.Name, StringComparison.OrdinalIgnoreCase))
+                                break;
+                        }
+                        else
+                        {
+                            //For ServiceMode SVCB RRs, if TargetName has the value ".", then the owner name of this record MUST be used as the effective TargetName [draft-ietf-dnsop-svcb-https-12]
+                            if (targetName.Length == 0)
+                                targetName = refRecord.Name;
+                        }
+
+                        ResolveAdditionalRecords(refRecord, targetName, dnssecOk, additionalRecords);
                         break;
                 }
             }
@@ -347,10 +368,55 @@ namespace DnsServerCore.Dns.ZoneManagers
             return additionalRecords;
         }
 
-        private void ResolveAdditionalRecords(string domain, bool dnssecOk, List<DnsResourceRecord> additionalRecords)
+        private void ResolveAdditionalRecords(DnsResourceRecord refRecord, string domain, bool dnssecOk, List<DnsResourceRecord> additionalRecords)
         {
-            if (_root.TryGet(domain, out AuthZoneNode zoneNode) && zoneNode.IsActive)
+            int count = 0;
+
+            while ((count++ < DnsServer.MAX_CNAME_HOPS) && _root.TryGet(domain, out AuthZoneNode zoneNode) && zoneNode.IsActive)
             {
+                if (((refRecord.Type == DnsResourceRecordType.SVCB) || (refRecord.Type == DnsResourceRecordType.HTTPS)) && ((refRecord.RDATA as DnsSVCBRecordData).SvcPriority == 0))
+                {
+                    //resolve SVCB/HTTPS for Alias mode refRecord
+                    IReadOnlyList<DnsResourceRecord> records = zoneNode.QueryRecords(refRecord.Type, dnssecOk);
+                    if ((records.Count > 0) && (records[0].Type == refRecord.Type) && (records[0].RDATA is DnsSVCBRecordData svcb))
+                    {
+                        additionalRecords.AddRange(records);
+
+                        string targetName = svcb.TargetName;
+
+                        if (svcb.SvcPriority == 0)
+                        {
+                            //Alias mode
+                            if ((targetName.Length == 0) || targetName.Equals(records[0].Name, StringComparison.OrdinalIgnoreCase))
+                                break; //For AliasMode SVCB RRs, a TargetName of "." indicates that the service is not available or does not exist [draft-ietf-dnsop-svcb-https-12]
+
+                            foreach (DnsResourceRecord additionalRecord in additionalRecords)
+                            {
+                                if (additionalRecord.Name.Equals(targetName, StringComparison.OrdinalIgnoreCase))
+                                    return; //loop detected
+                            }
+
+                            //continue to resolve SVCB/HTTPS further
+                            domain = targetName;
+                            refRecord = records[0];
+                            continue;
+                        }
+                        else
+                        {
+                            //Service mode
+                            if (targetName.Length > 0)
+                            {
+                                //continue to resolve A/AAAA for target name
+                                domain = targetName;
+                                refRecord = records[0];
+                                continue;
+                            }
+
+                            //resolve A/AAAA below
+                        }
+                    }
+                }
+
                 {
                     IReadOnlyList<DnsResourceRecord> records = zoneNode.QueryRecords(DnsResourceRecordType.A, dnssecOk);
                     if ((records.Count > 0) && (records[0].Type == DnsResourceRecordType.A))
@@ -362,6 +428,8 @@ namespace DnsServerCore.Dns.ZoneManagers
                     if ((records.Count > 0) && (records[0].Type == DnsResourceRecordType.AAAA))
                         additionalRecords.AddRange(records);
                 }
+
+                break;
             }
         }
 
@@ -1794,40 +1862,50 @@ namespace DnsServerCore.Dns.ZoneManagers
             }
         }
 
-        public void DeleteRecord(string zoneName, string domain, DnsResourceRecordType type, DnsResourceRecordData record)
+        public bool DeleteRecord(string zoneName, string domain, DnsResourceRecordType type, DnsResourceRecordData record)
         {
             ValidateZoneNameFor(zoneName, domain);
 
             if (_root.TryGet(zoneName, domain, out AuthZone authZone))
             {
-                authZone.DeleteRecord(type, record);
-
-                if (authZone is SubDomainZone subDomainZone)
+                if (authZone.DeleteRecord(type, record))
                 {
-                    if (authZone.IsEmpty)
-                        _root.TryRemove(domain, out SubDomainZone _); //remove empty sub zone
-                    else
-                        subDomainZone.AutoUpdateState();
+                    if (authZone is SubDomainZone subDomainZone)
+                    {
+                        if (authZone.IsEmpty)
+                            _root.TryRemove(domain, out SubDomainZone _); //remove empty sub zone
+                        else
+                            subDomainZone.AutoUpdateState();
+                    }
+
+                    return true;
                 }
             }
+
+            return false;
         }
 
-        public void DeleteRecords(string zoneName, string domain, DnsResourceRecordType type)
+        public bool DeleteRecords(string zoneName, string domain, DnsResourceRecordType type)
         {
             ValidateZoneNameFor(zoneName, domain);
 
             if (_root.TryGet(zoneName, domain, out AuthZone authZone))
             {
-                authZone.DeleteRecords(type);
-
-                if (authZone is SubDomainZone subDomainZone)
+                if (authZone.DeleteRecords(type))
                 {
-                    if (authZone.IsEmpty)
-                        _root.TryRemove(domain, out SubDomainZone _); //remove empty sub zone
-                    else
-                        subDomainZone.AutoUpdateState();
+                    if (authZone is SubDomainZone subDomainZone)
+                    {
+                        if (authZone.IsEmpty)
+                            _root.TryRemove(domain, out SubDomainZone _); //remove empty sub zone
+                        else
+                            subDomainZone.AutoUpdateState();
+                    }
+
+                    return true;
                 }
             }
+
+            return false;
         }
 
         public IReadOnlyList<AuthZoneInfo> GetAllZones()
@@ -2129,6 +2207,8 @@ namespace DnsServerCore.Dns.ZoneManagers
                         case DnsResourceRecordType.NS:
                         case DnsResourceRecordType.MX:
                         case DnsResourceRecordType.SRV:
+                        case DnsResourceRecordType.SVCB:
+                        case DnsResourceRecordType.HTTPS:
                             additional = GetAdditionalRecords(answers, dnssecOk);
                             break;
 
