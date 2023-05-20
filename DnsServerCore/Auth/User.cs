@@ -336,6 +336,9 @@ namespace DnsServerCore.Auth
                 if ((value < 0) || (value > 604800))
                     throw new ArgumentOutOfRangeException(nameof(SessionTimeoutSeconds), "Session timeout value must be between 0-604800 seconds.");
 
+                if ((value > 0) && (value < 60))
+                    value = 60; //to prevent issues with too low timeout set by mistake
+
                 _sessionTimeoutSeconds = value;
             }
         }
