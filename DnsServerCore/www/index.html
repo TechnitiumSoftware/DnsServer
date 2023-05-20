@@ -4,6 +4,7 @@
 <head>
     <meta charset="utf-8" />
     <meta name="robots" content="noindex, nofollow" />
+    <meta name="referrer" content="no-referrer" />
 
     <title>Technitium DNS Server</title>
 
@@ -806,6 +807,8 @@
                                                 <option>NSEC3</option>
                                                 <option>NSEC3PARAM</option>
                                                 <option>TLSA</option>
+                                                <option>SVCB</option>
+                                                <option>HTTPS</option>
                                                 <option>CAA</option>
                                                 <option>ANY</option>
                                                 <option>AXFR</option>
@@ -1748,6 +1751,7 @@
                                                                     <option value="cloudflare-tls">Cloudflare (DNS-over-TLS)</option>
                                                                     <option value="cloudflare-tls-ipv6">Cloudflare (DNS-over-TLS IPv6)</option>
                                                                     <option value="cloudflare-https">Cloudflare (DNS-over-HTTPS)</option>
+                                                                    <option value="cloudflare-https-ipv6">Cloudflare (DNS-over-HTTPS IPv6)</option>
                                                                     <option value="cloudflare-tor">Cloudflare (DNS-over-TOR!)</option>
 
                                                                     <option value="google-udp">Google (DNS-over-UDP)</option>
@@ -1757,6 +1761,7 @@
                                                                     <option value="google-tls">Google (DNS-over-TLS)</option>
                                                                     <option value="google-tls-ipv6">Google (DNS-over-TLS IPv6)</option>
                                                                     <option value="google-https">Google (DNS-over-HTTPS)</option>
+                                                                    <option value="google-https-ipv6">Google (DNS-over-HTTPS IPv6)</option>
 
                                                                     <option value="quad9-udp">Quad9 Secure (DNS-over-UDP)</option>
                                                                     <option value="quad9-udp-ipv6">Quad9 Secure (DNS-over-UDP IPv6)</option>
@@ -1765,6 +1770,7 @@
                                                                     <option value="quad9-tls">Quad9 Secure (DNS-over-TLS)</option>
                                                                     <option value="quad9-tls-ipv6">Quad9 Secure (DNS-over-TLS IPv6)</option>
                                                                     <option value="quad9-https">Quad9 Secure (DNS-over-HTTPS)</option>
+                                                                    <option value="quad9-https-ipv6">Quad9 Secure (DNS-over-HTTPS IPv6)</option>
 
                                                                     <option value="quad9-unsecure-udp">Quad9 Unsecure (DNS-over-UDP)</option>
                                                                     <option value="quad9-unsecure-udp-ipv6">Quad9 Unsecure (DNS-over-UDP IPv6)</option>
@@ -1773,6 +1779,7 @@
                                                                     <option value="quad9-unsecure-tls">Quad9 Unsecure (DNS-over-TLS)</option>
                                                                     <option value="quad9-unsecure-tls-ipv6">Quad9 Unsecure (DNS-over-TLS IPv6)</option>
                                                                     <option value="quad9-unsecure-https">Quad9 Unsecure (DNS-over-HTTPS)</option>
+                                                                    <option value="quad9-unsecure-https-ipv6">Quad9 Unsecure (DNS-over-HTTPS IPv6)</option>
 
                                                                     <option value="opendns-udp">OpenDNS (DNS-over-UDP)</option>
                                                                     <option value="opendns-udp-ipv6">OpenDNS (DNS-over-UDP IPv6)</option>
@@ -3315,10 +3322,13 @@ ns1.example.com ([2001:db8::])
                                         <option id="optAddEditRecordTypeDs">DS</option>
                                         <option id="optAddEditRecordTypeSshfp">SSHFP</option>
                                         <option id="optAddEditRecordTypeTlsa">TLSA</option>
+                                        <option>SVCB</option>
+                                        <option>HTTPS</option>
                                         <option>CAA</option>
                                         <option id="optAddEditRecordTypeAName">ANAME</option>
                                         <option id="optAddEditRecordTypeFwd">FWD</option>
                                         <option id="optAddEditRecordTypeApp">APP</option>
+                                        <option>Unknown</option>
                                     </select>
                                 </div>
                             </div>
@@ -3332,6 +3342,13 @@ ns1.example.com ([2001:db8::])
 
 
                             <div id="divAddEditRecordData">
+                                <div id="divAddEditRecordDataUnknownType" class="form-group">
+                                    <label for="txtAddEditRecordDataUnknownType" class="col-sm-4 control-label">RR Type</label>
+                                    <div class="col-sm-7">
+                                        <input id="txtAddEditRecordDataUnknownType" type="text" class="form-control" placeholder="type" style="width: 100px;">
+                                    </div>
+                                </div>
+
                                 <div class="form-group">
                                     <label id="lblAddEditRecordDataValue" for="txtAddEditRecordDataValue" class="col-sm-4 control-label">Value</label>
                                     <div class="col-sm-7">
@@ -3627,6 +3644,41 @@ MII...
 -----END CERTIFICATE-----
 "></textarea>
                                         <div>Note: Enter either a hash value that you have independently generated, OR enter the certificate in PEM format to automatically generate the association data based on the Selector and Matching Type values.</div>
+                                    </div>
+                                </div>
+                            </div>
+
+
+                            <div id="divAddEditRecordDataSvcb" style="display: none;">
+                                <div class="form-group">
+                                    <label for="txtAddEditRecordDataSvcbPriority" class="col-sm-4 control-label">Priority</label>
+                                    <div class="col-sm-7">
+                                        <input type="number" class="form-control" id="txtAddEditRecordDataSvcbPriority" style="width: 100px; display: inline;">
+                                        <span>(set 0 for alias mode)</span>
+                                    </div>
+                                </div>
+                                <div class="form-group">
+                                    <label for="txtAddEditRecordDataSvcbTargetName" class="col-sm-4 control-label">Target Name</label>
+                                    <div class="col-sm-7">
+                                        <input type="text" class="form-control" id="txtAddEditRecordDataSvcbTargetName">
+                                    </div>
+                                </div>
+                                <div class="form-group">
+                                    <label class="col-sm-4 control-label">Params</label>
+                                    <div class="col-sm-7">
+                                        <table class="table" style="margin-bottom: 0px;">
+                                            <thead>
+                                                <tr>
+                                                    <th>Key</th>
+                                                    <th>Value</th>
+                                                    <th style="width: 94px;">
+                                                        <button type="button" class="btn btn-default" style="padding: 0px 25px;" onclick="addSvcbRecordParamEditRow('', '');">Add</button>
+                                                    </th>
+                                                </tr>
+                                            </thead>
+                                            <tbody id="tableAddEditRecordDataSvcbParams">
+                                            </tbody>
+                                        </table>
                                     </div>
                                 </div>
                             </div>
@@ -4196,7 +4248,7 @@ MII...
                             <label for="txtDnssecSignZoneZskAutoRollover" class="col-sm-4 control-label">ZSK Automatic Rollover</label>
                             <div class="col-sm-8">
                                 <input id="txtDnssecSignZoneZskAutoRollover" type="number" class="form-control" placeholder="days" style="width: 100px; display: inline;">
-                                <span>days (valid range 0-365; default 90; set 0 to disable)</span>
+                                <span>days (valid range 0-365; default 30; set 0 to disable)</span>
                             </div>
                             <div class="col-sm-offset-4 col-sm-8" style="padding-top: 5px;">
                                 The frequency at which the DNS server must automatically rollover all Zone Signing Key (ZSK) keys.
@@ -4348,7 +4400,7 @@ MII...
                                         <div class="col-sm-8">
                                             <div>
                                                 <input id="txtDnssecPropertiesGenerateKeyAutomaticRollover" type="number" class="form-control" placeholder="days" style="width: 100px; display: inline;">
-                                                <span>days (valid range 0-365; default 90; set 0 to disable)</span>
+                                                <span>days (valid range 0-365; default 30; set 0 to disable)</span>
                                             </div>
                                         </div>
                                         <div class="col-sm-offset-4 col-sm-8" style="margin-top: 10px;">
