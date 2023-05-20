@@ -2230,14 +2230,13 @@ namespace DnsServerCore
                 _dnsServer.BlockedZoneManager.LoadBlockedZoneFile();
 
                 //load block list zone async
-                if ((_settingsApi.BlockListUpdateIntervalHours > 0) && (_dnsServer.BlockListZoneManager.BlockListUrls.Count > 0))
+                if (_dnsServer.BlockListZoneManager.BlockListUrls.Count > 0)
                 {
                     ThreadPool.QueueUserWorkItem(delegate (object state)
                     {
                         try
                         {
                             _dnsServer.BlockListZoneManager.LoadBlockLists();
-                            _settingsApi.StartBlockListUpdateTimer();
                         }
                         catch (Exception ex)
                         {
@@ -2245,6 +2244,9 @@ namespace DnsServerCore
                         }
                     });
                 }
+
+                if (_settingsApi.BlockListUpdateIntervalHours > 0)
+                    _settingsApi.StartBlockListUpdateTimer();
 
                 //load dns cache async
                 if (_saveCache)
