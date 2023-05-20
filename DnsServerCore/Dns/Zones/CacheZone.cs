@@ -90,20 +90,6 @@ namespace DnsServerCore.Dns.Zones
             }
         }
 
-        public static bool IsTypeSupportedForEDnsClientSubnet(DnsResourceRecordType type)
-        {
-            switch (type)
-            {
-                case DnsResourceRecordType.A:
-                case DnsResourceRecordType.AAAA:
-                case DnsResourceRecordType.CNAME:
-                    return true;
-
-                default:
-                    return false;
-            }
-        }
-
         #endregion
 
         #region private
@@ -202,7 +188,7 @@ namespace DnsServerCore.Dns.Zones
             CacheRecordInfo cacheRecordInfo = records[0].GetCacheRecordInfo();
             NetworkAddress eDnsClientSubnet = cacheRecordInfo.EDnsClientSubnet;
 
-            if ((eDnsClientSubnet is null) || (!cacheRecordInfo.ConditionalForwardingClientSubnet && !IsTypeSupportedForEDnsClientSubnet(type)))
+            if (eDnsClientSubnet is null)
             {
                 entries = _entries;
             }
@@ -391,7 +377,7 @@ namespace DnsServerCore.Dns.Zones
         {
             ConcurrentDictionary<DnsResourceRecordType, IReadOnlyList<DnsResourceRecord>> entries;
 
-            if ((eDnsClientSubnet is null) || (!conditionalForwardingClientSubnet && !IsTypeSupportedForEDnsClientSubnet(type)))
+            if (eDnsClientSubnet is null)
             {
                 entries = _entries;
             }
