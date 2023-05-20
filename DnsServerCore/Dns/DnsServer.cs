@@ -444,7 +444,11 @@ namespace DnsServerCore.Dns
                             switch (response.Question[0].Type)
                             {
                                 case DnsResourceRecordType.MX:
+                                case DnsResourceRecordType.SRV:
+                                case DnsResourceRecordType.SVCB:
+                                case DnsResourceRecordType.HTTPS:
                                     //removing glue records and trying again since some mail servers fail to fallback to TCP on truncation
+                                    //removing glue records to prevent truncation for SRV/SVCB/HTTPS
                                     response = response.CloneWithoutGlueRecords();
                                     sendBufferStream.Position = 0;
 
@@ -1044,7 +1048,7 @@ namespace DnsServerCore.Dns
             IReadOnlyList<EDnsOption> options = null;
 
             EDnsClientSubnetOptionData requestECS = request.GetEDnsClientSubnetOption(true);
-            if ((requestECS is not null) && (request.Question.Count == 1) && CacheZone.IsTypeSupportedForEDnsClientSubnet(request.Question[0].Type))
+            if (requestECS is not null)
                 options = EDnsClientSubnetOptionData.GetEDnsClientSubnetOption(requestECS.SourcePrefixLength, 0, requestECS.Address);
 
             if (response.Additional.Count == 0)
@@ -2593,7 +2597,7 @@ namespace DnsServerCore.Dns
             NetworkAddress eDnsClientSubnet = null;
             bool conditionalForwardingClientSubnet = false;
 
-            if (_eDnsClientSubnet && CacheZone.IsTypeSupportedForEDnsClientSubnet(question.Type))
+            if (_eDnsClientSubnet)
             {
                 EDnsClientSubnetOptionData requestECS = request.GetEDnsClientSubnetOption();
                 if (requestECS is null)
@@ -3234,7 +3238,7 @@ namespace DnsServerCore.Dns
                     if (response.GetEDnsClientSubnetOption(true) is not null)
                     {
                         //response contains ECS
-                        if ((request.GetEDnsClientSubnetOption(true) is not null) && CacheZone.IsTypeSupportedForEDnsClientSubnet(request.Question[0].Type))
+                        if (request.GetEDnsClientSubnetOption(true) is not null)
                         {
                             //request has ECS and type is supported; keep ECS in response
                             options = response.EDNS.Options;
