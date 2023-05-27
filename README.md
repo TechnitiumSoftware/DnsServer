@@ -37,6 +37,7 @@ Be it a home network or an organization's network, having a locally running DNS 
 - DNSSEC validation support with RSA & ECDSA algorithms for recursive resolver, forwarders, and conditional forwarders with NSEC and NSEC3 support.
 - DNSSEC support for all supported DNS transport protocols including encrypted DNS protocols.
 - DANE TLSA [RFC 6698](https://datatracker.ietf.org/doc/html/rfc6698) record type support. This includes support for automatically generating the hash values using certificates in PEM format.
+- SVCB & HTTPS [draft-ietf-dnsop-svcb-https](https://www.ietf.org/archive/id/draft-ietf-dnsop-svcb-https-12.html) record type support.
 - SSHFP [RFC 4255](https://www.rfc-editor.org/rfc/rfc4255.html) record type support.
 - CNAME cloaking feature to block domain names that resolve to CNAME which are blocked.
 - QNAME minimization support in recursive resolver [RFC 9156](https://www.rfc-editor.org/rfc/rfc9156.html).
@@ -51,7 +52,7 @@ Be it a home network or an organization's network, having a locally running DNS 
 - Bulk conditional forwarding support using Advanced Forwarding DNS App.
 - DNSSEC signed zones support with RSA & ECDSA algorithms.
 - DNSSEC support for both NSEC and NSEC3.
-- Zone transfer with AXFR and IXFR [RFC 1995](https://www.rfc-editor.org/rfc/rfc1995.html) support.
+- Zone transfer with AXFR and IXFR [RFC 1995](https://www.rfc-editor.org/rfc/rfc1995.html) and DNS NOTIFY [RFC 1996](https://www.rfc-editor.org/rfc/rfc1996.html) support.
 - Zone transfer over TLS (XFR-over-TLS) [RFC 9103](https://www.rfc-editor.org/rfc/rfc9103.html) support.
 - Zone transfer over QUIC (XFR-over-QUIC) [RFC 9250](https://www.ietf.org/rfc/rfc9250.html) support.
 - Dynamic DNS Updates [RFC 2136](https://www.rfc-editor.org/rfc/rfc2136) support with security policy.
