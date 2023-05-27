@@ -13,7 +13,7 @@ The environment variables are described below:
 | DNS_SERVER_ADMIN_PASSWORD_FILE             | String  | The path to a file that contains a plain text password for the DNS web console admin user.                                               |
 | DNS_SERVER_PREFER_IPV6                     | Boolean | DNS Server will use IPv6 for querying whenever possible with this option enabled.                                                        |
 | DNS_SERVER_WEB_SERVICE_HTTP_PORT           | Integer | The TCP port number for the DNS web console over HTTP protocol.                                                                          |
-| DNS_SERVER_WEB_SERVICE_HTTPS_PORT          | Integer | The TCP port number for the DNS web console over TLS protocol.                                                                           |
+| DNS_SERVER_WEB_SERVICE_HTTPS_PORT          | Integer | The TCP port number for the DNS web console over HTTPS protocol.                                                                           |
 | DNS_SERVER_WEB_SERVICE_ENABLE_HTTPS        | Boolean | Enables HTTPS for the DNS web console.                                                                                                   |
 | DNS_SERVER_WEB_SERVICE_USE_SELF_SIGNED_CERT| Boolean | Enables self signed TLS certificate for the DNS web console.                                                                             |
 | DNS_SERVER_OPTIONAL_PROTOCOL_DNS_OVER_HTTP | Boolean | Enables DNS server optional protocol DNS-over-HTTP on TCP port 80 to be used with a TLS terminating reverse proxy like nginx.          |
