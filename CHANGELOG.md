@@ -1,5 +1,14 @@
 # Technitium DNS Server Change Log
 
+## Version 11.2
+Release Date: 27 May 2023
+
+- Added support for SVCB and HTTPS record types ([draft-ietf-dnsop-svcb-https](https://datatracker.ietf.org/doc/draft-ietf-dnsop-svcb-https/)).
+- Added support for managing unknown (unsupported) record types.
+- Auto PTR App: Added new DNS app that can generate automatic responses for PTR requests.
+- Weighted Round Robin App: Added new app to allow returning responses with weighted round robin load balancing.
+- Multiple other minor bug fixes and improvements.
+
 ## Version 11.1.1
 Release Date: 1 May 2023
 
