@@ -18,6 +18,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
 using DnsServerCore.ApplicationCommon;
+using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Net;
@@ -139,6 +140,10 @@ namespace SplitHorizon
         public Task<DnsDatagram> ProcessRequestAsync(DnsDatagram request, IPEndPoint remoteEP, DnsTransportProtocol protocol, bool isRecursionAllowed, string zoneName, string appRecordName, uint appRecordTtl, string appRecordData)
         {
             DnsQuestionRecord question = request.Question[0];
+
+            if (!question.Name.Equals(appRecordName, StringComparison.OrdinalIgnoreCase))
+                return Task.FromResult<DnsDatagram>(null);
+
             switch (question.Type)
             {
                 case DnsResourceRecordType.A:

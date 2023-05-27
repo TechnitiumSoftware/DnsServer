@@ -93,6 +93,11 @@ namespace GeoDistance
 
         public Task<DnsDatagram> ProcessRequestAsync(DnsDatagram request, IPEndPoint remoteEP, DnsTransportProtocol protocol, bool isRecursionAllowed, string zoneName, string appRecordName, uint appRecordTtl, string appRecordData)
         {
+            DnsQuestionRecord question = request.Question[0];
+
+            if (!question.Name.Equals(appRecordName, StringComparison.OrdinalIgnoreCase))
+                return Task.FromResult<DnsDatagram>(null);
+
             Location location = null;
 
             bool ecsUsed = false;
@@ -146,10 +151,10 @@ namespace GeoDistance
 
             IReadOnlyList<DnsResourceRecord> answers;
 
-            if (request.Question[0].Name.Equals(zoneName, StringComparison.OrdinalIgnoreCase)) //check for zone apex
-                answers = new DnsResourceRecord[] { new DnsResourceRecord(request.Question[0].Name, DnsResourceRecordType.ANAME, DnsClass.IN, appRecordTtl, new DnsANAMERecordData(cname)) }; //use ANAME
+            if (question.Name.Equals(zoneName, StringComparison.OrdinalIgnoreCase)) //check for zone apex
+                answers = new DnsResourceRecord[] { new DnsResourceRecord(question.Name, DnsResourceRecordType.ANAME, DnsClass.IN, appRecordTtl, new DnsANAMERecordData(cname)) }; //use ANAME
             else
-                answers = new DnsResourceRecord[] { new DnsResourceRecord(request.Question[0].Name, DnsResourceRecordType.CNAME, DnsClass.IN, appRecordTtl, new DnsCNAMERecordData(cname)) };
+                answers = new DnsResourceRecord[] { new DnsResourceRecord(question.Name, DnsResourceRecordType.CNAME, DnsClass.IN, appRecordTtl, new DnsCNAMERecordData(cname)) };
 
             EDnsOption[] options;
 

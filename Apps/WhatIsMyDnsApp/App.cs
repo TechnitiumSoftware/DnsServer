@@ -18,6 +18,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
 using DnsServerCore.ApplicationCommon;
+using System;
 using System.Net;
 using System.Net.Sockets;
 using System.Threading.Tasks;
@@ -47,26 +48,31 @@ namespace WhatIsMyDns
 
         public Task<DnsDatagram> ProcessRequestAsync(DnsDatagram request, IPEndPoint remoteEP, DnsTransportProtocol protocol, bool isRecursionAllowed, string zoneName, string appRecordName, uint appRecordTtl, string appRecordData)
         {
+            DnsQuestionRecord question = request.Question[0];
+
+            if (!question.Name.Equals(appRecordName, StringComparison.OrdinalIgnoreCase))
+                return Task.FromResult<DnsDatagram>(null);
+
             DnsResourceRecord answer;
 
-            switch (request.Question[0].Type)
+            switch (question.Type)
             {
                 case DnsResourceRecordType.A:
                     if (remoteEP.AddressFamily != AddressFamily.InterNetwork)
                         return Task.FromResult<DnsDatagram>(null);
 
-                    answer = new DnsResourceRecord(request.Question[0].Name, DnsResourceRecordType.A, DnsClass.IN, appRecordTtl, new DnsARecordData(remoteEP.Address));
+                    answer = new DnsResourceRecord(question.Name, DnsResourceRecordType.A, DnsClass.IN, appRecordTtl, new DnsARecordData(remoteEP.Address));
                     break;
 
                 case DnsResourceRecordType.AAAA:
                     if (remoteEP.AddressFamily != AddressFamily.InterNetworkV6)
                         return Task.FromResult<DnsDatagram>(null);
 
-                    answer = new DnsResourceRecord(request.Question[0].Name, DnsResourceRecordType.AAAA, DnsClass.IN, appRecordTtl, new DnsAAAARecordData(remoteEP.Address));
+                    answer = new DnsResourceRecord(question.Name, DnsResourceRecordType.AAAA, DnsClass.IN, appRecordTtl, new DnsAAAARecordData(remoteEP.Address));
                     break;
 
                 case DnsResourceRecordType.TXT:
-                    answer = new DnsResourceRecord(request.Question[0].Name, DnsResourceRecordType.TXT, DnsClass.IN, appRecordTtl, new DnsTXTRecordData(remoteEP.Address.ToString()));
+                    answer = new DnsResourceRecord(question.Name, DnsResourceRecordType.TXT, DnsClass.IN, appRecordTtl, new DnsTXTRecordData(remoteEP.Address.ToString()));
                     break;
 
                 default:

@@ -50,6 +50,11 @@ namespace SplitHorizon
 
         public Task<DnsDatagram> ProcessRequestAsync(DnsDatagram request, IPEndPoint remoteEP, DnsTransportProtocol protocol, bool isRecursionAllowed, string zoneName, string appRecordName, uint appRecordTtl, string appRecordData)
         {
+            DnsQuestionRecord question = request.Question[0];
+
+            if (!question.Name.Equals(appRecordName, StringComparison.OrdinalIgnoreCase))
+                return Task.FromResult<DnsDatagram>(null);
+
             using JsonDocument jsonDocument = JsonDocument.Parse(appRecordData);
             JsonElement jsonAppRecordData = jsonDocument.RootElement;
             JsonElement jsonCname = default;
@@ -105,7 +110,6 @@ namespace SplitHorizon
             if (string.IsNullOrEmpty(cname))
                 return Task.FromResult<DnsDatagram>(null);
 
-            DnsQuestionRecord question = request.Question[0];
             IReadOnlyList<DnsResourceRecord> answers;
 
             if (question.Name.Equals(zoneName, StringComparison.OrdinalIgnoreCase)) //check for zone apex

@@ -95,6 +95,10 @@ namespace GeoDistance
         public Task<DnsDatagram> ProcessRequestAsync(DnsDatagram request, IPEndPoint remoteEP, DnsTransportProtocol protocol, bool isRecursionAllowed, string zoneName, string appRecordName, uint appRecordTtl, string appRecordData)
         {
             DnsQuestionRecord question = request.Question[0];
+
+            if (!question.Name.Equals(appRecordName, StringComparison.OrdinalIgnoreCase))
+                return Task.FromResult<DnsDatagram>(null);
+
             switch (question.Type)
             {
                 case DnsResourceRecordType.A:

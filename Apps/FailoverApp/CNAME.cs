@@ -120,6 +120,9 @@ namespace Failover
         {
             DnsQuestionRecord question = request.Question[0];
 
+            if (!question.Name.Equals(appRecordName, StringComparison.OrdinalIgnoreCase))
+                return Task.FromResult<DnsDatagram>(null);
+
             using JsonDocument jsonDocument = JsonDocument.Parse(appRecordData);
             JsonElement jsonAppRecordData = jsonDocument.RootElement;
 
