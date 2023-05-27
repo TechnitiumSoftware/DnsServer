@@ -83,8 +83,15 @@ namespace DnsServerCore.Dns
             //load stats
             LoadLastHourStats();
 
-            //do first maintenance
-            DoMaintenance();
+            try
+            {
+                //do first maintenance
+                DoMaintenance();
+            }
+            catch (Exception ex)
+            {
+                _dnsServer.LogManager?.Write(ex);
+            }
 
             //start periodic maintenance timer
             _maintenanceTimer = new Timer(delegate (object state)
@@ -95,9 +102,7 @@ namespace DnsServerCore.Dns
                 }
                 catch (Exception ex)
                 {
-                    LogManager log = dnsServer.LogManager;
-                    if (log is not null)
-                        log.Write(ex);
+                    _dnsServer.LogManager?.Write(ex);
                 }
             }, null, MAINTENANCE_TIMER_INITIAL_INTERVAL, MAINTENANCE_TIMER_PERIODIC_INTERVAL);
 
@@ -145,9 +150,7 @@ namespace DnsServerCore.Dns
                 }
                 catch (Exception ex)
                 {
-                    LogManager log = dnsServer.LogManager;
-                    if (log is not null)
-                        log.Write(ex);
+                    _dnsServer.LogManager?.Write(ex);
                 }
             });
 
@@ -223,9 +226,7 @@ namespace DnsServerCore.Dns
                 }
                 catch (Exception ex)
                 {
-                    LogManager log = dnsServer.LogManager;
-                    if (log is not null)
-                        log.Write(ex);
+                    _dnsServer.LogManager?.Write(ex);
                 }
             });
 
@@ -270,24 +271,31 @@ namespace DnsServerCore.Dns
 
         private void LoadLastHourStats()
         {
-            DateTime currentDateTime = DateTime.UtcNow;
-            DateTime lastHourDateTime = currentDateTime.AddMinutes(-60);
-
-            HourlyStats lastHourlyStats = null;
-            DateTime lastHourlyStatsDateTime = new DateTime();
-
-            for (int i = 0; i < 60; i++)
+            try
             {
-                DateTime lastDateTime = lastHourDateTime.AddMinutes(i);
+                DateTime currentDateTime = DateTime.UtcNow;
+                DateTime lastHourDateTime = currentDateTime.AddMinutes(-60);
 
-                if ((lastHourlyStats == null) || (lastDateTime.Hour != lastHourlyStatsDateTime.Hour))
+                HourlyStats lastHourlyStats = null;
+                DateTime lastHourlyStatsDateTime = new DateTime();
+
+                for (int i = 0; i < 60; i++)
                 {
-                    lastHourlyStats = LoadHourlyStats(lastDateTime);
-                    lastHourlyStatsDateTime = lastDateTime;
-                }
+                    DateTime lastDateTime = lastHourDateTime.AddMinutes(i);
 
-                _lastHourStatCounters[lastDateTime.Minute] = lastHourlyStats.MinuteStats[lastDateTime.Minute];
-                _lastHourStatCountersCopy[lastDateTime.Minute] = _lastHourStatCounters[lastDateTime.Minute];
+                    if ((lastHourlyStats == null) || (lastDateTime.Hour != lastHourlyStatsDateTime.Hour))
+                    {
+                        lastHourlyStats = LoadHourlyStats(lastDateTime);
+                        lastHourlyStatsDateTime = lastDateTime;
+                    }
+
+                    _lastHourStatCounters[lastDateTime.Minute] = lastHourlyStats.MinuteStats[lastDateTime.Minute];
+                    _lastHourStatCountersCopy[lastDateTime.Minute] = _lastHourStatCounters[lastDateTime.Minute];
+                }
+            }
+            catch (Exception ex)
+            {
+                _dnsServer.LogManager?.Write(ex);
             }
         }
 
