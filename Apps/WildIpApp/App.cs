@@ -90,7 +90,24 @@ namespace WildIp
                         foreach (string part in parts)
                         {
                             if (part.Contains('-') && IPAddress.TryParse(part.Replace('-', ':'), out address))
+                            {
                                 break;
+                            }
+                            else if (part.Length == 32)
+                            {
+                                string addr = null;
+
+                                for (int i = 0; i < 32; i += 4)
+                                {
+                                    if (addr is null)
+                                        addr = part.Substring(i, 4);
+                                    else
+                                        addr += ":" + part.Substring(i, 4);
+                                }
+
+                                if (IPAddress.TryParse(addr, out address))
+                                    break;
+                            }
                         }
 
                         if (address is not null)
