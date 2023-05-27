@@ -339,6 +339,8 @@ function queryLogs(pageNumber) {
                     htmlEncode(responseJSON.response.entries[i].answer) +
                     "</td><td align=\"right\"><div class=\"dropdown\"><a href=\"#\" id=\"btnQueryLogsRowOption" + i + "\" class=\"dropdown-toggle\" data-toggle=\"dropdown\" aria-haspopup=\"true\" aria-expanded=\"true\"><span class=\"glyphicon glyphicon-option-vertical\" aria-hidden=\"true\"></span></a><ul class=\"dropdown-menu dropdown-menu-right\">";
 
+                tableHtml += "<li><a href=\"#\" data-id=\"" + i + "\" onclick=\"queryDnsServer('" + responseJSON.response.entries[i].qname + "', '" + responseJSON.response.entries[i].qtype + "'); return false;\">Query DNS Server</a></li>";
+
                 switch (responseJSON.response.entries[i].responseType.toLowerCase()) {
                     case "blocked":
                     case "upstreamblocked":
@@ -414,4 +416,28 @@ function queryLogs(pageNumber) {
         },
         objLoaderPlaceholder: divQueryLogsLoader
     });
+}
+
+function showQueryLogs(domain, clientIp) {
+    if (domain != null)
+        $("#txtQueryLogQName").val(domain);
+
+    if (clientIp != null)
+        $("#txtQueryLogClientIpAddress").val(clientIp);
+
+    $("#mainPanelTabListDashboard").removeClass("active");
+    $("#mainPanelTabPaneDashboard").removeClass("active");
+
+    $("#mainPanelTabListLogs").addClass("active");
+    $("#mainPanelTabPaneLogs").addClass("active");
+
+    $("#logsTabListLogViewer").removeClass("active");
+    $("#logsTabPaneLogViewer").removeClass("active");
+
+    $("#logsTabListQueryLogs").addClass("active");
+    $("#logsTabPaneQueryLogs").addClass("active");
+
+    $("#modalTopStats").modal("hide");
+
+    refreshQueryLogsTab();
 }
