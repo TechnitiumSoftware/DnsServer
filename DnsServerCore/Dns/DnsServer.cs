@@ -819,8 +819,13 @@ namespace DnsServerCore.Dns
                 {
                     case "GET":
                         bool acceptsDoH = false;
+
                         string requestAccept = request.Headers["Accept"];
-                        if (!string.IsNullOrEmpty(requestAccept))
+                        if (string.IsNullOrEmpty(requestAccept))
+                        {
+                            acceptsDoH = true;
+                        }
+                        else
                         {
                             foreach (string mediaType in requestAccept.Split(','))
                             {
@@ -2982,7 +2987,24 @@ namespace DnsServerCore.Dns
                         }
                         else
                         {
-                            DnsDatagram failureResponse = new DnsDatagram(0, true, DnsOpcode.StandardQuery, false, false, true, true, false, dnssecValidation, DnsResponseCode.ServerFailure, new DnsQuestionRecord[] { question });
+                            List<EDnsOption> options;
+
+                            if ((staleResponse.EDNS is not null) && (staleResponse.EDNS.Options.Count > 0))
+                            {
+                                options = new List<EDnsOption>(staleResponse.EDNS.Options.Count);
+
+                                foreach (EDnsOption option in staleResponse.EDNS.Options)
+                                {
+                                    if (option.Code == EDnsOptionCode.EXTENDED_DNS_ERROR)
+                                        options.Add(option);
+                                }
+                            }
+                            else
+                            {
+                                options = null;
+                            }
+
+                            DnsDatagram failureResponse = new DnsDatagram(0, true, DnsOpcode.StandardQuery, false, false, true, true, false, dnssecValidation, DnsResponseCode.ServerFailure, new DnsQuestionRecord[] { question }, null, null, null, _udpPayloadSize, dnssecValidation ? EDnsHeaderFlags.DNSSEC_OK : EDnsHeaderFlags.None, options);
 
                             taskCompletionSource.SetResult(new RecursiveResolveResponse(failureResponse, staleResponse));
                         }
