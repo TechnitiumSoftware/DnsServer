@@ -29,6 +29,7 @@ using System.Net.Http;
 using System.Text.Json;
 using System.Threading.Tasks;
 using TechnitiumLibrary;
+using TechnitiumLibrary.Net;
 using TechnitiumLibrary.Net.Dns;
 using TechnitiumLibrary.Net.Dns.ResourceRecords;
 using TechnitiumLibrary.Net.Http.Client;
@@ -273,6 +274,9 @@ namespace DnsServerCore
 
                 if (dnssecValidation)
                 {
+                    if ((type == DnsResourceRecordType.PTR) && IPAddress.TryParse(domain, out IPAddress ptrIp))
+                        domain = ptrIp.GetReverseDomain();
+
                     //load trust anchors into dns client if domain is locally hosted
                     _dnsWebService.DnsServer.AuthZoneManager.LoadTrustAnchorsTo(dnsClient, domain, type);
                 }
