@@ -1,10 +1,9 @@
 #!/bin/sh
 
-dotnetDir="/opt/dotnet"
 
 if [ -d "/etc/dns/config" ]
 then
-	dnsDir="/etc/dns"
+    dnsDir="/etc/dns"
 else
     dnsDir="/opt/technitium/dns"
 fi
@@ -28,6 +27,7 @@ else
 	dotnetFound="no"
 fi
 
+dotnetDir="/opt/dotnet"
 if [ ! -d $dotnetDir ] && [ "$dotnetFound" = "yes" ]
 then
 	echo ""
