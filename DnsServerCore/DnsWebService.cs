@@ -30,6 +30,7 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Server.Kestrel.Core;
 using Microsoft.AspNetCore.Server.Kestrel.Https;
 using Microsoft.AspNetCore.StaticFiles;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.FileProviders;
 using Microsoft.Extensions.Logging;
 using System;
@@ -275,7 +276,20 @@ namespace DnsServerCore
 
             builder.Logging.ClearProviders();
 
+            string strCorsAllowedOrigins = Environment.GetEnvironmentVariable("CORS_ALLOWED_ORIGINS");
+            if (!string.IsNullOrEmpty(strCorsAllowedOrigins))
+            {
+                var corsAllowedOrigins = Array.ConvertAll(strCorsAllowedOrigins.Split(','), p => p.Trim());
+                builder.Services.AddCors(options =>
+                {
+                    options.AddDefaultPolicy(builder =>{builder.WithOrigins(corsAllowedOrigins);});
+                });
+            }
+
             _webService = builder.Build();
+
+            if (!string.IsNullOrEmpty(strCorsAllowedOrigins))
+                _webService.UseCors();
 
             if (_webServiceHttpToTlsRedirect && !safeMode && _webServiceEnableTls && (_webServiceTlsCertificate is not null))
                 _webService.UseHttpsRedirection();

@@ -37,6 +37,7 @@ services:
       # - DNS_SERVER_FORWARDERS=1.1.1.1, 8.8.8.8 #Comma separated list of forwarder addresses.
       # - DNS_SERVER_FORWARDER_PROTOCOL=Tcp #Forwarder protocol options: Udp, Tcp, Tls, Https, HttpsJson.
       # - DNS_SERVER_LOG_USING_LOCAL_TIME=true #Enable this option to use local time instead of UTC for logging.
+      # - CORS_ALLOWED_ORIGINS=http://localhost:3000, http://localhost:5380 #Comma separated list of origins to allow for CORS.
     volumes:
       - config:/etc/dns
     restart: unless-stopped
