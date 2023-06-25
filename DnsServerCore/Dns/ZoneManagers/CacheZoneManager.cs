@@ -36,7 +36,7 @@ namespace DnsServerCore.Dns.ZoneManagers
     {
         #region variables
 
-        public const uint FAILURE_RECORD_TTL = 60u;
+        public const uint FAILURE_RECORD_TTL = 10u;
         public const uint NEGATIVE_RECORD_TTL = 300u;
         public const uint MINIMUM_RECORD_TTL = 10u;
         public const uint MAXIMUM_RECORD_TTL = 7 * 24 * 60 * 60;
@@ -447,12 +447,40 @@ namespace DnsServerCore.Dns.ZoneManagers
                     }
                 }
 
+                bool hasA = false;
+                bool hasAAAA = false;
+
+                if ((refRecord.Type == DnsResourceRecordType.SRV) || (refRecord.Type == DnsResourceRecordType.SVCB) || (refRecord.Type == DnsResourceRecordType.HTTPS))
+                {
+                    foreach (DnsResourceRecord additionalRecord in additionalRecords)
+                    {
+                        if (additionalRecord.Name.Equals(domain, StringComparison.OrdinalIgnoreCase))
+                        {
+                            switch (additionalRecord.Type)
+                            {
+                                case DnsResourceRecordType.A:
+                                    hasA = true;
+                                    break;
+
+                                case DnsResourceRecordType.AAAA:
+                                    hasAAAA = true;
+                                    break;
+                            }
+                        }
+
+                        if (hasA && hasAAAA)
+                            break;
+                    }
+                }
+
+                if (!hasA)
                 {
                     IReadOnlyList<DnsResourceRecord> records = cacheZone.QueryRecords(DnsResourceRecordType.A, serveStale, true, eDnsClientSubnet, conditionalForwardingClientSubnet);
                     if ((records.Count > 0) && (records[0].Type == DnsResourceRecordType.A))
                         additionalRecords.AddRange(records);
                 }
 
+                if (!hasAAAA)
                 {
                     IReadOnlyList<DnsResourceRecord> records = cacheZone.QueryRecords(DnsResourceRecordType.AAAA, serveStale, true, eDnsClientSubnet, conditionalForwardingClientSubnet);
                     if ((records.Count > 0) && (records[0].Type == DnsResourceRecordType.AAAA))
